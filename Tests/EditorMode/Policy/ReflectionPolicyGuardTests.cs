@@ -42,6 +42,7 @@ namespace Policy
             ["EditorMode/Core/GameApp/PlayerLoopDriverTests.cs"] = "形状守卫：读私有静态入口的 [RuntimeInitializeOnLoadMethod] 属性",
             ["EditorMode/Service/Resource/AddressableHandlerFailFastTests.cs"] = "形状守卫：遍历方法集断言 fail-fast 面",
             ["EditorMode/Service/Resource/ResourceSeamShapeGuardTests.cs"] = "形状守卫：统计抽象成员 / internal abstract / [Obsolete]",
+            ["EditorMode/Service/Resource/ResourceMethodSetContractTests.cs"] = "形状守卫：连非公开成员一起遍历方法集，断言返回 IResourceOperation 的名单",
             ["EditorMode/Service/Resource/YooAssetHandlerSmokeTests.cs"] = "形状守卫：断言运行期数组字段带 [NonSerialized]",
 
             // ── ② 唤起 Unity 生命周期回调（EditMode 不自动执行） ──

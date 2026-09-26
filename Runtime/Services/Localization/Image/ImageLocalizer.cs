@@ -37,12 +37,12 @@ namespace Moirai.Atropos.Localization
 #if UNITY_EDITOR
 		internal override string GetPreviewDescriptor()
 		{
-			if (!string.IsNullOrEmpty(localizedTextID)) return DescribeResourceIdPreview(localizedTextID);
+			if (!string.IsNullOrEmpty(localizedTextID)) return DescribeResourcePreview(localizedTextID);
 
-			var index = LocalizationService.EditorPreviewLanguageIndex;
+			var index = PreviewLanguageIndex();
 			if (index < 0) return null;
 
-			return $"[{LocalizationService.EditorPreviewLanguage.Name}] 索引 {index} → " +
+			return IndexedPreviewHeader(index) +
 			       $"sprites: {DescribeIndexedElement(sprites, index)} / " +
 			       $"textures: {DescribeIndexedElement(textures, index)} / " +
 			       $"texture2Ds: {DescribeIndexedElement(texture2Ds, index)}";
@@ -86,14 +86,8 @@ namespace Moirai.Atropos.Localization
 			// 同 ID 早退：避免重复异步加载；语言切换走 Localize() 仍会重刷
 			if (textId == localizedTextID) return true;
 #if UNITY_EDITOR
-			// Timeline 预览
-			if (!Application.isPlaying)
-			{
-				return false;
-				// todo 编辑器预览
-				// GameApp.Localization.LoadInEditor();
-				// Prepare();
-			}
+			// 非播放态不注入：编辑态没有后端可取资产，写进组件还会把场景标脏
+			if (!Application.isPlaying) return false;
 #endif
 			if (!LocalizationService.Has(textId))
 			{

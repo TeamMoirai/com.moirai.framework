@@ -63,7 +63,7 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <inheritdoc/>
-        protected override string GetExpectedTypeName() => "Sprite";
+        protected override string GetExpectedTypeName() => nameof(Sprite);
 
         /// <inheritdoc/>
         protected override bool IsExpectedType(Object asset) => asset is Sprite;

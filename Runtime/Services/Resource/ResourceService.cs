@@ -3,6 +3,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
@@ -36,7 +37,7 @@ namespace Moirai.Atropos.Resource
         private static float s_LastGCCollectElapsedSeconds = float.MaxValue;
 
         #endregion
-        
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
@@ -188,17 +189,14 @@ namespace Moirai.Atropos.Resource
         /// 是否已经初始化
         /// </summary>
         public static bool IsInitialized => IsValid && s_Handler.IsInitialized;
-		
+
         /// <summary>
         /// 默认资源包名称。
         /// </summary>
         public static string DefaultPackageName
         {
             get => s_Handler?.DefaultPackageName;
-            set
-            {
-                RequireHandler().DefaultPackageName = value;
-            }
+            set => RequireHandler().DefaultPackageName = value;
         }
 
         /// <summary>
@@ -221,10 +219,7 @@ namespace Moirai.Atropos.Resource
         public static string HostServerURL
         {
             get => s_Handler?.HostServerURL;
-            set
-            {
-                RequireHandler().HostServerURL = value;
-            }
+            set => RequireHandler().HostServerURL = value;
         }
 
         /// <summary>
@@ -233,10 +228,7 @@ namespace Moirai.Atropos.Resource
         public static string FallbackHostServerURL
         {
             get => s_Handler?.FallbackHostServerURL;
-            set
-            {
-                RequireHandler().FallbackHostServerURL = value;
-            }
+            set => RequireHandler().FallbackHostServerURL = value;
         }
 
         /// <summary>
@@ -245,10 +237,7 @@ namespace Moirai.Atropos.Resource
         public static EResourceLoadWayWebGL LoadResWayWebGL
         {
             get => s_Handler?.LoadResWayWebGL ?? EResourceLoadWayWebGL.Undefined;
-            set
-            {
-                RequireHandler().LoadResWayWebGL = value;
-            }
+            set => RequireHandler().LoadResWayWebGL = value;
         }
 
         /// <summary>
@@ -267,10 +256,7 @@ namespace Moirai.Atropos.Resource
         public static string PackageVersion
         {
             get => s_Handler?.PackageVersion;
-            set
-            {
-                RequireHandler().PackageVersion = value;
-            }
+            set => RequireHandler().PackageVersion = value;
         }
 
         /// <summary>
@@ -288,10 +274,7 @@ namespace Moirai.Atropos.Resource
         public static bool AutoUnloadBundleWhenUnused
         {
             get => s_Handler?.AutoUnloadBundleWhenUnused ?? false;
-            set
-            {
-                RequireHandler().AutoUnloadBundleWhenUnused = value;
-            }
+            set => RequireHandler().AutoUnloadBundleWhenUnused = value;
         }
 
         /// <summary>
@@ -300,10 +283,7 @@ namespace Moirai.Atropos.Resource
         public static int DownloadingMaxNum
         {
             get => s_Handler?.DownloadingMaxNum ?? 0;
-            set
-            {
-                RequireHandler().DownloadingMaxNum = value;
-            }
+            set => RequireHandler().DownloadingMaxNum = value;
         }
 
         /// <summary>
@@ -312,11 +292,7 @@ namespace Moirai.Atropos.Resource
         public static int FailedTryAgain
         {
             get => s_Handler?.FailedTryAgain ?? 0;
-            set
-            {
-                RequireHandler().FailedTryAgain = value;
-
-            }
+            set => RequireHandler().FailedTryAgain = value;
         }
 
         /// <summary>
@@ -325,10 +301,7 @@ namespace Moirai.Atropos.Resource
         public static long Milliseconds
         {
             get => s_Handler?.Milliseconds ?? 0L;
-            set
-            {
-                RequireHandler().Milliseconds = value;
-            }
+            set => RequireHandler().Milliseconds = value;
         }
 
         #endregion
@@ -341,10 +314,7 @@ namespace Moirai.Atropos.Resource
         public static int AssetRecordCapacity
         {
             get => s_Handler?.AssetRecordCapacity ?? 0;
-            set
-            {
-                RequireHandler().AssetRecordCapacity = value;
-            }
+            set => RequireHandler().AssetRecordCapacity = value;
         }
 
         /// <summary>
@@ -353,10 +323,7 @@ namespace Moirai.Atropos.Resource
         public static int AssetLeaseCapacity
         {
             get => s_Handler?.AssetLeaseCapacity ?? 0;
-            set
-            {
-                RequireHandler().AssetLeaseCapacity = value;
-            }
+            set => RequireHandler().AssetLeaseCapacity = value;
         }
 
         /// <summary>
@@ -365,10 +332,7 @@ namespace Moirai.Atropos.Resource
         public static int BindingOwnerCapacity
         {
             get => s_Handler?.BindingOwnerCapacity ?? 0;
-            set
-            {
-                RequireHandler().BindingOwnerCapacity = value;
-            }
+            set => RequireHandler().BindingOwnerCapacity = value;
         }
 
         /// <summary>
@@ -377,10 +341,7 @@ namespace Moirai.Atropos.Resource
         public static int BindingSlotCapacity
         {
             get => s_Handler?.BindingSlotCapacity ?? 0;
-            set
-            {
-                RequireHandler().BindingSlotCapacity = value;
-            }
+            set => RequireHandler().BindingSlotCapacity = value;
         }
 
         /// <summary>
@@ -389,10 +350,7 @@ namespace Moirai.Atropos.Resource
         public static float IdleAssetExpireTime
         {
             get => s_Handler?.IdleAssetExpireTime ?? 0;
-            set
-            {
-                RequireHandler().IdleAssetExpireTime = value;
-            }
+            set => RequireHandler().IdleAssetExpireTime = value;
         }
 
         /// <summary>
@@ -402,10 +360,7 @@ namespace Moirai.Atropos.Resource
         public static int IdleAssetCapacity
         {
             get => s_Handler?.IdleAssetCapacity ?? 0;
-            set
-            {
-                RequireHandler().IdleAssetCapacity = value;
-            }
+            set => RequireHandler().IdleAssetCapacity = value;
         }
 
         /// <summary>
@@ -465,31 +420,31 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
-        public static ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : UnityEngine.Object =>
+        public static ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : UObject =>
             RequireHandler().LoadLease<T>(key);
 
         /// <summary>
         /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
-        public static ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UnityEngine.Object =>
+        public static ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UObject =>
             RequireHandler().LoadLease<T>(location, packageName);
 
         /// <summary>
         /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
-        public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default) where T : UnityEngine.Object =>
+        public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default) where T : UObject =>
             RequireHandler().LoadLeaseAsync<T>(key, cancellationToken);
 
         /// <summary>
         /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
         /// </summary>
-        public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UnityEngine.Object =>
+        public static UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UObject =>
             RequireHandler().LoadLeaseAsync<T>(location, cancellationToken, packageName);
 
         /// <summary>
         /// 尝试从资源租约中读取 Unity 资源对象。
         /// </summary>
-        public static bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UnityEngine.Object asset)
+        public static bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
         {
             if (s_Handler == null)
             {
@@ -501,7 +456,6 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
-
 
         #region 资源回收 [ASSET RECYCLING]
 
@@ -687,6 +641,30 @@ namespace Moirai.Atropos.Resource
             s_Handler?.ClearAllBundleFiles(customPackageName);
 
         #endregion
+
+#if UNITY_EDITOR
+        #region 编辑器预览 [EDITOR PREVIEW]
+
+        /// <summary>
+        /// 编辑器（非播放态）按定位地址取资产——预览与工具面的统一入口，直读 <c>AssetDatabase</c>。
+        /// <para>播放态恒返回 <c>null</c>：真在跑时该读运行期已注入的那份，而不是从资产库另取一份绕过后端
+        /// 与租约计数。</para>
+        /// <para>不建记录、不返租约：Inspector 每重绘一次就取一次，进计数等于每次白租一份。</para>
+        /// <para>取不到一律是 <c>null</c>，不抛：本入口站在 Inspector 的重绘路径上，抛出等于把组件面板打死。</para>
+        /// </summary>
+        /// <param name="location">资源定位地址（本项目约定即 <c>Assets/...</c> 资产路径）。</param>
+        /// <returns>地址为空、播放态、settings 未配处理器或资产不存在时为 <c>null</c>。</returns>
+        public static UObject LoadAssetForEditor(string location)
+        {
+            if (Application.isPlaying) return null;
+
+            // 编辑态服务世界没起来、运行期处理器为空，直读 settings 里配置的那份实例（未 Internal_Init，
+            // 因此实现侧不得依赖后端运行时状态）。
+            return ResourceServiceSettings.ResourceServiceHandler?.LoadAssetForEditor(location);
+        }
+
+        #endregion
+#endif
 
         #region 调度决策（纯函数，供回归测试）[SCHEDULING DECISIONS]
 

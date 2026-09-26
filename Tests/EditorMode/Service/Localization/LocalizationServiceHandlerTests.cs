@@ -205,13 +205,13 @@ namespace Service.Localization
         public void LocalizeCore_NoMarker_ReturnsSameInstanceWithoutAlloc()
         {
             var input = "plain text without markers";
-            Assert.AreSame(input, LocalizationService.LocalizeCore(input, ProbeResolve));
+            Assert.AreSame(input, LocalizationService.Localize(input, ProbeResolve));
         }
 
         [Test]
         public void LocalizeCore_ReplacesMarkersAcrossFamiliesAndCase()
         {
-            var result = LocalizationService.LocalizeCore(
+            var result = LocalizationService.Localize(
                 "A {l10n:title} B {i18n:NAME} C {G11n:title} D", ProbeResolve);
             Assert.AreEqual("A 标题 B 名字 C 标题 D", result);
         }
@@ -220,13 +220,13 @@ namespace Service.Localization
         public void LocalizeCore_UnknownMarker_StaysVerbatim()
         {
             var input = "X {l10n:missing} Y";
-            Assert.AreSame(input, LocalizationService.LocalizeCore(input, ProbeResolve), "未解析标记原样保留且直返原串");
+            Assert.AreSame(input, LocalizationService.Localize(input, ProbeResolve), "未解析标记原样保留且直返原串");
         }
 
         [Test]
         public void LocalizeCore_TrimsIdWhitespace()
         {
-            var result = LocalizationService.LocalizeCore("{l10n:  title  }", ProbeResolve);
+            var result = LocalizationService.Localize("{l10n:  title  }", ProbeResolve);
             Assert.AreEqual("标题", result);
         }
 
@@ -234,13 +234,13 @@ namespace Service.Localization
         public void LocalizeCore_UnterminatedMarker_StaysVerbatim()
         {
             var input = "a {l10n:title b";
-            Assert.AreSame(input, LocalizationService.LocalizeCore(input, ProbeResolve));
+            Assert.AreSame(input, LocalizationService.Localize(input, ProbeResolve));
         }
 
         [Test]
         public void LocalizeCore_DuplicateMarkers_BothReplacedOnce()
         {
-            var result = LocalizationService.LocalizeCore("{l10n:title} and {l10n:title}", ProbeResolve);
+            var result = LocalizationService.Localize("{l10n:title} and {l10n:title}", ProbeResolve);
             Assert.AreEqual("标题 and 标题", result);
         }
 
@@ -248,7 +248,7 @@ namespace Service.Localization
         public void LocalizeCore_EmptyTranslation_ReplacesWithEmpty()
         {
             // 译文为空字符串是合法解析结果（与"未解析"不同），标记位应被抹掉
-            var result = LocalizationService.LocalizeCore("[{l10n:empty}]", ProbeResolve);
+            var result = LocalizationService.Localize("[{l10n:empty}]", ProbeResolve);
             Assert.AreEqual("[]", result);
         }
 

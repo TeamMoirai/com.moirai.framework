@@ -63,20 +63,5 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <param name="id">配置 ID。</param>
         public abstract string GetUIWindowLocation(string id);
-
-#if UNITY_EDITOR
-        /// <summary>
-        /// 编辑器预览专用：取一份多语言文本，<b>不得依赖资源系统与播放态</b>。
-        /// </summary>
-        /// <remarks>
-        /// <para>默认沿用 <see cref="GetAllLocalizedStrings"/>——生成侧的读表器在 <c>!Application.isPlaying</c>
-        /// 时本就走 <c>AssetDatabase</c>/磁盘直读，所以存量项目零改也能预览。</para>
-        /// <para>若某项目的表只在资源系统里（YooAsset 包内、离线模式不可用），就覆写本方法直接读磁盘上的表文件：
-        /// 预览只要求「同样那份表数据」，不要求同一条加载路径，也不为此引入第二份 JSON 中间源——
-        /// 中间源迟早与真表漂移，届时编辑器里看到的"对"就不再等于运行期的"对"。</para>
-        /// </remarks>
-        public virtual Dictionary<string, List<string>> GetLocalizedStringsForEditorPreview()
-            => GetAllLocalizedStrings();
-#endif
     }
 }

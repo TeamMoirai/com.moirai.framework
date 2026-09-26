@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Localization
 		}
 
 		/// <inheritdoc/>
-		protected override string GetExpectedTypeName() => "Texture2D";
+		protected override string GetExpectedTypeName() => nameof(Texture2D);
 
 		/// <inheritdoc/>
 		protected override bool IsExpectedType(Object asset) => asset is Texture2D;

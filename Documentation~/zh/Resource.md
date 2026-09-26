@@ -238,6 +238,15 @@ public readonly struct ResourceKey
 | `bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset)` | 从租约句柄读取 Unity 资产对象。 |
 | `IResourceBindingService BindingService { get; }` | 访问绑定服务。 |
 
+### 编辑器预览取资产（仅编辑器）
+
+| 方法 | 说明 |
+|--------|------|
+| `Object LoadAssetForEditor(string location)` | 非播放态按地址取资产，直读 `AssetDatabase.LoadAssetAtPath`；播放态、地址为空、Settings 未配处理器或资产不存在时为 `null` |
+| `ResourceServiceHandler.LoadAssetForEditor(location)` | 同一件事的**后端接缝**（`virtual`）：地址不是资产路径的后端覆写它补上自己的换算 |
+
+编辑态没有可用的后端运行时（服务世界没起来、包没初始化），预览因此不走租约：一次 `LoadAssetAtPath` 拿到的对象取完即弃，进引用计数就等于 Inspector 每重绘一次白租一份。非播放态按地址取资产只有这一条入口——本地化预览查「这条地址背后是什么资产」、配置表读 `TextAsset` 都走它，实例取自 Settings 里配置的那份处理器（从没走过 `Internal_Init`，覆写里只准做地址到资产的换算）。地址默认就是资产路径——本框架的发行配置里 `EnableAddressable` 关着，清单因此以 AssetPath 定位。
+
 ## Binding API 参考
 
 ### ResourceOwner

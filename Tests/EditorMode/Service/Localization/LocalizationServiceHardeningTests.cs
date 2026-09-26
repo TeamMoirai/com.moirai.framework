@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using System.Threading;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.Tests.EditorMode;
@@ -14,7 +13,8 @@ namespace Service.Localization
     /// <summary>
     /// 本地化商业化加固测试：数据未就绪时的本地化器静默延迟、缺译追踪、格式化文化跟随游戏语言。
     /// <para>处理器级用例直接构造桩数据源（复用 <see cref="L10nProbeHandler"/>）；
-    /// 外观级用例经反射直设/还原 <c>s_Handler</c>，不污染跨夹具的静态状态。</para>
+    /// 外观级用例走生成的 <c>Internal_PeekHandler()</c> / <c>Internal_UseHandler(next)</c> 换入换出，
+    /// 不反射私有字段，也不污染跨夹具的静态状态。</para>
     /// </summary>
     [TestFixture]
     public sealed class LocalizationServiceHardeningTests
@@ -22,11 +22,8 @@ namespace Service.Localization
         private static readonly Language English = Language.English;
         private static readonly Language Chinese = Language.ChineseSimplified;
 
-        private static readonly FieldInfo s_HandlerField =
-            typeof(LocalizationService).GetField("s_Handler", BindingFlags.Static | BindingFlags.NonPublic);
-
         private L10nProbeHandler _handler;
-        private object _originalFacadeHandler;
+        private LocalizationServiceHandler _originalFacadeHandler;
         private GameObject _gameObject;
 
         [SetUp]
@@ -34,7 +31,7 @@ namespace Service.Localization
         {
             _handler = new L10nProbeHandler();
             _handler.Internal_Init();
-            _originalFacadeHandler = s_HandlerField?.GetValue(null);
+            _originalFacadeHandler = LocalizationService.Internal_PeekHandler();
         }
 
         [TearDown]
@@ -46,7 +43,7 @@ namespace Service.Localization
                 _gameObject = null;
             }
 
-            s_HandlerField?.SetValue(null, _originalFacadeHandler);
+            LocalizationService.Internal_UseHandler(_originalFacadeHandler);
             _originalFacadeHandler = null;
 
             _handler?.Internal_Shutdown();
@@ -65,8 +62,7 @@ namespace Service.Localization
         /// <summary>把桩处理器装到外观静态位（本用例内外观调用都落到它）。</summary>
         private void InstallFacadeHandler()
         {
-            Assert.NotNull(s_HandlerField, "未找到生成的 s_Handler 字段——HandlerHost 生成器契约变了");
-            s_HandlerField.SetValue(null, _handler);
+            LocalizationService.Internal_UseHandler(_handler);
         }
 
         #region 启动静默延迟 [STARTUP DEFERRAL]
@@ -87,7 +83,7 @@ namespace Service.Localization
         [Test]
         public void IsDataLoaded_NullHandler_ReturnsFalse()
         {
-            s_HandlerField.SetValue(null, null);
+            LocalizationService.Internal_UseHandler(null);
             Assert.IsFalse(LocalizationService.IsDataLoaded);
         }
 
@@ -107,9 +103,7 @@ namespace Service.Localization
                 localizer.sprites = new[] { spriteEn, spriteZh };
 
                 // EditMode 下非 ExecuteInEditMode 组件的 Awake 不执行，Prepare 需手动补齐
-                var prepare = typeof(ImageLocalizer).GetMethod("Prepare", BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.NotNull(prepare);
-                prepare.Invoke(localizer, null);
+                localizer.Internal_Prepare();
 
                 // 数据未就绪：静默推迟，不得注入也不得按缺译处理
                 localizer.Localize();

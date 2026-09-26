@@ -93,16 +93,16 @@ namespace Moirai.GameProto.Config
 #if UNITY_EDITOR
 			if (!Application.isPlaying)
 			{
-				// 非播放态（编辑器预览、转表）不经资源系统，直读资产库；取不到同样要点名，
-				// 让 null 回到调用方就变成几行开外一句无来由的 NRE
-				var fromDatabase = UnityEditor.AssetDatabase.LoadAssetAtPath<TextAsset>(location);
-				if (fromDatabase == null)
+				// 非播放态（编辑器预览、转表）经资源系统的编辑器入口取资产，地址到资产的换算留在后端那一侧。
+				// 取不到同样要点名：让 null 回到调用方就变成几行开外一句无来由的 NRE
+				var fromEditor = ResourceService.LoadAssetForEditor(location) as TextAsset;
+				if (fromEditor == null)
 				{
 					throw new GameException(StringUtility.Format(
 						"Config asset is missing: '{0}'. Generate config first.", location));
 				}
 
-				return fromDatabase;
+				return fromEditor;
 			}
 #endif
 			// 因为配置是预加载（Asset tag 为 PRELOAD），所以无需异步加载

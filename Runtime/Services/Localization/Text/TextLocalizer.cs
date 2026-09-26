@@ -48,9 +48,10 @@ namespace Moirai.Atropos.Localization
 		{
 			if (string.IsNullOrEmpty(m_TextId)) return null;
 
-			return LocalizationService.EditorPreviewHasText(m_TextId)
-				? LocalizationService.ResolveForEditorPreview(m_TextId)
-				: $"<{m_TextId}> 表内无此 ID";
+			var status = LocalizationService.ResolvePreviewText(m_TextId, out var text, out var language);
+			return status == EPreviewResolveStatus.Resolved
+				? text
+				: LanguageTag(language) + DescribeUnresolvedPreview(m_TextId, status);
 		}
 #endif
 

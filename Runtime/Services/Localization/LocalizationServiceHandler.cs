@@ -1118,6 +1118,13 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
+        /// 只读解析一条译文：不计缺译、不告警。
+        /// </summary>
+        /// <remarks>Inspector 预览在重绘路径上，每次重绘都查一遍同一条 key；
+        /// 走 <see cref="GetTextFromId(string,object[])"/> 会把编辑器自身的重复查询算进 QA 的缺译计数与事件数。</remarks>
+        internal string PeekText(string id, Language language) => ResolveRawUntracked(id, language);
+
+        /// <summary>
         /// 与 <see cref="ResolveRaw"/> 同一条解析路径，但不计缺译——复数回落链的分支候选不命中不算缺译。
         /// </summary>
         private string ResolveRawUntracked(string id, Language language)

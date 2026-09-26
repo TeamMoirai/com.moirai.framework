@@ -11,6 +11,9 @@ namespace Moirai.Atropos.Localization
 	/// <para>资源路径下租约由注入器持有直到下次加载或销毁，防止音频播放期间被周期性 UnloadUnusedAssets 回收。</para>
 	/// </summary>
 	public class AudioSourceInjector : IInjector, IDisposable
+#if UNITY_EDITOR
+		, IInjectorAssetPreview
+#endif
 	{
 		private string _localizedTextID;
 		private readonly AudioSource _audio;
@@ -85,6 +88,15 @@ namespace Moirai.Atropos.Localization
 			_audio.Stop();
 			_audio.clip = null;
 		}
+
+#if UNITY_EDITOR
+		// 本注入器只接受 AudioClip（口径由加载期的 LoadLeaseAsync<AudioClip> 定住），没有自动转换这条路。
+		string IInjectorAssetPreview.ExpectedTypeName => nameof(AudioClip);
+
+		bool IInjectorAssetPreview.Accepts(UnityEngine.Object asset) => asset is AudioClip;
+
+		bool IInjectorAssetPreview.Converts(UnityEngine.Object asset) => false;
+#endif
 
 		/// <summary>
 		/// 根据本地化文本 ID 从资源系统异步加载音频片段并播放。
