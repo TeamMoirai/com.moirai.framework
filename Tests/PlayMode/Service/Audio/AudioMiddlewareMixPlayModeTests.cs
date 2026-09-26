@@ -32,9 +32,9 @@ namespace Service.Audio
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(wwise, null);
 
-            var request = new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.Loop);
+            var request = new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.Loop);
             ulong h1 = fmod.Play("event:/Test", request, null);
-            ulong h2 = wwise.Play("wwise:/Test", new AudioPlayRequest(2, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.Loop), null);
+            ulong h2 = wwise.Play("wwise:/Test", new AudioPlayRequest(2, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.Loop), null);
 
             Assert.AreNotEqual(0UL, h1);
             Assert.AreNotEqual(0UL, h2);
@@ -132,8 +132,8 @@ namespace Service.Audio
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(handler, null);
 
-            ulong a = handler.Play("event:/M/A", new AudioPlayRequest(10, 1f, 1f, EAudioTrack.Music, 128, AudioPlayFlags.Loop), null);
-            ulong b = handler.Play("event:/M/B", new AudioPlayRequest(11, 1f, 1f, EAudioTrack.Music, 128, AudioPlayFlags.Loop), null);
+            ulong a = handler.Play("event:/M/A", new AudioPlayRequest(10, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
+            ulong b = handler.Play("event:/M/B", new AudioPlayRequest(11, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
             yield return null;
 
             handler.StopByID(10, 0f);

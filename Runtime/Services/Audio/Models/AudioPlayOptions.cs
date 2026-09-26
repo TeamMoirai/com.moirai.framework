@@ -206,14 +206,14 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public readonly AudioPlayRequest ToRequest()
         {
-            AudioPlayFlags flags = AudioPlayFlags.None;
-            if (m_Loop) flags |= AudioPlayFlags.Loop;
-            if (m_Persistent) flags |= AudioPlayFlags.Persistent;
-            if (m_FadeInOnPlay) flags |= AudioPlayFlags.FadeInOnPlay;
-            if (m_SoloSingleTrack) flags |= AudioPlayFlags.SoloSingleTrack;
-            if (m_SoloAllTracks) flags |= AudioPlayFlags.SoloAllTracks;
-            if (m_AutoUnSoloOnEnd) flags |= AudioPlayFlags.AutoUnSoloOnEnd;
-            if (m_DoNotAutoRecycleIfNotDonePlaying) flags |= AudioPlayFlags.DoNotAutoRecycle;
+            EAudioPlayFlags flags = EAudioPlayFlags.None;
+            if (m_Loop) flags |= EAudioPlayFlags.Loop;
+            if (m_Persistent) flags |= EAudioPlayFlags.Persistent;
+            if (m_FadeInOnPlay) flags |= EAudioPlayFlags.FadeInOnPlay;
+            if (m_SoloSingleTrack) flags |= EAudioPlayFlags.SoloSingleTrack;
+            if (m_SoloAllTracks) flags |= EAudioPlayFlags.SoloAllTracks;
+            if (m_AutoUnSoloOnEnd) flags |= EAudioPlayFlags.AutoUnSoloOnEnd;
+            if (m_DoNotAutoRecycleIfNotDonePlaying) flags |= EAudioPlayFlags.DoNotAutoRecycle;
 
             byte priority = (byte)Mathf.Clamp(m_Priority, 0, 255);
             return new AudioPlayRequest(m_ID, m_Volume, m_Pitch, m_AudioTrack, priority, flags);
