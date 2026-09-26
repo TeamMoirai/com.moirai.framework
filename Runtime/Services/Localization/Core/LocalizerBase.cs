@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Localization
 {
 	public abstract class LocalizerBase : MonoBehaviour
 	{
-		protected IInjector _injector;
+		protected ILocalizationInjector _injector;
 
 		protected virtual void Awake()
 		{
@@ -94,29 +94,29 @@ namespace Moirai.Atropos.Localization
 		};
 
 		/// <summary>
-		/// 资源 ID 注入型本地化器的预览：ID → 表内译文（即资源地址）→ 该地址指向的资产。
+		/// 资源 ID 注入型本地化器的预览：ID → 表内译文（即资源 location）→ 该 location 指向的资产。
 		/// </summary>
 		/// <remarks>
-		/// 编辑态直读资产库是为了让「地址写错 / 资产没入库 / 类型不对」在 Inspector 里就看见——
+		/// 编辑态直读资产库是为了让「location 写错 / 资产没入库 / 类型不对」在 Inspector 里就看见——
 		/// 这三条在运行期只表现为「图没出来」，得逐个点开日志才归因。
 		/// 播放态不读资产库：那时注入器已按后端取过一份，再从库里另取一份等于替预览编一条运行期不走的路径。
 		/// </remarks>
-		/// <param name="id">词条 ID（其译文即资源定位地址）。</param>
-		/// <param name="policy">注入器给出的类型判据；为 <c>null</c> 时不查资产，只报地址。</param>
+		/// <param name="id">词条 ID（其译文即资源定位地址 location）。</param>
+		/// <param name="policy">注入器给出的类型判据；为 <c>null</c> 时不查资产，只报 location。</param>
 		internal static string DescribeResourceIdPreview(string id, IInjectorAssetPreview policy = null)
 		{
 			if (string.IsNullOrEmpty(id)) return null;
 
-			var status = LocalizationService.ResolvePreviewText(id, out var address, out var language);
+			var status = LocalizationService.ResolvePreviewText(id, out var location, out var language);
 			if (status != EPreviewResolveStatus.Resolved)
 				return LanguageTag(language) + DescribeUnresolvedPreview(id, status);
 
-			var tag = $"{LanguageTag(language)}{id} → {address}";
-			if (policy == null) return tag + "（资源模式：注入器按该地址取资源）";
+			var tag = $"{LanguageTag(language)}{id} → {location}";
+			if (policy == null) return tag + "（资源模式：注入器按该 location 取资源）";
 			if (Application.isPlaying) return tag + "（运行期按租约加载）";
 
-			var asset = ResourceService.LoadAssetForEditor(address);
-			if (asset == null) return tag + " ✗ 地址指向的资产取不到";
+			var asset = ResourceService.LoadAssetForEditor(location);
+			if (asset == null) return tag + " ✗ location 指向的资产取不到";
 
 			var described = $"{tag} → {asset.GetType().Name} '{asset.name}'";
 			if (policy.Accepts(asset)) return described;

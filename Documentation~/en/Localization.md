@@ -8,13 +8,12 @@ The `Localization` service is accessed via the `LocalizationService` static faca
 
 - `Language` object: carries `Name` (enum name), `Code` (ISO-639-1), `DisplayName` (localized display name), includes full `SystemLanguage` support and supports custom languages; built-in entries and `BuiltinLanguages` are shared instances rather than rebuilt on each access
 - Language detection priority: command-line `-force-language` -> editor `LocalizationServiceSettings.EditorLanguage` -> `SettingUtility` saved setting -> `Application.systemLanguage` (falls back to Simplified Chinese when Chinese is not distinguished between Simplified/Traditional). When the detected language is not part of the loaded entries, the first loaded language takes over, so the UI never stays stuck on raw keys
-- Text querying: `GetTextFromId` (supports `string.Format` parameters), `GetTextFromIdLanguage` (pass `null` for the current language), `GetDictionaryFromId` (retrieves all languages), `GetAllIds`
-- Missing translations expose the key: an empty or whitespace-only cell in the current language returns the ID as-is, with no cross-language safety net (see "Missing Translations Expose the Key")
+- Text querying: `GetTextFromId` (supports `string.Format` parameters; missing translations expose the key), `TryGetTextFromId` (single-pass resolve: hit yields the text, miss yields `false`+`null` and feeds the missing-key tracking under the same policy — resource-mode localizers use it for their "inject if present, report if not" check instead of calling `Has` + `GetTextFromId` twice), `GetTextFromIdLanguage` (pass `null` for the current language), `GetDictionaryFromId` (retrieves all languages), `GetAllIds`
+- Missing translations expose the key: an empty or whitespace-only cell in the current language returns the ID as-is, with no cross-language safety net (see "Missing Translations Expose the Key"); `TextLocalizer` display follows this policy
 - Inline parsing: `LocalizationService.Localize` replaces `{l10n:ID}`, `{i18n:ID}`, `{g11n:ID}` with localized entries
-- Component injection: `TextLocalizer` (TextMesh / UGUI Text / TMP_Text), `ImageLocalizer` (Image / RawImage / SpriteRenderer / Renderer material), `AudioLocalizer` (AudioSource)
-- Auto-refresh on language switch: all `LocalizerBase` instances are re-injected on `ChangeLanguage` (snapshot iteration with per-instance fault isolation) before the event is raised
+- Component injection: `TextLocalizer` (TextMesh / UGUI Text / TMP_Text), `ImageLocalizer` (Image / RawImage / SpriteRenderer / Renderer material), `AudioLocalizer` (AudioSource); payload semantics belong to each injector — for text injectors the `string` is the translated text, while image/audio injectors dispatch by `int` = language index / `string` = resource location / direct asset
+- Auto-refresh on language switch: all `LocalizerBase` instances are re-injected on `ChangeLanguage` (pooled snapshot iteration with per-instance fault isolation — no resident garbage per switch even at ten-thousand-localizer scale) before the event is raised
 - Timeline support: `TextLocalizerTrack` + `TextLocalizerPlayableAsset` switches text IDs on Timeline clips
-- Google Translate integration: `GoogleTranslator` calls Google Cloud Translation v2 API to assist with translating configuration tables
 
 ## Core Types
 
@@ -26,7 +25,7 @@ Namespace: `Moirai.Atropos.Localization`
 | `Language` | Language class (`IEquatable<Language>`, compared by `Code`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage`; built-in entries are shared read-only instances |
 | `LocalizationServiceHandler` | Abstract handler base class: per-language text resolution, language switching, localizer registration |
 | `LocalizerBase` | Abstract base class for localizers (MonoBehaviour): `Prepare` gets the target component reference, `Localize` performs injection |
-| `IInjector` | Injector interface: `Inject<T1, T2>(localizedData, localizer)` |
+| `ILocalizationInjector` | Injector interface: `Inject<T1, T2>(localizedData, localizer)` |
 | `TextLocalizer` | Text localizer, automatically discovers TextMesh / Text / TMP_Text and injects text |
 | `ImageLocalizer` | Image localizer, switches between `sprites` / `textures` / `texture2Ds` arrays by language index |
 | `AudioLocalizer` | Audio localizer, switches `clips` array by language index and injects into AudioSource |
@@ -34,8 +33,6 @@ Namespace: `Moirai.Atropos.Localization`
 | `ImageInjector` / `RawImageInjector` / `SpriteRendererInjector` / `TextureInjector` | Image injectors, targeting Image, RawImage, SpriteRenderer, Renderer material properties respectively |
 | `AudioSourceInjector` | Audio injector, targeting AudioSource |
 | `TextLocalizerTrack` / `TextLocalizerPlayableAsset` / `TextLocalizerPlayableBehaviour` | Timeline track and Playable, binds `TextLocalizer` to switch text on clips |
-| `GoogleTranslator` | Google Cloud Translation v2 wrapper: `TranslateAsync` (coroutine) and `Translate` (synchronous, editor use) |
-| `GoogleTranslateRequest` / `GoogleTranslateResponse` | Translation request/response data classes (`Source`, `Target`, `Text`) |
 | `ComponentFinder` | Static utility: finds components on a GameObject by generic type order |
 | `CommandLineUtility` | Command-line parsing (`-force-language`), see the partial definition of the same class in `Runtime/Core/Utilities` |
 
@@ -109,21 +106,11 @@ LocalizationService.OnLanguageChanged += language =>
 
 - Text: Add `TextLocalizer` to objects with `TextMesh`, UGUI `Text`, or `TMP_Text`, fill in `m_TextId` in the Inspector; at runtime, call `ChangeID(string textId)` to dynamically change text, `Clear()` to clear
 - Image: `ImageLocalizer` acts on Image / RawImage / SpriteRenderer / Renderer in discovery order; `sprites` / `textures` / `texture2Ds` array elements must match the table's self-reported language column order (indexed by `CurrentLanguageIndex`), `Renderer` uses material properties (default `_MainTex`, can be specified via `propertyName`)
-- Audio: `AudioLocalizer` injects `clips[CurrentLanguageIndex]` into AudioSource
+- Audio: `AudioLocalizer` injects `clips[CurrentLanguageIndex]` into AudioSource; an empty element at that index clears the source instead of letting the previous language's voice keep playing
 
 ### Timeline Localization
 
 After installing the Timeline package (`TIMELINE_INSTALLED` macro), create a `TextLocalizerTrack` track and bind it to a `TextLocalizer` in the scene. Each `TextLocalizerPlayableAsset` clip sets a `textId`. When playback reaches that clip, the text automatically switches; when leaving the clip, it clears.
-
-### Google Translate Assistance
-
-```csharp
-var translator = new GoogleTranslator(authFile); // authFile is a TextAsset containing the API Key
-var request = new GoogleTranslateRequest(Language.English, Language.ChineseSimplified, "Hello");
-IEnumerator routine = translator.TranslateAsync(request,
-    onCompleted: e => Debug.Log(e.Responses[0].TranslatedText),
-    onError:   e => Debug.Log(e.Message));
-```
 
 ## Notes
 

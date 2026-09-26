@@ -5,7 +5,7 @@ namespace Moirai.Atropos.Localization
 	/// <summary>
 	/// <see cref="TextMesh"/> 本地化注入器，将本地化字符串写入 3D 文本组件。
 	/// </summary>
-	public class TextMeshInjector : IInjector
+	public class TextMeshInjector : ILocalizationInjector
 	{
 		readonly TextMesh textMesh;
 

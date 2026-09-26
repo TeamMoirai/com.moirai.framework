@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Localization
 	/// TMP 文本本地化注入器，将本地化字符串写入 <see cref="TMP_Text"/> 组件。
 	/// <para>仅在安装 TextMeshPro 或 uGUI 2 包（定义对应宏）后编译。</para>
 	/// </summary>
-	public class TMPInjector : IInjector
+	public class TMPInjector : ILocalizationInjector
 	{
 		readonly TMP_Text tmp;
 

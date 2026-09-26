@@ -5,7 +5,7 @@ namespace Moirai.Atropos.Localization
 	/// <summary>
 	/// uGUI 文本本地化注入器，将本地化字符串写入 <see cref="Text"/> 组件。
 	/// </summary>
-	public class UITextInjector : IInjector
+	public class UITextInjector : ILocalizationInjector
 	{
 		readonly Text uiText;
 

@@ -83,11 +83,9 @@ namespace Moirai.Atropos.Localization
 			// 「未就绪」不是「缺译」，不该按缺译给每个本地化器刷一条错误日志
 			if (!IsLocalizationDataReady) return false;
 
-			if (!LocalizationService.Has(textId))
-			{
-				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
-				return false;
-			}
+			// 缺译即露 key：单趟 GetTextFromId——缺失/空白格得到 ID 原文并计缺译（漏翻在界面上可见）。
+			// 文本展示不走 TryGet 的「无则报」：那会把空白格打成不可用、拒注并留下旧文案，与产品取向相悖。
+			var text = LocalizationService.GetTextFromId(textId);
 
 			if (_injector == null)
 			{
@@ -96,7 +94,7 @@ namespace Moirai.Atropos.Localization
 			}
 
 			m_TextId = textId;
-			_injector.Inject(LocalizationService.GetTextFromId(textId), this);
+			_injector.Inject(text, this);
 			ApplyLanguagePresentation();
 			return true;
 		}
