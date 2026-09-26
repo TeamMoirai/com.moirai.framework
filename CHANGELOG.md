@@ -12,6 +12,10 @@
 
 - 发版自动化 `build-release.yaml`：把 CHANGELOG 的 `[Unreleased]` 段切成 Release notes 并 Publish，随后自动开一个清空该段的 PR。
 
+#### 存档
+
+- 出厂占位密钥有了门禁：`StaticSaveKeyProvider.UsesPlaceholderCredentials` 判生效口令/盐是否为 `CHANGE_ME_*` 或空，Inspector 据此标红，构建期由 `SaveSettingsBuildValidator` 用同一判据再报一次——默认只告警，设 `MOIRAI_SAVE_SETTINGS_STRICT=1` 转为拦停。运行期不拦（已有存档可能正是占位密钥写的）。
+
 ### Fixed
 
 #### UI

@@ -17,11 +17,16 @@ namespace Moirai.Atropos.Save
         [NonSerialized] private SaveEncryptor _encryptor;
 
         [InfoBox("须配置密钥提供方（推荐 StaticSaveKeyProvider，并替换占位口令/盐文）。未配置时回退占位默认静态密钥，SECURITY: 发布前必须替换。", InfoMessageType.Warning, nameof(ShowMissingKeyProviderWarning))]
+        [InfoBox("口令或盐文仍是包内出厂占位值：拿到包的人能派生同一把密钥，加密等价于不加密。SECURITY: 发布前替换为项目专属值（出包时 SaveSettingsBuildValidator 会再报一次）。", InfoMessageType.Error, nameof(ShowPlaceholderKeyWarning))]
         [Tooltip("密钥提供方：加密密钥来源（空 = 回退 StaticSaveKeyProvider.Default 占位默认）。推荐配置 StaticSaveKeyProvider 并替换占位口令/盐文；口令注入 / HKDF 按用户派生等进阶策略在此接入。")]
         [ProviderDropdown]
         [SerializeReference] private SaveKeyProvider m_KeyProvider = StaticSaveKeyProvider.Default;
         /// <summary>密钥提供方未配置时显示告警（运行期回退占位默认静态密钥）。</summary>
         private bool ShowMissingKeyProviderWarning => m_KeyProvider == null;
+
+        /// <summary>配了静态提供方、但口令或盐文仍是出厂占位值时显示告警。</summary>
+        private bool ShowPlaceholderKeyWarning =>
+            m_KeyProvider is StaticSaveKeyProvider provider && provider.UsesPlaceholderCredentials;
 
         /// <summary>密钥提供方注入点（测试/代码装配用；Inspector 配置走序列化字段——纯 .NET，工作线程调用安全）。</summary>
         internal SaveKeyProvider KeyProvider
