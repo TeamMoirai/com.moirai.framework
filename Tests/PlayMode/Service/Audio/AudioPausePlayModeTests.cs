@@ -64,6 +64,7 @@ namespace Service.Audio
 
             _handler = null;
             AudioListener.volume = 1f;
+            AudioListener.pause = false;
         }
 
         private void RequireTracks()
@@ -85,7 +86,7 @@ namespace Service.Audio
         private ulong PlayPlain()
         {
             return _handler.Play(_clip, new AudioPlayRequest(7002, 1f, 1f, EAudioTrack.Sfx, 128,
-                AudioPlayFlags.DoNotAutoRecycle), null);
+                EAudioPlayFlags.DoNotAutoRecycle), null);
         }
 
         /// <summary>推进真实秒数并驱动服务 Tick（淡入淡出按 unscaled 计时）。</summary>
@@ -234,6 +235,25 @@ namespace Service.Audio
 
             Assert.IsTrue(_handler.IsStopped(handle), "暂停中的句柄也应被 Stop 收口");
             Assert.IsNull(_handler.GetAgentByHandle(handle), "句柄映射应已解除");
+        }
+
+        [UnityTest]
+        public IEnumerator Shutdown_ExternalListenerPause_StateAlwaysCleared()
+        {
+            RequireTracks();
+
+            // 模拟非本框架渠道置位（_pausedByFramework 保持 false）——OnShutdown 必须无条件复位，
+            // 否则 AudioListener.pause=true 会寄生到下一个场景或编辑器会话。
+            // 夹具经反射直调 OnInit（绕过 Internal_Init，_initialized=false），
+            // Internal_Shutdown 会因此空转；与 SetUp 同构地直调 OnShutdown 才能测到本契约。
+            AudioListener.pause = true;
+            var shutdown = typeof(UnityAudioHandler)
+                .GetMethod("OnShutdown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(shutdown, "UnityAudioHandler.OnShutdown 应存在");
+            shutdown.Invoke(_handler, null);
+            Assert.IsFalse(AudioListener.pause, "外部置位的 AudioListener.pause 也必须在 OnShutdown 复位");
+
+            yield break;
         }
     }
 }

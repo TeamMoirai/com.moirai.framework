@@ -2,6 +2,7 @@ using System;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Service.Audio
 {
@@ -52,7 +53,7 @@ namespace Service.Audio
         public void AudioPlayRequest_PackUnpack_RoundTrip()
         {
             var request = new AudioPlayRequest(42, 0.75f, 1.25f, EAudioTrack.Music, 200,
-                AudioPlayFlags.Loop | AudioPlayFlags.Persistent | AudioPlayFlags.FadeInOnPlay);
+                EAudioPlayFlags.Loop | EAudioPlayFlags.Persistent | EAudioPlayFlags.FadeInOnPlay);
 
             Assert.AreEqual(42, request.Id);
             Assert.AreEqual(0.75f, request.Volume, 1e-5f);
@@ -242,5 +243,26 @@ namespace Service.Audio
         }
 
         #endregion 巨型签名弃用契约 [GIANT PLAY OBSOLETE CONTRACT]
+
+        #region 场景停音策略 [SCENE LOAD POLICY]
+
+        [Test]
+        public void SceneLoad_Single_AlwaysStopsNonPersistent()
+        {
+            Assert.IsTrue(AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Single),
+                "Single 整景切换必须停非持久音，不受设置开关影响");
+        }
+
+        [Test]
+        public void SceneLoad_Additive_FollowsSettingsSwitch()
+        {
+            // Additive（流式分区/关卡分片）是否停音由设置开关决定（默认关），
+            // 断言与设置同源而非硬编码，改资产不会把契约测成假红
+            Assert.AreEqual(AudioServiceSettings.StopNonPersistentOnAdditiveSceneLoad,
+                AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Additive),
+                "Additive 加载必须由 StopNonPersistentOnAdditiveSceneLoad 开关决定");
+        }
+
+        #endregion 场景停音策略 [SCENE LOAD POLICY]
     }
 }
