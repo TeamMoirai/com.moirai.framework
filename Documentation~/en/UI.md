@@ -34,7 +34,7 @@ The UI service adopts the same HandlerHost zero-reflection architecture as other
 | `Moirai.Atropos.UI.UIServiceHandler` | UI backend handler abstract base class (inherits `FrameworkHandler`), defines the full backend contract invoked by the facade |
 | `Moirai.Atropos.UI.UGUIHandler` | Default UI backend implementation (located under `Handler/`), core logic for window stack management, depth sorting, and visibility control |
 | `Moirai.Atropos.UI.UIServiceSettings` | Framework settings, selects the UI backend implementation via `[ProviderDropdown]` |
-| `Moirai.Atropos.UI.UIRootBinding` | UI root binding component: put it on the scene object acting as the UI root; `Awake` registers `Current` and destruction relinquishes it, which is how `UGUIHandler` finds the root (lookup by name is gone) |
+| `Moirai.Atropos.UI.UIRootBinding` | UI root binding component: put it on the scene object acting as the UI root; `SingletonMono` first-wins registers `Current` (never auto-creates), which is how `UGUIHandler` finds the root (lookup by name is gone) |
 | `Moirai.Atropos.UI.UIBase` | UI base class, defines lifecycle virtual methods and Widget creation API |
 | `Moirai.Atropos.UI.UIWindow` | Window abstract base class, inherits `UIBase`, includes Canvas depth, visibility, interactability, and open/close animations |
 | `Moirai.Atropos.UI.UIWidget` | Window embedded control base class, inherits `UIBase` |
@@ -155,7 +155,7 @@ Select the root node of a UI prefab and use the menu:
 
 ## Notes
 
-- The UI root is registered by the `UIRootBinding` component on a scene object (which must have a `Canvas` under it): the backend picks it up on the first Update tick, and if nothing is bound yet it logs one Error and keeps waiting each frame (late additive scenes and runtime-instantiated roots still bind). Once bound, the UI root is automatically set to `DontDestroyOnLoad`. **Lookup by object name is gone** — renaming silently breaks it, and under multiple scenes or hot updates a same-named object can win.
+- The UI root is registered by the `UIRootBinding` component on a scene object (which must have a `Canvas` under it): `SingletonMono` first-wins, a later duplicate's whole GameObject is destroyed; `Current` only reads back and never auto-creates. The backend picks it up on the first Update tick, logs one Error when nothing is bound and one Fatal when the bound root has no Canvas, then keeps waiting each frame (late additive scenes, runtime-instantiated roots, and a Canvas added later all bind). Once bound, the UI root is automatically set to `DontDestroyOnLoad` (play mode only). **Lookup by object name is gone** — renaming silently breaks it, and under multiple scenes or hot updates a same-named object can win.
 - `ShowUI` synchronous loading depends on the resource service's synchronous loading capability; on WebGL it automatically falls back to async; `ShowUIAsync` is recommended
 - `HideUI` only takes effect when `HideTimeToClose > 0`; otherwise it is equivalent to `CloseUI`
 - `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` only waits for the loading of an already-open window; returns null / no callback if the window does not exist

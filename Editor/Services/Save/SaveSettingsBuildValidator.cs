@@ -1,10 +1,9 @@
 using System;
-using Moirai.Atropos.Save;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor.Save
+namespace Moirai.Atropos.Save.Editor
 {
     /// <summary>
     /// 构建期存档密钥自检：把 <see cref="SaveServiceSettings.UsesPlaceholderSaveKey"/> 这条运行期判据在出包前再走一遍，
