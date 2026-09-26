@@ -1,5 +1,8 @@
 # Luban
 Luban/
 
+# 脚手架的转表配置是交付物，不是生成产物：项目ignore的 *.ini 会把它静默吃掉。
+!config.ini
+
 # 转表中间产物：gen.sh 每次按 config.ini 的 L10N_LANGUAGES 重生成变体声明 xml
 Temp/

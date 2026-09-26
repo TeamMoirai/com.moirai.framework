@@ -14,6 +14,7 @@
 [Uu]serSettings/
 [Aa]ssetBundles/
 [Mm]emoryCaptures/
+[Uu]IElementsSchema/
 
 # ===================================== #
 # Visual Studio / MonoDevelop generated #
@@ -83,5 +84,7 @@ Thumbs.db
 !**/Source~/**/*.csproj
 !**/Source~/**/*.sln
 
-# 脚手架的转表配置是交付物，不是生成产物：前面的 *.ini 会把它静默吃掉。
-!Templates~/Config/config.ini
+# Codely
+.codely-cli/
+.codely.packages/
+CODELY.md*
