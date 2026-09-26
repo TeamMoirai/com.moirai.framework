@@ -23,7 +23,8 @@ namespace Moirai.Atropos.UI
         [NonSerialized] private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
         [NonSerialized] private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
         [NonSerialized] private ErrorLogger _errorLogger; // 错误日志记录器
-        [NonSerialized] private bool _rootAwaitingBind; // UI 根还没绑定，等每帧续等
+        [NonSerialized] private bool _rootAwaitingBind; // UI 根还没绑定或绑定失败，等每帧续等
+        [NonSerialized] private bool _rootProblemLogged; // 当前这一轮等待已报过问题（缺绑定 / 缺 Canvas），避免每帧刷屏
 
         /// <summary>
         /// UI根节点。
@@ -51,6 +52,7 @@ namespace Moirai.Atropos.UI
             _uiStack.Clear();
             _cache.Clear();
             _rootAwaitingBind = false;
+            _rootProblemLogged = false;
             // 堆栈归零与全局压制位归零同事务：上一轮未交还的持有者在此清位
             if (InteractionLease.Reset())
             {
@@ -63,47 +65,68 @@ namespace Moirai.Atropos.UI
 
         /// <summary>
         /// 取用场景登记的 UI 根（<see cref="UIRootBinding.Current"/>）。
-        /// <para>尚未绑定则挂起等待，由 <see cref="Tick"/> 续等——后加入的场景与运行期实例化的根都走得通。
+        /// <para>尚未绑定、或已绑定但其下还没有 Canvas 时都挂起等待，由 <see cref="Tick"/> 续等——
+        /// 后加入的场景、运行期实例化的根、以及事后补上 Canvas 的根都走得通。
         /// 刻意不再按名字查找：改名不报编译错、多场景/热更下同名物体还可能命中错的那一个，两条静默路径一起堵掉。</para>
+        /// <para>问题只在进入等待时报一次，续等期间静默重试，避免每帧刷 Fatal。</para>
         /// </summary>
-        private void TryBindRoot()
+        internal void TryBindRoot()
         {
             var binding = UIRootBinding.Current;
-            if (binding == null)
+            if (binding != null && InitializeRoot(binding.gameObject))
             {
-                if (!_rootAwaitingBind)
-                {
-                    _rootAwaitingBind = true;
-                    LogUtility.Error("UI 根尚未绑定：请在充当 UI 根的场景物体上挂 UIRootBinding。");
-                }
-
+                _rootAwaitingBind = false;
+                _rootProblemLogged = false;
                 return;
             }
 
-            _rootAwaitingBind = false;
-            InitializeRoot(binding.gameObject);
+            _rootAwaitingBind = true;
+            if (_rootProblemLogged)
+            {
+                return;
+            }
+
+            _rootProblemLogged = true;
+            if (binding == null)
+            {
+                LogUtility.Error("UI 根尚未绑定：请在充当 UI 根的场景物体上挂 UIRootBinding。");
+            }
+            else
+            {
+                LogUtility.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
+            }
         }
 
-        /// <summary>绑定到具体 UI 根：取子层级 Canvas、置顶常驻、按调试器策略挂错误日志。</summary>
-        private void InitializeRoot(GameObject uiRoot)
+        /// <summary>
+        /// 绑定到具体 UI 根：取子层级 Canvas、置顶常驻、按调试器策略挂错误日志。
+        /// </summary>
+        /// <param name="uiRoot">已登记的 UI 根物体。</param>
+        /// <returns>绑定成功为真；其下尚无 Canvas 时为假（调用方保持续等，Canvas 补上后可再试）。</returns>
+        private bool InitializeRoot(GameObject uiRoot)
         {
             var canvas = uiRoot.GetComponentInChildren<Canvas>();
             if (canvas == null)
             {
-                LogUtility.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
-                return;
+                return false;
             }
 
             _instanceRoot = canvas.transform;
             _uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
 
-            UnityEngine.Object.DontDestroyOnLoad(_instanceRoot.parent != null ? _instanceRoot.parent : _instanceRoot);
+            // EditMode 下 DontDestroyOnLoad 抛 InvalidOperationException——仅播放态常驻跨场景
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.DontDestroyOnLoad(_instanceRoot.parent != null ? _instanceRoot.parent : _instanceRoot);
+            }
+
             _instanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
 
             if (ShouldEnableErrorLog(DebuggerService.ActiveWindowType, Debug.isDebugBuild, Application.isEditor))
             {
                 _errorLogger = new ErrorLogger();
             }
+
+            return true;
         }
 
         /// <summary>
@@ -149,7 +172,15 @@ namespace Moirai.Atropos.UI
             CloseAll(true);
             if (_instanceRoot != null && _instanceRoot.parent != null)
             {
-                UnityEngine.Object.Destroy(_instanceRoot.parent.gameObject);
+                // EditMode 下 Object.Destroy 只会报错不落账——测试夹具与编辑器工具走 DestroyImmediate
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(_instanceRoot.parent.gameObject);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(_instanceRoot.parent.gameObject);
+                }
             }
 
             _uiStack.Clear();
@@ -161,6 +192,8 @@ namespace Moirai.Atropos.UI
             }
             _instanceRoot = null;
             _uiCamera = null;
+            _rootAwaitingBind = false;
+            _rootProblemLogged = false;
         }
 
         /// <summary>
