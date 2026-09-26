@@ -23,6 +23,7 @@ namespace Moirai.Atropos.UI
         [NonSerialized] private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
         [NonSerialized] private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
         [NonSerialized] private ErrorLogger _errorLogger; // 错误日志记录器
+        [NonSerialized] private bool _rootAwaitingBind; // UI 根还没绑定，等每帧续等
 
         /// <summary>
         /// UI根节点。
@@ -49,40 +50,60 @@ namespace Moirai.Atropos.UI
             // 正确性锚点：复用实例重入 Init 时必须先归零运行时状态，释放归属 OnShutdown。
             _uiStack.Clear();
             _cache.Clear();
+            _rootAwaitingBind = false;
             // 堆栈归零与全局压制位归零同事务：上一轮未交还的持有者在此清位
             if (InteractionLease.Reset())
             {
                 InputService.PreventInteractionUI = false;
             }
 
-            // 此阶段（BeforeSceneLoad）场景尚未加载，初始化延迟到首个 Update tick。
-            MainThreadDispatcher.Post(() =>
+            // 此阶段（BeforeSceneLoad）场景尚未加载，根绑定与错误日志判据延迟到首个 Update tick 取用。
+            MainThreadDispatcher.Post(TryBindRoot);
+        }
+
+        /// <summary>
+        /// 取用场景登记的 UI 根（<see cref="UIRootBinding.Current"/>）。
+        /// <para>尚未绑定则挂起等待，由 <see cref="Tick"/> 续等——后加入的场景与运行期实例化的根都走得通。
+        /// 刻意不再按名字查找：改名不报编译错、多场景/热更下同名物体还可能命中错的那一个，两条静默路径一起堵掉。</para>
+        /// </summary>
+        private void TryBindRoot()
+        {
+            var binding = UIRootBinding.Current;
+            if (binding == null)
             {
-                var uiRoot = GameObject.Find("UIRoot");
-                if (uiRoot == null)
+                if (!_rootAwaitingBind)
                 {
-                    LogUtility.Fatal("UIRoot not found!");
-                    return;
+                    _rootAwaitingBind = true;
+                    LogUtility.Error("UI 根尚未绑定：请在充当 UI 根的场景物体上挂 UIRootBinding。");
                 }
 
-                var canvas = uiRoot.GetComponentInChildren<Canvas>();
-                if (canvas == null)
-                {
-                    LogUtility.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
-                    return;
-                }
+                return;
+            }
 
-                _instanceRoot = canvas.transform;
-                _uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            _rootAwaitingBind = false;
+            InitializeRoot(binding.gameObject);
+        }
 
-                UnityEngine.Object.DontDestroyOnLoad(_instanceRoot.parent != null ? _instanceRoot.parent : _instanceRoot);
-                _instanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
+        /// <summary>绑定到具体 UI 根：取子层级 Canvas、置顶常驻、按调试器策略挂错误日志。</summary>
+        private void InitializeRoot(GameObject uiRoot)
+        {
+            var canvas = uiRoot.GetComponentInChildren<Canvas>();
+            if (canvas == null)
+            {
+                LogUtility.Fatal("Can't find any Canvas under UIRoot! Please add a Canvas first.");
+                return;
+            }
 
-                if (ShouldEnableErrorLog(DebuggerService.ActiveWindowType, Debug.isDebugBuild, Application.isEditor))
-                {
-                    _errorLogger = new ErrorLogger();
-                }
-            });
+            _instanceRoot = canvas.transform;
+            _uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+
+            UnityEngine.Object.DontDestroyOnLoad(_instanceRoot.parent != null ? _instanceRoot.parent : _instanceRoot);
+            _instanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
+
+            if (ShouldEnableErrorLog(DebuggerService.ActiveWindowType, Debug.isDebugBuild, Application.isEditor))
+            {
+                _errorLogger = new ErrorLogger();
+            }
         }
 
         /// <summary>
@@ -148,6 +169,16 @@ namespace Moirai.Atropos.UI
         public override void Tick(float elapseSeconds, float realElapseSeconds)
         {
             if (_uiStack == null) return;
+
+            // UI 根晚到（加加载入的场景、运行期实例化）：绑上之前没有窗口可驱动
+            if (_rootAwaitingBind)
+            {
+                TryBindRoot();
+                if (_rootAwaitingBind)
+                {
+                    return;
+                }
+            }
 
             int count = _uiStack.Count;
             for (int i = 0; i < _uiStack.Count; i++)
