@@ -34,7 +34,7 @@ UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 | `Moirai.Atropos.UI.UIServiceHandler` | UI 后端处理器抽象基类（继承 `FrameworkHandler`），定义外观调用的完整后端契约 |
 | `Moirai.Atropos.UI.UGUIHandler` | 默认 UI 后端实现（位于 `Handler/` 目录），窗口栈管理、深度排序、可见性控制核心逻辑 |
 | `Moirai.Atropos.UI.UIServiceSettings` | 框架设置，`[ProviderDropdown]` 选择 UI 后端实现 |
-| `Moirai.Atropos.UI.UIRootBinding` | UI 根绑定组件：挂在充当 UI 根的场景物体上，`SingletonMono` 先到先得登记 `Current`（不自动创建），供 `UGUIHandler` 取用（取代按名字查找） |
+| `Moirai.Atropos.UI.UIRootBinding` | UI 根绑定组件：挂在充当 UI 根的场景物体上，`SingletonMono` 先到先得登记，供 `UGUIHandler` 经 `TryGetInstance()` 取用（不自动创建；取代按名字查找） |
 | `Moirai.Atropos.UI.UIBase` | UI 基类，定义生命周期虚方法与 Widget 创建 API |
 | `Moirai.Atropos.UI.UIWindow` | 窗口抽象基类，继承 `UIBase`，含 Canvas 深度、可见性、交互性、开关动画 |
 | `Moirai.Atropos.UI.UIWidget` | 窗口内嵌控件基类，继承 `UIBase` |
@@ -155,7 +155,7 @@ protected override async UniTask OpenAnimation()
 
 ## 注意事项
 
-- UI 根由场景物体上的 `UIRootBinding` 组件登记（其下需含 `Canvas`）：`SingletonMono` 先到先得，后到者整物体销毁；`Current` 只回读、不自动创建。后端在首个 Update tick 取用，缺绑定报一条 Error、缺 Canvas 报一条 Fatal，之后都每帧续等（后加入的场景、运行期实例化的根、事后补上的 Canvas 都补得上）。登记到位后 UI 根自动 `DontDestroyOnLoad`（仅播放态）。**已不再按物体名字查找**——改名不报编译错、多场景/热更下同名还可能命中错的根。
+- UI 根由场景物体上的 `UIRootBinding` 组件登记（其下需含 `Canvas`）：`SingletonMono` 先到先得，后到者整物体销毁；取用走 `TryGetInstance()`，只回读、不自动创建。后端在首个 Update tick 取用，缺绑定报一条 Error、缺 Canvas 报一条 Fatal，之后都每帧续等（后加入的场景、运行期实例化的根、事后补上的 Canvas 都补得上）。登记到位后 UI 根自动 `DontDestroyOnLoad`（仅播放态）。**已不再按物体名字查找**——改名不报编译错、多场景/热更下同名还可能命中错的根。
 - `ShowUI` 同步加载依赖资源服务的同步加载能力，WebGL 下自动退化为异步；建议优先使用 `ShowUIAsync`
 - `HideUI` 仅当窗口 `HideTimeToClose > 0` 时生效，否则等同直接 `CloseUI`
 - `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` 只等待"已打开"窗口的加载完成，窗口不存在时返回 null / 不回调

@@ -33,7 +33,7 @@ namespace Service.UI
                 _root = null;
             }
 
-            Assert.IsNull(UIRootBinding.Current, "夹具不得把 UI 根留给下一个用例");
+            Assert.IsNull(UIRootBinding.TryGetInstance(), "夹具不得把 UI 根留给下一个用例");
         }
 
         [Test]

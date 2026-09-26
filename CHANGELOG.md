@@ -21,7 +21,7 @@
 #### UI
 
 - 错误日志的启用判据方向反了：原写法在「不启用错误日志」时才注册 `ErrorLogger`，于是发布包（默认 `OnlyOpenWhenDevelopment` 且非开发构建）每次异常弹出 `LogUI`，编辑器与开发包反而静默。现按同一判据单向成立，双语 `UI.md` 里把反写成约定的那条说明一并改掉。
-- ⚠ UI 根不再按物体名字查找：改由场景物体上的 `UIRootBinding` 登记（`SingletonMono` 先到先得，后到者整物体销毁；`Current` 只回读、不自动创建），后端缺绑定或缺 Canvas 都只报一条问题并每帧续等，晚到的场景/实例化根/事后补上的 Canvas 都补得上。**迁移**：给原本那个名为 `UIRoot` 的物体加挂 `UIRootBinding` 即可，其上的 Canvas 等配置不动。
+- ⚠ UI 根不再按物体名字查找：改由场景物体上的 `UIRootBinding` 登记（`SingletonMono` 先到先得，后到者整物体销毁；取用一律走 `TryGetInstance()`——不自动创建，场景里没有根就是没有），后端缺绑定或缺 Canvas 都只报一条问题并每帧续等，晚到的场景/实例化根/事后补上的 Canvas 都补得上。**迁移**：给原本那个名为 `UIRoot` 的物体加挂 `UIRootBinding` 即可，其上的 Canvas 等配置不动；原先写 `UIRootBinding.Current` 的地方改为 `UIRootBinding.TryGetInstance()`。
 
 #### 调试器
 

@@ -8,7 +8,7 @@ namespace Service.UI
     /// <summary>
     /// <see cref="UIRootBinding"/> 的单例登记语义测试：UI 根靠组件登记，不再按名字查找。
     /// <para>钉住四件事：登记即成为当前根、当前根销毁后清空、先到先得（后到者不得抢位）、
-    /// 基类 <c>Current</c> 的自动创建路径已被隐藏（取值只回读，场景没有就是没有）。</para>
+    /// <c>TryGetInstance</c> 只回读不自动创建（场景没有就是没有）。</para>
     /// <para>EditMode 下 <c>AddComponent</c> 不触发 <c>Awake</c>，所以用例直调
     /// <see cref="UIRootBinding.Internal_Bind"/>——那是基类 <c>CheckMultipleInstance</c> 的同一入口。</para>
     /// </summary>
@@ -30,7 +30,7 @@ namespace Service.UI
             _rootB = null;
             _rootA = null;
 
-            Assert.IsNull(UIRootBinding.Current, "夹具不得把 UI 根留给下一个用例");
+            Assert.IsNull(UIRootBinding.TryGetInstance(), "夹具不得把 UI 根留给下一个用例");
         }
 
         [Test]
@@ -40,7 +40,7 @@ namespace Service.UI
             _a = _rootA.AddComponent<UIRootBinding>();
             _a.Internal_Bind();
 
-            Assert.AreSame(_a, UIRootBinding.Current, "登记后应立即成为当前 UI 根");
+            Assert.AreSame(_a, UIRootBinding.TryGetInstance(), "登记后应立即成为当前 UI 根");
         }
 
         [Test]
@@ -49,13 +49,13 @@ namespace Service.UI
             _rootA = new GameObject(nameof(UIRootBinding));
             _a = _rootA.AddComponent<UIRootBinding>();
             _a.Internal_Bind();
-            Assert.IsNotNull(UIRootBinding.Current, "前置条件：已登记");
+            Assert.IsNotNull(UIRootBinding.TryGetInstance(), "前置条件：已登记");
 
             UnityEngine.Object.DestroyImmediate(_rootA);
             _rootA = null;
             _a = null;
 
-            Assert.IsNull(UIRootBinding.Current, "当前根销毁后不应留下悬空引用");
+            Assert.IsNull(UIRootBinding.TryGetInstance(), "当前根销毁后不应留下悬空引用");
         }
 
         [Test]
@@ -71,14 +71,14 @@ namespace Service.UI
             UtfLogExpect.Error();
             _b.Internal_Bind();
 
-            Assert.AreSame(_a, UIRootBinding.Current, "先到先得：后到者不得抢位");
+            Assert.AreSame(_a, UIRootBinding.TryGetInstance(), "先到先得：后到者不得抢位");
             Assert.AreNotSame(_a, _b, "两次登记应是不同实例");
         }
 
         [Test]
-        public void Current_DoesNotAutoCreate()
+        public void TryGetInstance_DoesNotAutoCreate()
         {
-            Assert.IsNull(UIRootBinding.Current, "场景里没有 UIRootBinding 时取值必须是 null，不得自动创建空物体");
+            Assert.IsNull(UIRootBinding.TryGetInstance(), "场景里没有 UIRootBinding 时取值必须是 null，不得自动创建空物体");
         }
     }
 }

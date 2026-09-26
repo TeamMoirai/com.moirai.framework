@@ -64,7 +64,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 取用场景登记的 UI 根（<see cref="UIRootBinding.Current"/>）。
+        /// 取用场景登记的 UI 根（<see cref="UIRootBinding.TryGetInstance()"/>）。
         /// <para>尚未绑定、或已绑定但其下还没有 Canvas 时都挂起等待，由 <see cref="Tick"/> 续等——
         /// 后加入的场景、运行期实例化的根、以及事后补上 Canvas 的根都走得通。
         /// 刻意不再按名字查找：改名不报编译错、多场景/热更下同名物体还可能命中错的那一个，两条静默路径一起堵掉。</para>
@@ -72,7 +72,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void TryBindRoot()
         {
-            var binding = UIRootBinding.Current;
+            var binding = UIRootBinding.TryGetInstance();
             if (binding != null && InitializeRoot(binding.gameObject))
             {
                 _rootAwaitingBind = false;
@@ -121,7 +121,7 @@ namespace Moirai.Atropos.UI
 
             _instanceRoot.gameObject.layer = LayerMask.NameToLayer("UI");
 
-            if (ShouldEnableErrorLog(DebuggerService.ActiveWindowType, Debug.isDebugBuild, Application.isEditor))
+            if (ShouldEnableErrorLog())
             {
                 _errorLogger = new ErrorLogger();
             }
@@ -131,13 +131,18 @@ namespace Moirai.Atropos.UI
 
         /// <summary>
         /// 错误日志记录器的启用判据（跟随调试器窗口策略）。
-        /// <para>纯函数：入参已把 <see cref="Debug.isDebugBuild"/> 与 <see cref="Application.isEditor"/> 取出，
-        /// 便于在不依赖 UI 后端与场景的前提下锁住判据方向。</para>
+        /// </summary>
+        /// <returns>启用时为真，此时才构造并挂上 <see cref="ErrorLogger"/>。</returns>
+        internal static bool ShouldEnableErrorLog()
+            => ShouldEnableErrorLog(DebuggerService.ActiveWindowType, Debug.isDebugBuild, Application.isEditor);
+
+        /// <summary>
+        /// 错误日志记录器的启用判据（纯函数：入参已取出环境位，便于在不依赖 UI 后端与场景的前提下锁住判据方向）。
         /// </summary>
         /// <param name="activeWindowType">调试器窗口激活策略。</param>
         /// <param name="isDebugBuild">是否为开发（debug）构建。</param>
         /// <param name="isEditor">是否运行在编辑器内。</param>
-        /// <returns>启用时为真，此时才构造并挂上 <see cref="ErrorLogger"/>。</returns>
+        /// <returns>启用时为真。</returns>
         internal static bool ShouldEnableErrorLog(DebuggerActiveWindowType activeWindowType, bool isDebugBuild, bool isEditor)
         {
             switch (activeWindowType)
