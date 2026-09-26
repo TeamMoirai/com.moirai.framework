@@ -21,6 +21,7 @@
 #### 音频
 
 - ⚠ 公开枚举 AudioPlayFlags 更名为 EAudioPlayFlags（对齐 E 前缀命名规范）；**迁移**：全局替换类型名，成员名不变。
+- ⚠ AudioPlayOptions 的 18 个空间整形字段（声像/3D 混合/旁通×3/混响/多普勒/扩散/衰减模式/距离×2/四组自定义曲线）整体拆入新公开类型 AudioSpatialOptions，经 `options.Spatial.X` / `cold.Spatial.X` 读写；AudioPlayColdParams 的 17 个平铺空间字段同构收敛为单字段 `Spatial`。**迁移**：`options.SpatialBlend = v` 改为 `options.Spatial.SpatialBlend = v`（成员式赋值，`Spatial` 为公共字段）；`cold.X` 同理；Location/AttachToTransform/Priority 留在播放选项不动。
 - 整景切换（Single）才自动 StopAllButPersistent，Additive（叠加/流式分区）加载永不自动停音——需要收口的游戏流程在自己的切换点显式调用；跨场景音频仍设 Persistent = true。
 - BgmPlaylist 显式分层 ID 撞车或填负数改 fail-fast（报 Error 且本实例不播放，不再静默改派自动 ID）；自动分配迁到负区间（-1 起递减），与显式正数 ID 值域分离，0 仍是「自动分配」。
 - AudioPlayOptionsSO 首次 Play 也做并发上限检查（旧写法只在本 SO 播过之后才查，首播会无条件放行）。
@@ -32,6 +33,7 @@
 - AudioPlayOptionsSO 的 PlaybackTime / PlaybackDuration（含随机区间）随每次 Play 真正透传进播放请求（修复前恒为默认 0，起播位置与自定义时长都不生效）。
 - AudioPlayOptionsSO 的 MaximumConcurrentInstances / DoNotPlayIfClipAlreadyPlaying 改按「本次候选 clip」判定：随机曲集下旧写法看上一曲或本 SO 上次句柄，会误拦新曲或放过已在播的候选；播放失败（句柄 0）不再清掉上次成功句柄。
 - OnShutdown 无条件复位 AudioListener.pause：外部渠道（测试宿主、编辑器脚本、第三方）置位的暂停不再寄生到下一场景或编辑器会话。
+- AudioPlayOptions 的 Create / CreateLooping / CreateWithFade 此前不初始化任何空间字段，产出多普勒 0、最小/最大距离 0、混响 0 的零值声学（靠默认 2D 掩盖）；现统一以 AudioSpatialOptions.Default（对齐 Unity AudioSource 声学缺省）为空间起点。
 
 #### UI
 
