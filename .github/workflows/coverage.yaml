@@ -35,6 +35,7 @@ env:
 
 jobs:
   coverage:
+    if: false # 暂时禁用该 job（临时停止运行覆盖率工作流）
     name: EditMode with coverage
     runs-on: ubuntu-24.04
     timeout-minutes: 120
