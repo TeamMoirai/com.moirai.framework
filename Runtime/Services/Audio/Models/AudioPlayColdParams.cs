@@ -4,9 +4,11 @@ using UnityEngine.Audio;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 播放冷路径参数——曲线/空间/旁通/延迟等，仅在 <c>BeginPlayback</c> 写入 AudioSource。
+    /// 播放冷路径参数——位置/跟随/淡入/时间与空间整形，仅在 <c>BeginPlayback</c> 写入 AudioSource。
     /// <para>与 16 字节热请求 <see cref="AudioPlayRequest"/> 分离，热循环不拷贝本类型。</para>
     /// <para>可为 null：Agent 使用默认空间/无曲线。</para>
+    /// <para>空间整形收敛为单字段 <see cref="Spatial"/>（与 <see cref="AudioPlayOptions.Spatial"/> 同构），
+    /// 从选项提取时一次结构体拷贝替代逐字段抄写。</para>
     /// </summary>
     public sealed class AudioPlayColdParams
     {
@@ -40,43 +42,12 @@ namespace Moirai.Atropos.Audio
         /// <summary>自定义播放时长（0 = 整段）。</summary>
         public float PlaybackDuration;
 
-        /// <summary>立体声声像。</summary>
-        public float PanStereo;
-
-        /// <summary>3D 混合。</summary>
-        public float SpatialBlend;
-
-        /// <summary>多普勒强度。</summary>
-        public float DopplerLevel = 1f;
-
-        /// <summary>混响混合。</summary>
-        public float ReverbZoneMix = 1f;
-
-        /// <summary>最小距离。</summary>
-        public float MinDistance = 1f;
-
-        /// <summary>最大距离。</summary>
-        public float MaxDistance = 500f;
-
-        /// <summary>扩散角。</summary>
-        public int Spread;
-
-        /// <summary>衰减模式。</summary>
-        public AudioRolloffMode RolloffMode = AudioRolloffMode.Logarithmic;
-
-        public bool BypassEffects;
-        public bool BypassListenerEffects;
-        public bool BypassReverbZones;
-
-        public bool UseSpreadCurve;
-        public bool UseCustomRolloffCurve;
-        public bool UseSpatialBlendCurve;
-        public bool UseReverbZoneMixCurve;
-
-        public AnimationCurve SpreadCurve;
-        public AnimationCurve CustomRolloffCurve;
-        public AnimationCurve SpatialBlendCurve;
-        public AnimationCurve ReverbZoneMixCurve;
+        /// <summary>
+        /// 空间整形（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线）。
+        /// <para>零值结构体会把声源整形成「无多普勒、零衰减距离、无混响」，复位/缺省一律用
+        /// <see cref="AudioSpatialOptions.Default"/>。</para>
+        /// </summary>
+        public AudioSpatialOptions Spatial = AudioSpatialOptions.Default;
 
         /// <summary>
         /// 尽量复用实例的重置（池友好）。
@@ -93,25 +64,7 @@ namespace Moirai.Atropos.Audio
             InitialDelay = 0f;
             PlaybackTime = 0f;
             PlaybackDuration = 0f;
-            PanStereo = 0f;
-            SpatialBlend = 0f;
-            DopplerLevel = 1f;
-            ReverbZoneMix = 1f;
-            MinDistance = 1f;
-            MaxDistance = 500f;
-            Spread = 0;
-            RolloffMode = AudioRolloffMode.Logarithmic;
-            BypassEffects = false;
-            BypassListenerEffects = false;
-            BypassReverbZones = false;
-            UseSpreadCurve = false;
-            UseCustomRolloffCurve = false;
-            UseSpatialBlendCurve = false;
-            UseReverbZoneMixCurve = false;
-            SpreadCurve = null;
-            CustomRolloffCurve = null;
-            SpatialBlendCurve = null;
-            ReverbZoneMixCurve = null;
+            Spatial = AudioSpatialOptions.Default;
         }
 
         /// <summary>
@@ -130,25 +83,7 @@ namespace Moirai.Atropos.Audio
             p.InitialDelay = options.InitialDelay;
             p.PlaybackTime = options.PlaybackTime;
             p.PlaybackDuration = options.PlaybackDuration;
-            p.PanStereo = options.PanStereo;
-            p.SpatialBlend = options.SpatialBlend;
-            p.DopplerLevel = options.DopplerLevel;
-            p.ReverbZoneMix = options.ReverbZoneMix;
-            p.MinDistance = options.MinDistance;
-            p.MaxDistance = options.MaxDistance;
-            p.Spread = options.Spread;
-            p.RolloffMode = options.RolloffMode;
-            p.BypassEffects = options.BypassEffects;
-            p.BypassListenerEffects = options.BypassListenerEffects;
-            p.BypassReverbZones = options.BypassReverbZones;
-            p.UseSpreadCurve = options.UseSpreadCurve;
-            p.UseCustomRolloffCurve = options.UseCustomRolloffCurve;
-            p.UseSpatialBlendCurve = options.UseSpatialBlendCurve;
-            p.UseReverbZoneMixCurve = options.UseReverbZoneMixCurve;
-            p.SpreadCurve = options.SpreadCurve;
-            p.CustomRolloffCurve = options.CustomRolloffCurve;
-            p.SpatialBlendCurve = options.SpatialBlendCurve;
-            p.ReverbZoneMixCurve = options.ReverbZoneMixCurve;
+            p.Spatial = options.Spatial;
             return p;
         }
     }

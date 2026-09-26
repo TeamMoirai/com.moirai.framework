@@ -1,0 +1,171 @@
+using System.Collections;
+using Moirai.Atropos.Audio;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace Service.Audio
+{
+    /// <summary>
+    /// AudioPlayOptionsSO 回归：时间参数（PlaybackTime/PlaybackDuration）必须真的进入播放请求；
+    /// 随机曲集下的并发/重播检查必须作用于「本次候选 clip」而非上一曲。
+    /// <para>成员触达一律走 internal 接缝（《测试规范》：测试禁反射）。</para>
+    /// </summary>
+    [TestFixture]
+    public sealed class AudioPlayOptionsSOTests
+    {
+        private GameObject _root;
+        private AudioServiceTestHost _host;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _root = new GameObject("[AudioPlayOptionsSOTest]");
+            Object.DontDestroyOnLoad(_root);
+            _root.AddComponent<AudioListener>();
+
+            _host = new AudioServiceTestHost(EAudioTrack.Sfx);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _host?.Dispose();
+            _host = null;
+            if (_root != null) Object.Destroy(_root);
+            _root = null;
+        }
+
+        [UnityTest]
+        public IEnumerator Play_ConfiguredPlaybackTime_StartsAtConfiguredOffset()
+        {
+            AudioClip clip = CreateClip("so_time", 3f);
+            AudioPlayOptionsSO so = CreateOptions(clip);
+            so.m_PlaybackTime = new Vector2(0.5f, 0.5f);
+
+            so.Play(Vector3.zero);
+            yield return null;
+
+            ulong handle = so._lastPlayHandle;
+            Assert.AreNotEqual(0UL, handle, "Play 应产出有效句柄");
+
+            AudioAgent agent = AudioService.GetAgentByHandle(handle);
+            Assert.IsNotNull(agent, "句柄应能取回 Agent");
+            Assert.IsNotNull(agent.AudioResource, "Agent 应已绑定 AudioSource");
+            Assert.That(agent.AudioResource.time, Is.InRange(0.4f, 0.9f),
+                "PlaybackTime=0.5 应让起播位置落在 0.5 附近（修复前恒为 0）");
+
+            AudioService.Stop(handle, 0f);
+            Object.Destroy(clip);
+            Object.Destroy(so);
+        }
+
+        [UnityTest]
+        public IEnumerator Play_ConfiguredPlaybackDuration_StopsEarly()
+        {
+            AudioClip clip = CreateClip("so_duration", 3f);
+            AudioPlayOptionsSO so = CreateOptions(clip);
+            so.m_PlaybackDuration = new Vector2(0.2f, 0.2f);
+
+            so.Play(Vector3.zero);
+            yield return null;
+
+            ulong handle = so._lastPlayHandle;
+            Assert.AreNotEqual(0UL, handle, "Play 应产出有效句柄");
+            Assert.IsTrue(AudioService.IsPlaying(handle), "起播后应立即在播");
+
+            // 自定义时长 0.2s + 自然结束淡出 << 1s；3s 整段 clip 若参数丢失此处必然仍在播
+            yield return new WaitForSecondsRealtime(1f);
+            Assert.IsFalse(AudioService.IsPlaying(handle), "PlaybackDuration=0.2 应让播放提前结束（修复前播完整段）");
+
+            Object.Destroy(clip);
+            Object.Destroy(so);
+        }
+
+        [UnityTest]
+        public IEnumerator Play_MaxConcurrentOnRandomSet_ChecksCandidateNotPrevious()
+        {
+            AudioClip clipA = CreateClip("so_seq_a", 2f);
+            AudioClip clipB = CreateClip("so_seq_b", 2f);
+            AudioPlayOptionsSO so = CreateOptions(null);
+            so.m_RandomAudio = new[] { clipA, clipB };
+            so.m_SequentialOrder = true;
+            so.m_MaximumConcurrentInstances = 1;
+            so.m_Loop = true;
+
+            so.Play(Vector3.zero);
+            yield return null;
+            ulong first = so._lastPlayHandle;
+            Assert.AreNotEqual(0UL, first, "第一次 Play 应产出有效句柄");
+
+            // 顺序模式第二曲为 clipB；并发上限 1 只应统计候选 clipB（在播 0），不得被上一曲 clipA 拦截
+            so.Play(Vector3.zero);
+            yield return null;
+            ulong second = so._lastPlayHandle;
+
+            Assert.AreNotEqual(0UL, second, "第二曲不应被并发上限拦截（修复前检查作用于上一曲 clipA 而误拦）");
+            Assert.AreNotEqual(first, second, "两次 Play 应产生不同句柄");
+            Assert.AreEqual(1, AudioService.CurrentlyPlayingCount(clipA), "clipA 应仍在播");
+            Assert.AreEqual(1, AudioService.CurrentlyPlayingCount(clipB), "clipB 应已成功起播");
+
+            AudioService.StopAll(0f);
+            Object.Destroy(clipA);
+            Object.Destroy(clipB);
+            Object.Destroy(so);
+        }
+
+        [UnityTest]
+        public IEnumerator Play_DoNotPlayIfClipAlreadyPlaying_ChecksCandidateNotLastHandle()
+        {
+            AudioClip clipA = CreateClip("so_dnp_a", 2f);
+            AudioClip clipB = CreateClip("so_dnp_b", 2f);
+            AudioPlayOptionsSO so = CreateOptions(null);
+            so.m_RandomAudio = new[] { clipA, clipB };
+            so.m_SequentialOrder = true;
+            so.m_DoNotPlayIfClipAlreadyPlaying = true;
+            so.m_Loop = true;
+
+            so.Play(Vector3.zero);
+            yield return null;
+            ulong first = so._lastPlayHandle;
+            Assert.AreNotEqual(0UL, first, "第一次 Play 应产出有效句柄");
+
+            // 顺序第二曲是 clipB：clipB 不在播，不得被「上次句柄 clipA 还在响」误拦
+            so.Play(Vector3.zero);
+            yield return null;
+            Assert.AreNotEqual(0UL, so._lastPlayHandle, "候选 clipB 未在播时不应被重播检查拦截");
+            Assert.AreNotEqual(first, so._lastPlayHandle, "第二曲应产生新句柄");
+            Assert.AreEqual(1, AudioService.CurrentlyPlayingCount(clipA), "clipA 应仍在播");
+            Assert.AreEqual(1, AudioService.CurrentlyPlayingCount(clipB), "clipB 应已成功起播");
+
+            // 再走一轮回到 clipA：候选 clipA 已在播，必须被拦下
+            ulong beforeBlock = so._lastPlayHandle;
+            so.Play(Vector3.zero);
+            yield return null;
+            Assert.AreEqual(beforeBlock, so._lastPlayHandle, "候选 clipA 已在播时必须被 DoNotPlayIfClipAlreadyPlaying 拦下");
+            Assert.AreEqual(1, AudioService.CurrentlyPlayingCount(clipA), "clipA 仍应只有一份在播");
+
+            AudioService.StopAll(0f);
+            Object.Destroy(clipA);
+            Object.Destroy(clipB);
+            Object.Destroy(so);
+        }
+
+        private static AudioClip CreateClip(string name, float seconds)
+        {
+            int samples = Mathf.CeilToInt(44100 * seconds);
+            var clip = AudioClip.Create(name, samples, 1, 44100, false);
+            clip.SetData(new float[samples], 0);
+            return clip;
+        }
+
+        private static AudioPlayOptionsSO CreateOptions(AudioClip clip)
+        {
+            var so = ScriptableObject.CreateInstance<AudioPlayOptionsSO>();
+            so.m_Audio = clip;
+            so.m_AudioTrack = EAudioTrack.Sfx;
+            so.m_MaximumConcurrentInstances = -1;
+            return so;
+        }
+    }
+}

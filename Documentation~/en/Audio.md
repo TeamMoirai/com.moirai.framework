@@ -29,7 +29,7 @@ Runtime/Services/Audio/
 ├── Spatial/ AudioOcclusionHrtf.cs             # Occlusion + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
 │          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
-└── Support/ BackgroundMusic / AudioSettingsWidget
+└── Support/ BackgroundMusic / AudioSettingsWidget / BgmPlaylist / AudioEmitter
            AudioMainThread / AudioFault / AudioWarnOnce   # main-thread assert, backed-off fault reporting, deduped warnings
 ```
 
@@ -99,7 +99,8 @@ Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middl
 | `FmodAudioHandler` / `WwiseAudioHandler` | FMOD / Wwise thin wrappers |
 | `AudioPlayRequest` | 16-byte hot request |
 | `AudioPlayColdParams` | Cold params (location, curves, bypass); pooled |
-| `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()`; `CachePolicy` decides lease retention |
+| `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()`; spatial shaping carried wholesale via the `Spatial` field; `CachePolicy` decides lease retention |
+| `AudioSpatialOptions` | AudioSource spatial shaping (2D pan / 3D rolloff, doppler, reverb and custom curves); enters the cold path via `AudioPlayOptions.Spatial` / `AudioPlayColdParams.Spatial`; `Default` matches Unity acoustic defaults and is the starting point of every play factory |
 | `EAudioCachePolicy` | `Default` (from settings) / `None` (drop after use) / `Ttl` (keep until expiry) / `Pin` (resident) |
 | `AudioClipCache` | Unity backend clip lease cache (internal); `AssetHandlePool` is its read-only view |
 | `AudioMixStateMachine` / `EMixSnapshot` | Mix snapshot state machine |
@@ -116,7 +117,7 @@ ulong h = AudioService.Play(clip, options);
 
 // 16-byte hot request (preferred)
 var req = new AudioPlayRequest(id: 1, volume: 1f, pitch: 1f, EAudioTrack.Sfx, 128,
-    AudioPlayFlags.DoNotAutoRecycle);
+    EAudioPlayFlags.DoNotAutoRecycle);
 ulong h2 = AudioService.Play(clip, req, cold: null);
 
 // Layered BGM: same ID replaces, different IDs coexist
@@ -195,6 +196,14 @@ Add `AudioOcclusionHrtf` next to the listener: raycasts active sources, drives `
 
 Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSettings`; `AudioService.OnInit` warms the pool under `InstanceRoot` after the handler is ready. Idle hosts live under a `[Warmup]` node (sibling of each `Audio Category - *`); `AudioAgent` re-parents a host to its category and renames it (e.g. `SFX - 0`) on acquire, and returns it under `[Warmup]` on release. Without warmup, hosts are created on demand and the `[Warmup]` node is created on first release.
 
+### 0-GC acceptance (player build)
+
+Editor Mono reports `GC.GetAllocatedBytesForCurrentThread()` and `ProfilerRecorder(GC.Alloc)` as constantly 0 — **managed allocations cannot be measured inside the editor**. PlayMode 0-GC assertions therefore follow a capability probe + `Assert.Ignore` (skip when the counter is unavailable; never treat "cannot measure" as "no allocations") and only carry functional regression. The authoritative gate for a 0-allocation play steady state is anchored in `Tests/Player`:
+
+1. Test Runner → PlayMode tab → search `AudioPerformance` / `Allocation`;
+2. Click **Run all in Player** (player tests can only be launched from there — the player does not parse `-testResults`; results travel back via PlayerConnection and are written by the editor);
+3. Verify the GC.Alloc assertions in `AudioPerformanceTests` are green. Run it at least once before release.
+
 ## Configuration
 
 - Mixer groups must expose a `{group name}Volume` parameter; `m_MixerValuesMultiplier` defaults to 20
@@ -223,7 +232,9 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - Natural-end timing uses unscaled real time (`AudioSource` is not affected by `timeScale`): at `timeScale = 0` a non-looping voice still finishes in real time and auto-releases its handle  
 - Master/track fades are implemented by the contract base class (one code path for both backends): `duration <= 0` means assign immediately and schedule nothing; `StopFadeMasterTrack` / `StopFadeTrack` **cancel the fade without restoring volume already written** — wherever it stopped is where it stays; re-requesting a fade on the same bus replaces the pending one rather than stacking it  
 - `Stop(handle, fadeoutDuration)` and `FadeAudio(handle, ...)` take over the same handle's volume exclusively (the later call cancels the former) — do not stack them  
-- Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  
+- Full scene changes (`Single`) auto `StopAllButPersistent`; **Additive (streamed section) loads never stop audio automatically** — there is no legitimate use case for stopping all non-persistent audio on an additive load; call `StopAllButPersistent` explicitly at your own transition point when needed; set `Persistent = true` for cross-scene audio
+- `BgmPlaylist` layer IDs: **positive = explicit layer; two instances claiming the same positive ID is a configuration error that fails fast with an Error, and the second instance does not play** (no silent re-assignment); `0` = auto-assigned per instance (reserved negative range, never collides with explicit values). A negative explicit ID is rejected the same way — that range is reserved for auto assignment
+- The "Time" parameters of `AudioPlayOptionsSO` (`PlaybackTime` / `PlaybackDuration`, including random ranges) take effect on every `Play`; `MaximumConcurrentInstances` / `DoNotPlayIfClipAlreadyPlaying` evaluate the **candidate clip of this play** (not the previous one under a random set)  
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
 - The in-game debugger's `Profiler/Audio` panel now also shows clip cache entries/capacity, in-flight loads, pinned count, failure cooldowns, the current mix snapshot and ducking ownership, plus cache-clear buttons — check it first when "a sound didn't play"  
 - Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`

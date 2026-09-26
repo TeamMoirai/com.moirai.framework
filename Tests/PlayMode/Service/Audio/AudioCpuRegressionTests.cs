@@ -113,7 +113,7 @@ namespace Service.Audio
                 yield break;
             }
 
-            var request = new AudioPlayRequest(8001, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.DoNotAutoRecycle);
+            var request = new AudioPlayRequest(8001, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.DoNotAutoRecycle);
 
             for (int i = 0; i < 32; i++)
             {

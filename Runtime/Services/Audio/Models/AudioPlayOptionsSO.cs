@@ -22,18 +22,18 @@ namespace Moirai.Atropos.Audio
         [Header("音频 [Audio]")]
         [InspectorGroup(AUDIO_CLIP_GROUP, ColorsUtility.EColor.Teal)]
         [Tooltip("要播放的音频")]
-        [SerializeField] private AudioClip m_Audio;
+        [SerializeField] internal AudioClip m_Audio;
         public AudioClip Audio => m_Audio;
 
         // 随机音频
         [Header("随机音频 [Random Audio]")]
         [InspectorGroup(AUDIO_CLIP_GROUP)]
         [Tooltip("播放随机音频的数组")]
-        [SerializeField] private AudioClip[] m_RandomAudio;
+        [SerializeField] internal AudioClip[] m_RandomAudio;
         public AudioClip[] RandomAudio => m_RandomAudio;
         [InspectorGroup(AUDIO_CLIP_GROUP)]
         [Tooltip("随机的 SFX 音频将按顺序播放，而不是随机播放")]
-        [SerializeField] private bool m_SequentialOrder = false;
+        [SerializeField] internal bool m_SequentialOrder = false;
         public bool SequentialOrder => m_SequentialOrder;
         [InspectorGroup(AUDIO_CLIP_GROUP)]
         [Tooltip("如果按顺序播放（SequentialOrder），则判断是否在最后一个索引处停住，直到冷却时间结束（SequentialOrderHoldCooldownDuration）或调用 ResetSequentialIndex 方法")]
@@ -86,19 +86,19 @@ namespace Moirai.Atropos.Audio
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("开始播放音频的时间（以秒为单位，在定义的最小值和最大值之间随机），相当于 AudioSource API 的 Time")]
         [VectorLabel("Min", "Max")]
-        [SerializeField] private Vector2 m_PlaybackTime = new Vector2(0f, 0f);
+        [SerializeField] internal Vector2 m_PlaybackTime = new Vector2(0f, 0f);
         public Vector2 PlaybackTime => m_PlaybackTime;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("播放音频的持续时间（以秒为单位，在定义的最小值和最大值之间随机）。如果 min 和 max 为零，则忽略。")]
         [VectorLabel("Min", "Max")]
-        [SerializeField] private Vector2 m_PlaybackDuration = new Vector2(0f, 0f);
+        [SerializeField] internal Vector2 m_PlaybackDuration = new Vector2(0f, 0f);
         public Vector2 PlaybackDuration => m_PlaybackDuration;
 
         // 音频服务选项
         [Header("音频服务选项 [Audio Service Options]")]
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("播放音频的音轨。选择与音频性质相匹配的")]
-        [SerializeField] private EAudioTrack m_AudioTrack = EAudioTrack.Sfx;
+        [SerializeField] internal EAudioTrack m_AudioTrack = EAudioTrack.Sfx;
         public EAudioTrack AudioTrack => m_AudioTrack;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("音频的 ID，用于之后再次找到该音频，eg：sound control")]
@@ -114,7 +114,7 @@ namespace Moirai.Atropos.Audio
         public AudioSource RecycleAudioSource => m_RecycleAudioSource;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("是否应循环播放")]
-        [SerializeField] private bool m_Loop = false;
+        [SerializeField] internal bool m_Loop = false;
         public bool Loop => m_Loop;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("转到另一个场景时是否应继续播放此音频")]
@@ -122,11 +122,11 @@ namespace Moirai.Atropos.Audio
         public bool Persistent => m_Persistent;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("如果同一音频已在播放，是否仍播放")]
-        [SerializeField] private bool m_DoNotPlayIfClipAlreadyPlaying = false;
+        [SerializeField] internal bool m_DoNotPlayIfClipAlreadyPlaying = false;
         public bool DoNotPlayIfClipAlreadyPlaying => m_DoNotPlayIfClipAlreadyPlaying;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("此声音允许同时播放的最大实例数量。使用-1表示无同时播放数量限制。")]
-        [SerializeField] private int m_MaximumConcurrentInstances = 3;
+        [SerializeField] internal int m_MaximumConcurrentInstances = 3;
         public int MaximumConcurrentInstances => m_MaximumConcurrentInstances;
 
         // 淡入
@@ -271,8 +271,7 @@ namespace Moirai.Atropos.Audio
         [NonSerialized] private int _currentIndex = 0;
         [NonSerialized] private ShuffleBag<int> _randomUniqueShuffleBag;
         [NonSerialized] private int _randomUniqueShuffleBagSourceLength = -1;
-        [NonSerialized] private ulong _lastPlayHandle;
-        [NonSerialized] private AudioClip _sfx;
+        [NonSerialized] internal ulong _lastPlayHandle;
 
         public void Play(Vector3 location)
         {
@@ -280,37 +279,38 @@ namespace Moirai.Atropos.Audio
 
             var audioService = AudioService.Handler;
 
-            if (_sfx != null)
+            // 先选出本次候选 clip 再做重播/并发检查——检查若先于选曲执行，
+            // 随机曲集下作用的是上一曲而非即将播放的候选，并发上限会被错误放行或错误拦截。
+            // m_RandomAudio 在 CreateInstance 路径下可为 null（未走序列化初始化），按空数组处理。
+            AudioClip clip = null;
+            if (m_RandomAudio != null && m_RandomAudio.Length > 0)
             {
-                if (m_DoNotPlayIfClipAlreadyPlaying)
+                clip = PickRandomClip();
+            }
+
+            if (clip == null)
+            {
+                clip = m_Audio;
+            }
+
+            if (clip == null) return;
+
+            // 重播/并发都按「本次候选 clip」判定——属性名说的是 clip already playing，
+            // 不是「本 SO 上次句柄还在响」；随机曲集下二者分叉，按上次句柄会误拦新曲或放过已在播的候选。
+            if (audioService != null)
+            {
+                int playingCount = audioService.CurrentlyPlayingCount(clip);
+
+                if (m_DoNotPlayIfClipAlreadyPlaying && playingCount > 0)
                 {
-                    if (_lastPlayHandle != 0 && audioService != null && audioService.IsPlaying(_lastPlayHandle))
-                    {
-                        return;
-                    }
+                    return;
                 }
 
-                if (m_MaximumConcurrentInstances >= 0)
+                if (m_MaximumConcurrentInstances >= 0 && playingCount >= m_MaximumConcurrentInstances)
                 {
-                    if (audioService != null && audioService.CurrentlyPlayingCount(_sfx) >= m_MaximumConcurrentInstances)
-                    {
-                        return;
-                    }
+                    return;
                 }
             }
-
-            _sfx = null;
-            if (m_RandomAudio.Length > 0)
-            {
-                _sfx = PickRandomClip();
-            }
-
-            if (_sfx == null)
-            {
-                _sfx = m_Audio;
-            }
-
-            if (_sfx == null) return;
 
             float volume = RandomUtility.NextFloat(m_MinVolume, m_MaxVolume);
             float pitch = RandomUtility.NextFloat(m_MinPitch, m_MaxPitch);
@@ -320,6 +320,9 @@ namespace Moirai.Atropos.Audio
                 Location = location,
                 Volume = volume,
                 Pitch = pitch,
+
+                PlaybackTime = RandomUtility.NextFloat(m_PlaybackTime.x, m_PlaybackTime.y),
+                PlaybackDuration = RandomUtility.NextFloat(m_PlaybackDuration.x, m_PlaybackDuration.y),
 
                 AudioTrack = m_AudioTrack,
                 ID = m_ID,
@@ -337,30 +340,38 @@ namespace Moirai.Atropos.Audio
                 SoloAllTracks = m_SoloAllTracks,
                 AutoUnSoloOnEnd = m_AutoUnSoloOnEnd,
 
-                PanStereo = m_PanStereo,
-                SpatialBlend = m_SpatialBlend,
-                BypassEffects = m_BypassEffects,
-                BypassListenerEffects = m_BypassListenerEffects,
-                BypassReverbZones = m_BypassReverbZones,
                 Priority = m_Priority,
-                ReverbZoneMix = m_ReverbZoneMix,
-                DopplerLevel = m_DopplerLevel,
-                Spread = m_Spread,
-                RolloffMode = m_RolloffMode,
-                MinDistance = m_MinDistance,
-                MaxDistance = m_MaxDistance,
-                UseCustomRolloffCurve = m_UseCustomRolloffCurve,
-                CustomRolloffCurve = m_CustomRolloffCurve,
-                UseSpatialBlendCurve = m_UseSpatialBlendCurve,
-                SpatialBlendCurve = m_SpatialBlendCurve,
-                UseReverbZoneMixCurve = m_UseReverbZoneMixCurve,
-                ReverbZoneMixCurve = m_ReverbZoneMixCurve,
-                UseSpreadCurve = m_UseSpreadCurve,
-                SpreadCurve = m_SpreadCurve,
+                Spatial = new AudioSpatialOptions
+                {
+                    PanStereo = m_PanStereo,
+                    SpatialBlend = m_SpatialBlend,
+                    BypassEffects = m_BypassEffects,
+                    BypassListenerEffects = m_BypassListenerEffects,
+                    BypassReverbZones = m_BypassReverbZones,
+                    ReverbZoneMix = m_ReverbZoneMix,
+                    DopplerLevel = m_DopplerLevel,
+                    Spread = m_Spread,
+                    RolloffMode = m_RolloffMode,
+                    MinDistance = m_MinDistance,
+                    MaxDistance = m_MaxDistance,
+                    UseCustomRolloffCurve = m_UseCustomRolloffCurve,
+                    CustomRolloffCurve = m_CustomRolloffCurve,
+                    UseSpatialBlendCurve = m_UseSpatialBlendCurve,
+                    SpatialBlendCurve = m_SpatialBlendCurve,
+                    UseReverbZoneMixCurve = m_UseReverbZoneMixCurve,
+                    ReverbZoneMixCurve = m_ReverbZoneMixCurve,
+                    UseSpreadCurve = m_UseSpreadCurve,
+                    SpreadCurve = m_SpreadCurve,
+                },
             };
 
-            _lastPlayHandle = AudioService.Play(_sfx, options);
-            _lastPlayTimestamp = Time.unscaledTime;
+            ulong handle = AudioService.Play(clip, options);
+            if (handle != 0)
+            {
+                // 句柄只跟随成功播放——失败（0）保留旧句柄，重播检查语义不被一次失败清空。
+                _lastPlayHandle = handle;
+                _lastPlayTimestamp = Time.unscaledTime;
+            }
         }
 
         /// <summary>

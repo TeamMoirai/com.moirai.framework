@@ -104,7 +104,7 @@ namespace Service.Audio
             Assert.IsNull(handler.Bridge, "初始化失败后不得留下半初始化的桥——保留就是让后续每次调用打到未初始化的原生层");
 
             Assert.AreEqual(0UL, handler.Play("event:/Anything",
-                new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.None), null));
+                new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.None), null));
             Assert.IsFalse(handler.LoadBank("Master"));
             Assert.IsFalse(handler.UnloadBank("Master"));
             handler.SetRtpc("Health", 0.5f, 0UL);

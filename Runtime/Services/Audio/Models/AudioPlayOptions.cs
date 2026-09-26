@@ -7,10 +7,11 @@ using UnityEngine.Serialization;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// <see cref="AudioService"/> 的播放选项（完整配置载体）。
+    /// <see cref="AudioService"/> 的播放选项（服务语义层：音轨/音量/淡入/独奏/时间/缓存）。
     /// <para>体量较大，属于冷路径配置对象：播放时由 <see cref="AudioAgent"/> 拆出热路径字段缓存，不整份驻留热循环。</para>
     /// <para>热路径字段：ID / Track / Volume / Loop / Persistent / Priority / Location / Attach / FadeIn* / Solo*。</para>
-    /// <para>冷路径字段：曲线、旁通、Rolloff、Doppler 等——仅在 <c>BeginPlayback</c> 时写入 AudioSource。</para>
+    /// <para>空间整形（声像/3D 衰减/多普勒/旁通/曲线）已拆入 <see cref="AudioSpatialOptions"/>
+    /// ——「往哪儿播」与「怎么响」是两件事，经 <see cref="Spatial"/> 字段整体携带。</para>
     /// </summary>
     [Serializable]
     public struct AudioPlayOptions
@@ -115,105 +116,39 @@ namespace Moirai.Atropos.Audio
 
         // 空间设置
         [Header("空间设置 [Spatial Settings]")]
-        [Tooltip("声像。以立体声方式（左或右）平移音频。这仅适用于单声道或立体声的音频")]
-        [Range(-1f, 1f)]
-        [SerializeField] private float m_PanStereo;
-        public float PanStereo { get => m_PanStereo; internal set => m_PanStereo = value; }
-        [Tooltip("AudioSource 受 3D 空间化计算（衰减、多普勒等）影响的程度。0.0 使音频全 2D，1.0 使其全 3D")]
-        [Range(0f, 1f)]
-        [SerializeField] private float m_SpatialBlend;
-        public float SpatialBlend { get => m_SpatialBlend; internal set => m_SpatialBlend = value; }
+        /// <summary>
+        /// 空间整形选项（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线）。
+        /// <para>公共字段而非属性（同 <see cref="AudioPlayColdParams"/> 的字段风格）：消费端大量
+        /// <c>options.Spatial.SpatialBlend = x</c> 成员式赋值，属性 getter 返回结构体副本会把它们全部变成 CS1612。</para>
+        /// </summary>
+        public AudioSpatialOptions Spatial;
+
         [Tooltip("此音频可以“附加”到该 Transform 并在播放时跟随它")]
         [SerializeField] private Transform m_AttachToTransform;
         public Transform AttachToTransform { get => m_AttachToTransform; internal set => m_AttachToTransform = value; }
 
-        // 旁通
-        [Tooltip("音源滤波开关，是否打开音频特效（从滤波器 filter 组件或全局监听器滤波器 listener filter 应用）")]
-        [SerializeField] private bool m_BypassEffects;
-        public bool BypassEffects { get => m_BypassEffects; set => m_BypassEffects = value;}
-        [Tooltip("在 AudioListener 上设置全局效果时，不会将其应用于 AudioSource 生成的音频信号。如果 AudioSource 正在播放到混音器组，则不适用")]
-        [SerializeField] private bool m_BypassListenerEffects;
-        public bool BypassListenerEffects { get => m_BypassListenerEffects; set => m_BypassListenerEffects = value;}
-        [Tooltip("不将来自 AudioSource 的信号发送到与混响区域关联的全局混响中")]
-        [SerializeField] private bool m_BypassReverbZones;
-        public bool BypassReverbZones { get => m_BypassReverbZones; set => m_BypassReverbZones = value;}
         [Tooltip("当播放的 AudioSource 数量多于可用硬件声道数时，Unity 将对 AudioSource 进行虚拟化处理。先对优先级（和可听度）最低的 AudioSource 进行虚拟化处理。优先级为 0 到 255 之间的整数。0 = 最高优先级，255 = 最低优先级。")]
         [Range(0, 256)]
         [SerializeField] private int m_Priority;
         public int Priority { get => m_Priority; internal set => m_Priority = value; }
-        [Tooltip("将 AudioSource 的信号混合到与混响区域相关联的全局混响中的量")]
-        [Range(0f, 1.1f)]
-        [SerializeField] private float m_ReverbZoneMix;
-        public float ReverbZoneMix { get => m_ReverbZoneMix; internal set => m_ReverbZoneMix = value; }
 
-        // 3D音频设置
-        [Header("3D音频设置 [3D Sound Settings]")]
-        [Tooltip("设置音频源应用多普勒效果的程度（如果设置为 0，则不应用任意效果）。")]
-        [Range(0f, 5f)]
-        [SerializeField] private float m_DopplerLevel;
-        public float DopplerLevel { get => m_DopplerLevel; internal set => m_DopplerLevel = value; }
         [Tooltip("播放音频的位置")]
         [SerializeField] private Vector3 m_Location;
         public Vector3 Location { get => m_Location; set => m_Location = value; }
-        [Tooltip("设置 3D 立体声或多声道音频在扬声器空间中的传播角度（以度为单位）。")]
-        [Range(0, 360)]
-        [SerializeField] private int m_Spread;
-        public int Spread { get => m_Spread; internal set => m_Spread = value; }
-        [Tooltip("音频随距离的衰减方式。Logarithmic(对数，现实世界的衰减)、Linear(线性) 和Custom(自定义)。")]
-        [SerializeField] private AudioRolloffMode m_RolloffMode;
-        public AudioRolloffMode RolloffMode { get => m_RolloffMode; internal set => m_RolloffMode = value; }
-        [Tooltip("音量停止增大的最小距离")]
-        [SerializeField] private float m_MinDistance;
-        public float MinDistance { get => m_MinDistance; internal set => m_MinDistance = value; }
-        [Tooltip("（对数衰减）音频停止衰减的最大距离")]
-        [SerializeField] private float m_MaxDistance;
-        public float MaxDistance { get => m_MaxDistance; internal set => m_MaxDistance = value; }
-
-        [Tooltip("使用自定义音量衰减曲线")]
-        [SerializeField] private bool m_UseCustomRolloffCurve;
-        public bool UseCustomRolloffCurve { get => m_UseCustomRolloffCurve; internal set => m_UseCustomRolloffCurve = value; }
-        [Tooltip("定义 AudioSource 的音量如何随与 AudioListener 的距离变化而衰减。")]
-        [ShowIf(nameof(m_UseCustomRolloffCurve))]
-        [SerializeField] private AnimationCurve m_CustomRolloffCurve;
-        public AnimationCurve CustomRolloffCurve { get => m_CustomRolloffCurve; internal set => m_CustomRolloffCurve = value; }
-
-        [Tooltip("是否使用自定义空间混合曲线")]
-        [SerializeField] private bool m_UseSpatialBlendCurve;
-        public bool UseSpatialBlendCurve { get => m_UseSpatialBlendCurve; internal set => m_UseSpatialBlendCurve = value; }
-        [Tooltip("如果 UseSpatialBlendCurve 为 true，则用于自定义空间混合的曲线")]
-        [ShowIf(nameof(m_UseSpatialBlendCurve))]
-        [SerializeField] private AnimationCurve m_SpatialBlendCurve;
-        public AnimationCurve SpatialBlendCurve { get => m_SpatialBlendCurve; internal set => m_SpatialBlendCurve = value; }
-
-        [Tooltip("是否使用自定义混响区域混音曲线")]
-        [SerializeField] private bool m_UseReverbZoneMixCurve;
-        public bool UseReverbZoneMixCurve { get => m_UseReverbZoneMixCurve; internal set => m_UseReverbZoneMixCurve = value; }
-        [Tooltip("如果 UseReverbZoneMixCurve 为 true，则用于自定义混响区域混音的曲线")]
-        [ShowIf(nameof(m_UseReverbZoneMixCurve))]
-        [SerializeField] private AnimationCurve m_ReverbZoneMixCurve;
-        public AnimationCurve ReverbZoneMixCurve { get => m_ReverbZoneMixCurve; internal set => m_ReverbZoneMixCurve = value; }
-
-        [Tooltip("是否使用自定义扩散曲线")]
-        [SerializeField] private bool m_UseSpreadCurve;
-        public bool UseSpreadCurve { get => m_UseSpreadCurve; internal set => m_UseSpreadCurve = value; }
-        [Tooltip("如果 UseSpreadCurve 为 true，则用于自定义扩散的曲线")]
-        [ShowIf(nameof(m_UseSpreadCurve))]
-        [SerializeField] private AnimationCurve m_SpreadCurve;
-        public AnimationCurve SpreadCurve { get => m_SpreadCurve; internal set => m_SpreadCurve = value; }
 
         /// <summary>
         /// 提取 16 字节热路径请求。
         /// </summary>
         public readonly AudioPlayRequest ToRequest()
         {
-            AudioPlayFlags flags = AudioPlayFlags.None;
-            if (m_Loop) flags |= AudioPlayFlags.Loop;
-            if (m_Persistent) flags |= AudioPlayFlags.Persistent;
-            if (m_FadeInOnPlay) flags |= AudioPlayFlags.FadeInOnPlay;
-            if (m_SoloSingleTrack) flags |= AudioPlayFlags.SoloSingleTrack;
-            if (m_SoloAllTracks) flags |= AudioPlayFlags.SoloAllTracks;
-            if (m_AutoUnSoloOnEnd) flags |= AudioPlayFlags.AutoUnSoloOnEnd;
-            if (m_DoNotAutoRecycleIfNotDonePlaying) flags |= AudioPlayFlags.DoNotAutoRecycle;
+            EAudioPlayFlags flags = EAudioPlayFlags.None;
+            if (m_Loop) flags |= EAudioPlayFlags.Loop;
+            if (m_Persistent) flags |= EAudioPlayFlags.Persistent;
+            if (m_FadeInOnPlay) flags |= EAudioPlayFlags.FadeInOnPlay;
+            if (m_SoloSingleTrack) flags |= EAudioPlayFlags.SoloSingleTrack;
+            if (m_SoloAllTracks) flags |= EAudioPlayFlags.SoloAllTracks;
+            if (m_AutoUnSoloOnEnd) flags |= EAudioPlayFlags.AutoUnSoloOnEnd;
+            if (m_DoNotAutoRecycleIfNotDonePlaying) flags |= EAudioPlayFlags.DoNotAutoRecycle;
 
             byte priority = (byte)Mathf.Clamp(m_Priority, 0, 255);
             return new AudioPlayRequest(m_ID, m_Volume, m_Pitch, m_AudioTrack, priority, flags);
@@ -263,34 +198,11 @@ namespace Moirai.Atropos.Audio
             m_SoloSingleTrack = false,
             m_SoloAllTracks = false,
             m_AutoUnSoloOnEnd = false,
-            m_BypassEffects = false,
-            m_BypassListenerEffects = false,
-            m_BypassReverbZones = false,
             m_Priority = 128,
-            m_ReverbZoneMix = 1f,
 
-            m_PanStereo = 0f,
-            m_SpatialBlend = 0.0f,
+            Spatial = AudioSpatialOptions.Default,
             m_AttachToTransform = null,
-
-            m_DopplerLevel = 1f,
             m_Location = Vector3.zero,
-            m_Spread = 0,
-            m_RolloffMode = AudioRolloffMode.Logarithmic,
-            m_MinDistance = 1f,
-            m_MaxDistance = 500f,
-
-            m_UseCustomRolloffCurve = false,
-            m_CustomRolloffCurve = null,
-
-            m_UseSpatialBlendCurve = false,
-            m_SpatialBlendCurve = null,
-
-            m_UseReverbZoneMixCurve = false,
-            m_ReverbZoneMixCurve = null,
-
-            m_UseSpreadCurve = false,
-            m_SpreadCurve = null
         };
 
         /// <summary>
@@ -306,6 +218,7 @@ namespace Moirai.Atropos.Audio
                 m_Volume = 1f,
                 m_Pitch = 1f,
                 m_DoNotAutoRecycleIfNotDonePlaying = true,
+                Spatial = AudioSpatialOptions.Default,
             };
         }
 
@@ -324,6 +237,7 @@ namespace Moirai.Atropos.Audio
                 m_Loop = true,
                 m_Persistent = true,
                 m_DoNotAutoRecycleIfNotDonePlaying = true,
+                Spatial = AudioSpatialOptions.Default,
             };
         }
 
@@ -347,6 +261,7 @@ namespace Moirai.Atropos.Audio
                 m_FadeInInitialVolume = initialVolume,
                 m_FadeInTweenEase = new TweenEase(TweenUtility.EEase.InOutQuart),
                 m_DoNotAutoRecycleIfNotDonePlaying = true,
+                Spatial = AudioSpatialOptions.Default,
             };
         }
     }

@@ -689,7 +689,7 @@ namespace Moirai.Atropos.Audio.Middleware
             float fadeInDuration = cold?.FadeInDuration ?? 0f;
             float fadeInFrom = cold?.FadeInInitialVolume ?? 0f;
             TweenEase fadeInEase = cold?.FadeInTweenEase ?? default;
-            Vector3? pos = cold != null && cold.SpatialBlend > 0.5f ? cold.Location : (Vector3?)null;
+            Vector3? pos = cold != null && cold.Spatial.SpatialBlend > 0.5f ? cold.Location : (Vector3?)null;
             AudioPlayColdParamsPool.Release(cold);
 
             ulong instanceId = _bridge.PlayEvent(eventPath, request.Volume, request.Pitch, request.Loop, pos);
@@ -1087,7 +1087,10 @@ namespace Moirai.Atropos.Audio.Middleware
         #region 事件 [EVENTS]
 
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
-            => StopAllButPersistent(0.2f);
+        {
+            if (!ShouldStopNonPersistentOnSceneLoad(mode)) return;
+            StopAllButPersistent(0.2f);
+        }
 
         #endregion 事件 [EVENTS]
     }

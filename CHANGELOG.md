@@ -16,7 +16,22 @@
 
 - 出厂占位密钥有了门禁：`SaveKeyProvider.UsesPlaceholderCredentials` 统一判生效材料是否为 `CHANGE_ME_*` 或空，三个内置提供方各自覆写（Static 看口令+盐、HKDF 看主密钥、Passphrase 看盐文），Inspector 据此标红，构建期由 `SaveSettingsBuildValidator` 用同一判据再报一次——默认只告警，设 `MOIRAI_SAVE_SETTINGS_STRICT=1` 转为拦停。运行期不拦（已有存档可能正是占位密钥写的）。
 
+### Changed
+
+#### 音频
+
+- ⚠ 公开枚举 AudioPlayFlags 更名为 EAudioPlayFlags（对齐 E 前缀命名规范）；**迁移**：全局替换类型名，成员名不变。
+- 整景切换（Single）才自动 StopAllButPersistent，Additive（叠加/流式分区）加载永不自动停音——需要收口的游戏流程在自己的切换点显式调用；跨场景音频仍设 Persistent = true。
+- BgmPlaylist 显式分层 ID 撞车或填负数改 fail-fast（报 Error 且本实例不播放，不再静默改派自动 ID）；自动分配迁到负区间（-1 起递减），与显式正数 ID 值域分离，0 仍是「自动分配」。
+- AudioPlayOptionsSO 首次 Play 也做并发上限检查（旧写法只在本 SO 播过之后才查，首播会无条件放行）。
+
 ### Fixed
+
+#### 音频
+
+- AudioPlayOptionsSO 的 PlaybackTime / PlaybackDuration（含随机区间）随每次 Play 真正透传进播放请求（修复前恒为默认 0，起播位置与自定义时长都不生效）。
+- AudioPlayOptionsSO 的 MaximumConcurrentInstances / DoNotPlayIfClipAlreadyPlaying 改按「本次候选 clip」判定：随机曲集下旧写法看上一曲或本 SO 上次句柄，会误拦新曲或放过已在播的候选；播放失败（句柄 0）不再清掉上次成功句柄。
+- OnShutdown 无条件复位 AudioListener.pause：外部渠道（测试宿主、编辑器脚本、第三方）置位的暂停不再寄生到下一场景或编辑器会话。
 
 #### UI
 

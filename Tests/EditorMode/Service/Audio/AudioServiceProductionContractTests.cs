@@ -2,6 +2,7 @@ using System;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Service.Audio
 {
@@ -52,7 +53,7 @@ namespace Service.Audio
         public void AudioPlayRequest_PackUnpack_RoundTrip()
         {
             var request = new AudioPlayRequest(42, 0.75f, 1.25f, EAudioTrack.Music, 200,
-                AudioPlayFlags.Loop | AudioPlayFlags.Persistent | AudioPlayFlags.FadeInOnPlay);
+                EAudioPlayFlags.Loop | EAudioPlayFlags.Persistent | EAudioPlayFlags.FadeInOnPlay);
 
             Assert.AreEqual(42, request.Id);
             Assert.AreEqual(0.75f, request.Volume, 1e-5f);
@@ -242,5 +243,25 @@ namespace Service.Audio
         }
 
         #endregion 巨型签名弃用契约 [GIANT PLAY OBSOLETE CONTRACT]
+
+        #region 场景停音策略 [SCENE LOAD POLICY]
+
+        [Test]
+        public void SceneLoad_Single_AlwaysStopsNonPersistent()
+        {
+            Assert.IsTrue(AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Single),
+                "Single 整景切换必须停非持久音");
+        }
+
+        [Test]
+        public void SceneLoad_Additive_NeverStopsNonPersistent()
+        {
+            // Additive（叠加/流式分区）加载没有"停掉全部非持久音"的合理用例，永不自动停；
+            // 需要收口的游戏流程应在自己的切换点显式 StopAllButPersistent
+            Assert.IsFalse(AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Additive),
+                "Additive 加载永不自动停非持久音");
+        }
+
+        #endregion 场景停音策略 [SCENE LOAD POLICY]
     }
 }

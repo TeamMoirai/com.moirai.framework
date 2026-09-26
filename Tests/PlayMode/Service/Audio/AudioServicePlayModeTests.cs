@@ -67,7 +67,7 @@ namespace Service.Audio
             _handler = null;
         }
 
-        private static AudioPlayRequest MakeRequest(int id, EAudioTrack track = EAudioTrack.Sfx, AudioPlayFlags flags = AudioPlayFlags.DoNotAutoRecycle)
+        private static AudioPlayRequest MakeRequest(int id, EAudioTrack track = EAudioTrack.Sfx, EAudioPlayFlags flags = EAudioPlayFlags.DoNotAutoRecycle)
         {
             return new AudioPlayRequest(id, 1f, 1f, track, 128, flags);
         }
@@ -211,7 +211,7 @@ namespace Service.Audio
                 Assert.Ignore("AudioGroupConfigs 未配置，跳过");
             }
 
-            var flags = AudioPlayFlags.DoNotAutoRecycle | AudioPlayFlags.Loop;
+            var flags = EAudioPlayFlags.DoNotAutoRecycle | EAudioPlayFlags.Loop;
             ulong handle = _handler.Play(_clip, MakeRequest(5001, EAudioTrack.Sfx, flags), null);
             Assert.AreNotEqual(0UL, handle, "循环音播放应返回有效句柄");
 

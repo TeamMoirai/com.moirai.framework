@@ -166,7 +166,7 @@ namespace Service.Audio
             for (int i = 0; i < BURST; i++)
             {
                 var request = new AudioPlayRequest(50000 + (i % 5), 1f, 1f, EAudioTrack.Sfx, 128,
-                    AudioPlayFlags.DoNotAutoRecycle);
+                    EAudioPlayFlags.DoNotAutoRecycle);
                 ulong h = handler.Play("event:/Stress/Hit", request, null);
                 if (h != 0UL) handles.Add(h);
 
@@ -203,8 +203,8 @@ namespace Service.Audio
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(handler, null);
 
-            ulong a = handler.Play("event:/Music/Theme", new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Music, 128, AudioPlayFlags.Loop), null);
-            ulong b = handler.Play("event:/Music/Ambience", new AudioPlayRequest(2, 1f, 1f, EAudioTrack.Music, 128, AudioPlayFlags.Loop), null);
+            ulong a = handler.Play("event:/Music/Theme", new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
+            ulong b = handler.Play("event:/Music/Ambience", new AudioPlayRequest(2, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
             yield return null;
 
             Assert.IsTrue(handler.IsPlaying(a));
@@ -232,7 +232,7 @@ namespace Service.Audio
                 .Invoke(handler, null);
 
             ulong h = handler.Play("event:/Sfx/Beep",
-                new AudioPlayRequest(9, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.None), null);
+                new AudioPlayRequest(9, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.None), null);
             Assert.AreNotEqual(0UL, h);
 
             handler.FadeAudio(h, 0.12f, 1f, 0.2f, new TweenEase(TweenUtility.EEase.Linear));
@@ -294,7 +294,7 @@ namespace Service.Audio
             for (int i = 0; i < BURST; i++)
             {
                 var request = new AudioPlayRequest(70000 + i, 1f, 1f, EAudioTrack.Sfx, 128,
-                    AudioPlayFlags.DoNotAutoRecycle);
+                    EAudioPlayFlags.DoNotAutoRecycle);
                 ulong h = handler.Play("event:/VoicePool/Hit", request, null);
                 if (h != 0UL) handles.Add(h);
             }
@@ -314,7 +314,7 @@ namespace Service.Audio
             for (int i = 0; i < BURST; i++)
             {
                 var request = new AudioPlayRequest(71000 + i, 1f, 1f, EAudioTrack.Sfx, 128,
-                    AudioPlayFlags.DoNotAutoRecycle);
+                    EAudioPlayFlags.DoNotAutoRecycle);
                 ulong h = handler.Play("event:/VoicePool/Hit", request, null);
                 if (h != 0UL) handles.Add(h);
             }

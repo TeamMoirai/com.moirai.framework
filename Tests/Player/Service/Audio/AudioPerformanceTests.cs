@@ -42,7 +42,7 @@ namespace Service.Audio
             Assert.IsNotNull(init, "UnityAudioHandler.OnInit 应存在");
             init.Invoke(_handler, null);
 
-            _request = new AudioPlayRequest(9001, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.DoNotAutoRecycle);
+            _request = new AudioPlayRequest(9001, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.DoNotAutoRecycle);
             _options = AudioPlayOptions.Create(EAudioTrack.Sfx);
             _options.ID = 9001;
             _options.DoNotAutoRecycleIfNotDonePlaying = true;

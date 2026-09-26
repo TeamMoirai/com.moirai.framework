@@ -136,7 +136,7 @@ namespace Service.Audio
 
             LogAssert.Expect(UnityEngine.LogType.Warning, new Regex("事件 event:/Sfx/Hit 播放失败"));
 
-            var request = new AudioPlayRequest(7, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.None);
+            var request = new AudioPlayRequest(7, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.None);
             Assert.AreEqual(0UL, _handler.Play("event:/Sfx/Hit", request, null));
             Assert.AreEqual(0UL, _handler.Play("event:/Sfx/Hit", request, null),
                 "失败仍是 0 句柄，不抛不占位");

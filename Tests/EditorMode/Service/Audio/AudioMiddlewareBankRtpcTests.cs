@@ -212,7 +212,7 @@ namespace Service.Audio
             var handler = new FmodAudioHandler();
             handler.SetBridge(stub);
 
-            var request = new AudioPlayRequest(42, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.Loop);
+            var request = new AudioPlayRequest(42, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.Loop);
             ulong handle = handler.Play("event:/Hit", request, null);
             Assert.AreNotEqual(0UL, handle);
 

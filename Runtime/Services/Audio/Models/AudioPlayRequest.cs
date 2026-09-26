@@ -1,5 +1,4 @@
 using System;
-using UnityEngine;
 
 namespace Moirai.Atropos.Audio
 {
@@ -7,7 +6,7 @@ namespace Moirai.Atropos.Audio
     /// 播放热路径标志位（打包进 <see cref="AudioPlayRequest"/>）。
     /// </summary>
     [Flags]
-    public enum AudioPlayFlags : byte
+    public enum EAudioPlayFlags : byte
     {
         None = 0,
         /// <summary>循环播放</summary>
@@ -45,7 +44,7 @@ namespace Moirai.Atropos.Audio
 
         private readonly uint _packed;
 
-        public AudioPlayRequest(int id, float volume, float pitch, EAudioTrack track, byte priority, AudioPlayFlags flags)
+        public AudioPlayRequest(int id, float volume, float pitch, EAudioTrack track, byte priority, EAudioPlayFlags flags)
         {
             Id = id;
             Volume = volume;
@@ -62,20 +61,20 @@ namespace Moirai.Atropos.Audio
         public byte Priority => (byte)((_packed >> 8) & 0xFFu);
 
         /// <summary>标志位。</summary>
-        public AudioPlayFlags Flags => (AudioPlayFlags)((_packed >> 16) & 0xFFu);
+        public EAudioPlayFlags Flags => (EAudioPlayFlags)((_packed >> 16) & 0xFFu);
 
-        public bool Loop => (Flags & AudioPlayFlags.Loop) != 0;
-        public bool Persistent => (Flags & AudioPlayFlags.Persistent) != 0;
-        public bool FadeInOnPlay => (Flags & AudioPlayFlags.FadeInOnPlay) != 0;
-        public bool SoloSingleTrack => (Flags & AudioPlayFlags.SoloSingleTrack) != 0;
-        public bool SoloAllTracks => (Flags & AudioPlayFlags.SoloAllTracks) != 0;
-        public bool AutoUnSoloOnEnd => (Flags & AudioPlayFlags.AutoUnSoloOnEnd) != 0;
-        public bool DoNotAutoRecycleIfNotDonePlaying => (Flags & AudioPlayFlags.DoNotAutoRecycle) != 0;
+        public bool Loop => (Flags & EAudioPlayFlags.Loop) != 0;
+        public bool Persistent => (Flags & EAudioPlayFlags.Persistent) != 0;
+        public bool FadeInOnPlay => (Flags & EAudioPlayFlags.FadeInOnPlay) != 0;
+        public bool SoloSingleTrack => (Flags & EAudioPlayFlags.SoloSingleTrack) != 0;
+        public bool SoloAllTracks => (Flags & EAudioPlayFlags.SoloAllTracks) != 0;
+        public bool AutoUnSoloOnEnd => (Flags & EAudioPlayFlags.AutoUnSoloOnEnd) != 0;
+        public bool DoNotAutoRecycleIfNotDonePlaying => (Flags & EAudioPlayFlags.DoNotAutoRecycle) != 0;
 
         /// <summary>
         /// 默认 Sfx 请求（音量 1、音调 1、不抢占）。
         /// </summary>
         public static AudioPlayRequest Default =>
-            new AudioPlayRequest(0, 1f, 1f, EAudioTrack.Sfx, 128, AudioPlayFlags.DoNotAutoRecycle);
+            new AudioPlayRequest(0, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.DoNotAutoRecycle);
     }
 }

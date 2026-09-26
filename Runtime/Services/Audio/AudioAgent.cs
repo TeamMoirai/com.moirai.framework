@@ -560,22 +560,23 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         private static void ApplyColdSourceParams(AudioSource source, AudioPlayColdParams cold)
         {
-            source.spatialBlend = cold.SpatialBlend;
-            source.panStereo = cold.PanStereo;
-            source.bypassEffects = cold.BypassEffects;
-            source.bypassListenerEffects = cold.BypassListenerEffects;
-            source.bypassReverbZones = cold.BypassReverbZones;
-            source.reverbZoneMix = cold.ReverbZoneMix;
-            source.dopplerLevel = cold.DopplerLevel;
-            source.spread = cold.Spread;
-            source.rolloffMode = cold.RolloffMode;
-            source.minDistance = cold.MinDistance;
-            source.maxDistance = cold.MaxDistance;
+            var spatial = cold.Spatial;
+            source.spatialBlend = spatial.SpatialBlend;
+            source.panStereo = spatial.PanStereo;
+            source.bypassEffects = spatial.BypassEffects;
+            source.bypassListenerEffects = spatial.BypassListenerEffects;
+            source.bypassReverbZones = spatial.BypassReverbZones;
+            source.reverbZoneMix = spatial.ReverbZoneMix;
+            source.dopplerLevel = spatial.DopplerLevel;
+            source.spread = spatial.Spread;
+            source.rolloffMode = spatial.RolloffMode;
+            source.minDistance = spatial.MinDistance;
+            source.maxDistance = spatial.MaxDistance;
 
-            if (cold.UseSpreadCurve) source.SetCustomCurve(AudioSourceCurveType.Spread, cold.SpreadCurve);
-            if (cold.UseCustomRolloffCurve) source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, cold.CustomRolloffCurve);
-            if (cold.UseSpatialBlendCurve) source.SetCustomCurve(AudioSourceCurveType.SpatialBlend, cold.SpatialBlendCurve);
-            if (cold.UseReverbZoneMixCurve) source.SetCustomCurve(AudioSourceCurveType.ReverbZoneMix, cold.ReverbZoneMixCurve);
+            if (spatial.UseSpreadCurve) source.SetCustomCurve(AudioSourceCurveType.Spread, spatial.SpreadCurve);
+            if (spatial.UseCustomRolloffCurve) source.SetCustomCurve(AudioSourceCurveType.CustomRolloff, spatial.CustomRolloffCurve);
+            if (spatial.UseSpatialBlendCurve) source.SetCustomCurve(AudioSourceCurveType.SpatialBlend, spatial.SpatialBlendCurve);
+            if (spatial.UseReverbZoneMixCurve) source.SetCustomCurve(AudioSourceCurveType.ReverbZoneMix, spatial.ReverbZoneMixCurve);
         }
 
         /// <summary>

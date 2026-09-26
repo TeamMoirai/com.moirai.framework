@@ -302,32 +302,35 @@ namespace Moirai.Atropos.Audio
                 InitialDelay = initialDelay,
                 PlaybackTime = playbackTime,
                 PlaybackDuration = playbackDuration,
-                PanStereo = panStereo,
-                SpatialBlend = spatialBlend,
                 AttachToTransform = attachToTransform,
                 SoloSingleTrack = soloSingleTrack,
                 SoloAllTracks = soloAllTracks,
                 AutoUnSoloOnEnd = autoUnSoloOnEnd,
-                BypassEffects = bypassEffects,
-                BypassListenerEffects = bypassListenerEffects,
-                BypassReverbZones = bypassReverbZones,
                 Priority = priority,
-                ReverbZoneMix = reverbZoneMix,
-                DopplerLevel = dopplerLevel,
                 Location = location,
-                Spread = spread,
-                RolloffMode = rolloffMode,
-                MinDistance = minDistance,
-                MaxDistance = maxDistance,
                 DoNotAutoRecycleIfNotDonePlaying = doNotAutoRecycleIfNotDonePlaying,
-                UseCustomRolloffCurve = useCustomRolloffCurve,
-                CustomRolloffCurve = customRolloffCurve,
-                UseSpatialBlendCurve = useSpatialBlendCurve,
-                SpatialBlendCurve = spatialBlendCurve,
-                UseReverbZoneMixCurve = useReverbZoneMixCurve,
-                ReverbZoneMixCurve = reverbZoneMixCurve,
-                UseSpreadCurve = useSpreadCurve,
-                SpreadCurve = spreadCurve
+                Spatial = new AudioSpatialOptions
+                {
+                    PanStereo = panStereo,
+                    SpatialBlend = spatialBlend,
+                    BypassEffects = bypassEffects,
+                    BypassListenerEffects = bypassListenerEffects,
+                    BypassReverbZones = bypassReverbZones,
+                    ReverbZoneMix = reverbZoneMix,
+                    DopplerLevel = dopplerLevel,
+                    Spread = spread,
+                    RolloffMode = rolloffMode,
+                    MinDistance = minDistance,
+                    MaxDistance = maxDistance,
+                    UseCustomRolloffCurve = useCustomRolloffCurve,
+                    CustomRolloffCurve = customRolloffCurve,
+                    UseSpatialBlendCurve = useSpatialBlendCurve,
+                    SpatialBlendCurve = spatialBlendCurve,
+                    UseReverbZoneMixCurve = useReverbZoneMixCurve,
+                    ReverbZoneMixCurve = reverbZoneMixCurve,
+                    UseSpreadCurve = useSpreadCurve,
+                    SpreadCurve = spreadCurve
+                }
             };
         }
 
@@ -477,6 +480,17 @@ namespace Moirai.Atropos.Audio
         /// 停止除持久性音频之外的所有音频。
         /// </summary>
         public abstract void StopAllButPersistent(float fadeoutDuration = 0f);
+
+        /// <summary>
+        /// 场景加载后是否停掉所有非持久音频：仅 <see cref="UnityEngine.SceneManagement.LoadSceneMode.Single"/>（整景切换）恒停。
+        /// <para>Additive（流式分区/关卡分片）加载<b>永不</b>触发自动停音——叠加加载没有"停掉全部非持久音"的
+        /// 合理用例，需要收口的游戏流程应在自己明确的切换点显式调用 <see cref="StopAllButPersistent"/>，
+        /// 而不是挂在一个全局场景钩子上。</para>
+        /// </summary>
+        internal static bool ShouldStopNonPersistentOnSceneLoad(UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            return mode == UnityEngine.SceneManagement.LoadSceneMode.Single;
+        }
 
         /// <summary>
         /// 停止所有循环音频。
