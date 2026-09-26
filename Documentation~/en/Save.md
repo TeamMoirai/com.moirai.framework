@@ -321,6 +321,12 @@ Storage-pipeline configuration is cohesive with the handler instance (replaced t
 | `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
 | `m_KeyProvider` (AES handler) | Key provider (empty falls back to `StaticSaveKeyProvider.Default` placeholders; alternatives: StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider) |
 
+### Configuration self-check (keys)
+
+All three built-in key providers ship with placeholder material (`CHANGE_ME_BEFORE_SHIPPING` / `CHANGE_ME_SALT`); publishing it unchanged makes the encryption worthless. One rule decides it: `SaveKeyProvider.UsesPlaceholderCredentials` inspects the **effective** values (runtime override takes precedence over the serialized configuration) for placeholder or empty — `StaticSaveKeyProvider` checks passphrase and salt, `HKDFPerUserSaveKeyProvider` checks the master secret, `PassphraseSaveKeyProvider` checks the salt (the passphrase is runtime-injected and empty at rest, which is not a placeholder). The Inspector surfaces it as an error box on the handler, and at build time `SaveSettingsBuildValidator` re-runs **the exact same rule** (`SaveServiceSettings.UsesPlaceholderSaveKey`), warning only by default — set `MOIRAI_SAVE_SETTINGS_STRICT=1` to fail the build (this package is consumed by others, so stopping somebody else's build over one setting is a ticket, not a reminder).
+
+Runtime deliberately **does not block**: existing saves may have been written with the placeholder key, and turning a configuration gap into unreadable saves would be worse.
+
 ## Dependencies
 
 | Package | Version | Notes |

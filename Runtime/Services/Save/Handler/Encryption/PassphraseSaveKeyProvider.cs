@@ -30,6 +30,11 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public bool HasPassphrase => !string.IsNullOrEmpty(_passphrase);
 
+        /// <inheritdoc />
+        /// <para>只看序列化的盐文：口令是运行期注入的（出厂即空，空不等于占位），
+        /// 盐文仍随包发布——占位盐会削弱口令派生的抗暴力性。</para>
+        internal override bool UsesPlaceholderCredentials => IsFactoryPlaceholder(m_Salt);
+
         /// <summary>
         /// 注入运行期口令（同口令重复注入命中既有缓存）。
         /// </summary>

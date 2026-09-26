@@ -19,6 +19,27 @@ namespace Moirai.Atropos.Save
         public abstract SaveError TryGetKeyMaterial(out byte[] encryptionKey, out byte[] macKey);
 
         /// <summary>
+        /// 生效密钥材料是否仍为包内出厂占位值（或为空）。
+        /// <para>占位值随包发布，任何拿到包的人都能派生同一把密钥，等同不加密。判据供 Inspector 告警与构建期自检共用，
+        /// 不在运行期抛——已有存档可能就是用占位值写的，拦停只会把「配置没改」升级成「存档打不开」。</para>
+        /// <para>内置提供方各自覆写；第三方提供方默认不报（密钥来源自管），有出厂默认值的应覆写并委托
+        /// <see cref="IsFactoryPlaceholder"/>。</para>
+        /// </summary>
+        internal virtual bool UsesPlaceholderCredentials => false;
+
+        /// <summary>
+        /// 是否为出厂占位材料（空串，或仍是 <see cref="SaveEncryptor.DEFAULT_PASSPHRASE"/> / <see cref="SaveEncryptor.DEFAULT_SALT"/>）。
+        /// </summary>
+        /// <param name="value">生效后的口令 / 盐文 / 主密钥。</param>
+        /// <returns>占位或空时为真。</returns>
+        protected static bool IsFactoryPlaceholder(string value)
+        {
+            return string.IsNullOrEmpty(value)
+                || string.Equals(value, SaveEncryptor.DEFAULT_PASSPHRASE, StringComparison.Ordinal)
+                || string.Equals(value, SaveEncryptor.DEFAULT_SALT, System.StringComparison.Ordinal);
+        }
+
+        /// <summary>
         /// 派生材料不可变缓存快照（参数 + 拆分结果的不可变整体，原子读避免字段组撕裂）。
         /// </summary>
         protected sealed class DerivedMaterial

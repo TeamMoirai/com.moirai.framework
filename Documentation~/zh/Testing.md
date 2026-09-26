@@ -224,7 +224,7 @@ long bytes = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 1. **测试桥找不到它**。`TestRequestRunner` 住在编辑器里，`assemblies` 过滤器匹配不到未编译的程序集。
 2. **只能从 Test Runner 窗口的 PlayMode 页签 → `Run all in Player` 发起**（可用搜索框把范围缩到目标夹具），结论以玩家侧报告为准。
 3. **不要自己 `BuildPipeline.BuildPlayer` 搭测试玩家**。玩家里的测试入口不是 `-runTests` 参数，而是构建期注入的引导场景（`CreateBootstrapSceneTask` 生成挂 `PlaymodeTestsController` 的 `Assets/InitTestScene<guid>.unity`）；手搓玩家没有这个场景，`-runTests` 什么也不会发生。且玩家**自己不写结果 XML**——结果经 `RemoteTestResultSender` 走 PlayerConnection 回传编辑器，由编辑器落盘。
-4. **`Tests/Player/PlayerTestBootstrap.cs` 是必需的前置**：玩家默认自动启动框架（`GameApp.AutoBoot` 默认 true），测试玩家跑的是空场景，启动链会停在 `UGUIHandler.OnInit` 的 `[FAT] UIRoot not found!`，测试运行永远轮不到。Bootstrap 在 `AfterAssembliesLoaded` 把 `AutoBoot` 置 false。
+4. **`Tests/Player/PlayerTestBootstrap.cs` 是必需的前置**：玩家默认自动启动框架（`GameApp.AutoBoot` 默认 true），测试玩家跑的是空场景，UI 后端等不到 `UIRootBinding` 登记，启动链在 `UGUIHandler` 报出「UI 根尚未绑定」后停住，测试运行永远轮不到。Bootstrap 在 `AfterAssembliesLoaded` 把 `AutoBoot` 置 false。
 
 ### IL2CPP 玩家的验证判据
 

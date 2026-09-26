@@ -321,6 +321,12 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
 | `m_KeyProvider`（AES 处理器） | 密钥提供方（空 = 回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider） |
 
+### 配置自检（密钥）
+
+三个内置密钥提供方出厂都带着占位材料（`CHANGE_ME_BEFORE_SHIPPING` / `CHANGE_ME_SALT`），随包发布等于不加密。判据只有一条：`SaveKeyProvider.UsesPlaceholderCredentials` 看**生效值**（运行期覆盖优先于序列化配置）是否为占位或空——`StaticSaveKeyProvider` 查口令与盐、`HKDFPerUserSaveKeyProvider` 查主密钥、`PassphraseSaveKeyProvider` 查盐文（口令是运行期注入的，出厂即空不算占位）。Inspector 在处理器上把它标成错误提示；构建期由 `SaveSettingsBuildValidator` 走**同一份判据**（`SaveServiceSettings.UsesPlaceholderSaveKey`）再报一次，默认也只告警——设环境变量 `MOIRAI_SAVE_SETTINGS_STRICT=1` 才会把构建拦停（本包被他人消费，因一项配置拦停别人的构建是工单，不是提醒）。
+
+运行期刻意**不拦**：已有存档可能正是用占位密钥写下的，把它升级成打不开的存档比配置没改更糟。
+
 ## 依赖
 
 | 包 | 版本 | 说明 |

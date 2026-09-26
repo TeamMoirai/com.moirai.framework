@@ -34,6 +34,7 @@ The UI service adopts the same HandlerHost zero-reflection architecture as other
 | `Moirai.Atropos.UI.UIServiceHandler` | UI backend handler abstract base class (inherits `FrameworkHandler`), defines the full backend contract invoked by the facade |
 | `Moirai.Atropos.UI.UGUIHandler` | Default UI backend implementation (located under `Handler/`), core logic for window stack management, depth sorting, and visibility control |
 | `Moirai.Atropos.UI.UIServiceSettings` | Framework settings, selects the UI backend implementation via `[ProviderDropdown]` |
+| `Moirai.Atropos.UI.UIRootBinding` | UI root binding component: put it on the scene object acting as the UI root; `SingletonMono` first-wins registers it, and `UGUIHandler` reads it via `TryGetInstance()` (never auto-creates; lookup by name is gone) |
 | `Moirai.Atropos.UI.UIBase` | UI base class, defines lifecycle virtual methods and Widget creation API |
 | `Moirai.Atropos.UI.UIWindow` | Window abstract base class, inherits `UIBase`, includes Canvas depth, visibility, interactability, and open/close animations |
 | `Moirai.Atropos.UI.UIWidget` | Window embedded control base class, inherits `UIBase` |
@@ -143,7 +144,7 @@ protected override async UniTask OpenAnimation()
 
 ### Runtime Error Window
 
-When the debugger configuration (`DebuggerService.ActiveWindowType`) determines that error logging is not enabled, the service registers `ErrorLogger` to capture `LogType.Exception` and automatically displays the built-in `LogUI` window (`[Window(UILayer.System, fromResources:true)]`, prefab located at service `Resources/LogUI.prefab`) for viewing exception stack traces one by one.
+The service registers `ErrorLogger` (capturing `LogType.Exception` and automatically showing the built-in `LogUI` window — `[Window(UILayer.System, fromResources:true)]`, prefab at the service's `Resources/LogUI.prefab`) only when the debugger configuration (`DebuggerService.ActiveWindowType`) says error logging **is** enabled. Enablement rule: `AlwaysOpen` always; `OnlyOpenWhenDevelopment` follows development builds; `OnlyOpenInEditor` follows the editor; `AlwaysClose` and `OnlyOpenWhenDevelopment` outside a development build (i.e. the default release shape) never enable it, so exceptions pop no window.
 
 ### Editor Binding Code Generation
 
@@ -154,7 +155,7 @@ Select the root node of a UI prefab and use the menu:
 
 ## Notes
 
-- A GameObject named `UIRoot` with a `Canvas` child must exist in the scene, otherwise initialization will report a Fatal error; UIRoot will automatically be set to `DontDestroyOnLoad`
+- The UI root is registered by the `UIRootBinding` component on a scene object (which must have a `Canvas` under it): `SingletonMono` first-wins, a later duplicate's whole GameObject is destroyed; read it via `TryGetInstance()`, which only reads back and never auto-creates. The backend picks it up on the first Update tick, logs one Error when nothing is bound and one Fatal when the bound root has no Canvas, then keeps waiting each frame (late additive scenes, runtime-instantiated roots, and a Canvas added later all bind). Once bound, the UI root is automatically set to `DontDestroyOnLoad` (play mode only). **Lookup by object name is gone** — renaming silently breaks it, and under multiple scenes or hot updates a same-named object can win.
 - `ShowUI` synchronous loading depends on the resource service's synchronous loading capability; on WebGL it automatically falls back to async; `ShowUIAsync` is recommended
 - `HideUI` only takes effect when `HideTimeToClose > 0`; otherwise it is equivalent to `CloseUI`
 - `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` only waits for the loading of an already-open window; returns null / no callback if the window does not exist

@@ -192,7 +192,7 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
 
 ## 注意事项
 
-- 内置窗口（27 个）由 `DefaultDebuggerHandler.OnInit` 注册，自定义窗口请在服务初始化后注册；`RegisterDebuggerWindow` 的路径不能为空 / 不能与已注册窗口或目录冲突，否则抛出 `GameException`
+- 内置窗口（27 个）在调试器**激活时**才注册：`OnInit` 解析为激活则当场补齐，运行期从关切到开则补一次（重复开启不再注册）。未激活的构建（`AlwaysClose`，或非开发构建下的 `OnlyOpenWhenDevelopment`）不构造任何内置窗口；自定义窗口请在服务初始化后注册；`RegisterDebuggerWindow` 的路径不能为空 / 不能与已注册窗口或目录冲突，否则抛出 `GameException`
 - 运行时面板**必须携带主题**：宿主从包内 `Resources/DebuggerPanelSettings.asset` 克隆（内嵌 `UnityDefaultRuntimeTheme` 引用）——`ScriptableObject.CreateInstance<PanelSettings>()` 在 Play 模式下 `themeStyleSheet` 为 null，全部内置控件将失去基础 USS（布局完全错位）
 - MonoBehaviour 字段初始化器中禁止创建 `VisualElement`（UnityException）——一律在构建方法内创建
 - 悬浮入口拖拽松手后自动吸附最近屏幕边缘；布局经 `SettingUtility` 持久化，标题栏 Reset 按钮还原默认

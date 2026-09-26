@@ -17,6 +17,15 @@ namespace Moirai.Atropos.Save
         /// </summary>
         public static SaveServiceHandler SaveServiceHandler => Instance.m_SaveServiceHandler;
 
+        /// <summary>
+        /// 配置自检：加密处理器的密钥是否仍是出厂占位值。
+        /// <para>刻意做成实例成员、不经 <see cref="FrameworkSettings{T}.Instance"/>——构建期校验器只读地取这份资产，
+        /// 缺资产时不该由一次检查替工程新建一份。</para>
+        /// </summary>
+        internal bool UsesPlaceholderSaveKey =>
+            m_SaveServiceHandler is AESEncryptedSaveHandler handler &&
+            handler.KeyProvider.UsesPlaceholderCredentials;
+
         [Tooltip("默认序列化后端：未显式声明后端的数据块（无 SaveDataAttribute）使用该后端。二进制后端要求项目已引入对应 NuGet 包。")]
         [SerializeField] private ESaveBackend m_DefaultBackend = ESaveBackend.Json;
         /// <summary>

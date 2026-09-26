@@ -10,6 +10,16 @@ namespace Moirai.Atropos.Tasks
 {
     internal class TaskRunner : MonoBehaviour
     {
+        // ── 任务 Tick 异常分级：开发期 Fatal 后上抛（第一时间暴露缺陷），发布期隔离续跑（一只坏任务不拖垮整帧）──
+        // const 门控：JIT 裁剪死分支，Release 零运行时成本。与内核 ServiceScope / EventDispatcher /
+        // PlayerLoopDriver / MemoryPoolRegistry 的同形常量语义一致；五处重复体的收口已排进重构方案 S3。
+        internal const bool RETHROW_TASK_EXCEPTIONS =
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                true;
+#else
+                false;
+#endif
+
         private class TaskCallbackEventHandler: CallbackEventHandler
         {
             public override IEventCoordinator Coordinator => EventManager.Instance;
@@ -50,18 +60,23 @@ namespace Moirai.Atropos.Tasks
         
         public static void RegisterTask(TaskBase task)
         {
-            var instance = GetInstance();
-            if (instance)
+            GetInstance()?.Internal_RegisterTask(task);
+        }
+
+        /// <summary>
+        /// 登记任务（静态 <see cref="RegisterTask"/> 的全部实质）。留出 internal 入口给测试与代码装配：
+        /// 静态那层还要取宿主，而宿主在编辑器态拿不到（见 <see cref="GetInstance"/>）。
+        /// </summary>
+        internal void Internal_RegisterTask(TaskBase task)
+        {
+            if (Tasks.Contains(task))
             {
-                if (instance.Tasks.Contains(task))
-                {
-                    LogUtility.Warning($"[TaskRunner] Task {task.InternalGetTaskName()} has already been registered!");
-                    return;
-                }
-                task.Acquire();
-                task.Parent = instance.GetEventHandler();
-                instance._tasksToAdd.Add(task);
+                LogUtility.Warning($"[TaskRunner] Task {task.InternalGetTaskName()} has already been registered!");
+                return;
             }
+            task.Acquire();
+            task.Parent = GetEventHandler();
+            _tasksToAdd.Add(task);
         }
         
         private void Awake()
@@ -80,6 +95,17 @@ namespace Moirai.Atropos.Tasks
 
         private void OnDestroy()
         {
+            ReleaseAllTasks();
+
+            if (s_Instance == this)
+            {
+                s_Instance = null;
+            }
+        }
+
+        /// <summary>摘干两张任务表并各自 Dispose（OnDestroy 的全部实质，留出入口给测试与代码装配）。</summary>
+        internal void ReleaseAllTasks()
+        {
             for (int i = 0; i < _tasksToAdd.Count; i++)
             {
                 _tasksToAdd[i].Dispose();
@@ -91,11 +117,6 @@ namespace Moirai.Atropos.Tasks
                 Tasks[i].Dispose();
             }
             Tasks.Clear();
-
-            if (s_Instance == this)
-            {
-                s_Instance = null;
-            }
         }
 
         public CallbackEventHandler GetEventHandler()
@@ -103,7 +124,7 @@ namespace Moirai.Atropos.Tasks
             return _eventHandler ??= new TaskCallbackEventHandler();
         }
         
-        private void UpdateAllTasks()
+        internal void UpdateAllTasks()
         {
             if (_tasksToAdd.Count > 0)
             {
@@ -111,11 +132,30 @@ namespace Moirai.Atropos.Tasks
                 _tasksToAdd.Clear();
             }
 
-            foreach (var task in Tasks)
+            bool rethrow = RETHROW_TASK_EXCEPTIONS;
+            for (int i = 0; i < Tasks.Count; i++)
             {
-                if (task.GetStatus() == TaskStatus.Running)
+                var task = Tasks[i];
+                if (task.GetStatus() != TaskStatus.Running)
+                {
+                    continue;
+                }
+
+                try
                 {
                     task.Tick();
+                }
+                catch (System.Exception ex)
+                {
+                    // 每帧轮询的异常隔离（CLAUDE.md 明文允许的例外：订阅/任务抛出不得截断同帧其余项）。
+                    // 先 Stop 再报：毒任务由此落到下面的收尾循环被摘除 Dispose，
+                    // 开发期上抛让缺陷当场可见，发布期隔离续跑。
+                    task.Stop();
+                    LogUtility.Fatal($"[TaskRunner] Task {task.InternalGetTaskName()} threw during Tick and was stopped: {ex}");
+                    if (rethrow)
+                    {
+                        throw;
+                    }
                 }
             }
 

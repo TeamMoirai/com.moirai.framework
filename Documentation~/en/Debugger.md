@@ -192,7 +192,7 @@ Custom popups and any OnGUI context can also call `view.OnDraw()` directly.
 
 ## Notes
 
-- The 27 built-in windows are registered by `DefaultDebuggerHandler.OnInit`; register custom windows after service initialization. `RegisterDebuggerWindow` paths must be non-empty and must not collide with registered windows or directories, otherwise a `GameException` is thrown
+- The 27 built-in windows are registered only when the debugger **activates**: `OnInit` fills them in when the resolved policy is active, and a runtime off→on switch fills them in once (repeated activation registers nothing more). Inactive builds (`AlwaysClose`, or `OnlyOpenWhenDevelopment` outside a development build) construct no built-in window. Register custom windows after service initialization. `RegisterDebuggerWindow` paths must be non-empty and must not collide with registered windows or directories, otherwise a `GameException` is thrown
 - The runtime panel **must carry a theme**: the host clones the in-package `Resources/DebuggerPanelSettings.asset` (with `UnityDefaultRuntimeTheme` embedded) — `ScriptableObject.CreateInstance<PanelSettings>()` yields a null `themeStyleSheet` in Play Mode, leaving all built-in controls without base USS (completely broken layout)
 - Never create `VisualElement`s in MonoBehaviour field initializers (UnityException) — always create them inside build methods
 - The floating entry snaps to the nearest screen edge after a drag; layout persists via `SettingUtility`, and the header Reset button restores defaults

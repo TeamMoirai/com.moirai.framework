@@ -53,6 +53,10 @@ namespace Moirai.Atropos.Save
         /// <summary>生效迭代次数（覆盖优先）。</summary>
         private int EffectiveIterations => _iterationsOverride > 0 ? _iterationsOverride : m_Iterations;
 
+        /// <inheritdoc />
+        internal override bool UsesPlaceholderCredentials =>
+            IsFactoryPlaceholder(EffectivePassphrase) || IsFactoryPlaceholder(EffectiveSalt);
+
         /// <summary>
         /// 运行期覆盖派生参数（主线程/编辑期调用；仅写运行期覆盖字段——不脏化序列化配置；参数变更后下次取材料自动重派生）。
         /// </summary>

@@ -259,6 +259,14 @@ namespace Moirai.Atropos.Tasks
         
         public sealed override void Dispose()
         {
+            if (_refCount <= 0)
+            {
+                // 多还一次会把计数拖成负数：此后任何 Dispose 都到不了 ==0，这只任务永远回不了池（静默饥饿）。
+                // 与其让它悄悄失踪，不如报出来——引用配平是调用方契约，见 GetPooled 的说明。
+                LogUtility.Error($"Task {GetTaskID()} disposed with reference count {_refCount}; the instance is leaked from the pool.");
+                return;
+            }
+
             if (--_refCount == 0)
             {
                 base.Dispose();
@@ -276,6 +284,12 @@ namespace Moirai.Atropos.Tasks
             }
         }
         
+        /// <summary>
+        /// 取一只池化任务。<b>返回时引用计数为 0，即"无人持有"</b>：谁要把任务存下来，
+        /// 必须先 <see cref="Acquire"/> 再在交还时 <see cref="Dispose"/>（<see cref="TaskRunner.RegisterTask"/>
+        /// 与 <see cref="SequenceTask.Append"/> 就是这么配的）。这里刻意不自增，
+        /// 否则"取来就转手"的写法会凭空多出一辈子还不掉的引用。
+        /// </summary>
         public static T GetPooled()
         {
             T t = s_Pool.Get();
