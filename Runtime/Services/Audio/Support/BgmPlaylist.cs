@@ -16,10 +16,10 @@ namespace Moirai.Atropos.Audio
         /// <summary>分层 ID 留空（0）时按实例自动分配，避免多个播放列表默认同 ID 互相停掉。</summary>
         public const int AutoId = 0;
 
-        private const int AutoIdBase = 1_000_000;
-
         private static readonly System.Collections.Generic.HashSet<int> s_ClaimedIds = new HashSet<int>();
-        private static int s_NextAutoId = AutoIdBase;
+
+        // 自动分配走负区间（-1 起递减），与显式正数 ID 值域不相交，杜绝自动值撞显式值
+        private static int s_NextAutoId = -1;
 
         public enum ELoopMode
         {
@@ -45,7 +45,7 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private ELoopMode m_LoopMode = ELoopMode.LoopList;
 
         [Header("播放 [Playback]")]
-        [Tooltip("分层 ID：0 = 按实例自动分配。显式填相同 ID 会让多个播放列表互相停掉对方的音乐。")]
+        [Tooltip("分层 ID：正数 = 显式分层（与其它播放列表撞车会报错且本列表不播放）；0 = 按实例自动分配（负区间为自动分配保留）。")]
         [SerializeField] private int m_ID = AutoId;
         [SerializeField, Range(0f, 2f)] private float m_Volume = 1f;
         [SerializeField] internal bool m_PlayOnStart = true;
@@ -60,6 +60,7 @@ namespace Moirai.Atropos.Audio
         internal ulong _handle;
         private bool _playing;
         private int _id;
+        private bool _layerConflicted;
 
         /// <summary>本列表实际占用的分层 ID（自动分配时为运行期才确定）。</summary>
         public int LayerId => _id;
@@ -85,11 +86,13 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 解析分层 ID：显式值优先，冲突或被占用时改派自动 ID 并报一次；
-        /// 0（<see cref="AutoId"/>）走自动分配，避免多个列表默认同 ID 互相 StopByID。
+        /// 解析分层 ID：显式正数优先（撞车 fail-fast，本实例不启动播放）；
+        /// 0（<see cref="AutoId"/>）走自动分配（负区间），避免多个列表默认同 ID 互相 StopByID。
         /// </summary>
         private void ResolveLayerId()
         {
+            _layerConflicted = false;
+
             if (_id != 0)
             {
                 s_ClaimedIds.Add(_id);
@@ -99,23 +102,35 @@ namespace Moirai.Atropos.Audio
             int requested = m_ID;
             if (requested != AutoId)
             {
+                if (requested < 0)
+                {
+                    LogUtility.Error(
+                        "[BgmPlaylist] 分层 ID {0} 无效：显式 ID 必须为正数（0 = 自动分配，负数区间为自动分配保留）。本实例不会启动播放。",
+                        requested);
+                    _layerConflicted = true;
+                    return;
+                }
+
                 if (s_ClaimedIds.Add(requested))
                 {
                     _id = requested;
                     return;
                 }
 
-                AudioWarnOnce.Warning($"bgm-playlist:id-conflict:{requested}",
-                    "[BgmPlaylist] 分层 ID {0} 已被另一个播放列表占用，本实例改用自动分配 ID；否则两者会互相停掉对方的音乐。",
+                // fail-fast：撞 ID 不再静默改派——两个列表互相 StopByID 是线上事故，必须在开发期暴露
+                LogUtility.Error(
+                    "[BgmPlaylist] 分层 ID {0} 已被另一个播放列表占用。本实例不会启动播放；请改用不同的正数 ID 或 0（自动分配）。",
                     requested);
+                _layerConflicted = true;
+                return;
             }
 
             int auto;
             do
             {
-                auto = s_NextAutoId++;
+                auto = s_NextAutoId--;
             }
-            while (auto > 0 && !s_ClaimedIds.Add(auto));
+            while (!s_ClaimedIds.Add(auto));
 
             _id = auto;
         }
@@ -129,7 +144,7 @@ namespace Moirai.Atropos.Audio
 
         private void Start()
         {
-            if (m_PlayOnStart) PlayFromStart();
+            if (m_PlayOnStart && !_layerConflicted) PlayFromStart();
         }
 
         private void OnDestroy()
@@ -167,6 +182,8 @@ namespace Moirai.Atropos.Audio
         /// <summary>停止本层（可淡出）。</summary>
         public void Stop()
         {
+            // 冲突/未解析实例不占层；0 是「未指定 ID」的默认音组，误停会波及所有无 ID 播放
+            if (_id == 0) return;
             AudioService.StopByID(_id, m_Crossfade ? m_CrossfadeSeconds : 0f);
             _playing = false;
             _handle = 0UL;
@@ -217,6 +234,9 @@ namespace Moirai.Atropos.Audio
 
         private void StartTrack(AudioClip clip)
         {
+            // 分层 ID 撞车后本实例不再启动播放（fail-fast 已在 ResolveLayerId 报错）
+            if (_layerConflicted) return;
+
             // 空槽位是配置错误：报一次再收口。旧行为是静默停下（_playing 由 Update 兜着复位），
             // 症状为"播到某首就没声音了"且无任何提示。
             if (clip == null)
