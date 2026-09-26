@@ -53,16 +53,9 @@ namespace Moirai.Atropos.Save
         /// <summary>生效迭代次数（覆盖优先）。</summary>
         private int EffectiveIterations => _iterationsOverride > 0 ? _iterationsOverride : m_Iterations;
 
-        /// <summary>
-        /// 生效口令或盐文是否仍为包内出厂占位值（或为空）。
-        /// <para>占位值随包发布，任何拿到包的人都能派生同一把密钥，等同不加密。
-        /// 判据供构建期自检与 Inspector 告警共用，不在运行期抛——已有存档可能就是用占位值写的，
-        /// 拦停只会把「配置没改」升级成「存档打不开」。</para>
-        /// </summary>
-        internal bool UsesPlaceholderCredentials =>
-            string.IsNullOrEmpty(EffectivePassphrase) || string.IsNullOrEmpty(EffectiveSalt) ||
-            string.Equals(EffectivePassphrase, SaveEncryptor.DEFAULT_PASSPHRASE, StringComparison.Ordinal) ||
-            string.Equals(EffectiveSalt, SaveEncryptor.DEFAULT_SALT, StringComparison.Ordinal);
+        /// <inheritdoc />
+        internal override bool UsesPlaceholderCredentials =>
+            IsFactoryPlaceholder(EffectivePassphrase) || IsFactoryPlaceholder(EffectiveSalt);
 
         /// <summary>
         /// 运行期覆盖派生参数（主线程/编辑期调用；仅写运行期覆盖字段——不脏化序列化配置；参数变更后下次取材料自动重派生）。

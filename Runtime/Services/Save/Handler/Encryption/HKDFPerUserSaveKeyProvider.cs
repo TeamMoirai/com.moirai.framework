@@ -35,6 +35,10 @@ namespace Moirai.Atropos.Save
             set => _userId = value;
         }
 
+        /// <inheritdoc />
+        /// <para>主密钥序列化于设置资产：仍是出厂占位即任何人都能按同一主密钥派生出同一套用户密钥。</para>
+        internal override bool UsesPlaceholderCredentials => IsFactoryPlaceholder(m_MasterSecret);
+
         /// <summary>
         /// 获取密钥材料（HKDF-SHA256 按用户派生，同参数命中缓存无锁复用）。
         /// </summary>

@@ -24,9 +24,9 @@ namespace Moirai.Atropos.Save
         /// <summary>密钥提供方未配置时显示告警（运行期回退占位默认静态密钥）。</summary>
         private bool ShowMissingKeyProviderWarning => m_KeyProvider == null;
 
-        /// <summary>配了静态提供方、但口令或盐文仍是出厂占位值时显示告警。</summary>
+        /// <summary>密钥提供方的生效材料仍是出厂占位值时显示告警（不限静态提供方——HKDF 主密钥、口令盐文同理）。</summary>
         private bool ShowPlaceholderKeyWarning =>
-            m_KeyProvider is StaticSaveKeyProvider provider && provider.UsesPlaceholderCredentials;
+            m_KeyProvider is SaveKeyProvider provider && provider.UsesPlaceholderCredentials;
 
         /// <summary>密钥提供方注入点（测试/代码装配用；Inspector 配置走序列化字段——纯 .NET，工作线程调用安全）。</summary>
         internal SaveKeyProvider KeyProvider

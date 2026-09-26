@@ -24,8 +24,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         internal bool UsesPlaceholderSaveKey =>
             m_SaveServiceHandler is AESEncryptedSaveHandler handler &&
-            handler.KeyProvider is StaticSaveKeyProvider provider &&
-            provider.UsesPlaceholderCredentials;
+            handler.KeyProvider.UsesPlaceholderCredentials;
 
         [Tooltip("默认序列化后端：未显式声明后端的数据块（无 SaveDataAttribute）使用该后端。二进制后端要求项目已引入对应 NuGet 包。")]
         [SerializeField] private ESaveBackend m_DefaultBackend = ESaveBackend.Json;
