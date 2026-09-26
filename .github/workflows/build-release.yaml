@@ -1,3 +1,15 @@
+# 发布链路。
+#
+# 触发：仅 workflow_dispatch（手动），输入 tag + dry-run。
+#
+# 顺序：package.json 版本 → 从 CHANGELOG.md 切出 `[Unreleased]` 段当 Release notes →
+# 建 release → 把这份 notes 覆盖进 release 并 Publish → 开一个清空 `[Unreleased]` 段的 PR 等人工合并。
+# notes 取的是被打 tag 那个提交里的 CHANGELOG，所以 tag 树与 Release 页自洽；
+# master 上的清空要等 PR 合并才生效。dry-run 只跑到「切出 notes 并打日志」。
+#
+# 为什么是事后改 body 而不是自己建 release：外部的 create-release 复用流硬编码
+# `gh release create --draft --generate-notes`，没有 notes 入口。
+
 name: build-release
 
 on:
@@ -12,6 +24,11 @@ on:
         default: false
         type: boolean
 
+# 两条并发发布流水会互相踩 tag 与 CHANGELOG，排队而不是中途取消。
+concurrency:
+  group: build-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   update-packagejson:
     permissions:
@@ -22,6 +39,65 @@ jobs:
       file-path: ./package.json
       tag: ${{ inputs.tag }}
       dry-run: ${{ inputs.dry-run }}
+
+  release-notes:
+    name: Cut release notes
+    needs: [update-packagejson]
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout the commit being released
+        uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
+        with:
+          ref: ${{ needs.update-packagejson.outputs.sha }}
+          # 上一版的 tag 要沿祖先找（生成 compare 链接），所以要全历史 + tags
+          fetch-depth: 0
+          fetch-tags: "true"
+
+      - name: Cut the [Unreleased] section
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          body="${RUNNER_TEMP}/unreleased.md"
+          notes="${RUNNER_TEMP}/release-notes.md"
+
+          if ! grep -qE '^## \[Unreleased\][[:space:]]*$' CHANGELOG.md; then
+            echo "::error::CHANGELOG.md 里找不到 ## [Unreleased] 标题。"
+            exit 1
+          fi
+          # 段界 = [Unreleased] 标题之后到下一个 ## 之前；去掉首尾空行与 CRLF。
+          sed -e 's/\r$//' CHANGELOG.md | awk '
+            /^## \[Unreleased\][[:space:]]*$/ { f = 1; next }
+            f && /^## /                       { f = 0 }
+            f
+          ' | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba' -e '}' > "${body}"
+          if [ ! -s "${body}" ]; then
+            echo "::error::[Unreleased] 段是空的，这一版没有可发行的内容。"
+            exit 1
+          fi
+
+          prev="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
+          {
+            if [ -n "${prev}" ]; then
+              printf '> 相对 `%s` 的净结果；逐条对比见 [%s...%s](https://github.com/%s/compare/%s...%s)。\n>\n' \
+                "${prev}" "${prev}" "${TAG}" "${GH_REPO}" "${prev}" "${TAG}"
+            fi
+            printf '> 标记 ⚠ 的是破坏性变更。\n\n'
+            cat "${body}"
+          } > "${notes}"
+
+          echo "release notes ↓↓↓"
+          cat "${notes}"
+
+      - uses: TeamMoirai/GitHubActions/.github/actions/upload-artifact@master
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/release-notes.md
+          retention-days: 1
 
 #  build-dotnet:
 #    needs: [update-packagejson]
@@ -110,8 +186,8 @@ jobs:
 
   # release
   create-release:
-    needs: [update-packagejson]
-#    needs: [update-packagejson, publish]
+    needs: [update-packagejson, release-notes] # notes 切不出来就别落 tag
+#    needs: [update-packagejson, publish, release-notes]
     permissions:
       contents: write
       id-token: write # required for NuGet Trusted Publish
@@ -125,6 +201,100 @@ jobs:
 #      release-upload: true
 #      release-asset-path: ./com.moirai.framework.${{ inputs.tag }}.unitypackage/com.moirai.framework.${{ inputs.tag }}.unitypackage
     secrets: inherit
+
+  apply-release-notes:
+    name: Publish with CHANGELOG notes
+    needs: [release-notes, create-release]
+    if: ${{ !inputs.dry-run }}
+    permissions:
+      contents: write # release edit 走 contents 权限
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: TeamMoirai/GitHubActions/.github/actions/download-artifact@master
+        with:
+          name: release-notes
+          path: release-notes
+
+      - name: Overwrite the generated body and publish
+        env:
+          TAG: ${{ inputs.tag }}
+          NOTES: ${{ github.workspace }}/release-notes/release-notes.md
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release edit "${TAG}" --draft=false --notes-file "${NOTES}"
+
+          # 自证两件事：真的公开了，且 body 就是刚生成那份 notes。
+          if [ "$(gh release view "${TAG}" --json isDraft -q .isDraft)" != "false" ]; then
+            echo "::error::release ${TAG} 仍是草稿，Publish 没生效。"
+            exit 1
+          fi
+          body="$(gh release view "${TAG}" --json body -q .body)"
+          last="$(grep -v '^[[:space:]]*$' "${NOTES}" | tail -1)"
+          case "${body}" in
+            *"${last}"*) ;;
+            *) echo "::error::Release notes 没落到 release ${TAG} 上。"; exit 1 ;;
+          esac
+
+  clear-changelog:
+    name: Open CHANGELOG clear PR
+    needs: [apply-release-notes]
+    if: ${{ !inputs.dry-run }}
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # 组织的复合 checkout 硬写 persist-credentials: false，这一步要推分支，直接用官方 action。
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Empty the [Unreleased] section and open the PR
+        env:
+          TAG: ${{ inputs.tag }}
+          BASE: ${{ github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          branch="clear-changelog/${TAG}"
+          title="chore(automate): Clear CHANGELOG.md for ${TAG}"
+
+          if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+            echo "::notice::分支 ${branch} 已存在（重跑？），不重复开 PR。"
+            exit 0
+          fi
+          if ! grep -qE '^## \[Unreleased\][[:space:]]*$' CHANGELOG.md; then
+            echo "::error::CHANGELOG.md 里找不到 ## [Unreleased] 标题。"
+            exit 1
+          fi
+          # 只留标题与前言，段整段删掉——发出去的净结果已经在 Release 页。
+          sed -e 's/\r$//' CHANGELOG.md | sed -n '1,/^## \[Unreleased\][[:space:]]*$/p' > CHANGELOG.md.tmp
+          mv CHANGELOG.md.tmp CHANGELOG.md
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "::notice::[Unreleased] 段本来就是空的，无需清空。"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "${title}"
+          git push origin "HEAD:refs/heads/${branch}"
+
+          {
+            echo "发版 \`${TAG}\` 之后清空 CHANGELOG 的 \`[Unreleased]\` 段。"
+            echo ""
+            echo "这一段已作为 Release notes 发布：<https://github.com/${GH_REPO}/releases/tag/${TAG}>。"
+            echo "合并后 \`[Unreleased]\` 重新从零记。"
+            echo ""
+            echo "PR 由 GITHUB_TOKEN 开出，不触发 checks（本 PR 只动 CHANGELOG.md）。"
+          } > "${RUNNER_TEMP}/pr-body.md"
+          gh pr create --base "${BASE}" --head "${branch}" --title "${title}" --body-file "${RUNNER_TEMP}/pr-body.md"
 
   cleanup:
     if: ${{ needs.update-packagejson.outputs.is-branch-created == 'true' }}
