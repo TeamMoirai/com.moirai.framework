@@ -55,7 +55,7 @@ namespace Policy
             ["PlayMode/Service/Audio/AudioMiddlewareBackendFailurePlayModeTests.cs"] = "测试替身的私有桥方法唤起",
             ["PlayMode/Service/Audio/AudioMiddlewareMixPlayModeTests.cs"] = "生命周期：OnInit",
             ["PlayMode/Service/Audio/AudioOwnershipTests.cs"] = "生命周期：OnInit",
-            ["PlayMode/Service/Audio/AudioPausePlayModeTests.cs"] = "生命周期：OnInit",
+            ["PlayMode/Service/Audio/AudioPausePlayModeTests.cs"] = "生命周期：OnInit / OnShutdown",
             ["PlayMode/Service/Audio/AudioServicePlayModeTests.cs"] = "生命周期：OnInit",
             ["PlayMode/Service/Audio/AudioServiceStressPlayModeTests.cs"] = "生命周期：OnInit",
             ["PlayMode/Service/Audio/AudioVoiceDuckingE2ETests.cs"] = "生命周期：OnInit",

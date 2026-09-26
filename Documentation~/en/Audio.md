@@ -117,7 +117,7 @@ ulong h = AudioService.Play(clip, options);
 
 // 16-byte hot request (preferred)
 var req = new AudioPlayRequest(id: 1, volume: 1f, pitch: 1f, EAudioTrack.Sfx, 128,
-    AudioPlayFlags.DoNotAutoRecycle);
+    EAudioPlayFlags.DoNotAutoRecycle);
 ulong h2 = AudioService.Play(clip, req, cold: null);
 
 // Layered BGM: same ID replaces, different IDs coexist

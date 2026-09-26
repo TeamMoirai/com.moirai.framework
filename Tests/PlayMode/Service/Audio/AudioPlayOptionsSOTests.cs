@@ -114,6 +114,43 @@ namespace Service.Audio
             Object.Destroy(so);
         }
 
+        [UnityTest]
+        public IEnumerator Play_DoNotPlayIfClipAlreadyPlaying_ChecksCandidateNotLastHandle()
+        {
+            AudioClip clipA = CreateClip("so_dnp_a", 2f);
+            AudioClip clipB = CreateClip("so_dnp_b", 2f);
+            AudioPlayOptionsSO so = CreateOptions(null);
+            so.m_RandomAudio = new[] { clipA, clipB };
+            so.m_SequentialOrder = true;
+            so.m_DoNotPlayIfClipAlreadyPlaying = true;
+            so.m_Loop = true;
+
+            so.Play(Vector3.zero);
+            yield return null;
+            ulong first = so._lastPlayHandle;
+            Assert.AreNotEqual(0UL, first, "第一次 Play 应产出有效句柄");
+
+            // 顺序第二曲是 clipB：clipB 不在播，不得被「上次句柄 clipA 还在响」误拦
+            so.Play(Vector3.zero);
+            yield return null;
+            Assert.AreNotEqual(0UL, so._lastPlayHandle, "候选 clipB 未在播时不应被重播检查拦截");
+            Assert.AreNotEqual(first, so._lastPlayHandle, "第二曲应产生新句柄");
+            Assert.AreEqual(1, AudioService.CurrentlyPlayingCount(clipA), "clipA 应仍在播");
+            Assert.AreEqual(1, AudioService.CurrentlyPlayingCount(clipB), "clipB 应已成功起播");
+
+            // 再走一轮回到 clipA：候选 clipA 已在播，必须被拦下
+            ulong beforeBlock = so._lastPlayHandle;
+            so.Play(Vector3.zero);
+            yield return null;
+            Assert.AreEqual(beforeBlock, so._lastPlayHandle, "候选 clipA 已在播时必须被 DoNotPlayIfClipAlreadyPlaying 拦下");
+            Assert.AreEqual(1, AudioService.CurrentlyPlayingCount(clipA), "clipA 仍应只有一份在播");
+
+            AudioService.StopAll(0f);
+            Object.Destroy(clipA);
+            Object.Destroy(clipB);
+            Object.Destroy(so);
+        }
+
         private static AudioClip CreateClip(string name, float seconds)
         {
             int samples = Mathf.CeilToInt(44100 * seconds);

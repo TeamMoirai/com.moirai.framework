@@ -295,17 +295,18 @@ namespace Moirai.Atropos.Audio
 
             if (clip == null) return;
 
-            if (m_DoNotPlayIfClipAlreadyPlaying)
+            // 重播/并发都按「本次候选 clip」判定——属性名说的是 clip already playing，
+            // 不是「本 SO 上次句柄还在响」；随机曲集下二者分叉，按上次句柄会误拦新曲或放过已在播的候选。
+            if (audioService != null)
             {
-                if (_lastPlayHandle != 0 && audioService != null && audioService.IsPlaying(_lastPlayHandle))
+                int playingCount = audioService.CurrentlyPlayingCount(clip);
+
+                if (m_DoNotPlayIfClipAlreadyPlaying && playingCount > 0)
                 {
                     return;
                 }
-            }
 
-            if (m_MaximumConcurrentInstances >= 0)
-            {
-                if (audioService != null && audioService.CurrentlyPlayingCount(clip) >= m_MaximumConcurrentInstances)
+                if (m_MaximumConcurrentInstances >= 0 && playingCount >= m_MaximumConcurrentInstances)
                 {
                     return;
                 }

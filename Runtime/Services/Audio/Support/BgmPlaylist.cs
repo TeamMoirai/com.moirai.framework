@@ -18,9 +18,21 @@ namespace Moirai.Atropos.Audio
 
         internal static readonly System.Collections.Generic.HashSet<int> s_ClaimedIds = new HashSet<int>();
 
-        // 自动分配走负区间（-1 起递减），与显式正数 ID 值域不相交，杜绝自动值撞显式值。
+        // 自动分配走负区间（-1 起递减），与显式正数 ID 值域不相交；
+        // 理论上递减到 int.MinValue 后会回绕，实际到不了，不另加溢出防护。
         // s_* 与下列成员走 internal 是测试接缝（《测试规范》：测试禁反射，需触达的成员放宽 internal）
         internal static int s_NextAutoId = -1;
+
+        /// <summary>
+        /// Enter Play Mode Options 关闭域重载时静态跨局残留：进玩前清一次注册表与游标。
+        /// 正常路径仍靠 OnDisable 归还；这里是崩溃/强杀后的兜底，不是主清理通道。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticIdRegistry()
+        {
+            s_ClaimedIds.Clear();
+            s_NextAutoId = -1;
+        }
 
         public enum ELoopMode
         {
@@ -157,6 +169,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>从列表开头播放（Shuffle 重新洗一轮）。</summary>
         public void PlayFromStart()
         {
+            if (_layerConflicted) return;
             _index = -1;
             _shuffleBag.Reset();
             PlayNextInternal();
@@ -168,7 +181,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>播放上一首。</summary>
         public void PlayPrevious()
         {
-            if (m_Tracks.Count == 0) return;
+            if (_layerConflicted || m_Tracks.Count == 0) return;
             int next = _index <= 0 ? m_Tracks.Count - 1 : _index - 1;
             PlayIndex(next);
         }
@@ -176,6 +189,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>播放指定下标。</summary>
         public void PlayIndex(int index)
         {
+            if (_layerConflicted) return;
             if (index < 0 || index >= m_Tracks.Count) return;
             _index = index;
             StartTrack(m_Tracks[_index]);
@@ -193,7 +207,7 @@ namespace Moirai.Atropos.Audio
 
         private void PlayNextInternal()
         {
-            if (m_Tracks.Count == 0) return;
+            if (_layerConflicted || m_Tracks.Count == 0) return;
 
             if (_index < 0)
             {

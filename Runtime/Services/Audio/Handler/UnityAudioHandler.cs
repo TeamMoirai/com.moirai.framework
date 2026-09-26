@@ -1071,7 +1071,7 @@ namespace Moirai.Atropos.Audio
         #region 事件 [EVENTS]
 
         /// <summary>
-        /// 释放除了持久性的音频之外的所有音频（仅 Single 整景切换；Additive 由设置开关决定）。
+        /// 释放除了持久性的音频之外的所有音频（仅 Single 整景切换；Additive 永不自动停音）。
         /// </summary>
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode loadSceneMode)
         {
