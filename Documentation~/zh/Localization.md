@@ -14,7 +14,6 @@
 - 组件注入：`TextLocalizer`（TextMesh / UGUI Text / TMP_Text）、`ImageLocalizer`（Image / RawImage / SpriteRenderer / Renderer 材质）、`AudioLocalizer`（AudioSource）
 - 语言切换自动刷新：所有 `LocalizerBase` 在 `ChangeLanguage` 时统一重新注入（快照遍历 + 单个失败隔离），注入完成后才抛事件
 - Timeline 支持：`TextLocalizerTrack` + `TextLocalizerPlayableAsset` 在时间轴片段上切换文本 ID
-- Google 翻译集成：`GoogleTranslator` 调用 Google Cloud Translation v2 API 辅助翻译配表
 
 ## 核心类型
 
@@ -34,8 +33,6 @@
 | `ImageInjector` / `RawImageInjector` / `SpriteRendererInjector` / `TextureInjector` | 图片注入器，分别作用于 Image、RawImage、SpriteRenderer、Renderer 材质属性 |
 | `AudioSourceInjector` | 音频注入器，作用于 AudioSource |
 | `TextLocalizerTrack` / `TextLocalizerPlayableAsset` / `TextLocalizerPlayableBehaviour` | Timeline 轨道与 Playable，绑定 `TextLocalizer` 按片段切换文本 |
-| `GoogleTranslator` | Google Cloud Translation v2 封装：`TranslateAsync`（协程）与 `Translate`（同步，编辑器用） |
-| `GoogleTranslateRequest` / `GoogleTranslateResponse` | 翻译请求/响应数据类（`Source`、`Target`、`Text`） |
 | `ComponentFinder` | 静态工具：按泛型顺序在 GameObject 上查找组件 |
 | `CommandLineUtility` | 命令行解析（`-force-language`），见 `Runtime/Core/Utilities` 同名类的分部定义 |
 
@@ -111,16 +108,6 @@ LocalizationService.OnLanguageChanged += language =>
 ### Timeline 本地化
 
 安装 Timeline 包（`TIMELINE_INSTALLED` 宏）后，创建 `TextLocalizerTrack` 轨道并绑定场景中的 `TextLocalizer`，每个 `TextLocalizerPlayableAsset` 片段设置 `textId`，播放到该片段时自动切换文本，离开片段时清空。
-
-### Google 翻译辅助
-
-```csharp
-var translator = new GoogleTranslator(authFile); // authFile 为含 API Key 的 TextAsset
-var request = new GoogleTranslateRequest(Language.English, Language.ChineseSimplified, "Hello");
-IEnumerator routine = translator.TranslateAsync(request,
-    onCompleted: e => Debug.Log(e.Responses[0].TranslatedText),
-    onError:   e => Debug.Log(e.Message));
-```
 
 ## 注意事项
 

@@ -14,7 +14,6 @@ The `Localization` service is accessed via the `LocalizationService` static faca
 - Component injection: `TextLocalizer` (TextMesh / UGUI Text / TMP_Text), `ImageLocalizer` (Image / RawImage / SpriteRenderer / Renderer material), `AudioLocalizer` (AudioSource)
 - Auto-refresh on language switch: all `LocalizerBase` instances are re-injected on `ChangeLanguage` (snapshot iteration with per-instance fault isolation) before the event is raised
 - Timeline support: `TextLocalizerTrack` + `TextLocalizerPlayableAsset` switches text IDs on Timeline clips
-- Google Translate integration: `GoogleTranslator` calls Google Cloud Translation v2 API to assist with translating configuration tables
 
 ## Core Types
 
@@ -34,8 +33,6 @@ Namespace: `Moirai.Atropos.Localization`
 | `ImageInjector` / `RawImageInjector` / `SpriteRendererInjector` / `TextureInjector` | Image injectors, targeting Image, RawImage, SpriteRenderer, Renderer material properties respectively |
 | `AudioSourceInjector` | Audio injector, targeting AudioSource |
 | `TextLocalizerTrack` / `TextLocalizerPlayableAsset` / `TextLocalizerPlayableBehaviour` | Timeline track and Playable, binds `TextLocalizer` to switch text on clips |
-| `GoogleTranslator` | Google Cloud Translation v2 wrapper: `TranslateAsync` (coroutine) and `Translate` (synchronous, editor use) |
-| `GoogleTranslateRequest` / `GoogleTranslateResponse` | Translation request/response data classes (`Source`, `Target`, `Text`) |
 | `ComponentFinder` | Static utility: finds components on a GameObject by generic type order |
 | `CommandLineUtility` | Command-line parsing (`-force-language`), see the partial definition of the same class in `Runtime/Core/Utilities` |
 
@@ -114,16 +111,6 @@ LocalizationService.OnLanguageChanged += language =>
 ### Timeline Localization
 
 After installing the Timeline package (`TIMELINE_INSTALLED` macro), create a `TextLocalizerTrack` track and bind it to a `TextLocalizer` in the scene. Each `TextLocalizerPlayableAsset` clip sets a `textId`. When playback reaches that clip, the text automatically switches; when leaving the clip, it clears.
-
-### Google Translate Assistance
-
-```csharp
-var translator = new GoogleTranslator(authFile); // authFile is a TextAsset containing the API Key
-var request = new GoogleTranslateRequest(Language.English, Language.ChineseSimplified, "Hello");
-IEnumerator routine = translator.TranslateAsync(request,
-    onCompleted: e => Debug.Log(e.Responses[0].TranslatedText),
-    onError:   e => Debug.Log(e.Message));
-```
 
 ## Notes
 

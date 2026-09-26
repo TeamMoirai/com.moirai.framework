@@ -229,6 +229,10 @@
 
 ### Removed
 
+#### `Localization`
+
+- ⚠ 第三方遗留 `GoogleTranslator` / `GoogleTranslateRequest` / `GoogleTranslateResponse` 整族删除（全仓库零消费）：同步版是 `while (!isDone)` 忙等、异步版走协程、API Key 经 `TextAsset` 随包分发，三条都不该进运行时程序集；机器翻译属内容生产期工具，需要时另做 Editor-only 的 UniTask 工具。
+
 #### `Resource`
 
 - ⚠ `[Obsolete]` 遗留加载族整族删除，连带它下面那条无法补救的引用计数轴。一次性加载走 `ResourceService` 现役成员，带生命周期的取用走 `ResourceBindingService` 与绑定扩展。

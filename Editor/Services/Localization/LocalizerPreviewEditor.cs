@@ -1,4 +1,5 @@
 using Moirai.Atropos.Localization;
+using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -11,15 +12,17 @@ namespace Moirai.Atropos.Localization.Editor
     /// 地址到资产经 <c>ResourceService.LoadAssetForEditor</c>，两者都不要求服务世界起来，不需要进 Play。</para>
     /// <para>预览取不到数据时只标注一行原因，不打断 Inspector 绘制；也刻意不把内容写回目标组件：
     /// 那会把场景标脏，并留下"忘了还原"的错文案进版本库。</para>
+    /// <para>基类用 <c>OdinEditor</c>（与全局 <c>MonoBehaviourEditor</c> 同源）而非 <c>UnityEditor.Editor</c>：
+    /// 后者的 <c>DrawDefaultInspector</c> 会把派生本地化器上 Odin 特性驱动的绘制整个顶掉。</para>
     /// </summary>
     [CustomEditor(typeof(LocalizerBase), true)]
-    internal sealed class LocalizerPreviewEditor : UnityEditor.Editor
+    internal sealed class LocalizerPreviewEditor : OdinEditor
     {
         private static readonly GUIContent s_PreviewContent = new GUIContent("译文预览 [Preview]");
 
         public override void OnInspectorGUI()
         {
-            DrawDefaultInspector();
+            base.OnInspectorGUI();
 
             var localizer = target as LocalizerBase;
             if (localizer == null) return;
