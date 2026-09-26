@@ -83,7 +83,8 @@ namespace Moirai.Atropos.Localization
 			// 「未就绪」不是「缺译」，不该按缺译给每个本地化器刷一条错误日志
 			if (!IsLocalizationDataReady) return false;
 
-			if (!LocalizationService.Has(textId))
+			// 单趟解析：缺失时的报错口径不变（此前是 Has + GetTextFromId 两趟）
+			if (!LocalizationService.TryGetTextFromId(textId, out var text))
 			{
 				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
@@ -96,7 +97,7 @@ namespace Moirai.Atropos.Localization
 			}
 
 			m_TextId = textId;
-			_injector.Inject(LocalizationService.GetTextFromId(textId), this);
+			_injector.Inject(text, this);
 			ApplyLanguagePresentation();
 			return true;
 		}

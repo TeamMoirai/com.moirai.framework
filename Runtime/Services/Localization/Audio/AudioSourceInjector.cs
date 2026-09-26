@@ -51,9 +51,16 @@ namespace Moirai.Atropos.Localization
 			{
 				Play(localizedData as AudioClip);
 			}
+			else if (localizedData is string address)
+			{
+				// 资源模式的现行路径：本地化器已单趟解析出地址（TryGetTextFromId），
+				// 注入器不再自查第二趟字典
+				ApplyFromResource(address).Forget();
+			}
 			else
 			{
-				ApplyFromResource().Forget();
+				// 兼容旧调用形态（数据被忽略 + 资源模式）：地址在注入器内解析
+				ApplyFromResource(LocalizationService.GetTextFromId(_localizedTextID)).Forget();
 			}
 		}
 
@@ -99,13 +106,12 @@ namespace Moirai.Atropos.Localization
 #endif
 
 		/// <summary>
-		/// 根据本地化文本 ID 从资源系统异步加载音频片段并播放。
+		/// 按已解析的资源地址从资源系统异步加载音频片段并播放。
 		/// </summary>
-		private async UniTaskVoid ApplyFromResource()
+		private async UniTaskVoid ApplyFromResource(string address)
 		{
 			var version = ++_loadVersion;
-			string textIDValue = LocalizationService.GetTextFromId(_localizedTextID);
-			var lease = await ResourceService.LoadLeaseAsync<AudioClip>(textIDValue);
+			var lease = await ResourceService.LoadLeaseAsync<AudioClip>(address);
 
 			// 加载期间发生了更新的切换或已销毁，丢弃过期结果
 			if (version != _loadVersion)
@@ -116,7 +122,7 @@ namespace Moirai.Atropos.Localization
 
 			if (!lease.IsValid)
 			{
-				LogUtility.Error("AudioSourceInjector: failed to load audio clip for id '{0}'.", _localizedTextID);
+				LogUtility.Error("AudioSourceInjector: failed to load audio clip for id '{0}'.", address);
 				return;
 			}
 

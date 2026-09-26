@@ -268,6 +268,26 @@ namespace Moirai.Atropos.Localization
         public static bool Has(string id) => s_Handler?.Has(id) ?? false;
 
         /// <summary>
+        /// 单趟按 ID 取当前语言译文（缺译按处理器口径追踪一次；不返回 ID 原文）。
+        /// <para>本地化器与内联标记解析的「有则注、无则报」判断走这里——替代
+        /// <c>Has</c> + <c>GetTextFromId</c> 两趟查询；需要缺译露 key 的原文回显仍用 <see cref="GetTextFromId(string,object[])"/>。</para>
+        /// </summary>
+        /// <param name="id">文本 ID。</param>
+        /// <param name="text">命中的译文；缺失或服务未就绪时为 <c>null</c>。</param>
+        /// <returns>取到译文时为 <c>true</c>；缺译或服务未就绪时为 <c>false</c>。</returns>
+        public static bool TryGetTextFromId(string id, out string text)
+        {
+            var handler = s_Handler;
+            if (handler == null)
+            {
+                text = null;
+                return false;
+            }
+
+            return handler.TryGetTextFromId(id, out text);
+        }
+
+        /// <summary>
         /// 根据文本 ID 获取本地化字符串（未就绪时返回 id 原文——保证 UI 可见键名而非空白）。
         /// </summary>
         /// <param name="id">文本 ID</param>

@@ -29,16 +29,25 @@ namespace Moirai.Atropos.Localization
 
         public void Inject<T1, T2>(T1 localizedData, T2 localizer) where T2 : LocalizerBase
         {
-            if (localizedData is int index)
+            switch (localizedData)
             {
-                if (string.IsNullOrEmpty(_localizedTextID))
-                {
-                    ApplyFromArray(index);
-                }
-                else
-                {
-                    ApplyFromResource().Forget();
-                }
+                case int index:
+                    if (string.IsNullOrEmpty(_localizedTextID))
+                    {
+                        ApplyFromArray(index);
+                    }
+                    else
+                    {
+                        // 兼容旧调用形态（int + 资源模式）：地址在注入器内解析
+                        ApplyFromResource(LocalizationService.GetTextFromId(_localizedTextID)).Forget();
+                    }
+                    break;
+
+                // 资源模式的现行路径：本地化器已单趟解析出地址（TryGetTextFromId），
+                // 注入器不再自查第二趟字典
+                case string address:
+                    ApplyFromResource(address).Forget();
+                    break;
             }
         }
 
@@ -106,11 +115,10 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         protected abstract bool TryConvertAndApply(UObject asset);
 
-        private async UniTaskVoid ApplyFromResource()
+        private async UniTaskVoid ApplyFromResource(string address)
         {
             var version = ++_loadVersion;
-            string textIDValue = LocalizationService.GetTextFromId(_localizedTextID);
-            var lease = await ResourceService.LoadLeaseAsync<UObject>(textIDValue);
+            var lease = await ResourceService.LoadLeaseAsync<UObject>(address);
 
             // 加载期间发生了更新的切换或已销毁，丢弃过期结果
             if (version != _loadVersion)
@@ -121,13 +129,13 @@ namespace Moirai.Atropos.Localization
 
             if (!lease.IsValid)
             {
-                LogUtility.Error("Localized image load failed: {0}", textIDValue);
+                LogUtility.Error("Localized image load failed: {0}", address);
                 return;
             }
 
             if (!IsExpectedType(lease.Asset) && !IsConvertibleType(lease.Asset))
             {
-                LogUtility.Error("Localized image type error, expected {0}: {1}", GetExpectedTypeName(), textIDValue);
+                LogUtility.Error("Localized image type error, expected {0}: {1}", GetExpectedTypeName(), address);
                 lease.Dispose();
                 return;
             }

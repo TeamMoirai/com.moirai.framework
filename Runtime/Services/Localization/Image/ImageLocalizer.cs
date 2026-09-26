@@ -60,16 +60,16 @@ namespace Moirai.Atropos.Localization
 			// 数据未就绪（表未加载完）：静默推迟，首载成功的语言切换会重注入——「未就绪」不按缺译报错
 			if (!IsLocalizationDataReady) return;
 
-			// 资源模式：有文本 ID 时由注入器自行异步加载；索引模式才需要语言下标
+			// 资源模式：有文本 ID 时单趟解析出地址作为载荷交注入器异步加载；索引模式才需要语言下标
 			if (!string.IsNullOrEmpty(localizedTextID))
 			{
-				if (!LocalizationService.Has(localizedTextID))
+				if (!LocalizationService.TryGetTextFromId(localizedTextID, out var address))
 				{
 					if (Application.isPlaying) LogUtility.Error($"Text ID: {localizedTextID} 不可用。");
 					return;
 				}
 
-				_injector.Inject(0, this);
+				_injector.Inject(address, this);
 				return;
 			}
 
@@ -89,7 +89,7 @@ namespace Moirai.Atropos.Localization
 			// 非播放态不注入：编辑态没有后端可取资产，写进组件还会把场景标脏
 			if (!Application.isPlaying) return false;
 #endif
-			if (!LocalizationService.Has(textId))
+			if (!LocalizationService.TryGetTextFromId(textId, out var address))
 			{
 				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
@@ -102,8 +102,14 @@ namespace Moirai.Atropos.Localization
 				imageInjector.SetLocalizedId(textId);
 			}
 
-			// 与 TextLocalizer.ChangeID 语义一致：记录后立即应用
-			Localize();
+			// 与 TextLocalizer.ChangeID 语义一致：记录后立即应用（地址已单趟解析，直接注入）
+			if (_injector == null)
+			{
+				if (Application.isPlaying) LogUtility.Error($"ImageLocalizer {name}: no target render component found.");
+				return true;
+			}
+
+			_injector.Inject(address, this);
 			return true;
 		}
 

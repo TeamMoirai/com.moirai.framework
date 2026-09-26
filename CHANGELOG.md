@@ -119,6 +119,8 @@
 - 全局语言注册表删除，可用语言随表自报（`ConfigTableService.GetLocalizationLanguageCodes`）。
 - 配置表数据源在自报支持按语言取列的后端下改走按语言列模式：常驻与取值都只有语言头 + 当前语言列。
 - 语言切换的事件时序与查询热路径一并收口。
+- 注册去重改并行 `HashSet`（万级本地化器场景加载期注册从 O(N²) 引用比较降为 O(1)，列表保留注册序）；重注入与语言变更广播的遍历快照改 `ArrayPool` 租用——切换不再落引用数组的常驻垃圾，归还前清零不替已销毁组件续命，遍历中增删/异常隔离语义与原 `ToArray` 完全一致（`LocalizationHotPathTests` 锁）。
+- 新增单趟取值 `TryGetTextFromId`（外观 + 处理器）：Text/Image/Audio 本地化器与 `Localize` 标记解析的「有则注、无则报」判断不再 `Has` + `GetTextFromId` 双查；资源注入器改为接收已解析地址（`IInjector` 的字符串载荷，int+资源模式的旧形态仍兼容），缺译追踪口径与 `GetTextFromId` 一致。
 
 #### 池与内存
 

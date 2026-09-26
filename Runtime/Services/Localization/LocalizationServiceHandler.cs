@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -18,6 +19,9 @@ namespace Moirai.Atropos.Localization
     {
         // 本地化器列表
         [NonSerialized] internal readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
+        // 注册去重集合：与 _localizers 同进退——万级本地化器场景加载期注册 List.Contains 是 O(N²)，
+        // HashSet 把判定收成 O(1)（列表保留注册序，重注入按序执行）
+        [NonSerialized] private HashSet<LocalizerBase> _localizerSet;
         // 句柄式订阅表——静态事件那条路上"忘了注销"是唯一没人收口的泄漏，这里在关服时统一作废
         [NonSerialized] private readonly List<LanguageChangeSubscription> _subscriptions = new List<LanguageChangeSubscription>();
         [NonSerialized] private LocalizationStore _store;
@@ -186,6 +190,8 @@ namespace Moirai.Atropos.Localization
             _isAsyncLoading = false;
             _pendingLoadAsync = default;
             _localizers.Clear();
+            _localizerSet?.Clear();
+            _localizerSet = null;
 
             if (_subscriptions.Count > 0)
             {
@@ -712,22 +718,37 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 重注入全部本地化器。先重注入再抛事件：订阅者在 OnLanguageChanged 回调里取文本必须已拿到新语言。
         /// 快照遍历 + 异常隔离，单个本地化器失败不影响其余，也防注入期间销毁导致的集合变更。
+        /// <para>快照从 <see cref="ArrayPool{T}"/> 租用：万级本地化器下每次切换不再落一个引用数组的
+        /// 常驻垃圾，租用后清零归还，池也不替已销毁的本地化器续命。</para>
         /// </summary>
         private void ReinjectLocalizers()
         {
-            var snapshot = _localizers.ToArray();
-            foreach (var localizer in snapshot)
-            {
-                if (localizer == null) continue;
+            var count = _localizers.Count;
+            if (count == 0) return;
 
-                try
+            var snapshot = ArrayPool<LocalizerBase>.Shared.Rent(count);
+            try
+            {
+                _localizers.CopyTo(snapshot);
+                for (var i = 0; i < count; i++)
                 {
-                    localizer.Localize();
+                    var localizer = snapshot[i];
+                    if (localizer == null) continue;
+
+                    try
+                    {
+                        localizer.Localize();
+                    }
+                    catch (Exception ex)
+                    {
+                        LogUtility.Error(ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    LogUtility.Error(ex);
-                }
+            }
+            finally
+            {
+                Array.Clear(snapshot, 0, count);
+                ArrayPool<LocalizerBase>.Shared.Return(snapshot);
             }
         }
 
@@ -743,23 +764,33 @@ namespace Moirai.Atropos.Localization
         {
             OnLanguageChanged?.Invoke(language);
 
-            if (_subscriptions.Count == 0) return;
+            var count = _subscriptions.Count;
+            if (count == 0) return;
 
-            // 与本地化器同等待遇：快照遍历 + 单个订阅者抛异常不牵连同一次派发的其余订阅者
-            var snapshot = _subscriptions.ToArray();
-            foreach (var subscription in snapshot)
+            // 与本地化器同等待遇：池化快照遍历 + 单个订阅者抛异常不牵连同一次派发的其余订阅者
+            var snapshot = ArrayPool<LanguageChangeSubscription>.Shared.Rent(count);
+            try
             {
-                var callback = subscription?.Callback;
-                if (callback == null) continue;
+                _subscriptions.CopyTo(snapshot);
+                for (var i = 0; i < count; i++)
+                {
+                    var callback = snapshot[i]?.Callback;
+                    if (callback == null) continue;
 
-                try
-                {
-                    callback(language);
+                    try
+                    {
+                        callback(language);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogUtility.Error(ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    LogUtility.Error(ex);
-                }
+            }
+            finally
+            {
+                Array.Clear(snapshot, 0, count);
+                ArrayPool<LanguageChangeSubscription>.Shared.Return(snapshot);
             }
         }
 
@@ -887,7 +918,10 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         public void AddLocalizer(LocalizerBase localizer)
         {
-            if (localizer == null || _localizers.Contains(localizer)) return;
+            if (localizer == null) return;
+
+            _localizerSet ??= new HashSet<LocalizerBase>();
+            if (!_localizerSet.Add(localizer)) return;
 
             _localizers.Add(localizer);
         }
@@ -895,7 +929,13 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 移除本地化器
         /// </summary>
-        public void RemoveLocalizer(LocalizerBase localizer) => _localizers.Remove(localizer);
+        public void RemoveLocalizer(LocalizerBase localizer)
+        {
+            if (localizer == null) return;
+
+            _localizerSet?.Remove(localizer);
+            _localizers.Remove(localizer);
+        }
 
         #endregion
 
@@ -909,6 +949,23 @@ namespace Moirai.Atropos.Localization
         {
             EnsureLocalizedStringsLoaded();
             return Store.HasKey(id);
+        }
+
+        /// <summary>
+        /// 单趟按 ID 取当前语言译文：命中与否用返回值区分，不把缺译伪装成译文原文。
+        /// </summary>
+        /// <remarks>与 <see cref="GetTextFromId(string,object[])"/> 同一条解析路径（覆盖层 → 当前语言，
+        /// 缺译按既有口径追踪一次），但只查一趟字典——本地化器注入前的「有则注、无则报」判断
+        /// 不该比取值本身多花一倍查询；需要原文回显的调用方仍用 <c>GetTextFromId</c> 族。</remarks>
+        /// <param name="id">文本 ID。</param>
+        /// <param name="text">命中的译文；词条缺失或当前语言留空时为 <c>null</c>。</param>
+        /// <returns>取到译文时为 <c>true</c>；缺译或数据未就绪时为 <c>false</c>。</returns>
+        public bool TryGetTextFromId(string id, out string text)
+        {
+            EnsureLocalizedStringsLoaded();
+
+            text = ResolveRaw(id, _currentLanguage);
+            return text != null;
         }
 
         /// <summary>

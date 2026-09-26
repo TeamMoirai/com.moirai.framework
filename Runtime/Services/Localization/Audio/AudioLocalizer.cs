@@ -42,16 +42,16 @@ namespace Moirai.Atropos.Localization
 			// 数据未就绪（表未加载完）：静默推迟，首载成功的语言切换会重注入——「未就绪」不按缺译报错
 			if (!IsLocalizationDataReady) return;
 
-			// 资源模式（配置了文本 ID）下 clips 数组可空：注入器忽略传入数据、自行异步加载
+			// 资源模式（配置了文本 ID）下 clips 数组可空：单趟解析出地址作为载荷交注入器异步加载
 			if (!string.IsNullOrEmpty(localizedTextID))
 			{
-				if (!LocalizationService.Has(localizedTextID))
+				if (!LocalizationService.TryGetTextFromId(localizedTextID, out var address))
 				{
 					if (Application.isPlaying) LogUtility.Error($"Text ID: {localizedTextID} 不可用。");
 					return;
 				}
 
-				_injector.Inject<AudioClip, AudioLocalizer>(null, this);
+				_injector.Inject(address, this);
 				return;
 			}
 
@@ -77,7 +77,7 @@ namespace Moirai.Atropos.Localization
 			// 非播放态不注入：编辑态没有后端可取资产，写进组件还会把场景标脏
 			if (!Application.isPlaying) return false;
 #endif
-			if (!LocalizationService.Has(textId))
+			if (!LocalizationService.TryGetTextFromId(textId, out var address))
 			{
 				if (Application.isPlaying) LogUtility.Error($"Text ID: {textId} 不可用。");
 				return false;
@@ -90,8 +90,14 @@ namespace Moirai.Atropos.Localization
 				audioInjector.SetLocalizedId(textId);
 			}
 
-			// 与 TextLocalizer.ChangeID 语义一致：记录后立即应用
-			Localize();
+			// 与 TextLocalizer.ChangeID 语义一致：记录后立即应用（地址已单趟解析，直接注入）
+			if (_injector == null)
+			{
+				if (Application.isPlaying) LogUtility.Error($"AudioLocalizer {name}: no AudioSource found.");
+				return true;
+			}
+
+			_injector.Inject(address, this);
 			return true;
 		}
 
