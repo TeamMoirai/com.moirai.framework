@@ -31,9 +31,15 @@ namespace Moirai.Atropos.Tasks
         protected override void Reset()
         {
             base.Reset();
+            // 队列里每只子任务都欠着 Append 那次 Acquire 的引用，Clear 会把它们连引用一起丢掉
+            // （子任务永世回不了池；DelayTask 更是连 Timer 句柄都不取消，回调回头会把 Completed
+            // 写在一只已复用的实例上）。_runningTask 仍留在队列里，摘干队列即已覆盖它。
             _runningTask = null;
+            while (_tasks.Count > 0)
+            {
+                _tasks.Dequeue().Dispose();
+            }
             Status = TaskStatus.Stopped;
-            _tasks.Clear();
         }
         
         /// <summary>
@@ -60,37 +66,35 @@ namespace Moirai.Atropos.Tasks
             {
                 if (_runningTask == null)
                 {
-                    _tasks.TryPeek(out _runningTask);
+                    // 空队列（含"被清空后仍在跑"）按完成收口：旧写法在 TryPeek 失败后直接 Start() 空引用
+                    if (!_tasks.TryPeek(out _runningTask))
+                    {
+                        CompleteTask();
+                        break;
+                    }
+
                     _runningTask.Start();
                 }
 
-                if (_runningTask != null)
+                _runningTask.Tick();
+                var status = _runningTask.GetStatus();
+                if (status is TaskStatus.Completed or TaskStatus.Stopped)
                 {
-                    _runningTask.Tick();
-                    var status = _runningTask.GetStatus();
-                    if (status is TaskStatus.Completed or TaskStatus.Stopped)
+                    if (status == TaskStatus.Completed)
                     {
-                        if (status == TaskStatus.Completed)
-                        {
-                            _runningTask.PostComplete();
-                        }
-
-                        _tasks.Dequeue().Dispose();
-                        _runningTask = null;
-
-                        if (_tasks.Count == 0)
-                        {
-                            CompleteTask();
-                        }
-                        else
-                        {
-                            continue;
-                        }
+                        _runningTask.PostComplete();
                     }
-                }
-                else
-                {
-                    CompleteTask();
+
+                    _tasks.Dequeue().Dispose();
+                    _runningTask = null;
+
+                    if (_tasks.Count == 0)
+                    {
+                        CompleteTask();
+                        break;
+                    }
+
+                    continue;
                 }
 
                 break;
