@@ -154,6 +154,12 @@ namespace Moirai.Atropos.Audio
         /// <summary>默认 Clip 缓存策略。</summary>
         internal static EAudioCachePolicy DefaultClipCachePolicy => Instance.m_DefaultClipCachePolicy;
 
+        [Header("场景 [Scene]")]
+        [Tooltip("Additive（叠加）方式加载场景时，是否停掉所有非持久音频。默认关——流式分区/关卡分片加载不应打断在播音频；Single 整景切换始终会停。")]
+        [SerializeField] private bool m_StopNonPersistentOnAdditiveSceneLoad = false;
+        /// <summary>Additive 场景加载时是否停掉非持久音频。</summary>
+        internal static bool StopNonPersistentOnAdditiveSceneLoad => Instance.m_StopNonPersistentOnAdditiveSceneLoad;
+
 #if UNITY_EDITOR
 
         private void Reset()

@@ -1087,7 +1087,10 @@ namespace Moirai.Atropos.Audio.Middleware
         #region 事件 [EVENTS]
 
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
-            => StopAllButPersistent(0.2f);
+        {
+            if (!ShouldStopNonPersistentOnSceneLoad(mode)) return;
+            StopAllButPersistent(0.2f);
+        }
 
         #endregion 事件 [EVENTS]
     }

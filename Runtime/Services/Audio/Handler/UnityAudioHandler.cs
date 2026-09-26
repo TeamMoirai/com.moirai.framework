@@ -226,12 +226,11 @@ namespace Moirai.Atropos.Audio
             _clipCache.Dispose();
             AudioVoiceDucking.Reset();
 
-            // 在后台被退出/关停时要把解冻补上，否则 AudioListener.pause=true 会留给下一个场景或编辑器会话
-            if (_pausedByFramework)
-            {
-                AudioListener.pause = false;
-                _pausedByFramework = false;
-            }
+            // 在后台被退出/关停时要把解冻补上，否则 AudioListener.pause=true 会留给下一个场景或编辑器会话。
+            // 无条件复位：pause 也可能被非本框架渠道（测试宿主、编辑器脚本、第三方插件）置位，
+            // 幂等写 false 没有代价，漏复位则是跨场景寄生状态。
+            AudioListener.pause = false;
+            _pausedByFramework = false;
             _fades.Clear();
             _handles.Clear();
 
@@ -1072,10 +1071,11 @@ namespace Moirai.Atropos.Audio
         #region 事件 [EVENTS]
 
         /// <summary>
-        /// 释放除了持久性的音频之外的所有音频。
+        /// 释放除了持久性的音频之外的所有音频（仅 Single 整景切换；Additive 由设置开关决定）。
         /// </summary>
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode loadSceneMode)
         {
+            if (!ShouldStopNonPersistentOnSceneLoad(loadSceneMode)) return;
             StopAllButPersistent(fadeoutDuration: AudioAgent.FADEOUT_DEFAULT_DURATION);
         }
 

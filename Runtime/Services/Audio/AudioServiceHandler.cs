@@ -479,6 +479,17 @@ namespace Moirai.Atropos.Audio
         public abstract void StopAllButPersistent(float fadeoutDuration = 0f);
 
         /// <summary>
+        /// 场景加载后是否停掉所有非持久音频：<see cref="UnityEngine.SceneManagement.LoadSceneMode.Single"/>（整景切换）恒停；
+        /// Additive（流式分区/关卡分片）默认不停，仅当 <c>AudioServiceSettings.StopNonPersistentOnAdditiveSceneLoad</c>
+        /// 显式打开时才停——否则开放世界的分区加载会误伤在播音频。
+        /// </summary>
+        internal static bool ShouldStopNonPersistentOnSceneLoad(UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            if (mode == UnityEngine.SceneManagement.LoadSceneMode.Single) return true;
+            return AudioServiceSettings.StopNonPersistentOnAdditiveSceneLoad;
+        }
+
+        /// <summary>
         /// 停止所有循环音频。
         /// </summary>
         public abstract void StopAllLooping(float fadeoutDuration = 0f);
