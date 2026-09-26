@@ -1,0 +1,143 @@
+# EditMode + PlayMode 回归门禁。
+#
+# 触发：仅 pull_request（2026-09-24 裁定，不在 master push 上跑以省资源）。
+#
+# 关键约束：本仓库是 UPM 包，没有 ProjectSettings/ 与 Packages/manifest.json，
+# game-ci/unity-test-runner 无法直接对着本仓库跑测试。测试必须在**宿主 Unity 工程**里执行
+# ——宿主工程的 Packages/manifest.json 以 submodule 方式引用本包，所以宿主跑一次
+# EditMode/PlayMode，本包的 Tests/** 就被覆盖。
+#
+# 因此下面的 checkout 默认拉取宿主工程仓库（HOST_REPOSITORY），而不是本仓库。
+# 接入时按实际情况调整 HOST_REPOSITORY / HOST_REF，并确保 HOST_REPO_TOKEN 对宿主仓库有读权限。
+# （另一条路是在本仓库内建 build-release.yaml 注释里提到过的 Sandbox/Unity 宿主工程；
+#   该目录目前并不存在，属于尚未落地的设想。）
+
+name: Tests
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOST_REPOSITORY: TeamMoirai/Client
+  HOST_REF: master
+
+jobs:
+  editmode:
+    if: ${{ false }}
+    name: EditMode
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout host project (with submodules)
+        uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
+        with:
+          repository: ${{ env.HOST_REPOSITORY }}
+          ref: ${{ env.HOST_REF }}
+          token: ${{ secrets.HOST_REPO_TOKEN }}
+          submodules: recursive
+          lfs: true
+          fetch-depth: 1
+
+      - name: Run EditMode tests
+        id: tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: auto
+          projectPath: .
+          testMode: EditMode
+          artifactsPath: TestResults/EditMode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: EditMode Test Results
+
+      - name: Upload EditMode results
+        if: always()
+        uses: TeamMoirai/GitHubActions/.github/actions/upload-artifact@master
+        with:
+          name: editmode-results
+          path: TestResults/EditMode
+
+  playmode:
+    if: ${{ false }}
+    name: PlayMode
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout host project (with submodules)
+        uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
+        with:
+          repository: ${{ env.HOST_REPOSITORY }}
+          ref: ${{ env.HOST_REF }}
+          token: ${{ secrets.HOST_REPO_TOKEN }}
+          submodules: recursive
+          lfs: true
+          fetch-depth: 1
+
+      - name: Run PlayMode tests
+        id: tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: auto
+          projectPath: .
+          testMode: PlayMode
+          artifactsPath: TestResults/PlayMode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: PlayMode Test Results
+
+      - name: Upload PlayMode results
+        if: always()
+        uses: TeamMoirai/GitHubActions/.github/actions/upload-artifact@master
+        with:
+          name: playmode-results
+          path: TestResults/PlayMode
+
+  player-assembly-shape:
+    if: ${{ false }}
+    name: Player assembly shape
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout host project (with submodules)
+        uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
+        with:
+          repository: ${{ env.HOST_REPOSITORY }}
+          ref: ${{ env.HOST_REF }}
+          token: ${{ secrets.HOST_REPO_TOKEN }}
+          submodules: recursive
+          fetch-depth: 1
+
+      # 玩家专用套件（Moirai.Atropos.Tests.Player）跑不了命令行：它的测试入口是构建期注入的
+      # 引导场景，且结果通过 PlayerConnection 回传编辑器。这里退一步做**编译面**校验——
+      # 确认 defineConstraints 仍把它挡在编辑器之外，且没有引用 editor-only 程序集。
+      - name: Assert player test assembly constraints
+        shell: bash
+        run: |
+          set -euo pipefail
+          asmdef="Packages/com.moirai.framework/Tests/Player/Moirai.Atropos.Tests.Player.asmdef"
+          if [ ! -f "$asmdef" ]; then
+            echo "::error::missing $asmdef"
+            exit 1
+          fi
+          grep -q '"UNITY_INCLUDE_TESTS"' "$asmdef" || { echo "::error::$asmdef must require UNITY_INCLUDE_TESTS"; exit 1; }
+          grep -q '"!UNITY_EDITOR"' "$asmdef" || { echo "::error::$asmdef must be excluded from the editor"; exit 1; }
+          if grep -q 'UnityEditor' "$asmdef"; then
+            echo "::error::$asmdef must not reference editor-only assemblies"
+            exit 1
+          fi
+          echo "Player test assembly shape OK."

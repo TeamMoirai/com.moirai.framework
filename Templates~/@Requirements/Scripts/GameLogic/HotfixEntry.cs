@@ -1,0 +1,65 @@
+using System.Collections.Generic;
+using System.Reflection;
+using Moirai.Atropos;
+using Moirai.Atropos.Events;
+using Moirai.Atropos.UI;
+using Moirai.Atropos.Procedure;
+#if OBFUZ_INSTALLED && ENABLE_OBFUZ
+using Obfuz;
+#endif
+
+namespace Moirai.GameLogic
+{
+    /// <summary>
+    /// 进入主流程事件，单次流程。
+    /// </summary>
+    /// <remarks>用于初始化一些初始设定</remarks>
+    public class HotfixEntryEvent : EventBase<HotfixEntryEvent>, IProcedureEvent
+    {
+        public static void Trigger()
+        {
+            using var evt = GetPooled();
+            EventManager.SendEvent(evt);
+        }
+    }
+
+    /// <summary>
+    /// 游戏主程序入口
+    /// </summary>
+#if OBFUZ_INSTALLED && ENABLE_OBFUZ
+    [ObfuzIgnore(ObfuzScope.TypeName | ObfuzScope.MethodName)]
+#endif
+    public static partial class HotfixEntry
+    {
+        private static List<Assembly> s_HotfixAssembly;
+        
+        /// <summary>
+        /// 热更域App主入口。
+        /// </summary>
+        /// <param name="objects"></param>
+        public static void Entrance(object[] objects)
+        {
+            s_HotfixAssembly = (List<Assembly>)objects[0];
+
+            LogUtility.Info("<b><color=orange>======= HotFix Logic Entry =======</color></b>");
+
+            GameApp.AddDestroyListener(Release);
+
+            // 保证 UIService 正常初始化
+            UIService.CloseAll();
+
+            // 事件通知
+            HotfixEntryEvent.Trigger();
+
+            // 开始游戏相关逻辑
+            StartGameLogic();
+        }
+
+        private static partial void StartGameLogic();
+        
+        private static void Release()
+        {
+            LogUtility.Warning("======= Release GameApp =======");
+        }
+    }
+}

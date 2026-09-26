@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4fe62e74444b90408a503a8ed1de522, type: 3}
+  m_Name: PS4_Controller
+  m_EditorClassIdentifier: 
+  m_DeviceGlyphs:
+  - DeviceName: DualShock4GamepadHID
+    DeviceSprite: {fileID: 0}
+  m_DeviceDescription: PlayStation4 DualSense Controller
+  m_ActionGlyphs:
+  - Icon: {fileID: -1670909053, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/leftStick
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: 1916810357, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/rightStick
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: 1663583732, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/dpad
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -2065974072, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/up
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: 1884628584, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/down
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: 1201987974, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/left
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -1188773092, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/right
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: 2113587449, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/buttonWest
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -1911470392, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/buttonSouth
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: 2126805365, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/buttonEast
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -439177566, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/buttonNorth
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -1725205839, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/leftShoulder
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -1865843050, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/rightShoulder
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -1858137220, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/leftStickPress
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -1680163056, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/rightStickPress
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -400773087, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/leftTrigger
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -2032216488, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/rightTrigger
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -1697867330, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/start
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: -949343152, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/select
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet
+  - Icon: {fileID: 561227913, guid: b7cb24dac6a8ab449ba24f6ecd484411, type: 3}
+    ActionBindingPath: <Gamepad>/touchpadButton
+    TextMeshSpriteSheetName: xelu_dark_PS4_SpriteSheet

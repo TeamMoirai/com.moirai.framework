@@ -1,0 +1,90 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Moirai.Atropos.Collections
+{
+    public class RandomList<T>: IReadOnlyList<T>
+    {
+        private readonly List<T> _items;
+        
+        private readonly List<double> _weights;
+
+        // 每个实例一条独立流：种子从框架统一随机源派生，于是整表可随 RandomUtility.Reseed 复现
+        private RandomSource _random;
+
+        private T _lastSelected;
+        
+        // 值类型装箱后与 null 比较恒为 true，无法用 _lastSelected != null 判定"尚未选择"，必须用显式标志
+        private bool _hasLastSelected;
+        
+        public int Count => _items.Count;
+        
+        public T this[int index] => _items[index];
+        
+        public RandomList(int capacity)
+        {
+            _items = new List<T>(capacity);
+            _weights = new List<double>(capacity);
+            _random = RandomUtility.CreateSeeded(RandomUtility.NextUInt32());
+        }
+        
+        public RandomList()
+        {
+            _items = new List<T>();
+            _weights = new List<double>();
+            _random = RandomUtility.CreateSeeded(RandomUtility.NextUInt32());
+        }
+        
+        public void Add(T item, double weight = 1)
+        {
+            _items.Add(item);
+            _weights.Add(weight);
+        }
+
+        public T GetNext(double decayFactor = 0.9)
+        {
+            while (true)
+            {
+                double totalWeight = _weights.Sum() - (_hasLastSelected ? _weights[_items.IndexOf(_lastSelected)] : 0);
+                double randomNumber = _random.NextDouble() * totalWeight;
+                double cumulativeWeight = 0;
+                for (int i = 0; i < _items.Count; i++)
+                {
+                    if (_hasLastSelected && _items[i].Equals(_lastSelected))
+                    {
+                        // 跳过最后的选定项目
+                        continue;
+                    }
+
+                    cumulativeWeight += _weights[i];
+                    if (randomNumber < cumulativeWeight)
+                    {
+                        T selected = _items[i];
+                        // 减少所选项目的权重以供将来选择
+                        _weights[i] *= decayFactor;
+                        // 更新最后选择的项目
+                        _lastSelected = selected;
+                        _hasLastSelected = true;
+                        return selected;
+                    }
+                }
+
+                // 如果所有项都是最后选定的项，则将 lastSelected 重置为默认值
+                _lastSelected = default;
+                _hasLastSelected = false;
+                // 再次执行选择
+            }
+        }
+        
+        public IEnumerator<T> GetEnumerator()
+        {
+            return _items.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+    }
+}

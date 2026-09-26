@@ -1,0 +1,38 @@
+{
+    "name": "Moirai.Atropos.Tests.EditorMode",
+    "rootNamespace": "Moirai.Atropos.Tests.EditorMode",
+    "references": [
+        "GUID:27619889b8ba8c24980f49ee34dbb44a",
+        "GUID:0acc523941302664db1f4e527237feb3",
+        "GUID:24c092aee38482f4e80715eaa8148782",
+        "GUID:48c39f1caa38fbd4e99e4c330e531180",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:75469ad4d38634e559750d17036d5f7c"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "MessagePack.dll",
+        "MessagePack.Annotations.dll",
+        "MemoryPack.Core.dll",
+        "protobuf-net.dll",
+        "protobuf-net.Core.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.logging",
+            "expression": "1.0.0",
+            "define": "UNITY_LOGGING_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}

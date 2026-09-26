@@ -1,0 +1,189 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using Moirai.Atropos;
+using Moirai.Atropos.ConfigTable;
+using Moirai.Atropos.Localization;
+using Moirai.GameProto.Config.L10n;
+using UnityEngine;
+using UnityEngine.U2D;
+using Moirai.Atropos.Resource;
+
+namespace Moirai.GameProto.Config
+{
+    /// <summary>
+    /// 游戏配置表助手。
+    /// </summary>
+    public sealed partial class LubanHandler : ConfigTableServiceHandler
+    {
+        #region 初始化 [INITIALIZE]
+
+#if UNITY_EDITOR
+        [UnityEditor.Callbacks.DidReloadScripts]
+        private static void OnDidReloadScripts()
+        {
+            ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>();
+        }
+#endif
+
+        #endregion
+
+        #region 处理多语言 [LOCALIZATION]
+
+        private Dictionary<string, List<string>> _allLocalizedStrings;
+        private string[] _localizationLanguageCodes;
+
+        public override Dictionary<string, List<string>> GetAllLocalizedStrings()
+        {
+            if (_allLocalizedStrings == null)
+            {
+                ResolveLocalization();
+            }
+
+            return _allLocalizedStrings;
+        }
+        
+
+        /// <summary>
+        /// 自报本表提供的语言：顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
+        /// <para>框架据此校验列数并解析缺译回退链，不再依赖「向全局注册表注册语言」这一副作用。</para>
+        /// </summary>
+        public override IReadOnlyList<string> GetLocalizationLanguageCodes()
+        {
+            if (_localizationLanguageCodes == null)
+            {
+                ResolveLocalization();
+            }
+
+            return _localizationLanguageCodes ?? Array.Empty<string>();
+        }
+
+        /// <summary>
+        /// 初始化所有可用的多语言
+        /// </summary>
+        /// <returns></returns>
+        private void ResolveLocalization()
+        {
+            LogUtility.Info("<color=yellow>\u25bc\u25bc\u25bc\u25bc " +
+                     "Start Resolve LocalizationBean~" +
+                     " \u25bc\u25bc\u25bc\u25bc</color>");
+            
+            // 获取类型 -> 多语言Bean
+            Type type = typeof(LocalizationBean);
+
+            // 获取所有公共实例字段
+            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+            // 语言列序与词条列序同源：同一过滤枚举产出语言自报与字符串列，任何一侧都不单独求序。
+            // 自报内容即字段名（内置语言 Name，框架内置/自定义语言均按列序直通）
+            var languageFields = new List<FieldInfo>(fields.Length);
+            foreach (var field in fields)
+            {
+                if (field.IsInitOnly && field.FieldType == typeof(string)) languageFields.Add(field);
+            }
+
+            _localizationLanguageCodes = new string[languageFields.Count];
+            for (int i = 0; i < languageFields.Count; i++)
+            {
+                _localizationLanguageCodes[i] = languageFields[i].Name;
+            }
+
+            // 处理所有多语言数据
+            // 先构建到局部变量：读表失败（如资源未就绪）时不留下"已解析"的空字典，
+            // 否则 GetAllLocalizedStrings 永远返回空集合、且不再重试
+            var localizedStrings = new Dictionary<string, List<string>>();
+            foreach (var data in Tables.TbLocalizedStrings.DataList)
+            {
+                foreach (FieldInfo field in languageFields)
+                {
+                    // 获取多语言的 Key
+                    string key = data.Key;
+                    // 获取多语言的字段值
+                    string fieldValue = (string)field.GetValue(data.FormattedStrings);
+
+                    // 输出字段名称和值
+                    // Debug.Log($"[{key}] Field Name: {field.Name}, Value: {fieldValue}");
+
+                    if (localizedStrings.ContainsKey(key))
+                    {
+                        localizedStrings[key].Add(fieldValue);
+                    }
+                    else
+                    {
+                        localizedStrings.Add(key, new List<string> { fieldValue });
+                    }
+                }
+            }
+
+            _allLocalizedStrings = localizedStrings;
+
+            LogUtility.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 " +
+                            "Resolve LocalizationBean Done!" +
+                            " \u25b2\u25b2\u25b2\u25b2</color>");
+
+            // string str = "";
+            // foreach (var item in _allLocalizedStrings)
+            // {
+            //     str += $"{item.Key}[{item.Value.Count}]: {string.Join(",", item.Value)}\n";
+            // }
+            // LogUtility.Info("AllLocalizedStrings:\n{0}", str);
+        }
+
+        #endregion
+
+        #region 界面 [UI]
+
+        public override string GetUIWindowLocation(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+
+            if (!Tables.TbUIWindow.DataMap.TryGetValue(id, out var uiWindowConfig))
+            {
+                LogUtility.Warning("UI ID[{0}] is invalid.", id);
+                return string.Empty;
+            }
+            
+            // todo 获取当前主题的配置？
+            // UI 当前主题配置在 UIConfigManager
+            return uiWindowConfig.DefaultRes;
+        }
+
+        /// <summary>
+        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas
+        /// </summary>
+        /// <param name="id">UISprite - SpriteAtlas 配置表的 id</param>
+        /// <param name="cancellationToken"></param>
+#pragma warning disable CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
+        public override async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
+#pragma warning restore CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+
+            if (!Tables.TbSprite.DataMap.TryGetValue(id, out var spriteConfig))
+            {
+                LogUtility.Warning("Sprite ID[{0}] is invalid.", id);
+                return null;
+            }
+            
+            if (!Tables.TbSpriteAtlas.DataMap.TryGetValue(spriteConfig.SpriteAtlasId, out var atlasConfig))
+            {
+                LogUtility.Warning("SpriteAtlasId ID[{0}] is invalid.", id);
+                return null;
+            }
+            
+            // LogUtility.Info("LoadSpriteByID {0} from {1}", id, atlasConfig.Location);
+            
+            using var lease =
+#if UNITY_WEBGL
+                await ResourceService.LoadLeaseAsync<SpriteAtlas>(atlasConfig.Location, packageName: atlasConfig.PackageName);
+#else
+                ResourceService.LoadLease<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
+#endif
+            return lease.Asset?.GetSprite(spriteConfig.SpriteName);
+        }
+
+        #endregion
+    }
+}

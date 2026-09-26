@@ -1,0 +1,165 @@
+# UI 服务
+
+> 基于 UGUI 的栈式窗口管理框架，提供窗口生命周期、层级深度排序、模态遮挡、Widget 子控件与多分辨率适配能力。
+
+UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `UIWidget`，由 `UIServiceHandler` 统一管理窗口栈、层级深度与可见性，`UIService` 作为静态外观对外暴露全部 API。窗口面板通过资源服务（YooAsset）或 `Resources` 加载实例化，窗口类本身不挂 MonoBehaviour。通过 `UIService.Xxx()` 静态方法即可完成打开、关闭、隐藏、查询等全部操作。
+
+## 架构（HandlerHost 模式）
+
+UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
+
+- **`UIService`**：静态外观（`[AutoRegisterService]` + `[HandlerHost(typeof(UIServiceHandler))]` + `[ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]`），全部公共成员为静态方法/属性，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级；源生成器生成线程安全懒加载属性）
+- **`UIServiceHandler`**：可序列化抽象基类（继承 `FrameworkHandler`），定义外观调用的后端契约
+- **`UGUIHandler`**：默认实现（位于 `Handler/` 目录），承载窗口栈管理、层级排序、资源加载等核心逻辑；替换自定义后端无需改动调用方
+- **`UIServiceSettings`**：框架设置（菜单「UI设置」），通过 `[ProviderDropdown]` + `[SerializeReference]` 选择 UI 后端实现
+- 服务标记 `[AutoRegisterService]`，由组合根经生成的内置服务清单自动注册（App 作用域，`[ServiceDependency]` 拓扑序保证初始化先后），也可手动 `GameServices.RegisterService(EServiceScopeKind.App, new UIService())`
+
+## 核心特性
+
+- 窗口栈式管理：按 `UILayer` 层级插入排序，同层窗口深度自动递增（`LAYER_DEEP = 2000`、`WINDOW_DEEP = 100`）
+- 五级层级：`Bottom` / `UI` / `Popup` / `Tips` / `System`，其中 `UI`、`Popup`、`System` 为模态层级
+- 完整生命周期：`OnCreate` → `OnRefresh` → `OnUpdate` → `OnClose` → `OnDestroy`，可重写打开/关闭动画
+- 模态遮挡：模态窗口压栈后自动禁用下层窗口交互（`Interactable`），`IsBlockedByModal` 可查询遮挡
+- 全屏窗口优化：全屏窗口之下的窗口自动隐藏，减少渲染与更新开销
+- 窗口缓存：`cacheInstance` 关闭时不销毁，再次打开直接复用实例
+- Widget 子控件：窗口内嵌控件复用同一套生命周期，支持按节点 / 资源路径 / prefab 创建
+- 多分辨率适配：安全区域（刘海屏）适配、`UIAdapter` 布局适配器（横向 / 纵向 / 环形 / 安全区）
+- 编辑器代码生成：`GameObject/ScriptGenerator` 菜单自动生成 UI 绑定代码
+
+## 核心类型
+
+| 类/接口 | 说明 |
+|---------|------|
+| `Moirai.Atropos.UI.UIService` | UI 服务静态外观（`[HandlerHost]`），打开/关闭/隐藏/查询等全部静态 API；静态属性 `UIRoot`、`UICamera`、`CurrentModal` |
+| `Moirai.Atropos.UI.UIServiceHandler` | UI 后端处理器抽象基类（继承 `FrameworkHandler`），定义外观调用的完整后端契约 |
+| `Moirai.Atropos.UI.UGUIHandler` | 默认 UI 后端实现（位于 `Handler/` 目录），窗口栈管理、深度排序、可见性控制核心逻辑 |
+| `Moirai.Atropos.UI.UIServiceSettings` | 框架设置，`[ProviderDropdown]` 选择 UI 后端实现 |
+| `Moirai.Atropos.UI.UIRootBinding` | UI 根绑定组件：挂在充当 UI 根的场景物体上，`SingletonMono` 先到先得登记，供 `UGUIHandler` 经 `TryGetInstance()` 取用（不自动创建；取代按名字查找） |
+| `Moirai.Atropos.UI.UIBase` | UI 基类，定义生命周期虚方法与 Widget 创建 API |
+| `Moirai.Atropos.UI.UIWindow` | 窗口抽象基类，继承 `UIBase`，含 Canvas 深度、可见性、交互性、开关动画 |
+| `Moirai.Atropos.UI.UIWidget` | 窗口内嵌控件基类，继承 `UIBase` |
+| `Moirai.Atropos.UI.WindowAttribute` | 窗口特性，声明层级、资源地址、全屏、缓存等配置 |
+| `Moirai.Atropos.UI.UILayer` | UI 层级枚举：`Bottom=0`、`UI=1`、`Popup=2`、`Tips=3`、`System=4` |
+| `Moirai.Atropos.UI.UIServiceEvent` | 窗口打开/关闭事件（`Shown` / `Closed`），经 `EventManager` 派发 |
+| `Moirai.Atropos.UI.UIServiceHelper` | 交互辅助：`IsInteractionBlockedByModal`、`IsUIObjectInteractable` |
+| `Moirai.Atropos.UI.UIBindComponent` | Window/Widget 组件绑定 MonoBehaviour 基类 |
+| `Moirai.Atropos.UI.ErrorLogger` | 运行时异常捕获器，异常时弹出 `LogUI` 窗口 |
+| `Moirai.Atropos.UI.Adapter.AdapterBase` | 布局适配器抽象基类（`Moirai.Atropos.UI.Adapter` 命名空间） |
+
+## 快速上手
+
+定义一个窗口（窗口类必须有无参构造，即 `new()` 约束）：
+
+```csharp
+using Moirai.Atropos.UI;
+
+// 层级 Popup、非全屏、关闭后缓存实例
+[Window(UILayer.Popup, location: "MainWindow", fullScreen: false, cacheInstance: true)]
+public class MainWindow : UIWindow
+{
+    protected override void ScriptGenerator() { }   // 生成的绑定代码在此重写
+
+    protected override void OnCreate() { /* 首次创建，绑定事件 */ }
+
+    protected override void OnRefresh() { /* 打开或上层窗口关闭时刷新，通过 UserData/Params 取参 */ }
+
+    protected override void OnUpdate() { /* 每帧更新（仅可见窗口） */ }
+
+    protected override void OnClose() { /* 关闭清理 */ }
+
+    protected override void OnDestroy() { /* 实例销毁 */ }
+}
+```
+
+打开与关闭窗口：
+
+```csharp
+// 同步打开（WebGL 平台自动转为异步）
+UIService.ShowUI<MainWindow>();
+
+// 异步打开，可携带自定义参数（窗口内以 UserData / Params 读取）
+UIService.ShowUIAsync<MainWindow>(userData: new object[] { 1001 });
+
+// 异步打开并等待加载完成（超时 60 秒）
+UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>();
+
+// 关闭 / 隐藏（HideTimeToClose 秒后自动关闭）
+UIService.CloseUI<MainWindow>();
+UIService.HideUI<MainWindow>();
+
+// 查询
+bool exist = UIService.HasWindow<MainWindow>();
+UIWindow top = UIService.GetTopWindow();
+```
+
+## 进阶用法
+
+### 窗口层级与深度
+
+窗口栈按 `WindowLayer` 插入排序，`OnSortWindowDepth` 以 `layer * LAYER_DEEP` 为起点、同层每个窗口递增 `WINDOW_DEEP` 写入 Canvas `sortingOrder`。模态层级（`UI`/`Popup`/`System`）窗口入栈时，会自动把紧邻下层窗口置为不可交互：
+
+```csharp
+// 关闭除 System 层外的所有窗口
+UIService.CloseAllWithOut(UILayer.System);
+
+// 判断某 UI 对象是否被模态窗口遮挡
+bool blocked = UIService.IsBlockedByModal(gameObject);
+```
+
+### Widget 子控件
+
+Widget 复用窗口的生命周期方法，由所属窗口驱动更新。在窗口/Widget 内通过 `UIBase` 提供的工厂方法创建：
+
+```csharp
+// 从窗口内已有节点路径创建
+HeroItemWidget item = CreateWidget<HeroItemWidget>("m_list/m_heroItem");
+
+// 按资源定位地址同步/异步实例化创建
+HeroItemWidget item2 = CreateWidgetByPath<HeroItemWidget>(parentTrans, "HeroItem");
+HeroItemWidget item3 = await CreateWidgetByPathAsync<HeroItemWidget>(parentTrans, "HeroItem");
+
+// 按 prefab 副本创建（列表项常用）
+HeroItemWidget item4 = CreateWidgetByPrefab<HeroItemWidget>(prefab, parentTrans);
+
+// 批量调整列表图标数量（含异步分帧版本 AsyncAdjustIconNum）
+AdjustIconNum<HeroItemWidget>(_items, count, parentTrans, prefab);
+```
+
+### 开关动画与交互锁
+
+窗口默认内置 0.5 秒打开 / 0.25 秒关闭的等待，可重写替换为动画播放；动画期间窗口自动锁定交互，模态窗口还会联动输入服务（`InputService.PreventInteractionUI`）。交还只发生在**当轮**转移：全局压制位按归属仲裁（`UIInteractionLease`）仅由最后持有者清除，被重开/销毁接管的旧动画续体不再解锁也不再隐藏，因此重写的动画无需自行判断是否已被接管：
+
+```csharp
+protected override async UniTask OpenAnimation()
+{
+    await panel.DOFade(1f, 0.3f);  // 播放自定义动画
+}
+```
+
+### 安全区域与 UIAdapter
+
+- 窗口内：`SetUIFit(RectTransform, liuHaiFit, topSpacing, bottomFit, bottomSpacing)` 对指定节点做刘海屏上下适配，`SetUINotFit` 排除个别节点。
+- 全局：静态方法 `UIService.ApplyScreenSafeRect(Rect)` 直接调整 UIRoot；`UIService.SimulateIPhoneXNotchScreen()` 在编辑器模拟异形屏。
+- 布局适配器（`Moirai.Atropos.UI.Adapter`）：`SafeAreaAdapter`（安全区）、`HorizontalAdapter` / `VerticalAdapter`（横/纵向自适应排列，支持 `Gap`）、`AngleAdapter`（环形排列，支持 `Distance`、`BiasAngle`、`Clockwise`），均挂载 MonoBehaviour 并可每帧重算。
+
+### 运行时错误窗口
+
+当调试器配置（`DebuggerService.ActiveWindowType`）判定**启用**错误日志时，服务才注册 `ErrorLogger` 捕获 `LogType.Exception`，自动弹出内置 `LogUI` 窗口（`[Window(UILayer.System, fromResources:true)]`，预制体位于服务 `Resources/LogUI.prefab`）逐条查看异常堆栈。启用判据：`AlwaysOpen` 恒启用；`OnlyOpenWhenDevelopment` 随开发构建；`OnlyOpenInEditor` 随编辑器；`AlwaysClose` 与非开发构建下的 `OnlyOpenWhenDevelopment`（即发布包默认形态）都不启用，异常不弹窗。
+
+### 编辑器绑定代码生成
+
+选中 UI 预制体根节点，使用菜单：
+
+- `GameObject/ScriptGenerator/生成绑定代码`：生成 `partial class XXX : UIWindow` 脚本及 `XXXBinder : UIBindComponent` 绑定组件
+- `GameObject/ScriptGenerator/复制绑定属性`：复制成员变量代码到剪贴板
+
+## 注意事项
+
+- UI 根由场景物体上的 `UIRootBinding` 组件登记（其下需含 `Canvas`）：`SingletonMono` 先到先得，后到者整物体销毁；取用走 `TryGetInstance()`，只回读、不自动创建。后端在首个 Update tick 取用，缺绑定报一条 Error、缺 Canvas 报一条 Fatal，之后都每帧续等（后加入的场景、运行期实例化的根、事后补上的 Canvas 都补得上）。登记到位后 UI 根自动 `DontDestroyOnLoad`（仅播放态）。**已不再按物体名字查找**——改名不报编译错、多场景/热更下同名还可能命中错的根。
+- `ShowUI` 同步加载依赖资源服务的同步加载能力，WebGL 下自动退化为异步；建议优先使用 `ShowUIAsync`
+- `HideUI` 仅当窗口 `HideTimeToClose > 0` 时生效，否则等同直接 `CloseUI`
+- `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` 只等待"已打开"窗口的加载完成，窗口不存在时返回 null / 不回调
+- 窗口更新（`OnUpdate`）仅对可见窗口触发；全屏窗口会遮挡其下窗口的可见性
+
+---
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

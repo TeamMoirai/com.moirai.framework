@@ -1,0 +1,26 @@
+/* HelpBox */
+
+/* 顶部帮助的框，一般用于在检查面板中描述脚本的功能 */
+.help-box-top-field {
+    font-size: 12px;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    /*margin-right: 0;*/
+    /*margin-left: 0;*/
+    padding-top: 2px;
+    padding-bottom: 2px;
+
+}
+.unity-help-box__label {
+    font-size: 12px;
+    white-space: normal;
+    flex-shrink: 1;
+    padding-left: 0;
+    padding-right: 1px;
+}
+
+.help-box-top-field__label {
+    font-size: 11px;
+    -unity-font-style: bold;
+    white-space: normal;
+}

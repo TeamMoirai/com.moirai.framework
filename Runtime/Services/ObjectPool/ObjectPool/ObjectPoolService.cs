@@ -1,0 +1,172 @@
+using Moirai.Atropos.Debugger;
+
+namespace Moirai.Atropos.ObjectPool
+{
+    /// <summary>
+    /// 通用对象池服务外观（Facade）。
+    /// <para>统一的静态通用池访问入口，通过替换 <see cref="Handler"/> 即可在不同池后端之间零成本切换。</para>
+    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ObjectPoolServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
+    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// <para>通用池面向任意 <see cref="ObjectBase"/> 派生对象（非 GameObject）；GameObject 池化请使用 <see cref="GameObjectPoolService"/>。</para>
+    /// </summary>
+    [AutoRegisterService]
+    [HandlerHost(typeof(ObjectPoolServiceHandler))]
+    [ServiceDependency(typeof(DebuggerService))]
+    [UnityEngine.Scripting.Preserve]
+    public partial class ObjectPoolService : ServiceBase, IServiceTickable
+    {
+        #region 生命周期 [LIFECYCLE]
+
+        /// <summary>
+        /// 创建默认通用对象池处理器（settings 未配置时的代码兜底）。
+        /// </summary>
+        /// <returns>默认通用对象池处理器实例。</returns>
+        internal static ObjectPoolServiceHandler CreateDefaultHandler() => new DefaultObjectPoolHandler();
+
+        /// <summary>
+        /// 从 <see cref="ObjectPoolServiceSettings"/> 解析通用对象池处理器。
+        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
+        /// </summary>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static ObjectPoolServiceHandler GetHandlerFromSettings()
+        {
+            GameServices.EnsureRegistered<ObjectPoolService>();
+            return ObjectPoolServiceSettings.ObjectPoolServiceHandler;
+        }
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.OBJECT_POOL;
+
+        /// <summary>
+        /// 初始化通用对象池服务。由容器在构建期调用。
+        /// <para>确保 <c>ObjectPoolService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
+        /// </summary>
+        public override void OnInit()
+        {
+            _ = Handler;
+            
+            DebuggerService.RegisterDebuggerWindow("Profiler/Object Pool", new ObjectPoolServiceDebuggerWindow());
+        }
+
+        /// <summary>
+        /// 关闭通用对象池服务。由容器在关闭期调用。
+        /// </summary>
+        public override void OnShutdown()
+        {
+            var handler = s_Handler;
+            s_Handler = null;
+            handler?.Internal_Shutdown();
+        }
+
+        /// <summary>
+        /// 容器 Tick 驱动——转发到处理器处理到期的维护操作（未就绪时静默降级）。
+        /// </summary>
+        public void Tick(float elapseSeconds, float realElapseSeconds) =>
+            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+		
+        /// <summary>
+        /// 获取池数量（未就绪时为 0）。
+        /// </summary>
+        public static int Count => s_Handler?.Count ?? 0;
+
+        #endregion
+
+        #region 池管理 [POOL MANAGEMENT]
+
+        /// <summary>
+        /// 是否存在指定类型的池。
+        /// </summary>
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>是否存在（未就绪时为 false）。</returns>
+        public static bool HasObjectPool<T>(string name = "") where T : ObjectBase =>
+            s_Handler?.HasObjectPool<T>(name) ?? false;
+
+        /// <summary>
+        /// 获取指定类型的池。
+        /// </summary>
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>池实例；不存在或服务未就绪返回 null。</returns>
+        public static IObjectPool<T> GetObjectPool<T>(string name = "") where T : ObjectBase =>
+            s_Handler?.GetObjectPool<T>(name);
+
+        /// <summary>
+        /// 获取或创建指定类型的池。
+        /// </summary>
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="options">创建选项（已存在时忽略）。</param>
+        /// <returns>池实例；服务未注册返回 null。</returns>
+        public static IObjectPool<T> GetOrCreatePool<T>(ObjectPoolCreateOptions options = default) where T : ObjectBase =>
+            s_Handler?.GetOrCreatePool<T>(options);
+
+        /// <summary>
+        /// 销毁指定类型的池（释放其全部对象）。
+        /// </summary>
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">池名称。</param>
+        /// <returns>是否销毁成功（未就绪时为 false）。</returns>
+        public static bool DestroyObjectPool<T>(string name = "") where T : ObjectBase =>
+            s_Handler?.DestroyObjectPool<T>(name) ?? false;
+
+        /// <summary>
+        /// 尝试从默认池按名取用对象（不自动建池）。
+        /// </summary>
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="name">对象名称。</param>
+        /// <param name="obj">取用到的对象；失败为 null。</param>
+        /// <returns>是否成功。</returns>
+        public static bool TrySpawn<T>(string name, out T obj) where T : ObjectBase
+        {
+            obj = null;
+            IObjectPool<T> pool = GetObjectPool<T>();
+            return pool != null && pool.TrySpawn(name, out obj);
+        }
+
+        /// <summary>
+        /// 指定类型默认池中是否存在该引用目标。
+        /// </summary>
+        /// <typeparam name="T">池化对象类型。</typeparam>
+        /// <param name="target">引用目标。</param>
+        /// <returns>是否在池内。</returns>
+        public static bool Contains<T>(object target) where T : ObjectBase =>
+            GetObjectPool<T>()?.Contains(target) ?? false;
+
+        /// <summary>
+        /// 获取全部池（按优先级可选排序）填充到结果数组。
+        /// </summary>
+        /// <param name="sort">是否按优先级降序排序。</param>
+        /// <param name="results">结果数组。</param>
+        /// <returns>池总数（可能超出数组容量；未就绪时为 0）。</returns>
+        public static int GetAllObjectPools(bool sort, ObjectPoolBase[] results) =>
+            s_Handler?.GetAllObjectPools(sort, results) ?? 0;
+
+        #endregion
+
+        #region 释放 [RELEASE]
+
+        /// <summary>
+        /// 释放所有池的全部可释放对象。
+        /// </summary>
+        public static void Release() =>
+            s_Handler?.Release();
+
+        /// <summary>
+        /// 释放所有池的全部未使用且可释放的对象（低内存响应同此）。
+        /// </summary>
+        public static void ReleaseAllUnused() =>
+            s_Handler?.ReleaseAllUnused();
+
+        /// <summary>
+        /// 刷新全部池（动词与 <see cref="GameObjectPoolService.FlushAll"/> 对齐；等价 <see cref="ReleaseAllUnused"/>）。
+        /// </summary>
+        public static void FlushAll() =>
+            s_Handler?.FlushAll();
+
+        #endregion
+    }
+}

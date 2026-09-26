@@ -1,0 +1,448 @@
+using System;
+using System.Collections.Generic;
+using Sirenix.OdinInspector;
+using UnityEngine;
+
+namespace Moirai.Atropos.ObjectPool
+{
+    /// <summary>
+    /// 按实例引用回收的结果。
+    /// </summary>
+    public enum EPoolReleaseResult : byte
+    {
+        /// <summary>
+        /// 已成功回收到池。
+        /// </summary>
+        Released = 0,
+
+        /// <summary>
+        /// 实例已不在 Active 状态（重复 Despawn / 已回收）。
+        /// </summary>
+        NotActive = 1,
+
+        /// <summary>
+        /// 实例不归属该槽位（身份不匹配）。
+        /// </summary>
+        NotOwned = 2
+    }
+
+    /// <summary>
+    /// GameObject 池回收策略。
+    /// </summary>
+    /// <remarks>
+    /// `Flush` / 低内存：所有策略（含 Sticky）按 `minIdle` 剪空闲；剪空后若 `unloadPrefab` 为真则释放 Prefab 源租约（进入资源模块 Idle TTL，不是立刻从内存抠掉）。<br />
+    /// 普通 Tick 不会动 Sticky。<br />
+    /// 每次维护有剪裁预算（约 `soft/4`，封顶 16；低内存 16），不一定一帧剪完。
+    /// </remarks>
+    public enum EPoolPolicy : byte
+    {
+        /// <summary>
+        /// 固定容量：超出保留目标立即裁剪。
+        /// </summary>
+        /// <remarks>可涨到 hard。一有空闲且 `total > retain` 就立刻剪空闲；`retain = clamp(minIdle, 0, soft)`。在场对象不剪。</remarks>
+        /// <example>适合 HUD</example>
+        [LabelText("Fixed (固定容量)")]
+        Fixed = 0,
+
+        /// <summary>
+        /// 突发容忍：空闲超时才裁剪。
+        /// </summary>
+        /// <remarks>可涨到 hard。`total > soft` 时立刻剪空闲；未超 soft 时最老空闲超过 `idleSeconds` 再剪。</remarks>
+        /// <example>适合特效 / 子弹</example>
+        [LabelText("Burst (突发容忍)")]
+        Burst = 1,
+
+        /// <summary>
+        /// 粘性保留：不主动回收，仅手动 Flush / 低内存收缩。
+        /// </summary>
+        /// <remarks>只涨不自动剪，等 `Flush` 或 `Application.lowMemory`。</remarks>
+        /// <example>适合关卡常驻</example>
+        [LabelText("Sticky (粘性保留)")]
+        Sticky = 2
+    }
+
+    /// <summary>
+    /// GameObject 池化对象生成上下文。
+    /// </summary>
+    public readonly struct GameObjectPoolSpawnContext
+    {
+        #region 字段 [FIELDS]
+
+        /// <summary>
+        /// 资源地址。
+        /// </summary>
+        public readonly string Location;
+
+        /// <summary>
+        /// 分组名称。
+        /// </summary>
+        public readonly string Group;
+
+        /// <summary>
+        /// 父级 Transform。
+        /// </summary>
+        public readonly Transform Parent;
+
+        /// <summary>
+        /// 生成帧号。
+        /// </summary>
+        public readonly uint SpawnFrame;
+
+        #endregion
+
+        #region 构造 [CONSTRUCTOR]
+
+        /// <summary>
+        /// 初始化 <see cref="GameObjectPoolSpawnContext"/> 的新实例。
+        /// </summary>
+        /// <param name="location">资源地址。</param>
+        /// <param name="group">分组名称。</param>
+        /// <param name="parent">父级 Transform。</param>
+        /// <param name="spawnFrame">生成帧号。</param>
+        public GameObjectPoolSpawnContext(string location, string group, Transform parent, uint spawnFrame)
+        {
+            Location = location;
+            Group = group;
+            Parent = parent;
+            SpawnFrame = spawnFrame;
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// 可池化 GameObject 组件接口。
+    /// </summary>
+    public interface IGameObjectPoolable
+    {
+        /// <summary>
+        /// 对象从池中取出时调用。
+        /// </summary>
+        /// <param name="context">生成上下文。</param>
+        void OnSpawn(in GameObjectPoolSpawnContext context);
+
+        /// <summary>
+        /// 对象归还池中时调用。
+        /// </summary>
+        void OnDespawn();
+
+        /// <summary>
+        /// 对象从池中永久销毁时调用。
+        /// </summary>
+        void OnPooledDestroy();
+    }
+
+    /// <summary>
+    /// GameObject 池全局统计快照。
+    /// </summary>
+    public readonly struct GameObjectPoolSummarySnapshot
+    {
+        #region 字段 [FIELDS]
+
+        /// <summary>
+        /// 获取是否就绪。
+        /// </summary>
+        public readonly bool IsReady;
+
+        /// <summary>
+        /// 获取池数量。
+        /// </summary>
+        public readonly int PoolCount;
+
+        /// <summary>
+        /// 获取已加载预制体数量。
+        /// </summary>
+        public readonly int LoadedPrefabCount;
+
+        /// <summary>
+        /// 获取总实例数量。
+        /// </summary>
+        public readonly int TotalInstanceCount;
+
+        /// <summary>
+        /// 获取活跃实例数量。
+        /// </summary>
+        public readonly int ActiveInstanceCount;
+
+        /// <summary>
+        /// 获取非活跃实例数量。
+        /// </summary>
+        public readonly int InactiveInstanceCount;
+
+        /// <summary>
+        /// 获取待维护数量。
+        /// </summary>
+        public readonly int PendingMaintenanceCount;
+
+        #endregion
+
+        #region 构造 [CONSTRUCTOR]
+
+        /// <summary>
+        /// 初始化 <see cref="GameObjectPoolSummarySnapshot"/> 的新实例。
+        /// </summary>
+        /// <param name="isReady">是否就绪。</param>
+        /// <param name="poolCount">池数量。</param>
+        /// <param name="loadedPrefabCount">已加载预制体数量。</param>
+        /// <param name="totalInstanceCount">总实例数量。</param>
+        /// <param name="activeInstanceCount">活跃实例数量。</param>
+        /// <param name="inactiveInstanceCount">非活跃实例数量。</param>
+        /// <param name="pendingMaintenanceCount">待维护数量。</param>
+        public GameObjectPoolSummarySnapshot(
+            bool isReady,
+            int poolCount,
+            int loadedPrefabCount,
+            int totalInstanceCount,
+            int activeInstanceCount,
+            int inactiveInstanceCount,
+            int pendingMaintenanceCount)
+        {
+            IsReady = isReady;
+            PoolCount = poolCount;
+            LoadedPrefabCount = loadedPrefabCount;
+            TotalInstanceCount = totalInstanceCount;
+            ActiveInstanceCount = activeInstanceCount;
+            InactiveInstanceCount = inactiveInstanceCount;
+            PendingMaintenanceCount = pendingMaintenanceCount;
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// GameObject 池实例级快照。
+    /// </summary>
+    public sealed class GameObjectPoolInstanceSnapshot : MemoryObject
+    {
+        #region 字段 [FIELDS]
+
+        /// <summary>
+        /// 实例名称。
+        /// </summary>
+        public string instanceName;
+
+        /// <summary>
+        /// 是否活跃。
+        /// </summary>
+        public bool isActive;
+
+        /// <summary>
+        /// 空闲时长。
+        /// </summary>
+        public float idleDuration;
+
+        /// <summary>
+        /// 生命周期时长。
+        /// </summary>
+        public float lifeDuration;
+
+        /// <summary>
+        /// 游戏对象引用。
+        /// </summary>
+        public GameObject gameObject;
+
+        #endregion
+
+        #region MemoryObject 重写 [MEMORY OBJECT OVERRIDE]
+
+        /// <summary>
+        /// 清理快照。
+        /// </summary>
+        public override void Clear()
+        {
+            instanceName = null;
+            isActive = false;
+            idleDuration = 0f;
+            lifeDuration = 0f;
+            gameObject = null;
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// GameObject 单池快照。
+    /// </summary>
+    public sealed class GameObjectPoolSnapshot : MemoryObject
+    {
+        #region 字段 [FIELDS]
+
+        /// <summary>
+        /// 条目名称。
+        /// </summary>
+        public string entryName;
+
+        /// <summary>
+        /// 分组名称。
+        /// </summary>
+        public string group;
+
+        /// <summary>
+        /// 资源地址。
+        /// </summary>
+        public string location;
+
+        /// <summary>
+        /// 池策略。
+        /// </summary>
+        public EPoolPolicy policy;
+
+        /// <summary>
+        /// 最小空闲数量。
+        /// </summary>
+        public int minIdle;
+
+        /// <summary>
+        /// 保留目标。
+        /// </summary>
+        public int retainTarget;
+
+        /// <summary>
+        /// 软容量。
+        /// </summary>
+        public int softCapacity;
+
+        /// <summary>
+        /// 硬容量。
+        /// </summary>
+        public int hardCapacity;
+
+        /// <summary>
+        /// 是否卸载预制体。
+        /// </summary>
+        public bool unloadPrefab;
+
+        /// <summary>
+        /// 总数量。
+        /// </summary>
+        public int totalCount;
+
+        /// <summary>
+        /// 活跃数量。
+        /// </summary>
+        public int activeCount;
+
+        /// <summary>
+        /// 非活跃数量。
+        /// </summary>
+        public int inactiveCount;
+
+        /// <summary>
+        /// 预制体是否已加载。
+        /// </summary>
+        public bool prefabLoaded;
+
+        /// <summary>
+        /// 距下次维护的秒数。
+        /// </summary>
+        public float nextMaintenanceIn;
+
+        /// <summary>
+        /// 生成次数。
+        /// </summary>
+        public int spawnCount;
+
+        /// <summary>
+        /// 回收次数。
+        /// </summary>
+        public int despawnCount;
+
+        /// <summary>
+        /// 命中次数。
+        /// </summary>
+        public int hitCount;
+
+        /// <summary>
+        /// 未命中次数。
+        /// </summary>
+        public int missCount;
+
+        /// <summary>
+        /// 扩展次数。
+        /// </summary>
+        public int expandCount;
+
+        /// <summary>
+        /// 销毁次数。
+        /// </summary>
+        public int destroyCount;
+
+        /// <summary>
+        /// 峰值活跃数。
+        /// </summary>
+        public int peakActive;
+
+        /// <summary>
+        /// 实例列表。
+        /// </summary>
+        internal readonly List<GameObjectPoolInstanceSnapshot> instances = new List<GameObjectPoolInstanceSnapshot>(16);
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>
+        /// 获取实例数量。
+        /// </summary>
+        public int InstanceCount => instances.Count;
+
+        /// <summary>
+        /// 获取指定索引的实例快照。
+        /// </summary>
+        /// <param name="index">索引。</param>
+        /// <returns>实例快照。</returns>
+        public GameObjectPoolInstanceSnapshot GetInstance(int index)
+        {
+            return (uint)index < (uint)instances.Count ? instances[index] : null;
+        }
+
+        #endregion
+
+        #region MemoryObject 重写 [MEMORY OBJECT OVERRIDE]
+
+        /// <summary>
+        /// 清理快照。
+        /// </summary>
+        public override void Clear()
+        {
+            entryName = null;
+            group = null;
+            location = null;
+            policy = default;
+            minIdle = 0;
+            retainTarget = 0;
+            softCapacity = 0;
+            hardCapacity = 0;
+            unloadPrefab = false;
+            totalCount = 0;
+            activeCount = 0;
+            inactiveCount = 0;
+            prefabLoaded = false;
+            nextMaintenanceIn = 0f;
+            spawnCount = 0;
+            despawnCount = 0;
+            hitCount = 0;
+            missCount = 0;
+            expandCount = 0;
+            destroyCount = 0;
+            peakActive = 0;
+            ClearInstances();
+        }
+
+        #endregion
+
+        #region 内部方法 [INTERNAL METHODS]
+
+        internal void ClearInstances()
+        {
+            for (int i = 0; i < instances.Count; i++)
+            {
+                MemoryPool.Release(instances[i]);
+            }
+
+            instances.Clear();
+        }
+
+        #endregion
+    }
+}

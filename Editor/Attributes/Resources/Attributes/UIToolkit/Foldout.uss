@@ -1,0 +1,37 @@
+/* Foldout */
+.foldout-field {
+    background-color: rgba(0, 0, 0, 0.12);
+    margin-top: 3px;
+    margin-bottom: 3px;
+    border-left-color: black;
+    border-left-width: 3px;
+    padding-right: 0;
+    padding-left: 0;
+}
+
+/* Foldout header bar */
+.foldout-field Toggle.foldout-field-toggle {
+    background-color: rgba(0, 0, 0, 0.12);
+    padding-top: 5px;
+    padding-left: 10px;
+    margin-left: 0;
+    padding-bottom: 5px;
+    margin-bottom: 0;
+    height: 30px;
+    -unity-font-style: bold;
+}
+
+/* Foldout contents */
+.foldout-field #unity-content {
+    padding-top: 5px;
+}
+
+/* [Header] attributes */
+.foldout-field .unity-header-drawer__label {
+    margin-top: 10px;
+    padding-bottom: 5px;
+    padding-top: 5px;
+    margin-left: -10px;
+    padding-left: 12px;
+    background-color: rgba(255, 255, 255, 0.04);
+}

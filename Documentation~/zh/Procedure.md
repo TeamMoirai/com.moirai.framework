@@ -1,0 +1,130 @@
+# Procedure 服务
+
+> 自包含的游戏流程管理：把启动、热更、预加载等阶段建模为一个个可切换的流程状态。
+
+Procedure 服务（`ProcedureService`）是一台自包含的状态机——内部维护状态字典与当前状态，不依赖任何外部状态机服务。每个游戏阶段（启动、检查更新、下载资源、加载程序集、预加载等）都是一个 `ProcedureBase` 状态。可用流程与入口流程由 `ProcedureServiceSettings` 配置，启动场景里的 `GameEntry` 预制体上挂着 `BuildInProcedureStarter`，它在 `Awake` 读取该配置反射实例化并启动，无需手写引导代码。通过 `ProcedureService` 静态外观访问。
+
+## 核心特性
+
+- 自包含状态机：`ProcedureService` 内部维护 `Dictionary<Type, ProcedureBase>` 状态字典，自行驱动 `Tick` 轮询，不依赖外部 FSM 服务
+- 配置化启动：`ProcedureServiceSettings` 记录可用流程类型与入口流程，`BuildInProcedureStarter` 在 `Awake` 读取这些类型名完成实例化与启动
+- `[ProcedureLauncher]` 标记：只有标记该 Attribute 的 `ProcedureBase` 子类才会被 `ProcedureServiceSettings` 扫描收录（编辑器 Reset 时自动扫描，默认以名称含 `ProcedureLaunch` 的流程作为入口）
+- 双套切换入口：流程内部可用基类 `ChangeState<T>()`（无参，通过内部 `Owner` 引用）；外部（如热更层）可用 `ProcedureService.ChangeState<T>()`
+- 支持运行时重建：`RestartProcedure` 清理旧状态后按新流程列表重建并以第一个流程启动
+
+## 核心类型
+
+命名空间：`Moirai.Atropos.Procedure`
+
+| 类/接口 | 说明 |
+|---------|------|
+| `ProcedureService` | 静态外观（`[HandlerHost]`，`IServiceTickable`）：`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；查询类 API 未就绪时静默降级为安全默认值，变更类 API（`StartProcedure` / `ChangeState`）未就绪时忽略并告警，`Initialize` / `RestartProcedure` 是引导入口仅要求处理器在位；后端直接调用仍 fail-fast |
+| `ProcedureServiceHandler` | 处理器抽象基类，定义流程状态机后端契约；`ProcedureBase` 子类经内部 `Owner` 引用回调本处理器 |
+| `DefaultProcedureHandler` | 默认实现，内置状态字典与轮询驱动 |
+| `ProcedureBase` | 流程基类（独立抽象类），提供 `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` 无参生命周期与 `ChangeState<T>()` 切换 |
+| `ProcedureServiceSettings` | 框架设置（面板名「流程设置」）：序列化可用流程类型名列表与入口流程类型名，供 `BuildInProcedureStarter` 反射建流 |
+| `ProcedureLauncherAttribute` | 类标记 Attribute，标记可被流程系统收录的 `ProcedureBase` 子类 |
+| `IProcedureEvent` / `ProcedureTransitionKind` / `ProcedureTransitionRecord` | 流程域事件标记接口（`public interface IProcedureEvent { }`）与切换记录（`ProcedureService.onProcedureChanged` 的广播载荷、`TransitionHistory` 的历史条目） |
+
+## 快速上手
+
+定义一个流程并标记收录（来自 `Templates~/@Requirements/Scripts/GameBase/Procedure` 的真实示例）：
+
+```csharp
+using Moirai.Atropos;
+using Moirai.Atropos.Procedure;
+
+// 流程基类：标记 [ProcedureLauncher] 才会出现在 ProcedureServiceSettings 的可用列表
+[ProcedureLauncher]
+public abstract class ProcedurePremainBase : ProcedureBase
+{
+    public abstract bool UseNativeDialog { get; }
+}
+
+// 具体流程
+public class ProcedureLaunch : ProcedurePremainBase
+{
+    public override bool UseNativeDialog => true;
+
+    protected override void OnEnter()
+    {
+        base.OnEnter();
+        // 启动阶段初始化（模板中此处初始化热更 UI：LauncherMgr.Initialize()）
+    }
+
+    protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)
+    {
+        base.OnUpdate(elapseSeconds, realElapseSeconds);
+
+        // 流程内部切换到下一阶段（基类提供的 protected 方法，无参）
+        ChangeState<ProcedureInitPackage>();
+    }
+}
+```
+
+在流程外部查询与切换：
+
+```csharp
+// 当前流程与停留时间
+ProcedureBase current = ProcedureService.CurrentProcedure;
+float seconds = ProcedureService.CurrentProcedureTime;
+
+// 查询/获取流程实例
+bool has = ProcedureService.HasProcedure<ProcedureSplash>();
+ProcedureBase proc = ProcedureService.GetProcedure<ProcedureSplash>();
+
+// 外部强制切换（例如热更代码中的跳转逻辑）
+ProcedureService.ChangeState<ProcedurePreload>();
+```
+
+## 配置与扩展
+
+### 流程生命周期
+
+`ProcedureService.Initialize(params ProcedureBase[] procedures)` 对每个状态注入 `Owner` 引用并调用 `OnInit()`；`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` 直接操作内部字典。流程生命周期：
+
+| 流程回调 | 签名 | 说明 |
+|----------|------|------|
+| `OnInit` | `()` | `Initialize` 时对每个状态调用一次 |
+| `OnEnter` | `()` | 进入流程时调用 |
+| `OnUpdate` | `(float elapseSeconds, float realElapseSeconds)` | 每帧轮询（逻辑/真实流逝时间），由 `IServiceTickable.Tick` 驱动 |
+| `OnLeave` | `(bool isShutdown)` | 离开流程时调用（`isShutdown` 为 `true` 表示因服务关闭而离开） |
+| `OnDestroy` | `()` | 状态销毁时调用 |
+
+### 启动链参考
+
+`Templates~/@Requirements/Scripts/GameBase/Procedure` 提供了完整的启动流程模板，典型链路为：
+
+```
+ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResources
+-> ProcedureCreateDownloader -> ProcedureDownloadFile -> ProcedureDownloadOver
+-> ProcedureClearCache -> ProcedureLoadAssembly -> ProcedurePreload -> ProcedurePrepare4Entrance
+```
+
+其中 `ProcedureInitResources` 演示了与 Resource 服务的配合：调用 `ResourceService.RequestPackageVersion()` 获取远端清单版本、写入 `ResourceService.PackageVersion` 后用 `ResourceService.LoadPackageManifestAsync(packageVersion)` 更新清单，再按播放模式（`EResourcePlayMode.HostPlay` / `WebGLPlay`、是否 `ResourceService.UpdatableWhilePlaying`）决定走下载流程还是直接预加载。
+
+### 重启流程
+
+```csharp
+// 清理旧状态，用新流程列表重建，并以列表第一个流程启动（返回是否成功）
+bool ok = ProcedureService.RestartProcedure(
+    new ProcedureLaunch(),
+    new ProcedureInitPackage(),
+    new ProcedurePreload());
+```
+
+## 注意事项
+
+- 使用流程前必须先 `Initialize`，否则直接调用后端（`ProcedureServiceHandler`）的 `StartProcedure` / `ChangeState` 等会抛出 `GameException("You must initialize procedure first.")`（经 `ProcedureService` 外观调用则忽略并告警）；常规项目由 `BuildInProcedureStarter` 在 `Awake` 自动完成。
+- 引导失败 fail-fast：`BuildInProcedureStarter.StartProcedure()` 在流程服务未注册、类型解析失败或入口流程无效时抛出 `GameException`（经 UniTask 未观察异常通道输出错误日志）——启动链配置错误属发布级缺陷，静默吞掉会让玩家面对永久黑屏，不要在调用侧捕获吞掉。
+- 异常回滚语义：`ChangeState` / `StartProcedure` 中目标流程 `OnEnter` 抛异常时异常上抛并回滚——`ChangeState` 回滚到切出流程（恢复其驻留时长，轮询安全），`StartProcedure` 回滚到未启动态（修复后可重试）；若 `OnEnter` 内已完成嵌套重定向，保留嵌套终态不回滚。失败的切换不写入切换历史。
+- 关停异常隔离：服务关闭时逐流程隔离 `OnLeave(true)` / `OnDestroy` 异常（记 Error 日志后继续），单个坏流程不阻断其余流程的销毁回调；关停切换记录在 finally 保证下仍写入。
+- `Initialize` 部分失败：任一流程 `OnInit` 抛出即整体 fail-fast（`IsStateReady` 保持 false），已完成 `OnInit` 的流程不做回收（保留现场供诊断），调用方应丢弃整批流程实例后重建传入。
+- 入口流程在编辑器侧由 Reset 逻辑选取「名称包含 `ProcedureLaunch` 的第一个类型」，重命名入口流程类时需在 `ProcedureServiceSettings` 面板 Reset 刷新。
+- 流程类需要无参构造（`ProcedureServiceSettings` 通过 `Activator.CreateInstance` 反射实例化），不要在流程类中做构造器注入。
+- 流程实例由 `ProcedureService` 持有并长期存活，不要在其中缓存短生命周期对象；需要每帧逻辑写在 `OnUpdate`，耗时异步操作建议在 `OnEnter` 启动、在 `OnUpdate` 轮询完成标记（参考模板 `_initResourcesComplete` 的写法）。
+- `ProcedureBase.OnUpdate` 含两个时间参数（`elapseSeconds` / `realElapseSeconds`），重写时注意保持签名一致。
+- `ChangeState<T>()` 是无参方法——通过 `ProcedureBase` 内部持有的 `Owner`（`ProcedureServiceHandler`）引用委托切换，无需在调用时传递服务实例。
+
+---
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Resource](Resource.md) · [Scene](Scene.md)

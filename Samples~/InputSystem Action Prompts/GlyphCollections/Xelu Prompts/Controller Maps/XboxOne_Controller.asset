@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4fe62e74444b90408a503a8ed1de522, type: 3}
+  m_Name: XboxOne_Controller
+  m_EditorClassIdentifier: 
+  m_DeviceGlyphs:
+  - DeviceName: XBoxOneController
+    DeviceSprite: {fileID: 0}
+  m_DeviceDescription: "Xbox One \u63A7\u5236\u5668\uFF08\u6CE8\u610F\uFF0C\u53EF\u80FD\u6C38\u8FDC\u4E0D\u4F1A\u663E\u793A\u4E3A\u4E0E
+    Xbox Series \u76F8\u540C\u7684\u7C7B\uFF09"
+  m_ActionGlyphs:
+  - Icon: {fileID: 1117485294, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/leftStick
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -2000625798, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/rightStick
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 1058849081, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/dpad
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 662436875, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/up
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 1204508788, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/down
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -390638546, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/left
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 2111829180, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/dpad/right
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -210410899, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/buttonWest
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -866822669, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/buttonSouth
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -374024946, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/buttonEast
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -1290094614, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/buttonNorth
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 25240219, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/leftShoulder
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 1997001559, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/rightShoulder
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -1521814583, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/leftStickPress
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 85818788, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/rightStickPress
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -1183194179, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/leftTrigger
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: -191208344, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/rightTrigger
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 737710991, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/start
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet
+  - Icon: {fileID: 1583110188, guid: 539cc37cbdf2dc446956b58cb247e763, type: 3}
+    ActionBindingPath: <Gamepad>/select
+    TextMeshSpriteSheetName: xelu_dark_XboxOne_SpriteSheet

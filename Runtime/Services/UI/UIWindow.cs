@@ -1,0 +1,685 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Input;
+using Moirai.Atropos.Resource;
+using Moirai.Atropos.Timer;
+using UnityEngine;
+using UnityEngine.UI;
+using UObject = UnityEngine.Object;
+
+namespace Moirai.Atropos.UI
+{
+    public abstract partial class UIWindow : UIBase
+    {
+        #region 属性 [PROPERTIES]
+
+        private GameObject _panel;
+
+        private Canvas _canvas;
+        protected Canvas Canvas => _canvas;
+
+        private GraphicRaycaster _raycaster;
+        protected GraphicRaycaster GraphicRaycaster => _raycaster;
+
+        private bool _isCreate = false;
+        private Canvas[] _childCanvas;
+        private GraphicRaycaster[] _childRaycaster;
+        private Action<UIWindow> _prepareCallback;
+        private SetUISafeFitHelper _setUISafeFitHelper;
+        // 交互/可见性交接代次：每次状态转移（打开/关闭/重开/销毁）递增，只有最新一轮的续体可以交还交互锁与隐藏窗口
+        private uint _interactionLifetime;
+
+        protected CancellationTokenSource _cts;
+
+        public override UIType Type => UIType.Window;
+
+        /// <summary>
+        /// 窗口位置组件。
+        /// </summary>
+        /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
+        public override Transform transform => _panel.transform;
+        
+        /// <summary>
+        /// 窗口矩阵位置组件。
+        /// </summary>
+        /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
+        public override RectTransform rectTransform => _panel.transform as RectTransform;
+
+        /// <summary>
+        /// 窗口的实例资源对象。
+        /// </summary>
+        /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
+        public override GameObject gameObject => _panel;
+
+        /// <summary>
+        /// 窗口名称。
+        /// </summary>
+        public string WindowName { get; private set; }
+
+        /// <summary>
+        /// 窗口层级。
+        /// </summary>
+        public int WindowLayer { get; private set; }
+
+        /// <summary>
+        /// 资源定位地址。
+        /// </summary>
+        public string AssetName { get; private set; }
+
+        /// <summary>
+        /// 是否为全屏窗口。
+        /// </summary>
+        /// <remarks>将全屏下层的UI设为隐藏</remarks>
+        public virtual bool FullScreen { get; private set; } = false;
+
+        /// <summary>
+        /// 是内部资源无需AB加载。
+        /// </summary>
+        public bool FromResources { get; private set; }
+        
+        /// <summary>
+        /// 隐藏窗口关闭时间。
+        /// </summary>
+        public int HideTimeToClose { get; set; }
+        
+        public ulong HideTimerId { get; set; }
+        
+        /// <summary>
+        /// 缓存实例，关闭时不销毁。
+        /// </summary>
+        public bool CacheInstance { get; set; }
+        
+        /// <summary>
+        /// 窗口深度值。
+        /// </summary>
+        public int Depth
+        {
+            get
+            {
+                if (_canvas != null)
+                {
+                    return _canvas.sortingOrder;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+
+            set
+            {
+                if (_canvas != null)
+                {
+                    if (_canvas.sortingOrder == value)
+                    {
+                        return;
+                    }
+
+                    var oldOrder = _canvas.sortingOrder;
+                    // 设置父类
+                    _canvas.sortingOrder = value;
+
+                    // 设置子类
+                    // int depth = value;
+                    for (int i = 0; i < _childCanvas.Length; i++)
+                    {
+                        var canvas = _childCanvas[i];
+                        if (canvas != _canvas)
+                        {
+                            // depth += 5; // 注意递增值
+                            // canvas.sortingOrder = depth;
+                            canvas.sortingOrder = value + (canvas.sortingOrder - oldOrder);
+                        }
+                    }
+
+                    // 虚函数
+                    if (Visible)
+                    {
+                        _OnSortDepth();
+                    }
+                    else
+                    {
+                        _isSortingOrderDirty = true;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 窗口可见性
+        /// </summary>
+        public bool Visible
+        {
+            get
+            {
+                if (_canvas != null)
+                {
+                    return _canvas.gameObject.layer == UIService.WINDOW_SHOW_LAYER;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            set
+            {
+                if (_canvas != null)
+                {
+                    int setLayer = value ? UIService.WINDOW_SHOW_LAYER : UIService.WINDOW_HIDE_LAYER;
+
+                    if (_canvas.gameObject.layer == setLayer) return;
+
+                    // 显示设置
+                    _canvas.gameObject.layer = setLayer;
+                    for (int i = 0; i < _childCanvas.Length; i++)
+                    {
+                        _childCanvas[i].gameObject.layer = setLayer;
+                    }
+
+                    if (value && _isCreate)
+                    {
+                        _isSortingOrderDirty = false;
+                        _OnSortDepth();
+                    }
+
+                    // LogUtility.Info("[UI] Set '{0}' Visible {1}", WindowName, value);
+
+                    // 虚函数
+                    if (_isCreate)
+                    {
+                        OnSetVisible(value);
+                    }
+                }
+            }
+        }
+
+        private bool _interactable;
+        /// <summary>
+        /// 窗口交互性
+        /// </summary>
+        public bool Interactable
+        {
+            get => _interactable;
+
+            set
+            {
+                if (_interactable == value) return;
+
+                // LogUtility.Info("{0}'s Interactable: {1}", WindowName, value);
+                if (_raycaster != null)
+                {
+                    _raycaster.enabled = value;
+                    for (int i = 0; i < _childRaycaster.Length; i++)
+                    {
+                        _childRaycaster[i].enabled = value;
+                    }
+                }
+
+                _interactable = value;
+            }
+        }
+
+        /// <summary>
+        /// 是否加载完毕。
+        /// </summary>
+        internal bool IsLoadDone = false;
+        
+        /// <summary>
+        /// 是否被销毁。
+        /// </summary>
+        internal bool IsDestroyed = false;
+                
+        /// <summary>
+        /// UI是否隐藏标志位。
+        /// </summary>
+        public bool IsHide { internal set; get; } = false;
+
+        #endregion
+
+        public void Init(string name, int layer, bool fullScreen, string assetName, bool fromResources, int hideTimeToClose, bool cacheInstance)
+        {
+            WindowName = name;
+            WindowLayer = layer;
+            FullScreen = fullScreen;
+            AssetName = assetName;
+            FromResources = fromResources;
+            HideTimeToClose = hideTimeToClose;
+            CacheInstance = cacheInstance;
+        }
+
+        #region 刘海屏适配 [NOTCH ADAPTATION]
+
+        /// <summary>
+        /// 移动设备屏幕适配
+        /// </summary>
+        /// <param name="fitRect">适配的RectTransform对象</param>
+        /// <param name="liuHaiFit">是否开启刘海屏顶部适配</param>
+        /// <param name="topSpacing">刘海屏顶部适配偏移高度</param>
+        /// <param name="bottomFit">是否开启刘海屏底部适配</param>
+        /// <param name="bottomSpacing">刘海屏底部适配偏移高度</param>
+        public void SetUIFit(RectTransform fitRect, bool liuHaiFit = true, float topSpacing = 0, bool bottomFit = true, float bottomSpacing = 0)
+        {
+            if (_setUISafeFitHelper == null)
+            {
+                _setUISafeFitHelper = new SetUISafeFitHelper(fitRect, liuHaiFit, topSpacing, bottomFit, bottomSpacing);
+            }
+            _setUISafeFitHelper?.SetUIFit();
+        }
+
+        /// <summary>
+        /// 设置 <see cref="rect"/> 不受当前适配影响
+        /// </summary>
+        /// <param name="rect"></param>
+        public void SetUINotFit(RectTransform rect)
+        {
+            if (rect == null)
+            {
+                return;
+            }
+
+            _setUISafeFitHelper?.SetUINotFit(rect);
+        }
+
+        /// <summary>
+        /// 设置某一个节点不受指定 <see cref="refRect"/> 的影响
+        /// </summary>
+        /// <param name="rect">设置的RectTransform</param>
+        /// <param name="refRect">依赖的RectTransform</param>
+        public void SetUINotFit(RectTransform rect, RectTransform refRect)
+        {
+            if (rect == null || refRect == null)
+            {
+                return;
+            }
+            if (_setUISafeFitHelper == null)
+            {
+                _setUISafeFitHelper = new SetUISafeFitHelper();
+            }
+            _setUISafeFitHelper?.SetUINotFit(rect, refRect);
+        }
+
+        #endregion
+
+        internal void TryInvoke(Action<UIWindow> prepareCallback, System.Object[] @params)
+        {
+            CancelHideToCloseTimer();
+            _params = @params;
+            if (IsPrepare)
+            {
+                prepareCallback?.Invoke(this);
+            }
+            else
+            {
+                _prepareCallback = prepareCallback;
+            }
+        }
+
+        internal async UniTaskVoid InternalLoad(string location, Action<UIWindow> prepareCallback, bool isAsync, System.Object[] @params)
+        {
+            _prepareCallback = prepareCallback;
+            _params = @params;
+            if (!FromResources)
+            {
+                if (isAsync)
+                {
+                    var uiInstance = await ResourceService.LoadGameObjectAsync(location, parent: UIService.UIRoot);
+                    Handle_Completed(uiInstance);
+                }
+                else
+                {
+                    var uiInstance = ResourceService.LoadGameObject(location, parent: UIService.UIRoot);
+                    Handle_Completed(uiInstance);
+                }
+            }
+            else
+            {
+                GameObject panel = UObject.Instantiate(Resources.Load<GameObject>(location), UIService.UIRoot);
+                Handle_Completed(panel);
+            }
+        }
+
+        /// <summary>
+        /// 打开窗口后触发
+        /// </summary>
+        internal void InternalCreate()
+        {
+            // 缓存实例重开时 _isCreate 仍为 true，上一轮的动画续体可能还挂在路上：
+            // 先作废其代次并掐掉动画，再交还交互锁定状态，交给本次打开流程重新决策。
+            _interactionLifetime++;
+            CancelCts();
+            UnlockInteraction();
+
+            if (_isCreate == false)
+            {
+                _isCreate = true;
+                Inject();
+                ScriptGenerator();
+                BindMemberProperty();
+                RegisterEvent();
+                OnCreate();
+            }
+
+            InternalRefresh(true);
+            // LogUtility.Info("[UI] Open {0}", WindowName);
+        }
+
+        internal void InternalRefresh(bool open)
+        {
+            SetInteractWaiter(open).Forget();
+
+            // LogUtility.Info("[UI] Refresh {0}", WindowName);
+            OnRefresh();
+        }
+
+        internal bool InternalUpdate()
+        {
+            if (!IsPrepare || !Visible)
+            {
+                return false;
+            }
+
+            List<UIWidget> listNextUpdateChild = null;
+            if (ChildList != null && ChildList.Count > 0)
+            {
+                listNextUpdateChild = _updateChildList;
+                var updateListValid = _updateListValid;
+                List<UIWidget> childList = null;
+                if (!updateListValid)
+                {
+                    if (listNextUpdateChild == null)
+                    {
+                        listNextUpdateChild = new List<UIWidget>();
+                        _updateChildList = listNextUpdateChild;
+                    }
+                    else
+                    {
+                        listNextUpdateChild.Clear();
+                    }
+
+                    childList = ChildList;
+                }
+                else
+                {
+                    childList = listNextUpdateChild;
+                }
+
+                for (int i = 0; i < childList.Count; i++)
+                {
+                    var uiWidget = childList[i];
+
+                    if (uiWidget == null)
+                    {
+                        continue;
+                    }
+
+                    GameProfiler.BeginSample(uiWidget.WidgetName);
+                    var needValid = uiWidget.InternalUpdate();
+                    GameProfiler.EndSample();
+
+                    if (!updateListValid && needValid)
+                    {
+                        listNextUpdateChild.Add(uiWidget);
+                    }
+                }
+
+                if (!updateListValid)
+                {
+                    _updateListValid = true;
+                }
+            }
+
+            GameProfiler.BeginSample("OnUpdate");
+
+            bool needUpdate = false;
+            if (listNextUpdateChild == null || listNextUpdateChild.Count <= 0)
+            {
+                _hasOverrideUpdate = true;
+                OnUpdate();
+                needUpdate = _hasOverrideUpdate;
+            }
+            else
+            {
+                OnUpdate();
+                needUpdate = true;
+            }
+
+            GameProfiler.EndSample();
+
+            return needUpdate;
+        }
+        
+        protected internal virtual void InternalClose()
+        {
+            OnClose();
+            InternalCloseAsync(++_interactionLifetime).Forget();
+        }
+
+        private async UniTaskVoid InternalCloseAsync(uint lifetime)
+        {
+            CancelCts();
+            _cts = new CancellationTokenSource();
+
+            LockInteraction();
+
+            try { await CloseAnimation(); }
+            catch (OperationCanceledException) { return; }
+
+            if (IsDestroyed) return;
+
+            // 交还锁与隐藏都是本轮转移的特权：代次被重开/销毁/新一轮动画接管后，
+            // 子类动画若没观察 token 走到这里，继续执行会拆掉别人持有的锁、把刚重开的窗口重新隐藏。
+            // 被取消的那一轮其锁已由接管方（InternalCreate/InternalDestroy）交还。
+            if (lifetime != _interactionLifetime) return;
+
+            UnlockInteraction();
+
+            CancelCts();
+            gameObject.SetActive(false);
+        }
+
+        protected internal void InternalDestroy(bool isShutDown = false)
+        {
+            _isCreate = false;
+
+            UnregisterEvent();
+            
+            for (int i = 0; i < ChildList.Count; i++)
+            {
+                var uiChild = ChildList[i];
+                uiChild.CallDestroy();
+                uiChild.OnDestroyWidget();
+            }
+
+            // 注销回调函数
+            _prepareCallback = null;
+
+            OnDestroy();
+
+            // 清理交互状态：代次先行作废，在途的打开/关闭续体不得再交还锁或隐藏
+            _interactionLifetime++;
+            CancelCts();
+            UnlockInteraction();
+
+            // 销毁面板对象
+            if (!isShutDown && CacheInstance)
+            {
+                _panel.gameObject.SetActive(false);
+            }
+            else
+            {
+                if (_panel != null)
+                {
+                    UObject.Destroy(_panel);
+                    _panel = null;
+                }
+            }
+
+            IsDestroyed = true;
+
+            if (!isShutDown)
+            {
+                CancelHideToCloseTimer();
+            }
+        }
+
+        /// <summary>
+        /// 处理资源加载完成回调。
+        /// </summary>
+        /// <param name="panel">面板资源实例。</param>
+        private void Handle_Completed(GameObject panel)
+        {
+            if (panel == null) return;
+
+            IsLoadDone = true;
+            
+            if (IsDestroyed)
+            {
+                UnityEngine.Object.Destroy(panel);
+                return;
+            }
+            
+            panel.name = GetType().Name;
+            _panel = panel;
+            _panel.transform.localPosition = Vector3.zero;
+
+            // 获取组件
+            _canvas = _panel.GetComponent<Canvas>();
+            if (_canvas == null)
+            {
+                throw new Exception($"Not found {nameof(Canvas)} in panel {WindowName}");
+            }
+
+            _canvas.overrideSorting = true;
+            _canvas.sortingOrder = 0;
+            _canvas.sortingLayerName = "Default"; // 使用默认层级程序化 sortingOrder 排序，避免繁复的设置
+
+            // 获取组件
+            _raycaster = _panel.GetComponent<GraphicRaycaster>();
+            _childCanvas = _panel.GetComponentsInChildren<Canvas>(true);
+            _childRaycaster = _panel.GetComponentsInChildren<GraphicRaycaster>(true);
+
+            // 通知UI管理器
+            IsPrepare = true;
+            _prepareCallback?.Invoke(this);
+        }
+
+        #region 交互相关 [INTERACTION]
+
+        private void LockInteraction()
+        {
+            Interactable = false;
+            if (UIService.AcquireModalInteraction(this))
+            {
+                InputService.PreventInteractionUI = true;
+            }
+        }
+
+        private void UnlockInteraction()
+        {
+            Interactable = true;
+            // 压制位归别人持有时只交还本窗口的交互，不清全局
+            if (UIService.ReleaseModalInteraction(this))
+            {
+                InputService.PreventInteractionUI = false;
+            }
+        }
+
+        private void CancelCts()
+        {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _cts = null;
+            }
+        }
+
+        /// <summary>
+        /// 打开动画等待。子类可 override 以播放打开动画（淡入、缩放等）。
+        /// </summary>
+        protected virtual async UniTask OpenAnimation()
+        {
+            await UniTask.WaitForSeconds(0.5f, true, cancellationToken: _cts.Token);
+        }
+
+        /// <summary>
+        /// 关闭动画等待。子类可 override 以播放关闭动画（淡出、缩放等）。
+        /// 窗口在动画期间保持可见，动画结束后自动隐藏。
+        /// </summary>
+        protected virtual async UniTask CloseAnimation()
+        {
+            await UniTask.WaitForSeconds(0.25f, true, cancellationToken: _cts.Token);
+        }
+
+        /// <summary>
+        /// 上层窗口关闭后的交互延迟。子类可 override 以自定义延迟行为。
+        /// </summary>
+        protected virtual async UniTask TopRefreshWaiter()
+        {
+            await UniTask.WaitForSeconds(0.25f, true, cancellationToken: _cts.Token);
+        }
+
+        private async UniTaskVoid SetInteractWaiter(bool open)
+        {
+            if (UIService.GetTopWindow() != this) return;
+
+            // 与关闭续体共用同一套代次协议；非栈顶的早退排在递增之前，不会作废他人在跑的动画
+            var lifetime = ++_interactionLifetime;
+            CancelCts();
+            _cts = new CancellationTokenSource();
+
+            LockInteraction();
+
+            try
+            {
+                if (open) await OpenAnimation();
+                else await TopRefreshWaiter();
+            }
+            catch (OperationCanceledException) { return; }
+
+            if (IsDestroyed) return;
+
+            // 被后续转移接管时，交互锁由那一方交还
+            if (lifetime != _interactionLifetime) return;
+
+            UnlockInteraction();
+        }
+
+        #endregion
+
+        protected internal virtual void Hide()
+        {
+            UIService.HideUI(GetType(), WindowName);
+        }
+
+        protected internal virtual void Close()
+        {
+            UIService.CloseUI(GetType(), WindowName);
+        }
+
+        internal void CancelHideToCloseTimer()
+        {
+            IsHide = false;
+            if (HideTimerId != 0UL)
+            {
+                TimerService.Cancel(HideTimerId);
+                HideTimerId = 0UL;
+            }
+        }
+
+        /// <summary>
+        /// 手动强制刷新所有子对象的布局
+        /// </summary>
+        /// <remarks>用于解决动态更新布局后不会自动刷新的问题</remarks>
+        protected virtual void ForceRebuildLayoutImmediate()
+        {
+            foreach (var layout in transform.GetComponentsInChildren<LayoutGroup>())
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(layout.GetComponent<RectTransform>());
+            }
+        }
+    }
+}

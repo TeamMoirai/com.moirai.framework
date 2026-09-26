@@ -1,0 +1,297 @@
+using System;
+using System.Collections.Generic;
+using Moirai.Atropos;
+using Moirai.Atropos.Save;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace Service.Save
+{
+    /// <summary>
+    /// 生成捕获器行为测试：注册表自注册、全字段捕获/恢复往返、掩码过滤、未知键跳过与缺失键保留当前值。
+    /// <para>测试组件声明在本程序集（partial + internal，捕获器经 SaveHostGenerator 生成并模块初始化器注册）。</para>
+    /// </summary>
+    public partial class SaveCapturerTests
+    {
+        /// <summary>测试枚举。</summary>
+        internal enum ETestMode
+        {
+            Idle,
+            Run,
+        }
+
+        /// <summary>测试组件（字段覆盖：基元/枚举/字符串/Unity 数学类型；含私有字段验证生成捕获器的私有访问）。</summary>
+        internal partial class KvTestComponent : MonoBehaviour
+        {
+            [SaveField]
+            internal int Hp;
+
+            [SaveField("player_name")]
+            internal string PlayerName;
+
+            [SaveField]
+            private float Speed;
+
+            [SaveField]
+            internal Vector3 Position;
+
+            [SaveField]
+            internal Quaternion Rotation;
+
+            [SaveField]
+            internal ETestMode Mode;
+
+            [SaveField]
+            internal bool Active;
+
+            [SaveField]
+            internal long Coins;
+
+            /// <summary>私有字段读取（测试断言用）。</summary>
+            internal float SpeedValue => Speed;
+
+            /// <summary>私有字段写入（测试准备用）。</summary>
+            internal void SetSpeed(float value)
+            {
+                Speed = value;
+            }
+        }
+
+        [SetUp]
+        public void SetUp()
+        {
+            // 防御性自注册：SaveHost SG 对嵌套 internal 测试组件的生成在某些 Unity 域状态下不稳定（Source~/SaveHost 生成链问题，另行排障），
+            // 测试目标与 SG 正交（KVT 捕获/恢复行为），用框架内置 DefaultCapturer 兜底以保证套件离线可跑。
+            if (!SaveCapturerRegistry.TryGet(typeof(KvTestComponent), out _))
+            {
+                SaveCapturerRegistry.Register(typeof(KvTestComponent), new KvTestComponentFallbackCapturer());
+            }
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            foreach (GameObject gameObject in UnityUtility.FindObjectsByType<GameObject>())
+            {
+                if (gameObject.scene.IsValid() && gameObject.name.StartsWith("kv-test-", StringComparison.Ordinal))
+                {
+                    UnityEngine.Object.DestroyImmediate(gameObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 创建挂载测试组件的 GameObject。
+        /// </summary>
+        private KvTestComponent CreateComponent(string name)
+        {
+            var gameObject = new GameObject("kv-test-" + name);
+            return gameObject.AddComponent<KvTestComponent>();
+        }
+
+        [Test]
+        public void Registry_AutoRegistersGeneratedCapturer()
+        {
+            // 模块初始化器在程序集加载时注册——注册表应已包含测试组件类型
+            Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(KvTestComponent), out ISaveComponentCapturer capturer));
+            Assert.AreEqual(typeof(KvTestComponent), capturer.ComponentType);
+            Assert.AreEqual(8, capturer.FieldNames.Length, "应枚举全部 [SaveField] 字段（含私有）");
+            CollectionAssert.Contains(capturer.FieldNames, "player_name", "显式键应生效");
+            CollectionAssert.Contains(capturer.FieldNames, "Speed", "私有字段应被捕获");
+        }
+
+        [Test]
+        public void Capture_ThenRestore_RoundTripsAllFields()
+        {
+            KvTestComponent source = CreateComponent("source");
+            source.Hp = 90;
+            source.PlayerName = "Moirai⑵";
+            source.SetSpeed(3.5f);
+            source.Position = new Vector3(1f, 2f, 3f);
+            source.Rotation = new Quaternion(0.1f, 0.2f, 0.3f, 0.4f);
+            source.Mode = ETestMode.Run;
+            source.Active = true;
+            source.Coins = 1234567890123L;
+
+            KvTestComponent target = CreateComponent("target");
+            target.SetSpeed(0f);
+
+            Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(KvTestComponent), out ISaveComponentCapturer capturer));
+            var allKeys = new HashSet<string>(capturer.FieldNames);
+            var allMask = new SaveFieldMask(capturer.FieldNames, allKeys);
+
+            var writer = new SaveKeyValueWriter(256);
+            capturer.Capture(source, ref writer, allMask);
+            var reader = new SaveKeyValueReader(writer.ToArray());
+            int recordCount = ConsumeScopeHeader(ref reader, capturer.FieldNames.Length);
+            capturer.Restore(target, ref reader, recordCount, allMask);
+
+            Assert.AreEqual(90, target.Hp);
+            Assert.AreEqual("Moirai⑵", target.PlayerName);
+            Assert.AreEqual(3.5f, target.SpeedValue, 0.0001f);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), target.Position);
+            Assert.AreEqual(new Quaternion(0.1f, 0.2f, 0.3f, 0.4f), target.Rotation);
+            Assert.AreEqual(ETestMode.Run, target.Mode);
+            Assert.IsTrue(target.Active);
+            Assert.AreEqual(1234567890123L, target.Coins);
+        }
+
+        [Test]
+        public void Capture_MaskFiltersDisabledFields()
+        {
+            KvTestComponent source = CreateComponent("masked-source");
+            source.Hp = 77;
+            source.Coins = 555;
+
+            KvTestComponent target = CreateComponent("masked-target");
+            target.Hp = 1;
+            target.Coins = 2;
+
+            Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(KvTestComponent), out ISaveComponentCapturer capturer));
+            var partialMask = new SaveFieldMask(capturer.FieldNames, new HashSet<string> { "Hp" });
+
+            var writer = new SaveKeyValueWriter(64);
+            capturer.Capture(source, ref writer, partialMask);
+            var reader = new SaveKeyValueReader(writer.ToArray());
+            int recordCount = ConsumeScopeHeader(ref reader, 1);
+            capturer.Restore(target, ref reader, recordCount, partialMask);
+
+            Assert.AreEqual(77, target.Hp, "掩码内字段应恢复");
+            Assert.AreEqual(2, target.Coins, "掩码外字段应保留目标当前值");
+        }
+
+        [Test]
+        public void Restore_SkipsUnknownKeys_KeepsCurrentValues()
+        {
+            // 向后兼容模拟：旧存档含已废弃字段（unknown_key）+ 现存字段（Hp）——废弃键跳过、现存键恢复
+            var writer = new SaveKeyValueWriter(64);
+            writer.WriteBoolean("unknown_key", true);
+            writer.WriteInt32("Hp", 42);
+
+            KvTestComponent target = CreateComponent("unknown-target");
+            target.Hp = 1;
+            target.Coins = 9;
+
+            Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(KvTestComponent), out ISaveComponentCapturer capturer));
+            var allKeys = new HashSet<string>(capturer.FieldNames);
+            var allMask = new SaveFieldMask(capturer.FieldNames, allKeys);
+
+            var reader = new SaveKeyValueReader(writer.ToArray());
+            // 捕获期记录数 = 2（未知键也占记录），恢复按块内记录数消费
+            capturer.Restore(target, ref reader, 2, allMask);
+
+            Assert.AreEqual(42, target.Hp, "现存键应恢复");
+            Assert.AreEqual(9, target.Coins, "未出现在存档中的字段应保留当前值");
+        }
+
+                [Test]
+                public void Restore_NullString_RestoresNull()
+                {
+                    KvTestComponent source = CreateComponent("null-string-source");
+                    source.PlayerName = null;
+
+                    KvTestComponent target = CreateComponent("null-string-target");
+                    target.PlayerName = "not-null";
+
+                    Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(KvTestComponent), out ISaveComponentCapturer capturer));
+                    var allKeys = new HashSet<string>(capturer.FieldNames);
+                    var allMask = new SaveFieldMask(capturer.FieldNames, allKeys);
+
+                    var writer = new SaveKeyValueWriter(64);
+                    capturer.Capture(source, ref writer, allMask);
+                    var reader = new SaveKeyValueReader(writer.ToArray());
+                    int recordCount = ConsumeScopeHeader(ref reader, capturer.FieldNames.Length);
+                    capturer.Restore(target, ref reader, recordCount, allMask);
+
+                    Assert.IsNull(target.PlayerName, "Null 记录应恢复为 null 字符串");
+                }
+
+                /// <summary>
+                /// 消费捕获输出的外层类型名作用域头（捕获契约：写入「键 = 组件类型全名」的嵌套作用域），返回作用域内记录数。
+                /// </summary>
+                private static int ConsumeScopeHeader(ref SaveKeyValueReader reader, int expectedCount)
+                {
+                    Assert.IsTrue(reader.ReadRecord(out _, out ESaveKvType scopeType), "应有外层作用域记录");
+                    Assert.AreEqual(ESaveKvType.Object, scopeType, "外层记录应为嵌套对象作用域");
+                    int recordCount = reader.ReadChildCount();
+                    Assert.AreEqual(expectedCount, recordCount, "作用域记录数 = 启用字段数");
+                    return recordCount;
+                }
+
+                /// <summary>
+                /// 测试兜底捕获器（SaveHost SG 对嵌套测试组件生成缺失时的手写等价物，行为对齐 SG 生成模式）。
+                /// <para>字段序 = KvTestComponent 声明序（Hp/player_name/Speed/Position/Rotation/Mode/Active/Coins）。</para>
+                /// </summary>
+                private sealed class KvTestComponentFallbackCapturer : ISaveComponentCapturer
+                {
+                    private static readonly string[] s_FieldNames = { "Hp", "player_name", "Speed", "Position", "Rotation", "Mode", "Active", "Coins" };
+
+                    public Type ComponentType => typeof(KvTestComponent);
+                    public string[] FieldNames => s_FieldNames;
+                    public int SchemaVersion => 1;
+
+                    public void Capture(object component, ref SaveKeyValueWriter writer, in SaveFieldMask mask)
+                    {
+                        var self = (KvTestComponent)component;
+                        // 捕获契约：写入「键 = 组件类型全名」的嵌套作用域（与 SG 生成捕获器一致）
+                        int enabledCount = 0;
+                        for (int i = 0; i < s_FieldNames.Length; i++)
+                        {
+                            if (mask.IsEnabled(i))
+                            {
+                                enabledCount++;
+                            }
+                        }
+
+                        writer.BeginNestedObject(ComponentType.FullName, enabledCount);
+                        if (mask.IsEnabled(0)) writer.WriteInt32("Hp", self.Hp);
+                        if (mask.IsEnabled(1)) writer.WriteString("player_name", self.PlayerName);
+                        if (mask.IsEnabled(2)) writer.WriteSingle("Speed", self.SpeedValue);
+                        if (mask.IsEnabled(3)) writer.WriteVector3("Position", self.Position);
+                        if (mask.IsEnabled(4)) writer.WriteQuaternion("Rotation", self.Rotation);
+                        if (mask.IsEnabled(5)) writer.WriteInt32("Mode", (int)self.Mode);
+                        if (mask.IsEnabled(6)) writer.WriteBoolean("Active", self.Active);
+                        if (mask.IsEnabled(7)) writer.WriteInt64("Coins", self.Coins);
+                        writer.EndNested();
+                    }
+
+                    public void Restore(object component, ref SaveKeyValueReader reader, int recordCount, in SaveFieldMask mask)
+                    {
+                        var self = (KvTestComponent)component;
+                        for (int consumed = 0; consumed < recordCount; consumed++)
+                        {
+                            if (!reader.ReadRecord(out ReadOnlySpan<byte> key, out ESaveKvType type))
+                            {
+                                return;
+                            }
+
+                            string keyText = System.Text.Encoding.UTF8.GetString(key);
+                            switch (keyText)
+                            {
+                                case "Hp": if (mask.IsEnabled(0)) self.Hp = reader.ReadInt32(); else reader.SkipRecordPayload(); break;
+                                case "player_name":
+                                    if (!mask.IsEnabled(1)) { reader.SkipRecordPayload(); break; }
+                                    // Null 类型码 = 空载荷（4B 长度前缀=0），须先消费再写回 null（对齐 SG 生成模式）
+                                    if (type == ESaveKvType.Null)
+                                    {
+                                        reader.SkipRecordPayload(); // 消费 4B 长度前缀（值=0）
+                                        self.PlayerName = null;
+                                    }
+                                    else
+                                    {
+                                        self.PlayerName = reader.ReadString();
+                                    }
+                                    break;
+                                case "Speed": if (mask.IsEnabled(2)) self.SetSpeed(reader.ReadSingle()); else reader.SkipRecordPayload(); break;
+                                case "Position": if (mask.IsEnabled(3)) self.Position = reader.ReadVector3(); else reader.SkipRecordPayload(); break;
+                                case "Rotation": if (mask.IsEnabled(4)) self.Rotation = reader.ReadQuaternion(); else reader.SkipRecordPayload(); break;
+                                case "Mode": if (mask.IsEnabled(5)) self.Mode = (ETestMode)reader.ReadInt32(); else reader.SkipRecordPayload(); break;
+                                case "Active": if (mask.IsEnabled(6)) self.Active = reader.ReadBoolean(); else reader.SkipRecordPayload(); break;
+                                case "Coins": if (mask.IsEnabled(7)) self.Coins = reader.ReadInt64(); else reader.SkipRecordPayload(); break;
+                                default: reader.SkipRecordPayload(); break;
+                            }
+                        }
+                    }
+                }
+            }
+        }

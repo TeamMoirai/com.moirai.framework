@@ -1,0 +1,47 @@
+using Luban;
+
+{{namespace_with_grace_begin __namespace}}
+{{~
+func field_name
+    ret '_' + ($0 | string.slice 0 1 | string.downcase) + ($0 | string.slice 1)
+end
+~}}
+public partial class {{__name}}
+{
+    // 懒加载：构造期不读任何表，每张表在首次访问时才装载并就地解引用。
+    // 不加锁：配置读取约定在主线程，并发首访至多重复装载一次，结果一致。
+    private readonly System.Func<string, ByteBuf> _loader;
+
+    {{~for table in __tables ~}}
+    private {{table.full_name}} {{field_name (format_property_name __code_style table.name)}};
+    {{~end~}}
+
+    {{~for table in __tables ~}}
+{{~if table.comment != ''~}}
+    /// <summary>
+    /// {{escape_comment table.comment}}
+    /// </summary>
+{{~end~}}
+    public {{table.full_name}} {{format_property_name __code_style table.name}}
+    {
+        get
+        {
+            var loaded = {{field_name (format_property_name __code_style table.name)}};
+            if (loaded != null) return loaded;
+
+            loaded = new {{table.full_name}}(_loader("{{table.output_data_file}}"));
+            {{field_name (format_property_name __code_style table.name)}} = loaded;
+            // 跨表引用顺着对方的属性取数，等价地触发对方装载
+            loaded.ResolveRef(this);
+            return loaded;
+        }
+    }
+    {{~end~}}
+
+    public {{__name}}(System.Func<string, ByteBuf> loader)
+    {
+        _loader = loader;
+    }
+}
+
+{{namespace_with_grace_end __namespace}}

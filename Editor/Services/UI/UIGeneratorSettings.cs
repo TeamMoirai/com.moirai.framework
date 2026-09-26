@@ -1,0 +1,272 @@
+using System;
+using System.Collections.Generic;
+using Moirai.Atropos.Attributes;
+using Sirenix.OdinInspector;
+using UnityEngine;
+
+namespace Moirai.Atropos.UI.Editor
+{
+    [FrameworkSetting("[框架]UI组件生成", "自动生成组件绑定代码设置", -459,
+        "Assets/Settings/Framework/Editor/")]
+    public sealed class UIGeneratorSettings : FrameworkSettings<UIGeneratorSettings>
+    {
+        /// <!-- 通用设置 -->
+        private const string GENERAL_GROUP = "General";
+
+        [TabGroup(GENERAL_GROUP)]
+        [CustomLabel("组件分隔符")]
+        [Tooltip("组件检查分隔符，例如：Button#Close")]
+        [SerializeField] private string m_ComCheckSplitName = "#";
+        public static string ComCheckSplitName => Instance.m_ComCheckSplitName;
+
+        [TabGroup(GENERAL_GROUP)]
+        [CustomLabel("组件结尾符")]
+        [Tooltip("组件结尾分隔符，例如：@End")]
+        [SerializeField] private string m_ComCheckEndName = "@";
+        public static string ComCheckEndName => Instance.m_ComCheckEndName;
+
+        [TabGroup(GENERAL_GROUP)]
+        [CustomLabel("数组分隔")]
+        [Tooltip("数组组件检查分隔符，例如：*Item")]
+        [SerializeField] private string m_ArrayComSplitName = "*";
+        public static string ArrayComSplitName => Instance.m_ArrayComSplitName;
+
+        [TabGroup(GENERAL_GROUP)]
+        [Tooltip("排除的关键字（匹配则不生成）")]
+        [SerializeField] private string[] m_ExcludeKeywords = new []{ "ViewHolder" };
+        /// <remarks>子字符串匹配。直接跳过整个子树，不递归遍历其子节点</remarks>
+        public static string[] ExcludeKeywords => Instance.m_ExcludeKeywords;
+
+        [Header("UI脚本生成辅助类")]
+
+        [TabGroup(GENERAL_GROUP)]
+        [ProviderDropdown(typeof(IUIIdentifierFormatter), "Identifier Formatter")]
+        [SerializeField] private string m_UIIdentifierFormatterTypeName = typeof(DefaultUIIdentifierFormatter).FullName;
+        public static string UIIdentifierFormatterTypeName => Instance.m_UIIdentifierFormatterTypeName;
+
+        [TabGroup(GENERAL_GROUP)]
+        [ProviderDropdown(typeof(IUIResourcePathResolver), "ResourcePath Resolver")]
+        [SerializeField] private string m_UIResourcePathResolverTypeName = typeof(DefaultUIResourcePathResolver).FullName;
+        public static string UIResourcePathResolverTypeName => Instance.m_UIResourcePathResolverTypeName;
+
+        [TabGroup(GENERAL_GROUP)]
+        [ProviderDropdown(typeof(IUIScriptCodeEmitter), "ScriptCode Emitter")]
+        [SerializeField] private string m_UIScriptCodeEmitterTypeName = typeof(DefaultUIScriptCodeEmitter).FullName;
+        public static string UIScriptCodeEmitterTypeName => Instance.m_UIScriptCodeEmitterTypeName;
+
+        [TabGroup(GENERAL_GROUP)]
+        [ProviderDropdown(typeof(IUIScriptFileWriter), "ScriptFile Writer")]
+        [SerializeField] private string m_UIScriptFileWriterTypeName = typeof(DefaultUIScriptFileWriter).FullName;
+        public static string UIScriptFileWriterTypeName => Instance.m_UIScriptFileWriterTypeName;
+
+        /// <!-- 脚本生成 -->
+        private const string SCRIPT_GENERATION_GROUP = "Script Generation";
+
+        [TabGroup(SCRIPT_GENERATION_GROUP)]
+        [ListDrawerSettings(ShowPaging = false)]
+        [Tooltip("UI脚本生成配置（支持多个项目）")]
+        [SerializeField] private List<UIScriptGenerateData> m_UIScriptGenerateConfigs;
+        public static List<UIScriptGenerateData> UIScriptGenerateConfigs => Instance.m_UIScriptGenerateConfigs;
+
+        /// <!-- 组件绑定 -->
+        private const string ELEMENT_MAPPING_GROUP = "Element Mapping";
+
+        [Header("UI生成规则（根据正则匹配）")]
+        [TabGroup(ELEMENT_MAPPING_GROUP)]
+        [TableList(AlwaysExpanded = true, ShowPaging = true)]
+        [SerializeField] private List<UIElementRegexData> m_UIElementRegexConfigs;
+        public static List<UIElementRegexData> UIElementRegexConfigs => Instance.m_UIElementRegexConfigs;
+
+        [Header("事件绑定规则（根据组件类型匹配）")]
+        [TabGroup(ELEMENT_MAPPING_GROUP)]
+        [TableList(AlwaysExpanded = true, ShowPaging = true)]
+        [SerializeField] private List<UIEventBindingConfig> m_UIEventBindingConfigs;
+        public static List<UIEventBindingConfig> UIEventBindingConfigs => Instance.m_UIEventBindingConfigs;
+
+        private void Reset()
+        {
+            m_UIScriptGenerateConfigs = new List<UIScriptGenerateData>
+            {
+                new UIScriptGenerateData(
+                    "Main",
+                    "Moirai.GameMain.UI",
+                    "Assets/Scripts/GameBase/UI/Window",
+                    "Assets/Resources/UI/Window",
+                    true
+                    ),
+                new UIScriptGenerateData(
+                    "Hotfix",
+                    "Moirai.GameLogic.UI",
+                    "Assets/Scripts/GameLogic/UI/Window",
+                    "Assets/AssetRaw/Default/UI/Window",
+                    false
+                    )
+            };
+
+            m_UIElementRegexConfigs = new List<UIElementRegexData>
+            {
+                // 系统组件
+                new UIElementRegexData("Obj", "GameObject"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("Tf", "Transform"),
+                new UIElementRegexData("Rect", "RectTransform"),
+                new UIElementRegexData("Text", "UnityEngine.UI.Text"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("Btn", "UnityEngine.UI.Button"),
+                new UIElementRegexData("Slider", "UnityEngine.UI.Slider"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("Img", "UnityEngine.UI.Image"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("RImg", "UnityEngine.UI.RawImage"),
+                new UIElementRegexData("Scrollbar", "UnityEngine.UI.Scrollbar"),
+                new UIElementRegexData("ScrollRect", "UnityEngine.UI.ScrollRect"),
+                new UIElementRegexData("Input", "UnityEngine.UI.InputField"),
+                new UIElementRegexData("GLayout", "UnityEngine.UI.GridLayoutGroup"),
+                new UIElementRegexData("HLayout", "UnityEngine.UI.HorizontalLayoutGroup"),
+                new UIElementRegexData("VLayout", "UnityEngine.UI.VerticalLayoutGroup"),
+                new UIElementRegexData("SizeFitter", "UnityEngine.UI.ContentSizeFitter"),
+                new UIElementRegexData("TogGroup", "UnityEngine.UI.ToggleGroup"),
+                new UIElementRegexData("Tog", "UnityEngine.UI.Toggle"),
+                new UIElementRegexData("Dropdown", "UnityEngine.UI.Dropdown"),
+                new UIElementRegexData("Mask2D", "UnityEngine.UI.RectMask2D"),
+                new UIElementRegexData("Video", "UnityEngine.Video.VideoPlayer"),
+                new UIElementRegexData("CanvasGroup", "CanvasGroup"),
+#if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("Tmp", "TMPro.TextMeshProUGUI"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("TmpInput", "TMPro.TMP_InputField"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("TmpDropdown", "TMPro.TMP_Dropdown"),
+#endif
+
+                // 框架组件 - Gameplay
+                new UIElementRegexData("Label", "Moirai.Clotho.UI.UILabel"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("SuperBtn", "Moirai.Clotho.UI.ButtonSuper"),
+                new UIElementRegexData("Menu", "Moirai.Clotho.UI.UIMenu"),
+                new UIElementRegexData("MenuItem", "Moirai.Clotho.UI.UIMenuItem"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("Pbar", "Moirai.Clotho.UI.ProgressBar"),
+
+#if MOIRAI_CLOTHO_UIPRO
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("Crsl","Moirai.Clotho.UIPro.Carousel"),
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("ListCrsl","Moirai.Clotho.UIPro.ListCarousel"),
+                new UIElementRegexData("SlideTog","Moirai.Clotho.UIPro.SlideToggle"),
+#endif
+
+                // 框架组件 - Juice
+                // ReSharper disable once StringLiteralTypo
+                new UIElementRegexData("AnimPbar", "Moirai.Lachesis.UI.AnimateProgressBar"),
+
+            };
+
+            m_UIEventBindingConfigs = new List<UIEventBindingConfig>
+            {
+                // 系统组件
+                new UIEventBindingConfig("UnityEngine.UI.Button", "onClick", "Click", ""),
+                new UIEventBindingConfig("UnityEngine.UI.Toggle", "onValueChanged", "Change", "(bool isOn)"),
+                new UIEventBindingConfig("UnityEngine.UI.Slider", "onValueChanged", "Change", "(float value)"),
+                new UIEventBindingConfig("UnityEngine.UI.Dropdown", "onValueChanged", "Change", "(int index)"),
+#if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+                new UIEventBindingConfig("TMPro.TMP_Dropdown", "onValueChanged", "Change", "(int index)"),
+#endif
+
+                // 框架组件 - Gameplay
+                new UIEventBindingConfig("Moirai.Clotho.UI.ButtonSuper", "onClick", "Click", ""),
+                new UIEventBindingConfig("Moirai.Clotho.UI.UIMenu", "onValueChanged", "Change", "(int index)"),
+                new UIEventBindingConfig("Moirai.Clotho.UI.UIMenuItem", "onSubmit", "Submit", ""),
+#if MOIRAI_CLOTHO_UIPRO
+                new UIEventBindingConfig("Moirai.Clotho.UIPro.ListCarousel", "onValueChanged", "Change", "(int index)"),
+                new UIEventBindingConfig("Moirai.Clotho.UIPro.SlideToggle", "onValueChanged", "Change", "(bool isOn)"),
+#endif
+            };
+        }
+    }
+
+    [Serializable]
+    public class UIScriptGenerateData
+    {
+        [Header("项目识别信息")]
+        [Tooltip("该UI工程的名称（例如：MainProject, HotFix, EditorUI）")]
+        [SerializeField] private string m_ProjectName;
+        public string ProjectName => m_ProjectName;
+
+        [Tooltip("该UI工程所属命名空间")]
+        [SerializeField] private string m_NameSpace;
+        public string NameSpace => m_NameSpace;
+
+        [Header("路径设置")]
+        [Tooltip("生成的UI脚本路径（相对Assets）")]
+        [FolderPath]
+        [SerializeField] private string m_GenerateHolderCodePath;
+        public string GenerateHolderCodePath => m_GenerateHolderCodePath;
+
+        [Tooltip("UI Prefab根目录")]
+        [FolderPath]
+        [SerializeField] private string m_UIPrefabRootPath;
+        public string UIPrefabRootPath => m_UIPrefabRootPath;
+
+        [Header("加载类型")]
+        [Tooltip("UI资源加载方式（本地 / YooAsset）")]
+        [SerializeField] private bool m_FromResources;
+        public bool FromResources => m_FromResources;
+
+        public UIScriptGenerateData(string projectName, string nameSpace, string generateHolderCodePath, string uiPrefabRootPath, bool fromResources = true)
+        {
+            m_ProjectName = projectName;
+            m_NameSpace = nameSpace;
+            m_GenerateHolderCodePath = generateHolderCodePath;
+            m_UIPrefabRootPath = uiPrefabRootPath;
+            m_FromResources = fromResources;
+        }
+    }
+
+    [Serializable]
+    public class UIElementRegexData
+    {
+        [Tooltip("匹配UI元素名称的正则表达式")]
+        [SerializeField] private string m_UIElementRegex;
+        public string UIElementRegex => m_UIElementRegex;
+
+        [Tooltip("匹配到的UI组件类型")]
+        [SerializeField] private string m_ComponentType;
+        public string ComponentType => m_ComponentType;
+
+        public UIElementRegexData(string uiElementRegex, string componentType)
+        {
+            m_UIElementRegex = uiElementRegex;
+            m_ComponentType = componentType;
+        }
+    }
+
+    [Serializable]
+    public class UIEventBindingConfig
+    {
+        [Tooltip("组件类型全名（如 UnityEngine.UI.Button）")]
+        [SerializeField] private string m_ComponentType;
+        public string ComponentType => m_ComponentType;
+
+        [Tooltip("事件成员名（如 onClick）")]
+        [SerializeField] private string m_EventMember;
+        public string EventMember => m_EventMember;
+
+        [Tooltip("事件触发名（如 Click），用于方法命名 On{Trigger}{VarName}{Abbr}")]
+        [SerializeField] private string m_TriggerName;
+        public string TriggerName => m_TriggerName;
+
+        [Tooltip("回调方法签名（如 (bool isOn)），为空表示无参数")]
+        [SerializeField] private string m_CallbackSignature;
+        public string CallbackSignature => m_CallbackSignature;
+
+        public UIEventBindingConfig(string componentType, string eventMember, string triggerName, string callbackSignature)
+        {
+            m_ComponentType = componentType;
+            m_EventMember = eventMember;
+            m_TriggerName = triggerName;
+            m_CallbackSignature = callbackSignature;
+        }
+    }
+}

@@ -1,0 +1,78 @@
+using System;
+using Moirai.Atropos.Audio;
+using NUnit.Framework;
+
+namespace Service.Audio
+{
+    /// <summary>
+    /// PlayMode 音频测试宿主：注入最小 <see cref="AudioGroupConfig"/>，并经 <c>Internal_UseHandler</c>
+    /// 把实例换入 <see cref="AudioService"/> 的门面。
+    /// <para>关键路径夹具不得因工程 Settings 未配置而 <c>Assert.Ignore</c>——那会把整套验收洗成「全绿零覆盖」。
+    /// 配置缺失时这里直接 <c>Assert.Fail</c>。</para>
+    /// </summary>
+    internal sealed class AudioServiceTestHost : IDisposable
+    {
+        private readonly AudioServiceHandler _previousHandler;
+        private bool _disposed;
+
+        public UnityAudioHandler Handler { get; }
+
+        /// <summary>构造后立即可播；配置建不出来会 Fail，不会静默跳过。</summary>
+        public AudioServiceTestHost(params EAudioTrack[] tracks)
+        {
+            if (tracks == null || tracks.Length == 0)
+            {
+                tracks = new[]
+                {
+                    EAudioTrack.Music, EAudioTrack.Sfx, EAudioTrack.Voice, EAudioTrack.Ambience,
+                };
+            }
+
+            var configs = new AudioGroupConfig[tracks.Length];
+            for (int i = 0; i < tracks.Length; i++)
+            {
+                configs[i] = CreateGroup(tracks[i]);
+            }
+
+            Handler = new UnityAudioHandler();
+            Handler.Initialize(null, null, configs);
+
+            var categories = Handler.AudioCategories;
+            Assert.IsNotNull(categories, "最小配置初始化后 AudioCategories 不得为 null");
+            Assert.IsNotEmpty(categories, "最小 AudioGroupConfigs 应至少产出一个 AudioCategory");
+
+            _previousHandler = AudioService.Internal_PeekHandler();
+            AudioService.Internal_UseHandler(Handler);
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            try
+            {
+                Handler?.StopAll(0f);
+                Handler?.Internal_Shutdown();
+            }
+            finally
+            {
+                AudioService.Internal_UseHandler(_previousHandler);
+            }
+        }
+
+        private static AudioGroupConfig CreateGroup(EAudioTrack track)
+        {
+            var config = new AudioGroupConfig
+            {
+                // internal setter（InternalsVisibleTo）
+                AudioTrack = track,
+            };
+
+            config.m_MaxChannel = 8;
+            config.m_CanExpand = true;
+            config.m_DefaultVolume = 1f;
+            return config;
+        }
+    }
+}
