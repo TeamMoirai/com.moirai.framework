@@ -29,7 +29,7 @@ Runtime/Services/Audio/
 ├── Spatial/ AudioOcclusionHrtf.cs             # Occlusion + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
 │          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
-└── Support/ BackgroundMusic / AudioSettingsWidget
+└── Support/ BackgroundMusic / AudioSettingsWidget / BgmPlaylist / AudioEmitter
            AudioMainThread / AudioFault / AudioWarnOnce   # main-thread assert, backed-off fault reporting, deduped warnings
 ```
 
@@ -195,6 +195,14 @@ Add `AudioOcclusionHrtf` next to the listener: raycasts active sources, drives `
 
 Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSettings`; `AudioService.OnInit` warms the pool under `InstanceRoot` after the handler is ready. Idle hosts live under a `[Warmup]` node (sibling of each `Audio Category - *`); `AudioAgent` re-parents a host to its category and renames it (e.g. `SFX - 0`) on acquire, and returns it under `[Warmup]` on release. Without warmup, hosts are created on demand and the `[Warmup]` node is created on first release.
 
+### 0-GC acceptance (player build)
+
+Editor Mono reports `GC.GetAllocatedBytesForCurrentThread()` and `ProfilerRecorder(GC.Alloc)` as constantly 0 — **managed allocations cannot be measured inside the editor**. PlayMode 0-GC assertions therefore follow a capability probe + `Assert.Ignore` (skip when the counter is unavailable; never treat "cannot measure" as "no allocations") and only carry functional regression. The authoritative gate for a 0-allocation play steady state is anchored in `Tests/Player`:
+
+1. Test Runner → PlayMode tab → search `AudioPerformance` / `Allocation`;
+2. Click **Run all in Player** (player tests can only be launched from there — the player does not parse `-testResults`; results travel back via PlayerConnection and are written by the editor);
+3. Verify the GC.Alloc assertions in `AudioPerformanceTests` are green. Run it at least once before release.
+
 ## Configuration
 
 - Mixer groups must expose a `{group name}Volume` parameter; `m_MixerValuesMultiplier` defaults to 20
@@ -223,7 +231,9 @@ Configure `WarmupAudioHostPool` and `AudioHostWarmupCount` in `AudioServiceSetti
 - Natural-end timing uses unscaled real time (`AudioSource` is not affected by `timeScale`): at `timeScale = 0` a non-looping voice still finishes in real time and auto-releases its handle  
 - Master/track fades are implemented by the contract base class (one code path for both backends): `duration <= 0` means assign immediately and schedule nothing; `StopFadeMasterTrack` / `StopFadeTrack` **cancel the fade without restoring volume already written** — wherever it stopped is where it stays; re-requesting a fade on the same bus replaces the pending one rather than stacking it  
 - `Stop(handle, fadeoutDuration)` and `FadeAudio(handle, ...)` take over the same handle's volume exclusively (the later call cancels the former) — do not stack them  
-- Scene load auto `StopAllButPersistent`; set `Persistent = true` for cross-scene audio  
+- Full scene changes (`Single`) auto `StopAllButPersistent`; **Additive (streamed section) loads do not stop audio by default** — enable `AudioServiceSettings.StopNonPersistentOnAdditiveSceneLoad` when they must (same decision in both backends); set `Persistent = true` for cross-scene audio
+- `BgmPlaylist` layer IDs: **positive = explicit layer; two instances claiming the same positive ID is a configuration error that fails fast with an Error, and the second instance does not play** (no silent re-assignment); `0` = auto-assigned per instance (reserved negative range, never collides with explicit values). A negative explicit ID is rejected the same way — that range is reserved for auto assignment
+- The "Time" parameters of `AudioPlayOptionsSO` (`PlaybackTime` / `PlaybackDuration`, including random ranges) take effect on every `Play`; `MaximumConcurrentInstances` / `DoNotPlayIfClipAlreadyPlaying` evaluate the **candidate clip of this play** (not the previous one under a random set)  
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
 - The in-game debugger's `Profiler/Audio` panel now also shows clip cache entries/capacity, in-flight loads, pinned count, failure cooldowns, the current mix snapshot and ducking ownership, plus cache-clear buttons — check it first when "a sound didn't play"  
 - Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`

@@ -29,7 +29,7 @@ Runtime/Services/Audio/
 ├── Spatial/ AudioOcclusionHrtf.cs             # 遮挡 + HRTF
 ├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
 │          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
-└── Support/ BackgroundMusic / AudioSettingsWidget
+└── Support/ BackgroundMusic / AudioSettingsWidget / BgmPlaylist / AudioEmitter
            AudioMainThread / AudioFault / AudioWarnOnce      # 主线程断言、退避式异常上报、按 key 去重告警
 ```
 
@@ -221,6 +221,14 @@ AudioService.ResetMixSnapshot(0.25f);
 
 `AudioServiceSettings` 中配置 `WarmupAudioHostPool` 与 `AudioHostWarmupCount`；`AudioService.OnInit` 在 Handler 就绪后向 `InstanceRoot` 预热。闲置宿主统一挂在 `[Warmup]` 节点下（与各 `Audio Category - *` 平级），被 `AudioAgent` 取用时再挂到对应 Category 并改名为 `SFX - 0` 这类实例名；归还时失活挂回 `[Warmup]`。未启用预热时按需创建并在首次归还时建 `[Warmup]` 入栈复用。
 
+### 0-GC 验收（玩家构建）
+
+编辑器 Mono 下 `GC.GetAllocatedBytesForCurrentThread()` 与 `ProfilerRecorder(GC.Alloc)` 均恒为 0，**编辑器内无法计量托管分配**：PlayMode 的 0-GC 断言按「能力探测 + `Assert.Ignore`」处理（探测不到计量能力就跳过，绝不把「测不出」当「没有」），只承担功能回归职责。播放稳态 0 分配的**权威门禁**锚在 `Tests/Player`：
+
+1. Test Runner → PlayMode 页签 → 搜索 `AudioPerformance` / `Allocation`；
+2. 点 **Run all in Player**（玩家测试只能从该入口发起——玩家不解析 `-testResults`，结果经 PlayerConnection 回传由编辑器落盘）；
+3. 跑完核对 `AudioPerformanceTests` 的 GC.Alloc 断言全绿。发布前至少跑一次。
+
 ## 配置说明
 
 - AudioMixer 分组需暴露 `{分组名}Volume` 参数；`m_MixerValuesMultiplier` 默认 20  
@@ -249,7 +257,9 @@ AudioService.ResetMixSnapshot(0.25f);
 - `AssetHandlePool` 现在是 Clip 缓存的只读视图（契约成员类型为 `IReadOnlyDictionary`）：租约由缓存持有，外部既改不动记账也释放不了租约  
 - 自然结束计时按未缩放真实时间推进（`AudioSource` 不受 `timeScale` 影响）：`timeScale = 0` 时非循环音仍会真实播完并自动释放句柄  
 - `Stop(handle, fadeoutDuration)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加  
-- 加载新场景自动 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
+- 整景切换（`Single`）自动 `StopAllButPersistent`；**Additive（叠加/流式分区）加载默认不停**，需停时打开 `AudioServiceSettings.StopNonPersistentOnAdditiveSceneLoad`（两后端同判定）；跨场景音频设 `Persistent = true`  
+- `BgmPlaylist` 分层 ID：**正数 = 显式分层，两个实例填同一正数 ID 属配置错误，按 fail-fast 报 Error 且后者不播放**（不静默改派）；`0` = 按实例自动分配（负区间保留，永不与显式值冲突）。负数显式 ID 同样报错——它属于自动分配保留区间  
+- `AudioPlayOptionsSO` 的「时间」参数（`PlaybackTime` / `PlaybackDuration`，含随机区间）随每次 `Play` 实际生效；`MaximumConcurrentInstances` / `DoNotPlayIfClipAlreadyPlaying` 作用于**本次候选 clip**（随机曲集下不是上一曲）  
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
 - 游戏内调试器 `Profiler/Audio` 除音量/音轨控制外，还显示 Clip 缓存条目/容量、在途、常驻、失败冷却、当前混音快照与 Ducking 占用，并提供清空缓存按钮——排查"音效没出来"先看这里  
 - 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`

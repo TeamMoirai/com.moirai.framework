@@ -109,7 +109,11 @@ namespace Moirai.Atropos.Audio.Wwise
         {
             if (!_handleToPlayingId.TryGetValue(instanceId, out var playingId)) return;
 
-            // 非立即 = 短衰减停止（原先误映射为 Pause，会留下无法恢复也无法停止的悬挂声）
+            // 非立即 = 短衰减停止（原先误映射为 Pause，会留下无法恢复也无法停止的悬挂声）。
+            // 注意：本实现的 UnregisterInstance 紧跟在非立即停止之后执行——playingId 立即从映射表移除，
+            // 尾音还挂在发射体上而框架已失去对它的跟踪，此时复用发射体会串位。因此 immediate:false
+            // 不得对生产暴露（MiddlewareAudioHandler 恒传 true；契约见 IAudioMiddlewareBridge.StopInstance
+            // 与文档「停止语义」），接真 SDK 激活该分支前须先改成「淡出完成后再注销/回收」（G1）。
             AkSoundEngine.ExecuteActionOnPlayingId(
                 AkActionOnEventType.AkActionOnEventType_Stop,
                 playingId,
