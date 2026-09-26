@@ -689,7 +689,7 @@ namespace Moirai.Atropos.Audio.Middleware
             float fadeInDuration = cold?.FadeInDuration ?? 0f;
             float fadeInFrom = cold?.FadeInInitialVolume ?? 0f;
             TweenEase fadeInEase = cold?.FadeInTweenEase ?? default;
-            Vector3? pos = cold != null && cold.SpatialBlend > 0.5f ? cold.Location : (Vector3?)null;
+            Vector3? pos = cold != null && cold.Spatial.SpatialBlend > 0.5f ? cold.Location : (Vector3?)null;
             AudioPlayColdParamsPool.Release(cold);
 
             ulong instanceId = _bridge.PlayEvent(eventPath, request.Volume, request.Pitch, request.Loop, pos);

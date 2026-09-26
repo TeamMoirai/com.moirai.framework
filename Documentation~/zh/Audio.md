@@ -100,7 +100,8 @@ Runtime/Services/Audio/
 | `FmodAudioHandler` / `WwiseAudioHandler` | FMOD / Wwise 薄封装 |
 | `AudioPlayRequest` | 16B 热路径请求（Id/Volume/Pitch/Track/Priority/Flags） |
 | `AudioPlayColdParams` | 冷路径：位置、曲线、旁通、淡入、Rolloff（池化） |
-| `AudioPlayOptions` | 完整兼容门面；`ToRequest()` / `FromOptions()` 拆分；`CachePolicy` 决定 clip 留池策略 |
+| `AudioPlayOptions` | 完整兼容门面；`ToRequest()` / `FromOptions()` 拆分；空间整形经 `Spatial` 字段整体携带；`CachePolicy` 决定 clip 留池策略 |
+| `AudioSpatialOptions` | AudioSource 空间整形（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线），经 `AudioPlayOptions.Spatial` / `AudioPlayColdParams.Spatial` 进冷路径；`Default` 对齐 Unity 声学缺省，各播放工厂方法以此为起点 |
 | `EAudioCachePolicy` | Clip 缓存策略：`Default`（取设置）/ `None`（用完即弃）/ `Ttl`（留池到期驱逐）/ `Pin`（常驻） |
 | `AudioClipCache` | Unity 后端 Clip 租约缓存（内部）；`AssetHandlePool` 是其只读视图 |
 | `AudioMixStateMachine` / `EMixSnapshot` | 混音快照状态机 |

@@ -173,10 +173,10 @@ namespace Moirai.Atropos.Audio
             options.Loop = m_Loop;
             options.Persistent = true;
             options.DoNotAutoRecycleIfNotDonePlaying = true;
-            options.SpatialBlend = m_SpatialBlend;
-            options.RolloffMode = m_RolloffMode;
-            options.MinDistance = m_MinDistance;
-            options.MaxDistance = maxDistance;
+            options.Spatial.SpatialBlend = m_SpatialBlend;
+            options.Spatial.RolloffMode = m_RolloffMode;
+            options.Spatial.MinDistance = m_MinDistance;
+            options.Spatial.MaxDistance = maxDistance;
             options.CachePolicy = m_CachePolicy;
             options.Location = _cachedTransform.position + m_FollowOffset;
             options.AttachToTransform = m_FollowSelf ? _cachedTransform : null;

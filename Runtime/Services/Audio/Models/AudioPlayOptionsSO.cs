@@ -122,7 +122,7 @@ namespace Moirai.Atropos.Audio
         public bool Persistent => m_Persistent;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("如果同一音频已在播放，是否仍播放")]
-        [SerializeField] private bool m_DoNotPlayIfClipAlreadyPlaying = false;
+        [SerializeField] internal bool m_DoNotPlayIfClipAlreadyPlaying = false;
         public bool DoNotPlayIfClipAlreadyPlaying => m_DoNotPlayIfClipAlreadyPlaying;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("此声音允许同时播放的最大实例数量。使用-1表示无同时播放数量限制。")]
@@ -339,26 +339,29 @@ namespace Moirai.Atropos.Audio
                 SoloAllTracks = m_SoloAllTracks,
                 AutoUnSoloOnEnd = m_AutoUnSoloOnEnd,
 
-                PanStereo = m_PanStereo,
-                SpatialBlend = m_SpatialBlend,
-                BypassEffects = m_BypassEffects,
-                BypassListenerEffects = m_BypassListenerEffects,
-                BypassReverbZones = m_BypassReverbZones,
                 Priority = m_Priority,
-                ReverbZoneMix = m_ReverbZoneMix,
-                DopplerLevel = m_DopplerLevel,
-                Spread = m_Spread,
-                RolloffMode = m_RolloffMode,
-                MinDistance = m_MinDistance,
-                MaxDistance = m_MaxDistance,
-                UseCustomRolloffCurve = m_UseCustomRolloffCurve,
-                CustomRolloffCurve = m_CustomRolloffCurve,
-                UseSpatialBlendCurve = m_UseSpatialBlendCurve,
-                SpatialBlendCurve = m_SpatialBlendCurve,
-                UseReverbZoneMixCurve = m_UseReverbZoneMixCurve,
-                ReverbZoneMixCurve = m_ReverbZoneMixCurve,
-                UseSpreadCurve = m_UseSpreadCurve,
-                SpreadCurve = m_SpreadCurve,
+                Spatial = new AudioSpatialOptions
+                {
+                    PanStereo = m_PanStereo,
+                    SpatialBlend = m_SpatialBlend,
+                    BypassEffects = m_BypassEffects,
+                    BypassListenerEffects = m_BypassListenerEffects,
+                    BypassReverbZones = m_BypassReverbZones,
+                    ReverbZoneMix = m_ReverbZoneMix,
+                    DopplerLevel = m_DopplerLevel,
+                    Spread = m_Spread,
+                    RolloffMode = m_RolloffMode,
+                    MinDistance = m_MinDistance,
+                    MaxDistance = m_MaxDistance,
+                    UseCustomRolloffCurve = m_UseCustomRolloffCurve,
+                    CustomRolloffCurve = m_CustomRolloffCurve,
+                    UseSpatialBlendCurve = m_UseSpatialBlendCurve,
+                    SpatialBlendCurve = m_SpatialBlendCurve,
+                    UseReverbZoneMixCurve = m_UseReverbZoneMixCurve,
+                    ReverbZoneMixCurve = m_ReverbZoneMixCurve,
+                    UseSpreadCurve = m_UseSpreadCurve,
+                    SpreadCurve = m_SpreadCurve,
+                },
             };
 
             ulong handle = AudioService.Play(clip, options);

@@ -99,7 +99,8 @@ Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middl
 | `FmodAudioHandler` / `WwiseAudioHandler` | FMOD / Wwise thin wrappers |
 | `AudioPlayRequest` | 16-byte hot request |
 | `AudioPlayColdParams` | Cold params (location, curves, bypass); pooled |
-| `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()`; `CachePolicy` decides lease retention |
+| `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()`; spatial shaping carried wholesale via the `Spatial` field; `CachePolicy` decides lease retention |
+| `AudioSpatialOptions` | AudioSource spatial shaping (2D pan / 3D rolloff, doppler, reverb and custom curves); enters the cold path via `AudioPlayOptions.Spatial` / `AudioPlayColdParams.Spatial`; `Default` matches Unity acoustic defaults and is the starting point of every play factory |
 | `EAudioCachePolicy` | `Default` (from settings) / `None` (drop after use) / `Ttl` (keep until expiry) / `Pin` (resident) |
 | `AudioClipCache` | Unity backend clip lease cache (internal); `AssetHandlePool` is its read-only view |
 | `AudioMixStateMachine` / `EMixSnapshot` | Mix snapshot state machine |
