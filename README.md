@@ -598,7 +598,7 @@ config.m_MaxChannelCeiling = 4096;
 
 | 项目 | 描述 |
 |------|------|
-| **[TEngine](https://github.com/Alex-Rachel/TEngine)** | Unity 商用级别开发框架 |
+| **[UniTask](https://github.com/Cysharp/UniTask)** | 为 Unity 提供高效、无分配的异步/等待集成。 |
 | **[YooAsset](https://github.com/tuyoogame/YooAsset)** | 商业级经历百万 DAU 游戏验证的资源管理系统 |
 | **[HybridCLR](https://github.com/focus-creative-games/hybridclr)** | 特性完整、零成本、高性能、低内存的近乎完美的 Unity 全平台原生 C# 热更方案。 |
 | **[Luban](https://github.com/focus-creative-games/luban)** | 最佳游戏配置解决方案 |
