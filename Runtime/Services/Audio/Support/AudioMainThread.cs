@@ -14,15 +14,21 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>
         /// 断言处于主线程。仅编辑器/开发构建生效，发布构建调用点被整体裁剪。
+        /// <para>消息插值挪进失败分支：断言通过的主线程快路径上零分配——播放入口每帧高频经过这里，
+        /// 每次调用构造一条插值串就是每帧一个 GC 抖动源（2026-09-28 L3 实测逮到：Preload 命中路径
+        /// 每次 1 个 GC.Alloc 事件正是它）。</para>
         /// </summary>
         /// <param name="where">调用点标识，出现在断言消息中。</param>
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
         [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
         public static void AssertMainThread(string where)
         {
-            UnityEngine.Assertions.Assert.IsTrue(IsMainThread,
-                $"[Audio] {where} 必须在主线程调用：句柄表与 Clip 缓存的 LRU/引用计数无跨线程保护。" +
-                "后台线程/回调里请用 MainThreadDispatcher.Post 包一层。");
+            if (!IsMainThread)
+            {
+                UnityEngine.Assertions.Assert.IsTrue(false,
+                    $"[Audio] {where} 必须在主线程调用：句柄表与 Clip 缓存的 LRU/引用计数无跨线程保护。" +
+                    "后台线程/回调里请用 MainThreadDispatcher.Post 包一层。");
+            }
         }
     }
 }
