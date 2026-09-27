@@ -49,6 +49,11 @@ namespace Service.Save
             return Path.Combine(_rootPath, name);
         }
 
+        // 回退/恢复用例的三种内容，彼此可区分：旧存档、新存档、项目侧单槽备份
+        private static readonly byte[] OldBytes = { 0x4F, 0x4C, 0x44, 0x01 };
+        private static readonly byte[] NewBytes = { 0x4E, 0x45, 0x57, 0x02 };
+        private static readonly byte[] BackupBytes = { 0x42, 0x4B, 0x50, 0x03 };
+
         #region 原子写与读取 [WRITE / READ]
 
         [Test]
@@ -334,13 +339,120 @@ namespace Service.Save
 
         #endregion
 
+        #region 回退替换与中断恢复 [FALLBACK / RECOVERY]
+
+        [Test]
+        public void FallbackReplace_ExistingTarget_ReplacesInPlaceAndLeavesNoJournal()
+        {
+            string filePath = FilePath("fallback-ok.sav");
+            string tempPath = filePath + FileSaveStorageBackend.TEMP_FILE_SUFFIX + "t1";
+            File.WriteAllBytes(filePath, OldBytes);
+            File.WriteAllBytes(tempPath, NewBytes);
+
+            FileSaveStorageBackend.FallbackReplace(tempPath, filePath);
+
+            CollectionAssert.AreEqual(NewBytes, File.ReadAllBytes(filePath), "新内容必须到位");
+            Assert.IsFalse(File.Exists(tempPath), "临时文件不得残留");
+            Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "替换成功后不得残留日志文件");
+        }
+
+        [Test]
+        public void FallbackReplace_MissingTarget_MovesTempIntoPlace()
+        {
+            string filePath = FilePath("fallback-new.sav");
+            string tempPath = filePath + FileSaveStorageBackend.TEMP_FILE_SUFFIX + "t2";
+            File.WriteAllBytes(tempPath, NewBytes);
+
+            FileSaveStorageBackend.FallbackReplace(tempPath, filePath);
+
+            CollectionAssert.AreEqual(NewBytes, File.ReadAllBytes(filePath), "目标原本不存在时直接改名到位");
+            Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "没有旧档就无需日志文件");
+        }
+
+        [Test]
+        public void FallbackReplace_SecondStepFails_RestoresOldContentInPlace()
+        {
+            string filePath = FilePath("fallback-rollback.sav");
+            // 临时文件缺失 → 改名到位那一步必然失败，这一步要演的是「搬走旧档之后才崩」
+            string missingTemp = FilePath("never-written.sav" + FileSaveStorageBackend.TEMP_FILE_SUFFIX + "t3");
+            File.WriteAllBytes(filePath, OldBytes);
+
+            Assert.Catch<IOException>(() => FileSaveStorageBackend.FallbackReplace(missingTemp, filePath),
+                "前置条件：改名到位那一步必须真的抛错，否则这一格什么都没测");
+
+            Assert.IsTrue(File.Exists(filePath), "失败后主档位置必须仍有一可读文件，不得只留在日志里");
+            CollectionAssert.AreEqual(OldBytes, File.ReadAllBytes(filePath), "回滚后旧存档必须原样可读");
+            Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "回滚后日志文件应已让位给主档");
+        }
+
+        [Test]
+        public void FallbackReplace_DoesNotDisturbSingleSlotBackup()
+        {
+            string filePath = FilePath("fallback-backup-safe.sav");
+            string tempPath = filePath + FileSaveStorageBackend.TEMP_FILE_SUFFIX + "t4";
+            string backupPath = filePath + ".bak";
+            File.WriteAllBytes(filePath, OldBytes);
+            File.WriteAllBytes(backupPath, BackupBytes);
+            File.WriteAllBytes(tempPath, NewBytes);
+
+            FileSaveStorageBackend.FallbackReplace(tempPath, filePath);
+
+            // .bak 是项目侧 CreateBackup/RestoreBackup 的单槽位；回退若借它中转，玩家手动恢复会捞到写入中途的快照
+            Assert.IsTrue(File.Exists(backupPath),
+                "回退替换不得吃掉项目侧的单槽备份位（借 .bak 中转即为污染）");
+            CollectionAssert.AreEqual(BackupBytes, File.ReadAllBytes(backupPath),
+                "回退替换不得改写单槽备份位的内容");
+        }
+
+        [Test]
+        public void RecoverInterruptedWrites_PrimaryMissingWithJournal_RestoresOldSave()
+        {
+            string filePath = FilePath("recover-crash.sav");
+            File.WriteAllBytes(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX, OldBytes);
+
+            _backend.RecoverInterruptedWrites(_rootPath);
+
+            Assert.IsTrue(File.Exists(filePath), "主档缺失而日志档在时应恢复回主档");
+            CollectionAssert.AreEqual(OldBytes, File.ReadAllBytes(filePath), "恢复回来的必须是崩溃前的旧存档");
+            Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "恢复后日志档应让位给主档");
+        }
+
+        [Test]
+        public void RecoverInterruptedWrites_PrimaryPresent_ClearsStaleJournal()
+        {
+            string filePath = FilePath("recover-complete.sav");
+            File.WriteAllBytes(filePath, NewBytes);
+            File.WriteAllBytes(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX, OldBytes);
+
+            _backend.RecoverInterruptedWrites(_rootPath);
+
+            CollectionAssert.AreEqual(NewBytes, File.ReadAllBytes(filePath), "主档已到位时恢复不得覆盖成新写的存档");
+            Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "成功写入后残留的日志属陈旧，应清掉");
+        }
+
+        [Test]
+        public void RecoverInterruptedWrites_UnrelatedFiles_AreLeftAlone()
+        {
+            string otherFilePath = FilePath("untouched.sav");
+            string otherTemp = FilePath("stray.tmp-abc");
+            File.WriteAllBytes(otherFilePath, OldBytes);
+            File.WriteAllBytes(otherTemp, NewBytes);
+
+            _backend.RecoverInterruptedWrites(_rootPath);
+
+            CollectionAssert.AreEqual(OldBytes, File.ReadAllBytes(otherFilePath), "无日志档的存档不得被动到");
+            Assert.IsTrue(File.Exists(otherTemp), "孤儿临时文件归 CleanupOrphanTempFiles 管，恢复这一步不该顺手删它");
+        }
+
+        #endregion
+
         #region 能力与配置 [CAPABILITIES / SETTINGS]
 
         [Test]
         public void Capabilities_DeclaresLocalFileSemantics()
         {
             SaveStorageCapabilities capabilities = _backend.Capabilities;
-            Assert.IsTrue(capabilities.SupportsAtomicRename, "本地文件后端应声明原子改名能力");
+            Assert.IsTrue(capabilities.SupportsAtomicRename, "本地文件后端应保证无半写窗口且中断后旧档可恢复（判据见 SaveStorageCapabilities.SupportsAtomicRename）");
             Assert.IsFalse(capabilities.VolatileStorage, "本地文件后端不应声明易失存储");
             Assert.IsTrue(capabilities.SyncReadsAuthoritative, "本地文件后端同步读应权威（同步裸名读即权威数据）");
         }
@@ -357,9 +469,9 @@ namespace Service.Save
         public void Default_SharedInstance_IsUsable()
         {
             string filePath = FilePath("shared.sav");
-            FileSaveStorageBackend.Default.WriteAtomic(filePath, new byte[] { 0x05 }, CancellationToken.None);
+            FileSaveStorageBackend.s_Default.WriteAtomic(filePath, new byte[] { 0x05 }, CancellationToken.None);
 
-            SaveError error = FileSaveStorageBackend.Default.TryReadAllBytes(filePath, out byte[] loaded);
+            SaveError error = FileSaveStorageBackend.s_Default.TryReadAllBytes(filePath, out byte[] loaded);
             Assert.AreEqual(SaveError.None, error);
             Assert.AreEqual(new byte[] { 0x05 }, loaded);
         }

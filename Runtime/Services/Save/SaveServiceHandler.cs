@@ -68,7 +68,7 @@ namespace Moirai.Atropos.Save
         /// 存储后端（未配置时回退共享文件后端——纯 .NET 无副作用，任意线程安全；
         /// 严禁在核心管线惰性触达 <see cref="SaveServiceSettings"/>（Resources.Load 为 Unity 主线程 API，工作线程触达即崩）。
         /// </summary>
-        internal SaveStorageBackend StorageBackend => m_StorageBackend ?? FileSaveStorageBackend.Default;
+        internal SaveStorageBackend StorageBackend => m_StorageBackend ?? FileSaveStorageBackend.s_Default;
 
         /// <summary>压缩提供方（<c>null</c> = 不压缩；无状态纯 .NET，工作线程调用安全）。</summary>
         internal SaveCompressionProvider CompressionProvider
@@ -96,10 +96,14 @@ namespace Moirai.Atropos.Save
                 LogUtility.Warning("[SaveService] Storage backend is not configured, falling back to FileSaveStorageBackend.");
             }
 
-            // 后台清扫上次写入中断残留的孤儿临时文件；根目录须在主线程解析（persistentDataPath 为 Unity API）
+            // 后台先抬回上次写入中断留下的旧档，再清扫孤儿临时文件；根目录须在主线程解析（persistentDataPath 为 Unity API）
             SaveStorageBackend backend = StorageBackend;
             string rootDirectory = BuildDataRootDirectory();
-            _ = UniTask.RunOnThreadPool(() => backend.CleanupOrphanTempFiles(rootDirectory), configureAwait: false);
+            _ = UniTask.RunOnThreadPool(() =>
+            {
+                backend.RecoverInterruptedWrites(rootDirectory);
+                backend.CleanupOrphanTempFiles(rootDirectory);
+            }, configureAwait: false);
         }
 
         #endregion
@@ -1878,7 +1882,7 @@ namespace Moirai.Atropos.Save
 
             if (fileName.IndexOfAny(s_PathSeparators) >= 0
                 || fileName.Contains("..")
-                || fileName.Contains(FileSaveStorageBackend.TempFileSuffix))
+                || fileName.Contains(FileSaveStorageBackend.TEMP_FILE_SUFFIX))
             {
                 throw new ArgumentException(StringUtility.Format("Save file name '{0}' contains path separators or reserved segments.", fileName), nameof(fileName));
             }
@@ -1915,7 +1919,7 @@ namespace Moirai.Atropos.Save
             if (folderName.IndexOfAny(s_PathSeparators) >= 0
                 || folderName.Contains("..")
                 || folderName.Contains(":")
-                || folderName.Contains(FileSaveStorageBackend.TempFileSuffix)
+                || folderName.Contains(FileSaveStorageBackend.TEMP_FILE_SUFFIX)
                 || folderName == ".")
             {
                 throw new ArgumentException(StringUtility.Format("Save folder name '{0}' contains path separators or reserved segments.", folderName), nameof(folderName));

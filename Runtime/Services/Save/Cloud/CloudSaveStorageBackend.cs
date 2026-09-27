@@ -61,7 +61,7 @@ namespace Moirai.Atropos.Save
         private bool IsCustomPolicy => m_Policy == ESaveSyncPolicy.Custom;
 
         /// <summary>本地镜像（无状态共享实例；任意线程安全）。</summary>
-        private static FileSaveStorageBackend Mirror => FileSaveStorageBackend.Default;
+        private static FileSaveStorageBackend Mirror => FileSaveStorageBackend.s_Default;
 
         /// <summary>
         /// 后端能力自描述（镜像原子写 + 远端整值替换视为原子；远端网络 IO 为真异步；不设尺寸上限；非易失；

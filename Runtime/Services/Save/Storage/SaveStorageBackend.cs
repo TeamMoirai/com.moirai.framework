@@ -149,6 +149,15 @@ namespace Moirai.Atropos.Save
         {
         }
 
+        /// <summary>
+        /// 恢复上次写入中断留下的中转文件，使主档位置重新可读（尽力而为，失败仅告警；
+        /// 无中断窗口的后端空实现）。须在 <see cref="CleanupOrphanTempFiles"/> 之前调用。
+        /// </summary>
+        /// <param name="rootDirectory">存档数据根目录。</param>
+        public virtual void RecoverInterruptedWrites(string rootDirectory)
+        {
+        }
+
         #endregion
 
         #region 异步包装 [ASYNC WRAPPERS]

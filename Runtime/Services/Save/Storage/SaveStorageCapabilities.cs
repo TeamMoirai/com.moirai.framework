@@ -11,7 +11,10 @@ namespace Moirai.Atropos.Save
     public readonly struct SaveStorageCapabilities
     {
         /// <summary>
-        /// 支持原子改名/替换（写入不会出现半文件窗口）。
+        /// 替换目标时不出现半写窗口，且中断后旧档必可恢复。
+        /// <para>判据不是「底层用过一次原子 rename」：平台无原子替换能力时，后端改走
+        /// 「旧档改名到日志位 → 新档改名到位 → 清日志」的中转写法，任一时刻要么新档完整、
+        /// 要么旧档完整留在日志位并由下次初始化抬回。代价是中转期间主档路径短暂缺席。</para>
         /// </summary>
         public readonly bool SupportsAtomicRename;
 
