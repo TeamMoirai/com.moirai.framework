@@ -10,6 +10,7 @@ namespace Moirai.Atropos.Input
     /// </summary>
     internal sealed class InputStateMachine
     {
+        /// <summary>压制位标志——读位一律用 <c>(&amp; mask) != 0</c>，<c>Enum.HasFlag</c> 对实参装箱、违防装箱禁令。</summary>
         [Flags]
         private enum EInputStateFlags
         {
@@ -69,10 +70,11 @@ namespace Moirai.Atropos.Input
         /// </summary>
         public bool LockPlayerController
         {
-            get => !_enabled || _stateFlags.HasFlag(EInputStateFlags.LockPlayerController) || _hasUIModal;
+            get => !_enabled || (_stateFlags & EInputStateFlags.LockPlayerController) != 0 || _hasUIModal;
             set
             {
-                if (_stateFlags.HasFlag(EInputStateFlags.LockPlayerController) == value) return;
+                bool locked = (_stateFlags & EInputStateFlags.LockPlayerController) != 0;
+                if (locked == value) return;
                 if (value)
                 {
                     _stateFlags |= EInputStateFlags.LockPlayerController;
@@ -92,10 +94,11 @@ namespace Moirai.Atropos.Input
         /// </summary>
         public bool PreventInteractionUI
         {
-            get => !_enabled || _stateFlags.HasFlag(EInputStateFlags.PreventInteractionUI);
+            get => !_enabled || (_stateFlags & EInputStateFlags.PreventInteractionUI) != 0;
             set
             {
-                if (_stateFlags.HasFlag(EInputStateFlags.PreventInteractionUI) == value) return;
+                bool prevented = (_stateFlags & EInputStateFlags.PreventInteractionUI) != 0;
+                if (prevented == value) return;
                 if (value)
                 {
                     _stateFlags |= EInputStateFlags.PreventInteractionUI;
