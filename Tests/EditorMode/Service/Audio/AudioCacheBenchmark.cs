@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Text;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
+using Moirai.Atropos.Debugger;
 using Debug = UnityEngine.Debug;
 
 namespace Service.Audio
@@ -15,21 +13,18 @@ namespace Service.Audio
     /// 用固定次数而不是固定时长，是为了让不同机器的样本量一致——时长窗口会让慢机器只跑到很少的次数，
     /// 机器抖动直接进结论；取最小值则让"抖动"只表现为轮与轮的差异，而不污染跨改动的对比。</para>
     /// <para>预算取"松到不被抖动判红、紧到能抓住数量级退化"的量级。实测值两条通道：逐条经 <c>Debug.Log</c>
-    /// 报出（与 PlayMode CPU 回归同前缀，便于 grep），一轮跑完再整批追加到导出文件
-    /// （<c>MOIRAI_AUDIO_BENCH_FILE</c> 覆盖路径，缺省落系统临时目录）——跨改动对比取文件里的数。
-    /// 离线跑只能看量级（时钟桩与 JIT 都跟 Unity 不同），真机数值以编辑器内按名运行为准。
-    /// 这里是纯托管路径的缓存层基准，端到端（声部/混音）的预算由 PlayMode 的
+    /// 报出（与 PlayMode CPU 回归同前缀，便于 grep），一轮跑完经 <see cref="BenchmarkReport"/> 写 XML 到
+    /// 统一文件夹 &lt;工程根&gt;/Benchmarks/audiocache-benchmark.xml（<c>MOIRAI_BENCH_XML</c> 可覆盖）——
+    /// 跨改动对比取 XML 里的数。离线跑只能看量级（时钟桩与 JIT 都跟 Unity 不同），真机数值以编辑器内
+    /// 按名运行为准。这里是纯托管路径的缓存层基准，端到端（声部/混音）的预算由 PlayMode 的
     /// <c>AudioCpuRegressionTests</c> 把。</para>
     /// </summary>
     [TestFixture]
     [Explicit]
     public class AudioCacheBenchmark
     {
-        /// <summary>导出路径的环境变量覆盖；不设则落系统临时目录。</summary>
-        private const string ENV_EXPORT_PATH = "MOIRAI_AUDIO_BENCH_FILE";
-
         // NUnit 每个 [Test] 新建 fixture 实例，跨用例累积只能走 static
-        private static readonly List<string> s_Lines = new List<string>();
+        private static BenchmarkReport s_Report;
 
         private const int WarmupCalls = 512;
         private const int RepeatWindows = 3;
@@ -133,52 +128,31 @@ namespace Service.Audio
 
         private static void Report(string caseName, double nsPerCall, double budgetNs, long calls)
         {
-            // 与 PlayMode 的 CPU 回归同一行前缀，便于 grep；两边都留一份：编辑器日志与导出文件
+            // 与 PlayMode 的 CPU 回归同一行前缀，便于 grep；数值同时进统一 XML 报告
             string line = string.Format("CPU,{0},{1},{2:F1}ns,limit={3:F0}", caseName, calls, nsPerCall, budgetNs);
             Debug.Log(line);
 
-            lock (s_Lines)
+            s_Report.Add(new BenchmarkCaseResult
             {
-                s_Lines.Add(line);
-            }
+                Name = caseName,
+                Category = "AudioCache",
+                Iterations = (int)calls,
+                Trials = RepeatWindows,
+                NsPerOp = nsPerCall,
+            }.Metric("budgetNs", budgetNs.ToString("F0")));
         }
 
-        /// <summary>一轮基准结束后把全部数值追加到导出文件（域重载会重建 fixture，所以累积表是 static）。</summary>
-        [OneTimeTearDown]
-        public void Export()
+        /// <summary>一轮基准结束后把 XML 报告写到统一文件夹（域重载会重建 fixture，所以报告是 static）。</summary>
+        [OneTimeSetUp]
+        public static void SetUpReport()
         {
-            string[] lines;
-            lock (s_Lines)
-            {
-                lines = s_Lines.ToArray();
-                s_Lines.Clear();
-            }
+            s_Report = new BenchmarkReport("AudioCache");
+        }
 
-            if (lines.Length == 0) return;
-
-            // env 覆盖优先：CI 可以把数值导到构建产物目录，不指定就落系统临时目录
-            string target = Environment.GetEnvironmentVariable(ENV_EXPORT_PATH);
-            if (string.IsNullOrEmpty(target))
-            {
-                target = Path.Combine(Path.GetTempPath(), "AudioCacheBenchmark.txt");
-            }
-
-            try
-            {
-                var report = new StringBuilder();
-                for (int i = 0; i < lines.Length; i++)
-                {
-                    report.Append(DateTime.Now.ToString("u")).Append("  ").Append(lines[i]).Append(Environment.NewLine);
-                }
-
-                File.AppendAllText(target, report.ToString());
-                Debug.Log(string.Format("[AudioCacheBenchmark] 数值已追加到 {0}", target));
-            }
-            catch (Exception e)
-            {
-                // 报告写不出去不影响判定：数值已经在日志里
-                Debug.LogWarning(string.Format("[AudioCacheBenchmark] 写不出导出文件（{0}）：{1}", target, e.Message));
-            }
+        [OneTimeTearDown]
+        public static void ExportXml()
+        {
+            s_Report?.WriteXml(s_Report.ResolveXmlPath());
         }
     }
 }

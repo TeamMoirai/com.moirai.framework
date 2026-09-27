@@ -35,6 +35,23 @@ namespace Service.Localization
         [Test]
         public void UnknownId_ResolvesAsMissingId_WithoutExposingTheKey()
         {
+            // 能力探测：MissingId 分档的前提是预览管线就绪——宿主工程有可读的表且预览语言可用。
+            // 表/语言缺失时任何 ID 都解析为 Unavailable，本格无从验证「没这条」的分档语义。
+            // 恢复条件：宿主工程配置可读的本地化表且预览语言可用（与同文件正向用例同一门禁）。
+            var strings = ConfigTableService.GetAllLocalizedStringsForEditor();
+            if (strings == null || strings.Count == 0)
+            {
+                Assert.Ignore("工程里没有可直读的多语言表，预览解析恒为 Unavailable。");
+                return;
+            }
+
+            var probe = LocalizationService.ResolvePreviewText(strings.Keys.First(), out _, out _);
+            if (probe == EPreviewResolveStatus.Unavailable)
+            {
+                Assert.Ignore("预览语言未自报或表未就绪，任何 ID 均解析为 Unavailable，MissingId 分档无从验证。");
+                return;
+            }
+
             // 未解析时必须给 null，而不是把 key 当译文回给调用方
             var status = LocalizationService.ResolvePreviewText("__no_such_localization_key__", out var text, out _);
             Assert.AreEqual(EPreviewResolveStatus.MissingId, status);

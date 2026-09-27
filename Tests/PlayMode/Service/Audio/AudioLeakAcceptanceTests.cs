@@ -10,7 +10,8 @@ namespace Service.Audio
 {
     /// <summary>
     /// 泄漏验收：混合 Play/Stop/Preload/Unload/ClearCache 后账本必须归零。
-    /// <para>缓存层走可控租约源；Handler 层走反射 OnInit 的 <see cref="UnityAudioHandler"/>。</para>
+    /// <para>缓存层走可控租约源；Handler 层经 <see cref="AudioServiceTestHost"/> 注入最小 AudioGroupConfigs——
+    /// 关键路径验收不得依赖宿主工程的 Settings 配置，配置建不出来时 TestHost 直接 Fail 而非静默跳过。</para>
     /// </summary>
     [TestFixture]
     public sealed class AudioLeakAcceptanceTests
@@ -76,6 +77,7 @@ namespace Service.Audio
 
         private GameObject _root;
         private UnityAudioHandler _handler;
+        private AudioServiceTestHost _host;
 
         [SetUp]
         public void SetUp()
@@ -83,18 +85,19 @@ namespace Service.Audio
             _root = new GameObject("[AudioLeakTest]");
             UnityEngine.Object.DontDestroyOnLoad(_root);
             _root.AddComponent<AudioListener>();
-            _handler = new UnityAudioHandler();
-            var init = typeof(UnityAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            init.Invoke(_handler, null);
+
+            // 最小配置宿主：此前经反射 OnInit 走宿主 Settings 背书的真实配置，宿主未配 AudioGroupConfigs
+            // 时全部 Play 归 0，本格被自己的起播前置守卫打红。TestHost 在代码内建最小组，任何宿主立即可播。
+            _host = new AudioServiceTestHost();
+            _handler = _host.Handler;
         }
 
         [TearDown]
         public void TearDown()
         {
-            _handler?.StopAll(0f);
-            if (_root != null) UnityEngine.Object.Destroy(_root);
+            _host?.Dispose();
             _handler = null;
+            if (_root != null) UnityEngine.Object.Destroy(_root);
             _root = null;
         }
 
