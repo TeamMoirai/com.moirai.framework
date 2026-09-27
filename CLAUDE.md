@@ -214,6 +214,12 @@ com.moirai.framework/
 
 **发布出口五门**（缺一不可）：编译 0 error → L1 全量 0 失败 → L2 全量 0 失败 → L3 `Run all in Player` 0 失败 → 覆盖率不低于分级阈值与上一版基线。**基线必须绿**——套件有红时"全绿"信号失效，必须先修红再继续开发。
 
+### 可执行守卫与基准归一（2026-09-27）
+
+- 反射白名单钉成可执行守卫 `ReflectionPolicyGuardTests`（双向断言：未登记不得出现、已登记必须仍命中）；测试日志通道同构落 `TestLogChannelPolicyGuardTests`——测试日志发射统一 `Debug.Log*`，禁 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`，白名单=被测本体/替身复刻生产发射，断言通道（OnMessageLogged/UtfLogExpect）不受限；守卫按原文扫描，注释写「LogUtility 的 Error」规避字面命中。
+- 所有基准住 `Tests/`（`[Explicit]`，KernelBenchmark 范式），跑完经 `BenchmarkReport` 落 XML 至统一文件夹 `<工程根>/Benchmarks/`（`MOIRAI_BENCH_XML` 可覆盖）。需 Debugger 窗口跑的基准走双通道：矩阵核心 `XxxBenchmarkRunner`（运行程序集，public static）+ 窗口基准区 + Tests `[Explicit]` 薄壳，两入口同一份矩阵；帧依赖 fire 用例住 PlayMode `[UnityTest]`。
+- 反膨胀三原则（存量不追改增量强制 / 夹具基座触发条件 / 用例价值映射）与教训账本见 `Documentation~/zh/Testing.md`《可执行政策守卫与治理原则》。
+
 ## AI 测试流程
 
 面向代理的执行流程；规范全文见 [`Documentation~/zh/Testing.md`](Documentation~/zh/Testing.md)。

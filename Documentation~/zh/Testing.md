@@ -48,7 +48,7 @@
 | GameApp 发布期分支（RETHROW=false） | 延后——编辑器编译期不可达，需 L3+发布构建配置 | L3 |
 | Scene 异步编排（挂起/取消→分离收尾守卫/失败恢复） | 待补；不重复 SceneRegistryTests 的同步注册表判定 | L2 |
 | UI 窗口栈生命周期（现行绿语义） | 待补；幽灵窗口（加载失败静默）断言留修复批 | L2 |
-| Debugger OnlyOpenWhenDevelopment×非调试构建注册分支 | 待补 1-2 格进现有 DebuggerWindowRegistrationTests | L1 扩格 |
+| Debugger OnlyOpenWhenDevelopment×非调试构建注册分支 | 延后——`ResolveActivation` 直读 `Debug.isDebugBuild`（编辑器恒 true、无注入接缝），与 GameApp 发布分支同类环境不可达 | 注入接缝或 L3 |
 | Save 维护门互锁 / 日志等级过滤 / 跨线程契约 | **已覆盖**（审计证实，勿重建） | — |
 | Timer 0-GC | **已补** TimerHotPathAllocationTests | L3 |
 
@@ -98,7 +98,7 @@ Tests/
 
 ### 测试专用类型的三条禁令
 
-1. **不得创建 `[Serializable]` 框架基类的自定义子类**——`LogHandler`、`JsonHandler`、`TweenHandler`、各 `XxxServiceHandler` 等基类都以 `[SerializeReference]` 字段使用，Unity 会扫描**所有程序集**查找派生类并填入 Inspector 下拉框，测试里的假实现会污染生产资产的下拉列表。要捕获日志用框架内置实现 + 事件回调（`LogUtility.OnMessageLogged`）。
+1. **不得创建 `[Serializable]` 框架基类的自定义子类**——`LogHandler`、`JsonHandler`、`TweenHandler`、各 `XxxServiceHandler` 等基类都以 `[SerializeReference]` 字段使用，Unity 会扫描**所有程序集**查找派生类并填入 Inspector 下拉框，测试里的假实现会污染生产资产的下拉列表。要捕获日志用框架内置实现 + 事件回调（`LogUtility.OnMessageLogged`）。确需派生框架基类的行为替身（Handler 探针、云存档假件）：派生类**不带 `[Serializable]`** 且一律 `internal`——`[Serializable]` 不被继承，SerializeReference 的 Inspector 下拉只收录带该特性的派生，替身因此不进生产资产（Save / Localization 两侧同口径）。
 2. **测试专用类型一律 `internal`**，且只放在测试程序集内。
 3. **`Test` / `Editor` / 非运行时脚本中的日志一律用 `Debug.LogXX`**，不用 `LogUtility`（`LogUtility` 是带分类过滤与 Handler 管道的运行时基础设施，测试不需要，且会让"这条日志算不算测试失败"变得不可控）。
 
