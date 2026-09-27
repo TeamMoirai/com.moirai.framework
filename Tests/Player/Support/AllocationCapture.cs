@@ -20,15 +20,18 @@ namespace Testing
     }
 
     /// <summary>
-    /// 0-GC 测量台：主路径用当前线程托管分配计数器（便携、不依赖 Profiler 连接）。
-    /// <para><b>只在玩家（Player）里才有牙</b>：Unity 编辑器的 Mono 与部分 IL2CPP 配置整档观测不到托管分配
-    /// （本机实测：<see cref="GC.GetAllocatedBytesForCurrentThread"/> 对一次 64MB 主线程分配仍返回 0，
-    /// 于是"零分配断言"在编辑器里无条件成立）。所以测量台与它的用例同住 <c>Moirai.Atropos.Tests.Player</c>
-    /// 程序集（<c>UNITY_INCLUDE_TESTS</c> + <c>!UNITY_EDITOR</c>），只在玩家构建的测试运行里参与，不进编辑器套件。</para>
-    /// <para>约定：MeasureManaged 先做一次预热并丢弃，再测 <c>iterations</c> 次——
-    /// 否则首次 JIT / 池扩容的分配会污染稳态断言。</para>
-    /// <para>口径与 <c>AudioClipCacheAllocationTests</c> 一致：先用一次"必然分配"探测能力，探不到就
-    /// <c>Assert.Ignore</c>——绝不把"测不出分配"当成"没有分配"，否则全部零分配断言都会假绿。</para>
+    /// 0-GC 测量台：以 <see cref="GC.GetTotalAllocatedBytes"/>（进程累计口径，Unity 2021.2+ 仅 IL2CPP 实现）前后差计量。
+    /// <para><b>三处实证（2026-09-28，Unity 6000.3.23f1 / StandaloneOSX）</b>：<c>GC.GetAllocatedBytesForCurrentThread</c>
+    /// 在编辑器 Mono、Mono2x 玩家、IL2CPP 玩家全部恒 0——旧口径的「只在玩家里有牙」从未成立，0-GC 断言在这三种
+    /// 运行时下都会假绿。进程口径的 <see cref="GC.GetTotalAllocatedBytes"/> 是唯一被 IL2CPP 真实现的计数器；
+    /// 编辑器与 Mono 玩家（Boehm）依旧观测不到，由能力探测兜底 Ignore。</para>
+    /// <para>进程口径的噪声源与抑制：测量只在测试玩家（空场景、AutoBoot 掐掉）的主线程同步段内做，
+    /// 用例自带的预热轮丢弃 JIT / 池扩容 / 字典容量增长等一次性分配；断言预算按「不随规模增长」给常数余量。
+    /// 线程口径换进程口径的另一层含义：被测路径必须同步——后台线程的活动会计入差值，异步路径断言留给各自的
+    /// E2E 用例，不在本测量台做。</para>
+    /// <para>约定：MeasureManaged 先做一次预热并丢弃，再测 <paramref name="iterations"/> 次；口径与
+    /// <c>AudioClipCacheAllocationTests</c> 一致——先用一次"必然分配"探测能力，探不到就 <c>Assert.Ignore</c>，
+    /// 绝不把"测不出分配"当成"没有分配"。</para>
     /// </summary>
     internal static class AllocationCapture
     {
@@ -38,22 +41,30 @@ namespace Testing
         private static int s_CounterUsable = -1;
 
         /// <summary>
-        /// 当前运行时能否观测到托管分配。
+        /// 当前运行时能否观测到托管分配。计数 API 在不实现的运行时上可能抛
+        /// <c>PlatformNotSupportedException</c> 而非返 0——两种形态都归「不可用」，不让用例变红。
         /// </summary>
         private static bool IsCounterUsable()
         {
             if (s_CounterUsable < 0)
             {
-                long before = GC.GetAllocatedBytesForCurrentThread();
-                GC.KeepAlive(new object[64]);   // 必然分配；经 KeepAlive 保证不被优化掉
-                s_CounterUsable = GC.GetAllocatedBytesForCurrentThread() > before ? 1 : 0;
+                try
+                {
+                    long before = GC.GetTotalAllocatedBytes(true);
+                    GC.KeepAlive(new object[64]);   // 必然分配；经 KeepAlive 保证不被优化掉
+                    s_CounterUsable = GC.GetTotalAllocatedBytes(true) > before ? 1 : 0;
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    s_CounterUsable = 0;
+                }
             }
 
             return s_CounterUsable == 1;
         }
 
         /// <summary>
-        /// 主路径：以 <see cref="GC.GetAllocatedBytesForCurrentThread"/> 前后差计量托管分配。
+        /// 主路径：以 <see cref="GC.GetTotalAllocatedBytes"/> 前后差计量托管分配（进程口径）。
         /// <para>运行时观测不到分配时直接 Ignore：计数器失效下零分配断言会无条件成立，那不是通过而是失明。</para>
         /// </summary>
         public static long MeasureManaged(string name, int iterations, Action action, Action<long> verifyBytes)
@@ -64,20 +75,20 @@ namespace Testing
             if (!IsCounterUsable())
             {
                 TestContext.WriteLine($"MANAGED_ALLOC,{name},unavailable");
-                Assert.Ignore("当前运行时无法观测托管分配（Unity 编辑器 Mono / IL2CPP 计数器不推进）");
+                Assert.Ignore("当前运行时无法观测托管分配（编辑器 Mono / Mono 玩家 Boehm 不实现该计数器；仅 IL2CPP 玩家有牙）");
             }
 
             // 预热：JIT、池扩容、字典容量增长都落在这一发里，结果丢弃
             action();
 
             var clock = Stopwatch.StartNew();
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = GC.GetTotalAllocatedBytes(true);
             for (int i = 0; i < iterations; i++)
             {
                 action();
             }
 
-            long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+            long bytes = GC.GetTotalAllocatedBytes(true) - before;
             clock.Stop();
 
             TestContext.WriteLine($"MANAGED_ALLOC,{name},{iterations},{bytes},{clock.Elapsed.TotalMilliseconds:F4}");
