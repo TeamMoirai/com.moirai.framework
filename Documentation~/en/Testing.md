@@ -378,6 +378,7 @@ Rules that live only in a document stop nothing the next time someone "just quic
 - Do not batch-rename legacy method names to the three-segment form; new cases must use it.
 - A fixture base is warranted only when >= 2 files in a module share setup; no blanket bases, no blanket assertions on 83 SetUps.
 - Every new case must map to one of "contract / risk / regression lock"; no mapping, no case. New test files cap at 8 cases; assert behavior, never implementation.
+- Extract repeated assertion/justification text into shared consts, maintained at a single point: within an assembly, into `Support/` (e.g. `AudioGroupIgnoreReasons` probe/recovery sentence forms); when cross-assembly sharing is impossible, a file-local private const. Never copy-paste the same justification text verbatim across sites.
 
 **Lessons ledger** (each stumble becomes a rule):
 
