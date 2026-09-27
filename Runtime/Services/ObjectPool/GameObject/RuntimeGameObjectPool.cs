@@ -13,11 +13,14 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 常量 [CONSTANTS]
 
+        /// <summary>槽位状态机。Transitioning=激活/回收回调（含 OnEnable/OnDisable 序列）执行中——
+        /// 一切回收与租约路径按非 Active 拒绝，防回调重入（计数双扣、OnDespawn 双发、同槽二次挂入 inactive 链）。</summary>
         private enum SlotState : byte
         {
             Free = 0,
             Inactive = 1,
-            Active = 2
+            Active = 2,
+            Transitioning = 3
         }
 
         private const int WARMUP_CREATE_BATCH = 8;
@@ -741,7 +744,9 @@ namespace Moirai.Atropos.ObjectPool
         private void ActivateTrackedInstance(int slotIndex, Transform parent)
         {
             ref Slot slot = ref _storage.GetSlotRef(slotIndex);
-            slot.State = SlotState.Active;
+            // 过渡态：整个激活序列（SetParent/SetActive 触发的 OnEnable、OnSpawn 回调）期间
+            // 拒绝一切回收与租约路径——回调重入 Despawn 会计数双扣、同槽二次挂链。
+            slot.State = SlotState.Transitioning;
             // 租期级代系：每次激活递增，使旧租约在槽位复用后必然失效。
             slot.Generation = ++_generationCounter;
             _activeCount++;
@@ -769,8 +774,9 @@ namespace Moirai.Atropos.ObjectPool
             {
                 // 回调抛出时调用方拿不到实例引用：不回滚就变成一个谁都无法归还的活跃对象，
                 // _activeCount 与活跃链一起虚高。回滚后原样上抛，不改变对调用方的异常契约。
-                // 回调自己已把本槽释放/归还时（State 已非 Active）不能再回滚，否则同一槽位会二次挂进空闲链。
-                if (slot.State == SlotState.Active)
+                // 回调无法再经池路径动本槽（Transitioning 拒绝一切回收/租约），State 仍为
+                // Transitioning 即可安全回滚。
+                if (slot.State == SlotState.Transitioning)
                 {
                     _activeCount--;
                     if (slot.Instance != null && slot.Instance.activeSelf)
@@ -784,6 +790,8 @@ namespace Moirai.Atropos.ObjectPool
 
                 throw;
             }
+
+            slot.State = SlotState.Active;
         }
 
         private void ReleaseTrackedInstance(int slotIndex)
@@ -803,6 +811,8 @@ namespace Moirai.Atropos.ObjectPool
 
             _despawnCount++;
             _activeCount = Mathf.Max(0, _activeCount - 1);
+            // 过渡态：OnDespawn 回调窗口内拒绝一切回收与租约路径，防重入递归（计数双扣、双发、二次挂链）。
+            slot.State = SlotState.Transitioning;
             try
             {
                 InvokeOnDespawn(ref slot);
@@ -813,6 +823,10 @@ namespace Moirai.Atropos.ObjectPool
                 // 否则实例停在 Active 态、既不回 inactive 链也不再被维护回收。
                 LogUtility.Fatal(exception);
             }
+
+            // 回调窗口结束：先落回稳定态再走隐藏与入链——SetActive(false) 触发的 OnDisable
+            // 若再重入回收，按非 Active 判拒绝。
+            slot.State = SlotState.Inactive;
 
             if (slot.Instance == null)
             {
