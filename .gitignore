@@ -52,9 +52,9 @@
 ehthumbs.db
 Thumbs.db
 
-# ===================================== #
+# ============== #
 # IDE generated  #
-# ===================================== #
+# ============== #
 .vs
 .vscode
 .idea
@@ -84,7 +84,14 @@ Thumbs.db
 !**/Source~/**/*.csproj
 !**/Source~/**/*.sln
 
+# ============ #
+# AI generated #
+# ============ #
+
 # Codely
 .codely-cli/
 .codely.packages/
 CODELY.md*
+
+[Dd]ocs/
+[Dd]ocs.meta
