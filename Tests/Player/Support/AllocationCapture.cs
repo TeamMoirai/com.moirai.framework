@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using NUnit.Framework;
 
-namespace Service.Audio
+namespace Testing
 {
     /// <summary>一次分配测量的汇总结果。</summary>
     internal readonly struct AllocationSample

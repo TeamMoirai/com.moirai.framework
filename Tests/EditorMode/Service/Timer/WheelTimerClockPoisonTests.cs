@@ -2,6 +2,7 @@ using System;
 using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Timer;
+using Testing;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -23,22 +24,6 @@ namespace Service.Timer
         private double _now;
         private double _unscaledNow;
         private int _fired;
-
-        private sealed class VirtualClockHandler : GameTimeHandler
-        {
-            private readonly Func<double> _scaled;
-            private readonly Func<double> _unscaled;
-
-            public VirtualClockHandler(Func<double> scaled, Func<double> unscaled)
-            {
-                _scaled = scaled;
-                _unscaled = unscaled;
-            }
-
-            public override double ScaledNow => _scaled();
-
-            public override double UnscaledNow => _unscaled();
-        }
 
         [SetUp]
         public void SetUp()

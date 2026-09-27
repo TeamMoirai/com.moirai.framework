@@ -1,5 +1,8 @@
-using System.Threading;
+using System;
+using System.Collections.Generic;
+using Moirai.Atropos;
 using Moirai.Atropos.Audio;
+using Testing;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
@@ -8,6 +11,8 @@ namespace Service.Audio
     /// <summary>
     /// <see cref="AudioClipCache"/> 语义回归：单飞加载、引用计数、LRU/TTL/Pin 驱逐、容量上界、
     /// lowMemory 回收、迟到回调作废，以及关停后的租约全部归还。
+    /// <para>TTL 与失败冷却的时间判据经 <see cref="GameTime"/> 注入虚拟时钟确定性推进
+    /// （<see cref="AdvanceRealtime"/>），不依赖真实墙钟等待。</para>
     /// </summary>
     [TestFixture]
     public class AudioClipCacheTests
@@ -17,23 +22,53 @@ namespace Service.Audio
         private const string C = "Audio/Sfx/Coin";
 
         private AudioCacheTestSupport _fixture;
+        private GameTimeHandler _originalGameTimeHandler;
+        private double _realtimeNow;
 
         [SetUp]
         public void SetUp()
         {
+            _realtimeNow = 100.0;
+            // 记下夹具进入时的全局时钟后端，TearDown 在 finally 中原样归还（进程级 static 旋钮）
+            _originalGameTimeHandler = GameTime.Handler;
+            GameTime.Handler = new VirtualClockHandler(() => _realtimeNow, () => _realtimeNow);
             _fixture = new AudioCacheTestSupport();
         }
 
         [TearDown]
         public void TearDown()
         {
-            var fixture = _fixture;
-            _fixture = null;
-            if (fixture == null) return;
+            List<Exception> failures = new List<Exception>();
+            try
+            {
+                var fixture = _fixture;
+                _fixture = null;
+                if (fixture != null)
+                {
+                    fixture.Dispose();
+                    // 关停必须把每条租约都还给后端；此处不为零就是所有权记账漏了
+                    try
+                    {
+                        Assert.AreEqual(0, fixture.LiveHandles, "TearDown：仍有未归还的 clip 租约");
+                    }
+                    catch (Exception exception)
+                    {
+                        failures.Add(exception);
+                    }
+                }
+            }
+            finally
+            {
+                GameTime.Handler = _originalGameTimeHandler;
+            }
 
-            fixture.Dispose();
-            // 关停必须把每条租约都还给后端；此处不为零就是所有权记账漏了
-            Assert.AreEqual(0, fixture.LiveHandles, "TearDown：仍有未归还的 clip 租约");
+            if (failures.Count > 0) throw new AggregateException(failures);
+        }
+
+        /// <summary>确定性推进虚拟时钟（秒）。TTL 到期与失败冷却以此驱动，不依赖真实墙钟。</summary>
+        private void AdvanceRealtime(double seconds)
+        {
+            _realtimeNow += seconds;
         }
 
         #region 取得与单飞 [ACQUIRE & SINGLE-FLIGHT]
@@ -328,16 +363,16 @@ namespace Service.Audio
             _fixture = new AudioCacheTestSupport(capacity: 8, ttl: ttl);
 
             _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
-            Thread.Sleep(80);
+            AdvanceRealtime(0.08);
             _fixture.Cache.Tick();
             Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _), "未过期的条目不该被回收");
 
             _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl); // 续期
-            Thread.Sleep(120);
+            AdvanceRealtime(0.12);
             _fixture.Cache.Tick();
             Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _), "续期后 TTL 应重新计时");
 
-            Thread.Sleep(200);
+            AdvanceRealtime(0.20);
             _fixture.Cache.Tick();
 
             Assert.IsFalse(_fixture.Cache.TryGetEntry(A, out _), "TTL 到期应被回收");
@@ -351,7 +386,7 @@ namespace Service.Audio
             _fixture = new AudioCacheTestSupport(capacity: 8, ttl: 0f);
 
             _fixture.Cache.Preload(A);
-            Thread.Sleep(60);
+            AdvanceRealtime(0.06);
             _fixture.Cache.Tick();
 
             Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _));
@@ -512,7 +547,7 @@ namespace Service.Audio
             _fixture.FailLoads = true;
             Assert.IsFalse(_fixture.Cache.Preload(A));
 
-            Thread.Sleep(200);
+            AdvanceRealtime(0.20);
             _fixture.FailLoads = false;
 
             Assert.IsTrue(_fixture.Cache.Preload(A), "冷却到期后应允许重试");

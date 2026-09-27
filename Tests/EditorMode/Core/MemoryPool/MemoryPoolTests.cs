@@ -38,6 +38,17 @@ namespace Core.MemoryPool
 
         private MemoryPoolInfo[] _infoBuffer = Array.Empty<MemoryPoolInfo>();
 
+        /// <summary>
+        /// Tick 用的帧号游标。EditMode 下 Time.frameCount 不推进，必须自带递增帧号才能真正走完 Tick 分支；
+        /// 播种口径与 MemoryPoolFixture 一致（自 CurrentFrame 起跳 +100，避免与并行夹具的帧号互相回退）。
+        /// </summary>
+        private int _tickFrame;
+
+        private void TickRegistry()
+        {
+            MemoryPoolRegistry.TickAll(++_tickFrame);
+        }
+
         private MemoryPoolInfo[] GetInfos()
         {
             int count = Mp.Count;
@@ -83,6 +94,7 @@ namespace Core.MemoryPool
         [SetUp]
         public void SetUp()
         {
+            _tickFrame = MemoryPoolRegistry.CurrentFrame + 100;
             Mp.ClearAll();
             Mp.ResetAllStats();
         }
@@ -122,7 +134,7 @@ namespace Core.MemoryPool
             var first = Mp.Acquire<TestMemory>();
             Mp.Release(first);
 
-            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+            TickRegistry();
 
             // Tick 会按 miss 水位补充空闲对象（新对象压在空闲链表头部），复用契约是
             // 「已释放对象仍在池中并被再次发放」，而非严格同实例。
@@ -205,7 +217,7 @@ namespace Core.MemoryPool
         public void Add_PreAllocatesObjects()
         {
             Mp.Add<TestMemory>(3);
-            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+            TickRegistry();
 
             MemoryPoolInfo info = GetInfo(typeof(TestMemory));
             Assert.GreaterOrEqual(info.UnusedCount, 3);
@@ -215,7 +227,7 @@ namespace Core.MemoryPool
         public void Remove_RemovesPreAllocatedObjects()
         {
             Mp.Add<TestMemory>(5);
-            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+            TickRegistry();
             int unusedBefore = GetInfo(typeof(TestMemory)).UnusedCount;
 
             Mp.Remove<TestMemory>(3);
@@ -228,7 +240,7 @@ namespace Core.MemoryPool
         public void Remove_MoreThanAvailable_ClampsToAvailable()
         {
             Mp.Add<TestMemory>(2);
-            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+            TickRegistry();
 
             Mp.Remove<TestMemory>(10);
 
@@ -239,7 +251,7 @@ namespace Core.MemoryPool
         public void RemoveAll_ClearsAllFromType()
         {
             Mp.Add<TestMemory>(5);
-            MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+            TickRegistry();
 
             Mp.RemoveAll<TestMemory>();
 
@@ -255,7 +267,7 @@ namespace Core.MemoryPool
             try
             {
                 Mp.Release(a);
-                MemoryPoolRegistry.TickAll(UnityEngine.Time.frameCount);
+                TickRegistry();
 
                 MemoryPoolInfo info = GetInfo(typeof(TestMemory));
 

@@ -1,4 +1,5 @@
 using System.Collections;
+using Testing;
 using System.Collections.Generic;
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
@@ -49,7 +50,7 @@ namespace Service.Audio
 
             if (handler.AudioCategories == null || handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过 Unity 压测");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过 Unity 压测"));
             }
 
             const int BURST = 200;
@@ -106,7 +107,7 @@ namespace Service.Audio
 
             if (handler.AudioCategories == null || handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
             }
 
             var handles = new List<ulong>(32);

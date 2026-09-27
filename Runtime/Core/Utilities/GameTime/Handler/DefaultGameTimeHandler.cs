@@ -20,6 +20,9 @@ namespace Moirai.Atropos
         public override double UnscaledNow => Time.unscaledTimeAsDouble;
 
         /// <inheritdoc/>
+        public override double RealtimeNow => Time.realtimeSinceStartupAsDouble;
+
+        /// <inheritdoc/>
         public override float DeltaTime => Time.deltaTime;
 
         /// <inheritdoc/>

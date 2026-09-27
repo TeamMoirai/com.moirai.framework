@@ -1,4 +1,5 @@
 using System.Collections;
+using Testing;
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
@@ -85,7 +86,7 @@ namespace Service.Audio
             var categories = _handler.AudioCategories;
             if (categories == null || categories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过真实播放集成测试");
+                Assert.Ignore(AudioGroupIgnoreReasons.SkipOrTestHost("跳过真实播放集成测试"));
             }
 
             ulong handle = PlayClip(1001);
@@ -112,7 +113,7 @@ namespace Service.Audio
             var categories = _handler.AudioCategories;
             if (categories == null || categories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
             }
 
             ulong a = PlayClip(2001);
@@ -139,7 +140,7 @@ namespace Service.Audio
             var categories = _handler.AudioCategories;
             if (categories == null || categories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
             }
 
             ulong first = PlayClip(3001);
@@ -163,7 +164,7 @@ namespace Service.Audio
             var categories = _handler.AudioCategories;
             if (categories == null || categories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
             }
 
             ulong handle = PlayClip(4001);
@@ -208,7 +209,7 @@ namespace Service.Audio
             var categories = _handler.AudioCategories;
             if (categories == null || categories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
             }
 
             var flags = EAudioPlayFlags.DoNotAutoRecycle | EAudioPlayFlags.Loop;
@@ -246,7 +247,7 @@ namespace Service.Audio
             var categories = _handler.AudioCategories;
             if (categories == null || categories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
             }
 
             // 0.2s 短 clip：真实播放时长 0.2s + 默认淡出 0.2s

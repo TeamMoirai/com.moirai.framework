@@ -1,4 +1,5 @@
 using System;
+using Testing;
 using System.Collections.Generic;
 using System.Threading;
 using Moirai.Atropos.Audio;
@@ -313,7 +314,7 @@ namespace Service.Audio
             {
                 UnityEngine.Object.Destroy(root);
                 UnityEngine.Object.Destroy(clip);
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
                 yield break;
             }
 

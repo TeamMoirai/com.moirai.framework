@@ -774,7 +774,7 @@ namespace Service.Localization
         public void LoadThrowing_LogsOnlyOnceAcrossQueries()
         {
             // 数据源抛异常必须与空批同待遇：表未就绪期间每个 localizer/查询都在重试，无闸门即异常堆栈风暴
-            // 注：LogUtility.Error(ex) 经 DefaultLogHandler 以 LogType.Error 渲染（异常文本内嵌）
+            // 注：LogUtility 的 Error(ex) 重载经 DefaultLogHandler 以 LogType.Error 渲染（异常文本内嵌）
             _handler.ThrowOnLoad = new InvalidOperationException("probe tables not ready");
             LogAssert.Expect(LogType.Error, new Regex("probe tables not ready"));
 
