@@ -1,9 +1,11 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
+using Moirai.Atropos;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Timer;
 using NUnit.Framework;
+using Testing;
 using UnityEngine;
 using UnityEngine.TestTools;
 using Debug = UnityEngine.Debug;
@@ -12,12 +14,15 @@ namespace Service.Timer
 {
     /// <summary>
     /// 计时器回调触发基准（<c>[Explicit]</c> <c>[UnityTest]</c>——依赖真实帧推进，只住 PlayMode）。
-    /// <para>测量一次性/循环/泛型回调的触发、回调中自移除、以及同刻突发批量派发（先等真实帧完成到期转换，
-    /// 再手动 <c>Tick(0,0)</c> 计量派发本身）。原为独立菜单基准（TimerServiceBenchmark MonoBehaviour）的
-    /// fire 部分，按基准归一裁定迁入 Tests；同步矩阵在 <see cref="TimerBenchmarkRunner"/>
-    /// （Debugger 窗口与 EditorMode 薄壳共用），本文件只保留帧依赖用例。</para>
+    /// <para>测量一次性/循环/泛型回调的触发、回调中自移除，以及同刻突发批量派发。原为独立菜单基准
+    /// （TimerServiceBenchmark MonoBehaviour）的 fire 部分，按基准归一裁定迁入 Tests；同步矩阵在
+    /// <see cref="TimerBenchmarkRunner"/>（Debugger 窗口与 EditorMode 薄壳共用），本文件只保留帧依赖用例。</para>
     /// <para>运行前提：PlayMode 测试域中框架已 Boot（GameServices.Tick 每帧驱动定时器）——
     /// 桥跑 PlayMode 满足此前提。跑完 XML 落统一文件夹 timerservicefire-benchmark.xml。</para>
+    /// <para>突发用例的隔驱动口径：时间轮到期判定直读 <see cref="GameTime"/> 墙钟、无「到期转换/派发」
+    /// 两段式——若只等真实帧再手动泵 Tick，帧驱动大概率已把到期回调全量派发完，泵到的只剩空转。
+    /// 故先注入冻结的虚拟时钟再插定时器（帧驱动读同一时钟、见不到任何到期），跨一帧验证隔离后
+    /// 手动推进时钟、泵一次 <c>Tick(0,0)</c> 独占计量「同刻全量派发」本身。</para>
     /// </summary>
     [TestFixture]
     [Explicit]
@@ -164,39 +169,52 @@ namespace Service.Timer
             float delay = BURST_FIRE_DELAY > 0.001f ? BURST_FIRE_DELAY : 0.001f;
             s_CallbackCount = 0;
 
-            for (int i = 0; i < BURST_FIRE_COUNT; i++)
+            // 先冻结再插：触发时刻落在冻结读数之后，帧驱动（每帧读同一时钟）在整个等待窗内见不到任何到期。
+            // 时钟是进程级全局旋钮，注入与还原收在本方法 try/finally 内，断言失败也照常归还、不外溢。
+            var savedClock = GameTime.Handler;
+            double clockNow = savedClock.UnscaledNow;
+            GameTime.Handler = new VirtualClockHandler(() => clockNow, () => clockNow);
+            try
             {
-                ulong handle = TimerService.Delay(delay, s_CountHandler, isLoop, true);
-                Assert.AreNotEqual(0UL, handle, "burst add returned invalid handle");
-            }
+                for (int i = 0; i < BURST_FIRE_COUNT; i++)
+                {
+                    ulong handle = TimerService.Delay(delay, s_CountHandler, isLoop, true);
+                    Assert.AreNotEqual(0UL, handle, "burst add returned invalid handle");
+                }
 
-            TimerService.GetStatistics(out int setupActive, out _, out _, out _);
-            Assert.AreEqual(BURST_FIRE_COUNT, setupActive, "burst setup active count mismatch");
+                TimerService.GetStatistics(out int setupActive, out _, out _, out _);
+                Assert.AreEqual(BURST_FIRE_COUNT, setupActive, "burst setup active count mismatch");
 
-            // 等真实帧完成到期转换（wall 时钟推进），再手动泵一次 Tick 计量「同刻全量派发」本身
-            float endTime = Time.unscaledTime + delay + 0.004f;
-            while (Time.unscaledTime < endTime)
+                // 跨一帧验证隔离：帧驱动至少运行过一次，冻结时钟下不得有任何提前派发。
                 yield return null;
+                Assert.AreEqual(0, s_CallbackCount, "frozen clock leaked a frame-driven dispatch before the measured pump");
 
-            var pump = new TimerService();
-            var sw = Stopwatch.StartNew();
-            pump.Tick(0f, 0f);
-            sw.Stop();
+                // 推进时钟越过全部触发时刻，手动泵一次 Tick 独占计量「同刻全量派发」本身。
+                clockNow += delay * 2;
+                var pump = new TimerService();
+                var sw = Stopwatch.StartNew();
+                pump.Tick(0f, 0f);
+                sw.Stop();
 
-            if (isLoop)
-            {
-                Assert.AreEqual(BURST_FIRE_COUNT, s_CallbackCount, "burst loop tick callback count mismatch");
-                TimerService.GetStatistics(out int activeAfter, out _, out _, out _);
-                Assert.AreEqual(BURST_FIRE_COUNT, activeAfter, "burst loop tick changed active count");
+                if (isLoop)
+                {
+                    Assert.AreEqual(BURST_FIRE_COUNT, s_CallbackCount, "burst loop tick callback count mismatch");
+                    TimerService.GetStatistics(out int activeAfter, out _, out _, out _);
+                    Assert.AreEqual(BURST_FIRE_COUNT, activeAfter, "burst loop tick changed active count");
+                }
+                else
+                {
+                    Assert.AreEqual(BURST_FIRE_COUNT, s_CallbackCount, "burst oneshot tick callback count mismatch");
+                    TimerService.GetStatistics(out int activeAfter, out _, out _, out _);
+                    Assert.AreEqual(0, activeAfter, "burst oneshot tick left active timers");
+                }
+
+                AddFireCase($"Burst Same-Tick {label}", sw.Elapsed.TotalMilliseconds, $"count={BURST_FIRE_COUNT} callbacks={s_CallbackCount}");
             }
-            else
+            finally
             {
-                Assert.AreEqual(BURST_FIRE_COUNT, s_CallbackCount, "burst oneshot tick callback count mismatch");
-                TimerService.GetStatistics(out int activeAfter, out _, out _, out _);
-                Assert.AreEqual(0, activeAfter, "burst oneshot tick left active timers");
+                GameTime.Handler = savedClock;
             }
-
-            AddFireCase($"Burst Same-Tick {label}", sw.Elapsed.TotalMilliseconds, $"count={BURST_FIRE_COUNT} callbacks={s_CallbackCount}");
         }
 
         private static IEnumerator WaitForFire()
