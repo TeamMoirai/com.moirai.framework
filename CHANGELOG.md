@@ -10,7 +10,14 @@
 
 #### 测试
 
-- 测试架构规范化批次落地（基线全绿：L1 1928 过 0 失败、L2 47 过 0 失败）：`GameTimeHandler` 新增 `RealtimeNow` 虚拟时钟接缝，`AudioClipCache` 的 TTL 与失败冷却改走可注入时间源，TTL 用例脱离真实墙钟等待；五基准（MemoryPool/Timer/Kernel/ObjectPool/AudioCache）经 `BenchmarkReport` 落 XML 至统一文件夹 `<工程根>/Benchmarks/`；新增与反射守卫同构的可执行政策守卫 `TestLogChannelPolicyGuardTests`（测试日志发射统一 Debug.Log*）；`AudioLeakAcceptance` 改经 `AudioServiceTestHost` 自建最小组——宿主工程未配 AudioGroupConfigs 也可全量执行；0-GC 分配验收迁 Player 程序集（原 EditorMode 死格：编辑器内计数器不推进恒 Ignore、玩家构建不含 Editor 程序集，任何环境都不执行）；新增 `TimerHotPathAllocationTests`（Timer 热路径 0-GC，L3）。
+- 测试架构规范化批次落地，基线门禁全绿（L1 1928 过 0 失败、L2 47 过 0 失败）。
+- `GameTimeHandler` 新增 `RealtimeNow` 虚拟时钟接缝：默认回落 `UnscaledNow`（虚拟时钟实现自动获得确定性墙钟），`DefaultGameTimeHandler` 覆写为引擎墙钟。
+- `AudioClipCache` 的 TTL 驱逐与失败冷却改走可注入时间源，TTL 用例脱离真实墙钟等待。
+- 五基准（MemoryPool/Timer/Kernel/ObjectPool/AudioCache）跑完经 `BenchmarkReport` 落 XML 至统一文件夹 `<工程根>/Benchmarks/`。
+- 新增与反射守卫同构的可执行政策守卫 `TestLogChannelPolicyGuardTests`：测试日志发射统一 `Debug.Log*`，白名单=被测本体/替身复刻生产发射。
+- `AudioLeakAcceptance` 改经 `AudioServiceTestHost` 自建最小组——宿主工程未配 AudioGroupConfigs 也可全量执行。
+- 0-GC 分配验收迁 Player 程序集（原 EditorMode 死格：编辑器内计数器不推进恒 Ignore、玩家构建不含 Editor 程序集，任何环境都不执行）。
+- 新增 `TimerHotPathAllocationTests`（Timer 热路径 0-GC，L3）。
 
 ### Changed
 

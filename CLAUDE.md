@@ -189,7 +189,7 @@ com.moirai.framework/
 
 - 一律 `[Explicit]`，不进常规套件；命名 `XxxBenchmark`。
 - 性能结论必须同工具同数据 before/after A/B；编辑器 Mono 基准 ±2× 噪声，只做同轮内比较。
-- 非 NUnit 的手动基准（`TimerServiceBenchmark`，MonoBehaviour + 菜单驱动）必须明确标注为非自动基准。
+- 菜单驱动/场景 MonoBehaviour 的手动基准已全部废止（含原 `TimerServiceBenchmark` 与 JSON Benchmark 菜单工具）：基准统一住 `Tests/`（`[Explicit]`），入口与双通道政策见《Testing 规范》基准政策（L4）节。
 
 ### 契约守卫维护（强制）
 
