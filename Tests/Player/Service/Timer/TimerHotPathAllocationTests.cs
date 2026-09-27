@@ -6,9 +6,10 @@ using Testing;
 namespace Service.Timer
 {
     /// <summary>
-    /// 定时器热路径 0-GC 验收（<b>玩家专用</b>）：调度+取消、含挂起定时器的 Tick 均不得产生托管分配。
-    /// <para>定时器是每帧驱动的核心服务，一次几十字节的抖动在真机上就是 GC 峰值与掉帧。编辑器 Mono 的
-    /// 分配计数器不推进（见 <see cref="AllocationCapture"/>），0-GC 只能在此（L3）验证。</para>
+    /// 定时器热路径 0-GC 验收（<b>真机计量</b>）：调度+取消、含挂起定时器的 Tick 均不得产生托管分配。
+    /// <para>定时器是每帧驱动的核心服务，一次几十字节的抖动在真机上就是 GC 峰值与掉帧。编辑器与 Mono
+    /// 玩家都观测不到托管分配（见 <see cref="AllocationCapture"/>，探针整组 Ignore），真计量只在实现
+    /// 计数器的 IL2CPP 玩家（L3）发生。</para>
     /// <para>经 <c>DefaultTimerHandler</c> 直驱（绕过外观的懒加载链路），延迟取 3600s 保证测量窗内不触发；
     /// 回调为缓存的方法组字段——C# 9 不缓存方法组转换，裸写每次都会分配一只委托。</para>
     /// </summary>
