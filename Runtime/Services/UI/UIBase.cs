@@ -26,6 +26,15 @@ namespace Moirai.Atropos.UI
 #pragma warning restore CS8632 // 只能在 "#nullable" 注释上下文内的代码中使用可为 null 的引用类型的注释。
 
         /// <summary>
+        /// 免域重载复位：全局可变注入点跨 Play/跨测试夹具残留会互相污染（对齐 InputService 的静态位复位范式）。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetInjectorOnDomainReload()
+        {
+            Injector = null;
+        }
+
+        /// <summary>
         /// UI类型。
         /// </summary>
         public enum UIType
