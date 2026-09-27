@@ -11,3 +11,8 @@
 ### Changed
 
 ### Fixed
+
+#### 存档
+
+- 非 Windows 平台写档不再「先删旧档再改名」：`File.Replace` 抛 `PlatformNotSupportedException` / `NotImplementedException` 后，旧写法直接删掉主档再改名到位，这两步之间崩溃或断电就是存档消失——而 Android / iOS / WebGL 上这条回退正是常态路径。现改为旧档先改名到 `xxx.sav.journal`、再把临时文件改名到位，到位失败当场抬回；进程真崩在两步之间时由 `RecoverInterruptedWrites` 在下次初始化抬回（排在孤儿临时文件清扫之前）。
+- 上述中转日志位与项目侧 `CreateBackup` / `RestoreBackup` 的单槽 `.bak` 分开：借 `.bak` 中转会让玩家「恢复上一版」捞到一份写入中途的快照。`SupportsAtomicRename` 的语义同时改准为「替换时不出现半写窗口，且中断后旧档必可恢复」，不再是「底层用过一次原子 rename」。

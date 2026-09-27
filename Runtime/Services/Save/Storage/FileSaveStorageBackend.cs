@@ -8,26 +8,35 @@ namespace Moirai.Atropos.Save
     /// <summary>
     /// 本地文件存储后端（默认）：存档以文件形式落于磁盘目录树。
     /// <para>写入为「临时文件 + Flush(true) 强制落盘 + 原子替换」（NTFS <see cref="File.Replace"/> 元数据级原子，
-    /// 平台不支持时退化为删除+改名）；删除带退避重试（应对云同步/杀毒软件短时锁文件）；
-    /// 备份为单档 <c>.bak</c> 副本，恢复经临时文件原子替换回源路径；提供孤儿临时文件清扫。</para>
-    /// <para>无状态纯 .NET 实现，可在任意线程调用；共享实例 <see cref="Default"/> 供未配置后端时回退。</para>
+    /// 平台不支持时转 <see cref="FallbackReplace"/>：旧档先改名到 <c>.journal</c>，再把临时文件改名到位，
+    /// 两步之间崩溃由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回）；删除带退避重试（应对云同步/杀毒软件短时锁文件）；
+    /// 备份为单档 <c>.bak</c> 副本（项目侧手动备份位，与写入用的 <c>.journal</c> 互不占用），
+    /// 恢复经临时文件原子替换回源路径；提供孤儿临时文件清扫与中断恢复。</para>
+    /// <para>无状态纯 .NET 实现，可在任意线程调用；共享实例 <see cref="s_Default"/> 供未配置后端时回退。</para>
     /// </summary>
     [Serializable]
     public class FileSaveStorageBackend : SaveStorageBackend
     {
         /// <summary>临时文件唯一后缀（实际形如 <c>xxx.sav.tmp-3f2a…</c>，避免并发写入互撞）。</summary>
-        internal const string TempFileSuffix = ".tmp-";
+        internal const string TEMP_FILE_SUFFIX = ".tmp-";
 
         /// <summary>单槽备份文件后缀（实际形如 <c>xxx.sav.bak</c>）。</summary>
-        private const string BackupFileSuffix = ".bak";
+        private const string BACKUP_FILE_SUFFIX = ".bak";
+
+        /// <summary>
+        /// 回退替换的中转日志后缀（实际形如 <c>xxx.sav.journal</c>）。
+        /// <para>与 <see cref="BACKUP_FILE_SUFFIX"/> 分开：后者是项目侧 <c>CreateBackup</c>/<c>RestoreBackup</c>
+        /// 的持久备份位，回退若借它中转，玩家手动恢复会捞到一份写入中途的快照。</para>
+        /// </summary>
+        internal const string JOURNAL_FILE_SUFFIX = ".journal";
 
         /// <summary>删除操作的退避重试次数（应对云同步/杀毒软件的短时文件锁）。</summary>
-        private const int DeleteRetryCount = 3;
+        private const int DELETE_RETRY_COUNT = 3;
 
         /// <summary>
         /// 共享默认实例（无状态后端，未配置存储后端时回退使用；任意线程安全）。
         /// </summary>
-        internal static readonly FileSaveStorageBackend Default = new FileSaveStorageBackend();
+        internal static readonly FileSaveStorageBackend s_Default = new FileSaveStorageBackend();
 
         /// <summary>
         /// 后端能力自描述（本地文件：原子改名、无线程池外真异步、不设尺寸上限、非易失、同步读权威）。
@@ -136,7 +145,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（替换前检查）。</param>
         public override void WriteAtomic(string filePath, ReadOnlySpan<byte> head, ReadOnlySpan<byte> payload, CancellationToken cancellationToken)
         {
-            string tempFilePath = filePath + TempFileSuffix + Guid.NewGuid().ToString("N");
+            string tempFilePath = filePath + TEMP_FILE_SUFFIX + Guid.NewGuid().ToString("N");
             try
             {
                 EnsureDirectory(Path.GetDirectoryName(filePath));
@@ -170,7 +179,7 @@ namespace Moirai.Atropos.Save
                 throw new ArgumentNullException(nameof(writeFile));
             }
 
-            string tempFilePath = filePath + TempFileSuffix + Guid.NewGuid().ToString("N");
+            string tempFilePath = filePath + TEMP_FILE_SUFFIX + Guid.NewGuid().ToString("N");
             try
             {
                 EnsureDirectory(Path.GetDirectoryName(filePath));
@@ -292,7 +301,7 @@ namespace Moirai.Atropos.Save
                 throw new GameException(StringUtility.Format("Save file not found for backup, path: {0}.", filePath));
             }
 
-            File.Copy(filePath, filePath + BackupFileSuffix, overwrite: true);
+            File.Copy(filePath, filePath + BACKUP_FILE_SUFFIX, overwrite: true);
         }
 
         /// <summary>
@@ -301,13 +310,13 @@ namespace Moirai.Atropos.Save
         /// <param name="filePath">目标文件完整路径。</param>
         public override void RestoreBackup(string filePath)
         {
-            string backupFilePath = filePath + BackupFileSuffix;
+            string backupFilePath = filePath + BACKUP_FILE_SUFFIX;
             if (!File.Exists(backupFilePath))
             {
                 throw new GameException(StringUtility.Format("Backup file not found, path: {0}.", backupFilePath));
             }
 
-            string tempFilePath = filePath + TempFileSuffix + Guid.NewGuid().ToString("N");
+            string tempFilePath = filePath + TEMP_FILE_SUFFIX + Guid.NewGuid().ToString("N");
             try
             {
                 EnsureDirectory(Path.GetDirectoryName(filePath));
@@ -334,7 +343,7 @@ namespace Moirai.Atropos.Save
                     return;
                 }
 
-                foreach (string tempFilePath in Directory.EnumerateFiles(rootDirectory, "*" + TempFileSuffix + "*", SearchOption.AllDirectories))
+                foreach (string tempFilePath in Directory.EnumerateFiles(rootDirectory, "*" + TEMP_FILE_SUFFIX + "*", SearchOption.AllDirectories))
                 {
                     TryDeleteFile(tempFilePath);
                 }
@@ -342,6 +351,50 @@ namespace Moirai.Atropos.Save
             catch (Exception exception)
             {
                 LogUtility.Warning("[SaveService] Cleanup orphan temp files failed, directory: {0}, exception: {1}.", rootDirectory, exception.GetType().Name);
+            }
+        }
+
+        /// <summary>
+        /// 抬回上次写入中断留下的日志档（<see cref="FallbackReplace"/> 的两步之间崩溃即属此类）：
+        /// 主档不在而日志档在 → 改名回主档，旧存档重新可读；主档在 → 日志档属陈旧残留，删掉且不覆盖新档。
+        /// <para>尽力而为，失败仅告警；须在 <see cref="CleanupOrphanTempFiles"/> 之前跑，
+        /// 否则中断现场只剩孤儿临时文件可扫。</para>
+        /// </summary>
+        /// <param name="rootDirectory">存档数据根目录。</param>
+        public override void RecoverInterruptedWrites(string rootDirectory)
+        {
+            try
+            {
+                if (!Directory.Exists(rootDirectory))
+                {
+                    return;
+                }
+
+                foreach (string journalFilePath in Directory.EnumerateFiles(rootDirectory, "*" + JOURNAL_FILE_SUFFIX, SearchOption.AllDirectories))
+                {
+                    string saveFilePath = journalFilePath.Substring(0, journalFilePath.Length - JOURNAL_FILE_SUFFIX.Length);
+
+                    try
+                    {
+                        if (File.Exists(saveFilePath))
+                        {
+                            TryDeleteFile(journalFilePath);
+                        }
+                        else
+                        {
+                            File.Move(journalFilePath, saveFilePath);
+                            LogUtility.Warning("[SaveService] Interrupted save restored from journal, path: {0}.", saveFilePath);
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        LogUtility.Warning("[SaveService] Journal restore failed, path: {0}, exception: {1}.", journalFilePath, exception.GetType().Name);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                LogUtility.Warning("[SaveService] Recover interrupted writes failed, directory: {0}, exception: {1}.", rootDirectory, exception.GetType().Name);
             }
         }
 
@@ -400,7 +453,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 原子替换：目标存在时优先 <see cref="File.Replace"/>（NTFS 元数据级原子，无丢失窗口），
-        /// 平台不支持时退化为删除+改名；目标不存在时直接改名。
+        /// 平台不支持时转 <see cref="FallbackReplace"/>；目标不存在时直接改名。
         /// </summary>
         /// <param name="tempFilePath">临时文件路径。</param>
         /// <param name="saveFilePath">目标存档路径。</param>
@@ -415,11 +468,50 @@ namespace Moirai.Atropos.Save
                 }
                 catch (Exception exception) when (exception is PlatformNotSupportedException || exception is NotImplementedException)
                 {
-                    DeleteFileWithRetry(saveFilePath);
+                    FallbackReplace(tempFilePath, saveFilePath);
                 }
+
+                return;
             }
 
             File.Move(tempFilePath, saveFilePath);
+        }
+
+        /// <summary>
+        /// 没有原子替换能力的平台（Android / iOS / WebGL 等 POSIX 语义）下的回退写法：
+        /// 先把旧档改名到日志位，再把临时文件改名到位，成功后清掉日志。
+        /// <para>刻意不写成「删掉旧档再改名」——那两步之间崩溃或断电就等于存档消失。到位那一步失败时
+        /// 把日志位抬回主档，主档位置不留空；进程整个崩在两步之间时旧档完整留在日志位，
+        /// 由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回。</para>
+        /// <para>刻意不复用 <see cref="BACKUP_FILE_SUFFIX"/>：那是项目侧手动备份的持久单槽位，借它中转会让
+        /// 玩家「恢复上一版」捞到一份写入中途的快照。</para>
+        /// </summary>
+        /// <param name="tempFilePath">已落盘的临时文件路径（本次要写入的新内容）。</param>
+        /// <param name="saveFilePath">目标存档路径。</param>
+        internal static void FallbackReplace(string tempFilePath, string saveFilePath)
+        {
+            if (!File.Exists(saveFilePath))
+            {
+                File.Move(tempFilePath, saveFilePath);
+                return;
+            }
+
+            string journalFilePath = saveFilePath + JOURNAL_FILE_SUFFIX;
+            TryDeleteFile(journalFilePath);
+            File.Move(saveFilePath, journalFilePath);
+
+            try
+            {
+                File.Move(tempFilePath, saveFilePath);
+            }
+            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+            {
+                TryDeleteFile(saveFilePath);
+                File.Move(journalFilePath, saveFilePath);
+                throw;
+            }
+
+            TryDeleteFile(journalFilePath);
         }
 
         /// <summary>
@@ -439,7 +531,7 @@ namespace Moirai.Atropos.Save
 
                     return;
                 }
-                catch (Exception exception) when ((exception is IOException || exception is UnauthorizedAccessException) && attempt < DeleteRetryCount)
+                catch (Exception exception) when ((exception is IOException || exception is UnauthorizedAccessException) && attempt < DELETE_RETRY_COUNT)
                 {
                     Thread.Sleep(10 * attempt);
                 }
@@ -483,7 +575,7 @@ namespace Moirai.Atropos.Save
                     Directory.Delete(targetDirectory, true);
                     return;
                 }
-                catch (Exception exception) when ((exception is IOException || exception is UnauthorizedAccessException) && attempt < DeleteRetryCount)
+                catch (Exception exception) when ((exception is IOException || exception is UnauthorizedAccessException) && attempt < DELETE_RETRY_COUNT)
                 {
                     if (exception is UnauthorizedAccessException)
                     {

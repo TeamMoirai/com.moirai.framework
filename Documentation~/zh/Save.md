@@ -42,7 +42,7 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 - 转换链顺序固定：序列化 → **压缩（可选，加密前）** → 加密 → CRC；读侧反向（解密 → 按文件头 ID 查注册表解压）——未压缩旧档原样透传（魔数/flags sniff 幂等，新旧档共存）
 - 文件头 offset 24-27 为压缩提供方 ID（0 = 未压缩）；未知 ID 判别为 `UnsupportedVersion`，标志位与 ID 不一致判别为 `Corrupted`
 - 密钥来源（`ISaveKeyProvider`）：静态口令 PBKDF2（`StaticSaveKeyProvider`，未配置时的占位默认）/ 运行期口令注入（`PassphraseSaveKeyProvider`，口令仅内存不落盘，未注入时读 `InvalidArgument`、写 fail-fast）/ HKDF-SHA256 按用户派生（`HKDFPerUserSaveKeyProvider`，多账号存档互相不可读）
-- 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → `File.Replace`（经 `FileSaveStorageBackend`）；启动期后台清扫孤儿临时文件
+- 原子写入：临时文件 `xxx.sav.tmp-{guid}` → `Flush(true)` → 替换目标（NTFS 走 `File.Replace`；无该能力的平台转 `FallbackReplace`——旧档先改名到 `xxx.sav.journal`，再把临时文件改名到位，到位失败当场抬回；进程崩在两步之间时由下次初始化按 `.journal` 抬回旧档）；启动期先做中断恢复，再后台清扫孤儿临时文件
 - 读写全链路流式：写侧经 `WriteAtomic(Action<Stream>)` 委托写（占位头 → CRC 写透传 → 加密/压缩链 → 容器段流直灌 → 回填真头，零整档缓冲）；读侧头 32B → CRC 增量 → 解密/解压链 → 256KB 段池拉取 → CRC 校验 → 容器 `ReadOnlySequence` 跨段解析（单段快路径直通跨度解析器）；AES 档读为两遍流式（第一遍流式 HMAC 预验——先验证后解密杜绝填充 oracle；冻结 rewind 后第二遍限长 [IV‖密文] 解密链，HMAC 尾留段外，任意时刻关闭安全）
 - 同文件读写经串行信号量排队（防并发读-改-写丢块）——串行门在 Handler 编排层，存储后端无感知
 - 删除全族（单档/文件夹/根目录清空，同步与异步版）持「根目录 → 文件夹 → 文件」分层门（固定序取门防死锁），与块级读写互斥——存在性判定与删除同临界区完成，杜绝删除后并发写入复活文件；合规性数据清除（`DeleteAllSaveFiles`）结果可靠
@@ -349,7 +349,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveContainerV2Tests` | 头 CRC 重算放行的部分恢复、整档拒绝、坏块列报、写回收留 |
 | `SaveEventTests` | 事件触发时机/次数/参数、失败阶段分型、后台派发主线程化、进度批次 |
 | `SaveServiceHandlerTests` | 原子写、孤儿清扫、损坏分型、参数校验、便捷映射与降级、RawBlocks 往返 |
-| `FileSaveStorageBackendTests` | 原子写、幂等删除、精确枚举、备份恢复、能力自描述 |
+| `FileSaveStorageBackendTests` | 原子写、幂等删除、精确枚举、备份恢复、回退替换与中断恢复、能力自描述 |
 | `SaveCompressionTests` | GZip 往返、压+加组合、未压缩档兼容读、头部分型、注册表 |
 | `SaveKeyProviderTests` | 静态派生、口令注入、HKDF 按用户隔离 |
 | `AESEncryptedSaveHandlerTests` | 加密全链路 |
