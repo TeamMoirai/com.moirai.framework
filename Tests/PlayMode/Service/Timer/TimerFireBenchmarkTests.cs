@@ -190,6 +190,9 @@ namespace Service.Timer
                 Assert.AreEqual(0, s_CallbackCount, "frozen clock leaked a frame-driven dispatch before the measured pump");
 
                 // 推进时钟越过全部触发时刻，手动泵一次 Tick 独占计量「同刻全量派发」本身。
+                // 隐式依赖：当前 Timer 引擎直读全局 GameTime（WheelTimerEngine 的 ScaledNow/UnscaledNow），
+                // 不消费此处传入的两个零 elapse——推进只认全局时钟。若引擎日后改为消费传入 delta，
+                // 本基准会当场红掉（回调计数对不上）：届时应改回「手动推进」语义，不得删用例。
                 clockNow += delay * 2;
                 var pump = new TimerService();
                 var sw = Stopwatch.StartNew();

@@ -184,7 +184,7 @@ namespace Service.Audio
                 },
                 b =>
                 {
-                    Assert.AreEqual(0L, b, "命中 ForEach 不得分配");
+                    Assert.AreEqual(0, b, "命中 ForEach 不得分配");
                     Assert.AreEqual(1, hits);
                 });
 

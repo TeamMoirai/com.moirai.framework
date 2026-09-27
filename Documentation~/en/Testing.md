@@ -27,7 +27,7 @@ Four layers. **Pick the layer from this table before writing a case** — pickin
 
 - Decidable in EditMode → **must** be L1. Do not push pure logic into PlayMode "for realism" (slower, harder to attribute, flakier).
 - Needs `Awake`/`OnDestroy`/`DontDestroyOnLoad`/coroutines/real `Update` → L2.
-- The conclusion depends on **managed allocation metering** → L3 (the editor's Mono returns a constant 0 from `GC.GetAllocatedBytesForCurrentThread()`; see "Zero-GC acceptance").
+- The conclusion depends on **managed allocation metering** → L3 (byte-denominated GC counters do not exist in Unity; metering uses `GC.Alloc` sampling, which also works in the editor — see "Zero-GC acceptance"; the release exit gate still requires the player-side report).
 - You merely "want to know how fast it is right now" → L4, and it must be `[Explicit]`.
 
 ### Current distribution (updated 2026-09-27)
@@ -212,7 +212,7 @@ Therefore:
 
 ## Zero-GC acceptance (L3)
 
-**Editor Mono has no usable managed allocation meter**: `GC.GetAllocatedBytesForCurrentThread()` returns a constant 0 (measured: a 64 MB allocation on the main thread, genuinely written to, still yields delta 0); `ProfilerRecorder(ProfilerCategory.Memory, "GC.Alloc")` likewise does not respond to known allocations. **Never treat "cannot measure allocation" as "no allocation".**
+**Byte-denominated GC counter APIs do not exist in Unity**: `GC.GetAllocatedBytesForCurrentThread()` was measured to return a constant 0 across editor Mono, Mono player, and IL2CPP player (including a 64 MB allocation on the main thread, genuinely written to, still delta 0); `GC.GetTotalAllocatedBytes()` does not exist in Unity's .NET profile (CS0117). **The usable meter is the `GC.Alloc` sample count** (`Recorder.Get("GC.Alloc")` + `sampleBlockCount`, the same mechanism as UTF's official `AllocatingGCMemory`) — empirically effective in all three environments as of 2026-09-28: the editor PlayMode suite really runs the 0-GC cases and has caught a product hot-path allocation. **Never treat "cannot measure allocation" as "no allocation"; when the probe fails, Ignore as a group — an Ignore is neither a false green nor a green.**
 
 The correct shape for a zero-GC case is therefore:
 
@@ -222,14 +222,14 @@ The correct shape for a zero-GC case is therefore:
 AllocationCapture.CalibrateKnownAllocation();
 
 // Steady-state measurement: one warm-up iteration is discarded inside (JIT/pool growth land there),
-// then `iterations` are counted
-long bytes = AllocationCapture.MeasureManaged("cached-play-stop", 200,
+// then `iterations` are counted — sample-count semantics
+long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
     () => PlayCached(),
     b => Assert.AreEqual(0, b, "the hot path must not allocate managed memory"));
 ```
 
 - When the counter is unusable, `MeasureManaged` calls **`Assert.Ignore`** (the `AllocationCapture` bench caches its own capability probe). **Never write "before/after delta" metering.**
-- To genuinely verify zero-GC on this machine you **must** use an L3 player build (metering uses `GC.Alloc` sample counts, the same mechanism as UTF's official AllocatingGCMemory constraint — byte-denominated GC counter APIs do not exist in Unity: `GetAllocatedBytesForCurrentThread` measured constantly 0 in three environments, and `GetTotalAllocatedBytes` does not exist in Unity's profile).
+- The **release exit gate for zero-GC is the L3 player-side report** (the final arbiter is the IL2CPP player); the editor PlayMode suite runs the same mechanism for daily regression, but an editor green never replaces player acceptance. Metering uses `GC.Alloc` sample counts, the same mechanism as UTF's official AllocatingGCMemory constraint — byte-denominated GC counter APIs do not exist in Unity: `GetAllocatedBytesForCurrentThread` measured constantly 0 in three environments, and `GetTotalAllocatedBytes` does not exist in Unity's profile.
 
 ### How player-side cases run (rewritten from empirical findings, 2026-09-28)
 
