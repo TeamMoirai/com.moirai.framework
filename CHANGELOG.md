@@ -24,7 +24,7 @@
 #### 测试
 
 - `Tests/Player` 程序集的 `defineConstraints` 去掉 `!UNITY_EDITOR`：UTF 玩家测试运行（GUI 与 CLI 同机制）只收录编辑器可见的测试程序集——旧组合「编辑器不编译 + Run all in Player」在任何环境都不执行（2026-09-28 实证，L3 门禁此前从未真正跑过 0-GC 格）。
-- `AllocationCapture` 计量 API 换 `GC.GetTotalAllocatedBytes`（进程口径）：`GC.GetAllocatedBytesForCurrentThread` 在编辑器 Mono、Mono 玩家、IL2CPP 玩家三处实测恒 0，旧口径的 0-GC 断言全部假绿；新计数器仅 IL2CPP 玩家有牙。
+- `AllocationCapture` 计量换 `GC.Alloc` 采样事件数（UTF 官方 AllocatingGCMemory 同机制、同款 API）：`GC.GetAllocatedBytesForCurrentThread` 在编辑器 Mono、Mono 玩家、IL2CPP 玩家三处实测恒 0、`GC.GetTotalAllocatedBytes` 在 Unity profile 不存在——字节口径无实现，旧口径 0-GC 断言全部假绿；「0 事件」断言比「0 字节」更强。
 - ⚠ 编辑器 PlayMode 门禁（L2）基线位移：`Tests/Player` 约 23 格进入编辑器套件、经计数器能力探针整组跳过——新基线以重跑为准。
 
 #### 基准
