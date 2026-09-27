@@ -30,15 +30,27 @@ Four layers. **Pick the layer from this table before writing a case** — pickin
 - The conclusion depends on **managed allocation metering** → L3 (the editor's Mono returns a constant 0 from `GC.GetAllocatedBytesForCurrentThread()`; see "Zero-GC acceptance").
 - You merely "want to know how fast it is right now" → L4, and it must be `[Explicit]`.
 
-### Current distribution (2026-09-24)
+### Current distribution (updated 2026-09-27)
 
 | Layer | Files | Cases |
 |---|---|---|
-| L1 | 131 | ~1802 |
-| L2 | 15 | ~70 |
-| L3 | 5 | ~17 |
+| L1 | 134+ | ~1925 |
+| L2 | 15 (Audio x11 + Kernel + Tasks + Timer benchmark) | ~47 |
+| L3 | 6 | ~23 (incl. new Timer and audio allocation cases) |
 
-L2/L3 are notably thin: L2 currently covers only Audio and Kernel (BootChain). Resource / Save / UI / Scene / Input / Procedure have no integration coverage yet. See "Coverage targets" for the fill-in plan.
+## Coverage targets
+
+Fill gaps by the "case value criterion" (would the bug silently come back if this case were deleted) — never chase coverage percentages. Current gap ledger (2026-09-27):
+
+| Gap | Status | Home |
+|---|---|---|
+| Event propagation contract (Bubbles/TricklesDown path) | Deferred — entangled with a P1 defect (propagation path drops the target); the fix batch carries it red-first-green | Fix batch A |
+| GameApp release branch (RETHROW=false) | Deferred — compile-time unreachable in editor; needs L3 + release build config | L3 |
+| Scene async orchestration (suspend/cancel→detached finalize guard/failure recovery) | To add; do not duplicate SceneRegistryTests' synchronous registry checks | L2 |
+| UI window stack lifecycle (current green semantics) | To add; ghost-window (silent load failure) assertions stay with the fix batch | L2 |
+| Debugger OnlyOpenWhenDevelopment x non-debug-build registration branch | To add, 1-2 cases into existing DebuggerWindowRegistrationTests | L1 extension |
+| Save maintenance gate interlock / log level filtering / cross-thread contracts | **Covered** (audit-verified — do not rebuild) | — |
+| Timer 0-GC | **Added** — TimerHotPathAllocationTests | L3 |
 
 ## Directory layout
 
@@ -234,14 +246,16 @@ long bytes = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 - Correct criteria: whether the assembly name appears in `_Data/ScriptingAssemblies.json`; or ISO-8859-1 decode `il2cpp_data/Metadata/global-metadata.dat` and search for the type name (UTF-8 identifiers — a hit means it was compiled in).
 - Cost reference (StandaloneWindows64): cold build ≈ 22 minutes (3.0 GB Development build); incremental build after changing a single assembly ≈ 3.5 minutes. So "change, then verify again" is not expensive.
 
-## Benchmark policy (L4)
+## Benchmark policy (L4, normalized 2026-09-27)
 
-- Always `[Explicit]`, **never run with the regular suite**. Benchmark numbers depend on machine load; mixing them into the regression suite only creates noise.
-- Named `<Subject>Benchmark`, in the module directory.
-- **Performance conclusions must come from a before/after A/B measurement with the same tool on the same data** (numbers from different tools are not comparable).
-- Editor Mono benchmarks carry ±2× noise; **compare only within the same round**, never assert absolute values across rounds.
-- Non-NUnit manual benchmarks (e.g. `TimerServiceBenchmark`, a MonoBehaviour driven from a menu) must be **explicitly marked as non-automated** so nobody mistakes them for part of the suite.
-- The CI benchmark channel is documented in `Packages/GitHubActions~/README.BENCHMARK.md`.
+**All benchmarks live under `Tests/` (KernelBenchmark pattern: `[Explicit]` NUnit, directory mirrors the module under test) and, after running, emit `BenchmarkReport` XML to the unified folder `<project root>/Benchmarks/<name>-benchmark.xml`** (overridable via the `MOIRAI_BENCH_XML` environment variable; the editor derives the project root from `Application.dataPath`'s parent — `temporaryCachePath` points into the system temp dir under the Unity 6 editor and cannot yield the project root).
+
+- Always `[Explicit]`, **never part of the regular suite**; run by name via the test bridge. Benchmark numbers are machine-load sensitive; mixing them into the regression suite only creates noise.
+- **Dual-channel benchmarks** (those that must also run from a Debugger window, e.g. MemoryPool/Timer): the matrix core (`XxxBenchmarkRunner`, public static, **lives in the runtime assembly** — runtime debugger windows cannot reach test assemblies) + a Debugger-window benchmark section (Run/Export buttons) + a Tests `[Explicit]` thin shell (calls `Runner.Run()` then writes XML) — both entries run the same matrix code. Synchronous matrices drive an isolated handler directly (no dependency on the facade's live service world); frame-dependent fire/burst cases live in PlayMode `[Explicit]` `[UnityTest]`.
+- Soft-check semantics: invariant hits inside a matrix only increment a `failures` counter and LogWarning — correctness regression belongs to the test families; a benchmark measures, it does not gate.
+- **Performance conclusions must be A/B before/after with the same tool and same data** (cross-tool data is incomparable). Editor Mono benchmarks carry ~±2x noise; compare within the same run only.
+- Always cache callbacks as static method-group fields (C# 9 does not cache method-group conversions; a bare conversion allocates a delegate per call and pollutes 0-GC benchmarks).
+- CI benchmark channel: see `Packages/GitHubActions~/README.BENCHMARK.md`.
 
 ## Maintaining contract guards
 
@@ -351,6 +365,28 @@ Inside an editor script, use `ScriptableObject.CreateInstance<TestRunnerApi>()` 
 ### Channel 4: Test Runner window (the only channel for L3)
 
 `Run all in Player`, see "How player-side cases run".
+
+## Executable policy guards and governance principles (2026-09-27)
+
+Rules that live only in a document stop nothing the next time someone "just quickly" violates them — the following policies are pinned as executable guards (run automatically in the editor suite):
+
+- `ReflectionPolicyGuardTests`: non-public reflection allowlist with bidirectional assertions (unregistered files must not appear; registered files must still match).
+- `TestLogChannelPolicyGuardTests`: test log emissions go through `Debug.Log*` uniformly; `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(` are forbidden. Allowlist categories: subject-under-test (LogUtilityTests) and doubles reproducing production emissions (Save fake loaders); assertion channels (`OnMessageLogged` capture, `UtfLogExpect` noise suppression) are unrestricted. The guard scans raw text — the literal `LogUtility.Error(` inside a comment also matches; phrase it as "LogUtility's Error" to avoid it.
+
+**Anti-bloat principles** (legacy is not retroactively changed; new code is strictly held):
+
+- Do not batch-rename legacy method names to the three-segment form; new cases must use it.
+- A fixture base is warranted only when >= 2 files in a module share setup; no blanket bases, no blanket assertions on 83 SetUps.
+- Every new case must map to one of "contract / risk / regression lock"; no mapping, no case. New test files cap at 8 cases; assert behavior, never implementation.
+
+**Lessons ledger** (each stumble becomes a rule):
+
+- An "orphan partial" verdict must first exclude **source-generator-fed classes** — SaveHostGenerator injects the second partial at compile time, invisible to grep (2026-09-27 audit A-18 false positive; executed 8 removals, then reverted on the spot).
+- `GetAllTimers(null)` returns 0 by contract — it is not a counting channel; active counts go through `GetStatistics`.
+- C# 9 does not cache method-group conversions: callbacks in benchmarks and hot paths must be cached as static fields.
+- Cross-assembly test support cannot be shared (asmdef topology); duplication is acceptable (e.g. the Player-side AudioCacheTestSupport).
+
+---
 
 ## Trap quick reference
 
