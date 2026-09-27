@@ -1,4 +1,5 @@
 using System;
+using Moirai.Atropos.Tests.EditorMode;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -161,7 +162,7 @@ namespace Core.Singleton
             InvokeAwake(first);
 
             // 编辑模式下 Destroy 被拒绝并记录错误，此处为预期行为（重复实例的自毁尝试）
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
+            UtfLogExpect.Error();
             TestSingletonMono duplicate = CreateSingletonGameObject();
             InvokeAwake(duplicate);
 
@@ -181,7 +182,7 @@ namespace Core.Singleton
             SetReplaceable(second, true);
 
             // 编辑模式下 Destroy 被拒绝并记录错误，此处为预期行为（旧实例的销毁尝试）
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
+            UtfLogExpect.Error();
             InvokeAwake(second);
 
             Assert.AreSame(second, TestSingletonMono.Instance, "替换模式下最新实例应胜出");
