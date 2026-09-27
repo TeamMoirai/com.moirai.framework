@@ -39,7 +39,7 @@ namespace Moirai.Atropos.Save
         internal static readonly FileSaveStorageBackend s_Default = new FileSaveStorageBackend();
 
         /// <summary>
-        /// 后端能力自描述（本地文件：原子改名、无线程池外真异步、不设尺寸上限、非易失、同步读权威）。
+        /// 后端能力自描述（本地文件：无半写窗口且中断后旧档可恢复、无线程池外真异步、不设尺寸上限、非易失、同步读权威）。
         /// </summary>
         public override SaveStorageCapabilities Capabilities => new SaveStorageCapabilities(
             supportsAtomicRename: true,
@@ -238,10 +238,15 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 删除文件（幂等：不存在视为成功；带退避重试）。
+        /// <para>先清同路径中转日志（<see cref="JOURNAL_FILE_SUFFIX"/>）再删主档：不清 journal 的话，
+        /// <see cref="RecoverInterruptedWrites"/> 会在下次初始化把删掉的旧档抬回来；而先删主档的话，
+        /// journal 被云同步/杀软锁住时就留下「主档已没、journal 尚存」的形态——本槽在本次会话里消失，
+        /// 下次开机又自己复活。</para>
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
         public override void DeleteFile(string filePath)
         {
+            DeleteFileWithRetry(filePath + JOURNAL_FILE_SUFFIX);
             DeleteFileWithRetry(filePath);
         }
 
@@ -357,8 +362,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 抬回上次写入中断留下的日志档（<see cref="FallbackReplace"/> 的两步之间崩溃即属此类）：
         /// 主档不在而日志档在 → 改名回主档，旧存档重新可读；主档在 → 日志档属陈旧残留，删掉且不覆盖新档。
-        /// <para>尽力而为，失败仅告警；须在 <see cref="CleanupOrphanTempFiles"/> 之前跑，
-        /// 否则中断现场只剩孤儿临时文件可扫。</para>
+        /// <para>尽力而为，失败仅告警；须在 <see cref="CleanupOrphanTempFiles"/> 之前跑（先抬回主档，再扫临时残留）。</para>
         /// </summary>
         /// <param name="rootDirectory">存档数据根目录。</param>
         public override void RecoverInterruptedWrites(string rootDirectory)
@@ -372,13 +376,27 @@ namespace Moirai.Atropos.Save
 
                 foreach (string journalFilePath in Directory.EnumerateFiles(rootDirectory, "*" + JOURNAL_FILE_SUFFIX, SearchOption.AllDirectories))
                 {
+                    // 通配符匹配在 Windows 上有 8.3 短名怪癖（同 EnumerateFiles 的后置过滤理由），砍长度前必须复核真后缀
+                    if (!journalFilePath.EndsWith(JOURNAL_FILE_SUFFIX, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
                     string saveFilePath = journalFilePath.Substring(0, journalFilePath.Length - JOURNAL_FILE_SUFFIX.Length);
 
                     try
                     {
                         if (File.Exists(saveFilePath))
                         {
-                            TryDeleteFile(journalFilePath);
+                            if (new FileInfo(saveFilePath).Length > 0L)
+                            {
+                                TryDeleteFile(journalFilePath);
+                            }
+                            else
+                            {
+                                // 空主档是删不掉的残迹，journal 才是唯一可读副本——不清 journal，改告警等人/上层裁决
+                                LogUtility.Warning("[SaveService] Primary is an empty remnant, journal kept as the only readable copy: {0}.", saveFilePath);
+                            }
                         }
                         else
                         {
@@ -388,7 +406,7 @@ namespace Moirai.Atropos.Save
                     }
                     catch (Exception exception)
                     {
-                        LogUtility.Warning("[SaveService] Journal restore failed, path: {0}, exception: {1}.", journalFilePath, exception.GetType().Name);
+                        LogUtility.Warning("[SaveService] Journal restore failed at init, path: {0}, exception: {1}.", journalFilePath, exception.GetType().Name);
                     }
                 }
             }
@@ -480,8 +498,8 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 没有原子替换能力的平台（Android / iOS / WebGL 等 POSIX 语义）下的回退写法：
         /// 先把旧档改名到日志位，再把临时文件改名到位，成功后清掉日志。
-        /// <para>刻意不写成「删掉旧档再改名」——那两步之间崩溃或断电就等于存档消失。到位那一步失败时
-        /// 把日志位抬回主档，主档位置不留空；进程整个崩在两步之间时旧档完整留在日志位，
+        /// <para>刻意不写成「删掉旧档再改名」——那两步之间崩溃或断电就等于存档消失。到位那一步失败时转
+        /// <see cref="RollbackJournal"/> 抬回；进程整个崩在两步之间时旧档完整留在日志位，
         /// 由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回。</para>
         /// <para>刻意不复用 <see cref="BACKUP_FILE_SUFFIX"/>：那是项目侧手动备份的持久单槽位，借它中转会让
         /// 玩家「恢复上一版」捞到一份写入中途的快照。</para>
@@ -504,14 +522,42 @@ namespace Moirai.Atropos.Save
             {
                 File.Move(tempFilePath, saveFilePath);
             }
-            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+            catch (Exception)
             {
-                TryDeleteFile(saveFilePath);
-                File.Move(journalFilePath, saveFilePath);
+                RollbackJournal(journalFilePath, saveFilePath);
                 throw;
             }
 
             TryDeleteFile(journalFilePath);
+        }
+
+        /// <summary>
+        /// 到位失败后的回滚：把 journal 抬回主档位置，原异常由调用方继续上抛。
+        /// <para>只在 journal 确实还在时才动主档：此时主档位置上可能是并发恢复刚抬回来的旧档，
+        /// 无判据地删掉它就把唯一可读副本删了。本类的第一不变量是「任一时刻主档或 journal 至少一处可读」，
+        /// 回滚路径自己不得破坏它。</para>
+        /// <para>抬回失败时保留 journal 与原样主档残迹，交给下次初始化的
+        /// <see cref="RecoverInterruptedWrites"/> 按「主档非空才算已提交」裁决。</para>
+        /// </summary>
+        /// <param name="journalFilePath">中转日志文件路径（旧档内容）。</param>
+        /// <param name="saveFilePath">目标存档路径。</param>
+        internal static void RollbackJournal(string journalFilePath, string saveFilePath)
+        {
+            if (!File.Exists(journalFilePath))
+            {
+                LogUtility.Warning("[SaveService] Journal missing during in-session rollback, primary left untouched: {0}.", saveFilePath);
+                return;
+            }
+
+            try
+            {
+                TryDeleteFile(saveFilePath);
+                File.Move(journalFilePath, saveFilePath);
+            }
+            catch (Exception restoreException)
+            {
+                LogUtility.Warning("[SaveService] Journal restore failed during in-session rollback, path: {0}, exception: {1}.", saveFilePath, restoreException.GetType().Name);
+            }
         }
 
         /// <summary>
