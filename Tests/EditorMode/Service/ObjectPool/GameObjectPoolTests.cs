@@ -63,9 +63,14 @@ namespace Service.GameObjectPool
             public bool ThrowOnPooledDestroy;
             public System.Action OnDespawned;
 
+            /// <summary>OnSpawn 重入注入点：由用例 try/finally 内设置并清零——
+            /// 实例组件的非序列化委托字段不随 Instantiate 复制，只能走类型级注入。</summary>
+            public static System.Action<GameObject> OnSpawnedHook;
+
             public void OnSpawn(in GameObjectPoolSpawnContext context)
             {
                 SpawnCount++;
+                OnSpawnedHook?.Invoke(gameObject);
             }
 
             public void OnDespawn()
@@ -240,6 +245,77 @@ namespace Service.GameObjectPool
             RuntimeGameObjectPool pool = CreatePool();
 
             Assert.AreEqual(-1, pool.MaintenanceHeapIndex);
+        }
+
+        #endregion
+
+        #region 回调重入守卫 [REENTRANCY GUARD]
+
+        [Test]
+        public void Spawn_ReentrantDespawnInOnSpawn_IsRejected_InstanceStaysActive()
+        {
+            RuntimeGameObjectPool pool = CreatePool();
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            EPoolReleaseResult inner = EPoolReleaseResult.Released;
+            try
+            {
+                FaultyPoolable.OnSpawnedHook = spawned =>
+                {
+                    if (_registry.TryResolve(spawned, out _, out int slotIndex))
+                    {
+                        inner = pool.ReleaseByInstance(slotIndex, spawned);
+                    }
+                };
+
+                GameObject instance = SpawnOne(pool);
+
+                Assert.AreEqual(EPoolReleaseResult.NotActive, inner, "OnSpawn 回调窗口内的重入回收必须被拒绝");
+                Assert.IsTrue(instance.activeSelf, "重入被拒后实例必须保持激活");
+                Assert.AreEqual(1, pool.ActiveCount);
+                Assert.AreEqual(0, pool.InactiveCount);
+
+                DespawnOne(pool, instance);
+                Assert.AreEqual(1, pool.InactiveCount);
+
+                GameObject reused = SpawnOne(pool);
+                Assert.AreSame(instance, reused, "链未损坏：正常回收后复用应取回同一实例");
+            }
+            finally
+            {
+                FaultyPoolable.OnSpawnedHook = null;
+            }
+        }
+
+        [Test]
+        public void Despawn_ReentrantReleaseInOnDespawn_IsRejected_ChainStaysIntact()
+        {
+            RuntimeGameObjectPool pool = CreatePool();
+            _loader.Prefab.AddComponent<FaultyPoolable>();
+            GameObject instance = SpawnOne(pool);
+            EPoolReleaseResult inner = EPoolReleaseResult.Released;
+            bool hookFired = false;
+            instance.GetComponent<FaultyPoolable>().OnDespawned = () =>
+            {
+                // 一次闸：未防护基线下重入会再次派发 OnDespawn（无限递归炸栈）——闸住递归深度为 2，
+                // 基线的计数/挂链双损坏在断言里照样暴露，红态不牺牲编辑器。
+                if (hookFired) return;
+                hookFired = true;
+                if (_registry.TryResolve(instance, out _, out int slotIndex))
+                {
+                    inner = pool.ReleaseByInstance(slotIndex, instance);
+                }
+            };
+
+            DespawnOne(pool, instance);
+
+            FaultyPoolable poolable = instance.GetComponent<FaultyPoolable>();
+            Assert.AreEqual(EPoolReleaseResult.NotActive, inner, "OnDespawn 回调窗口内的重入回收必须被拒绝");
+            Assert.AreEqual(1, poolable.DespawnCount, "重入被拒后 OnDespawn 只派发一次");
+            Assert.AreEqual(0, pool.ActiveCount);
+            Assert.AreEqual(1, pool.InactiveCount, "同槽不得二次挂入 inactive 链");
+
+            GameObject reused = SpawnOne(pool);
+            Assert.AreSame(instance, reused, "链未损坏：复用应取回同一实例");
         }
 
         #endregion
