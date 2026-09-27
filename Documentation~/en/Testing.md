@@ -48,7 +48,7 @@ Fill gaps by the "case value criterion" (would the bug silently come back if thi
 | GameApp release branch (RETHROW=false) | Deferred — compile-time unreachable in editor; needs L3 + release build config | L3 |
 | Scene async orchestration (suspend/cancel→detached finalize guard/failure recovery) | To add; do not duplicate SceneRegistryTests' synchronous registry checks | L2 |
 | UI window stack lifecycle (current green semantics) | To add; ghost-window (silent load failure) assertions stay with the fix batch | L2 |
-| Debugger OnlyOpenWhenDevelopment x non-debug-build registration branch | To add, 1-2 cases into existing DebuggerWindowRegistrationTests | L1 extension |
+| Debugger OnlyOpenWhenDevelopment x non-debug-build registration branch | Deferred — `ResolveActivation` reads `Debug.isDebugBuild` directly (always true in the editor, no injection seam), environment-unreachable like the GameApp release branch | Injection seam or L3 |
 | Save maintenance gate interlock / log level filtering / cross-thread contracts | **Covered** (audit-verified — do not rebuild) | — |
 | Timer 0-GC | **Added** — TimerHotPathAllocationTests | L3 |
 
@@ -98,7 +98,7 @@ Rules:
 
 ### Three prohibitions on test-only types
 
-1. **Do not create custom subclasses of `[Serializable]` framework base classes** — `LogHandler`, `JsonHandler`, `TweenHandler`, the various `XxxServiceHandler`, etc. are all used via `[SerializeReference]` fields, and Unity scans **all assemblies** for derived types to populate Inspector dropdowns. A fake implementation in tests pollutes the dropdowns of production assets. To capture logs, use a built-in implementation plus an event callback (`LogUtility.OnMessageLogged`).
+1. **Do not create custom subclasses of `[Serializable]` framework base classes** — `LogHandler`, `JsonHandler`, `TweenHandler`, the various `XxxServiceHandler`, etc. are all used via `[SerializeReference]` fields, and Unity scans **all assemblies** for derived types to populate Inspector dropdowns. A fake implementation in tests pollutes the dropdowns of production assets. To capture logs, use a built-in implementation plus an event callback (`LogUtility.OnMessageLogged`). Where a behavioral double genuinely must derive from a framework base (handler probes, cloud-save fakes): the derived class **carries no `[Serializable]`** and is always `internal` — `[Serializable]` is not inherited, and SerializeReference's Inspector dropdown only lists derived classes bearing the attribute, so doubles never reach production assets (the Save and Localization sides use the same rule).
 2. **Test-only types are always `internal`**, and live only inside the test assembly.
 3. **Logging inside `Test` / `Editor` / non-runtime scripts always uses `Debug.LogXX`**, never `LogUtility` (`LogUtility` is runtime infrastructure with category filtering and a Handler pipeline; tests do not need it, and it makes "does this log count as a test failure" uncontrollable).
 
