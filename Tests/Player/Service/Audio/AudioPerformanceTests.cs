@@ -9,10 +9,11 @@ namespace Service.Audio
 {
     /// <summary>
     /// 热路径 0-GC 验收：稳态 Play / 音量 / IsPlaying / Stop、空闲 Tick、按 ID 遍历均不得分配。
-    /// <para><b>真机计量</b>：托管分配计数器在编辑器 Mono 与 Mono 玩家下都观测不到（本机 2026-09-28
-    /// 三处实测：64MB 分配仍报 0），零分配断言在那些运行时里会无条件成立。本夹具住在
-    /// <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>）：编辑器套件可见但经计数器
-    /// 能力探针整组 Ignore，真计量只在实现计数器的 IL2CPP 玩家（L3）发生。</para>
+    /// <para><b>真机计量</b>：字节口径的 GC 计数 API 在 Unity 内无实现（2026-09-28 三处实测：
+    /// <c>GC.GetAllocatedBytesForCurrentThread</c> 在编辑器 Mono、Mono 玩家、IL2CPP 玩家全恒 0），
+    /// 本测量走 <c>GC.Alloc</c> 采样事件数（UTF 官方 AllocatingGCMemory 同机制）。夹具住在
+    /// <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>）：编辑器套件可见——采样可用的
+    /// 运行时真跑断言、探不到的运行时整组 Ignore；验收以 L3 玩家运行收到的采样为准。</para>
     /// <para>自建隔离：反射 OnInit <see cref="UnityAudioHandler"/>，不依赖 GameEntry。</para>
     /// <para>测量口径见 <see cref="AllocationCapture.MeasureManaged"/>（预热一次丢弃后计数）；
     /// 计数器不可用的运行时整组按 Ignore 收口——"测不出分配"不等于"没有分配"。</para>
@@ -95,15 +96,15 @@ namespace Service.Audio
 
             yield return null;
 
-            long bytes = AllocationCapture.MeasureManaged("cached-play-stop", 200, () =>
+            int allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200, () =>
             {
                 ulong handle = _handler.Play(_clip, _options);
                 if (handle == 0UL) return;
                 _handler.IsPlaying(handle);
                 _handler.Stop(handle, 0f);
-            }, b => Assert.AreEqual(0L, b, "稳态 Play/IsPlaying/Stop 不得分配"));
+            }, b => Assert.AreEqual(0, b, "稳态 Play/IsPlaying/Stop 不得分配"));
 
-            Assert.AreEqual(0L, bytes);
+            Assert.AreEqual(0, allocs);
         }
 
         [UnityTest]
@@ -127,7 +128,7 @@ namespace Service.Audio
             {
                 ulong handle = _handler.Play(_clip, _options);
                 if (handle != 0UL) _handler.Stop(handle, 0f);
-            }, b => Assert.AreEqual(0L, b, "Options 路径稳态不得分配"));
+            }, b => Assert.AreEqual(0, b, "Options 路径稳态不得分配"));
         }
 
         [UnityTest]
@@ -138,7 +139,7 @@ namespace Service.Audio
 
             AllocationCapture.MeasureManaged("idle-tick", 500,
                 () => _handler.Tick(0.016f, 0.016f),
-                b => Assert.AreEqual(0L, b, "空闲 Tick 不得分配"));
+                b => Assert.AreEqual(0, b, "空闲 Tick 不得分配"));
         }
 
         [UnityTest]
@@ -147,7 +148,7 @@ namespace Service.Audio
             yield return null;
             AllocationCapture.MeasureManaged("foreach-empty", 500,
                 () => _handler.ForEachHandleByID(424242, _ => { }),
-                b => Assert.AreEqual(0L, b, "空匹配 ForEach 不得分配"));
+                b => Assert.AreEqual(0, b, "空匹配 ForEach 不得分配"));
         }
 
         [UnityTest]
