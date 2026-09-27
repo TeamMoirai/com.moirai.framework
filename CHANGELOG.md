@@ -21,6 +21,12 @@
 
 ### Changed
 
+#### 测试
+
+- `Tests/Player` 程序集的 `defineConstraints` 去掉 `!UNITY_EDITOR`：UTF 玩家测试运行（GUI 与 CLI 同机制）只收录编辑器可见的测试程序集——旧组合「编辑器不编译 + Run all in Player」在任何环境都不执行（2026-09-28 实证，L3 门禁此前从未真正跑过 0-GC 格）。
+- `AllocationCapture` 计量 API 换 `GC.GetTotalAllocatedBytes`（进程口径）：`GC.GetAllocatedBytesForCurrentThread` 在编辑器 Mono、Mono 玩家、IL2CPP 玩家三处实测恒 0，旧口径的 0-GC 断言全部假绿；新计数器仅 IL2CPP 玩家有牙。
+- ⚠ 编辑器 PlayMode 门禁（L2）基线位移：`Tests/Player` 约 23 格进入编辑器套件、经计数器能力探针整组跳过——新基线以重跑为准。
+
 #### 基准
 
 - 所有 Benchmark 归一住 `Tests/`（`[Explicit]`，目录镜像被测模块）：`JsonUtilityBenchmark` 自 Editor 菜单工具迁 `[Explicit]` 用例（测量内核逐字保留，去菜单/进度条/结果窗）；Timer 基准拆双通道——同步矩阵核心 `TimerBenchmarkRunner`（运行程序集，隔离 handler 直驱）+ Debugger 的 Timer 调试窗口基准区 + Tests `[Explicit]` 薄壳共用同一矩阵，fire/burst 帧依赖用例住 PlayMode `[UnityTest]`；`BenchmarkReport.ResolveXmlPath` 修统一文件夹根推导（原以 `temporaryCachePath` 推工程根，Unity 6 编辑器下指系统临时目录——改经 `Application.dataPath` 父目录）。
@@ -29,6 +35,15 @@
 - ⚠ 移除 `AudioCacheBenchmark` 的私有导出环境变量 `MOIRAI_AUDIO_BENCH_FILE`（统一收口至 `BenchmarkReport` XML，`MOIRAI_BENCH_XML` 可覆盖路径）。
 
 ### Fixed
+
+#### 测试
+
+- `Tests/Player` 程序集补 `UniTask` 引用、Player 版 `AudioCacheTestSupport` 补 `using NUnit.Framework`——该程序集编辑器从不编译（`!UNITY_EDITOR` 约束），玩家构建首次真编译时暴露 CS0246/CS0012/CS0103。
+- `PlayerTestBootstrap` 掐 `AutoBoot` 收进 `#if !UNITY_EDITOR` 守卫——程序集转编辑器可见后，无守卫会连带掐掉编辑器 PlayMode 测试域的框架自动启动（L2 门禁前提）。
+
+#### 构建
+
+- `LocalizationChannelBuildHook` 无 `-CustomArgs:` 前缀时按「缺省不动」静默早退——`CommandLineReader` 的缺参 LogError 在预处理钩子里会直接判构建失败，GUI 发起与 UTF 测试玩家构建此前全部被挡。
 
 #### 存档
 
