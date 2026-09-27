@@ -39,6 +39,12 @@ namespace Testing
         private static int s_CounterUsable = -1;
 
         /// <summary>
+        /// 测量窗重入守卫：<see cref="Recorder.Get"/> 返回进程共享单例，嵌套测量窗会互相开关
+        /// enabled、把对方窗内的分配事件错记进自己的计数——真发生时当场红掉，绝不静默错账。
+        /// </summary>
+        private static bool s_InWindow;
+
+        /// <summary>
         /// 当前运行时能否观测到 GC 分配（GC.Alloc 采样）。
         /// </summary>
         private static bool IsCounterUsable()
@@ -76,47 +82,60 @@ namespace Testing
             if (action == null) throw new ArgumentNullException(nameof(action));
             if (iterations < 1) iterations = 1;
 
-            if (!IsCounterUsable())
+            if (s_InWindow)
             {
-                TestContext.WriteLine($"MANAGED_ALLOC,{name},unavailable");
-                Assert.Ignore("当前运行时收不到 GC.Alloc 采样，无法观测托管分配");
+                Assert.Fail("MeasureManaged 不可重入：GC.Alloc Recorder 为进程共享单例，嵌套测量窗会互相开关 enabled、错记对方的分配事件");
             }
 
-            // 预热：JIT、池扩容、字典容量增长都落在这一发里，结果丢弃
-            action();
-
-            Recorder recorder = Recorder.Get("GC.Alloc");
-            if (recorder == null || !recorder.isValid)
-            {
-                TestContext.WriteLine($"MANAGED_ALLOC,{name},unavailable");
-                Assert.Ignore("当前运行时收不到 GC.Alloc 采样，无法观测托管分配");
-            }
-
-            recorder.enabled = true;
-            recorder.FilterToCurrentThread();
-            recorder.enabled = false;    // 创建与建块的初始分配随关闭冲刷出窗
-
-            var clock = Stopwatch.StartNew();
-            recorder.enabled = true;
+            s_InWindow = true;
             try
             {
-                for (int i = 0; i < iterations; i++)
+                if (!IsCounterUsable())
                 {
-                    action();
+                    TestContext.WriteLine($"MANAGED_ALLOC,{name},unavailable");
+                    Assert.Ignore("当前运行时收不到 GC.Alloc 采样，无法观测托管分配");
                 }
+
+                // 预热：JIT、池扩容、字典容量增长都落在这一发里，结果丢弃
+                action();
+
+                Recorder recorder = Recorder.Get("GC.Alloc");
+                if (recorder == null || !recorder.isValid)
+                {
+                    TestContext.WriteLine($"MANAGED_ALLOC,{name},unavailable");
+                    Assert.Ignore("当前运行时收不到 GC.Alloc 采样，无法观测托管分配");
+                }
+
+                recorder.enabled = true;
+                recorder.FilterToCurrentThread();
+                recorder.enabled = false;    // 创建与建块的初始分配随关闭冲刷出窗
+
+                var clock = Stopwatch.StartNew();
+                recorder.enabled = true;
+                try
+                {
+                    for (int i = 0; i < iterations; i++)
+                    {
+                        action();
+                    }
+                }
+                finally
+                {
+                    recorder.enabled = false;
+                    recorder.CollectFromAllThreads();
+                }
+
+                clock.Stop();
+                int allocs = recorder.sampleBlockCount;
+
+                TestContext.WriteLine($"MANAGED_ALLOC,{name},{iterations},{allocs},{clock.Elapsed.TotalMilliseconds:F4}");
+                verifyAllocs?.Invoke(allocs);
+                return allocs;
             }
             finally
             {
-                recorder.enabled = false;
-                recorder.CollectFromAllThreads();
+                s_InWindow = false;
             }
-
-            clock.Stop();
-            int allocs = recorder.sampleBlockCount;
-
-            TestContext.WriteLine($"MANAGED_ALLOC,{name},{iterations},{allocs},{clock.Elapsed.TotalMilliseconds:F4}");
-            verifyAllocs?.Invoke(allocs);
-            return allocs;
         }
 
         /// <summary>
