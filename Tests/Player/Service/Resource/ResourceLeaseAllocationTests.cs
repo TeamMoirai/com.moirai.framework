@@ -8,8 +8,9 @@ namespace Service.Resource
 {
     /// <summary>
     /// 租约热路径的 0-GC 验收：稳态取用/归还、按 key 直查缓存、打包 key 往返，三趟都不得分配。
-    /// <para><b>玩家专用</b>：托管分配计数器在 Unity 编辑器 Mono 下不推进，零分配断言在编辑器里无条件成立，
-    /// 故与 <c>ResourceBindingAllocationTests</c> 同住 <c>Moirai.Atropos.Tests.Player</c>。</para>
+    /// <para><b>真机计量</b>：托管分配计数器在编辑器 Mono 与 Mono 玩家下都观测不到，零分配断言在那些
+    /// 运行时里无条件成立，故与 <c>ResourceBindingAllocationTests</c> 同住 <c>Moirai.Atropos.Tests.Player</c>——
+    /// 编辑器套件经计数器能力探针整组 Ignore，真计量只在实现计数器的 IL2CPP 玩家（L3）发生。</para>
     /// <para>量的是记录内核（分页槽位 + <see cref="ResourceUlongIntMap"/>）自己那几趟，
     /// 不掺真后端的原生调用——那只会把噪声计进来。名称轴解析已收成「打包一次、按 key 直查」，
     /// 这几格就是把「热路径不再走三条字典往返」钉成门禁。</para>

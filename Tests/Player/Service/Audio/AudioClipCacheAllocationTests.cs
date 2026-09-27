@@ -5,10 +5,10 @@ using Testing;
 namespace Service.Audio
 {
     /// <summary>
-    /// Clip 缓存热路径的 0-GC 验收（<b>玩家专用</b>，经 <see cref="AllocationCapture.MeasureManaged"/> 计量）。
-    /// <para>这五格原住在 EditorMode 程序集并自带探测：编辑器托管分配计数器不推进，任何环境下都
-    /// <c>Assert.Ignore</c>——玩家构建又不含 Editor 程序集，等于哪个环境都不执行。按「依赖托管分配计量的
-    /// 判定只能在 L3」迁入 Tests/Player，与 <c>AudioPerformanceTests</c> 同宿主。</para>
+    /// Clip 缓存热路径的 0-GC 验收（<b>真机计量</b>，经 <see cref="AllocationCapture.MeasureManaged"/>）。
+    /// <para>这五格原住在 EditorMode 程序集：编辑器观测不到托管分配、恒 <c>Assert.Ignore</c>——死格。
+    /// 迁入 Tests/Player 与 <c>AudioPerformanceTests</c> 同宿主：编辑器套件可见但经计数器能力探针整组
+    /// Ignore（不是假绿），真计量只在实现计数器的 IL2CPP 玩家运行里发生（L3）。</para>
     /// <para>口径：预热一次丢弃（JIT/池扩容/新地址入账落在预热里），再计 N 次；新地址入账是冷路径
     /// （满载且有新地址时才走），驱逐链路单次给常数上限而不是 0——锁的是「不随规模增长」。</para>
     /// </summary>

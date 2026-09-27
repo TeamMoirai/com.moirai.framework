@@ -11,10 +11,11 @@ namespace Service.Resource
 {
     /// <summary>
     /// 绑定热路径的 0-GC 验收：稳态重绑、空闲轮转扫描、诊断读表三条路径每次调用都不得分配。
-    /// <para><b>玩家专用</b>：托管分配计数器在 Unity 编辑器 Mono 下不推进（本机实测一次 64MB 主线程分配仍报 0），
-    /// 零分配断言在编辑器里无条件成立，所以这几格住在 <c>Moirai.Atropos.Tests.Player</c>
-    /// （<c>UNITY_INCLUDE_TESTS</c> + <c>!UNITY_EDITOR</c>），只随玩家构建的测试运行执行。
-    /// 编辑器侧要判的是结构（版本号不变、租约同值、目标引用相等），不是字节数。</para>
+    /// <para><b>真机计量</b>：托管分配计数器在编辑器 Mono 与 Mono 玩家下都观测不到（本机实测一次 64MB
+    /// 主线程分配仍报 0），零分配断言在那些运行时里无条件成立。这几格住在 <c>Moirai.Atropos.Tests.Player</c>
+    /// （<c>UNITY_INCLUDE_TESTS</c>）：编辑器套件可见但经计数器能力探针整组 Ignore，真计量只在实现
+    /// 计数器的 IL2CPP 玩家（L3）发生。编辑器侧要判的是结构（版本号不变、租约同值、目标引用相等），
+    /// 不是字节数。</para>
     /// <para>测量口径与计时台共用 <see cref="AllocationCapture"/>：先做一次必然分配探测计数器能力，
     /// 探不到就整组 Ignore——"测不出分配"绝不写成"没有分配"。</para>
     /// <para>后端用 <see cref="CountingLeaseSource"/> 而不是真后端：这几格量的是绑定层自己那三趟（打包键、
