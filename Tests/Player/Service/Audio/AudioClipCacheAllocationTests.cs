@@ -85,12 +85,13 @@ namespace Service.Audio
             _fixture.Cache.Preload(B, EAudioCachePolicy.Ttl);
             _fixture.PrepareLeases(8);
 
-            // 单次满载驱逐 + 卸载链路：条目与等待者节点都应走对象池，分配只许停在常数内（不随规模增长）。
+            // 单次满载驱逐 + 卸载链路：条目与等待者节点都应走对象池，两条路径全零分配
+            // （AssertMainThread 的插值消息已挪进失败分支——修前实测 Preload/Unload 各 1 分配）。
             AllocationCapture.MeasureManaged("evict-cycle", 1, () =>
             {
                 _fixture.Cache.Preload("Audio/Sfx/Coin", EAudioCachePolicy.Ttl);
                 _fixture.Cache.Unload("Audio/Sfx/Coin", force: true);
-            }, b => Assert.LessOrEqual(b, 4, $"满载驱逐与卸载路径单次分配事件数超出常数预算（本次 {b} 次——条目与等待者节点应走对象池，锁的是不随规模增长）"));
+            }, b => Assert.AreEqual(0, b, "满载驱逐与卸载路径不得产生托管分配"));
         }
 
         [Test]
@@ -102,9 +103,13 @@ namespace Service.Audio
             Assert.IsFalse(_fixture.Cache.Preload(A));
             _fixture.FailLoads = false;
 
+            // NUnit 断言自身会分配（Constraint 链每格 5~9 个 GC.Alloc 事件，2026-09-28 实测）——
+            // 断言必须留在测量窗外：窗内只取值，窗外判结果。
+            bool rejected = true;
             AllocationCapture.MeasureManaged("cooldown-check", 200,
-                () => Assert.IsFalse(_fixture.Cache.Preload(A)),
+                () => rejected = _fixture.Cache.Preload(A),
                 b => Assert.AreEqual(0, b, "冷却查询本身不应分配；被拒的加载不得留下任何记账开销"));
+            Assert.IsFalse(rejected, "冷却期内同地址的 Preload 应被拒");
         }
     }
 }

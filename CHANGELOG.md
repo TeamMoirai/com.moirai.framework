@@ -36,10 +36,15 @@
 
 ### Fixed
 
+#### 音频
+
+- `AudioMainThread.AssertMainThread` 的断言消息插值挪进失败分支：此前 `UnityEngine.Assertions.Assert.IsTrue` 的消息参数在断言通过时也每次求值——播放入口（Preload/Unload 等）每次调用恒 1 个 GC 分配，L3 实测逮到（Preload 命中路径每调用 1 个 GC.Alloc 事件）；修后主线程快路径零分配。
+
 #### 测试
 
 - `Tests/Player` 程序集补 `UniTask` 引用、Player 版 `AudioCacheTestSupport` 补 `using NUnit.Framework`——该程序集编辑器从不编译（`!UNITY_EDITOR` 约束），玩家构建首次真编译时暴露 CS0246/CS0012/CS0103。
 - `PlayerTestBootstrap` 掐 `AutoBoot` 收进 `#if !UNITY_EDITOR` 守卫——程序集转编辑器可见后，无守卫会连带掐掉编辑器 PlayMode 测试域的框架自动启动（L2 门禁前提）。
+- 0-GC 计量用例的 NUnit 断言移出测量窗：`Constraint` 链自身每格 5~9 个 GC.Alloc 事件，窗内断言把产品计数淹成 7~26 事件/次（2026-09-28 L3 首次有牙实测）；Eviction 预算随产品修复同步收紧为 0。
 
 #### 构建
 
