@@ -364,24 +364,6 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 
 `Run all in Player`，见《玩家侧用例的运行方式》。
 
-## 常见陷阱速查
-
-| 症状 | 根因 | 处置 |
-|---|---|---|
-| 单独跑绿、整套跑红 | 跨夹具全局状态污染 | 夹具基座断言初始干净 + TearDown 还原 |
-| EditMode 用例报 `DontDestroyOnLoad` 异常 | EditMode 不允许 | 加 `Application.isPlaying` 守卫 |
-| EditMode 用例里 `Awake` 没跑 | EditMode 不执行生命周期 | 提供 `EnsureActivated` 幂等兜底 |
-| `Time.frameCount` 不推进 | EditMode 无帧 | 自带帧号游标 |
-| `LogAssert` 报 "Expected log did not appear" | 当前 Handler 是 `UnityLoggingHandler`（不可见） | 经 `UtfLogExpect` 声明（判定已内聚，别自己再加判定） |
-| 大量用例突然报 CS0246/CS0426 | 测试里用了裸限定名，撞全局命名空间或 `UnityEngine` 类型 | 改 `using` 别名 |
-| 0-GC 断言"通过"但实际在分配 | 编辑器计量器恒 0 | 能力探测 + `Assert.Ignore`；真验证走 L3 |
-| `Assert.ThrowsAsync<T>` 类型不匹配 | `TaskCanceledException` 精确类型 | `task.GetAwaiter().GetResult()` |
-| 改字段名后用例 NRE | 用例用反射读字段 | 改 `internal`，别用反射 |
-| 用例红了但代码没动 | 并行会话改了 API | 先 `git diff` 排除并行改动，再归因 |
-| Inspector 下拉框出现陌生 Handler | 测试里建了 `[SerializeReference]` 基类的子类 | 删除该类型，改用内置实现 + 事件回调 |
-
----
-
 ## 可执行政策守卫与治理原则（2026-09-27）
 
 规范若只写在文档里，下一次"顺手一下"没人拦得住——以下政策已钉成可执行守卫（编辑器套件自动跑）：
@@ -402,6 +384,22 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 - `GetAllTimers(null)` 按契约返回 0——不是计数通道，活跃数走 `GetStatistics`。
 - C# 9 不缓存方法组转换：基准与热路径的回调必须缓存为静态字段。
 - 跨程序集测试支撑不可共享（asmdef 拓扑），复制属可接受形态（如 Player 版 AudioCacheTestSupport）。
+
+## 常见陷阱速查
+
+| 症状 | 根因 | 处置 |
+|---|---|---|
+| 单独跑绿、整套跑红 | 跨夹具全局状态污染 | 夹具基座断言初始干净 + TearDown 还原 |
+| EditMode 用例报 `DontDestroyOnLoad` 异常 | EditMode 不允许 | 加 `Application.isPlaying` 守卫 |
+| EditMode 用例里 `Awake` 没跑 | EditMode 不执行生命周期 | 提供 `EnsureActivated` 幂等兜底 |
+| `Time.frameCount` 不推进 | EditMode 无帧 | 自带帧号游标 |
+| `LogAssert` 报 "Expected log did not appear" | 当前 Handler 是 `UnityLoggingHandler`（不可见） | 经 `UtfLogExpect` 声明（判定已内聚，别自己再加判定） |
+| 大量用例突然报 CS0246/CS0426 | 测试里用了裸限定名，撞全局命名空间或 `UnityEngine` 类型 | 改 `using` 别名 |
+| 0-GC 断言"通过"但实际在分配 | 编辑器计量器恒 0 | 能力探测 + `Assert.Ignore`；真验证走 L3 |
+| `Assert.ThrowsAsync<T>` 类型不匹配 | `TaskCanceledException` 精确类型 | `task.GetAwaiter().GetResult()` |
+| 改字段名后用例 NRE | 用例用反射读字段 | 改 `internal`，别用反射 |
+| 用例红了但代码没动 | 并行会话改了 API | 先 `git diff` 排除并行改动，再归因 |
+| Inspector 下拉框出现陌生 Handler | 测试里建了 `[SerializeReference]` 基类的子类 | 删除该类型，改用内置实现 + 事件回调 |
 
 ---
 
