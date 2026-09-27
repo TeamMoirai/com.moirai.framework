@@ -38,9 +38,16 @@ namespace Service.Timer
         [TearDown]
         public void TearDown()
         {
-            _handler.Internal_Shutdown();
-            _handler = null;
-            GameTime.Handler = _originalGameTimeHandler;
+            // 还原全局时钟必须放 finally：Shutdown 抛异常时不归还，会把虚拟时钟泄漏给后续所有用例
+            try
+            {
+                _handler.Internal_Shutdown();
+            }
+            finally
+            {
+                _handler = null;
+                GameTime.Handler = _originalGameTimeHandler;
+            }
         }
 
         /// <summary>推进缩放与非缩放时钟（默认二者同步）并按 50ms 步进驱动 Update Tick。</summary>

@@ -23,7 +23,8 @@ namespace Policy
     [TestFixture]
     public sealed class TestLogChannelPolicyGuardTests
     {
-        /// <summary>被禁止的发射方法调用前缀模式（含前缀空格，避免误配注释里的类名提及）。</summary>
+        /// <summary>被禁止的发射方法调用字面（verbatim、无前缀空格，代码与注释同判）。
+        /// 注意：这不是语法级识别——注释/文档里写出完整字面同样命中，提及时措辞用「LogUtility 的 X」规避。</summary>
         private static readonly string[] FORBIDDEN_EMISSIONS =
         {
             "LogUtility.Verbose(",
