@@ -76,7 +76,7 @@ com.moirai.framework/
 - **Span 与 unsafe：** 字符串/JSON/二进制解析用 ReadOnlySpan&lt;char&gt;/ReadOnlySpan&lt;byte&gt; 避免 substring 分配；unsafe 仅限性能关键场景（指针操作/直接内存拷贝），须注释说明；allowUnsafeCode 按 asmdef 粒度开启。
 - **防装箱：** 通用工具必须泛型接口（IEquatable&lt;T&gt;）；禁止 ArrayList/Hashtable/非泛型 Queue/Stack；禁止 Enum 传 object（用泛型 Enum.Parse&lt;T&gt;）；禁止 object 参数函数（用泛型）；禁止热路径 Debug.Log（用封装日志工具）。
 - **线程安全：** 跨线程共享字段用 volatile/Interlocked；Unity API 仅主线程调用，异步续体须 EnsureMainThread() 守卫或 Dispatcher 入队；锁仅限非热路径初始化，热路径用 lock-free；CancellationToken 贯穿所有异步操作。
-- **对象池化：** 高频创建/销毁对象（事件、任务、缓冲区、GameObject）必须池化；池接口统一 Acquire/Release；池对象实现状态重置；容量按场景配置，支持运行时回收。
+- **对象池化：** 高频创建/销毁对象（事件、任务、缓冲区、GameObject）必须池化；池接口沿用各池家族既定词汇——内存池 `Acquire`/`Release`、事件 `Acquire`/`Dispose` 配对、对象池服务 `Spawn`/`Despawn`，新池先对齐同家族词汇不另造第三套；池对象实现状态重置；容量按场景配置，支持运行时回收。
 - **Unity 引擎：** GetComponent 必须 Awake/Start 缓存；禁止 GameObject.Find/SendMessage/BroadcastMessage；私有序列化字段 m_ 前缀（公共序列化字段无前缀 lowerCamelCase）；yield return 缓存静态只读或用协程工具；高频异步用 UniTask（禁止同步 IO 和 Coroutine 做 IO）；用 Mathf 不用 Math；ScriptableObject 做数据驱动配置并运行时缓存引用。
 - **异常与错误处理：** 禁止 try-catch 做逻辑控制；热路径严禁 try-catch（**例外**：`PlayerLoopDriver.HandlerSlot/CallbackSlot.Drive` 与内核 `ServiceScope` 轮询循环内的 per-subscriber try/catch 属有意隔离——订阅/服务抛出不得截断同阶段其余项；异常本身仍按分级上抛或隔离，不吞）；用 Debug.Assert/Assert.IsTrue（仅 Editor）；非热路径公共 API 做参数校验抛 ArgumentException；异常不吞——要么处理要么上抛。
 - **代码组织：** 一文件一顶层类；类/接口/公有方法/枚举必须 &lt;summary&gt;（内容独占行）；严禁 TODO 入主干；#region 用于小范围分组（双语标签），严禁大段折叠掩盖 SRP 违例（违反则拆类）；asmdef 最小化依赖、禁止循环引用。
@@ -123,7 +123,7 @@ com.moirai.framework/
 - **partial 拆文件**：`Xxx.<职责>.cs`，职责名是首字母大写的单个英文名词（`.Core`/`.Slots`/`.Maintenance`/`.Bindings`/`.Async`/`.IO`，在仓 66 个）；拆文件不破坏"一文件一顶层类型"。
 - **通用后缀**：静态工具 `XxxUtility`（单数）、扩展方法 `XxxExtensions`、账本 `XxxRegistry`、缓存 `XxxCache`、调度 `XxxScheduler`/`XxxStateMachine`、调试器面板 `XxxServiceDebuggerWindow`。
 - **键名常量**：Mixer 参数与设置键按 `<域>_<对象>_<属性>` 全大写（`AUDIO_MASTER_VOLUME`、`GRAPHICS_FULLSCREEN_MODE`）；存档 schema 字段是 `PascalCase` + `Key` 后缀（`LocalPositionKey`、`SpawnsKey`）。两套并存是历史，改到哪个文件就跟哪个，不新造第三种。
-- **程序集与命名空间**：本包自带 asmdef 为 `Moirai.Atropos`、`Moirai.Atropos.Editor`、`Moirai.Atropos.Tests.EditorMode`/`.PlayMode`/`.Player`（`Templates~` 下的 `GameLib`/`GameLogic`/`GameProto` 是工程侧模板，不属本包）。其中 `.Player` 是**玩家专用**测试程序集（`defineConstraints: ["UNITY_INCLUDE_TESTS", "!UNITY_EDITOR"]`）：编辑器里根本不编译，只随玩家构建的测试运行执行，且只引用玩家安全的程序集（`UnityEngine.TestRunner` + `Moirai.Atropos`），不引 Editor-only 的 `UnityEditor.TestRunner`（按"玩家侧只依赖玩家安全程序集"收窄；2026-09-22 实测引用它**并未**硬阻断玩家构建——`.PlayMode` 原样打进 IL2CPP 测试玩家时也进了包，故此处不写"引用即报错"）。运行期与编辑器代码一律 `namespace Moirai.Atropos[.<Module>[.<Sub>]]`；测试用与被测模块对齐的**短命名空间**（`Service.Audio`、`Core.Events`、`Core.MemoryPool`），不带 `Moirai` 根——这正是 `CheckNamespace` 降级要护住的写法。
+- **程序集与命名空间**：本包自带 asmdef 为 `Moirai.Atropos`、`Moirai.Atropos.Editor`、`Moirai.Atropos.Editor.Testing`（Test Framework 门控的编辑器工具程序集，2026-09-28 起；窗口等测试工具住这里，缺 Test Framework 包自动退化，常驻 Editor 程序集不背测试程序集依赖）、`Moirai.Atropos.Tests.EditorMode`/`.PlayMode`/`.Player`（`Templates~` 下的 `GameLib`/`GameLogic`/`GameProto` 是工程侧模板，不属本包）。其中 `.Player` 是**玩家验收专用**测试程序集（`defineConstraints: ["UNITY_INCLUDE_TESTS"]`，2026-09-28 起编辑器可见——UTF 的玩家测试运行只收录编辑器可见程序集，旧组合「编辑器不编译 + Run all in Player」经实证在任何环境都不执行，L3 门禁此前从未真正跑过）：编辑器 PlayMode 套件会真跑其中的 0-GC 计量格（`GC.Alloc` 采样编辑器同样有牙；仅 AudioPerformance 3 格按宿主未配 `AudioGroupConfigs` 探针跳过），发布出口的 L3 验收仍以玩家侧报告为准；玩家构建语义不变——生产包不含它（`UNITY_INCLUDE_TESTS` 未定义即不编译），测试玩家构建原样编入。引用面收窄至玩家安全程序集（`UnityEngine.TestRunner` + `Moirai.Atropos` + `UniTask`），不引 Editor-only 的 `UnityEditor.TestRunner`——玩家域没有该程序集，历史容错（`.PlayMode` 曾原样进包）不代表被支持。运行期与编辑器代码一律 `namespace Moirai.Atropos[.<Module>[.<Sub>]]`；测试用与被测模块对齐的**短命名空间**（`Service.Audio`、`Core.Events`、`Core.MemoryPool`），不带 `Moirai` 根——这正是 `CheckNamespace` 降级要护住的写法。
 - **测试**：类 `<被测>Tests`（`AudioClipCacheTests`）、基准 `<被测>Benchmark`（一律 `[Explicit]`，不随常规套件跑）、夹具 `XxxTestSupport`/`XxxTestHost`/`MemoryPoolFixture`（派生式基座）。方法名 `场景_条件_期望` 三段式（`RetainRelease_CycleAllocatesZeroBytes`、`PauseGame_NestedSources_OnlyLastResumeRestoresSpeed`）。异常断言沿 `InnerException`/`AggregateException` 链判定，不用 `Assert.Throws<T>` 硬匹配（泛型 `new T()` 实走 `Activator.CreateInstance<T>()`，原始异常会被包装）。
 
 **冲突怎么判**：DotSettings 与代码打架时以 DotSettings 为准（它是门禁，也是评审依据）；表里没写、仓内已成词汇的那一档（`Handler`/`Bridge`/`Registry`/`Support`）按仓库现状走。两类冲突都不许用 `// ReSharper disable` 或规则抑制绕过——要改先改规则，再改代码。
@@ -138,8 +138,8 @@ com.moirai.framework/
 |---|---|---|---|
 | L1 单元/契约 | `Moirai.Atropos.Tests.EditorMode` | `Tests/EditorMode/` | 纯逻辑、数据结构、状态机、契约形状、降级路径 |
 | L2 集成 | `Moirai.Atropos.Tests.PlayMode` | `Tests/PlayMode/` | 跨组件协作、真实帧驱动、场景/宿主生命周期、真实 IO |
-| L3 玩家验收 | `Moirai.Atropos.Tests.Player` | `Tests/Player/` | 0-GC 热路径、托管分配计量（编辑器测不出来） |
-| L4 基准 | 所在程序集 | 模块目录 | 必须 `[Explicit]`，不进常规套件 |
+| L3 玩家验收 | `Moirai.Atropos.Tests.Player` | `Tests/Player/` | 0-GC 热路径、托管分配计量（发布出口以玩家侧报告为准） |
+| L4 基准 | 入口住 `Tests`（`[Explicit]` 薄壳）；Debugger 窗口双通道基准的矩阵核心在运行程序集（`XxxBenchmarkRunner`，public static） | `Tests/<层>/` 镜像被测模块 | 必须 `[Explicit]`，不进常规套件 |
 
 能在 EditMode 判定的**必须**放 L1；不要为了"更真实"把纯逻辑塞进 PlayMode（慢、难归因、易 flaky）。
 
@@ -202,7 +202,7 @@ com.moirai.framework/
 
 ### 覆盖率与出口准则
 
-工具 `com.unity.testtools.codecoverage`；assemblyFilters `+Moirai.Atropos`，排除 `Moirai.Atropos.Editor`/`Moirai.Atropos.Tests.*`/生成代码；报告落盘 `Tests/Coverage/`。
+工具 `com.unity.testtools.codecoverage`（**2026-09-28 口径：Client 现未装该包**——覆盖率门须装包后才可执行；基线缺失情况已记入 Testing.md 治理账本）；assemblyFilters `+Moirai.Atropos`，排除 `Moirai.Atropos.Editor`/`Moirai.Atropos.Tests.*`/生成代码；报告落盘 `Tests/Coverage/`。
 
 | 档 | 范围 | 行覆盖 | 分支覆盖 |
 |---|---|---|---|
@@ -212,7 +212,7 @@ com.moirai.framework/
 
 覆盖率是**找空洞的工具，不是质量指标**；评审用例看断言强度，不看百分比。新代码不得让所在模块覆盖率下降。
 
-**发布出口五门**（缺一不可）：编译 0 error → L1 全量 0 失败 → L2 全量 0 失败 → L3 `Run all in Player` 0 失败 → 覆盖率不低于分级阈值与上一版基线。**基线必须绿**——套件有红时"全绿"信号失效，必须先修红再继续开发。
+**发布出口五门**（缺一不可）：编译 0 error → L1 全量 0 失败 → L2 全量 0 失败 → L3 `Run all in Player` 0 失败 → 覆盖率不低于分级阈值与上一版基线。2026-09-28 起 L2 套件包含 `Tests/Player` 的 0-GC 计量格真跑，其红同打穿 L2 门与 L3 门——两门不再互斥。**基线必须绿**——套件有红时"全绿"信号失效，必须先修红再继续开发。
 
 ### 可执行守卫与基准归一（2026-09-27）
 
@@ -246,7 +246,7 @@ com.moirai.framework/
 | EditMode / PlayMode 全量或过滤 | **测试桥**（`Temp/MoriaiTestRequest.json` 文件协议，见《验证：让开着的编辑器自己跑测试》） |
 | 桥不可用（编辑器刚重载、桥未进域） | `TestRunnerApi` 直跑（`exec_editor_script` + `ICallbacks` 宿主） |
 | 判编辑器是否空闲 / dll 是否新鲜 | **状态桥**（`Temp/MoriaiEditorState.json`，见《验证：编辑器状态桥》） |
-| L3 玩家验收 | **只能** Test Runner 窗口 PlayMode 页签 → `Run all in Player`；不要自己 `BuildPipeline.BuildPlayer` 搭测试玩家 |
+| L3 玩家验收 | 玩家通道三选一：Test Runner 窗口 PlayMode 页签 → `Run all in Player`、本包 `Window/General/Test Player Runner` 窗口、CLI `-runTests -testPlatform <BuildTarget>`（详见《测试规范》玩家侧用例的运行方式）；不要自己 `BuildPipeline.BuildPlayer` 搭测试玩家 |
 
 ### 4. 证据纪律
 
@@ -260,7 +260,7 @@ com.moirai.framework/
 
 **0 失败才算通过。** 新增用例必须"先红后绿"；既有失败必须归因——先 `git diff` 排除并行改动（本项目用户会与代理并行编辑，也会 rebase/amend），确认是本次引入才动手修。
 
-**不允许**：用 `Assert.Ignore` 掩盖 flaky；直接改契约守卫常数让它变绿；把"测不出"当成"没问题"（编辑器 Mono 无托管分配计量，0-GC 只能 L3 验证）。
+**不允许**：用 `Assert.Ignore` 掩盖 flaky；直接改契约守卫常数让它变绿；把"测不出"当成"没问题"（0-GC 计量走 `GC.Alloc` 采样、编辑器同样有牙；但发布出口只能 L3 玩家验收，编辑器跑绿不替代玩家报告）。
 
 ### 6. 忙碌期与域重载处置
 
@@ -323,20 +323,24 @@ com.moirai.framework/
 受理即由驱动收口（ABORTED 格式，附已收集计数）；拒绝受理才等 RunFinished 自然收口。
 域重载后驱动按作业 guid 精确判活（不认窗口手动跑），判活不可用也有强制收口宽限——调用方永不会等不到 `.done`。
 
-**玩家专用用例跑不了这条桥**：桥住在编辑器里，而 `Moirai.Atropos.Tests.Player` 在编辑器下不编译（`!UNITY_EDITOR`），
-桥的 `assemblies` 过滤器找不到它。这类用例（音频热路径 0-GC 验收——托管分配计数器只在玩家里推进）只能用
-**Test Runner 窗口的 PlayMode 页签 → `Run all in Player`**（可用搜索框把范围缩到目标夹具），结论以玩家侧报告为准；
-编辑器套件里它们既不出现也不假跳。
+**玩家验收用例走玩家通道**：`Tests/Player` 自 2026-09-28 起编辑器可见——编辑器 PlayMode 套件会真跑其 0-GC 计量格
+（`GC.Alloc` 采样编辑器同样有牙，日常回归可在编辑器做），但**发布出口的 L3 验收以玩家侧报告为准**。发起通道三选一：
+Test Runner 窗口 PlayMode 页签 → `Run all in Player`、本包 `Window/General/Test Player Runner` 窗口（参数化一键发起、
+护栏与测试桥同款）、CLI `-runTests -testPlatform <BuildTarget>`（详见《测试规范》玩家侧用例的运行方式）。
+桥单跑的是编辑器内回归（L1/L2 程序集过滤口径），玩家验收不要混进桥单。
 
-**玩家侧测试为什么只能从窗口发起**（2026-09-22 实测，别自己 `BuildPipeline.BuildPlayer` 搭测试玩家）：① 玩家里的测试
-入口不是 `-runTests` 参数，而是**构建期注入的引导场景**——编辑器侧 `CreateBootstrapSceneTask` 建一个挂着
+**玩家侧测试为什么不能手搓构建发起**（2026-09-22/09-28 实测；三条正规通道见《测试规范》玩家侧用例的运行方式——
+Test Runner 窗口 `Run all in Player`、Test Player Runner 窗口、CLI `-runTests -testPlatform <BuildTarget>`）：
+① 玩家里的测试入口不是 `-runTests` 参数，而是**构建期注入的引导场景**——编辑器侧 `CreateBootstrapSceneTask` 建一个挂着
 `PlaymodeTestsController`（internal，`Code-based tests runner`）的 `Assets/InitTestScene<guid>.unity` 并把它作为构建场景，
-控制器在 `Start()` 里跑测试；手搓玩家没有这个场景，`-runTests` 什么也不会发生。② 玩家**自己不写结果 XML**：运行时侧
-没有 `-testResults` 解析，结果经 `RemoteTestResultSender` 走 PlayerConnection 回传编辑器，由编辑器落盘。所以
-"独立玩家 + 命令行"这条路根本不存在。③ 项目侧前置：玩家默认自动启动框架（`GameApp.AutoBoot` 默认 true →
+控制器在 `Start()` 里跑测试；自己 `BuildPipeline.BuildPlayer` 的玩家没有这个场景，`-runTests` 什么也不会发生。
+② 玩家**不写结果 XML**——结果经 `RemoteTestResultSender` 走 PlayerConnection 回传编辑器，由编辑器落盘（CLI
+`-runTests` 模式由 UTF 把结果写入 `-testResults`）；所以「**手搓构建的**独立玩家 + 命令行」这条路不存在，正规 CLI
+走的是同一 PlayerLauncher 机制、有引导场景。③ 玩家默认自动启动框架（`GameApp.AutoBoot` 默认 true →
 `GameAppSettings.Initiation` 里 `if (GameApp.AutoBoot) GameApp.Boot()`），测试玩家跑的是空场景，启动链会停在
-`UGUIHandler.OnInit` 的 `[FAT] UIRoot not found!`（实测：带不带 `-runTests` 都停在同一行，测试运行永远轮不到）——
-故 `Tests/Player/PlayerTestBootstrap.cs` 在 `AfterAssembliesLoaded` 把 `GameApp.AutoBoot` 置 false，玩家成为干净测试宿主。
+`UGUIHandler.OnInit` 的「UI 根尚未绑定」（实测：带不带 `-runTests` 都停在同一行，测试运行永远轮不到）——
+故 `Tests/Player/PlayerTestBootstrap.cs` 在 `AfterAssembliesLoaded` 把 `GameApp.AutoBoot` 置 false，且**仅玩家域生效
+（`#if !UNITY_EDITOR`）**：编辑器 PlayMode 测试域依赖自动启动链（L2 门禁前提），编辑器里绝不能掐。
 
 ### 验证：编辑器状态桥（不用人按 Ctrl+R）
 
@@ -345,13 +349,14 @@ com.moirai.framework/
 `isChangingPlayMode` / `isFocused` / `isActive`、`activeScenePath`、`dirtyScenes`、`consoleErrors` / `consoleWarnings`、
 `testRequestPending` / `testRunActive`（-1 探针不可用、0 空闲、1 有 run 在跑）、`domainDllUnix`（本域加载时
 `Moirai.Atropos.Tests.EditorMode.dll` 的 mtime），以及 `assemblies[{name,unix}]`——
-`Library/ScriptAssemblies/` 下四份 Moirai 产物的 mtime。`testRunActive` 走 `TestRunnerApi.IsRunActive()` 反射探针而不是
+`Library/ScriptAssemblies/` 下四份 Moirai 产物（Runtime/Editor/Tests.EditorMode/Tests.PlayMode）的 mtime；
+`Tests.Player` 与 `Editor.Testing` 不在跟踪列表——判这两处的新鲜度直接比对对应 dll 的 mtime。`testRunActive` 走 `TestRunnerApi.IsRunActive()` 反射探针而不是
 看 `Temp/MoiraiTestRunState.json` 在不在：实测有一单超时收口（报告与 `.done` 都落了、状态文件也删了）之后，
 旧域拆走时又把运行态写回了磁盘，残留文件会把空闲报成在跑。
 
 - **判活**：`now - unix` 大到几秒即主线程没在跑 `update`——导入中、域重载中、被原生模态框挡住（`dirtyScenes` 大于 0 时刷新/重编译
   就可能撞上"保存场景？"对话框，本桥不代存），或者 Interaction Mode 不是 `No Throttling`（那时是走得慢而不是不动）。
-  真原因去 `%LOCALAPPDATA%/Unity/Editor/Editor.log` 取。
+  真原因去 Editor.log 取（Windows `%LOCALAPPDATA%\Unity\Editor\Editor.log`；macOS `~/Library/Logs/Unity/Editor.log`）。
 - **心跳陈旧时整份快照都作废**：里的位是"进阻塞之前"的读数，实测编辑器已经 `Compiling Scripts (busy for 09:51)`
   （进程 CPU 几乎为 0、日志不涨＝编译在等待而非在跑）时，快照里仍是 `isCompiling: false`——把它读成"没在编译"就反了。
   这时唯一可信的是 `unix` 与 `domainSeq` 本身，外加窗口标题/日志这类外部信号。
@@ -389,17 +394,20 @@ com.moirai.framework/
 
 - `CHANGELOG.md` **只有 `[Unreleased]` 一段**：已发布的内容不留在文件里。发版由 `build-release` 工作流收尾——该段切成 GitHub Release 的 notes 并 Publish，之后自动开一个清空该段的 PR。版本号与 `package.json` 的 `version` 由同一条自动化写入，不在手上改。两条硬约定：**合并清空 PR 之后才能打下一个 tag**（否则上一版条目会被再发一次）；**发版进行中不要往 `[Unreleased]` 写新条目**（清空 PR 整段删，窗口期内新写的会一并消失）。
 - `CHANGELOG.md` 按**后覆盖**维护：一条只写当前仍然成立的净结果。加了又删的开关、改到一半的命名、逐轮刷新的测试格数与成员计数、当时判为"不采纳"的观察一律不立条目；同一件事被后续提交推翻时，改掉或删掉原条目，不要再追加一条把它推翻。
-- 诊断过程与被删改的来龙去脉写进 commit message，不写进 CHANGELOG。破坏性变更前置 ⚠ 并给出迁移口径。
+- 诊断过程与来龙去脉的要点写进 commit message（正文几行内收口，禁长篇叙事铺陈），不进 CHANGELOG；CHANGELOG 面向 release note 读者——只写净结果与迁移口径，一条一行不折行。破坏性变更前置 ⚠ 并给出迁移口径。
 - `Documentation~/zh` 与 `Documentation~/en` 是成对副本，接口改动必须双语同步；文档里的类名、成员名与菜单路径要对着代码核真名——`E` 前缀、单复数这类差别会让照文档写出的代码直接编译不过。
 
 ## 依赖项
 
-### 核心依赖
+### 运行时核心依赖（Client 实装）
 - **UniTask** - 异步编程
 - **YooAsset** - 资源管理
-- **HybridCLR** - 热更新
-- **Luban** - 配置表
-- **R3** - 响应式编程
+- **Luban** - 配置表生成器（构建期工具，运行时消费其生成的表代码）
+
+### 可选依赖（`*_INSTALLED` 宏门控，未装也能编译）
+- **HybridCLR** - 热更新（`HYBRIDCLR_INSTALLED`）
+- **R3** - 响应式编程（`R3_INSTALLED`）
+- 其余可选包见 Runtime asmdef 的 21 条 versionDefines（LitMotion/PrimeTween/ZString/ZLogger/com.unity.logging/Obfuz/Addressables/LZ4/CloudSave 等）。asmdef 对未安装包的 GUID 引用按 Unity 惯例静默跳过（Runtime 19 引用中 11 个 Client 未装而照常编译）——引用缺失不报错，缺的是宏。
 
 ### 开发工具
 - **Odin Inspector** - 编辑器增强
@@ -408,8 +416,8 @@ com.moirai.framework/
 ## 注意事项
 
 1. **Unity 版本**：推荐 Unity 2022.3.x
-2. **.NET 版本**：使用 .NET 4.x
-3. **平台支持**：Windows、Android、iOS、WebGL
+2. **.NET 版本**：Api Compatibility Level 为 .NET Framework（`apiCompatibilityLevel: 6`，等效 4.8），非 .NET Standard 2.1
+3. **平台支持**：Windows、macOS（Standalone——L3 玩家验收基座，IL2CPP 实测）、Android、iOS、WebGL
 4. **热更新**：使用 HybridCLR 进行热更新
 5. **资源管理**：使用 YooAsset 管理资源
 

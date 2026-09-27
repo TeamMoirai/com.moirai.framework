@@ -212,7 +212,7 @@ public abstract class XxxFixture
 
 ## 0-GC 验收（L3）
 
-**编辑器 Mono 没有任何可用的托管分配计量手段**：`GC.GetAllocatedBytesForCurrentThread()` 恒返回 0（实测：主线程一次 64MB 且被真实读写的分配，delta 仍为 0）；`ProfilerRecorder(ProfilerCategory.Memory, "GC.Alloc")` 同样不随已知分配变化。**绝不能把"测不出分配"当成"没有分配"。**
+**字节口径的 GC 计数 API 在 Unity 内无实现**：`GC.GetAllocatedBytesForCurrentThread()` 在编辑器 Mono、Mono 玩家、IL2CPP 玩家三处实测恒返回 0（含主线程一次 64MB 且被真实读写的分配，delta 仍为 0）；`GC.GetTotalAllocatedBytes()` 在 Unity .NET profile 不存在（CS0117）。**可用的托管分配计量是 `GC.Alloc` 采样事件数**（`Recorder.Get("GC.Alloc")` + `sampleBlockCount`，UTF 官方 `AllocatingGCMemory` 同机制）——2026-09-28 实证三处都有牙：编辑器 PlayMode 套件真跑 0-GC 格并逮到过产品热路径分配。**绝不能把"测不出分配"当成"没有分配"；探不到时按能力探针整组 `Ignore`——Ignore 既不是假绿也不是绿。**
 
 因此 0-GC 用例的正确形态是：
 
@@ -220,14 +220,14 @@ public abstract class XxxFixture
 // 校准：确认测量台能抓到分配（计数器不可用时 MeasureManaged 自行 Ignore；能走到这里就必须抓到）
 AllocationCapture.CalibrateKnownAllocation();
 
-// 稳态测量：内部先预热一次并丢弃（JIT/池扩容落在预热里），再计 iterations 次
-long bytes = AllocationCapture.MeasureManaged("cached-play-stop", 200,
+// 稳态测量：内部先预热一次并丢弃（JIT/池扩容落在预热里），再计 iterations 次——事件数口径
+long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
     () => PlayCached(),
-    b => Assert.AreEqual(0, b, "热路径不应有托管分配"));
+    b => Assert.AreEqual(0, b, "热路径不应有托管分配事件"));
 ```
 
 - 计数器不可用时 `MeasureManaged` 会 **`Assert.Ignore`**（测量台 `AllocationCapture` 自带能力探测缓存）。**绝不要写"前后差"计量**。
-- 要在本机真验证 0-GC，**必须走 L3 玩家构建**（计量走 `GC.Alloc` 采样事件数，UTF 官方 AllocatingGCMemory 同机制——字节口径 GC 计数 API 在 Unity 内无实现：`GetAllocatedBytesForCurrentThread` 三处实测恒 0，`GetTotalAllocatedBytes` 在 Unity profile 不存在）。
+- 0-GC 断言的**发布出口以 L3 玩家侧报告为准**（最终判据是 IL2CPP 玩家）；编辑器 PlayMode 同机制可跑（便于日常回归），编辑器跑绿不替代玩家验收。计量走 `GC.Alloc` 采样事件数，UTF 官方 AllocatingGCMemory 同机制——字节口径 GC 计数 API 在 Unity 内无实现：`GetAllocatedBytesForCurrentThread` 三处实测恒 0，`GetTotalAllocatedBytes` 在 Unity profile 不存在。
 
 ### 玩家侧用例的运行方式（2026-09-28 按实证重写）
 
