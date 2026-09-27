@@ -8,6 +8,10 @@
 
 ### Added
 
+#### 编辑器
+
+- 新增 `Window/General/Test Player Runner` 窗口：Player 测试一键发起——目标平台/程序集/用例过滤、心跳超时、报告输出路径收拢一处（Odin 范式），内置 CLI 等价命令展示与复制（便于 CI/batch 复用）；ICallbacks 宿主收口计数与逐格失败详情落文本报告 + `.done`，运行态经 `Temp/MoiraiPlayerTestRun.json` 跨域重载存活。
+
 #### 测试
 
 - 测试架构规范化批次落地，基线门禁全绿（L1 1928 过 0 失败、L2 47 过 0 失败）。
