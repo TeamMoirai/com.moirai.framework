@@ -51,7 +51,6 @@ namespace Policy
             ["EditorMode/Service/Save/SaveAssetCatalogTests.cs"] = "生命周期：OnValidate",
             ["Player/Service/Audio/AudioPerformanceTests.cs"] = "生命周期：OnInit",
             ["PlayMode/Service/Audio/AudioCpuRegressionTests.cs"] = "生命周期：OnInit",
-            ["PlayMode/Service/Audio/AudioLeakAcceptanceTests.cs"] = "生命周期：OnInit",
             ["PlayMode/Service/Audio/AudioMiddlewareBackendFailurePlayModeTests.cs"] = "测试替身的私有桥方法唤起",
             ["PlayMode/Service/Audio/AudioMiddlewareMixPlayModeTests.cs"] = "生命周期：OnInit",
             ["PlayMode/Service/Audio/AudioOwnershipTests.cs"] = "生命周期：OnInit",

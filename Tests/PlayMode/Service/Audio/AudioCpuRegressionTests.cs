@@ -1,4 +1,5 @@
 using System.Collections;
+using Testing;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Moirai.Atropos.Audio;
@@ -57,7 +58,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过 CPU 回归");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过 CPU 回归"));
                 yield break;
             }
 
@@ -109,7 +110,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过 CPU 回归");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过 CPU 回归"));
                 yield break;
             }
 
@@ -141,7 +142,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过 CPU 回归");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过 CPU 回归"));
                 yield break;
             }
 

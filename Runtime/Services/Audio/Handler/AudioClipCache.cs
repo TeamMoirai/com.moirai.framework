@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>加载失败后该地址的冷却时长（秒）。防住一个写错的事件地址被高频触发时每次重穿资源层。</summary>
         public const float FailureCooldownSeconds = 5f;
 
-        /// <summary>失败过的地址 → 冷却截止时刻（<c>Time.realtimeSinceStartup</c> 口径）。</summary>
+        /// <summary>失败过的地址 → 冷却截止时刻（<see cref="GameTime"/> 的 RealtimeNow 口径）。</summary>
         private readonly Dictionary<string, float> _failedUntil = new Dictionary<string, float>(8);
 
         // 地址 → 条目的开址定长槽表。取代原先的 Dictionary<string, AudioClipCacheEntry>：
@@ -171,7 +171,7 @@ namespace Moirai.Atropos.Audio
         {
             if (_failureCooldown <= 0f) return false;
             if (string.IsNullOrEmpty(address) || !_failedUntil.TryGetValue(address, out var until)) return false;
-            if (Time.realtimeSinceStartup < until) return true;
+            if ((float)GameTime.Handler.RealtimeNow < until) return true;
 
             _failedUntil.Remove(address);
             return false;
@@ -184,7 +184,7 @@ namespace Moirai.Atropos.Audio
             // 上限用容量本身兜住：错误地址理论上无上限（每条玩法数据都可能写错一个字符串），
             // 不能让这个冷却字典长成第二个泄漏源。到顶就整表重来，最坏是提前允许重试一次。
             if (_failedUntil.Count >= _capacity) _failedUntil.Clear();
-            _failedUntil[address] = Time.realtimeSinceStartup + _failureCooldown;
+            _failedUntil[address] = (float)GameTime.Handler.RealtimeNow + _failureCooldown;
         }
 
         /// <summary>清空失败冷却（服务重启/显式重置时调用）。</summary>
@@ -364,7 +364,7 @@ namespace Moirai.Atropos.Audio
         {
             if (_disposed || _ttl <= 0f) return;
 
-            float now = Time.realtimeSinceStartup;
+            float now = (float)GameTime.Handler.RealtimeNow;
             while (_lruHead != null && now - _lruHead.LastUseTime >= _ttl)
             {
                 RemoveEntry(_lruHead);
@@ -397,7 +397,7 @@ namespace Moirai.Atropos.Audio
                 return;
             }
 
-            entry.LastUseTime = Time.realtimeSinceStartup;
+            entry.LastUseTime = (float)GameTime.Handler.RealtimeNow;
             if (!entry.Pinned)
             {
                 AddToLruTail(entry);
@@ -785,7 +785,7 @@ namespace Moirai.Atropos.Audio
 
         private void Touch(AudioClipCacheEntry entry)
         {
-            entry.LastUseTime = Time.realtimeSinceStartup;
+            entry.LastUseTime = (float)GameTime.Handler.RealtimeNow;
             MoveLruToTail(entry);
         }
 

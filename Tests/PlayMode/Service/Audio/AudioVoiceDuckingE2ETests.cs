@@ -1,4 +1,5 @@
 using System.Collections;
+using Testing;
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
@@ -86,7 +87,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过 Ducking 端到端");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过 Ducking 端到端"));
                 yield break;
             }
 
@@ -130,7 +131,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
                 yield break;
             }
 
@@ -167,7 +168,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置");
+                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过"));
                 yield break;
             }
 

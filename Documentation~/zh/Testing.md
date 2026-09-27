@@ -30,15 +30,27 @@
 - 结论依赖**托管分配计量** → L3（编辑器 Mono 的 `GC.GetAllocatedBytesForCurrentThread()` 恒返回 0，见下文《0-GC 验收》）。
 - 只是"想知道现在有多快" → L4，且必须 `[Explicit]`。
 
-### 当前分布（2026-09-24）
+### 当前分布（2026-09-27 更新）
 
 | 层 | 文件 | 用例 |
 |---|---|---|
-| L1 | 131 | ~1802 |
-| L2 | 15 | ~70 |
-| L3 | 5 | ~17 |
+| L1 | 134+ | ~1925 |
+| L2 | 15（Audio×11 + Kernel + Tasks + Timer 基准） | ~47 |
+| L3 | 6 | ~23（含新增 Timer 与音频分配格） |
 
-L2/L3 明显偏薄：L2 目前只有 Audio 与 Kernel（BootChain），Resource / Save / UI / Scene / Input / Procedure 的集成面尚未覆盖。补齐方向见《覆盖目标》。
+## 覆盖目标
+
+按「用例价值判据」（删掉这格缺陷能不能回来）滚动补齐，不追覆盖率数字。当前缺口账本（2026-09-27）：
+
+| 缺口 | 状态 | 去处 |
+|---|---|---|
+| 事件传播契约（Bubbles/TricklesDown 路径） | 延后——与 P1 缺陷纠缠（传播路径丢目标），修复批次携带先红后绿 | 修复批 A |
+| GameApp 发布期分支（RETHROW=false） | 延后——编辑器编译期不可达，需 L3+发布构建配置 | L3 |
+| Scene 异步编排（挂起/取消→分离收尾守卫/失败恢复） | 待补；不重复 SceneRegistryTests 的同步注册表判定 | L2 |
+| UI 窗口栈生命周期（现行绿语义） | 待补；幽灵窗口（加载失败静默）断言留修复批 | L2 |
+| Debugger OnlyOpenWhenDevelopment×非调试构建注册分支 | 延后——`ResolveActivation` 直读 `Debug.isDebugBuild`（编辑器恒 true、无注入接缝），与 GameApp 发布分支同类环境不可达 | 注入接缝或 L3 |
+| Save 维护门互锁 / 日志等级过滤 / 跨线程契约 | **已覆盖**（审计证实，勿重建） | — |
+| Timer 0-GC | **已补** TimerHotPathAllocationTests | L3 |
 
 ## 目录结构
 
@@ -86,7 +98,7 @@ Tests/
 
 ### 测试专用类型的三条禁令
 
-1. **不得创建 `[Serializable]` 框架基类的自定义子类**——`LogHandler`、`JsonHandler`、`TweenHandler`、各 `XxxServiceHandler` 等基类都以 `[SerializeReference]` 字段使用，Unity 会扫描**所有程序集**查找派生类并填入 Inspector 下拉框，测试里的假实现会污染生产资产的下拉列表。要捕获日志用框架内置实现 + 事件回调（`LogUtility.OnMessageLogged`）。
+1. **不得创建 `[Serializable]` 框架基类的自定义子类**——`LogHandler`、`JsonHandler`、`TweenHandler`、各 `XxxServiceHandler` 等基类都以 `[SerializeReference]` 字段使用，Unity 会扫描**所有程序集**查找派生类并填入 Inspector 下拉框，测试里的假实现会污染生产资产的下拉列表。要捕获日志用框架内置实现 + 事件回调（`LogUtility.OnMessageLogged`）。确需派生框架基类的行为替身（Handler 探针、云存档假件）：派生类**不带 `[Serializable]`** 且一律 `internal`——`[Serializable]` 不被继承，SerializeReference 的 Inspector 下拉只收录带该特性的派生，替身因此不进生产资产（Save / Localization 两侧同口径）。
 2. **测试专用类型一律 `internal`**，且只放在测试程序集内。
 3. **`Test` / `Editor` / 非运行时脚本中的日志一律用 `Debug.LogXX`**，不用 `LogUtility`（`LogUtility` 是带分类过滤与 Handler 管道的运行时基础设施，测试不需要，且会让"这条日志算不算测试失败"变得不可控）。
 
@@ -232,13 +244,15 @@ long bytes = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 - 正确判据：`_Data/ScriptingAssemblies.json` 里是否列出程序集名；或 ISO-8859-1 解码 `il2cpp_data/Metadata/global-metadata.dat` 搜类型名（UTF-8 标识符，命中即已编入）。
 - 成本参考（StandaloneWindows64）：冷构建 ≈ 22 分钟（3.0 GB Development 包）；只改一个程序集后的增量构建 ≈ 3.5 分钟。所以"改完再验一轮"并不昂贵。
 
-## 基准政策（L4）
+## 基准政策（L4，2026-09-27 归一后）
 
-- 一律 `[Explicit]`，**不随常规套件跑**。基准的数值受机器负载影响，混进回归套件只会制造噪音。
-- 命名 `<被测>Benchmark`，与模块同目录。
-- **性能结论必须用同一工具、同一数据做 before/after A/B 实测**（跨工具数据不可比）。
-- 编辑器 Mono 基准有 ±2× 噪声，**只做同轮内比较**，不做跨轮绝对值断言。
-- 非 NUnit 的手动基准（如 `TimerServiceBenchmark`，MonoBehaviour + 菜单驱动）必须**明确标注为非自动基准**，不得让人误以为它参与套件。
+**所有基准住 `Tests/`（KernelBenchmark 范式：`[Explicit]` NUnit，目录镜像被测模块），跑完经 `BenchmarkReport` 输出 XML 到统一文件夹 `<工程根>/Benchmarks/<name>-benchmark.xml`**（`MOIRAI_BENCH_XML` 环境变量可覆盖；编辑器经 `Application.dataPath` 父目录推工程根——`temporaryCachePath` 在 Unity 6 编辑器指系统临时目录，推不出工程根）。
+
+- 一律 `[Explicit]`，**不随常规套件跑**；经测试桥按名显式执行。基准数值受机器负载影响，混进回归套件只会制造噪音。
+- **双通道基准**（需 Debugger 窗口也能跑的，如 MemoryPool/Timer）：矩阵核心（`XxxBenchmarkRunner`，public static，**住运行程序集**——运行时调试器窗口够不到测试程序集）+ Debugger 窗口基准区（Run/Export 按钮）+ Tests `[Explicit]` 薄壳（调 `Runner.Run()` 后写 XML）——两个入口跑同一份矩阵代码。同步矩阵直驱隔离 handler（不依赖门面懒加载的活服务世界）；依赖真实帧的 fire/burst 用例住 PlayMode `[Explicit]` `[UnityTest]`。
+- 软校验口径：矩阵内不变量命中只累加 `failures` 计数并 LogWarning，不抛出——正确性回归归测试族，基准是测量不是验收。
+- **性能结论必须用同一工具、同一数据做 before/after A/B 实测**（跨工具数据不可比）。编辑器 Mono 基准有 ±2× 噪声，只做同轮内比较。
+- 回调一律缓存方法组字段（C# 9 不缓存方法组转换，裸写每次分配一只委托，污染 0-GC 基准）。
 - CI 基准通道见 `Packages/GitHubActions~/README.BENCHMARK.md`。
 
 ## 契约守卫的维护流程
@@ -349,6 +363,27 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 ### 通道四：Test Runner 窗口（L3 唯一通道）
 
 `Run all in Player`，见《玩家侧用例的运行方式》。
+
+## 可执行政策守卫与治理原则（2026-09-27）
+
+规范若只写在文档里，下一次"顺手一下"没人拦得住——以下政策已钉成可执行守卫（编辑器套件自动跑）：
+
+- `ReflectionPolicyGuardTests`：非公开反射白名单双向断言（未登记不得出现、已登记必须仍命中）。
+- `TestLogChannelPolicyGuardTests`：测试日志输出发射统一 `Debug.Log*`，禁止 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`——白名单两类：被测本体（LogUtilityTests）、替身复刻生产发射（Save fake loader）；断言通道（`OnMessageLogged` 捕获、`UtfLogExpect` 消噪）不受限。守卫按原文扫描，注释里写「LogUtility.Error(」字面也会命中——措辞用「LogUtility 的 Error」规避。
+
+**反膨胀原则**（存量不追改、增量强制）：
+
+- 存量方法名不批量改三段式；新增用例必须三段式。
+- 夹具基座的触发条件 = 同模块 ≥2 个文件共享 setup；不 blanket 建基座、不 blanket 给 83 个 SetUp 加断言。
+- 每个新增用例必须映射「契约 / 风险 / 回归锁」之一，无映射不写；新测试文件 ≤8 格，断言行为不断言实现。
+- 重复的断言/理由文本抽共享 const 单点维护：同程序集进 `Support/`（如 `AudioGroupIgnoreReasons` 的探测能力与恢复条件句式），跨程序集不可共享时单文件抽私有 const——口径一处改、处处新，不得逐字复制同一段理由文本。
+
+**教训账本**（踩过即入规）：
+
+- 「孤儿 partial」判定必须先排除**源生成器喂养的类**——SaveHostGenerator 编译期注入第二分部，grep 不可见（2026-09-27 审计 A-18 假阳性，执行 8 处后当场撤销）。
+- `GetAllTimers(null)` 按契约返回 0——不是计数通道，活跃数走 `GetStatistics`。
+- C# 9 不缓存方法组转换：基准与热路径的回调必须缓存为静态字段。
+- 跨程序集测试支撑不可共享（asmdef 拓扑），复制属可接受形态（如 Player 版 AudioCacheTestSupport）。
 
 ## 常见陷阱速查
 

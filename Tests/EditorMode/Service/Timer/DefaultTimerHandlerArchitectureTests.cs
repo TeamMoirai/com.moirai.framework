@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Timer;
+using Testing;
 using NUnit.Framework;
 
 namespace Service.Timer
@@ -20,22 +21,6 @@ namespace Service.Timer
         private GameTimeHandler _originalGameTimeHandler;
         private double _now;
         private double _unscaledNow;
-
-        private sealed class VirtualClockHandler : GameTimeHandler
-        {
-            private readonly Func<double> _scaled;
-            private readonly Func<double> _unscaled;
-
-            public VirtualClockHandler(Func<double> scaled, Func<double> unscaled)
-            {
-                _scaled = scaled;
-                _unscaled = unscaled;
-            }
-
-            public override double ScaledNow => _scaled();
-
-            public override double UnscaledNow => _unscaled();
-        }
 
         [SetUp]
         public void SetUp()
@@ -53,9 +38,16 @@ namespace Service.Timer
         [TearDown]
         public void TearDown()
         {
-            _handler.Internal_Shutdown();
-            _handler = null;
-            GameTime.Handler = _originalGameTimeHandler;
+            // 还原全局时钟必须放 finally：Shutdown 抛异常时不归还，会把虚拟时钟泄漏给后续所有用例
+            try
+            {
+                _handler.Internal_Shutdown();
+            }
+            finally
+            {
+                _handler = null;
+                GameTime.Handler = _originalGameTimeHandler;
+            }
         }
 
         /// <summary>推进缩放与非缩放时钟（默认二者同步）并按 50ms 步进驱动 Update Tick。</summary>

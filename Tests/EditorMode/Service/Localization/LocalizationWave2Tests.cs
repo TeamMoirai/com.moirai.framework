@@ -467,6 +467,10 @@ namespace Service.Localization
 
         #region 探针处理器 [PROBE HANDLERS]
 
+        // 缓解口径（三条禁令 #1）：以下替身均派生框架基类但**不带 [Serializable]** 且 internal——
+        // [Serializable] 不被继承，SerializeReference 的 Inspector 下拉只收录带该特性的派生，
+        // 替身因此不进生产资产下拉（与 Save 侧 FakeCloudKvStore 同口径，裁定见 Testing.md）。
+
         internal sealed class AsyncProbeHandler : LocalizationServiceHandler
         {
             public readonly List<Language> Languages = new List<Language>();

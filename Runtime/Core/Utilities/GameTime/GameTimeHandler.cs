@@ -27,6 +27,16 @@ namespace Moirai.Atropos
         public abstract double UnscaledNow { get; }
 
         /// <summary>
+        /// 当前真实墙钟（秒，双精度，自进程启动起算，不受 timeScale / 暂停 / 播放态影响）。
+        /// <para>供 TTL 驱逐、失败冷却这类「真实流逝」语义的组件读取；引擎时钟下同
+        /// <c>Time.realtimeSinceStartupAsDouble</c>。与 <see cref="UnscaledNow"/> 的差别：
+        /// 编辑器未播放或应用暂停期间，unscaledTime 不再推进，而 realtime 始终推进。</para>
+        /// <para>默认取 <see cref="UnscaledNow"/>——虚拟时钟等无真实墙钟概念的实现因此自动获得
+        /// 可注入的确定性时间源；引擎实现覆写为直读引擎墙钟。</para>
+        /// </summary>
+        public virtual double RealtimeNow => UnscaledNow;
+
+        /// <summary>
         /// 此帧开始时的缩放时间（秒）。由 <see cref="GameTime.StartFrame"/> 每帧采样，默认取自 <see cref="ScaledNow"/>。
         /// </summary>
         public virtual float ScaledTime => (float)ScaledNow;

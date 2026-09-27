@@ -1,4 +1,5 @@
 using System;
+using Moirai.Atropos.Tests.EditorMode;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -195,7 +196,7 @@ namespace Core.Singleton
         [Test]
         public void DirectConstruction_LogsErrorInEditor()
         {
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
+            UtfLogExpect.Error();
 
             var rogue = new PlainSingleton();
 

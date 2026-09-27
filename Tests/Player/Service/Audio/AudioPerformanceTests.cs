@@ -1,6 +1,7 @@
 using System;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
+using Testing;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -20,6 +21,12 @@ namespace Service.Audio
     [Category("Performance")]
     public sealed class AudioPerformanceTests
     {
+        /// <summary>环境性 Ignore 的单文件口径（跨程序集不可共享 Support，单文件抽 const 单点维护）。</summary>
+        private const string AudioGroupNotConfigured =
+            "AudioGroupConfigs 未配置。探测能力：宿主工程 AudioServiceSettings 是否配置了可用的音频组；"
+            + "恢复条件：宿主配置 AudioGroupConfigs 后本格完整执行"
+            + "（L3 出口门依赖宿主配置，缺失即验收空转，须显式补配后重跑）。";
+
         private GameObject _root;
         private UnityAudioHandler _handler;
         private AudioClip _clip;
@@ -70,7 +77,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置");
+                Assert.Ignore(AudioGroupNotConfigured);
                 yield break;
             }
 
@@ -104,7 +111,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置");
+                Assert.Ignore(AudioGroupNotConfigured);
                 yield break;
             }
 
@@ -148,7 +155,7 @@ namespace Service.Audio
         {
             if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置");
+                Assert.Ignore(AudioGroupNotConfigured);
                 yield break;
             }
 

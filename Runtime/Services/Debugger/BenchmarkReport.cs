@@ -109,7 +109,9 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <summary>
-        /// 解析导出路径：优先环境变量 <see cref="XML_PATH_ENV_VAR"/>，否则工程根下 Benchmarks/&lt;name&gt;-benchmark.xml。
+        /// 解析导出路径：优先环境变量 <see cref="XML_PATH_ENV_VAR"/>，否则统一文件夹——
+        /// 编辑器为工程根下 Benchmarks/&lt;name&gt;-benchmark.xml（经 <c>Application.dataPath</c> 父目录推根，
+        /// <c>temporaryCachePath</c> 在编辑器指向系统临时目录、推不出工程根）；玩家为应用同级的 Benchmarks/。
         /// </summary>
         public string ResolveXmlPath()
         {
@@ -117,7 +119,8 @@ namespace Moirai.Atropos.Debugger
             if (!string.IsNullOrEmpty(fromEnv))
                 return fromEnv;
 
-            string projectRoot = Directory.GetParent(Application.temporaryCachePath)?.FullName ?? Application.temporaryCachePath;
+            string projectRoot = Directory.GetParent(Application.dataPath)?.FullName
+                ?? (Directory.GetParent(Application.temporaryCachePath)?.FullName ?? Application.temporaryCachePath);
             string fileName = (string.IsNullOrEmpty(Name) ? "benchmark" : Name.ToLowerInvariant()) + "-benchmark.xml";
             return Path.Combine(projectRoot, "Benchmarks", fileName);
         }
