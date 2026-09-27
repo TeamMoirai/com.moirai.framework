@@ -101,8 +101,19 @@ namespace Moirai.Atropos.Save
             string rootDirectory = BuildDataRootDirectory();
             _ = UniTask.RunOnThreadPool(() =>
             {
-                backend.RecoverInterruptedWrites(rootDirectory);
-                backend.CleanupOrphanTempFiles(rootDirectory);
+                // 维护段持根级门，与所有存档 IO 互斥：恢复会在回退替换的两步改名中间把 journal 抬成主档，
+                // 清空全部存档也可能与恢复对撞——持门写法与 TryDeleteAllSaveFiles 同一把根级门。
+                GateScope scope = GateScope.EnterRoot(rootDirectory);
+                scope.Wait();
+                try
+                {
+                    backend.RecoverInterruptedWrites(rootDirectory);
+                    backend.CleanupOrphanTempFiles(rootDirectory);
+                }
+                finally
+                {
+                    scope.Leave();
+                }
             }, configureAwait: false);
         }
 

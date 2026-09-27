@@ -267,6 +267,15 @@ namespace Moirai.Atropos.Save
             Mirror.CleanupOrphanTempFiles(rootDirectory);
         }
 
+        /// <summary>
+        /// 抬回本地镜像上次写入中断留下的中转日志（远端无此语义；镜像写入与本地文件后端同路径）。
+        /// </summary>
+        /// <param name="rootDirectory">存档数据根目录。</param>
+        public override void RecoverInterruptedWrites(string rootDirectory)
+        {
+            Mirror.RecoverInterruptedWrites(rootDirectory);
+        }
+
         #endregion
 
         #region 异步覆盖（镜像 + 远端协调） [ASYNC OVERRIDES — CLOUD COORDINATION]

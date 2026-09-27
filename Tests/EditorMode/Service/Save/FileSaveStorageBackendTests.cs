@@ -9,7 +9,8 @@ namespace Service.Save
 {
     /// <summary>
     /// <see cref="FileSaveStorageBackend"/> 存储层契约测试（V3-P1 存储抽象下沉回归）：
-    /// 原子写入与往返、删除幂等、槽位枚举（扩展名精确过滤 + 倒序）、单档备份/恢复、能力自描述与设置默认值。
+    /// 原子写入与往返、删除幂等（连带清中转日志）、槽位枚举（扩展名精确过滤 + 倒序）、单档备份/恢复、
+    /// 回退替换与中断恢复、能力自描述与设置默认值。
     /// <para>全流程真实文件 IO（临时目录隔离）；存储层为无状态纯 .NET 实现，直接实例化测试。</para>
     /// </summary>
     public class FileSaveStorageBackendTests
@@ -50,9 +51,9 @@ namespace Service.Save
         }
 
         // 回退/恢复用例的三种内容，彼此可区分：旧存档、新存档、项目侧单槽备份
-        private static readonly byte[] OldBytes = { 0x4F, 0x4C, 0x44, 0x01 };
-        private static readonly byte[] NewBytes = { 0x4E, 0x45, 0x57, 0x02 };
-        private static readonly byte[] BackupBytes = { 0x42, 0x4B, 0x50, 0x03 };
+        private static readonly byte[] s_OldBytes = { 0x4F, 0x4C, 0x44, 0x01 };
+        private static readonly byte[] s_NewBytes = { 0x4E, 0x45, 0x57, 0x02 };
+        private static readonly byte[] s_BackupBytes = { 0x42, 0x4B, 0x50, 0x03 };
 
         #region 原子写与读取 [WRITE / READ]
 
@@ -346,12 +347,12 @@ namespace Service.Save
         {
             string filePath = FilePath("fallback-ok.sav");
             string tempPath = filePath + FileSaveStorageBackend.TEMP_FILE_SUFFIX + "t1";
-            File.WriteAllBytes(filePath, OldBytes);
-            File.WriteAllBytes(tempPath, NewBytes);
+            File.WriteAllBytes(filePath, s_OldBytes);
+            File.WriteAllBytes(tempPath, s_NewBytes);
 
             FileSaveStorageBackend.FallbackReplace(tempPath, filePath);
 
-            CollectionAssert.AreEqual(NewBytes, File.ReadAllBytes(filePath), "新内容必须到位");
+            CollectionAssert.AreEqual(s_NewBytes, File.ReadAllBytes(filePath), "新内容必须到位");
             Assert.IsFalse(File.Exists(tempPath), "临时文件不得残留");
             Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "替换成功后不得残留日志文件");
         }
@@ -361,11 +362,11 @@ namespace Service.Save
         {
             string filePath = FilePath("fallback-new.sav");
             string tempPath = filePath + FileSaveStorageBackend.TEMP_FILE_SUFFIX + "t2";
-            File.WriteAllBytes(tempPath, NewBytes);
+            File.WriteAllBytes(tempPath, s_NewBytes);
 
             FileSaveStorageBackend.FallbackReplace(tempPath, filePath);
 
-            CollectionAssert.AreEqual(NewBytes, File.ReadAllBytes(filePath), "目标原本不存在时直接改名到位");
+            CollectionAssert.AreEqual(s_NewBytes, File.ReadAllBytes(filePath), "目标原本不存在时直接改名到位");
             Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "没有旧档就无需日志文件");
         }
 
@@ -375,13 +376,13 @@ namespace Service.Save
             string filePath = FilePath("fallback-rollback.sav");
             // 临时文件缺失 → 改名到位那一步必然失败，这一步要演的是「搬走旧档之后才崩」
             string missingTemp = FilePath("never-written.sav" + FileSaveStorageBackend.TEMP_FILE_SUFFIX + "t3");
-            File.WriteAllBytes(filePath, OldBytes);
+            File.WriteAllBytes(filePath, s_OldBytes);
 
             Assert.Catch<IOException>(() => FileSaveStorageBackend.FallbackReplace(missingTemp, filePath),
                 "前置条件：改名到位那一步必须真的抛错，否则这一格什么都没测");
 
             Assert.IsTrue(File.Exists(filePath), "失败后主档位置必须仍有一可读文件，不得只留在日志里");
-            CollectionAssert.AreEqual(OldBytes, File.ReadAllBytes(filePath), "回滚后旧存档必须原样可读");
+            CollectionAssert.AreEqual(s_OldBytes, File.ReadAllBytes(filePath), "回滚后旧存档必须原样可读");
             Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "回滚后日志文件应已让位给主档");
         }
 
@@ -391,16 +392,16 @@ namespace Service.Save
             string filePath = FilePath("fallback-backup-safe.sav");
             string tempPath = filePath + FileSaveStorageBackend.TEMP_FILE_SUFFIX + "t4";
             string backupPath = filePath + ".bak";
-            File.WriteAllBytes(filePath, OldBytes);
-            File.WriteAllBytes(backupPath, BackupBytes);
-            File.WriteAllBytes(tempPath, NewBytes);
+            File.WriteAllBytes(filePath, s_OldBytes);
+            File.WriteAllBytes(backupPath, s_BackupBytes);
+            File.WriteAllBytes(tempPath, s_NewBytes);
 
             FileSaveStorageBackend.FallbackReplace(tempPath, filePath);
 
             // .bak 是项目侧 CreateBackup/RestoreBackup 的单槽位；回退若借它中转，玩家手动恢复会捞到写入中途的快照
             Assert.IsTrue(File.Exists(backupPath),
                 "回退替换不得吃掉项目侧的单槽备份位（借 .bak 中转即为污染）");
-            CollectionAssert.AreEqual(BackupBytes, File.ReadAllBytes(backupPath),
+            CollectionAssert.AreEqual(s_BackupBytes, File.ReadAllBytes(backupPath),
                 "回退替换不得改写单槽备份位的内容");
         }
 
@@ -408,12 +409,12 @@ namespace Service.Save
         public void RecoverInterruptedWrites_PrimaryMissingWithJournal_RestoresOldSave()
         {
             string filePath = FilePath("recover-crash.sav");
-            File.WriteAllBytes(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX, OldBytes);
+            File.WriteAllBytes(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX, s_OldBytes);
 
             _backend.RecoverInterruptedWrites(_rootPath);
 
             Assert.IsTrue(File.Exists(filePath), "主档缺失而日志档在时应恢复回主档");
-            CollectionAssert.AreEqual(OldBytes, File.ReadAllBytes(filePath), "恢复回来的必须是崩溃前的旧存档");
+            CollectionAssert.AreEqual(s_OldBytes, File.ReadAllBytes(filePath), "恢复回来的必须是崩溃前的旧存档");
             Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "恢复后日志档应让位给主档");
         }
 
@@ -421,12 +422,12 @@ namespace Service.Save
         public void RecoverInterruptedWrites_PrimaryPresent_ClearsStaleJournal()
         {
             string filePath = FilePath("recover-complete.sav");
-            File.WriteAllBytes(filePath, NewBytes);
-            File.WriteAllBytes(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX, OldBytes);
+            File.WriteAllBytes(filePath, s_NewBytes);
+            File.WriteAllBytes(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX, s_OldBytes);
 
             _backend.RecoverInterruptedWrites(_rootPath);
 
-            CollectionAssert.AreEqual(NewBytes, File.ReadAllBytes(filePath), "主档已到位时恢复不得覆盖成新写的存档");
+            CollectionAssert.AreEqual(s_NewBytes, File.ReadAllBytes(filePath), "主档已到位时恢复不得覆盖成新写的存档");
             Assert.IsFalse(File.Exists(filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "成功写入后残留的日志属陈旧，应清掉");
         }
 
@@ -435,13 +436,89 @@ namespace Service.Save
         {
             string otherFilePath = FilePath("untouched.sav");
             string otherTemp = FilePath("stray.tmp-abc");
-            File.WriteAllBytes(otherFilePath, OldBytes);
-            File.WriteAllBytes(otherTemp, NewBytes);
+            File.WriteAllBytes(otherFilePath, s_OldBytes);
+            File.WriteAllBytes(otherTemp, s_NewBytes);
 
             _backend.RecoverInterruptedWrites(_rootPath);
 
-            CollectionAssert.AreEqual(OldBytes, File.ReadAllBytes(otherFilePath), "无日志档的存档不得被动到");
+            CollectionAssert.AreEqual(s_OldBytes, File.ReadAllBytes(otherFilePath), "无日志档的存档不得被动到");
             Assert.IsTrue(File.Exists(otherTemp), "孤儿临时文件归 CleanupOrphanTempFiles 管，恢复这一步不该顺手删它");
+        }
+
+        [Test]
+        public void RecoverInterruptedWrites_EmptyPrimaryWithJournal_KeepsJournal()
+        {
+            string filePath = FilePath("recover-remnant.sav");
+            string journalPath = filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX;
+            File.WriteAllBytes(filePath, Array.Empty<byte>()); // 删不掉的空残迹，不是已提交的存档
+            File.WriteAllBytes(journalPath, s_OldBytes);
+
+            _backend.RecoverInterruptedWrites(_rootPath);
+
+            Assert.IsTrue(File.Exists(journalPath), "主档只是空残迹时不得把 journal 当陈旧清掉——它是唯一可读副本");
+            CollectionAssert.AreEqual(s_OldBytes, File.ReadAllBytes(journalPath), "保留下来的 journal 必须仍是崩溃前的旧档");
+        }
+
+        [Test]
+        public void RollbackJournal_MissingJournal_LeavesPrimaryUntouched()
+        {
+            string filePath = FilePath("rollback-nojournal.sav");
+            string journalPath = filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX;
+            File.WriteAllBytes(filePath, s_NewBytes); // 并发恢复已把旧档抬回主档，journal 因此为空
+
+            FileSaveStorageBackend.RollbackJournal(journalPath, filePath);
+
+            Assert.IsTrue(File.Exists(filePath), "journal 不在时回滚一律不动主档");
+            CollectionAssert.AreEqual(s_NewBytes, File.ReadAllBytes(filePath), "主档上那份可读存档不得被回滚删掉");
+        }
+
+        [Test]
+        public void RollbackJournal_JournalPresent_RestoresOldContent()
+        {
+            string filePath = FilePath("rollback-ok.sav");
+            string journalPath = filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX;
+            File.WriteAllBytes(journalPath, s_OldBytes);
+
+            FileSaveStorageBackend.RollbackJournal(journalPath, filePath);
+
+            CollectionAssert.AreEqual(s_OldBytes, File.ReadAllBytes(filePath), "抬回后主档位置必须是旧档");
+            Assert.IsFalse(File.Exists(journalPath), "抬回成功后 journal 应让位");
+        }
+
+        [Test]
+        public void RollbackJournal_RestoreFails_KeepsJournalAsReadableCopy()
+        {
+            string filePath = FilePath("rollback-blocked.sav");
+            string journalPath = filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX;
+            File.WriteAllBytes(filePath, s_NewBytes);
+            File.WriteAllBytes(journalPath, s_OldBytes);
+
+            // 主档被句柄占住：删不掉、也不能改名覆盖，回滚两头都失败
+            using (File.Open(filePath, FileMode.Open, FileAccess.Write, FileShare.None))
+            {
+                Assert.DoesNotThrow(() => FileSaveStorageBackend.RollbackJournal(journalPath, filePath),
+                    "回滚自身失败不得再抛新异常盖掉原异常");
+            }
+
+            Assert.IsTrue(File.Exists(journalPath), "抬不回去时必须留着 journal，不能落得两头皆空");
+            CollectionAssert.AreEqual(s_OldBytes, File.ReadAllBytes(journalPath), "保留的 journal 内容必须还是旧档");
+        }
+
+        [Test]
+        public void DeleteFile_AlsoClearsJournal_SoInterruptedSaveCannotResurrect()
+        {
+            string filePath = FilePath("delete-journal.sav");
+            string journalPath = filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX;
+            File.WriteAllBytes(filePath, s_NewBytes);
+            File.WriteAllBytes(journalPath, s_OldBytes);
+
+            _backend.DeleteFile(filePath);
+
+            Assert.IsFalse(File.Exists(filePath), "主档应被删除");
+            Assert.IsFalse(File.Exists(journalPath), "中转日志必须连带清掉，否则下次恢复会把删掉的旧档抬回来");
+
+            _backend.RecoverInterruptedWrites(_rootPath);
+            Assert.IsFalse(File.Exists(filePath), "删档后不得被 RecoverInterruptedWrites 复活");
         }
 
         #endregion

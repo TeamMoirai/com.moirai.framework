@@ -529,6 +529,20 @@ namespace Service.Save
             Assert.IsFalse(_backend.TryGetWriteTimeUtc(PathFor("missing"), out _), "缺档应返回 false");
         }
 
+        [Test]
+        public void RecoverInterruptedWrites_RestoresMirrorJournal()
+        {
+            string path = PathFor("crashed");
+            File.WriteAllBytes(path + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX, s_LocalBytes);
+
+            ExpectWarningLogForUtf();
+            _backend.RecoverInterruptedWrites(_rootPath);
+
+            Assert.IsTrue(File.Exists(path), "云后端必须转发镜像的中断恢复，否则非 NTFS 上的中转日志永远抬不回来");
+            CollectionAssert.AreEqual(s_LocalBytes, File.ReadAllBytes(path), "恢复回来的必须是崩溃前的旧档");
+            Assert.IsFalse(File.Exists(path + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX), "恢复后日志档应让位给主档");
+        }
+
         #endregion
 
         #region 版本通道裁决（去时钟化） [VERSION-CHANNEL RESOLUTION]
