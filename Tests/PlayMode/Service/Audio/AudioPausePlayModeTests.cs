@@ -1,4 +1,5 @@
 using System.Collections;
+using Testing;
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
@@ -72,7 +73,7 @@ namespace Service.Audio
             var categories = _handler.AudioCategories;
             if (categories == null || categories.Length == 0)
             {
-                Assert.Ignore("AudioGroupConfigs 未配置，跳过真实播放集成测试");
+                Assert.Ignore(AudioGroupIgnoreReasons.SkipOrTestHost("跳过真实播放集成测试"));
             }
         }
 

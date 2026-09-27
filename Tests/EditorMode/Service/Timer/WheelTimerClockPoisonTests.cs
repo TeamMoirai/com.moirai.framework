@@ -2,6 +2,7 @@ using System;
 using System.Text.RegularExpressions;
 using Moirai.Atropos;
 using Moirai.Atropos.Timer;
+using Testing;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -24,22 +25,6 @@ namespace Service.Timer
         private double _unscaledNow;
         private int _fired;
 
-        private sealed class VirtualClockHandler : GameTimeHandler
-        {
-            private readonly Func<double> _scaled;
-            private readonly Func<double> _unscaled;
-
-            public VirtualClockHandler(Func<double> scaled, Func<double> unscaled)
-            {
-                _scaled = scaled;
-                _unscaled = unscaled;
-            }
-
-            public override double ScaledNow => _scaled();
-
-            public override double UnscaledNow => _unscaled();
-        }
-
         [SetUp]
         public void SetUp()
         {
@@ -55,9 +40,16 @@ namespace Service.Timer
         [TearDown]
         public void TearDown()
         {
-            _handler.Internal_Shutdown();
-            _handler = null;
-            GameTime.Handler = _originalGameTimeHandler;
+            // 还原全局时钟必须放 finally：Shutdown 抛异常时不归还，会把虚拟时钟泄漏给后续所有用例
+            try
+            {
+                _handler.Internal_Shutdown();
+            }
+            finally
+            {
+                _handler = null;
+                GameTime.Handler = _originalGameTimeHandler;
+            }
         }
 
         private void Fire() => _fired++;

@@ -8,7 +8,25 @@
 
 ### Added
 
+#### 测试
+
+- 测试架构规范化批次落地，基线门禁全绿（L1 1928 过 0 失败、L2 47 过 0 失败）。
+- `GameTimeHandler` 新增 `RealtimeNow` 虚拟时钟接缝：默认回落 `UnscaledNow`（虚拟时钟实现自动获得确定性墙钟），`DefaultGameTimeHandler` 覆写为引擎墙钟。
+- `AudioClipCache` 的 TTL 驱逐与失败冷却改走可注入时间源，TTL 用例脱离真实墙钟等待。
+- 五基准（MemoryPool/Timer/Kernel/ObjectPool/AudioCache）跑完经 `BenchmarkReport` 落 XML 至统一文件夹 `<工程根>/Benchmarks/`。
+- 新增与反射守卫同构的可执行政策守卫 `TestLogChannelPolicyGuardTests`：测试日志发射统一 `Debug.Log*`，白名单=被测本体/替身复刻生产发射。
+- `AudioLeakAcceptance` 改经 `AudioServiceTestHost` 自建最小组——宿主工程未配 AudioGroupConfigs 也可全量执行。
+- 0-GC 分配验收迁 Player 程序集（原 EditorMode 死格：编辑器内计数器不推进恒 Ignore、玩家构建不含 Editor 程序集，任何环境都不执行）。
+- 新增 `TimerHotPathAllocationTests`（Timer 热路径 0-GC，L3）。
+
 ### Changed
+
+#### 基准
+
+- 所有 Benchmark 归一住 `Tests/`（`[Explicit]`，目录镜像被测模块）：`JsonUtilityBenchmark` 自 Editor 菜单工具迁 `[Explicit]` 用例（测量内核逐字保留，去菜单/进度条/结果窗）；Timer 基准拆双通道——同步矩阵核心 `TimerBenchmarkRunner`（运行程序集，隔离 handler 直驱）+ Debugger 的 Timer 调试窗口基准区 + Tests `[Explicit]` 薄壳共用同一矩阵，fire/burst 帧依赖用例住 PlayMode `[UnityTest]`；`BenchmarkReport.ResolveXmlPath` 修统一文件夹根推导（原以 `temporaryCachePath` 推工程根，Unity 6 编辑器下指系统临时目录——改经 `Application.dataPath` 父目录）。
+- ⚠ 移除 `Window/Moirai/JSON Benchmark` 编辑器菜单与结果对比窗（基准迁 `Tests/EditorMode/Utility/JsonUtilityBenchmark`，经 Test Runner 按名执行）。
+- ⚠ 移除 `Window/Moirai/Timer Benchmark` 菜单与场景 MonoBehaviour（其 m_* 序列化配置随独立入口一并消亡、矩阵常量化；双通道入口见上条）。
+- ⚠ 移除 `AudioCacheBenchmark` 的私有导出环境变量 `MOIRAI_AUDIO_BENCH_FILE`（统一收口至 `BenchmarkReport` XML，`MOIRAI_BENCH_XML` 可覆盖路径）。
 
 ### Fixed
 

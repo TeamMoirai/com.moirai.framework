@@ -488,6 +488,38 @@ namespace Service.Save
         [Test]
         public void RollbackJournal_RestoreFails_KeepsJournalAsReadableCopy()
         {
+            // 失败注入能力探测：本用例靠「独占句柄挡住删/改名」制造回滚失败。Windows 的强制文件锁下
+            // FileShare.None 真挡得住；POSIX（macOS/Linux）上打开句柄不阻止 unlink/rename，回滚会直接
+            // 成功、journal 正常让位，注入天然不成立。探测不到该能力时本格无从验证「失败保 journal」。
+            // 恢复条件：在 Windows 或支持强制文件锁的文件系统上运行。
+            string probePath = FilePath("lock-capability-probe");
+            File.WriteAllBytes(probePath, Array.Empty<byte>());
+            bool lockBlocksDeletion;
+            try
+            {
+                using (File.Open(probePath, FileMode.Open, FileAccess.Write, FileShare.None))
+                {
+                    try
+                    {
+                        File.Delete(probePath);
+                        lockBlocksDeletion = false;
+                    }
+                    catch (Exception)
+                    {
+                        lockBlocksDeletion = true;
+                    }
+                }
+            }
+            finally
+            {
+                if (File.Exists(probePath)) File.Delete(probePath);
+            }
+
+            if (!lockBlocksDeletion)
+            {
+                Assert.Ignore("当前文件系统上打开句柄不阻止删除/改名（POSIX 语义），回滚失败注入不成立；恢复条件：Windows 或支持强制文件锁的文件系统");
+            }
+
             string filePath = FilePath("rollback-blocked.sav");
             string journalPath = filePath + FileSaveStorageBackend.JOURNAL_FILE_SUFFIX;
             File.WriteAllBytes(filePath, s_NewBytes);

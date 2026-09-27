@@ -1,4 +1,5 @@
 using System.Collections;
+using Testing;
 using System.Text.RegularExpressions;
 using Moirai.Atropos.Tasks;
 using NUnit.Framework;
@@ -28,8 +29,8 @@ namespace Core.Tasks
             poison.Run();
 
             // 首轮：毒任务抛出 → 内核先置停再记一条 Fatal（落 Error）→ 开发期照样上抛，Unity 记一条 Exception
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
-            LogAssert.Expect(LogType.Exception, new Regex(".*"));
+            UtfLogExpect.Error();
+            UtfLogExpect.Exception();
             yield return null;
 
             Assert.AreEqual(1, healthy.Ticks, "排在毒任务之前的同类必须照常推进");

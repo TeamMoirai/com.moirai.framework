@@ -3,36 +3,34 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
-using UnityEditor;
-using UnityEngine;
+using NUnit.Framework;
+using Moirai.Atropos;
+using Moirai.Atropos.Debugger;
 using Debug = UnityEngine.Debug;
 using Random = System.Random;
 
-namespace Moirai.Atropos.Editor
+namespace Utility
 {
     /// <summary>
-    /// JSON 序列化基准。
+    /// JSON 序列化基准（<c>[Explicit]</c>——不参与常规回归，按名手动执行）。
     /// <para>① 序列化器核心对比（DefaultJson string/bytes vs Newtonsoft vs Unity JsonUtility 参考）；</para>
-    /// <para>② JsonHandler 中间件层：经 <see cref="Moirai.Atropos.AssemblyUtility.GetRuntimeTypes"/> 自动发现全部
-    /// <see cref="Moirai.Atropos.JsonHandler"/> 实现，经 Activator.CreateInstance
-    /// 实例化（与 GameAppSettings 配置流同链路）——新增 handler 实现无需修改本基准；</para>
-    /// <para>③ IBufferJsonHandler 能力矩阵。全部数据程序化构建（零外部文件依赖），结束后恢复外观并清理临时状态。</para>
-    /// 菜单：Window/Moirai/JSON Benchmark。逐场景自适迭代（每测量段约 150ms），场景间让出主线程保持编辑器响应。
+    /// <para>② JsonHandler 中间件层：经 <see cref="AssemblyUtility.GetRuntimeTypes"/> 自动发现全部
+    /// <see cref="JsonHandler"/> 实现，经与 GameAppSettings 配置流同链路实例化——新增 handler 实现无需修改本基准；</para>
+    /// <para>③ IBufferJsonHandler 能力矩阵。全部数据程序化构建（零外部文件依赖），结束后恢复外观并清理临时状态；
+    /// 逐场景自适迭代（每测量段约 150ms），结果经 <see cref="BenchmarkReport"/> 落统一文件夹
+    /// &lt;工程根&gt;/Benchmarks/jsonutility-benchmark.xml。原为 Editor 菜单工具（Window/Moirai/JSON Benchmark
+    /// + 结果窗），按基准归一裁定迁入 Tests、去交互壳。</para>
     /// </summary>
-    public static class JsonUtilityBenchmark
+    [TestFixture]
+    [Explicit]
+    public sealed class JsonUtilityBenchmark
     {
         private const string TAG = "[JSON-BENCH]";
         private const int WARMUP_MS = 30;
         private const int MEASURE_MS = 150;
 
-        #region 入口 [ENTRY]
-
-        [MenuItem("Window/Moirai/JSON Benchmark")]
-        public static void RunFromMenu() => _ = RunAsync();
-
-        #endregion
+        private BenchmarkReport _report;
 
         #region 场景数据 [DTOs]
 
@@ -136,7 +134,7 @@ namespace Moirai.Atropos.Editor
 
         [Serializable] private class MixedItem { public int id; public string name; public List<int> tags; }
         [Serializable]
-            private class MixedRoot
+        private class MixedRoot
         {
             public List<MixedItem> items;
             public Dictionary<string, int> counts;
@@ -157,46 +155,26 @@ namespace Moirai.Atropos.Editor
 
         #region 主流程 [MAIN FLOW]
 
-        /// <summary>结构化测量结果（供结果窗口渲染）。</summary>
-        internal sealed class BenchRow
+        [Test]
+        public void RunMatrix_MeasuresAndExportsXml()
         {
-            public string Scenario;
-            public string Operation;          // 序列化 / 反序列化
-            public double DjString = double.NaN;
-            public double DjBytes = double.NaN;
-            public double Newtonsoft = double.NaN;
-            public double UnityJson = double.NaN; // NaN = 不适用
+            _report = new BenchmarkReport("JsonUtility");
+            _report.SetMetadata("measureMs", MEASURE_MS.ToString());
 
-            /// <summary>该行可用值中的最小值（用于高亮最快项）。</summary>
-            public double Best()
-            {
-                double best = double.MaxValue;
-                foreach (double v in new[] { DjString, DjBytes, Newtonsoft, UnityJson })
-                {
-                    if (!double.IsNaN(v) && v < best) best = v;
-                }
-
-                return best;
-            }
-        }
-
-        private static async Task RunAsync()
-        {
             var results = new List<string> { $"{TAG} ===== Json 序列化基准（µs/次，越小越快；UJ=Unity JsonUtility 参考）=====" };
-            var rows = new List<BenchRow>();
-            var summary = new List<string>();
             JsonHandler originalHandler = null;
+            long wallStart = Stopwatch.GetTimestamp();
             try
             {
                 originalHandler = JsonUtility.Handler; // 保存现场，结束恢复
-                await RunScenarios(results, rows);
-                await RunHandlerMiddleware(results, summary);
-                RunCapabilityMatrix(results, summary);
+                RunScenarios(results);
+                RunHandlerMiddleware(results);
+                RunCapabilityMatrix(results);
             }
             catch (Exception e)
             {
                 results.Add($"{TAG} 异常中止: {e}");
-                summary.Add($"异常中止: {e.Message}");
+                _report.SetMetadata("aborted", e.Message);
             }
             finally
             {
@@ -206,23 +184,22 @@ namespace Moirai.Atropos.Editor
             foreach (var line in results) Debug.Log(line);
             Debug.Log($"{TAG} ===== 基准完成（共 {results.Count - 1} 行）=====");
 
-            // 弹窗展示对比结果（主线程上安全打开）
-            BenchmarkResultWindow.Show(rows, summary, string.Join("\n", results));
+            _report.TotalMs = (Stopwatch.GetTimestamp() - wallStart) * 1000.0 / Stopwatch.Frequency;
+            _report.WriteXml(_report.ResolveXmlPath());
         }
 
-        /// <summary>测试后清理：恢复外观 handler（触发其 OnInit 重置静态状态）、关闭进度条、释放无用资产。</summary>
-        private static void Cleanup(JsonHandler originalHandler)
+        /// <summary>结束后清理：恢复外观 handler（触发其 OnInit 重置静态状态）、释放无用资产。</summary>
+        private void Cleanup(JsonHandler originalHandler)
         {
             if (originalHandler != null && !ReferenceEquals(JsonUtility.Handler, originalHandler))
             {
                 JsonUtility.Handler = originalHandler;
             }
 
-            EditorUtility.ClearProgressBar();
-            Resources.UnloadUnusedAssets(); // 释放测量期间产生的大量临时对象图
+            UnityEngine.Resources.UnloadUnusedAssets(); // 释放测量期间产生的大量临时对象图
         }
 
-        private static async Task RunScenarios(List<string> results, List<BenchRow> rows)
+        private void RunScenarios(List<string> results)
         {
             // 场景装配（统一根对象，保证各库文档一致；全部程序化构建）
             var scenarios = new List<(string name, object payload, bool unityJsonSupported)>
@@ -239,11 +216,8 @@ namespace Moirai.Atropos.Editor
                 ("字符串集(500条 CJK+转义)", new StringsHolder { values = BuildStrings(500) }, true),
             };
 
-            int done = 0;
             foreach (var (name, payload, ujOk) in scenarios)
             {
-                EditorUtility.DisplayProgressBar("Json Benchmark", name, (float)done / scenarios.Count);
-
                 // 输入预生成（保证反序列化输入一致且已就绪）
                 string djJson = DefaultJson.ToJson(payload);
                 byte[] djBytes = Encoding.UTF8.GetBytes(djJson);
@@ -253,34 +227,29 @@ namespace Moirai.Atropos.Editor
                 var check = DefaultJson.FromJson(djBytes, payload.GetType());
                 results.Add($"{TAG} {name} | 文档: DJ={djBytes.Length}B NS={Encoding.UTF8.GetByteCount(nsJson)}B | 往返抽样={(check != null ? "OK" : "null")}");
 
-                var serRow = new BenchRow { Scenario = name, Operation = "序列化" };
-                results.Add(MeasureRow("  序列化",
+                MeasureRow(name + " 序列化",
                     () => DefaultJson.ToJson(payload),
                     () => DefaultJson.ToJsonBytes(payload),
                     () => JsonConvert.SerializeObject(payload),
                     ujOk ? () => UnityEngine.JsonUtility.ToJson(payload) : null,
-                    serRow));
-                rows.Add(serRow);
+                    results);
 
-                var deserRow = new BenchRow { Scenario = name, Operation = "反序列化" };
-                results.Add(MeasureRow("  反序列化",
+                MeasureRow(name + " 反序列化",
                     () => DefaultJson.FromJson(djJson, payload.GetType()),
                     () => DefaultJson.FromJson(djBytes, payload.GetType()),
                     () => JsonConvert.DeserializeObject(nsJson, payload.GetType()),
                     ujOk ? () => UnityEngine.JsonUtility.FromJson(djJson, payload.GetType()) : null,
-                    deserRow));
-                rows.Add(deserRow);
-
-                done++;
-                await Task.Delay(1); // 让出主线程
+                    results);
             }
         }
+
+        #endregion
 
         #region Handler 自动发现 [HANDLER DISCOVERY]
 
         /// <summary>
-        /// 发现全部 <see cref="Moirai.Atropos.JsonHandler"/> 实现（排除抽象/测试程序集），
-        /// 经 <see cref="Moirai.Atropos.ReflectionUtility.ResolveImplType{T}"/> 实例化（与 GameAppSettings 配置流同链路）。
+        /// 发现全部 <see cref="JsonHandler"/> 实现（排除抽象/测试程序集），
+        /// 经 <see cref="ReflectionUtility.ResolveImplType{T}"/> 实例化（与 GameAppSettings 配置流同链路）。
         /// 单个 handler 实例化失败仅记录，不中断整体。
         /// </summary>
         private static List<(string name, JsonHandler handler)> DiscoverHandlers(List<string> results)
@@ -318,10 +287,9 @@ namespace Moirai.Atropos.Editor
         #endregion
 
         /// <summary>JsonHandler 中间件层：外观挂各实现（自动发现）的端到端开销（含抽象层与异常包装成本）。</summary>
-        private static async Task RunHandlerMiddleware(List<string> results, List<string> summary)
+        private void RunHandlerMiddleware(List<string> results)
         {
             results.Add($"{TAG} ----- JsonHandler 中间件层（外观 JsonUtility 端到端，handler 自动发现）-----");
-            summary.Add("----- JsonHandler 中间件层 -----");
 
             var handlers = DiscoverHandlers(results);
             if (handlers.Count == 0)
@@ -330,20 +298,41 @@ namespace Moirai.Atropos.Editor
                 return;
             }
 
-            results.Add($"{TAG} 发现 {handlers.Count} 个实现: {string.Join(", ", Enumerable.Select(handlers, h => h.name))}");
+            results.Add($"{TAG} 发现 {handlers.Count} 个实现: {string.Join(", ", handlers.Select(h => h.name))}");
 
             var payload = BuildMixed();
             Type payloadType = payload.GetType();
 
             foreach (var (name, handler) in handlers)
             {
-                EditorUtility.DisplayProgressBar("JSON Benchmark", "Handler: " + name, 0.9f);
-
                 try
                 {
-                    string comboLine = await MeasureHandlerCombo(name, handler, payload, payloadType);
-                    results.Add(comboLine);
-                    summary.Add(comboLine.Substring(TAG.Length + 1)); // 弹窗摘要行（去前缀）
+                    JsonUtility.Handler = handler;
+
+                    // 预热
+                    JsonUtility.ToJson(payload);
+
+                    var caseResult = _report.Add(new BenchmarkCaseResult
+                    {
+                        Name = "Handler " + name,
+                        Category = "Middleware",
+                        Trials = 1,
+                    });
+
+                    double serStr = Measure(() => JsonUtility.ToJson(payload));
+                    double deserStr = Measure(() => JsonUtility.ToObject(payloadType, JsonUtility.ToJson(payload)));
+                    double serBytes = Measure(() => JsonUtility.ToJsonBytes(payload));
+                    double deserBytes = Measure(() => JsonUtility.ToObject(payloadType, JsonUtility.ToJsonBytes(payload)));
+
+                    bool isBuffer = handler is IBufferJsonHandler;
+                    caseResult.Metric("IBuffer", isBuffer ? "native" : "fallback")
+                        .Metric("serStrUs", serStr.ToString("F1"))
+                        .Metric("deserStrUs", deserStr.ToString("F1"))
+                        .Metric("serBytesUs", serBytes.ToString("F1"))
+                        .Metric("deserBytesUs", deserBytes.ToString("F1"));
+
+                    string bufferNote = isBuffer ? "原生字节" : "外观回退";
+                    results.Add($"{TAG} {name} [IBuffer={(isBuffer ? "是" : "否")}] | string {serStr,7:F1}/{deserStr,7:F1} | bytes({bufferNote}) {serBytes,7:F1}/{deserBytes,7:F1} (序列化/反序列化 µs/op)");
                 }
                 catch (Exception e)
                 {
@@ -352,29 +341,10 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        private static async Task<string> MeasureHandlerCombo(string name, JsonHandler handler, object payload, Type payloadType)
-        {
-            JsonUtility.Handler = handler;
-
-            string json = JsonUtility.ToJson(payload);
-            byte[] bytes = Encoding.UTF8.GetBytes(json);
-
-            double serStr = Measure(() => JsonUtility.ToJson(payload));
-            double deserStr = Measure(() => JsonUtility.ToObject(payloadType, json));
-            double serBytes = Measure(() => JsonUtility.ToJsonBytes(payload));
-            double deserBytes = Measure(() => JsonUtility.ToObject(payloadType, bytes));
-
-            bool isBuffer = handler is IBufferJsonHandler;
-            string bufferNote = isBuffer ? "原生字节" : "外观回退";
-            await Task.Delay(1);
-            return $"{TAG} {name} [IBuffer={(isBuffer ? "是" : "否")}] | string {serStr,7:F1}/{deserStr,7:F1} | bytes({bufferNote}) {serBytes,7:F1}/{deserBytes,7:F1} (序列化/反序列化 µs/op)";
-        }
-
-        /// <summary>能力矩阵：各实现（自动发现）对字节通路的实际行为验证。</summary>
-        private static void RunCapabilityMatrix(List<string> results, List<string> summary)
+        /// <summary>能力矩阵：各实现（自动发现）对字节通路的实际行为验证（非计时，仅日志与结果抽样）。</summary>
+        private static void RunCapabilityMatrix(List<string> results)
         {
             results.Add($"{TAG} ----- IBufferJsonHandler 能力矩阵（自动发现）-----");
-            summary.Add("----- IBufferJsonHandler 能力矩阵 -----");
 
             var handlers = DiscoverHandlers(results);
             var payload = new Vec3Holder { values = BuildVec3s(100) };
@@ -393,16 +363,13 @@ namespace Moirai.Atropos.Editor
                 catch (Exception e)
                 {
                     results.Add($"{TAG} {name}: 能力验证失败 ({e.Message})");
-                    summary.Add($"{name}: 能力验证失败 ({e.Message})");
                 }
             }
         }
 
-        #endregion
-
         #region 测量 [MEASUREMENT]
 
-        private static string MeasureRow(string op, Action djString, Action djBytes, Action newtonsoft, Action unityJson, BenchRow row = null)
+        private void MeasureRow(string caseName, Action djString, Action djBytes, Action newtonsoft, Action unityJson, List<string> results)
         {
             double s = Measure(djString);
             double b = Measure(djBytes);
@@ -410,15 +377,27 @@ namespace Moirai.Atropos.Editor
             double u = unityJson != null ? Measure(unityJson) : double.NaN;
             string uCell = !double.IsNaN(u) && u >= 0 ? $"{u,8:F1}" : $"{new string('—', 6),8}";
 
-            if (row != null)
-            {
-                row.DjString = s;
-                row.DjBytes = b;
-                row.Newtonsoft = n;
-                row.UnityJson = u;
-            }
+            results.Add($"{TAG} {caseName} | DJ-string {s,8:F1} | DJ-bytes {b,8:F1} | Newtonsoft {n,8:F1} | UJ {uCell} (µs/op)");
 
-            return $"{TAG} {op} | DJ-string {s,8:F1} | DJ-bytes {b,8:F1} | Newtonsoft {n,8:F1} | UJ {uCell} (µs/op)";
+            AddOpCase(caseName + "/DJ-string", s);
+            AddOpCase(caseName + "/DJ-bytes", b);
+            AddOpCase(caseName + "/Newtonsoft", n);
+            if (!double.IsNaN(u)) AddOpCase(caseName + "/UnityJson", u);
+        }
+
+        /// <summary>单个操作进报告（µs/op → ns/op 口径；自适迭代次数不定，min/mean/max 同值）。</summary>
+        private void AddOpCase(string name, double usPerOp)
+        {
+            _report.Add(new BenchmarkCaseResult
+            {
+                Name = name,
+                Category = "Serializer",
+                Trials = 1,
+                MinMs = usPerOp / 1000.0,
+                MeanMs = usPerOp / 1000.0,
+                MaxMs = usPerOp / 1000.0,
+                NsPerOp = usPerOp * 1000.0,
+            });
         }
 
         /// <summary>自适迭代测量：预热 ~30ms 后计量 ~150ms，返回 µs/次。</summary>
@@ -460,7 +439,7 @@ namespace Moirai.Atropos.Editor
                     colliderRadius = 0.5f,
                     equipPrefabLocation = "Resources/Inventory/Equip",
                     itemAddedFormat = "<color={targetColor}>{targetDisplayName}</color>获得了<color={itemRarityColor}>{itemDisplayName}</color> x{count}。",
-                    itemDroppedFormat = "<color={targetColor}>{targetDisplayName}</color>丢弃了<color={itemRarityColor}>{itemDisplayName}</color> x{count}。",
+                    itemDroppedFormat = "<color={targetColor}>{targetDisplayName}</color>丢弃了<color={itemRarityColor}>{itemDisplayName}</color>。",
                     itemEquippedFormat = "<color={targetColor}>{targetDisplayName}</color>装备了<color={itemRarityColor}>{itemDisplayName}</color>。",
                     itemUnattachedDestroyedFormat = "<color={targetColor}>{targetDisplayName}</color>从<color={itemRarityColor}>{itemDisplayName}</color>拆下并<b>损毁了</b>了<color={attachmentRarityColor}>{attachmentDisplayName}</color>。",
                     customMessages = new List<string>(),
@@ -472,7 +451,7 @@ namespace Moirai.Atropos.Editor
             {
                 // 双重编码的嵌入 JSON（还原真实文件里 serializationData 的形态）
                 string embedded = i % 2 == 0
-                    ? "{\"m_ApplyToRemote\":false,\"m_EquipSlots\":\"Any\",\"m_EquipSlotIds\":[],\"m_StatModifiers\":[{\"m_AffectsStatId\":\"test\",\"m_Applies\":\"Immediately\",\"m_ChangeType\":\"Add\",\"m_Value\":{\"m_Value\":\"0\",\"m_RandomMax\":\"1\",\"initialized\":false},\"InstanceId\":\"ffad862f5fd34ba18f03600f4247f285\"}],\"Title\":\"Stat Modifier\",\"Description\":\"在装备或消耗道具时修改属性。\"}"
+                    ? "{\"m_ApplyToRemote\":false,\"m_EquipSlots\":\"Any\",\"m_EquipSlotIds\":[],\"m_StatModifiers\":[{\"m_AffectsStatId\":\"test\",\"m_Applies\":\"Immediately\",\"m_ChangeType\":\"Add\",\"m_Value\":{\"m_Value\":\"0\",\"m_RandomMax\":\"1\",\"initialized\":false},\"InstanceId\":\"ffad862f5fd34ba18f03600f4247f28e\"}],\"Title\":\"Stat Modifier\",\"Description\":\"在装备或消耗道具时修改属性。\"}"
                     : "{\"m_AutoEquip\":\"Never\",\"m_SlotIds\":[],\"m_SpawnItem\":false,\"m_EquipSpawn\":{\"m_Parent\":true,\"m_Offset\":{\"x\":0,\"y\":0,\"z\":0},\"m_Rotation\":{\"x\":0,\"y\":0,\"z\":0}},\"_appliedModifiers\":[]}";
 
                 db.items.Add(new ItemDto
@@ -594,125 +573,5 @@ namespace Moirai.Atropos.Editor
         }
 
         #endregion
-    }
-
-    /// <summary>
-    /// 基准结果对比窗口：表格化核心场景（最快项高亮 + 相对倍率），下方为 handler 中间件层与能力矩阵摘要。
-    /// </summary>
-    internal sealed class BenchmarkResultWindow : EditorWindow
-    {
-        private List<JsonUtilityBenchmark.BenchRow> _rows;
-        private List<string> _summary;
-        private string _rawLog;
-        private Vector2 _tableScroll;
-        private Vector2 _summaryScroll;
-
-        private static readonly (string label, Func<JsonUtilityBenchmark.BenchRow, double> get)[] Columns =
-        {
-            ("DefaultJson-string", r => r.DjString),
-            ("DefaultJson-bytes", r => r.DjBytes),
-            ("Newtonsoft", r => r.Newtonsoft),
-            ("UnityJson(参考)", r => r.UnityJson),
-        };
-
-        public static void Show(List<JsonUtilityBenchmark.BenchRow> rows, List<string> summary, string rawLog)
-        {
-            var window = GetWindow<BenchmarkResultWindow>("JSON Benchmark 对比");
-            window._rows = rows;
-            window._summary = summary;
-            window._rawLog = rawLog;
-            window.minSize = new Vector2(760f, 420f);
-            window.Show();
-        }
-
-        private void OnGUI()
-        {
-            if (_rows == null)
-            {
-                EditorGUILayout.HelpBox("无结果。请先运行 Window/Moirai/JSON Benchmark。", MessageType.Info);
-                return;
-            }
-
-            EditorGUILayout.LabelField("核心场景对比（µs/次，绿色 = 该行最快；括号 = 相对最快的倍率）", EditorStyles.boldLabel);
-
-            DrawTable();
-
-            EditorGUILayout.Space(8);
-            EditorGUILayout.LabelField("中间件层与能力矩阵", EditorStyles.boldLabel);
-            _summaryScroll = EditorGUILayout.BeginScrollView(_summaryScroll, GUILayout.Height(150));
-            foreach (string line in _summary)
-            {
-                EditorGUILayout.LabelField(line, EditorStyles.miniLabel);
-            }
-
-            EditorGUILayout.EndScrollView();
-
-            EditorGUILayout.Space(8);
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (GUILayout.Button("复制完整日志", GUILayout.Width(140)))
-                {
-                    EditorGUIUtility.systemCopyBuffer = _rawLog;
-                    ShowNotification(new GUIContent("已复制到剪贴板"));
-                }
-
-                GUILayout.FlexibleSpace();
-                EditorGUILayout.LabelField($"共 {_rows.Count} 行测量 · {_summary.Count} 条摘要", EditorStyles.miniLabel);
-            }
-        }
-
-        private void DrawTable()
-        {
-            using (new EditorGUILayout.HorizontalScope(GUI.skin.box))
-            {
-                EditorGUILayout.LabelField("场景", GUILayout.Width(220));
-                EditorGUILayout.LabelField("操作", GUILayout.Width(52));
-                foreach (var (label, _) in Columns)
-                {
-                    EditorGUILayout.LabelField(label, GUILayout.Width(110));
-                }
-
-                EditorGUILayout.LabelField("最快", GUILayout.Width(80));
-            }
-
-            _tableScroll = EditorGUILayout.BeginScrollView(_tableScroll);
-            foreach (var row in _rows)
-            {
-                double best = row.Best();
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    EditorGUILayout.LabelField(row.Scenario, GUILayout.Width(220));
-                    EditorGUILayout.LabelField(row.Operation, GUILayout.Width(52));
-
-                    string winner = null;
-                    foreach (var (label, get) in Columns)
-                    {
-                        double v = get(row);
-                        bool isBest = !double.IsNaN(v) && Math.Abs(v - best) < 0.0001;
-                        string text = double.IsNaN(v) ? "—" : $"{v:F1}" + (isBest && best > 0 ? $" ({v / best:F1}×)" : string.Empty);
-                        var style = isBest ? GreenLabel() : EditorStyles.label;
-                        EditorGUILayout.LabelField(text, style, GUILayout.Width(110));
-                        if (isBest) winner = label;
-                    }
-
-                    EditorGUILayout.LabelField(winner ?? "—", winner != null ? GreenLabel() : EditorStyles.label, GUILayout.Width(80));
-                }
-            }
-
-            EditorGUILayout.EndScrollView();
-        }
-
-        private static GUIStyle _greenLabel;
-
-        private static GUIStyle GreenLabel()
-        {
-            if (_greenLabel == null)
-            {
-                _greenLabel = new GUIStyle(EditorStyles.label) { fontStyle = FontStyle.Bold };
-                _greenLabel.normal.textColor = new Color32(0x2E, 0x92, 0x19, 0xFF);
-            }
-
-            return _greenLabel;
-        }
     }
 }

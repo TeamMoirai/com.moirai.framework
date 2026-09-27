@@ -1,7 +1,7 @@
 using Moirai.Atropos.Resource;
 using NUnit.Framework;
 using UnityEngine;
-using Service.Audio;
+using Testing;
 using UObject = UnityEngine.Object;
 
 namespace Service.Resource

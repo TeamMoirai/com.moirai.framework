@@ -104,6 +104,8 @@ powershell -ExecutionPolicy Bypass -File "Packages\com.moirai.framework\Tests\Co
 
 ## 已知覆盖空洞（2026-09-24 静态盘点）
 
+（2026-09-27 记录：覆盖率基线文件 `baseline-<date>.md` 尚未生成——第五出口门"不低于上一版基线"暂无基线可比对，首份基线的生成与提交归 CI 侧动作。）
+
 基线未出，先按"有没有用例"列一份结构性空洞——这些是首次覆盖率报告里最可能出现大面积红的区域：
 
 | 区域 | 现状 |

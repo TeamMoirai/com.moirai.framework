@@ -20,6 +20,8 @@ namespace Moirai.Atropos.Timer
 
         private readonly TimerDebugInfo[] _timerBuffer = new TimerDebugInfo[DISPLAY_COUNT];
         private readonly TimerDebugInfo[] _staleBuffer = new TimerDebugInfo[DISPLAY_COUNT];
+        private Button _benchmarkResultButton;
+        private BenchmarkReport _benchmarkReport;
 
         #endregion
 
@@ -47,10 +49,58 @@ namespace Moirai.Atropos.Timer
             }
 
             BuildRuntimeStatistics(root);
+            BuildBenchmarkSection(root);
             BuildActiveTimerSample(root);
 #if UNITY_EDITOR
             BuildStaleOneShotTimers(root);
 #endif
+        }
+
+        /// <summary>
+        /// 基准区：Run 同步跑 <see cref="TimerBenchmarkRunner"/>（会短暂时卡主线程），Export 落 XML 到统一文件夹。
+        /// 与 MemoryPoolInformationWindow 的基准区同范式——回调触发/同刻突发这类依赖真实帧的用例
+        /// 在 Tests 的 PlayMode 基准（TimerFireBenchmarkTests），此处只有同步矩阵。
+        /// </summary>
+        private void BuildBenchmarkSection(VisualElement root)
+        {
+            VisualElement card = AddSection(root, "Timer Benchmark");
+
+            VisualElement toolbar = DebuggerUI.CreateToolbarRow();
+            toolbar.Add(DebuggerUI.CreateActionButton("Run Benchmark", OnRunBenchmark, DebuggerUI.EButtonStyle.Positive));
+            toolbar.Add(DebuggerUI.CreateActionButton("Export XML", OnExportBenchmarkXml));
+            card.Add(toolbar);
+
+            AddRow(card, "Result", _benchmarkReport == null ? "Not run" : DescribeReport(), out _benchmarkResultButton);
+        }
+
+        private void OnRunBenchmark()
+        {
+            _benchmarkReport = TimerBenchmarkRunner.Run();
+            if (_benchmarkResultButton != null)
+            {
+                _benchmarkResultButton.text = DescribeReport();
+            }
+        }
+
+        private void OnExportBenchmarkXml()
+        {
+            if (_benchmarkReport == null)
+            {
+                Debug.LogWarning("[TimerBenchmark] 请先 Run Benchmark 再导出");
+                return;
+            }
+
+            string path = _benchmarkReport.ResolveXmlPath();
+            _benchmarkReport.WriteXml(path);
+            if (_benchmarkResultButton != null)
+            {
+                _benchmarkResultButton.text = $"Exported {path}";
+            }
+        }
+
+        private string DescribeReport()
+        {
+            return StringUtility.Format("cases {0} | total {1} ms", _benchmarkReport.CaseCount, _benchmarkReport.TotalMs);
         }
 
         #endregion

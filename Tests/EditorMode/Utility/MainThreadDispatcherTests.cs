@@ -137,14 +137,14 @@ namespace Utility
         [Test]
         public void Pump_ExceptionInAction_IsolatedAndSubsequentActionsStillRun()
         {
-            // Pump 异常路径经 LogUtility.Fatal(ex) → Debug.LogException（LogType.Exception）
+            // Pump 异常路径经 LogUtility 的 Fatal(ex) → Debug.LogException（LogType.Exception）
             LogAssert.Expect(LogType.Exception, new Regex(".*boom.*"));
 
             int afterCount = 0;
             MainThreadDispatcher.Post(() => throw new InvalidOperationException("boom"));
             MainThreadDispatcher.Post(() => afterCount++);
 
-            // LogUtility.Error 在编辑器中可能耗尽单帧预算，按消费方帧循环语义排空
+            // LogUtility 的 Error 在编辑器中可能耗尽单帧预算，按消费方帧循环语义排空
             for (int guard = 0; guard < 10 && MainThreadDispatcher.PendingCount > 0; guard++)
             {
                 MainThreadDispatcher.Pump();

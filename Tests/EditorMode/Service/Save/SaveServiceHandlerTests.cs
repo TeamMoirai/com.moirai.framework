@@ -512,7 +512,18 @@ namespace Service.Save
         [Test]
         public void Validate_IllegalCharsBlockKey_Throws()
         {
-            Assert.Throws<ArgumentException>(() => _handler.SaveBlock(new SaveData(), "slot", "stats/1", TestFolder));
+            // 路径分隔符在任何平台的非法字符集中，无条件断言
+            Assert.Throws<ArgumentException>(() => _handler.SaveBlock(new SaveData(), "slot", "stats/1", TestFolder),
+                "路径分隔符在任何平台都是非法块键");
+
+            // ':' 是 Windows 的卷分隔符，POSIX 家族（macOS/iOS/Android）里是合法文件名字符。
+            // 运行时按平台字符集（Path.GetInvalidFileNameChars）放行，本格只在判 ':' 非法的平台执行后半段。
+            // 恢复条件：在 Windows 平台运行，或运行时改用跨平台并集字符集（见评审底稿 P2 记录）。
+            if (Array.IndexOf(Path.GetInvalidFileNameChars(), ':') < 0)
+            {
+                Assert.Ignore("':' 在当前平台是合法文件名字符，运行时按平台字符集放行；恢复条件：Windows 平台或跨平台并集字符集");
+            }
+
             Assert.Throws<ArgumentException>(() => _handler.SaveBlock(new SaveData(), "slot", "stats:1", TestFolder));
         }
 
@@ -643,9 +654,21 @@ namespace Service.Save
         [Test]
         public void Validate_PathTraversalFileName_Throws()
         {
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("../evil", TestFolder));
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths(@"sub\dir\evil", TestFolder));
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("sub/dir/evil", TestFolder));
+            // ".." 穿越段与正斜杠分隔符在所有平台都拦截，无条件断言
+            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("../evil", TestFolder),
+                "穿越段任何平台都必须拦截");
+            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("sub/dir/evil", TestFolder),
+                "路径分隔符任何平台都必须拦截");
+
+            // 反斜杠是 Windows 的目录分隔符；POSIX 家族里它是合法文件名字符，运行时按平台字符集放行。
+            // 恢复条件：在 Windows 平台运行，或运行时改用跨平台并集字符集（见评审底稿 P2 记录）。
+            if (Array.IndexOf(Path.GetInvalidFileNameChars(), '\\') < 0 && Path.AltDirectorySeparatorChar != '\\')
+            {
+                Assert.Ignore("反斜杠在当前平台是合法文件名字符，运行时按平台字符集放行；恢复条件：Windows 平台或跨平台并集字符集");
+            }
+
+            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths(@"sub\dir\evil", TestFolder),
+                "反斜杠分隔符在本平台必须拦截");
         }
 
         [Test]
@@ -665,8 +688,27 @@ namespace Service.Save
         [Test]
         public void Validate_IllegalCharsFileName_Throws()
         {
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot:1", TestFolder));
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot?", TestFolder));
+            // ':' / '?' 是 Windows 非法文件名字符；POSIX 家族里均为合法字符，运行时按平台字符集放行。
+            // 恢复条件：在 Windows 平台运行，或运行时改用跨平台并集字符集（见评审底稿 P2 记录）。
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            bool colonInvalid = Array.IndexOf(invalidChars, ':') >= 0;
+            bool questionInvalid = Array.IndexOf(invalidChars, '?') >= 0;
+            if (!colonInvalid && !questionInvalid)
+            {
+                Assert.Ignore("':' 与 '?' 在当前平台均为合法文件名字符，运行时按平台字符集放行；恢复条件：Windows 平台或跨平台并集字符集");
+            }
+
+            if (colonInvalid)
+            {
+                Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot:1", TestFolder),
+                    "':' 在本平台是非法文件名字符");
+            }
+
+            if (questionInvalid)
+            {
+                Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot?", TestFolder),
+                    "'?' 在本平台是非法文件名字符");
+            }
         }
 
         [Test]

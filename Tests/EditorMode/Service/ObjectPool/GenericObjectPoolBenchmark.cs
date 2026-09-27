@@ -1,7 +1,9 @@
+using System;
 using System.Diagnostics;
 using Moirai.Atropos;
 using Moirai.Atropos.ObjectPool;
 using NUnit.Framework;
+using Moirai.Atropos.Debugger;
 using Debug = UnityEngine.Debug;
 using Time = UnityEngine.Time;
 using Mp = Moirai.Atropos.MemoryPool;
@@ -11,7 +13,8 @@ namespace Service.ObjectPool
     /// <summary>
     /// 通用对象池性能基准（[Explicit] 手动运行，不进常规测试流程）。
     /// <para>编辑器 Mono 基准噪声约 ±2x，数据仅作回归趋势参考，不作绝对性能结论；
-    /// 需要结论时以同一工具、同一数据做 before/after 对照实测。</para>
+    /// 需要结论时以同一工具、同一数据做 before/after 对照实测。
+    /// 跑完经 <see cref="BenchmarkReport"/> 落统一文件夹 &lt;工程根&gt;/Benchmarks/genericobjectpool-benchmark.xml。</para>
     /// </summary>
     [Explicit]
     public sealed class GenericObjectPoolBenchmark
@@ -21,6 +24,28 @@ namespace Service.ObjectPool
         private const int WARMUP_ROUNDS = 100_000;
         private const int MEASURE_ROUNDS = 1_000_000;
         private const int POOL_SIZE = 1024;
+
+        #endregion
+
+        #region 报告 [REPORT]
+
+        // NUnit 每个 [Test] 新建 fixture 实例，跨用例累积走 static（与 AudioCacheBenchmark 同口径）
+        private static BenchmarkReport s_Report;
+        private static long s_WallStart;
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            s_Report = new BenchmarkReport("GenericObjectPool");
+            s_WallStart = Stopwatch.GetTimestamp();
+        }
+
+        [OneTimeTearDown]
+        public void ExportXml()
+        {
+            s_Report.TotalMs = (Stopwatch.GetTimestamp() - s_WallStart) * 1000.0 / Stopwatch.Frequency;
+            s_Report.WriteXml(s_Report.ResolveXmlPath());
+        }
 
         #endregion
 
@@ -95,9 +120,22 @@ namespace Service.ObjectPool
             }
             sw.Stop();
 
+            double nsPerOp = sw.Elapsed.TotalMilliseconds * 1_000_000.0 / MEASURE_ROUNDS;
+            s_Report.Add(new BenchmarkCaseResult
+            {
+                Name = "Spawn/Despawn roundtrip",
+                Category = "HotPath",
+                Iterations = MEASURE_ROUNDS,
+                Trials = 1,
+                MinMs = sw.Elapsed.TotalMilliseconds,
+                MeanMs = sw.Elapsed.TotalMilliseconds,
+                MaxMs = sw.Elapsed.TotalMilliseconds,
+                NsPerOp = nsPerOp,
+            });
+
             Debug.Log(StringUtility.Format(
                 "[GenericObjectPoolBenchmark] Spawn/Despawn roundtrip x{0}: {1:F2} ms ({2:F1} ns/op)",
-                MEASURE_ROUNDS, sw.Elapsed.TotalMilliseconds, sw.Elapsed.TotalMilliseconds * 1_000_000.0 / MEASURE_ROUNDS));
+                MEASURE_ROUNDS, sw.Elapsed.TotalMilliseconds, nsPerOp));
         }
 
         /// <summary>
@@ -130,6 +168,16 @@ namespace Service.ObjectPool
             sw.Stop();
 
             Assert.AreEqual(0, poolBase.Count, "all expired objects should be swept");
+            s_Report.Add(new BenchmarkCaseResult
+            {
+                Name = "Expired sweep",
+                Category = "Maintenance",
+                Iterations = POOL_SIZE,
+                Trials = 1,
+                MinMs = sw.Elapsed.TotalMilliseconds,
+                MeanMs = sw.Elapsed.TotalMilliseconds,
+                MaxMs = sw.Elapsed.TotalMilliseconds,
+            }.Metric("wakes", wakes).Metric("swept", POOL_SIZE));
             Debug.Log(StringUtility.Format(
                 "[GenericObjectPoolBenchmark] Expired sweep {0} objects in {1} wakes: {2:F2} ms",
                 POOL_SIZE, wakes, sw.Elapsed.TotalMilliseconds));

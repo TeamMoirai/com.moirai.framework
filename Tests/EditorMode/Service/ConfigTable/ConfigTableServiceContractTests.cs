@@ -36,7 +36,15 @@ namespace Service.ConfigTable
         [TearDown]
         public void TearDown()
         {
-            ConfigTableService.Internal_UseHandler(_savedHandler);
+            // 还原外观处理器必须放 finally：本夹具 TearDown 前无其他清理步骤，但 try/finally 形态
+            // 保证未来往 TearDown 前插步骤时，null 后端不会被断言异常泄漏给后续用例
+            try
+            {
+            }
+            finally
+            {
+                ConfigTableService.Internal_UseHandler(_savedHandler);
+            }
         }
 
         #region 无后端时的降级值 [DEGRADED VALUES]
