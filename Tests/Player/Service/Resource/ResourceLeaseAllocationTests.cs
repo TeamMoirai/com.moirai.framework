@@ -68,13 +68,16 @@ namespace Service.Resource
         [Test]
         public void AcquireLease_Release_ZeroAlloc()
         {
+            // NUnit 断言自身分配（Constraint 链每格 5~9 个 GC.Alloc 事件，2026-09-28 实测）——
+            // 断言留在测量窗外：窗内只取值，窗外判。
+            ResourceLeaseHandle lastHandle = default;
             AllocationCapture.MeasureManaged("Lease.AcquireRelease", Iterations, () =>
             {
-                ResourceLeaseHandle handle = _store.AcquireLease(_assetId, EResourceLeaseKind.Direct,
+                lastHandle = _store.AcquireLease(_assetId, EResourceLeaseKind.Direct,
                     EResourceLeaseOption.None);
-                Assert.IsTrue(handle.IsValid);
-                _store.Release(handle);
+                _store.Release(lastHandle);
             }, bytes => Assert.AreEqual(0, bytes, "稳态取用/归还出现了分配"));
+            Assert.IsTrue(lastHandle.IsValid, "末轮取到的租约应当有效");
         }
 
         /// <summary>
@@ -83,15 +86,16 @@ namespace Service.Resource
         [Test]
         public void TryGetCachedAssetRecordByKey_ZeroAlloc()
         {
+            // 断言外移（NUnit 断言自身分配，见上）：窗内只取值，窗外判。
+            bool found = false;
+            int assetId = 0;
+            UObject asset = null;
             AllocationCapture.MeasureManaged("Lease.TryGetByKey", Iterations,
-                () =>
-                {
-                    bool found = _store.TryGetCachedAssetRecordByKey(_recordKey, out int assetId, out UObject asset);
-                    Assert.IsTrue(found);
-                    Assert.AreEqual(_assetId, assetId);
-                    Assert.AreSame(_sprite, asset);
-                },
+                () => found = _store.TryGetCachedAssetRecordByKey(_recordKey, out assetId, out asset),
                 bytes => Assert.AreEqual(0, bytes, "按 key 直查出现了分配"));
+            Assert.IsTrue(found, "驻留 key 应当命中");
+            Assert.AreEqual(_assetId, assetId, "命中的记录 id 应一致");
+            Assert.AreSame(_sprite, asset, "命中的资产应当是同一实例");
         }
 
         /// <summary>
@@ -100,14 +104,13 @@ namespace Service.Resource
         [Test]
         public void GetAssetRecordKey_WhenNamesResident_ZeroAlloc()
         {
+            // 断言外移（NUnit 断言自身分配）：窗内只取值，窗外判。
+            ulong key = 0;
             AllocationCapture.MeasureManaged("Lease.PackKey", Iterations,
-                () =>
-                {
-                    ulong key = _store.GetAssetRecordKey(PackageName, "UI/Heart", typeof(Sprite),
-                        EResourceAssetKind.Sprite, EResourceHandleKind.AssetHandle);
-                    Assert.AreEqual(_recordKey, key);
-                },
+                () => key = _store.GetAssetRecordKey(PackageName, "UI/Heart", typeof(Sprite),
+                    EResourceAssetKind.Sprite, EResourceHandleKind.AssetHandle),
                 bytes => Assert.AreEqual(0, bytes, "驻留名称的打包 key 出现了分配"));
+            Assert.AreEqual(_recordKey, key, "驻留名称打包出的 key 应当稳定一致");
         }
 
         /// <summary>
@@ -116,14 +119,18 @@ namespace Service.Resource
         [Test]
         public void Acquire_TryGetLeaseAsset_Release_ZeroAlloc()
         {
+            // 断言外移（NUnit 断言自身分配）：窗内只取值，窗外判。
+            bool assetRead = false;
+            UObject asset = null;
             AllocationCapture.MeasureManaged("Lease.FullRoundTrip", Iterations, () =>
             {
                 ResourceLeaseHandle handle = _store.AcquireLease(_assetId, EResourceLeaseKind.Direct,
                     EResourceLeaseOption.None);
-                Assert.IsTrue(_store.TryGetLeaseAsset(handle, out UObject asset));
-                Assert.AreSame(_sprite, asset);
+                assetRead = _store.TryGetLeaseAsset(handle, out asset);
                 _store.Release(handle);
             }, bytes => Assert.AreEqual(0, bytes, "完整租约往返出现了分配"));
+            Assert.IsTrue(assetRead, "末轮应当读到资产");
+            Assert.AreSame(_sprite, asset, "读到的应当是同一实例");
         }
 
         private sealed class StubRecordHost : IResourceRecordHost
