@@ -10,19 +10,24 @@ namespace Moirai.Atropos.Tests.Player
     /// UI 后端等不到 <c>UIRootBinding</c> 登记，启动链在 <c>UGUIHandler</c> 报出「UI 根尚未绑定」后停住——实测带
     /// <c>-runTests</c> 与不带 <c>-runTests</c> 单独启动同样停在那一行，测试运行根本轮不到，玩家侧门禁因此从未真正执行过。</para>
     /// <para>这里在 <c>AfterAssembliesLoaded</c>（早于读取点 <c>BeforeSceneLoad</c>）用框架自带的
-    /// <see cref="GameApp.AutoBoot"/> 开关把启动时机收回，让玩家变成一个干净的测试宿主。本程序集只随
-    /// 玩家测试构建存在（<c>UNITY_INCLUDE_TESTS</c> + <c>!UNITY_EDITOR</c>），生产包不含它。</para>
+    /// <see cref="GameApp.AutoBoot"/> 开关把启动时机收回，让玩家变成一个干净的测试宿主。本程序集只在含
+    /// 测试程序集的构建里存在（<c>UNITY_INCLUDE_TESTS</c>），生产包不含它；掐 <c>AutoBoot</c> 仅玩家域
+    /// 生效（<c>#if !UNITY_EDITOR</c>）——编辑器 PlayMode 测试域依赖自动启动链把框架与服务驱动起来
+    /// （L2 门禁前提），编辑器里绝不能掐。</para>
     /// <para>需要框架已启动的玩家用例应自行调用 <see cref="GameApp.Boot"/> 并自备场景依赖，不要依赖本前置被移除。</para>
     /// </summary>
     internal static class PlayerTestBootstrap
     {
         /// <summary>
-        /// 关闭框架自动启动（玩家测试宿主专用）。
+        /// 关闭框架自动启动（玩家测试宿主专用）。仅玩家域生效——编辑器 PlayMode 测试域依赖
+        /// AutoBoot 链把框架与服务驱动起来（L2 门禁前提），编辑器里绝不能掐。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void DisableFrameworkAutoBoot()
         {
+#if !UNITY_EDITOR
             GameApp.AutoBoot = false;
+#endif
         }
     }
 }
