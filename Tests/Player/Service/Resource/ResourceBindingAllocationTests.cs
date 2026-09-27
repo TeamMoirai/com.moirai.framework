@@ -93,9 +93,13 @@ namespace Service.Resource
         [Test]
         public void BindSprite_SameTargetSameKey_ZeroAlloc()
         {
+            // NUnit 断言自身分配（Constraint 链每格 5~9 个 GC.Alloc 事件，2026-09-28 实测）——
+            // 断言留在测量窗外：窗内只记录末轮结果，窗外判。
+            EResourceBindStatus status = EResourceBindStatus.MissingOwner;   // 未跑过时的哨兵值（Success=0 不能当哨兵）
             AllocationCapture.MeasureManaged("Binding.BindSprite", Iterations,
-                () => Assert.AreEqual(EResourceBindStatus.Success, _bindings.BindSprite(_owner, _target, _key)),
+                () => status = _bindings.BindSprite(_owner, _target, _key),
                 bytes => Assert.AreEqual(0, bytes, "稳态重绑出现了分配"));
+            Assert.AreEqual(EResourceBindStatus.Success, status, "末轮重绑应当成功");
         }
 
         /// <summary>
@@ -127,12 +131,15 @@ namespace Service.Resource
         [Test]
         public void ReleaseOwner_ZeroAlloc()
         {
+            // 同上：断言外移，窗内只走三趟调用。
+            EResourceBindStatus status = EResourceBindStatus.MissingOwner;   // 未跑过时的哨兵值（Success=0 不能当哨兵）
             AllocationCapture.MeasureManaged("Binding.ReleaseOwner", Iterations, () =>
             {
-                Assert.AreEqual(EResourceBindStatus.Success, _bindings.ReleaseOwner(_owner));
-                Assert.AreEqual(EResourceBindStatus.Success, _bindings.RegisterOwner(_owner));
-                Assert.AreEqual(EResourceBindStatus.Success, _bindings.BindSprite(_owner, _target, _key));
+                status = _bindings.ReleaseOwner(_owner);
+                status = _bindings.RegisterOwner(_owner);
+                status = _bindings.BindSprite(_owner, _target, _key);
             }, bytes => Assert.AreEqual(0, bytes, "注销 + 重登记这条往返出现了分配"));
+            Assert.AreEqual(EResourceBindStatus.Success, status, "末轮重登记应当成功");
 
             Assert.Greater(_leaseSource.ReleaseCount, 0, "这条往返应当真的还掉过租约");
         }
