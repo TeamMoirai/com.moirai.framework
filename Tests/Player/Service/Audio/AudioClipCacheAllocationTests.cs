@@ -78,6 +78,7 @@ namespace Service.Audio
         [Test]
         public void EvictionAtCapacity_BoundedAllocPerCycle()
         {
+            _fixture.Dispose();
             _fixture = new AudioCacheTestSupport(capacity: 2, ttl: 30f);
             _fixture.Cache.Preload(A, EAudioCachePolicy.Ttl);
             _fixture.Cache.Preload(B, EAudioCachePolicy.Ttl);
@@ -94,6 +95,7 @@ namespace Service.Audio
         [Test]
         public void FailedCooldownCheck_AllocatesZeroBytes()
         {
+            _fixture.Dispose();
             _fixture = new AudioCacheTestSupport(capacity: 4, ttl: 30f, failureCooldown: 60f);
             _fixture.FailLoads = true;
             Assert.IsFalse(_fixture.Cache.Preload(A));
