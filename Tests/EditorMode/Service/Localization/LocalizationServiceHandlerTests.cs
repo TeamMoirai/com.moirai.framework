@@ -1012,6 +1012,8 @@ namespace Service.Localization
     }
 
     /// <summary>桩本地化数据源——语言经返回元组随批自报（语言头与词条同源同序）。</summary>
+    // 缓解口径（三条禁令 #1）：派生框架基类但不带 [Serializable] 且 internal——[Serializable] 不被
+    // 继承，SerializeReference 的 Inspector 下拉只收录带该特性的派生，替身不进生产资产下拉。
     internal sealed class L10nProbeHandler : LocalizationServiceHandler
     {
         public List<Language> Languages = new List<Language>();
