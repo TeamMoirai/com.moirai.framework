@@ -2,7 +2,7 @@
 
 > Thread-safe singleton base family: pure C# singletons (volatile double-checked locking), MonoBehaviour singletons (scene lookup + main-thread materialization), and register-style singletons.
 
-Namespace: `Moirai.Atropos` (`Runtime/Core/Singleton/`)
+Namespace: `Moirai.Atropos` (`Runtime/Core/Infrastructure/Singleton/`)
 
 ## Type Overview
 
