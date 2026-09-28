@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using UnityEngine;
 using UnityEngine.Profiling;
 
 namespace Moirai.Atropos
@@ -12,6 +13,18 @@ namespace Moirai.Atropos
         private static int s_ProfileLevel = -1;
         private static int s_CurrLevel = 0;
         private static int s_SampleLevel = 0;
+
+        /// <summary>
+        /// 免域重载复位：嵌套深度带脏值进下一 Play 会让采样层级错位（Begin/End 跨会话不配对时）。
+        /// ProfileLevel 一并复位为「未设置」——等级由 Debugger 启动时重设，残留旧等级没有正当语义。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetOnDomainReload()
+        {
+            s_ProfileLevel = -1;
+            s_CurrLevel = 0;
+            s_SampleLevel = 0;
+        }
 
         /// <summary>
         /// 设置分析器等级。

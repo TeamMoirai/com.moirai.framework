@@ -232,6 +232,9 @@ namespace Moirai.Atropos
         {
             s_IsShutdown = true;
             s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            // 禁用域重载时标志跨 Play 残留：上一局未经 Shutdown 的话此位仍真，
+            // 下一局 HookApplicationLifecycle 会被它挡住——生命周期钩子从此静默缺失。
+            s_LifecycleHooked = false;
         }
 
         private static void HookApplicationLifecycle()
