@@ -8,7 +8,7 @@ The scene service's (`Moirai.Atropos.Scene`) default backend `DefaultSceneHandle
 
 - Dual-track main scene / sub-scene management: Single mode replaces the main scene, Additive mode registers sub-scenes in a registry table
 - Suspend loading: When `suspendLoad` is enabled, the scene does not auto-activate after loading; call `UnSuspend` to manually activate. Suitable for unified timing control of load completion
-- Progress callback: `progressCallBack` reports the scene handle's loading progress (0 to 1) every frame, finishing with exactly one 1.0 report on success (no fake completion on failure); callback exceptions are isolated and logged without interrupting the load
+- Progress callback: `progressCallBack` reports the scene handle's loading progress (0 to 1) only when the value changes, finishing with exactly one 1.0 report on success (no fake completion on failure); callback exceptions are isolated and logged without interrupting the load
 - Error contract: load failures (duplicate loads, in-flight conflicts, backend errors, etc.) throw `GameException` (fail-fast); unload failures return `false` and keep the registration for retry
 - Lifecycle events: `MainSceneChanged` / `SubSceneLoaded` / `SubSceneUnloaded` fire synchronously on the main thread; subscriber exceptions are isolated and logged
 - Re-entry protection: Duplicate requests for the same scene during loading/unloading are rejected (load throws `GameException`, unload warns and returns `false`)
@@ -122,7 +122,7 @@ catch (OperationCanceledException)
 - `Unload` / `UnloadAsync` only apply to Additive sub-scenes; the main scene is replaced by loading a new Single scene — do not call unload on the main scene
 - Query/activate/unload APIs accept both resource location and scene short name; scene short names should be globally unique — on collision the later registration overwrites the reverse index with a warning, and name-based operations may resolve to the wrong scene
 - After the main scene finishes loading, `ForceUnloadUnusedAssets(gcCollect)` is triggered by default; pay attention to any temporary asset references during loading (set `gcCollect` to false to disable)
-- `progressCallBack` is called every frame until the handle completes or becomes invalid; do not perform expensive operations inside the callback; it finishes with exactly one 1.0 report on success and never fakes completion on failure
+- `progressCallBack` fires only when progress changes (a repeated value is not reported again) until the handle completes or becomes invalid; do not perform expensive operations inside the callback; it finishes with exactly one 1.0 report on success and never fakes completion on failure
 - A suspended load (`suspendLoad`) started by this service must eventually be `UnSuspend`ed — the underlying load cannot be aborted and never completes while suspended
 
 ---
