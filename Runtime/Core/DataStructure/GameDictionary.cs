@@ -98,14 +98,23 @@ namespace Moirai.Atropos
             return _keyList[index];
         }
 
+        /// <summary>移除指定键与关联值。</summary>
+        /// <param name="key">要移除的键。</param>
+        /// <returns>任一容器实际删除了条目即返回 true。</returns>
         public bool Remove(TKey key)
         {
-            return _keyList.Remove(key) && _dictionary.Remove(key);
+            // 两容器分别执行、合并结果：&& 短路会在键表缺失而字典存在时静默漏删字典项，
+            // 且 Count/Keys 出自 _keyList、与字典内容漂移。
+            bool removedFromList = _keyList.Remove(key);
+            bool removedFromDictionary = _dictionary.Remove(key);
+            return removedFromList || removedFromDictionary;
         }
     }
 
     /// <summary>
     /// 游戏框架顺序字典类。
+    /// <para><b>复杂度契约</b>：Add 为 O(n log n)（每次插入后全表排序）——面向小规模有序遍历场景；
+    /// 大规模高频插入请改用有序结构（二分定位插入或 BCL SortedDictionary），本类不承诺插入性能。</para>
     /// </summary>
     /// <typeparam name="TKey">指定字典Key的元素类型。</typeparam>
     /// <typeparam name="TValue">指定字典Value的元素类型。</typeparam>

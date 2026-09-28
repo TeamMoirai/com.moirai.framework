@@ -30,6 +30,9 @@ namespace Moirai.Atropos.Audio
         private bool _hasPendingLoad;
 
         // ===== 加载世代 — 防止复用后串 clip =====
+        // 取消语义契约：异步加载的取消不走路由 CancellationToken，而以世代计数实现——每次新加载递增，
+        // 旧续体完成时世代不匹配即自弃（clip 丢弃、句柄不绑定）。语义等价一次性令牌取消，无注册开销；
+        // 配合 GameTimeHandler 虚拟时钟接缝即可在测试冻结推进。改动时保持「代系即取消」口径。
         private int _loadGeneration;
 
         // ===== 句柄绑定 =====

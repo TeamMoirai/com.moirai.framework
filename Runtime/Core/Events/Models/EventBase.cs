@@ -374,10 +374,15 @@ namespace Moirai.Atropos.Events
         }
 
 
+        /// <summary>
+        /// 是否终止后续派发策略链（Debugger/Batch 等策略的内部短路位）。
+        /// <para>对外契约是 <see cref="StopPropagation"/> / <see cref="PreventDefault"/>——
+        /// 订阅者不应越权终止整条派发链，setter 收窄为 internal（同文件其余生命周期标志同口径）。</para>
+        /// </summary>
         public bool StopDispatch
         {
             get => (Status & LifeCycleStatus.StopDispatch) != LifeCycleStatus.None;
-            set
+            internal set
             {
                 if (value)
                 {
