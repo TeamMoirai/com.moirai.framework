@@ -17,6 +17,9 @@ namespace Moirai.Atropos.UI
     [Serializable]
     internal sealed class UGUIHandler : UIServiceHandler
     {
+        /// <summary>窗口加载等待超时（秒）——ShowUIAsyncAwait/GetUIAsyncAwait/GetUIAsync 三处共用。</summary>
+        private const float LOAD_WAIT_TIMEOUT_SECONDS = 60f;
+
         // 核心字段
         [NonSerialized] private Transform _instanceRoot = null; // UI根节点变换组件
         [NonSerialized] private Camera _uiCamera = null; // UI专用摄像机
@@ -580,8 +583,8 @@ namespace Moirai.Atropos.UI
                 window.InternalLoad(window.AssetName, OnWindowPrepare, isAsync, userData).Forget();
             }
 
-            // 使用 WaitUntil 替代手动轮询，避免每帧 unscaledDeltaTime 累加；CTS 提供 60s 超时保护
-            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(60)))
+            // 使用 WaitUntil 替代手动轮询，避免每帧 unscaledDeltaTime 累加；CTS 提供超时保护
+            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS)))
             {
                 try
                 {
@@ -793,8 +796,8 @@ namespace Moirai.Atropos.UI
                 return ret;
             }
 
-            // 使用 WaitUntil 替代手动轮询；CTS 提供 60s 超时保护
-            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(60)))
+            // 使用 WaitUntil 替代手动轮询；CTS 提供超时保护
+            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS)))
             {
                 try
                 {
@@ -832,7 +835,7 @@ namespace Moirai.Atropos.UI
 
             async UniTaskVoid GetUIAsyncImp(Action<T> ctx)
             {
-                using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(60)))
+                using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS)))
                 {
                     try
                     {
