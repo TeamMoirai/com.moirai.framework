@@ -56,7 +56,22 @@ namespace Moirai.Atropos.Events
         
         protected virtual void OnDestroy()
         {
+            // 排空三条派发队列：入队时的 Acquire 只有 DrainQueue 的 finally 会配平 Dispose，
+            // 销毁时仍滞留队列的事件若不释放，引用计数永不归零、实例永不回池（净泄漏 + 残留态）。
+            // 只归还不派发——协调器已在拆除，派发会触碰已失效的派发上下文。
+            ReleasePendingEvents(_updateQueue);
+            ReleasePendingEvents(_fixedUpdateQueue);
+            ReleasePendingEvents(_lateUpdateQueue);
+
             DetachAllDebuggers();
+        }
+
+        private static void ReleasePendingEvents(Queue<EventBase> queue)
+        {
+            while (queue.Count > 0)
+            {
+                queue.Dequeue().Dispose();
+            }
         }
         
         public void Dispatch(EventBase evt, DispatchMode dispatchMode, MonoDispatchType monoDispatchType)

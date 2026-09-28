@@ -492,7 +492,8 @@ namespace Moirai.Atropos.Events
         {
             s_Pool.CreateFunc = createMethod;
         }
-        private int m_RefCount;
+        // internal：引用计数守卫用例需直读（private→internal 走 InternalsVisibleTo 测试接缝，见 CLAUDE.md 测试可见性）
+        internal int m_RefCount;
 
         // ReSharper disable once ConvertConstructorToMemberInitializers
         protected EventBase()
@@ -574,6 +575,14 @@ namespace Moirai.Atropos.Events
         /// </remarks>
         public sealed override void Dispose()
         {
+            if (m_RefCount <= 0)
+            {
+                // 重复 Dispose / 未 Acquire 即 Dispose：前置短路，防止计数打到 -1 后永不等于 0、实例永不回池。
+                // 守卫在 misuse 现场告警，比等下次复用时 Init() 的事后告警更可归因。
+                LogUtility.Warning("Event disposed more times than acquired; ignored.");
+                return;
+            }
+
             if (--m_RefCount == 0)
             {
                 ReleasePooled((T)this);
