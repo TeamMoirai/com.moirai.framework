@@ -47,6 +47,7 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 获取链表范围的结点数量。
+        /// <para><b>复杂度契约</b>：O(n) 全段走查——区间视图无计数缓存，勿在每帧热路径当作廉价属性读取。</para>
         /// </summary>
         public int Count
         {

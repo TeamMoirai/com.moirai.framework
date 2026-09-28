@@ -1498,6 +1498,9 @@ namespace Moirai.Atropos.Timer
 
         #region 存取器 [ACCESSORS]
 
+        // 排序不变量：引擎不经参数消费 elapse——到期判定一律直读全局 GameTime（虚拟时钟接缝），
+        // 「冻结时钟 + 手动泵 Tick(0,0)」的隔离手法（TimerFireBenchmarkTests 等）依赖此；
+        // 若改为消费容器传入 delta，须同步改造该基准与全部手动推进用例——见评审记录。
         private static double ScaledNow => GameTime.Handler.ScaledNow;
 
         private static double UnscaledNow => GameTime.Handler.UnscaledNow;
