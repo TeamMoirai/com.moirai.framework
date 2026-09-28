@@ -147,6 +147,21 @@ namespace DataStructure
         }
 
         [Test]
+        public void Remove_KeyListDesyncedFromDictionary_StillRemovesDictionaryEntry()
+        {
+            var dict = new GameDictionary<string, int>();
+            dict.Add("a", 1);
+
+            // Keys 暴露的是原始 List——外部经它删除键时两容器即漂移（Remove 的 && 短路会静默漏删字典项）
+            dict.Keys.Remove("a");
+
+            bool removed = dict.Remove("a");
+
+            Assert.IsTrue(removed, "键表已缺失时 Remove 必须仍清掉字典项——短路会把漂移固化为永久不一致");
+            Assert.IsFalse(dict.ContainsKey("a"));
+        }
+
+        [Test]
         public void Clear_RemovesAllEntries()
         {
             var dict = new GameDictionary<string, int>();
