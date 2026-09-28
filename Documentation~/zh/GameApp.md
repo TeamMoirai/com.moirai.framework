@@ -4,13 +4,13 @@
 
 ## 架构变更（重要）
 
-帧逻辑订阅已从 MonoBehaviour 宿主迁移到 **`PlayerLoopDriver`**（`Runtime/Core/GameApp/PlayerLoop`，命名空间 `Moirai.Atropos`，类型为 `internal`，游戏侧经 `GameApp` 门面使用）：
+帧逻辑订阅已从 MonoBehaviour 宿主迁移到 **`PlayerLoopDriver`**（`Runtime/Core/Infrastructure/GameApp/PlayerLoop`，命名空间 `Moirai.Atropos`，类型为 `internal`，游戏侧经 `GameApp` 门面使用）：
 
 - 订阅存储在 **静态注册表**，不挂在任何 GameObject 上
 - 场景切换、宿主被意外销毁 **不会丢失** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy`/`Gizmos`/`Pause` 订阅
 - 旧问题：帧订阅挂在隐藏 Mono 宿主的实例事件上，初始场景加载前宿主可能被销毁，订阅全部失效
 
-`GameApp` 本身**不再含任何 MonoBehaviour**（既无嵌套宿主，也无 GameObject 字段）。Unity 只在 MonoBehaviour 上派发的消息——协程、`OnDrawGizmos(Selected)`、`OnApplicationPause`——集中由 `GameAppHost`（`Runtime/Core/GameApp/GameAppHost.cs`）这一个 `SingletonMono_Persistent` 宿主承接；它只做**转发**，订阅仍留在 Driver 的静态表里，因此宿主销毁或重建都不丢订阅。
+`GameApp` 本身**不再含任何 MonoBehaviour**（既无嵌套宿主，也无 GameObject 字段）。Unity 只在 MonoBehaviour 上派发的消息——协程、`OnDrawGizmos(Selected)`、`OnApplicationPause`——集中由 `GameAppHost`（`Runtime/Core/Infrastructure/GameApp/GameAppHost.cs`）这一个 `SingletonMono_Persistent` 宿主承接；它只做**转发**，订阅仍留在 Driver 的静态表里，因此宿主销毁或重建都不丢订阅。
 
 详细设计见 [PlayerLoopDriver](PlayerLoopDriver.md)。
 
