@@ -256,9 +256,16 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         private static async UniTask AwaitSceneHandle(ResourceSceneHandle handle, Action<float> progressCallBack, CancellationToken cancellationToken)
         {
+            // 进度判重：无变化不重复回报——进度回调是调用方代码，churn 无收益。
+            float lastReported = -1f;
             while (!handle.IsDone)
             {
-                ReportProgress(progressCallBack, handle.Progress);
+                if (lastReported != handle.Progress)
+                {
+                    lastReported = handle.Progress;
+                    ReportProgress(progressCallBack, handle.Progress);
+                }
+
                 await UniTask.Yield(cancellationToken);
             }
 
@@ -539,9 +546,16 @@ namespace Moirai.Atropos.Scene
                     return false;
                 }
 
+                // 进度判重：卸载与加载同口径，无变化不回报。
+                float lastReported = -1f;
                 while (!operation.IsDone)
                 {
-                    ReportProgress(progressCallBack, operation.Progress);
+                    if (lastReported != operation.Progress)
+                    {
+                        lastReported = operation.Progress;
+                        ReportProgress(progressCallBack, operation.Progress);
+                    }
+
                     await UniTask.Yield();
                 }
 
