@@ -37,6 +37,7 @@ namespace Policy
             // ── 基础设施桥（探 Unity / Unity Test Framework 内部成员，非测试夹具） ──
             ["EditorMode/EditorStateBridge.cs"] = "桥：探 ConsoleWindow.GetCountsByType 与 TestRunnerApi.IsRunActive",
             ["EditorMode/TestRequestRunner.cs"] = "桥：探 TestRunnerApi.IsRunning / IsRunActive",
+            ["EditorMode/TestPlayerRunnerWindow.cs"] = "测试工具窗：探 TestRunnerApi.IsRunning / IsRunActive（与测试桥同款探针）",
 
             // ── ① 契约形状守卫 ──
             ["EditorMode/Core/GameApp/PlayerLoopDriverTests.cs"] = "形状守卫：读私有静态入口的 [RuntimeInitializeOnLoadMethod] 属性",
