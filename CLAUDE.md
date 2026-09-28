@@ -397,6 +397,16 @@ Test Runner 窗口 `Run all in Player`、Test Player Runner 窗口、CLI `-runTe
 - 诊断过程与来龙去脉的要点写进 commit message（正文几行内收口，禁长篇叙事铺陈），不进 CHANGELOG；CHANGELOG 面向 release note 读者——只写净结果与迁移口径，一条一行不折行。破坏性变更前置 ⚠ 并给出迁移口径。
 - `Documentation~/zh` 与 `Documentation~/en` 是成对副本，接口改动必须双语同步；文档里的类名、成员名与菜单路径要对着代码核真名——`E` 前缀、单复数这类差别会让照文档写出的代码直接编译不过。
 
+### 5. 提交 PR（标准流程：推送 + 一键预填链接）
+
+用户说「提交PR」时按此流程——不依赖 gh CLI / GitHub API，推送通道与凭据按所在环境的记忆记录取用，不在本文件固化：
+
+1. **推送分支到 origin**：`git push origin <分支>:refs/heads/<分支>`（本包 origin 为 `TeamMoirai/com.moirai.framework`）。
+2. **生成预填 PR 链接交用户点击即建**（compare 页的 `title`/`body` 查询参数会预填表单）：
+   - 模板：`https://github.com/TeamMoirai/com.moirai.framework/compare/master...<分支>?expand=1&title=<URL编码标题>&body=<URL编码正文>`
+   - 标题一行说清主题；正文按批列点 + 验证结果，遵循提交精简纪律。
+3. **PR 合并后**：`git fetch origin && git checkout master && git merge --ff-only origin/master` 同步本地主干；已推送分支不 rebase/amend。
+
 ## 依赖项
 
 ### 运行时核心依赖（Client 实装）
