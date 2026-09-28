@@ -10,7 +10,7 @@
 
 #### 编辑器
 
-- 新增 `Window/General/Test Player Runner` 窗口：Player 测试参数化一键发起（平台/程序集/用例过滤、心跳超时、报告路径，附 CLI 等价命令复制），护栏与测试桥同款（错误回调收口、互斥、取消、域重载孤儿判活、失败详情含堆栈）；住独立门控程序集 `Moirai.Atropos.Editor.Testing`，缺 Test Framework 包自动退化。
+- 新增 `Window/General/Test Player Runner` 窗口：Player 测试参数化一键发起（平台/程序集/用例过滤、心跳超时、报告路径，附 CLI 等价命令复制），护栏与测试桥同款（错误回调收口、互斥、取消、域重载孤儿判活、失败详情含堆栈）；住测试程序集 `Moirai.Atropos.Tests.EditorMode`（Editor + `UNITY_INCLUDE_TESTS` 门控，缺 Test Framework 包自动退化），与测试桥同栈。
 
 #### 测试
 

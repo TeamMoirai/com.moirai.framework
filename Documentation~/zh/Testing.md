@@ -65,7 +65,7 @@ Tests/
 │   │   ├── Singleton/
 │   │   ├── Events/
 │   │   └── GameApp/
-│   ├── DataStructure/           # 对应 Runtime/Core/DataStructure（纯数据结构用例）
+│   ├── DataStructure/           # 对应 Runtime/Core/Foundation/DataStructure（纯数据结构用例）
 │   ├── Service/                 # 对应 Runtime/Services/<模块>
 │   │   ├── Audio/  Save/  Resource/  UI/  ...
 │   │   └── Kernel/

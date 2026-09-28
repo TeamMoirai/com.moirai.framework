@@ -1,13 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Text;
-using Sirenix.OdinInspector;
-using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Moirai.Atropos.Editor.Testing
 {
@@ -18,6 +18,9 @@ namespace Moirai.Atropos.Editor.Testing
     /// 本窗口即 GUI 通道的产品化：目标平台、测试过滤、心跳超时、报告输出路径收拢一处，附 CLI 等价命令
     /// 便于复制进 CI 或本机 batch（batch 需先关 GUI 编辑器——工程锁互斥）。</para>
     /// <para>菜单：Window → General → Test Player Runner。</para>
+    /// <para>实现取向：UI Toolkit（本窗口住测试程序集，其 asmdef 以 <c>overrideReferences</c> 收窄预编译引用、
+    /// 不含 Odin——呈现层不得依赖 Odin）；设置字段用 <c>[SerializeField]</c> 走 EditorWindow 自身序列化，
+    /// 跨域重载保留。</para>
     /// <para>域重载存活：Player 构建可能触发域重载，回调宿主与计数随 <c>Temp/MoiraiPlayerTestRun.json</c>
     /// 落盘恢复（与测试桥 <c>TestRequestRunner</c> 同一教训：跨域的真相只能住磁盘）。</para>
     /// <para>护栏（与测试桥同款语义，2026-09-28 增量复审补齐）：<b>接单门</b>——正在编译/导入/切 PlayMode
@@ -29,13 +32,20 @@ namespace Moirai.Atropos.Editor.Testing
     /// 编辑器侧悬挂由取消按钮兜底、玩家侧断连由心跳超时参数兜底；<b>失败详情</b>——Message 与 StackTrace
     /// 并采、有上限，玩家侧失败可归因。</para>
     /// </summary>
-    public sealed class TestPlayerRunnerWindow : OdinEditorWindow
+    public sealed class TestPlayerRunnerWindow : EditorWindow
     {
         #region 常量 [CONSTANTS]
 
         private const string RUN_STATE_PATH = "Temp/MoiraiPlayerTestRun.json";
         private const string DEFAULT_REPORT_DIR = "Library/PlayerTestResults";
         private const int DEFAULT_HEARTBEAT_SECONDS = 60 * 10;
+        private const int MIN_HEARTBEAT_SECONDS = 10;
+
+        /// <summary>窗口默认打开尺寸（宽×高）——按 UITK 布局实测（四卡内容高约 470px、全宽无滚动）定为该值。</summary>
+        private static readonly Vector2 DEFAULT_WINDOW_SIZE = new Vector2(720f, 640f);
+
+        /// <summary>窗口最小尺寸：再小四个分区会挤成标题条（内容有 ScrollView 兜底）。</summary>
+        private static readonly Vector2 MIN_WINDOW_SIZE = new Vector2(520f, 420f);
 
         /// <summary>失败详情上限：超出只计数不展开，失败风暴不会把报告写成无底洞。</summary>
         private const int MAX_FAILURES = 200;
@@ -50,47 +60,23 @@ namespace Moirai.Atropos.Editor.Testing
 
         #region 参数 [SETTINGS]
 
-        [BoxGroup("目标平台"), ShowInInspector, LabelText("目标平台"),
-            ValueDropdown(nameof(BuildTargetChoices)), OnValueChanged(nameof(RefreshCliCommand)),
-            Tooltip("玩家构建目标；等价 CLI 的 -testPlatform")]
-        private BuildTarget _buildTarget;
+        [SerializeField] private BuildTarget _buildTarget;
+        [SerializeField] private string _assemblyNames = string.Empty;
+        [SerializeField] private string _testNames = string.Empty;
+        [SerializeField] private int _heartbeatTimeout = DEFAULT_HEARTBEAT_SECONDS;
+        [SerializeField] private string _reportPath = DEFAULT_REPORT_DIR + "/player-tests.txt";
 
-        [BoxGroup("过滤"), ShowInInspector, LabelText("程序集"), TextArea(2, 3), Delayed,
-            Tooltip("按程序集名过滤（不含 .dll），分号或换行分隔；留空跑全部。等价 CLI 的 -assemblyNames")]
-        private string _assemblyNames = string.Empty;
-
-        [BoxGroup("过滤"), ShowInInspector, LabelText("用例"), TextArea(2, 3), Delayed,
-            Tooltip("按用例全名过滤（命名空间.类.方法 或夹具全名），分号或换行分隔；留空不过滤。等价 CLI 的 -testFilter")]
-        private string _testNames = string.Empty;
-
-        [BoxGroup("运行参数"), ShowInInspector, LabelText("心跳超时（秒）"), MinValue(10), Delayed,
-            OnValueChanged(nameof(RefreshCliCommand)),
-            Tooltip("玩家与编辑器之间的 PlayerConnection 心跳超时；玩家卡死或断连时按此收口。等价 CLI 的 -playerHeartbeatTimeout")]
-        private int _heartbeatTimeout = DEFAULT_HEARTBEAT_SECONDS;
-
-        [BoxGroup("运行参数"), ShowInInspector, LabelText("报告输出"), Delayed,
-            Tooltip("相对工程根。跑完写入文本报告（计数 + 逐格失败详情），完成再落同名 .done")]
-        private string _reportPath = DEFAULT_REPORT_DIR + "/player-tests.txt";
-
-        private ValueDropdownList<BuildTarget> BuildTargetChoices()
-        {
-            var choices = new ValueDropdownList<BuildTarget>();
-            foreach (BuildTarget target in Enum.GetValues(typeof(BuildTarget)))
-            {
-                if (BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target))
-                {
-                    choices.Add(target.ToString(), target);
-                }
-            }
-
-            return choices;
-        }
+        private PopupField<BuildTarget> _buildTargetField;
+        private TextField _assemblyNamesField;
+        private TextField _testNamesField;
+        private IntegerField _heartbeatField;
+        private TextField _reportPathField;
+        private TextField _cliField;
 
         #endregion
 
         #region 状态 [STATE]
 
-        [ShowInInspector, HideLabel, ReadOnly, PropertyOrder(-1), MultiLineProperty(4)]
         private string _status = "未运行";
 
         private RunState _run;
@@ -103,12 +89,271 @@ namespace Moirai.Atropos.Editor.Testing
 
         private RunCallbacks _callbacks;
 
-        [BoxGroup("运行"), Button(ButtonSizes.Large), GUIColor(0.4f, 0.8f, 0.5f), EnableIf(nameof(CanRun))]
+        private Label _statusLabel;
+        private Button _runButton;
+        private Button _cancelButton;
+
+        #endregion
+
+        #region UI 构建 [UI BUILD]
+
+        /// <summary>打开 Test Player Runner 窗口（菜单 Window → General → Test Player Runner）。</summary>
+        [MenuItem("Window/General/Test Player Runner")]
+        public static void OpenWindow()
+        {
+            TestPlayerRunnerWindow window = GetWindow<TestPlayerRunnerWindow>("Test Player Runner");
+            window.minSize = MIN_WINDOW_SIZE;
+            if (window.position.width < MIN_WINDOW_SIZE.x || window.position.height < MIN_WINDOW_SIZE.y)
+            {
+                // 首次打开（或布局里存得比下限还小）时落到显式默认尺寸；用户调整过的大尺寸原样保留
+                window.position = new Rect(window.position.position, DEFAULT_WINDOW_SIZE);
+            }
+
+            window.Show();
+        }
+
+        private void OnEnable()
+        {
+            if ((int)_buildTarget == 0)
+            {
+                // 0 不是合法 BuildTarget——仅首次打开时用当前激活平台作默认，不覆盖已持久化的选择
+                _buildTarget = EditorUserBuildSettings.activeBuildTarget;
+            }
+
+            RestoreRunState();
+            RunCallbacks.EnsureRegistered().BindWindow(this);
+            EditorApplication.update += PollRunLiveness;
+        }
+
+        private void OnDisable()
+        {
+            EditorApplication.update -= PollRunLiveness;
+            RunCallbacks.EnsureRegistered().UnbindWindow(this);
+        }
+
+        private void CreateGUI()
+        {
+            VisualElement root = rootVisualElement;
+            root.Clear();
+
+            var scroll = new ScrollView(ScrollViewMode.Vertical) { style = { flexGrow = 1, paddingLeft = 6, paddingRight = 6, paddingTop = 6 } };
+            root.Add(scroll);
+
+            BuildTargetSection(scroll);
+            FilterSection(scroll);
+            RunParametersSection(scroll);
+            RunSection(scroll);
+
+            RefreshUi();
+        }
+
+        private void BuildTargetSection(VisualElement parent)
+        {
+            VisualElement card = MakeSection(parent, "目标平台");
+            List<BuildTarget> supported = CollectSupportedBuildTargets();
+            int index = Math.Max(0, supported.IndexOf(_buildTarget));
+            _buildTargetField = new PopupField<BuildTarget>("目标平台", supported, index)
+            {
+                tooltip = "玩家构建目标；等价 CLI 的 -testPlatform",
+            };
+            _buildTargetField.RegisterValueChangedCallback(evt =>
+            {
+                _buildTarget = evt.newValue;
+                RefreshUi();
+            });
+            card.Add(_buildTargetField);
+        }
+
+        private void FilterSection(VisualElement parent)
+        {
+            VisualElement card = MakeSection(parent, "过滤");
+
+            _assemblyNamesField = new TextField("程序集")
+            {
+                value = _assemblyNames,
+                multiline = true,
+                tooltip = "按程序集名过滤（不含 .dll），分号或换行分隔；留空跑全部。等价 CLI 的 -assemblyNames",
+            };
+            _assemblyNamesField.style.minHeight = 40;
+            _assemblyNamesField.RegisterValueChangedCallback(evt =>
+            {
+                _assemblyNames = evt.newValue;
+                RefreshUi();
+            });
+            card.Add(_assemblyNamesField);
+
+            _testNamesField = new TextField("用例")
+            {
+                value = _testNames,
+                multiline = true,
+                tooltip = "按用例全名过滤（命名空间.类.方法 或夹具全名），分号或换行分隔；留空不过滤。等价 CLI 的 -testFilter",
+            };
+            _testNamesField.style.minHeight = 40;
+            _testNamesField.RegisterValueChangedCallback(evt =>
+            {
+                _testNames = evt.newValue;
+                RefreshUi();
+            });
+            card.Add(_testNamesField);
+        }
+
+        private void RunParametersSection(VisualElement parent)
+        {
+            VisualElement card = MakeSection(parent, "运行参数");
+
+            _heartbeatField = new IntegerField("心跳超时（秒）")
+            {
+                value = _heartbeatTimeout,
+                tooltip = "玩家与编辑器之间的 PlayerConnection 心跳超时；玩家卡死或断连时按此收口。等价 CLI 的 -playerHeartbeatTimeout",
+            };
+            _heartbeatField.RegisterValueChangedCallback(evt =>
+            {
+                _heartbeatTimeout = Mathf.Max(MIN_HEARTBEAT_SECONDS, evt.newValue);
+                if (_heartbeatField.value != _heartbeatTimeout) _heartbeatField.SetValueWithoutNotify(_heartbeatTimeout);
+                RefreshUi();
+            });
+            card.Add(_heartbeatField);
+
+            _reportPathField = new TextField("报告输出")
+            {
+                value = _reportPath,
+                tooltip = "相对工程根。跑完写入文本报告（计数 + 逐格失败详情），完成再落同名 .done",
+            };
+            _reportPathField.RegisterValueChangedCallback(evt =>
+            {
+                _reportPath = evt.newValue;
+                RefreshUi();
+            });
+            card.Add(_reportPathField);
+        }
+
+        private void RunSection(VisualElement parent)
+        {
+            VisualElement card = MakeSection(parent, "运行");
+
+            _statusLabel = new Label(_status)
+            {
+                style =
+                {
+                    whiteSpace = WhiteSpace.Normal,
+                    marginBottom = 6,
+                    paddingLeft = 4,
+                    paddingRight = 4,
+                    paddingTop = 4,
+                    paddingBottom = 4,
+                    backgroundColor = new Color(0f, 0f, 0f, 0.15f),
+                },
+            };
+            card.Add(_statusLabel);
+
+            var buttons = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+            _runButton = new Button(OnRunClicked) { text = "Run in Player" };
+            _runButton.style.flexGrow = 1;
+            _runButton.style.height = 30;
+            _runButton.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _runButton.style.unityBackgroundImageTintColor = new Color(0.4f, 0.8f, 0.5f);
+            _cancelButton = new Button(OnCancelClicked) { text = "Cancel" };
+            _cancelButton.style.width = 90;
+            _cancelButton.style.height = 30;
+            var copyButton = new Button(OnCopyCliClicked) { text = "复制 CLI 等价命令" };
+            copyButton.style.width = 150;
+            copyButton.style.height = 30;
+            buttons.Add(_runButton);
+            buttons.Add(_cancelButton);
+            buttons.Add(copyButton);
+            card.Add(buttons);
+
+            _cliField = new TextField
+            {
+                value = BuildCliCommand(),
+                multiline = true,
+                isReadOnly = true,
+            };
+            _cliField.style.minHeight = 80;
+            _cliField.style.marginTop = 6;
+            card.Add(_cliField);
+        }
+
+        #endregion
+
+        #region UI 工具 [UI HELPERS]
+
+        private static VisualElement MakeSection(VisualElement parent, string title)
+        {
+            var card = new VisualElement
+            {
+                style =
+                {
+                    marginBottom = 8,
+                    paddingLeft = 6,
+                    paddingRight = 6,
+                    paddingTop = 4,
+                    paddingBottom = 6,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopColor = new Color(0f, 0f, 0f, 0.3f),
+                    borderBottomColor = new Color(0f, 0f, 0f, 0.3f),
+                    borderLeftColor = new Color(0f, 0f, 0f, 0.3f),
+                    borderRightColor = new Color(0f, 0f, 0f, 0.3f),
+                },
+            };
+            var label = new Label(title)
+            {
+                style = { unityFontStyleAndWeight = FontStyle.Bold, marginBottom = 4 },
+            };
+            card.Add(label);
+            parent.Add(card);
+            return card;
+        }
+
+        private static List<BuildTarget> CollectSupportedBuildTargets()
+        {
+            var supported = new List<BuildTarget>();
+            foreach (BuildTarget target in Enum.GetValues(typeof(BuildTarget)))
+            {
+                if (BuildPipeline.IsBuildTargetSupported(BuildPipeline.GetBuildTargetGroup(target), target))
+                {
+                    supported.Add(target);
+                }
+            }
+
+            return supported;
+        }
+
+        /// <summary>
+        /// 状态 → UI 单向刷新：状态标签文本、Run/Cancel 使能、CLI 预览。任何状态变更后调用一次。
+        /// </summary>
+        private void RefreshUi()
+        {
+            if (_statusLabel != null) _statusLabel.text = _status;
+            _runButton?.SetEnabled(_run == null || _run.finished);
+            _cancelButton?.SetEnabled(_run != null && !_run.finished);
+            if (_cliField != null) _cliField.SetValueWithoutNotify(BuildCliCommand());
+        }
+
+        private void OnRunClicked() => RunInPlayer();
+
+        private void OnCancelClicked() => CancelRun();
+
+        private void OnCopyCliClicked()
+        {
+            EditorGUIUtility.systemCopyBuffer = BuildCliCommand();
+            _status = "CLI 等价命令已复制到剪贴板";
+            RefreshUi();
+        }
+
+        #endregion
+
+        #region 发起与取消 [RUN & CANCEL]
+
         private void RunInPlayer()
         {
             if (_run != null && !_run.finished)
             {
                 Debug.LogWarning("[TestPlayerRunner] 已有 Player 测试在跑，等它收口再发起新单");
+                RefreshUi();
                 return;
             }
 
@@ -118,12 +363,14 @@ namespace Moirai.Atropos.Editor.Testing
                 EditorApplication.isPlayingOrWillChangePlaymode)
             {
                 _status = "编辑器正在编译/导入/切换 PlayMode，稍后再发起";
+                RefreshUi();
                 return;
             }
 
             if (IsAnyRunActive())
             {
                 _status = "已有 Test Runner 作业在跑（含测试桥/窗口手动发起），等它收口再发起";
+                RefreshUi();
                 return;
             }
 
@@ -146,6 +393,7 @@ namespace Moirai.Atropos.Editor.Testing
             {
                 _status = $"报告路径不可用：{exception.Message}";
                 _run = null;
+                RefreshUi();
                 return;
             }
 
@@ -171,9 +419,9 @@ namespace Moirai.Atropos.Editor.Testing
             _run.guid = guid ?? string.Empty;
             PersistRunState();
             _status = $"运行中：{_buildTarget}（报告将落 {_run.reportPath}）";
+            RefreshUi();
         }
 
-        [BoxGroup("运行"), Button, EnableIf(nameof(CanCancel)), PropertyOrder(0.5f)]
         private void CancelRun()
         {
             if (_run == null || _run.finished) return;
@@ -204,40 +452,8 @@ namespace Moirai.Atropos.Editor.Testing
             else
             {
                 _status = "取消未受理（作业可能已在收尾），等待自然收口";
+                RefreshUi();
             }
-        }
-
-        private bool CanRun() => _run == null || _run.finished;
-
-        private bool CanCancel() => _run != null && !_run.finished;
-
-        [BoxGroup("运行"), ShowInInspector, ReadOnly, HideLabel, MultiLineProperty(6), PropertyOrder(1)]
-        private string _cliCommand;
-
-        [BoxGroup("运行"), Button, PropertyOrder(2)]
-        private void CopyCliCommand()
-        {
-            EditorGUIUtility.systemCopyBuffer = BuildCliCommand();
-            _status = "CLI 等价命令已复制到剪贴板";
-        }
-
-        private void RefreshCliCommand() => _cliCommand = BuildCliCommand();
-
-        private void OnEnable()
-        {
-            base.OnEnable();
-            _buildTarget = EditorUserBuildSettings.activeBuildTarget;
-            _cliCommand = BuildCliCommand();
-            RestoreRunState();
-            RunCallbacks.EnsureRegistered().BindWindow(this);
-            EditorApplication.update += PollRunLiveness;
-        }
-
-        private void OnDisable()
-        {
-            EditorApplication.update -= PollRunLiveness;
-            RunCallbacks.EnsureRegistered().UnbindWindow(this);
-            base.OnDisable();
         }
 
         #endregion
@@ -458,6 +674,7 @@ namespace Moirai.Atropos.Editor.Testing
 
             _status = $"运行中：{currentTest}（已过 {_run.pass} / 败 {_run.fail} / 跳 {_run.skip}）";
             PersistRunState();
+            RefreshUi();
         }
 
         /// <summary>由回调宿主驱动（编辑器主线程）：正常收口，计数与失败详情取自跨域真相源（磁盘运行态）。</summary>
@@ -493,12 +710,14 @@ namespace Moirai.Atropos.Editor.Testing
             catch (Exception exception)
             {
                 Debug.LogError($"[TestPlayerRunner] 报告落盘失败：{exception.Message}");
+                RefreshUi();
                 return;
             }
 
             _status = state.fail == 0
                 ? $"完成：{state.pass} 过 / {state.skip} 跳（报告 {state.reportPath}）"
                 : $"完成：{state.fail} 败 / {state.pass} 过 / {state.skip} 跳（报告 {state.reportPath}）";
+            RefreshUi();
         }
 
         /// <summary>由回调宿主驱动（编辑器主线程）：UTF 报错（含玩家构建失败）按 ABORTED 收口，不锁死窗口。</summary>
@@ -542,6 +761,7 @@ namespace Moirai.Atropos.Editor.Testing
             }
 
             _status = $"已中止：{reason}（报告 {state.reportPath}）";
+            RefreshUi();
         }
 
         private static void TryDeleteRunState()
@@ -709,12 +929,5 @@ namespace Moirai.Atropos.Editor.Testing
         }
 
         #endregion
-
-        /// <summary>打开 Test Player Runner 窗口（菜单 Window → General → Test Player Runner）。</summary>
-        [MenuItem("Window/General/Test Player Runner")]
-        public static void OpenWindow()
-        {
-            GetWindow<TestPlayerRunnerWindow>("Test Player Runner").Show();
-        }
     }
 }
