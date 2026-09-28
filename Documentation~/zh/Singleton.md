@@ -2,7 +2,7 @@
 
 > 线程安全的单例基类家族：纯 C# 单例（volatile 双检锁）、MonoBehaviour 单例（场景查找 + 主线程物化）与注册式单例。
 
-命名空间：`Moirai.Atropos`（`Runtime/Core/Singleton/`）
+命名空间：`Moirai.Atropos`（`Runtime/Core/Infrastructure/Singleton/`）
 
 ## 类型总览
 
