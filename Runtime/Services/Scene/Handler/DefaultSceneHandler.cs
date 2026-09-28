@@ -252,9 +252,10 @@ namespace Moirai.Atropos.Scene
         }
 
         /// <summary>
-        /// 等待场景加载句柄完成，支持取消等待；进度回调逐帧回报（异常被隔离记录），成功完成时以 1.0 收尾一次。
+        /// 等待场景加载句柄完成，支持取消等待；进度回调仅在进度变化时回报（异常被隔离记录），成功完成时以 1.0 收尾一次。
+        /// <para>取 internal 是给 PlayMode 帧驱动用例直接触达，不开反射接缝。</para>
         /// </summary>
-        private static async UniTask AwaitSceneHandle(ResourceSceneHandle handle, Action<float> progressCallBack, CancellationToken cancellationToken)
+        internal static async UniTask AwaitSceneHandle(ResourceSceneHandle handle, Action<float> progressCallBack, CancellationToken cancellationToken)
         {
             // 进度判重：无变化不重复回报——进度回调是调用方代码，churn 无收益。
             float lastReported = -1f;

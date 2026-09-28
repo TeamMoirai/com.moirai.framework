@@ -22,6 +22,10 @@
 
 ### Changed
 
+#### 场景
+
+- 场景进度回调按值回报：`progressCallBack` 只在进度变化时触发（加载与卸载同口径），成功收尾的 1.0 仍必发一次。
+
 #### 测试
 
 - `Tests/Player` 程序集转编辑器可见（`defineConstraints` 去 `!UNITY_EDITOR`）：UTF 玩家测试运行只收录编辑器可见程序集，原组合在任何环境都不执行。
