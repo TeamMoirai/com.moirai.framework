@@ -65,7 +65,7 @@ Tests/
 │   │   ├── Singleton/
 │   │   ├── Events/
 │   │   └── GameApp/
-│   ├── DataStructure/           # mirrors Runtime/Core/DataStructure (pure data-structure cases)
+│   ├── DataStructure/           # mirrors Runtime/Core/Foundation/DataStructure (pure data-structure cases)
 │   ├── Service/                 # mirrors Runtime/Services/<module>
 │   │   ├── Audio/  Save/  Resource/  UI/  ...
 │   │   └── Kernel/
