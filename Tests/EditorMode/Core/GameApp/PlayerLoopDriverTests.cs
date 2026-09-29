@@ -14,7 +14,8 @@ namespace Core.GameApp
     /// <see cref="PlayerLoopDriver"/> 的架构验收测试：帧时钟同帧采样、延迟缓冲按阶段隔离、订阅方抛异常不卡死注册、优先级插入、Gizmos / Pause 静态表转发与注销时机。
     /// </summary>
     /// <remarks>
-    /// 经 <see cref="GameTime.Handler"/> 注入虚拟时钟，手动调用 <c>Drive*</c> 推进；不走 <see cref="PlayerLoopDriver.Initialize"/>，以免改写编辑器全局 PlayerLoop。
+    /// 经 <see cref="GameTime.Handler"/> 注入虚拟时钟，手动调用 <c>Drive*</c> 推进；不走 <see cref="PlayerLoopDriver.Initialize"/>， <br />
+    /// 以免改写编辑器全局 PlayerLoop。
     /// </remarks>
     public class PlayerLoopDriverTests
     {

@@ -9,7 +9,8 @@ using UnityEngine;
 namespace Service.Audio
 {
     /// <summary>BgmPlaylist 分层 ID 契约：显式 ID 撞车即报错且本实例不播放，自动分配走负区间。</summary>
-    /// <remarks>错误日志内容经 <see cref="LogUtility.OnMessageLogged"/> 捕获（Handler 无关），UTF 消除经 <see cref="UtfLogExpect"/>；成员触达走 internal 接缝，不用反射。</remarks>
+    /// <remarks>错误日志内容经 <see cref="LogUtility.OnMessageLogged"/> 捕获（Handler 无关），UTF 消除经 <see cref="UtfLogExpect"/>； <br />
+    /// 成员触达走 internal 接缝，不用反射。</remarks>
     [TestFixture]
     public sealed class BgmPlaylistTests
     {

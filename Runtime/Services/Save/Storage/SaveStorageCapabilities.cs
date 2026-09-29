@@ -5,7 +5,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 调用方按能力降级：不支持原子改名时写入需自行加锁节流；不支持真异步 IO 时异步 API 为线程池卸载语义；易失存储（如云缓存目录）的存档须自行镜像。
-    /// 同步读权威性（<see cref="SyncReadsAuthoritative"/>）：云镜像后端的同步原语仅作用本地镜像——为 <c>false</c> 时同步裸名读 API 返回的是可能滞后的本地镜像，远端内容须经异步 API 族裁决；本地文件后端恒为 <c>true</c>。
+    /// 同步读权威性（<see cref="SyncReadsAuthoritative"/>）：云镜像后端的同步原语仅作用本地镜像——为 <c>false</c> 时同步裸名读 API 返回的是可能滞后的本地镜像， <br />
+    /// 远端内容须经异步 API 族裁决；本地文件后端恒为 <c>true</c>。
     /// </remarks>
     public readonly struct SaveStorageCapabilities
     {

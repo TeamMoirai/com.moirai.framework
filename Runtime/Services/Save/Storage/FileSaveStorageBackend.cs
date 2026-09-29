@@ -9,7 +9,9 @@ namespace Moirai.Atropos.Save
     /// 本地文件存储后端（默认）：存档以文件形式落于磁盘目录树。
     /// </summary>
     /// <remarks>
-    /// 写入为「临时文件 + <c>Flush(true)</c> 强制落盘 + 原子替换」（NTFS <see cref="File.Replace"/> 元数据级原子，平台不支持时转 <see cref="FallbackReplace"/>：旧档先改名到 <c>.journal</c>，再把临时文件改名到位，两步之间崩溃由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回）。
+    /// 写入为「临时文件 + <c>Flush(true)</c> 强制落盘 + 原子替换」（NTFS <see cref="File.Replace"/> 元数据级原子， <br />
+    /// 平台不支持时转 <see cref="FallbackReplace"/>： 旧档先改名到 <c>.journal</c>，再把临时文件改名到位， <br />
+    /// 两步之间崩溃由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回）。
     /// 删除带退避重试（应对云同步/杀毒软件短时锁文件）；备份为单档 <c>.bak</c> 副本（项目侧手动备份位，与写入用的 <c>.journal</c> 互不占用），恢复经临时文件原子替换回源路径。
     /// 提供孤儿临时文件清扫与中断恢复；无状态纯 .NET 实现，可在任意线程调用；共享实例 <see cref="s_Default"/> 供未配置后端时回退。
     /// </remarks>
@@ -25,7 +27,8 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 回退替换的中转日志后缀（实际形如 <c>xxx.sav.journal</c>）。
         /// </summary>
-        /// <remarks>与 <see cref="BACKUP_FILE_SUFFIX"/> 分开：后者是项目侧 <c>CreateBackup</c>/<c>RestoreBackup</c> 的持久备份位，回退若借它中转，玩家手动恢复会捞到一份写入中途的快照。</remarks>
+        /// <remarks>与 <see cref="BACKUP_FILE_SUFFIX"/> 分开：后者是项目侧 <c>CreateBackup</c>/<c>RestoreBackup</c> 的持久备份位，回退若借它中转， <br />
+        /// 玩家手动恢复会捞到一份写入中途的快照。</remarks>
         internal const string JOURNAL_FILE_SUFFIX = ".journal";
 
         /// <summary>删除操作的退避重试次数（应对云同步/杀毒软件的短时文件锁）。</summary>
@@ -167,7 +170,8 @@ namespace Moirai.Atropos.Save
         /// 流式原子写入：临时文件流（可寻址）交委托写入全部内容 → 强制落盘 → 原子替换目标。
         /// </summary>
         /// <remarks>
-        /// 失败抛 <c>GameException</c> 并清理临时文件；委托抛 <c>GameException</c>/<see cref="OperationCanceledException"/> 原样上抛，其余异常归一为 <c>GameException</c>（含路径上下文）。
+        /// 失败抛 <c>GameException</c> 并清理临时文件；委托抛 <c>GameException</c>/<see cref="OperationCanceledException"/> 原样上抛， <br />
+        /// 其余异常归一为 <c>GameException</c>（含路径上下文）。
         /// </remarks>
         /// <param name="filePath">目标文件完整路径。</param>
         /// <param name="writeFile">写入委托（收到的临时文件流生命周期仅限本次调用）。</param>
@@ -240,7 +244,8 @@ namespace Moirai.Atropos.Save
         /// 删除文件（幂等：不存在视为成功；带退避重试）。
         /// </summary>
         /// <remarks>
-        /// 须先清同路径中转日志（<see cref="JOURNAL_FILE_SUFFIX"/>）再删主档：反序会在 journal 被云同步/杀软锁住时留下「主档已没、journal 尚存」的形态，令已删槽位在下次初始化被 <see cref="RecoverInterruptedWrites"/> 抬回。
+        /// 须先清同路径中转日志（<see cref="JOURNAL_FILE_SUFFIX"/>）再删主档：反序会在 journal 被云同步/杀软锁住时留下「主档已没、journal 尚存」的形态， <br />
+        /// 令已删槽位在下次初始化被 <see cref="RecoverInterruptedWrites"/> 抬回。
         /// </remarks>
         /// <param name="filePath">文件完整路径。</param>
         public override void DeleteFile(string filePath)
@@ -496,7 +501,8 @@ namespace Moirai.Atropos.Save
         /// 无原子替换能力的平台（Android / iOS / WebGL 等 POSIX 语义）下的回退写法：旧档先改名到日志位，临时文件再改名到位，成功后清掉日志。
         /// </summary>
         /// <remarks>
-        /// 不写成「删掉旧档再改名」——那两步之间崩溃或断电等于存档消失；到位失败时转 <see cref="RollbackJournal"/> 抬回，进程崩在两步之间时旧档完整留在日志位，由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回。
+        /// 不写成「删掉旧档再改名」——那两步之间崩溃或断电等于存档消失；到位失败时转 <see cref="RollbackJournal"/> 抬回，进程崩在两步之间时旧档完整留在日志位， <br />
+        /// 由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回。
         /// 不复用 <see cref="BACKUP_FILE_SUFFIX"/>（项目侧手动备份的持久单槽位），借它中转会让玩家「恢复上一版」捞到写入中途的快照。
         /// </remarks>
         /// <param name="tempFilePath">已落盘的临时文件路径（本次要写入的新内容）。</param>

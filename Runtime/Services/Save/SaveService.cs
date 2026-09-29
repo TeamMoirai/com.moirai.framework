@@ -10,9 +10,11 @@ namespace Moirai.Atropos.Save
     /// 存档服务外观（Facade）：统一的静态存档访问入口。
     /// </summary>
     /// <remarks>
-    /// 存档为「单文件多数据块」容器：块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体，便捷单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。
+    /// 存档为「单文件多数据块」容器：块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体， <br />
+    /// 便捷单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。
     /// 序列化后端（JSON/MessagePack/MemoryPack/protobuf-net）与存储管线（明文/AES 加密）两轴可插拔，经 <see cref="SaveServiceSettings"/> 配置。
-    /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 解析，settings 未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 解析，settings 未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
+    /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     /// <example>
     /// <code lang="csharp">

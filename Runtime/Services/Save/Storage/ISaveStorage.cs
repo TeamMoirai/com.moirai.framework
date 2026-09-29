@@ -9,8 +9,12 @@ namespace Moirai.Atropos.Save
     /// 存档存储层契约（字节搬运抽象）：存档编排层 <see cref="SaveServiceHandler"/> 的所有持久化 IO 均经此接口下沉。
     /// </summary>
     /// <remarks>
-    /// 存储后端（本地文件 / 云 KV / 平台存储）与格式管线两轴正交可插拔；同步原语为契约核心——<see cref="SaveService"/> 同步裸名 API 在调用线程直接消费，异步包装默认由 <see cref="SaveStorageBackend"/> 以线程池卸载实现，真异步后端（如云）覆盖并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。
-    /// 错误语义：读取经 <see cref="TryReadAllBytes"/> 分型返回（缺档 <see cref="SaveError.FileNotFound"/> 不记日志，IO 失败 <see cref="SaveError.IoFailed"/> 由实现记录详细日志）；写入失败 fail-fast 抛 <c>GameException</c>（含路径上下文，实现负责清理临时残留）；删除幂等——目标不存在视为删除成功。
+    /// 存储后端（本地文件 / 云 KV / 平台存储）与格式管线两轴正交可插拔；同步原语为契约核心——<see cref="SaveService"/> 同步裸名 API 在调用线程直接消费， <br />
+    /// 异步包装默认由 <see cref="SaveStorageBackend"/> 以线程池卸载实现， <br />
+    /// 真异步后端（如云）覆盖并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。
+    /// 错误语义：读取经 <see cref="TryReadAllBytes"/> 分型返回（缺档 <see cref="SaveError.FileNotFound"/> 不记日志， <br />
+    /// IO 失败 <see cref="SaveError.IoFailed"/> 由实现记录详细日志）；写入失败 fail-fast 抛 <c>GameException</c>（含路径上下文，实现负责清理临时残留）； <br />
+    /// 删除幂等——目标不存在视为删除成功。
     /// 实现必须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。
     /// </remarks>
     public interface ISaveStorage
@@ -75,7 +79,9 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 大档管线（容器 → 压缩 → 加密链）的流式契约——写入全程无整档缓冲：委托收到的流可寻址（Seek/Position 可用）且仅支持写入，全部文件内容（含文件头）由委托写入，实现不做任何补充。
-        /// 委托在实现的工作线程内同步调用；需要跨异步边界的实现自行在委托内聚合转存。委托抛异常/取消时实现清理临时文件并上抛（<c>GameException</c> 与 <see cref="OperationCanceledException"/> 原样透传，其余归一为 <c>GameException</c>），不留半文件窗口。
+        /// 委托在实现的工作线程内同步调用；需要跨异步边界的实现自行在委托内聚合转存。 <br />
+        /// 委托抛异常/取消时实现清理临时文件并上抛（<c>GameException</c> 与 <see cref="OperationCanceledException"/> 原样透传，其余归一为 <c>GameException</c>）， <br />
+        /// 不留半文件窗口。
         /// </remarks>
         /// <param name="filePath">目标文件完整路径（目录由实现确保存在）。</param>
         /// <param name="writeFile">写入委托（收到的流生命周期仅限本次调用）。</param>
@@ -87,7 +93,8 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
         /// <param name="stream">成功时的只读流（生命周期由调用方管理）。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.FileNotFound"/>（不记日志）或 <see cref="SaveError.IoFailed"/>（实现记录详细日志）。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、 <br />
+        /// <see cref="SaveError.FileNotFound"/>（不记日志）或 <see cref="SaveError.IoFailed"/>（实现记录详细日志）。</returns>
         SaveError TryOpenRead(string filePath, out Stream stream);
 
         /// <summary>

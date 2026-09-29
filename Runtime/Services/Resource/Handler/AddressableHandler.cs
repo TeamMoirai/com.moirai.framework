@@ -19,7 +19,8 @@ namespace Moirai.Atropos.Resource
     /// <remarks>
     /// 异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均为对等实现。
     /// Addressables 没有同步加载 API 与两步式 Check→Update 下载器，故同步取用族与下载族统一抛 <see cref="GameException"/> fail-fast。
-    /// 只有异步可答的查询（<c>IsNeedDownloadFromRemote</c> / <c>GetPackageVersion</c> / <c>GetAssetInfo</c> / 按标签的 <c>GetAssetInfos</c>）退化为恒定值。
+    /// 只有异步可答的查询（<c>IsNeedDownloadFromRemote</c> / <c>GetPackageVersion</c> / <c>GetAssetInfo</c> / 按标签的 <br />
+    /// <c>GetAssetInfos</c>）退化为恒定值。
     /// </remarks>
     [Serializable]
     internal sealed partial class AddressableHandler : ResourceServiceHandler

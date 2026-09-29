@@ -12,11 +12,20 @@ namespace Moirai.Atropos.Procedure
     /// 流程服务外观（Facade），通过替换 <see cref="Handler"/> 即可切换流程状态机后端。
     /// </summary>
     /// <remarks>
-    /// 组合根无序注册全部链上服务，世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序，依赖缺失/循环即 fail-fast；调试器依赖经 <see cref="DebuggerService"/> 声明显式建模——OnInit 注册调试面板要求 Debugger 拓扑先行。
-    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。
-    /// 依赖门槛：<see cref="ResourceService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> / <see cref="TimerService"/> 并非本服务自身消费，而是启动链的时序门槛——要求四者在流程 OnInit 前拓扑就绪，缺失即世界初始化 fail-fast；不含这些服务的极简项目应移除对应声明。
-    /// 未就绪契约：查询类 API（<see cref="CurrentProcedure"/>、<see cref="HasProcedure"/> 等）在处理器缺失或状态机未 <see cref="Initialize"/> 时静默降级为安全默认值，<see cref="StartProcedure"/> / <see cref="ChangeState"/> 忽略并告警，<see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位；后端直接调用 fail-fast。
-    /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成（新流程 OnEnter 返回）后同步触发，回调异常被逐订阅者隔离；回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（重入即抛 <see cref="GameException"/>；OnEnter/OnLeave 内的合法嵌套切换不受影响）。
+    /// 组合根无序注册全部链上服务，世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序，依赖缺失/循环即 fail-fast； <br />
+    /// 调试器依赖经 <see cref="DebuggerService"/> 声明显式建模——OnInit 注册调试面板要求 Debugger 拓扑先行。
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析， <br />
+    /// 未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。
+    /// 依赖门槛： <see cref="ResourceService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> / <br />
+    /// <see cref="TimerService"/> <br />
+    /// 并非本服务自身消费，而是启动链的时序门槛——要求四者在流程 OnInit 前拓扑就绪，缺失即世界初始化 fail-fast；不含这些服务的极简项目应移除对应声明。
+    /// 未就绪契约：查询类 API（<see cref="CurrentProcedure"/>、 <br />
+    /// <see cref="HasProcedure"/> 等）在处理器缺失或状态机未 <see cref="Initialize"/> 时静默降级为安全默认值， <br />
+    /// <see cref="StartProcedure"/> / <see cref="ChangeState"/> 忽略并告警， <br />
+    /// <see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位；后端直接调用 fail-fast。
+    /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成（新流程 OnEnter 返回）后同步触发，回调异常被逐订阅者隔离； <br />
+    /// 回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（重入即抛 <see cref="GameException"/>； <br />
+    /// OnEnter/OnLeave 内的合法嵌套切换不受影响）。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
@@ -41,7 +50,8 @@ namespace Moirai.Atropos.Procedure
         /// 从 <see cref="ProcedureServiceSettings"/> 解析流程处理器。
         /// </summary>
         /// <remarks>
-        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
+        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>， <br />
+        /// 幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ProcedureServiceHandler GetHandlerFromSettings()

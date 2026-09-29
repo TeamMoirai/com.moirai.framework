@@ -15,7 +15,8 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <remarks>
     /// 句柄生命周期：Play 绑定 → 结束/抢占时 <see cref="OnAgentPlaybackEnded"/> 自动释放，杜绝无界增长与旧句柄别名。
-    /// 句柄注册与音量过渡复用 <see cref="AudioHandleRegistry{TVoice}"/> / <see cref="AudioFadeScheduler"/>，与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。
+    /// 句柄注册与音量过渡复用 <see cref="AudioHandleRegistry{TVoice}"/> / <see cref="AudioFadeScheduler"/>， <br />
+    /// 与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。
     /// </remarks>
     [Serializable]
     internal sealed class UnityAudioHandler : AudioServiceHandler, IAudioFadeTarget

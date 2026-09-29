@@ -13,7 +13,8 @@ namespace Moirai.Atropos.UI
     /// </summary>
     /// <remarks>
     /// 替换 <see cref="Handler"/> 即可在不同 UI 后端之间切换。
-    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="UIServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="UIServiceSettings"/> 解析； <br />
+    /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
     /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]

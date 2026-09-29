@@ -6,7 +6,8 @@ namespace Service.Input
     /// <summary>
     /// 输入状态机（<see cref="InputStateMachine"/>）组合语义单元测试：四个压制态的边沿触发、强制派生语义、进入压制态时 <c>ResetRequested</c> 的副作用收敛。
     /// </summary>
-    /// <remarks>四个压制态为 Enabled / LockPlayerController / PreventInteractionUI / UIModal；幂等赋值不重复触发，未启用或模态时 Lock 强制为 true。纯逻辑测试，不依赖 Unity 场景与输入后端。</remarks>
+    /// <remarks>四个压制态为 Enabled / LockPlayerController / PreventInteractionUI / UIModal；幂等赋值不重复触发，未启用或模态时 Lock 强制为 true。纯逻辑测试， <br />
+    /// 不依赖 Unity 场景与输入后端。</remarks>
     [TestFixture]
     public sealed class InputStateMachineTests
     {

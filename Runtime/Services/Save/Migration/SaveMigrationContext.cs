@@ -7,7 +7,8 @@ namespace Moirai.Atropos.Save
     /// 存档迁移上下文（<see cref="ISaveMigrator.Migrate"/> 的纯数据操作面）：块级改名/删除/整块变换与字段级改名/改型。
     /// </summary>
     /// <remarks>
-    /// 字段级操作按块记录的后端分发：JSON 后端走 DOM 变换（需 Newtonsoft.Json），KeyValue 后端走 KVT 记录重写；二进制后端（MessagePack/MemoryPack/Protobuf）的字段级操作不受支持（拒绝并记告警），请改用 <see cref="TransformBlock{T}"/> 保留旧类型整对象迁移。
+    /// 字段级操作按块记录的后端分发：JSON 后端走 DOM 变换（需 Newtonsoft.Json），KeyValue 后端走 KVT 记录重写； <br />
+    /// 二进制后端（MessagePack/MemoryPack/Protobuf）的字段级操作不受支持（拒绝并记告警），请改用 <see cref="TransformBlock{T}"/> 保留旧类型整对象迁移。
     /// 目标块/字段不存在时操作为无操作（返回 <c>false</c>，兼容从未写过该块的旧档）；反序列化失败/格式损坏等真异常记为迁移失败并中止整条迁移链。
     /// </remarks>
     public sealed class SaveMigrationContext
@@ -231,7 +232,8 @@ namespace Moirai.Atropos.Save
         /// 字段改型（JSON 顶层属性 DOM 改型 / KVT 标量记录装箱改型；字段不存在为无操作）。
         /// </summary>
         /// <remarks>
-        /// KVT 侧 <typeparamref name="TNew"/> 须为 KVT 支持的标量类型（枚举按底层类型）；JSON 侧建议限定基元/字符串/DateTime，复杂类型改型请用 <see cref="TransformBlock{T}"/>。
+        /// KVT 侧 <typeparamref name="TNew"/> 须为 KVT 支持的标量类型（枚举按底层类型）；JSON 侧建议限定基元/字符串/DateTime， <br />
+        /// 复杂类型改型请用 <see cref="TransformBlock{T}"/>。
         /// </remarks>
         /// <typeparam name="TOld">旧值类型。</typeparam>
         /// <typeparam name="TNew">新值类型。</typeparam>

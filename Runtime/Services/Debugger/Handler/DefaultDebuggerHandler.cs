@@ -9,7 +9,8 @@ namespace Moirai.Atropos.Debugger
     /// 基于 UI Toolkit 运行时界面的默认调试器处理器。
     /// </summary>
     /// <remarks>
-    /// <see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性，并在首个 Tick 懒建运行时宿主 <see cref="DebuggerRuntimeHost"/>（无资产依赖）。
+    /// <see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性， <br />
+    /// 并在首个 Tick 懒建运行时宿主 <see cref="DebuggerRuntimeHost"/>（无资产依赖）。
     /// </remarks>
     [Serializable]
     internal sealed class DefaultDebuggerHandler : DebuggerServiceHandler
@@ -304,7 +305,8 @@ namespace Moirai.Atropos.Debugger
         /// 补齐内置调试窗口：只在调试器真正激活时执行一次。
         /// </summary>
         /// <remarks>
-        /// 未激活的构建（<see cref="DebuggerActiveWindowType.OnlyOpenWhenDevelopment"/> 且非 debug，或 <see cref="DebuggerActiveWindowType.AlwaysClose"/>）注册表保持为空。
+        /// 未激活的构建（<see cref="DebuggerActiveWindowType.OnlyOpenWhenDevelopment"/> 且非 debug， <br />
+        /// 或 <see cref="DebuggerActiveWindowType.AlwaysClose"/>）注册表保持为空。
         /// </remarks>
         private void EnsureBuiltInWindowsRegistered()
         {

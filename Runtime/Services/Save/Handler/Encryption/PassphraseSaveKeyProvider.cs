@@ -8,7 +8,9 @@ namespace Moirai.Atropos.Save
     /// 口令密钥提供方：运行期注入的玩家口令经 PBKDF2-SHA256 派生密钥材料（密码锁存档场景）。
     /// </summary>
     /// <remarks>
-    /// 口令只存内存（绝不序列化落盘）；未注入时 <see cref="TryGetKeyMaterial"/> 返回 <see cref="SaveError.InvalidArgument"/>——写路径随之 fail-fast（<c>GameException</c>），读路径判别为参数错误。
+    /// 口令只存内存（绝不序列化落盘）； <br />
+    /// 未注入时 <see cref="TryGetKeyMaterial"/> 返回 <see cref="SaveError.InvalidArgument"/>——写路径随之 fail-fast（<c>GameException</c>）， <br />
+    /// 读路径判别为参数错误。
     /// </remarks>
     [Serializable]
     public class PassphraseSaveKeyProvider : SaveKeyProvider

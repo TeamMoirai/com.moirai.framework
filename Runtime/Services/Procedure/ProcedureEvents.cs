@@ -28,7 +28,8 @@
     /// 流程切换记录（值类型快照，不可变）。
     /// </summary>
     /// <remarks>
-    /// 既作为 <see cref="ProcedureService.onProcedureChanged"/> 的广播载荷，也作为 <see cref="ProcedureServiceHandler.TransitionHistory"/> 的历史条目。
+    /// 既作为 <see cref="ProcedureService.onProcedureChanged"/> 的广播载荷， <br />
+    /// 也作为 <see cref="ProcedureServiceHandler.TransitionHistory"/> 的历史条目。
     /// </remarks>
     public readonly struct ProcedureTransitionRecord
     {

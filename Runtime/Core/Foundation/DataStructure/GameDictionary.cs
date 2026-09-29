@@ -80,7 +80,10 @@ namespace Moirai.Atropos
 
         /// <summary>Gets the value associated with the specified key.</summary>
         /// <param name="key">The key of the value to get.</param>
-        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value for the type of the <paramref name="value" /> parameter. This parameter is passed uninitialized.</param>
+        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is <br />
+        /// found; <br />
+        /// otherwise, the default value for the type of the <paramref name="value" /> parameter. This <br />
+        /// parameter is passed uninitialized.</param>
         public bool TryGetValue(TKey key, out TValue value)
         {
             return _dictionary.TryGetValue(key, out value);

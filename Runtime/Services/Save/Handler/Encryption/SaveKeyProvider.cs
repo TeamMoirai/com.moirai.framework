@@ -6,7 +6,8 @@ namespace Moirai.Atropos.Save
     /// 存档密钥提供方抽象基类（<see cref="AESEncryptedSaveHandler"/> 以 [SerializeReference] + ProviderDropdown 持有实例）。
     /// </summary>
     /// <remarks>
-    /// 实现 <see cref="ISaveKeyProvider"/>；派生材料缓存约定 = 不可变快照（<see cref="DerivedMaterial"/>）+ volatile 引用整体替换，参数变更经 <see cref="DerivedMaterial.Matches"/> 失配自动失效重派生。
+    /// 实现 <see cref="ISaveKeyProvider"/>；派生材料缓存约定 = 不可变快照（<see cref="DerivedMaterial"/>）+ volatile 引用整体替换， <br />
+    /// 参数变更经 <see cref="DerivedMaterial.Matches"/> 失配自动失效重派生。
     /// </remarks>
     [Serializable]
     public abstract class SaveKeyProvider : ISaveKeyProvider

@@ -8,7 +8,8 @@ namespace Moirai.Atropos.Events
     /// 事件的传播阶段。
     /// </summary>
     /// <remarks>
-    /// 派发顺序：TrickleDown（根 → 目标父级）→ AtTarget（目标）→ DefaultActionAtTarget（目标的 at-target 默认动作）→ BubbleUp（目标父级 → 根）→ DefaultAction（最终默认动作）。
+    /// 派发顺序： TrickleDown（根 → 目标父级）→ AtTarget（目标）→ DefaultActionAtTarget（目标的 at-target 默认动作）→ BubbleUp（目标父级 → 根）→ <br />
+    /// DefaultAction（最终默认动作）。
     /// </remarks>
     public enum PropagationPhase
     {

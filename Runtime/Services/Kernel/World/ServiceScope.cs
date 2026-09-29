@@ -10,7 +10,8 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 所有权：注册/注销由 <see cref="ServiceWorld"/> 驱动，外部代码不直接操作本类。
-    /// 两阶段构建：<see cref="RegisterDeferred"/> 仅入注册表（不驱动生命周期、不加入轮询列表）；世界 <see cref="ServiceWorld.Initialize"/> 拓扑排序后逐服务 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit，同时记录激活完成序。
+    /// 两阶段构建：<see cref="RegisterDeferred"/> 仅入注册表（不驱动生命周期、不加入轮询列表）； <br />
+    /// 世界 <see cref="ServiceWorld.Initialize"/> 拓扑排序后逐服务 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit，同时记录激活完成序。
     /// 关闭按逆激活序（= 逆初始化序，依赖方先关闭）执行；未初始化服务归入兜底桶按逆注册序关闭。
     /// 线程契约：所有方法仅限 Unity 主线程调用。
     /// </remarks>
@@ -325,7 +326,8 @@ namespace Moirai.Atropos
         /// 附加契约句柄到既有条目（立即路径与延迟 flush 共用）。
         /// </summary>
         /// <remarks>
-        /// 新契约的 <c>OnServiceRegistered</c> 仅在服务已激活时立即发出；待初始化阶段的附加契约推迟到 <see cref="ActivateService"/> 按全部句柄统一发，以保持"Registered 时 OnInit 必已执行"的事件契约。
+        /// 新契约的 <c>OnServiceRegistered</c> 仅在服务已激活时立即发出；待初始化阶段的附加契约推迟到 <see cref="ActivateService"/> 按全部句柄统一发， <br />
+        /// 以保持"Registered 时 OnInit 必已执行"的事件契约。
         /// </remarks>
         private void AttachContractCore(IService service, Type contractType)
         {
@@ -816,7 +818,8 @@ namespace Moirai.Atropos
         private bool _isDisposing;
 
         /// <summary>
-        /// 关闭驱动的唯一入口：容器先发 <see cref="IServiceInterceptor.OnServiceShutdown"/>（横切归容器），再交 <see cref="IServiceLifecycle.Destroy"/> 走状态转换。
+        /// 关闭驱动的唯一入口：容器先发 <see cref="IServiceInterceptor.OnServiceShutdown"/>（横切归容器）， <br />
+        /// 再交 <see cref="IServiceLifecycle.Destroy"/> 走状态转换。
         /// </summary>
         /// <remarks>
         /// 前置状态判定只挡住常规重复调用；拦截器在回调里同步再关同一服务时事件会重发一次，但 <c>Destroy</c> 自身的幂等守卫保证 <c>OnShutdown</c> 仍只执行一次。

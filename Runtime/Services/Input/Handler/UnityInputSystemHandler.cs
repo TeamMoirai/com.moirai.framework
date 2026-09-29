@@ -255,7 +255,8 @@ namespace Moirai.Atropos.Input
         /// <summary>
         /// 解析动作缓存条目，全局硬门控与上下文压制门控在此收敛。
         /// </summary>
-        /// <remarks>返回 <c>null</c> 表示查询降级（未启用/被压制/未找到/资产缺失）；返回条目的 <see cref="CachedAction.Action"/> 为 <c>null</c> 表示未找到负缓存。</remarks>
+        /// <remarks>返回 <c>null</c> 表示查询降级（未启用/被压制/未找到/资产缺失）；返回条目的 <see cref="CachedAction.Action"/> 为 <c>null</c> 表示未找到负缓存。 <br />
+        /// </remarks>
         private CachedAction GetCachedAction(string actionGroup, string actionName)
         {
             // 全局硬门控：未启用时动作类查询一律降级（鼠标查询不经此路径，不受门控）

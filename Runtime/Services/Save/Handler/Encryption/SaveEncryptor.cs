@@ -215,7 +215,8 @@ namespace Moirai.Atropos.Save
         /// <param name="sKey">解密密钥。</param>
         /// <param name="plaintext">成功时的明文字节。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidArgument"/>、
-        /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
+        /// <see cref="SaveError.InvalidFormat"/>、 <br />
+        /// <see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
         internal SaveError TryDecrypt(byte[] encrypted, string sKey, out byte[] plaintext)
         {
             plaintext = null;
@@ -241,7 +242,8 @@ namespace Moirai.Atropos.Save
         /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
         /// <param name="plaintext">成功时的明文字节。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidArgument"/>、
-        /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
+        /// <see cref="SaveError.InvalidFormat"/>、 <br />
+        /// <see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
         internal SaveError TryDecryptWithMaterial(byte[] encrypted, byte[] encryptionKey, byte[] macKey, out byte[] plaintext)
         {
             return TryDecryptWithMaterial(encrypted, 0, encrypted?.Length ?? 0, encryptionKey, macKey, out plaintext);
@@ -257,7 +259,8 @@ namespace Moirai.Atropos.Save
         /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
         /// <param name="plaintext">成功时的明文字节。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidArgument"/>、
-        /// <see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
+        /// <see cref="SaveError.InvalidFormat"/>、 <br />
+        /// <see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.DecryptionFailed"/>。</returns>
         internal SaveError TryDecryptWithMaterial(byte[] encrypted, int offset, int length, byte[] encryptionKey, byte[] macKey, out byte[] plaintext)
         {
             plaintext = null;
@@ -313,7 +316,8 @@ namespace Moirai.Atropos.Save
         /// 打开加密写流（密钥材料直给）：明文经返回流写入即加密并落底层流，关闭返回流补齐末块密文并追加 HMAC 摘要尾。
         /// </summary>
         /// <remarks>
-        /// 输出布局与 <see cref="TryEncryptWithMaterial(byte[], byte[], byte[], out byte[])"/> 一致：<c>[16B 随机 IV][密文][32B HMAC(IV‖密文)]</c>——流式写全程无整档明文/密文驻留。
+        /// 输出布局与 <see cref="TryEncryptWithMaterial(byte[], byte[], byte[], out byte[])"/> 一致： <c>[16B 随机 IV][密文][32B <br />
+        /// HMAC(IV‖密文)]</c>——流式写全程无整档明文/密文驻留。
         /// </remarks>
         /// <param name="target">密文落点流（生命周期由调用方管理；关闭返回流不关闭该流）。</param>
         /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
@@ -555,7 +559,8 @@ namespace Moirai.Atropos.Save
         /// 打开解密读流（密钥材料直给）：读取 <c>[16B IV][密文][32B HMAC]</c> 布局的存储载荷。
         /// </summary>
         /// <remarks>
-        /// 两遍流式、先验证后解密：第一遍以 64KB 池化循环预验 [IV‖密文] 的 HMAC 并比对尾部摘要，不符抛 <see cref="SaveDecryptStreamException"/>（<see cref="SaveError.IntegrityCheckFailed"/>），杜绝填充 oracle。
+        /// 两遍流式、先验证后解密：第一遍以 64KB 池化循环预验 [IV‖密文] 的 HMAC 并比对尾部摘要， <br />
+        /// 不符抛 <see cref="SaveDecryptStreamException"/>（<see cref="SaveError.IntegrityCheckFailed"/>），杜绝填充 oracle。
         /// 预验通过后冻结载荷 CRC 包装层并 rewind 回载荷起点，第二遍限长 [IV‖密文] 解密（HMAC 尾留在限长段外，任意时刻关闭均安全）；底层流须可寻址。
         /// </remarks>
         /// <param name="source">存储载荷源流（<see cref="Crc32.Crc32ReadStream"/> 包装层——第一遍预验读取经此累计载荷 CRC；底层流须可寻址）。</param>

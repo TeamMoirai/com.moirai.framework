@@ -7,9 +7,11 @@ namespace Moirai.Atropos.Save
     /// 存档服务迁移分部：文件级版本迁移总线（<see cref="SaveMigrationManager"/>）的外观入口。
     /// </summary>
     /// <remarks>
-    /// 版本模型：int 递增（0 = 版本化前基线）；游戏层启动期设置 <see cref="CurrentSaveVersion"/> 并注册 <see cref="ISaveMigrator"/>（实现类由 SaveHost SourceGenerator 扫描自注册，AOT 安全）。
+    /// 版本模型：int 递增（0 = 版本化前基线）； <br />
+    /// 游戏层启动期设置 <see cref="CurrentSaveVersion"/> 并注册 <see cref="ISaveMigrator"/>（实现类由 SaveHost SourceGenerator 扫描自注册，AOT 安全）。
     /// 加载/写入管线自动前置迁移链，本分部提供显式整档迁移入口。
-    /// 降级契约：处理器未就绪时 <see cref="MigrateSave"/>/<see cref="MigrateSaveAsync"/> 返回 <see cref="SaveError.HandlerNotReady"/>；注册与版本设置不依赖处理器（静态管理器直挂）。
+    /// 降级契约：处理器未就绪时 <see cref="MigrateSave"/>/<see cref="MigrateSaveAsync"/> 返回 <see cref="SaveError.HandlerNotReady"/>； <br />
+    /// 注册与版本设置不依赖处理器（静态管理器直挂）。
     /// </remarks>
     public partial class SaveService
     {
@@ -30,7 +32,8 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 注册存档迁移器（同类型重复注册以最新为准；模块初始化器自注册之外的补充手动通道）。
         /// </summary>
-        /// <param name="migrator">迁移器实例（版本契约：<c>FromVersion &gt;= 0</c> 且 <c>ToVersion &gt; FromVersion</c>，破坏即抛 <see cref="System.ArgumentException"/>）。</param>
+        /// <param name="migrator">迁移器实例（版本契约：<c>FromVersion &gt;= 0</c> 且 <c>ToVersion &gt; FromVersion</c>， <br />
+        /// 破坏即抛 <see cref="System.ArgumentException"/>）。</param>
         public static void RegisterMigrator(ISaveMigrator migrator) =>
             SaveMigrationManager.Register(migrator);
 
@@ -42,7 +45,8 @@ namespace Moirai.Atropos.Save
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
-        /// <returns>错误码（缺档返回 <see cref="SaveError.FileNotFound"/>；迁移链缺失/失败返回 <see cref="SaveError.MigrationFailed"/>；降级返回 <see cref="SaveError.UnsupportedVersion"/>）。</returns>
+        /// <returns>错误码（缺档返回 <see cref="SaveError.FileNotFound"/>；迁移链缺失/失败返回 <see cref="SaveError.MigrationFailed"/>； <br />
+        /// 降级返回 <see cref="SaveError.UnsupportedVersion"/>）。</returns>
         public static SaveError MigrateSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.MigrateSave(fileName, folderName) ?? SaveError.HandlerNotReady;
 

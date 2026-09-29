@@ -13,7 +13,8 @@ namespace Moirai.Atropos.Audio.Wwise
     /// 事件路径用 Wwise 事件名（如 Sfx/Hit）；总线 RTPC/Volume 用 bus:/ 前缀映射。
     /// 3D 发声体按实例租用池化 GameObject（Wwise 持续跟发射体位置，单发射体会让并发 3D 串位），位置在 PostEvent 时固定。
     /// 能力接口：<see cref="IAudioMiddlewareBankControl"/>（SoundBank）与 <see cref="IAudioMiddlewareRtpcControl"/>（RTPC）。
-    /// 整文件受 <c>WWISE_INSTALLED</c> 编译保护，调用的标准 Wwise Unity API 为 <c>AkSoundEngine.LoadBank</c> / <c>UnloadBank</c> / <c>SetRTPCValue</c>。
+    /// 整文件受 <c>WWISE_INSTALLED</c> 编译保护， <br />
+    /// 调用的标准 Wwise Unity API 为 <c>AkSoundEngine.LoadBank</c> / <c>UnloadBank</c> / <c>SetRTPCValue</c>。
     /// </remarks>
     internal sealed class WwiseBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {

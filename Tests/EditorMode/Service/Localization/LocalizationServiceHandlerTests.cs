@@ -12,7 +12,8 @@ namespace Service.Localization
     /// 本地化处理器（<see cref="LocalizationServiceHandler"/>）行为测试：首启语言可解析性、首查询取译、缺译即露 key、重注入与事件时序、格式化异常隔离、加载期校验。
     /// </summary>
     /// <remarks>
-    /// 处理器级用例直接构造桩数据源（与 <c>DefaultProcedureHandlerTests</c> 同约定），不碰 <see cref="LocalizationService"/> 的静态 Handler——那是跨用例状态，写脏会让 <c>ServiceContractTests</c> 的降级断言按执行顺序随机失败。
+    /// 处理器级用例直接构造桩数据源（与 <c>DefaultProcedureHandlerTests</c> 同约定），不碰 <see cref="LocalizationService"/> 的静态 Handler——那是跨用例状态， <br />
+    /// 写脏会让 <c>ServiceContractTests</c> 的降级断言按执行顺序随机失败。
     /// 首启语言取自检测链（命令行 → 编辑器设置 → 存档 → 系统语言），机器相关，因此需要「确实发生切换」的用例一律经 <see cref="OtherLoadedLanguage"/> 取目标语言，不硬编码。
     /// </remarks>
     [TestFixture]

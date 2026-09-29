@@ -5,7 +5,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 恢复管线读出的存档模式版本（KVT 块内 <c>$schemas</c> 记录）与捕获器当前 <see cref="ISaveComponentCapturer.SchemaVersion"/> 不符时，标准键匹配恢复被替换为本钩子。
-    /// 须在主线程调用；读取器已进入本组件类型作用域（子项数已读出为 <paramref name="recordCount"/>），实现必须恰好消费 <paramref name="recordCount"/> 条记录（读值或 <see cref="SaveKeyValueReader.SkipRecordPayload"/>），否则外层作用域游标错位。
+    /// 须在主线程调用；读取器已进入本组件类型作用域（子项数已读出为 <paramref name="recordCount"/>）， <br />
+    /// 实现必须恰好消费 <paramref name="recordCount"/> 条记录（读值或 <see cref="SaveKeyValueReader.SkipRecordPayload"/>），否则外层作用域游标错位。
     /// </remarks>
     public interface ISaveComponentMigrator
     {

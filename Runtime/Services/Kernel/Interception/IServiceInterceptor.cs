@@ -7,8 +7,10 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 多个拦截器按 <see cref="Priority"/> 降序执行。
-    /// 异常策略：除 <see cref="OnServiceRegistering"/> 外，回调抛出的异常由容器就地记录并隔离，不会传播到被观察的服务、其它拦截器或帧主循环；<see cref="OnServiceRegistering"/> 是唯一否决通道，抛出即拒绝本次注册（fail-fast）。
-    /// 粒度契约：轮询回调以「作用域一帧」为边界（<see cref="OnBeforeScopeTick"/> / <see cref="OnAfterScopeTick"/>），不提供逐服务回调；逐服务耗时监控由编辑器诊断旁表承担（编译期门控，Release 零成本）。
+    /// 异常策略：除 <see cref="OnServiceRegistering"/> 外，回调抛出的异常由容器就地记录并隔离，不会传播到被观察的服务、其它拦截器或帧主循环； <br />
+    /// <see cref="OnServiceRegistering"/> 是唯一否决通道，抛出即拒绝本次注册（fail-fast）。
+    /// 粒度契约：轮询回调以「作用域一帧」为边界（<see cref="OnBeforeScopeTick"/> / <see cref="OnAfterScopeTick"/>），不提供逐服务回调；逐服务耗时监控由编辑器诊断旁表承担（编译期门控， <br />
+    /// Release 零成本）。
     /// </remarks>
     public interface IServiceInterceptor
     {
@@ -29,7 +31,8 @@ namespace Moirai.Atropos
         /// 服务已注册（<c>OnInit</c> 已调用）。
         /// </summary>
         /// <remarks>
-        /// 粒度是<b>契约</b>：同一实例以 N 个契约注册即收到 N 次回调，<paramref name="contractType"/> 与 <see cref="OnServiceRegistering"/> 上报的契约一一对应（不是实现类型）。
+        /// 粒度是<b>契约</b>：同一实例以 N 个契约注册即收到 N 次回调， <br />
+        /// <paramref name="contractType"/> 与 <see cref="OnServiceRegistering"/> 上报的契约一一对应（不是实现类型）。
         /// </remarks>
         void OnServiceRegistered(IService service, Type contractType, EServiceScopeKind scope) { }
 

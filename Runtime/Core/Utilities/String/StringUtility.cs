@@ -45,7 +45,8 @@ namespace Moirai.Atropos
         /// 获取一个池化字符串构建器适配器。
         /// </summary>
         /// <param name="capacity">初始容量（字符数）。</param>
-        /// <returns>可复用的 <see cref="StringHandler.IStringBuilder"/>，使用后须调用 <see cref="IDisposable.Dispose"/> 或 <see cref="StringHandler.IStringBuilder.ToStringAndDispose"/> 归还池。</returns>
+        /// <returns>可复用的 <see cref="StringHandler.IStringBuilder"/>， <br />
+        /// 使用后须调用 <see cref="IDisposable.Dispose"/> 或 <see cref="StringHandler.IStringBuilder.ToStringAndDispose"/> 归还池。</returns>
         public static IStringBuilder CreateStringBuilder(int capacity = 256) => Handler.CreateStringBuilder(capacity);
 
         /// <summary>

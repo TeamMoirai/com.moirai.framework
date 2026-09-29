@@ -7,7 +7,8 @@ using NUnit.Framework;
 namespace Service.Timer
 {
     /// <summary>四级时间轮（<see cref="DefaultTimerHandler"/>）行为测试。</summary>
-    /// <remarks>经 <see cref="GameTime.Handler"/> 注入虚拟时钟处理器，以 50ms 步进推进；对外 API 为 <c>Delay</c> / <c>Pause</c> / <c>Cancel</c>。</remarks>
+    /// <remarks>经 <see cref="GameTime.Handler"/> 注入虚拟时钟处理器，以 50ms 步进推进；对外 API 为 <c>Delay</c> / <c>Pause</c> / <c>Cancel</c>。 <br />
+    /// </remarks>
     public class DefaultTimerHandlerTests
     {
         private DefaultTimerHandler _handler;

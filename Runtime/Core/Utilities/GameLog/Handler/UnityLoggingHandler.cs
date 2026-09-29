@@ -11,7 +11,9 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// sink、输出模板等细节由包自身的 <c>LogSettings</c> / <c>Logger</c> 接管。
-    /// 时间戳由包的 <c>outputTemplate</c> 中 <c>{Timestamp}</c> 占位符控制；<see cref="LogHandler.TimestampEnabled"/> / <see cref="LogHandler.TimestampFormat"/> 仅作配置记录，实际生效需在 <c>LogSettings</c> 中设置。
+    /// 时间戳由包的 <c>outputTemplate</c> 中 <c>{Timestamp}</c> 占位符控制； <br />
+    /// <see cref="LogHandler.TimestampEnabled"/> / <see cref="LogHandler.TimestampFormat"/> 仅作配置记录， <br />
+    /// 实际生效需在 <c>LogSettings</c> 中设置。
     /// </remarks>
     [Serializable]
     internal sealed class UnityLoggingHandler : LogHandler
