@@ -319,6 +319,57 @@ namespace Service.Localization
 
         #endregion
 
+        #region 复数与标记查询 [PLURAL AND MARKER QUERIES]
+
+        [Test]
+        public void GetPluralTextFromId_RepeatAndCategorySwitch_KeepsCorrectText()
+        {
+            // 多组 ID × 2 类别：连查与类别切换都必须回到同一条译文，拼键串键会现形
+            var strings = new Dictionary<string, List<string>>();
+            for (var i = 0; i < 12; i++)
+            {
+                // 文案里带 ID 以便区分（不能写成 "{11}"——花括号会被当成占位符）；other 类别的 {0} 即数量
+                strings[$"item{i}#one"] = new List<string> { $"ITEM{i}:ONE" };
+                strings[$"item{i}#other"] = new List<string> { $"ITEM{i}:{{0}}" };
+            }
+
+            _handler.Languages = new List<Language> { English };
+            _handler.Strings = strings;
+            _ = _handler.EntryCount; // 触发懒加载
+
+            for (var i = 0; i < 12; i++)
+            {
+                Assert.AreEqual($"ITEM{i}:ONE", _handler.GetPluralTextFromId($"item{i}", 1), $"item{i} 的 one 类别");
+                Assert.AreEqual($"ITEM{i}:ONE", _handler.GetPluralTextFromId($"item{i}", 1), $"item{i} 的 one 类别（重复查询）");
+            }
+
+            for (var i = 11; i >= 0; i--)
+            {
+                Assert.AreEqual($"ITEM{i}:7", _handler.GetPluralTextFromId($"item{i}", 7), $"item{i} 的 other 类别");
+                Assert.AreEqual($"ITEM{i}:ONE", _handler.GetPluralTextFromId($"item{i}", 1), $"item{i} 类别切回后的译文");
+            }
+        }
+
+        [Test]
+        public void Localize_Marker_RepeatAndEqualContentInstance_ResolvesIdentically()
+        {
+            LocalizationService.Internal_UseHandler(_handler);
+            LoadStrings("ui.title", "Title", "标题");
+            _ = _handler.EntryCount;
+
+            const string format = "A {l10n:ui.title} B {i18n:ui.title} C";
+            var expected = $"A {_handler.GetTextFromId("ui.title")} B {_handler.GetTextFromId("ui.title")} C";
+
+            Assert.AreEqual(expected, LocalizationService.Localize(format));
+            Assert.AreEqual(expected, LocalizationService.Localize(format));
+
+            var clone = new string(format.ToCharArray());
+            Assert.AreEqual(expected, LocalizationService.Localize(clone));
+            Assert.AreEqual(expected, LocalizationService.Localize(clone));
+        }
+
+        #endregion
+
         /// <summary>
         /// 数组模式探针：只记下标，不碰目标组件。
         /// </summary>

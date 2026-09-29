@@ -194,15 +194,13 @@ namespace Service.Localization
 
         #region 标记替换引擎 [MARKER ENGINE]
 
-        private static string ProbeResolve(string id) =>
-            id switch
-            {
-                "title" => "标题",
-                "name" => "名字",
-                "NAME" => "名字", // ID 大小写保留：解析方仍按原始大小写匹配
-                "empty" => "",
-                _ => null,
-            };
+        private static string ProbeResolve(ReadOnlySpan<char> id)
+        {
+            if (id.SequenceEqual("title")) return "标题";
+            if (id.SequenceEqual("name") || id.SequenceEqual("NAME")) return "名字"; // ID 大小写保留：解析方仍按原始大小写匹配
+            if (id.SequenceEqual("empty")) return "";
+            return null;
+        }
 
         [Test]
         public void LocalizeCore_NoMarker_ReturnsSameInstanceWithoutAlloc()
@@ -224,6 +222,14 @@ namespace Service.Localization
         {
             var input = "X {l10n:missing} Y";
             Assert.AreSame(input, LocalizationService.Localize(input, ProbeResolve), "未解析标记原样保留且直返原串");
+        }
+
+        [Test]
+        public void LocalizeCore_MixedResolvedAndUnknown_KeepsUnresolvedVerbatim()
+        {
+            // 部分替换时，未解析标记必须按原文带回，不得被吃掉或提前截断
+            var result = LocalizationService.Localize("{l10n:missing} A {l10n:title} B {i18n:nope}", ProbeResolve);
+            Assert.AreEqual("{l10n:missing} A 标题 B {i18n:nope}", result);
         }
 
         [Test]
