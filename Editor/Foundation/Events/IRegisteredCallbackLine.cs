@@ -18,19 +18,13 @@ namespace Moirai.Atropos.Events.Editor
     /// </summary>
     interface IRegisteredCallbackLine
     {
-        /// <summary>
-        /// 获取该行的类型。
-        /// </summary>
+        /// <summary>获取该行的类型。</summary>
         LineType Type { get; }
 
-        /// <summary>
-        /// 获取该行的显示文本。
-        /// </summary>
+        /// <summary>获取该行的显示文本。</summary>
         string Text { get; }
 
-        /// <summary>
-        /// 获取该行关联的回调处理器（VisualElement），用于事件高亮定位。
-        /// </summary>
+        /// <summary>获取该行关联的回调处理器（VisualElement），用于事件高亮定位。</summary>
         CallbackEventHandler CallbackHandler { get; }
     }
 }

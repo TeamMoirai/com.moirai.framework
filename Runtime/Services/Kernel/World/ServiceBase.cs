@@ -13,18 +13,14 @@ namespace Moirai.Atropos
     {
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 轮询优先级（降序：数值越大越先 Tick，同值按注册先后）。
-        /// </summary>
+        /// <summary>轮询优先级（降序：数值越大越先 Tick，同值按注册先后）。</summary>
         /// <remarks>
         /// 框架内置服务统一 ≤ -1000（见 <see cref="ServicePriorityOrder"/>）；业务服务默认 0 及以上。
         /// </remarks>
         public virtual int Priority => 0;
         public virtual EServiceScopeKind Scope => EServiceScopeKind.App;
 
-        /// <summary>
-        /// 当前生命周期状态（只读投影；唯一事实源在容器侧，由容器经 <see cref="IServiceLifecycle"/> 驱动转换）。
-        /// </summary>
+        /// <summary>当前生命周期状态（只读投影；唯一事实源在容器侧，由容器经 <see cref="IServiceLifecycle"/> 驱动转换）。</summary>
         public EServiceState State { get; private set; } = EServiceState.Created;
 
         #endregion

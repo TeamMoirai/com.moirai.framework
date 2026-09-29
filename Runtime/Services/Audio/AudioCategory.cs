@@ -19,9 +19,7 @@ namespace Moirai.Atropos.Audio
         private const float NO_CHANNEL_LOG_INTERVAL = 3f;
         private float _lastNoChannelLogAt;
 
-        /// <summary>
-        /// 所属音频处理器（Agent 绑定用，勿用全局 AudioService.Handler）。
-        /// </summary>
+        /// <summary>所属音频处理器（Agent 绑定用，勿用全局 AudioService.Handler）。</summary>
         internal AudioServiceHandler Handler => _handler;
 
         #region 构造函数 [CONSTRUCTORS]
@@ -62,34 +60,22 @@ namespace Moirai.Atropos.Audio
 
         #region 公共属性 [PUBLIC PROPERTIES]
 
-        /// <summary>
-        /// 对应的音轨。
-        /// </summary>
+        /// <summary>对应的音轨。</summary>
         public EAudioTrack AudioTrack => _audioGroupConfig.AudioTrack;
 
-        /// <summary>
-        /// 下属所有的音频代理。
-        /// </summary>
+        /// <summary>下属所有的音频代理。</summary>
         public List<AudioAgent> AudioAgents { get; private set; }
 
-        /// <summary>
-        /// 音频混响器。
-        /// </summary>
+        /// <summary>音频混响器。</summary>
         public AudioMixer AudioMixer => AudioMixerGroup != null ? AudioMixerGroup.audioMixer : null;
 
-        /// <summary>
-        /// 音频混响器组。
-        /// </summary>
+        /// <summary>音频混响器组。</summary>
         public AudioMixerGroup AudioMixerGroup => _audioGroupConfig.AudioMixerGroup;
 
-        /// <summary>
-        /// 实例化根节点。
-        /// </summary>
+        /// <summary>实例化根节点。</summary>
         public Transform InstanceRoot { get; private set; }
 
-        /// <summary>
-        /// 当前通道数。
-        /// </summary>
+        /// <summary>当前通道数。</summary>
         public int ChannelCount => AudioAgents.Count;
 
         #endregion

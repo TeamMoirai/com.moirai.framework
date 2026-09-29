@@ -11,14 +11,20 @@ namespace Core.Events
     {
         #region 测试替身 [DOUBLES]
 
-        /// <summary>仅用于测试的最小事件类型。</summary>
+        /// <summary>
+        /// 仅用于测试的最小事件类型。
+        /// </summary>
         public sealed class ProbeEvent : EventBase<ProbeEvent>
         {
-            /// <summary>从事件池取出一个实例。</summary>
+            /// <summary>
+            /// 从事件池取出一个实例。
+            /// </summary>
             public static ProbeEvent Take() => GetPooled();
         }
 
-        /// <summary>暴露 protected 生命周期的测试协调器（EditMode 下 AddComponent 不跑 Awake/OnDestroy）。</summary>
+        /// <summary>
+        /// 暴露 protected 生命周期的测试协调器（EditMode 下 AddComponent 不跑 Awake/OnDestroy）。
+        /// </summary>
         private sealed class TestCoordinator : MonoEventCoordinator
         {
             public override CallbackEventHandler GetCallbackEventHandler() => null;

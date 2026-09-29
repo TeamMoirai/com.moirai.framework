@@ -14,13 +14,9 @@ namespace Moirai.Atropos.Editor
     {
         public enum AssetCheckResult
         {
-            /// <summary>
-            /// 路径正确但是 GUID 错误。
-            /// </summary>
+            /// <summary>路径正确但是 GUID 错误。</summary>
             FailGuidNotFound = -4,
-            /// <summary>
-            /// GUID 正确但是路径错误。
-            /// </summary>
+            /// <summary>GUID 正确但是路径错误。</summary>
             FailPathNotFound = -3,
             FailAssetNotExist = -2,
             Fail = -1,

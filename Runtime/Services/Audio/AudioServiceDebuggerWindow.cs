@@ -46,7 +46,9 @@ namespace Moirai.Atropos.Audio
 
         #region 私有 [PRIVATE]
 
-        /// <summary>Clip 缓存与 Ducking 概览（条目/容量/加载中/常驻/失败冷却/留池与混音快照状态）。</summary>
+        /// <summary>
+        /// Clip 缓存与 Ducking 概览（条目/容量/加载中/常驻/失败冷却/留池与混音快照状态）。
+        /// </summary>
         private static void AddCacheControls(VisualElement card)
         {
             AudioClipCache cache = AudioService.ClipCacheForDiagnostics;

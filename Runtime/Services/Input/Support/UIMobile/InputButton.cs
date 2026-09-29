@@ -37,21 +37,27 @@ namespace Moirai.Atropos.Input
         public void OnPointerDown(PointerEventData eventData) => Press(Time.frameCount);
         public void OnPointerUp(PointerEventData eventData) => Release(Time.frameCount);
 
-        /// <summary>按下列锁按下边沿（测试可注入帧号）。</summary>
+        /// <summary>
+        /// 按下列锁按下边沿（测试可注入帧号）。
+        /// </summary>
         internal void Press(int frame)
         {
             _boolValue = true;
             _pressedFrame = frame;
         }
 
-        /// <summary>按下列锁抬起边沿（测试可注入帧号）。</summary>
+        /// <summary>
+        /// 按下列锁抬起边沿（测试可注入帧号）。
+        /// </summary>
         internal void Release(int frame)
         {
             _boolValue = false;
             _releasedFrame = frame;
         }
 
-        /// <summary>清空按住状态与本帧边沿（输入压制/重置时调用，避免残留边沿泄漏）。</summary>
+        /// <summary>
+        /// 清空按住状态与本帧边沿（输入压制/重置时调用，避免残留边沿泄漏）。
+        /// </summary>
         internal void ResetState()
         {
             _boolValue = false;

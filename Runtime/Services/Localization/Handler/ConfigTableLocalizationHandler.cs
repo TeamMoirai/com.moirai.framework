@@ -15,9 +15,7 @@ namespace Moirai.Atropos.Localization
     [Serializable]
     internal class ConfigTableLocalizationHandler : LocalizationServiceHandler
     {
-        /// <summary>
-        /// 是否走按语言列模式，完全由配置表处理器的自报决定。
-        /// </summary>
+        /// <summary>是否走按语言列模式，完全由配置表处理器的自报决定。</summary>
         /// <remarks>本类不额外设门槛，避免出现「表已按语言分份、服务却整批常驻」的半启用状态。</remarks>
         protected override bool SupportsPerLanguageLoad => ConfigTableService.SupportsPerLanguageLocalizationLoad;
 

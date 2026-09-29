@@ -17,9 +17,7 @@ namespace Moirai.Atropos.Save
     {
         #region 版本迁移 [MIGRATION]
 
-        /// <summary>
-        /// 当前存档数据版本（int 递增；默认 0 = 迁移总线未激活，读写管线零开销旁路）。
-        /// </summary>
+        /// <summary>当前存档数据版本（int 递增；默认 0 = 迁移总线未激活，读写管线零开销旁路）。</summary>
         /// <remarks>
         /// 启动期主线程设置；启用版本化且存在旧档时须注册自版本 0 起的迁移链（旧档无元数据块按版本 0 处理，形状未变可用空迁移器桥接）。
         /// </remarks>

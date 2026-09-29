@@ -10,13 +10,9 @@ namespace Moirai.Atropos.Events
     /// </summary>
     public enum TrickleDown
     {
-        /// <summary>
-        /// 事件处理程序在 AtTarget 与 BubbleUp 阶段执行。
-        /// </summary>
+        /// <summary>事件处理程序在 AtTarget 与 BubbleUp 阶段执行。</summary>
         NoTrickleDown = 0,
-        /// <summary>
-        /// 事件处理程序在 AtTarget 与 TrickleDown 阶段执行。
-        /// </summary>
+        /// <summary>事件处理程序在 AtTarget 与 TrickleDown 阶段执行。</summary>
         TrickleDown = 1
     }
 
@@ -74,13 +70,9 @@ namespace Moirai.Atropos.Events
     internal class EventCallbackList
     {
         private readonly List<EventCallbackFunctorBase> m_List;
-        /// <summary>
-        /// 获取 TrickleDown（下探）相关阶段回调的数量。
-        /// </summary>
+        /// <summary>获取 TrickleDown（下探）相关阶段回调的数量。</summary>
         public int TrickleDownCallbackCount { get; private set; }
-        /// <summary>
-        /// 获取 BubbleUp（冒泡）相关阶段回调的数量。
-        /// </summary>
+        /// <summary>获取 BubbleUp（冒泡）相关阶段回调的数量。</summary>
         public int BubbleUpCallbackCount { get; private set; }
 
         /// <summary>
@@ -204,17 +196,13 @@ namespace Moirai.Atropos.Events
             }
         }
 
-        /// <summary>
-        /// 获取当前回调数量。
-        /// </summary>
+        /// <summary>获取当前回调数量。</summary>
         public int Count
         {
             get { return m_List.Count; }
         }
 
-        /// <summary>
-        /// 获取或设置指定索引处的回调包装。
-        /// </summary>
+        /// <summary>获取或设置指定索引处的回调包装。</summary>
         /// <param name="i">回调索引。</param>
         public EventCallbackFunctorBase this[int i]
         {
@@ -496,9 +484,7 @@ namespace Moirai.Atropos.Events
     internal static class GlobalCallbackRegistry
     {
         private static bool s_IsEventDebuggerConnected = false;
-        /// <summary>
-        /// 获取或设置事件调试器是否已连接；置为 false 时清空全部监听记录。
-        /// </summary>
+        /// <summary>获取或设置事件调试器是否已连接；置为 false 时清空全部监听记录。</summary>
         public static bool IsEventDebuggerConnected
         {
             get { return s_IsEventDebuggerConnected; }

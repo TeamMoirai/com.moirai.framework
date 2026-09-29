@@ -95,9 +95,7 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         internal class BundleStream : FileStream
         {
-            /// <summary>
-            /// XOR 密钥。
-            /// </summary>
+            /// <summary>XOR 密钥。</summary>
             /// <remarks>
             /// 安全边界说明：单字节 XOR 仅用于防止资源被普通用户直接打开/提取，
             /// 无法抵御逆向工程（密钥随客户端分发，可被提取）。 <br />

@@ -6,7 +6,9 @@ using NUnit.Framework;
 
 namespace Service.Localization
 {
-    /// <summary>编辑器预览解析的门禁：预览走与运行期同一套存储与解析，且「没这条」与「这格没翻」分得开。</summary>
+    /// <summary>
+    /// 编辑器预览解析的门禁：预览走与运行期同一套存储与解析，且「没这条」与「这格没翻」分得开。
+    /// </summary>
     /// <remarks>预览不把缺译伪装成 ID——组件预览要能说出「这一格没翻」，才谈得上拿译文当地址去查资产；要露 ID 的调用方（<c>Localize</c> 标记）按状态自己决定。</remarks>
     public sealed class LocalizationPreviewTests
     {
@@ -55,7 +57,9 @@ namespace Service.Localization
             Assert.IsNull(text);
         }
 
-        /// <summary>预览不要求服务世界：摘掉运行期注册的那份处理器，预览仍该从 Settings 里那份读到同一张表。</summary>
+        /// <summary>
+        /// 预览不要求服务世界：摘掉运行期注册的那份处理器，预览仍该从 Settings 里那份读到同一张表。
+        /// </summary>
         /// <remarks>它借的是 Settings 里那份实例，而不是已注册、已初始化的运行期处理器。</remarks>
         [Test]
         public void PreviewWorksWhileTheServiceIsNotRegistered()
@@ -207,7 +211,9 @@ namespace Service.Localization
             }
         }
 
-        /// <summary>按解析出的语言取它在直读表里的列下标；对不上时返回 -1。</summary>
+        /// <summary>
+        /// 按解析出的语言取它在直读表里的列下标；对不上时返回 -1。
+        /// </summary>
         private static int IndexOfLanguage(
             Dictionary<string, List<string>> strings, string key, Language language)
         {

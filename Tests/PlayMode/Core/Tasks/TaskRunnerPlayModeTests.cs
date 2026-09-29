@@ -72,7 +72,9 @@ namespace Core.Tasks
             Assert.AreSame(first, OneTickTask.GetPooled(), "第一段也应完好地回到池里");
         }
 
-        /// <summary>首轮 Tick 即完成并广播的子任务。</summary>
+        /// <summary>
+        /// 首轮 Tick 即完成并广播的子任务。
+        /// </summary>
         private sealed class OneTickTask : PooledTaskBase<OneTickTask>
         {
             internal int Ticks;
@@ -84,7 +86,9 @@ namespace Core.Tasks
             }
         }
 
-        /// <summary>只计数、永不自行结束的良性任务。</summary>
+        /// <summary>
+        /// 只计数、永不自行结束的良性任务。
+        /// </summary>
         private sealed class HealthyTask : PooledTaskBase<HealthyTask>
         {
             internal int Ticks;
@@ -95,7 +99,9 @@ namespace Core.Tasks
             }
         }
 
-        /// <summary>每次 Tick 都抛的任务，模拟"毒任务"。</summary>
+        /// <summary>
+        /// 每次 Tick 都抛的任务，模拟"毒任务"。
+        /// </summary>
         private sealed class PoisonTask : PooledTaskBase<PoisonTask>
         {
             public override void Tick()

@@ -24,19 +24,13 @@ namespace Moirai.Atropos.Events
 
     public enum DispatchMode
     {
-        /// <summary>
-        /// 默认 => Queued。
-        /// </summary>
+        /// <summary>默认 => Queued。</summary>
         Default = Queued,
         
-        /// <summary>
-        /// 队列。
-        /// </summary>
+        /// <summary>队列。</summary>
         Queued = 1,
         
-        /// <summary>
-        /// 立即。
-        /// </summary>
+        /// <summary>立即。</summary>
         Immediate = 2,
     }
     

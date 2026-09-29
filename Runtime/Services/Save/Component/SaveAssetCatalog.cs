@@ -28,14 +28,10 @@ namespace Moirai.Atropos.Save
             /// <summary>ResourceService 定位串（YooAsset 地址）。</summary>
             [SerializeField] internal string m_Location = string.Empty;
 
-            /// <summary>
-            /// 资产引用。
-            /// </summary>
+            /// <summary>资产引用。</summary>
             public UObject Asset => m_Asset;
 
-            /// <summary>
-            /// ResourceService 定位串。
-            /// </summary>
+            /// <summary>ResourceService 定位串。</summary>
             public string Location => m_Location;
         }
 
@@ -48,9 +44,7 @@ namespace Moirai.Atropos.Save
         /// <summary>定位串 → 资产表（延迟构建，Ordinal 比较——定位串为地址标识而非显示文本）。</summary>
         private Dictionary<string, UObject> _locationToAsset;
 
-        /// <summary>
-        /// 登记条目数。
-        /// </summary>
+        /// <summary>登记条目数。</summary>
         public int Count => m_Entries.Count;
 
         /// <summary>

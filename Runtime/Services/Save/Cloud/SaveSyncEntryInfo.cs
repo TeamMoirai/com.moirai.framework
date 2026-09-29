@@ -7,24 +7,16 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public readonly struct SaveSyncEntryInfo
     {
-        /// <summary>
-        /// 该侧是否存在条目。
-        /// </summary>
+        /// <summary>该侧是否存在条目。</summary>
         public readonly bool Exists;
 
-        /// <summary>
-        /// 最后写入时间（UTC；不存在时为 <c>default</c>）。
-        /// </summary>
+        /// <summary>最后写入时间（UTC；不存在时为 <c>default</c>）。</summary>
         public readonly DateTime LastWriteTimeUtc;
 
-        /// <summary>
-        /// 条目大小（字节；不存在时为 0）。
-        /// </summary>
+        /// <summary>条目大小（字节；不存在时为 0）。</summary>
         public readonly long SizeBytes;
 
-        /// <summary>
-        /// 修订号（远端侧 = 远端单调修订号；本地侧 = 镜像已同步的远端修订号；<c>0</c> = 无版本信息，裁决器应回退时间戳比较）。
-        /// </summary>
+        /// <summary>修订号（远端侧 = 远端单调修订号；本地侧 = 镜像已同步的远端修订号；<c>0</c> = 无版本信息，裁决器应回退时间戳比较）。</summary>
         public readonly long Version;
 
         /// <summary>

@@ -32,7 +32,9 @@ namespace Moirai.Atropos.Audio
         /// <returns>默认音频处理器实例。</returns>
         internal static AudioServiceHandler CreateDefaultHandler() => new UnityAudioHandler();
 
-        /// <summary>从 <see cref="AudioServiceSettings"/> 解析音频处理器，并幂等确保服务已注册。</summary>
+        /// <summary>
+        /// 从 <see cref="AudioServiceSettings"/> 解析音频处理器，并幂等确保服务已注册。
+        /// </summary>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static AudioServiceHandler GetHandlerFromSettings()
         {
@@ -43,7 +45,9 @@ namespace Moirai.Atropos.Audio
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
-        /// <summary>初始化音频服务。由容器在构建期调用。</summary>
+        /// <summary>
+        /// 初始化音频服务。由容器在构建期调用。
+        /// </summary>
         /// <remarks>确保 <c>AudioService.Handler</c> 已赋值，并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>，未就绪时静默跳过）。</remarks>
         public override void OnInit()
         {
@@ -103,7 +107,9 @@ namespace Moirai.Atropos.Audio
             AudioWarnOnce.Reset();
         }
 
-        /// <summary>容器 Tick 驱动——转发到处理器轮询音轨与手动过渡。</summary>
+        /// <summary>
+        /// 容器 Tick 驱动——转发到处理器轮询音轨与手动过渡。
+        /// </summary>
         /// <remarks>隔离在音频内部做：容器 tick 保护在开发构建下会重新抛出并打断整轮 tick，一条音的异常不该冻住同帧的输入/UI/存档；退避上报使两种构建行为一致且不刷屏。</remarks>
         public void Tick(float elapseSeconds, float realElapseSeconds)
         {
@@ -124,14 +130,10 @@ namespace Moirai.Atropos.Audio
 
         #region 属性 [PROPERTIES]
         
-        /// <summary>
-        /// 音频混响器。
-        /// </summary>
+        /// <summary>音频混响器。</summary>
         public static AudioMixer AudioMixer => s_Handler?.AudioMixer;
 
-        /// <summary>
-        /// 实例化根节点。
-        /// </summary>
+        /// <summary>实例化根节点。</summary>
         public static Transform InstanceRoot
         {
             get => s_Handler?.InstanceRoot;
@@ -147,23 +149,17 @@ namespace Moirai.Atropos.Audio
         /// 外部请勿直接改写。</remarks>
         public static IReadOnlyDictionary<string, object> AssetHandlePool => s_Handler?.AssetHandlePool;
 
-        /// <summary>
-        /// Clip 缓存本体（仅同程序集：调试面板取诊断计数用）。中间件后端返回 <c>null</c>。
-        /// </summary>
+        /// <summary>Clip 缓存本体（仅同程序集：调试面板取诊断计数用）。中间件后端返回 <c>null</c>。</summary>
         internal static AudioClipCache ClipCacheForDiagnostics => (s_Handler as UnityAudioHandler)?.ClipCache;
 
         #endregion
 
         #region 音轨状态 [TRACK STATUS]
 
-        /// <summary>
-        /// 所有音轨。
-        /// </summary>
+        /// <summary>所有音轨。</summary>
         public static AudioCategory[] AudioCategories => s_Handler?.AudioCategories;
 
-        /// <summary>
-        /// 主音轨（总音量）音量。
-        /// </summary>
+        /// <summary>主音轨（总音量）音量。</summary>
         /// <remarks>0-1</remarks>
         public static float MasterVolume
         {
@@ -175,9 +171,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 主音轨（总音量）静音。
-        /// </summary>
+        /// <summary>主音轨（总音量）静音。</summary>
         public static bool MasterMute
         {
             get => s_Handler?.MasterMute ?? false;
@@ -282,9 +276,7 @@ namespace Moirai.Atropos.Audio
         public static void ResetMixSnapshot(float blendSeconds = -1f) =>
             AudioMixService.ResetToDefault(blendSeconds);
 
-        /// <summary>
-        /// 当前混音快照状态。
-        /// </summary>
+        /// <summary>当前混音快照状态。</summary>
         public static EMixSnapshot CurrentMixSnapshot => AudioMixService.Current;
 
         /// <summary>
@@ -581,20 +573,28 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public static void CleanAudioPool() => s_Handler?.CleanAudioPool();
 
-        /// <summary>预加载地址（默认 Pin 常驻；Lease 保留 + 缓存）。</summary>
+        /// <summary>
+        /// 预加载地址（默认 Pin 常驻；Lease 保留 + 缓存）。
+        /// </summary>
         public static bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin) =>
             s_Handler?.Preload(address, policy) ?? false;
 
-        /// <summary>异步预加载地址。</summary>
+        /// <summary>
+        /// 异步预加载地址。
+        /// </summary>
         public static void PreloadAsync(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin,
             Action<bool> completed = null) =>
             s_Handler?.PreloadAsync(address, policy, completed);
 
-        /// <summary>卸载地址缓存（force=true 忽略引用计数）。</summary>
+        /// <summary>
+        /// 卸载地址缓存（force=true 忽略引用计数）。
+        /// </summary>
         public static bool UnloadClipCache(string address, bool force = false) =>
             s_Handler?.UnloadClipCache(address, force) ?? false;
 
-        /// <summary>清空 Clip 缓存（force=true 连 Pin 一并清）。</summary>
+        /// <summary>
+        /// 清空 Clip 缓存（force=true 连 Pin 一并清）。
+        /// </summary>
         public static void ClearClipCache(bool force = false) => s_Handler?.ClearClipCache(force);
 
         #endregion 资源池 [ASSET POOL]
@@ -607,7 +607,9 @@ namespace Moirai.Atropos.Audio
         /// <returns>后端或桥接不支持、以及加载失败都返回 <c>false</c>。</returns>
         public static bool LoadBank(string bankPath) => s_Handler?.LoadBank(bankPath) ?? false;
 
-        /// <summary>卸载声音库（语义同 <see cref="LoadBank"/>）。</summary>
+        /// <summary>
+        /// 卸载声音库（语义同 <see cref="LoadBank"/>）。
+        /// </summary>
         public static bool UnloadBank(string bankPath) => s_Handler?.UnloadBank(bankPath) ?? false;
 
         /// <summary>

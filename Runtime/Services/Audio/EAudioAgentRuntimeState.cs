@@ -5,39 +5,25 @@
     /// </summary>
     public enum EAudioAgentRuntimeState
     {
-        /// <summary>
-        /// 无状态。
-        /// </summary>
+        /// <summary>无状态。</summary>
         None,
 
-        /// <summary>
-        /// 加载中。
-        /// </summary>
+        /// <summary>加载中。</summary>
         Loading,
 
-        /// <summary>
-        /// 渐入（音量渐渐变大）。
-        /// </summary>
+        /// <summary>渐入（音量渐渐变大）。</summary>
         FadingIn,
         
-        /// <summary>
-        /// 播放中。
-        /// </summary>
+        /// <summary>播放中。</summary>
         Playing,
 
-        /// <summary>
-        /// 渐出（音量渐渐变小）。
-        /// </summary>
+        /// <summary>渐出（音量渐渐变小）。</summary>
         FadingOut,
 
-        /// <summary>
-        /// 播放结束。
-        /// </summary>
+        /// <summary>播放结束。</summary>
         End,
         
-        /// <summary>
-        /// 暂停中。
-        /// </summary>
+        /// <summary>暂停中。</summary>
         Pausing
     }
 }

@@ -9,9 +9,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static partial class CommonCommands
         {
-            /// <summary>
-            /// 显示调试信息。
-            /// </summary>
+            /// <summary>显示调试信息。</summary>
             public const string SERVICE_SHOW_DEBUGGER = "-show-debugger";
         }
 

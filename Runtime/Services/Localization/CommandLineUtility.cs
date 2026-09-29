@@ -7,9 +7,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static partial class CommonCommands
         {
-            /// <summary>
-            /// 强制系统语言。
-            /// </summary>
+            /// <summary>强制系统语言。</summary>
             public const string SERVICE_FORCE_LANGUAGE = "-force-language";
         }
 

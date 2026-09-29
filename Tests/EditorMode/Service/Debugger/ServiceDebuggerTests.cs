@@ -9,7 +9,9 @@ using Tim = Moirai.Atropos.Timer;
 
 namespace Service.Debugger
 {
-    /// <summary>服务调试器架构测试：IMGUI 视图适配契约、各服务调试视图生命周期与游戏内调试器注册表接入。</summary>
+    /// <summary>
+    /// 服务调试器架构测试：IMGUI 视图适配契约、各服务调试视图生命周期与游戏内调试器注册表接入。
+    /// </summary>
     /// <remarks>服务调试视图统一经各服务 <c>OnInit</c> 注册进游戏内调试器，不经 Inspector 宿主组件。</remarks>
     public sealed class ServiceDebuggerTests
     {

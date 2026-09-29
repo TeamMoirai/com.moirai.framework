@@ -93,9 +93,7 @@ namespace Moirai.Atropos
         [Tooltip("如果启用，则自定义分辨率选项将作为第一个选项添加。")]
         [SerializeField] private bool m_AddCustomResolutionOptionIfWindowed = false;
 
-        /// <summary>
-        /// 是否允许在移动设备上更改分辨率（默认 false）。
-        /// </summary>
+        /// <summary>是否允许在移动设备上更改分辨率（默认 false）。</summary>
         /// <remarks>移动设备通常只支持单一分辨率，改动可能引发意外副作用；URP 下建议改用 renderScale。</remarks>
         public static bool AllowResolutionChangeOnMobile = false;
 
@@ -108,9 +106,7 @@ namespace Moirai.Atropos
         public static event Action OnMaxResolutionChanged;
         public static event Action<int> OnResolutionChanged;
 
-        /// <summary>
-        /// 是否处于窗口模式。
-        /// </summary>
+        /// <summary>是否处于窗口模式。</summary>
         private bool IsWindowed => Screen.fullScreenMode == FullScreenMode.Windowed;
 
         private Resolution[] GetResolutions()

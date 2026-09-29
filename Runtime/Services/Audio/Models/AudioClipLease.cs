@@ -23,7 +23,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>是否持有后端租约。</summary>
         public bool IsValid => _handle != null && Clip != null;
 
-        /// <summary>归还后端引用。可重复调用（实现侧幂等）。</summary>
+        /// <summary>
+        /// 归还后端引用。可重复调用（实现侧幂等）。
+        /// </summary>
         public void Release()
         {
             _handle?.Dispose();

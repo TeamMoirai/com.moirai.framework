@@ -14,17 +14,13 @@ namespace Moirai.Atropos.Debugger
     {
         [InfoBox("激活策略决定调试器悬浮入口的可见性；命令行 -showdebugger 参数可强制开启。", InfoMessageType.None)]
         [SerializeField] private DebuggerActiveWindowType m_ActiveWindowType = DebuggerActiveWindowType.OnlyOpenWhenDevelopment;
-        /// <summary>
-        /// 获取调试器激活策略。
-        /// </summary>
+        /// <summary>获取调试器激活策略。</summary>
         internal static DebuggerActiveWindowType ActiveWindowType => Instance.m_ActiveWindowType;
         
         [InfoBox("默认使用内置 UI Toolkit 调试器。可替换为自定义调试器后端。", InfoMessageType.None)]
         [ProviderDropdown]
         [SerializeReference] private DebuggerServiceHandler m_DebuggerServiceHandler = DebuggerService.CreateDefaultHandler();
-        /// <summary>
-        /// 获取调试器处理器。
-        /// </summary>
+        /// <summary>获取调试器处理器。</summary>
         internal static DebuggerServiceHandler DebuggerServiceHandler => Instance.m_DebuggerServiceHandler;
     }
 }

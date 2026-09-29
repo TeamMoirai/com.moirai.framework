@@ -17,24 +17,16 @@ namespace Moirai.Atropos
     public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle
         where TScope : IServiceScope, new()
     {
-        /// <summary>
-        /// 本实例是否已完成作用域注册——未注册的重复副本在 OnDestroy 中不得触碰注册表。
-        /// </summary>
+        /// <summary>本实例是否已完成作用域注册——未注册的重复副本在 OnDestroy 中不得触碰注册表。</summary>
         [NonSerialized] private bool _registeredToScope;
 
-        /// <summary>
-        /// 当前生命周期状态（只读投影；由容器经 <see cref="IServiceLifecycle"/> 驱动转换）。
-        /// </summary>
+        /// <summary>当前生命周期状态（只读投影；由容器经 <see cref="IServiceLifecycle"/> 驱动转换）。</summary>
         public EServiceState State { get; private set; } = EServiceState.Created;
 
-        /// <summary>
-        /// 轮询优先级（降序，高优先先 Tick）。Mono 服务不参与容器 Tick，此属性仅用于诊断。
-        /// </summary>
+        /// <summary>轮询优先级（降序，高优先先 Tick）。Mono 服务不参与容器 Tick，此属性仅用于诊断。</summary>
         public virtual int Priority => 0;
 
-        /// <summary>
-        /// 所属作用域种类。
-        /// </summary>
+        /// <summary>所属作用域种类。</summary>
         public virtual EServiceScopeKind Scope => ScopeKindCache<TScope>.Kind;
 
         #region 生命周期 [LIFECYCLE]
@@ -78,9 +70,7 @@ namespace Moirai.Atropos
 
         #region Unity 生命周期 [UNITY LIFECYCLE]
 
-        /// <summary>
-        /// 是否 DontDestroyOnLoad。App 作用域默认 true，Scene/Gameplay 默认 false。
-        /// </summary>
+        /// <summary>是否 DontDestroyOnLoad。App 作用域默认 true，Scene/Gameplay 默认 false。</summary>
         /// <remarks>
         /// 隐藏基类 <see cref="UnityEngine.Object.DontDestroyOnLoad(Object)"/> 静态方法（CS0108）。
         /// </remarks>
@@ -132,9 +122,7 @@ namespace Moirai.Atropos
     /// </summary>
     public interface IServiceScope
     {
-        /// <summary>
-        /// 作用域种类。
-        /// </summary>
+        /// <summary>作用域种类。</summary>
         EServiceScopeKind Kind { get; }
     }
 
@@ -170,19 +158,13 @@ namespace Moirai.Atropos
     /// </summary>
     public static class ServiceScopeOrder
     {
-        /// <summary>
-        /// App 作用域优先级（全局，生命周期最长）。
-        /// </summary>
+        /// <summary>App 作用域优先级（全局，生命周期最长）。</summary>
         public const int APP = -10000;
 
-        /// <summary>
-        /// Scene 作用域优先级（场景卸载时重置）。
-        /// </summary>
+        /// <summary>Scene 作用域优先级（场景卸载时重置）。</summary>
         public const int SCENE = -5000;
 
-        /// <summary>
-        /// Gameplay 作用域优先级（单局玩法）。
-        /// </summary>
+        /// <summary>Gameplay 作用域优先级（单局玩法）。</summary>
         public const int GAMEPLAY = 0;
 
         /// <summary>
@@ -202,9 +184,7 @@ namespace Moirai.Atropos
     /// </summary>
     internal static class ScopeKindCache<TScope> where TScope : IServiceScope, new()
     {
-        /// <summary>
-        /// 作用域种类。
-        /// </summary>
+        /// <summary>作用域种类。</summary>
         public static readonly EServiceScopeKind Kind = new TScope().Kind;
     }
 }

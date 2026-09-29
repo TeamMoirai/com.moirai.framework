@@ -31,7 +31,9 @@ namespace Moirai.Atropos.Editor.Save
             SaveBuiltInCapturers.RegisterBuiltIns();
         }
 
-        /// <summary>可保存字段元信息。</summary>
+        /// <summary>
+        /// 可保存字段元信息。
+        /// </summary>
         private readonly struct SaveFieldMeta
         {
             /// <summary>存档键（显式指定或字段名）。</summary>

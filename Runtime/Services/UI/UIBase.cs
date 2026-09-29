@@ -17,9 +17,7 @@ namespace Moirai.Atropos.UI
 #endif
     public abstract class UIBase
     {
-        /// <summary>
-        /// 依赖注入回调：框架在 UI 初始化或创建时调用，用于注入所需的服务 / 依赖。
-        /// </summary>
+        /// <summary>依赖注入回调：框架在 UI 初始化或创建时调用，用于注入所需的服务 / 依赖。</summary>
 #pragma warning disable CS8632 // 只能在 "#nullable" 注释上下文内的代码中使用可为 null 的引用类型的注释。
         public static Action<UIBase>? Injector;
 #pragma warning restore CS8632 // 只能在 "#nullable" 注释上下文内的代码中使用可为 null 的引用类型的注释。
@@ -46,24 +44,16 @@ namespace Moirai.Atropos.UI
             Widget,
         }
         
-        /// <summary>
-        /// 所属UI父节点。
-        /// </summary>
+        /// <summary>所属UI父节点。</summary>
         protected UIBase _parent = null;
 
-        /// <summary>
-        /// UI父节点。
-        /// </summary>
+        /// <summary>UI父节点。</summary>
         public UIBase Parent => _parent;
 
-        /// <summary>
-        /// 自定义数据集。
-        /// </summary>
+        /// <summary>自定义数据集。</summary>
         protected System.Object[] _params;
         
-        /// <summary>
-        /// 自定义数据。
-        /// </summary>
+        /// <summary>自定义数据。</summary>
         public System.Object UserData
         {
             get
@@ -79,57 +69,37 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>
-        /// 自定义数据集。
-        /// </summary>
+        /// <summary>自定义数据集。</summary>
         public System.Object[] Params => _params;
 
-        /// <summary>
-        /// 窗口的实例资源对象。
-        /// </summary>
+        /// <summary>窗口的实例资源对象。</summary>
         // ReSharper disable once InconsistentNaming
         public virtual GameObject gameObject { get; protected set; }
 
-        /// <summary>
-        /// 窗口位置组件。
-        /// </summary>
+        /// <summary>窗口位置组件。</summary>
         // ReSharper disable once InconsistentNaming
         public virtual Transform transform { get; protected set; }
 
-        /// <summary>
-        /// 窗口矩阵位置组件。
-        /// </summary>
+        /// <summary>窗口矩阵位置组件。</summary>
         // ReSharper disable once InconsistentNaming
         public virtual RectTransform rectTransform { get; protected set; }
 
-        /// <summary>
-        /// UI类型。
-        /// </summary>
+        /// <summary>UI类型。</summary>
         public virtual UIType Type => UIType.None;
 
-        /// <summary>
-        /// 资源是否准备完毕。
-        /// </summary>
+        /// <summary>资源是否准备完毕。</summary>
         public bool IsPrepare { get; protected set; }
 
-        /// <summary>
-        /// UI子组件列表。
-        /// </summary>
+        /// <summary>UI子组件列表。</summary>
         public List<UIWidget> ChildList = new List<UIWidget>();
 
-        /// <summary>
-        /// 存在Update更新的UI子组件列表。
-        /// </summary>
+        /// <summary>存在Update更新的UI子组件列表。</summary>
         protected List<UIWidget> _updateChildList = null;
 
-        /// <summary>
-        /// 是否持有Update行为。
-        /// </summary>
+        /// <summary>是否持有Update行为。</summary>
         protected bool _updateListValid = false;
 
-        /// <summary>
-        /// 是否标记脏排序。
-        /// </summary>
+        /// <summary>是否标记脏排序。</summary>
         protected bool _isSortingOrderDirty = false;
 
         /// <summary>
@@ -173,9 +143,7 @@ namespace Moirai.Atropos.UI
         /// <remarks>不限于打开窗口，关闭上层窗口时也会触发刷新。</remarks>
         protected virtual void OnRefresh() { }
 
-        /// <summary>
-        /// 是否需要 Update。
-        /// </summary>
+        /// <summary>是否需要 Update。</summary>
         protected bool _hasOverrideUpdate = true;
 
         /// <summary>

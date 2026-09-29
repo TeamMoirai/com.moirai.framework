@@ -31,19 +31,13 @@ namespace Moirai.Atropos.UI
         [NonSerialized] private bool _rootAwaitingBind; // UI 根还没绑定或绑定失败，等每帧续等
         [NonSerialized] private bool _rootProblemLogged; // 当前这一轮等待已报过问题（缺绑定 / 缺 Canvas），避免每帧刷屏
 
-        /// <summary>
-        /// UI根节点。
-        /// </summary>
+        /// <summary>UI根节点。</summary>
         public override Transform UIRoot => _instanceRoot;
 
-        /// <summary>
-        /// UI专用摄像机。
-        /// </summary>
+        /// <summary>UI专用摄像机。</summary>
         public override Camera UICamera => _uiCamera;
 
-        /// <summary>
-        /// 当前模态遮挡窗口。
-        /// </summary>
+        /// <summary>当前模态遮挡窗口。</summary>
         public override UIWindow CurrentModal => _uiStack.LastOrDefault(IsModal);
 
         #region 生命周期 [LIFECYCLE]

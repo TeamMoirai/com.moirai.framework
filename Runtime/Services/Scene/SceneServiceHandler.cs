@@ -18,17 +18,13 @@ namespace Moirai.Atropos.Scene
     [Serializable]
     public abstract class SceneServiceHandler : FrameworkHandler
     {
-        /// <summary>
-        /// 当前主场景名称（经 <see cref="UnityEngine.SceneManagement.Scene.name"/> 归一化的场景短名，非资源地址）。
-        /// </summary>
+        /// <summary>当前主场景名称（经 <see cref="UnityEngine.SceneManagement.Scene.name"/> 归一化的场景短名，非资源地址）。</summary>
         /// <remarks>
         /// 启动场景未经本服务加载时为引擎当前激活场景名。
         /// </remarks>
         public abstract string CurrentMainSceneName { get; }
 
-        /// <summary>
-        /// 已完成加载的子场景资源地址快照（不含加载中的子场景——在途登记请用 <see cref="SceneService.IsContainScene"/> 查询）。
-        /// </summary>
+        /// <summary>已完成加载的子场景资源地址快照（不含加载中的子场景——在途登记请用 <see cref="SceneService.IsContainScene"/> 查询）。</summary>
         public abstract IReadOnlyCollection<string> LoadedSubSceneLocations { get; }
 
         #region 场景加载 [SCENE LOADING]

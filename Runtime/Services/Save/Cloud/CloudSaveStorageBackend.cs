@@ -61,9 +61,7 @@ namespace Moirai.Atropos.Save
         /// <summary>本地镜像（无状态共享实例；任意线程安全）。</summary>
         private static FileSaveStorageBackend Mirror => FileSaveStorageBackend.s_Default;
 
-        /// <summary>
-        /// 后端能力自描述：镜像原子写 + 远端整值替换视为原子、远端网络 IO 真异步、无尺寸上限、非易失，同步读非权威。
-        /// </summary>
+        /// <summary>后端能力自描述：镜像原子写 + 远端整值替换视为原子、远端网络 IO 真异步、无尺寸上限、非易失，同步读非权威。</summary>
         public override SaveStorageCapabilities Capabilities => new SaveStorageCapabilities(
             supportsAtomicRename: true,
             supportsTrueAsyncIO: true,

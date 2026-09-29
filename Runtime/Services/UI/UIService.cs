@@ -89,19 +89,13 @@ namespace Moirai.Atropos.UI
 
         #region 属性 [PROPERTIES]
 		
-        /// <summary>
-        /// UI根节点。
-        /// </summary>
+        /// <summary>UI根节点。</summary>
         public static Transform UIRoot => s_Handler?.UIRoot;
 
-        /// <summary>
-        /// UI专用摄像机。
-        /// </summary>
+        /// <summary>UI专用摄像机。</summary>
         public static Camera UICamera => s_Handler?.UICamera;
 
-        /// <summary>
-        /// 当前模态遮挡窗口。
-        /// </summary>
+        /// <summary>当前模态遮挡窗口。</summary>
         public static UIWindow CurrentModal => s_Handler?.CurrentModal;
 
         #endregion

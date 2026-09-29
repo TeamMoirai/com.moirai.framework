@@ -21,9 +21,7 @@ namespace Moirai.Atropos.Audio
     {
         #region 处理器属性 [HANDLER PROPERTIES]
 
-        /// <summary>
-        /// 音频混响器。
-        /// </summary>
+        /// <summary>音频混响器。</summary>
         /// <remarks>Unity 专属；中间件后端返回 null。</remarks>
         public abstract AudioMixer AudioMixer { get; }
 
@@ -42,9 +40,7 @@ namespace Moirai.Atropos.Audio
 
         #region 音轨状态 [TRACK STATUS]
 
-        /// <summary>
-        /// 后端整体失效（音频引擎不可用）时的统一口径：音量面读作 0、写作无效，播放与批量控制静默 no-op。
-        /// </summary>
+        /// <summary>后端整体失效（音频引擎不可用）时的统一口径：音量面读作 0、写作无效，播放与批量控制静默 no-op。</summary>
         /// <remarks>
         /// 只有"初始化明确失败"才算 inert；未初始化（桥接尚未建起）是启动中间态，那段时间 getter 必须照实报设置值。 <br />
         /// Unity 侧取 <c>AudioSettings.unityAudioDisabled</c>（仅编辑器内赋值，玩家构建恒 false）； <br />
@@ -52,22 +48,16 @@ namespace Moirai.Atropos.Audio
         /// </remarks>
         internal virtual bool IsBackendInert => false;
 
-        /// <summary>
-        /// 所有音轨。
-        /// </summary>
+        /// <summary>所有音轨。</summary>
         /// <remarks>Unity 专属；中间件后端返回空数组。</remarks>
         public abstract AudioCategory[] AudioCategories { get; }
 
-        /// <summary>
-        /// 主音轨（总音量）音量。
-        /// </summary>
+        /// <summary>主音轨（总音量）音量。</summary>
         /// <remarks>线性 <c>0..1</c>（1 = 满刻度）；越界值在 setter 处夹取，getter 报回的就是实际生效值。
         /// 该值域对 Unity 与中间件后端一致。</remarks>
         public abstract float MasterVolume { get; set; }
 
-        /// <summary>
-        /// 主音轨（总音量）静音。
-        /// </summary>
+        /// <summary>主音轨（总音量）静音。</summary>
         public abstract bool MasterMute { get; set; }
 
         /// <summary>
@@ -492,7 +482,9 @@ namespace Moirai.Atropos.Audio
 
         #region 过渡 [FADES]
 
-        /// <summary>音量过渡调度器（声部句柄与 Master/音轨总线伪句柄共用）。</summary>
+        /// <summary>
+        /// 音量过渡调度器（声部句柄与 Master/音轨总线伪句柄共用）。
+        /// </summary>
         [NonSerialized] internal readonly AudioFadeScheduler _fades = new AudioFadeScheduler();
 
         /// <summary>
@@ -594,17 +586,25 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public abstract void CleanAudioPool();
 
-        /// <summary>预加载地址（策略默认 Pin 常驻）。</summary>
+        /// <summary>
+        /// 预加载地址（策略默认 Pin 常驻）。
+        /// </summary>
         /// <returns>已加载完成返回 true；加载中或失败返回 false。</returns>
         public abstract bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin);
 
-        /// <summary>异步预加载地址。</summary>
+        /// <summary>
+        /// 异步预加载地址。
+        /// </summary>
         public abstract void PreloadAsync(string address, EAudioCachePolicy policy, Action<bool> completed = null);
 
-        /// <summary>卸载地址缓存。force=true 时忽略引用计数。</summary>
+        /// <summary>
+        /// 卸载地址缓存。force=true 时忽略引用计数。
+        /// </summary>
         public abstract bool UnloadClipCache(string address, bool force = false);
 
-        /// <summary>清空 Clip 缓存。force=true 时连 Pin 一并清。</summary>
+        /// <summary>
+        /// 清空 Clip 缓存。force=true 时连 Pin 一并清。
+        /// </summary>
         public abstract void ClearClipCache(bool force = false);
 
         #endregion 资源池 [ASSET POOL]

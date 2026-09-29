@@ -34,7 +34,9 @@ namespace Core.GameApp
             public override float FixedDeltaTime => FixedDelta;
         }
 
-        /// <summary>仅 Update 阶段——避开 Register 的三重载二义性。</summary>
+        /// <summary>
+        /// 仅 Update 阶段——避开 Register 的三重载二义性。
+        /// </summary>
         private class Probe : IUpdateHandler
         {
             private readonly List<string> _order;
@@ -71,7 +73,9 @@ namespace Core.GameApp
             public int Priority { get; }
         }
 
-        /// <summary>三阶段全实现，用于 RegisterAll 与"单阶段注册不得被升级"两项。</summary>
+        /// <summary>
+        /// 三阶段全实现，用于 RegisterAll 与"单阶段注册不得被升级"两项。
+        /// </summary>
         private sealed class AllStagesProbe : IUpdateHandler, IFixedUpdateHandler, ILateUpdateHandler
         {
             public int UpdateCalls;

@@ -33,7 +33,9 @@ namespace Moirai.Atropos.Input
             return _enabledBeforeFocusLoss;
         }
 
-        /// <summary>重置为「有焦点、启用」的初始态（禁用 Domain Reload 的 Enter Play Mode 下跨会话不残留）。</summary>
+        /// <summary>
+        /// 重置为「有焦点、启用」的初始态（禁用 Domain Reload 的 Enter Play Mode 下跨会话不残留）。
+        /// </summary>
         public void Reset()
         {
             _hasFocus = true;

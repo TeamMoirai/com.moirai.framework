@@ -40,24 +40,16 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 预制体是否就绪。
-        /// </summary>
+        /// <summary>预制体是否就绪。</summary>
         public bool IsReady => _prefab != null;
 
-        /// <summary>
-        /// 当前预制体（可能为 null）。
-        /// </summary>
+        /// <summary>当前预制体（可能为 null）。</summary>
         public GameObject Prefab => _prefab;
 
-        /// <summary>
-        /// 是否为 External 源。
-        /// </summary>
+        /// <summary>是否为 External 源。</summary>
         public bool IsExternal => _kind == EKind.External;
 
-        /// <summary>
-        /// 是否正在异步加载。
-        /// </summary>
+        /// <summary>是否正在异步加载。</summary>
         public bool IsLoading => _loading;
 
         #endregion

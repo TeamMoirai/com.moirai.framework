@@ -48,14 +48,10 @@ namespace Moirai.Main
     {
         public enum ESplashStage
         {
-            /// <summary>
-            /// 闪屏开始。
-            /// </summary>
+            /// <summary>闪屏开始。</summary>
             Start,
 
-            /// <summary>
-            /// 闪屏结束。
-            /// </summary>
+            /// <summary>闪屏结束。</summary>
             End,
         }
 

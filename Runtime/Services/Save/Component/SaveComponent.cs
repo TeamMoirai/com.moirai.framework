@@ -12,10 +12,14 @@ namespace Moirai.Atropos.Save
     [Serializable]
     public sealed class SaveTargetBinding
     {
-        /// <summary>目标组件（同 GameObject 上的可保存组件）。</summary>
+        /// <summary>
+        /// 目标组件（同 GameObject 上的可保存组件）。
+        /// </summary>
         [SerializeField] internal Component Target;
 
-        /// <summary>勾选参与存档的字段键列表。</summary>
+        /// <summary>
+        /// 勾选参与存档的字段键列表。
+        /// </summary>
         [SerializeField] internal List<string> EnabledFields = new List<string>();
     }
 
@@ -41,9 +45,7 @@ namespace Moirai.Atropos.Save
         /// <summary>KVT 块内模式版本作用域保留键（"$" 不可能出现在 C# 类型全名中，与绑定作用域键天然隔离）。</summary>
         internal const string SchemaScopeKey = "$schemas";
 
-        /// <summary>
-        /// 数据块键（自动派生：场景命名空间：物体路径——已保存场景命名空间为资产路径（同名 Additive 防撞），未保存场景为场景名）。
-        /// </summary>
+        /// <summary>数据块键（自动派生：场景命名空间：物体路径——已保存场景命名空间为资产路径（同名 Additive 防撞），未保存场景为场景名）。</summary>
         public string ResolvedBlockKey => _resolvedBlockKey;
 
         /// <summary>

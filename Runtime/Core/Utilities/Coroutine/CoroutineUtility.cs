@@ -23,7 +23,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        //// 等待指定的秒数（使用常规时间）。
+        /// 等待指定的秒数（使用常规时间）。
         /// </summary>
         /// <param name="seconds">秒数。</param>
         /// <example>yield return CoroutineUtility.WaitFor(1f);</example>

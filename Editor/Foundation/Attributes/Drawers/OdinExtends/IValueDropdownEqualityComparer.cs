@@ -8,9 +8,7 @@ namespace Sirenix.OdinInspector.Editor.Drawers
     /// </summary>
     internal class IValueDropdownEqualityComparer : IEqualityComparer<object>
     {
-        /// <summary>
-        /// 是否按 <see cref="Type"/> 进行查找比较。
-        /// </summary>
+        /// <summary>是否按 <see cref="Type"/> 进行查找比较。</summary>
         private readonly bool _isTypeLookup;
 
         /// <summary>

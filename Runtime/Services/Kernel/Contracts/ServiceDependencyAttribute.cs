@@ -24,9 +24,7 @@ namespace Moirai.Atropos
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
     public sealed class ServiceDependencyAttribute : Attribute
     {
-        /// <summary>
-        /// 依赖的服务类型数组（每个类型须为实现 <see cref="IService"/> 的具体类型）。
-        /// </summary>
+        /// <summary>依赖的服务类型数组（每个类型须为实现 <see cref="IService"/> 的具体类型）。</summary>
         public Type[] DependencyTypes { get; }
 
         /// <param name="dependencyTypes">依赖的服务类型列表（至少一个）。</param>

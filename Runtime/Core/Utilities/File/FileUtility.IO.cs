@@ -313,9 +313,7 @@ namespace Moirai.Atropos
             return System.IO.File.ReadAllBytes(fileFullPath);
         }
 
-        /// <summary>
-        /// 不含 BOM 的 UTF-8 编码，本类所有文本读写共用。
-        /// </summary>
+        /// <summary>不含 BOM 的 UTF-8 编码，本类所有文本读写共用。</summary>
         private static readonly UTF8Encoding s_UTF8Encoding = new UTF8Encoding(false);
         
         /// <summary>

@@ -20,9 +20,7 @@ namespace Moirai.Atropos.Save
         /// <returns>错误码（<see cref="SaveError.None"/> 或 <see cref="SaveError.InvalidArgument"/> 等）。</returns>
         public abstract SaveError TryGetKeyMaterial(out byte[] encryptionKey, out byte[] macKey);
 
-        /// <summary>
-        /// 生效密钥材料是否仍为包内出厂占位值（或为空）。
-        /// </summary>
+        /// <summary>生效密钥材料是否仍为包内出厂占位值（或为空）。</summary>
         /// <remarks>
         /// 判据供 Inspector 告警与构建期自检共用，不在运行期抛——已有存档可能就是用占位值写的，拦停会把「配置没改」升级成「存档打不开」。 <br />
         /// 内置提供方各自覆写；第三方提供方默认不报（密钥来源自管），有出厂默认值的应覆写并委托 <see cref="IsFactoryPlaceholder"/>。

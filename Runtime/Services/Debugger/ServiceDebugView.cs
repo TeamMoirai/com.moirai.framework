@@ -15,9 +15,7 @@ namespace Moirai.Atropos.Debugger
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 键值行左侧标签的固定宽度（派生类可据此推导自定义行宽）。
-        /// </summary>
+        /// <summary>键值行左侧标签的固定宽度（派生类可据此推导自定义行宽）。</summary>
         protected const float ITEM_LABEL_WIDTH = 146f;
 
         private const float PROGRESS_BAR_HEIGHT = 18f;
@@ -26,19 +24,13 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 调试视图标题（宿主窗口与 Inspector 分区的显示名）。
-        /// </summary>
+        /// <summary>调试视图标题（宿主窗口与 Inspector 分区的显示名）。</summary>
         public abstract string Title { get; }
 
-        /// <summary>
-        /// 服务是否就绪——未就绪时仅绘制提示信息而不绘制调试内容。
-        /// </summary>
+        /// <summary>服务是否就绪——未就绪时仅绘制提示信息而不绘制调试内容。</summary>
         public abstract bool IsReady { get; }
 
-        /// <summary>
-        /// 服务未就绪时显示的提示文案。
-        /// </summary>
+        /// <summary>服务未就绪时显示的提示文案。</summary>
         protected virtual string NotReadyMessage => "Service not ready (enter Play Mode and finish initialization).";
 
         #endregion
@@ -193,9 +185,7 @@ namespace Moirai.Atropos.Debugger
         private static GUIStyle s_BoldLabelStyle;
         private static GUISkin s_BoldLabelStyleSkin;
 
-        /// <summary>
-        /// 加粗标签样式（按当前皮肤缓存，Inspector 与游戏内皮肤切换时自动重建）。
-        /// </summary>
+        /// <summary>加粗标签样式（按当前皮肤缓存，Inspector 与游戏内皮肤切换时自动重建）。</summary>
         private static GUIStyle BoldLabelStyle
         {
             get
@@ -214,9 +204,7 @@ namespace Moirai.Atropos.Debugger
         private static GUIStyle s_CenteredLabelStyle;
         private static GUISkin s_CenteredLabelStyleSkin;
 
-        /// <summary>
-        /// 居中标签样式（按当前皮肤缓存，用于进度条内文本）。
-        /// </summary>
+        /// <summary>居中标签样式（按当前皮肤缓存，用于进度条内文本）。</summary>
         private static GUIStyle CenteredLabelStyle
         {
             get

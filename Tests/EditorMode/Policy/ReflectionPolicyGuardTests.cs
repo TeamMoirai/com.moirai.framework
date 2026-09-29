@@ -22,14 +22,10 @@ namespace Policy
         /// <summary>被禁止的反射模式。</summary>
         private const string FORBIDDEN = "BindingFlags.NonPublic";
 
-        /// <summary>
-        /// 守卫自身不参与扫描——它的常量与失败提示文案里本来就含该模式字符串。
-        /// </summary>
+        /// <summary>守卫自身不参与扫描——它的常量与失败提示文案里本来就含该模式字符串。</summary>
         private const string SELF_FILE_NAME = "ReflectionPolicyGuardTests.cs";
 
-        /// <summary>
-        /// 允许使用非公开反射的文件（相对 <c>Tests/</c>，正斜杠分隔）及其归类。
-        /// </summary>
+        /// <summary>允许使用非公开反射的文件（相对 <c>Tests/</c>，正斜杠分隔）及其归类。</summary>
         private static readonly Dictionary<string, string> Allowlist = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             // ── 基础设施桥（探 Unity / Unity Test Framework 内部成员，非测试夹具） ──

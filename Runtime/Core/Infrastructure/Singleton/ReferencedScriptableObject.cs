@@ -109,14 +109,10 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>
-        /// 最早登记的存活实例（无则 null）。
-        /// </summary>
+        /// <summary>最早登记的存活实例（无则 null）。</summary>
         public static T Any => s_Instances != null && s_Instances.Count > 0 && s_Instances[0].TryGetTarget(out T target) ? target : null;
 
-        /// <summary>
-        /// 遍历所有存活实例（跳过已失效弱引用）。
-        /// </summary>
+        /// <summary>遍历所有存活实例（跳过已失效弱引用）。</summary>
         public static IEnumerator<T> All
         {
             get

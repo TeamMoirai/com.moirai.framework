@@ -20,14 +20,10 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public class SaveFailedEvent : EventBase<SaveFailedEvent>
     {
-        /// <summary>
-        /// 操作类别。
-        /// </summary>
+        /// <summary>操作类别。</summary>
         public ESaveFailureOperation Operation { get; private set; }
 
-        /// <summary>
-        /// 事件参数。
-        /// </summary>
+        /// <summary>事件参数。</summary>
         public SaveFailedArgs Args { get; private set; }
 
         /// <summary>

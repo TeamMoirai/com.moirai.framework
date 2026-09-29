@@ -4,24 +4,16 @@ namespace Moirai.Atropos.UI
 {
     public class SetUISafeFitHelper
     {
-        /// <summary>
-        /// 是否适配刘海屏。
-        /// </summary>
+        /// <summary>是否适配刘海屏。</summary>
         public bool LiuHaiFit { get; set; } = false;
 
-        /// <summary>
-        /// 顶部适配偏移高度。
-        /// </summary>
+        /// <summary>顶部适配偏移高度。</summary>
         public float TopSpacing { get; set; } = 0;
 
-        /// <summary>
-        /// 是否底部适配。
-        /// </summary>
+        /// <summary>是否底部适配。</summary>
         public bool BottomFit { get; set; } = false;
 
-        /// <summary>
-        /// 底部适配偏移高度。
-        /// </summary>
+        /// <summary>底部适配偏移高度。</summary>
         public float BottomSpacing { get; set; } = 0;
 
         private readonly RectTransform _curFitRect;

@@ -42,9 +42,7 @@ namespace Moirai.Atropos.Input.Prompts
 
         protected override bool IsValid => m_Image != null;
 
-        /// <summary>
-        /// 获取设置绑定的按键。
-        /// </summary>
+        /// <summary>获取设置绑定的按键。</summary>
         /// <param name="value">按键的完整路径。</param>
         /// <remarks>包括绑定映射和动作，例如 Player/Move</remarks>
         public string Action

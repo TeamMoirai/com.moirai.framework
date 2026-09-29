@@ -54,9 +54,7 @@ namespace Moirai.Atropos.Audio
         private string _mixerVolumeParam;
         private bool _keysCached;
 
-        /// <summary>
-        /// 音频类型。
-        /// </summary>
+        /// <summary>音频类型。</summary>
         public EAudioTrack AudioTrack
         {
             get => m_AudioTrack;
@@ -67,9 +65,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// mixer 中的组对象。
-        /// </summary>
+        /// <summary>mixer 中的组对象。</summary>
         public AudioMixerGroup AudioMixerGroup
         {
             get => m_AudioMixerGroup;
@@ -94,9 +90,7 @@ namespace Moirai.Atropos.Audio
             _keysCached = true;
         }
 
-        /// <summary>
-        /// 当前音轨是否静音。
-        /// </summary>
+        /// <summary>当前音轨是否静音。</summary>
         public bool Mute
         {
             get => _isMuted;
@@ -109,9 +103,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 当前音轨的音量，线性 <c>0..1</c>。
-        /// </summary>
+        /// <summary>当前音轨的音量，线性 <c>0..1</c>。</summary>
         /// <remarks>夹取放在 setter 而不是只放在写 Mixer 的那一刻：<c>Volume</c> 是对外可读的，
         /// 让存着的值越界就会让 getter 报回一个契约外的数（旧写法正是如此，2.5 能原样读回来）。 <br />
         /// 0 保留为 0（写 Mixer 时才换算成 <see cref="MINIMAL_VOLUME"/> 对应的 -80dB），。 <br />
@@ -129,19 +121,13 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 预设同时播放的最大数量。
-        /// </summary>
+        /// <summary>预设同时播放的最大数量。</summary>
         public int MaxChannel => m_MaxChannel;
 
-        /// <summary>
-        /// 当没有可用的Agent时，是否可拓展。
-        /// </summary>
+        /// <summary>当没有可用的Agent时，是否可拓展。</summary>
         public bool CanExpand => m_CanExpand;
 
-        /// <summary>
-        /// 扩展的通道硬上限：只约束 <see cref="CanExpand"/> 的按需增长，不约束 <see cref="MaxChannel"/> 的预置槽位。
-        /// </summary>
+        /// <summary>扩展的通道硬上限：只约束 <see cref="CanExpand"/> 的按需增长，不约束 <see cref="MaxChannel"/> 的预置槽位。</summary>
         /// <remarks>非正数（老资产缺字段、YAML 手改坏）回落到 <see cref="HARD_CHANNEL_CEILING_DEFAULT"/>，
         /// 过大值削到 <see cref="HARD_CHANNEL_CEILING_MAX"/>——宁可按缺省跑，也不让一个写坏的数把保险拆掉。</remarks>
         public int MaxChannelCeiling => m_MaxChannelCeiling > 0

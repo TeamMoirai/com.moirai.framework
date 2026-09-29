@@ -13,39 +13,27 @@ namespace Moirai.Atropos.Events
     /// </remarks>
     public enum PropagationPhase
     {
-        /// <summary>
-        /// 事件不会传播。
-        /// </summary>
+        /// <summary>事件不会传播。</summary>
         /// <remarks>目前没有传播</remarks>
         None = 0,
 
-        /// <summary>
-        /// 该事件从面板的根元素发送到目标元素的父元素。
-        /// </summary>
+        /// <summary>该事件从面板的根元素发送到目标元素的父元素。</summary>
         /// <remarks>从树的根传播到 target 的直接父级。</remarks>
         TrickleDown = 1,
 
-        /// <summary>
-        /// 事件将发送到目标。
-        /// </summary>
+        /// <summary>事件将发送到目标。</summary>
         /// <remarks>事件达到目标。</remarks>
         AtTarget = 2,
         
-        /// <summary>
-        /// 该事件将发送到目标元素，然后该元素可以在目标阶段对事件执行其默认操作。事件处理程序在此阶段不会接收事件。相反，在目标元素上调用 ExecuteDefaultActionAtTarget。
-        /// </summary>
+        /// <summary>该事件将发送到目标元素，然后该元素可以在目标阶段对事件执行其默认操作。事件处理程序在此阶段不会接收事件。相反，在目标元素上调用 ExecuteDefaultActionAtTarget。</summary>
         /// <remarks>在 target 处执行默认操作。</remarks>
         DefaultActionAtTarget = 5,
 
-        /// <summary>
-        /// 该事件从目标元素的父元素发送回面板的根元素。
-        /// </summary>
+        /// <summary>该事件从目标元素的父元素发送回面板的根元素。</summary>
         /// <remarks>在目标有机会处理事件后，事件会沿着父层次结构返回根。</remarks>
         BubbleUp = 3,
         
-        /// <summary>
-        /// 该事件将发送到 target 元素，然后该元素可以执行该事件的最终默认操作。事件处理程序在此阶段不会接收事件。相反，在目标元素上调用 ExecuteDefaultAction。
-        /// </summary>
+        /// <summary>该事件将发送到 target 元素，然后该元素可以执行该事件的最终默认操作。事件处理程序在此阶段不会接收事件。相反，在目标元素上调用 ExecuteDefaultAction。</summary>
         /// <remarks>最后，执行默认操作。</remarks>
         DefaultAction = 4
     }

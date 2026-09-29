@@ -109,9 +109,7 @@ namespace Moirai.Atropos.Save
 
         #region 选择刷新 [CHOICES]
 
-        /// <summary>
-        /// 当前选择的文件夹名（缺省默认存档文件夹）。
-        /// </summary>
+        /// <summary>当前选择的文件夹名（缺省默认存档文件夹）。</summary>
         private string SelectedFolder => _folderField == null || string.IsNullOrEmpty(_folderField.value)
             ? SaveServiceHandler.DEFAULT_FOLDER_NAME
             : _folderField.value;

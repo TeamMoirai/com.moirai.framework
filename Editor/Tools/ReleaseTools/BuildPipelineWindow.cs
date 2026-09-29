@@ -561,7 +561,9 @@ namespace Moirai.Atropos.Editor
 
         #region 构建执行 [BUILD EXECUTION]
 
-        /// <summary>仅构建 AssetBundle（克隆配置执行，不污染预设资产）。</summary>
+        /// <summary>
+        /// 仅构建 AssetBundle（克隆配置执行，不污染预设资产）。
+        /// </summary>
         private void ExecuteBuildAB()
         {
             if (_config == null) return;
@@ -570,7 +572,9 @@ namespace Moirai.Atropos.Editor
             ExecuteBuild(copy, buildPlayer: false);
         }
 
-        /// <summary>一键构建 AB + Player。</summary>
+        /// <summary>
+        /// 一键构建 AB + Player。
+        /// </summary>
         private void ExecuteBuildAll()
         {
             if (_config == null) return;
@@ -670,7 +674,9 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        /// <summary>追加一条日志：增量添加 Label（避免全量重建），并滚动到底部。</summary>
+        /// <summary>
+        /// 追加一条日志：增量添加 Label（避免全量重建），并滚动到底部。
+        /// </summary>
         private void AddLog(string message)
         {
             string entry = $"[{DateTime.Now:HH:mm:ss}] {message}";

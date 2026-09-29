@@ -18,7 +18,9 @@ namespace Moirai.Atropos.Localization.Editor
 
         private int _selectedIndex;
 
-        /// <summary>打开烘焙窗口。</summary>
+        /// <summary>
+        /// 打开烘焙窗口。
+        /// </summary>
         [MenuItem("Tools/Config/烘焙渠道默认语言", false, 27)]
         public static void Open()
         {

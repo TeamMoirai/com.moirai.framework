@@ -10,38 +10,26 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 对象名称。
-        /// </summary>
+        /// <summary>对象名称。</summary>
         public readonly string Name;
 
-        /// <summary>
-        /// 是否锁定。
-        /// </summary>
+        /// <summary>是否锁定。</summary>
         public readonly bool Locked;
 
-        /// <summary>
-        /// 自定义可释放标记。
-        /// </summary>
+        /// <summary>自定义可释放标记。</summary>
         public readonly bool CustomCanReleaseFlag;
 
-        /// <summary>
-        /// 最近使用时间（实时时钟）。
-        /// </summary>
+        /// <summary>最近使用时间（实时时钟）。</summary>
         public readonly float LastUseTime;
 
-        /// <summary>
-        /// 取用计数（引用计数模式可大于 1）。
-        /// </summary>
+        /// <summary>取用计数（引用计数模式可大于 1）。</summary>
         public readonly int SpawnCount;
 
         #endregion
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取对象是否处于使用中。
-        /// </summary>
+        /// <summary>获取对象是否处于使用中。</summary>
         public bool IsInUse => SpawnCount > 0;
 
         #endregion

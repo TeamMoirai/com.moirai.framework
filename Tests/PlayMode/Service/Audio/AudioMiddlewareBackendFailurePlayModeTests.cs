@@ -20,7 +20,9 @@ namespace Service.Audio
     [TestFixture]
     public sealed class AudioMiddlewareBackendFailurePlayModeTests
     {
-        /// <summary>Initialize 返回 false 的假桥，并统计失败后被触达的次数。</summary>
+        /// <summary>
+        /// Initialize 返回 false 的假桥，并统计失败后被触达的次数。
+        /// </summary>
         private sealed class DeadBridge : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
         {
             public int InitializeCalls;

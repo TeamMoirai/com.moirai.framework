@@ -182,19 +182,27 @@ namespace Moirai.Atropos
         {
             internal sealed class TypeMeta
             {
-                /// <summary>可序列化字段（含基类，已解析序列化名）。</summary>
+                /// <summary>
+                /// 可序列化字段（含基类，已解析序列化名）。
+                /// </summary>
                 public (string Name, FieldInfo Field)[] SerializeFields = Array.Empty<(string, FieldInfo)>();
 
-                /// <summary>可反序列化字段（含 JsonSerializeAs / FormerlySerializedAs / 本名 别名表）。</summary>
+                /// <summary>
+                /// 可反序列化字段（含 JsonSerializeAs / FormerlySerializedAs / 本名 别名表）。
+                /// </summary>
                 public (FieldInfo Field, string[] Names)[] DeserializeFields = Array.Empty<(FieldInfo, string[])>();
 
                 /// <summary>可反序列化字段的 UTF8 编码别名表（与 <see cref="DeserializeFields"/> 平行，供字节解析零拷贝 key 匹配）。</summary>
                 public byte[][][] DeserializeFieldNamesUtf8 = Array.Empty<byte[][]>();
 
-                /// <summary>可序列化属性（已解析序列化名）。</summary>
+                /// <summary>
+                /// 可序列化属性（已解析序列化名）。
+                /// </summary>
                 public (string Name, PropertyInfo Property)[] SerializeProperties = Array.Empty<(string, PropertyInfo)>();
 
-                /// <summary>可反序列化属性（含别名表）。</summary>
+                /// <summary>
+                /// 可反序列化属性（含别名表）。
+                /// </summary>
                 public (PropertyInfo Property, string[] Names)[] DeserializeProperties = Array.Empty<(PropertyInfo, string[])>();
 
                 /// <summary>可反序列化属性的 UTF8 编码别名表（与 <see cref="DeserializeProperties"/> 平行）。</summary>
@@ -223,7 +231,9 @@ namespace Moirai.Atropos
                 return meta;
             }
 
-            /// <summary>将反序列化别名表预编码为 UTF8 字节（一次性成本，字节解析热路径零分配）。</summary>
+            /// <summary>
+            /// 将反序列化别名表预编码为 UTF8 字节（一次性成本，字节解析热路径零分配）。
+            /// </summary>
             private static void EncodeUtf8NameTables(TypeMeta meta)
             {
                 meta.DeserializeFieldNamesUtf8 = EncodeNameTable(meta.DeserializeFields.Length, i => meta.DeserializeFields[i].Names);

@@ -63,7 +63,9 @@ namespace Service.Audio
             if (failures.Count > 0) throw new AggregateException(failures);
         }
 
-        /// <summary>确定性推进虚拟时钟（秒）。TTL 到期与失败冷却以此驱动，不依赖真实墙钟。</summary>
+        /// <summary>
+        /// 确定性推进虚拟时钟（秒）。TTL 到期与失败冷却以此驱动，不依赖真实墙钟。
+        /// </summary>
         private void AdvanceRealtime(double seconds)
         {
             _realtimeNow += seconds;

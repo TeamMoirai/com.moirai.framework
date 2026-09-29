@@ -81,7 +81,9 @@ namespace Service.Audio
             pending.Completed(fail ? default : MakeLease());
         }
 
-        /// <summary>放行全部挂起的异步加载。</summary>
+        /// <summary>
+        /// 放行全部挂起的异步加载。
+        /// </summary>
         public void CompleteAll(bool fail = false)
         {
             while (_pending.Count > 0)
@@ -90,7 +92,9 @@ namespace Service.Audio
             }
         }
 
-        /// <summary>取一个已在缓存中的条目（不改变引用计数）。</summary>
+        /// <summary>
+        /// 取一个已在缓存中的条目（不改变引用计数）。
+        /// </summary>
         public AudioClipCacheEntry Entry(string address)
         {
             Assert.IsTrue(Cache.TryGetEntry(address, out var entry), $"缓存中应有 {address}");
@@ -108,7 +112,9 @@ namespace Service.Audio
             _loads[address] = count + 1;
         }
 
-        /// <summary>预建若干租约，把测试台自身的分配挡在被测窗口之外。</summary>
+        /// <summary>
+        /// 预建若干租约，把测试台自身的分配挡在被测窗口之外。
+        /// </summary>
         /// <remarks>用于分配类用例，否则量到的是夹具开销而不是产码开销。</remarks>
         public void PrepareLeases(int count)
         {
@@ -166,7 +172,9 @@ namespace Service.Audio
                 if (_owner.RecycleLeases) _owner._recycledHandles.Enqueue(this);
             }
 
-            /// <summary>重新投入使用；未归还就复用说明句柄被复制到了两处，直接抛而不是静默错账。</summary>
+            /// <summary>
+            /// 重新投入使用；未归还就复用说明句柄被复制到了两处，直接抛而不是静默错账。
+            /// </summary>
             public void Rearm()
             {
                 if (!_disposed) throw new InvalidOperationException("租约尚未归还即重新投入使用。");
@@ -177,7 +185,9 @@ namespace Service.Audio
 
         #region 台账不变量 [LEDGER INVARIANTS]
 
-        /// <summary>遍历缓存内部链表的不变量断言，用于锁定驱逐与槽位复用的记账。</summary>
+        /// <summary>
+        /// 遍历缓存内部链表的不变量断言，用于锁定驱逐与槽位复用的记账。
+        /// </summary>
         /// <remarks>两条双向链自洽无环；LRU 链上的条目必为「无引用且非 Pin 非 Loading」且按最后使用时间递增；<c>Count</c> 与 All 链长度一致。</remarks>
         public void CheckInvariants()
         {

@@ -14,14 +14,10 @@ namespace Moirai.Atropos.Save
         /// <summary>GZip 提供方标识（写入文件头）。</summary>
         internal const byte PROVIDER_ID = 1;
 
-        /// <summary>
-        /// 共享实例（无状态提供方，注册表与缺省场景复用）。
-        /// </summary>
+        /// <summary>共享实例（无状态提供方，注册表与缺省场景复用）。</summary>
         internal static readonly GZipCompressionProvider Shared = new GZipCompressionProvider();
 
-        /// <summary>
-        /// 提供方标识（写入文件头）。
-        /// </summary>
+        /// <summary>提供方标识（写入文件头）。</summary>
         public override byte ProviderId => PROVIDER_ID;
 
         /// <summary>

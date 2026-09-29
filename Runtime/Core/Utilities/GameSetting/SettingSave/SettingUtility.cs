@@ -22,9 +22,7 @@ namespace Moirai.Atropos
 
         #region 公共 API [PUBLIC API]
 
-        /// <summary>
-        /// 获取游戏配置项数量。
-        /// </summary>
+        /// <summary>获取游戏配置项数量。</summary>
         public static int Count => Handler.Count;
 
         /// <summary>

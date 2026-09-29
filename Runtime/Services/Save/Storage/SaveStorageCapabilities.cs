@@ -10,32 +10,22 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public readonly struct SaveStorageCapabilities
     {
-        /// <summary>
-        /// 替换目标时不出现半写窗口，且中断后旧档必可恢复。
-        /// </summary>
+        /// <summary>替换目标时不出现半写窗口，且中断后旧档必可恢复。</summary>
         /// <remarks>
         /// 判据不是「底层用过一次原子 rename」：平台无原子替换能力时，后端改走「旧档改名到日志位 → 新档改名到位 → 清日志」的中转写法，任一时刻要么新档完整、要么旧档完整留在日志位并由下次初始化抬回。代价是中转期间主档路径短暂缺席。
         /// </remarks>
         public readonly bool SupportsAtomicRename;
 
-        /// <summary>
-        /// 支持真异步 IO（否则异步 API 为线程池卸载同步原语）。
-        /// </summary>
+        /// <summary>支持真异步 IO（否则异步 API 为线程池卸载同步原语）。</summary>
         public readonly bool SupportsTrueAsyncIO;
 
-        /// <summary>
-        /// 单档推荐最大字节数（-1 表示不设上限）。
-        /// </summary>
+        /// <summary>单档推荐最大字节数（-1 表示不设上限）。</summary>
         public readonly long MaxRecommendedSize;
 
-        /// <summary>
-        /// 易失存储（后端不保证持久化，重要存档需自行镜像）。
-        /// </summary>
+        /// <summary>易失存储（后端不保证持久化，重要存档需自行镜像）。</summary>
         public readonly bool VolatileStorage;
 
-        /// <summary>
-        /// 同步读权威（<c>true</c> = 同步裸名读 API 返回权威数据；<c>false</c> = 同步读仅见本地镜像，远端内容须经异步 API 族裁决）。
-        /// </summary>
+        /// <summary>同步读权威（<c>true</c> = 同步裸名读 API 返回权威数据；<c>false</c> = 同步读仅见本地镜像，远端内容须经异步 API 族裁决）。</summary>
         public readonly bool SyncReadsAuthoritative;
 
         /// <summary>

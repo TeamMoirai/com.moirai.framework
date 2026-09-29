@@ -75,9 +75,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 		
-        /// <summary>
-        /// 获取池数量（未就绪时为 0）。
-        /// </summary>
+        /// <summary>获取池数量（未就绪时为 0）。</summary>
         public static int Count => s_Handler?.Count ?? 0;
 
         #endregion

@@ -11,35 +11,27 @@ namespace Moirai.Atropos.Debugger
     [Serializable]
     public abstract class DebuggerServiceHandler : FrameworkHandler
     {
-        /// <summary>
-        /// 获取或设置调试器是否激活（悬浮入口可见；关闭时零 UI 开销）。
-        /// </summary>
+        /// <summary>获取或设置调试器是否激活（悬浮入口可见；关闭时零 UI 开销）。</summary>
         public abstract bool ActiveWindow
         {
             get;
             set;
         }
 
-        /// <summary>
-        /// 获取或设置完整调试器窗口是否展开。
-        /// </summary>
+        /// <summary>获取或设置完整调试器窗口是否展开。</summary>
         public abstract bool ShowFullWindow
         {
             get;
             set;
         }
 
-        /// <summary>
-        /// 获取调试器窗口注册表（路径树导航模型）。
-        /// </summary>
+        /// <summary>获取调试器窗口注册表（路径树导航模型）。</summary>
         public abstract DebuggerWindowRegistry WindowRegistry
         {
             get;
         }
 
-        /// <summary>
-        /// 获取日志捕获器（环形缓冲，供控制台与外部工具消费）。
-        /// </summary>
+        /// <summary>获取日志捕获器（环形缓冲，供控制台与外部工具消费）。</summary>
         public abstract DebuggerLogCapture LogCapture
         {
             get;

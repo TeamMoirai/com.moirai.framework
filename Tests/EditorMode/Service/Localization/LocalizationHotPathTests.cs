@@ -54,7 +54,9 @@ namespace Service.Localization
             };
         }
 
-        /// <summary>装载批并完成首启语言解析，返回切换目标语言（与当前语言相异）。</summary>
+        /// <summary>
+        /// 装载批并完成首启语言解析，返回切换目标语言（与当前语言相异）。
+        /// </summary>
         private Language LoadAndResolveTargetLanguage()
         {
             LoadStrings("ui.title", "Title", "标题");
@@ -63,7 +65,9 @@ namespace Service.Localization
             return current == English ? Chinese : English;
         }
 
-        /// <summary>装载「中文格留空」的批并切到中文：空白格与缺失格在取值口径上必须同形。</summary>
+        /// <summary>
+        /// 装载「中文格留空」的批并切到中文：空白格与缺失格在取值口径上必须同形。
+        /// </summary>
         private void LoadBlankChineseCellAndSwitchToChinese()
         {
             LoadStrings("ui.title", "Title", null);
@@ -315,7 +319,9 @@ namespace Service.Localization
 
         #endregion
 
-        /// <summary>数组模式探针：只记下标，不碰目标组件。</summary>
+        /// <summary>
+        /// 数组模式探针：只记下标，不碰目标组件。
+        /// </summary>
         private sealed class ProbeImageInjector : ImageInjectorBase
         {
             public readonly List<int> AppliedIndices = new List<int>();

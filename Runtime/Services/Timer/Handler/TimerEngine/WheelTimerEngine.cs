@@ -415,7 +415,9 @@ namespace Moirai.Atropos.Timer
             _progressSlots.Add(slotIndex);
         }
 
-        /// <summary>按槽位记录的列表下标做 swap-remove，O(1) 且顺序无关（进度以快照迭代）。</summary>
+        /// <summary>
+        /// 按槽位记录的列表下标做 swap-remove，O(1) 且顺序无关（进度以快照迭代）。
+        /// </summary>
         private void RemoveProgressSlot(int slotIndex)
         {
             int pos = GetProgressPosition(slotIndex);
@@ -530,7 +532,9 @@ namespace Moirai.Atropos.Timer
             _fireScratch.Clear();
         }
 
-        /// <summary>触发一个计时器的完成回调，并处理循环重排 / 释放。</summary>
+        /// <summary>
+        /// 触发一个计时器的完成回调，并处理循环重排 / 释放。
+        /// </summary>
         private void FireTimeTimer(int slotIndex, double currentTime)
         {
             _executingSlotIndex = slotIndex;
@@ -836,7 +840,9 @@ namespace Moirai.Atropos.Timer
             }
         }
 
-        /// <summary>调度失败诊断：整条调用（含实参求值）在非编辑器构建下被编译器摘除。</summary>
+        /// <summary>
+        /// 调度失败诊断：整条调用（含实参求值）在非编辑器构建下被编译器摘除。
+        /// </summary>
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
         private static void WarnScheduleFailed(string reason)
         {
@@ -1422,7 +1428,9 @@ namespace Moirai.Atropos.Timer
             SetPagedInt(_freeSlotPages, _freeCount++, slotIndex);
         }
 
-        /// <summary>从两条延后触发列表摘除本槽位；不在列的槽位（绝大多数）一次位判即返回。</summary>
+        /// <summary>
+        /// 从两条延后触发列表摘除本槽位；不在列的槽位（绝大多数）一次位判即返回。
+        /// </summary>
         private void RemoveDeferredRef(int slotIndex, ulong handle)
         {
             byte deferred = (byte)(GetState(slotIndex) & (STATE_DEFERRED_FIXED | STATE_DEFERRED_LATE));

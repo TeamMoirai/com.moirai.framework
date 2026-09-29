@@ -35,44 +35,28 @@ namespace Moirai.Atropos.Input.Prompts
     public static class InputDevicePromptSystem
     {
         
-        /// <summary>
-        /// 动作路径的映射（例如，“Player/Move”到绑定映射条目，例如“Gamepad/leftStick”）。
-        /// </summary>
+        /// <summary>动作路径的映射（例如，“Player/Move”到绑定映射条目，例如“Gamepad/leftStick”）。</summary>
         private static Dictionary<string, List<ActionBindingMapEntry>> s_ActionBindingMap = new Dictionary<string, List<ActionBindingMapEntry>>();
         
-        /// <summary>
-        /// 设备名称（例如“DualShockGamepadHID”）到设备提示数据（动作绑定和精灵列表）的映射。
-        /// </summary>
+        /// <summary>设备名称（例如“DualShockGamepadHID”）到设备提示数据（动作绑定和精灵列表）的映射。</summary>
         private static Dictionary<string, GlyphMap> s_DeviceDataBindingMap = new Dictionary<string, GlyphMap>();
         
-        /// <summary>
-        /// 当前是否已初始化。
-        /// </summary>
+        /// <summary>当前是否已初始化。</summary>
         private static bool s_Initialized = false;
 
-        /// <summary>
-        /// 是否已尝试过初始化——失败后不再重复尝试，避免每次调用重复刷告警。
-        /// </summary>
+        /// <summary>是否已尝试过初始化——失败后不再重复尝试，避免每次调用重复刷告警。</summary>
         private static bool s_InitializeAttempted = false;
         
-        /// <summary>
-        /// 设置文件。
-        /// </summary>
+        /// <summary>设置文件。</summary>
         private static InputSystemDevicePromptSettings s_Settings;
         
-        /// <summary>
-        /// 当前活动设备。
-        /// </summary>
+        /// <summary>当前活动设备。</summary>
         private static InputDevice s_ActiveDevice;
         
-        /// <summary>
-        /// 当活动设备更改时委派。
-        /// </summary>
+        /// <summary>当活动设备更改时委派。</summary>
         public static Action<InputDevice> OnActiveDeviceChanged = delegate {  };
         
-        /// <summary>
-        /// 输入系统上按钮按下的事件侦听器。
-        /// </summary>
+        /// <summary>输入系统上按钮按下的事件侦听器。</summary>
         private static IDisposable s_EventListener;
 
         private static GlyphMap s_PlatformDeviceOverride;

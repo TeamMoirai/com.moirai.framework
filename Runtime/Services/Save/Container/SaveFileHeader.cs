@@ -13,19 +13,13 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     internal readonly struct SaveFileHeader
     {
-        /// <summary>
-        /// 文件头固定字节数。
-        /// </summary>
+        /// <summary>文件头固定字节数。</summary>
         public const int Size = 32;
 
-        /// <summary>
-        /// 当前写入的存档格式版本。
-        /// </summary>
+        /// <summary>当前写入的存档格式版本。</summary>
         public const int CurrentVersion = 2;
 
-        /// <summary>
-        /// 标志位：载荷经压缩（压缩在加密前；读取时先解密再解压）。
-        /// </summary>
+        /// <summary>标志位：载荷经压缩（压缩在加密前；读取时先解密再解压）。</summary>
         public const uint FlagCompressed = 1u << 0;
 
         /// <summary>已定义标志位掩码（读侧拒识未知位：未来特性被旧运行时静默忽略会写坏档）。</summary>
@@ -34,34 +28,22 @@ namespace Moirai.Atropos.Save
         /// <summary>魔数。</summary>
         private static readonly byte[] s_Magic = { (byte)'M', (byte)'R', (byte)'S', (byte)'A' };
 
-        /// <summary>
-        /// 存档格式版本。
-        /// </summary>
+        /// <summary>存档格式版本。</summary>
         public readonly int FormatVersion;
 
-        /// <summary>
-        /// 保存时间（UTC ticks）。
-        /// </summary>
+        /// <summary>保存时间（UTC ticks）。</summary>
         public readonly long SavedAtUtcTicks;
 
-        /// <summary>
-        /// 载荷字节数。
-        /// </summary>
+        /// <summary>载荷字节数。</summary>
         public readonly int PayloadLength;
 
-        /// <summary>
-        /// 载荷 CRC-32 校验值。
-        /// </summary>
+        /// <summary>载荷 CRC-32 校验值。</summary>
         public readonly uint PayloadCrc;
 
-        /// <summary>
-        /// 压缩提供方标识（0 = 未压缩；非零时经 <see cref="SaveCompressionRegistry"/> 查表解压，未知 ID 判别为 <see cref="SaveError.UnsupportedVersion"/>）。
-        /// </summary>
+        /// <summary>压缩提供方标识（0 = 未压缩；非零经 <see cref="SaveCompressionRegistry"/> 解压，未知 ID 报 <c>UnsupportedVersion</c>）。</summary>
         public readonly uint CompressionProviderId;
 
-        /// <summary>
-        /// 特性标志位（<see cref="FlagCompressed"/> 等）。
-        /// </summary>
+        /// <summary>特性标志位（<see cref="FlagCompressed"/> 等）。</summary>
         public readonly uint Flags;
 
         /// <summary>
@@ -154,9 +136,7 @@ namespace Moirai.Atropos.Save
             return SaveError.None;
         }
 
-        /// <summary>
-        /// 保存时间（UTC）。
-        /// </summary>
+        /// <summary>保存时间（UTC）。</summary>
         public DateTime SavedAtUtc => new DateTime(SavedAtUtcTicks, DateTimeKind.Utc);
 
         /// <summary>

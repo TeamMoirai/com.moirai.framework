@@ -9,7 +9,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>当前是否为主线程（发布版同样可用，供调用处做兜底分支）。</summary>
         public static bool IsMainThread => MainThreadDispatcher.IsMainThread;
 
-        /// <summary>断言处于主线程。仅编辑器/开发构建生效，发布构建调用点被整体裁剪。</summary>
+        /// <summary>
+        /// 断言处于主线程。仅编辑器/开发构建生效，发布构建调用点被整体裁剪。
+        /// </summary>
         /// <remarks>断言通过的主线程快路径零分配：消息插值只在失败分支构造，避免播放入口每帧产生 GC 抖动。</remarks>
         /// <param name="where">调用点标识，出现在断言消息中。</param>
         [System.Diagnostics.Conditional("UNITY_EDITOR")]

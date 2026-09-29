@@ -14,7 +14,9 @@ namespace Moirai.Atropos.Audio
         private static bool _ducked;
         private static EMixSnapshot _beforeDuck = EMixSnapshot.Default;
 
-        /// <summary>由后端 Tick 驱动。</summary>
+        /// <summary>
+        /// 由后端 Tick 驱动。
+        /// </summary>
         /// <remarks>需 <see cref="AudioServiceSettings.AutoDuckingOnVoice"/> 打开且混音快照里注册了 Dialogue，否则整条路径零成本。</remarks>
         public static void Evaluate(AudioServiceHandler handler)
         {
@@ -50,7 +52,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>当前是否由本组件占用着 Dialogue（诊断用）。</summary>
         public static bool IsDucking => _ducked;
 
-        /// <summary>清空 duck 记账（服务重启/关停时调用）。</summary>
+        /// <summary>
+        /// 清空 duck 记账（服务重启/关停时调用）。
+        /// </summary>
         public static void Reset()
         {
             _ducked = false;

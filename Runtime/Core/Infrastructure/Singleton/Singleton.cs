@@ -33,9 +33,7 @@ namespace Moirai.Atropos
 
         #region 单例访问 [Singleton Access]
 
-        /// <summary>
-        /// 获取单例实例；首次访问时惰性创建并初始化（线程安全）。
-        /// </summary>
+        /// <summary>获取单例实例；首次访问时惰性创建并初始化（线程安全）。</summary>
         public static T Instance
         {
             get
@@ -58,9 +56,7 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>
-        /// 单例当前是否已创建（不触发创建）。
-        /// </summary>
+        /// <summary>单例当前是否已创建（不触发创建）。</summary>
         public static bool IsValid => s_Instance != null;
 
         #endregion

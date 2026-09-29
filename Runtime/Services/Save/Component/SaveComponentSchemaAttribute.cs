@@ -14,9 +14,7 @@ namespace Moirai.Atropos.Save
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class SaveComponentSchemaAttribute : Attribute
     {
-        /// <summary>
-        /// 当前组件数据模式版本（≥ 1，小于 1 按 1 收敛）。
-        /// </summary>
+        /// <summary>当前组件数据模式版本（≥ 1，小于 1 按 1 收敛）。</summary>
         public int Version { get; }
 
         /// <summary>

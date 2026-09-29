@@ -16,19 +16,13 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 页内偏移位数（128 槽/页）。
-        /// </summary>
+        /// <summary>页内偏移位数（128 槽/页）。</summary>
         internal const int PAGE_BITS = 7;
 
-        /// <summary>
-        /// 每页槽位数量。
-        /// </summary>
+        /// <summary>每页槽位数量。</summary>
         internal const int PAGE_SIZE = 1 << PAGE_BITS;
 
-        /// <summary>
-        /// 页内偏移掩码。
-        /// </summary>
+        /// <summary>页内偏移掩码。</summary>
         internal const int PAGE_MASK = PAGE_SIZE - 1;
 
         private const int INITIAL_PAGE_ARRAY_CAPACITY = 4;
@@ -48,9 +42,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取当前槽位总容量（已分配页数 × 页大小）。
-        /// </summary>
+        /// <summary>获取当前槽位总容量（已分配页数 × 页大小）。</summary>
         public int SlotCount => _pageCount << PAGE_BITS;
 
         #endregion

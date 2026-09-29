@@ -49,13 +49,19 @@ namespace Moirai.Atropos
     /// </remarks>
     public interface IBufferJsonHandler
     {
-        /// <summary>将对象序列化为 UTF8 JSON 字节（紧凑格式）。</summary>
+        /// <summary>
+        /// 将对象序列化为 UTF8 JSON 字节（紧凑格式）。
+        /// </summary>
         byte[] ToJsonBytes(object obj);
 
-        /// <summary>将 UTF8 JSON 字节反序列化为对象。</summary>
+        /// <summary>
+        /// 将 UTF8 JSON 字节反序列化为对象。
+        /// </summary>
         T ToObject<T>(byte[] json);
 
-        /// <summary>将 UTF8 JSON 字节反序列化为对象。</summary>
+        /// <summary>
+        /// 将 UTF8 JSON 字节反序列化为对象。
+        /// </summary>
         object ToObject(Type objectType, byte[] json);
     }
 }

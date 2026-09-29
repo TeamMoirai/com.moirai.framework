@@ -103,7 +103,9 @@ namespace Moirai.Atropos.Tasks
             }
         }
 
-        /// <summary>摘干两张任务表并各自 Dispose（OnDestroy 的全部实质，留出入口给测试与代码装配）。</summary>
+        /// <summary>
+        /// 摘干两张任务表并各自 Dispose（OnDestroy 的全部实质，留出入口给测试与代码装配）。
+        /// </summary>
         internal void ReleaseAllTasks()
         {
             for (int i = 0; i < _tasksToAdd.Count; i++)

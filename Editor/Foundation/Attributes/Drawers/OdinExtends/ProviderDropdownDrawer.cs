@@ -93,11 +93,15 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>按类型全名或简单名查选项索引（0 = None），O(1)。</summary>
+            /// <summary>
+            /// 按类型全名或简单名查选项索引（0 = None），O(1)。
+            /// </summary>
             internal int IndexOfName(string typeName) =>
                 !string.IsNullOrEmpty(typeName) && _nameToIndex.TryGetValue(typeName, out int index) ? index : 0;
 
-            /// <summary>按 Type 查选项索引（0 = None），O(1)。</summary>
+            /// <summary>
+            /// 按 Type 查选项索引（0 = None），O(1)。
+            /// </summary>
             internal int IndexOfType(Type type) =>
                 type != null && _typeToIndex.TryGetValue(type, out int index) ? index : 0;
         }
@@ -143,14 +147,18 @@ namespace Moirai.Atropos
             /// <summary>本地选项数量（恒 ≥ 1：候选为空时仍强制包含 (None)）。</summary>
             internal readonly int Count => NameOptions.Length;
 
-            /// <summary>缓存索引（0=None，1..n=类型）→ 本地索引。</summary>
+            /// <summary>
+            /// 缓存索引（0=None，1..n=类型）→ 本地索引。
+            /// </summary>
             internal readonly int CacheToLocal(int cacheIndex)
             {
                 if (IncludeNone) return cacheIndex;
                 return cacheIndex <= 0 ? 0 : Mathf.Min(cacheIndex - 1, Count - 1);
             }
 
-            /// <summary>本地索引 → 缓存索引（0=None，1..n=类型）。</summary>
+            /// <summary>
+            /// 本地索引 → 缓存索引（0=None，1..n=类型）。
+            /// </summary>
             internal readonly int LocalToCache(int localIndex)
             {
                 if (IncludeNone) return localIndex;
@@ -158,7 +166,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>写入选项：string 模式存类型全名，引用模式存实例，0 = None。</summary>
+        /// <summary>
+        /// 写入选项：string 模式存类型全名，引用模式存实例，0 = None。
+        /// </summary>
         private static void ApplySelection(SerializedProperty property, int index, TypeMenuCache cache)
         {
             if (property.propertyType == SerializedPropertyType.String)
@@ -186,7 +196,9 @@ namespace Moirai.Atropos
             property.serializedObject.ApplyModifiedProperties();
         }
 
-        /// <summary>读取当前选项索引（按属性类型自动分派，字典 O(1) 查询）。</summary>
+        /// <summary>
+        /// 读取当前选项索引（按属性类型自动分派，字典 O(1) 查询）。
+        /// </summary>
         private static int FindCurrentIndex(TypeMenuCache cache, SerializedProperty property) =>
             property.propertyType == SerializedPropertyType.String
                 ? cache.IndexOfName(property.stringValue)
@@ -194,7 +206,9 @@ namespace Moirai.Atropos
                     ? 0
                     : cache.IndexOfType(property.managedReferenceValue.GetType());
 
-        /// <summary>foldout 键：对象实例 ID + 属性路径，避免不同对象的相同属性路径互相干扰。</summary>
+        /// <summary>
+        /// foldout 键：对象实例 ID + 属性路径，避免不同对象的相同属性路径互相干扰。
+        /// </summary>
         private static string FoldoutKey(SerializedProperty property) =>
             property.serializedObject.targetObject.GetInstanceID() + property.propertyPath;
 
@@ -203,7 +217,9 @@ namespace Moirai.Atropos
 
         private static void SetFoldout(string key, bool value) => s_Foldouts[key] = value;
 
-        /// <summary>遍历直接可见子属性（高度计算与 Unity 序列化回退绘制共用）。visitor 需跨迭代持有时应自行 Copy。</summary>
+        /// <summary>
+        /// 遍历直接可见子属性（高度计算与 Unity 序列化回退绘制共用）。visitor 需跨迭代持有时应自行 Copy。
+        /// </summary>
         private static void ForEachVisibleChild(SerializedProperty property, Action<SerializedProperty> visit)
         {
             var child = property.Copy();
@@ -224,7 +240,9 @@ namespace Moirai.Atropos
             return child.NextVisible(true) && !SerializedProperty.EqualContents(child, end);
         }
 
-        /// <summary>子属性区高度：内边距 ×2 + 子属性高度与间距（Unity 序列化回退路径用）。</summary>
+        /// <summary>
+        /// 子属性区高度：内边距 ×2 + 子属性高度与间距（Unity 序列化回退路径用）。
+        /// </summary>
         private static float GetChildrenHeight(SerializedProperty property)
         {
             float spacing = EditorGUIUtility.standardVerticalSpacing;
@@ -312,7 +330,9 @@ namespace Moirai.Atropos
             EditorGUI.indentLevel = indent;
         }
 
-        /// <summary>显示带类型详情的自定义下拉弹窗（两条路径共用）。</summary>
+        /// <summary>
+        /// 显示带类型详情的自定义下拉弹窗（两条路径共用）。
+        /// </summary>
         private static void ShowDropdown(Rect activatorRect, ProviderOptions options, int currentLocalIndex, Action<int> onSelectedLocal)
         {
             PopupWindow.Show(activatorRect, new TypeDropdownPopup(options, currentLocalIndex, onSelectedLocal));
@@ -442,7 +462,9 @@ namespace Moirai.Atropos
             DrawChildrenWithOdin();
         }
 
-        /// <summary>值条目模式写入当前选中项（string 模式存类型全名，引用模式存实例，缓存索引 0 = None）。</summary>
+        /// <summary>
+        /// 值条目模式写入当前选中项（string 模式存类型全名，引用模式存实例，缓存索引 0 = None）。
+        /// </summary>
         private void ApplyValue(ProviderOptions opts, int index)
         {
             var valueEntry = Property.ValueEntry;
@@ -463,7 +485,9 @@ namespace Moirai.Atropos
             GUI.changed = true;
         }
 
-        /// <summary>子属性是否在 Odin 侧存在可见项（State.Visible 由 Odin 处理隐藏特性后写入）。</summary>
+        /// <summary>
+        /// 子属性是否在 Odin 侧存在可见项（State.Visible 由 Odin 处理隐藏特性后写入）。
+        /// </summary>
         private bool HasVisibleOdinChildren()
         {
             var children = Property.Children;
@@ -472,7 +496,9 @@ namespace Moirai.Atropos
             return false;
         }
 
-        /// <summary>子属性交由 Odin PropertyTree 绘制，子字段上的 Odin 特性（ValueDropdown 等）正常生效。</summary>
+        /// <summary>
+        /// 子属性交由 Odin PropertyTree 绘制，子字段上的 Odin 特性（ValueDropdown 等）正常生效。
+        /// </summary>
         private void DrawChildrenWithOdin()
         {
             using (new EditorGUILayout.VerticalScope(ChildrenBoxStyle))

@@ -9,9 +9,7 @@ namespace Moirai.Atropos.Input.Prompts
     /// </summary>
     public abstract class InputSystemPromptBase : MonoBehaviour
     {
-        /// <summary>
-        /// 是否有效，用于检验必须的组件。
-        /// </summary>
+        /// <summary>是否有效，用于检验必须的组件。</summary>
         protected abstract bool IsValid { get; }
         
         private void OnEnable()

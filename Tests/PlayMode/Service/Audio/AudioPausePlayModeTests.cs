@@ -91,7 +91,9 @@ namespace Service.Audio
                 EAudioPlayFlags.DoNotAutoRecycle), null);
         }
 
-        /// <summary>推进真实秒数并驱动服务 Tick（淡入淡出按 unscaled 计时）。</summary>
+        /// <summary>
+        /// 推进真实秒数并驱动服务 Tick（淡入淡出按 unscaled 计时）。
+        /// </summary>
         private IEnumerator Advance(float seconds)
         {
             const int steps = 3;

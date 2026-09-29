@@ -13,9 +13,7 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public interface ICompressionProvider
     {
-        /// <summary>
-        /// 提供方标识（写入文件头；0 保留为「未压缩」，注册表拒绝登记）。
-        /// </summary>
+        /// <summary>提供方标识（写入文件头；0 保留为「未压缩」，注册表拒绝登记）。</summary>
         byte ProviderId { get; }
 
         /// <summary>

@@ -14,9 +14,7 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public class SaveEncryptor
     {
-        /// <summary>
-        /// 默认 PBKDF2 迭代次数（移动端预算内兼顾派生强度的基线值，可经 <c>SaveServiceSettings</c> 覆盖）。
-        /// </summary>
+        /// <summary>默认 PBKDF2 迭代次数（移动端预算内兼顾派生强度的基线值，可经 <c>SaveServiceSettings</c> 覆盖）。</summary>
         public const int DEFAULT_ITERATIONS = 100000;
 
         /// <summary>默认占位口令（标记「未配置」；上线前必须替换为项目专属密钥）。</summary>
@@ -37,24 +35,20 @@ namespace Moirai.Atropos.Save
         /// <summary>AES-CBC 最小密文长度（空明文的 PKCS7 填充块）。</summary>
         private const int MIN_CIPHER_SIZE = 16;
 
-        /// <summary>
-        /// 保存和加载文件的密钥。
-        /// </summary>
+        /// <summary>保存和加载文件的密钥。</summary>
         /// <remarks>SECURITY: 上线前必须替换为项目专属密钥（默认占位值用于标记「未配置」）。</remarks>
         public virtual string Key { get; set; } = DEFAULT_PASSPHRASE;
 
-        /// <summary>
-        /// 加密盐文（UTF-8 编码后参与 PBKDF2 密钥派生）。
-        /// </summary>
+        /// <summary>加密盐文（UTF-8 编码后参与 PBKDF2 密钥派生）。</summary>
         /// <remarks>SECURITY: 上线前必须替换为项目专属盐文。</remarks>
         public virtual string Salt { get; set; } = DEFAULT_SALT;
 
-        /// <summary>
-        /// PBKDF2 迭代次数（由 <c>SaveServiceSettings</c> 注入覆盖）。
-        /// </summary>
+        /// <summary>PBKDF2 迭代次数（由 <c>SaveServiceSettings</c> 注入覆盖）。</summary>
         public virtual int Iterations { get; set; } = DEFAULT_ITERATIONS;
 
-        /// <summary>派生密钥材料快照（口令/盐/迭代次数 + 派生结果的不可变整体，原子读避免字段组撕裂）。</summary>
+        /// <summary>
+        /// 派生密钥材料快照（口令/盐/迭代次数 + 派生结果的不可变整体，原子读避免字段组撕裂）。
+        /// </summary>
         private sealed class DerivedKeySnapshot
         {
             internal readonly string Key;
@@ -81,10 +75,14 @@ namespace Moirai.Atropos.Save
             }
         }
 
-        /// <summary>派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销；整体替换原子读）。</summary>
+        /// <summary>
+        /// 派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销；整体替换原子读）。
+        /// </summary>
         [NonSerialized] private volatile DerivedKeySnapshot _derivedKeyCache;
 
-        /// <summary>缓存安装锁（仅保护「查缓存 → 安装」竞态；PBKDF2 派生本体在锁外执行，不阻塞并发存档 IO 线程）。</summary>
+        /// <summary>
+        /// 缓存安装锁（仅保护「查缓存 → 安装」竞态；PBKDF2 派生本体在锁外执行，不阻塞并发存档 IO 线程）。
+        /// </summary>
         [NonSerialized] private readonly object _deriveLock = new object();
 
         #region 公共流式 API [PUBLIC STREAM API]

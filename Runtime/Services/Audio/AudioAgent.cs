@@ -86,50 +86,32 @@ namespace Moirai.Atropos.Audio
 
         #region 公共属性 [PUBLIC PROPERTIES]
 
-        /// <summary>
-        /// 用户定义 ID（用于事件系统按 ID 查找）。
-        /// </summary>
+        /// <summary>用户定义 ID（用于事件系统按 ID 查找）。</summary>
         public int ID => _hot.Id;
 
-        /// <summary>
-        /// 当前热路径请求（16 字节）。
-        /// </summary>
+        /// <summary>当前热路径请求（16 字节）。</summary>
         public AudioPlayRequest HotRequest => _hot;
 
-        /// <summary>
-        /// 当前绑定的服务句柄；0 表示未绑定。
-        /// </summary>
+        /// <summary>当前绑定的服务句柄；0 表示未绑定。</summary>
         public ulong CurrentHandle => _currentHandle;
 
-        /// <summary>
-        /// 资源操作句柄。
-        /// </summary>
+        /// <summary>资源操作句柄。</summary>
         public AudioAssetData AudioAssetData => _audioAssetData;
 
-        /// <summary>
-        /// 音频代理辅助器当前是否空闲。
-        /// </summary>
+        /// <summary>音频代理辅助器当前是否空闲。</summary>
         public bool IsFree => _audioAgentRuntimeState == EAudioAgentRuntimeState.None ||
                               _audioAgentRuntimeState == EAudioAgentRuntimeState.End;
 
-        /// <summary>
-        /// 音频代理辅助器播放秒数。
-        /// </summary>
+        /// <summary>音频代理辅助器播放秒数。</summary>
         public float Duration { get; private set; }
 
-        /// <summary>
-        /// 音频代理辅助器的当前声源（若指定 <see cref="AudioPlayOptions.RecycleAudioSource"/> 则优先使用）。
-        /// </summary>
+        /// <summary>音频代理辅助器的当前声源（若指定 <see cref="AudioPlayOptions.RecycleAudioSource"/> 则优先使用）。</summary>
         public AudioSource AudioResource => _recycleSource != null ? _recycleSource : _audioSource;
 
-        /// <summary>
-        /// 当前优先级（0 最高，255 最低）。用于 Voice Stealing。
-        /// </summary>
+        /// <summary>当前优先级（0 最高，255 最低）。用于 Voice Stealing。</summary>
         public int Priority => _priority;
 
-        /// <summary>
-        /// 音频代理辅助器当前音频长度。
-        /// </summary>
+        /// <summary>音频代理辅助器当前音频长度。</summary>
         public float Length
         {
             get
@@ -144,9 +126,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 音频代理辅助器实例位置。
-        /// </summary>
+        /// <summary>音频代理辅助器实例位置。</summary>
         public Vector3 Position
         {
             get => _transform != null ? _transform.position : Vector3.zero;
@@ -156,34 +136,22 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 音频代理辅助器是否正在播放。
-        /// </summary>
+        /// <summary>音频代理辅助器是否正在播放。</summary>
         internal bool IsPlaying => AudioResource != null && AudioResource.isPlaying;
 
-        /// <summary>
-        /// 音频代理辅助器是否正在暂停。
-        /// </summary>
+        /// <summary>音频代理辅助器是否正在暂停。</summary>
         internal bool IsPaused => _audioAgentRuntimeState == EAudioAgentRuntimeState.Pausing;
 
-        /// <summary>
-        /// 音频代理辅助器是否循环。
-        /// </summary>
+        /// <summary>音频代理辅助器是否循环。</summary>
         internal bool IsLoop => _loop;
 
-        /// <summary>
-        /// 音频代理辅助器是否持久性。
-        /// </summary>
+        /// <summary>音频代理辅助器是否持久性。</summary>
         internal bool IsPersistent => _persistent;
 
-        /// <summary>
-        /// 音频代理辅助器的输出混音组。
-        /// </summary>
+        /// <summary>音频代理辅助器的输出混音组。</summary>
         public AudioMixerGroup OutputAudioMixerGroup => _overrideMixerGroup == null ? _audioMixerGroup : _overrideMixerGroup;
 
-        /// <summary>
-        /// 当前异步加载世代。
-        /// </summary>
+        /// <summary>当前异步加载世代。</summary>
         internal int LoadGeneration => _loadGeneration;
 
         #endregion
@@ -777,7 +745,9 @@ namespace Moirai.Atropos.Audio
             AudioResource.Pause();
         }
 
-        /// <summary>取消暂停：回到暂停前的状态（含淡入/淡出），并把斜坡起点整体后移暂停时长。</summary>
+        /// <summary>
+        /// 取消暂停：回到暂停前的状态（含淡入/淡出），并把斜坡起点整体后移暂停时长。
+        /// </summary>
         public void Unpause()
         {
             if (_audioAgentRuntimeState != EAudioAgentRuntimeState.Pausing) return;

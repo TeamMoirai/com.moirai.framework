@@ -37,9 +37,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取池数量。
-        /// </summary>
+        /// <summary>获取池数量。</summary>
         public override int Count => _poolMap.Count;
 
         #endregion
@@ -408,24 +406,16 @@ namespace Moirai.Atropos.ObjectPool
 
             #region 属性 [PROPERTIES]
 
-            /// <summary>
-            /// 获取对象类型。
-            /// </summary>
+            /// <summary>获取对象类型。</summary>
             public override Type ObjectType => typeof(T);
 
-            /// <summary>
-            /// 获取池内对象总数。
-            /// </summary>
+            /// <summary>获取池内对象总数。</summary>
             public override int Count => _targetMap.Count;
 
-            /// <summary>
-            /// 获取是否允许引用计数复用。
-            /// </summary>
+            /// <summary>获取是否允许引用计数复用。</summary>
             public override bool AllowMultiSpawn => _allowMultiSpawn;
 
-            /// <summary>
-            /// 获取或设置超容自动释放间隔（秒）。
-            /// </summary>
+            /// <summary>获取或设置超容自动释放间隔（秒）。</summary>
             public override float AutoReleaseInterval
             {
                 get => _autoReleaseInterval;
@@ -442,9 +432,7 @@ namespace Moirai.Atropos.ObjectPool
                 }
             }
 
-            /// <summary>
-            /// 获取或设置池容量。
-            /// </summary>
+            /// <summary>获取或设置池容量。</summary>
             public override int Capacity
             {
                 get => _capacity;
@@ -466,9 +454,7 @@ namespace Moirai.Atropos.ObjectPool
                 }
             }
 
-            /// <summary>
-            /// 获取或设置空闲过期时间（秒）。
-            /// </summary>
+            /// <summary>获取或设置空闲过期时间（秒）。</summary>
             public override float ExpireTime
             {
                 get => _expireTime;
@@ -485,9 +471,7 @@ namespace Moirai.Atropos.ObjectPool
                 }
             }
 
-            /// <summary>
-            /// 获取或设置池优先级。
-            /// </summary>
+            /// <summary>获取或设置池优先级。</summary>
             public override int Priority
             {
                 get => _priority;

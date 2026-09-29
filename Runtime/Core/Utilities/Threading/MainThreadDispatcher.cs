@@ -44,9 +44,7 @@ namespace Moirai.Atropos
         private static readonly ConcurrentQueue<Action> s_PendingQueue = new ConcurrentQueue<Action>();
         private static readonly ProfilerMarker s_PumpMarker = new ProfilerMarker("MainThreadDispatcher.Pump");
 
-        /// <summary>
-        /// 挂起的可等待操作（PostAsync/SendAsync）取消句柄注册表。
-        /// </summary>
+        /// <summary>挂起的可等待操作（PostAsync/SendAsync）取消句柄注册表。</summary>
         /// <remarks>
         /// 停机时统一 <see cref="AwaiterHandle.Cancel"/>，保证等待方收到取消而非永久挂起；任务正常完成后由闭包在 finally 中移除。
         /// </remarks>
@@ -789,28 +787,36 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>已取消的 <see cref="UniTask"/>（池化源工厂，冷路径）。</summary>
+        /// <summary>
+        /// 已取消的 <see cref="UniTask"/>（池化源工厂，冷路径）。
+        /// </summary>
         private static UniTask CanceledUniTask(CancellationToken token)
         {
             AutoResetUniTaskCompletionSource source = AutoResetUniTaskCompletionSource.CreateFromCanceled(token, out short token2);
             return new UniTask(source, token2);
         }
 
-        /// <summary>已失败的 <see cref="UniTask"/>（池化源工厂，冷路径）。</summary>
+        /// <summary>
+        /// 已失败的 <see cref="UniTask"/>（池化源工厂，冷路径）。
+        /// </summary>
         private static UniTask FaultedUniTask(Exception exception)
         {
             AutoResetUniTaskCompletionSource source = AutoResetUniTaskCompletionSource.CreateFromException(exception, out short token2);
             return new UniTask(source, token2);
         }
 
-        /// <summary>已取消的 <see cref="UniTask{T}"/>（池化源工厂，冷路径）。</summary>
+        /// <summary>
+        /// 已取消的 <see cref="UniTask{T}"/>（池化源工厂，冷路径）。
+        /// </summary>
         private static UniTask<T> CanceledUniTask<T>(CancellationToken token)
         {
             AutoResetUniTaskCompletionSource<T> source = AutoResetUniTaskCompletionSource<T>.CreateFromCanceled(token, out short token2);
             return new UniTask<T>(source, token2);
         }
 
-        /// <summary>已失败的 <see cref="UniTask{T}"/>（池化源工厂，冷路径）。</summary>
+        /// <summary>
+        /// 已失败的 <see cref="UniTask{T}"/>（池化源工厂，冷路径）。
+        /// </summary>
         private static UniTask<T> FaultedUniTask<T>(Exception exception)
         {
             AutoResetUniTaskCompletionSource<T> source = AutoResetUniTaskCompletionSource<T>.CreateFromException(exception, out short token2);

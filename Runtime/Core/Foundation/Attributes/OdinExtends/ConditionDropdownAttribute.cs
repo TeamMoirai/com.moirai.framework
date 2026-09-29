@@ -10,9 +10,7 @@ namespace Sirenix.OdinInspector
     [Conditional("UNITY_EDITOR")]
     public class ConditionDropdownAttribute : ValueDropdownAttribute
     {
-        /// <summary>
-        /// 可选的条件字符串（经成员名称解析求值），决定是否显示内联按钮。
-        /// </summary>
+        /// <summary>可选的条件字符串（经成员名称解析求值），决定是否显示内联按钮。</summary>
         public string ShowIf;
 
         /// <summary>

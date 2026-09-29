@@ -12,9 +12,7 @@ namespace Moirai.Atropos
     /// </remarks>
     internal interface IServiceLifecycle
     {
-        /// <summary>
-        /// 当前状态（容器侧读取口，与 <see cref="ServiceWorld.IsServiceReady"/> 的判定同源）。
-        /// </summary>
+        /// <summary>当前状态（容器侧读取口，与 <see cref="ServiceWorld.IsServiceReady"/> 的判定同源）。</summary>
         EServiceState StateInternal { get; }
 
         /// <summary>

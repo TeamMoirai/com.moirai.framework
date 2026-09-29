@@ -796,7 +796,9 @@ namespace Moirai.Atropos
                 return count;
             }
 
-            /// <summary>停止 = 中断：不触发 OnComplete；挂起 awaiter 正常返回（不区分结束原因）。</summary>
+            /// <summary>
+            /// 停止 = 中断：不触发 OnComplete；挂起 awaiter 正常返回（不区分结束原因）。
+            /// </summary>
             internal static void Stop(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
@@ -877,7 +879,9 @@ namespace Moirai.Atropos
 
             #region 暂停与等待 [PAUSE & AWAIT]
 
-            /// <summary>暂停指定 tween（冻结时间推进，含延迟倒计时）。死 id 静默 no-op。</summary>
+            /// <summary>
+            /// 暂停指定 tween（冻结时间推进，含延迟倒计时）。死 id 静默 no-op。
+            /// </summary>
             internal static void Pause(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
@@ -885,7 +889,9 @@ namespace Moirai.Atropos
                     s_States[index].IsPaused = true;
             }
 
-            /// <summary>恢复指定 tween。死 id 或未暂停时静默 no-op。</summary>
+            /// <summary>
+            /// 恢复指定 tween。死 id 或未暂停时静默 no-op。
+            /// </summary>
             internal static void Resume(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
@@ -970,9 +976,7 @@ namespace Moirai.Atropos
 
             #region 贝塞尔 [BEZIER]
 
-            /// <summary>
-            /// De Casteljau 算法计算 N 阶贝塞尔曲线：无 Pow/二项式系数，复用静态缓冲（按需扩容），0 GC。
-            /// </summary>
+            /// <summary>De Casteljau 算法计算 N 阶贝塞尔曲线：无 Pow/二项式系数，复用静态缓冲（按需扩容），0 GC。</summary>
             private static Vector3[] s_BezierScratch;
 
             private static Vector3 CalculateBezierPoint(float t, Vector3[] points)

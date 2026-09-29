@@ -8,7 +8,9 @@ using UnityEngine;
 
 namespace Service.Audio
 {
-    /// <summary>BgmPlaylist 分层 ID 契约：显式 ID 撞车即报错且本实例不播放，自动分配走负区间。</summary>
+    /// <summary>
+    /// BgmPlaylist 分层 ID 契约：显式 ID 撞车即报错且本实例不播放，自动分配走负区间。
+    /// </summary>
     /// <remarks>错误日志内容经 <see cref="LogUtility.OnMessageLogged"/> 捕获（Handler 无关），UTF 消除经 <see cref="UtfLogExpect"/>； <br />
     /// 成员触达走 internal 接缝，不用反射。</remarks>
     [TestFixture]
@@ -138,7 +140,9 @@ namespace Service.Audio
             if (playlist != null) UnityEngine.Object.DestroyImmediate(playlist.gameObject);
         }
 
-        /// <summary>清空静态 ID 注册表与自动游标，隔离夹具间与全量套件间的静态残留。</summary>
+        /// <summary>
+        /// 清空静态 ID 注册表与自动游标，隔离夹具间与全量套件间的静态残留。
+        /// </summary>
         private static void ResetStaticIdRegistry()
         {
             BgmPlaylist.s_ClaimedIds.Clear();

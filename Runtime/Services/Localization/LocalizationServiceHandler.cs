@@ -60,14 +60,10 @@ namespace Moirai.Atropos.Localization
         /// <summary>缺译追踪集合的最大容量。</summary>
         private const int MAX_TRACKED_MISSING_KEYS = 256;
 
-        /// <summary>
-        /// 当前使用的本地化语言。
-        /// </summary>
+        /// <summary>当前使用的本地化语言。</summary>
         public Language CurrentLanguage => _currentLanguage ?? LocalizationService.GetCurrentLanguage(true, ref _settingSource);
 
-        /// <summary>
-        /// 当前语言索引（数据未就绪或语言未解析时为 -1）。
-        /// </summary>
+        /// <summary>当前语言索引（数据未就绪或语言未解析时为 -1）。</summary>
         public int CurrentLanguageIndex
         {
             get
@@ -83,12 +79,12 @@ namespace Moirai.Atropos.Localization
         /// <summary>当前语言是否从右向左书写（未就绪为 <c>false</c>）。</summary>
         internal bool IsCurrentLanguageRightToLeft => _currentLanguage?.IsRightToLeft ?? false;
 
-        /// <summary>语言是否在当前批内（调用方须已确认数据加载完成，见 <see cref="IsDataLoaded"/>）。</summary>
+        /// <summary>
+        /// 语言是否在当前批内（调用方须已确认数据加载完成，见 <see cref="IsDataLoaded"/>）。
+        /// </summary>
         internal bool IsLanguageAvailable(Language language) => language != null && Store.IndexOf(language) >= 0;
 
-        /// <summary>
-        /// 当前批内收录的语言，列序即批内列下标顺序；数据未就绪时为空。
-        /// </summary>
+        /// <summary>当前批内收录的语言，列序即批内列下标顺序；数据未就绪时为空。</summary>
         /// <remarks>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</remarks>
         public IReadOnlyList<Language> LoadedLanguages
         {
@@ -119,9 +115,7 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>
-        /// 全部语言列的译文总字符数。
-        /// </summary>
+        /// <summary>全部语言列的译文总字符数。</summary>
         /// <remarks>UTF-16 下每字符 2 字节，是常驻译文的<b>下限</b>估算（不含字符串对象头与字典开销），
         /// 用于判断是否到了必须按语言拆包加载的量级。</remarks>
         public long ResidentChars
@@ -162,9 +156,7 @@ namespace Moirai.Atropos.Localization
             _hasLoggedMissingCap = false;
         }
 
-        /// <summary>
-        /// 当语言改变时调用。
-        /// </summary>
+        /// <summary>当语言改变时调用。</summary>
         /// <remarks>在全部本地化器重注入<em>之后</em>触发，回调内查询文本即已是新语言。
         /// 需要「关服自动摘除」的订阅请用 <see cref="SubscribeLanguageChanged"/>。</remarks>
         public event Action<Language> OnLanguageChanged;
@@ -303,9 +295,7 @@ namespace Moirai.Atropos.Localization
             CompleteLoad();
         }
 
-        /// <summary>
-        /// 声明本处理器支持按语言列加载（可选契约；默认 <c>false</c>，即整批加载、全语言常驻）。
-        /// </summary>
+        /// <summary>声明本处理器支持按语言列加载（可选契约；默认 <c>false</c>，即整批加载、全语言常驻）。</summary>
         /// <remarks>
         /// 覆写为 <c>true</c> 必须同时实现 <see cref="LoadLanguageHeader"/> 与 <see cref="LoadLanguageColumn"/>； <br />
         /// 启用后常驻降为「语言头 + 当前语言列」，是否值得按 <see cref="ResidentChars"/> 量级判断。
@@ -874,9 +864,7 @@ namespace Moirai.Atropos.Localization
             LogUtility.Warning("Language {0} is not available.", language);
         }
 
-        /// <summary>
-        /// 当前语言的格式化文化（数字/日期等随游戏语言而非设备系统文化）。
-        /// </summary>
+        /// <summary>当前语言的格式化文化（数字/日期等随游戏语言而非设备系统文化）。</summary>
         /// <remarks>SerializeReference 还原的处理器不保证跑过构造器，读取侧做不变文化兜底。</remarks>
         internal CultureInfo FormatCulture => _formatCulture ?? CultureInfo.InvariantCulture;
 
@@ -1030,7 +1018,9 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>根据文本 ID 获取带两个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带两个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public string GetTextFromId<T1, T2>(string id, T1 arg1, T2 arg2)
         {
             EnsureLocalizedStringsLoaded();
@@ -1049,7 +1039,9 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>根据文本 ID 获取带三个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带三个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public string GetTextFromId<T1, T2, T3>(string id, T1 arg1, T2 arg2, T3 arg3)
         {
             EnsureLocalizedStringsLoaded();
@@ -1068,7 +1060,9 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>根据文本 ID 获取带四个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带四个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public string GetTextFromId<T1, T2, T3, T4>(string id, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
         {
             EnsureLocalizedStringsLoaded();
@@ -1299,10 +1293,14 @@ namespace Moirai.Atropos.Localization
             return Store.SetOverlay(sourceId, language, entries);
         }
 
-        /// <summary>撤掉某个来源的全部覆盖；返回是否确实存在该层。</summary>
+        /// <summary>
+        /// 撤掉某个来源的全部覆盖；返回是否确实存在该层。
+        /// </summary>
         public bool ClearStringOverlay(string sourceId) => !string.IsNullOrEmpty(sourceId) && Store.ClearOverlay(sourceId);
 
-        /// <summary>撤掉全部覆盖层。</summary>
+        /// <summary>
+        /// 撤掉全部覆盖层。
+        /// </summary>
         public void ClearAllStringOverlays() => Store.ClearAllOverlays();
 
         /// <summary>已登记的覆盖层数量。</summary>

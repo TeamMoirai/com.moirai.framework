@@ -17,9 +17,7 @@ namespace Moirai.Atropos
         /// <summary>资源服务。</summary>
         public const int RESOURCE = -1002;
 
-        /// <summary>
-        /// 中层内置服务默认优先级（音频/UI/计时器/场景/本地化/输入/配置表/存档）；同值时按注册先后轮询。
-        /// </summary>
+        /// <summary>中层内置服务默认优先级（音频/UI/计时器/场景/本地化/输入/配置表/存档）；同值时按注册先后轮询。</summary>
         public const int MID_TIER = -1005;
 
         /// <summary>调试器服务。</summary>

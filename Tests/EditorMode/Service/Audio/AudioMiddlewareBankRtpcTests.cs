@@ -142,7 +142,9 @@ namespace Service.Audio
             AssertBankAndRtpc(CreateDefaultBridge(typeof(WwiseAudioHandler)));
         }
 
-        /// <summary>断言桥类型（或实例）实现了 Bank / RTPC 能力接口。</summary>
+        /// <summary>
+        /// 断言桥类型（或实例）实现了 Bank / RTPC 能力接口。
+        /// </summary>
         private static void AssertBankAndRtpc(object bridgeOrType)
         {
             Assert.IsNotNull(bridgeOrType);
@@ -262,7 +264,9 @@ namespace Service.Audio
             }
         }
 
-        /// <summary>仅实现主桥接口的假件——验证能力探测安全降级，也是能力子类化的底座。</summary>
+        /// <summary>
+        /// 仅实现主桥接口的假件——验证能力探测安全降级，也是能力子类化的底座。
+        /// </summary>
         private class BridgeWithoutCapabilities : IAudioMiddlewareBridge
         {
             public bool Initialize(UnityEngine.Transform instanceRoot) => true;
@@ -282,7 +286,9 @@ namespace Service.Audio
 
         #region 加载失败可归因 [LOAD FAILURE DIAGNOSIS]
 
-        /// <summary>可编排加载结果、并统计触达次数的假桥。</summary>
+        /// <summary>
+        /// 可编排加载结果、并统计触达次数的假桥。
+        /// </summary>
         private sealed class ControllableBankBridge : BridgeWithoutCapabilities, IAudioMiddlewareBankControl
         {
             public EAudioBankLoadResult NextResult = EAudioBankLoadResult.Loaded;

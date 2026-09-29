@@ -10,24 +10,16 @@ namespace Moirai.Atropos.Save
     /// <remarks>位置/旋转等运行态不入本表——由实体块（<c>entity:{EntityId}</c>）的组件差分承载。</remarks>
     public readonly struct SaveSpawnRecord
     {
-        /// <summary>
-        /// 实体稳定标识。
-        /// </summary>
+        /// <summary>实体稳定标识。</summary>
         public string EntityId { get; }
 
-        /// <summary>
-        /// 预制体注册键（<see cref="SavePrefabRegistry"/>）。
-        /// </summary>
+        /// <summary>预制体注册键（<see cref="SavePrefabRegistry"/>）。</summary>
         public string PrefabKey { get; }
 
-        /// <summary>
-        /// 所属场景名（恢复时同名场景已加载则落位其中，否则落位活跃场景并记告警）。
-        /// </summary>
+        /// <summary>所属场景名（恢复时同名场景已加载则落位其中，否则落位活跃场景并记告警）。</summary>
         public string SceneName { get; }
 
-        /// <summary>
-        /// 父对象稳定 ID（空 = 场景根；恢复第二轮接线，指向另一实体或预置对象均可）。
-        /// </summary>
+        /// <summary>父对象稳定 ID（空 = 场景根；恢复第二轮接线，指向另一实体或预置对象均可）。</summary>
         public string ParentId { get; }
 
         /// <summary>

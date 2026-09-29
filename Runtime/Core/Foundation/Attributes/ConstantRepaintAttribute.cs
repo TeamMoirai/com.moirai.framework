@@ -11,9 +11,7 @@ namespace Moirai.Atropos
 
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 只需要在运行时不断重新喷漆。
-        /// </summary>
+        /// <summary>只需要在运行时不断重新喷漆。</summary>
         public bool runtimeOnly;
 
         #endregion

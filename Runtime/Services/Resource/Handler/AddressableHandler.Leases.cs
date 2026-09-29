@@ -62,7 +62,9 @@ namespace Moirai.Atropos.Resource
         
         #region 句柄包装 [HANDLE WRAPPER]
 
-        /// <summary>内核侧只需要"还活着吗"和"放掉"，不需要知道 Addressables 的泛型参数。</summary>
+        /// <summary>
+        /// 内核侧只需要"还活着吗"和"放掉"，不需要知道 Addressables 的泛型参数。
+        /// </summary>
         private interface IAddressableHandleRef
         {
             bool IsValid { get; }

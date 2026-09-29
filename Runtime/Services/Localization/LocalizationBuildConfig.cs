@@ -16,7 +16,9 @@ namespace Moirai.Atropos.Localization
         /// <summary>渠道默认语言的 Name 或 Code（与 <c>LocalizationService.ToLanguage</c> 同一解析面）。</summary>
         public string LanguageCode => m_LanguageCode;
 
-        /// <summary>写入烘焙值（仅编辑器烘焙路径调用）。</summary>
+        /// <summary>
+        /// 写入烘焙值（仅编辑器烘焙路径调用）。
+        /// </summary>
         internal void SetLanguageCode(string languageCode) => m_LanguageCode = languageCode;
     }
 }

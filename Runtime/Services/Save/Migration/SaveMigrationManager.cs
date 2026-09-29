@@ -36,9 +36,7 @@ namespace Moirai.Atropos.Save
         /// <summary>当前数据版本（默认 0 = 版本化未激活，管线完全旁路迁移总线）。</summary>
         private static volatile int s_CurrentVersion;
 
-        /// <summary>
-        /// 当前存档数据版本（int 递增；默认 0 = 迁移总线未激活）。
-        /// </summary>
+        /// <summary>当前存档数据版本（int 递增；默认 0 = 迁移总线未激活）。</summary>
         /// <remarks>游戏层在启动期主线程设置；写入管线在激活时把该版本盖章进槽位元数据块，读取管线对低于该版本的存档执行迁移链。</remarks>
         public static int CurrentVersion
         {

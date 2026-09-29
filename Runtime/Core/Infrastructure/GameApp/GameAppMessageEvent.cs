@@ -14,30 +14,20 @@
         {
             // 框架事件，10000起步（该号段为框架保留，项目层请另起号段或另立事件类型）
 
-            /// <summary>
-            /// 占位值（无事件语义，不要使用）。
-            /// </summary>
+            /// <summary>占位值（无事件语义，不要使用）。</summary>
             Empty = 10000,
 
-            /// <summary>
-            /// 游戏对焦。
-            /// </summary>
+            /// <summary>游戏对焦。</summary>
             ApplicationFocus = 10001,
 
-            /// <summary>
-            /// 游戏失焦。
-            /// </summary>
+            /// <summary>游戏失焦。</summary>
             NotApplicationFocus = 10002,
 
-            /// <summary>
-            /// 游戏退出。
-            /// </summary>
+            /// <summary>游戏退出。</summary>
             ApplicationQuit = 10003,
         }
         
-        /// <summary>
-        /// 事件类型。
-        /// </summary>
+        /// <summary>事件类型。</summary>
         public EEventType EventType { get; private set; }
 
         private static GameAppMessageEvent GetPooled(EEventType eventType)

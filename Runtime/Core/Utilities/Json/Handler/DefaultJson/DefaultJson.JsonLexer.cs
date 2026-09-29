@@ -39,37 +39,59 @@ namespace Moirai.Atropos
             /// <summary>配置的最大解析深度。</summary>
             int MaxDepth { get; }
 
-            /// <summary>跳过空白（含 UTF8 BOM 后的常规空白）。</summary>
+            /// <summary>
+            /// 跳过空白（含 UTF8 BOM 后的常规空白）。
+            /// </summary>
             void SkipWhitespace();
 
-            /// <summary>预览当前字符/字节（ASCII 结构统一为 int）；EOF 抛错。</summary>
+            /// <summary>
+            /// 预览当前字符/字节（ASCII 结构统一为 int）；EOF 抛错。
+            /// </summary>
             int Peek();
 
-            /// <summary>断言当前 token 为指定 ASCII 字符（先跳空白），消费之。</summary>
+            /// <summary>
+            /// 断言当前 token 为指定 ASCII 字符（先跳空白），消费之。
+            /// </summary>
             void Expect(int expected);
 
-            /// <summary>匹配字面量（含词边界校验：后续必须是分隔符或 EOF）。</summary>
+            /// <summary>
+            /// 匹配字面量（含词边界校验：后续必须是分隔符或 EOF）。
+            /// </summary>
             bool MatchLiteral(string literal);
 
-            /// <summary>读取带引号字符串（物化 + 反转义）。调用方保证下一个 token 是 '"'。</summary>
+            /// <summary>
+            /// 读取带引号字符串（物化 + 反转义）。调用方保证下一个 token 是 '"'。
+            /// </summary>
             string ReadString();
 
-            /// <summary>解析数值字面量为目标类型（各实现用最优 span 解析）。</summary>
+            /// <summary>
+            /// 解析数值字面量为目标类型（各实现用最优 span 解析）。
+            /// </summary>
             object ParseNumber(Type type);
 
-            /// <summary>字符串值 → 目标类型（含带引号历史数值的桥接解析）。</summary>
+            /// <summary>
+            /// 字符串值 → 目标类型（含带引号历史数值的桥接解析）。
+            /// </summary>
             object ConvertString(string s, Type type);
 
-            /// <summary>读取对象键并匹配到字段/属性（各实现用最优键匹配：char span / UTF8 字节表）。</summary>
+            /// <summary>
+            /// 读取对象键并匹配到字段/属性（各实现用最优键匹配：char span / UTF8 字节表）。
+            /// </summary>
             MemberMatch MatchMember(ReflectionCache.TypeMeta meta);
 
-            /// <summary>跳过任意未知值（字面量/字符串/对象/数组）。</summary>
+            /// <summary>
+            /// 跳过任意未知值（字面量/字符串/对象/数组）。
+            /// </summary>
             void SkipValue();
 
-            /// <summary>消费当前字符（Peek 已确认后单次推进；避免 Expect(Peek()) 的二次 SkipWhitespace）。</summary>
+            /// <summary>
+            /// 消费当前字符（Peek 已确认后单次推进；避免 Expect(Peek()) 的二次 SkipWhitespace）。
+            /// </summary>
             void Consume();
 
-            /// <summary>抛带偏移/行列/上下文片段的错误。</summary>
+            /// <summary>
+            /// 抛带偏移/行列/上下文片段的错误。
+            /// </summary>
             [System.Diagnostics.CodeAnalysis.DoesNotReturn]
             void Throw(string message);
         }
@@ -80,34 +102,54 @@ namespace Moirai.Atropos
         /// <remarks>覆盖 int/float/double/long/string，绕过 Mono 上泛型 Reader 的接口/委托分发退化。</remarks>
         internal interface ITypedArrayParser
         {
-            /// <summary>解析 int[] 专用热循环（最高频类型）。</summary>
+            /// <summary>
+            /// 解析 int[] 专用热循环（最高频类型）。
+            /// </summary>
             int[] ParseInt32ArrayFast();
 
-            /// <summary>解析 List&lt;int&gt; 专用热循环（向既有列表填充）。</summary>
+            /// <summary>
+            /// 解析 List&lt;int&gt; 专用热循环（向既有列表填充）。
+            /// </summary>
             void ParseInt32ListFast(List<int> list);
 
-            /// <summary>解析 float[] 专用热循环。</summary>
+            /// <summary>
+            /// 解析 float[] 专用热循环。
+            /// </summary>
             float[] ParseSingleArrayFast();
 
-            /// <summary>解析 List&lt;float&gt; 专用热循环。</summary>
+            /// <summary>
+            /// 解析 List&lt;float&gt; 专用热循环。
+            /// </summary>
             void ParseSingleListFast(List<float> list);
 
-            /// <summary>解析 double[] 专用热循环。</summary>
+            /// <summary>
+            /// 解析 double[] 专用热循环。
+            /// </summary>
             double[] ParseDoubleArrayFast();
 
-            /// <summary>解析 List&lt;double&gt; 专用热循环。</summary>
+            /// <summary>
+            /// 解析 List&lt;double&gt; 专用热循环。
+            /// </summary>
             void ParseDoubleListFast(List<double> list);
 
-            /// <summary>解析 long[] 专用热循环。</summary>
+            /// <summary>
+            /// 解析 long[] 专用热循环。
+            /// </summary>
             long[] ParseInt64ArrayFast();
 
-            /// <summary>解析 List&lt;long&gt; 专用热循环。</summary>
+            /// <summary>
+            /// 解析 List&lt;long&gt; 专用热循环。
+            /// </summary>
             void ParseInt64ListFast(List<long> list);
 
-            /// <summary>解析 string[] 专用热循环（含 null 字面量）。</summary>
+            /// <summary>
+            /// 解析 string[] 专用热循环（含 null 字面量）。
+            /// </summary>
             string[] ParseStringArrayFast();
 
-            /// <summary>解析 List&lt;string&gt; 专用热循环（含 null 字面量）。</summary>
+            /// <summary>
+            /// 解析 List&lt;string&gt; 专用热循环（含 null 字面量）。
+            /// </summary>
             void ParseStringListFast(List<string> list);
         }
 
@@ -122,7 +164,9 @@ namespace Moirai.Atropos
 
             public int MaxDepth => _maxDepth;
 
-            /// <summary>防御性无参构造（泛型约束兼容；正常路径使用 (json, maxDepth) 主构造）。</summary>
+            /// <summary>
+            /// 防御性无参构造（泛型约束兼容；正常路径使用 (json, maxDepth) 主构造）。
+            /// </summary>
             internal CharLexer()
             {
                 _json = string.Empty;
@@ -360,7 +404,9 @@ namespace Moirai.Atropos
 
             #region 私有方法 [PRIVATE METHODS]
 
-            /// <summary>布尔 token（数组/列表快路径用；值域外抛错）。</summary>
+            /// <summary>
+            /// 布尔 token（数组/列表快路径用；值域外抛错）。
+            /// </summary>
             private bool ReadBooleanToken()
             {
                 SkipWhitespace();
@@ -371,7 +417,9 @@ namespace Moirai.Atropos
                 return false;
             }
 
-            /// <summary>数值 token → 目标类型（数组/列表快路径用；经 ParseNumberSpan 全路径校验含范围）。</summary>
+            /// <summary>
+            /// 数值 token → 目标类型（数组/列表快路径用；经 ParseNumberSpan 全路径校验含范围）。
+            /// </summary>
             private object ReadTypedNumber(Type type)
             {
                 SkipWhitespace();
@@ -380,7 +428,9 @@ namespace Moirai.Atropos
 
             #region int 专用热循环 [INT32 HOT LOOPS]
 
-            /// <summary>int[] 专用热循环：具体类型直调（绕过接口/委托分发——Mono 泛型容器循环退化 ~4× 的补偿）。</summary>
+            /// <summary>
+            /// int[] 专用热循环：具体类型直调（绕过接口/委托分发——Mono 泛型容器循环退化 ~4× 的补偿）。
+            /// </summary>
             public int[] ParseInt32ArrayFast()
             {
                 Expect('[');
@@ -418,7 +468,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;int&gt; 专用热循环（向既有列表填充）。</summary>
+            /// <summary>
+            /// List&lt;int&gt; 专用热循环（向既有列表填充）。
+            /// </summary>
             public void ParseInt32ListFast(List<int> list)
             {
                 Expect('[');
@@ -452,7 +504,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>float[] 专用热循环。</summary>
+            /// <summary>
+            /// float[] 专用热循环。
+            /// </summary>
             public float[] ParseSingleArrayFast()
             {
                 Expect('[');
@@ -481,7 +535,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;float&gt; 专用热循环。</summary>
+            /// <summary>
+            /// List&lt;float&gt; 专用热循环。
+            /// </summary>
             public void ParseSingleListFast(List<float> list)
             {
                 Expect('[');
@@ -506,7 +562,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>double[] 专用热循环。</summary>
+            /// <summary>
+            /// double[] 专用热循环。
+            /// </summary>
             public double[] ParseDoubleArrayFast()
             {
                 Expect('[');
@@ -535,7 +593,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;double&gt; 专用热循环。</summary>
+            /// <summary>
+            /// List&lt;double&gt; 专用热循环。
+            /// </summary>
             public void ParseDoubleListFast(List<double> list)
             {
                 Expect('[');
@@ -560,7 +620,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>long[] 专用热循环。</summary>
+            /// <summary>
+            /// long[] 专用热循环。
+            /// </summary>
             public long[] ParseInt64ArrayFast()
             {
                 Expect('[');
@@ -589,7 +651,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;long&gt; 专用热循环。</summary>
+            /// <summary>
+            /// List&lt;long&gt; 专用热循环。
+            /// </summary>
             public void ParseInt64ListFast(List<long> list)
             {
                 Expect('[');
@@ -614,7 +678,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>string[] 专用热循环（含 null 字面量）。</summary>
+            /// <summary>
+            /// string[] 专用热循环（含 null 字面量）。
+            /// </summary>
             public string[] ParseStringArrayFast()
             {
                 Expect('[');
@@ -644,7 +710,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;string&gt; 专用热循环（含 null 字面量）。</summary>
+            /// <summary>
+            /// List&lt;string&gt; 专用热循环（含 null 字面量）。
+            /// </summary>
             public void ParseStringListFast(List<string> list)
             {
                 Expect('[');
@@ -672,7 +740,9 @@ namespace Moirai.Atropos
 
             #endregion
 
-            /// <summary>读取带引号字符串的原始 span（不含引号），跳过转义对。</summary>
+            /// <summary>
+            /// 读取带引号字符串的原始 span（不含引号），跳过转义对。
+            /// </summary>
             private ReadOnlySpan<char> ReadStringSpan(out bool hasEscape)
             {
                 hasEscape = false;
@@ -733,7 +803,9 @@ namespace Moirai.Atropos
                 return default;
             }
 
-            /// <summary>反转义（\uXXXX、标准转义对、代理对自然保留）。仅在含转义时分配。</summary>
+            /// <summary>
+            /// 反转义（\uXXXX、标准转义对、代理对自然保留）。仅在含转义时分配。
+            /// </summary>
             private string Unescape(ReadOnlySpan<char> input)
             {
                 IStringBuilder sb = StringUtility.CreateStringBuilder(input.Length);
@@ -790,7 +862,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>span 数值解析：枚举/整数按目标类型直取（零中间字符串），失败回退 double（科学计数法）。</summary>
+            /// <summary>
+            /// span 数值解析：枚举/整数按目标类型直取（零中间字符串），失败回退 double（科学计数法）。
+            /// </summary>
             private object ParseNumberSpan(Type type, ReadOnlySpan<char> s)
             {
                 if (s.IsEmpty)
@@ -909,7 +983,9 @@ namespace Moirai.Atropos
 
             public int MaxDepth => _maxDepth;
 
-            /// <summary>防御性无参构造（泛型约束兼容；正常路径使用 (json, maxDepth) 主构造）。</summary>
+            /// <summary>
+            /// 防御性无参构造（泛型约束兼容；正常路径使用 (json, maxDepth) 主构造）。
+            /// </summary>
             internal ByteLexer()
             {
                 _json = Array.Empty<byte>();
@@ -1145,7 +1221,9 @@ namespace Moirai.Atropos
 
             #region 私有方法 [PRIVATE METHODS]
 
-            /// <summary>布尔 token（数组/列表快路径用；值域外抛错）。</summary>
+            /// <summary>
+            /// 布尔 token（数组/列表快路径用；值域外抛错）。
+            /// </summary>
             private bool ReadBooleanToken()
             {
                 SkipWhitespace();
@@ -1156,7 +1234,9 @@ namespace Moirai.Atropos
                 return false;
             }
 
-            /// <summary>数值 token → 目标类型（数组/列表快路径用；含溢出预判与范围校验）。</summary>
+            /// <summary>
+            /// 数值 token → 目标类型（数组/列表快路径用；含溢出预判与范围校验）。
+            /// </summary>
             private object ReadTypedNumber(Type type)
             {
                 SkipWhitespace();
@@ -1204,7 +1284,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;int&gt; 专用热循环（直调 span 解析；向既有列表填充）。</summary>
+            /// <summary>
+            /// List&lt;int&gt; 专用热循环（直调 span 解析；向既有列表填充）。
+            /// </summary>
             public void ParseInt32ListFast(List<int> list)
             {
                 Expect((byte)'[');
@@ -1238,7 +1320,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>float[] 专用热循环（直调 span 解析）。</summary>
+            /// <summary>
+            /// float[] 专用热循环（直调 span 解析）。
+            /// </summary>
             public float[] ParseSingleArrayFast()
             {
                 Expect((byte)'[');
@@ -1267,7 +1351,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;float&gt; 专用热循环。</summary>
+            /// <summary>
+            /// List&lt;float&gt; 专用热循环。
+            /// </summary>
             public void ParseSingleListFast(List<float> list)
             {
                 Expect((byte)'[');
@@ -1292,7 +1378,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>double[] 专用热循环。</summary>
+            /// <summary>
+            /// double[] 专用热循环。
+            /// </summary>
             public double[] ParseDoubleArrayFast()
             {
                 Expect((byte)'[');
@@ -1321,7 +1409,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;double&gt; 专用热循环。</summary>
+            /// <summary>
+            /// List&lt;double&gt; 专用热循环。
+            /// </summary>
             public void ParseDoubleListFast(List<double> list)
             {
                 Expect((byte)'[');
@@ -1346,7 +1436,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>long[] 专用热循环。</summary>
+            /// <summary>
+            /// long[] 专用热循环。
+            /// </summary>
             public long[] ParseInt64ArrayFast()
             {
                 Expect((byte)'[');
@@ -1375,7 +1467,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;long&gt; 专用热循环。</summary>
+            /// <summary>
+            /// List&lt;long&gt; 专用热循环。
+            /// </summary>
             public void ParseInt64ListFast(List<long> list)
             {
                 Expect((byte)'[');
@@ -1400,7 +1494,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>string[] 专用热循环（含 null 字面量）。</summary>
+            /// <summary>
+            /// string[] 专用热循环（含 null 字面量）。
+            /// </summary>
             public string[] ParseStringArrayFast()
             {
                 Expect((byte)'[');
@@ -1430,7 +1526,9 @@ namespace Moirai.Atropos
                 return tmp.ToArray();
             }
 
-            /// <summary>List&lt;string&gt; 专用热循环（含 null 字面量）。</summary>
+            /// <summary>
+            /// List&lt;string&gt; 专用热循环（含 null 字面量）。
+            /// </summary>
             public void ParseStringListFast(List<string> list)
             {
                 Expect((byte)'[');
@@ -1456,7 +1554,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>int token：直取（科学计数法/越界回退 double 整值校验，兼容 "1e2" 类输入）。</summary>
+            /// <summary>
+            /// int token：直取（科学计数法/越界回退 double 整值校验，兼容 "1e2" 类输入）。
+            /// </summary>
             private int ReadInt32Token()
             {
                 ReadOnlySpan<byte> s = ScanNumberToken();
@@ -1476,7 +1576,9 @@ namespace Moirai.Atropos
                 return 0;
             }
 
-            /// <summary>long token：直取（科学计数法/溢出回退 double 整值校验）。</summary>
+            /// <summary>
+            /// long token：直取（科学计数法/溢出回退 double 整值校验）。
+            /// </summary>
             private long ReadInt64Token()
             {
                 ReadOnlySpan<byte> s = ScanNumberToken();
@@ -1492,7 +1594,9 @@ namespace Moirai.Atropos
                 return 0;
             }
 
-            /// <summary>float token：直取。</summary>
+            /// <summary>
+            /// float token：直取。
+            /// </summary>
             private float ReadSingleToken()
             {
                 ReadOnlySpan<byte> s = ScanNumberToken();
@@ -1502,7 +1606,9 @@ namespace Moirai.Atropos
                 return 0;
             }
 
-            /// <summary>double token：直取。</summary>
+            /// <summary>
+            /// double token：直取。
+            /// </summary>
             private double ReadDoubleToken()
             {
                 ReadOnlySpan<byte> s = ScanNumberToken();
@@ -1514,7 +1620,9 @@ namespace Moirai.Atropos
 
             #endregion
 
-            /// <summary>读取带引号字符串的原始字节 span（不含引号），跳过转义对。</summary>
+            /// <summary>
+            /// 读取带引号字符串的原始字节 span（不含引号），跳过转义对。
+            /// </summary>
             private ReadOnlySpan<byte> ReadStringSpanBytes(out bool hasEscape, out int start)
             {
                 hasEscape = false;
@@ -1576,7 +1684,9 @@ namespace Moirai.Atropos
                 return default;
             }
 
-            /// <summary>反转义（标准转义对、\uXXXX；原始段手动解码 UTF8，无效序列 → U+FFFD）。ASCII 快路径直取。</summary>
+            /// <summary>
+            /// 反转义（标准转义对、\uXXXX；原始段手动解码 UTF8，无效序列 → U+FFFD）。ASCII 快路径直取。
+            /// </summary>
             private string UnescapeBytes(ReadOnlySpan<byte> input)
             {
                 IStringBuilder sb = StringUtility.CreateStringBuilder(input.Length);
@@ -1661,7 +1771,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>从 span 头解码一个 UTF8 码点；无效序列产出 U+FFFD 并前进 1 字节。返回消耗的字节数。</summary>
+            /// <summary>
+            /// 从 span 头解码一个 UTF8 码点；无效序列产出 U+FFFD 并前进 1 字节。返回消耗的字节数。
+            /// </summary>
             private static int DecodeUtf8Rune(ReadOnlySpan<byte> s, out uint rune)
             {
                 byte b0 = s[0];
@@ -1728,7 +1840,9 @@ namespace Moirai.Atropos
                 return true;
             }
 
-            /// <summary>扫描数值 token（支持历史带引号形式）。</summary>
+            /// <summary>
+            /// 扫描数值 token（支持历史带引号形式）。
+            /// </summary>
             private ReadOnlySpan<byte> ScanNumberToken()
             {
                 SkipWhitespace();
@@ -1842,7 +1956,9 @@ namespace Moirai.Atropos
                 return null;
             }
 
-            /// <summary>带引号数值（历史格式）：string → 字节 span 解析（ASCII ≤64 字符经栈缓冲零堆分配）。</summary>
+            /// <summary>
+            /// 带引号数值（历史格式）：string → 字节 span 解析（ASCII ≤64 字符经栈缓冲零堆分配）。
+            /// </summary>
             private object ParseQuotedNumberBytes(Type type, string s)
             {
                 if (s.Length > 0 && s.Length <= NUMBER_CHAR_BUFFER)
@@ -1991,7 +2107,9 @@ namespace Moirai.Atropos
                     : decimal.TryParse(EncodeSpan(s), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
             }
 
-            /// <summary>将 ASCII 数值 token 复制进调用方栈缓冲；超长/非 ASCII 返回 -1（调用方回退字符串路径）。</summary>
+            /// <summary>
+            /// 将 ASCII 数值 token 复制进调用方栈缓冲；超长/非 ASCII 返回 -1（调用方回退字符串路径）。
+            /// </summary>
             private static int PrepareNumberChars(ReadOnlySpan<byte> s, Span<char> buffer)
             {
                 if (s.Length == 0 || s.Length > buffer.Length) return NUMBER_NOT_ASCII;

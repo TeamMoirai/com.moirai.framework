@@ -186,7 +186,9 @@ namespace Moirai.Atropos.Timer
 
         void CancelAll();
 
-        /// <summary>等待该句柄完成：按槽位挂载完成信号（在计时器释放时唤醒），已结束则立即完成。</summary>
+        /// <summary>
+        /// 等待该句柄完成：按槽位挂载完成信号（在计时器释放时唤醒），已结束则立即完成。
+        /// </summary>
         UniTask WaitAsync(ulong handle, CancellationToken cancellationToken);
 
         bool IsRunning(ulong handle);
@@ -195,7 +197,9 @@ namespace Moirai.Atropos.Timer
 
         float GetLeftTime(ulong handle);
 
-        /// <summary>剩余帧数：帧引擎返回剩余帧，时间轮引擎返回 0。</summary>
+        /// <summary>
+        /// 剩余帧数：帧引擎返回剩余帧，时间轮引擎返回 0。
+        /// </summary>
         int GetLeftFrames(ulong handle);
 
         float GetElapsed(ulong handle);

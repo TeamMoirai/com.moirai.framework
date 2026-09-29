@@ -79,9 +79,7 @@ namespace Moirai.Atropos.Input
 
         #region 状态管理 [STATE MANAGEMENT]
 
-        /// <summary>
-        /// 获取或设置是否启用输入（未就绪时读取为 false，写入静默忽略）。
-        /// </summary>
+        /// <summary>获取或设置是否启用输入（未就绪时读取为 false，写入静默忽略）。</summary>
         /// <remarks>
         /// 禁用即全局硬门控：动作类查询（按钮/轴/向量）一律返回默认值，无需消费者自查。 <br />
         /// Input System 后端同时整体禁用全部上下文 Map；鼠标查询不参与门控。
@@ -96,9 +94,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        /// <summary>
-        /// 获取或设置是否锁定玩家控制器（未就绪时读取为 false，写入静默忽略）。
-        /// </summary>
+        /// <summary>获取或设置是否锁定玩家控制器（未就绪时读取为 false，写入静默忽略）。</summary>
         /// <remarks>
         /// Input System 后端中心化强制：锁定（含 UI 模态联动）时玩家上下文 Map 整体禁用，玩家查询返回默认值而 UI Map 保持可用。 <br />
         /// 旧版/移动端后端无 Map 概念，该状态仅供消费者协作自查。
@@ -113,9 +109,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        /// <summary>
-        /// 获取或设置是否禁止 UI 交互（未就绪时读取为 false，写入静默忽略）。
-        /// </summary>
+        /// <summary>获取或设置是否禁止 UI 交互（未就绪时读取为 false，写入静默忽略）。</summary>
         /// <remarks>Input System 后端中心化强制：禁止时 UI 上下文 Map 整体禁用；UI 侧交互（UIServiceHelper/UIHotKey 等）亦会自查该状态。</remarks>
         public static bool PreventInteractionUI
         {
@@ -127,9 +121,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        /// <summary>
-        /// 获取当前输入处理器。
-        /// </summary>
+        /// <summary>获取当前输入处理器。</summary>
         public static InputServiceHandler CurrentHandler => s_Handler;
 
         #endregion

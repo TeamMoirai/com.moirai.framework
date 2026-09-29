@@ -32,9 +32,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取被适配的服务调试视图。
-        /// </summary>
+        /// <summary>获取被适配的服务调试视图。</summary>
         public ServiceDebugView View => _view;
 
         #endregion

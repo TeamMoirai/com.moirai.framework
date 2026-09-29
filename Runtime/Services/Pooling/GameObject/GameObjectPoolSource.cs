@@ -23,29 +23,19 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 是否为外部 Prefab 源。
-        /// </summary>
+        /// <summary>是否为外部 Prefab 源。</summary>
         public bool IsPrefab => _prefab != null;
 
-        /// <summary>
-        /// 是否为有效来源（Prefab 引用非空，或 Location 非空）。
-        /// </summary>
+        /// <summary>是否为有效来源（Prefab 引用非空，或 Location 非空）。</summary>
         public bool IsValid => _prefab != null || !string.IsNullOrEmpty(_location);
 
-        /// <summary>
-        /// 资源地址（Prefab 源时为 null）。
-        /// </summary>
+        /// <summary>资源地址（Prefab 源时为 null）。</summary>
         public string Location => _location;
 
-        /// <summary>
-        /// 外部 Prefab 引用（Location 源时为 null）。
-        /// </summary>
+        /// <summary>外部 Prefab 引用（Location 源时为 null）。</summary>
         public GameObject Prefab => _prefab;
 
-        /// <summary>
-        /// 分组提示。仅 Prefab 源建池时生效。
-        /// </summary>
+        /// <summary>分组提示。仅 Prefab 源建池时生效。</summary>
         public string Group => _group;
 
         #endregion
@@ -126,17 +116,13 @@ namespace Moirai.Atropos.ObjectPool
             return string.IsNullOrEmpty(_location) ? hash : (hash * 397) ^ _location.GetHashCode();
         }
 
-        /// <summary>
-        /// 相等运算符。
-        /// </summary>
+        /// <summary>相等运算符。</summary>
         /// <param name="left">左值。</param>
         /// <param name="right">右值。</param>
         /// <returns>是否相等。</returns>
         public static bool operator ==(GameObjectPoolSource left, GameObjectPoolSource right) => left.Equals(right);
 
-        /// <summary>
-        /// 不等运算符。
-        /// </summary>
+        /// <summary>不等运算符。</summary>
         /// <param name="left">左值。</param>
         /// <param name="right">右值。</param>
         /// <returns>是否不等。</returns>

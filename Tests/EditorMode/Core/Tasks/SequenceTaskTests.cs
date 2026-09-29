@@ -77,7 +77,9 @@ namespace Core.Tasks
             Assert.AreSame(task, StuckTask.GetPooled(), "多还一次不得让这只任务从此失踪");
         }
 
-        /// <summary>Tick 后保持 Running 的子任务：既能把后续项挡在队列里，也不触发任何事件广播。</summary>
+        /// <summary>
+        /// Tick 后保持 Running 的子任务：既能把后续项挡在队列里，也不触发任何事件广播。
+        /// </summary>
         private sealed class StuckTask : PooledTaskBase<StuckTask>
         {
             internal int Ticks;

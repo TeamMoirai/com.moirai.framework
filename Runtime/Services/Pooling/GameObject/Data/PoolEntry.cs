@@ -13,14 +13,10 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 默认分组名称。
-        /// </summary>
+        /// <summary>默认分组名称。</summary>
         public const string DEFAULT_GROUP = "DefaultGroup";
 
-        /// <summary>
-        /// 默认条目名称。
-        /// </summary>
+        /// <summary>默认条目名称。</summary>
         public const string DEFAULT_ENTRY_NAME = "PoolRule";
 
         #endregion

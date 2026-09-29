@@ -6,7 +6,9 @@ using NUnit.Framework;
 
 namespace Service.Timer
 {
-    /// <summary>四级时间轮（<see cref="DefaultTimerHandler"/>）行为测试。</summary>
+    /// <summary>
+    /// 四级时间轮（<see cref="DefaultTimerHandler"/>）行为测试。
+    /// </summary>
     /// <remarks>经 <see cref="GameTime.Handler"/> 注入虚拟时钟处理器，以 50ms 步进推进；对外 API 为 <c>Delay</c> / <c>Pause</c> / <c>Cancel</c>。 <br />
     /// </remarks>
     public class DefaultTimerHandlerTests
@@ -214,7 +216,9 @@ namespace Service.Timer
 
         #region 时钟污染 [CLOCK ANOMALY]
 
-        /// <summary>把虚拟时钟打成指定读数推一帧，再恢复到 <paramref name="restoreTo"/>。</summary>
+        /// <summary>
+        /// 把虚拟时钟打成指定读数推一帧，再恢复到 <paramref name="restoreTo"/>。
+        /// </summary>
         private void TickWithPollutedClock(double polluted, double restoreTo)
         {
             _now = polluted;
@@ -293,7 +297,9 @@ namespace Service.Timer
 
         #region 帧计时 [WAIT FRAME]
 
-        /// <summary>逐帧驱动 Update 阶段（不推进虚拟时钟——只推进帧计数）。</summary>
+        /// <summary>
+        /// 逐帧驱动 Update 阶段（不推进虚拟时钟——只推进帧计数）。
+        /// </summary>
         private void TickFrames(int frames)
         {
             for (int i = 0; i < frames; i++)

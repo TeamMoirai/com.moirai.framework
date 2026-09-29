@@ -22,9 +22,7 @@ namespace Moirai.Atropos
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class AutoRegisterServiceAttribute : Attribute
     {
-        /// <summary>
-        /// 目标注册作用域。
-        /// </summary>
+        /// <summary>目标注册作用域。</summary>
         public EServiceScopeKind Scope { get; }
 
         /// <param name="scope">目标注册作用域（默认 App）。</param>

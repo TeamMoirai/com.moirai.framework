@@ -7,14 +7,10 @@ namespace Moirai.Atropos
     /// </summary>
     public partial interface IStringBuilder : IDisposable
     {
-        /// <summary>
-        /// 获取当前长度。
-        /// </summary>
+        /// <summary>获取当前长度。</summary>
         int Length { get; }
 
-        /// <summary>
-        /// 获取或设置指定位置的字符。
-        /// </summary>
+        /// <summary>获取或设置指定位置的字符。</summary>
         char this[int index] { get; set; }
 
         /// <summary>
