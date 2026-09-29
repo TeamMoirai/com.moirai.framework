@@ -7,8 +7,7 @@ using NUnit.Framework;
 namespace Service.Save
 {
     /// <summary>
-    /// <see cref="SaveFileContainer"/> v2 手写二进制容器布局测试：多块往返、逐块 CRC32 部分恢复、
-    /// 结构性损坏前缀保留、版本硬切（v1 拒载）与魔数/块数分型。
+    /// <see cref="SaveFileContainer"/> v2 手写二进制容器布局测试：多块往返、逐块 CRC32 部分恢复、结构性损坏前缀保留、版本硬切（v1 拒载）与魔数/块数分型。
     /// </summary>
     public class SaveFileContainerTests
     {

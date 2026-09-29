@@ -4,39 +4,39 @@ namespace Unity.IL2CPP.CompilerServices
 {
     /// <summary>
     /// IL2CPP IL→C++ 转换的代码生成选项。
-    /// <para>与本引擎内唯一官方副本（com.unity.logging 内部定义）保持同命名空间、同名成员与同数值；
-    /// 自定义特性 blob 中枚举参数按底层 int 编码且不携带枚举类型身份，il2cpp 转换器仅按数值匹配语义。</para>
     /// </summary>
+    /// <remarks>
+    /// 枚举数值须与引擎内官方副本（<c>com.unity.logging</c> 内部定义）一致：
+    /// 特性 blob 按底层 <c>int</c> 编码且不携带枚举类型身份，il2cpp 转换器仅按数值匹配语义。
+    /// </remarks>
     internal enum Option
     {
         /// <summary>
         /// 空检查代码生成开关（全局默认启用）。
-        /// <para>关闭后生成代码不再抛出 NullReferenceException——多数情况下空引用解引用直接崩溃，
-        /// 且崩溃点可能晚于本应插入空检查的位置。</para>
         /// </summary>
+        /// <remarks>关闭后空引用解引用不再抛 <c>NullReferenceException</c>，而是直接崩溃或晚于应插入空检查处出错。</remarks>
         NullChecks = 1,
 
         /// <summary>
         /// 数组越界检查代码生成开关（全局默认启用）。
-        /// <para>关闭后生成代码不再抛出 IndexOutOfRangeException，可无运行时检查地读写数组界外内存，须极度谨慎。</para>
         /// </summary>
+        /// <remarks>关闭后界外读写不再抛 <c>IndexOutOfRangeException</c>，会无运行时检查地访问越界内存。</remarks>
         ArrayBoundsChecks = 2,
 
         /// <summary>
         /// 除零检查代码生成开关（全局默认关闭）。
-        /// <para>开启后生成代码中除零将抛出 DivideByZeroException；绝大多数代码无需处理该异常，通常保持关闭。</para>
         /// </summary>
+        /// <remarks>开启后除零抛 <c>DivideByZeroException</c>。</remarks>
         DivideByZeroChecks = 3,
     }
 
     /// <summary>
-    /// 标注在程序集/结构体/类/方法/属性/委托上，指示 IL2CPP 转换器覆盖某项运行时检查的全局设置。
-    /// <para>il2cpp 转换器按属性完整类型名匹配、不校验程序集身份，故本引擎未随 UnityEngine 公开该类型时，
-    /// 各程序集自带 internal 同名副本即可生效（UniTask 等 Cysharp 库同款做法），与 com.unity.logging
-    /// 的内部副本按程序集隔离互不冲突。</para>
-    /// <para>仅影响 IL2CPP Player 构建；Editor 下 Mono 保持全量隐式检查，开发期 Fail-Fast 语义不变，
-    /// 框架公共 API 的显式 GameException 校验亦不受隐式检查关闭影响。</para>
+    /// 标注在程序集/结构体/类/方法/属性/委托上，指示 IL2CPP 转换器关闭某项运行时检查。
     /// </summary>
+    /// <remarks>
+    /// 仅影响 IL2CPP Player 构建；Editor 下 Mono 保持全量隐式检查，框架显式 <c>GameException</c> 校验不受影响。
+    /// 转换器按属性完整类型名匹配、不校验程序集身份，故各程序集可自带 internal 同名副本。
+    /// </remarks>
     /// <example>
     /// <code>
     /// [assembly: Il2CppSetOption(Option.NullChecks, false)]

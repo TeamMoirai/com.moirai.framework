@@ -5,11 +5,11 @@ using NUnit.Framework;
 namespace Service.Audio
 {
     /// <summary>
-    /// PlayMode 音频测试宿主：注入最小 <see cref="AudioGroupConfig"/>，并经 <c>Internal_UseHandler</c>
-    /// 把实例换入 <see cref="AudioService"/> 的门面。
-    /// <para>关键路径夹具不得因工程 Settings 未配置而 <c>Assert.Ignore</c>——那会把整套验收洗成「全绿零覆盖」。
-    /// 配置缺失时这里直接 <c>Assert.Fail</c>。</para>
+    /// PlayMode 音频测试宿主：注入最小 <see cref="AudioGroupConfig"/>，并经 <c>Internal_UseHandler</c> 把实例换入 <see cref="AudioService"/> 的门面。
     /// </summary>
+    /// <remarks>
+    /// 关键路径夹具不得因工程 Settings 未配置而 <c>Assert.Ignore</c>——那会把整套验收洗成「全绿零覆盖」；配置缺失时这里直接 <c>Assert.Fail</c>。
+    /// </remarks>
     internal sealed class AudioServiceTestHost : IDisposable
     {
         private readonly AudioServiceHandler _previousHandler;

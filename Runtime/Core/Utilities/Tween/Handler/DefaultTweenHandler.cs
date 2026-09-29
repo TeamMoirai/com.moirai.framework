@@ -8,18 +8,13 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 默认补间动画处理器。基于结构体数组 + 版本号ID实现，稳态 0 GC、高性能。
-    /// <para>
-    /// 语义契约（商业库对齐）：
-    /// <list type="bullet">
-    /// <item>自然完成 / <see cref="Complete"/>：应用终值并触发 OnComplete；</item>
-    /// <item><see cref="Stop"/>：中断，不触发 OnComplete；</item>
-    /// <item>目标先于补间销毁：中断（kill），不触发 OnComplete，
-    /// <paramref name="warnIfTargetDestroyed"/> 控制是否记录告警。</item>
-    /// </list>
-    /// </para>
-    /// <para>单例状态机：所有实例共享 <see cref="TweenTask"/> 静态状态，运行期仅应存在一个活跃实例。</para>
+    /// 默认补间动画处理器：基于结构体数组 + 版本号 ID，稳态 0 GC。
     /// </summary>
+    /// <remarks>
+    /// 语义契约：自然完成 / <see cref="Complete"/> 应用终值并触发 OnComplete；<see cref="Stop"/> 中断且不触发 OnComplete；
+    /// 目标先于补间销毁时中断（kill）且不触发 OnComplete，是否告警由 <c>warnIfTargetDestroyed</c> 控制。
+    /// 单例状态机：所有实例共享 <see cref="TweenTask"/> 静态状态，运行期仅应存在一个活跃实例。
+    /// </remarks>
     [Serializable]
     internal sealed partial class DefaultTweenHandler : TweenHandler
     {
@@ -100,9 +95,9 @@ namespace Moirai.Atropos
         #region 状态装配 [STATE BUILDING]
 
         /// <summary>
-        /// 公共字段集中装配：消除 40+ 补间方法中重复的样板赋值。
-        /// 值字段（Start/End 等）由调用方按操作类型补齐。
+        /// 集中装配 <see cref="TweenState"/> 的公共字段。
         /// </summary>
+        /// <remarks>值字段（Start/End 等）由调用方按操作类型补齐。</remarks>
         private static TweenState BuildState(object target, UObject unityObject,
             TweenOperationType operationType, float duration, TweenEase ease, int cycles,
             TweenUtility.ECycleMode cycleMode, float startDelay, bool useUnscaledTime,
@@ -831,9 +826,9 @@ namespace Moirai.Atropos
         #region 自定义补间 — 0GC object 回调 [CUSTOM — 0GC OBJECT]
 
         /// <summary>
-        /// 零分配 Custom：回调直接持有 object 目标，回调与目标分别存入 TweenState，无闭包捕获。
-        /// 调用侧使用 static lambda 或方法组时不产生任何堆分配，适合每帧创建的高频补间。
+        /// 零分配 Custom 覆写：回调与目标分别存入 <see cref="TweenState"/>，无闭包捕获。
         /// </summary>
+        /// <remarks>调用侧使用 static lambda 或方法组时不产生堆分配，适合每帧创建的高频补间。</remarks>
         public override long Custom(object target, float startValue, float endValue, float duration, Action<object, float> onValueChange,
             TweenEase ease = default, int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart,
             float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)

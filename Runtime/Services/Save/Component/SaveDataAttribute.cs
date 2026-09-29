@@ -3,12 +3,12 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档数据块声明特性：块键、模式版本与序列化后端。
-    /// <para>标注于 <see cref="SaveDataBlock"/> 子类（手动编写的存档数据脚本）；
-    /// 框架经静态泛型描述符缓存标注（每类型仅反射一次，AOT 安全）。</para>
-    /// <para>版本升级契约：存档内记录的 <see cref="Version"/> 低于声明值时，框架调用类内
-    /// <see cref="SaveDataBlock.OnMigrate"/> 级联迁移；高于声明值时 fail-fast 拒绝（未来格式保护）。</para>
+    /// 存档数据块声明特性：块键、模式版本与序列化后端（标注于 <see cref="SaveDataBlock"/> 子类）。
     /// </summary>
+    /// <remarks>
+    /// 框架经静态泛型描述符缓存标注，每类型仅反射一次（AOT 安全）。
+    /// 版本升级契约：存档内记录的 <see cref="Version"/> 低于声明值时调用 <see cref="SaveDataBlock.OnMigrate"/> 级联迁移，高于声明值时 fail-fast 拒绝。
+    /// </remarks>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class SaveDataAttribute : Attribute
     {
@@ -23,9 +23,9 @@ namespace Moirai.Atropos.Save
         public int Version { get; }
 
         /// <summary>
-        /// 序列化后端（缺省 JSON，无需任何类型标注）；
-        /// 二进制后端要求类型带各自 AOT 标注（<c>MessagePackObject</c>/<c>MemoryPackable</c>/<c>ProtoContract</c>）。
+        /// 序列化后端（缺省 JSON，无需类型标注）。
         /// </summary>
+        /// <remarks>二进制后端要求类型带各自 AOT 标注（<c>MessagePackObject</c>/<c>MemoryPackable</c>/<c>ProtoContract</c>）。</remarks>
         public ESaveBackend Backend { get; set; }
 
         /// <summary>

@@ -7,14 +7,14 @@ using UObject = UnityEngine.Object;
 namespace Service.Resource
 {
     /// <summary>
-    /// 租约热路径的 0-GC 验收：稳态取用/归还、按 key 直查缓存、打包 key 往返，三趟都不得分配。
-    /// <para><b>真机计量</b>：测量走 <c>GC.Alloc</c> 采样事件数（UTF 官方 AllocatingGCMemory 同机制；
-    /// 字节口径 GC 计数 API 在 Unity 内无实现），故与 <c>ResourceBindingAllocationTests</c> 同住
-    /// <c>Moirai.Atropos.Tests.Player</c>——采样探不到的运行时整组 Ignore，验收以 L3 玩家运行收到的采样为准。</para>
-    /// <para>量的是记录内核（分页槽位 + <see cref="ResourceUlongIntMap"/>）自己那几趟，
-    /// 不掺真后端的原生调用——那只会把噪声计进来。名称轴解析已收成「打包一次、按 key 直查」，
-    /// 这几格就是把「热路径不再走三条字典往返」钉成门禁。</para>
+    /// 租约热路径的 0-GC 验收：稳态取用 / 归还、按 key 直查缓存、打包 key 往返，三趟都不得分配。
     /// </summary>
+    /// <remarks>
+    /// 分配观测走 <c>GC.Alloc</c> 采样事件数；Unity 内不存在字节口径的 GC 计数 API，事件口径是唯一通道。
+    /// 与 <c>ResourceBindingAllocationTests</c> 同住 <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>）：采样探不到的运行时整组 Ignore，验收以 L3 玩家运行收到的采样为准。
+    /// 量的是记录内核（分页槽位 + <see cref="ResourceUlongIntMap"/>）自己那几趟，不掺真后端的原生调用。
+    /// 名称轴解析已收成「打包一次、按 key 直查」，这几格把「热路径不再走三条字典往返」钉成门禁。
+    /// </remarks>
     [TestFixture]
     [Category("Performance")]
     public sealed class ResourceLeaseAllocationTests

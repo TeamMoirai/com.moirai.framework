@@ -3,10 +3,9 @@
 namespace Moirai.Atropos.Localization
 {
 	/// <summary>
-	/// 组件查找器。
-	/// <para>按泛型参数声明顺序在指定 <see cref="MonoBehaviour"/> 所在对象上查找组件，返回第一个匹配的组件。
-	/// 每个候选类型一次 <c>TryGetComponent</c> 命中即返（旧实现对命中类型查两次）。</para>
+	/// 组件查找器：按泛型参数声明顺序在指定 <see cref="MonoBehaviour"/> 所在对象上查找组件，返回第一个命中者。
 	/// </summary>
+	/// <remarks>每个候选类型只做一次 <c>TryGetComponent</c> 判定。</remarks>
 	public static class ComponentFinder
 	{
 		/// <summary>

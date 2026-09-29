@@ -3,10 +3,11 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档密钥提供方抽象基类（框架插拔件惯例：<see cref="AESEncryptedSaveHandler"/> 以 [SerializeReference] + ProviderDropdown 持有实例）。
-    /// <para>实现 <see cref="ISaveKeyProvider"/>；派生材料缓存约定 = 不可变快照（<see cref="DerivedMaterial"/>）+ volatile 引用整体替换，
-    /// 参数变更经 <see cref="DerivedMaterial.Matches"/> 失配自动失效重派生。</para>
+    /// 存档密钥提供方抽象基类（<see cref="AESEncryptedSaveHandler"/> 以 [SerializeReference] + ProviderDropdown 持有实例）。
     /// </summary>
+    /// <remarks>
+    /// 实现 <see cref="ISaveKeyProvider"/>；派生材料缓存约定 = 不可变快照（<see cref="DerivedMaterial"/>）+ volatile 引用整体替换，参数变更经 <see cref="DerivedMaterial.Matches"/> 失配自动失效重派生。
+    /// </remarks>
     [Serializable]
     public abstract class SaveKeyProvider : ISaveKeyProvider
     {
@@ -20,11 +21,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 生效密钥材料是否仍为包内出厂占位值（或为空）。
-        /// <para>占位值随包发布，任何拿到包的人都能派生同一把密钥，等同不加密。判据供 Inspector 告警与构建期自检共用，
-        /// 不在运行期抛——已有存档可能就是用占位值写的，拦停只会把「配置没改」升级成「存档打不开」。</para>
-        /// <para>内置提供方各自覆写；第三方提供方默认不报（密钥来源自管），有出厂默认值的应覆写并委托
-        /// <see cref="IsFactoryPlaceholder"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// 判据供 Inspector 告警与构建期自检共用，不在运行期抛——已有存档可能就是用占位值写的，拦停会把「配置没改」升级成「存档打不开」。
+        /// 内置提供方各自覆写；第三方提供方默认不报（密钥来源自管），有出厂默认值的应覆写并委托 <see cref="IsFactoryPlaceholder"/>。
+        /// </remarks>
         internal virtual bool UsesPlaceholderCredentials => false;
 
         /// <summary>

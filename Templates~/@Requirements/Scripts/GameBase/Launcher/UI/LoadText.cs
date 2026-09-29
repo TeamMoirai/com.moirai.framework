@@ -138,9 +138,11 @@ namespace Moirai.Main
         public static LoadText Instance => _instance ??= new LoadText();
 
         /// <summary>
-        /// 加载内置多语言
-        /// <remarks>json 位于 Resources 下，后缀以 BuildInText_Code</remarks>
+        /// 加载内置多语言。
         /// </summary>
+        /// <remarks>
+        /// json 位于 Resources 下，后缀以 BuildInText_Code。
+        /// </remarks>
         public void InitConfigData()
         {
             string buildInTextName = "BuildInText_"; // 默认前缀

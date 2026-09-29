@@ -6,8 +6,10 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 泛型开放寻址哈希表（桶链 + ArrayPool 租借），TKey 到 int 的零分配映射。
-    /// <para>struct 语义——必须存储于可变字段后调用（方法直接改写字段状态）；Dispose 后归还全部内部数组。</para>
     /// </summary>
+    /// <remarks>
+    /// struct 语义：必须存储于可变字段后调用（方法直接改写字段状态）；Dispose 后归还全部内部数组。
+    /// </remarks>
     /// <typeparam name="TKey">键类型，需实现 <see cref="IEquatable{TKey}"/>。</typeparam>
     internal struct OpenHashMap<TKey> where TKey : IEquatable<TKey>
     {

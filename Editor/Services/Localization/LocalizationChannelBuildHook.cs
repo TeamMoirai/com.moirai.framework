@@ -6,15 +6,13 @@ using UnityEditor.Build.Reporting;
 namespace Moirai.Atropos.Localization.Editor
 {
     /// <summary>
-    /// 构建期渠道语言烘焙钩子：出包前读取 CLI 参数 <c>localizationLanguage</c>（须为命令行参数片段），
-    /// 非空即按值烘焙 <c>LocalizationBuildConfig</c>；缺省不动现有烘焙产物。
-    /// <para>CI 约定：<c>-CustomArgs:platform=Android;localizationLanguage=zh-Hans</c>。
-    /// 解析失败抛异常进构建报告——错渠道的包不能悄悄落地。</para>
-    /// <para>取参前先探 <c>-CustomArgs:</c> 前缀存在性：命令行根本没有自定义参数的构建（编辑器 GUI 发起、
-    /// UTF 测试玩家构建等）按「缺省不动」静默早退——<c>CommandLineReader.GetCustomArgument</c> 在前缀或键
-    /// 缺失时 LogError，而预处理钩子里的 LogError 会直接判构建失败，不能拿它当无参构建的默认路径
-    /// （2026-09-28 L3 首跑因此被挡）。前缀在而键缺失仍走响亮报错，CI 错渠道的包不能悄悄落地。</para>
+    /// 构建期渠道语言烘焙钩子：出包前读取命令行参数 <c>localizationLanguage</c>，非空即按值烘焙 <c>LocalizationBuildConfig</c>，缺省不动现有烘焙产物。
     /// </summary>
+    /// <remarks>
+    /// 参数须为 <c>-CustomArgs:</c> 片段，如 <c>-CustomArgs:platform=Android;localizationLanguage=zh-Hans</c>。
+    /// 前缀缺失的构建（GUI 发起、测试玩家构建）按「缺省不动」静默早退；前缀存在而键缺失则报错并判构建失败。
+    /// 解析失败抛异常进构建报告。
+    /// </remarks>
     public sealed class LocalizationChannelBuildHook : IPreprocessBuildWithReport
     {
         public int callbackOrder => 0;

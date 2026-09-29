@@ -9,9 +9,10 @@ namespace Service.Audio
 {
     /// <summary>
     /// Clip 缓存测试台（Player 程序集本地版）：可控的 <see cref="IAudioClipLeaseSource"/> 假件 + 租约台账。
-    /// <para>与 EditorMode 同名支撑同构（跨程序集不可共享，重复属可接受形态）：把「同地址实际向后端发起的
-    /// 加载次数」与「尚未归还后端的租约数」显式记账，供分配基准断言复用。仅覆盖分配基准所需的同步路径。</para>
     /// </summary>
+    /// <remarks>
+    /// 与 EditorMode 同名支撑同构（跨程序集不可共享，重复属可接受形态）：显式记账「同地址实际向后端发起的加载次数」与「尚未归还后端的租约数」，供分配基准断言复用。仅覆盖分配基准所需的同步路径。
+    /// </remarks>
     internal sealed class AudioCacheTestSupport : IAudioClipLeaseSource, IDisposable
     {
         private readonly Dictionary<string, int> _loads = new Dictionary<string, int>();

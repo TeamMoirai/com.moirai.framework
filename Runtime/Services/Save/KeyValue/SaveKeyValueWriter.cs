@@ -6,12 +6,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 键值捕获写入器（KVT 格式，ref struct）。
-    /// <para>记录布局：对象级 <c>[2B 键长][键 UTF8][1B 类型][4B 载荷长][载荷]</c>；集合元素级 <c>[1B 类型][4B 载荷长][载荷]</c>。
-    /// 每个节点都带显式载荷长度——读取侧可 O(1) 跳过未知键（字段废弃向后兼容的关键）。</para>
-    /// <para>嵌套对象/序列/映射经 Begin/End 对写入（End 回填载荷长度）；由 SaveHost SourceGenerator 生成的捕获器驱动；
-    /// 须在主线程调用（读取 MonoBehaviour 字段）。</para>
+    /// 键值捕获写入器（KVT 格式，<c>ref struct</c>）。
     /// </summary>
+    /// <remarks>
+    /// 记录布局：对象级 <c>[2B 键长][键 UTF8][1B 类型][4B 载荷长][载荷]</c>；集合元素级 <c>[1B 类型][4B 载荷长][载荷]</c>。
+    /// 每个节点都带显式载荷长度——读取侧可 O(1) 跳过未知键（字段废弃向后兼容的关键）。
+    /// 嵌套对象/序列/映射经 Begin/End 对写入（End 回填载荷长度）；由 SaveHost SourceGenerator 生成的捕获器驱动，须在主线程调用（读取 <c>MonoBehaviour</c> 字段）。
+    /// </remarks>
     public ref struct SaveKeyValueWriter
     {
         /// <summary>UTF-8 编码器（无 BOM）。</summary>
@@ -614,9 +615,9 @@ namespace Moirai.Atropos.Save
         #region 写入管线 [WRITE PIPELINE]
 
         /// <summary>
-        /// 写入原始记录（键 + 类型 + 已编码载荷区间——含 4B 载荷长度前缀）。
-        /// <para>仅迁移变换器原样透传未命中规则的数据记录用；载荷区间须取自 <see cref="SaveKeyValueReader"/> 记录头之后、<c>SkipRecordPayload</c> 前后的游标差。</para>
+        /// 写入原始记录（键 + 类型 + 已编码载荷区间，含 4B 载荷长度前缀）。
         /// </summary>
+        /// <remarks>仅迁移变换器原样透传未命中规则的数据记录用；载荷区间须取自 <see cref="SaveKeyValueReader"/> 记录头之后、<c>SkipRecordPayload</c> 前后的游标差。</remarks>
         /// <param name="key">记录键。</param>
         /// <param name="type">记录类型。</param>
         /// <param name="rawPayloadWithLengthPrefix">已编码载荷区间（4B 长度前缀 + 载荷字节）。</param>
@@ -849,10 +850,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 压入嵌套帧（记录载荷长度占位偏移与载荷起点）。
-        /// <para>调用点在子项数写入之后：载荷长度占位在 <c>_position - 8</c>，载荷区间（4B 子项数 + 子记录）自 <c>_position - 4</c> 起——
-        /// <see cref="EndNested"/> 回填的载荷长度含子项数自身（读取侧 <c>ReadChildCount</c>/<c>SkipRecordPayload</c> 依此消费）。
-        /// 键控与元素级作用域头布局一致（尾段均为 [4B 占位][4B 子项数]），帧偏移算法通用。</para>
         /// </summary>
+        /// <remarks>
+        /// 调用点在子项数写入之后：载荷长度占位在 <c>_position - 8</c>，载荷区间（4B 子项数 + 子记录）自 <c>_position - 4</c> 起——<see cref="EndNested"/> 回填的载荷长度含子项数自身。
+        /// 键控与元素级作用域头布局一致（尾段均为 <c>[4B 占位][4B 子项数]</c>），帧偏移算法通用。
+        /// </remarks>
         private void PushNestingFrame()
         {
             if (_nestingStack == null)

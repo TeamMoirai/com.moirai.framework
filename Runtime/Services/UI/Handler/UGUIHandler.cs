@@ -11,9 +11,11 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// UI处理器（后端）。承载窗口堆栈管理、层级排序与资源加载等核心逻辑。
-    /// <para>通过 <see cref="UIServiceSettings.UIServiceHandler"/> 序列化配置，可替换为自定义 UI 后端。</para>
+    /// UI 处理器（后端）：承载窗口堆栈管理、层级排序与资源加载等核心逻辑。
     /// </summary>
+    /// <remarks>
+    /// 通过 <see cref="UIServiceSettings.UIServiceHandler"/> 序列化配置，可替换为自定义 UI 后端。
+    /// </remarks>
     [Serializable]
     internal sealed class UGUIHandler : UIServiceHandler
     {
@@ -68,11 +70,11 @@ namespace Moirai.Atropos.UI
 
         /// <summary>
         /// 取用场景登记的 UI 根（<see cref="UIRootBinding.TryGetInstance()"/>）。
-        /// <para>尚未绑定、或已绑定但其下还没有 Canvas 时都挂起等待，由 <see cref="Tick"/> 续等——
-        /// 后加入的场景、运行期实例化的根、以及事后补上 Canvas 的根都走得通。
-        /// 刻意不再按名字查找：改名不报编译错、多场景/热更下同名物体还可能命中错的那一个，两条静默路径一起堵掉。</para>
-        /// <para>问题只在进入等待时报一次，续等期间静默重试，避免每帧刷 Fatal。</para>
         /// </summary>
+        /// <remarks>
+        /// 尚未绑定、或已绑定但其下还没有 Canvas 时挂起等待，由 <see cref="Tick"/> 续等。
+        /// 问题只在进入等待时报一次，续等期间静默重试。
+        /// </remarks>
         internal void TryBindRoot()
         {
             var binding = UIRootBinding.TryGetInstance();
@@ -165,10 +167,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 处理器关闭。
-        /// 1. 清理错误日志系统
-        /// 2. 关闭所有窗口
-        /// 3. 销毁UI根节点
+        /// 处理器关闭：清理错误日志系统、关闭所有窗口并销毁 UI 根节点。
         /// </summary>
         protected override void OnShutdown()
         {

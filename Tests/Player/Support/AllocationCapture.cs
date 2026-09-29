@@ -19,18 +19,15 @@ namespace Testing
     }
 
     /// <summary>
-    /// 0-GC 测量台：以 <c>GC.Alloc</c> 采样计数（<see cref="Recorder"/>，Unity 官方
-    /// <c>AllocatingGCMemoryConstraint</c> 同机制、同款 API——这是 UTF 在本引擎版本上唯一可用的分配观测通道）。
-    /// <para><b>为什么不是 GC 计数 API</b>（2026-09-28 三处实证）：<c>GC.GetAllocatedBytesForCurrentThread</c>
-    /// 在编辑器 Mono、Mono2x 玩家、IL2CPP 玩家全部恒 0；<c>GC.GetTotalAllocatedBytes</c> 在 Unity 的
-    /// .NET profile 里根本不存在（CS0117）。字节口径在 Unity 内无实现，事件口径是官方唯一口径。</para>
-    /// <para><b>事件数语义</b>：计的是测量窗内的 GC 分配事件数——任何一次分配（无论大小）都 ≥1 事件，
-    /// 因此「0 事件」是比「0 字节」更强的零分配断言；上限类断言给常数事件预算（锁「不随规模增长」，
-    /// 不再精确到字节）。</para>
-    /// <para>约定：MeasureManaged 先做一次预热并丢弃（JIT/池扩容/字典容量增长都落在这一发里），再计
-    /// <paramref name="iterations"/> 次；先用一次"必然分配"探测采样能力，探不到就 <c>Assert.Ignore</c>——
-    /// 绝不把"测不出分配"当成"没有分配"，否则零分配断言全部假绿。</para>
+    /// 0-GC 测量台：以 <c>GC.Alloc</c> 采样计数观测托管分配。
     /// </summary>
+    /// <remarks>
+    /// 观测通道为 <see cref="Recorder"/>，与 Unity 官方分配内存约束 <c>AllocatingGCMemoryConstraint</c> 同机制、同款 API，是本引擎版本上唯一可用的分配观测通道：
+    /// Unity 内不存在字节口径的 GC 计数 API，事件口径是官方唯一口径。
+    /// 计的是测量窗内的 GC 分配事件数——任何一次分配（无论大小）都 ≥1 事件，故「0 事件」是比「0 字节」更强的零分配断言；上限类断言给常数事件预算（锁「不随规模增长」）。
+    /// <c>MeasureManaged</c> 先做一次预热并丢弃（JIT、池扩容、字典容量增长都落在这一发里），再计 <paramref name="iterations"/> 次。
+    /// 采样能力用一次「必然分配」探测，探不到即 <c>Assert.Ignore</c>：绝不把「测不出分配」当成「没有分配」，否则零分配断言全部假绿。
+    /// </remarks>
     internal static class AllocationCapture
     {
         /// <summary>
@@ -39,8 +36,7 @@ namespace Testing
         private static int s_CounterUsable = -1;
 
         /// <summary>
-        /// 测量窗重入守卫：<see cref="Recorder.Get"/> 返回进程共享单例，嵌套测量窗会互相开关
-        /// enabled、把对方窗内的分配事件错记进自己的计数——真发生时当场红掉，绝不静默错账。
+        /// 测量窗重入守卫：嵌套测量窗会让进程共享的 <see cref="Recorder"/> 单例互相开关 enabled、把分配事件错记进对方计数，故当场判红而不静默错账。
         /// </summary>
         private static bool s_InWindow;
 
@@ -75,8 +71,10 @@ namespace Testing
 
         /// <summary>
         /// 主路径：以 <c>GC.Alloc</c> 采样计数计量测量窗内的 GC 分配事件数。
-        /// <para>运行时观测不到分配时直接 Ignore：采样失效下零分配断言会无条件成立，那不是通过而是失明。</para>
         /// </summary>
+        /// <remarks>
+        /// 运行时观测不到分配时直接 Ignore：采样失效下零分配断言会无条件成立，那不是通过而是失明。
+        /// </remarks>
         public static int MeasureManaged(string name, int iterations, Action action, Action<int> verifyAllocs)
         {
             if (action == null) throw new ArgumentNullException(nameof(action));

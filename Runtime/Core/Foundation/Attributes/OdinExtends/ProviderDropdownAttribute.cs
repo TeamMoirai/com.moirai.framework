@@ -5,16 +5,11 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 为 <see cref="SerializeReference"/> 字段或 <see cref="string"/> 类型名字段提供实现类下拉菜单。<br />
-    /// 自动列出字段声明类型（或 <see cref="BaseType"/>）的所有非抽象派生类。
+    /// 为 <see cref="SerializeReference"/> 字段或类型名字段提供实现类下拉菜单。
     /// </summary>
     /// <remarks>
-    /// 两种使用模式：<br />
-    /// 1. <b>引用模式</b>（推荐）：配合 <see cref="SerializeReference"/> 使用，字段类型为抽象类，
-    ///    下拉选择后直接存储实例，展开可编辑子字段。<br />
-    /// 2. <b>类型名模式</b>：字段为 <c>string</c>，存储类型全名，
-    ///    运行时通过 <c>ReflectionUtility.ResolveImplType&lt;T&gt;(ref cached, typeName, fallbackType)</c> 创建实例。
-    ///    适用于接口类型（无法直接序列化实例的场景）。
+    /// 引用模式（推荐）：配合 <see cref="SerializeReference"/>，字段为抽象类，选中后直接存实例并展开编辑子字段。
+    /// 类型名模式：字段为 <c>string</c>，存类型全名，运行时经 <c>ReflectionUtility.ResolveImplType&lt;T&gt;</c> 创建实例，适用于接口类型。
     /// </remarks>
     /// <example>
     /// 引用模式：
@@ -43,10 +38,9 @@ namespace Moirai.Atropos
         public string Label { get; }
 
         /// <summary>
-        /// 下拉是否显示 "(None)" 项。默认 <c>false</c>。
-        /// 为 <c>true</c> 时显示 "(None)" 项；无论取值如何，若该基类下无可供选择的派生类，则仍强制显示 "(None)"，
-        /// 避免出现空下拉。
+        /// 下拉是否显示 "(None)" 项，默认 <c>false</c>。
         /// </summary>
+        /// <remarks>基类下无任何可选派生类时强制显示 "(None)"，避免空下拉。</remarks>
         public bool ShowNone { get; }
 
         /// <param name="baseType">基类类型，用于搜索所有派生类。null 时从字段类型推断。</param>

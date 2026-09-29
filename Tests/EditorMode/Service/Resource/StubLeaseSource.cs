@@ -9,16 +9,16 @@ namespace Service.Resource
 {
     /// <summary>
     /// 八字节的假租约接缝：只记调用，不做任何真实记账。
-    /// <para>能这么假的全部前提是把后端契约收成 <see cref="IResourceLeaseSource"/> 九个成员：收之前
-    /// 假后端要落 74 个抽象成员，等于不可 mock。</para>
     /// </summary>
+    /// <remarks>
+    /// 实现 <see cref="IResourceLeaseSource"/> 九个成员即可替换真实后端，无需 YooAssets 初始化。
+    /// </remarks>
     internal sealed class StubLeaseSource : IResourceLeaseSource
     {
         private readonly List<ResourceLeaseHandle> _released = new List<ResourceLeaseHandle>();
 
         /// <summary>
-        /// 置为 true 后异步子资源图集取用直接抛 <see cref="GameException"/>，
-        /// 用来复现"预约位已落地、取用却失败"这条窗口。
+        /// 置为 <c>true</c> 后异步子资源图集取用直接抛 <see cref="GameException"/>，用来造"预约位已落地、取用却失败"这条窗口。
         /// </summary>
         public bool SubAssetsAcquireThrows { get; set; }
 

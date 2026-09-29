@@ -12,13 +12,14 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// V3-P2 密钥提供方测试：静态密钥（V2 语义等价）、口令注入、HKDF 按用户派生，
-    /// 以及加密处理器经 <see cref="ISaveKeyProvider"/> 密钥来源的全链路往返。
-    /// <para>处理器密钥提供方注入经 internal 属性 <c>KeyProvider</c>（测试程序集在 InternalsVisibleTo 白名单内）；
-    /// 测试不提供方派生 [SerializeReference] 持有的框架基类（避免污染 Inspector 下拉框）——全部使用框架内置实现。</para>
-    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
-    /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。</para>
+    /// 密钥提供方测试：静态密钥（V2 语义等价）、口令注入、HKDF 按用户派生，以及加密处理器经 <see cref="ISaveKeyProvider"/> 密钥来源的全链路往返。
     /// </summary>
+    /// <remarks>
+    /// 处理器密钥提供方注入经 internal 属性 <c>KeyProvider</c>（测试程序集在 <c>InternalsVisibleTo</c> 白名单内）；
+    /// 测试不提供方派生 <c>[SerializeReference]</c> 持有的框架基类（避免污染 Inspector 下拉框）——全部使用框架内置实现。
+    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。
+    /// </remarks>
     public class SaveKeyProviderTests
     {
         [Serializable]

@@ -8,16 +8,13 @@ using UnityEditor.PackageManager;
 namespace Policy
 {
     /// <summary>
-    /// 测试反射策略守卫：把「哪些测试文件允许用 <c>BindingFlags.NonPublic</c>」钉成白名单。
-    /// <para>《测试规范》规定测试不得用反射读写字段——反射把字段名变成测试依赖，改名不报编译错、
-    /// 只在运行期 <c>GetField</c> 返回 null 后 NRE；需要触达的成员应开 <c>internal</c>（编译器把关）。
-    /// 规范若只写在文档里，下一次"顺手反射一下"没人拦得住，所以这里用一格用例把它变成可执行约束。</para>
-    /// <para>白名单只保留三类正当用途：① 契约形状守卫（遍历 API 形状/读标注，只能反射）；
-    /// ② 唤起 Unity 生命周期回调（Awake/OnEnable/OnInit/OnValidate，EditMode 不自动跑）；
-    /// ③ 产码字段探针。另有两个基础设施桥需要探 Unity/UTF 的内部成员。</para>
-    /// <para>白名单双向断言：未登记的文件不得出现该模式；已登记的文件必须仍然存在且仍然命中——
-    /// 否则名单会腐烂成一张没人维护的清单。</para>
+    /// 测试反射策略守卫：把「哪些测试文件允许用非公开反射」钉成白名单。
     /// </summary>
+    /// <remarks>
+    /// 《测试规范》规定测试不得用反射读写字段：反射把字段名变成测试依赖，改名不报编译错、只在运行期取字段得到 null 后 NRE；需要触达的成员应放宽为 <c>internal</c>（编译器把关）。
+    /// 白名单三类正当用途：① 契约形状守卫（遍历 API 形状 / 读标注，只能反射）；② 唤起 Unity 生命周期回调（<c>Awake</c>/<c>OnEnable</c>/<c>OnInit</c>/<c>OnValidate</c>，EditMode 不自动跑）；③ 产码字段探针；另有两个基础设施桥需探 Unity/UTF 内部成员。
+    /// 白名单双向断言：未登记的不得出现该模式，已登记的必须仍存在且仍命中，否则名单腐烂。结构与 <see cref="TestLogChannelPolicyGuardTests"/> 同构。
+    /// </remarks>
     [TestFixture]
     public sealed class ReflectionPolicyGuardTests
     {

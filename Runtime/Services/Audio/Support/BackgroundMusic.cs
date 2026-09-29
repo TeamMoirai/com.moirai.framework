@@ -6,9 +6,8 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 对象在实例化时播放背景音乐。
-    /// <para>分层设计：不同 <see cref="m_ID"/> 的 Music 可同时播放（如 BGM + 气氛层 + 压力层）。</para>
-    /// <para>同 ID 替换：再次 Play 仅淡出/停止本 ID，不影响其它分层。</para>
     /// </summary>
+    /// <remarks>分层设计：不同 <see cref="m_ID"/> 的 Music 可同时播放；同 ID 再次 Play 仅淡出/停止本 ID，不影响其它分层。</remarks>
     public class BackgroundMusic : MonoBehaviour
     {
         [Tooltip("直接引用？")]

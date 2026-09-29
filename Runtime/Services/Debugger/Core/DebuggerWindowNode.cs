@@ -4,9 +4,11 @@ namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 调试器窗口树节点。
-    /// <para>侧边栏导航的数据模型：叶子节点持有 <see cref="Window"/>，目录节点仅作分组（<see cref="Window"/> 为 null）。</para>
-    /// <para>树仅承载导航语义——不参与窗口生命周期（生命周期由注册表与宿主管理）。</para>
     /// </summary>
+    /// <remarks>
+    /// 侧边栏导航的数据模型：叶子节点持有 <see cref="Window"/>，目录节点仅作分组（<see cref="Window"/> 为 null）。
+    /// 树仅承载导航语义，不参与窗口生命周期（生命周期由注册表与宿主管理）。
+    /// </remarks>
     public sealed class DebuggerWindowNode
     {
         #region 字段 [FIELDS]

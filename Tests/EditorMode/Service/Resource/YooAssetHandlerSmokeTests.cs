@@ -8,9 +8,11 @@ using UnityEngine.TestTools;
 namespace Service.Resource
 {
     /// <summary>
-    /// YooAssetHandler 空态冒烟测试：验证未初始化后端时句柄查询与记录维护 API 的安全性行为。
-    /// 全部用例仅触达纯槽位查找路径，不触碰 YooAssets 静态初始化，保证确定性。
+    /// <see cref="YooAssetHandler"/> 空态冒烟测试：未初始化后端时句柄查询与记录维护 API 的行为。
     /// </summary>
+    /// <remarks>
+    /// 全部用例仅触达纯槽位查找路径，不触碰 YooAssets 静态初始化，保证确定性。
+    /// </remarks>
     public sealed class YooAssetHandlerSmokeTests
     {
         [Test]

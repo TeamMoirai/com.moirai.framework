@@ -6,8 +6,8 @@ namespace Moirai.Atropos.Collections
 {
     /// <summary>
     /// 为 <see cref="IReadOnlyList{T}"/> 提供洗牌与随机采样扩展。
-    /// 所有方法均线程安全（随机源走 <see cref="RandomUtility"/> 的每线程流，且可统一播种复现）。
     /// </summary>
+    /// <remarks>线程安全：随机源为 <see cref="RandomUtility"/> 的每线程流，可统一播种复现。</remarks>
     public static class ShufflingExtension
     {
         /// <summary>
@@ -59,9 +59,8 @@ namespace Moirai.Atropos.Collections
 
         /// <summary>
         /// 无放回采样 <paramref name="count"/> 个元素，返回新列表。
-        /// <para>count ≥ 列表长度时，返回完整洗牌副本。</para>
-        /// <para>根据 count 与 n 的比例自适应选择最优算法路径。</para>
         /// </summary>
+        /// <remarks><paramref name="count"/> ≥ 列表长度时返回完整洗牌副本；按 count 与 n 的比例自适应选算法。</remarks>
         public static List<T> RandomElements<T>(this IReadOnlyList<T> list, int count)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
@@ -94,10 +93,8 @@ namespace Moirai.Atropos.Collections
         }
 
         /// <summary>
-        /// HashSet 拒绝采样：平均 O(count) 时间，O(count) 空间。
-        /// 利用 HashSet.Add 的返回值判断碰撞，do-while 在 count≪n 时几乎只执行一次。
+        /// 拒绝采样实现：平均 O(count) 时间、O(count) 空间，适合小 count。
         /// </summary>
-        /// <remarks>内部实现 — 拒绝采样（小 count 适用）</remarks>
         private static List<T> SampleByRejection<T>(IReadOnlyList<T> list, int n, int count)
         {
             var selected = new HashSet<int>();
@@ -120,10 +117,8 @@ namespace Moirai.Atropos.Collections
         }
 
         /// <summary>
-        /// 部分 Fisher-Yates：只对前 count 个位置做随机交换。
-        /// 时间 O(count)，空间 O(n)（索引数组）。
+        /// 部分 Fisher-Yates 实现：只对前 count 个位置随机交换，时间 O(count)、空间 O(n)。
         /// </summary>
-        /// <remarks>内部实现 — 部分 Fisher-Yates（大 count 适用）</remarks>
         private static List<T> SampleByPartialShuffle<T>(IReadOnlyList<T> list, int n, int count)
         {
             var indices = new int[n];

@@ -13,25 +13,19 @@ namespace Moirai.Atropos
         /// 统一序列化写入器（string / UTF8 字节双路径的单一结构实现）。
         /// </summary>
         /// <remarks>
-        /// <para><b>单一来源</b>：分派、容器遍历、引用环/深度守卫、反射成员遍历、Unity 结构体直写、
-        /// 类型化基元数组快路径——全部只实现一次；值的编码差异（char / UTF8、转义、数字格式化）
-        /// 下沉到 <see cref="IJsonSink"/> 的两个实现。</para>
-        /// <para><b>引用环</b>：对齐 <see cref="NewtonsoftJsonHandler"/> 既定的 ReferenceLoopHandling.Ignore 语义
-        /// ——跳过构成环的成员/元素（不抛错、不无限递归）；深度上限软截断（跳过+警告）。</para>
-        /// <para><b>输出契约</b>：字节路径紧凑格式，与字符串路径紧凑格式 UTF8 编码逐字节等价；
-        /// readable 缩进仅字符串入口可达（字节入口不暴露，契约保持）。</para>
-        /// <para><b>AOT 约束</b>：无表达式树/Reflection.Emit；Sink 为 struct 经 ref 传递（受约束调用无装箱），
-        /// 接口按"每值"粒度分发，开销由原语内部工作量摊薄。</para>
+        /// 单一实现：值分派、容器遍历、引用环与深度守卫、反射成员遍历、Unity 结构体直写、类型化基元数组快路径；编码差异（char/UTF8、转义、数字格式化）下沉到 <see cref="IJsonSink"/>。
+        /// 引用环对齐 ReferenceLoopHandling.Ignore 语义：跳过成环成员而不抛错；深度上限软截断（跳过 + 警告）。
+        /// 输出契约：字节路径紧凑格式与字符串路径紧凑格式的 UTF8 编码逐字节等价；readable 缩进仅字符串入口可达。
+        /// AOT：无表达式树与 Reflection.Emit；Sink 为 struct 经 ref 传递（无装箱），接口按每值粒度分发。
         /// </remarks>
         internal static class JsonWriter<TSink> where TSink : struct, IJsonSink
         {
             #region 入口 [ENTRY]
 
             /// <summary>
-            /// 统一写入入口（Sink 由调用方构造后传入；LoopGuard 由调用方管理）。
-            /// 字符串/字节路径的差异（池化 builder / scratch 租还）在 DefaultJson 入口处理，
-            /// 结构写入逻辑在此单一实现。
+            /// 统一写入入口：结构写入逻辑的唯一实现，Sink 由调用方构造后传入。
             /// </summary>
+            /// <remarks>字符串/字节路径的差异（池化 builder、scratch 租还）与引用环守卫由调用方在 <c>DefaultJson</c> 入口处理。</remarks>
             internal static void WriteAll(ref TSink sink, object obj, bool removeNulls, bool readable, int depthLimit)
             {
                 WriteValue(ref sink, obj, removeNulls, readable, 0, depthLimit);
@@ -497,9 +491,9 @@ namespace Moirai.Atropos
             }
 
             /// <summary>
-            /// 字典序列化：简单 key 输出标准 JSON 对象格式；
-            /// 复杂 key 回退 legacy 条目数组格式，解析端两种格式都接受。
+            /// 字典序列化：key 可无损字符串化时输出标准 JSON 对象，否则回退 legacy 条目数组格式。
             /// </summary>
+            /// <remarks>解析端两种格式都接受。</remarks>
             private static void WriteDictionary(ref TSink sink, IDictionary dictionary, Type dictType, bool removeNulls, bool readable, int depth, int depthLimit)
             {
                 if (dictionary.Count == 0)

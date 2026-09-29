@@ -30,10 +30,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 注意：全屏切换不会立即生效，而是在当前帧结束后才会执行。
-        /// 详见：https://docs.unity3d.com/ScriptReference/Screen-fullScreen.html
+        /// 设置全屏开关。
         /// </summary>
-        /// <param name="fullScreen">Fullscreen on or off.</param>
+        /// <param name="fullScreen">是否全屏。</param>
+        /// <remarks>切换不会立即生效，而是在当前帧结束后执行。详见 <see href="https://docs.unity3d.com/ScriptReference/Screen-fullScreen.html"/>。</remarks>
         public static void SetFullScreen(bool fullScreen)
         {
             // 请求变更但将实际执行委托给协调器。

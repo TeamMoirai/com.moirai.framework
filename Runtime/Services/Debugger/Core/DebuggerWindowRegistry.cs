@@ -3,9 +3,11 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器窗口注册表（路径树导航模型，纯数据结构无生命周期副作用）。
-    /// <para>扁平字典提供 O(1) 路径检索；树节点仅供侧边栏导航渲染。窗口生命周期（<see cref="IDebuggerWindow.Initialize"/> / <see cref="IDebuggerWindow.Shutdown"/>）由服务处理器在注册表之外管理。</para>
+    /// 调试器窗口注册表：路径树导航模型，纯数据结构无生命周期副作用。
     /// </summary>
+    /// <remarks>
+    /// 扁平字典提供 O(1) 路径检索，树节点仅供侧边栏导航渲染；窗口生命周期（<see cref="IDebuggerWindow.Initialize"/> / <see cref="IDebuggerWindow.Shutdown"/>）由服务处理器在注册表之外管理。
+    /// </remarks>
     public sealed class DebuggerWindowRegistry
     {
         #region 字段 [FIELDS]

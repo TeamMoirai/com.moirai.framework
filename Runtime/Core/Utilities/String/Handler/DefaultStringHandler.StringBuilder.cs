@@ -4,8 +4,7 @@ using System.Text;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 默认字符串构建器适配器。<br />
-    /// 包装 <see cref="System.Text.StringBuilder"/>，提供统一的操作接口。
+    /// 默认字符串构建器适配器：包装 <see cref="System.Text.StringBuilder"/>，提供统一的操作接口。
     /// </summary>
     internal sealed class DefaultStringBuilder : IStringBuilder
     {

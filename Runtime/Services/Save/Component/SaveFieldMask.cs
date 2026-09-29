@@ -5,8 +5,8 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 字段捕获掩码：勾选字段（键名集合）→ 字段索引位图（索引对应 <see cref="ISaveComponentCapturer.FieldNames"/>）。
-    /// <para>每组件构建一次并缓存（构建需键名集合查找，捕获热路径仅布尔数组索引测试）。</para>
     /// </summary>
+    /// <remarks>每组件构建一次并缓存；捕获热路径只做布尔数组索引测试。</remarks>
     public sealed class SaveFieldMask
     {
         /// <summary>启用表（索引 = 字段索引）。</summary>

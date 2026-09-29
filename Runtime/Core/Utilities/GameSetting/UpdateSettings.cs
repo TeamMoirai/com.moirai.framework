@@ -39,10 +39,9 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// WebGL平台下，
-    /// StreamingAssets：跳过远程下载资源直接访问StreamingAssets
-    /// Remote：访问远程资源
+    /// WebGL 平台的资源加载方式。
     /// </summary>
+    /// <remarks><c>StreamingAssets</c> 跳过远程下载、直接访问本地 StreamingAssets；<c>Remote</c> 访问远程资源。</remarks>
     public enum ELoadResWayWebGL
     {
         Remote,

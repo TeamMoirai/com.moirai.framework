@@ -19,9 +19,10 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 配置自检：加密处理器的密钥是否仍是出厂占位值。
-        /// <para>刻意做成实例成员、不经 <see cref="FrameworkSettings{T}.Instance"/>——构建期校验器只读地取这份资产，
-        /// 缺资产时不该由一次检查替工程新建一份。</para>
         /// </summary>
+        /// <remarks>
+        /// 实例成员，不经 <see cref="FrameworkSettings{T}.Instance"/> 取用：构建期校验器缺资产时只读不新建。
+        /// </remarks>
         internal bool UsesPlaceholderSaveKey =>
             m_SaveServiceHandler is AESEncryptedSaveHandler handler &&
             handler.KeyProvider.UsesPlaceholderCredentials;

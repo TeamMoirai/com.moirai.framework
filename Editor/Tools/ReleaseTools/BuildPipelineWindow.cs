@@ -11,12 +11,12 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 打包工具窗口。仿 Unity 6 Build Profiles：左侧预设列表 + 右侧配置详情，UI Toolkit 布局。
-    /// <para>配置字段绘制由窗口内嵌的 Odin PropertyTree 负责（<see cref="BuildConfig"/> 上的 Odin 特性驱动；
-    /// BuildConfig 位于编辑器程序集，Odin 默认编辑器不接管该类，必须显式建树绘制）。本窗口只负责预设管理与构建执行。</para>
-    /// <para>注意：不要继承 OdinEditorWindow——本窗口自身无 Odin 成员可绘，OdinEditorWindow 会向根元素
-    /// 注入一个不可见但参与布局的空属性树 IMGUIContainer（挤占窗口高度），且无法可靠隐藏（Odin 会复显）。</para>
+    /// 打包工具窗口：左侧预设列表 + 右侧配置详情，UI Toolkit 布局。
     /// </summary>
+    /// <remarks>
+    /// 配置字段由窗口内嵌的 Odin PropertyTree 绘制（<see cref="BuildConfig"/> 上的 Odin 特性驱动；该类位于编辑器程序集，Odin 默认编辑器不接管，须显式建树）。
+    /// 不要继承 <c>OdinEditorWindow</c>——其会向根元素注入一个参与布局的空属性树 IMGUIContainer，挤占窗口高度且无法可靠隐藏。
+    /// </remarks>
     public class BuildPipelineWindow : EditorWindow
     {
         private const string DEFAULT_PRESET_FOLDER = "Assets/Settings/BuildPipeline";

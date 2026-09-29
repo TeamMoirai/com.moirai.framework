@@ -9,10 +9,12 @@ using UnityEngine.TestTools;
 namespace Service.Audio
 {
     /// <summary>
-    /// 泄漏验收：混合 Play/Stop/Preload/Unload/ClearCache 后账本必须归零。
-    /// <para>缓存层走可控租约源；Handler 层经 <see cref="AudioServiceTestHost"/> 注入最小 AudioGroupConfigs——
-    /// 关键路径验收不得依赖宿主工程的 Settings 配置，配置建不出来时 TestHost 直接 Fail 而非静默跳过。</para>
+    /// 泄漏验收：混合 Play / Stop / Preload / Unload / ClearCache 后账本必须归零。
     /// </summary>
+    /// <remarks>
+    /// 缓存层走可控租约源；Handler 层经 <see cref="AudioServiceTestHost"/> 注入最小 AudioGroupConfigs。
+    /// 关键路径验收不得依赖宿主工程的 Settings 配置，配置建不出来时 TestHost 直接 Fail 而非静默跳过。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioLeakAcceptanceTests
     {
@@ -174,10 +176,11 @@ namespace Service.Audio
 
         /// <summary>
         /// 空地址必须直接判负且不产生条目与租约。
-        /// <para>名字里的「冷却 / force 重置」不在这里验：那四格在 AudioClipCacheTests
-        /// （FailedLoad_ / FailureCooldown_Expires / FailureCooldown_Zero / ClearCacheForce_），
-        /// 本夹具的 TryAcquire 从不失败，抄一份只会得到一格永不调用失败路径的假覆盖。</para>
         /// </summary>
+        /// <remarks>
+        /// 「冷却 / force 重置」不在这里验：那四格在 <c>AudioClipCacheTests</c>（<c>FailedLoad_</c> / <c>FailureCooldown_Expires</c> / <c>FailureCooldown_Zero</c> / <c>ClearCacheForce_</c>）；
+        /// 本夹具的 <c>TryAcquire</c> 从不失败，抄一份只会得到一格永不调用失败路径的假覆盖。
+        /// </remarks>
         [Test]
         public void Preload_NullOrEmptyAddress_FailsWithoutEntryOrLease()
         {

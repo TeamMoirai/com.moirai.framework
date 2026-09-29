@@ -9,16 +9,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 云存档存储后端：本地镜像 + 远端 KV 双写，读按 <see cref="ESaveSyncPolicy"/> 裁决（CrystalSave 模式）。
-    /// <para>写入双发（本地镜像原子写提交后远端跟随；远端失败不阻断本地提交——记入待回传集合，下次远端操作成功时 backfill 回传）；
-    /// 删除同理（待删集合回传）；离线（远端抛异常）降级为本地镜像直通并记告警。</para>
-    /// <para>冲突裁决去时钟化：远端提供单调修订号（<see cref="CloudKvEntry.Version"/> &gt; 0）时按版本号裁决——
-    /// 镜像已同步修订号记录于 <c>{file}.cloudver</c> sidecar，镜像脏判定用镜像与 sidecar 的本地 mtime 失配（同为本地时钟）；
-    /// 客户端时钟与远端时钟的偏移不参与裁决。后端不提供版本号时回退时间戳比较（远端权威时钟 vs 镜像戳——下载已转写远端戳）。</para>
-    /// <para>同步原语仅作用于本地镜像（同步 API 不见远端；远端同步由异步 API 族驱动）；
-    /// 单槽备份（<c>.bak</c>）为本地概念，不随云同步。</para>
-    /// <para>目录级删除对远端按前缀尽力删除（失败记待删前缀，回传时重放）。</para>
+    /// 云存档存储后端：本地镜像 + 远端 KV 双写，读按 <see cref="ESaveSyncPolicy"/> 逐键裁决。
     /// </summary>
+    /// <remarks>
+    /// 写：镜像原子提交后双发远端；远端失败不阻断本地提交，记入待回传集合，下次远端操作成功时 backfill 回传（删除同理，目录删除按前缀尽力删、失败记待删前缀重放）；远端不可达降级为镜像直通并记告警。
+    /// 裁决去时钟化：远端修订号（<see cref="CloudKvEntry.Version"/> &gt; 0）优先比较版本号，镜像已同步修订号存于 <c>{file}.cloudver</c> sidecar，镜像脏由镜像与 sidecar 的本地 mtime 失配判定；无版本号时回退时间戳比较（下载已转写远端戳）。
+    /// 同步 API 只作用于本地镜像，远端内容须经异步 API 族获取；单槽备份 <c>.bak</c> 为本地概念，不随云同步。
+    /// </remarks>
     [Serializable]
     public class CloudSaveStorageBackend : SaveStorageBackend
     {
@@ -64,8 +61,7 @@ namespace Moirai.Atropos.Save
         private static FileSaveStorageBackend Mirror => FileSaveStorageBackend.s_Default;
 
         /// <summary>
-        /// 后端能力自描述（镜像原子写 + 远端整值替换视为原子；远端网络 IO 为真异步；不设尺寸上限；非易失；
-        /// 同步读非权威——同步原语仅作用本地镜像，远端内容须经异步 API 族裁决获取）。
+        /// 后端能力自描述：镜像原子写 + 远端整值替换视为原子、远端网络 IO 真异步、无尺寸上限、非易失，同步读非权威。
         /// </summary>
         public override SaveStorageCapabilities Capabilities => new SaveStorageCapabilities(
             supportsAtomicRename: true,
@@ -211,8 +207,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 删除本地镜像文件（幂等；远端删除由异步 API 族驱动）。
-        /// <para>级联清理版本 sidecar——残留版本记录会让同名新档的裁决误用陈旧修订号。</para>
         /// </summary>
+        /// <remarks>级联清理版本 sidecar，避免同名新档误用陈旧修订号。</remarks>
         /// <param name="filePath">文件完整路径。</param>
         public override void DeleteFile(string filePath)
         {
@@ -317,9 +313,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 异步读取（策略裁决：LocalWins 读镜像 / CloudWins 读远端 / Latest 取新 / Custom 逐键裁决；远端失败降级镜像并记告警）。
-        /// <para>单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像；镜像独有 → 回传补传远端）。</para>
+        /// 异步读取文件字节（按策略裁决：LocalWins 读镜像 / CloudWins 读远端 / Latest 取新 / Custom 逐键裁决）。
         /// </summary>
+        /// <remarks>单侧存在时自动对齐另一侧（远端独有则下载刷新镜像，镜像独有则回传补传远端）；远端失败降级读镜像并记告警。</remarks>
         /// <param name="filePath">文件完整路径。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>文件字节；双侧均缺档或镜像失败时为 <c>null</c>。</returns>
@@ -667,9 +663,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 自定义裁决（未配置裁决器时回退 Latest 并记告警）。裁决条目携带版本号（远端修订号 / 镜像已同步修订号），无版本信息时为 0。
-        /// <para>远端尺寸由调用方显式传入——读路径取载荷长度，枚举路径取清单 SizeBytes（枚举元信息无载荷，不得从 Bytes 推导）。</para>
+        /// 自定义裁决：逐键委托 <see cref="SaveSyncConflictResolver"/>（未配置裁决器时回退 Latest 并记告警）。
         /// </summary>
+        /// <remarks>裁决条目携带版本号（远端修订号 / 镜像已同步修订号，无版本信息为 0）；远端尺寸由调用方传入——读路径取载荷长度，枚举路径取清单 SizeBytes。</remarks>
         /// <param name="cloudKey">云端键。</param>
         /// <param name="filePath">本地镜像完整路径（镜像版本 sidecar 读取依据）。</param>
         /// <param name="localTime">本地镜像最后写入时间（UTC）。</param>
@@ -694,9 +690,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 下载远端条目并刷新本地镜像（原子写 + 保留远端时间戳——后续时间戳回退比较以远端权威时钟为准；
-        /// 远端提供版本号时记录镜像已同步修订号 sidecar，0 则清除陈旧 sidecar）。
+        /// 下载远端条目并刷新本地镜像（原子写并保留远端时间戳）。
         /// </summary>
+        /// <remarks>保留远端时间戳使时间戳回退比较以远端权威时钟为准；远端提供版本号时记录镜像已同步修订号 sidecar，0 则清除陈旧记录。</remarks>
         /// <param name="filePath">本地镜像完整路径。</param>
         /// <param name="remoteEntry">远端条目。</param>
         private static void RefreshMirror(string filePath, CloudKvEntry remoteEntry)
@@ -768,9 +764,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 删除远端前缀下全部条目（尽力逐键删除；经前缀枚举下推减少流量）。
-        /// <para>本地二次前缀校验不是性能冗余——自定义后端若错误返回前缀外的键，此处拦截，防止误删远端数据。</para>
+        /// 删除远端前缀下全部条目（尽力逐键删除，经前缀枚举下推减少流量）。
         /// </summary>
+        /// <remarks>删除前做本地二次前缀校验，拦截自定义后端错误返回的前缀外键，防止误删远端数据。</remarks>
         /// <param name="remote">远端存储。</param>
         /// <param name="prefix">目录云端前缀。</param>
         /// <param name="cancellationToken">取消令牌。</param>
@@ -926,8 +922,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 上传判定（去时钟化优先）：版本通道下「远端落后（镜像领先，远端回滚等异常态以镜像为权威）」
-        /// 或「版本相等但镜像脏（本地改写未同步）」；版本不可用回退时间戳比较（镜像新于远端）。
+        /// 上传判定（去时钟化优先）：版本通道下远端落后或版本相等但镜像脏时上传，无版本号回退时间戳比较。
         /// </summary>
         /// <param name="filePath">本地镜像完整路径。</param>
         /// <param name="localTime">本地镜像最后写入时间（UTC，回退通道用）。</param>
@@ -949,9 +944,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 镜像脏判定：镜像 mtime 与版本 sidecar mtime 失配即同步后被本地改写（同步原语直通不更新 sidecar）。
-        /// <para>两者均为本地文件——同一时钟比较，客户端与远端的时钟偏移不参与；读取失败保守判脏（触发回传对齐）。</para>
+        /// 镜像脏判定：镜像 mtime 与版本 sidecar mtime 失配即同步后被本地改写。
         /// </summary>
+        /// <remarks>两者同为本地文件、同一时钟比较，客户端与远端的时钟偏移不参与；读取失败保守判脏（触发回传对齐）。</remarks>
         /// <param name="filePath">本地镜像完整路径。</param>
         /// <returns>镜像已脏返回 <c>true</c>。</returns>
         private static bool IsMirrorDirty(string filePath)
@@ -1010,9 +1005,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 写入镜像已同步修订号（sidecar mtime 与镜像 mtime 对齐——脏判定基准；&lt;= 0 清除陈旧记录）。
-        /// <para>写失败仅降级裁决精度（回退时间戳），不阻断同步主流程。</para>
+        /// 写入镜像已同步修订号（sidecar mtime 与镜像 mtime 对齐为脏判定基准；&lt;= 0 清除陈旧记录）。
         /// </summary>
+        /// <remarks>写失败仅降级为时间戳裁决，不阻断同步主流程。</remarks>
         /// <param name="filePath">本地镜像完整路径。</param>
         /// <param name="version">远端分配的修订号（<c>0</c> = 后端不提供版本号）。</param>
         private static void WriteMirrorVersion(string filePath, long version)

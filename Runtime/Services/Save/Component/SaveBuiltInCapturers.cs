@@ -6,9 +6,8 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 内置捕获器注册入口：引擎组件（Transform/Rigidbody/ParticleSystem）的手写捕获器登记。
-    /// <para>运行期经 <see cref="RuntimeInitializeOnLoadMethodAttribute"/> 自注册；编辑器期（Inspector 字段清单）
-    /// 由编辑器程序集经同一 <see cref="RegisterBuiltIns"/> 入口注册（幂等）。</para>
     /// </summary>
+    /// <remarks>运行期经 <see cref="RuntimeInitializeOnLoadMethodAttribute"/> 自注册；编辑器期由编辑器程序集经同一 <see cref="RegisterBuiltIns"/> 入口注册（幂等）。</remarks>
     public static class SaveBuiltInCapturers
     {
         /// <summary>UTF-8 解码器（无 BOM；恢复侧键匹配用）。</summary>
@@ -125,9 +124,9 @@ namespace Moirai.Atropos.Save
     }
 
     /// <summary>
-    /// Rigidbody 内置捕获器：linearVelocity/angularVelocity 两字段（物理暂停/恢复助手——存档恢复刚体运动态）。
-    /// <para>恢复仅作用于非运动学刚体（运动学刚体速度由动画/脚本驱动，写速度无物理意义）。</para>
+    /// Rigidbody 内置捕获器：捕获 linearVelocity/angularVelocity 两字段，用于恢复刚体运动态。
     /// </summary>
+    /// <remarks>恢复仅作用于非运动学刚体（运动学刚体速度由动画/脚本驱动，写速度无物理意义）。</remarks>
     public sealed class RigidbodyCapturer : ISaveComponentCapturer
     {
         /// <summary>字段键：线速度。</summary>
@@ -212,9 +211,9 @@ namespace Moirai.Atropos.Save
     }
 
     /// <summary>
-    /// ParticleSystem 内置捕获器：time 单字段（粒子播放进度持久化）。
-    /// <para>恢复直接写 <see cref="ParticleSystem.time"/>——仅在粒子系统处于播放态时有视觉效果。</para>
+    /// ParticleSystem 内置捕获器：捕获 time 单字段，持久化粒子播放进度。
     /// </summary>
+    /// <remarks>恢复直接写 <see cref="ParticleSystem.time"/>，仅在粒子系统处于播放态时有视觉效果。</remarks>
     public sealed class ParticleSystemCapturer : ISaveComponentCapturer
     {
         /// <summary>字段键：播放时间。</summary>

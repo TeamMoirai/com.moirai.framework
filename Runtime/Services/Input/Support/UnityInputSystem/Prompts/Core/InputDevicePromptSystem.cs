@@ -10,9 +10,9 @@ using UnityEngine.InputSystem.Utilities;
 namespace Moirai.Atropos.Input.Prompts
 {
     /// <summary>
-    /// 设备类型的枚举
-    /// TODO - 删除，使用更有效的 InputSystem types?
+    /// 输入设备类型枚举。
     /// </summary>
+    /// <remarks>TODO：待评估改用 InputSystem 的设备类型。</remarks>
     public enum InputDeviceType
     {
         Mouse,

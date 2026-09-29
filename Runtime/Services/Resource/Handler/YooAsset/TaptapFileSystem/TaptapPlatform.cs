@@ -5,8 +5,7 @@ using YooAsset;
 using TapTapMiniGame;
 
 /// <summary>
-/// TapTap 小游戏平台实现
-/// 参考：https://developer.taptap.cn/minigameapidoc/dev/engine/unity-adaptation/guide/
+/// TapTap 小游戏平台实现。参考 https://developer.taptap.cn/minigameapidoc/dev/engine/unity-adaptation/guide/。
 /// </summary>
 internal class TaptapPlatform : IWebPlatformStrategy
 {

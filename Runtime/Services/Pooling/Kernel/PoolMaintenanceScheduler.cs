@@ -5,9 +5,11 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 池维护项接口——由需要按期维护的池实现，交由 <see cref="PoolMaintenanceScheduler"/> 调度。
-    /// <para>时钟语义由所属服务决定（通用池用实时时钟、GameObject 池用缩放时钟），<paramref name="now"/> 仅透传。</para>
+    /// 池维护项接口：由需要按期维护的池实现，交由 <see cref="PoolMaintenanceScheduler"/> 调度。
     /// </summary>
+    /// <remarks>
+    /// 时钟语义由所属服务决定（通用池用实时时钟、GameObject 池用缩放时钟），<paramref name="now"/> 仅透传。
+    /// </remarks>
     internal interface IPoolMaintenanceItem
     {
         /// <summary>
@@ -25,14 +27,12 @@ namespace Moirai.Atropos.ObjectPool
 
     /// <summary>
     /// 共享池维护调度器：最小堆到期唤醒 + 帧预算防卡顿。
-    /// <para>仅负责"按到期时间唤醒"——到期项回调 <see cref="IPoolMaintenanceItem.ExecuteMaintenance"/>（非低内存）；
-    /// 低内存全量维护由服务方自行遍历池执行，不经此调度器。</para>
-    /// <para>每次调用分两段：采集段一次性弹出堆内全部到期项进工作集，派发段按帧预算与迭代上界逐项执行。
-    /// 因此<b>本轮只处理进入本轮时已到期的项</b>——项在执行中重新调度自身（含 due &lt;= now 的"立即再醒"）
-    /// 一律顺延到下一次调用，单帧每池至多维护一次。</para>
-    /// <para>派发未跑完工作集（预算或上界耗尽）时，剩余项留在工作集里由后续调用续派，FIFO 不饿死；
-    /// 续派前被 <see cref="Remove"/> 或 <see cref="Clear"/> 摘除的项不会再去执行。</para>
     /// </summary>
+    /// <remarks>
+    /// 仅负责按到期时间唤醒；低内存全量维护由服务方自行遍历池执行，不经此调度器。
+    /// 每次调用分采集段与派发段：本轮只处理进入本轮时已到期的项，执行中重新调度的项（含 <c>due &lt;= now</c>）顺延到下一次调用，单帧每池至多维护一次。
+    /// 派发未跑完工作集时剩余项留在工作集里由后续调用续派（FIFO）；续派前被 <see cref="Remove"/> 或 <see cref="Clear"/> 摘除的项不再执行。
+    /// </remarks>
     internal sealed class PoolMaintenanceScheduler
     {
         #region 常量 [CONSTANTS]

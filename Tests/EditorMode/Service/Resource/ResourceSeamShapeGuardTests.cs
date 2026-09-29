@@ -6,11 +6,12 @@ using NUnit.Framework;
 namespace Service.Resource
 {
     /// <summary>
-    /// 后端接缝形状与处理器引用的记账用例。
-    /// <para>本组不验行为，只把"当前有多少成员、其中多少个是 internal abstract、多少个还挂着
-    /// [Obsolete]"钉成基线。后续重构会一项项往下削，削每一笔都必须在这里以 diff 的形式显形——
-    /// 否则"顺手少个成员"和"引用悄悄对不上"在同一次改动里没人分得清。</para>
+    /// 后端接缝形状与处理器引用的记账契约：成员数、<c>internal abstract</c> 数与 <c>[Obsolete]</c> 项数。
     /// </summary>
+    /// <remarks>
+    /// 本组不验行为，只把上述计数钉成基线；后续每次削减都必须在这里以 diff 显形，
+    /// 否则"顺手少个成员"与"引用悄悄对不上"在同一次改动里没人分得清。
+    /// </remarks>
     public sealed class ResourceSeamShapeGuardTests
     {
         // 2026-09-24 基线：19 个抽象属性 + 48 个抽象方法；其中 0 个 internal abstract；0 个 [Obsolete]。
@@ -39,11 +40,12 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// internal abstract 成员数停在基线上。
-        /// <para>抽象基类带 internal abstract 成员时，程序集外的派生类既看不见也落不下，接缝只能在框架内实现。
-        /// 已清零：租约接缝与维护族全部是 <c>public abstract</c>，程序集外后端可派生。再涨回来等于把
-        /// 后端实现权又收进程序集，要有理由。</para>
+        /// <c>internal abstract</c> 成员数停在基线上（当前为零）。
         /// </summary>
+        /// <remarks>
+        /// 抽象基类带 <c>internal abstract</c> 成员时，程序集外的派生类既看不见也落不下，接缝只能在框架内实现。
+        /// 租约接缝与维护族全部是 <c>public abstract</c>，程序集外后端可派生；数字再涨回来等于把实现权收回程序集。
+        /// </remarks>
         [Test]
         public void Seam_InternalAbstractCount_MatchesRecordedBaseline()
         {
@@ -62,9 +64,11 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// <see cref="IResourceLeaseSource"/> 成员名单冻结——绑定层窄接缝是 mock 与 0-GC 验收的依赖面，
-        /// 加减成员必须在这里 diff 显形，且同步刷新注释/文档里的成员计数。
+        /// <see cref="IResourceLeaseSource"/> 成员名单冻结：它是绑定层窄接缝，也是 mock 与 0-GC 验收的依赖面。
         /// </summary>
+        /// <remarks>
+        /// 加减成员必须在这里 diff 显形，并同步刷新注释与文档里的成员计数。
+        /// </remarks>
         [Test]
         public void LeaseSource_MemberNames_MatchRecordedBaseline()
         {
@@ -100,11 +104,13 @@ namespace Service.Resource
 
         /// <summary>
         /// 设置资产里序列化引用的后端必须真的解析出来。
-        /// <para>[SerializeReference] 存的是托管引用的类型名三元组（class/ns/asm），重命名或挪动
-        /// 处理器类型不会有任何编译错误，只会让该字段还原成 null；外观层随即落到
-        /// "设置里没有就用代码默认"的兜底上，游戏照常启动、照常读默认包名，且不打一行日志。
-        /// 这条用例就是那个静默失败唯一的自动闸。</para>
         /// </summary>
+        /// <remarks>
+        /// <c>[SerializeReference]</c> 存的是托管引用的类型名三元组（class/ns/asm），
+        /// 重命名或挪动处理器类型不会有编译错误，只会让该字段还原成 null；
+        /// 外观层随即落到"设置里没有就用代码默认"的兜底上，游戏照常启动且不打一行日志。
+        /// 这条用例是那个静默失败唯一的自动闸。
+        /// </remarks>
         [Test]
         public void Settings_SerializedHandler_ResolvesToConcreteBackend()
         {

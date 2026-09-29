@@ -185,8 +185,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 根据prefab或者模版来创建新的 widget。
-        /// <remarks>存在父物体得资源故不需要异步加载。</remarks>
+        /// 根据 prefab 或模版创建新的 widget。
         /// </summary>
         /// <param name="parentUI">父物体UI。</param>
         /// <param name="goPrefab">实例化预制体。</param>
@@ -281,9 +280,9 @@ namespace Moirai.Atropos.UI
         #region 销毁 [DESTROY]
 
         /// <summary>
-        /// 组件被销毁调用。
-        /// <remarks>请勿手动调用！</remarks>
+        /// 组件被销毁时调用。
         /// </summary>
+        /// <remarks>框架内部使用，请勿手动调用。</remarks>
         internal void OnDestroyWidget()
         {
             Parent?.SetUpdateDirty();

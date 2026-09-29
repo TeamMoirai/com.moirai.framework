@@ -11,10 +11,9 @@ using UnityEngine.UI;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// LitMotion 动画处理器实现（零GC）。
-    /// 使用 Dictionary 管理所有活跃的 MotionHandle。
-    /// 每个方法内联构建器链，使用 state-based Bind 避免闭包分配。
+    /// LitMotion 动画处理器实现（零 GC）。
     /// </summary>
+    /// <remarks>用 Dictionary 管理所有活跃的 MotionHandle；每个方法内联构建器链，以 state-based Bind 避免闭包分配。</remarks>
     [Serializable]
     internal sealed class LitMotionHandler : TweenHandler
     {
@@ -221,9 +220,9 @@ namespace Moirai.Atropos
         #region 暂停与等待 [PAUSE & AWAIT]
 
         /// <summary>
-        /// 暂停指定 tween。LitMotion 无原生 Pause API——通过 PlaybackSpeed=0 冻结时间推进实现，
-        /// 官方测试（PlaybackSpeedTest.Test_PlaybackSpeed_Pause）确认该语义。
+        /// 暂停指定 tween。
         /// </summary>
+        /// <remarks>LitMotion 无原生 Pause API，通过 <c>PlaybackSpeed = 0</c> 冻结时间推进实现。</remarks>
         public override void Pause(long tweenId)
         {
             if (!_handleMap.TryGetValue(tweenId, out var handle) || !handle.IsActive())
@@ -253,10 +252,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 等待 tween 结束（UniTask，LitMotion 原生信号版）。
-        /// <para>任何结束原因（自然完成/Complete/Stop/清理）→ 正常返回，不区分死因
-        /// （CancelBehavior.None + cancelAwaitOnMotionCanceled:false）；
-        /// 仅外部 CancellationToken 取消 → OperationCanceledException（放弃等待，motion 不受影响）。</para>
         /// </summary>
+        /// <remarks>任何结束原因（自然完成/Complete/Stop/清理）均正常返回，不区分死因（<c>CancelBehavior.None</c> + <c>cancelAwaitOnMotionCanceled:false</c>）；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待，motion 不受影响）。</remarks>
         public override UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {
             if (!_handleMap.TryGetValue(tweenId, out var handle) || !handle.IsActive())

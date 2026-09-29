@@ -7,13 +7,12 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 基于 Unity 官方 Logging 包（com.unity.logging）的日志辅助器。
-    /// <para>由 asmdef 版本定义 UNITY_LOGGING_INSTALLED 自动启用；sink、输出模板等
-    /// 细节请通过包自身的 LogSettings / Logger 配置接管。</para>
-    /// <para>时间戳由 Unity Logging 包的 <c>outputTemplate</c>（含 <c>{Timestamp}</c> 占位符）控制，
-    /// <see cref="LogHandler.TimestampEnabled"/> / <see cref="LogHandler.TimestampFormat"/>
-    /// 仅作为配置记录，实际生效需在 LogSettings 中设置。</para>
+    /// 基于 Unity 官方 Logging 包（com.unity.logging）的日志辅助器，由 <c>UNITY_LOGGING_INSTALLED</c> 自动启用。
     /// </summary>
+    /// <remarks>
+    /// sink、输出模板等细节由包自身的 <c>LogSettings</c> / <c>Logger</c> 接管。
+    /// 时间戳由包的 <c>outputTemplate</c> 中 <c>{Timestamp}</c> 占位符控制；<see cref="LogHandler.TimestampEnabled"/> / <see cref="LogHandler.TimestampFormat"/> 仅作配置记录，实际生效需在 <c>LogSettings</c> 中设置。
+    /// </remarks>
     [Serializable]
     internal sealed class UnityLoggingHandler : LogHandler
     {
@@ -80,8 +79,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取日志等级对应的三字符类型标签。
-        /// <para>记法与 <see cref="DefaultLogHandler"/> 的级别标签一致（VRB/DBG/INF/WRN/ERR/FAT）。</para>
+        /// 获取日志等级对应的三字符类型标签（VRB/DBG/INF/WRN/ERR/FAT），记法与 <see cref="DefaultLogHandler"/> 一致。
         /// </summary>
         /// <param name="logLevel">游戏框架日志等级。</param>
         /// <returns>类型标签文本。</returns>

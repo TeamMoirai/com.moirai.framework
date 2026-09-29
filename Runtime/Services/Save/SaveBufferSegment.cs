@@ -3,11 +3,11 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 字节缓冲区视图（缓冲区 + 有效区间）：载荷变换钩子（<see cref="SaveServiceHandler.OnTransformContainer"/> /
-    /// <see cref="SaveServiceHandler.OnRestorePayload"/>）的输入/输出载体。
-    /// <para>明文处理器经视图别名直通（读写路径零整档拷贝）；加密处理器输出新缓冲区（Offset 为 0）。
-    /// 视图为只读引用，不转移缓冲区所有权。</para>
+    /// 字节缓冲区视图（缓冲区 + 有效区间）：载荷变换钩子（<see cref="SaveServiceHandler.OnTransformContainer"/> / <see cref="SaveServiceHandler.OnRestorePayload"/>）的输入/输出载体。
     /// </summary>
+    /// <remarks>
+    /// 明文处理器经视图别名直通（读写路径零整档拷贝），加密处理器输出新缓冲区（Offset 为 0）；视图为只读引用，不转移缓冲区所有权。
+    /// </remarks>
     public readonly struct SaveBufferSegment
     {
         /// <summary>承载缓冲区（长度可能大于有效区间——池化租赁缓冲区）。</summary>

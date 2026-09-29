@@ -13,8 +13,7 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// Addressables 后端的初始化、定位与实例化面——把 YooAsset 显式建模的"包 / 清单 / 位置有效性"
-    /// 落到 Addressables 的实际形态上：一个隐式目录、按 key 定位、只能异步实例化。
+    /// Addressables 后端的初始化、定位与实例化面：一个隐式目录、按 key 定位、只能异步实例化。
     /// </summary>
     partial class AddressableHandler
     {
@@ -45,8 +44,8 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// <see cref="AsyncOperationHandle{TObject}"/> 到 <see cref="IResourceOperation"/> 的适配。
-        /// <para>地址是 struct，故以泛型类持字段：既免装箱，也不必"解箱时精确知道 T"。</para>
         /// </summary>
+        /// <remarks>句柄是 struct，故以泛型类持字段：既免装箱，也不必在解箱时精确知道 <c>TObject</c>。</remarks>
         private sealed class AddressableOperation<TObject> : IResourceOperation
         {
             private readonly AsyncOperationHandle<TObject> _handle;
@@ -72,9 +71,9 @@ namespace Moirai.Atropos.Resource
         #region 定位 [LOCATE]
 
         /// <summary>
-        /// 按 key 同步定位。地址在初始化后常驻，<c>Locate</c> 是 Addressables 唯一的同步查询面；
-        /// type 传 null 表示"任意类型"——传具体类型会把同一地址的其它导入项判成不存在。
+        /// 按 key 同步定位，是 Addressables 唯一的同步查询面。
         /// </summary>
+        /// <remarks>地址在初始化后常驻；类型维度传 <c>null</c> 表示任意类型，传具体类型会把同一地址的其它导入项判成不存在。</remarks>
         private static bool TryLocate(string location, out IList<IResourceLocation> locations)
         {
             locations = null;

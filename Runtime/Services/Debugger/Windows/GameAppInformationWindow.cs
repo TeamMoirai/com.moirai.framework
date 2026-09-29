@@ -5,8 +5,7 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 游戏应用设置窗口（FrameRate / GameSpeed 实时控制与本地设置键值清单）。
-    /// <para>整合原 GameAppEditor 调试信息（GameApp 去 MonoBehaviour 化后的 Inspector 调试入口承接）。</para>
+    /// 游戏应用设置窗口：FrameRate / GameSpeed 实时控制与本地设置键值清单。
     /// </summary>
     public sealed class GameAppInformationWindow : PollingDebuggerWindowBase
     {

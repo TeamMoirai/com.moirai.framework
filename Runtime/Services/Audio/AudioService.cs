@@ -10,11 +10,11 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 音效管理外观（Facade），为游戏提供统一的音效播放接口。
-    /// <para>统一的静态音频访问入口，通过替换 <see cref="Handler"/> 即可在不同音频后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="AudioServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
-    /// <para>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/>。</para>
     /// </summary>
+    /// <remarks>
+    /// 统一的静态音频访问入口，替换 <see cref="Handler"/> 即可在不同音频后端之间切换。
+    /// 未显式设置处理器时懒加载：优先从 <see cref="AudioServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>；Handler 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// </remarks>
     [AutoRegisterService]
     [HandlerHost(typeof(AudioServiceHandler))]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
@@ -31,10 +31,7 @@ namespace Moirai.Atropos.Audio
         /// <returns>默认音频处理器实例。</returns>
         internal static AudioServiceHandler CreateDefaultHandler() => new UnityAudioHandler();
 
-        /// <summary>
-        /// 从 <see cref="AudioServiceSettings"/> 解析音频处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
-        /// </summary>
+        /// <summary>从 <see cref="AudioServiceSettings"/> 解析音频处理器，并幂等确保服务已注册。</summary>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static AudioServiceHandler GetHandlerFromSettings()
         {
@@ -45,11 +42,8 @@ namespace Moirai.Atropos.Audio
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
-        /// <summary>
-        /// 初始化音频服务。由容器在构建期调用。
-        /// <para>确保 <c>AudioService.Handler</c> 已赋值（触发 <see cref="CreateDefaultHandler"/> 懒加载），
-        /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
-        /// </summary>
+        /// <summary>初始化音频服务。由容器在构建期调用。</summary>
+        /// <remarks>确保 <c>AudioService.Handler</c> 已赋值，并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>，未就绪时静默跳过）。</remarks>
         public override void OnInit()
         {
             _ = Handler;
@@ -70,9 +64,11 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 前后台切换：转发给当前后端。订阅在 <see cref="OnInit"/> 建立、<see cref="OnShutdown"/> 注销，
-        /// 生命周期与 <see cref="AudioListener"/> 的挂起状态一致。
+        /// 前后台切换回调：把挂起状态转发给当前后端。
         /// </summary>
+        /// <remarks>
+        /// 订阅在 <c>OnInit</c> 建立、<c>OnShutdown</c> 注销，生命周期跟随 <c>AudioListener</c> 的挂起状态。
+        /// </remarks>
         private static void HandleApplicationPause(bool paused)
         {
             try
@@ -106,14 +102,8 @@ namespace Moirai.Atropos.Audio
             AudioWarnOnce.Reset();
         }
 
-        /// <summary>
-        /// 容器 Tick 驱动——转发到处理器轮询音轨与手动过渡。
-        /// </summary>
-        /// <remarks>
-        /// 隔离必须在音频内部做：容器的 tick 保护在开发构建下是「记录后重新抛出并打断整轮 tick」，
-        /// 一条音的异常于是会连带冻住同帧的输入/UI/存档。发布构建下容器只会隔离本服务，
-        /// 这里的退避上报保证两种构建行为一致，且不会因为持续抛异常而刷屏。
-        /// </remarks>
+        /// <summary>容器 Tick 驱动——转发到处理器轮询音轨与手动过渡。</summary>
+        /// <remarks>隔离在音频内部做：容器 tick 保护在开发构建下会重新抛出并打断整轮 tick，一条音的异常不该冻住同帧的输入/UI/存档；退避上报使两种构建行为一致且不刷屏。</remarks>
         public void Tick(float elapseSeconds, float realElapseSeconds)
         {
             var handler = s_Handler;
@@ -151,10 +141,8 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 资源句柄池（只读视图），用于缓存资源系统的已加载音频资源（后端原生句柄的 object 包装）。
-        /// <para>池条目的增删与租约释放由服务内部配对管理（<see cref="PutInAudioPool"/>/<see cref="RemoveClipFromPool"/>/<see cref="CleanAudioPool"/>），外部请勿直接改写。</para>
-        /// </summary>
+        /// <summary>资源句柄池（只读视图），包装后端原生句柄/租约。</summary>
+        /// <remarks>条目增删与租约释放由服务内部配对管理（<see cref="PutInAudioPool"/>/<see cref="RemoveClipFromPool"/>/<see cref="CleanAudioPool"/>），外部请勿直接改写。</remarks>
         public static IReadOnlyDictionary<string, object> AssetHandlePool => s_Handler?.AssetHandlePool;
 
         /// <summary>

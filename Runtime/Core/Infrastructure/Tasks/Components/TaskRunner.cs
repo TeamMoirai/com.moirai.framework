@@ -64,9 +64,9 @@ namespace Moirai.Atropos.Tasks
         }
 
         /// <summary>
-        /// 登记任务（静态 <see cref="RegisterTask"/> 的全部实质）。留出 internal 入口给测试与代码装配：
-        /// 静态那层还要取宿主，而宿主在编辑器态拿不到（见 <see cref="GetInstance"/>）。
+        /// 登记任务（<see cref="RegisterTask"/> 的实质实现）。
         /// </summary>
+        /// <remarks>暴露 internal 供测试直接装配：静态入口需先取宿主，而编辑器态取不到。</remarks>
         internal void Internal_RegisterTask(TaskBase task)
         {
             if (Tasks.Contains(task))

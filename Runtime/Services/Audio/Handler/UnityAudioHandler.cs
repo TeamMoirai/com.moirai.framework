@@ -12,10 +12,11 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 基于 Unity 音频系统（<see cref="AudioSource"/>/<see cref="AudioMixer"/>）的默认音频处理器。
-    /// <para>句柄生命周期：Play 绑定 → 结束/抢占时 <see cref="OnAgentPlaybackEnded"/> 自动释放，杜绝无界增长与旧句柄别名。</para>
-    /// <para>句柄注册与音量过渡复用 <see cref="AudioHandleRegistry{TVoice}"/> / <see cref="AudioFadeScheduler"/>，
-    /// 与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。</para>
     /// </summary>
+    /// <remarks>
+    /// 句柄生命周期：Play 绑定 → 结束/抢占时 <see cref="OnAgentPlaybackEnded"/> 自动释放，杜绝无界增长与旧句柄别名。
+    /// 句柄注册与音量过渡复用 <see cref="AudioHandleRegistry{TVoice}"/> / <see cref="AudioFadeScheduler"/>，与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。
+    /// </remarks>
     [Serializable]
     internal sealed class UnityAudioHandler : AudioServiceHandler, IAudioFadeTarget
     {

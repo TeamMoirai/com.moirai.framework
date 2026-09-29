@@ -8,12 +8,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 本地化服务外观（Facade）。
-    /// <para>统一的静态多语言访问入口，通过替换 <see cref="Handler"/> 即可在不同本地化数据源之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="LocalizationServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），与全框架统一。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// 本地化服务外观（Facade）：统一的多语言静态访问入口，替换 <see cref="Handler"/> 即可切换数据源。
     /// </summary>
+    /// <remarks>
+    /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="LocalizationServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
+    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ConfigTableService))]
     [HandlerHost(typeof(LocalizationServiceHandler))]
@@ -29,8 +30,8 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 从 <see cref="LocalizationServiceSettings"/> 解析本地化处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），使懒加载主路径首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static LocalizationServiceHandler GetHandlerFromSettings()
         {
@@ -42,14 +43,12 @@ namespace Moirai.Atropos.Localization
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
-        /// 初始化本地化服务。由容器在构建期调用。
-        /// <para>确保 <c>LocalizationService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载），
-        /// 订阅处理器语言变更事件用于静态事件转发，
-        /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
-        /// <para>依赖 <see cref="ConfigTableService"/>：默认数据源（<see cref="ConfigTableLocalizationHandler"/>）
-        /// 从配置表读取语言列表与字符串字典，处理器懒加载即可能触发首次读表——该依赖必须显式声明，
-        /// 否则初始化序会退化为注册序（历史故障：本地化先于配置表/资源服务初始化，首次读表失败）。</para>
+        /// 初始化本地化服务：订阅处理器语言变更事件并注册调试面板。由容器在构建期调用。
         /// </summary>
+        /// <remarks>
+        /// 触发 <c>Handler</c> 懒加载（可能首次读表），故 <see cref="ConfigTableService"/> 依赖必须显式声明，
+        /// 否则初始化序会退化为注册序。调试器外观未就绪时静默跳过面板注册。
+        /// </remarks>
         public override void OnInit()
         {
             Handler.OnLanguageChanged += OnLanguageChanged;
@@ -97,9 +96,9 @@ namespace Moirai.Atropos.Localization
         public static int LoadedLanguageCount => s_Handler?.LanguageCount ?? 0;
 
         /// <summary>
-        /// 当前批内收录的语言（列序即批内列下标顺序；未就绪时为空）。
-        /// <para>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</para>
+        /// 当前批内收录的语言，列序即批内列下标顺序；未就绪时为空。
         /// </summary>
+        /// <remarks>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</remarks>
         public static IReadOnlyList<Language> LoadedLanguages => s_Handler?.LoadedLanguages ?? Array.Empty<Language>();
 
         /// <summary>
@@ -113,9 +112,9 @@ namespace Moirai.Atropos.Localization
         public static int StringOverlayLayerCount => s_Handler?.StringOverlayLayerCount ?? 0;
 
         /// <summary>
-        /// 本地化数据是否已加载完成（只读快照，<b>不</b>触发懒加载）。
-        /// <para>本地化器据此区分「数据未就绪」（静默推迟注入，首载成功的语言切换会重注入）与「词条真缺失」（报错）。</para>
+        /// 本地化数据是否已加载完成（只读快照，不触发懒加载）。
         /// </summary>
+        /// <remarks>本地化器据此区分「数据未就绪」（静默推迟注入，首载成功的语言切换会重注入）与「词条真缺失」（报错）。</remarks>
         public static bool IsDataLoaded => s_Handler?.IsDataLoaded ?? false;
 
         /// <summary>
@@ -246,16 +245,20 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 强制重载本地化词条（配置表热更、远程词库下发后调用；未就绪时为 no-op）。
-        /// <para>重载失败（数据源未就绪/整批拒载）保留上一份可用快照；成功换批后自动重注入全部本地化器并广播语言变更——
-        /// 语言未变也会广播，词条内容可能已更新。覆盖层按契约不被换批清空。</para>
         /// </summary>
+        /// <remarks>
+        /// 重载失败（数据源未就绪或整批拒载）保留上一份可用快照。
+        /// 成功换批后自动重注入全部本地化器并广播语言变更；语言未变也会广播，词条内容可能已更新。覆盖层不被换批清空。
+        /// </remarks>
         public static void ReloadTexts() => s_Handler?.ReloadTexts();
 
         /// <summary>
         /// 异步预加载本地化数据（启动期推荐调用，避免首查询承担整表展开的帧尖峰）。
-        /// <para>幂等 + 在途去重：并发调用共享同一任务；已加载或处理器未就绪时立即完成。
-        /// 加载在途期间同步查询按「未就绪」降级（返回 ID 原文），完成后自动重注入全部本地化器。</para>
         /// </summary>
+        /// <remarks>
+        /// 幂等且在途去重：并发调用共享同一任务；已加载或处理器未就绪时立即完成。
+        /// 加载在途期间同步查询按未就绪降级（返回 ID 原文），完成后自动重注入全部本地化器。
+        /// </remarks>
         public static UniTask PreloadAsync() => s_Handler?.LoadAsync() ?? UniTask.CompletedTask;
 
         #endregion
@@ -268,10 +271,12 @@ namespace Moirai.Atropos.Localization
         public static bool Has(string id) => s_Handler?.Has(id) ?? false;
 
         /// <summary>
-        /// 单趟按 ID 取当前语言译文（缺译按处理器口径追踪一次；不返回 ID 原文）。
-        /// <para>本地化器与内联标记解析的「有则注、无则报」判断走这里——替代
-        /// <c>Has</c> + <c>GetTextFromId</c> 两趟查询；需要缺译露 key 的原文回显仍用 <see cref="GetTextFromId(string,object[])"/>。</para>
+        /// 单趟按 ID 取当前语言译文，缺译按处理器口径追踪一次，不返回 ID 原文。
         /// </summary>
+        /// <remarks>
+        /// 本地化器与内联标记解析的「有则注、无则报」判断走这里，无需 <c>Has</c> + <c>GetTextFromId</c> 两趟查询；
+        /// 需要缺译露 key 的原文回显时用 <see cref="GetTextFromId(string,object[])"/>。
+        /// </remarks>
         /// <param name="id">文本 ID。</param>
         /// <param name="text">命中的译文；缺失或服务未就绪时为 <c>null</c>。</param>
         /// <returns>取到译文时为 <c>true</c>；缺译或服务未就绪时为 <c>false</c>。</returns>
@@ -334,8 +339,7 @@ namespace Moirai.Atropos.Localization
         public static List<string> GetAllIds() => s_Handler?.GetAllIds();
 
         /// <summary>
-        /// 取复数词条（未就绪时返回 ID 原文）：按当前语言的 CLDR cardinal 规则在
-        /// <c>id#zero|one|two|few|many|other</c> 中选中类别，回落 <c>id#other</c> 与裸 key。
+        /// 取复数词条（未就绪时返回 ID 原文）：按当前语言的 CLDR 规则选中 <c>id#类别</c>，回落 <c>id#other</c> 与裸 key。
         /// </summary>
         /// <remarks>占位符约定：<c>{0}</c> = 数量，<c>{1..}</c> = 调用方参数；格式化文化跟随当前语言。</remarks>
         /// <param name="id">复数词条基础 ID。</param>
@@ -355,8 +359,8 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 添加本地化器。
-        /// <para>服务未就绪时入挂起队列（去重），<see cref="OnInit"/> 回灌；就绪后直发处理器。</para>
         /// </summary>
+        /// <remarks>服务未就绪时入挂起队列（去重），<see cref="OnInit"/> 回灌；就绪后直发处理器。</remarks>
         public static void AddLocalizer(LocalizerBase localizer)
         {
             if (localizer == null) return;
@@ -374,8 +378,8 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 移除本地化器。
-        /// <para>命中挂起队列即取消尚未回灌的注册；否则委派处理器摘除。</para>
         /// </summary>
+        /// <remarks>命中挂起队列即取消尚未回灌的注册，否则委派处理器摘除。</remarks>
         public static void RemoveLocalizer(LocalizerBase localizer)
         {
             if (localizer == null) return;
@@ -416,9 +420,8 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 覆盖指定语言下的一批词条（运营热改文案、QA 强改、远程补丁走同一条路）。
-        /// <para>叠加语义：未覆盖的词条仍取批内译文，空/仅空白值等同于不覆盖；
-        /// 覆盖层不跨服务关闭存活。</para>
         /// </summary>
+        /// <remarks>叠加语义：未覆盖的词条仍取批内译文，空或仅空白值等同于不覆盖；覆盖层不跨服务关闭存活。</remarks>
         /// <param name="sourceId">来源标识（诊断用，同名即同一层）。</param>
         /// <param name="language">被覆盖的语言。</param>
         /// <param name="entries">key → 新译文。</param>

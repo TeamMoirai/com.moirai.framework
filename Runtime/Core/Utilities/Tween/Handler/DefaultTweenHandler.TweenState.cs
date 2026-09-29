@@ -73,14 +73,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// Tween 核心数据结构。值类型，存储在连续数组中，无堆分配。
-        /// <para>
-        /// 注意：版本号不在本结构内——它存放在 <see cref="TweenTask"/> 的独立
-        /// <c>s_Versions</c> 数组中，与状态内容完全解耦，
-        /// 因此 <see cref="Reset"/> 可安全使用 <c>this = default</c> 整体覆盖，
-        /// 不会破坏 tweenId 的代际唯一性。
-        /// </para>
+        /// Tween 核心数据结构：值类型，保存在连续数组中，无堆分配。
         /// </summary>
+        /// <remarks>
+        /// 版本号不在本结构内，而存放于 <see cref="TweenTask"/> 的独立 <c>s_Versions</c> 数组，
+        /// 故 <see cref="Reset"/> 可用 <c>this = default</c> 整体覆盖而不破坏 tweenId 的代际唯一性。
+        /// </remarks>
         internal struct TweenState
         {
             #region 时间 [TIMING]

@@ -18,16 +18,12 @@ public static class GooglePlayFileSystemCreater
 }
 
 /// <summary>
-/// Google Play Asset Delivery 文件系统。
-/// 通过 PlayAssetDelivery 加载资源包，而非本地文件 I/O。
-/// 参见：https://developer.android.com/guide/playcore/asset-delivery
+/// Google Play Asset Delivery 文件系统：经 PlayAssetDelivery 加载资源包而非本地文件 I/O（https://developer.android.com/guide/playcore/asset-delivery）。
 /// </summary>
 internal class GooglePlayFileSystem : BuiltinFileSystem, IFileSystem
 {
     /// <summary>
-    /// 重写资源包加载逻辑，改用 Play Asset Delivery。
-    /// 重新实现 <see cref="IFileSystem.LoadPackageBundleAsync"/> 接口方法，
-    /// 使接口分发命中本方法而非基类实现。
+    /// 重写资源包加载逻辑改用 Play Asset Delivery，使接口分发命中本方法而非基类实现。
     /// </summary>
     public new FSLoadPackageBundleOperation LoadPackageBundleAsync(FSLoadPackageBundleOptions options)
     {

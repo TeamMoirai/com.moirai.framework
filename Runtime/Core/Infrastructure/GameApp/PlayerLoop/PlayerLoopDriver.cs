@@ -7,22 +7,14 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 剥离 MonoBehaviour 的游戏逻辑驱动器：由 Unity PlayerLoop 直接回调。
-    /// <para>订阅存储在静态注册表，不挂在任何 GameObject 上——场景切换 / 宿主销毁不会丢失订阅。</para>
-    /// <para><b>帧时钟</b>：每个 Drive 阶段入口先调用 <see cref="GameTime.StartFrame"/> 采样，
-    /// 再依次驱动接口 Handler 与 Action 回调——两类订阅读到的是同一帧的时间快照。</para>
-    /// <para><b>零分配契约</b>：<see cref="DriveUpdate"/> / <see cref="DriveFixedUpdate"/> /
-    /// <see cref="DriveLateUpdate"/> 及所有 <see cref="IUpdateHandler"/> 实现的热路径不得产生堆分配：
-    /// 使用 for 循环、禁止 LINQ/闭包/字符串拼接。驱动中的注册/注销进入<b>所属阶段各自的</b>延迟缓冲，
-    /// 该阶段迭代结束后统一提交。</para>
-    /// <para><b>异常处置</b>：订户异常按编译期分级——开发构建记录后上抛（第一时间暴露），
-    /// 发布构建隔离续跑（单个订户不截断同阶段其余订户），且同一订户连续失败达
-    /// <see cref="FailureTripThreshold"/> 即被熔断摘出。核心钩子与关闭/销毁广播不参与截断，
-    /// 详见 <see cref="SetCoreUpdateCallback"/> 与 <see cref="InvokeAllQuarantined"/>。</para>
-    /// <para>DI 集成：将本类或包装服务注册进 VContainer 等容器；Handler 实现经构造注入依赖，
-    /// 再由组合根调用 <see cref="Register(IUpdateHandler)"/>，驱动与对象创建解耦。</para>
-    /// <para><b>线程契约</b>：注册表无锁，注册/注销只允许主线程调用（越线程会 fail-fast 断言，
-    /// 而非静默丢订阅）。后台线程需先经 <c>MainThreadDispatcher.Post/Send</c> 回到主线程。</para>
     /// </summary>
+    /// <remarks>
+    /// 订阅存于静态注册表，不挂 GameObject，场景切换 / 宿主销毁不丢失；帧开始先经 <c>GameTime.StartFrame</c> 采样，接口 Handler 与 Action 回调读同一帧快照。
+    /// 零分配契约：三个 Drive 入口与全部 <see cref="IUpdateHandler"/> 实现的热路径不得堆分配（for 循环，禁 LINQ / 闭包 / 字符串拼接）；注册 / 注销在驱动中进入所属阶段延迟缓冲，阶段迭代结束后提交。
+    /// 异常分级：开发构建记录后上抛，发布构建隔离续跑；同一订户连续失败达 <see cref="FailureTripThreshold"/> 熔断摘出，核心钩子与关闭广播不参与截断。
+    /// 线程契约：注册表无锁，注册 / 注销仅限主线程（越线程 fail-fast），后台线程先经 <c>MainThreadDispatcher.Post/Send</c> 回主线程。
+    /// 可整体交给 DI 容器（Handler 经构造注入依赖，再由组合根调 <see cref="Register(IUpdateHandler)"/>）。
+    /// </remarks>
     internal static class PlayerLoopDriver
     {
         #region 常量与标记 [CONSTANTS]
@@ -30,9 +22,9 @@ namespace Moirai.Atropos
         private const int INITIAL_CAPACITY = 32;
 
         /// <summary>
-        /// 订阅异常分级策略：开发期 Fatal 后上抛（缺陷第一时间暴露），发布期隔离续跑（单个订户不拖垮整阶段）。
-        /// <para><c>const</c> 门控：JIT 裁掉死分支，发布构建零运行时成本。</para>
+        /// 订阅异常分级策略：开发期 Fatal 后上抛，发布期隔离续跑。
         /// </summary>
+        /// <remarks><c>const</c> 门控，发布构建裁掉死分支，零运行时成本。</remarks>
         private const bool RETHROW_SUBSCRIBER_EXCEPTIONS =
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             true;
@@ -76,10 +68,9 @@ namespace Moirai.Atropos
         private static int s_FailureTripThreshold = DEFAULT_FAILURE_TRIP_THRESHOLD;
 
         /// <summary>
-        /// 连续失败熔断阈值：同一订户在同一阶段连续异常达到该次数即被摘出该阶段。
-        /// <para>与 <c>ServiceWorld.TickFailureTripThreshold</c> 同构，供测试调低以在编辑器下驱动熔断路径
-        /// （开发构建会先上抛，非上抛分支在编辑器中不可达）。下限钳制为 1——0 或负值会令订户首次失败即熔断。</para>
+        /// 连续失败熔断阈值：同一订户在同一阶段连续异常达到该次数即被摘出。
         /// </summary>
+        /// <remarks>下限钳制为 1（0 或负值会令订户首次失败即熔断）；与 <c>ServiceWorld.TickFailureTripThreshold</c> 同构。</remarks>
         internal static int FailureTripThreshold
         {
             get => s_FailureTripThreshold;
@@ -99,16 +90,14 @@ namespace Moirai.Atropos
         private static bool s_LifecycleHooked;
 
         /// <summary>
-        /// 注册表的主线程归属。0 表示尚未捕获（编辑模式测试、或 SubsystemRegistration 顺序未定），
-        /// 此时不判定——与 <see cref="GameServices.EnsureMainThread"/> 同一约定。
+        /// 注册表的主线程 id；0 表示尚未捕获，此时不做主线程判定。
         /// </summary>
         internal static int s_MainThreadId;
 
         /// <summary>
-        /// 注册/注销只能发生在主线程：注册表是裸数组 + 无锁计数，越线程写入不会抛，
-        /// 只会静默丢订阅或让延迟缓冲在提交时读到半更新状态。与 GameServices 同一约定：
-        /// 断言仅编辑器 / 开发构建参与编译，发布构建方法体为空、被内联后零开销。
+        /// 断言当前处于主线程（注册 / 注销的唯一合法线程）。
         /// </summary>
+        /// <remarks>注册表为无锁裸数组，越线程写入不会抛、只会静默丢订阅；断言仅编辑器 / 开发构建参与编译。</remarks>
         internal static void EnsureMainThread()
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -157,8 +146,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 关闭驱动器：触发 Destroy 订阅、清空全部 Handler/回调、摘除本框架的 PlayerLoop 系统。
-        /// <para>幂等——重复调用安全。编辑器退出 Play 与应用退出均走此路径。</para>
+        /// 关闭驱动器：触发 Destroy 订阅、清空全部 Handler / 回调、摘除本框架的 PlayerLoop 系统（幂等）。
         /// </summary>
         public static void Shutdown()
         {
@@ -182,10 +170,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 清空全部 Handler / 回调订阅，但不广播 Destroy、不动 PlayerLoop。
-        /// <para>由 <see cref="Shutdown"/> 调用；域重载下静态字段随域自然复位，故
-        /// <see cref="ResetOnDomainReload"/> 有意不调它。做成 internal 是为了让测试能只复位注册表，
-        /// 不必连 <see cref="PlayerLoopInjector.RestoreDefault"/> 的 <c>SetPlayerLoop</c> 一起触发。</para>
         /// </summary>
+        /// <remarks>由 <see cref="Shutdown"/> 调用；internal 供测试只复位注册表而不触发 <c>SetPlayerLoop</c>。</remarks>
         internal static void ClearHandlers()
         {
             s_Update.Clear();
@@ -210,11 +196,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 测试专用：复位注册表并设置活跃位，<b>不</b>触碰 PlayerLoop 注入与 Application 事件。
-        /// <para>EditMode 测试不能走 <see cref="Initialize"/>——它会 <c>SetPlayerLoop</c> 把 Drive 挂进
-        /// 编辑器自己的循环，此后每条用例都在编辑模式的真实帧里被驱动，测试之间也随之互相污染。
-        /// 故此处只切活跃位。</para>
+        /// 测试专用：复位注册表并设置活跃位，不触碰 PlayerLoop 注入与 Application 事件。
         /// </summary>
+        /// <remarks>EditMode 测试不能走 <see cref="Initialize"/>（其 <c>SetPlayerLoop</c> 会把 Drive 挂进编辑器循环、污染用例）。</remarks>
         internal static void ResetForTests(bool active)
         {
             ClearHandlers();
@@ -223,10 +207,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// SubsystemRegistration：仅复位驱动开关。
-        /// <para>不在此 ClearHandlers——同阶段 <c>RuntimeInitializeOnLoadMethod</c> 顺序未定义，
-        /// 若此处清空可能抹掉已先注册的订阅。域重载会自然重置静态字段；
-        /// 禁用域重载时由退出 Play 的 <see cref="Shutdown"/> 完成清空。</para>
         /// </summary>
+        /// <remarks>不在此清空订阅：同阶段初始化顺序未定义，清空可能抹掉已先注册的订阅。</remarks>
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetOnDomainReload()
         {
@@ -382,8 +364,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 广播 ApplicationQuit。生产路径由 <see cref="Application.quitting"/> 触发，
-        /// internal 是给测试留的接缝——关闭广播无法从测试侧唤起引擎事件。
+        /// 广播 ApplicationQuit（生产路径由 <see cref="Application.quitting"/> 触发）。
         /// </summary>
         internal static void RaiseApplicationQuit()
         {
@@ -519,11 +500,9 @@ namespace Moirai.Atropos
         #region 核心钩子 [CORE HOOKS]
 
         /// <summary>
-        /// 设置 Update 阶段核心钩子（覆盖式，传 null 清除）。
-        /// <para>核心钩子先于本阶段全部用户订户执行，且<b>不参与熔断</b>：组合根心跳
-        /// （<c>GameServices.Tick</c>）若因某个项目订户的连续异常被连带摘出，后果是整层服务
-        /// 静默停摆且无恢复路径。由 <see cref="GameApp"/> 装配。</para>
+        /// 设置 Update 阶段核心钩子（覆盖式，传 <c>null</c> 清除）。
         /// </summary>
+        /// <remarks>核心钩子先于本阶段全部用户订户执行且不参与熔断；由 <see cref="GameApp"/> 装配。</remarks>
         internal static void SetCoreUpdateCallback(Action callback)
         {
             EnsureMainThread();
@@ -658,11 +637,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 逐项调用多播回调：单项异常不截断其余项。
-        /// <para>用于关闭 / 销毁广播与 Focus / Pause 这类<b>低频生命周期事件</b>——截断等于静默漏掉
-        /// 后续每一项的响应（释放动作、切后台存档）。故开发构建也不上抛，异常按 Error 级带栈记录。</para>
-        /// <para><see cref="Delegate.GetInvocationList"/> 每次调用有分配，因此<b>不得</b>用于帧热路径。</para>
+        /// 逐项调用多播回调，单项异常不截断其余项（低频生命周期事件专用）。
         /// </summary>
+        /// <remarks>
+        /// 开发构建也不上抛，异常按 Error 级带栈记录，避免漏掉释放 / 存档等后续响应。
+        /// <c>GetInvocationList</c> 每次调用有分配，不得用于帧热路径。
+        /// </remarks>
         private static void InvokeAllQuarantined(Action callbacks, string stageName)
         {
             if (callbacks == null) return;
@@ -705,11 +685,12 @@ namespace Moirai.Atropos
         #region 阶段注册表 [SLOTS]
 
         /// <summary>
-        /// 单阶段的接口 Handler 注册表：紧凑数组 + 本阶段独立的延迟缓冲 + 本阶段独立的失败计数。
-        /// <para>数组恒按有效优先级升序（未实现 <see cref="IPlayerLoopPriority"/> 者计 0），同优先级维持注册序（稳定）；
-        /// 末位优先级允许直读追加时走 O(1) 快路，否则整表排序插入。</para>
-        /// <para>阶段方法名各异，故由构造期注入不可变 invoker——异常隔离与熔断因此只需实现一份。</para>
+        /// 单阶段的接口 Handler 注册表：紧凑数组 + 独立的延迟缓冲与失败计数。
         /// </summary>
+        /// <remarks>
+        /// 数组恒按有效优先级升序（未实现 <see cref="IPlayerLoopPriority"/> 者计 0），同优先级维持注册序；
+        /// 末位允许时走 O(1) 追加快路，否则整表稳定排序插入。
+        /// </remarks>
         private sealed class HandlerSlot<T> where T : class
         {
             private readonly Action<T, float, float> _invoker;
@@ -733,10 +714,9 @@ namespace Moirai.Atropos
             public int Count => _count;
 
             /// <summary>
-            /// 驱动本阶段全部订户：逐个隔离异常，同一订户连续失败达阈值即熔断摘出。
-            /// <para>热路径零分配——<c>try</c> 本身不产生堆分配，只有抛出路径走日志与计数。
-            /// 保留 <c>null</c> 判定：订户若在迭代中被 <see cref="Clear"/> 清空，本帧余下槽位即为空。</para>
+            /// 驱动本阶段全部订户，逐个隔离异常，连续失败达阈值即熔断摘出。
             /// </summary>
+            /// <remarks>热路径零分配（<c>try</c> 不分配，仅抛出路径走日志与计数）；保留 <c>null</c> 判定以容忍迭代中被 <see cref="Clear"/> 清空。</remarks>
             public void Drive(float arg1, float arg2)
             {
                 T[] handlers = _handlers;

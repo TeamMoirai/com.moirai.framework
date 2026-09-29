@@ -8,10 +8,12 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
-    /// 诊断分析器：检查 [HandlerHost] 标记的类的 Handler 工厂方法契约。
-    /// <para>MIRAI101（Warning）：CreateDefaultHandler 与 GetHandlerFromSettings 均未提供——懒加载无来源。</para>
-    /// <para>MIRAI102（Info）：仅提供 GetHandlerFromSettings（settings-only）——懒加载依赖其返回非空值。</para>
+    /// 诊断分析器：检查 <c>[HandlerHost]</c> 标记的类的 Handler 工厂方法契约。
     /// </summary>
+    /// <remarks>
+    /// MIRAI101（Warning）：<c>CreateDefaultHandler</c> 与 <c>GetHandlerFromSettings</c> 均未提供——懒加载无来源。
+    /// MIRAI102（Info）：仅提供 <c>GetHandlerFromSettings</c>（settings-only）——懒加载依赖其返回非空值。
+    /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class HandlerHostAnalyzer : DiagnosticAnalyzer
     {

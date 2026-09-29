@@ -47,10 +47,11 @@ namespace Moirai.Atropos.Audio
 
     /// <summary>
     /// 混音快照状态机——按状态切换 Mixer Snapshot，支持交叉淡入与优先级。
-    /// <para>Unity 后端：驱动 <see cref="AudioMixerSnapshot.TransitionTo"/>。</para>
-    /// <para>中间件后端：通过回调写总线/RTPC（见 <see cref="SetMiddlewareTransitionHandler"/>）。</para>
-    /// <para>状态优先级：数值大者可打断小者；同级可切换；不可被更低优先级打断（除非强制）。</para>
     /// </summary>
+    /// <remarks>
+    /// Unity 后端驱动 <see cref="AudioMixerSnapshot.TransitionTo"/>；中间件后端经回调写总线/RTPC（见 <see cref="SetMiddlewareTransitionHandler"/>）。
+    /// 状态优先级：数值大者可打断小者、同级可切换，不可被更低优先级打断（除非强制）。
+    /// </remarks>
     [Serializable]
     public sealed class AudioMixStateMachine
     {
@@ -105,19 +106,12 @@ namespace Moirai.Atropos.Audio
             m_Entries = list.ToArray();
         }
 
-        /// <summary>
-        /// 按状态名向 Mixer 求 Snapshot（Unity 公开的 <c>AudioMixer.FindSnapshot</c>，名字须精确匹配）。
-        /// <para>不做忽略大小写：忽略大小写要先能枚举 Snapshot，而 Unity 没有公开枚举接口——
-        /// <c>m_Snapshots</c> 只存在于编辑器侧的 AudioMixerController，运行时 AudioMixer 上没有这个字段，
-        /// 反射与 SerializedObject 两条回退都取不到东西。</para>
-        /// </summary>
+        /// <summary>按状态名向 Mixer 求 Snapshot（Unity 公开的 <c>AudioMixer.FindSnapshot</c>，名字须精确匹配）。</summary>
+        /// <remarks>不做忽略大小写：那要先能枚举 Snapshot，而 Unity 无公开枚举接口，反射与 SerializedObject 两条回退都取不到。</remarks>
         internal static AudioMixerSnapshot FindMixerSnapshot(AudioMixer mixer, EMixSnapshot state)
             => mixer != null ? mixer.FindSnapshot(state.ToString()) : null;
 
-        /// <summary>
-        /// 按 Snapshot 名与 <see cref="EMixSnapshot"/> 自动绑定（一键绑定）。
-        /// <para>仅填充当前 <see cref="SnapshotEntry.Snapshot"/> 为空的条目——Settings 手工映射始终优先。</para>
-        /// </summary>
+        /// <summary>按 Snapshot 名与 <see cref="EMixSnapshot"/> 自动绑定（一键绑定），仅填充 Snapshot 为空的条目（手工映射优先）。</summary>
         /// <returns>本次成功绑定的数量。</returns>
         public int TryBindSnapshotsByName(AudioMixer mixer)
         {
@@ -172,14 +166,8 @@ namespace Moirai.Atropos.Audio
             _ => 1f,
         };
 
-        /// <summary>
-        /// 请求切换到目标状态。低优先级无法打断高优先级（除非 force）。
-        /// </summary>
-        /// <returns>
-        /// <c>true</c> 当且仅当过渡**真的施加到了混音上**（Mixer 快照或中间件回调）。
-        /// <para>没施加就不改 <see cref="Current"/>：否则一个从未生效的状态会一直挡着后续低优先级请求，
-        /// 并让自动 Ducking 误记"这层混音是我借走的"。</para>
-        /// </returns>
+        /// <summary>请求切换到目标状态。低优先级无法打断高优先级（除非 force）。</summary>
+        /// <returns><c>true</c> 当且仅当过渡真的施加到了混音上（Mixer 快照或中间件回调）；未施加则不改 <see cref="Current"/>。</returns>
         public bool Request(EMixSnapshot target, float blendSeconds = -1f, bool force = false)
         {
             if (target == _current) return false;
@@ -302,9 +290,11 @@ namespace Moirai.Atropos.Audio
         private static AudioMixStateMachine s_StateMachine;
 
         /// <summary>
-        /// 初始化状态机（OnInit 时由 AudioService 调用，或游戏侧手动）。
-        /// <para>顺序：铺空条目 → Settings 手工映射优先写入 → 空缺按名自动绑定；已配置的条目一律不被覆盖。</para>
+        /// 初始化混音状态机（OnInit 时由 <c>AudioService</c> 调用，或游戏侧手动）。
         /// </summary>
+        /// <remarks>
+        /// 绑定顺序：铺空条目 → Settings 手工映射优先写入 → 空缺按名自动绑定；已配置条目一律不被覆盖。
+        /// </remarks>
         public static void Initialize(AudioMixer mixer)
         {
             s_StateMachine = new AudioMixStateMachine();

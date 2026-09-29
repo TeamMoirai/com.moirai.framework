@@ -81,7 +81,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <remarks>
         /// pattern 经 <see cref="NormalizeLocation"/>：去首尾空白、`\` 转 `/`、去掉尾部分隔符和扩展名。
-        /// <para>不剥离 <c>Assets/Bundles/</c> 等路径前缀——pattern 须与运行时 location（或合成键）同形。</para>
+        /// 不剥离 <c>Assets/Bundles/</c> 等路径前缀——pattern 须与运行时 location（或合成键）同形。
         /// </remarks>
         /// <example><![CDATA[
         /// Assets/Bundles/Effects/Explosion.prefab  -> Assets/Bundles/Effects/Explosion（文件名地址的精确匹配）

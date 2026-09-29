@@ -15,12 +15,13 @@ using UObject = UnityEngine.Object;
 namespace Service.Save
 {
     /// <summary>
-    /// 动态实体持久化闭环测试：生成（注入 ID/块键/命名规整）→ 差分捕获（体积与内容）→ 销毁标记 →
-    /// 恢复（原 ID/字段值/模板默认/父子接线/EntityRestored 事件）→ 陈旧块清理 → 加载失败降级。
-    /// <para>模板加载器注入假实现（绕开 ResourceService/EditMode 限制）；模板源保持未激活避免 Awake 注册污染。
-    /// 告警/错误断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
-    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。</para>
+    /// 动态实体持久化闭环测试：生成（注入 ID/块键/命名规整）→ 差分捕获（体积与内容）→ 销毁标记 → 恢复（原 ID/字段值/模板默认/父子接线/EntityRestored 事件）→ 陈旧块清理 → 加载失败降级。
     /// </summary>
+    /// <remarks>
+    /// 模板加载器注入假实现（绕开 ResourceService/EditMode 限制）；模板源保持未激活避免 Awake 注册污染。
+    /// 告警/错误断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。
+    /// </remarks>
     public partial class SaveEntityPersistenceTests
     {
         /// <summary>

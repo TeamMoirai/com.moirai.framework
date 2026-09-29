@@ -13,9 +13,11 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 池化 GameObject 租约（纯 C#，非 MonoBehaviour）。
-    /// <para>持有 (owner, slot, generation) 身份，是原 Handle 与包装层的合并形态；Dispose 时按代系回收。</para>
-    /// <para>与 <see cref="GameObjectPoolService"/> 共用 Spawn / SpawnAsync / Despawn 动词，location 与 Prefab 引用同一套 API。</para>
     /// </summary>
+    /// <remarks>
+    /// 持有 (owner, slot, generation) 身份，Dispose 时按代系回收。
+    /// 与 <see cref="GameObjectPoolService"/> 共用 Spawn / SpawnAsync / Despawn 动词，location 与 Prefab 引用同一套 API。
+    /// </remarks>
     public class PooledGameObject : IDisposable
 #if R3_INSTALLED
         , IDisposableUnregister

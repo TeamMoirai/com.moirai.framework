@@ -112,10 +112,12 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 游戏框架顺序字典类。
-    /// <para><b>复杂度契约</b>：Add 为 O(n log n)（每次插入后全表排序）——面向小规模有序遍历场景；
-    /// 大规模高频插入请改用有序结构（二分定位插入或 BCL SortedDictionary），本类不承诺插入性能。</para>
+    /// 游戏框架顺序字典类（按键有序遍历）。
     /// </summary>
+    /// <remarks>
+    /// <c>Add</c> 为 O(n log n)（每次插入后全表排序），只适合小规模有序遍历；
+    /// 大规模或高频插入请改用二分定位插入或 BCL <c>SortedDictionary</c>。
+    /// </remarks>
     /// <typeparam name="TKey">指定字典Key的元素类型。</typeparam>
     /// <typeparam name="TValue">指定字典Value的元素类型。</typeparam>
     public class GameSortedDictionary<TKey, TValue> : GameDictionary<TKey, TValue>

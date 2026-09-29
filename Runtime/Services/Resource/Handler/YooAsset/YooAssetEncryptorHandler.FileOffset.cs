@@ -44,8 +44,7 @@ namespace Moirai.Atropos.Resource
         internal class FileOffsetDecryptor : IBundleOffsetDecryptor, IBundleMemoryDecryptor
         {
             /// <summary>
-            /// 同步方式获取解密的资源包对象
-            /// 注意：加载流对象在资源包对象释放的时候会自动释放
+            /// 同步方式获取解密的资源包对象（加载流随资源包对象释放自动释放）。
             /// </summary>
             long IBundleOffsetDecryptor.GetFileOffset(BundleDecryptArgs args)
             {
@@ -53,8 +52,7 @@ namespace Moirai.Atropos.Resource
             }
 
             /// <summary>
-            /// 异步方式获取解密的资源包对象
-            /// 注意：加载流对象在资源包对象释放的时候会自动释放
+            /// 异步方式获取解密的资源包对象（加载流随资源包对象释放自动释放）。
             /// </summary>
             byte[] IBundleMemoryDecryptor.GetDecryptedData(BundleDecryptArgs args)
             {

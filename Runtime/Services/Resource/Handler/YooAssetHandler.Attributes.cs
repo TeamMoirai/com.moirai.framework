@@ -7,8 +7,7 @@ namespace Moirai.Atropos.Resource
     partial class YooAssetHandler
     {
         /// <summary>
-        /// 为 <see cref="string"/> 类型资源包裹名字段提供 YooAsset 收集器包裹下拉菜单。<br />
-        /// 选项在每次绘制时实时读取 YooAsset 收集器设置（BundleCollectorSettingData）中已配置的包裹名。
+        /// 为 <see cref="string"/> 类型资源包裹名字段提供 YooAsset 收集器包裹下拉菜单，选项实时读取收集器（BundleCollectorSettingData）中已配置的包裹名。
         /// </summary>
         /// <remarks>
         /// 选项数据来自 YooAsset.Editor 程序集，绘制器位于 <c>Moirai.Atropos.Editor</c>（Runtime 程序集

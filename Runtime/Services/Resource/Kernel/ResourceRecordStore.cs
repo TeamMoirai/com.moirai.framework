@@ -4,16 +4,12 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源记录内核的键空间——三条名称轴（package / location / type）的登记、packed key 的组装
-    /// 与拆解，以及"这条键还有没有人认得"的引用计数。
-    /// <para>位域布局与 assetKind / assetType 归一在 <see cref="ResourceKeyCodec"/>（纯静态）；
-    /// 单条轴的登记与回收在 <see cref="ResourceNameRegistry{TValue}"/>（每轴一份）；这里只剩把两者
-    /// 接起来的那几行。</para>
-    /// <para>与后端之间只有 <paramref name="defaultPackageName"/> 这一根活的连线：包名是可写接缝
-    /// （<c>ResourceService.DefaultPackageName</c> 的 setter 运行期可达），构造时捕获值会永远读到旧包名，
-    /// 所以按 <see cref="Func{TResult}"/> 注入、每次活读。后端算子（校验与释放原生句柄）之后要搬进来时
-    /// 再立接口，为一根线立一个类型不值。</para>
+    /// 资源记录内核的键空间：三条名称轴（package / location / type）的登记、packed key 的组装与拆解，以及键的引用计数。
     /// </summary>
+    /// <remarks>
+    /// 位域布局与 assetKind / assetType 归一在 <see cref="ResourceKeyCodec"/>，单条轴的登记与回收在 <see cref="ResourceNameRegistry{TValue}"/>。
+    /// 包名是运行期可写的接缝，故以 <see cref="Func{TResult}"/> 注入并每次活读，避免读到构造时捕获的旧包名。
+    /// </remarks>
     internal sealed partial class ResourceRecordStore
     {
         // 三套分页 slot 数组共用的页布局：一页 256 槽、按位取页号与页内下标。

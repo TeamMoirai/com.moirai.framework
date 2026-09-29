@@ -5,15 +5,14 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 游戏框架日志外观（Facade）。
-    /// <para>统一的静态日志入口，通过替换 <see cref="Handler"/> 即可在
-    /// Unity Debug、Unity Logging、Serilog、ZLogger 等日志系统之间零成本切换，调用方代码无需任何改动。</para>
-    /// <para>等级过滤由各 <see cref="LogHandler"/> 实现在 <see cref="LogHandler.Log"/> 入口按
-    /// <see cref="LogHandler.MinimumLevel"/> 执行（覆盖全局拦截器转发的三方日志）；
-    /// <see cref="OnMessageLogged"/> 仅在日志通过等级过滤后触发。未显式设置处理器时，按编译期可用的最优后端自动选择
-    /// （优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。</para>
-    /// <para>日志方法由 T4 模板生成，见 <c>LogUtility.LogMethods.tt</c>。</para>
+    /// 游戏框架日志外观：统一的静态日志入口，后端由 <see cref="Handler"/> 替换。
     /// </summary>
+    /// <remarks>
+    /// 等级过滤在各 <see cref="LogHandler"/> 的 <see cref="LogHandler.Log"/> 入口按 <see cref="LogHandler.MinimumLevel"/> 执行（含全局拦截器转发的三方日志）；
+    /// <see cref="OnMessageLogged"/> 仅在日志通过过滤后触发。
+    /// 未显式设置处理器时按编译期可用的最优后端自动选择（优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。
+    /// 日志方法由 T4 模板生成，见 <c>LogUtility.LogMethods.tt</c>。
+    /// </remarks>
     [HandlerHost(typeof(LogHandler))]
     public static partial class LogUtility
     {
@@ -43,11 +42,12 @@ namespace Moirai.Atropos
         #region 事件回调 [EVENTS]
 
         /// <summary>
-        /// 日志事件回调。每次日志被记录后触发（在 <see cref="LogHandler.Log"/> 之后）。
-        /// <para>可用于调试器内嵌控制台、崩溃上报、测试断言等场景。</para>
-        /// <para>注意：仅在日志通过 <see cref="LogHandler.MinimumLevel"/> 等级过滤后才会触发；
-        /// 被等级过滤的日志不会触发此事件。</para>
+        /// 日志事件回调，每次日志经 <see cref="LogHandler.Log"/> 记录后触发。
         /// </summary>
+        /// <remarks>
+        /// 仅在日志通过 <see cref="LogHandler.MinimumLevel"/> 过滤后触发，被过滤的日志不触发。
+        /// 可用于调试器内嵌控制台、崩溃上报、测试断言等场景。
+        /// </remarks>
         internal static event Action<ELogLevel, string, Exception> OnMessageLogged;
 
         /// <summary>
@@ -147,12 +147,9 @@ namespace Moirai.Atropos
         public static bool IsGlobalInterceptionEnabled => s_Interceptor != null;
 
         /// <summary>
-        /// 启用全局日志拦截：替换 <c>UnityEngine.Debug.unityLogger.logHandler</c>，使所有 Unity 日志（含第三方插件）
-        /// 经过框架日志管线（级别过滤、格式化前缀、事件回调）。
-        /// <para>
-        /// 启用后，第三方插件的 <c>Debug.Log</c> 调用将被转发到当前 <see cref="Handler"/>。
-        /// </para>
+        /// 启用全局日志拦截：替换 <c>UnityEngine.Debug.unityLogger.logHandler</c>，使所有 Unity 日志（含第三方插件）经过框架日志管线。
         /// </summary>
+        /// <remarks>启用后第三方插件的 <c>Debug.Log</c> 转发到当前 <see cref="Handler"/>；重复调用幂等。</remarks>
         [HideInCallstack]
         public static void EnableGlobalInterception()
         {
@@ -181,12 +178,11 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 获取可直写 Unity 控制台、绕过全局拦截器的 logHandler。
-        /// <para>各 <see cref="LogHandler"/> 实现的后端输出（DefaultLogHandler 的 Debug.Log、Serilog 的 Unity3D sink、
-        /// ZLogger 的 UnityDebug processor 等）必须经由本方法获取输出通道：若直接使用 <c>Debug.unityLogger</c>，
-        /// 框架自身输出会被 <see cref="UnityLogInterceptor"/> 当作第三方日志再次捕获、重新走一遍日志管线，
-        /// 造成级别前缀叠加（如 Serilog 的 <c>[INF] [INF]</c>）。</para>
-        /// <para>与初始化顺序无关：拦截未启用时返回当前 handler；启用后返回拦截器锁定的原始 handler。</para>
         /// </summary>
+        /// <remarks>
+        /// 各 <see cref="LogHandler"/> 的后端输出必须经由本方法获取通道：直接使用 <c>Debug.unityLogger</c> 会被 <see cref="UnityLogInterceptor"/> 当作第三方日志重捕，造成级别前缀叠加。
+        /// 与初始化顺序无关：拦截未启用时返回当前 handler，启用后返回拦截器锁定的原始 handler。
+        /// </remarks>
         internal static ILogHandler GetBypassUnityHandler()
         {
             // 先读入局部再判空：若 DisableGlobalInterception（如测试的 ResetStatics）在判空与取

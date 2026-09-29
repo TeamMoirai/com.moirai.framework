@@ -6,15 +6,14 @@ using UnityEngine;
 namespace Moirai.Atropos.Localization.Editor
 {
     /// <summary>
-    /// 本地化组件的 Inspector 预览：在 ID 字段下方直接显示按预览语言解析出的译文 / 资源地址 / 该地址指向的资产。
-    /// <para>数据来源按状态分两条：<b>播放态</b>走已注册的服务（本地化语言、后端取到的资产都是真的那份）；
-    /// <b>非播放态</b>走编辑器预览入口——表数据经 <c>ConfigTableService.GetAllLocalizedStringsForEditor</c>，
-    /// 地址到资产经 <c>ResourceService.LoadAssetForEditor</c>，两者都不要求服务世界起来，不需要进 Play。</para>
-    /// <para>预览取不到数据时只标注一行原因，不打断 Inspector 绘制；也刻意不把内容写回目标组件：
-    /// 那会把场景标脏，并留下"忘了还原"的错文案进版本库。</para>
-    /// <para>基类用 <c>OdinEditor</c>（与全局 <c>MonoBehaviourEditor</c> 同源）而非 <c>UnityEditor.Editor</c>：
-    /// 后者的 <c>DrawDefaultInspector</c> 会把派生本地化器上 Odin 特性驱动的绘制整个顶掉。</para>
+    /// 本地化组件的 Inspector 预览：在 ID 字段下方显示按预览语言解析出的译文、资源地址与该地址指向的资产。
     /// </summary>
+    /// <remarks>
+    /// 数据来源分两条：播放态走已注册服务；非播放态走编辑器预览入口（<c>ConfigTableService.GetAllLocalizedStringsForEditor</c>、
+    /// <c>ResourceService.LoadAssetForEditor</c>），两条都不要求服务世界启动，无需进 Play。
+    /// 预览取不到数据时只标注一行原因，不打断 Inspector 绘制，也不回写目标组件。
+    /// 基类须为 <c>OdinEditor</c>，不可改用 <c>UnityEditor.Editor</c>（会顶掉 Odin 特性驱动的绘制）。
+    /// </remarks>
     [CustomEditor(typeof(LocalizerBase), true)]
     internal sealed class LocalizerPreviewEditor : OdinEditor
     {

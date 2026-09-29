@@ -8,15 +8,11 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 租约取用与归还的窄接缝——绑定层所需的全部后端能力，恰好九个成员。
-    /// <para>之所以单独存在：绑定层此前握的是 <see cref="ResourceServiceHandler"/>，那是 74 个抽象成员
-    /// 的后端全契约，而它实际调用的只有这里这 8 个（其中 27 处是 <see cref="Release"/>）。
-    /// 收口之前处理器构造并驱动绑定服务、绑定服务又回调处理器的内部成员，两边都既不能单独构造也不能
-    /// mock——测试只能拿一个真后端裸实例，靠它"未初始化"来凑确定性。收窄之后一条 8 成员的接缝
-    /// 就能假造，且后端实现者面对的能力面第一次是可枚举的。</para>
-    /// <para>九个成员在 <see cref="ResourceServiceHandler"/> 上是 <c>public abstract</c>，直接满足本接口；
-    /// 程序集外的后端只要派生处理器就能落地，不再被 <c>internal abstract</c> 锁在框架内。</para>
+    /// 租约取用与归还的窄接缝：绑定层所需的全部后端能力，恰好九个成员。
     /// </summary>
+    /// <remarks>
+    /// 九个成员在 <see cref="ResourceServiceHandler"/> 上是 <c>public abstract</c>，直接满足本接口；程序集外的后端派生处理器即可落地。
+    /// </remarks>
     internal interface IResourceLeaseSource
     {
         /// <summary>同步取用一个直接租约；失败返回 <see cref="ResourceLeaseHandle.Invalid"/>。</summary>
@@ -49,11 +45,12 @@ namespace Moirai.Atropos.Resource
     }
 
     /// <summary>
-    /// 资源管理器处理器抽象基类（策略模式抽象策略）——定义通用资源加载、缓存、租约与绑定契约。
-    /// <para>框架通用，不依赖具体资源系统（YooAsset、Addressable 等）；
-    /// 由具体后端（如 <see cref="YooAssetHandler"/>、<see cref="AddressableHandler"/>）实现。</para>
-    /// <para>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。</para>
+    /// 资源管理器处理器抽象基类（策略模式抽象策略），定义通用资源加载、缓存、租约与绑定契约。
     /// </summary>
+    /// <remarks>
+    /// 框架通用，不依赖具体资源系统；由具体后端（如 <see cref="YooAssetHandler"/>、<see cref="AddressableHandler"/>）实现。
+    /// 由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。
+    /// </remarks>
     [Serializable]
     public abstract class ResourceServiceHandler : FrameworkHandler, IResourceLeaseSource
     {
@@ -72,9 +69,9 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 关闭处理器——释放所有资源记录与在途加载操作。
-        /// <para>由 <see cref="ResourceService.OnShutdown"/> 在容器关闭期调用。</para>
+        /// 关闭处理器：释放所有资源记录与在途加载操作。
         /// </summary>
+        /// <remarks>由 <see cref="ResourceService.OnShutdown"/> 在容器关闭期调用。</remarks>
         protected override void OnShutdown()
         {
         }
@@ -153,21 +150,18 @@ namespace Moirai.Atropos.Resource
         public abstract void Initialize();
 
         /// <summary>
-        /// 初始化指定资源包，返回初始化结果；<paramref name="needInitManifest"/> 为 true 时顺带请求并更新清单。
-        /// <para>与 <see cref="TryInitializePackageAsync"/> 的关系：本方法是原语（返回操作句柄），
-        /// 布尔薄壳在它之上叠了远程地址写入并把结果收成 <c>bool</c>。</para>
+        /// 初始化指定资源包并返回初始化结果，<paramref name="needInitManifest"/> 为 true 时顺带请求并更新清单。
         /// </summary>
+        /// <remarks>本方法是原语（返回操作句柄）；<see cref="TryInitializePackageAsync"/> 是叠了远程地址写入的布尔薄壳。</remarks>
         /// <param name="packageName">资源包名称。</param>
         /// <param name="needInitManifest">是否需要初始化清单。</param>
         /// <returns>资源包初始化结果。</returns>
         public abstract UniTask<ResourcePackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false);
 
         /// <summary>
-        /// 初始化指定资源包并收成成败布尔——<see cref="InitializePackageAsync"/> 的便捷薄壳：
-        /// 非空的 <paramref name="hostServerURL"/> / <paramref name="fallbackHostServerURL"/> 写入
-        /// <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/> 后再初始化，**不更新清单**。
-        /// <para>并发去重与幂等语义与 <see cref="InitializePackageAsync"/> 一致。</para>
+        /// 初始化指定资源包并收成成败布尔，是 <see cref="InitializePackageAsync"/> 的便捷薄壳（不更新清单）。
         /// </summary>
+        /// <remarks>非空的 <paramref name="hostServerURL"/> / <paramref name="fallbackHostServerURL"/> 先写入 <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/>；并发去重与幂等语义同 <see cref="InitializePackageAsync"/>。</remarks>
         /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
         /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
         /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>
@@ -348,8 +342,7 @@ namespace Moirai.Atropos.Resource
         public abstract float IdleAssetExpireTime { get; set; }
 
         /// <summary>
-        /// 空闲资源记录容量上限：无引用记录数超过该值时，等待过期最久（即最长空闲）的记录立即释放，
-        /// 不必等到 <see cref="IdleAssetExpireTime"/> 到期。取 0 表示不留任何空闲记录。
+        /// 空闲资源记录容量上限：无引用记录数超过该值时立即释放最长空闲者，取 0 表示不留任何空闲记录。
         /// </summary>
         public abstract int IdleAssetCapacity { get; set; }
 
@@ -371,12 +364,9 @@ namespace Moirai.Atropos.Resource
         /// 编辑器预览用：把一个定位地址解析成资产，<b>不得依赖播放态与后端运行时</b>。
         /// </summary>
         /// <remarks>
-        /// <para>地址不是资产路径的后端（如按文件名寻址、或地址只在包清单里）覆写本方法补上自己的换算表——
-        /// 预览只要求「同一个地址指向同一份资产」，不要求同一条加载路径，
-        /// 更不为此引入第二份清单中间源（迟早与真清单漂移，届时编辑器里的"对"就不等于运行期的"对"）。</para>
-        /// <para>实现侧不要建租约、不要进记录表：预览取完即弃，进计数就是每次重绘租一次。</para>
-        /// <para>编辑态进来的是 settings 里那份实例，从没走过 <c>Internal_Init</c>——覆写里只准做地址到资产的换算，
-        /// 别碰包、句柄这类运行期状态。</para>
+        /// 地址不是资产路径的后端（如按文件名寻址、地址只在包清单里）覆写本方法补上换算表；预览只要求同一地址指向同一份资产，不要求同一条加载路径。
+        /// 实现侧不要建租约、不要进记录表（预览取完即弃，进计数等于每次重绘租一次）。
+        /// 编辑态拿到的是 settings 里那份实例、从未走过 <c>Internal_Init</c>，覆写里只准做地址到资产的换算，别碰包与句柄等运行期状态。
         /// </remarks>
         public virtual UObject LoadAssetForEditor(string location)
         {
@@ -514,8 +504,7 @@ namespace Moirai.Atropos.Resource
         #endregion
 
         /// <summary>
-        /// 取或挂实例上的 <see cref="ResourceOwner"/> 并向绑定服务登记。属表现层动作、与后端无关，
-        /// 故放基类：两个后端的实例化路径此前各抄了一份，改一份忘一份就是下一处漂移。
+        /// 取或挂实例上的 <see cref="ResourceOwner"/> 并向绑定服务登记；属表现层动作、与后端无关。
         /// </summary>
         protected ResourceOwner EnsureResourceOwner(GameObject root)
         {

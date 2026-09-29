@@ -8,13 +8,12 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// AudioClip 生产级缓存：Lease 保留 + 引用计数 + LRU/TTL/Pin + lowMemory + 容量驱逐。
-    /// <para>路径播放的唯一资源真相源：同一地址全服务共享一份租约，声部按引用取用，用完按策略决定留池或释放。</para>
-    /// <para>不变量：</para>
-    /// <para>1. 条目仅在 <c>RefCount == 0 &amp;&amp; !Loading &amp;&amp; 无等待者</c> 时可被驱逐；</para>
-    /// <para>2. Pin 条目不入 LRU，只被 <see cref="Unload"/>/<see cref="ClearCache"/> 显式摘除；</para>
-    /// <para>3. 条目数不超过 <see cref="Capacity"/>——满载且无可驱逐对象时新地址直接判负，不无界增长；</para>
-    /// <para>4. 迟到的加载续体按 <c>Version</c> 作废，租约归还资源系统而不写入已复用的条目。</para>
     /// </summary>
+    /// <remarks>
+    /// 路径播放的唯一资源真相源：同一地址全服务共享一份租约，声部按引用取用，用完按策略决定留池或释放。
+    /// 条目仅在 <c>RefCount == 0 &amp;&amp; !Loading &amp;&amp; 无等待者</c> 时可被驱逐；Pin 条目不入 LRU，只被 <see cref="Unload"/>/<see cref="ClearCache"/> 显式摘除；
+    /// 条目数不超过 <see cref="Capacity"/>（满载且无可驱逐对象时新地址判负、不无界增长）；迟到的加载续体按 <c>Version</c> 作废，租约归还资源系统而不写入已复用的条目。
+    /// </remarks>
     internal sealed class AudioClipCache
     {
         public const int DefaultCapacity = 128;
@@ -54,12 +53,8 @@ namespace Moirai.Atropos.Audio
         /// <summary>失败冷却中的地址数（诊断用）。</summary>
         public int FailedAddressCount => _failedUntil.Count;
 
-        /// <summary>
-        /// 留池视图（已加载且留池的条目）——兼容 <c>AssetHandlePool</c> 只读 API。
-        /// <para>它是槽表的**计算视图**而不是镜像表：缓存只在租约换手处装箱一次都不做，
-        /// 因为除调试面板外无人枚举它，而把它维护成第二份字典等于在每次取用/归还的热点上
-        /// 追加一次写入与一套必须与主表同步的状态。</para>
-        /// </summary>
+        /// <summary>留池视图（已加载且留池的条目）——兼容 <c>AssetHandlePool</c> 只读 API。</summary>
+        /// <remarks>它是槽表的计算视图而非镜像表：除调试面板外无人枚举，避免在取用/归还热点上多写一份需与主表同步的状态。</remarks>
         public IReadOnlyDictionary<string, object> PoolReadOnly => _poolView ??= new PoolViewProxy(this);
 
         /// <summary>All 链头：诊断/调试面板遍历入口。</summary>
@@ -163,10 +158,7 @@ namespace Moirai.Atropos.Audio
             };
         }
 
-        /// <summary>
-        /// 地址是否处于加载失败冷却中。冷却内不再向后端取租约，也不挂等待者——
-        /// 否则一个写错的事件地址每次触发播放都会完整穿一遍资源层（加载→失败→摘条目）。
-        /// </summary>
+        /// <summary>地址是否处于加载失败冷却中；冷却内不再向后端取租约，也不挂等待者。</summary>
         public bool IsFailureCoolingDown(string address)
         {
             if (_failureCooldown <= 0f) return false;
@@ -206,10 +198,7 @@ namespace Moirai.Atropos.Audio
             return TryFindEntry(address, out entry);
         }
 
-        /// <summary>
-        /// 声部请求 clip：命中则回调就绪；未命中则挂等待者并按需启动单飞加载。
-        /// <para>同地址并发请求共用一次加载，等待者按请求顺序起播。</para>
-        /// </summary>
+        /// <summary>声部请求 clip：命中则回调就绪，未命中则挂等待者并按需启动单飞加载（同地址并发共用一次加载）。</summary>
         /// <param name="generation">声部加载世代；完成回调与之不符时落空（声部已换曲/已停播）。</param>
         /// <returns>已就绪或加载已受理返回 true；地址无效、满载或后端不可用返回 false。</returns>
         public bool RequestClip(string address, bool async, EAudioCachePolicy policy, AudioAgent agent, int generation)
@@ -319,10 +308,7 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>
-        /// 卸载地址缓存。<paramref name="force"/> 只放宽「Pin 与挂起等待者」两道门槛；
-        /// 仍有声部在引用（播放/淡出中）时一律拒绝——强制释放会让在播的 <see cref="AudioClip"/> 变成已卸载资源。
-        /// </summary>
+        /// <summary>卸载地址缓存。<paramref name="force"/> 只放宽「Pin 与挂起等待者」两道门槛；仍有声部引用时一律拒绝。</summary>
         public bool Unload(string address, bool force = false)
         {
             AudioMainThread.AssertMainThread(nameof(Unload));
@@ -455,13 +441,11 @@ namespace Moirai.Atropos.Audio
 
         #region 槽表 [SLOT TABLE]
 
-        /// <summary>
-        /// 按容量铺定长槽表与 2 倍容量的开址桶。
-        /// <para>用定长数组而不是 <c>Dictionary</c>：地址哈希、桶增长与 rehash 全部落在播放与驱逐的路径上，
-        /// 而 Dictionary 只会长大不会缩——一个"条目数有上限"的缓存配一份无上限的桶表，上界是纸面的。</para>
-        /// <para><c>Configure</c> 每次后端初始化都会重跑，容量改小于现存条目数时抬回现存数：
-        /// 静默丢条目会连带把仍被声部引用的租约一起丢掉，比"这一轮容量比配置大"严重得多。</para>
-        /// </summary>
+        /// <summary>按容量铺定长槽表与 2 倍容量的开址桶。</summary>
+        /// <remarks>
+        /// 用定长数组而非 <c>Dictionary</c>：哈希、桶增长与 rehash 全在播放与驱逐路径上，字典只增不缩会让上界成为纸面。
+        /// <c>Configure</c> 每次后端初始化都会重跑；容量改小于现存条目数时抬回现存数，避免连带丢掉仍被声部引用的租约。
+        /// </remarks>
         private void EnsureTables()
         {
             if (_slots != null && _slots.Length == _capacity) return;
@@ -493,10 +477,7 @@ namespace Moirai.Atropos.Audio
             _count = 0;
         }
 
-        /// <summary>
-        /// 容量变更时把现存条目重新落进新表。走 All 链而不是旧桶：
-        /// All/LRU 两条链与槽位无关，换表期间保持完整，因此不需要任何临时数组。
-        /// </summary>
+        /// <summary>容量变更时把现存条目重新落进新表（走 All 链，不需要临时数组）。</summary>
         private void RehashExistingIntoNewTables()
         {
             AllocateTables();
@@ -720,10 +701,7 @@ namespace Moirai.Atropos.Audio
             return success;
         }
 
-        /// <summary>
-        /// 摘空挂起队列：声部等待者就地回调，仅带 <see cref="AudioLoadRequest.Completed"/> 的预载回调
-        /// 串成链表返回给调用方，等派发引用释放后再执行——预载回调里可以安全地再次请求同一地址。
-        /// </summary>
+        /// <summary>摘空挂起队列：声部等待者就地回调，仅带 <see cref="AudioLoadRequest.Completed"/> 的预载回调串链返回给调用方延后执行。</summary>
         private static AudioLoadRequest CompletePending(AudioClipCacheEntry entry, bool success)
         {
             var request = entry.PendingHead;
@@ -820,11 +798,8 @@ namespace Moirai.Atropos.Audio
             CompletePreloads(callbacks, false);
         }
 
-        /// <summary>
-        /// 留池视图的只读实现：每次读都从槽表现算。
-        /// <para>刻意不做成维护型的镜像表——枚举它只有调试面板一路，代价是每次枚举分配一份快照，
-        /// 而镜像表的代价是每次取用/归还/驱逐都要多写一份状态并与主表保持一致。</para>
-        /// </summary>
+        /// <summary>留池视图的只读实现：每次读都从槽表现算。</summary>
+        /// <remarks>刻意不做维护型镜像表——枚举它的只有调试面板，逐次快照的代价小于每次取用/归还/驱逐多写一份与主表同步的状态。</remarks>
         private sealed class PoolViewProxy : IReadOnlyDictionary<string, object>
         {
             private readonly AudioClipCache _cache;

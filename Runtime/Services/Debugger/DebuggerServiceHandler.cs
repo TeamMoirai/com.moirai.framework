@@ -3,9 +3,11 @@
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器处理器抽象基类（策略模式抽象策略）。定义 <see cref="DebuggerService"/> 外观调用的调试器后端契约。
-    /// <para>默认实现为 <see cref="DefaultDebuggerHandler"/>（UI Toolkit 运行时调试器），可在 <see cref="DebuggerServiceSettings"/> 中替换为自定义实现。</para>
+    /// 调试器处理器抽象基类（策略模式抽象策略）：<see cref="DebuggerService"/> 外观调用的后端契约。
     /// </summary>
+    /// <remarks>
+    /// 默认实现为 <see cref="DefaultDebuggerHandler"/>（UI Toolkit 运行时调试器），可在 <see cref="DebuggerServiceSettings"/> 中替换为自定义实现。
+    /// </remarks>
     [Serializable]
     public abstract class DebuggerServiceHandler : FrameworkHandler
     {

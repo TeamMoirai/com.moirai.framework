@@ -5,10 +5,12 @@ using UnityEngine;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器日志捕获器（线程安全入队 + 主线程排空的环形缓冲）。
-    /// <para>订阅 <see cref="Application.logMessageReceivedThreaded"/> 捕获任意线程日志；原始字段经并发队列暂存，主线程 <see cref="Drain"/> 期间完成 <see cref="LogNode"/> 池化分配（内部读取 <see cref="Time.frameCount"/>，仅限主线程）。</para>
-    /// <para>环形缓冲满时按先进先出淘汰最旧结点（归还内存池）；各级别计数在增删时增量维护，消费端零遍历。</para>
+    /// 调试器日志捕获器：线程安全入队 + 主线程排空的环形缓冲。
     /// </summary>
+    /// <remarks>
+    /// 订阅 <see cref="Application.logMessageReceivedThreaded"/> 捕获任意线程日志；原始字段经并发队列暂存，主线程 <see cref="Drain"/> 期间完成 <see cref="LogNode"/> 池化分配。
+    /// 环形缓冲满时按先进先出淘汰最旧结点（归还内存池）；各级别计数增量维护，消费端零遍历。
+    /// </remarks>
     public sealed class DebuggerLogCapture
     {
         #region 类型 [TYPES]

@@ -3,11 +3,13 @@ using System;
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 输入状态机（Enabled / LockPlayerController / PreventInteractionUI / UIModal 的组合语义）。
-    /// <para>独立于后端的可测单元——状态组合与"进入压制态时请求重置输入"的副作用在此收敛；
-    /// 后端 Handler 经组合持有（每实现类一份），抽象基类保持纯契约。</para>
-    /// <para>线程契约：仅主线程。</para>
+    /// 输入状态机：Enabled / LockPlayerController / PreventInteractionUI / UIModal 的组合语义。
     /// </summary>
+    /// <remarks>
+    /// 状态组合与「进入压制态时请求重置输入」的副作用在此收敛，是独立于后端的可测单元。
+    /// 后端 Handler 经组合持有（每实现类一份），抽象基类保持纯契约。
+    /// 仅主线程。
+    /// </remarks>
     internal sealed class InputStateMachine
     {
         /// <summary>压制位标志——读位一律用 <c>(&amp; mask) != 0</c>，<c>Enum.HasFlag</c> 对实参装箱、违防装箱禁令。</summary>
@@ -33,21 +35,21 @@ namespace Moirai.Atropos.Input
         public event Action ResetRequested;
 
         /// <summary>
-        /// 有效压制态（<see cref="IsPlayerInputSuppressed"/> / <see cref="IsUIInteractionSuppressed"/>）实际变化时触发——
-        /// 由持有方接线到后端的上下文切换（如 Input System 的 Action Map 启用/禁用）。
+        /// 有效压制态（<see cref="IsPlayerInputSuppressed"/> 或 <see cref="IsUIInteractionSuppressed"/>）实际变化时触发。
         /// </summary>
+        /// <remarks>由持有方接线到后端的上下文切换（如 Input System 的 Action Map 启用/禁用）。</remarks>
         public event Action SuppressionChanged;
 
         /// <summary>
-        /// 有效玩家输入压制（未启用 / 锁定玩家控制器 / UI 模态的并集）。
-        /// <para>与 <see cref="LockPlayerController"/> 读取同值——压制语义的唯一权威出口。</para>
+        /// 有效玩家输入压制（未启用、锁定玩家控制器或 UI 模态的并集）。
         /// </summary>
+        /// <remarks>与 <see cref="LockPlayerController"/> 读取同值，是压制语义的唯一权威出口。</remarks>
         public bool IsPlayerInputSuppressed => LockPlayerController;
 
         /// <summary>
-        /// 有效 UI 交互压制（未启用 / 禁止 UI 交互的并集）。
-        /// <para>与 <see cref="PreventInteractionUI"/> 读取同值——压制语义的唯一权威出口。</para>
+        /// 有效 UI 交互压制（未启用或禁止 UI 交互的并集）。
         /// </summary>
+        /// <remarks>与 <see cref="PreventInteractionUI"/> 读取同值，是压制语义的唯一权威出口。</remarks>
         public bool IsUIInteractionSuppressed => PreventInteractionUI;
 
         /// <summary>
@@ -115,9 +117,10 @@ namespace Moirai.Atropos.Input
 
         /// <summary>
         /// 设置 UI 模态状态。由 <see cref="InputService"/> 的事件回调驱动。
-        /// <para>进入模态与进入其他压制态语义对齐：触发一次输入重置，清掉残留的按住状态，
-        /// 避免模态弹出瞬间 gameplay 输入泄漏；退出模态不重置（玩家可能正合法按住输入）。</para>
         /// </summary>
+        /// <remarks>
+        /// 进入模态与进入其他压制态语义对齐：触发一次输入重置，清掉残留的按住状态；退出模态不重置。
+        /// </remarks>
         public void SetUIModal(bool hasModal)
         {
             if (_hasUIModal == hasModal) return;

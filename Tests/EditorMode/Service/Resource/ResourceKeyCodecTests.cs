@@ -8,11 +8,12 @@ using UObject = UnityEngine.Object;
 namespace Service.Resource
 {
     /// <summary>
-    /// ResourceKeyCodec 的行为契约——位域编解码与 assetKind / assetType 归一。
-    /// <para>这份代码是从 handler 的 Keys 里逐字搬出来的静态件，搬动本身不该改变任何语义，
-    /// 所以这里钉的全是"改错一位就会静默造出重复键"的那几条：往返、越界必抛、
-    /// 以及三条同名资源靠 kind/handleKind 分开。</para>
+    /// <see cref="ResourceKeyCodec"/> 的行为契约：位域编解码与 <c>assetKind</c>/<c>assetType</c> 归一。
     /// </summary>
+    /// <remarks>
+    /// 钉的是"改错一位就会静默造出重复键"的那几条：往返、越界必抛、
+    /// 三条同名资源靠 <c>kind</c>/<c>handleKind</c> 分开。
+    /// </remarks>
     public sealed class ResourceKeyCodecTests
     {
         [Test]

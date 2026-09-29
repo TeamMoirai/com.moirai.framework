@@ -1,9 +1,11 @@
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档加载结果（<c>TryLoad</c> 返回值）：区分「无档」「损坏」「解密失败」等错误类别，供调用方精确兜底。
-    /// <para>成功时 <see cref="IsSuccess"/> 为 <c>true</c> 且 <see cref="Data"/> 为反序列化对象；失败时 <see cref="Error"/> 标明原因，<see cref="Data"/> 为默认值。</para>
+    /// 存档加载结果（<c>TryLoad</c> 返回值）：区分「无档」「损坏」「解密失败」等错误类别。
     /// </summary>
+    /// <remarks>
+    /// 成功时 <see cref="IsSuccess"/> 为 <c>true</c> 且 <see cref="Data"/> 为反序列化对象；失败时 <see cref="Error"/> 标明原因、<see cref="Data"/> 为默认值。
+    /// </remarks>
     /// <typeparam name="T">存档数据类型。</typeparam>
     public readonly struct SaveResult<T>
     {

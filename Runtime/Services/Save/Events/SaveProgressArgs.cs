@@ -2,9 +2,8 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档进度事件参数（<see cref="SaveService.SaveProgress"/> / <see cref="SaveService.LoadProgress"/>）。
-    /// <para>组件存取管线按固定批次回报（每 <c>ProgressBatchSize</c> 个组件一批 + 最终一批必报）；
-    /// <see cref="Total"/> 为已注册组件快照数，<see cref="Completed"/> 为已处理数。</para>
     /// </summary>
+    /// <remarks>组件存取管线按固定批次回报（每 <c>ProgressBatchSize</c> 个组件一批，最终一批必报）；<see cref="Total"/> 为已注册组件快照数，<see cref="Completed"/> 为已处理数。</remarks>
     public readonly struct SaveProgressArgs
     {
         /// <summary>
