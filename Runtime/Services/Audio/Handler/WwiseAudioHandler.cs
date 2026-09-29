@@ -4,8 +4,7 @@ using Moirai.Atropos.Audio.Middleware;
 namespace Moirai.Atropos.Audio.Wwise
 {
     /// <summary>
-    /// Wwise 后端 Handler——薄封装，共享 <see cref="MiddlewareAudioHandler"/>。
-    /// <para>未定义 <c>WWISE_INSTALLED</c> 时使用 <see cref="WwiseBridgeStub"/>。</para>
+    /// Wwise 后端 Handler——薄封装，共享 <see cref="MiddlewareAudioHandler"/>；未定义 <c>WWISE_INSTALLED</c> 时使用 <see cref="WwiseBridgeStub"/>。
     /// </summary>
     [Serializable]
     internal sealed class WwiseAudioHandler : MiddlewareAudioHandler

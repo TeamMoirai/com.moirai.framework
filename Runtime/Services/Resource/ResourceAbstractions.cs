@@ -148,17 +148,18 @@ namespace Moirai.Atropos.Resource
     }
 
     /// <summary>
-    /// 资源系统场景句柄抽象（框架通用）——封装一次场景加载操作及其生命周期。
-    /// <para>由具体资源后端（YooAsset、Addressable 等）适配实现，<see cref="ResourceServiceHandler.LoadSceneAsync"/> 创建，
-    /// <see cref="ResourceService"/> 外观转发，供场景服务（SceneService）后端驱动主/子场景加载、激活、挂起恢复与卸载。</para>
-    /// <para>句柄失效安全：释放（<see cref="Release"/>）或卸载完成后访问属性返回默认值，不抛出异常。</para>
+    /// 资源系统场景句柄抽象（框架通用），封装一次场景加载操作及其生命周期。
     /// </summary>
+    /// <remarks>
+    /// 由具体资源后端（YooAsset、Addressable 等）适配实现，<see cref="ResourceServiceHandler.LoadSceneAsync"/> 创建、<see cref="ResourceService"/> 转发。
+    /// 句柄失效安全：释放（<see cref="Release"/>）或卸载完成后访问属性返回默认值，不抛异常。
+    /// </remarks>
     public abstract class ResourceSceneHandle
     {
         /// <summary>
         /// 场景加载是否完成。
-        /// <para>挂起加载（suspendLoad）时加载进度停留于待激活状态，<see cref="IsDone"/> 保持 false，直至 <see cref="UnSuspend"/> 解除挂起。</para>
         /// </summary>
+        /// <remarks>挂起加载（suspendLoad）时停留于待激活状态、<see cref="IsDone"/> 保持 false，直至 <see cref="UnSuspend"/> 解除挂起。</remarks>
         public abstract bool IsDone { get; }
 
         /// <summary>

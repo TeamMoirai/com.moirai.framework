@@ -10,10 +10,12 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// 场景对象身份与实体注册表测试：注册/注销/反查、空 ID 拒注册、重复 ID 首到先得、销毁后反查失效、Resolve 解析。
-    /// <para>告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
-    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。</para>
+    /// 场景对象身份与实体注册表测试：注册/注销/反查、空 ID 拒注册、重复 ID 首到先得、销毁后反查失效、<c>Resolve</c> 解析。
     /// </summary>
+    /// <remarks>
+    /// 告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。
+    /// </remarks>
     public class SaveObjectIdentityTests
     {
         private readonly List<GameObject> _objects = new List<GameObject>();

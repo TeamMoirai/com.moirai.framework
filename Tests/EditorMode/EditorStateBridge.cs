@@ -13,23 +13,15 @@ using UnityEngine;
 namespace Moirai.Atropos.Tests.EditorMode
 {
     /// <summary>
-    /// 编辑器状态桥：把「编辑器此刻在干什么」持续落盘，并接收 <c>Temp/</c> 下的动作请求。
-    /// <para>跑回归的前置判据（编辑器是否活着、是否在编译、域重载过没有、程序集新不新）此前只能靠调用方
-    /// 自己 <c>stat</c> 若干 dll 再猜，而关掉 Auto Refresh 的工程里连「让它重编」都要人手按 <c>Ctrl+R</c>。
-    /// 这里在测试程序集里挂一个 <c>EditorApplication.update</c> 轮询：状态每 ~1s 覆写
-    /// <c>Temp/MoiraiEditorState.json</c>，动作请求从 <c>Temp/MoiraiEditorCommand.json</c> 进、结果从
-    /// <c>Temp/MoiraiEditorCommand.result.json</c> 出。调用方只读文件、只发命令，不再需要人。</para>
-    /// <para><b>心跳即判活</b>：静态构造每次域加载都跑一遍，所以 <c>domainSeq</c> 递增就是「新域已经起来」的硬证据
-    /// （<c>SessionState</c> 跨域重载保留、随编辑器退出清空，配合 <c>pid</c> 可区分重载与重启）。
-    /// 心跳停止推进只说明主线程没在跑 <c>update</c>：导入中、域重载中、被原生模态框挡住，
-    /// 或者 Interaction Mode 不是 No Throttling（那时它会走得慢而不是不动）——具体原因去 <c>Editor.log</c> 取。</para>
-    /// <para><b>编译失败不在报告范围内</b>：编译报错时 Unity 保留旧域继续跑，桥照常心跳、<c>isCompiling</c> 归 false，
-    /// 判据是 <c>assemblies[].unix</c> 没越过自己的改动时刻、<c>consoleErrors</c> 涨了。
-    /// 本桥不代存场景：<c>dirtyScenes</c> 大于 0 时刷新/重编译可能撞上原生「保存场景？」对话框，
-    /// 那会把主线程连同心跳一起停在那里。</para>
-    /// <para>桥住在测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控的调试桥，与 <see cref="TestRequestRunner"/> 同处），
-    /// 关掉 Test Tools 包就没有心跳；它是编辑器内的便利设施，不参与发布。</para>
+    /// 编辑器状态桥：把「编辑器此刻在干什么」持续落盘到 <c>Temp/</c>，并接收同目录下的动作请求。
     /// </summary>
+    /// <remarks>
+    /// 经 <c>EditorApplication.update</c> 轮询：状态每 ~1s 覆写 <c>Temp/MoiraiEditorState.json</c>；动作 <c>Temp/MoiraiEditorCommand.json</c> 进、结论 <c>Temp/MoiraiEditorCommand.result.json</c> 出，调用方只读文件与发命令，不再需要人。
+    /// 心跳即判活：静态构造每次域加载都跑，<c>domainSeq</c> 递增即「新域已起来」（<c>SessionState</c> 跨域重载保留、随编辑器退出清空，配合 <c>pid</c> 区分重载与重启）；心跳停推说明主线程没在跑 <c>update</c>（导入中、域重载中、被原生模态框挡住，或 Interaction Mode 非 No Throttling）。
+    /// 编译报错时 Unity 保留旧域继续跑，桥照常心跳且 <c>isCompiling</c> 归 false——判据是 <c>assemblies[].unix</c> 未越过自己的改动时刻且 <c>consoleErrors</c> 上涨。
+    /// <c>dirtyScenes</c> 大于 0 时刷新/重编译可能撞上原生「保存场景？」对话框，那会连心跳一起停住主线程。
+    /// 桥住在测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控的调试桥，与 <see cref="TestRequestRunner"/> 同处），关掉 Test Tools 包即无心跳，不参与发布。
+    /// </remarks>
     [InitializeOnLoad]
     internal static class EditorStateBridge
     {
@@ -103,25 +95,29 @@ namespace Moirai.Atropos.Tests.EditorMode
             public int dirtyScenes;
 
             /// <summary>
-            /// Console 当前的错误条数（-1 为取不到）。实测一轮重编译会把它清归零，所以刷新之后读到的
-            /// 大致就是这一轮的输出；跨轮仍按增量用，别把它当成"本次编译的失败数"。
+            /// Console 当前的错误条数（-1 为取不到）。
             /// </summary>
+            /// <remarks>
+            /// 一轮重编译会把它清归零，故刷新之后读到的大致就是这一轮的输出；跨轮按增量用，别当成「本次编译的失败数」。
+            /// </remarks>
             public int consoleErrors;
             public int consoleWarnings;
             public bool testRequestPending;
 
             /// <summary>
             /// Test Runner 有无在跑的 run：-1 探针不可用、0 空闲、1 在跑。
-            /// 不用 <c>Temp/MoiraiTestRunState.json</c> 在不在判——实测有一单超时收口（报告与 <c>.done</c> 都已落盘、
-            /// 状态文件也已删）之后，旧域拆走时又把运行态写回了磁盘，残留文件会把空闲报成在跑。
             /// </summary>
+            /// <remarks>
+            /// 不用 <c>Temp/MoiraiTestRunState.json</c> 在不在判：超时收口后旧域拆走时可能把运行态写回磁盘，残留文件会把空闲报成在跑。
+            /// </remarks>
             public int testRunActive;
 
             /// <summary>
-            /// 本域加载时 <c>Moirai.Atropos.Tests.EditorMode.dll</c> 的 UTC 秒。与 <c>assemblies[]</c> 里同名那份
-            /// 不等 = dll 已经更新而这个域还没重载（后台 <c>AssetImportWorker</c> 代编是常态，而"没有资产改动"的
-            /// <c>Refresh</c> 不触发重载）——只比 <c>assemblies[].unix</c> 与自己的改动时刻会把旧域读成新代码。
+            /// 本域加载时 <c>Moirai.Atropos.Tests.EditorMode.dll</c> 的 UTC 秒。
             /// </summary>
+            /// <remarks>
+            /// 与 <c>assemblies[]</c> 里同名那份不等即 dll 已更新而本域尚未重载（后台 <c>AssetImportWorker</c> 代编是常态，且「没有资产改动」的 <c>Refresh</c> 不触发重载）；只比 <c>assemblies[].unix</c> 与自己的改动时刻会把旧域读成新代码。
+            /// </remarks>
             public long domainDllUnix;
             public AssemblyStamp[] assemblies;
         }
@@ -135,7 +131,7 @@ namespace Moirai.Atropos.Tests.EditorMode
             public long unix;
         }
 
-        /// <summary>命令载荷：<c>{"id":"<唯一串>","action":"focus|refresh|recompile"}</c>。</summary>
+        /// <summary>命令载荷：<c>{"id":"&lt;唯一串&gt;","action":"focus|refresh|recompile"}</c>。</summary>
         [Serializable]
         private sealed class EditorCommand
         {
@@ -287,9 +283,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         }
 
         /// <summary>
-        /// 变化判据用签名，不含 <c>unix</c>/<c>utc</c>/<c>uptime</c> 这些每拍必动的字段——
-        /// 否则「无变化」永远不成立，心跳会退化成每采样写一次盘。
+        /// 变化判据用的状态签名，不含 <c>unix</c>/<c>utc</c>/<c>uptime</c> 这些每拍必动的字段。
         /// </summary>
+        /// <remarks>
+        /// 含这些字段则「无变化」永远不成立，心跳会退化成每采样写一次盘。
+        /// </remarks>
         private static string Signature(EditorState state)
         {
             int flags = 0;
@@ -319,9 +317,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         #region 命令轮询与派发 [COMMAND POLLING & DISPATCH]
 
         /// <summary>
-        /// 原子消费命令：先改名再读取（改名即消费）。改名失败就原封不动、下一帧重试——
-        /// 「读完再删」一旦删除失败会把同一条命令重复执行。
+        /// 原子消费命令：先改名再读取（改名即消费）。
         /// </summary>
+        /// <remarks>
+        /// 改名失败则原文件原封不动、下一帧重试；「读完再删」一旦删除失败会把同一条命令重复执行。
+        /// </remarks>
         private static void TryConsumeCommand()
         {
             if (!File.Exists(COMMAND_PATH)) return;
@@ -414,9 +414,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         }
 
         /// <summary>
-        /// 刷新与重编译只在编辑器空闲时受理：正在编译或正在导入时再叠一次导入，只会把状态搅成糊。
-        /// 被拒的命令已经消费掉了，调用方按回执里的原因稍后重投。
+        /// 刷新与重编译的接单门：正在编译或正在导入时拒绝受理。
         /// </summary>
+        /// <remarks>
+        /// 此时再叠一次导入只会把状态搅成糊；被拒的命令已经消费掉了，调用方按回执里的原因稍后重投。
+        /// </remarks>
         private static bool Busy(out string reason)
         {
             if (EditorApplication.isCompiling)
@@ -436,10 +438,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         }
 
         /// <summary>
-        /// 受理回执先落一次盘，再由动作覆写成结论。<c>refresh</c>/<c>recompile</c> 有可能当场把本域拆走
-        /// （编译与域重载就是这次调用发起的），那样"动作之后"的永远不会执行——没有配对的 <c>.done</c>，
-        /// 调用方只能干等。受理回执只承诺「已接下这一单」，结论一律以状态文件为准。
+        /// 受理回执先落一次盘，再由动作覆写成结论。
         /// </summary>
+        /// <remarks>
+        /// <c>refresh</c>/<c>recompile</c> 有可能当场把本域拆走（编译与域重载就是这次调用发起的），「动作之后」的写盘永远不会执行，没有配对的 <c>.done</c> 调用方只能干等；受理回执只承诺「已接下这一单」，结论一律以状态文件为准。
+        /// </remarks>
         private static void Accept(EditorCommand command, string action, string what)
         {
             Reply(command, action, true,
@@ -494,9 +497,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         private const int SW_RESTORE = 9;
 
         /// <summary>
-        /// 把编辑器顶到系统前台。Windows 的前台锁只认「当前前台那一伙线程」，
-        /// 所以要把自己的输入线程临时挂到前台线程上，<c>SetForegroundWindow</c> 才不是白闪一下任务栏。
+        /// 把编辑器顶到系统前台。
         /// </summary>
+        /// <remarks>
+        /// Windows 的前台锁只认「当前前台那一伙线程」，需先把本进程输入线程临时挂到前台线程上，<c>SetForegroundWindow</c> 才不是白闪一下任务栏。
+        /// </remarks>
         private static string BringToFront()
         {
             try
@@ -534,11 +539,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         #region 反射探针 [REFLECTION PROBES]
 
         /// <summary>
-        /// <c>LogEntries.GetCountsByType</c> 反射探针：那是 <c>internal static</c>、不在文档 API 面上，
-        /// 成员缺失或签名变动时整块退回 <c>null</c>（状态里落 -1），绝不把「读不到」说成「没有错」。
-        /// 类型取 <c>typeof(EditorApplication).Assembly</c> 而不是按程序集名拼字符串——
-        /// LogEntries 与 EditorApplication 同模块，而模块名在各版本间挪过。
+        /// <c>LogEntries.GetCountsByType</c> 反射探针：那是 <c>internal static</c>、不在文档 API 面上，成员缺失或签名变动时整块退回 <c>null</c>（状态里落 -1），绝不把「读不到」说成「没有错」。
         /// </summary>
+        /// <remarks>
+        /// 类型取 <c>typeof(EditorApplication).Assembly</c> 而不是按程序集名拼字符串——<c>LogEntries</c> 与 <c>EditorApplication</c> 同模块，而模块名在各版本间挪过。
+        /// </remarks>
         private static readonly Func<int[]> ConsoleCountsProbe = CreateConsoleProbe();
 
         private static Func<int[]> CreateConsoleProbe()
@@ -580,8 +585,7 @@ namespace Moirai.Atropos.Tests.EditorMode
         }
 
         /// <summary>
-        /// <c>TestRunnerApi.IsRunActive()</c> 反射探针（<c>internal static</c>，与测试桥的接单门同源）：
-        /// 编辑器里有任意 run 在跑即真，含 Test Runner 窗口里手动发起的。
+        /// <c>TestRunnerApi.IsRunActive()</c> 反射探针（<c>internal static</c>，与测试桥的接单门同源）：编辑器里有任意 run 在跑即真，含 Test Runner 窗口里手动发起的。
         /// </summary>
         private static readonly Func<bool> RunActiveProbe = CreateRunActiveProbe();
 

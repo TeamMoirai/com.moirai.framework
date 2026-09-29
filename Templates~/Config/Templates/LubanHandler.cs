@@ -32,8 +32,10 @@ namespace Moirai.GameProto.Config
 
         /// <summary>
         /// 多语言表按语言分份导出后，各语言子目录下的同名数据文件名。
-        /// <remarks>子目录名即语言码，与 <see cref="L10nLanguages.Codes"/> 同源，由转表脚本决定。</remarks>
         /// </summary>
+        /// <remarks>
+        /// 子目录名即语言码，与 <see cref="L10nLanguages.Codes"/> 同源，由转表脚本决定。
+        /// </remarks>
         private const string LOCALIZED_STRINGS_TABLE = "l10n_tblocalizedstrings";
 
         /// <summary>
@@ -42,11 +44,11 @@ namespace Moirai.GameProto.Config
         public override bool SupportsPerLanguageLocalizationLoad => true;
 
         /// <summary>
-        /// 自报本表提供的语言：顺序即 <see cref="GetLocalizedStringsByLanguage"/> 各列在框架内的列序，
-        /// 也是 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
-        /// <para>语言由转表期生成的 <see cref="L10nLanguages"/> 登记，而不是从 bean 字段名反推：
-        /// 多语言改走字段变体后 bean 只剩一个 text 字段，字段名与语言无关。</para>
+        /// 自报本表提供的语言；顺序即 <see cref="GetLocalizedStringsByLanguage"/> 各列在框架内的列序，也是 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
         /// </summary>
+        /// <remarks>
+        /// 语言来自转表期生成的 <see cref="L10nLanguages"/> 登记，而非从 bean 字段名反推（多语言改走字段变体后 bean 只剩单个 text 字段）。
+        /// </remarks>
         public override IReadOnlyList<string> GetLocalizationLanguageCodes() => L10nLanguages.Codes;
 
         /// <summary>
@@ -64,8 +66,10 @@ namespace Moirai.GameProto.Config
 
         /// <summary>
         /// 整批结果：逐语言各读一份再按 <see cref="L10nLanguages.Codes"/> 的顺序拼列。
-        /// <para>按语言列模式下运行期不会走到这里，留给编辑器预览——预览要同时看到所有语言。</para>
         /// </summary>
+        /// <remarks>
+        /// 按语言列模式下运行期不会走到这里，仅供编辑器预览（预览需同时看到所有语言）。
+        /// </remarks>
         private Dictionary<string, List<string>> _allLocalizedStrings;
 
         public override Dictionary<string, List<string>> GetAllLocalizedStrings()
@@ -80,10 +84,10 @@ namespace Moirai.GameProto.Config
 
         /// <summary>
         /// 逐语言装载并校验列对齐。
-        /// <remarks>各语言的数据由各自那一趟导出产生，任一趟失败都会留下缺语言目录；
-        /// 缺一列会让后续键整体错位，而框架侧只以「列数与语言数不符」整批拒收，
-        /// 所以在这里点名是哪一种语言缺行。</remarks>
         /// </summary>
+        /// <remarks>
+        /// 任一语言导出失败会留下缺语言目录；缺列会让后续键整体错位，而框架侧只按「列数与语言数不符」整批拒收，故在此点名缺失的语言。
+        /// </remarks>
         private Dictionary<string, List<string>> BuildAllLocalizedStrings()
         {
             var codes = L10nLanguages.Codes;

@@ -1,11 +1,12 @@
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// CLDR cardinal 复数规则（内置语言族的常用子集，整数口径）。
-    /// <para>复数词条约定：基础 ID 加类别后缀 <c>id#zero|one|two|few|many|other</c>；
-    /// 查询按「id#选中类别 → id#other → id 裸 key」回落。未收录语言一律按「仅 other」处理——
-    /// 表里只要保证 <c>id#other</c> 存在，任何语言都能显示。</para>
+    /// CLDR cardinal 复数规则（内置语言族的常用子集，整数口径）：按语言 Code 给出复数类别后缀。
     /// </summary>
+    /// <remarks>
+    /// 复数词条约定：基础 ID 加类别后缀 <c>id#zero|one|two|few|many|other</c>；查询按「id#选中类别 → id#other → id#裸 key」回落。
+    /// 未收录语言一律按「仅 other」处理，表里保证 <c>id#other</c> 存在即可正常显示。
+    /// </remarks>
     internal static class LocalizationPluralRules
     {
         /// <summary>

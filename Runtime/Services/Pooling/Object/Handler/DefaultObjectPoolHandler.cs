@@ -7,9 +7,10 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 通用对象池默认处理器：分页槽位存储 + 按名复用链 + 引用计数 + 最小堆维护调度。
-    /// <para><see cref="ObjectPoolServiceHandler"/> 的内置实现，池体为内嵌 <see cref="ObjectPool{T}"/>。</para>
-    /// <para>可在 <see cref="ObjectPoolServiceSettings"/> 中替换为自定义实现。</para>
     /// </summary>
+    /// <remarks>
+    /// <see cref="ObjectPoolServiceHandler"/> 的内置实现，池体为内嵌 <see cref="ObjectPool{T}"/>，可在 <see cref="ObjectPoolServiceSettings"/> 中替换。
+    /// </remarks>
     [Serializable]
     [UnityEngine.Scripting.Preserve]
     internal sealed class DefaultObjectPoolHandler : ObjectPoolServiceHandler
@@ -1458,9 +1459,11 @@ namespace Moirai.Atropos.ObjectPool
             #region 私有方法 — 维护调度 [PRIVATE MAINTENANCE SCHEDULING]
 
             /// <summary>
-            /// 重算本池下一次维护到期时间并调度：待释放项 → 下一帧再醒；
-            /// 过期项 → 未用链头（最旧）的过期点；超容项 → 连续超容达到间隔的点。
+            /// 重算本池下一次维护到期时间并调度。
             /// </summary>
+            /// <remarks>
+            /// 待释放项下一帧再醒；过期项取未用链头（最旧）的过期点；超容项取连续超容达到间隔的点。
+            /// </remarks>
             private void RefreshMaintenance()
             {
                 float now = Time.realtimeSinceStartup;

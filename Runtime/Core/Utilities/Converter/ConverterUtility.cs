@@ -897,9 +897,9 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 约束数值长度，少增多减；
-        /// 例如128约束5位等于12800，1024约束3位等于102；
+        /// 约束数值长度，少增多减。
         /// </summary>
+        /// <remarks>例如 128 约束 5 位等于 12800，1024 约束 3 位等于 102。</remarks>
         /// <param name="srcValue">原始数值</param>
         /// <param name="length">需要保留的长度</param>
         /// <returns>修改后的int数值</returns>

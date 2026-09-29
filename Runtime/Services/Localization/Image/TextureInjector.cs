@@ -3,9 +3,9 @@ using UnityEngine;
 namespace Moirai.Atropos.Localization
 {
 	/// <summary>
-	/// 渲染器纹理本地化注入器，将本地化纹理设置到 <see cref="Renderer"/> 材质的指定纹理属性。
-	/// <para>预期资源类型为 <see cref="Texture2D"/>；若加载到的是 <see cref="Sprite"/>，会改用其底层纹理。</para>
+	/// 渲染器纹理本地化注入器：把本地化纹理设置到 <see cref="Renderer"/> 材质的指定纹理属性。
 	/// </summary>
+	/// <remarks>预期资源类型为 <see cref="Texture2D"/>；加载到 <see cref="Sprite"/> 时改用其底层纹理。</remarks>
 	public class TextureInjector : ImageInjectorBase
 	{
 		private readonly Renderer _renderer;

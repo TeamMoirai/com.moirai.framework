@@ -37,8 +37,7 @@ namespace Moirai.Atropos.Resource
         StaleOwner = 4,
 
         /// <summary>
-        /// 请求已被调用方取消。与"加载失败"分道：取消是调用方主动要的结果，
-        /// 按失败处理会让上层把它当成后端故障去重试或告警。
+        /// 请求已被调用方取消；与"加载失败"分道，避免上层按后端故障重试或告警。
         /// </summary>
         Cancelled = 5,
 

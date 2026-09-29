@@ -5,10 +5,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档序列化后端注册表：后端标识 → 序列化器实例的静态查询点。
-    /// <para>内置后端在静态构造期注册；自定义后端经 <see cref="Register"/> 开放注册（重复后端 fail-fast）。
-    /// 查询未注册后端（依赖未接入/标识非法）由 <see cref="GetRequired"/> fail-fast 抛出 <see cref="GameException"/>，
-    /// 避免静默降级导致块数据损坏。</para>
     /// </summary>
+    /// <remarks>
+    /// 内置后端在静态构造期注册；自定义后端经 <see cref="Register"/> 开放注册（重复后端 fail-fast）。
+    /// 查询未注册后端（依赖未接入/标识非法）由 <see cref="GetRequired"/> 抛 <see cref="GameException"/> fail-fast，避免静默降级导致块数据损坏。
+    /// </remarks>
     public static class SaveSerializerRegistry
     {
         /// <summary>后端标识 → 序列化器实例表。</summary>
@@ -73,8 +74,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 注销序列化后端。
-        /// <para>注销内置后端会使依赖该后端的存量块在 <see cref="GetRequired"/> 处 fail-fast——仅测试与后端热替换场景使用。</para>
         /// </summary>
+        /// <remarks>注销内置后端会使依赖该后端的存量块在 <see cref="GetRequired"/> 处 fail-fast——仅测试与后端热替换场景使用。</remarks>
         /// <param name="backend">后端标识（保留的 <see cref="ESaveBackend.KeyValue"/> 恒返回 <c>false</c>）。</param>
         /// <returns>实际注销返回 <c>true</c>；后端未注册返回 <c>false</c>。</returns>
         public static bool Unregister(ESaveBackend backend)

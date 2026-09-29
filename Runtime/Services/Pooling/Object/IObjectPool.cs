@@ -4,8 +4,10 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 通用对象池契约。
-    /// <para>池由 <see cref="ObjectPoolService.GetOrCreatePool{T}"/> 创建；对象由外部构造并 <c>Register</c> 入池。</para>
     /// </summary>
+    /// <remarks>
+    /// 池由 <see cref="ObjectPoolService.GetOrCreatePool{T}"/> 创建；对象由外部构造并 <c>Register</c> 入池。
+    /// </remarks>
     /// <typeparam name="T">池化对象类型。</typeparam>
     public interface IObjectPool<T> where T : ObjectBase
     {

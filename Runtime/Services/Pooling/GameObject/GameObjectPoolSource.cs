@@ -5,10 +5,12 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// GameObject 池化来源键：资源地址或外部 Prefab 引用。
-    /// <para>同一套 Spawn/Despawn/Warmup/Flush API 适配两种来源；string / GameObject 可隐式转换。</para>
-    /// <para><see cref="Group"/> 仅在 Prefab 源首次建池时生效；Location 源的分组以 PoolConfig 规则为准。</para>
-    /// <para><c>default</c> 为无效源（IsValid=false），外观入口统一 fail-safe 返回空。</para>
     /// </summary>
+    /// <remarks>
+    /// 同一套 Spawn / Despawn / Warmup / Flush API 适配两种来源；<c>string</c> / <see cref="GameObject"/> 可隐式转换。
+    /// <see cref="Group"/> 仅在 Prefab 源首次建池时生效；Location 源的分组以 PoolConfig 规则为准。
+    /// <c>default</c> 为无效源（<c>IsValid</c> 为 false），外观入口统一 fail-safe 返回空。
+    /// </remarks>
     public readonly struct GameObjectPoolSource : IEquatable<GameObjectPoolSource>
     {
         #region 字段 [FIELDS]

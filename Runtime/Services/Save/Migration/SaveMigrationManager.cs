@@ -7,18 +7,13 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档迁移管理器：迁移器注册表 + 文件级版本链解析与执行（迁移总线核心）。
-    /// <para>版本模型：存档数据版本为 int 递增（0 = 版本化前的基线存档）；游戏层在启动期设置 <see cref="CurrentVersion"/> 为当前数据版本，
-    /// 并为每个历史版本跃迁注册 <see cref="ISaveMigrator"/>（SaveHost SourceGenerator 扫描实现类经模块初始化器自注册，AOT 安全）。</para>
-    /// <para>链契约：加载/写入管线触达版本低于 <see cref="CurrentVersion"/> 的存档时，沿 <c>FromVersion == 当前步版本</c> 的迁移器逐段升级到当前版本——
-    /// 同一边多个迁移器按 <see cref="ISaveMigrator.Priority"/> 升序执行；同起始版本存在多条不同目标版本的边、链缺失或执行异常均为
-    /// <see cref="SaveError.MigrationFailed"/> fail-fast；存档版本高于当前版本（降级）判别为 <see cref="SaveError.UnsupportedVersion"/>。</para>
-    /// <para>采纳仪式：启用版本化（<see cref="CurrentVersion"/> 从 0 调大）且存在旧档时，须注册自版本 0 起的迁移链
-    /// （旧档无元数据块按版本 0 处理；形状未变可用空迁移器桥接 0→1）。</para>
-    /// <para>审计：每次迁移步向槽位元数据 <see cref="SaveMetadata.MigrationHistory"/> 追加一条
-    /// <c>"{起始}->{目标}|{迁移器类型全名}|{UTC ISO-8601}"</c> 记录（随迁移回写持久化）。</para>
-    /// <para>回写：迁移成功后由处理器按 <see cref="SaveServiceHandler.MigrationWriteBack"/> 惰性回写（默认开——避免每次加载重跑迁移链）；
-    /// 同文件同会话的重复迁移经会话级缓存短路。注册表在启动期（主线程）写入、管线期（工作线程）只读快照。</para>
     /// </summary>
+    /// <remarks>
+    /// 版本模型：存档数据版本为 int 递增（0 = 版本化前的基线存档）；游戏层在启动期设置 <see cref="CurrentVersion"/>，并为每个历史版本跃迁注册 <see cref="ISaveMigrator"/>（SaveHost SourceGenerator 扫描实现类经模块初始化器自注册，AOT 安全）。
+    /// 链契约：加载/写入管线触达版本低于 <see cref="CurrentVersion"/> 的存档时，沿 <c>FromVersion == 当前步版本</c> 的迁移器逐段升级，同一边多个迁移器按 <see cref="ISaveMigrator.Priority"/> 升序执行；同起始版本多条不同目标版本的边、链缺失或执行异常均为 <see cref="SaveError.MigrationFailed"/> fail-fast，降级为 <see cref="SaveError.UnsupportedVersion"/>。
+    /// 启用版本化（<see cref="CurrentVersion"/> 从 0 调大）且存在旧档时，须注册自版本 0 起的迁移链（旧档无元数据块按版本 0 处理；形状未变可用空迁移器桥接 0→1）；每次迁移步向 <see cref="SaveMetadata.MigrationHistory"/> 追加 <c>"{起始}->{目标}|{迁移器类型全名}|{UTC ISO-8601}"</c>，迁移成功后由处理器按 <see cref="SaveServiceHandler.MigrationWriteBack"/> 惰性回写（默认开，同文件同会话重复迁移经会话级缓存短路）。
+    /// 注册表在启动期（主线程）写入、管线期（工作线程）只读快照。
+    /// </remarks>
     public static class SaveMigrationManager
     {
         /// <summary>版本链步数防御上限（注册校验已保证 To &gt; From 严格递增，此为防环兜底）。</summary>
@@ -37,9 +32,9 @@ namespace Moirai.Atropos.Save
         private static volatile int s_CurrentVersion;
 
         /// <summary>
-        /// 当前存档数据版本（int 递增；游戏层在启动期主线程设置，默认 0 = 迁移总线未激活）。
-        /// <para>写入管线在激活时把该版本盖章进槽位元数据块；读取管线对低于该版本的存档执行迁移链。</para>
+        /// 当前存档数据版本（int 递增；默认 0 = 迁移总线未激活）。
         /// </summary>
+        /// <remarks>游戏层在启动期主线程设置；写入管线在激活时把该版本盖章进槽位元数据块，读取管线对低于该版本的存档执行迁移链。</remarks>
         public static int CurrentVersion
         {
             get => s_CurrentVersion;
@@ -159,9 +154,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 会话缓存命中判定（须在 <see cref="s_SessionLock"/> 内调用）：路径已标记且文件写入时间未变——
-        /// 外部替换/云同步落盘改变写入时间时被动失效（重走版本探测）；读取失败按未命中处理（后续探测给出准确错误语义）。
+        /// 会话缓存命中判定（须在 <see cref="s_SessionLock"/> 内调用）：路径已标记且文件写入时间未变。
         /// </summary>
+        /// <remarks>外部替换/云同步落盘改变写入时间时被动失效（重走版本探测）；读取失败按未命中处理。</remarks>
         /// <param name="saveFilePath">存档文件完整路径。</param>
         /// <returns>缓存有效命中返回 <c>true</c>。</returns>
         private static bool IsSessionMigrated(string saveFilePath)
@@ -206,8 +201,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 按需迁移存档块集合到当前数据版本（纯数据操作，不落盘——回写由处理器按设置执行）。
-        /// <para>版本相等/未激活/空档/同会话已迁移短路；缺档语义由调用方保证（空块集不进入本方法）。</para>
         /// </summary>
+        /// <remarks>版本相等/未激活/空档/同会话已迁移短路；缺档语义由调用方保证（空块集不进入本方法）。</remarks>
         /// <param name="paths">已解析的路径集合（日志与审计上下文）。</param>
         /// <param name="blocks">健康数据块列表（含元数据块）。</param>
         /// <param name="blockErrors">坏块清单（元数据块损坏时保守失败——版本不可信）。</param>
@@ -465,9 +460,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 将更新后的元数据 upsert 进迁移后的块集合（保留既有元数据字段，仅推进版本与追加历史；
-        /// 迁移器删除/改名过元数据块的极端场景以迁移后块集合为准重新 upsert）。
+        /// 将更新后的元数据 upsert 进迁移后的块集合（保留既有元数据字段，仅推进版本与追加历史）。
         /// </summary>
+        /// <remarks>迁移器删除/改名过元数据块的极端场景，以迁移后块集合为准重新 upsert。</remarks>
         /// <param name="migratedBlocks">迁移器改写后的块集合。</param>
         /// <param name="metadata">更新后的元数据对象。</param>
         /// <returns>含最新元数据块的块集合。</returns>

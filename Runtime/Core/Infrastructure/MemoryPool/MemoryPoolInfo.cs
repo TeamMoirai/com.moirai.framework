@@ -71,9 +71,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 获取自上次 <see cref="MemoryPool.ResetAllStats"/> 以来同时在外的对象数量峰值。
-        /// <para>与 <see cref="UsingCount"/> 一起看才是漏还证据：只用在外数量是瞬时值，取还抖动的池也会短暂冲高；
-        /// 高水位单调不降，跨小时只增不减即说明有引用没回来。</para>
         /// </summary>
+        /// <remarks>高水位单调不降，与 <see cref="UsingCount"/> 一起看才是漏还证据：只增不减即说明有引用未归还。</remarks>
         public int MaxUsingCount => _maxUsingCount;
 
         /// <summary>

@@ -5,11 +5,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档文件头（固定 32 字节，小端序）：魔数 + 格式版本 + 保存时间 + 载荷长度 + 载荷 CRC32 + 压缩提供方 ID + 特性标志。
-    /// <para>文件布局：<c>[4B 魔数 "MRSA"][4B 格式版本][8B UTC ticks][4B 载荷长度][4B 载荷 CRC32][4B 压缩提供方 ID][4B 标志][载荷]</c>。
-    /// 文件头始终为明文（元数据无需解密即可读）；载荷为多块容器经压缩（可选）+ 加密处理器变换后的字节。</para>
-    /// <para>v2 相对 v1 扩展 8 字节（压缩提供方 ID + 标志位——v2 早期写出的零值段即「未压缩」语义，天然前后兼容）；
-    /// v1 旧档（单块无容器）不兼容，读取判别为 <see cref="SaveError.UnsupportedVersion"/> 作废。</para>
     /// </summary>
+    /// <remarks>
+    /// 布局：<c>[4B 魔数 "MRSA"][4B 格式版本][8B UTC ticks][4B 载荷长度][4B 载荷 CRC32][4B 压缩提供方 ID][4B 标志][载荷]</c>；文件头始终为明文，载荷为多块容器经压缩（可选）+ 加密变换后的字节。
+    /// 压缩提供方 ID 为零即「未压缩」语义；v1 旧档（单块无容器）不兼容，读取判别为 <see cref="SaveError.UnsupportedVersion"/> 作废。
+    /// </remarks>
     internal readonly struct SaveFileHeader
     {
         /// <summary>
@@ -103,9 +103,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从字节序列解析文件头并校验魔数、版本与长度自洽性。
-        /// <para>v1 旧档（多块容器化之前）判别为 <see cref="SaveError.UnsupportedVersion"/>（用户裁定作废，不做双格式兼容读）。</para>
-        /// <para>压缩标志与提供方 ID 的一致性校验在编排队（Handler 读路径）：标志置位但 ID 为零、或 ID 非零但标志未置位，均判别为 <see cref="SaveError.Corrupted"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// v1 旧档（多块容器化之前）判别为 <see cref="SaveError.UnsupportedVersion"/>，不做双格式兼容读。
+        /// 压缩标志与提供方 ID 的一致性（标志置位但 ID 为零、或 ID 非零但标志未置位）在编排队读路径判别为 <see cref="SaveError.Corrupted"/>。
+        /// </remarks>
         /// <param name="source">文件头字节序列（至少 <see cref="Size"/> 字节）。</param>
         /// <param name="header">解析成功时的文件头。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.UnsupportedVersion"/> 或 <see cref="SaveError.Corrupted"/>。</returns>

@@ -6,8 +6,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 锁定inspector面板，再次按下相同的快捷方式即可解锁
-    /// 快捷键 ctrl（或cmd）+ L
+    /// 锁定 Inspector 面板，再次按下相同快捷键即解锁（快捷键 <c>Ctrl</c> / <c>Cmd</c> + <c>L</c>）。
     /// </summary>
     public static class LockInspector
     {

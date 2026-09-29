@@ -4,10 +4,11 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 框架统一随机流：xoshiro128**（周期 2^128），值语义、零分配、可在任意线程使用。
-    /// <para>方法会就地推进自身状态，所以只能放在**可写**的局部变量或字段上调用；
-    /// 经属性 / readonly 字段取到的副本会把同一批数重复吐出来。</para>
-    /// <para>有界取值用带拒绝的 Lemire 乘移法，不做取模，因此不存在模偏置。</para>
     /// </summary>
+    /// <remarks>
+    /// 方法会就地推进自身状态，只能在可写的局部变量或字段上调用；经属性 / readonly 字段取到的副本会重复输出同一批数。
+    /// 有界取值用带拒绝的 Lemire 乘移法，不做取模，不存在模偏置。
+    /// </remarks>
     public struct RandomSource
     {
         private const ulong Golden = 0x9E3779B97F4A7C15UL;

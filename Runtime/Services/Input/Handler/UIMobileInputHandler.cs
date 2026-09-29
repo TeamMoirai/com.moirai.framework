@@ -6,17 +6,13 @@ namespace Moirai.Atropos.Input
 {
     /// <summary>
     /// 基于场景 UI 元素（InputButton/InputAxes 组件）的虚拟输入处理器，适用于移动端。
-    /// <para>虚拟组件经 <see cref="UIMobileInputRegistry"/> 自注册（OnEnable/OnDisable），
-    /// 延迟实例化与销毁均自动同步，本处理器不做场景扫描。</para>
-    /// <para>GetButtonDown/GetButtonUp 读取组件上的帧闩锁边沿（指针事件写入，与查询次数无关，
-    /// 同帧点按不丢边，语义与 Input System 的 WasPressedThisFrame 对齐）。</para>
-    /// <para>门控能力：<c>Enabled=false</c> 全局硬门控（动作类查询一律降级）；
-    /// 玩家/UI 上下文压制为 Input System 后端专属能力。</para>
-    /// <remarks>
-    /// 虚拟输入按组件的 ActionName 寻址：查询时优先解析 "Group/Name"（兼容始终传分组的生成配置类），
-    /// 未命中回退平铺名称。鼠标类查询在此后端无意义，按降级契约返回默认值。
-    /// </remarks>
     /// </summary>
+    /// <remarks>
+    /// 虚拟组件经 <see cref="UIMobileInputRegistry"/> 自注册（OnEnable/OnDisable），延迟实例化与销毁均自动同步，本处理器不做场景扫描。
+    /// GetButtonDown/GetButtonUp 读取组件上的帧闩锁边沿，与查询次数无关，同帧点按不丢边。
+    /// 虚拟输入按组件的 ActionName 寻址：优先解析 <c>Group/Name</c>，未命中回退平铺名称；鼠标类查询在此后端无意义，按降级契约返回默认值。
+    /// <c>Enabled=false</c> 为全局硬门控（动作类查询一律降级）；玩家/UI 上下文压制为 Input System 后端专属能力。
+    /// </remarks>
     [Serializable]
     internal sealed class UIMobileInputHandler : InputServiceHandler
     {
@@ -133,9 +129,9 @@ namespace Moirai.Atropos.Input
         }
 
         /// <summary>
-        /// 解析虚拟按钮：优先按 "Group/Name"（与新输入后端一致，兼容始终传分组的生成配置类），
-        /// 未命中时回退组件上平铺的 ActionName。解析结果缓存（负结果不缓存，晚注册组件可命中）。
+        /// 解析虚拟按钮：优先按 <c>Group/Name</c>，未命中回退组件上平铺的 <c>ActionName</c>。
         /// </summary>
+        /// <remarks>解析结果缓存；负结果不缓存，晚注册组件仍可命中。</remarks>
         private bool TryResolveButton(string actionName, string actionGroup, out InputButton button)
         {
             var key = new InputActionKey(actionGroup, actionName);

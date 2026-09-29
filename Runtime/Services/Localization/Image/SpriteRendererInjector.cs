@@ -3,9 +3,9 @@ using UnityEngine;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// <see cref="SpriteRenderer"/> 本地化注入器，将本地化图片资源应用到 2D 精灵渲染器。
-    /// <para>预期资源类型为 <see cref="Sprite"/>；若加载到的是 <see cref="Texture2D"/>，会自动创建 Sprite 后再应用。</para>
+    /// <see cref="SpriteRenderer"/> 本地化注入器：把本地化图片资源应用到 2D 精灵渲染器。
     /// </summary>
+    /// <remarks>预期资源类型为 <see cref="Sprite"/>；加载到 <see cref="Texture2D"/> 时会先创建 Sprite 再应用。</remarks>
     public class SpriteRendererInjector : ImageInjectorBase
     {
         private readonly SpriteRenderer _spriteRenderer;

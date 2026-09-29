@@ -14,9 +14,9 @@ using WeChatWASM;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源管理器处理器——承载资源加载、缓存、租约与绑定等全部实现逻辑。
-    /// <para>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。</para>
+    /// 资源管理器处理器：承载资源加载、缓存、租约与绑定等全部实现逻辑。
     /// </summary>
+    /// <remarks>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。</remarks>
     // ReSharper disable once ClassNeverInstantiated.Global
     [Serializable]
     internal sealed partial class YooAssetHandler : ResourceServiceHandler, IResourceRecordHost

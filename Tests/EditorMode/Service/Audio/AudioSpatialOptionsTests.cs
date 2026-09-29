@@ -5,10 +5,9 @@ using UnityEngine;
 namespace Service.Audio
 {
     /// <summary>
-    /// AudioSpatialOptions 拆分契约：默认值对齐 Unity AudioSource 声学缺省、
-    /// 播放选项各工厂方法必须以声学默认初始化 Spatial（直 new 的零值结构体会把声源整形成
-    /// 「无多普勒、零衰减距离、无混响」）、FromOptions 空间逐字段拷贝。
+    /// AudioSpatialOptions 拆分契约：默认值对齐 Unity AudioSource 声学缺省、各播放选项工厂方法必须以声学默认初始化 Spatial、FromOptions 逐字段拷贝空间参数。
     /// </summary>
+    /// <remarks>直 new 的零值结构体会把声源整形成「无多普勒、零衰减距离、无混响」，故工厂方法不得裸 new Spatial。</remarks>
     [TestFixture]
     public sealed class AudioSpatialOptionsTests
     {

@@ -4,9 +4,9 @@ using NUnit.Framework;
 namespace Service.Input
 {
     /// <summary>
-    /// 焦点与输入 Enabled 联动守卫（<see cref="FocusInputGuard"/>）单元测试：
-    /// 失焦记录/回焦还原、重复焦点事件去重（防止连续失焦后输入永久关闭）。
+    /// 焦点与输入 Enabled 联动守卫（<see cref="FocusInputGuard"/>）单元测试：失焦记录/回焦还原、重复焦点事件去重。
     /// </summary>
+    /// <remarks>去重是为了防止连续失焦后输入永久关闭。</remarks>
     [TestFixture]
     public sealed class FocusInputGuardTests
     {

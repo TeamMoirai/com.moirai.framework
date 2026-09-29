@@ -13,12 +13,13 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// V3-P5 迁移总线测试：版本链解析（单步/多步/缺链/歧义/降级拒绝/注册校验）、迁移上下文块级与字段级操作（JSON/KVT）、
-    /// 回写开/关行为、迁移历史审计、元数据版本盖章、显式 MigrateSave、组件模式版本钩子路由。
-    /// <para>全部经 internal 同步核心路径（真实文件 IO）；迁移器类为顶层 internal（SaveHost SG 自注册可发现），
-    /// SetUp 手动注册兜底（SG 对测试程序集生成不稳定）——TearDown 经 <c>SaveMigrationManager.ResetForTests</c> 复位全局状态防串扰。</para>
-    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获；DefaultLogHandler 同步链路下补 <c>LogAssert.Expect</c>。</para>
+    /// 迁移总线测试：版本链解析（单步/多步/缺链/歧义/降级拒绝/注册校验）、迁移上下文块级与字段级操作（JSON/KVT）、回写开/关行为、迁移历史审计、元数据版本盖章、显式 MigrateSave、组件模式版本钩子路由。
     /// </summary>
+    /// <remarks>
+    /// 全部经 internal 同步核心路径（真实文件 IO）；迁移器类为顶层 internal（SaveHost SG 自注册可发现），
+    /// SetUp 手动注册兜底（SG 对测试程序集生成不稳定）——TearDown 经 <c>SaveMigrationManager.ResetForTests</c> 复位全局状态防串扰。
+    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获；DefaultLogHandler 同步链路下补 <c>LogAssert.Expect</c>。
+    /// </remarks>
     public class SaveMigrationBusTests
     {
         #region 测试数据与迁移器 [FIXTURES]

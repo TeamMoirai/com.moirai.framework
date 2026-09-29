@@ -4,12 +4,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 虚拟输入组件注册表（InputButton/InputAxes 自注册）。
-    /// <para>组件在 OnEnable/OnDisable 自行注册/注销，使延迟实例化（对象池、动态生成）的
-    /// 虚拟按键与摇杆始终可被 <see cref="UIMobileInputHandler"/> 查询到，且销毁后不残留引用。</para>
-    /// <para>重名动作以后注册者为准（覆盖），并输出告警。</para>
-    /// <para>线程契约：仅主线程。</para>
+    /// 虚拟输入组件注册表：InputButton/InputAxes 在 OnEnable/OnDisable 自注册与注销。
     /// </summary>
+    /// <remarks>
+    /// 延迟实例化（对象池、动态生成）的虚拟按键与摇杆始终可被 <see cref="UIMobileInputHandler"/> 查询到，销毁后不残留引用。
+    /// 重名动作以后注册者为准（覆盖），并输出告警。
+    /// 仅主线程。
+    /// </remarks>
     public static class UIMobileInputRegistry
     {
         private static readonly Dictionary<string, InputButton> s_Buttons = new Dictionary<string, InputButton>();

@@ -34,8 +34,7 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 框架设置基类。提供统一的元数据查询、类型注册和实例加载。
-    /// 所有框架设置 ScriptableObject 应继承此类。
+    /// 框架设置基类：为框架设置 ScriptableObject 提供统一的元数据查询、类型注册和实例加载。
     /// </summary>
     /// <remarks>
     /// <para><b>本类的加载路径禁止使用 <c>LogUtility</c></b>：各 Utility 的 Handler 懒加载会经

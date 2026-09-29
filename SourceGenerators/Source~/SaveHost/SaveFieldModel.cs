@@ -213,11 +213,13 @@ namespace Moirai.Atropos.SourceGenerators
 
         /// <summary>
         /// 从语法上下文创建字段模型（一个字段声明可含多个变量，逐一展开）。
-        /// <para>注：不用 <c>ForAttributeWithMetadataName</c>——该增量 API 在本项目部分编译单元上静默不产出（实证），改用语义扫描。</para>
         /// </summary>
+        /// <remarks>
+        /// 采用语义扫描而非 <c>ForAttributeWithMetadataName</c>（该增量 API 在本项目部分编译单元上静默不产出）。
+        /// </remarks>
         /// <param name="context">语法提供上下文。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>字段模型数组（无 [SaveField] 标注时为空）。</returns>
+        /// <returns>字段模型数组（无 <c>[SaveField]</c> 标注时为空）。</returns>
         public static SaveFieldModel[] Create(GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

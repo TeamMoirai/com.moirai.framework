@@ -5,16 +5,11 @@ using System.Text;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 默认字符串构建器工具实现。<br />
-    /// 优先使用 StringBuilderCache（ThreadStatic 单槽缓存，零分配），
-    /// 回退到 StringBuilderPool（多槽池，减少分配）。
+    /// 默认字符串构建器工具实现。
     /// </summary>
     /// <remarks>
-    /// 架构设计（0GC）：<br />
-    /// - StringBuilderCache: ThreadStatic 单槽缓存，单线程场景下零分配<br />
-    /// - StringBuilderPool: Stack-based 多槽池，多线程或高频场景下减少分配<br />
-    /// - AdapterPool: 池化 StringBuilderAdapter 实例，避免堆分配<br />
-    /// - 优先级: Cache > Pool > new StringBuilder
+    /// 取用优先级 <c>StringBuilderCache</c>（ThreadStatic 单槽缓存，单线程零分配）&gt; <c>StringBuilderPool</c>（栈式多槽池，多线程/高频下减少分配）&gt; <c>new StringBuilder</c>；
+    /// 适配器实例由 <c>AdapterPool</c> 池化，避免堆分配。
     /// </remarks>
     [Serializable]
     internal sealed class DefaultStringHandler : StringHandler
@@ -41,11 +36,11 @@ namespace Moirai.Atropos
         #region 实现方法 [IMPLEMENTATION METHODS]
 
         /// <summary>
-        /// 获取一个字符串构建器适配器（0GC）。
-        /// 优先从池中获取，回退到创建新实例。
+        /// 获取一个字符串构建器适配器（0 GC）。
         /// </summary>
         /// <param name="capacity">初始容量</param>
         /// <returns>可复用的字符串构建器适配器</returns>
+        /// <remarks>优先从池中获取，回退到创建新实例。</remarks>
         public override IStringBuilder CreateStringBuilder(int capacity = 256)
         {
             // 优先: 从适配器池获取（0GC）
@@ -104,20 +99,19 @@ namespace Moirai.Atropos
         #region 私有方法 [PRIVATE METHODS]
 
         /// <summary>
-        /// 释放适配器到池中（0GC）。委托给 <see cref="DefaultStringBuilder.Dispose"/>，
-        /// 保证 GetString / Format / ToStringAndDispose 所有路径统一走池回收。
+        /// 释放适配器到池中（0 GC）。
         /// </summary>
         /// <param name="adapter">要释放的适配器</param>
+        /// <remarks>委托给 <see cref="DefaultStringBuilder.Dispose"/>，保证 GetString / Format / ToStringAndDispose 所有路径统一走池回收。</remarks>
         private void Release(IStringBuilder adapter)
         {
             (adapter as DefaultStringBuilder)?.Dispose();
         }
 
         /// <summary>
-        /// 将适配器及其内部 StringBuilder 归还池中（0GC）。
-        /// 由 <see cref="DefaultStringBuilder.Dispose"/> 回调，
-        /// 修复原先 Format/ToStringAndDispose 路径 Dispose 后直接丢弃导致的池泄漏。
+        /// 将适配器及其内部 StringBuilder 归还池中（0 GC）。
         /// </summary>
+        /// <remarks>由 <see cref="DefaultStringBuilder.Dispose"/> 回调，保证适配器与内部 StringBuilder 随 Dispose 一并回收。</remarks>
         internal static void Return(DefaultStringBuilder adapter)
         {
             if (adapter == null) return;

@@ -4,8 +4,10 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 未注册地址 / 外部预制体池的默认规则工厂。
-    /// <para>与旧 Core 池「自动建池」行为对齐：Burst 策略，soft 8 / hard 64。</para>
     /// </summary>
+    /// <remarks>
+    /// 默认采用 Burst 策略，soft 8 / hard 64。
+    /// </remarks>
     internal static class DefaultPoolRules
     {
         #region 常量 [CONSTANTS]

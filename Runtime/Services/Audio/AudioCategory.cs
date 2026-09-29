@@ -6,10 +6,9 @@ using UnityEngine.Audio;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 音频轨道（类别）。管理一组可复用的 <see cref="AudioAgent"/> 通道。
-    /// <para>取通道顺序：空闲 → 硬上限内扩展 → 按优先级 Voice Stealing。</para>
-    /// <para>Unity Priority 语义：0 最高，255 最低；仅抢占「不更重要」的非持久音。</para>
+    /// 音频轨道（类别）：管理一组可复用的 <see cref="AudioAgent"/> 通道。
     /// </summary>
+    /// <remarks>取通道顺序：空闲 → 硬上限内扩展 → 按优先级 Voice Stealing。Priority 0 最高、255 最低；仅抢占「不更重要」的非持久音。</remarks>
     [Serializable]
     public class AudioCategory
     {

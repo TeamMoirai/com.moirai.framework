@@ -5,8 +5,7 @@ using UnityEngine;
 namespace Core.Events
 {
     /// <summary>
-    /// <see cref="MonoEventCoordinator"/> 销毁排空验收：OnDestroy 必须释放仍滞留派发队列的事件，
-    /// 配平入队时的 <c>Acquire()</c>，否则池化事件净泄漏 + 残留态。
+    /// <see cref="MonoEventCoordinator"/> 销毁排空验收：<c>OnDestroy</c> 必须释放仍滞留派发队列的事件，配平入队时的 <c>Acquire()</c>，否则池化事件净泄漏并残留态。
     /// </summary>
     public sealed class MonoEventCoordinatorDrainTests
     {

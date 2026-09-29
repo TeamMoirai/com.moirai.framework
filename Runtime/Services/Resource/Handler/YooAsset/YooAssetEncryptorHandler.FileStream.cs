@@ -75,10 +75,9 @@ namespace Moirai.Atropos.Resource
         class FileStreamMemoryDecryptor : IBundleMemoryDecryptor
         {
             /// <summary>
-            /// 后备方式获取解密的资源包
-            /// 注意：当正常解密方法失败后，会触发后备加载！
-            /// 说明：建议通过LoadFromMemory()方法加载资源包作为保底机制。
+            /// 后备方式获取解密的资源包，正常解密失败后触发。
             /// </summary>
+            /// <remarks>建议以 <c>LoadFromMemory()</c> 加载资源包作为保底机制。</remarks>
             byte[] IBundleMemoryDecryptor.GetDecryptedData(BundleDecryptArgs args)
             {
                 byte[] fileData = args.FileData ?? File.ReadAllBytes(args.FilePath);

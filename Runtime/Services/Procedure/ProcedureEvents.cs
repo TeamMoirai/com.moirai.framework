@@ -1,11 +1,12 @@
 ﻿namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程域事件标记。
-    /// <para>标记归属于游戏流程（启动链、热更、入口切换）上下文的事件类型，供约定检索与诊断使用；
-    /// 框架不据此过滤分发，仅作为领域契约锚点。</para>
-    /// <para>流程状态机自身的切换广播不走该标记，见 <see cref="ProcedureService.onProcedureChanged"/>。</para>
+    /// 流程域事件标记：标记归属于游戏流程（启动链、热更、入口切换）上下文的事件类型。
     /// </summary>
+    /// <remarks>
+    /// 供约定检索与诊断使用；框架不据此过滤分发，仅作为领域契约锚点。
+    /// 流程状态机自身的切换广播不走该标记，见 <see cref="ProcedureService.onProcedureChanged"/>。
+    /// </remarks>
     public interface IProcedureEvent { }
 
     /// <summary>
@@ -24,10 +25,11 @@
     }
 
     /// <summary>
-    /// 流程切换记录（值类型快照）。
-    /// <para>既作为 <see cref="ProcedureService.onProcedureChanged"/> 的广播载荷，
-    /// 也作为 <see cref="ProcedureServiceHandler.TransitionHistory"/> 的历史条目，均不可变。</para>
+    /// 流程切换记录（值类型快照，不可变）。
     /// </summary>
+    /// <remarks>
+    /// 既作为 <see cref="ProcedureService.onProcedureChanged"/> 的广播载荷，也作为 <see cref="ProcedureServiceHandler.TransitionHistory"/> 的历史条目。
+    /// </remarks>
     public readonly struct ProcedureTransitionRecord
     {
         /// <summary>切换种类。</summary>

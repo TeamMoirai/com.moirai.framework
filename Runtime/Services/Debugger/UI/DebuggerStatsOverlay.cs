@@ -7,9 +7,11 @@ using Unity.Profiling;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 常驻统计 HUD（右上角 FPS / 渲染 / 内存摘要）。
-    /// <para><see cref="ProfilerRecorder"/> 按需启停（仅可见时运行）；0.25 秒节流刷新 + <see cref="StringBuilder"/> 复用，稳态零分配。</para>
+    /// 常驻统计 HUD：右上角 FPS / 渲染 / 内存摘要。
     /// </summary>
+    /// <remarks>
+    /// <see cref="ProfilerRecorder"/> 按需启停（仅可见时运行）；0.25 秒节流刷新 + <see cref="StringBuilder"/> 复用，稳态零分配。
+    /// </remarks>
     internal sealed class DebuggerStatsOverlay
     {
         #region 常量 [CONSTANTS]

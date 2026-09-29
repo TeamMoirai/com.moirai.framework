@@ -50,10 +50,11 @@ namespace Core.MemoryPool
     }
 
     /// <summary>
-    /// 构造行为可注入的类型：Construct 里抛异常即可模拟"构造函数失败"，用来验池没吃掉槽位与计数。
-    /// <para>递归封顶是必需的：构造期重入取用一旦失去护栏，`new T()` → Add → `new T()` 会当场
-    /// 把宿主（编辑器）以栈溢出方式打崩，而不是把缺陷报成一格红。</para>
+    /// 构造行为可注入的类型：<c>Construct</c> 里抛异常即可模拟「构造函数失败」，用来验池没吃掉槽位与计数。
     /// </summary>
+    /// <remarks>
+    /// 递归封顶是必需的：构造期重入取用一旦失去护栏，<c>new T()</c> → Add → <c>new T()</c> 会以栈溢出把宿主（编辑器）当场打崩，而不是把缺陷报成一格红。
+    /// </remarks>
     internal sealed class ConstructorItem : MemoryObject
     {
         public static Action Construct;
@@ -88,14 +89,11 @@ namespace Core.MemoryPool
     }
 
     /// <summary>
-    /// 内存池用例基座：为每个用到的类型重置池、跑独立帧号的 Tick，并在 TearDown 里
-    /// 侦测未归还的租约、清空对应用途的池、还原全局旋钮。
-    /// <para>
-    /// 池是类型级全局单例，进程内所有夹具共享同一份状态。一个用例漏还一只对象，
-    /// 下一个用例会读到虚高的 UsingCount，而 ClearAll 并不能纠正它（在外的对象本就该活着），
-    /// 于是表现为"单独跑绿、整套跑红"。这里把这种污染当场钉死在用例自己的红上。
-    /// </para>
+    /// 内存池用例基座：为每个用到的类型重置池、跑独立帧号的 Tick，并在 TearDown 侦测未归还租约、清空对应用途的池、还原全局旋钮。
     /// </summary>
+    /// <remarks>
+    /// 池是类型级全局单例，进程内所有夹具共享同一份状态：一个用例漏还一只对象，下个用例会读到虚高的 <c>UsingCount</c>，而 <c>ClearAll</c> 不能纠正（在外的对象本就该活着），表现为「单独跑绿、整套跑红」——本基座把污染钉死在用例自己的红上。
+    /// </remarks>
     public abstract class MemoryPoolFixture
     {
         private readonly HashSet<Type> _types = new HashSet<Type>();
@@ -162,9 +160,11 @@ namespace Core.MemoryPool
         }
 
         /// <summary>
-        /// 读取私有静态字段（如 s_PageCapacity）：Info 里的 PageCapacity 分不清"页都还挂着"与
-        /// "页已交还回收栈"，需要直读产码字段才能判真。
+        /// 读取私有静态字段（如 <c>s_PageCapacity</c>）。
         /// </summary>
+        /// <remarks>
+        /// Info 里的 <c>PageCapacity</c> 分不清「页都还挂着」与「页已交还回收栈」，需要直读产码字段才能判真。
+        /// </remarks>
         protected static TField StaticField<TField>(Type owner, string name)
         {
             FieldInfo field = owner.GetField(name, BindingFlags.NonPublic | BindingFlags.Static);
@@ -244,9 +244,11 @@ namespace Core.MemoryPool
         }
 
         /// <summary>
-        /// 沿 InnerException / AggregateException 链找消息片段。护栏与池自身的报错常被上一层包装
-        /// （Clear() failed、构造反射），只看顶层消息会随运行时不同而误判。
+        /// 沿 <c>InnerException</c> / <c>AggregateException</c> 链查找消息片段。
         /// </summary>
+        /// <remarks>
+        /// 护栏与池自身的报错常被上一层包装（<c>Clear() failed</c>、构造反射），只看顶层消息会随运行时不同而误判。
+        /// </remarks>
         protected static bool Mentions(Exception exception, string fragment)
         {
             return Walk(exception, fragment, 0) != null;

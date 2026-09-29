@@ -11,9 +11,11 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 基于 Serilog 的日志辅助器。
-    /// <para>需通过 NuGetForUnity 等方式引入 Serilog 程序集，并手动添加 SERILOG_INSTALLED 脚本宏；
-    /// 默认使用全局 <see cref="Serilog.Log.Logger"/>，请在启动阶段自行配置 sink。</para>
     /// </summary>
+    /// <remarks>
+    /// 需经 NuGetForUnity 等方式引入 Serilog 程序集，并手动定义 <c>SERILOG_INSTALLED</c> 脚本宏。
+    /// sink 由本类初始化时自建，写入绕过全局拦截器的 Unity 控制台。
+    /// </remarks>
     [Serializable]
     internal sealed class SerilogHandler : LogHandler
     {

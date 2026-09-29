@@ -12,10 +12,12 @@ namespace Service.Scene
 {
     /// <summary>
     /// 场景进度回报契约的 PlayMode 用例：进度变化才回报、首轮询值必报、回落也露出、成功收尾一次 1.0、失败不伪报。
-    /// <para>被测的 <see cref="DefaultSceneHandler.AwaitSceneHandle"/> 每轮 <c>await UniTask.Yield</c>，续体要靠 PlayerLoop 推进；
-    /// EditMode 的 NUnit 用例在主线程里阻塞、没有能推进 UniTask 的帧泵（<c>MainThreadDispatcher.Pump()</c> 只驱动它自己的队列，
-    /// 且本仓 EditMode 用例一律靠 <c>UniTaskStatus</c> 断挂起、从不把 UniTask 跑到完成），所以这条契约只能住在 PlayMode 侧。</para>
     /// </summary>
+    /// <remarks>
+    /// 被测的 <see cref="DefaultSceneHandler.AwaitSceneHandle"/> 每轮 <c>await UniTask.Yield</c>，续体要靠 PlayerLoop 推进；
+    /// EditMode 的 NUnit 用例在主线程里阻塞、没有能推进 UniTask 的帧泵（<c>MainThreadDispatcher.Pump()</c> 只驱动它自己的队列，
+    /// 且本仓 EditMode 用例一律靠 <c>UniTaskStatus</c> 断挂起、从不把 UniTask 跑到完成），故这条契约只能住 PlayMode 侧。
+    /// </remarks>
     [TestFixture]
     public sealed class SceneProgressDedupPlayModeTests
     {
@@ -23,8 +25,10 @@ namespace Service.Scene
 
         /// <summary>
         /// 轮询驱动的场景句柄替身——<see cref="IsDone"/> 每被读一次推进一格，<see cref="Progress"/> 是当前格的纯函数。
-        /// <para>推进绑在 IsDone 上（等待循环每轮恰好读一次它），使回报序列与跑了多少帧、也与一轮里 Progress 被读几次都无关。</para>
         /// </summary>
+        /// <remarks>
+        /// 推进绑在 <see cref="IsDone"/> 上（等待循环每轮恰好读一次它），使回报序列与跑了多少帧、也与一轮里 <see cref="Progress"/> 被读几次都无关。
+        /// </remarks>
         private sealed class ScriptedSceneHandle : ResourceSceneHandle
         {
             private readonly float[] _script;

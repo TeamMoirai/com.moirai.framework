@@ -8,11 +8,11 @@ using NUnit.Framework;
 namespace Service.Save
 {
     /// <summary>
-    /// <see cref="FileSaveStorageBackend"/> 存储层契约测试（V3-P1 存储抽象下沉回归）：
-    /// 原子写入与往返、删除幂等（连带清中转日志）、槽位枚举（扩展名精确过滤 + 倒序）、单档备份/恢复、
-    /// 回退替换与中断恢复、能力自描述与设置默认值。
-    /// <para>全流程真实文件 IO（临时目录隔离）；存储层为无状态纯 .NET 实现，直接实例化测试。</para>
+    /// <see cref="FileSaveStorageBackend"/> 存储层契约测试：原子写入与往返、删除幂等（连带清中转日志）、槽位枚举（扩展名精确过滤 + 倒序）、单档备份/恢复、回退替换与中断恢复、能力自描述与设置默认值。
     /// </summary>
+    /// <remarks>
+    /// 全流程真实文件 IO（临时目录隔离）；存储层为无状态纯 .NET 实现，直接实例化测试。
+    /// </remarks>
     public class FileSaveStorageBackendTests
     {
         private FileSaveStorageBackend _backend;

@@ -215,23 +215,16 @@ namespace Moirai.Atropos.Events
             return _callbackRegistry != null && _callbackRegistry.HasBubbleHandlers();
         }
         /// <summary>
-        /// 在事件目标上注册的回调执行后执行逻辑，
-        /// 除非该事件被标记为阻止其默认行为。
-        /// <see cref="EventBase.PreventDefault"/>.
+        /// 在目标阶段回调执行后运行，除非事件已 <see cref="EventBase.PreventDefault"/>。
         /// </summary>
-        /// <param name="evt">The event instance.</param>
+        /// <param name="evt">事件实例。</param>
         protected virtual void ExecuteDefaultActionAtTarget(EventBase evt) { }
 
         /// <summary>
-        /// 在事件目标上注册的回调执行后执行逻辑，
-        /// 除非已标记事件以防止其默认行为。
-        /// <see cref="EventBase.PreventDefault"/>.
+        /// 在元素上注册的回调全部执行后运行，除非事件已 <see cref="EventBase.PreventDefault"/>。
         /// </summary>
-        /// <remarks>
-        /// 此方法旨在被子类覆盖。使用它来实现事件处理，而无需注册回调，从而保证子类用户注册回调的优先级。
-        /// 与 <see cref="ExecuteDefaultActionAtTarget"/> 不同，此方法在元素上注册回调后调用。
-        /// </remarks>
-        /// <param name="evt">The event instance.</param>
+        /// <remarks>供子类覆盖实现事件处理而不必注册回调；调用时机晚于 <see cref="ExecuteDefaultActionAtTarget"/>。</remarks>
+        /// <param name="evt">事件实例。</param>
         protected virtual void ExecuteDefaultAction(EventBase evt) { }
 
         protected virtual void ExecuteDefaultActionDisabledAtTarget(EventBase evt) { }

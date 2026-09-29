@@ -35,22 +35,14 @@ namespace Moirai.Atropos.Audio
         // 最小音量：0 会走进 log10 而 -∞，用 -80dB 作为可表达的最底（与静音写 -80 的旧值同一条线）
         public const float MINIMAL_VOLUME = 0.0001f;
 
-        /// <summary>
-        /// 音量值域上限，<c>1</c>（线性增益，1 = 0dB 满刻度）。
-        /// <para>这里过去是 <c>10</c>（≈ +20dB 提升），但只有 Unity 后端真拿得到：中间件把同一个值落到总线前
-        /// <c>Clamp01</c>，于是"同一份设置换后端，音轨上限从 10 变 1"。契约统一成线性 0..1 之后，
-        /// 想要工程侧留提升余量，请改 Mixer 分组的暴露参数或 <c>m_MixerValuesMultiplier</c>，
-        /// 而不是让对外契约在不同后端下值域不一致。</para>
-        /// </summary>
+        /// <summary>音量值域上限，<c>1</c>（线性增益，1 = 0dB 满刻度）。</summary>
+        /// <remarks>对外契约对 Unity 与中间件后端一致为线性 <c>0..1</c>；需要工程侧提升余量请改 Mixer 分组的暴露参数或 <c>m_MixerValuesMultiplier</c>。</remarks>
         public const float MAXIMAL_VOLUME = 1f;
 
         /// <summary>扩展硬上限的缺省值——保持与历史上写死的 32 一致。</summary>
         public const int HARD_CHANNEL_CEILING_DEFAULT = 32;
 
-        /// <summary>
-        /// 扩展硬上限的绝对天花板：这条轨道上限本身就是「别把通道数跑飞」的保险，
-        /// 所以配置再大也不越过它（主机要更多声部应改的是 <see cref="MaxChannel"/>，不是把保险拆掉）。
-        /// </summary>
+        /// <summary>扩展硬上限的绝对天花板：配置再大也不越过它（要更多声部应改 <see cref="MaxChannel"/>，而非拆掉保险）。</summary>
         public const int HARD_CHANNEL_CEILING_MAX = 128;
 
         private bool _isMuted;

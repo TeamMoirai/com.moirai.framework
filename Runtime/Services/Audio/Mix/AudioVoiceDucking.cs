@@ -4,20 +4,18 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 自动 Ducking：Voice 音轨有声在播时把混音切到 <see cref="EMixSnapshot.Dialogue"/>，全部播完再回落。
-    /// <para>按「当前是否有 Voice 在播」评估而不是按播放/结束计数——计数一旦漏减就会永久压低混音，
-    /// 而这两处判定都由各后端的声部表实算，漏一次 Tick 下次也会自动纠正。</para>
-    /// <para>与快照状态机的优先级协同：duck 请求被更高优先级状态挡下时不记为自己生效，
-    /// 回落也只在仍由本组件占着 Dialogue 时才做，不越权改写别人的混音。</para>
     /// </summary>
+    /// <remarks>
+    /// 按「当前是否有 Voice 在播」由各后端声部表实算，不用播放/结束计数（计数漏减会永久压低混音，实算漏一次 Tick 下次自动纠正）。
+    /// duck 请求被更高优先级状态挡下时不记为生效，回落也只在仍由本组件占着 Dialogue 时才做。
+    /// </remarks>
     internal static class AudioVoiceDucking
     {
         private static bool _ducked;
         private static EMixSnapshot _beforeDuck = EMixSnapshot.Default;
 
-        /// <summary>
-        /// 由后端 Tick 驱动。需要 <see cref="AudioServiceSettings.AutoDuckingOnVoice"/> 打开，
-        /// 且混音快照里注册了 Dialogue，否则整条路径零成本。
-        /// </summary>
+        /// <summary>由后端 Tick 驱动。</summary>
+        /// <remarks>需 <see cref="AudioServiceSettings.AutoDuckingOnVoice"/> 打开且混音快照里注册了 Dialogue，否则整条路径零成本。</remarks>
         public static void Evaluate(AudioServiceHandler handler)
         {
             if (!AudioServiceSettings.AutoDuckingOnVoice)

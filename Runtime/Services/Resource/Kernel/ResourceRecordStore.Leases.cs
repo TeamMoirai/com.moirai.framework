@@ -4,10 +4,9 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源记录内核的租约侧——取用与归还：租约槽、资产的三类引用计数，以及租约到资产的读取。
-    /// <para><c>Release</c> 刻意与 <c>AcquireLease</c> 同分部：一次归还必须同时完成
-    /// "槽位回收 + 计数增减 + 入轮/出轮"，中间不容外部代码插手。</para>
+    /// 资源记录内核的租约侧：取用与归还——租约槽、资产的三类引用计数，以及租约到资产的读取。
     /// </summary>
+    /// <remarks><c>Release</c> 与 <c>AcquireLease</c> 同分部：一次归还必须原子完成"槽位回收 + 计数增减 + 入轮/出轮"。</remarks>
     internal sealed partial class ResourceRecordStore
     {
         internal ResourceLeaseHandle AcquireLease(int assetId, EResourceLeaseKind leaseKind,

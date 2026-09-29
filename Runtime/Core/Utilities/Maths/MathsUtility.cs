@@ -502,9 +502,13 @@ namespace Moirai.Atropos
 
 		/// <summary>
 		/// X% 的机会返回随机成功。
-		/// <example>有 20% 的机会，Chance(20) > true</example>>
 		/// </summary>
 		/// <param name="percent">几率的百分比</param>
+		/// <example>
+		/// <code lang="csharp">
+		/// Chance(20) // 有 20% 的机会返回 true
+		/// </code>
+		/// </example>
 		public static bool Chance(int percent)
 		{
 			// 旧写法 Range(0,100) <= percent 实际给出的成功率是 (percent+1)%

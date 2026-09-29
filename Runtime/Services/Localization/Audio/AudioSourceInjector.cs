@@ -6,11 +6,12 @@ using Moirai.Atropos.Resource;
 namespace Moirai.Atropos.Localization
 {
 	/// <summary>
-	/// 音频源注入器。
-	/// <para>按载荷类型派发：<see cref="string"/> 为资源 location（异步加载后播放），<see cref="AudioClip"/> 直接播放，
-	/// <c>null</c> 表示该语言没有语音（清空音源）。</para>
-	/// <para>资源路径下租约由注入器持有直到下次加载或销毁，防止音频播放期间被周期性 UnloadUnusedAssets 回收。</para>
+	/// 音频源注入器：按载荷类型把本地化音频注入 <see cref="AudioSource"/> 并播放。
 	/// </summary>
+	/// <remarks>
+	/// 载荷：<see cref="string"/> 为资源 location（异步加载后播放）、<see cref="AudioClip"/> 直接播放、<c>null</c> 表示该语言无语音（清空音源）。
+	/// 资源路径下的租约由注入器持有直到下次加载或销毁，防止播放期间被周期性 UnloadUnusedAssets 回收。
+	/// </remarks>
 	public class AudioSourceInjector : ILocalizationInjector, IDisposable
 #if UNITY_EDITOR
 		, IInjectorAssetPreview
@@ -34,9 +35,8 @@ namespace Moirai.Atropos.Localization
 
 		/// <summary>
 		/// 按载荷类型向音频源注入并播放。
-		/// <para><see cref="string"/> = 资源 location（本地化器已经 <c>TryGetTextFromId</c> 单趟解析），异步加载后播放；
-		/// <see cref="AudioClip"/> = 直接播放传入片段；<c>null</c> = 该语言没有语音，清空音源。其余载荷类型忽略。</para>
 		/// </summary>
+		/// <remarks><see cref="string"/> = 资源 location（已单趟解析），异步加载后播放；<see cref="AudioClip"/> = 直接播放传入片段；<c>null</c> = 该语言没有语音，清空音源；其余载荷类型忽略。</remarks>
 		/// <typeparam name="T1">载荷类型：<see cref="string"/>、<see cref="AudioClip"/> 或 <c>null</c>。</typeparam>
 		/// <typeparam name="T2">本地化器类型。</typeparam>
 		/// <param name="localizedData">资源 location、音频片段，或表示「本语言无语音」的 <c>null</c>。</param>
@@ -123,8 +123,8 @@ namespace Moirai.Atropos.Localization
 
 		/// <summary>
 		/// 播放指定音频片段，并保留原播放状态与进度。
-		/// <para>若播放前音频源正在播放，则更换片段后继续播放；是否恢复至原播放进度取决于 <see cref="AudioLocalizer.playFromSamePositionWhenInject"/> 配置。</para>
 		/// </summary>
+		/// <remarks>播放前音频源正在播放时，更换片段后继续播放；是否恢复至原进度取决于 <see cref="AudioLocalizer.playFromSamePositionWhenInject"/>。</remarks>
 		/// <param name="audioClip">待播放的音频片段；传 <c>null</c> 即清空音源。</param>
 		void Play(AudioClip audioClip)
 		{

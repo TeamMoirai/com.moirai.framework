@@ -20,8 +20,7 @@ namespace Moirai.Atropos
             public bool HasGizmo;
 
             /// <summary>
-            /// 轮询耗时均值（毫秒；自上次 <see cref="ResetPollStatistics"/> 起累计）。
-            /// 仅编辑器/开发构建非零。
+            /// 轮询耗时均值（毫秒；自上次 <see cref="ResetPollStatistics"/> 起累计），仅编辑器/开发构建非零。
             /// </summary>
             public float PollAvgMs;
 

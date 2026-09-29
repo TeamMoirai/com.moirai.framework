@@ -6,10 +6,12 @@ using Cysharp.Threading.Tasks;
 namespace Moirai.Atropos.Timer
 {
     /// <summary>
-    /// 计时器引擎泳道（lane）标识。每个 <see cref="ITimerEngine"/> 占据一条独立泳道，
-    /// 泳道号内嵌于不透明句柄，供复合外观 <see cref="DefaultTimerHandler"/> 按位路由，
-    /// 从而让两套引擎各自持有独立的槽位池与句柄命名空间、互不糅合。
+    /// 计时器引擎泳道（lane）标识，每个 <see cref="ITimerEngine"/> 占据一条独立泳道。
     /// </summary>
+    /// <remarks>
+    /// 泳道号内嵌于不透明句柄，供复合外观 <see cref="DefaultTimerHandler"/> 按位路由，
+    /// 使两套引擎各自持有独立的槽位池与句柄命名空间。
+    /// </remarks>
     internal static class TimerLaneKinds
     {
         public const byte Wheel = 0;
@@ -19,9 +21,10 @@ namespace Moirai.Atropos.Timer
 
     /// <summary>
     /// 计时器句柄位布局：<c>[ 版本(32b) | 泳道(3b) | 槽位+1(21b) ]</c>。
-    /// <para>低 32 位容纳泳道与槽位（槽位上限 2^21-2，远大于页式池最大 4096×256=1,048,576）；
-    /// 高 32 位为版本号，槽位复用即自增，旧句柄因版本/泳道/槽位三重不符而自动失效（防 ABA）。</para>
     /// </summary>
+    /// <remarks>
+    /// 低 32 位容纳泳道与槽位，高 32 位为版本号；槽位复用即自增，旧句柄因版本 / 泳道 / 槽位三重不符自动失效（防 ABA）。
+    /// </remarks>
     internal static class TimerHandleLayout
     {
         public const int SLOT_BITS = 21;
@@ -63,8 +66,10 @@ namespace Moirai.Atropos.Timer
 
     /// <summary>
     /// 槽位状态位（引擎内以 <c>using static</c> 直引 <c>STATE_*</c>）。
-    /// 帧/时间的归属由引擎（泳道）本身决定，不再有 STATE_FRAME 判别位。
     /// </summary>
+    /// <remarks>
+    /// 帧 / 时间的归属由引擎（泳道）本身决定，无 <c>STATE_FRAME</c> 判别位。
+    /// </remarks>
     internal static class TimerStates
     {
         public const byte STATE_ACTIVE = 1 << 0;
@@ -92,9 +97,11 @@ namespace Moirai.Atropos.Timer
     }
 
     /// <summary>
-    /// 页式槽位存储的机械常量与整型分页工具（两引擎通用；具体的槽位列由各引擎自持）。
-    /// <para>引擎以 <c>using static TimerPool;</c> 直引 <c>PAGE_*</c> / <c>INVALID_INDEX</c> 与分页读写静态方法。</para>
+    /// 页式槽位存储的机械常量与整型分页工具（两引擎通用）。
     /// </summary>
+    /// <remarks>
+    /// 具体的槽位列由各引擎自持；引擎以 <c>using static TimerPool;</c> 直引 <c>PAGE_*</c> / <c>INVALID_INDEX</c> 与分页静态方法。
+    /// </remarks>
     internal static class TimerPool
     {
         public const int PAGE_SHIFT = 8;
@@ -148,10 +155,11 @@ namespace Moirai.Atropos.Timer
 
     /// <summary>
     /// 计时器引擎契约：一条泳道（时间轮 / 帧计时）对复合外观暴露的统一操作面。
-    /// <para>创建类操作不在接口上（时间/帧参数语义不同），由外观对具体引擎直接调用；
-    /// 句柄路由 / 阶段推进 / 统计调试经此接口统一处理。引擎内部只认自己的句柄，
-    /// 对外来泳道句柄一律解析失败并安全降级。</para>
     /// </summary>
+    /// <remarks>
+    /// 创建类操作因时间 / 帧参数语义不同不在接口上，由外观直接调用具体引擎；句柄路由 / 阶段推进 / 统计调试经此接口统一处理。
+    /// 引擎内部只认自己的句柄，外来泳道句柄一律解析失败并安全降级。
+    /// </remarks>
     internal interface ITimerEngine
     {
         void Init(int capacity);

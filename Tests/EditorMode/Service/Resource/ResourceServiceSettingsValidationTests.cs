@@ -7,9 +7,11 @@ namespace Service.Resource
 {
     /// <summary>
     /// 设置项自检的判据表：每条规则各钉"越界时报"与"合法时不报"两面，外加默认值必须干净。
-    /// <para>驱动方式是把资产值经 <see cref="SerializedObject"/> 写进一份**克隆**再读判据——
-    /// 既反射不到任何私有字段（口径见 CLAUDE.md《测试可见性》），也绝不碰工程里那份真资产。</para>
     /// </summary>
+    /// <remarks>
+    /// 驱动方式是把资产值经 <see cref="SerializedObject"/> 写进一份克隆再读判据：
+    /// 不反射任何私有字段，也绝不碰工程里那份真资产。
+    /// </remarks>
     public sealed class ResourceServiceSettingsValidationTests
     {
         private ResourceServiceSettings _settings;

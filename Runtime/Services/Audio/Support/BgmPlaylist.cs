@@ -6,9 +6,8 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// BGM 播放列表：顺序/随机 + 跨曲淡切 + 分层 ID。
-    /// <para>切歌用 <see cref="AudioService.StopByID"/> + Fade 交叉过渡，
-    /// 同层替换不打断其它 Music 分层。</para>
     /// </summary>
+    /// <remarks>切歌用 <see cref="AudioService.StopByID"/> + Fade 交叉过渡，同层替换不打断其它 Music 分层。</remarks>
     [DisallowMultipleComponent]
     [AddComponentMenu("Moirai/Audio/BGM Playlist")]
     public sealed class BgmPlaylist : MonoBehaviour
@@ -23,10 +22,7 @@ namespace Moirai.Atropos.Audio
         // s_* 与下列成员走 internal 是测试接缝（《测试规范》：测试禁反射，需触达的成员放宽 internal）
         internal static int s_NextAutoId = -1;
 
-        /// <summary>
-        /// Enter Play Mode Options 关闭域重载时静态跨局残留：进玩前清一次注册表与游标。
-        /// 正常路径仍靠 OnDisable 归还；这里是崩溃/强杀后的兜底，不是主清理通道。
-        /// </summary>
+        /// <summary>域重载关闭时清理静态注册表与游标（进玩前）——正常路径靠 OnDisable 归还，这里是崩溃/强杀后的兜底。</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStaticIdRegistry()
         {
@@ -98,11 +94,7 @@ namespace Moirai.Atropos.Audio
             ReleaseLayerId();
         }
 
-        /// <summary>
-        /// 解析分层 ID：显式正数优先（撞车 fail-fast，本实例不启动播放）；
-        /// 0（<see cref="AutoId"/>）走自动分配（负区间），避免多个列表默认同 ID 互相 StopByID。
-        /// <para>internal 为测试接缝（EditMode 无法自动执行 OnEnable）。</para>
-        /// </summary>
+        /// <summary>解析分层 ID：显式正数优先（撞车 fail-fast，本实例不启动播放），0 走负区间自动分配。</summary>
         internal void ResolveLayerId()
         {
             _layerConflicted = false;

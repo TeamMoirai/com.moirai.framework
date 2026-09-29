@@ -8,18 +8,13 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源管理器外观（Facade），为游戏提供统一的资源加载、缓存、租约与绑定接口。
-    /// <para>统一的静态资源访问入口，通过替换 <see cref="Handler"/> 即可在不同资源后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ResourceServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
-    /// <para>服务未就绪（未注册/未初始化）时的表现按读写分界：<b>写成员</b>走 <c>RequireHandler()</c> 抛
-    /// <see cref="GameException"/>——租约取用与归还、预热、卸载、实例化、低内存接线等一律 fail-fast，
-    /// 因为静默丢一条 <c>Release</c> 就是永久泄漏、静默返回一条默认租约会被读成"资源不存在"，
-    /// 两种都把"服务没起来"伪装成别的问题。<b>读成员</b>保留 <c>s_Handler?…??默认值</c> 的降级——
-    /// <c>HasAsset</c> 在未就绪时报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false 是诚实的，
-    /// 而调试面板与启动早期的一次状态读取不该把启动本身变成异常现场。
-    /// 例外：<see cref="LoadSceneAsync"/> 的 null 是其消费者依赖的既定契约，本批不动。</para>
+    /// 资源管理器外观（Facade）：统一的静态资源入口，提供资源加载、缓存、租约与绑定接口，替换 <see cref="Handler"/> 即切换后端。
     /// </summary>
+    /// <remarks>
+    /// 未显式设置处理器时，懒加载优先从 <see cref="ResourceServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成，线程安全懒加载。
+    /// 服务未就绪（未注册/未初始化）时按读写分界：写成员（租约取用与归还、预热、卸载、实例化等）经 <c>RequireHandler()</c> 抛 <see cref="GameException"/> fail-fast；读成员降级为默认值（<c>HasAsset</c> 报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false）。
+    /// 例外：<see cref="LoadSceneAsync"/> 未就绪时返回 <c>null</c>，是其消费者的既定契约。
+    /// </remarks>
     [AutoRegisterService]
     [HandlerHost(typeof(ResourceServiceHandler))]
     [ServiceDependency(typeof(DebuggerService))]
@@ -48,8 +43,8 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// 从 <see cref="ResourceServiceSettings"/> 解析资源处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ResourceServiceHandler GetHandlerFromSettings()
         {
@@ -71,8 +66,7 @@ namespace Moirai.Atropos.Resource
         public override int Priority => ServicePriorityOrder.RESOURCE;
 
         /// <summary>
-        /// 初始化资源服务。由容器在构建期调用：触发 <see cref="Handler"/> 懒加载、
-        /// 注入配置并接线帧驱动（时间轮推进/卸载调度/GC 节流/低内存响应）。
+        /// 初始化资源服务：触发 <see cref="Handler"/> 懒加载、注入配置并接线帧驱动，由容器在构建期调用。
         /// </summary>
         public override void OnInit()
         {
@@ -355,8 +349,8 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// 空闲资源记录容量上限：超过即淘汰最长空闲者，不必等到 <see cref="IdleAssetExpireTime"/> 到期。
-        /// <para>调小该值会立即释放多余的空闲记录。</para>
         /// </summary>
+        /// <remarks>调小该值会立即释放多余的空闲记录。</remarks>
         public static int IdleAssetCapacity
         {
             get => s_Handler?.IdleAssetCapacity ?? 0;
@@ -386,10 +380,9 @@ namespace Moirai.Atropos.Resource
             s_Handler?.InitializePackageAsync(customPackageName, needInitManifest) ?? UniTask.FromResult<ResourcePackageInitResult>(null);
 
         /// <summary>
-        /// 初始化资源包并收成成败布尔（不更新清单）。非空的 host / fallback 写入
-        /// <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/> 后再初始化；
-        /// 并发去重与幂等语义与 <see cref="InitializePackageAsync"/> 一致。
+        /// 初始化资源包并收成成败布尔（不更新清单）。
         /// </summary>
+        /// <remarks>非空的 host / fallback 先写入 <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/> 再初始化；并发去重与幂等语义同 <see cref="InitializePackageAsync"/>。</remarks>
         /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
         /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
         /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>
@@ -582,9 +575,9 @@ namespace Moirai.Atropos.Resource
         #region 场景加载 [SCENE LOADING]
 
         /// <summary>
-        /// 通过资源系统异步加载场景——场景资源经当前配置的资源后端（YooAsset、Addressable 等）管线加载。
-        /// <para>由 <see cref="Scene.SceneService"/> 的默认后端调用，实现场景加载与资源系统的统一。</para>
+        /// 通过资源系统异步加载场景，场景资源经当前配置的资源后端（YooAsset、Addressable 等）管线加载。
         /// </summary>
+        /// <remarks>由 <see cref="Scene.SceneService"/> 的默认后端调用，实现场景加载与资源系统的统一。</remarks>
         /// <param name="location">场景资源定位地址。</param>
         /// <param name="sceneMode">场景加载模式。</param>
         /// <param name="suspendLoad">是否挂起加载（加载至待激活状态后保持挂起）。</param>
@@ -646,12 +639,12 @@ namespace Moirai.Atropos.Resource
         #region 编辑器预览 [EDITOR PREVIEW]
 
         /// <summary>
-        /// 编辑器（非播放态）按定位地址取资产——预览与工具面的统一入口，直读 <c>AssetDatabase</c>。
-        /// <para>播放态恒返回 <c>null</c>：真在跑时该读运行期已注入的那份，而不是从资产库另取一份绕过后端
-        /// 与租约计数。</para>
-        /// <para>不建记录、不返租约：Inspector 每重绘一次就取一次，进计数等于每次白租一份。</para>
-        /// <para>取不到一律是 <c>null</c>，不抛：本入口站在 Inspector 的重绘路径上，抛出等于把组件面板打死。</para>
+        /// 编辑器（非播放态）按定位地址取资产，直读 <c>AssetDatabase</c>，是预览与工具面的统一入口。
         /// </summary>
+        /// <remarks>
+        /// 播放态恒返回 <c>null</c>（真在跑时应读运行期已注入的那份）。
+        /// 不建记录、不返租约（Inspector 每次重绘都会调用）；取不到一律返回 <c>null</c> 而不抛，避免打死组件面板。
+        /// </remarks>
         /// <param name="location">资源定位地址（本项目约定即 <c>Assets/...</c> 资产路径）。</param>
         /// <returns>地址为空、播放态、settings 未配处理器或资产不存在时为 <c>null</c>。</returns>
         public static UObject LoadAssetForEditor(string location)

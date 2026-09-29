@@ -10,11 +10,12 @@ using UnityPlayerLoop = UnityEngine.LowLevel.PlayerLoop;
 namespace Moirai.Atropos.Editor.PlayerLoopDebug
 {
     /// <summary>
-    /// PlayerLoop 结构可视化（Odin 实现）：注入状态、三阶段订阅统计，以及可折叠 / 可过滤的循环树。
-    /// <para>树上分色标出本框架的三个标记，与"挂着委托却不是 Moirai"的第三方 Pump（UniTask 等）——
-    /// 关闭流程只逐项摘自己、正是为了保住后者，所以它是排查停摆时第一眼要看的东西。</para>
-    /// <para>菜单：Window → PlayerLoop Debugger</para>
+    /// PlayerLoop 结构可视化窗口（Odin 实现）：展示注入状态、三阶段订阅统计，以及可折叠 / 可过滤的循环树。
     /// </summary>
+    /// <remarks>
+    /// 树上分色标出本框架的三个标记与第三方 Pump（UniTask 等）；关闭流程只逐项摘自己的委托，故第三方 Pump 是排查停摆时的首要观察点。
+    /// 菜单：Window → PlayerLoop Debugger
+    /// </remarks>
     public sealed class PlayerLoopDebuggerWindow : OdinEditorWindow
     {
         #region 常量 [CONSTANTS]

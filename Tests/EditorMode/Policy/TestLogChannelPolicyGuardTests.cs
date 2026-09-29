@@ -8,18 +8,14 @@ using UnityEditor.PackageManager;
 namespace Policy
 {
     /// <summary>
-    /// 测试日志通道策略守卫：测试代码自身的日志输出发射一律走 <c>UnityEngine.Debug.Log*</c>，不得经
-    /// <c>LogUtility</c> 的发射方法（Verbose/Debug/Info/Warning/Error/Fatal/Assert）。
-    /// <para>《测试规范》三条禁令之一：LogUtility 是带分类过滤与 Handler 管道的运行时基础设施，
-    /// 测试自身的诊断输出走它会让「这条日志算不算测试失败」取决于测试域恰好激活的 Handler 配置——
-    /// Debug.Log* 对 Unity Test Framework 的可见性是确定的。断言通道不受此守卫约束：
-    /// <c>LogUtility.OnMessageLogged</c> 订阅是捕获运行时日志的唯一稳定通道；<c>UtfLogExpect</c>
-    /// 是消除未处理日志的统一入口（它读 Handler 状态做可见性判定，不是发射）。</para>
-    /// <para>白名单只保留两类正当用途：① 被测本体——LogUtility 自身的语义回归必须发射 LogUtility；
-    /// ② 替身复刻——fake loader 复现生产侧的错误发射，错误路径的日志断言依赖该可观察行为。</para>
-    /// <para>白名单双向断言：未登记的文件不得出现发射模式；已登记的文件必须仍然存在且仍然命中——
-    /// 否则名单会腐烂成一张没人维护的清单。结构与 <see cref="ReflectionPolicyGuardTests"/> 同构。</para>
+    /// 测试日志通道策略守卫：测试代码自身的日志发射一律走 <c>UnityEngine.Debug.Log*</c>，不得经 <c>LogUtility</c> 的发射方法（Verbose/Debug/Info/Warning/Error/Fatal/Assert）。
     /// </summary>
+    /// <remarks>
+    /// <c>LogUtility</c> 是带分类过滤与 Handler 管道的运行时基础设施，测试诊断走它会让「这条日志算不算失败」取决于测试域恰好激活的 Handler 配置；<c>Debug.Log*</c> 对 UTF 的可见性则是确定的。
+    /// 断言通道不受此守卫约束：<see cref="LogUtility.OnMessageLogged"/> 订阅是捕获运行时日志的唯一稳定通道，<see cref="UtfLogExpect"/> 是消除未处理日志的统一入口（读 Handler 状态做可见性判定，不是发射）。
+    /// 白名单两类正当用途：① 被测本体（LogUtility 自身的语义回归必须发射 LogUtility）；② 替身复刻（fake loader 复现生产侧错误发射，错误路径断言依赖该可观察行为）。
+    /// 白名单双向断言：未登记的不得出现发射模式，已登记的必须仍存在且仍命中，否则名单腐烂。结构与 <see cref="ReflectionPolicyGuardTests"/> 同构。
+    /// </remarks>
     [TestFixture]
     public sealed class TestLogChannelPolicyGuardTests
     {

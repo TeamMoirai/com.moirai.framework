@@ -7,10 +7,12 @@ namespace Service.Resource
 {
     /// <summary>
     /// 编辑器预览取资产入口的门禁：<see cref="ResourceService.LoadAssetForEditor"/>。
-    /// <para>预览与工具面统一从这里取资产，判据是「同一份地址、同一个对象」——它必须与
-    /// <c>AssetDatabase.LoadAssetAtPath</c> 给出同一个实例，否则 Inspector 里看到的"对"就不是运行期那份。</para>
-    /// <para>这里只钉取数口径，不验租约：编辑态这条路刻意不建记录、不返租约（每次重绘租一份就是纯泄漏）。</para>
     /// </summary>
+    /// <remarks>
+    /// 判据是「同一份地址、同一个对象」——必须与 <c>AssetDatabase.LoadAssetAtPath</c> 给出同一实例，
+    /// 否则 Inspector 里看到的"对"就不是运行期那份。
+    /// 这里只钉取数口径，不验租约：此路刻意不建记录、不返租约（每次重绘租一份就是纯泄漏）。
+    /// </remarks>
     public sealed class EditorPreviewAssetTests
     {
         [Test]

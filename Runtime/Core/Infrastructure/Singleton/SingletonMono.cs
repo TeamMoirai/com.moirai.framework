@@ -8,16 +8,10 @@ namespace Moirai.Atropos
     /// </summary>
     /// <typeparam name="T">继承本基类的具体单例类型。</typeparam>
     /// <remarks>
-    /// <para><b>线程模型</b>：实例物化后，任意线程访问 <see cref="Instance"/> 只命中
-    /// volatile 读原子快速路径；<b>物化（查找/创建）只能发生在主线程</b>——后台线程在实例
-    /// 尚未物化时访问将抛出 <see cref="GameException"/>（替代越线程调用 Unity API 的未定义行为）。
-    /// 需要后台线程访问的派生类应在启动阶段于主线程预热（参照 MainThreadDispatcher.BootstrapOnPlay）。</para>
-    /// <para><b>编辑模式</b>：仅查找已有实例、不自动创建（避免向场景写入瞬时对象），
-    /// 未找到时返回 null。</para>
-    /// <para><b>退出窗口</b>：应用退出/播放停止期间 <see cref="Instance"/> 返回 null 且拒绝重新创建，
-    /// 防止退出期复活单例；<see cref="IsValid"/> 与 <see cref="TryGetInstance"/> 同步反映该状态。</para>
-    /// <para><b>多实例策略</b>：场景中已存在实例时，默认销毁新实例（先到先得）；
-    /// 勾选 <see cref="m_Replaceable"/> 后改为最新实例胜出（适用于局部需要重建的单例，eg：背景音乐）。</para>
+    /// 线程模型：实例物化后任意线程访问 <see cref="Instance"/> 只走 volatile 读快速路径；物化（查找/创建）限主线程，未物化时后台线程访问抛 <see cref="GameException"/>，需后台访问的派生类应在启动阶段于主线程预热。
+    /// 编辑模式仅查找已有实例、不自动创建（避免向场景写入瞬时对象），未找到返回 null。
+    /// 退出窗口内 <see cref="Instance"/> 返回 null 且拒绝重建；<see cref="IsValid"/> 与 <see cref="TryGetInstance"/> 同步反映该状态。
+    /// 场景已有实例时默认销毁新实例（先到先得）；勾选 <see cref="m_Replaceable"/> 改为最新实例胜出。
     /// </remarks>
     [DefaultExecutionOrder(-1000)]
     public abstract class SingletonMono<T> : MonoBehaviour where T : SingletonMono<T>

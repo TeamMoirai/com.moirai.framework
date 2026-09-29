@@ -5,15 +5,11 @@ namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 名称↔ID 的计数字典注册表：packed resource key 的三个组成轴（package / location / type）共用这一份实现。
-    /// <para>此前是同一套逻辑手写三遍——15 个字段、三份 GetOrAdd、三份 Release、两份 Ensure，
-    /// 三者唯一的差别是"取不到时回什么"和 id 上限。合成一份的收益不是行数：三份拷贝里任何一处
-    /// 改了分配或释放顺序而另外两处没跟上，表现是某条轴的 id 被提前回收，而 packed key 仍然能
-    /// 查出一条已经换主的记录，这类错既不会抛也不会被现有用例抓到。</para>
-    /// <para>零分配是硬约束，因此刻意避开三种写法：不实现任何接口（槽位与调用方都按具体类持有，
-    /// 接口约束会让 struct 实参装箱）；不暴露 <see cref="IEnumerable{T}"/> 或 foreach 枚举
-    /// （枚举器一旦是 struct 又被装箱就白分配）；比较器用默认而非 <see cref="IEqualityComparer{T}"/>
-    /// 字段，<see cref="string"/> 与 <see cref="Type"/> 的默认比较即为序数/引用语义，与原实现一致。</para>
     /// </summary>
+    /// <remarks>
+    /// 零分配是硬约束：不实现任何接口（免受 struct 实参装箱），不暴露 <see cref="IEnumerable{T}"/> 或 foreach 枚举（枚举器装箱即分配）。
+    /// 比较器用默认而非 <see cref="IEqualityComparer{T}"/> 字段：<see cref="string"/> 与 <see cref="Type"/> 的默认比较即序数/引用语义。
+    /// </remarks>
     /// <typeparam name="TValue">被登记的键类型（<see cref="string"/> 或 <see cref="Type"/>）。</typeparam>
     internal sealed class ResourceNameRegistry<TValue> where TValue : class
     {
@@ -76,8 +72,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 记录释放时 -1；归零则把名字从字典与槽位摘掉并把 id 压回空闲栈，
-        /// 好让下一条同名键复用同一个 id 而不会把 packed key 的位域撑爆。
+        /// 记录释放时计数 -1；归零则摘掉名字与槽位并把 id 压回空闲栈，供同名键复用。
         /// </summary>
         public void Release(int id)
         {
@@ -99,9 +94,8 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// 只把计数减一，不摘字典、不回收 id。
-        /// <para>整表清空（后端重置）走这条而不是 <see cref="Release"/>：那里逐条回收既没必要
-        /// （名字与 id 随后一并作废），又会在遍历另一张表的键时反向改动本表的字典。</para>
         /// </summary>
+        /// <remarks>整表清空（后端重置）走这条而非 <see cref="Release"/>：避免逐条回收，也避免遍历别表键时反向改动本表字典。</remarks>
         public void DecrementOnly(int id)
         {
             if (_refCounts == null || id <= 0 || id >= _refCounts.Length || _refCounts[id] <= 0)

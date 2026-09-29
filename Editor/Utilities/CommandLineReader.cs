@@ -6,10 +6,7 @@ using Debug = UnityEngine.Debug;
 #endregion
 
 /// <summary>
-/// Unity 命令行拓展帮助类。
-/// <para>提供了访问通过命令行传递的 [自定义参数] 的功能。
-/// 只需在关键字 -CustomArgs: 后添加自定义参数，并使用分号 ; 分隔各个参数即可。
-/// </para>
+/// Unity 命令行拓展帮助类：读取 <c>-CustomArgs:</c> 后的自定义参数，各参数以 <c>;</c> 分隔。
 /// </summary>
 /// <remarks>可以用来制定自己项目的打包、编辑器工作流。</remarks>
 /// <example>

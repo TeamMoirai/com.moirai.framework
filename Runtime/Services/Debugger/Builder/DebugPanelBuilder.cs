@@ -7,9 +7,11 @@ namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 调试面板流式构建器。
-    /// <para>在 <see cref="DebuggerService.RegisterPanel"/> 回调中声明控件：值控件经 Getter/Setter 闭包绑定（构建期一次性分配），
-    /// 运行时由 <c>schedule</c> 按固定间隔轮询 Getter 刷新显示——元素脱离面板时调度自动暂停，无泄漏。</para>
     /// </summary>
+    /// <remarks>
+    /// 在 <see cref="DebuggerService.RegisterPanel"/> 回调中声明控件：值控件经 Getter / Setter 闭包绑定（构建期一次性分配），
+    /// 运行时由 <c>schedule</c> 按固定间隔轮询 Getter 刷新显示，元素脱离面板时调度自动暂停。
+    /// </remarks>
     public sealed class DebugPanelBuilder
     {
         #region 常量 [CONSTANTS]

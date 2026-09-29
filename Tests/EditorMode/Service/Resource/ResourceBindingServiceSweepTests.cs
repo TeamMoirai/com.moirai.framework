@@ -6,19 +6,16 @@ using UnityEngine;
 namespace Service.Resource
 {
     /// <summary>
-    /// 销毁态轮转扫描的回收完整性用例。
-    /// <para>轮转扫描对绑定槽位做两件事：清组件槽位（尽力而为）与归还租约、摘槽位（无条件）。
-    /// 前者的判据要在"引擎已销毁但托管引用仍在"的组件上读原生属性，会抛 MissingReferenceException；
-    /// 若两件事同在一个 try 内，抛出就把无条件项一起截断——槽位永不回收、租约永不归还，
-    /// 而游标在判定之前就已推进，下一圈仍撞回同一个槽位、再抛一次。</para>
-    /// <para>全部只走槽位层：用未初始化的裸 <see cref="YooAssetHandler"/> 构造绑定服务，
-    /// 租约句柄手工构造（<c>IsValid</c> 只看 Index/Generation 两个数），后端侧
-    /// <c>IsValidLeaseId</c> 因 <c>_leaseSlotPages</c> 为空而安全落空，
-    /// 故不触达 YooAssets 静态初始化，也不改任何真实计数。</para>
-    /// <para>本组断的是"无条件项必须完成"这一结构判据。裸后端上没有真实引用计数，
-    /// 故"租约确实被归还"在这里测不到——它需要一条能对 <c>Release</c> 计数的假后端，
-    /// 而这要等绑定服务改收窄接缝（能 mock 的后端）才可能，届时补直接断言。</para>
+    /// 销毁态轮转扫描的回收完整性契约：无条件项（归还租约、摘槽位）必须完成，不因尽力而为项抛出而中断。
     /// </summary>
+    /// <remarks>
+    /// 轮转扫描对绑定槽位做两件事：清组件槽位（尽力而为）与归还租约、摘槽位（无条件）。
+    /// 前者要在"引擎已销毁但托管引用仍在"的组件上读原生属性，会抛 <c>MissingReferenceException</c>；
+    /// 两件事同居一个 <c>try</c> 时该抛出会把无条件项一并截断——槽位永不回收、租约永不归还，
+    /// 而游标在判定之前已推进，下一圈仍撞回同一槽位。
+    /// 全部只走槽位层：未初始化的裸 <see cref="YooAssetHandler"/> 加手工构造的租约句柄，
+    /// 不触达 YooAssets 静态初始化，也不改真实计数；裸后端无真实引用计数，故此处不直接断言"租约已归还"。
+    /// </remarks>
     public sealed class ResourceBindingServiceSweepTests
     {
         // 轮转圈数：修复前每圈都抛，5 圈足以把"重复抛出"与"只抛一次"分开
@@ -93,7 +90,7 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 抛出不能截断回收：修复前游标已先推进，每轮转一次就再抛一次，直到进程结束。
+        /// 抛出不能截断回收：游标照常推进，后续轮次不得再撞回同一槽位反复抛出。
         /// </summary>
         [Test]
         public void Sweep_DoesNotKeepThrowingOnLaterRevolutions()
@@ -112,9 +109,11 @@ namespace Service.Resource
 
         /// <summary>
         /// 同一个销毁态绑定，经"所有者释放"与"轮转回收"两条路径必须落到同一终态。
-        /// <para>修复前两条路径对"什么必须无条件完成"的答案并不一致：所有者路径的 try 只包住组件清理，
-        /// 摘槽位与移除映射在 try 外，于是槽位收走了；轮转路径两件事同居一个 try，抛出后一并跳过。</para>
         /// </summary>
+        /// <remarks>
+        /// 判据是"什么必须无条件完成"在两条路径上答案一致：所有者路径的 <c>try</c> 只包住组件清理，
+        /// 摘槽位与移除映射在其外；轮转路径同样不得让抛出把它们一并跳过。
+        /// </remarks>
         [Test]
         public void ReleaseOwner_And_Sweep_AgreeOnSlotReclamation()
         {
@@ -134,9 +133,11 @@ namespace Service.Resource
 
         /// <summary>
         /// 造一个"目标已销毁、绑定仍占位"的现场，返回其所有者。
-        /// <para>所有者与目标刻意分在两个 GameObject：同一个物体上销毁会把所有者一并带走，
-        /// 那样先触发的是所有者回收分支，测不到绑定槽位这一条轮转路径。</para>
         /// </summary>
+        /// <remarks>
+        /// 所有者与目标刻意分在两个 GameObject：同一个物体上销毁会把所有者一并带走，
+        /// 那样先触发的是所有者回收分支，测不到绑定槽位这一条轮转路径。
+        /// </remarks>
         private ResourceOwner PlantBindingOnDestroyedTarget()
         {
             return PlantBindingOnDestroyedTargetOwnedBy(out _);

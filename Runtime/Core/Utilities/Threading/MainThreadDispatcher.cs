@@ -12,33 +12,12 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 将操作/协程安全地调度到 Unity 主线程执行的线程安全调度器。
-    /// 任务存储在无锁队列中，由主线程"泵"按序执行（播放模式为 <see cref="Update"/>，编辑模式为 <see cref="UnityEditor.EditorApplication.update"/>）。
     /// </summary>
     /// <remarks>
-    /// <para><b>线程契约</b>：<see cref="Post(Action)"/> 等静态方法可在任意线程调用，
-    /// 入队路径完全不触碰 Unity API；任务始终在主线程泵内串行执行，单个任务的异常被隔离并记录，不会毒化后续任务。</para>
-    /// <para><b>可等待操作</b>：<c>PostAsync/SendAsync</c> 基于 <see cref="AutoResetUniTaskCompletionSource{T}"/>（UniTask 池化完成源）返回 <see cref="UniTask"/>。
-    /// 池化源的 version 护栏保证：源被 await 消费回池复用后，滞留闭包/停机路径的陈旧 setter 自动失效（返回 false，无副作用）——无需额外仲裁状态。</para>
-    /// <para><b>分配语义</b>：稳态下每次可等待调用仅 2 次堆分配（AwaiterHandle + 队列闭包；完成源池化摊销为零）。
-    /// 主线程快速路径成功时零分配（<see cref="UniTask.FromResult{T}"/>/<see cref="UniTask.CompletedTask"/> 直存值）。
-    /// 未被 await 的完成源不回池（有界滞留，UniTask 文档化行为）。</para>
-    /// <para><b>可等待操作的停机语义</b>：挂起任务在调度器停机（<see cref="BeginShutdown"/>）时统一取消，
-    /// 等待方会收到携带调用方令牌的 <see cref="OperationCanceledException"/>，绝不会因闭包被丢弃而永久挂起。</para>
-    /// <para><b>取消语义</b>：可等待 API 的 <c>CancellationToken</c> 取消的是"等待"；任务尚未执行时直接跳过执行，
-    /// 已在执行中的任务会运行完毕但结果被放弃。任务自身抛出 <see cref="OperationCanceledException"/> 时统一按取消处理
-    /// （<c>UniTaskStatus.Canceled</c>），主线程快速路径与排队路径语义一致。</para>
-    /// <para><b>实例物化</b>：实例由 <c>RuntimeInitializeOnLoadMethod(BeforeSceneLoad)</c> 在主线程尽早物化，
-    /// 因此播放期间后台线程经 <c>Instance</c> 访问只命中静态字段的原子快速路径。
-    /// 请勿在该物化时点之前启动会访问本类的后台线程。</para>
-    /// <para><b>背压</b>：泵每帧受 <see cref="MAX_TIME_BUDGET_MS"/> 时间预算约束，超出部分推迟到下一帧；
-    /// 积压持续超过 <see cref="BACKLOG_WARN_THRESHOLD"/> 会输出警告（生产速率高于消费速率的信号，见 <see cref="PendingCount"/>）。
-    /// <b>本类不提供背压</b>——队列无容量上限、入队永不阻塞/拒绝（停机除外），告警仅为诊断信号；
-    /// 调用方须自行保证生产速率不超过主线程消费速率（上层限流、合并写入等）。</para>
-    /// <para><b>关闭语义</b>：应用退出时立即拒绝新任务并清空积压；之后的入队将被丢弃并告警。
-    /// 编辑器退出播放模式后会自动恢复可用（兼容关闭 Domain Reload 的工作流）。</para>
-    /// <para><b>注意</b>：<see cref="Post(IEnumerator)"/> 依赖 <c>StartCoroutine</c>，仅支持播放模式；
-    /// 实例方法 <c>Enqueue/Dispatch</c> 族是对静态核心的兼容转发层（为 com.moirai.gameplay 的既有调用保留，约 123 处），
-    /// 语义与对应静态方法完全一致 —— <b>新代码一律使用静态 <c>Post/Send</c> API</b>；待 gameplay 包迁移完毕后可将其标记 [Obsolete]。</para>
+    /// 任务存于无锁队列、由主线程泵按序执行（播放模式 <see cref="Update"/>，编辑模式 <see cref="UnityEditor.EditorApplication.update"/>）；静态 <c>Post/Send</c>（含 <see cref="Post(IEnumerator)"/>，依赖 <c>StartCoroutine</c>、仅播放模式）可任意线程调用，入队不触碰 Unity API，任务在主线程串行执行、异常隔离记录；新代码一律使用静态 API。
+    /// 可等待 API（<c>PostAsync/SendAsync</c>）基于池化 <see cref="AutoResetUniTaskCompletionSource{T}"/>：稳态每次 2 次堆分配、主线程快速路径零分配；停机（<see cref="BeginShutdown"/>）统一取消挂起任务，等待方收到携带调用方令牌的 <see cref="OperationCanceledException"/>，不会永久挂起。
+    /// <c>CancellationToken</c> 取消的是「等待」：任务未执行则跳过、执行中则运行完毕并放弃结果，任务自身抛 OCE 亦按取消处理；泵每帧受 <see cref="MAX_TIME_BUDGET_MS"/> 预算约束。
+    /// 队列无上限、入队永不阻塞或拒绝（停机除外），积压超 <see cref="BACKLOG_WARN_THRESHOLD"/> 仅告警，调用方须自行限流；实例在 <c>BeforeSceneLoad</c> 于主线程物化，勿在此之前启动访问本类的后台线程。
     /// </remarks>
     public class MainThreadDispatcher : SingletonMono_Persistent<MainThreadDispatcher>
     {
@@ -63,9 +42,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 挂起的可等待操作（PostAsync/SendAsync）取消句柄注册表。
-        /// 停机时统一 <see cref="AwaiterHandle.Cancel"/>，保证等待方收到取消而非永久挂起；
-        /// 任务正常完成后由闭包在 finally 中移除。
         /// </summary>
+        /// <remarks>
+        /// 停机时统一 <see cref="AwaiterHandle.Cancel"/>，保证等待方收到取消而非永久挂起；任务正常完成后由闭包在 finally 中移除。
+        /// </remarks>
         private static readonly ConcurrentDictionary<AwaiterHandle, byte> s_PendingAwaiters = new ConcurrentDictionary<AwaiterHandle, byte>();
 
         private static int s_MainThreadId;       // 仅在主线程生命周期钩子中写入
@@ -365,13 +345,15 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将「状态 + 处理器」入队，在下次主线程泵时执行（状态化零闭包路径：工作项池化复用，
-        /// 处理器经静态 lambda/方法组的编译器缓存后稳态零分配；值类型状态经泛型工作项传递零装箱）。
+        /// 将「状态 + 处理器」入队，在下次主线程泵时执行（状态化零闭包路径）。
         /// </summary>
         /// <typeparam name="TState">状态类型。</typeparam>
         /// <param name="state">随队列携带的状态（工作项归还池时清空——引用类型状态不滞留）。</param>
         /// <param name="action">将在主线程执行的处理器。</param>
-        /// <remarks>任意线程可调用，入队路径不触碰任何 Unity API。停机后调用会被丢弃并告警（工作项照常归还池）。</remarks>
+        /// <remarks>
+        /// 工作项池化复用，处理器经静态 lambda / 方法组的编译器缓存后稳态零分配，值类型状态经泛型工作项传递零装箱。
+        /// 任意线程可调用，入队不触碰任何 Unity API；停机后调用被丢弃并告警（工作项照常归还池）。
+        /// </remarks>
         public static void Post<TState>(TState state, Action<TState> action)
         {
             if (action == null) throw new ArgumentNullException(nameof(action));
@@ -385,10 +367,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 状态化工作项（池化：执行入口委托在实例构造时以方法组缓存——同一实例反复入队零委托分配；
-        /// 归还前清场，引用类型状态不跨任务滞留）。
+        /// 状态化工作项（池化）。
         /// </summary>
         /// <typeparam name="T">状态类型。</typeparam>
+        /// <remarks>执行入口委托在实例构造时以方法组缓存——同一实例反复入队零委托分配；归还前清场，引用类型状态不跨任务滞留。</remarks>
         private sealed class StateWorkItem<T>
         {
             /// <summary>实例池（无锁队列；容量随历史峰值积压自然伸缩，与 PendingQueue 语义一致不设上限）。</summary>
@@ -678,10 +660,9 @@ namespace Moirai.Atropos
         /// <param name="registration">输出的令牌注册项（任务终结时由调用方 Dispose）。</param>
         /// <returns>已停机返回 false（由调用方就地取消完成源并直接返回任务）。</returns>
         /// <remarks>
-        /// <para><b>已知非原子窗口</b>：本方法（①登记注册表）与调用方随后的入队（②TryPost）之间存在间隙。
-        /// 若 <see cref="BeginShutdown"/> 恰在两者之间运行，句柄已被 <see cref="CancelAllAwaiters"/> 取消且注册表已被 Clear——
-        /// 此时 ② 失败，调用方清理路径的 TryRemove 为空操作、TrySetCanceled 为幂等空操作，最终状态仍为"已取消"，正确。</para>
-        /// <para>该窗口是设计上接受的良性竞态，安全性依赖 TrySetCanceled 幂等 + 完成源 version 护栏。</para>
+        /// 本方法（①登记注册表）与调用方随后的入队（②TryPost）之间存在非原子窗口：若 <see cref="BeginShutdown"/> 恰在两者之间运行，
+        /// 句柄已被 <see cref="CancelAllAwaiters"/> 取消且注册表被 Clear，此时 ② 失败，调用方清理路径的 TryRemove / TrySetCanceled 均为幂等空操作，最终状态仍为"已取消"。
+        /// 该窗口是设计上接受的良性竞态，安全性依赖 TrySetCanceled 幂等 + 完成源 version 护栏。
         /// </remarks>
         private static bool TryBeginAwaiter(AwaiterHandle handle, CancellationToken cancellationToken,
             out CancellationTokenRegistration registration)

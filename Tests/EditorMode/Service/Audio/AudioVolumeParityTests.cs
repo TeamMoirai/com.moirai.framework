@@ -4,13 +4,8 @@ using NUnit.Framework;
 
 namespace Service.Audio
 {
-    /// <summary>
-    /// 跨后端音量语义对拍：同一份输入，Unity 侧的存储与中间件侧的 Handler 必须给出**同一个契约值**，
-    /// 且中间件落到总线上的数就等于 getter 报回的数。
-    /// <para>补这一件是因为音轨音量曾长期两边不一致：Unity 允许 0..10（Mixer db 换算），中间件存 0..10
-    /// 却在写总线时 <c>Clamp01</c> —— 同一份 <c>AudioServiceSettings</c> 换后端，音轨上限从 10 变成 1。
-    /// 这类分歧不会因为"两边各自实现同一份契约成员"而消失，只有对拍用例能把它钉住。</para>
-    /// </summary>
+    /// <summary>跨后端音量语义对拍：同一份输入下两个后端给出同一个契约值，中间件落到总线的数等于 getter 报回的数。</summary>
+    /// <remarks>音轨音量值域统一为 0..10，任一后端写入总线的值都不得超过该值域。</remarks>
     [TestFixture]
     public sealed class AudioVolumeParityTests
     {
@@ -66,12 +61,8 @@ namespace Service.Audio
             }
         }
 
-        /// <summary>
-        /// 「还没初始化」不等于「后端 inert」：桥接尚未建立的启动窗口里，音量面必须照实报设置值。
-        /// <para>钉这一格是因为最省事的 inert 写法是 <c>_bridge == null</c>，而那会在玩家构建里
-        /// 造出一条真实损坏路径：初始化完成前设置面板被打开，滑杆全读成 0，用户一动就把 0 写回并持久化。
-        /// 只有"初始化明确失败"才该转 inert（见 <see cref="AudioServiceHandler.IsBackendInert"/>）。</para>
-        /// </summary>
+        /// <summary>「还没初始化」不等于「后端 inert」：桥接尚未建立的启动窗口里，音量面必须照实报设置值。</summary>
+        /// <remarks>inert 只应在初始化明确失败时成立（见 <see cref="AudioServiceHandler.IsBackendInert"/>），否则启动窗口内读到的 0 会被用户操作写回并持久化。</remarks>
         [Test]
         public void NotYetInitializedBackend_StillReportsItsSettings()
         {

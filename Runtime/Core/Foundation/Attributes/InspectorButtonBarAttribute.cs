@@ -4,9 +4,9 @@ using UnityEngine;
 namespace Moirai.Atropos.Attributes
 {
     /// <summary>
-    /// 显示一组按钮，并将原变量隐藏
-    /// <remarks>不与其他 Attribute 混用</remarks>>
+    /// 显示一组按钮并隐藏原字段。
     /// </summary>
+    /// <remarks>不与其他 Attribute 混用。</remarks>
     [Conditional("UNITY_EDITOR")]
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = true)]
     public class InspectorButtonBarAttribute : PropertyAttribute

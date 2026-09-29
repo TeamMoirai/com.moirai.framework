@@ -8,18 +8,14 @@ using UnityEngine.Serialization;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 框架内置的反射式 Json 序列化器（商业化加固版）。
+    /// 框架内置的反射式 Json 序列化器。
     /// </summary>
     /// <remarks>
-    /// <para><b>正确性</b>：数值固定以 InvariantCulture 输出/解析（浮点 "R" 往返格式）；字典输出标准 Json 对象格式
-    /// （复杂 key 回退 legacy 条目数组，两种格式均可解析）；<see cref="DateTime"/>/<see cref="Guid"/>/<see cref="TimeSpan"/>
-    /// 等无公开字段类型显式转字符串，不再静默丢失；截断/畸形输入一律抛错，绝不静默丢数据。</para>
-    /// <para><b>健壮性</b>：未知字段默认忽略（存档前向/后向兼容）；序列化与反序列化双侧深度守卫
-    /// （防引用环与深嵌套栈溢出）；错误信息带偏移/行列位置。</para>
-    /// <para><b>性能</b>：反射元数据经 <see cref="ReflectionCache"/> 缓存（线程安全）；解析基于 span 零拷贝
-    /// （key 匹配与数值读取无中间字符串）；写入单遍直写（无中间列表/子序列化字符串）。</para>
-    /// <para><b>AOT 约束</b>：不使用表达式树/Reflection.Emit，IL2CPP + HybridCLR 安全。</para>
-    /// <para>通用属性标识见 <c>JsonUtility.Attributes.cs</c>（各 JsonHandler 共享）。</para>
+    /// 数值固定以 <c>InvariantCulture</c> 输出/解析（浮点 <c>"R"</c> 往返格式）；<see cref="DateTime"/>/<see cref="Guid"/>/<see cref="TimeSpan"/> 等无公开字段类型显式转字符串，不静默丢数据。
+    /// 字典默认输出标准 Json 对象格式，复杂 key 回退 legacy 条目数组，两种格式均可解析；未知字段默认忽略。
+    /// 序列化与反序列化双侧有深度守卫（防引用环与深嵌套栈溢出）；截断或畸形输入一律抛错，错误信息带偏移/行列位置。
+    /// 反射元数据经 <see cref="ReflectionCache"/> 缓存（线程安全）；解析基于 span 零拷贝，写入单遍直写。
+    /// 不使用表达式树与 <c>Reflection.Emit</c>，IL2CPP + HybridCLR 安全；通用属性标识见 <c>JsonUtility.Attributes.cs</c>。
     /// </remarks>
     public static partial class DefaultJson
     {
@@ -186,9 +182,7 @@ namespace Moirai.Atropos
         #endregion
 
         /// <summary>
-        /// 类型反射元数据缓存（线程安全）。
-        /// 避免每次序列化/反序列化重复执行 GetFields/GetProperties/GetMethods 与特性扫描，
-        /// 这是反射式 Json 的最大 GC 与性能开销来源。
+        /// 类型反射元数据缓存（线程安全）：缓存字段/属性/方法的扫描结果，免除逐次序列化的重复反射开销。
         /// </summary>
         internal static class ReflectionCache
         {
@@ -425,10 +419,9 @@ namespace Moirai.Atropos
             }
 
             /// <summary>
-            /// 按继承链收集回调（基类在前、派生类在后）。
-            /// 反序列化回调按此顺序执行——与 C# 构造顺序 / Newtonsoft OnDeserialized 惯例一致，
-            /// 保证基类的初始化回调先于派生类运行（派生类回调可能依赖基类状态就绪）。
+            /// 按继承链收集序列化回调，基类在前、派生类在后。
             /// </summary>
+            /// <remarks>回调按收集顺序执行，与 C# 构造顺序及 Newtonsoft 的 OnDeserialized 惯例一致，保证基类回调先于派生类运行。</remarks>
             private static void CollectCallbacks(Type type, List<MethodInfo> before, List<MethodInfo> after)
             {
                 if (type.BaseType != null && type.BaseType != typeof(object))

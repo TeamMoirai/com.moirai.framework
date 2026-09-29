@@ -5,8 +5,10 @@ namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 调试设置。
-    /// <para>激活策略直接存于设置资产（独立于处理器配置）——初始化期早于服务注册的调用方（如 UI 错误日志开关解析）也可直接读取。</para>
     /// </summary>
+    /// <remarks>
+    /// 激活策略直接存于设置资产（独立于处理器配置），初始化期早于服务注册的调用方（如 UI 错误日志开关解析）也可直接读取。
+    /// </remarks>
     [FrameworkSetting("[服务]调试设置", "调试器窗口后端配置与激活策略", -380)]
     public sealed class DebuggerServiceSettings : FrameworkSettings<DebuggerServiceSettings>
     {

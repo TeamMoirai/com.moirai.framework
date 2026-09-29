@@ -6,10 +6,12 @@ using UnityEngine.Audio;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 音频代理辅助器。持有单个 <see cref="AudioSource"/>，负责播放状态机、淡入淡出与资源租约生命周期。
-    /// <para>热路径状态（音量/循环/跟随/优先级等）在播放时从 <see cref="AudioPlayOptions"/> 拆出缓存，避免整份巨型结构体驻留。</para>
-    /// <para>句柄绑定：同一时刻仅有一个有效 <see cref="CurrentHandle"/>，由句柄注册表 Bind/Release 单点维护；换播/结束时自动解绑。</para>
+    /// 音频代理辅助器：持有单个 <see cref="AudioSource"/>，负责播放状态机、淡入淡出与资源租约生命周期。
     /// </summary>
+    /// <remarks>
+    /// 热路径状态（音量/循环/跟随/优先级等）在播放时从 <see cref="AudioPlayOptions"/> 拆出缓存，避免整份巨型结构体驻留。
+    /// 同一时刻仅有一个有效 <see cref="CurrentHandle"/>，由句柄注册表 Bind/Release 单点维护，换播/结束时自动解绑。
+    /// </remarks>
     public class AudioAgent : IAudioVoiceRef
     {
         private AudioServiceHandler _audioHandler;
@@ -222,9 +224,11 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 摘除本声部在条目挂起队列上的等待者。完成回调派发时 <see cref="_loadRequest"/> 已先行清空，
-        /// 因此这里只会摘到「声部主动停播/换曲」时仍在途的请求，不会二次归还。
+        /// 摘除本声部在条目挂起队列上的等待者。
         /// </summary>
+        /// <remarks>
+        /// 完成回调派发时 <c>_loadRequest</c> 已先行清空，故只会摘到「声部主动停播/换曲」时仍在途的请求，不会二次归还。
+        /// </remarks>
         private void CancelPendingLoad()
         {
             var request = _loadRequest;
@@ -595,10 +599,7 @@ namespace Moirai.Atropos.Audio
                 ResolveCachePolicy(options.CachePolicy, bInPool));
         }
 
-        /// <summary>
-        /// 旧 <c>bInPool</c> 布尔位与新 <see cref="EAudioCachePolicy"/> 的合并点：
-        /// 显式策略优先，未指定时 <c>bInPool</c> 保证「至少留池」。
-        /// </summary>
+        /// <summary>旧 <c>bInPool</c> 布尔位与 <see cref="EAudioCachePolicy"/> 的合并点：显式策略优先，未指定时 <c>bInPool</c> 保证「至少留池」。</summary>
         private static EAudioCachePolicy ResolveCachePolicy(EAudioCachePolicy policy, bool bInPool)
         {
             if (policy != EAudioCachePolicy.Default) return policy;
@@ -774,10 +775,7 @@ namespace Moirai.Atropos.Audio
             AudioResource.Pause();
         }
 
-        /// <summary>
-        /// 取消暂停音频代理辅助器：回到暂停前的状态（含淡入/淡出），并把斜坡起点整体后移暂停时长。
-        /// <para>若一律回到 Playing，暂停一段正在淡出的音会把它复活成满音量常播。</para>
-        /// </summary>
+        /// <summary>取消暂停：回到暂停前的状态（含淡入/淡出），并把斜坡起点整体后移暂停时长。</summary>
         public void Unpause()
         {
             if (_audioAgentRuntimeState != EAudioAgentRuntimeState.Pausing) return;

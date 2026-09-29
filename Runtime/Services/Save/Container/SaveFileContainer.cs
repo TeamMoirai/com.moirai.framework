@@ -50,9 +50,8 @@ namespace Moirai.Atropos.Save
 
     /// <summary>
     /// 存档坏块记录（容器 v2 逐块校验的失败明细）：键 + 错误码 + 框架元数据（CRC 坏块时可信）。
-    /// <para><see cref="Key"/> 为 <c>null</c> 表示块边界不可读（结构性损坏——长度/键字段越界，解析在该处终止，
-    /// 其后的块全部不可达）；<see cref="HasMetadata"/> 为 <c>true</c> 时版本/后端/尺寸字段有效（框架完好、载荷 CRC 不符的坏块）。</para>
     /// </summary>
+    /// <remarks><see cref="Key"/> 为 <c>null</c> 表示块边界不可读（长度/键字段越界，解析在该处终止，其后块全部不可达）；<see cref="HasMetadata"/> 为 <c>true</c> 时版本/后端/尺寸字段有效。</remarks>
     internal readonly struct SaveBlockError
     {
         /// <summary>
@@ -118,15 +117,14 @@ namespace Moirai.Atropos.Save
     }
 
     /// <summary>
-    /// 存档多块容器 v2（手写二进制布局，零第三方依赖）。
-    /// <para>布局（小端序）：<c>[4B 魔数 "MRSB"][4B 容器版本][4B 块数]{逐块：[4B 键字节长][键 UTF8][4B 模式版本][2B 后端][4B 载荷长][4B 载荷CRC32][载荷]}</c>。
-    /// 逐块独立序列化——块级后端/版本/迁移互不影响，容器结构稳定（切换后端只改变块内字节，不破坏文件格式）。</para>
-    /// <para>v2 引入逐块 CRC32 自校验：载荷校验不符的坏块跳过并记入坏块清单、其余块照常可救（部分恢复）；
-    /// 块框架（长度/键字段）越界的结构性损坏因后续块边界不可知，保留已解析前缀后终止解析并记终结坏块。
-    /// 容器版本 1 旧档硬切作废——读取判别为 <see cref="SaveError.UnsupportedVersion"/>，不做双格式兼容读。</para>
-    /// <para>纯函数式读写；解析全程跨度边界校验。注意整档 CRC 由文件头层（<see cref="SaveFileHeader"/>）先行把关，
-    /// 逐块 CRC 是头校验放行后的第二道细粒度隔离层。</para>
+    /// 存档多块容器 v2：手写二进制布局的多块载荷容器（纯函数式读写，解析全程跨度边界校验）。
     /// </summary>
+    /// <remarks>
+    /// 布局（小端序）：<c>[4B 魔数 "MRSB"][4B 容器版本][4B 块数]{逐块：[4B 键字节长][键 UTF8][4B 模式版本][2B 后端][4B 载荷长][4B 载荷CRC32][载荷]}</c>；逐块独立序列化，块级后端/版本/迁移互不影响。
+    /// v2 逐块 CRC32 自校验：载荷 CRC 不符的坏块跳过并记入坏块清单、其余块照常可救；块框架越界的结构性损坏保留已解析前缀后终止解析并记终结坏块。
+    /// 容器版本 1 旧档硬切作废，读取判别为 <see cref="SaveError.UnsupportedVersion"/>，不做双格式兼容读。
+    /// 整档 CRC 由文件头层（<see cref="SaveFileHeader"/>）先行把关，逐块 CRC 是头校验放行后的第二道细粒度隔离层。
+    /// </remarks>
     internal static class SaveFileContainer
     {
         /// <summary>
@@ -217,10 +215,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 将数据块列表流式序列化到目标流（容器头 + 逐块描述符 + 载荷直灌——零整档容器缓冲，流式写管线核心）。
-        /// <para>输出字节与 <see cref="Write(Span{byte}, List{SaveBlockEntry})"/> 完全一致（同一布局单源序列化）；
-        /// 键 UTF8 编码经栈缓冲直写（键长校验层已限 64 字符——超限防御分支走堆缓冲）。</para>
+        /// 将数据块列表流式序列化到目标流（容器头 + 逐块描述符 + 载荷直灌，零整档容器缓冲）。
         /// </summary>
+        /// <remarks>输出字节与 <see cref="Write(Span{byte}, List{SaveBlockEntry})"/> 完全一致；键 UTF8 编码经栈缓冲直写（键长校验层已限 64 字符，超限防御分支走堆缓冲）。</remarks>
         /// <param name="target">目标流（调用方管理生命周期）。</param>
         /// <param name="blocks">数据块条目列表。</param>
         public static void Write(Stream target, List<SaveBlockEntry> blocks)
@@ -383,10 +380,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 从多段字节序列解析容器（跨段流式读管线的消费形态；语义与 <see cref="Read(ReadOnlySpan{byte}, out List{SaveBlockEntry}, out List{SaveBlockError})"/> 完全一致）。
-        /// <para>单段序列直通跨度解析器（零额外开销）；多段经 <see cref="SequenceReader{T}"/> 跨段解析——
-        /// 段池拉取的多段容器（解压/解密流式链输出）在此还原为块列表。</para>
+        /// 从多段字节序列解析容器（语义与跨度重载一致），用于跨段流式读管线。
         /// </summary>
+        /// <remarks>单段序列直通跨度解析器（零额外开销）；多段经 <see cref="SequenceReader{T}"/> 跨段解析，将解压/解密流式链输出的多段容器还原为块列表。</remarks>
         /// <param name="source">容器字节序列（可多段）。</param>
         /// <param name="blocks">解析成功时的健康数据块列表（坏块已剔除）。</param>
         /// <param name="blockErrors">坏块清单（无坏块为 <c>null</c>）。</param>

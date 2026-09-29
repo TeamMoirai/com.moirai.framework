@@ -5,9 +5,11 @@ using UnityEngine;
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// UI处理器（后端）。承载窗口堆栈管理、层级排序与资源加载等核心逻辑。
-    /// <para>通过 <see cref="UIServiceSettings.UIServiceHandler"/> 序列化配置，可替换为自定义 UI 后端。</para>
+    /// UI 处理器（后端）：承载窗口堆栈管理、层级排序与资源加载等核心逻辑。
     /// </summary>
+    /// <remarks>
+    /// 通过 <see cref="UIServiceSettings.UIServiceHandler"/> 序列化配置，可替换为自定义 UI 后端。
+    /// </remarks>
     [Serializable]
     public abstract class UIServiceHandler : FrameworkHandler
     {
@@ -48,10 +50,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 处理器关闭。
-        /// 1. 清理错误日志系统
-        /// 2. 关闭所有窗口
-        /// 3. 销毁UI根节点
+        /// 处理器关闭：清理错误日志系统、关闭所有窗口并销毁 UI 根节点。
         /// </summary>
         protected override void OnShutdown()
         {

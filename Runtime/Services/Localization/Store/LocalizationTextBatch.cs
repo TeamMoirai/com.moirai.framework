@@ -4,10 +4,9 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 一批本地化词条：<b>语言头与词条同生死</b>。
-    /// <para>取代「语言列表取自一张全局静态注册表、词条列序靠反射字段声明序」的跨文件隐含约定：
-    /// 数据源自报它产出的语言与列顺序，接收方只需校验二者等长，不必再猜求值顺序。</para>
+    /// 一批本地化词条：语言头与词条同生死，列下标顺序由数据源自报。
     /// </summary>
+    /// <remarks>接收方只需校验语言头与 <see cref="Strings"/> 列等长，不依赖跨文件的隐含求值顺序约定。</remarks>
     internal sealed class LocalizationTextBatch
     {
         /// <summary>空批（数据未就绪）。</summary>
@@ -55,9 +54,8 @@ namespace Moirai.Atropos.Localization
 
     /// <summary>
     /// 一层运行时词条覆盖：按语言分格，覆盖优先于批内译文。
-    /// <para>刻意不做「清空后重建」的整表替换语义：那种写法在入参为空时会把全部文案抹掉且不带告警，
-    /// 而覆盖层的正确用法是叠加——基础词条永远留在原地。</para>
     /// </summary>
+    /// <remarks>语义是叠加而非整表替换：入参为空不会清空既有文案，基础词条永远留在原地。</remarks>
     internal sealed class LocalizationOverlay
     {
         /// <summary>来源标识（远程运营 / QA 强改 / 热补丁），最后注册的一层优先。</summary>

@@ -6,13 +6,14 @@ using Testing;
 namespace Service.Timer
 {
     /// <summary>
-    /// 定时器热路径 0-GC 验收（<b>真机计量</b>）：调度+取消、含挂起定时器的 Tick 均不得产生托管分配。
-    /// <para>定时器是每帧驱动的核心服务，一次几十字节的抖动在真机上就是 GC 峰值与掉帧。测量走
-    /// <c>GC.Alloc</c> 采样事件数（见 <see cref="AllocationCapture"/>，UTF 官方 AllocatingGCMemory
-    /// 同机制）——采样探不到的运行时整组 Ignore，验收以 L3 玩家运行收到的采样为准。</para>
-    /// <para>经 <c>DefaultTimerHandler</c> 直驱（绕过外观的懒加载链路），延迟取 3600s 保证测量窗内不触发；
-    /// 回调为缓存的方法组字段——C# 9 不缓存方法组转换，裸写每次都会分配一只委托。</para>
+    /// 定时器热路径 0-GC 验收：调度 + 取消、含挂起定时器的 Tick 均不得产生托管分配。
     /// </summary>
+    /// <remarks>
+    /// 定时器是每帧驱动的核心服务，一次几十字节的抖动在真机上就是 GC 峰值与掉帧。
+    /// 分配观测走 <c>GC.Alloc</c> 采样事件数（见 <see cref="AllocationCapture"/>）；采样探不到的运行时整组 Ignore，验收以 L3 玩家运行收到的采样为准。
+    /// 经 <c>DefaultTimerHandler</c> 直驱（绕过外观的懒加载链路）；延迟取 3600s 保证测量窗内不触发。
+    /// 回调为缓存的方法组字段——C# 9 不缓存方法组转换，裸写每次都会分配一只委托。
+    /// </remarks>
     [TestFixture]
     [Category("Performance")]
     public sealed class TimerHotPathAllocationTests

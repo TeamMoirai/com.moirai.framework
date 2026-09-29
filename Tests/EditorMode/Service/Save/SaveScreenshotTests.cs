@@ -11,11 +11,12 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// V3-P8 截图与元数据镜像测试：sidecar 命名、缩略图尺寸计算、盒式降采样、PNG 编码回读、
-    /// sidecar 落盘/级联删除、元数据合并语义与回读、截图完成事件派发、非运行态降级。
-    /// <para>捕获核心经像素源注入在 EditMode 主线程直测（Texture2D/ImageConversion 为纯 CPU 路径）；
-    /// 截图运行态编排（帧末等待/屏幕捕获）不在 EditMode 覆盖范围内。</para>
+    /// 截图与元数据镜像测试：sidecar 命名、缩略图尺寸计算、盒式降采样、PNG 编码回读、sidecar 落盘/级联删除、元数据合并语义与回读、截图完成事件派发、非运行态降级。
     /// </summary>
+    /// <remarks>
+    /// 捕获核心经像素源注入在 EditMode 主线程直测（Texture2D/ImageConversion 为纯 CPU 路径）；
+    /// 截图运行态编排（帧末等待/屏幕捕获）不在 EditMode 覆盖范围内。
+    /// </remarks>
     public class SaveScreenshotTests
     {
         [Serializable]

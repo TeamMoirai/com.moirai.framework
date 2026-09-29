@@ -8,19 +8,10 @@ namespace Moirai.Atropos
     /// </summary>
     /// <typeparam name="T">继承本基类的具体单例类型。</typeparam>
     /// <remarks>
-    /// <para><b>线程模型</b>：任意线程可安全访问 <see cref="Instance"/>。
-    /// 惰性创建采用 volatile 读快速路径 + 双检锁（Double-Checked Locking），
-    /// 快速路径仅一次原子读，不产生锁开销与分配。</para>
-    /// <para><b>初始化契约</b>：实例构造后<b>先发布后初始化</b>——<see cref="OnInit"/>
-    /// 在锁内、于实例已写入 <see cref="s_Instance"/> 之后执行：
-    /// OnInit 内同线程递归访问 <see cref="Instance"/> 会取回正在初始化中的同一实例；
-    /// 跨线程首次访问则阻塞至初始化完成后再返回。</para>
-    /// <para><b>释放契约</b>：<see cref="Dispose"/> 幂等——仅当前活动实例能触发
-    /// <see cref="OnShutdown"/> 并清空静态引用；对已释放/已被替换的陈旧实例调用为 no-op，
-    /// 不会误杀当前活动实例。</para>
-    /// <para><b>域重载</b>：关闭 Domain Reload 的编辑器工作流中，静态实例会跨播放会话存活，
-    /// 派生类如需会话间重置，应参照 MainThreadDispatcher 模式自行提供 Reset 钩子
-    /// （基类无法为泛型派生类自动注册 <c>RuntimeInitializeOnLoadMethod</c>）。</para>
+    /// 线程模型：任意线程可安全访问 <see cref="Instance"/>，惰性创建走 volatile 快速路径 + 双检锁，快速路径无锁开销。
+    /// 初始化契约：实例先发布后初始化——<see cref="OnInit"/> 在锁内、实例已写入后执行；同线程递归访问取回正在初始化的同一实例，跨线程首次访问阻塞至完成后返回。
+    /// 释放契约：<see cref="Dispose"/> 幂等，仅当前活动实例触发 <see cref="OnShutdown"/> 并清空引用，对陈旧或已释放实例调用为 no-op。
+    /// 域重载：关闭 Domain Reload 时静态实例跨播放会话存活，派生类如需会话间重置需自行提供 Reset 钩子（基类无法自动注册泛型派生类的初始化方法）。
     /// </remarks>
     public abstract class Singleton<T> : IDisposable where T : Singleton<T>, new()
     {
@@ -123,13 +114,9 @@ namespace Moirai.Atropos
 
 #if UNITY_EDITOR
         /// <summary>
-        /// 编辑器环境校验构造调用方：<c>new()</c> 约束要求公共构造函数，
-        /// 此守卫在直接 <c>new</c> 派生类时立即告警，而非产生游离于单例体系外的实例。
+        /// 编辑器守卫：直接 <c>new</c> 派生类时立即告警，避免产生游离于单例体系外的实例。
         /// </summary>
-        /// <remarks>
-        /// 构造链可能穿越多层派生类构造函数，故对整个堆栈做签名包含匹配而非固定帧深度；
-        /// 仅编辑器生效，运行时零开销。
-        /// </remarks>
+        /// <remarks>对整个构造堆栈做签名包含匹配（构造链可能穿越多层派生类），仅编辑器生效。</remarks>
         private void ValidateConstructionContext()
         {
             string stackTrace = new StackTrace().ToString();

@@ -7,15 +7,14 @@ using UnityEngine;
 namespace Service.Resource
 {
     /// <summary>
-    /// 异步绑定预约位的收口用例：后端在"取用租约"那一步抛出时，预约位不得留在表里。
-    /// <para>预约落地后槽位的形状是"有目标、有版本号、无租约无资源"。这条形状若靠轮转扫描回收，
-    /// 前提是其目标已被销毁；目标还活着时它谁也不会来收，只在所有者释放时才走掉——
-    /// 期间一直占着 <c>_bindingIndexByOwnerSlot</c> 的一条映射与一个版本号，
-    /// 而同一个 (所有者, 组件, 槽位类型) 再绑就会撞上这个版本号。</para>
-    /// <para>抛出错位取的是 <see cref="StubLeaseSource"/> 上那个开关，不是某座真实后端：这条窗口要的是
-    /// "取用抛出"这个行为，后端哪天补上或改掉都不该把它一起带走。Addressables 后端早先正是现成的抛出源，
-    /// 异步子资源绑定接通之后它就不抛了。</para>
+    /// 异步绑定预约位的收口契约：后端在"取用租约"那一步抛出时，预约位不得留在表里。
     /// </summary>
+    /// <remarks>
+    /// 预约落地后槽位的形状是"有目标、有版本号、无租约无资源"；目标还活着时它不会被轮转扫描回收，
+    /// 只在所有者释放时才走掉，期间占着 <c>_bindingIndexByOwnerSlot</c> 的一条映射与一个版本号，
+    /// 同一个 (所有者, 组件, 槽位类型) 再绑就会撞上这个版本号。
+    /// 抛出错位取 <see cref="StubLeaseSource"/> 上的开关，不依赖任何真实后端的行为。
+    /// </remarks>
     public sealed class ResourceBindingServiceReservationTests
     {
         private readonly List<GameObject> _spawned = new List<GameObject>();
@@ -90,9 +89,11 @@ namespace Service.Resource
 
         /// <summary>
         /// 驱动一次异步绑定，返回它是否抛出。
-        /// <para>抛出发生在首个 await 之前（假接缝的成员不是 async，调用即抛），
-        /// 但外层是 async 方法，异常被收进 UniTask、在取结果时才重抛。</para>
         /// </summary>
+        /// <remarks>
+        /// 抛出发生在首个 await 之前（假接缝的成员不是 async，调用即抛），
+        /// 但外层是 async 方法，异常被收进 UniTask、在取结果时才重抛。
+        /// </remarks>
         private static bool TryBind(UniTask<EResourceBindStatus> bind)
         {
             try

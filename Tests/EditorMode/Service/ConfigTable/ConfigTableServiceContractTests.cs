@@ -12,15 +12,12 @@ using UnityEngine;
 
 namespace Service.ConfigTable
 {
-    /// <summary>
-    /// <see cref="ConfigTableService"/> 外观与默认后端的契约测试。
-    /// <para>配置表此前零用例，而它是本地化的默认数据源、启动链上第一个会读表的东西——
-    /// 历史故障（本地化先于资源初始化时读表，处理器停在半初始化态并持续 NRE）就落在这里。
-    /// 本组钉住三件事：外观在无后端时的降级值、默认后端的兜底语义、以及服务依赖声明的存在性。</para>
-    /// <para>不建自定义 Handler 子类：<see cref="ConfigTableServiceHandler"/> 是 [Serializable] 框架基类，
-    /// 经 [SerializeReference] 用在设置资产里，测试程序集里的派生类会污染生产资产的 Inspector 下拉框。
-    /// 需要"已安装后端"的场景直接用包内默认实现 <c>DefaultConfigTableHandler</c>（internal，InternalsVisibleTo 可见）。</para>
-    /// </summary>
+    /// <summary><see cref="ConfigTableService"/> 外观与默认后端的契约测试。</summary>
+    /// <remarks>
+    /// 钉三件事：外观在无后端时的降级值、默认后端的兜底语义、服务依赖声明的存在性。
+    /// 本组不建自定义 Handler 子类：<see cref="ConfigTableServiceHandler"/> 是 [Serializable] 框架基类，经 [SerializeReference] 用在设置资产里，
+    /// 测试程序集里的派生类会污染生产资产的 Inspector 下拉框；需要「已安装后端」的场景直接用包内默认实现 <c>DefaultConfigTableHandler</c>（internal）。
+    /// </remarks>
     [TestFixture]
     public sealed class ConfigTableServiceContractTests
     {
@@ -55,10 +52,8 @@ namespace Service.ConfigTable
             Assert.IsNull(ConfigTableService.GetAllLocalizedStrings());
         }
 
-        /// <summary>
-        /// 语言自报在未就绪时必须返回<b>空列表而非 null</b>——调用方（本地化）直接遍历它，
-        /// 返回 null 会把"数据未就绪"变成 NRE。
-        /// </summary>
+        /// <summary>语言自报在未就绪时必须返回空列表而非 null。</summary>
+        /// <remarks>调用方（本地化）直接遍历它，返回 null 会把「数据未就绪」变成 NRE。</remarks>
         [Test]
         public void NoHandler_GetLocalizationLanguageCodes_ReturnsEmptyNotNull()
         {
@@ -82,10 +77,8 @@ namespace Service.ConfigTable
             Assert.IsNull(sprite);
         }
 
-        /// <summary>
-        /// 按语言取列的开关在无后端时必须为 <c>false</c>：本地化侧据此留在整批路径，
-        /// 而不是进了列模式却永远取不到列。
-        /// </summary>
+        /// <summary>按语言取列的开关在无后端时必须为 <c>false</c>。</summary>
+        /// <remarks>本地化侧据此留在整批路径，而不是进了列模式却永远取不到列。</remarks>
         [Test]
         public void NoHandler_SupportsPerLanguageLocalizationLoad_IsFalse()
         {
@@ -140,10 +133,8 @@ namespace Service.ConfigTable
             }
         }
 
-        /// <summary>
-        /// 已安装后端时外观确实转发到后端：默认后端回 <c>string.Empty</c>，与"无后端"的 null 可区分，
-        /// 顺带用日志证明是后端被调到（不是外观自己编了个值）。
-        /// </summary>
+        /// <summary>已安装后端时外观确实转发到后端：默认后端回 <c>string.Empty</c>，与「无后端」的 null 可区分。</summary>
+        /// <remarks>顺带用日志证明是后端被调到，而不是外观自己编了个值。</remarks>
         [Test]
         public void DefaultHandler_GetUIWindowLocation_ForwardsToHandler()
         {
@@ -187,11 +178,8 @@ namespace Service.ConfigTable
 
         #region 服务契约 [SERVICE CONTRACT]
 
-        /// <summary>
-        /// 资源依赖必须显式声明：配置表后端（游戏侧 Luban 处理器）经资源系统装载表字节，
-        /// 依赖缺失会让初始化序退化为注册序——本地化先于资源初始化时读表即失败并停在半初始化态
-        /// （2026-09-22 实证的启动期 NRE 根因）。这条用例就是那个历史故障的回归锁。
-        /// </summary>
+        /// <summary>资源依赖必须显式声明，否则初始化序会退化为注册序。</summary>
+        /// <remarks>配置表后端（游戏侧 Luban 处理器）经资源系统装载表字节；依赖缺失时本地化先于资源初始化读表即失败，并停在半初始化态持续报 NRE。</remarks>
         [Test]
         public void Service_DeclaresResourceDependency()
         {
@@ -224,11 +212,8 @@ namespace Service.ConfigTable
 
         #region 后端接缝形状 [HANDLER SEAM SHAPE]
 
-        /// <summary>
-        /// 后端接缝形状守卫：四个抽象成员。
-        /// <para>游戏侧生成代码派生本类并实现这四个成员；少一个或改签名不会有任何编译错误，
-        /// 只会在游戏侧装机时才炸。这里把形状钉住。</para>
-        /// </summary>
+        /// <summary>后端接缝形状守卫：四个抽象成员。</summary>
+        /// <remarks>游戏侧生成代码派生本类并实现这四个成员；少一个或改签名不会有编译错误，只会在游戏侧装机时才失败，故把形状钉住。</remarks>
         [Test]
         public void Seam_AbstractMembers_ShapeMatchesContract()
         {
@@ -244,11 +229,8 @@ namespace Service.ConfigTable
             Assert.AreEqual(4, abstractCount, "后端接缝的抽象方法数变了；同步本基线并写明收掉了什么。");
         }
 
-        /// <summary>
-        /// 按语言取列是<b>可选</b>接缝：两个成员都必须带默认实现，且默认落在整批模式。
-        /// <para>默认开成 <c>true</c> 会让存量整批后端进不了列模式却再也拿不到语言头，
-        /// 把接缝变抽象则会打断所有游戏侧生成代码——两者都只会在装机时炸，所以钉在这里。</para>
-        /// </summary>
+        /// <summary>按语言取列是可选接缝：两个成员都必须带默认实现，且默认落在整批模式。</summary>
+        /// <remarks>默认开成 <c>true</c> 会让存量整批后端进不了列模式却再也拿不到语言头；把接缝改抽象则会打断所有游戏侧生成代码——两者都只在装机时暴露。</remarks>
         [Test]
         public void Seam_PerLanguageColumnLoad_IsVirtualWithBatchDefaults()
         {
@@ -270,11 +252,8 @@ namespace Service.ConfigTable
                 "未覆写的取列实现必须回 null（视为未就绪），不得回空字典冒充已加载的空列。");
         }
 
-        /// <summary>
-        /// 编辑器预览取数挂在外观的静态入口上，后端不带预览专用虚方法。
-        /// <para>「非播放态不经服务世界取到表」由外观解决（未注册处理器时经 Settings 里配置的那份实例），
-        /// 后端因此只有一条读表路径——多挂一个预览虚方法就是第二条迟早与真路径漂移的路径。</para>
-        /// </summary>
+        /// <summary>编辑器预览取数挂在外观的静态入口上，后端不带预览专用虚方法。</summary>
+        /// <remarks>「非播放态不经服务世界取到表」由外观解决（未注册处理器时经 Settings 里配置的那份实例），后端因此只有一条读表路径。</remarks>
         [Test]
         public void Seam_EditorPreview_IsOnFacadeNotOnHandler()
         {
@@ -305,11 +284,8 @@ namespace Service.ConfigTable
             Assert.AreEqual(returnType, method.ReturnType, $"{owner.Name}.{name} 返回类型已变。");
         }
 
-        /// <summary>
-        /// 经 <see cref="LogUtility.OnMessageLogged"/> 捕获日志内容（Handler 无关的唯一稳定通道）。
-        /// <para>同时经 <see cref="UtfLogExpect"/> 声明一条 UTF 预期：默认后端走 LogUtility.Error，
-        /// 当前 Handler 对 UTF 可见时不声明会把测试判成"未处理日志"而红。</para>
-        /// </summary>
+        /// <summary>经 <see cref="LogUtility.OnMessageLogged"/> 捕获日志内容（Handler 无关的唯一稳定通道）。</summary>
+        /// <remarks>同时经 <see cref="UtfLogExpect"/> 声明一条 UTF 预期：默认后端走 LogUtility 的 Error 级发射，当前 Handler 对 UTF 可见时不声明会把测试判成「未处理日志」而失败。</remarks>
         private sealed class LogCapture : IDisposable
         {
             private readonly List<string> _messages = new List<string>();

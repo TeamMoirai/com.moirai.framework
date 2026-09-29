@@ -65,23 +65,20 @@ namespace Moirai.Atropos.Input.Prompts
         [TextAreaResizable]
         [SerializeField] private string m_PromptSpriteFormatter = PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER;
         /// <summary>
-        /// 用于向从 <see cref="InputDevicePromptSystem.InsertPromptSprites"/> 返回的字符串添加额外富文本的格式化程序
+        /// 向 <see cref="InputDevicePromptSystem.InsertPromptSprites"/> 返回的字符串添加额外富文本的格式化程序。
+        /// </summary>
         /// <example>
-        /// TMP 支持的富文本格式：https://docs.unity3d.com/Packages/com.unity.textmeshpro@3.2/manual/RichText.html
-        /// <br /><br />- 未格式化
-        /// <![CDATA[
+        /// 未格式化：<![CDATA[
         /// {SPRITE} = "<sprite="PS5_Prompts" sprite="ps5_button_cross">"
         /// ]]>
-        /// <br /><br />- 输出双倍大小
-        /// <![CDATA[
+        /// 输出双倍大小：<![CDATA[
         /// <size=200%>{SPRITE}</size> = "<size=200%><sprite="PS5_Prompts" sprite="ps5_button_cross"></size>"
         /// ]]>
-        /// <br /><br />- 修改垂直位置
-        /// <![CDATA[
+        /// 修改垂直位置：<![CDATA[
         /// <voffset=-3px>{SPRITE}</voffset> = "<voffset=-3px><sprite="PS5_Prompts" sprite="ps5_button_cross"></voffset>"
         /// ]]>
+        /// 富文本语法见 <see href="https://docs.unity3d.com/Packages/com.unity.textmeshpro@3.2/manual/RichText.html"/>。
         /// </example>
-        /// </summary>
         public string PromptSpriteFormatter => m_PromptSpriteFormatter;
         
         [System.Serializable]

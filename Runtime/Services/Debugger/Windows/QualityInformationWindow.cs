@@ -5,8 +5,10 @@ namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 画质等级信息窗口（可切换等级）。
-    /// <para>画质等级卡（含开关与等级按钮）构建一次常驻，仅随等级切换显式重填——轮询只重建信息清单区，避免点击落在重建边界被吞掉。</para>
     /// </summary>
+    /// <remarks>
+    /// 画质等级卡构建一次常驻，仅随等级切换显式重填；轮询只重建信息清单区。
+    /// </remarks>
     public sealed class QualityInformationWindow : ScrollableDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]

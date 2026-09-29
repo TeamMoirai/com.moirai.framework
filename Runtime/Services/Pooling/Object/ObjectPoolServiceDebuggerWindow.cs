@@ -9,10 +9,11 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 通用对象池信息窗口（池折叠浏览、检索过滤、释放操作与 CSV 导出）。
-    /// <para>摘要卡（计数/检索框/开关/全局操作）构建一次常驻，轮询仅原地刷新数值——折叠钮与操作按钮不随轮询重建，点击不会落在重建边界被吞掉。</para>
-    /// <para>仅池集合变化（新建/销毁/优先级排序变化）时整体重建池视图；对象行仅折叠面板展开期间按节流重建（纯展示无交互）。</para>
+    /// 通用对象池信息窗口：池折叠浏览、检索过滤、释放操作与 CSV 导出。
     /// </summary>
+    /// <remarks>
+    /// 摘要卡构建一次常驻，轮询仅原地刷新数值；仅池集合变化时整体重建池视图，对象行仅在折叠面板展开期间按节流重建。
+    /// </remarks>
     public sealed class ObjectPoolServiceDebuggerWindow : ScrollableDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]

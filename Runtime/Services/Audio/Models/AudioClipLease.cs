@@ -5,8 +5,8 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 一条已取得的 clip 租约：<see cref="Clip"/> 供播放使用，<see cref="Release"/> 归还后端引用。
-    /// <para>由 <see cref="IAudioClipLeaseSource"/> 产出，缓存只通过它接触资源后端。</para>
     /// </summary>
+    /// <remarks>由 <see cref="IAudioClipLeaseSource"/> 产出，缓存只通过它接触资源后端。</remarks>
     internal readonly struct AudioClipLease
     {
         private readonly IDisposable _handle;

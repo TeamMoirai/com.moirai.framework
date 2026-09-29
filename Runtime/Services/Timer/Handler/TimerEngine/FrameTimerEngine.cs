@@ -11,9 +11,10 @@ namespace Moirai.Atropos.Timer
 {
     /// <summary>
     /// 帧计时引擎（泳道 <see cref="TimerLaneKinds.Frame"/>）：按帧递减、不占时间轮。
-    /// <para>自持独立的分页槽位池、版本化句柄命名空间（句柄内嵌 Frame 泳道号）、完成回调派发与三阶段活跃列表；
-    /// 完全不知晓时间轮的存在，因此不存在任何 <c>STATE_FRAME</c> 式跨引擎分支。</para>
     /// </summary>
+    /// <remarks>
+    /// 自持分页槽位池、版本化句柄命名空间与三阶段活跃列表，完全不感知时间轮。
+    /// </remarks>
     internal sealed class FrameTimerEngine : ITimerEngine
     {
 #if UNITY_EDITOR
@@ -259,9 +260,11 @@ namespace Moirai.Atropos.Timer
 
         /// <summary>
         /// 逐帧推进指定阶段的帧计时器。
-        /// <para>采用快照迭代（存句柄而非索引）：回调内取消/自释放，甚至释放槽位被同帧新建计时器复用，
-        /// 都因 <see cref="GetSlotIndex"/> 的版本校验而天然安全——杜绝迭代期索引错乱与重复扣帧。</para>
         /// </summary>
+        /// <remarks>
+        /// 采用快照迭代（存句柄而非索引）：回调内取消 / 自释放，或释放槽位被同帧新建计时器复用，
+        /// 都因 <see cref="GetSlotIndex"/> 的版本校验而安全，不会索引错乱或重复扣帧。
+        /// </remarks>
         private void ProcessFrameTimers(List<int> live, List<ulong> scratch)
         {
             if (live.Count == 0)

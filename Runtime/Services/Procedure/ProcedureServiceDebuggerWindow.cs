@@ -7,9 +7,10 @@ namespace Moirai.Atropos.Procedure
 {
     /// <summary>
     /// 流程服务调试视图（原生 UI Toolkit，经 <see cref="ProcedureService.OnInit"/> 注册进游戏内调试器 "Profiler/Procedure"）。
-    /// <para>当前流程卡常驻（轮询仅写 text）；流程列表行仅在注册集变化时重建——切换按钮不落在轮询重建边界被吞掉；
-    /// 切换历史为纯展示行，随轮询重建。按 0.5s 节流刷新。</para>
     /// </summary>
+    /// <remarks>
+    /// 按 0.5s 节流刷新；当前流程卡常驻（轮询仅写 text），流程列表行仅在注册集变化时重建（切换按钮不落在轮询重建边界被吞掉），切换历史为纯展示行随轮询重建。
+    /// </remarks>
     public sealed class ProcedureServiceDebuggerWindow : ScrollableDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]

@@ -14,10 +14,7 @@ namespace Moirai.Atropos.Audio
         public TweenEase Ease;
     }
 
-    /// <summary>
-    /// 过渡目标回调——将音量应用到句柄对应目标。
-    /// <para>返回 false 表示目标已失效（句柄释放/声部销毁），过渡会被丢弃。</para>
-    /// </summary>
+    /// <summary>过渡目标回调——将音量应用到句柄对应目标；返回 false 表示目标已失效（句柄释放/声部销毁），过渡会被丢弃。</summary>
     internal interface IAudioFadeTarget
     {
         bool ApplyFade(ulong handle, float volume, bool finished);
@@ -25,9 +22,11 @@ namespace Moirai.Atropos.Audio
 
     /// <summary>
     /// 音频音量过渡调度器（Unity / 中间件后端共用）。
-    /// <para>紧凑列表 + swap-remove，Update 零 GC；声部句柄与总线伪句柄共用一张过渡表。</para>
-    /// <para>总线伪句柄占用高位段 0xFFFFFFFF_********，与真实句柄（自 1 递增）无碰撞。</para>
     /// </summary>
+    /// <remarks>
+    /// 紧凑列表 + swap-remove，Update 零 GC；声部句柄与总线伪句柄共用一张过渡表。
+    /// 总线伪句柄占用高位段 0xFFFFFFFF_********，与真实句柄（自 1 递增）无碰撞。
+    /// </remarks>
     internal sealed class AudioFadeScheduler
     {
         /// <summary>Master 总线过渡伪句柄。</summary>

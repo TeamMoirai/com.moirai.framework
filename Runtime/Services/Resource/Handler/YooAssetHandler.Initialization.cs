@@ -30,9 +30,8 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// YooAsset 包版本请求结果：版本号实时透读底层操作。
-        /// <para>YooAsset 的 <c>RequestPackageVersionOperation.PackageVersion</c> 仅在操作完成后有值——
-        /// 若在创建期同步快照，调用方完成后读到的仍是过期空值（编辑器模拟模式实际版本为 "Simulate"）。</para>
         /// </summary>
+        /// <remarks><c>RequestPackageVersionOperation.PackageVersion</c> 仅在操作完成后有值；创建期同步快照会让调用方读到的仍是过期空值。</remarks>
         private sealed class YooAssetPackageVersionResult : ResourcePackageVersionResult
         {
             private readonly RequestPackageVersionOperation _operation;
@@ -149,9 +148,9 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 关闭处理器——释放所有资源记录与在途加载操作。
-        /// <para>由 <see cref="ResourceService.OnShutdown"/> 在容器关闭期调用。</para>
+        /// 关闭处理器：释放所有资源记录与在途加载操作。
         /// </summary>
+        /// <remarks>由 <see cref="ResourceService.OnShutdown"/> 在容器关闭期调用。</remarks>
         protected override void OnShutdown()
         {
             Store.IsDestroying = true;
@@ -164,14 +163,9 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 复位"跨重启不安全"的那份状态：实例字段与 YooAssets 的静态表不同一条命。
-        /// <para>关掉脚本域重载、或容器在同一域里重启时，<c>[SerializeReference]</c> 里这份处理器
-        /// 原封不动地活着，而 YooAssets 的 <c>s_packages</c> 与驱动器已经随场景重载没了：
-        /// 下一句 <c>YooAssets.Initialize</c> 直接抛 "already initialized"；就算不抛，
-        /// <see cref="PackageMap"/> 里那些 <c>ResourcePackage</c> 也全是孤儿，
-        /// 而 <c>InitializePackageAsync</c> 的快路径恰恰按它的命中来判定"这个包已经初始化过了"。</para>
-        /// <para>反过来，正常开启域重载时这里等于空转一次——静态已归零、字典本就是空的。</para>
+        /// 复位跨重启不安全的那份处理器实例状态：实例字段与 YooAssets 的静态表不同一条命。
         /// </summary>
+        /// <remarks>域重载关闭或容器在同一域内重启时实例原样存活、而 YooAssets 静态表已归零，不清会撞上 <c>already initialized</c> 与孤儿 <see cref="PackageMap"/> 条目。</remarks>
         private void ResetReloadUnsafeState()
         {
             if (YooAssets.IsInitialized)

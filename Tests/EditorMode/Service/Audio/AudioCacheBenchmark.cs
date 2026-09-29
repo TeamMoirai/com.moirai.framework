@@ -8,17 +8,14 @@ using Debug = UnityEngine.Debug;
 namespace Service.Audio
 {
     /// <summary>
-    /// Clip 缓存热路径的 CPU 预算基准（<c>[Explicit]</c>：不进常规回归，只在需要时按名执行）。
-    /// <para>口径：预热固定轮数后按<b>固定调用次数</b>计时，重复三轮取最快一轮，换算单次纳秒。
-    /// 用固定次数而不是固定时长，是为了让不同机器的样本量一致——时长窗口会让慢机器只跑到很少的次数，
-    /// 机器抖动直接进结论；取最小值则让"抖动"只表现为轮与轮的差异，而不污染跨改动的对比。</para>
-    /// <para>预算取"松到不被抖动判红、紧到能抓住数量级退化"的量级。实测值两条通道：逐条经 <c>Debug.Log</c>
-    /// 报出（与 PlayMode CPU 回归同前缀，便于 grep），一轮跑完经 <see cref="BenchmarkReport"/> 写 XML 到
-    /// 统一文件夹 &lt;工程根&gt;/Benchmarks/audiocache-benchmark.xml（<c>MOIRAI_BENCH_XML</c> 可覆盖）——
-    /// 跨改动对比取 XML 里的数。离线跑只能看量级（时钟桩与 JIT 都跟 Unity 不同），真机数值以编辑器内
-    /// 按名运行为准。这里是纯托管路径的缓存层基准，端到端（声部/混音）的预算由 PlayMode 的
-    /// <c>AudioCpuRegressionTests</c> 把。</para>
+    /// Clip 缓存热路径的 CPU 预算基准（<c>[Explicit]</c>，不进常规回归，按名执行）。
     /// </summary>
+    /// <remarks>
+    /// 预热固定轮数后按固定调用次数计时，重复三轮取最快一轮换算单次纳秒。
+    /// 逐条结果经 Unity 日志报出（与 PlayMode CPU 回归同前缀，便于 grep）；一轮跑完经 <see cref="BenchmarkReport"/> 写 XML 到
+    /// &lt;工程根&gt;/Benchmarks/audiocache-benchmark.xml（<c>MOIRAI_BENCH_XML</c> 可覆盖），跨改动对比取该 XML 的数。
+    /// 离线运行只反映量级；端到端（声部/混音）预算由 PlayMode 的 <c>AudioCpuRegressionTests</c> 负责。
+    /// </remarks>
     [TestFixture]
     [Explicit]
     public class AudioCacheBenchmark
