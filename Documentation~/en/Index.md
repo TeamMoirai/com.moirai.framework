@@ -41,6 +41,12 @@ Welcome to Moirai Framework. This documentation set covers every functional serv
 | [TweenUtility](TweenUtility.md) | Tween animation: pluggable engines (built-in/PrimeTween/LitMotion), unified ease parameter |
 | [Testing](Testing.md) | Test specification: layer assignment, case conventions, run channels, coverage gates, release exit criteria |
 
+## Development Standards
+
+| Document | Description |
+|----------|-------------|
+| [CodeComments](CodeComments.md) | XML comment style: one-sentence `summary`, caller invariants in `remarks`, no process narrative, usage samples in `example` |
+
 ---
 
 [« Back to Main README](../../README_EN.md)
