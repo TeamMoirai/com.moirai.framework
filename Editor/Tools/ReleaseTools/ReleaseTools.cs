@@ -133,7 +133,7 @@ namespace Moirai.Atropos.Editor
         #region 参数化构建入口 [PARAM BUILD ENTRY]
 
         /// <summary>
-        /// 通过 BuildConfig 执行完整构建流程
+        /// 通过 BuildConfig 执行完整构建流程。
         /// </summary>
         public static void BuildWithConfig(BuildConfig config, bool buildPlayer)
         {
@@ -235,7 +235,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 旧版 BuildInternal，供 CLI 入口兼容
+        /// 旧版 BuildInternal，供 CLI 入口兼容。
         /// </summary>
         private static void BuildInternal(BuildTarget buildTarget, string outputRoot, string packageVersion = "1.0",
             EBuildPipeline buildPipeline = EBuildPipeline.ScriptableBuildPipeline)
@@ -294,7 +294,7 @@ namespace Moirai.Atropos.Editor
         #region 最小包后处理 [MIN PACKAGE POSTPROCESS]
 
         /// <summary>
-        /// 读取文件的文本数据
+        /// 读取文件的文本数据。
         /// </summary>
         public static string ReadAllText(string filePath)
         {

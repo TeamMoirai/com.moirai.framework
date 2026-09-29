@@ -3,7 +3,7 @@ namespace Moirai.Atropos.Tasks
     public static class TaskExtensions
     {
         /// <summary>
-        /// 运行任务，返回 <see cref="TaskBase"/> 自身
+        /// 运行任务，返回 <see cref="TaskBase"/> 自身。
         /// </summary>
         public static TaskBase Run(this TaskBase taskBase)
         {
@@ -18,11 +18,8 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 运行任务，返回 <see cref="TaskBase"/> 自身
+        /// 运行任务，返回 <see cref="TaskBase"/> 自身。
         /// </summary>
-        /// <param name="taskBase"></param>
-        /// <typeparam name="TTask"></typeparam>
-        /// <returns></returns>
         public static TTask Run<TTask>(this TTask taskBase) where TTask: TaskBase
         {
             return (TTask)Run((TaskBase)taskBase);

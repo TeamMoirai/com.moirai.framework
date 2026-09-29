@@ -4,14 +4,13 @@ using System;
 namespace Moirai.Atropos.R3
 {
     /// <summary>
-    /// 取消注册用于管理 <see cref="IDisposable"/> 的 scope 接口
+    /// 取消注册用于管理 <see cref="IDisposable"/> 的 scope 接口。
     /// </summary>
     public interface IDisposableUnregister
     {
         /// <summary>
-        /// Register new disposable to this unregister scope
+        /// 将新的可释放对象注册到该取消注册 scope。
         /// </summary>
-        /// <param name="disposable"></param>
         void Register(IDisposable disposable);
     }
 

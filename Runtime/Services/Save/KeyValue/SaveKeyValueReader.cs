@@ -10,8 +10,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 与 <see cref="SaveKeyValueWriter"/> 对偶：每条记录自描述（<c>[1B 类型][4B 载荷长][载荷]</c>，对象级记录另带键）， <br />
-    /// 未知键经 <see cref="SkipRecordPayload"/> O(1) 跳过（字段废弃向后兼容的关键）。
-    /// 嵌套作用域由生成代码按字段数/元素数精确消费——捕获与恢复顺序由同一生成代码决定，天然一致。
+    /// 未知键经 <see cref="SkipRecordPayload"/> O(1) 跳过（字段废弃向后兼容的关键）。 <br />
+    /// 嵌套作用域由生成代码按字段数/元素数精确消费——捕获与恢复顺序由同一生成代码决定，天然一致。 <br />
     /// 须在主线程调用（写回 <c>MonoBehaviour</c> 字段）。
     /// </remarks>
     public ref struct SaveKeyValueReader

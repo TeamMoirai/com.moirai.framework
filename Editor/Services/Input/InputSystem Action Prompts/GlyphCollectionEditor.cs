@@ -143,12 +143,8 @@ namespace Moirai.Atropos.Editor.Input.Prompts
 		}
 
 	    /// <summary>
-	    /// 基于 <see cref="TMPro.EditorUtilities.TMP_SpriteAssetMenu"/>
+	    /// 基于 <see cref="TMPro.EditorUtilities.TMP_SpriteAssetMenu"/>。
 	    /// </summary>
-	    /// <param name="target"></param>
-	    /// <param name="parentPath"></param>
-	    /// <param name="collection"></param>
-	    /// <returns></returns>
 	    private static SpriteSheetOutput GenerateSpriteAsset(Texture2D target, string parentPath, GlyphCollection collection)
 	    {
 		    // Get the path to the selected asset.
@@ -218,11 +214,8 @@ namespace Moirai.Atropos.Editor.Input.Prompts
 	    }
 	    
 	    /// <summary>
-	    /// 基于 <see cref="TMPro.EditorUtilities.TMP_SpriteAssetMenu"/>
+	    /// 基于 <see cref="TMPro.EditorUtilities.TMP_SpriteAssetMenu"/>。
 	    /// </summary>
-	    /// <param name="source"></param>
-	    /// <param name="spriteCharacterTable"></param>
-	    /// <param name="spriteGlyphTable"></param>
 	    private static void PopulateSpriteTables(Texture source, ref List<TMP_SpriteCharacter> spriteCharacterTable, ref List<TMP_SpriteGlyph> spriteGlyphTable)
 	    {
 		    // Debug.Log("Creating new Sprite Asset.");
@@ -269,9 +262,8 @@ namespace Moirai.Atropos.Editor.Input.Prompts
 	    }
 
 	    /// <summary>
-	    /// 基于 <see cref="TMPro.EditorUtilities.TMP_SpriteAssetMenu"/>
+	    /// 基于 <see cref="TMPro.EditorUtilities.TMP_SpriteAssetMenu"/>。
 	    /// </summary>
-	    /// <param name="spriteAsset"></param>
 	    private static void AddDefaultMaterial(TMP_SpriteAsset spriteAsset)
 	    {
 		    Shader shader = Shader.Find("TextMeshPro/Sprite");

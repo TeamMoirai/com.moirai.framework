@@ -6,8 +6,8 @@ namespace Moirai.Atropos.Input
     /// 输入状态机：Enabled / LockPlayerController / PreventInteractionUI / UIModal 的组合语义。
     /// </summary>
     /// <remarks>
-    /// 状态组合与「进入压制态时请求重置输入」的副作用在此收敛，是独立于后端的可测单元。
-    /// 后端 Handler 经组合持有（每实现类一份），抽象基类保持纯契约。
+    /// 状态组合与「进入压制态时请求重置输入」的副作用在此收敛，是独立于后端的可测单元。 <br />
+    /// 后端 Handler 经组合持有（每实现类一份），抽象基类保持纯契约。 <br />
     /// 仅主线程。
     /// </remarks>
     internal sealed class InputStateMachine

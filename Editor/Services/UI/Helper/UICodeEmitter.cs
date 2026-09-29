@@ -7,38 +7,38 @@ using System.Text.RegularExpressions;
 namespace Moirai.Atropos.UI.Editor
 {
     /// <summary>
-    /// 脚本代码生成器接口，定义UI脚本代码的生成方法
+    /// 脚本代码生成器接口，定义UI脚本代码的生成方法。
     /// </summary>
     public interface IUIScriptCodeEmitter
     {
         /// <summary>
-        /// 获取引用的命名空间
+        /// 获取引用的命名空间。
         /// </summary>
         string GetReferenceNamespaces(List<UIBindData> uiBindData);
 
         /// <summary>
-        /// 获取变量声明内容
+        /// 获取变量声明内容。
         /// </summary>
         string GetVariableContent(List<UIBindData> uiBindData, Func<string, string> publicNameFactory);
 
         /// <summary>
-        /// 获取Controller部分代码内容
+        /// 获取Controller部分代码内容。
         /// </summary>
         string GetControllerContent(string className, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory);
 
         /// <summary>
-        /// 获取窗口实现类代码内容
+        /// 获取窗口实现类代码内容。
         /// </summary>
         string GetWindowContent(string className, string nameSpace, IReadOnlyList<UIBindData> uiBindData, Func<string, string> publicNameFactory);
 
         /// <summary>
-        /// 将新生成的窗口内容中缺失的事件方法补充到已存在的窗口实现类内容中
+        /// 将新生成的窗口内容中缺失的事件方法补充到已存在的窗口实现类内容中。
         /// </summary>
         string PatchWindowContent(string existingContent, string newWindowContent);
     }
 
     /// <summary>
-    /// 默认脚本代码生成器实现
+    /// 默认脚本代码生成器实现。
     /// </summary>
     public sealed class DefaultUIScriptCodeEmitter : IUIScriptCodeEmitter
     {

@@ -8,7 +8,7 @@ using UnityEngine.Serialization;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 保存 AudioService 播放数据的可编写脚本对象
+    /// 保存 AudioService 播放数据的可编写脚本对象。
     /// </summary>
     [Serializable]
     [CreateAssetMenu(menuName = "Moirai/Audio/Play Options SO")]
@@ -375,9 +375,8 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 获取随机音频时要播放的下一个索引
+        /// 获取随机音频时要播放的下一个索引。
         /// </summary>
-        /// <returns></returns>
         private AudioClip PickRandomClip()
         {
             int newIndex = 0;

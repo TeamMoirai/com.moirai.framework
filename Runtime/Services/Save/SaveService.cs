@@ -11,8 +11,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 存档为「单文件多数据块」容器：块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体， <br />
-    /// 便捷单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。
-    /// 序列化后端（JSON/MessagePack/MemoryPack/protobuf-net）与存储管线（明文/AES 加密）两轴可插拔，经 <see cref="SaveServiceSettings"/> 配置。
+    /// 便捷单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。 <br />
+    /// 序列化后端（JSON/MessagePack/MemoryPack/protobuf-net）与存储管线（明文/AES 加密）两轴可插拔，经 <see cref="SaveServiceSettings"/> 配置。 <br />
     /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 解析，settings 未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
     /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
@@ -148,7 +148,7 @@ namespace Moirai.Atropos.Save
         /// 从存档文件异步加载指定数据块，返回带错误类别的结果。
         /// </summary>
         /// <remarks>
-        /// 处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
+        /// 处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。 <br />
         /// 块缺失细分：目标块损坏返回 <see cref="SaveError.Corrupted"/>（不影响其余健康块），确无该块才返回 <see cref="SaveError.FileNotFound"/>。
         /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
@@ -197,7 +197,7 @@ namespace Moirai.Atropos.Save
         /// 从存档文件同步加载指定数据块，返回带错误类别的结果（在调用线程执行，阻塞至完成）。
         /// </summary>
         /// <remarks>
-        /// 仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
+        /// 仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。 <br />
         /// 块缺失细分：目标块损坏返回 <see cref="SaveError.Corrupted"/>（不影响其余健康块），确无该块才返回 <see cref="SaveError.FileNotFound"/>。
         /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
@@ -344,8 +344,8 @@ namespace Moirai.Atropos.Save
         /// 将全部已注册 <see cref="SaveComponent"/> 的勾选字段异步写入存档文件（每组件一个 KVT 块）。
         /// </summary>
         /// <remarks>
-        /// 组件捕获在主线程、合并写回在工作线程；重复块键的组件记录告警并跳过。
-        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>SaveEntitiesAsync</c> 持久化。
+        /// 组件捕获在主线程、合并写回在工作线程；重复块键的组件记录告警并跳过。 <br />
+        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>SaveEntitiesAsync</c> 持久化。 <br />
         /// 失败或处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -370,7 +370,7 @@ namespace Moirai.Atropos.Save
         /// 从存档文件异步恢复全部已注册 <see cref="SaveComponent"/> 的勾选字段（读盘在工作线程，字段写回在主线程）。
         /// </summary>
         /// <remarks>
-        /// 缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过，不阻断其它组件。
+        /// 缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过，不阻断其它组件。 <br />
         /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>RestoreEntitiesAsync</c> 恢复。
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>

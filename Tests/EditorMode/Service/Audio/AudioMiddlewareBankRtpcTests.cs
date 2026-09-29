@@ -14,7 +14,7 @@ namespace Service.Audio
     /// 中间件 Bank / RTPC 能力契约：Stub 幂等语义、Handler 外观派发、真 SDK 桥的能力接口实现。
     /// </summary>
     /// <remarks>
-    /// 不依赖 <c>FMOD_INSTALLED</c> / <c>WWISE_INSTALLED</c>，CI 无插件也能跑；宏已定义时经反射断言 Native 桥实现了能力接口。
+    /// 不依赖 <c>FMOD_INSTALLED</c> / <c>WWISE_INSTALLED</c>，CI 无插件也能跑；宏已定义时经反射断言 Native 桥实现了能力接口。 <br />
     /// 本文件含 2 处 <c>Assembly.GetType</c> 按名类型探测（FmodBridgeNative / WwiseBridgeNative）：目标类型仅存在于 <c>*_INSTALLED</c> 宏下，编译期引用不可达， <br />
     /// 属能力探测正当用途。
     /// </remarks>

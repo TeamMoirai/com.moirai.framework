@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// 会立刻终止播放的收尾动作（FMOD 的 <c>EventInstance.release()</c>、Wwise 的发射体回收/停用），
         /// 否则淡出被掐掉、听感与 immediate 无差别。
         /// <para>当前 <c>MiddlewareAudioHandler</c> 一律传 <c>true</c>（淡出由上层先走音量 Fade 到 0 再立即停），
-        /// 所以该分支尚未被生产路径覆盖——接真 SDK 时按上线门槛 G1 单独验一次，别默认它可用。</para>
+        /// 所以该分支尚未被生产路径覆盖——接真 SDK 时按上线门槛 G1 单独验一次，别默认它可用。</para>。
         /// </remarks>
         void StopInstance(ulong instanceId, bool immediate);
 

@@ -10,8 +10,8 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 生命周期顺序：注册（两阶段，Register 仅入图）→ 初始化（<see cref="Initialize"/> 拓扑排序统一驱动 OnInit）→ 查找（跨作用域 3 槽内联，Gameplay &gt; Scene &gt; <br />
-    /// App）→ 轮询（固定序扁平直驱）→ 销毁（严格逆拓扑）。
-    /// 可实例化：<c>new ServiceWorld()</c> 构造隔离世界（测试并行/沙盒）；进程默认世界经 <see cref="GameServices"/> 静态投影访问。
+    /// App）→ 轮询（固定序扁平直驱）→ 销毁（严格逆拓扑）。 <br />
+    /// 可实例化：<c>new ServiceWorld()</c> 构造隔离世界（测试并行/沙盒）；进程默认世界经 <see cref="GameServices"/> 静态投影访问。 <br />
     /// 线程契约：默认世界的调用一律经 <see cref="GameServices"/> 投影并在编辑器/开发构建断言主线程；本类自身不做线程断言（可实例化世界的一个既定用途是并行测试）。
     /// </remarks>
     public sealed class ServiceWorld : IDisposable
@@ -253,9 +253,9 @@ namespace Moirai.Atropos
         /// 注册服务到指定作用域（两阶段第一阶段：仅入图，不初始化）。
         /// </summary>
         /// <remarks>
-        /// 世界未初始化时服务挂入待初始化图，由 <see cref="Initialize"/> 按依赖拓扑统一驱动 OnInit。
+        /// 世界未初始化时服务挂入待初始化图，由 <see cref="Initialize"/> 按依赖拓扑统一驱动 OnInit。 <br />
         /// 世界已初始化时依赖必须已就绪（缺失即抛 <see cref="GameException"/>），服务立即 OnInit； <br />
-        /// 实现 <see cref="IServiceInitializableAsync"/> 的服务禁止运行时注册（无法等待，fail-fast）。
+        /// 实现 <see cref="IServiceInitializableAsync"/> 的服务禁止运行时注册（无法等待，fail-fast）。 <br />
         /// 迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。
         /// </remarks>
         /// <typeparam name="T">服务具体类型（契约即类型本身）。</typeparam>
@@ -345,7 +345,7 @@ namespace Moirai.Atropos
         /// 运行时注销并关闭指定作用域中的单个服务。
         /// </summary>
         /// <remarks>
-        /// 触发 <c>OnShutdown</c> 并从注册表移除；注销后可重新以同契约注册全新实例。
+        /// 触发 <c>OnShutdown</c> 并从注册表移除；注销后可重新以同契约注册全新实例。 <br />
         /// 初始化进行中（<see cref="IsInitializing"/>）禁止：挂起图正被按索引推进的循环消费， <br />
         /// 中途摘除会让被注销的服务仍被 <c>OnInit</c>（不记激活序 → 无 <c>OnShutdown</c>）并让其后服务的索引位移而被跳过（fail-fast）。
         /// </remarks>
@@ -521,7 +521,7 @@ namespace Moirai.Atropos
         /// 初始化世界（两阶段第二阶段）：按依赖图拓扑排序统一驱动全部挂起服务的 <c>OnInit</c>。
         /// </summary>
         /// <remarks>
-        /// 顺序契约：作用域固定 App → Scene → Gameplay 逐段处理；段内按 <c>[ServiceDependency]</c> 拓扑序——初始化顺序完全由声明决定，与注册顺序无关。
+        /// 顺序契约：作用域固定 App → Scene → Gameplay 逐段处理；段内按 <c>[ServiceDependency]</c> 拓扑序——初始化顺序完全由声明决定，与注册顺序无关。 <br />
         /// 缺失依赖与循环依赖在此 fail-fast；挂起服务中含 <see cref="IServiceInitializableAsync"/> 实现时抛 <see cref="GameException"/>， <br />
         /// 须改用 <see cref="InitializeAsync"/>。
         /// </remarks>

@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Debugger
     /// </summary>
     /// <remarks>
     /// 订阅 <see cref="Application.logMessageReceivedThreaded"/> 捕获任意线程日志；原始字段经并发队列暂存， <br />
-    /// 主线程 <see cref="Drain"/> 期间完成 <see cref="LogNode"/> 池化分配。
+    /// 主线程 <see cref="Drain"/> 期间完成 <see cref="LogNode"/> 池化分配。 <br />
     /// 环形缓冲满时按先进先出淘汰最旧结点（归还内存池）；各级别计数增量维护，消费端零遍历。
     /// </remarks>
     public sealed class DebuggerLogCapture

@@ -9,10 +9,10 @@ namespace Moirai.Atropos
     /// 服务作用域容器，管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
     /// </summary>
     /// <remarks>
-    /// 所有权：注册/注销由 <see cref="ServiceWorld"/> 驱动，外部代码不直接操作本类。
+    /// 所有权：注册/注销由 <see cref="ServiceWorld"/> 驱动，外部代码不直接操作本类。 <br />
     /// 两阶段构建：<see cref="RegisterDeferred"/> 仅入注册表（不驱动生命周期、不加入轮询列表）； <br />
-    /// 世界 <see cref="ServiceWorld.Initialize"/> 拓扑排序后逐服务 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit，同时记录激活完成序。
-    /// 关闭按逆激活序（= 逆初始化序，依赖方先关闭）执行；未初始化服务归入兜底桶按逆注册序关闭。
+    /// 世界 <see cref="ServiceWorld.Initialize"/> 拓扑排序后逐服务 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit，同时记录激活完成序。 <br />
+    /// 关闭按逆激活序（= 逆初始化序，依赖方先关闭）执行；未初始化服务归入兜底桶按逆注册序关闭。 <br />
     /// 线程契约：所有方法仅限 Unity 主线程调用。
     /// </remarks>
     internal sealed class ServiceScope : IDisposable

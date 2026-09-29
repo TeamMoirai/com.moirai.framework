@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Save
     /// 销毁经 <see cref="DestroyPersistent"/> 标记；<see cref="SaveEntitiesAsync"/> 写入实体表与差分块， <br />
     /// <see cref="RestoreEntitiesAsync"/> 按档案状态整体重建实体（DestroyUnwanted → SpawnMissing → RestoreAll）。
     /// 预制体须在 <see cref="SaveServiceSettings.PrefabRegistry"/> 登记（稳定键 → ResourceService 定位串）； <br />
-    /// 实体数据块与预制体模板基准差分后仅写变动字段（恢复 = 实例化模板默认值 + 应用差分）。
+    /// 实体数据块与预制体模板基准差分后仅写变动字段（恢复 = 实例化模板默认值 + 应用差分）。 <br />
     /// 实体块（<c>entity:</c> 前缀）由本分部独占管理，组件存取 API（<c>SaveComponentsAsync</c>/<c>LoadComponentsAsync</c>）跳过。
     /// </remarks>
     public partial class SaveService
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Save
         /// 生成可持久化实体（同步加载模板，主线程调用）。
         /// </summary>
         /// <remarks>
-        /// 未激活临时父技巧：先注入实体稳定 ID 与块键，就位（父级/变换）后激活——Awake 即见最终状态；生成即登记会话生成表（<see cref="SaveEntitiesAsync"/> 据此持久化）。
+        /// 未激活临时父技巧：先注入实体稳定 ID 与块键，就位（父级/变换）后激活——Awake 即见最终状态；生成即登记会话生成表（<see cref="SaveEntitiesAsync"/> 据此持久化）。 <br />
         /// 预制体未登记/加载失败（均已记录错误日志）返回 <c>null</c>；本方法不依赖存档处理器（注册表与资源服务可用即可生成）。
         /// </remarks>
         /// <param name="prefabKey">预制体注册键（<see cref="SavePrefabRegistry"/>）。</param>
@@ -100,8 +100,8 @@ namespace Moirai.Atropos.Save
         /// 将实体表与全部活跃实体的差分块异步写入存档文件（主线程捕获，IO 在工作线程）。
         /// </summary>
         /// <remarks>
-        /// 流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 增量判定 → 单趟合并写回；失败抛 <see cref="GameException"/>，处理器未就绪时同样抛出（不静默丢档）。
-        /// CarryForward 语义：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留。
+        /// 流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 增量判定 → 单趟合并写回；失败抛 <see cref="GameException"/>，处理器未就绪时同样抛出（不静默丢档）。 <br />
+        /// CarryForward 语义：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留。 <br />
         /// 增量语义：会话级脏跟踪 + 档写入时间守卫——实体表、差分载荷与档均未变化时零 IO 跳过（无事件）； <br />
         /// 有变化时经 <see cref="SaveServiceHandler.MergeRawBlocksAsync"/> 单趟合并（读档 → 迁移 → 删陈旧 → upsert → 写回）， <br />
         /// 仅变化块触发 <c>BlockSaved</c> 事件；基准失效（首次保存/恢复后/档被外部改写）自动走全量合并（孤儿清理读档判定）。
@@ -142,7 +142,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 管线：DestroyUnwanted（会话实体整体替换 + 销毁表预置对象）→ SpawnMissing（原 ID 恢复 + 场景落位）→ 父子接线（第二轮）→ RestoreAll（差分块未激活写回， <br />
-        /// Awake 即见恢复后状态）→ 激活并逐只触发 <see cref="EntityRestored"/>；生成失败的实体保留档案记录（原块滞留，不因本次保存丢失）。
+        /// Awake 即见恢复后状态）→ 激活并逐只触发 <see cref="EntityRestored"/>；生成失败的实体保留档案记录（原块滞留，不因本次保存丢失）。 <br />
         /// 场景预置对象的字段恢复由 <c>LoadComponentsAsync</c> 承担——完整世界恢复 = <see cref="RestoreEntitiesAsync"/> + <c>LoadComponentsAsync</c>； <br />
         /// 处理器未就绪时静默降级为空任务。
         /// </remarks>

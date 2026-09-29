@@ -9,8 +9,8 @@ namespace Moirai.Atropos.Save
     /// 存档资产引用目录：登记可被存档字段引用的资产（Texture/SO/Material 等）及其 ResourceService 定位串。
     /// </summary>
     /// <remarks>
-    /// 资产引用字段按「存定位串、读目录反查」持久化（捕获查 object → location，恢复查 location → object），不触发运行时加载。
-    /// 被引用资产须先登记入册，否则捕获写 <c>null</c> 并记告警。
+    /// 资产引用字段按「存定位串、读目录反查」持久化（捕获查 object → location，恢复查 location → object），不触发运行时加载。 <br />
+    /// 被引用资产须先登记入册，否则捕获写 <c>null</c> 并记告警。 <br />
     /// 查找表首次查询时构建，编辑器期经 <see cref="OnValidate"/> 失效重建；主线程契约。
     /// </remarks>
     [CreateAssetMenu(fileName = "SaveAssetCatalog", menuName = "Moirai/Save Asset Catalog", order = 0)]

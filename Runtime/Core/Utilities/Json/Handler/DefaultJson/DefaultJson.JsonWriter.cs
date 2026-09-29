@@ -13,9 +13,9 @@ namespace Moirai.Atropos
         /// 统一序列化写入器（string / UTF8 字节双路径的单一结构实现）。
         /// </summary>
         /// <remarks>
-        /// 单一实现：值分派、容器遍历、引用环与深度守卫、反射成员遍历、Unity 结构体直写、类型化基元数组快路径；编码差异（char/UTF8、转义、数字格式化）下沉到 <see cref="IJsonSink"/>。
-        /// 引用环对齐 ReferenceLoopHandling.Ignore 语义：跳过成环成员而不抛错；深度上限软截断（跳过 + 警告）。
-        /// 输出契约：字节路径紧凑格式与字符串路径紧凑格式的 UTF8 编码逐字节等价；readable 缩进仅字符串入口可达。
+        /// 单一实现：值分派、容器遍历、引用环与深度守卫、反射成员遍历、Unity 结构体直写、类型化基元数组快路径；编码差异（char/UTF8、转义、数字格式化）下沉到 <see cref="IJsonSink"/>。 <br />
+        /// 引用环对齐 ReferenceLoopHandling.Ignore 语义：跳过成环成员而不抛错；深度上限软截断（跳过 + 警告）。 <br />
+        /// 输出契约：字节路径紧凑格式与字符串路径紧凑格式的 UTF8 编码逐字节等价；readable 缩进仅字符串入口可达。 <br />
         /// AOT：无表达式树与 Reflection.Emit；Sink 为 struct 经 ref 传递（无装箱），接口按每值粒度分发。
         /// </remarks>
         internal static class JsonWriter<TSink> where TSink : struct, IJsonSink

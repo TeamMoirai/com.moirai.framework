@@ -4,7 +4,7 @@
     /// 流程域事件标记：标记归属于游戏流程（启动链、热更、入口切换）上下文的事件类型。
     /// </summary>
     /// <remarks>
-    /// 供约定检索与诊断使用；框架不据此过滤分发，仅作为领域契约锚点。
+    /// 供约定检索与诊断使用；框架不据此过滤分发，仅作为领域契约锚点。 <br />
     /// 流程状态机自身的切换广播不走该标记，见 <see cref="ProcedureService.onProcedureChanged"/>。
     /// </remarks>
     public interface IProcedureEvent { }

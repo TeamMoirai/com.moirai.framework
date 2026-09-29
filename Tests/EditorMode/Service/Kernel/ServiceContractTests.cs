@@ -21,8 +21,8 @@ namespace Service.Kernel
     /// 服务层架构契约测试（三件套）：外观 null 降级契约、<c>[ServiceDependency]</c> 声明完整性静态分析、Handler 生命周期对称。
     /// </summary>
     /// <remarks>
-    /// ① 外观在 Handler 未就绪时全部 API 静默降级为安全默认值，不抛异常；
-    /// ② <c>[ServiceDependency]</c> 声明的类型必须实现 IService、依赖图无环、OnInit 注册调试面板的服务必须声明 DebuggerService；
+    /// ① 外观在 Handler 未就绪时全部 API 静默降级为安全默认值，不抛异常； <br />
+    /// ② <c>[ServiceDependency]</c> 声明的类型必须实现 IService、依赖图无环、OnInit 注册调试面板的服务必须声明 DebuggerService； <br />
     /// ③ 外观 OnShutdown 后 IsValid 为 false 且重复 OnShutdown 幂等。全部为 EditMode 纯静态契约验证，不启动服务世界。
     /// </remarks>
     [TestFixture]

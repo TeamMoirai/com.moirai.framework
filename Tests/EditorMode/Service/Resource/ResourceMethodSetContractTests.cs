@@ -143,7 +143,7 @@ namespace Service.Resource
         /// 包初始化原语签名：返回操作结果对象而非布尔；包名必填，是否初始化清单可选。
         /// </summary>
         /// <remarks>
-        /// 形状是 <c>UniTask&lt;ResourcePackageInitResult&gt;</c> 加 <c>(customPackageName, needInitManifest)</c>；
+        /// 形状是 <c>UniTask&lt;ResourcePackageInitResult&gt;</c> 加 <c>(customPackageName, needInitManifest)</c>； <br />
         /// 返回布尔加三字符串参数是 <see cref="ResourceService.TryInitializePackageAsync"/> 的形状。
         /// </remarks>
         [Test]

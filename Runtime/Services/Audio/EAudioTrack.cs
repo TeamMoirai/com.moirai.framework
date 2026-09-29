@@ -40,7 +40,7 @@
         Voice,
 
         /// <summary>
-        /// 环境音
+        /// 环境音。
         /// </summary>
         Ambience
     }

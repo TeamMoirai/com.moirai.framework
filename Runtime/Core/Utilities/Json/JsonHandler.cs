@@ -35,8 +35,6 @@ namespace Moirai.Atropos
         /// <summary>
         /// 使用 JSON 覆盖对象。
         /// </summary>
-        /// <param name="json"></param>
-        /// <param name="objectToOverwrite"></param>
         /// <remarks>将 JSON 数据反序列化到现有对象上，并覆盖现有数据</remarks>
         public abstract void FromJsonOverwrite(string json, object objectToOverwrite);
     }
@@ -45,8 +43,8 @@ namespace Moirai.Atropos
     /// 字节通路 JSON 能力接口（可选实现）。
     /// </summary>
     /// <remarks>
-    /// 面向 IO/网络等字节载体场景（存档、加密、报文）：序列化直接产出 UTF8 字节、反序列化直接消费，跳过 UTF16↔UTF8 双向转码与大字符串分配。
-    /// 能力探测：<see cref="JsonUtility"/> 以 <c>Handler is IBufferJsonHandler</c> 判定，未实现者自动回退 string 路径，调用方无感。
+    /// 面向 IO/网络等字节载体场景（存档、加密、报文）：序列化直接产出 UTF8 字节、反序列化直接消费，跳过 UTF16↔UTF8 双向转码与大字符串分配。 <br />
+    /// 能力探测：<see cref="JsonUtility"/> 以 <c>Handler is IBufferJsonHandler</c> 判定，未实现者自动回退 string 路径，调用方无感。 <br />
     /// 语义约束：字节输出须与 string 输出 UTF8 编码逐字节等价（紧凑格式）；字节解析须接受与 string 解析相同的输入集合（含 legacy 字典与带引号历史数值）。
     /// </remarks>
     public interface IBufferJsonHandler

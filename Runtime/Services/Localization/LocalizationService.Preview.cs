@@ -46,7 +46,7 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <remarks>
         /// 唯一的预览解析入口，按 <see cref="EPreviewResolveStatus"/> 分得开「表内无此 ID」与「该语言留空」——
-        /// 组件预览要说得出「这一格没翻」，才谈得上拿译文当地址去查资产。本方法<strong>不</strong>把缺译伪装成 ID；
+        /// 组件预览要说得出「这一格没翻」，才谈得上拿译文当地址去查资产。本方法<strong>不</strong>把缺译伪装成 ID； <br />
         /// 要露 ID 的调用方（<see cref="Localize"/> 标记）按状态自己决定。
         /// </remarks>
         /// <param name="id">词条 ID。</param>

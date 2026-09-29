@@ -10,7 +10,7 @@ namespace Service.Resource
     /// </summary>
     /// <remarks>
     /// 判据是「同一份地址、同一个对象」——必须与 <c>AssetDatabase.LoadAssetAtPath</c> 给出同一实例，
-    /// 否则 Inspector 里看到的"对"就不是运行期那份。
+    /// 否则 Inspector 里看到的"对"就不是运行期那份。 <br />
     /// 这里只钉取数口径，不验租约：此路刻意不建记录、不返租约（每次重绘租一份就是纯泄漏）。
     /// </remarks>
     public sealed class EditorPreviewAssetTests

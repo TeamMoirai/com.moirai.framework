@@ -47,7 +47,7 @@ namespace Moirai.Main
         }
 
         /// <summary>
-        /// 初次打开
+        /// 初次打开。
         /// </summary>
         protected virtual void OnOpen()
         {

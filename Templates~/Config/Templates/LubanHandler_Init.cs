@@ -66,7 +66,7 @@ namespace Moirai.GameProto.Config
 		/// 路线由转表配置决定（bin 或 json），判据同 <see cref="Load"/>：生成表构造器收 <c>ByteBuf</c> 还是 <c>JSONNode</c>， <br />
 		/// 因此切换 <c>--format=json</c> 无需改动读取代码。
 		/// </remarks>
-		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
+		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名。</param>
 		internal static T LoadTable<T>(string relativePath) where T : class
 		{
 			ConstructorInfo tableCtor = typeof(T).GetConstructors()[0];
@@ -88,8 +88,8 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 从 CONFIG_PATH 下的相对路径加载二进制配置。多语言按语言子目录分份导出后走这一层。
 		/// </summary>
-		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
-		/// <returns>ByteBuf</returns>
+		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名。</param>
+		/// <returns>ByteBuf。</returns>
 		private static ByteBuf LoadByteBuf(string relativePath)
 		{
 			LogUtility.Info("Load bin config: {0}.bytes", relativePath);
@@ -101,8 +101,8 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 从 CONFIG_PATH 下的相对路径加载 json 配置，供 <see cref="LoadTable{T}"/> 在 json 路线下按语言子目录取表。
 		/// </summary>
-		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
-		/// <returns>JSONNode</returns>
+		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名。</param>
+		/// <returns>JSONNode。</returns>
 		private static JSONNode LoadJson(string relativePath)
 		{
 			LogUtility.Info("Load json config: {0}.json", relativePath);
@@ -114,8 +114,6 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 加载配置文本资源。
 		/// </summary>
-		/// <param name="location"></param>
-		/// <returns></returns>
 		private static TextAsset LoadTextAsset(string location)
 		{
 #if UNITY_EDITOR

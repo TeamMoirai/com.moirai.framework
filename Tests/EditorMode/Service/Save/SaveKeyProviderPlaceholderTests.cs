@@ -7,9 +7,9 @@ namespace Service.Save
     /// 出厂占位存档密钥的判据测试（<see cref="SaveKeyProvider.UsesPlaceholderCredentials"/>）。
     /// </summary>
     /// <remarks>
-    /// 占位口令/盐/主密钥随包发布 ⇒ 任何人可派生同一把密钥，「加密存档」等价于不加密。
+    /// 占位口令/盐/主密钥随包发布 ⇒ 任何人可派生同一把密钥，「加密存档」等价于不加密。 <br />
     /// 这条判据同时供 Inspector 告警与 <c>SaveSettingsBuildValidator</c> 出包自检使用，
-    /// 三个内置提供方都必须报自己的生效材料——只盯 Static 会让 HKDF 主密钥、口令盐文静默漏过门禁。
+    /// 三个内置提供方都必须报自己的生效材料——只盯 Static 会让 HKDF 主密钥、口令盐文静默漏过门禁。 <br />
     /// 纯逻辑测试，不依赖磁盘与真实加密。
     /// </remarks>
     [TestFixture]

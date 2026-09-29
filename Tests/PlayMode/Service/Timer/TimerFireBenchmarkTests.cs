@@ -17,9 +17,9 @@ namespace Service.Timer
     /// </summary>
     /// <remarks>
     /// <c>[Explicit]</c> <c>[UnityTest]</c>——依赖真实帧推进，只住 PlayMode。
-    /// 运行前提：PlayMode 测试域中框架已 Boot（<c>GameServices.Tick</c> 每帧驱动定时器）；跑完 XML 落统一文件夹 <c>timerservicefire-benchmark.xml</c>。
-    /// 同步矩阵在 <see cref="TimerBenchmarkRunner"/>（Debugger 窗口与 EditorMode 薄壳共用），本文件只保留帧依赖用例。
-    /// 突发用例的隔驱动口径：时间轮到期判定直读 <see cref="GameTime"/> 墙钟、无「到期转换 / 派发」两段式；只等真实帧再手动泵 <c>Tick</c> 时，帧驱动大概率已把到期回调全量派发完，泵到的只剩空转。
+    /// 运行前提：PlayMode 测试域中框架已 Boot（<c>GameServices.Tick</c> 每帧驱动定时器）；跑完 XML 落统一文件夹 <c>timerservicefire-benchmark.xml</c>。 <br />
+    /// 同步矩阵在 <see cref="TimerBenchmarkRunner"/>（Debugger 窗口与 EditorMode 薄壳共用），本文件只保留帧依赖用例。 <br />
+    /// 突发用例的隔驱动口径：时间轮到期判定直读 <see cref="GameTime"/> 墙钟、无「到期转换 / 派发」两段式；只等真实帧再手动泵 <c>Tick</c> 时，帧驱动大概率已把到期回调全量派发完，泵到的只剩空转。 <br />
     /// 故先注入冻结的虚拟时钟再插定时器（帧驱动读同一时钟、见不到任何到期），跨一帧验证隔离后手动推进时钟、泵一次 <c>Tick(0,0)</c> 独占计量「同刻全量派发」本身。
     /// </remarks>
     [TestFixture]

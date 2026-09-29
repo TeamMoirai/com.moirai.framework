@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Audio
     /// 音频代理辅助器：持有单个 <see cref="AudioSource"/>，负责播放状态机、淡入淡出与资源租约生命周期。
     /// </summary>
     /// <remarks>
-    /// 热路径状态（音量/循环/跟随/优先级等）在播放时从 <see cref="AudioPlayOptions"/> 拆出缓存，避免整份巨型结构体驻留。
+    /// 热路径状态（音量/循环/跟随/优先级等）在播放时从 <see cref="AudioPlayOptions"/> 拆出缓存，避免整份巨型结构体驻留。 <br />
     /// 同一时刻仅有一个有效 <see cref="CurrentHandle"/>，由句柄注册表 Bind/Release 单点维护，换播/结束时自动解绑。
     /// </remarks>
     public class AudioAgent : IAudioVoiceRef
@@ -599,7 +599,9 @@ namespace Moirai.Atropos.Audio
                 ResolveCachePolicy(options.CachePolicy, bInPool));
         }
 
-        /// <summary>旧 <c>bInPool</c> 布尔位与 <see cref="EAudioCachePolicy"/> 的合并点：显式策略优先，未指定时 <c>bInPool</c> 保证「至少留池」。</summary>
+        /// <summary>
+        /// 旧 <c>bInPool</c> 布尔位与 <see cref="EAudioCachePolicy"/> 的合并点：显式策略优先，未指定时 <c>bInPool</c> 保证「至少留池」。
+        /// </summary>
         private static EAudioCachePolicy ResolveCachePolicy(EAudioCachePolicy policy, bool bInPool)
         {
             if (policy != EAudioCachePolicy.Default) return policy;

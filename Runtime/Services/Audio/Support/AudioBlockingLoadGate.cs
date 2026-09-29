@@ -4,7 +4,7 @@ namespace Moirai.Atropos.Audio
     /// 阻塞式加载门禁：仅启动/预加载窗口允许路径 Play 走同步加载。
     /// </summary>
     /// <remarks>
-    /// 首帧 Tick 后关门，之后的 <c>bAsync:false</c> 被强制改异步并 warn-once，避免运行时把主线程卡在资源 IO 上。
+    /// 首帧 Tick 后关门，之后的 <c>bAsync:false</c> 被强制改异步并 warn-once，避免运行时把主线程卡在资源 IO 上。 <br />
     /// 显式同步预载（<c>Preload</c>）不受此门限制。仅 Unity 后端参与；中间件按事件路径即时下发、无同步资源加载。
     /// </remarks>
     internal static class AudioBlockingLoadGate

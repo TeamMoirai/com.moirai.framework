@@ -15,7 +15,7 @@ namespace Moirai.Atropos
         /// <para><b>调用粒度契约</b>：接口按"每值"分发（每个字段/元素一次调用），而非每字符——
         /// 接口开销被原语内部的工作量摊薄；Sink 为 struct 经 ref 传递，无装箱。</para>
         /// <para><b>WriteAscii 契约</b>：仅接收保证 ASCII 的内容（结构片段 / InvariantCulture 数值串）；
-        /// 实现保留防御性 UTF8 回退以正确处理意外输入。</para>
+        /// 实现保留防御性 UTF8 回退以正确处理意外输入。</para>。
         /// </remarks>
         internal interface IJsonSink
         {

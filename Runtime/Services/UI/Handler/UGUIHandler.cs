@@ -72,7 +72,7 @@ namespace Moirai.Atropos.UI
         /// 取用场景登记的 UI 根（<see cref="UIRootBinding.TryGetInstance()"/>）。
         /// </summary>
         /// <remarks>
-        /// 尚未绑定、或已绑定但其下还没有 Canvas 时挂起等待，由 <see cref="Tick"/> 续等。
+        /// 尚未绑定、或已绑定但其下还没有 Canvas 时挂起等待，由 <see cref="Tick"/> 续等。 <br />
         /// 问题只在进入等待时报一次，续等期间静默重试。
         /// </remarks>
         internal void TryBindRoot()
@@ -240,7 +240,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 设置屏幕安全区域（异形屏支持）。
         /// </summary>
-        /// <param name="safeRect">安全区域</param>
+        /// <param name="safeRect">安全区域。</param>
         public override void ApplyScreenSafeRect(Rect safeRect)
         {
             CanvasScaler scaler = UIRoot.GetComponentInParent<CanvasScaler>();
@@ -271,7 +271,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 模拟IPhoneX异形屏
+        /// 模拟IPhoneX异形屏。
         /// </summary>
         public override void SimulateIPhoneXNotchScreen()
         {
@@ -360,7 +360,7 @@ namespace Moirai.Atropos.UI
         /// 查询窗口是否存在。
         /// </summary>
         /// <typeparam name="T">界面类型。</typeparam>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <returns>是否存在。</returns>
         public override bool HasWindow<T>(string windowName)
         {
@@ -371,7 +371,7 @@ namespace Moirai.Atropos.UI
         /// 查询窗口是否存在。
         /// </summary>
         /// <param name="type">界面类型。</param>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <returns>是否存在。</returns>
         public override bool HasWindow(Type type, string windowName)
         {
@@ -381,9 +381,6 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 获取指定类型和名称的窗口。
         /// </summary>
-        /// <param name="windowName"></param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
         public override T GetWindow<T>(string windowName)
         {
             for (int i = 0; i < _uiStack.Count; i++)
@@ -399,10 +396,8 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 判断是否被模态窗口遮挡
+        /// 判断是否被模态窗口遮挡。
         /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
         public override bool IsBlockedByModal(GameObject obj)
         {
             GameObject curModal = CurrentModal?.gameObject;
@@ -449,7 +444,7 @@ namespace Moirai.Atropos.UI
         /// 异步打开窗口。
         /// </summary>
         /// <typeparam name="T">窗口类。</typeparam>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -462,7 +457,7 @@ namespace Moirai.Atropos.UI
         /// 同步打开窗口。
         /// </summary>
         /// <typeparam name="T">窗口类。</typeparam>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -480,8 +475,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 异步打开窗口。
         /// </summary>
-        /// <param name="type"></param>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -493,8 +487,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 同步打开窗口。
         /// </summary>
-        /// <param name="type"></param>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -512,7 +505,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 异步打开窗口。
         /// </summary>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -632,7 +625,7 @@ namespace Moirai.Atropos.UI
         #region 关闭窗口 [CLOSE WINDOW]
 
         /// <summary>
-        /// 关闭窗口
+        /// 关闭窗口。
         /// </summary>
         public override void CloseUI<T>(string windowName)
         {

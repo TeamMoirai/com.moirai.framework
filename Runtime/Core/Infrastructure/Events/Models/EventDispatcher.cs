@@ -25,23 +25,23 @@ namespace Moirai.Atropos.Events
     public enum DispatchMode
     {
         /// <summary>
-        /// 默认 => Queued
+        /// 默认 => Queued。
         /// </summary>
         Default = Queued,
         
         /// <summary>
-        /// 队列
+        /// 队列。
         /// </summary>
         Queued = 1,
         
         /// <summary>
-        /// 立即
+        /// 立即。
         /// </summary>
         Immediate = 2,
     }
     
     /// <summary>
-    /// 门（Gate）控制调度程序何时处理事件
+    /// 门（Gate）控制调度程序何时处理事件。
     /// </summary>
     public readonly struct EventDispatcherGate : IDisposable, IEquatable<EventDispatcherGate>
     {
@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Events
         }
 
         /// <summary>
-        /// IDisposable.Dispose 的实现。打开门。如果所有入口都打开，则处理队列中的
+        /// IDisposable.Dispose 的实现。打开门。如果所有入口都打开，则处理队列中的。
         /// </summary>
         public void Dispose()
         {

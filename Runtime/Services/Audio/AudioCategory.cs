@@ -29,7 +29,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频轨道构造函数。
         /// </summary>
-        /// <param name="handler">音频处理器</param>
+        /// <param name="handler">音频处理器。</param>
         /// <param name="audioGroupConfig">音频轨道组配置。</param>
         /// <exception cref="ArgumentNullException">handler 或 audioGroupConfig 为 null。</exception>
         internal AudioCategory(AudioServiceHandler handler, AudioGroupConfig audioGroupConfig)

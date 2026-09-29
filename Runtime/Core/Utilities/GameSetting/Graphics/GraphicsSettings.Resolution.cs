@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 自定义分辨率
+    /// 自定义分辨率。
     /// </summary>
     [Serializable]
     public class CustomResolution
@@ -51,7 +51,7 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 分辨率
+    /// 分辨率。
     /// </summary>
     public partial class GraphicsSettings
     {
@@ -109,7 +109,7 @@ namespace Moirai.Atropos
         public static event Action<int> OnResolutionChanged;
 
         /// <summary>
-        /// 是否处于窗口模式
+        /// 是否处于窗口模式。
         /// </summary>
         private bool IsWindowed => Screen.fullScreenMode == FullScreenMode.Windowed;
 
@@ -413,9 +413,8 @@ namespace Moirai.Atropos
         private int _lastSetResolutionFrame = 0;
 
         /// <summary>
-        /// 获取当前分辨率索引
+        /// 获取当前分辨率索引。
         /// </summary>
-        /// <returns></returns>
         public static int GetResolutionIndex()
         {
             // 每N帧后重置，以便ScreenOrchestrator有时间调整分辨率。
@@ -470,8 +469,8 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="index">分辨率索引，越界时收敛到有效范围。</param>
         /// <remarks>
-        /// 在编辑器中无效；切换不会立即生效，而是在当前帧渲染完成后执行。
-        /// 移动平台在 <see cref="AllowResolutionChangeOnMobile"/> 为 false 时忽略该请求并告警。
+        /// 在编辑器中无效；切换不会立即生效，而是在当前帧渲染完成后执行。 <br />
+        /// 移动平台在 <see cref="AllowResolutionChangeOnMobile"/> 为 false 时忽略该请求并告警。 <br />
         /// 详见 <see href="https://docs.unity3d.com/ScriptReference/Screen.SetResolution.html"/>。
         /// </remarks>
         public static void SetResolutionIndex(int index)

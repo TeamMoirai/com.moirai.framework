@@ -80,7 +80,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 规范化配置条目。
         /// </summary>
         /// <remarks>
-        /// pattern 经 <see cref="NormalizeLocation"/>：去首尾空白、`\` 转 `/`、去掉尾部分隔符和扩展名。
+        /// pattern 经 <see cref="NormalizeLocation"/>：去首尾空白、`\` 转 `/`、去掉尾部分隔符和扩展名。 <br />
         /// 不剥离 <c>Assets/Bundles/</c> 等路径前缀——pattern 须与运行时 location（或合成键）同形。
         /// </remarks>
         /// <example><![CDATA[

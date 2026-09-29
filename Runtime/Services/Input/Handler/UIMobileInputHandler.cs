@@ -8,8 +8,8 @@ namespace Moirai.Atropos.Input
     /// 基于场景 UI 元素（InputButton/InputAxes 组件）的虚拟输入处理器，适用于移动端。
     /// </summary>
     /// <remarks>
-    /// 虚拟组件经 <see cref="UIMobileInputRegistry"/> 自注册（OnEnable/OnDisable），延迟实例化与销毁均自动同步，本处理器不做场景扫描。
-    /// GetButtonDown/GetButtonUp 读取组件上的帧闩锁边沿，与查询次数无关，同帧点按不丢边。
+    /// 虚拟组件经 <see cref="UIMobileInputRegistry"/> 自注册（OnEnable/OnDisable），延迟实例化与销毁均自动同步，本处理器不做场景扫描。 <br />
+    /// GetButtonDown/GetButtonUp 读取组件上的帧闩锁边沿，与查询次数无关，同帧点按不丢边。 <br />
     /// 虚拟输入按组件的 ActionName 寻址：优先解析 <c>Group/Name</c>，未命中回退平铺名称；鼠标类查询在此后端无意义，按降级契约返回默认值。
     /// <c>Enabled=false</c> 为全局硬门控（动作类查询一律降级）；玩家/UI 上下文压制为 Input System 后端专属能力。
     /// </remarks>

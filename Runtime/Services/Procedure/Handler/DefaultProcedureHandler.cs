@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Procedure
     /// 默认流程处理器（纯 C# 状态机实现），承载全部流程状态管理逻辑。
     /// </summary>
     /// <remarks>
-    /// 切换在 <c>OnLeave</c> / <c>OnEnter</c> 执行期间重入受深度上限保护，超出即抛 <see cref="GameException"/>（互为 OnEnter 互切的流程环在此 fail-fast，而非栈溢出）。
+    /// 切换在 <c>OnLeave</c> / <c>OnEnter</c> 执行期间重入受深度上限保护，超出即抛 <see cref="GameException"/>（互为 OnEnter 互切的流程环在此 fail-fast，而非栈溢出）。 <br />
     /// 嵌套切换语义：OnEnter/OnLeave 内的合法重定向（如闪屏直切）会递归完成再逐层记录；中间流程可能未走 OnLeave，历史记录以最外层完成态为准（每条记录的 To 即广播时刻的当前流程）。
     /// </remarks>
     [Serializable]

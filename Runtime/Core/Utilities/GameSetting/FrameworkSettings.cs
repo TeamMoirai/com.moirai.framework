@@ -12,16 +12,16 @@ namespace Moirai.Atropos
     {
         public const string DEFAULT_SAVE_FOLDER = "Assets/Settings/Framework/Resources/";
 
-        /// <summary>显示标题</summary>
+        /// <summary>显示标题。</summary>
         public string Title { get; }
 
-        /// <summary>描述说明</summary>
+        /// <summary>描述说明。</summary>
         public string Description { get; }
 
-        /// <summary>排序顺序（越小越靠前）</summary>
+        /// <summary>排序顺序（越小越靠前）。</summary>
         public int Order { get; }
 
-        /// <summary>配置所在的文件夹</summary>
+        /// <summary>配置所在的文件夹。</summary>
         public string SaveFolder { get; }
 
         public FrameworkSettingAttribute(string title, string description = null, int order = 0, string saveFolder = DEFAULT_SAVE_FOLDER)
@@ -39,8 +39,8 @@ namespace Moirai.Atropos
     /// <remarks>
     /// <para><b>本类的加载路径禁止使用 <c>LogUtility</c></b>：各 Utility 的 Handler 懒加载会经
     /// <c>GetHandlerFromSettings()</c> 回读本设置资产，而 <c>s_Instance</c> 在加载完成前恒为 null，
-    /// 于是"报错说资产缺失"这一步会再次进入本 getter 并无限递归（StackOverflow，不可捕获）。
-    /// 加载失败只能走 <c>Debug.LogError</c>。</para>
+    /// 于是"报错说资产缺失"这一步会再次进入本 getter 并无限递归（StackOverflow，不可捕获）。 <br />
+    /// 加载失败只能走 <c>Debug.LogError</c>。</para>。
     /// </remarks>
     public abstract partial class FrameworkSettings<T> : ScriptableObject where T : FrameworkSettings<T>
     {

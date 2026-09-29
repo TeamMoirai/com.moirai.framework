@@ -9,7 +9,7 @@ namespace Service.Resource
     /// 记录内核空闲容量淘汰的特征化契约：受害者按空闲过期刻度从旧到新挑、每趟不超预算、预算用尽时把请求位留回下一帧。
     /// </summary>
     /// <remarks>
-    /// 只带一面假 <see cref="IResourceRecordHost"/> 即可直接驱动内核，无需初始化 YooAsset。
+    /// 只带一面假 <see cref="IResourceRecordHost"/> 即可直接驱动内核，无需初始化 YooAsset。 <br />
     /// 这几格是基线：选择顺序一旦改变必须在此显形，而不是悄悄换掉一批被淘汰的资源。
     /// </remarks>
     public sealed class ResourceRecordStoreIdleTrimTests

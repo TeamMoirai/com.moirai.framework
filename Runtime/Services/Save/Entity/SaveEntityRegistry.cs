@@ -9,8 +9,8 @@ namespace Moirai.Atropos.Save
     /// 存档实体注册表：稳定 ID → 活跃 <see cref="SaveObjectIdentity"/> 的静态查询点。
     /// </summary>
     /// <remarks>
-    /// 注册/注销/查询均须在主线程调用；无代码保存的场景引用字段经本表反查恢复目标。
-    /// 作用域分表：场景表登记常规场景对象，场景卸载时整体清扫（对象 <c>OnDestroy</c> 注销先行，清扫兜底残留死引用）；全局表登记 <c>DontDestroyOnLoad</c> 对象并跨场景常驻；注册时按对象所在场景自动路由。
+    /// 注册/注销/查询均须在主线程调用；无代码保存的场景引用字段经本表反查恢复目标。 <br />
+    /// 作用域分表：场景表登记常规场景对象，场景卸载时整体清扫（对象 <c>OnDestroy</c> 注销先行，清扫兜底残留死引用）；全局表登记 <c>DontDestroyOnLoad</c> 对象并跨场景常驻；注册时按对象所在场景自动路由。 <br />
     /// 重复 ID 首到先得并记告警，后者不覆盖（避免引用静默换绑）。
     /// </remarks>
     public static class SaveEntityRegistry

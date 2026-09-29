@@ -4,7 +4,7 @@ using UnityEngine.Networking;
 using YooAsset;
 
 /// <summary>
-/// OPPO 小游戏平台实现
+/// OPPO 小游戏平台实现。
 /// </summary>
 internal class OppoPlatform : IWebPlatformStrategy
 {

@@ -6,7 +6,7 @@ namespace Moirai.Atropos
     /// 服务生命周期拦截器，在注册、关闭与轮询帧边界插入横切逻辑（日志、性能监控等）。
     /// </summary>
     /// <remarks>
-    /// 多个拦截器按 <see cref="Priority"/> 降序执行。
+    /// 多个拦截器按 <see cref="Priority"/> 降序执行。 <br />
     /// 异常策略：除 <see cref="OnServiceRegistering"/> 外，回调抛出的异常由容器就地记录并隔离，不会传播到被观察的服务、其它拦截器或帧主循环； <br />
     /// <see cref="OnServiceRegistering"/> 是唯一否决通道，抛出即拒绝本次注册（fail-fast）。
     /// 粒度契约：轮询回调以「作用域一帧」为边界（<see cref="OnBeforeScopeTick"/> / <see cref="OnAfterScopeTick"/>），不提供逐服务回调；逐服务耗时监控由编辑器诊断旁表承担（编译期门控， <br />

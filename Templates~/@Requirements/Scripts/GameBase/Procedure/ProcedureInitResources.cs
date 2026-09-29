@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 初始化资源
+    /// 流程 => 初始化资源。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureInitResources : ProcedurePremainBase

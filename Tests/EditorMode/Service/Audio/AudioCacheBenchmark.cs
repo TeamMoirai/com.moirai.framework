@@ -11,9 +11,9 @@ namespace Service.Audio
     /// Clip 缓存热路径的 CPU 预算基准（<c>[Explicit]</c>，不进常规回归，按名执行）。
     /// </summary>
     /// <remarks>
-    /// 预热固定轮数后按固定调用次数计时，重复三轮取最快一轮换算单次纳秒。
+    /// 预热固定轮数后按固定调用次数计时，重复三轮取最快一轮换算单次纳秒。 <br />
     /// 逐条结果经 Unity 日志报出（与 PlayMode CPU 回归同前缀，便于 grep）；一轮跑完经 <see cref="BenchmarkReport"/> 写 XML 到
-    /// &lt;工程根&gt;/Benchmarks/audiocache-benchmark.xml（<c>MOIRAI_BENCH_XML</c> 可覆盖），跨改动对比取该 XML 的数。
+    /// &lt;工程根&gt;/Benchmarks/audiocache-benchmark.xml（<c>MOIRAI_BENCH_XML</c> 可覆盖），跨改动对比取该 XML 的数。 <br />
     /// 离线运行只反映量级；端到端（声部/混音）预算由 PlayMode 的 <c>AudioCpuRegressionTests</c> 负责。
     /// </remarks>
     [TestFixture]

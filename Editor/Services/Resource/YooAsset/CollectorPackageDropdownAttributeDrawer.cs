@@ -147,8 +147,8 @@ namespace Moirai.Atropos.Resource.Editor
     /// </summary>
     /// <remarks>
     /// 必须接管：Odin 开启 UITK 集成时，其 <c>UnityPropertyAttributeDrawer</c> 检测到 Unity 绘制器重写了 <c>CreatePropertyGUI</c> 便改走内嵌 UITK 元素，
-    /// 在自定义 IMGUI 宿主中会中断布局致内容区空白；本 Drawer 使 Odin 永远走 IMGUI 行绘制。
-    /// 优先级 wrapper=10001，高于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)。
+    /// 在自定义 IMGUI 宿主中会中断布局致内容区空白；本 Drawer 使 Odin 永远走 IMGUI 行绘制。 <br />
+    /// 优先级 wrapper=10001，高于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)。 <br />
     /// 纯 Unity 宿主（OnGUI）与 UITK 宿主（CreatePropertyGUI）不受影响，仍由 <see cref="CollectorPackageDropdownAttributeDrawer"/> 双路径服务。
     /// </remarks>
     [DrawerPriority(0, 10001, 0)]

@@ -10,7 +10,7 @@ namespace Service.Resource
     /// </summary>
     /// <remarks>
     /// 同步 <c>GetOrLoadAsset</c> 在 <c>TryBeginLoading</c> 失败后不得再发一次 <c>GetHandleSync</c>
-    /// ——双句柄双计引用，且后完成的赢家会把先落地的句柄 Dispose 掉。
+    /// ——双句柄双计引用，且后完成的赢家会把先落地的句柄 Dispose 掉。 <br />
     /// 同步 API 不能 await，同栈重入又会让「等赢家完成」变成死锁，故：记录已落地则接力同一条，
     /// 仍在途则 fail-fast，调用方改用异步 API。本组只钉内核去重槽与记录接力，不碰 YooAssets 静态表。
     /// </remarks>

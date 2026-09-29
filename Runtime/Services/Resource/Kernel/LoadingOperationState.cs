@@ -4,7 +4,7 @@ namespace Moirai.Atropos.Resource
     /// 加载操作状态：跟踪异步加载的去重与等待（后端无关，原始句柄以后端对象形式存放、由后端模式匹配取用）。
     /// </summary>
     /// <remarks>
-    /// 完成源与状态同生共死：<see cref="Complete"/> 一次唤醒所有等待者，等待方不必空转轮询。
+    /// 完成源与状态同生共死：<see cref="Complete"/> 一次唤醒所有等待者，等待方不必空转轮询。 <br />
     /// 源经 <see cref="Preserve"/> 支持多等待者，<see cref="Clear"/> 时整棵重置回池。
     /// </remarks>
     internal sealed class LoadingOperationState : MemoryObject

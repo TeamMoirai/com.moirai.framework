@@ -9,11 +9,11 @@ namespace Moirai.Atropos.Audio
     /// 音频处理器抽象基类（策略模式抽象策略）：定义 <see cref="AudioService"/> 外观调用的音频后端契约。
     /// </summary>
     /// <remarks>
-    /// 默认实现为 <see cref="UnityAudioHandler"/>，可替换为自定义音频后端。
-    /// 场景 3D 音效挂到场景物件或技能特效上，并在 <see cref="AudioSource"/> 的 Output 上设置对应分类的 <see cref="AudioMixerGroup"/>。
-    /// 跨后端语义约定：暂停音轨拦截新播放（<see cref="Play"/> 返回 0）；<see cref="MasterVolume"/> getter 报未静音的设置值；
-    /// 主音量与音轨音量都是线性 <c>0..1</c>、在契约入口夹取一次；Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动且可中途停止；
-    /// 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证；后端整体失效时（<see cref="IsBackendInert"/>）音量面读作 0、写作无效。
+    /// 默认实现为 <see cref="UnityAudioHandler"/>，可替换为自定义音频后端。 <br />
+    /// 场景 3D 音效挂到场景物件或技能特效上，并在 <see cref="AudioSource"/> 的 Output 上设置对应分类的 <see cref="AudioMixerGroup"/>。 <br />
+    /// 跨后端语义约定：暂停音轨拦截新播放（<see cref="Play"/> 返回 0）；<see cref="MasterVolume"/> getter 报未静音的设置值； <br />
+    /// 主音量与音轨音量都是线性 <c>0..1</c>、在契约入口夹取一次；Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动且可中途停止； <br />
+    /// 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证；后端整体失效时（<see cref="IsBackendInert"/>）音量面读作 0、写作无效。 <br />
     /// Unity 专属成员（中间件返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。
     /// </remarks>
     [Serializable]
@@ -46,8 +46,8 @@ namespace Moirai.Atropos.Audio
         /// 后端整体失效（音频引擎不可用）时的统一口径：音量面读作 0、写作无效，播放与批量控制静默 no-op。
         /// </summary>
         /// <remarks>
-        /// 只有"初始化明确失败"才算 inert；未初始化（桥接尚未建起）是启动中间态，那段时间 getter 必须照实报设置值。
-        /// Unity 侧取 <c>AudioSettings.unityAudioDisabled</c>（仅编辑器内赋值，玩家构建恒 false）；
+        /// 只有"初始化明确失败"才算 inert；未初始化（桥接尚未建起）是启动中间态，那段时间 getter 必须照实报设置值。 <br />
+        /// Unity 侧取 <c>AudioSettings.unityAudioDisabled</c>（仅编辑器内赋值，玩家构建恒 false）； <br />
         /// 中间件侧为桥接 <c>Initialize</c> 返回 false，整体禁用且本次运行内不自愈。
         /// </remarks>
         internal virtual bool IsBackendInert => false;
@@ -326,17 +326,17 @@ namespace Moirai.Atropos.Audio
         #region 音频控制 [AUDIO CONTROLS]
 
         /// <summary>
-        /// 暂停指定句柄的音频
+        /// 暂停指定句柄的音频。
         /// </summary>
         public abstract void Pause(ulong handle);
 
         /// <summary>
-        /// 恢复播放指定句柄的音频
+        /// 恢复播放指定句柄的音频。
         /// </summary>
         public abstract void Unpause(ulong handle);
 
         /// <summary>
-        /// 停止指定句柄的音频
+        /// 停止指定句柄的音频。
         /// </summary>
         public abstract void Stop(ulong handle, float fadeoutDuration = 0f);
 
@@ -362,7 +362,7 @@ namespace Moirai.Atropos.Audio
         public abstract void ForEachHandleByID(int id, Action<ulong> action);
 
         /// <summary>
-        /// 返回当前正在播放的指定 clip 数量
+        /// 返回当前正在播放的指定 clip 数量。
         /// </summary>
         /// <remarks>中间件后端按 clip 名映射的事件路径统计。</remarks>
         public abstract int CurrentlyPlayingCount(AudioClip clip);
@@ -396,7 +396,7 @@ namespace Moirai.Atropos.Audio
         /// 音轨暂停标记（按 <see cref="EAudioTrack"/> 下标索引）："暂停的音轨拦截新播放"的唯一真相源。
         /// </summary>
         /// <remarks>
-        /// 分配与释放仍留在各后端自己的时机：Unity 在 <c>Initialize</c> 建、<c>OnShutdown</c> 置 null，中间件经 <c>EnsureTrackArrays</c> 懒建。
+        /// 分配与释放仍留在各后端自己的时机：Unity 在 <c>Initialize</c> 建、<c>OnShutdown</c> 置 null，中间件经 <c>EnsureTrackArrays</c> 懒建。 <br />
         /// 数组未分配或下标越界一律按未暂停处理。
         /// </remarks>
         [NonSerialized] internal bool[] _pausedTracks;
@@ -434,7 +434,7 @@ namespace Moirai.Atropos.Audio
         public abstract void UnpauseTrack(EAudioTrack track);
 
         /// <summary>
-        /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
+        /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>。
         /// </summary>
         public abstract bool IsPaused(EAudioTrack track);
 

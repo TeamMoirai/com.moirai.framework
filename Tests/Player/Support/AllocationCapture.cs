@@ -23,7 +23,7 @@ namespace Testing
     /// </summary>
     /// <remarks>
     /// 观测通道为 <see cref="Recorder"/>，与 Unity 官方分配内存约束 <c>AllocatingGCMemoryConstraint</c> 同机制、同款 API，是本引擎版本上唯一可用的分配观测通道：
-    /// Unity 内不存在字节口径的 GC 计数 API，事件口径是官方唯一口径。
+    /// Unity 内不存在字节口径的 GC 计数 API，事件口径是官方唯一口径。 <br />
     /// 计的是测量窗内的 GC 分配事件数——任何一次分配（无论大小）都 ≥1 事件，故「0 事件」是比「0 字节」更强的零分配断言；上限类断言给常数事件预算（锁「不随规模增长」）。
     /// <c>MeasureManaged</c> 先做一次预热并丢弃（JIT、池扩容、字典容量增长都落在这一发里），再计 <paramref name="iterations"/> 次。
     /// 采样能力用一次「必然分配」探测，探不到即 <c>Assert.Ignore</c>：绝不把「测不出分配」当成「没有分配」，否则零分配断言全部假绿。

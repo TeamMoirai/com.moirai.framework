@@ -10,7 +10,7 @@ using UnityEngine;
 namespace YooAsset.Editor.Experiment
 {
     /// <summary>
-    /// 通过 csc.rsp 文件注入 YooAsset 版本宏定义
+    /// 通过 csc.rsp 文件注入 YooAsset 版本宏定义。
     /// </summary>
     [InitializeOnLoad]
     public class RspGenerator
@@ -24,7 +24,7 @@ namespace YooAsset.Editor.Experiment
         }
 
         /// <summary>
-        /// 更新 csc.rsp 文件
+        /// 更新 csc.rsp 文件。
         /// </summary>
         private static void UpdateRspFile(IReadOnlyList<string> addMacros, IReadOnlyList<string> removeMacros)
         {
@@ -64,7 +64,7 @@ namespace YooAsset.Editor.Experiment
         }
 
         /// <summary>
-        /// 读取 csc.rsp 文件中的宏定义和其他行
+        /// 读取 csc.rsp 文件中的宏定义和其他行。
         /// </summary>
         private static void ReadRspFile(HashSet<string> defines, List<string> others)
         {
@@ -95,9 +95,9 @@ namespace YooAsset.Editor.Experiment
         }
 
         /// <summary>
-        /// 重新写入 csc.rsp 文件
+        /// 重新写入 csc.rsp 文件。
         /// </summary>
-        /// <returns>文件内容发生变化时返回 true</returns>
+        /// <returns>文件内容发生变化时返回 true。</returns>
         private static bool WriteRspFile(HashSet<string> defines, List<string> others)
         {
             StringBuilder sb = new StringBuilder();

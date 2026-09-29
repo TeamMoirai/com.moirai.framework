@@ -22,12 +22,12 @@ namespace Moirai.Atropos.Events
 
     }
     /// <summary>
-    /// 类接口有 <see cref="MonoBehaviour"/> 生命周期范围（lifetime scope）
+    /// 类接口有 <see cref="MonoBehaviour"/> 生命周期范围（lifetime scope）。
     /// </summary>
     public interface IBehaviourScope
     {
         /// <summary>
-        /// 附加到 <see cref="MonoBehaviour"/>
+        /// 附加到 <see cref="MonoBehaviour"/>。
         /// </summary>
         MonoBehaviour Behaviour { get; }
     }

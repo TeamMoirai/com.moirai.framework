@@ -10,7 +10,7 @@ namespace Service.Audio
     /// 总线过渡对拍：Master / 音轨淡入淡出由 <see cref="AudioServiceHandler"/> 契约实现。
     /// </summary>
     /// <remarks>
-    /// 两个后端只在 <see cref="IAudioFadeTarget.ApplyFade"/> 的落点上分岔，用例量的就是这个落点。
+    /// 两个后端只在 <see cref="IAudioFadeTarget.ApplyFade"/> 的落点上分岔，用例量的就是这个落点。 <br />
     /// 不经 <c>Tick</c> 推进，而是按给定时刻直推 internal 过渡表（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），
     /// 故结论不依赖 <c>GameTime.unscaledTime</c> 是否被驱动。
     /// </remarks>

@@ -7,7 +7,7 @@ namespace Service.Input
 {
     /// <summary>移动端虚拟按钮边沿与 Handler 查询契约测试。</summary>
     /// <remarks>
-    /// 边沿在 <see cref="InputButton"/> 指针事件里按帧闩锁：同帧点按不丢边、未查询帧不产生假边沿、Reset 清掉残留状态。
+    /// 边沿在 <see cref="InputButton"/> 指针事件里按帧闩锁：同帧点按不丢边、未查询帧不产生假边沿、Reset 清掉残留状态。 <br />
     /// Edit Mode 帧号不推进，跨帧语义经 <c>WasPressedAt</c>/<c>WasReleasedAt</c> 注入帧号验证；Handler 路径使用当前 <c>Time.frameCount</c> 验证同帧幂等。
     /// </remarks>
     [TestFixture]

@@ -10,9 +10,9 @@ namespace Moirai.Atropos.Audio
     /// AudioClip 生产级缓存：Lease 保留 + 引用计数 + LRU/TTL/Pin + lowMemory + 容量驱逐。
     /// </summary>
     /// <remarks>
-    /// 路径播放的唯一资源真相源：同一地址全服务共享一份租约，声部按引用取用，用完按策略决定留池或释放。
+    /// 路径播放的唯一资源真相源：同一地址全服务共享一份租约，声部按引用取用，用完按策略决定留池或释放。 <br />
     /// 条目仅在 <c>RefCount == 0 &amp;&amp; !Loading &amp;&amp; 无等待者</c> 时可被驱逐；Pin 条目不入 LRU， <br />
-    /// 只被 <see cref="Unload"/>/<see cref="ClearCache"/> 显式摘除；
+    /// 只被 <see cref="Unload"/>/<see cref="ClearCache"/> 显式摘除； <br />
     /// 条目数不超过 <see cref="Capacity"/>（满载且无可驱逐对象时新地址判负、不无界增长）；迟到的加载续体按 <c>Version</c> 作废，租约归还资源系统而不写入已复用的条目。
     /// </remarks>
     internal sealed class AudioClipCache

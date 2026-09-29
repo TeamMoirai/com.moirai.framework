@@ -7,9 +7,8 @@ using R3;
 namespace Moirai.Atropos.R3
 {
     /// <summary>
-    /// 使用 <see cref="JsonConverter"/> 的 <see cref="ReactiveProperty{T}"/> 序列化帮助程序
+    /// 使用 <see cref="JsonConverter"/> 的 <see cref="ReactiveProperty{T}"/> 序列化帮助程序。
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     public class ReactivePropertyConverter : JsonConverter
     {
         private interface IReactivePropertyHandler

@@ -28,19 +28,19 @@ public sealed partial class ItemConfig : Luban.BeanBase
     }
 
     /// <summary>
-    /// 索引
+    /// 索引。
     /// </summary>
     public readonly int Id;
     /// <summary>
-    /// 名称
+    /// 名称。
     /// </summary>
     public readonly string Name;
     /// <summary>
-    /// 描述
+    /// 描述。
     /// </summary>
     public readonly string Desc;
     /// <summary>
-    /// 测试数据
+    /// 测试数据。
     /// </summary>
     public readonly System.Collections.Generic.List<string> Data1;
    

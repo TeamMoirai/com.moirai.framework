@@ -7,8 +7,8 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 承载协程与 <c>OnDrawGizmos</c> / <c>OnDrawGizmosSelected</c> / <c>OnApplicationPause</c>， <br />
-    /// 后三者转发到 <see cref="PlayerLoopDriver"/> 的静态事件表。
-    /// 帧逻辑订阅由 PlayerLoop 直接驱动、存于静态表：宿主被销毁只中断协程与上述引擎消息，订阅不丢，重建宿主即恢复派发。
+    /// 后三者转发到 <see cref="PlayerLoopDriver"/> 的静态事件表。 <br />
+    /// 帧逻辑订阅由 PlayerLoop 直接驱动、存于静态表：宿主被销毁只中断协程与上述引擎消息，订阅不丢，重建宿主即恢复派发。 <br />
     /// 跨场景存活（<see cref="SingletonMono_Persistent{T}"/>），被销毁后经 <see cref="SingletonMono{T}.Instance"/> 惰性重建。
     /// </remarks>
     internal sealed class GameAppHost : SingletonMono_Persistent<GameAppHost>
@@ -20,7 +20,7 @@ namespace Moirai.Atropos
         /// 在主线程物化宿主（幂等）。
         /// </summary>
         /// <remarks>
-        /// 由 <see cref="GameApp.Initialize"/> 及各 <c>Add*Listener</c> 调用，保证 Pause / Gizmos 从一开始就有派发者。
+        /// 由 <see cref="GameApp.Initialize"/> 及各 <c>Add*Listener</c> 调用，保证 Pause / Gizmos 从一开始就有派发者。 <br />
         /// 必须在主线程调用：<see cref="SingletonMono{T}.Instance"/> 在物化前被后台线程访问会抛 <see cref="GameException"/>。
         /// </remarks>
         internal static void Bootstrap()

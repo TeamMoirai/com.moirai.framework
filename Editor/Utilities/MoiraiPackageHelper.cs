@@ -10,9 +10,8 @@ namespace Moirai.Atropos.Editor
         private const string ASMDEF_GUID = "24c092aee38482f4e80715eaa8148782";
 
         /// <summary>
-        /// 获取当前 Package 的根目录
+        /// 获取当前 Package 的根目录。
         /// </summary>
-        /// <returns></returns>
         public static string GetPackageRootPath()
         {
             string asmdefPath = AssetDatabase.GUIDToAssetPath(ASMDEF_GUID);

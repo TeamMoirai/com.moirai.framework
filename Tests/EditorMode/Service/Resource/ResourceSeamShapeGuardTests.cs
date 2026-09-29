@@ -43,7 +43,7 @@ namespace Service.Resource
         /// <c>internal abstract</c> 成员数停在基线上（当前为零）。
         /// </summary>
         /// <remarks>
-        /// 抽象基类带 <c>internal abstract</c> 成员时，程序集外的派生类既看不见也落不下，接缝只能在框架内实现。
+        /// 抽象基类带 <c>internal abstract</c> 成员时，程序集外的派生类既看不见也落不下，接缝只能在框架内实现。 <br />
         /// 租约接缝与维护族全部是 <c>public abstract</c>，程序集外后端可派生；数字再涨回来等于把实现权收回程序集。
         /// </remarks>
         [Test]
@@ -107,8 +107,8 @@ namespace Service.Resource
         /// </summary>
         /// <remarks>
         /// <c>[SerializeReference]</c> 存的是托管引用的类型名三元组（class/ns/asm），
-        /// 重命名或挪动处理器类型不会有编译错误，只会让该字段还原成 null；
-        /// 外观层随即落到"设置里没有就用代码默认"的兜底上，游戏照常启动且不打一行日志。
+        /// 重命名或挪动处理器类型不会有编译错误，只会让该字段还原成 null； <br />
+        /// 外观层随即落到"设置里没有就用代码默认"的兜底上，游戏照常启动且不打一行日志。 <br />
         /// 这条用例是那个静默失败唯一的自动闸。
         /// </remarks>
         [Test]

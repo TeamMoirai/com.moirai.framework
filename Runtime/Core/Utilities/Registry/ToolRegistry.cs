@@ -133,7 +133,7 @@ namespace Moirai.Atropos
         /// 使用键获取已注册的组件。
         /// </summary>
         /// <remarks>同一 key 可注册多个不同类型的组件（一对多语义）。</remarks>
-        /// <param name="key">要查找的键</param>
+        /// <param name="key">要查找的键。</param>
         /// <param name="entityFallback">
         /// 未找到直接匹配时，尝试从键对应的 GameObject 上按类型查找子组件
         /// </param>
@@ -186,7 +186,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取所有匹配类型的已注册组件（零 GC 版本）。
         /// </summary>
-        /// <param name="results">用于接收结果的列表，调用前无需清空</param>
+        /// <param name="results">用于接收结果的列表，调用前无需清空。</param>
         public static void GetComponents<T>(List<T> results)
         {
             results.Clear();
@@ -212,8 +212,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 将组件添加到注册表。
         /// </summary>
-        /// <param name="component">要注册的组件</param>
-        /// <param name="persistBetweenScenes">在场景之间保持注册</param>
+        /// <param name="component">要注册的组件。</param>
+        /// <param name="persistBetweenScenes">在场景之间保持注册。</param>
         public static void RegisterComponent(object component, bool persistBetweenScenes = false)
         {
             RegisterComponent(component, null, persistBetweenScenes);
@@ -223,9 +223,9 @@ namespace Moirai.Atropos
         /// 将组件添加到注册表。
         /// </summary>
         /// <remarks>同一组件可使用不同 key 重复注册（key 可为 null）。</remarks>
-        /// <param name="component">要注册的组件</param>
-        /// <param name="key">与组件关联的键（可为 null，null 表示仅按类型查找）</param>
-        /// <param name="persistBetweenScenes">在场景之间保持注册</param>
+        /// <param name="component">要注册的组件。</param>
+        /// <param name="key">与组件关联的键（可为 null，null 表示仅按类型查找）。</param>
+        /// <param name="persistBetweenScenes">在场景之间保持注册。</param>
         public static void RegisterComponent(object component, string key, bool persistBetweenScenes = false)
         {
             if (component == null) return;

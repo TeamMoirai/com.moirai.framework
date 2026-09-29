@@ -11,9 +11,9 @@ namespace Moirai.Atropos.Input
     /// 基于 Unity Input System（Package）的输入处理器，需定义 ENABLE_INPUT_SYSTEM。
     /// </summary>
     /// <remarks>
-    /// 压制门控由后端中心化：<c>Enabled=false</c> 时动作类查询（按钮/轴/向量）一律返回默认值（硬门控）。
-    /// 玩家压制（锁定/模态/禁用）整体禁用玩家上下文 Map（默认 Player）；UI 压制整体禁用 UI 上下文 Map（默认 UI）。
-    /// 模态打开时玩家 Map 断开而 UI Map 保持可用，模态自身热键不受影响；未列入两类 Map 的动作不受上下文压制。
+    /// 压制门控由后端中心化：<c>Enabled=false</c> 时动作类查询（按钮/轴/向量）一律返回默认值（硬门控）。 <br />
+    /// 玩家压制（锁定/模态/禁用）整体禁用玩家上下文 Map（默认 Player）；UI 压制整体禁用 UI 上下文 Map（默认 UI）。 <br />
+    /// 模态打开时玩家 Map 断开而 UI Map 保持可用，模态自身热键不受影响；未列入两类 Map 的动作不受上下文压制。 <br />
     /// 鼠标查询不参与门控。
     /// </remarks>
     [Serializable]

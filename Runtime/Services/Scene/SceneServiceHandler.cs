@@ -10,9 +10,9 @@ namespace Moirai.Atropos.Scene
     /// 场景处理器。支持主场景切换、附加场景加载/卸载、进度回调和挂起加载。
     /// </summary>
     /// <remarks>
-    /// 由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。
+    /// 由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。 <br />
     /// 错误契约：加载失败（资源服务未就绪、后端加载错误、同场景在途/已登记、主场景并发互斥、地址为空）抛出 <see cref="GameException"/>（fail fast）；卸载属可重试的清理操作， <br />
-    /// 失败以 <c>false</c> 报告并保留登记供重试，已登记 Loaded 项卸载时句柄失效按失败处理。
+    /// 失败以 <c>false</c> 报告并保留登记供重试，已登记 Loaded 项卸载时句柄失效按失败处理。 <br />
     /// 取消契约：场景加载一经发起不可中止，<see cref="LoadSceneAsync"/> 的 <see cref="CancellationToken"/> 仅取消等待与进度回调（放弃等待语义），登记与事件由处理器在加载真正结束时收尾。
     /// </remarks>
     [Serializable]

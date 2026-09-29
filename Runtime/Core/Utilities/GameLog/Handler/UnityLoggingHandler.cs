@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// 基于 Unity 官方 Logging 包（com.unity.logging）的日志辅助器，由 <c>UNITY_LOGGING_INSTALLED</c> 自动启用。
     /// </summary>
     /// <remarks>
-    /// sink、输出模板等细节由包自身的 <c>LogSettings</c> / <c>Logger</c> 接管。
+    /// sink、输出模板等细节由包自身的 <c>LogSettings</c> / <c>Logger</c> 接管。 <br />
     /// 时间戳由包的 <c>outputTemplate</c> 中 <c>{Timestamp}</c> 占位符控制； <br />
     /// <see cref="LogHandler.TimestampEnabled"/> / <see cref="LogHandler.TimestampFormat"/> 仅作配置记录， <br />
     /// 实际生效需在 <c>LogSettings</c> 中设置。

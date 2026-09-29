@@ -5,12 +5,12 @@ using YooAsset.Editor;
 namespace YooAsset
 {
     /// <summary>
-    /// 在应用构建前生成内置资源清单
+    /// 在应用构建前生成内置资源清单。
     /// </summary>
     public class PreprocessBuildCatalog : UnityEditor.Build.IPreprocessBuildWithReport
     {
         /// <summary>
-        /// 构建预处理回调顺序
+        /// 构建预处理回调顺序。
         /// </summary>
         public int callbackOrder { get { return 0; } }
 

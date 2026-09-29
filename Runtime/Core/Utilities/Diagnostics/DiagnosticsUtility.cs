@@ -14,7 +14,7 @@ namespace Moirai.Atropos
     }
     
     /// <summary>
-    /// 诊断实用程序
+    /// 诊断实用程序。
     /// </summary>
     public static class DiagnosticsUtility
     {

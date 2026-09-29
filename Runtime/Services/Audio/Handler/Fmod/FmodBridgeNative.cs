@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Audio.Fmod
     /// 真实 FMOD.Studio 桥接。需导入 FMOD Unity 插件并定义 <c>FMOD_INSTALLED</c>。
     /// </summary>
     /// <remarks>
-    /// 能力接口：<see cref="IAudioMiddlewareBankControl"/>（Studio bank）与 <see cref="IAudioMiddlewareRtpcControl"/>（event parameter）。
+    /// 能力接口：<see cref="IAudioMiddlewareBankControl"/>（Studio bank）与 <see cref="IAudioMiddlewareRtpcControl"/>（event parameter）。 <br />
     /// 整文件受 <c>FMOD_INSTALLED</c> 编译保护， <br />
     /// 调用的标准 FMOD Unity API 为 <c>RuntimeManager.LoadBank</c> / <c>StudioSystem.loadBankFile</c> / <c>Bank.unload</c> / <br />
     /// <c>setParameterByName</c>。

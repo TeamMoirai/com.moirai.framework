@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Attributes
 {
     /// <summary>
-    /// 选择资源的位置
+    /// 选择资源的位置。
     /// </summary>
     [Flags]
     public enum EPick
@@ -14,12 +14,12 @@ namespace Moirai.Atropos.Attributes
         Scene = 1 << 1,
     }
     
-    /// <summary>要填充选择资源的属性</summary>
-    /// <list type="table">
-    /// <item><term>Resource</term><description>选择资源的 Resource 路径</description></item>
-    /// <item><term>AssetDatabase</term><description>选择资源的 AssetDatabase 路径</description></item>
-    /// <item><term>Guid</term><description>初选择资源的 GUID</description></item>
-    /// </list>
+    /// <summary>要填充选择资源的属性。</summary>
+    /// <remarks>
+    /// <c>Resource</c> — 资源的 Resource 路径；<br />
+    /// <c>AssetDatabase</c> — 资源的 AssetDatabase 路径；<br />
+    /// <c>Guid</c> — 资源的 GUID。
+    /// </remarks>
     public enum EStr
     {
         Resource,

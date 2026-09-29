@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Input
     /// 组件启用时阻止用户输入的守卫组件。
     /// </summary>
     /// <remarks>
-    /// OnDisable 仅恢复本组件实际修改过的标志，未勾选的选项不触碰全局状态。
+    /// OnDisable 仅恢复本组件实际修改过的标志，未勾选的选项不触碰全局状态。 <br />
     /// 全局布尔无引用计数，多个本组件同时启用会互相覆盖，嵌套场景请避免叠加使用。
     /// </remarks>
     public sealed class PreventInputOnEnable : MonoBehaviour

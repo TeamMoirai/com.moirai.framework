@@ -14,8 +14,8 @@ namespace Moirai.Atropos.Resource
     /// Addressables 后端的取用面：记录内核的持有者，也是内核看向本后端的唯一一面。
     /// </summary>
     /// <remarks>
-    /// 记账（记录槽、租约、去重、时间轮）全在 <see cref="ResourceRecordStore"/>，与 YooAsset 后端共用同一份。
-    /// 本文件把异步加载接成内核的赢家路径、把 <c>AsyncOperationHandle&lt;T&gt;</c> 包成引用型句柄、并把三个配置读数交给内核。
+    /// 记账（记录槽、租约、去重、时间轮）全在 <see cref="ResourceRecordStore"/>，与 YooAsset 后端共用同一份。 <br />
+    /// 本文件把异步加载接成内核的赢家路径、把 <c>AsyncOperationHandle&lt;T&gt;</c> 包成引用型句柄、并把三个配置读数交给内核。 <br />
     /// Addressables 无同步取资产 API，故同步族与图集族按 <see cref="CreateNotSupported"/> 快速失败，不静默返回 Invalid。
     /// </remarks>
     partial class AddressableHandler : IResourceRecordHost
@@ -43,7 +43,7 @@ namespace Moirai.Atropos.Resource
 
         /// <inheritdoc />
         /// <remarks>只有图集形态的记录（<see cref="SpriteAtlas"/>）有子精灵可取；单资产句柄返回 null
-        /// 是正解，不是降级。按名取用走 <c>SpriteAtlas.GetSprite</c>——本机 6000.3 的 CoreModule 里
+        /// 是正解，不是降级。按名取用走 <c>SpriteAtlas.GetSprite</c>——本机 6000.3 的 CoreModule 里。 <br />
         /// 并没有 <c>TryGetSprite</c>（那串只出现在 TextCore 模块的另一套类型上），别照着记忆写。</remarks>
         Sprite IResourceRecordHost.GetSubSprite(object handle, string spriteName)
         {

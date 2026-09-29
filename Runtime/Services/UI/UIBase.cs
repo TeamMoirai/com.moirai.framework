@@ -38,11 +38,11 @@ namespace Moirai.Atropos.UI
         /// </summary>
         public enum UIType
         {
-            /// <summary>无</summary>
+            /// <summary>无。</summary>
             None,
-            /// <summary>弹窗</summary>
+            /// <summary>弹窗。</summary>
             Window,
-            /// <summary>控件</summary>
+            /// <summary>控件。</summary>
             Widget,
         }
         
@@ -128,7 +128,7 @@ namespace Moirai.Atropos.UI
         protected bool _updateListValid = false;
 
         /// <summary>
-        /// 是否标记脏排序
+        /// 是否标记脏排序。
         /// </summary>
         protected bool _isSortingOrderDirty = false;
 
@@ -309,7 +309,6 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 通过指定的父节点创建 <see cref="UIWidget"/>。
         /// </summary>
-        /// <param name="parentTrans"></param>
         /// <param name="goPath">父UI位置节点。</param>
         /// <param name="visible">是否可见。</param>
         /// <typeparam name="T">UIWidget。</typeparam>
@@ -450,14 +449,6 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 异步调整图标数量。
         /// </summary>
-        /// <param name="listIcon"></param>
-        /// <param name="tarNum"></param>
-        /// <param name="parentTrans"></param>
-        /// <param name="prefab"></param>
-        /// <param name="assetPath"></param>
-        /// <param name="maxNumPerFrame"></param>
-        /// <param name="updateAction"></param>
-        /// <typeparam name="T"></typeparam>
         public void AsyncAdjustIconNum<T>(List<T> listIcon, int tarNum, Transform parentTrans, GameObject prefab = null,
             string assetPath = "", int maxNumPerFrame = 5,
             Action<T, int> updateAction = null) where T : UIWidget, new()
@@ -468,14 +459,6 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 异步创建接口。
         /// </summary>
-        /// <param name="listIcon"></param>
-        /// <param name="tarNum"></param>
-        /// <param name="parentTrans"></param>
-        /// <param name="maxNumPerFrame"></param>
-        /// <param name="updateAction"></param>
-        /// <param name="prefab"></param>
-        /// <param name="assetPath"></param>
-        /// <typeparam name="T"></typeparam>
         private async UniTaskVoid AsyncAdjustIconNumInternal<T>(List<T> listIcon, int tarNum, Transform parentTrans, int maxNumPerFrame,
             Action<T, int> updateAction, GameObject prefab, string assetPath) where T : UIWidget, new()
         {

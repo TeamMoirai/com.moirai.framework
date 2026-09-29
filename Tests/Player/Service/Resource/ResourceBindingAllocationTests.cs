@@ -14,10 +14,10 @@ namespace Service.Resource
     /// </summary>
     /// <remarks>
     /// 分配观测走 <c>GC.Alloc</c> 采样事件数（<see cref="AllocationCapture"/>：先做一次必然分配探测计数器能力， <br />
-    /// 探不到的运行时整组 <c>Assert.Ignore</c>——「测不出分配」绝不写成「没有分配」）。
-    /// Unity 内不存在字节口径的 GC 计数 API，事件口径是唯一通道。
-    /// 夹具住在 <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>），编辑器套件可见：采样可用的运行时真跑断言，验收以 L3 玩家运行收到的采样为准。
-    /// 编辑器侧判的是结构（版本号不变、租约同值、目标引用相等），不是事件数。
+    /// 探不到的运行时整组 <c>Assert.Ignore</c>——「测不出分配」绝不写成「没有分配」）。 <br />
+    /// Unity 内不存在字节口径的 GC 计数 API，事件口径是唯一通道。 <br />
+    /// 夹具住在 <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>），编辑器套件可见：采样可用的运行时真跑断言，验收以 L3 玩家运行收到的采样为准。 <br />
+    /// 编辑器侧判的是结构（版本号不变、租约同值、目标引用相等），不是事件数。 <br />
     /// 后端用 <see cref="CountingLeaseSource"/> 而非真后端：量的是绑定层自己那三趟（打包键、索引表、槽位写入），掺进真后端的原生调用只会把噪声计进来。
     /// </remarks>
     [TestFixture]

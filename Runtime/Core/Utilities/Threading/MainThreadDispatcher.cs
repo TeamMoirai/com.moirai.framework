@@ -16,7 +16,7 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 任务存于无锁队列、由主线程泵按序执行（播放模式 <see cref="Update"/>，编辑模式 <see cref="UnityEditor.EditorApplication.update"/>）； <br />
     /// 静态 <c>Post/Send</c>（含 <see cref="Post(IEnumerator)"/>，依赖 <c>StartCoroutine</c>、仅播放模式）可任意线程调用，入队不触碰 Unity API，任务在主线程串行执行、 <br />
-    /// 异常隔离记录；新代码一律使用静态 API。
+    /// 异常隔离记录；新代码一律使用静态 API。 <br />
     /// 可等待 API（<c>PostAsync/SendAsync</c>）基于池化 <see cref="AutoResetUniTaskCompletionSource{T}"/>：稳态每次 2 次堆分配、主线程快速路径零分配； <br />
     /// 停机（<see cref="BeginShutdown"/>）统一取消挂起任务，等待方收到携带调用方令牌的 <see cref="OperationCanceledException"/>，不会永久挂起。
     /// <c>CancellationToken</c> 取消的是「等待」：任务未执行则跳过、执行中则运行完毕并放弃结果，任务自身抛 OCE 亦按取消处理；泵每帧受 <see cref="MAX_TIME_BUDGET_MS"/> 预算约束。
@@ -82,7 +82,7 @@ namespace Moirai.Atropos
             /// 以句柄存储的调用方令牌取消完成源。
             /// </summary>
             /// <remarks><b>必须保持非阻塞</b>：本方法会在 CancellationToken 回调线程上执行（可能是线程池线程），
-            /// 而调用方任务终结时的 <c>registration.Dispose()</c>（按 .NET 契约会等待执行中的回调）可能在主线程等待其返回——
+            /// 而调用方任务终结时的 <c>registration.Dispose()</c>（按 .NET 契约会等待执行中的回调）可能在主线程等待其返回——。 <br />
             /// 一旦加入重逻辑（锁、IO、同步等待），主线程将被拖住。此处仅允许 TrySetCanceled 级别的非阻塞操作。</remarks>
             public abstract void Cancel();
         }
@@ -213,7 +213,7 @@ namespace Moirai.Atropos
         /// 取消并清空挂起的可等待操作注册表（无参 <see cref="AwaiterHandle.Cancel"/> 回传创建时的调用方令牌）。
         /// </summary>
         /// <remarks>BeginShutdown（正常停机）与 ResetStatics（异常退出恢复）共用，保证完成源永不悬挂。
-        /// Cancel() 与调用方 CancellationToken 回调可能并发作用于同一完成源——安全性依赖其 TrySetCanceled 的幂等性
+        /// Cancel() 与调用方 CancellationToken 回调可能并发作用于同一完成源——安全性依赖其 TrySetCanceled 的幂等性。 <br />
         /// 与 version 护栏（后到者/陈旧者返回 false，无副作用）。</remarks>
         private static void CancelAllAwaiters()
         {
@@ -355,7 +355,7 @@ namespace Moirai.Atropos
         /// <param name="state">随队列携带的状态（工作项归还池时清空——引用类型状态不滞留）。</param>
         /// <param name="action">将在主线程执行的处理器。</param>
         /// <remarks>
-        /// 工作项池化复用，处理器经静态 lambda / 方法组的编译器缓存后稳态零分配，值类型状态经泛型工作项传递零装箱。
+        /// 工作项池化复用，处理器经静态 lambda / 方法组的编译器缓存后稳态零分配，值类型状态经泛型工作项传递零装箱。 <br />
         /// 任意线程可调用，入队不触碰任何 Unity API；停机后调用被丢弃并告警（工作项照常归还池）。
         /// </remarks>
         public static void Post<TState>(TState state, Action<TState> action)
@@ -665,7 +665,7 @@ namespace Moirai.Atropos
         /// <returns>已停机返回 false（由调用方就地取消完成源并直接返回任务）。</returns>
         /// <remarks>
         /// 本方法（①登记注册表）与调用方随后的入队（②TryPost）之间存在非原子窗口：若 <see cref="BeginShutdown"/> 恰在两者之间运行，
-        /// 句柄已被 <see cref="CancelAllAwaiters"/> 取消且注册表被 Clear，此时 ② 失败，调用方清理路径的 TryRemove / TrySetCanceled 均为幂等空操作，最终状态仍为"已取消"。
+        /// 句柄已被 <see cref="CancelAllAwaiters"/> 取消且注册表被 Clear，此时 ② 失败，调用方清理路径的 TryRemove / TrySetCanceled 均为幂等空操作，最终状态仍为"已取消"。 <br />
         /// 该窗口是设计上接受的良性竞态，安全性依赖 TrySetCanceled 幂等 + 完成源 version 护栏。
         /// </remarks>
         private static bool TryBeginAwaiter(AwaiterHandle handle, CancellationToken cancellationToken,

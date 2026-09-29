@@ -14,9 +14,9 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 序列化后端（<see cref="ISaveSerializer"/>）、存储后端（<see cref="ISaveStorage"/>）与存储管线三轴正交可插拔；文件 IO 在工作线程执行， <br />
-    /// 大存档不阻塞主线程（<see cref="CancellationToken"/> 协作式取消贯穿读写）。
+    /// 大存档不阻塞主线程（<see cref="CancellationToken"/> 协作式取消贯穿读写）。 <br />
     /// 错误语义：写入失败 fail-fast 抛 <see cref="GameException"/>（不容忍半档状态）； <br />
-    /// 读取失败返回 <c>default</c> 并记错误日志（错误判别用 Try* 族的 <see cref="SaveResult{T}"/>）；删除幂等——目标不存在视为成功。
+    /// 读取失败返回 <c>default</c> 并记错误日志（错误判别用 Try* 族的 <see cref="SaveResult{T}"/>）；删除幂等——目标不存在视为成功。 <br />
     /// 实例由 <see cref="SaveServiceSettings"/> 序列化持有，经 <see cref="SaveService"/> 静态外观访问。
     /// </remarks>
     public abstract class SaveServiceHandler : FrameworkHandler
@@ -598,7 +598,7 @@ namespace Moirai.Atropos.Save
         /// 枚举存档文件内的全部数据块（含保留块；读文件与解析在调用线程执行）。
         /// </summary>
         /// <remarks>
-        /// 加密处理器下需解密整档，大存档场景请节流调用频率。
+        /// 加密处理器下需解密整档，大存档场景请节流调用频率。 <br />
         /// 坏块同样列入清单（<see cref="SaveBlockInfo.Error"/> 非 <see cref="SaveError.None"/>）； <br />
         /// 框架字段（键/版本/后端/尺寸）仅在 <see cref="SaveBlockInfo.HasMetadata"/> 为 <c>true</c> 时可信。
         /// </remarks>
@@ -662,7 +662,7 @@ namespace Moirai.Atropos.Save
         /// 从磁盘中删除单个存档并返回目标先前的存在性（含全部数据块与截图 sidecar）。
         /// </summary>
         /// <remarks>
-        /// 幂等语义同 <see cref="DeleteSave"/>（目标不存在不触发事件）；<c>true</c> = 存在并已删除，<c>false</c> = 本不存在。
+        /// 幂等语义同 <see cref="DeleteSave"/>（目标不存在不触发事件）；<c>true</c> = 存在并已删除，<c>false</c> = 本不存在。 <br />
         /// 持分层门执行（与块级读写互斥）：存在性判定与删除在同一临界区内完成，杜绝并发写入在删除后复活文件。
         /// </remarks>
         /// <param name="fileName">文件名。</param>
@@ -702,7 +702,7 @@ namespace Moirai.Atropos.Save
         /// 删除整个存档文件夹（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 目录级批量删除恒触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，不保证目录先前存在）。
+        /// 目录级批量删除恒触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，不保证目录先前存在）。 <br />
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFiles"/>）。</param>
@@ -756,7 +756,7 @@ namespace Moirai.Atropos.Save
         /// 删除存档数据根目录（<c>persistentDataPath/Data/</c>）及其下所有存档。
         /// </summary>
         /// <remarks>
-        /// 恒触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，文件夹为空串）。
+        /// 恒触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，文件夹为空串）。 <br />
         /// 持分层门执行（根级），与所有存档的块级读写互斥。
         /// </remarks>
         public void DeleteAllSaveFiles()
@@ -859,7 +859,7 @@ namespace Moirai.Atropos.Save
         /// 异步删除整个存档文件夹（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 目录级批量删除恒触发一次 <see cref="SaveService.SlotChanged"/>（不保证目录先前存在）。
+        /// 目录级批量删除恒触发一次 <see cref="SaveService.SlotChanged"/>（不保证目录先前存在）。 <br />
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
@@ -1316,7 +1316,7 @@ namespace Moirai.Atropos.Save
         /// 将组件捕获条目与删除集单趟合并写入存档文件（读档 → 自愈迁移 → 移除删除集 → upsert 合并 → 原子写回）。
         /// </summary>
         /// <remarks>
-        /// IO 在工作线程执行，单趟读单趟写。
+        /// IO 在工作线程执行，单趟读单趟写。 <br />
         /// 删除集双通道：<paramref name="removals"/> 为调用方已确定集合（会话内可判定，无需读档）；<paramref name="removalResolver"/> 在持门读档后解析（孤儿判定依赖档内实时块集， <br />
         /// 不得在门外预计算）。
         /// </remarks>
@@ -1449,7 +1449,7 @@ namespace Moirai.Atropos.Save
         /// 显式迁移指定存档到当前数据版本（仅限主线程调用，阻塞直至完成）。
         /// </summary>
         /// <remarks>
-        /// 迁移成功后强制回写（不受 <see cref="MigrationWriteBack"/> 约束）；版本相等或迁移总线未激活为无操作。
+        /// 迁移成功后强制回写（不受 <see cref="MigrationWriteBack"/> 约束）；版本相等或迁移总线未激活为无操作。 <br />
         /// 版本低于当前且迁移链缺失/失败返回 <see cref="SaveError.MigrationFailed"/>，高于当前返回 <see cref="SaveError.UnsupportedVersion"/>。
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -1694,7 +1694,7 @@ namespace Moirai.Atropos.Save
         /// 分层门作用域：按「根目录 → 文件夹 → 文件」固定序取门，使整档删除、文件夹删除与根目录清空同块级读写互斥。
         /// </summary>
         /// <remarks>
-        /// 取门顺序全局一致（防死锁）；根门为全局串行点，跨文件夹的存档 IO 互相排队。
+        /// 取门顺序全局一致（防死锁）；根门为全局串行点，跨文件夹的存档 IO 互相排队。 <br />
         /// 各层级计数登记在 <see cref="SaveFileGate"/> 表上，<see cref="Leave"/> 幂等归还（只释放已持层级）。
         /// </remarks>
         private sealed class GateScope
@@ -2091,7 +2091,7 @@ namespace Moirai.Atropos.Save
         /// 读取并还原存档容器：缺档返回空块集（<see cref="SaveError.None"/>），其余错误分型返回（调用方决定日志与兜底语义）。
         /// </summary>
         /// <remarks>
-        /// 管线：读文件 → 校验头/CRC → 载荷还原（子类：解密/直通）→ 容器解析。
+        /// 管线：读文件 → 校验头/CRC → 载荷还原（子类：解密/直通）→ 容器解析。 <br />
         /// 容器 v2 逐块校验放行的坏块记入 <paramref name="blockErrors"/> 并统一记告警日志（部分恢复不阻断业务）。
         /// </remarks>
         /// <param name="paths">已解析的路径集合。</param>
@@ -2415,7 +2415,7 @@ namespace Moirai.Atropos.Save
         /// 载荷读流包装钩子：子类将存储载荷源流包装为解密读流（明文处理器基类默认直通）。
         /// </summary>
         /// <remarks>
-        /// 在工作线程调用（流式读管线）；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。
+        /// 在工作线程调用（流式读管线）；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。 <br />
         /// 长度非法/密钥材料不可用抛 <see cref="SaveEncryptor.SaveDecryptStreamException"/>（读管线归一为对应错误码）；源流不要求可寻址（解密链全程顺序读）。
         /// </remarks>
         /// <param name="source">存储载荷源流（当前位置即载荷起点；载荷 CRC 增量包装层——读取经此累计校验值）。</param>
@@ -2576,7 +2576,7 @@ namespace Moirai.Atropos.Save
         /// 载荷写流包装钩子：子类将存储目标流包装为载荷写入流（明文处理器基类默认直通）。
         /// </summary>
         /// <remarks>
-        /// 在工作线程调用（存储层流式写委托内）；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。
+        /// 在工作线程调用（存储层流式写委托内）；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。 <br />
         /// 返回流生命周期由调用方管理（直通时按引用比较跳过释放）；密钥材料不可用抛 <see cref="GameException"/>（fail-fast）。
         /// </remarks>
         /// <param name="target">存储目标流（载荷 CRC 包装层——写入经此增量累计校验值）。</param>

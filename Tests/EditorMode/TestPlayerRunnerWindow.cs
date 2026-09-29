@@ -16,10 +16,10 @@ namespace Moirai.Atropos.Editor.Testing
     /// </summary>
     /// <remarks>
     /// 菜单 <c>Window → General → Test Player Runner</c>；与 CLI 同一 <c>PlayerLauncher</c> 机制（结果经 PlayerConnection 回传编辑器），
-    /// 附等价命令行便于复制进 CI 或本机 batch——batch 需先关 GUI 编辑器（工程锁互斥）。
-    /// 启动条件：正在编译、导入、切 PlayMode 或已有任意 Test Runner 作业在跑时拒绝发起。
-    /// 域重载后按作业 guid 判活（探针缺失逐级降级宽限），证实已死即按 ABORTED 强制收口；失败详情 Message 与 StackTrace 并采、有上限。
-    /// 呈现代码限 UI Toolkit：本窗口住测试程序集，其 asmdef 以 <c>overrideReferences</c> 收窄预编译引用、不含 Odin；
+    /// 附等价命令行便于复制进 CI 或本机 batch——batch 需先关 GUI 编辑器（工程锁互斥）。 <br />
+    /// 启动条件：正在编译、导入、切 PlayMode 或已有任意 Test Runner 作业在跑时拒绝发起。 <br />
+    /// 域重载后按作业 guid 判活（探针缺失逐级降级宽限），证实已死即按 ABORTED 强制收口；失败详情 Message 与 StackTrace 并采、有上限。 <br />
+    /// 呈现代码限 UI Toolkit：本窗口住测试程序集，其 asmdef 以 <c>overrideReferences</c> 收窄预编译引用、不含 Odin； <br />
     /// 设置字段走 <c>[SerializeField]</c> 的 EditorWindow 自身序列化，跨域重载保留。
     /// </remarks>
     public sealed class TestPlayerRunnerWindow : EditorWindow

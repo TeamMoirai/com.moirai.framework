@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     /// 重洗只把袋口那项换到随机非袋口位置，因此换手处不会连续两次取到同一项，每轮覆盖仍严格等于权重表。
     /// </remarks>
     /// <example>
-    /// Usage :
+    /// 用法：
     /// <code><![CDATA[
     /// 初始化：
     /// var shuffleBag = new ShuffleBag<int>(40);

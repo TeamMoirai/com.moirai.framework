@@ -17,7 +17,7 @@ namespace Service.Save
     /// </summary>
     /// <remarks>
     /// 全部经 internal 同步核心路径（真实文件 IO）；迁移器类为顶层 internal（SaveHost SG 自注册可发现），
-    /// SetUp 手动注册兜底（SG 对测试程序集生成不稳定）——TearDown 经 <c>SaveMigrationManager.ResetForTests</c> 复位全局状态防串扰。
+    /// SetUp 手动注册兜底（SG 对测试程序集生成不稳定）——TearDown 经 <c>SaveMigrationManager.ResetForTests</c> 复位全局状态防串扰。 <br />
     /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获；DefaultLogHandler 同步链路下补 <c>LogAssert.Expect</c>。
     /// </remarks>
     public class SaveMigrationBusTests

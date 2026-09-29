@@ -130,7 +130,9 @@ namespace Moirai.Atropos.Debugger
             return Path.Combine(projectRoot, "Benchmarks", fileName);
         }
 
-        /// <summary>把整份报告写成 <c>&lt;benchmark&gt;</c> XML；异常吞掉并经 <paramref name="log"/> 上报（默认 Debug.Log）。</summary>
+        /// <summary>
+        /// 把整份报告写成 <c>&lt;benchmark&gt;</c> XML；异常吞掉并经 <paramref name="log"/> 上报（默认 Debug.Log）。
+        /// </summary>
         public void WriteXml(string path, Action<string> log = null)
         {
             log ??= Debug.Log;

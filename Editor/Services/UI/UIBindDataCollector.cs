@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Moirai.Atropos.UI.Editor
 {
     /// <summary>
-    /// 绑定数据收集器，负责从UI层级结构中收集组件绑定信息
+    /// 绑定数据收集器，负责从UI层级结构中收集组件绑定信息。
     /// </summary>
     public static class UIBindDataCollector
     {
@@ -14,7 +14,7 @@ namespace Moirai.Atropos.UI.Editor
         private static readonly Dictionary<string, Type> s_ComponentTypeCache = new Dictionary<string, Type>(StringComparer.Ordinal);
 
         /// <summary>
-        /// 清空收集的绑定数据
+        /// 清空收集的绑定数据。
         /// </summary>
         public static void Reset()
         {
@@ -23,10 +23,10 @@ namespace Moirai.Atropos.UI.Editor
         }
 
         /// <summary>
-        /// 收集指定根节点下的所有绑定数据
+        /// 收集指定根节点下的所有绑定数据。
         /// </summary>
-        /// <param name="root">根变换节点</param>
-        /// <param name="bindData">收集到的绑定数据列表</param>
+        /// <param name="root">根变换节点。</param>
+        /// <param name="bindData">收集到的绑定数据列表。</param>
         public static void Collect(Transform root, List<UIBindData> bindData)
         {
             if (root == null) return;
@@ -54,7 +54,7 @@ namespace Moirai.Atropos.UI.Editor
         }
 
         /// <summary>
-        /// 解析UI元素名称对应的组件类型
+        /// 解析UI元素名称对应的组件类型。
         /// </summary>
         public static Type ResolveUIElementComponentType(string uiName)
         {

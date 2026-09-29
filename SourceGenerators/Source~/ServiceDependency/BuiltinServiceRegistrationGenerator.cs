@@ -12,7 +12,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// <c>BuiltinServiceRegistration.RegisterAll(ServiceWorld)</c>。
     /// </summary>
     /// <remarks>
-    /// 清单类供组合根调用，替代手写的逐服务 RegisterService 调用；初始化顺序仍由 <c>[ServiceDependency]</c> 依赖图在世界初始化时拓扑排序决定，与注册顺序无关。
+    /// 清单类供组合根调用，替代手写的逐服务 RegisterService 调用；初始化顺序仍由 <c>[ServiceDependency]</c> 依赖图在世界初始化时拓扑排序决定，与注册顺序无关。 <br />
     /// 无有效标记类型时不产出任何源文件（避免空清单类污染其他程序集）。
     /// </remarks>
     [Generator]

@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Localization
     /// </summary>
     /// <remarks>
     /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="LocalizationServiceSettings"/> 解析， <br />
-    /// 未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// 未配置则回退 <see cref="CreateDefaultHandler"/>。 <br />
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
     /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
@@ -140,8 +140,8 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 获取当前使用的语言。
         /// </summary>
-        /// <param name="onlySupported">是否只获取支持的语言，<c>false</c>表示仅根据设置获取语言，不关心本地化是否支持</param>
-        /// <param name="settingSource">该语言设置自</param>
+        /// <param name="onlySupported">是否只获取支持的语言，<c>false</c>表示仅根据设置获取语言，不关心本地化是否支持。</param>
+        /// <param name="settingSource">该语言设置自。</param>
         public static Language GetCurrentLanguage(bool onlySupported, ref string settingSource)
         {
             // 获取启动命令中的设置
@@ -215,40 +215,40 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 更改当前语言。
         /// </summary>
-        /// <param name="language">例如：<see cref="Language.ChineseSimplified"/></param>
-        /// <param name="logSource">是否打印设置来源</param>
+        /// <param name="language">例如：<see cref="Language.ChineseSimplified"/>。</param>
+        /// <param name="logSource">是否打印设置来源。</param>
         public static void ChangeLanguage(Language language, bool logSource = false) =>
             s_Handler?.ChangeLanguage(language, logSource);
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
-        /// <param name="language">要切换的语言Name或Code</param>
+        /// <param name="language">要切换的语言Name或Code。</param>
         public static void ChangeLanguage(string language) => s_Handler?.ChangeLanguage(language);
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
-        /// <param name="index">要切换已加载的语言索引</param>
+        /// <param name="index">要切换已加载的语言索引。</param>
         public static void ChangeLanguage(int index) => s_Handler?.ChangeLanguage(index);
 
         /// <summary>
         /// 激活上一个语言。
         /// </summary>
-        /// <returns>激活的语言名称（未就绪时为 null）</returns>
+        /// <returns>激活的语言名称（未就绪时为 null）。</returns>
         public static string ActivatePreviousLanguage() => s_Handler?.ActivatePreviousLanguage();
 
         /// <summary>
         /// 激活下一个语言。
         /// </summary>
-        /// <returns>激活的语言名称（未就绪时为 null）</returns>
+        /// <returns>激活的语言名称（未就绪时为 null）。</returns>
         public static string ActivateNextLanguage() => s_Handler?.ActivateNextLanguage();
 
         /// <summary>
         /// 强制重载本地化词条（配置表热更、远程词库下发后调用；未就绪时为 no-op）。
         /// </summary>
         /// <remarks>
-        /// 重载失败（数据源未就绪或整批拒载）保留上一份可用快照。
+        /// 重载失败（数据源未就绪或整批拒载）保留上一份可用快照。 <br />
         /// 成功换批后自动重注入全部本地化器并广播语言变更；语言未变也会广播，词条内容可能已更新。覆盖层不被换批清空。
         /// </remarks>
         public static void ReloadTexts() => s_Handler?.ReloadTexts();
@@ -257,7 +257,7 @@ namespace Moirai.Atropos.Localization
         /// 异步预加载本地化数据（启动期推荐调用，避免首查询承担整表展开的帧尖峰）。
         /// </summary>
         /// <remarks>
-        /// 幂等且在途去重：并发调用共享同一任务；已加载或处理器未就绪时立即完成。
+        /// 幂等且在途去重：并发调用共享同一任务；已加载或处理器未就绪时立即完成。 <br />
         /// 加载在途期间同步查询按未就绪降级（返回 ID 原文），完成后自动重注入全部本地化器。
         /// </remarks>
         public static UniTask PreloadAsync() => s_Handler?.LoadAsync() ?? UniTask.CompletedTask;
@@ -275,7 +275,7 @@ namespace Moirai.Atropos.Localization
         /// 单趟按 ID 取当前语言译文，缺译按处理器口径追踪一次，不返回 ID 原文。
         /// </summary>
         /// <remarks>
-        /// 本地化器与内联标记解析的「有则注、无则报」判断走这里，无需 <c>Has</c> + <c>GetTextFromId</c> 两趟查询；
+        /// 本地化器与内联标记解析的「有则注、无则报」判断走这里，无需 <c>Has</c> + <c>GetTextFromId</c> 两趟查询； <br />
         /// 需要缺译露 key 的原文回显时用 <see cref="GetTextFromId(string,object[])"/>。
         /// </remarks>
         /// <param name="id">文本 ID。</param>
@@ -296,8 +296,8 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 根据文本 ID 获取本地化字符串（未就绪时返回 id 原文——保证 UI 可见键名而非空白）。
         /// </summary>
-        /// <param name="id">文本 ID</param>
-        /// <param name="p">Format</param>
+        /// <param name="id">文本 ID。</param>
+        /// <param name="p">Format。</param>
         public static string GetTextFromId(string id, params object[] p) =>
             s_Handler?.GetTextFromId(id, p) ?? id;
 
@@ -322,9 +322,9 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 根据文本 ID 和指定语言获取本地化字符串（未就绪时返回 id 原文）。
         /// </summary>
-        /// <param name="id">文本 ID</param>
-        /// <param name="language">要获取的语言</param>
-        /// <param name="p">Format</param>
+        /// <param name="id">文本 ID。</param>
+        /// <param name="language">要获取的语言。</param>
+        /// <param name="p">Format。</param>
         public static string GetTextFromIdLanguage(string id, Language language, params object[] p) =>
             s_Handler?.GetTextFromIdLanguage(id, language, p) ?? id;
 

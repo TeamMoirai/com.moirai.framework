@@ -12,9 +12,9 @@ namespace Moirai.Atropos
         /// Tween 核心更新循环：结构体数组 + 版本号 ID 驱动全部活跃 tween，稳态 0 GC。
         /// </summary>
         /// <remarks>
-        /// 静态状态由所有 <see cref="DefaultTweenHandler"/> 实例共享。
-        /// 迭代取 <c>s_Count</c> 快照：回调中新建的 tween 下一帧才开始计时。
-        /// 完成路径先回收再回调：回调内对旧 id 的 Stop/Complete 为 no-op，回调内 Create 复用同槽位安全。
+        /// 静态状态由所有 <see cref="DefaultTweenHandler"/> 实例共享。 <br />
+        /// 迭代取 <c>s_Count</c> 快照：回调中新建的 tween 下一帧才开始计时。 <br />
+        /// 完成路径先回收再回调：回调内对旧 id 的 Stop/Complete 为 no-op，回调内 Create 复用同槽位安全。 <br />
         /// 用户回调统一 try/catch：单个回调异常不中断整帧更新。
         /// </remarks>
         internal static class TweenTask
@@ -898,7 +898,7 @@ namespace Moirai.Atropos
             /// </summary>
             /// <remarks>
             /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待， <br />
-            /// tween 不受影响）。
+            /// tween 不受影响）。 <br />
             /// 已结束的 id 立即完成；注册表仅在存在等待者时产生开销。
             /// </remarks>
             internal static UniTask WaitAsync(long tweenId, CancellationToken cancellationToken)

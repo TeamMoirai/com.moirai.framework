@@ -25,8 +25,8 @@ namespace Moirai.Atropos.Audio
     /// 音频句柄注册表（Unity / 中间件后端共用）。
     /// </summary>
     /// <remarks>
-    /// 职责：句柄生成与解析、句柄 → 声部绑定、用户 ID → 句柄遍历、按 ID 批量操作。
-    /// 句柄 ↔ 声部为 1:1；<see cref="Bind"/> 重绑前自动卸掉声部旧句柄；句柄低 20 位是槽号、高位是代次，代次不符即判假，槽位复用后旧句柄不会命中。
+    /// 职责：句柄生成与解析、句柄 → 声部绑定、用户 ID → 句柄遍历、按 ID 批量操作。 <br />
+    /// 句柄 ↔ 声部为 1:1；<see cref="Bind"/> 重绑前自动卸掉声部旧句柄；句柄低 20 位是槽号、高位是代次，代次不符即判假，槽位复用后旧句柄不会命中。 <br />
     /// 零分配：声部表为数组 + 自由栈，用户 ID 索引为开址头表，无 <c>Dictionary</c>、无 <c>List&lt;ulong&gt;</c> 池、无遍历快照——播放、停播与每帧扫描都走这张表。
     /// </remarks>
     /// <typeparam name="TVoice">后端声部类型（Unity 为 <see cref="AudioAgent"/>，中间件为私有 Voice）。</typeparam>

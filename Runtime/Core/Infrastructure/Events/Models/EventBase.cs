@@ -29,21 +29,21 @@ namespace Moirai.Atropos.Events
         }
         
         /// <summary>
-        /// 参考 https://docs.unity3d.com/cn/current/Manual/UIE-Events-Dispatching.html
+        /// 参考 https://docs.unity3d.com/cn/current/Manual/UIE-Events-Dispatching.html。
         /// </summary>
         [Flags]
         public enum EventPropagation
         {
             None = 0,
-            /// <summary>冒泡</summary>
+            /// <summary>冒泡。</summary>
             Bubbles = 1,
-            /// <summary>涓滴</summary>
+            /// <summary>涓滴。</summary>
             TricklesDown = 2,
-            /// <summary>可取消</summary>
+            /// <summary>可取消。</summary>
             Cancellable = 4,
-            /// <summary>跳过禁用的元素</summary>
+            /// <summary>跳过禁用的元素。</summary>
             SkipDisabledElements = 8,
-            /// <summary>忽略复合根节点</summary>
+            /// <summary>忽略复合根节点。</summary>
             IgnoreCompositeRoots = 16,
         }
         
@@ -130,7 +130,7 @@ namespace Moirai.Atropos.Events
         }
 
         /// <summary>
-        /// 返回此事件类型是否在事件传播路径中向下涓滴
+        /// 返回此事件类型是否在事件传播路径中向下涓滴。
         /// </summary>
         [JsonIgnore]
         public bool TricklesDown

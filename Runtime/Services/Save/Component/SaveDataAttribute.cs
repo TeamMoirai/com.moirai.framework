@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Save
     /// 存档数据块声明特性：块键、模式版本与序列化后端（标注于 <see cref="SaveDataBlock"/> 子类）。
     /// </summary>
     /// <remarks>
-    /// 框架经静态泛型描述符缓存标注，每类型仅反射一次（AOT 安全）。
+    /// 框架经静态泛型描述符缓存标注，每类型仅反射一次（AOT 安全）。 <br />
     /// 版本升级契约：存档内记录的 <see cref="Version"/> 低于声明值时调用 <see cref="SaveDataBlock.OnMigrate"/> 级联迁移，高于声明值时 fail-fast 拒绝。
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]

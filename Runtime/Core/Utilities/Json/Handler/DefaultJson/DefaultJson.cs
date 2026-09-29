@@ -13,9 +13,9 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 数值固定以 <c>InvariantCulture</c> 输出/解析（浮点 <c>"R"</c> 往返格式）； <br />
     /// <see cref="DateTime"/>/<see cref="Guid"/>/<see cref="TimeSpan"/> 等无公开字段类型显式转字符串，不静默丢数据。
-    /// 字典默认输出标准 Json 对象格式，复杂 key 回退 legacy 条目数组，两种格式均可解析；未知字段默认忽略。
-    /// 序列化与反序列化双侧有深度守卫（防引用环与深嵌套栈溢出）；截断或畸形输入一律抛错，错误信息带偏移/行列位置。
-    /// 反射元数据经 <see cref="ReflectionCache"/> 缓存（线程安全）；解析基于 span 零拷贝，写入单遍直写。
+    /// 字典默认输出标准 Json 对象格式，复杂 key 回退 legacy 条目数组，两种格式均可解析；未知字段默认忽略。 <br />
+    /// 序列化与反序列化双侧有深度守卫（防引用环与深嵌套栈溢出）；截断或畸形输入一律抛错，错误信息带偏移/行列位置。 <br />
+    /// 反射元数据经 <see cref="ReflectionCache"/> 缓存（线程安全）；解析基于 span 零拷贝，写入单遍直写。 <br />
     /// 不使用表达式树与 <c>Reflection.Emit</c>，IL2CPP + HybridCLR 安全；通用属性标识见 <c>JsonUtility.Attributes.cs</c>。
     /// </remarks>
     public static partial class DefaultJson
@@ -25,32 +25,29 @@ namespace Moirai.Atropos
 
         #region 公共 API [PUBLIC API]
         /// <summary>
-        /// 将 JSON 字符串转换为类型化对象
+        /// 将 JSON 字符串转换为类型化对象。
         /// </summary>
-        /// <param name="json">要转换的字符串</param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
+        /// <param name="json">要转换的字符串。</param>
         public static T FromJson<T>(string json)
         {
             return (T)Parse(json, typeof(T), null);
         }
 
         /// <summary>
-        /// 将 JSON 字符串转换为类型化对象
+        /// 将 JSON 字符串转换为类型化对象。
         /// </summary>
-        /// <param name="json">要转换的字符串</param>
-        /// <param name="type">要转换为的类型</param>
-        /// <returns></returns>
+        /// <param name="json">要转换的字符串。</param>
+        /// <param name="type">要转换为的类型。</param>
         public static object FromJson(string json, Type type)
         {
             return Parse(json, type, null);
         }
 
         /// <summary>
-        /// 用 JSON 字符串中的值覆盖对象数据
+        /// 用 JSON 字符串中的值覆盖对象数据。
         /// </summary>
-        /// <param name="obj">要更新的对象</param>
-        /// <param name="json">要使用的 JSON</param>
+        /// <param name="obj">要更新的对象。</param>
+        /// <param name="json">要使用的 JSON。</param>
         public static void FromJsonOverwrite(object obj, string json)
         {
             if (obj == null)
@@ -62,12 +59,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 序列化为 JSON 的简单方法。将对象转换为 JSON 字符串
+        /// 序列化为 JSON 的简单方法。将对象转换为 JSON 字符串。
         /// </summary>
-        /// <param name="obj">要转换的对象</param>
-        /// <param name="removeNulls">删除空值</param>
-        /// <param name="readable">包括制表符（tab）和回车（return），使结果易于阅读</param>
-        /// <returns></returns>
+        /// <param name="obj">要转换的对象。</param>
+        /// <param name="removeNulls">删除空值。</param>
+        /// <param name="readable">包括制表符（tab）和回车（return），使结果易于阅读。</param>
         public static string ToJson(object obj, bool removeNulls = true, bool readable = false)
         {
             LoopGuard.Begin();
@@ -92,9 +88,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 序列化为 UTF8 JSON 字节（紧凑格式，与 <see cref="ToJson"/> 输出 UTF8 编码逐字节等价）。
         /// </summary>
-        /// <param name="obj">要转换的对象</param>
-        /// <param name="removeNulls">删除空值</param>
-        /// <returns>UTF8 JSON 字节（调用方持有所有权）</returns>
+        /// <param name="obj">要转换的对象。</param>
+        /// <param name="removeNulls">删除空值。</param>
+        /// <returns>UTF8 JSON 字节（调用方持有所有权）。</returns>
         public static byte[] ToJsonBytes(object obj, bool removeNulls = true)
         {
             LoopGuard.Begin();
@@ -116,22 +112,19 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson{T}(string)"/> 接受相同的输入集合）
+        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson{T}(string)"/> 接受相同的输入集合）。
         /// </summary>
-        /// <param name="json">要转换的 UTF8 字节</param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
+        /// <param name="json">要转换的 UTF8 字节。</param>
         public static T FromJson<T>(byte[] json)
         {
             return (T)ParseBytes(json, typeof(T), null);
         }
 
         /// <summary>
-        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson(string, Type)"/> 接受相同的输入集合）
+        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson(string, Type)"/> 接受相同的输入集合）。
         /// </summary>
-        /// <param name="json">要转换的 UTF8 字节</param>
-        /// <param name="type">要转换为的类型</param>
-        /// <returns></returns>
+        /// <param name="json">要转换的 UTF8 字节。</param>
+        /// <param name="type">要转换为的类型。</param>
         public static object FromJson(byte[] json, Type type)
         {
             return ParseBytes(json, type, null);

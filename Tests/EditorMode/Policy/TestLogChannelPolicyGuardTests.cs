@@ -16,7 +16,7 @@ namespace Policy
     /// <c>Debug.Log*</c> 对 UTF 的可见性则是确定的。
     /// 断言通道不受此守卫约束：<see cref="LogUtility.OnMessageLogged"/> 订阅是捕获运行时日志的唯一稳定通道， <br />
     /// <see cref="UtfLogExpect"/> 是消除未处理日志的统一入口（读 Handler 状态做可见性判定，不是发射）。
-    /// 白名单两类正当用途：① 被测本体（LogUtility 自身的语义回归必须发射 LogUtility）；② 替身复刻（fake loader 复现生产侧错误发射，错误路径断言依赖该可观察行为）。
+    /// 白名单两类正当用途：① 被测本体（LogUtility 自身的语义回归必须发射 LogUtility）；② 替身复刻（fake loader 复现生产侧错误发射，错误路径断言依赖该可观察行为）。 <br />
     /// 白名单双向断言：未登记的不得出现发射模式，已登记的必须仍存在且仍命中，否则名单腐烂。结构与 <see cref="ReflectionPolicyGuardTests"/> 同构。
     /// </remarks>
     [TestFixture]

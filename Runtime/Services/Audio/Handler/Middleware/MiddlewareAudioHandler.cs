@@ -11,9 +11,9 @@ namespace Moirai.Atropos.Audio.Middleware
     /// </summary>
     /// <remarks>
     /// 统一句柄生命周期（<see cref="AudioHandleRegistry{TVoice}"/>）、用户 ID 映射、声部与总线 Fade（<see cref="AudioFadeScheduler"/>）、 <br />
-    /// 总线音量/静音/暂停与场景切换清理；
-    /// 子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。
-    /// 语义与 Unity 后端对齐：暂停轨拦截新播放、<see cref="MasterVolume"/> getter 始终返回未静音值、Master/音轨 Fade 带缓动。
+    /// 总线音量/静音/暂停与场景切换清理； <br />
+    /// 子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。 <br />
+    /// 语义与 Unity 后端对齐：暂停轨拦截新播放、<see cref="MasterVolume"/> getter 始终返回未静音值、Master/音轨 Fade 带缓动。 <br />
     /// 不支持 InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。
     /// </remarks>
     [Serializable]
@@ -513,7 +513,9 @@ namespace Moirai.Atropos.Audio.Middleware
         private ulong PlayWithRequest(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold)
             => PlayEventPath(ResolveEventPath(clip), request, cold);
 
-        /// <summary>解析 clip 对应的事件路径：先查 <see cref="AudioEventMapping"/> 映射表，未命中才回落按 <c>clip.name</c> 推导并提示一次。</summary>
+        /// <summary>
+        /// 解析 clip 对应的事件路径：先查 <see cref="AudioEventMapping"/> 映射表，未命中才回落按 <c>clip.name</c> 推导并提示一次。
+        /// </summary>
         private string ResolveEventPath(AudioClip clip)
         {
             if (clip == null) return null;
@@ -585,9 +587,9 @@ namespace Moirai.Atropos.Audio.Middleware
 
         /// <inheritdoc />
         /// <remarks>
-        /// 需要桥接实现 <see cref="IAudioMiddlewareBankControl"/>；未实现时提示一次并返回 false。
+        /// 需要桥接实现 <see cref="IAudioMiddlewareBankControl"/>；未实现时提示一次并返回 false。 <br />
         /// 只有 <see cref="EAudioBankLoadResult.Failed"/> 才告警（同一库一次）——幂等命中与「插件启动时
-        /// 自行加载过的 master/Init 库」都是正常路径，报出来只会把真失败淹成噪音。
+        /// 自行加载过的 master/Init 库」都是正常路径，报出来只会把真失败淹成噪音。 <br />
         /// 返回 <c>true</c> 仅表示本次调用真的完成了加载。
         /// </remarks>
         public override bool LoadBank(string bankPath)

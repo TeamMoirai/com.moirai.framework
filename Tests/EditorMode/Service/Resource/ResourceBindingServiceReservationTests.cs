@@ -12,7 +12,7 @@ namespace Service.Resource
     /// <remarks>
     /// 预约落地后槽位的形状是"有目标、有版本号、无租约无资源"；目标还活着时它不会被轮转扫描回收，
     /// 只在所有者释放时才走掉，期间占着 <c>_bindingIndexByOwnerSlot</c> 的一条映射与一个版本号，
-    /// 同一个 (所有者, 组件, 槽位类型) 再绑就会撞上这个版本号。
+    /// 同一个 (所有者, 组件, 槽位类型) 再绑就会撞上这个版本号。 <br />
     /// 抛出错位取 <see cref="StubLeaseSource"/> 上的开关，不依赖任何真实后端的行为。
     /// </remarks>
     public sealed class ResourceBindingServiceReservationTests

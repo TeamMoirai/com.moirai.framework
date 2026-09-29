@@ -13,8 +13,8 @@ namespace Core.Tasks
     /// </summary>
     /// <remarks>
     /// 子任务完成会 <c>PostComplete</c> 派发事件、<see cref="TaskRunner"/> 的隔离判据只在 <c>Update</c> 里成立，
-    /// 而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/> 的静态入口在非 play mode 直接返回 null；这两件事在 EditMode 里测不到。
-    /// 不依赖广播的三条（空队列、Reset 交还、引用下穿）见 <c>Tests/EditorMode/Core/Tasks/SequenceTaskTests</c>。
+    /// 而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/> 的静态入口在非 play mode 直接返回 null；这两件事在 EditMode 里测不到。 <br />
+    /// 不依赖广播的三条（空队列、Reset 交还、引用下穿）见 <c>Tests/EditorMode/Core/Tasks/SequenceTaskTests</c>。 <br />
     /// 摘除 / 归还是否发生，一律用池的 LIFO 复用来观测（取回同一只实例），不去读内核私有集合。
     /// </remarks>
     [TestFixture]

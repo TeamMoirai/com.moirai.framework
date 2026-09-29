@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 提供音频剪辑的 JSON 兼容引用
+    /// 提供音频剪辑的 JSON 兼容引用。
     /// </summary>
     [Serializable]
     public class AudioClipInfo
@@ -17,9 +17,8 @@ namespace Moirai.Atropos
         public string Path => m_Path;
 
         /// <summary>
-        /// 克隆此对象
+        /// 克隆此对象。
         /// </summary>
-        /// <returns></returns>
         public AudioClipInfo Clone()
         {
             AudioClipInfo result = new AudioClipInfo();

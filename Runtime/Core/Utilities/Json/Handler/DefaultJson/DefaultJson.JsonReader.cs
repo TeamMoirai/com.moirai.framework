@@ -12,9 +12,9 @@ namespace Moirai.Atropos
         /// 统一反序列化解析器（string / UTF8 字节双路径的单一结构实现）。
         /// </summary>
         /// <remarks>
-        /// 单一实现：值分派、容器与对象与字典（标准与 legacy）解析、深度守卫、未知字段跳过、null 字面量、覆盖模式、类型化集合快路径；token 编码差异下沉到 <see cref="IJsonLexer"/>。
-        /// 类型化集合注册表 <see cref="LexerTokens{TLexer}"/> 按「Lexer 类型 × 元素类型」静态化读取委托，两个 Lexer 各自注册。
-        /// 兼容：标准与 legacy 字典格式、带引号历史数值、NaN/Infinity、BOM 头；未知字段默认忽略；数值固定 InvariantCulture。
+        /// 单一实现：值分派、容器与对象与字典（标准与 legacy）解析、深度守卫、未知字段跳过、null 字面量、覆盖模式、类型化集合快路径；token 编码差异下沉到 <see cref="IJsonLexer"/>。 <br />
+        /// 类型化集合注册表 <see cref="LexerTokens{TLexer}"/> 按「Lexer 类型 × 元素类型」静态化读取委托，两个 Lexer 各自注册。 <br />
+        /// 兼容：标准与 legacy 字典格式、带引号历史数值、NaN/Infinity、BOM 头；未知字段默认忽略；数值固定 InvariantCulture。 <br />
         /// 安全：闭合括号循环（截断即抛错）、深度守卫（容器递归软跳过）、错误信息带偏移与行列与上下文片段。
         /// </remarks>
         internal static class JsonReader<TLexer> where TLexer : class, IJsonLexer
