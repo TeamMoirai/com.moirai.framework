@@ -40,7 +40,9 @@ namespace Service.Audio
         private const double IdleTickBudgetNs = 350d;
         private const double EvictBudgetNs = 6_000d;
 
-        /// <summary>已加载条目的重复取用：播放路径每帧都会走这一步。</summary>
+        /// <summary>
+        /// 已加载条目的重复取用：播放路径每帧都会走这一步。
+        /// </summary>
         [Test]
         public void CacheHit_PreloadWithinBudget()
         {
@@ -55,7 +57,9 @@ namespace Service.Audio
             Assert.LessOrEqual(ns, HitBudgetNs, "已加载条目重复取用的单次耗时超预算");
         }
 
-        /// <summary>空闲 Tick：无可驱逐时应当是常数开销（只比一下 LRU 头的时间）。</summary>
+        /// <summary>
+        /// 空闲 Tick：无可驱逐时应当是常数开销（只比一下 LRU 头的时间）。
+        /// </summary>
         [Test]
         public void IdleTick_WithinBudget()
         {
@@ -72,7 +76,9 @@ namespace Service.Audio
             Assert.LessOrEqual(ns, IdleTickBudgetNs, "空闲 Tick 的单次耗时超预算");
         }
 
-        /// <summary>满载驱逐：新地址挤掉 LRU 头 + 条目复用 + 同步取租约的整条链路。</summary>
+        /// <summary>
+        /// 满载驱逐：新地址挤掉 LRU 头 + 条目复用 + 同步取租约的整条链路。
+        /// </summary>
         [Test]
         public void EvictionAtCapacity_WithinBudget()
         {
@@ -104,7 +110,9 @@ namespace Service.Audio
             Assert.LessOrEqual(ns, EvictBudgetNs, "满载驱逐链路的单次耗时超预算");
         }
 
-        /// <summary>预热后重复计时 <see cref="RepeatWindows"/> 轮，取最快一轮：抖动只会让某一轮变慢，取最小值才可比。</summary>
+        /// <summary>
+        /// 预热后重复计时 <see cref="RepeatWindows"/> 轮，取最快一轮：抖动只会让某一轮变慢，取最小值才可比。
+        /// </summary>
         private static double Measure(Action body, int calls)
         {
             for (int i = 0; i < WarmupCalls; i++) body();
@@ -139,7 +147,9 @@ namespace Service.Audio
             }.Metric("budgetNs", budgetNs.ToString("F0")));
         }
 
-        /// <summary>一轮基准结束后把 XML 报告写到统一文件夹（域重载会重建 fixture，所以报告是 static）。</summary>
+        /// <summary>
+        /// 一轮基准结束后把 XML 报告写到统一文件夹（域重载会重建 fixture，所以报告是 static）。
+        /// </summary>
         [OneTimeSetUp]
         public static void SetUpReport()
         {

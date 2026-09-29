@@ -12,7 +12,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>袋内剩余数量（本轮未播下标数）。</summary>
         public int Remaining => _bag.Remaining;
 
-        /// <summary>清空并重置（PlayFromStart / 曲目数变化）。</summary>
+        /// <summary>
+        /// 清空并重置（PlayFromStart / 曲目数变化）。
+        /// </summary>
         public void Reset()
         {
             _bag.Reset();

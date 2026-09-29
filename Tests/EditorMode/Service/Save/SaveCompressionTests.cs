@@ -28,7 +28,9 @@ namespace Service.Save
             public string PlayerName;
         }
 
-        /// <summary>测试用伪造压缩提供方（仅实现接口——禁止派生 [SerializeReference] 持有的框架基类，避免污染 Inspector 下拉框）。</summary>
+        /// <summary>
+        /// 测试用伪造压缩提供方（仅实现接口——禁止派生 [SerializeReference] 持有的框架基类，避免污染 Inspector 下拉框）。
+        /// </summary>
         private sealed class FakeCompressionProvider : ICompressionProvider
         {
             private readonly byte _id;

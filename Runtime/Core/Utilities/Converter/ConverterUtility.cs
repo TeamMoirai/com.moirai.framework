@@ -13,14 +13,10 @@ namespace Moirai.Atropos
         private const float INCHES_TO_CENTIMETERS = 2.54f; // 1 inch = 2.54 cm
         private const float CENTIMETERS_TO_INCHES = 1f / INCHES_TO_CENTIMETERS; // 1 cm = 0.3937 inches
 
-        /// <summary>
-        /// 获取数据在此计算机结构中存储时的字节顺序。
-        /// </summary>
+        /// <summary>获取数据在此计算机结构中存储时的字节顺序。</summary>
         public static bool IsLittleEndian => BitConverter.IsLittleEndian;
 
-        /// <summary>
-        /// 获取或设置屏幕每英寸点数。
-        /// </summary>
+        /// <summary>获取或设置屏幕每英寸点数。</summary>
         public static float ScreenDpi { get; set; }
 
         /// <summary>

@@ -7,9 +7,7 @@ namespace Moirai.Atropos.Input
     /// </summary>
     public interface IUIVector2Action : IUIAction
     { 
-        /// <summary>
-        /// 获取动作携带的二维向量值。
-        /// </summary>
+        /// <summary>获取动作携带的二维向量值。</summary>
         Vector2 Vector2Value { get; }
     }
 }

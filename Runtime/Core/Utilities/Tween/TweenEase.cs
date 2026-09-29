@@ -20,17 +20,15 @@ namespace Moirai.Atropos
     [Serializable]
     public struct TweenEase : IEquatable<TweenEase>
     {
-        /// <summary>缓动数据源类型。</summary>
+        /// <summary>
+        /// 缓动数据源类型。
+        /// </summary>
         public enum ETweenType : byte
         {
-            /// <summary>
-            /// 内置缓动曲线。
-            /// </summary>
+            /// <summary>内置缓动曲线。</summary>
             Ease,
 
-            /// <summary>
-            /// 自定义动画曲线。
-            /// </summary>
+            /// <summary>自定义动画曲线。</summary>
             AnimationCurve
         }
 

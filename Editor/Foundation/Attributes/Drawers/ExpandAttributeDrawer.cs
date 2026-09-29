@@ -455,7 +455,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             }
         }
 
-        /// <summary>从字段上的 LabelText.Text 读显示名（不解析 @ 表达式）。</summary>
+        /// <summary>
+        /// 从字段上的 LabelText.Text 读显示名（不解析 @ 表达式）。
+        /// </summary>
         private static string ResolveFieldLabelText(System.Type elementType, string fieldName)
         {
             if (elementType == null || string.IsNullOrEmpty(fieldName))

@@ -23,9 +23,7 @@ namespace Moirai.Atropos
 
         #region 单例访问 [Singleton Access]
 
-        /// <summary>
-        /// 获取单例实例；首次访问时惰性创建（线程安全）。
-        /// </summary>
+        /// <summary>获取单例实例；首次访问时惰性创建（线程安全）。</summary>
         public static T Instance
         {
             get

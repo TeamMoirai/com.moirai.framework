@@ -76,22 +76,16 @@ namespace Moirai.Atropos.Scene
 
         #region 事件 [EVENTS]
 
-        /// <summary>
-        /// 主场景切换完成（Single 模式加载并激活后触发，参数为归一化场景短名）。
-        /// </summary>
+        /// <summary>主场景切换完成（Single 模式加载并激活后触发，参数为归一化场景短名）。</summary>
         /// <remarks>
         /// 主线程同步触发；订阅者异常被隔离记录。
         /// </remarks>
         public static event Action<string> MainSceneChanged;
 
-        /// <summary>
-        /// 子场景加载完成（Additive 模式登记为已加载后触发，参数为归一化场景短名）。
-        /// </summary>
+        /// <summary>子场景加载完成（Additive 模式登记为已加载后触发，参数为归一化场景短名）。</summary>
         public static event Action<string> SubSceneLoaded;
 
-        /// <summary>
-        /// 子场景卸载完成（参数为归一化场景短名）。
-        /// </summary>
+        /// <summary>子场景卸载完成（参数为归一化场景短名）。</summary>
         public static event Action<string> SubSceneUnloaded;
 
         /// <summary>
@@ -221,14 +215,10 @@ namespace Moirai.Atropos.Scene
 
         #region 场景查询 [SCENE QUERY]
 
-        /// <summary>
-        /// 当前主场景名称（归一化场景短名，非资源地址；启动场景未经本服务加载时为引擎激活场景名）。
-        /// </summary>
+        /// <summary>当前主场景名称（归一化场景短名，非资源地址；启动场景未经本服务加载时为引擎激活场景名）。</summary>
         public static string CurrentMainSceneName => s_Handler?.CurrentMainSceneName;
 
-        /// <summary>
-        /// 已完成加载的子场景资源地址快照（不含加载中的子场景——在途登记请用 <see cref="IsContainScene"/> 查询）。
-        /// </summary>
+        /// <summary>已完成加载的子场景资源地址快照（不含加载中的子场景——在途登记请用 <see cref="IsContainScene"/> 查询）。</summary>
         public static IReadOnlyCollection<string> LoadedSubSceneLocations => s_Handler?.LoadedSubSceneLocations ?? Array.Empty<string>();
 
         /// <summary>

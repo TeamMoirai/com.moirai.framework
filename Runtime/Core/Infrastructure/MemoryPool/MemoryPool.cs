@@ -10,55 +10,35 @@ namespace Moirai.Atropos
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 最小空闲保留数量。
-        /// </summary>
+        /// <summary>最小空闲保留数量。</summary>
         public const int MINIMUM_FREE_RESERVE_LIMIT = 4;
 
-        /// <summary>
-        /// 池空闲多少帧后开始衰减目标空闲水位。实际每 tick 驱逐数量由 Phase 预算决定（Gameplay=2）。默认 1800 帧（@60fps ≈ 30秒）。
-        /// </summary>
+        /// <summary>池空闲多少帧后开始衰减目标空闲水位。实际每 tick 驱逐数量由 Phase 预算决定（Gameplay=2）。默认 1800 帧（@60fps ≈ 30秒）。</summary>
         public static int ShortDecayStartFrames = 1800;
 
-        /// <summary>
-        /// 池空闲多少帧后加速衰减目标空闲水位。实际每 tick 驱逐数量由 Phase 预算决定。默认 7200 帧（@60fps ≈ 2分钟）。
-        /// </summary>
+        /// <summary>池空闲多少帧后加速衰减目标空闲水位。实际每 tick 驱逐数量由 Phase 预算决定。默认 7200 帧（@60fps ≈ 2分钟）。</summary>
         public static int LongDecayStartFrames = 7200;
 
-        /// <summary>
-        /// 池空闲多少帧后停止调度 Tick（省 CPU）。默认 18000 帧（@60fps ≈ 5分钟）。
-        /// </summary>
+        /// <summary>池空闲多少帧后停止调度 Tick（省 CPU）。默认 18000 帧（@60fps ≈ 5分钟）。</summary>
         public static int UnscheduleIdleFrames = 18000;
 
-        /// <summary>
-        /// 池空闲多少帧后允许目标空闲缓存降为 0。默认 7200 帧（@60fps ≈ 2分钟）。
-        /// </summary>
+        /// <summary>池空闲多少帧后允许目标空闲缓存降为 0。默认 7200 帧（@60fps ≈ 2分钟）。</summary>
         public static int ZeroFreeReserveStartFrames = 7200;
 
-        /// <summary>
-        /// 池空闲多少帧后，若已完全空闲则自动释放 Native 元数据。默认 18000 帧（@60fps ≈ 5分钟）。
-        /// </summary>
+        /// <summary>池空闲多少帧后，若已完全空闲则自动释放 Native 元数据。默认 18000 帧（@60fps ≈ 5分钟）。</summary>
         public static int AutoTrimNativeMetadataFrames = 18000;
 
-        /// <summary>
-        /// 默认空闲缓存软上限。
-        /// </summary>
+        /// <summary>默认空闲缓存软上限。</summary>
         public static int DefaultSoftFreeReserveLimit = 128;
 
-        /// <summary>
-        /// 默认空闲缓存硬上限。
-        /// </summary>
+        /// <summary>默认空闲缓存硬上限。</summary>
         public static int DefaultHardFreeReserveLimit = 512;
 
-        /// <summary>
-        /// 正式构建是否仍保留主线程守卫（默认关闭）。
-        /// </summary>
+        /// <summary>正式构建是否仍保留主线程守卫（默认关闭）。</summary>
         /// <remarks>只影响正式包，供 QA / soak 构建在运行期打开；开启后每次取还多读一次静态布尔并比较线程 id，不建议长期开启。</remarks>
         public static bool VerifyMainThreadInRelease;
 
-        /// <summary>
-        /// 存活（在外）对象数量上限的全局默认值，0 表示不限制。
-        /// </summary>
+        /// <summary>存活（在外）对象数量上限的全局默认值，0 表示不限制。</summary>
         /// <remarks>
         /// 硬上限约束的是空闲缓存而非总量，<c>Acquire</c> 未命中即构造、永不失败；新池在静态构造时取该默认值，之后可按类型用 <see cref="SetLiveLimit{T}"/> 覆盖。 <br />
         /// 越界时带池身份限流上报，开发期直接抛出。
@@ -69,9 +49,7 @@ namespace Moirai.Atropos
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取内存池的数量。
-        /// </summary>
+        /// <summary>获取内存池的数量。</summary>
         public static int Count => MemoryPoolRegistry.Count;
 
         #endregion

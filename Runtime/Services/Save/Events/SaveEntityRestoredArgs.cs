@@ -8,19 +8,13 @@ namespace Moirai.Atropos.Save
     /// <remarks>生产点由动态实体持久化管线接线，当前尚无生产方。</remarks>
     public readonly struct SaveEntityRestoredArgs
     {
-        /// <summary>
-        /// 实体稳定标识。
-        /// </summary>
+        /// <summary>实体稳定标识。</summary>
         public string EntityId { get; }
 
-        /// <summary>
-        /// 预制体注册键（<c>SavePrefabRegistry</c>）。
-        /// </summary>
+        /// <summary>预制体注册键（<c>SavePrefabRegistry</c>）。</summary>
         public string PrefabKey { get; }
 
-        /// <summary>
-        /// 恢复出的实体实例。
-        /// </summary>
+        /// <summary>恢复出的实体实例。</summary>
         public GameObject Instance { get; }
 
         /// <summary>

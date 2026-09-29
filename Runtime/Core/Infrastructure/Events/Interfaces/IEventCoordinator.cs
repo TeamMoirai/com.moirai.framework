@@ -10,9 +10,7 @@ namespace Moirai.Atropos.Events
         /// </summary>
         CallbackEventHandler GetCallbackEventHandler();
         
-        /// <summary>
-        /// 获取协调器的调度程序。
-        /// </summary>
+        /// <summary>获取协调器的调度程序。</summary>
         EventDispatcher EventDispatcher { get; }
     }
 }

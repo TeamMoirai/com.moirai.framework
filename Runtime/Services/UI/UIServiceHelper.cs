@@ -5,9 +5,7 @@ namespace Moirai.Atropos.UI
 {
     public static class UIServiceHelper
     {
-        /// <summary>
-        /// 交互是否被模态遮挡。是否存在模态遮挡（导致交互被阻止）。
-        /// </summary>
+        /// <summary>交互是否被模态遮挡。是否存在模态遮挡（导致交互被阻止）。</summary>
         /// <remarks>一般用于[非UI组件]但想与UI交互的前置判断</remarks>
         public static bool IsInteractionBlockedByModal
         {

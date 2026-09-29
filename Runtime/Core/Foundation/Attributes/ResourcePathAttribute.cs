@@ -14,7 +14,9 @@ namespace Moirai.Atropos.Attributes
         Scene = 1 << 1,
     }
     
-    /// <summary>要填充选择资源的属性。</summary>
+    /// <summary>
+    /// 要填充选择资源的属性。
+    /// </summary>
     /// <remarks>
     /// <c>Resource</c> — 资源的 Resource 路径；<br />
     /// <c>AssetDatabase</c> — 资源的 AssetDatabase 路径；<br />

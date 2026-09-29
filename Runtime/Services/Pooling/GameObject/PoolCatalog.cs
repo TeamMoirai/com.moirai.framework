@@ -10,73 +10,47 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 规则索引。
-        /// </summary>
+        /// <summary>规则索引。</summary>
         public readonly int RuleIndex;
 
-        /// <summary>
-        /// 条目名称。
-        /// </summary>
+        /// <summary>条目名称。</summary>
         public readonly string EntryName;
 
-        /// <summary>
-        /// 分组名称。
-        /// </summary>
+        /// <summary>分组名称。</summary>
         public readonly string Group;
 
-        /// <summary>
-        /// 匹配模式。
-        /// </summary>
+        /// <summary>匹配模式。</summary>
         public readonly string Pattern;
 
-        /// <summary>
-        /// 池策略。
-        /// </summary>
+        /// <summary>池策略。</summary>
         public readonly EPoolPolicy Policy;
 
-        /// <summary>
-        /// 最小空闲数量。
-        /// </summary>
+        /// <summary>最小空闲数量。</summary>
         public readonly int MinIdle;
 
-        /// <summary>
-        /// 软容量。
-        /// </summary>
+        /// <summary>软容量。</summary>
         public readonly int SoftCapacity;
 
-        /// <summary>
-        /// 硬容量。
-        /// </summary>
+        /// <summary>硬容量。</summary>
         public readonly int HardCapacity;
 
-        /// <summary>
-        /// 空闲超时秒数。
-        /// </summary>
+        /// <summary>空闲超时秒数。</summary>
         public readonly float IdleSeconds;
 
-        /// <summary>
-        /// 是否卸载预制体。
-        /// </summary>
+        /// <summary>是否卸载预制体。</summary>
         public readonly bool UnloadPrefab;
 
-        /// <summary>
-        /// 优先级。
-        /// </summary>
+        /// <summary>优先级。</summary>
         public readonly int Priority;
 
-        /// <summary>
-        /// 匹配器。
-        /// </summary>
+        /// <summary>匹配器。</summary>
         public readonly PoolGlobMatcher Matcher;
 
         #endregion
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取是否为字面量模式。
-        /// </summary>
+        /// <summary>获取是否为字面量模式。</summary>
         public bool IsLiteralPattern => Matcher.IsValid && Matcher.IsLiteralPattern;
 
         #endregion
@@ -184,9 +158,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取规则数量。
-        /// </summary>
+        /// <summary>获取规则数量。</summary>
         public int RuleCount => _rules.Length;
 
         #endregion

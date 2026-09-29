@@ -41,9 +41,7 @@ namespace Moirai.Atropos.Editor
 
         private string _packageVersion = "";
 
-        /// <summary>
-        /// 资源版本号。
-        /// </summary>
+        /// <summary>资源版本号。</summary>
         [FoldoutGroup("基础设置")]
         [HorizontalGroup("基础设置/VersionRow")]
         [PropertyOrder(1)]
@@ -78,9 +76,7 @@ namespace Moirai.Atropos.Editor
         [Tooltip("带这些Tag的bundle不会被删除")]
         [SerializeField] internal string m_RetainTags = "";
 
-        /// <summary>
-        /// 最小包模式帮助文本（随保留Tag动态变化）。
-        /// </summary>
+        /// <summary>最小包模式帮助文本（随保留Tag动态变化）。</summary>
         private string MinimalHelpText
         {
             get

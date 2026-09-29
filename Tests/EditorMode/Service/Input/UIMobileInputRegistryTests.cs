@@ -5,7 +5,9 @@ using UnityEngine;
 
 namespace Service.Input
 {
-    /// <summary>虚拟输入注册表（<see cref="UIMobileInputRegistry"/>）行为测试：自注册语义、空名跳过、重名覆盖、实例判等注销、销毁惰性清除。</summary>
+    /// <summary>
+    /// 虚拟输入注册表（<see cref="UIMobileInputRegistry"/>）行为测试：自注册语义、空名跳过、重名覆盖、实例判等注销、销毁惰性清除。
+    /// </summary>
     /// <remarks>Edit Mode 下普通 MonoBehaviour 不会自动 OnEnable，测试经 internal Register/Unregister 直驱。</remarks>
     [TestFixture]
     public sealed class UIMobileInputRegistryTests

@@ -12,7 +12,9 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     internal static class SaveFileGate
     {
-        /// <summary>门表项：串行信号量 + 占用计数（持门者与等门者总数）。</summary>
+        /// <summary>
+        /// 门表项：串行信号量 + 占用计数（持门者与等门者总数）。
+        /// </summary>
         internal sealed class GateEntry
         {
             /// <summary>串行信号量。</summary>

@@ -16,9 +16,7 @@ namespace Moirai.Atropos.Resource
         private const int WHEEL_KIND_KEEP_ALIVE = 1;
         private const int WHEEL_KIND_IDLE = 2;
 
-        /// <summary>
-        /// 空闲/保活刻度按一秒一格落进 256 格轮盘，一条记录最多表达 255 格存活期。
-        /// </summary>
+        /// <summary>空闲/保活刻度按一秒一格落进 256 格轮盘，一条记录最多表达 255 格存活期。</summary>
         /// <remarks>超过一圈的配置值会被跳过直到轮盘绕回（不报错），设置项自检以本值为上限。</remarks>
         internal const int IdleWheelSpanSeconds = EXPIRY_WHEEL_BUCKET_COUNT - 1;
         #endregion

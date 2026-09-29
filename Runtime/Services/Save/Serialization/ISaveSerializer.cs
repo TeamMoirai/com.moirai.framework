@@ -10,9 +10,7 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public interface ISaveSerializer
     {
-        /// <summary>
-        /// 本序列化器对应的容器后端标识。
-        /// </summary>
+        /// <summary>本序列化器对应的容器后端标识。</summary>
         ESaveBackend Backend { get; }
 
         /// <summary>

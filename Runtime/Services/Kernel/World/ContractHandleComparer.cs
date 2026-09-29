@@ -11,9 +11,7 @@ namespace Moirai.Atropos
     /// </remarks>
     internal sealed class ContractHandleComparer : IEqualityComparer<RuntimeTypeHandle>
     {
-        /// <summary>
-        /// 获取比较器单例实例。
-        /// </summary>
+        /// <summary>获取比较器单例实例。</summary>
         public static readonly ContractHandleComparer Instance = new ContractHandleComparer();
 
         private ContractHandleComparer() { }

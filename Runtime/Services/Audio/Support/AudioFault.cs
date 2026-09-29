@@ -49,7 +49,9 @@ namespace Moirai.Atropos.Audio
                 where, BackoffSeconds, swallowed, exception);
         }
 
-        /// <summary>清空退避与计数状态（服务关停时调用）。</summary>
+        /// <summary>
+        /// 清空退避与计数状态（服务关停时调用）。
+        /// </summary>
         public static void Reset()
         {
             s_Swallowed.Clear();

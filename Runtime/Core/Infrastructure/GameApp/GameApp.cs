@@ -36,7 +36,9 @@ namespace Moirai.Atropos
             /// <summary>是否仍处于订阅状态（未 Dispose 过）。</summary>
             public bool IsSubscribed => _disposeAction != null;
 
-            /// <summary>注销订阅。幂等——重复调用安全。</summary>
+            /// <summary>
+            /// 注销订阅。幂等——重复调用安全。
+            /// </summary>
             public void Dispose()
             {
                 Action dispose = _disposeAction;
@@ -63,23 +65,17 @@ namespace Moirai.Atropos
         private static bool s_NeverSleep;
         private static int s_PauseDepth;
 
-        /// <summary>
-        /// 获取游戏是否已关闭。
-        /// </summary>
+        /// <summary>获取游戏是否已关闭。</summary>
         public static bool IsShutdown { get; internal set; } = true;
 
-        /// <summary>
-        /// 获取或设置游戏帧率。
-        /// </summary>
+        /// <summary>获取或设置游戏帧率。</summary>
         public static int FrameRate
         {
             get => s_FrameRate;
             set => Application.targetFrameRate = s_FrameRate = value;
         }
 
-        /// <summary>
-        /// 获取或设置期望的游戏速度（映射到 <c>Time.timeScale</c>）。
-        /// </summary>
+        /// <summary>获取或设置期望的游戏速度（映射到 <c>Time.timeScale</c>）。</summary>
         /// <remarks>
         /// 暂停期间写入只更新解除暂停后的目标值，<c>Time.timeScale</c> 保持 0（暂停优先）。 <br />
         /// 判断时间是否真正冻结请读 <c>GameSpeed &lt;= 0</c> 或 <c>Time.timeScale</c>，不要读 <see cref="IsGamePaused"/>。
@@ -96,35 +92,25 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>
-        /// 获取游戏是否被暂停，即 <see cref="PauseGame"/> 的引用计数是否非零。
-        /// </summary>
+        /// <summary>获取游戏是否被暂停，即 <see cref="PauseGame"/> 的引用计数是否非零。</summary>
         /// <remarks>与速度解耦：把速度调到 0 不算暂停。</remarks>
         public static bool IsGamePaused => s_PauseDepth > 0;
 
-        /// <summary>
-        /// 获取当前的暂停请求层数（<see cref="PauseGame"/> 加一、<see cref="ResumeGame"/> 减一）。
-        /// </summary>
+        /// <summary>获取当前的暂停请求层数（<see cref="PauseGame"/> 加一、<see cref="ResumeGame"/> 减一）。</summary>
         /// <remarks>仅供调试定位未配对 <see cref="ResumeGame"/> 的层；判暂停请读 <see cref="IsGamePaused"/>。</remarks>
         internal static int PauseDepth => s_PauseDepth;
 
-        /// <summary>
-        /// 获取是否正常游戏速度（期望值约等于 1，容差 0.01）。暂停不影响本判定。
-        /// </summary>
+        /// <summary>获取是否正常游戏速度（期望值约等于 1，容差 0.01）。暂停不影响本判定。</summary>
         public static bool IsNormalGameSpeed => Mathf.Abs(s_GameSpeed - 1f) < 0.01f;
 
-        /// <summary>
-        /// 获取或设置是否允许后台运行。
-        /// </summary>
+        /// <summary>获取或设置是否允许后台运行。</summary>
         public static bool RunInBackground
         {
             get => s_RunInBackground;
             set => Application.runInBackground = s_RunInBackground = value;
         }
 
-        /// <summary>
-        /// 获取或设置是否禁止休眠。
-        /// </summary>
+        /// <summary>获取或设置是否禁止休眠。</summary>
         public static bool NeverSleep
         {
             get => s_NeverSleep;
@@ -382,19 +368,25 @@ namespace Moirai.Atropos
             PlayerLoopDriver.Register(handler);
         }
 
-        /// <summary>反注册 Update 阶段 Handler。</summary>
+        /// <summary>
+        /// 反注册 Update 阶段 Handler。
+        /// </summary>
         public static void RemoveUpdateHandler(IUpdateHandler handler)
         {
             PlayerLoopDriver.Unregister(handler);
         }
 
-        /// <summary>订阅帧逻辑到 FixedUpdate 阶段。语义同 <see cref="AddUpdateHandler"/>。</summary>
+        /// <summary>
+        /// 订阅帧逻辑到 FixedUpdate 阶段。语义同 <see cref="AddUpdateHandler"/>。
+        /// </summary>
         public static void AddFixedUpdateHandler(IFixedUpdateHandler handler)
         {
             PlayerLoopDriver.Register(handler);
         }
 
-        /// <summary>反注册 FixedUpdate 阶段 Handler。</summary>
+        /// <summary>
+        /// 反注册 FixedUpdate 阶段 Handler。
+        /// </summary>
         public static void RemoveFixedUpdateHandler(IFixedUpdateHandler handler)
         {
             PlayerLoopDriver.Unregister(handler);
@@ -408,7 +400,9 @@ namespace Moirai.Atropos
             PlayerLoopDriver.Register(handler);
         }
 
-        /// <summary>反注册 LateUpdate 阶段 Handler。</summary>
+        /// <summary>
+        /// 反注册 LateUpdate 阶段 Handler。
+        /// </summary>
         public static void RemoveLateUpdateHandler(ILateUpdateHandler handler)
         {
             PlayerLoopDriver.Unregister(handler);
@@ -422,7 +416,9 @@ namespace Moirai.Atropos
             PlayerLoopDriver.RegisterAll(handler);
         }
 
-        /// <summary>从其曾注册的全部帧阶段注销。语义同 <see cref="AddFrameHandler"/> 的逆。</summary>
+        /// <summary>
+        /// 从其曾注册的全部帧阶段注销。语义同 <see cref="AddFrameHandler"/> 的逆。
+        /// </summary>
         public static void RemoveFrameHandler(object handler)
         {
             PlayerLoopDriver.UnregisterAll(handler);

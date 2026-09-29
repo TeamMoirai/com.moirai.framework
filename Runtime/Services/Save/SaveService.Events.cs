@@ -18,49 +18,31 @@ namespace Moirai.Atropos.Save
 
         #region 存档事件 [SAVE EVENTS]
 
-        /// <summary>
-        /// 槽位变动事件（写入/删除/备份创建/备份恢复；目录级批量删除时 <see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>）。
-        /// </summary>
+        /// <summary>槽位变动事件（写入/删除/备份创建/备份恢复；目录级批量删除时 <see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>）。</summary>
         public static event Action<SaveSlotChangedArgs> SlotChanged;
 
-        /// <summary>
-        /// 块保存完成事件（含保留块 <c>__main__</c>/<c>__meta</c> 与组件 KVT 块）。
-        /// </summary>
+        /// <summary>块保存完成事件（含保留块 <c>__main__</c>/<c>__meta</c> 与组件 KVT 块）。</summary>
         public static event Action<SaveBlockChangedArgs> BlockSaved;
 
-        /// <summary>
-        /// 块删除完成事件（仅目标块真实存在并移除时触发；幂等空删不触发）。
-        /// </summary>
+        /// <summary>块删除完成事件（仅目标块真实存在并移除时触发；幂等空删不触发）。</summary>
         public static event Action<SaveBlockChangedArgs> BlockDeleted;
 
-        /// <summary>
-        /// 保存进度事件（组件捕获按批回报；仅 <see cref="SaveComponentsAsync"/> 管线产生）。
-        /// </summary>
+        /// <summary>保存进度事件（组件捕获按批回报；仅 <see cref="SaveComponentsAsync"/> 管线产生）。</summary>
         public static event Action<SaveProgressArgs> SaveProgress;
 
-        /// <summary>
-        /// 加载进度事件（组件恢复按批回报；仅 <see cref="LoadComponentsAsync"/> 管线产生）。
-        /// </summary>
+        /// <summary>加载进度事件（组件恢复按批回报；仅 <see cref="LoadComponentsAsync"/> 管线产生）。</summary>
         public static event Action<SaveProgressArgs> LoadProgress;
 
-        /// <summary>
-        /// 持久化实体恢复事件（先行定义；生产点由动态实体持久化接线）。
-        /// </summary>
+        /// <summary>持久化实体恢复事件（先行定义；生产点由动态实体持久化接线）。</summary>
         public static event Action<SaveEntityRestoredArgs> EntityRestored;
 
-        /// <summary>
-        /// 保存失败事件（写路径；失败同时以 <see cref="GameException"/> fail-fast 上抛，事件不替代异常）。
-        /// </summary>
+        /// <summary>保存失败事件（写路径；失败同时以 <see cref="GameException"/> fail-fast 上抛，事件不替代异常）。</summary>
         public static event Action<SaveFailedArgs> SaveFailed;
 
-        /// <summary>
-        /// 加载失败事件（读路径；错误判别经 <c>TryLoad*</c> 族 <see cref="SaveResult{T}"/> 返回，事件提供被动观测）。
-        /// </summary>
+        /// <summary>加载失败事件（读路径；错误判别经 <c>TryLoad*</c> 族 <see cref="SaveResult{T}"/> 返回，事件提供被动观测）。</summary>
         public static event Action<SaveFailedArgs> LoadFailed;
 
-        /// <summary>
-        /// 存档截图完成事件（<see cref="CaptureScreenshotAsync"/> 管线成功完成后派发）。
-        /// </summary>
+        /// <summary>存档截图完成事件（<see cref="CaptureScreenshotAsync"/> 管线成功完成后派发）。</summary>
         public static event Action<SaveScreenshotArgs> ScreenshotCaptured;
 
         /// <summary>

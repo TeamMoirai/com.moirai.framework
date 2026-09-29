@@ -26,15 +26,11 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取缓存的目标组件。租约失效或未解析时为 null。
-        /// </summary>
+        /// <summary>获取缓存的目标组件。租约失效或未解析时为 null。</summary>
         public TComponent Component => Cache != null ? Cache.Component : null;
 
         private ComponentCache _cache;
-        /// <summary>
-        /// 获取组件缓存（仅读取已解析结果；创建职责在 <see cref="ResolveComponent"/>）。
-        /// </summary>
+        /// <summary>获取组件缓存（仅读取已解析结果；创建职责在 <see cref="ResolveComponent"/>）。</summary>
         protected ComponentCache Cache
         {
             get
@@ -58,9 +54,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public class ComponentCache
         {
-            /// <summary>
-            /// 缓存的目标组件。
-            /// </summary>
+            /// <summary>缓存的目标组件。</summary>
             public TComponent Component;
         }
 

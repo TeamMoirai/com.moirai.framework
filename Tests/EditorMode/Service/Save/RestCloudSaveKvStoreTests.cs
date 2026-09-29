@@ -68,7 +68,9 @@ namespace Service.Save
         /// </summary>
         private sealed class FakeRestMessageHandler : HttpMessageHandler
         {
-            /// <summary>条目（载荷 + 修订号 + 远端权威时间戳）。</summary>
+            /// <summary>
+            /// 条目（载荷 + 修订号 + 远端权威时间戳）。
+            /// </summary>
             public sealed class Entry
             {
                 public byte[] Bytes;
@@ -103,7 +105,9 @@ namespace Service.Save
             /// <summary>最近一次条目请求路径（租户前缀/转义断言用）。</summary>
             public string LastItemPath;
 
-            /// <summary>列表信封 DTO（wire 键名与框架契约一致）。</summary>
+            /// <summary>
+            /// 列表信封 DTO（wire 键名与框架契约一致）。
+            /// </summary>
             [Serializable]
             public sealed class ListDto
             {

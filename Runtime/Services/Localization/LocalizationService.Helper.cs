@@ -137,9 +137,7 @@ namespace Moirai.Atropos.Localization
             return builder.ToStringAndDispose();
         }
 
-        /// <summary>
-        /// 内联占位符前缀白名单（小写）；冒号按命中前缀的实际长度定位，各前缀长度不必一致。
-        /// </summary>
+        /// <summary>内联占位符前缀白名单（小写）；冒号按命中前缀的实际长度定位，各前缀长度不必一致。</summary>
         /// <remarks>只认表内前缀，任意 <c>{foo:bar}</c> 不会被当成译文标记吃掉。</remarks>
         private static readonly string[] s_MarkerPrefixes = { "l10n", "i18n", "g11n" };
         

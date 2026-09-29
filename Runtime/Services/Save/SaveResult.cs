@@ -13,19 +13,13 @@ namespace Moirai.Atropos.Save
         private readonly T _data;
         private readonly SaveError _error;
 
-        /// <summary>
-        /// 加载成功时的存档数据；失败时为默认值。
-        /// </summary>
+        /// <summary>加载成功时的存档数据；失败时为默认值。</summary>
         public T Data => _data;
 
-        /// <summary>
-        /// 错误码；成功时为 <see cref="SaveError.None"/>。
-        /// </summary>
+        /// <summary>错误码；成功时为 <see cref="SaveError.None"/>。</summary>
         public SaveError Error => _error;
 
-        /// <summary>
-        /// 是否加载成功。
-        /// </summary>
+        /// <summary>是否加载成功。</summary>
         public bool IsSuccess => _error == SaveError.None;
 
         /// <summary>

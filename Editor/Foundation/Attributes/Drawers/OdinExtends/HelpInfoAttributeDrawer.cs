@@ -27,7 +27,9 @@ namespace Sirenix.OdinInspector.Editor.Drawers
             this.messageType = MessageType.None;
         }
 
-        /// <summary>Draws the property.</summary>
+        /// <summary>
+        /// Draws the property.
+        /// </summary>
         protected override void DrawPropertyLayout(GUIContent label)
         {
           // bool flag = true;

@@ -9,24 +9,16 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 保留目标数量。
-        /// </summary>
+        /// <summary>保留目标数量。</summary>
         public readonly int RetainTarget;
 
-        /// <summary>
-        /// 裁剪预算。
-        /// </summary>
+        /// <summary>裁剪预算。</summary>
         public readonly int TrimBudget;
 
-        /// <summary>
-        /// 是否强制裁剪。
-        /// </summary>
+        /// <summary>是否强制裁剪。</summary>
         public readonly bool ForceTrim;
 
-        /// <summary>
-        /// 是否卸载预制体。
-        /// </summary>
+        /// <summary>是否卸载预制体。</summary>
         public readonly bool UnloadPrefab;
 
         #endregion

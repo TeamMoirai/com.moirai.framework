@@ -52,7 +52,9 @@ namespace Moirai.Atropos.Audio.Middleware
                 set => Slot = value;
             }
 
-            /// <summary>归还池前复位全部字段，避免脏状态随复用泄漏。</summary>
+            /// <summary>
+            /// 归还池前复位全部字段，避免脏状态随复用泄漏。
+            /// </summary>
             public void Reset()
             {
                 Handle = 0UL;
@@ -91,7 +93,9 @@ namespace Moirai.Atropos.Audio.Middleware
             _voicePool.Push(voice);
         }
 
-        /// <summary>卸绑全部句柄并把 Voice 归还池（Reset 字段防脏状态随复用泄漏）。</summary>
+        /// <summary>
+        /// 卸绑全部句柄并把 Voice 归还池（Reset 字段防脏状态随复用泄漏）。
+        /// </summary>
         private void ReleaseAllVoicesToPool()
         {
             foreach (var slot in _handles.Slots)
@@ -137,7 +141,9 @@ namespace Moirai.Atropos.Audio.Middleware
         /// </summary>
         protected abstract IAudioMiddlewareBridge CreateDefaultBridge();
 
-        /// <summary>测试接缝：取默认桥实例（懒建，与运行期同一实例）。</summary>
+        /// <summary>
+        /// 测试接缝：取默认桥实例（懒建，与运行期同一实例）。
+        /// </summary>
         /// <remarks>用例需断言默认桥实现了哪些能力接口，而 <see cref="CreateDefaultBridge"/> 为 protected，故开此 internal 窄接缝。</remarks>
         /// <returns>默认中间件桥。</returns>
         internal IAudioMiddlewareBridge Internal_PeekDefaultBridge() => _bridge ??= CreateDefaultBridge();
@@ -156,9 +162,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// </summary>
         public void SetBridge(IAudioMiddlewareBridge bridge) => _bridge = bridge;
 
-        /// <summary>
-        /// 当前桥接。
-        /// </summary>
+        /// <summary>当前桥接。</summary>
         public IAudioMiddlewareBridge Bridge => _bridge;
 
         private void EnsureTrackArrays()
@@ -563,7 +567,9 @@ namespace Moirai.Atropos.Audio.Middleware
             return map;
         }
 
-        /// <summary>映射表变更后需重建缓存（编辑器/热更里改配置时调用）。</summary>
+        /// <summary>
+        /// 映射表变更后需重建缓存（编辑器/热更里改配置时调用）。
+        /// </summary>
         public void InvalidateEventMap()
         {
             _eventByClip = null;
@@ -939,7 +945,9 @@ namespace Moirai.Atropos.Audio.Middleware
             _handles.ForEachHandleByUser(id, handle => Stop(handle, fadeoutDuration));
         }
 
-        /// <summary>把 <see cref="_handleScratch"/> 里已收集好的句柄逐条停掉并清空。</summary>
+        /// <summary>
+        /// 把 <see cref="_handleScratch"/> 里已收集好的句柄逐条停掉并清空。
+        /// </summary>
         /// <remarks>收 / 停必须分成两趟：<see cref="Stop"/> 会当场解绑句柄，边枚举槽表边停会跳元素。</remarks>
         private void StopCollected(float fadeoutDuration)
         {

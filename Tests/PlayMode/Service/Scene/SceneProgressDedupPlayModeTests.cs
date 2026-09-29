@@ -60,7 +60,9 @@ namespace Service.Scene
             public override void Release() { }
         }
 
-        /// <summary>帧驱动等待循环到收尾；超过 <see cref="MAX_FRAMES"/> 帧仍挂起即判失败（契约里的循环必然收敛）。</summary>
+        /// <summary>
+        /// 帧驱动等待循环到收尾；超过 <see cref="MAX_FRAMES"/> 帧仍挂起即判失败（契约里的循环必然收敛）。
+        /// </summary>
         private IEnumerator AwaitToEnd(float[] script, string error, List<float> reports)
         {
             var handle = new ScriptedSceneHandle(script, error);

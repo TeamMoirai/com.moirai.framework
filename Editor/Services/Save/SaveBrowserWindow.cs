@@ -49,7 +49,9 @@ namespace Moirai.Atropos.Editor.Save
 
         #region 枚举 [ENUMS]
 
-        /// <summary>槽位排序模式。</summary>
+        /// <summary>
+        /// 槽位排序模式。
+        /// </summary>
         private enum SlotSortMode
         {
             TimeDesc = 0,
@@ -60,7 +62,9 @@ namespace Moirai.Atropos.Editor.Save
             SizeAsc = 5,
         }
 
-        /// <summary>预览渲染模式。</summary>
+        /// <summary>
+        /// 预览渲染模式。
+        /// </summary>
         private enum PreviewMode
         {
             Auto = 0,
@@ -72,7 +76,9 @@ namespace Moirai.Atropos.Editor.Save
 
         #region 数据模型 [MODELS]
 
-        /// <summary>槽位列表展示模型（窗口内数据管道，Odin 不直接绘制）。</summary>
+        /// <summary>
+        /// 槽位列表展示模型（窗口内数据管道，Odin 不直接绘制）。
+        /// </summary>
         private sealed class SlotView
         {
             public SaveFileInfo Info;
@@ -87,14 +93,18 @@ namespace Moirai.Atropos.Editor.Save
             public bool StillExists;
         }
 
-        /// <summary>文件夹数据模型：菜单树一级节点与其槽位集合。</summary>
+        /// <summary>
+        /// 文件夹数据模型：菜单树一级节点与其槽位集合。
+        /// </summary>
         private sealed class FolderData
         {
             public string Name;
             public readonly List<SlotView> Slots = new List<SlotView>();
         }
 
-        /// <summary>数据块表格行模型（Odin TableList 绘制，纯展示；列头取成员名，勿加 LabelText——Odin 4 会渲染成行内前缀标签导致列错位）。</summary>
+        /// <summary>
+        /// 数据块表格行模型（Odin TableList 绘制，纯展示；列头取成员名，勿加 LabelText——Odin 4 会渲染成行内前缀标签导致列错位）。
+        /// </summary>
         private sealed class BlockRow
         {
             [TableColumnWidth(230, false)]
@@ -119,7 +129,9 @@ namespace Moirai.Atropos.Editor.Save
                 Corrupted ? new Color(0.90f, 0.45f, 0.45f) : new Color(0.55f, 0.85f, 0.60f);
         }
 
-        /// <summary>文件夹详情视图模型：由 Odin 属性树绘制（概览 + 定位/删除操作）。</summary>
+        /// <summary>
+        /// 文件夹详情视图模型：由 Odin 属性树绘制（概览 + 定位/删除操作）。
+        /// </summary>
         private sealed class FolderModel
         {
             private readonly SaveBrowserWindow _owner;
@@ -171,7 +183,9 @@ namespace Moirai.Atropos.Editor.Save
             private void Delete() => _owner.DeleteFolderDialog(_data.Name);
         }
 
-        /// <summary>槽位详情视图模型：由 Odin 属性树绘制（概览/元数据/操作/块表/预览/缩略图）。</summary>
+        /// <summary>
+        /// 槽位详情视图模型：由 Odin 属性树绘制（概览/元数据/操作/块表/预览/缩略图）。
+        /// </summary>
         private sealed class SlotDetailModel
         {
             private readonly SaveBrowserWindow _owner;
@@ -202,13 +216,17 @@ namespace Moirai.Atropos.Editor.Save
 
             #region 对外写入 [MUTATION]
 
-            /// <summary>写入原始块载荷字典（窗口加载详情后调用）。</summary>
+            /// <summary>
+            /// 写入原始块载荷字典（窗口加载详情后调用）。
+            /// </summary>
             public void SetRawBlocks(Dictionary<string, byte[]> rawBlocks)
             {
                 _rawBlocks = rawBlocks;
             }
 
-            /// <summary>重算块表与预览缓存（数据刷新后调用）。</summary>
+            /// <summary>
+            /// 重算块表与预览缓存（数据刷新后调用）。
+            /// </summary>
             public void ReloadData()
             {
                 RebuildBlockRows();
@@ -220,7 +238,9 @@ namespace Moirai.Atropos.Editor.Save
                 RebuildPreview();
             }
 
-            /// <summary>读取指定块的原始载荷。</summary>
+            /// <summary>
+            /// 读取指定块的原始载荷。
+            /// </summary>
             public bool TryGetRawBytes(string blockKey, out byte[] bytes)
             {
                 if (_rawBlocks != null && blockKey != null && _rawBlocks.TryGetValue(blockKey, out byte[] payload) && payload != null)
@@ -652,7 +672,9 @@ namespace Moirai.Atropos.Editor.Save
             return tree;
         }
 
-        /// <summary>「仅问题」过滤判定。</summary>
+        /// <summary>
+        /// 「仅问题」过滤判定。
+        /// </summary>
         private bool IsSlotVisible(SlotView view)
         {
             if (!_showOnlyIssues)
@@ -665,7 +687,9 @@ namespace Moirai.Atropos.Editor.Save
                    || (view.Blocks != null && view.Blocks.Length == 0);
         }
 
-        /// <summary>按健康状态解析槽位菜单图标。</summary>
+        /// <summary>
+        /// 按健康状态解析槽位菜单图标。
+        /// </summary>
         private static SdfIconType ResolveSlotHealthIcon(SlotView view)
         {
             if (view.CorruptedBlocks > 0)
@@ -686,7 +710,9 @@ namespace Moirai.Atropos.Editor.Save
             return SdfIconType.CheckCircleFill;
         }
 
-        /// <summary>重建后恢复选中节点（编程式 Select，不依赖窗口焦点）。</summary>
+        /// <summary>
+        /// 重建后恢复选中节点（编程式 Select，不依赖窗口焦点）。
+        /// </summary>
         private void TryRestoreSelection(OdinMenuTree tree)
         {
             if (_pendingSelectionFolder == null && _pendingSelectionSlot == null)
@@ -746,7 +772,9 @@ namespace Moirai.Atropos.Editor.Save
             EnsureTreePopulated();
         }
 
-        /// <summary>Odin 4 契约：样式未就绪不建树，就绪后 ForceMenuTreeRebuild 兜底。</summary>
+        /// <summary>
+        /// Odin 4 契约：样式未就绪不建树，就绪后 ForceMenuTreeRebuild 兜底。
+        /// </summary>
         private void EnsureMenuTree()
         {
             if (MenuTree != null || EditorStyles.label == null)
@@ -793,7 +821,9 @@ namespace Moirai.Atropos.Editor.Save
             }
         }
 
-        /// <summary>轮询菜单树选中变化并按需加载槽位详情（选中条目在 Layout 遍缓存）。</summary>
+        /// <summary>
+        /// 轮询菜单树选中变化并按需加载槽位详情（选中条目在 Layout 遍缓存）。
+        /// </summary>
         private void PollSelection()
         {
             OdinMenuItem current = null;
@@ -816,7 +846,9 @@ namespace Moirai.Atropos.Editor.Save
             LoadDetailForSelection();
         }
 
-        /// <summary>Odin 4 契约：空树经 delayCall 防抖重建。</summary>
+        /// <summary>
+        /// Odin 4 契约：空树经 delayCall 防抖重建。
+        /// </summary>
         private void EnsureTreePopulated()
         {
             if (MenuTree != null && MenuTree.MenuItems.Count > 0)
@@ -963,7 +995,9 @@ namespace Moirai.Atropos.Editor.Save
             EditorGUILayout.EndHorizontal();
         }
 
-        /// <summary>F5 刷新、Delete 删除选中槽位（文本编辑焦点时跳过）。</summary>
+        /// <summary>
+        /// F5 刷新、Delete 删除选中槽位（文本编辑焦点时跳过）。
+        /// </summary>
         private void HandleShortcuts()
         {
             Event evt = Event.current;
@@ -991,7 +1025,9 @@ namespace Moirai.Atropos.Editor.Save
 
         #region 数据刷新 [DATA REFRESH]
 
-        /// <summary>扫描存档根目录与全部文件夹，尽量复用既有 SlotView 实例（保持详情模型有效）。</summary>
+        /// <summary>
+        /// 扫描存档根目录与全部文件夹，尽量复用既有 SlotView 实例（保持详情模型有效）。
+        /// </summary>
         private void RefreshFoldersAndSlots()
         {
             var previous = new Dictionary<string, SlotView>(StringComparer.Ordinal);
@@ -1074,7 +1110,9 @@ namespace Moirai.Atropos.Editor.Save
             }
         }
 
-        /// <summary>轻量富化槽位视图：块表、健康统计、截图/备份 sidecar 存在性；选中槽位才加载元数据。</summary>
+        /// <summary>
+        /// 轻量富化槽位视图：块表、健康统计、截图/备份 sidecar 存在性；选中槽位才加载元数据。
+        /// </summary>
         private void EnrichSlotView(SlotView view, string folder, bool loadMetadata = false)
         {
             try
@@ -1116,7 +1154,9 @@ namespace Moirai.Atropos.Editor.Save
             }
         }
 
-        /// <summary>选中变化后加载重详情：元数据 + 原始块载荷 + 缩略图。</summary>
+        /// <summary>
+        /// 选中变化后加载重详情：元数据 + 原始块载荷 + 缩略图。
+        /// </summary>
         private void LoadDetailForSelection()
         {
             ReleaseThumbnail();
@@ -1133,7 +1173,9 @@ namespace Moirai.Atropos.Editor.Save
             }
         }
 
-        /// <summary>就地刷新激活详情（不重建菜单树，保持选中与展开状态）。</summary>
+        /// <summary>
+        /// 就地刷新激活详情（不重建菜单树，保持选中与展开状态）。
+        /// </summary>
         private void RefreshActiveDetailInPlace()
         {
             if (_activeDetail == null)
@@ -1774,7 +1816,9 @@ namespace Moirai.Atropos.Editor.Save
             return builder.ToString();
         }
 
-        /// <summary>轻量 JSON 美化（基于花括号/方括号缩进；非完整解析器，预览用）。</summary>
+        /// <summary>
+        /// 轻量 JSON 美化（基于花括号/方括号缩进；非完整解析器，预览用）。
+        /// </summary>
         private static string FormatJson(string json, bool pretty)
         {
             if (string.IsNullOrEmpty(json))

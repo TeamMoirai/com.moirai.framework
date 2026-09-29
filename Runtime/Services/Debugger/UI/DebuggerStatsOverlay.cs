@@ -53,9 +53,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取或设置可见性（可见时启动渲染计数器）。
-        /// </summary>
+        /// <summary>获取或设置可见性（可见时启动渲染计数器）。</summary>
         public bool Visible
         {
             get

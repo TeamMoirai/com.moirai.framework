@@ -16,9 +16,7 @@ namespace Moirai.Atropos.Serilog
     /// </summary>
     internal static class UnitySinkExtensions
     {
-        /// <summary>
-        /// 默认输出模板：级别 + 消息 + 异常（不包含时间戳占位符，Unity Console 自带时间列）。
-        /// </summary>
+        /// <summary>默认输出模板：级别 + 消息 + 异常（不包含时间戳占位符，Unity Console 自带时间列）。</summary>
         private const string DEFAULT_DEBUG_OUTPUT_TEMPLATE = "[{Level:u3}] {Message:lj}{NewLine}{Exception}";
 
         /// <summary>

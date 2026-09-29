@@ -28,9 +28,7 @@ namespace Moirai.Atropos.Save
         /// <summary>派生材料缓存（口令变更经 Matches 失配自动失效）。</summary>
         [NonSerialized] private volatile DerivedMaterial _cache;
 
-        /// <summary>
-        /// 是否已注入运行期口令。
-        /// </summary>
+        /// <summary>是否已注入运行期口令。</summary>
         public bool HasPassphrase => !string.IsNullOrEmpty(_passphrase);
 
         /// <inheritdoc />

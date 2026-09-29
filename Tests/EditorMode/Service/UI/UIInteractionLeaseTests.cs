@@ -3,7 +3,9 @@ using NUnit.Framework;
 
 namespace Service.UI
 {
-    /// <summary>模态动画交互压制的归属仲裁（<see cref="UIInteractionLease"/>）单元测试。</summary>
+    /// <summary>
+    /// 模态动画交互压制的归属仲裁（<see cref="UIInteractionLease"/>）单元测试。
+    /// </summary>
     /// <remarks>非模态窗口不参与归属、后到者接管、非持有者交还被拒（不得清掉别人的压制位）、重复交还只认第一次、Reset 区分「丢弃了活归属」与「无归属可丢」。纯逻辑测试， <br />
     /// 不依赖 Unity 场景与 UI 后端——全局压制位本身无持有者语义，跨窗口拆锁的判定全部收敛在这里。</remarks>
     [TestFixture]

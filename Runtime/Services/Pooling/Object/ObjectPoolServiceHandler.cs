@@ -25,9 +25,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 池管理 [POOL MANAGEMENT]
 
-        /// <summary>
-        /// 获取池数量。
-        /// </summary>
+        /// <summary>获取池数量。</summary>
         public abstract int Count { get; }
 
         /// <summary>

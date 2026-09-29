@@ -70,18 +70,12 @@ namespace Moirai.Atropos
 
         #region 变量 [VARIABLES]
 
-        /// <summary>
-        /// 是否可以被序列化。
-        /// </summary>
+        /// <summary>是否可以被序列化。</summary>
         public readonly bool Serializable;
-        /// <summary>
-        /// 序列化时的名称。
-        /// </summary>
+        /// <summary>序列化时的名称。</summary>
         public readonly string SerializeName;
       
-        /// <summary>
-        /// 是否可以反序列化。
-        /// </summary>
+        /// <summary>是否可以反序列化。</summary>
         public readonly bool Deserializable;
 
         #endregion

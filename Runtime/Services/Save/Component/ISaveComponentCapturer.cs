@@ -8,19 +8,13 @@ namespace Moirai.Atropos.Save
     /// <remarks>捕获写入「键 = 组件类型全名」的嵌套作用域（载荷 = 启用字段记录集）；恢复由调用方（<see cref="SaveComponent"/>）读出作用域头后按记录数精确消费，绑定间顺序解耦。</remarks>
     public interface ISaveComponentCapturer
     {
-        /// <summary>
-        /// 捕获器负责的组件类型。
-        /// </summary>
+        /// <summary>捕获器负责的组件类型。</summary>
         Type ComponentType { get; }
 
-        /// <summary>
-        /// 全量字段名数组（索引 = 掩码索引；内容 = 存档键，默认字段名）。
-        /// </summary>
+        /// <summary>全量字段名数组（索引 = 掩码索引；内容 = 存档键，默认字段名）。</summary>
         string[] FieldNames { get; }
 
-        /// <summary>
-        /// 组件数据模式版本（生成器自 <see cref="SaveComponentSchemaAttribute"/> 发射；缺省 1）。
-        /// </summary>
+        /// <summary>组件数据模式版本（生成器自 <see cref="SaveComponentSchemaAttribute"/> 发射；缺省 1）。</summary>
         /// <remarks>保存时按组件类型记录进 KVT 块内 <c>$schemas</c> 作用域；恢复时与存档版本不符走 <see cref="ISaveComponentMigrator"/> 钩子。</remarks>
         int SchemaVersion { get; }
 

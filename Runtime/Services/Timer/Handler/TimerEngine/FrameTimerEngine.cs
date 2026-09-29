@@ -534,7 +534,9 @@ namespace Moirai.Atropos.Timer
 
         #region 完成回调派发 [COMPLETE INVOCATION]
 
-        /// <summary>调用完成回调（异常隔离 + 执行槽标记）。</summary>
+        /// <summary>
+        /// 调用完成回调（异常隔离 + 执行槽标记）。
+        /// </summary>
         private unsafe void InvokeComplete(int slotIndex)
         {
             _executingSlotIndex = slotIndex;
@@ -612,7 +614,9 @@ namespace Moirai.Atropos.Timer
             }
         }
 
-        /// <summary>调度失败诊断：整条调用（含实参求值）在非编辑器构建下被编译器摘除。</summary>
+        /// <summary>
+        /// 调度失败诊断：整条调用（含实参求值）在非编辑器构建下被编译器摘除。
+        /// </summary>
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
         private static void WarnScheduleFailed(string reason)
         {

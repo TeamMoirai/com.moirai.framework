@@ -14,9 +14,7 @@ namespace Moirai.Atropos.Collections
     {
         private readonly List<T> _data = new List<T>();
 
-        /// <summary>
-        /// 获取队列中的元素数量。
-        /// </summary>
+        /// <summary>获取队列中的元素数量。</summary>
         public int Count => _data.Count;
 
         /// <summary>

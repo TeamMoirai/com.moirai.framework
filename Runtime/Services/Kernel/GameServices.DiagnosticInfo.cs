@@ -19,19 +19,13 @@ namespace Moirai.Atropos
             public bool HasLateUpdate;
             public bool HasGizmo;
 
-            /// <summary>
-            /// 轮询耗时均值（毫秒；自上次 <see cref="ResetPollStatistics"/> 起累计），仅编辑器/开发构建非零。
-            /// </summary>
+            /// <summary>轮询耗时均值（毫秒；自上次 <see cref="ResetPollStatistics"/> 起累计），仅编辑器/开发构建非零。</summary>
             public float PollAvgMs;
 
-            /// <summary>
-            /// 轮询耗时峰值（毫秒；统计窗口内单次最大值）。
-            /// </summary>
+            /// <summary>轮询耗时峰值（毫秒；统计窗口内单次最大值）。</summary>
             public float PollPeakMs;
 
-            /// <summary>
-            /// 统计窗口内的轮询采样次数。
-            /// </summary>
+            /// <summary>统计窗口内的轮询采样次数。</summary>
             public int PollSamples;
         }
 

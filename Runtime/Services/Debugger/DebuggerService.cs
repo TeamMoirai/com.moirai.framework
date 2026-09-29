@@ -73,9 +73,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 状态 [STATE]
 
-        /// <summary>
-        /// 获取或设置调试器是否激活（悬浮入口可见）。
-        /// </summary>
+        /// <summary>获取或设置调试器是否激活（悬浮入口可见）。</summary>
         public static bool ActiveWindow
         {
             get => s_Handler?.ActiveWindow ?? false;
@@ -86,9 +84,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取或设置完整调试器窗口是否展开。
-        /// </summary>
+        /// <summary>获取或设置完整调试器窗口是否展开。</summary>
         public static bool ShowFullWindow
         {
             get => s_Handler?.ShowFullWindow ?? false;
@@ -99,19 +95,13 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取调试器激活策略（直接读自 <see cref="DebuggerServiceSettings"/>，不依赖服务注册状态）。
-        /// </summary>
+        /// <summary>获取调试器激活策略（直接读自 <see cref="DebuggerServiceSettings"/>，不依赖服务注册状态）。</summary>
         public static DebuggerActiveWindowType ActiveWindowType => DebuggerServiceSettings.ActiveWindowType;
 
-        /// <summary>
-        /// 获取调试器窗口注册表（路径树导航模型；服务未注册时为 null）。
-        /// </summary>
+        /// <summary>获取调试器窗口注册表（路径树导航模型；服务未注册时为 null）。</summary>
         public static DebuggerWindowRegistry WindowRegistry => s_Handler?.WindowRegistry;
 
-        /// <summary>
-        /// 获取日志捕获器（服务未注册时为 null）。
-        /// </summary>
+        /// <summary>获取日志捕获器（服务未注册时为 null）。</summary>
         public static DebuggerLogCapture LogCapture => s_Handler?.LogCapture;
 
         #endregion

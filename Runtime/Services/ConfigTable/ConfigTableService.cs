@@ -82,9 +82,7 @@ namespace Moirai.Atropos.ConfigTable
         public static IReadOnlyList<string> GetLocalizationLanguageCodes() =>
             s_Handler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
 
-        /// <summary>
-        /// 当前配置表处理器是否支持按语言单独取列。未注册处理器时为 <c>false</c>（走整批加载）。
-        /// </summary>
+        /// <summary>当前配置表处理器是否支持按语言单独取列。未注册处理器时为 <c>false</c>（走整批加载）。</summary>
         public static bool SupportsPerLanguageLocalizationLoad =>
             s_Handler != null && s_Handler.SupportsPerLanguageLocalizationLoad;
 
@@ -116,9 +114,7 @@ namespace Moirai.Atropos.ConfigTable
 #if UNITY_EDITOR
         #region 编辑器预览 [EDITOR PREVIEW]
 
-        /// <summary>
-        /// 编辑器预览取数用的处理器：运行期已注册那份优先，未注册时直读 <see cref="ConfigTableServiceSettings"/> 里配置的实例。
-        /// </summary>
+        /// <summary>编辑器预览取数用的处理器：运行期已注册那份优先，未注册时直读 <see cref="ConfigTableServiceSettings"/> 里配置的实例。</summary>
         /// <remarks>
         /// 不装进 <c>s_Handler</c>、不调 <c>Internal_Init</c>，预览因此不需要服务世界。 <br />
         /// 运行期一族静态查询读 <c>s_Handler</c>、非播放态恒为空，预览不可走它们（会把已生成的工程报成"表未生成"）。
@@ -126,12 +122,16 @@ namespace Moirai.Atropos.ConfigTable
         private static ConfigTableServiceHandler PreviewHandler
             => s_Handler ?? ConfigTableServiceSettings.ConfigTableServiceHandler;
 
-        /// <summary>编辑器预览取数：全表多语言文本，列序即 <see cref="GetLocalizationLanguageCodesForEditor"/> 的自报序。</summary>
+        /// <summary>
+        /// 编辑器预览取数：全表多语言文本，列序即 <see cref="GetLocalizationLanguageCodesForEditor"/> 的自报序。
+        /// </summary>
         /// <returns>取不到时为 <c>null</c>（由调用方缓存失败并限流告警）。</returns>
         public static Dictionary<string, List<string>> GetAllLocalizedStringsForEditor() =>
             PreviewHandler?.GetAllLocalizedStrings();
 
-        /// <summary>编辑器预览取数：与 <see cref="GetAllLocalizedStringsForEditor"/> 同源、同列序的语言自报。</summary>
+        /// <summary>
+        /// 编辑器预览取数：与 <see cref="GetAllLocalizedStringsForEditor"/> 同源、同列序的语言自报。
+        /// </summary>
         public static IReadOnlyList<string> GetLocalizationLanguageCodesForEditor() =>
             PreviewHandler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
 

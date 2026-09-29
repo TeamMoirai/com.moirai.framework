@@ -19,29 +19,19 @@
     /// </example>
     public enum EAudioTrack
     {
-        /// <summary>
-        /// 常规音效。
-        /// </summary>
+        /// <summary>常规音效。</summary>
         Sfx,
 
-        /// <summary>
-        /// UI声效。
-        /// </summary>
+        /// <summary>UI声效。</summary>
         UI,
 
-        /// <summary>
-        /// 背景音乐音效。
-        /// </summary>
+        /// <summary>背景音乐音效。</summary>
         Music,
 
-        /// <summary>
-        /// 人声音效。
-        /// </summary>
+        /// <summary>人声音效。</summary>
         Voice,
 
-        /// <summary>
-        /// 环境音。
-        /// </summary>
+        /// <summary>环境音。</summary>
         Ambience
     }
 }

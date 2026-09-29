@@ -11,14 +11,10 @@ namespace Moirai.Atropos
     /// </summary>
     public enum EUpdateStyle
     {
-        /// <summary>
-        /// 强制更新(不更新无法进入游戏。)。
-        /// </summary>
+        /// <summary>强制更新(不更新无法进入游戏。)。</summary>
         Force = 1,
 
-        /// <summary>
-        /// 非强制(不更新可以进入游戏。)。
-        /// </summary>
+        /// <summary>非强制(不更新可以进入游戏。)。</summary>
         Optional = 2,
     }
 
@@ -27,14 +23,10 @@ namespace Moirai.Atropos
     /// </summary>
     public enum EUpdateNotice
     {
-        /// <summary>
-        /// 更新存在提示。
-        /// </summary>
+        /// <summary>更新存在提示。</summary>
         Notice = 1,
 
-        /// <summary>
-        /// 更新非提示。
-        /// </summary>
+        /// <summary>更新非提示。</summary>
         NoNotice = 2,
     }
 

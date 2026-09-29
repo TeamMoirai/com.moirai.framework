@@ -36,82 +36,106 @@ namespace Moirai.Atropos
             get { return (ulong)Volatile.Read(ref s_seed); }
         }
 
-        /// <summary>固定全局种子：本线程立刻换到新派生流，其余线程在下次取值时换。</summary>
+        /// <summary>
+        /// 固定全局种子：本线程立刻换到新派生流，其余线程在下次取值时换。
+        /// </summary>
         public static void Reseed(ulong seed)
         {
             Interlocked.Exchange(ref s_seed, (long)seed);
             Interlocked.Increment(ref s_generation);
         }
 
-        /// <summary>重新取熵播种，回到"每次运行都不同"的默认状态。</summary>
+        /// <summary>
+        /// 重新取熵播种，回到"每次运行都不同"的默认状态。
+        /// </summary>
         public static void Reseed()
         {
             Reseed(NewEntropy());
         }
 
-        /// <summary>另建一条私有流，不影响全局——给"同一 seed 必须同一结果"的 API 用。</summary>
+        /// <summary>
+        /// 另建一条私有流，不影响全局——给"同一 seed 必须同一结果"的 API 用。
+        /// </summary>
         public static RandomSource CreateSeeded(ulong seed)
         {
             return new RandomSource(seed);
         }
 
-        /// <summary>[0, int.MaxValue] 内的非负随机数。</summary>
+        /// <summary>
+        /// [0, int.MaxValue] 内的非负随机数。
+        /// </summary>
         public static int NextInt()
         {
             ref var stream = ref SharedStream();
             return stream.NextInt();
         }
 
-        /// <summary>[0, maxExclusive) 内的均匀随机数。</summary>
+        /// <summary>
+        /// [0, maxExclusive) 内的均匀随机数。
+        /// </summary>
         public static int NextInt(int maxExclusive)
         {
             ref var stream = ref SharedStream();
             return stream.NextInt(maxExclusive);
         }
 
-        /// <summary>[minInclusive, maxExclusive) 内的均匀随机数。</summary>
+        /// <summary>
+        /// [minInclusive, maxExclusive) 内的均匀随机数。
+        /// </summary>
         public static int NextInt(int minInclusive, int maxExclusive)
         {
             ref var stream = ref SharedStream();
             return stream.NextInt(minInclusive, maxExclusive);
         }
 
-        /// <summary>[minInclusive, maxExclusive) 内的均匀随机数。</summary>
+        /// <summary>
+        /// [minInclusive, maxExclusive) 内的均匀随机数。
+        /// </summary>
         public static long NextLong(long minInclusive, long maxExclusive)
         {
             ref var stream = ref SharedStream();
             return stream.NextLong(minInclusive, maxExclusive);
         }
 
-        /// <summary>原始 32 位输出，供需要自造分布的调用方使用。</summary>
+        /// <summary>
+        /// 原始 32 位输出，供需要自造分布的调用方使用。
+        /// </summary>
         public static uint NextUInt32()
         {
             ref var stream = ref SharedStream();
             return stream.NextUInt32();
         }
 
-        /// <summary>[0, 1) 内的均匀随机数。</summary>
+        /// <summary>
+        /// [0, 1) 内的均匀随机数。
+        /// </summary>
         public static float NextFloat()
         {
             ref var stream = ref SharedStream();
             return stream.NextFloat();
         }
 
-        /// <summary>[minInclusive, maxExclusive) 内的均匀随机数。</summary>
+        /// <summary>
+        /// [minInclusive, maxExclusive) 内的均匀随机数。
+        /// </summary>
         public static float NextFloat(float minInclusive, float maxExclusive)
         {
             ref var stream = ref SharedStream();
             return stream.NextFloat(minInclusive, maxExclusive);
         }
 
-        /// <summary>[0, 1) 内的均匀随机数（53 位有效）。</summary>
+        /// <summary>
+        /// [0, 1) 内的均匀随机数（53 位有效）。
+        /// </summary>
         public static double NextDouble()
         {
             ref var stream = ref SharedStream();
             return stream.NextDouble();
         }
 
-        /// <summary>以概率 <paramref name="pTrue"/> 返回 true。</summary>
+        /// <summary>
+        /// 以概率 <paramref name="pTrue"/> 返回 true。
+        /// </summary>
         public static bool NextBool(float pTrue)
         {
             ref var stream = ref SharedStream();

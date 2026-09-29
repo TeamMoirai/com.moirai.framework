@@ -44,24 +44,16 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取池化游戏对象。
-        /// </summary>
+        /// <summary>获取池化游戏对象。</summary>
         public GameObject GameObject => _instance;
 
-        /// <summary>
-        /// 获取池化游戏对象的 Transform。
-        /// </summary>
+        /// <summary>获取池化游戏对象的 Transform。</summary>
         public Transform Transform => _transform;
 
-        /// <summary>
-        /// 获取租约是否仍指向有效且处于 Active 状态的实例（租期代系校验）。
-        /// </summary>
+        /// <summary>获取租约是否仍指向有效且处于 Active 状态的实例（租期代系校验）。</summary>
         public bool IsValid => _owner != null && _owner.IsAlive(_slotIndex, _generation);
 
-        /// <summary>
-        /// 获取是否已释放。
-        /// </summary>
+        /// <summary>获取是否已释放。</summary>
         protected bool IsDisposed { get; private set; }
 
         #endregion

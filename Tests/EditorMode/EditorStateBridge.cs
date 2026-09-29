@@ -48,9 +48,7 @@ namespace Moirai.Atropos.Tests.EditorMode
         /// <summary>域重载计数器在 <c>SessionState</c> 里的键：跨域重载保留，随编辑器退出清空。</summary>
         private const string DOMAIN_SEQ_KEY = "Moirai.EditorStateBridge.DomainSeq";
 
-        /// <summary>
-        /// 本桥自己住在哪份程序集：它的 mtime 就是「当前这个域加载的是哪一版代码」的对照物。
-        /// </summary>
+        /// <summary>本桥自己住在哪份程序集：它的 mtime 就是「当前这个域加载的是哪一版代码」的对照物。</summary>
         private const string LoadedAssembly = "Moirai.Atropos.Tests.EditorMode";
 
         /// <summary>调用方按「源树 → 归属程序集」比新鲜度，所以逐份给出，而不是只给一个最新值。</summary>
@@ -96,9 +94,7 @@ namespace Moirai.Atropos.Tests.EditorMode
             /// <summary>未保存的场景数：大于 0 时刷新/重编译可能触发原生保存对话框并把主线程挡在那里。</summary>
             public int dirtyScenes;
 
-            /// <summary>
-            /// Console 当前的错误条数（-1 为取不到）。
-            /// </summary>
+            /// <summary>Console 当前的错误条数（-1 为取不到）。</summary>
             /// <remarks>
             /// 一轮重编译会把它清归零，故刷新之后读到的大致就是这一轮的输出；跨轮按增量用，别当成「本次编译的失败数」。
             /// </remarks>
@@ -106,17 +102,13 @@ namespace Moirai.Atropos.Tests.EditorMode
             public int consoleWarnings;
             public bool testRequestPending;
 
-            /// <summary>
-            /// Test Runner 有无在跑的 run：-1 探针不可用、0 空闲、1 在跑。
-            /// </summary>
+            /// <summary>Test Runner 有无在跑的 run：-1 探针不可用、0 空闲、1 在跑。</summary>
             /// <remarks>
             /// 不用 <c>Temp/MoiraiTestRunState.json</c> 在不在判：超时收口后旧域拆走时可能把运行态写回磁盘，残留文件会把空闲报成在跑。
             /// </remarks>
             public int testRunActive;
 
-            /// <summary>
-            /// 本域加载时 <c>Moirai.Atropos.Tests.EditorMode.dll</c> 的 UTC 秒。
-            /// </summary>
+            /// <summary>本域加载时 <c>Moirai.Atropos.Tests.EditorMode.dll</c> 的 UTC 秒。</summary>
             /// <remarks>
             /// 与 <c>assemblies[]</c> 里同名那份不等即 dll 已更新而本域尚未重载（后台 <c>AssetImportWorker</c> 代编是常态，且「没有资产改动」的 <c>Refresh</c> 不触发重载）； <br />
             /// 只比 <c>assemblies[].unix</c> 与自己的改动时刻会把旧域读成新代码。
@@ -134,7 +126,9 @@ namespace Moirai.Atropos.Tests.EditorMode
             public long unix;
         }
 
-        /// <summary>命令载荷：<c>{"id":"&lt;唯一串&gt;","action":"focus|refresh|recompile"}</c>。</summary>
+        /// <summary>
+        /// 命令载荷：<c>{"id":"&lt;唯一串&gt;","action":"focus|refresh|recompile"}</c>。
+        /// </summary>
         [Serializable]
         private sealed class EditorCommand
         {
@@ -269,7 +263,9 @@ namespace Moirai.Atropos.Tests.EditorMode
             return stamps;
         }
 
-        /// <summary>取已编译产物的 UTC 秒；不存在为 0，编译中途正被替换也当 0（下一拍再取）。</summary>
+        /// <summary>
+        /// 取已编译产物的 UTC 秒；不存在为 0，编译中途正被替换也当 0（下一拍再取）。
+        /// </summary>
         private static long AssemblyUnix(string assemblyName)
         {
             string path = ASSEMBLY_DIR + assemblyName + ".dll";
@@ -542,10 +538,7 @@ namespace Moirai.Atropos.Tests.EditorMode
 
         #region 反射探针 [REFLECTION PROBES]
 
-        /// <summary>
-        /// <c>LogEntries.GetCountsByType</c> 反射探针：那是 <c>internal static</c>、不在文档 API 面上，成员缺失或签名变动时整块退回 <c>null</c>（状态里落 -1）， <br />
-        /// 绝不把「读不到」说成「没有错」。
-        /// </summary>
+        /// <summary><c>LogEntries.GetCountsByType</c> 反射探针（<c>internal static</c>）：探不到即整块退回 <c>null</c>（状态落 -1），不报「零错误」。</summary>
         /// <remarks>
         /// 类型取 <c>typeof(EditorApplication).Assembly</c> 而不是按程序集名拼字符串——<c>LogEntries</c> 与 <c>EditorApplication</c> 同模块， <br />
         /// 而模块名在各版本间挪过。
@@ -590,9 +583,7 @@ namespace Moirai.Atropos.Tests.EditorMode
             }
         }
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunActive()</c> 反射探针（<c>internal static</c>，与测试桥的接单门同源）：编辑器里有任意 run 在跑即真，含 Test Runner 窗口里手动发起的。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunActive()</c> 反射探针（<c>internal static</c>，与测试桥接单门同源）：任意 run 在跑即真（含测试窗口手动发起）。</summary>
         private static readonly Func<bool> RunActiveProbe = CreateRunActiveProbe();
 
         private static Func<bool> CreateRunActiveProbe()

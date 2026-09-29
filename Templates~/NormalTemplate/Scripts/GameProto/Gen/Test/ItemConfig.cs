@@ -27,21 +27,13 @@ public sealed partial class ItemConfig : Luban.BeanBase
         return new Test.ItemConfig(_buf);
     }
 
-    /// <summary>
-    /// 索引。
-    /// </summary>
+    /// <summary>索引。</summary>
     public readonly int Id;
-    /// <summary>
-    /// 名称。
-    /// </summary>
+    /// <summary>名称。</summary>
     public readonly string Name;
-    /// <summary>
-    /// 描述。
-    /// </summary>
+    /// <summary>描述。</summary>
     public readonly string Desc;
-    /// <summary>
-    /// 测试数据。
-    /// </summary>
+    /// <summary>测试数据。</summary>
     public readonly System.Collections.Generic.List<string> Data1;
    
     public const int __ID__ = -848802031;

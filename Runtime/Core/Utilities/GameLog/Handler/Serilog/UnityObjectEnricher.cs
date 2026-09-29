@@ -11,14 +11,10 @@ namespace Moirai.Atropos.Serilog
     /// <see cref="Unity3DLogEventSink"/> 输出时 Unity Console 可点击日志定位到该对象。</remarks>
     internal sealed class UnityObjectEnricher : ILogEventEnricher
     {
-        /// <summary>
-        /// 上下文属性的保留键名（刻意使用特殊命名避免与用户属性冲突，仅供 <see cref="Unity3DLogEventSink"/> 内部消费）。
-        /// </summary>
+        /// <summary>上下文属性的保留键名（刻意使用特殊命名避免与用户属性冲突，仅供 <see cref="Unity3DLogEventSink"/> 内部消费）。</summary>
         public const string UNITY_CONTEXT_KEY = "%_DO_NOT_USE_UNITY_ID_DO_NOT_USE%";
 
-        /// <summary>
-        /// 预构建的上下文属性（不可变，可在所有日志事件间复用）。
-        /// </summary>
+        /// <summary>预构建的上下文属性（不可变，可在所有日志事件间复用）。</summary>
         private readonly LogEventProperty _property;
 
         /// <summary>

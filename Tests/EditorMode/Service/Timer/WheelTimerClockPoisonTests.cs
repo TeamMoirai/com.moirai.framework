@@ -9,7 +9,9 @@ using UnityEngine.TestTools;
 
 namespace Service.Timer
 {
-    /// <summary>时间轮面对被污染时间输入（NaN / 无穷 / 溢出）时的自愈性测试。</summary>
+    /// <summary>
+    /// 时间轮面对被污染时间输入（NaN / 无穷 / 溢出）时的自愈性测试。
+    /// </summary>
     /// <remarks>tick 换算饱和化后，单帧 NaN 时钟不得把轮游标打到 <c>long.MinValue</c>（那等于时间轮此后每帧只追 64 tick，实际永久冻结）；非有限延时必须在占用槽位前被拒绝。</remarks>
     public class WheelTimerClockPoisonTests
     {

@@ -22,24 +22,16 @@ namespace Moirai.Atropos
 
         private static ServiceWorld s_World;
 
-        /// <summary>
-        /// 默认服务世界（首次访问时创建）。
-        /// </summary>
+        /// <summary>默认服务世界（首次访问时创建）。</summary>
         public static ServiceWorld Default => s_World ??= new ServiceWorld();
 
-        /// <summary>
-        /// App 作用域是否活跃。
-        /// </summary>
+        /// <summary>App 作用域是否活跃。</summary>
         public static bool HasApp => s_World?.HasScope(EServiceScopeKind.App) ?? false;
 
-        /// <summary>
-        /// Scene 作用域是否活跃。
-        /// </summary>
+        /// <summary>Scene 作用域是否活跃。</summary>
         public static bool HasScene => s_World?.HasScope(EServiceScopeKind.Scene) ?? false;
 
-        /// <summary>
-        /// Gameplay 作用域是否活跃。
-        /// </summary>
+        /// <summary>Gameplay 作用域是否活跃。</summary>
         public static bool HasGameplay => s_World?.HasScope(EServiceScopeKind.Gameplay) ?? false;
 
         #endregion
@@ -78,9 +70,7 @@ namespace Moirai.Atropos
 
         #region 拦截器 [INTERCEPTORS]
 
-        /// <summary>
-        /// 当前已注册的拦截器（只读视图）。
-        /// </summary>
+        /// <summary>当前已注册的拦截器（只读视图）。</summary>
         public static IReadOnlyList<IServiceInterceptor> Interceptors => Default.Interceptors;
 
         /// <summary>
@@ -155,9 +145,7 @@ namespace Moirai.Atropos
 
         #region 重复契约策略 [DUPLICATE CONTRACT POLICY]
 
-        /// <summary>
-        /// 重复契约注册处置策略，仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景。
-        /// </summary>
+        /// <summary>重复契约注册处置策略，仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景。</summary>
         /// <remarks>
         /// 同实例重复注册的幂等返回与多契约绑定不受本策略影响。
         /// </remarks>

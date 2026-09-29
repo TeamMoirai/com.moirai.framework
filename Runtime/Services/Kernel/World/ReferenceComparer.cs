@@ -9,9 +9,7 @@ namespace Moirai.Atropos
     /// <typeparam name="T">参与比较的引用类型。</typeparam>
     internal sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
     {
-        /// <summary>
-        /// 获取比较器单例实例。
-        /// </summary>
+        /// <summary>获取比较器单例实例。</summary>
         public static readonly ReferenceComparer<T> Instance = new ReferenceComparer<T>();
 
         private ReferenceComparer() { }

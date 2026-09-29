@@ -12,14 +12,10 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public sealed class MessagePackSaveSerializer : ISaveSerializer
     {
-        /// <summary>
-        /// 序列化选项（默认 Standard 组合）。
-        /// </summary>
+        /// <summary>序列化选项（默认 Standard 组合）。</summary>
         private static readonly MessagePackSerializerOptions s_Options = MessagePackSerializerOptions.Standard;
 
-        /// <summary>
-        /// 后端标识（恒为 <see cref="ESaveBackend.MessagePack"/>）。
-        /// </summary>
+        /// <summary>后端标识（恒为 <see cref="ESaveBackend.MessagePack"/>）。</summary>
         public ESaveBackend Backend => ESaveBackend.MessagePack;
 
         /// <summary>

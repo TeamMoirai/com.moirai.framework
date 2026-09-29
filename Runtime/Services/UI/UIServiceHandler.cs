@@ -13,19 +13,13 @@ namespace Moirai.Atropos.UI
     [Serializable]
     public abstract class UIServiceHandler : FrameworkHandler
     {
-        /// <summary>
-        /// UI根节点。
-        /// </summary>
+        /// <summary>UI根节点。</summary>
         public abstract Transform UIRoot { get; }
 
-        /// <summary>
-        /// UI专用摄像机。
-        /// </summary>
+        /// <summary>UI专用摄像机。</summary>
         public abstract Camera UICamera { get; }
 
-        /// <summary>
-        /// 当前模态遮挡窗口。
-        /// </summary>
+        /// <summary>当前模态遮挡窗口。</summary>
         public abstract UIWindow CurrentModal { get; }
 
         /// <summary>
@@ -35,9 +29,7 @@ namespace Moirai.Atropos.UI
                                                         window.WindowLayer == (int)UILayer.Popup ||
                                                         window.WindowLayer == (int)UILayer.System;
 
-        /// <summary>
-        /// 模态动画期间交互压制的归属仲裁。每个后端实例一份，与窗口堆栈同生命周期。
-        /// </summary>
+        /// <summary>模态动画期间交互压制的归属仲裁。每个后端实例一份，与窗口堆栈同生命周期。</summary>
         internal UIInteractionLease InteractionLease { get; } = new UIInteractionLease();
 
         #region 生命周期 [LIFECYCLE]

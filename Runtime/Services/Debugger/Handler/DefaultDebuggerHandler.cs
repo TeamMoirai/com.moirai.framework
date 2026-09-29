@@ -38,24 +38,16 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取控制台环形缓冲容量。
-        /// </summary>
+        /// <summary>获取控制台环形缓冲容量。</summary>
         public int ConsoleCapacity => m_ConsoleCapacity;
 
-        /// <summary>
-        /// 获取悬浮入口与统计的帧率刷新间隔（秒）。
-        /// </summary>
+        /// <summary>获取悬浮入口与统计的帧率刷新间隔（秒）。</summary>
         public float FpsUpdateInterval => m_FpsUpdateInterval;
 
-        /// <summary>
-        /// 获取常驻统计 HUD 初始可见性。
-        /// </summary>
+        /// <summary>获取常驻统计 HUD 初始可见性。</summary>
         public bool StatsOverlayVisible => m_StatsOverlayVisible;
 
-        /// <summary>
-        /// 获取主窗口不透明度（0.2-1）。
-        /// </summary>
+        /// <summary>获取主窗口不透明度（0.2-1）。</summary>
         public float WindowOpacity => m_WindowOpacity;
 
         /// <inheritdoc />
@@ -120,9 +112,7 @@ namespace Moirai.Atropos.Debugger
         /// <inheritdoc />
         public override DebuggerLogCapture LogCapture => _logCapture;
 
-        /// <summary>
-        /// 激活策略覆盖点（测试 / 代码装配用；<c>null</c> 表示用 <see cref="DebuggerServiceSettings"/> 的配置）。
-        /// </summary>
+        /// <summary>激活策略覆盖点（测试 / 代码装配用；<c>null</c> 表示用 <see cref="DebuggerServiceSettings"/> 的配置）。</summary>
         internal DebuggerActiveWindowType? Internal_ActiveWindowTypeOverride { get; set; }
 
         #endregion

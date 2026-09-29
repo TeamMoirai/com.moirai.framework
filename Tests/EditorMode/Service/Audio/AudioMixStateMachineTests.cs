@@ -4,7 +4,9 @@ using UnityEngine.TestTools;
 
 namespace Service.Audio
 {
-    /// <summary><see cref="AudioMixStateMachine"/> 的优先级与回落契约。</summary>
+    /// <summary>
+    /// <see cref="AudioMixStateMachine"/> 的优先级与回落契约。
+    /// </summary>
     /// <remarks>自动 Ducking 寄生在这套规则上（Voice 起播借走 Dialogue、播完归还借走的那一层），故用例锁的是「谁能打断谁」与「回落会不会越权」，而非 Ducking 开关本身。</remarks>
     [TestFixture]
     public class AudioMixStateMachineTests

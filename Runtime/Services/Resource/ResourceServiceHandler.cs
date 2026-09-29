@@ -15,32 +15,50 @@ namespace Moirai.Atropos.Resource
     /// </remarks>
     internal interface IResourceLeaseSource
     {
-        /// <summary>同步取用一个直接租约；失败返回 <see cref="ResourceLeaseHandle.Invalid"/>。</summary>
+        /// <summary>
+        /// 同步取用一个直接租约；失败返回 <see cref="ResourceLeaseHandle.Invalid"/>。
+        /// </summary>
         ResourceLeaseHandle AcquireBinding(ResourceKey key);
 
-        /// <summary>只读缓存取用：已加载则租约，未命中返回 false 且不发起加载。</summary>
+        /// <summary>
+        /// 只读缓存取用：已加载则租约，未命中返回 false 且不发起加载。
+        /// </summary>
         bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle);
 
-        /// <summary>异步取用一个直接租约。</summary>
+        /// <summary>
+        /// 异步取用一个直接租约。
+        /// </summary>
         UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken);
 
-        /// <summary>异步取用整张子资源图集的租约，具体精灵再按名索取。</summary>
+        /// <summary>
+        /// 异步取用整张子资源图集的租约，具体精灵再按名索取。
+        /// </summary>
         UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName,
             EResourceLeaseOption options, CancellationToken cancellationToken);
 
-        /// <summary>从子资源图集租约里按名取出一个精灵。</summary>
+        /// <summary>
+        /// 从子资源图集租约里按名取出一个精灵。
+        /// </summary>
         bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite);
 
-        /// <summary>取出租约指向的资源对象。</summary>
+        /// <summary>
+        /// 取出租约指向的资源对象。
+        /// </summary>
         bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset);
 
-        /// <summary>取出租约指向的记录 id，仅用于诊断。</summary>
+        /// <summary>
+        /// 取出租约指向的记录 id，仅用于诊断。
+        /// </summary>
         bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId);
 
-        /// <summary>登记取用时的租约选项（如释放后转保活）。</summary>
+        /// <summary>
+        /// 登记取用时的租约选项（如释放后转保活）。
+        /// </summary>
         void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options);
 
-        /// <summary>归还租约。<b>必须无条件完成</b>——静默丢掉一条就是永久泄漏。</summary>
+        /// <summary>
+        /// 归还租约。<b>必须无条件完成</b>——静默丢掉一条就是永久泄漏。
+        /// </summary>
         void Release(ResourceLeaseHandle handle);
     }
 
@@ -56,9 +74,7 @@ namespace Moirai.Atropos.Resource
     {
         #region 基础属性 [BASE PROPERTIES]
 
-        /// <summary>
-        /// 默认资源包/资源组名称。
-        /// </summary>
+        /// <summary>默认资源包/资源组名称。</summary>
         public abstract string DefaultPackageName { get; set; }
 
         /// <summary>
@@ -76,68 +92,44 @@ namespace Moirai.Atropos.Resource
         {
         }
 
-        /// <summary>
-        /// 绑定服务。
-        /// </summary>
+        /// <summary>绑定服务。</summary>
         public abstract IResourceBindingService BindingService { get; }
 
-        /// <summary>
-        /// 资源系统热更服务器地址。
-        /// </summary>
+        /// <summary>资源系统热更服务器地址。</summary>
         public abstract string HostServerURL { get; set; }
 
-        /// <summary>
-        /// 资源系统备用热更服务器地址。
-        /// </summary>
+        /// <summary>资源系统备用热更服务器地址。</summary>
         public abstract string FallbackHostServerURL { get; set; }
 
-        /// <summary>
-        /// WebGL 平台加载方式。
-        /// </summary>
+        /// <summary>WebGL 平台加载方式。</summary>
         public abstract EResourceLoadWayWebGL LoadResWayWebGL { get; set; }
 
-        /// <summary>
-        /// 获取当前资源适用的游戏版本号。
-        /// </summary>
+        /// <summary>获取当前资源适用的游戏版本号。</summary>
         public abstract string ApplicableGameVersion { get; }
 
-        /// <summary>
-        /// 获取当前内部资源版本号。
-        /// </summary>
+        /// <summary>获取当前内部资源版本号。</summary>
         public abstract int InternalResourceVersion { get; }
 
-        /// <summary>
-        /// 当前资源包版本。
-        /// </summary>
+        /// <summary>当前资源包版本。</summary>
         public abstract string PackageVersion { get; set; }
 
-        /// <summary>
-        /// 是否支持边玩边下载（热更进行中可进入游戏）。
-        /// </summary>
+        /// <summary>是否支持边玩边下载（热更进行中可进入游戏）。</summary>
         public abstract bool UpdatableWhilePlaying { get; }
 
         #endregion
 
         #region 运行时配置 [RUNTIME CONFIGURATION]
 
-        /// <summary>
-        /// 自动释放资源引用计数为 0 的资源包。
-        /// </summary>
+        /// <summary>自动释放资源引用计数为 0 的资源包。</summary>
         public abstract bool AutoUnloadBundleWhenUnused { get; set; }
 
-        /// <summary>
-        /// 同时下载的最大数目。
-        /// </summary>
+        /// <summary>同时下载的最大数目。</summary>
         public abstract int DownloadingMaxNum { get; set; }
 
-        /// <summary>
-        /// 下载失败重试次数。
-        /// </summary>
+        /// <summary>下载失败重试次数。</summary>
         public abstract int FailedTryAgain { get; set; }
 
-        /// <summary>
-        /// 异步系统每帧执行消耗的最大时间切片（单位：毫秒）。
-        /// </summary>
+        /// <summary>异步系统每帧执行消耗的最大时间切片（单位：毫秒）。</summary>
         public abstract long Milliseconds { get; set; }
 
         #endregion
@@ -317,34 +309,22 @@ namespace Moirai.Atropos.Resource
 
         #region 容量属性 [CAPACITY PROPERTIES]
 
-        /// <summary>
-        /// 资源记录预热容量。
-        /// </summary>
+        /// <summary>资源记录预热容量。</summary>
         public abstract int AssetRecordCapacity { get; set; }
 
-        /// <summary>
-        /// 资源租约预热容量。
-        /// </summary>
+        /// <summary>资源租约预热容量。</summary>
         public abstract int AssetLeaseCapacity { get; set; }
 
-        /// <summary>
-        /// 绑定所有者预热容量。
-        /// </summary>
+        /// <summary>绑定所有者预热容量。</summary>
         public abstract int BindingOwnerCapacity { get; set; }
 
-        /// <summary>
-        /// 绑定槽位预热容量。
-        /// </summary>
+        /// <summary>绑定槽位预热容量。</summary>
         public abstract int BindingSlotCapacity { get; set; }
 
-        /// <summary>
-        /// 无引用资源句柄空闲过期秒数。
-        /// </summary>
+        /// <summary>无引用资源句柄空闲过期秒数。</summary>
         public abstract float IdleAssetExpireTime { get; set; }
 
-        /// <summary>
-        /// 空闲资源记录容量上限：无引用记录数超过该值时立即释放最长空闲者，取 0 表示不留任何空闲记录。
-        /// </summary>
+        /// <summary>空闲资源记录容量上限：无引用记录数超过该值时立即释放最长空闲者，取 0 表示不留任何空闲记录。</summary>
         public abstract int IdleAssetCapacity { get; set; }
 
         #endregion

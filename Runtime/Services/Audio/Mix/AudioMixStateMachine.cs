@@ -41,7 +41,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>对应的 AudioMixer 快照。</summary>
         public AudioMixerSnapshot Snapshot;
 
-        /// <summary>打断优先级；&lt;0 表示使用内置默认优先级。</summary>
+        /// <summary>
+        /// 打断优先级；&lt;0 表示使用内置默认优先级。
+        /// </summary>
         [Range(-1f, 10f)] public float Priority = -1f;
     }
 
@@ -107,12 +109,16 @@ namespace Moirai.Atropos.Audio
             m_Entries = list.ToArray();
         }
 
-        /// <summary>按状态名向 Mixer 求 Snapshot（Unity 公开的 <c>AudioMixer.FindSnapshot</c>，名字须精确匹配）。</summary>
+        /// <summary>
+        /// 按状态名向 Mixer 求 Snapshot（Unity 公开的 <c>AudioMixer.FindSnapshot</c>，名字须精确匹配）。
+        /// </summary>
         /// <remarks>不做忽略大小写：那要先能枚举 Snapshot，而 Unity 无公开枚举接口，反射与 SerializedObject 两条回退都取不到。</remarks>
         internal static AudioMixerSnapshot FindMixerSnapshot(AudioMixer mixer, EMixSnapshot state)
             => mixer != null ? mixer.FindSnapshot(state.ToString()) : null;
 
-        /// <summary>按 Snapshot 名与 <see cref="EMixSnapshot"/> 自动绑定（一键绑定），仅填充 Snapshot 为空的条目（手工映射优先）。</summary>
+        /// <summary>
+        /// 按 Snapshot 名与 <see cref="EMixSnapshot"/> 自动绑定（一键绑定），仅填充 Snapshot 为空的条目（手工映射优先）。
+        /// </summary>
         /// <returns>本次成功绑定的数量。</returns>
         public int TryBindSnapshotsByName(AudioMixer mixer)
         {
@@ -167,7 +173,9 @@ namespace Moirai.Atropos.Audio
             _ => 1f,
         };
 
-        /// <summary>请求切换到目标状态。低优先级无法打断高优先级（除非 force）。</summary>
+        /// <summary>
+        /// 请求切换到目标状态。低优先级无法打断高优先级（除非 force）。
+        /// </summary>
         /// <returns><c>true</c> 当且仅当过渡真的施加到了混音上（Mixer 快照或中间件回调）；未施加则不改 <see cref="Current"/>。</returns>
         public bool Request(EMixSnapshot target, float blendSeconds = -1f, bool force = false)
         {
@@ -318,14 +326,10 @@ namespace Moirai.Atropos.Audio
             s_StateMachine.TryBindSnapshotsByName(mixer);
         }
 
-        /// <summary>
-        /// 当前状态机（可为 null）。
-        /// </summary>
+        /// <summary>当前状态机（可为 null）。</summary>
         public static AudioMixStateMachine Machine => s_StateMachine;
 
-        /// <summary>
-        /// 当前混音状态。
-        /// </summary>
+        /// <summary>当前混音状态。</summary>
         public static EMixSnapshot Current =>
             s_StateMachine != null ? s_StateMachine.Current : EMixSnapshot.Default;
 

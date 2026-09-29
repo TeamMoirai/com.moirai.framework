@@ -9,29 +9,19 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public enum ESaveBackend
     {
-        /// <summary>
-        /// 框架内置 JSON 序列化（零分配字节通路，默认后端）。
-        /// </summary>
+        /// <summary>框架内置 JSON 序列化（零分配字节通路，默认后端）。</summary>
         Json = 0,
 
-        /// <summary>
-        /// MessagePack 二进制序列化（Schema-less，需 <see cref="MessagePack.MessagePackObjectAttribute"/> 类标注 + SourceGenerator）。
-        /// </summary>
+        /// <summary>MessagePack 二进制序列化（Schema-less：类需 <see cref="MessagePack.MessagePackObjectAttribute"/> 标注）。</summary>
         MessagePack = 1,
 
-        /// <summary>
-        /// MemoryPack 二进制序列化（零编码开销，需 <see cref="MemoryPack.MemoryPackableAttribute"/> 类标注 + SourceGenerator）。
-        /// </summary>
+        /// <summary>MemoryPack 二进制序列化（零编码开销，需 <see cref="MemoryPack.MemoryPackableAttribute"/> 类标注 + SourceGenerator）。</summary>
         MemoryPack = 2,
 
-        /// <summary>
-        /// protobuf-net 二进制序列化（Proto 契约，需 <see cref="ProtoBuf.ProtoContractAttribute"/> 类标注 + BuildTools SourceGenerator）。
-        /// </summary>
+        /// <summary>protobuf-net 二进制序列化（Proto 契约：类需 <see cref="ProtoBuf.ProtoContractAttribute"/> 标注）。</summary>
         Protobuf = 3,
 
-        /// <summary>
-        /// 框架内置键值捕获格式（无代码保存组件专用；块内为字段级键值记录，天然容忍字段增删）。
-        /// </summary>
+        /// <summary>框架内置键值捕获格式（无代码保存组件专用；块内为字段级键值记录，天然容忍字段增删）。</summary>
         KeyValue = 254,
     }
 }

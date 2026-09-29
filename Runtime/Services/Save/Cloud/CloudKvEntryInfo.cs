@@ -7,24 +7,16 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public readonly struct CloudKvEntryInfo
     {
-        /// <summary>
-        /// 云端键（相对存档根目录，<c>/</c> 分隔）。
-        /// </summary>
+        /// <summary>云端键（相对存档根目录，<c>/</c> 分隔）。</summary>
         public readonly string Key;
 
-        /// <summary>
-        /// 条目大小（字节）。
-        /// </summary>
+        /// <summary>条目大小（字节）。</summary>
         public readonly long SizeBytes;
 
-        /// <summary>
-        /// 远端最后写入时间（UTC）。
-        /// </summary>
+        /// <summary>远端最后写入时间（UTC）。</summary>
         public readonly DateTime LastWriteTimeUtc;
 
-        /// <summary>
-        /// 远端单调修订号（<c>0</c> = 后端不提供版本号，裁决回退时间戳比较）。
-        /// </summary>
+        /// <summary>远端单调修订号（<c>0</c> = 后端不提供版本号，裁决回退时间戳比较）。</summary>
         public readonly long Version;
 
         /// <summary>

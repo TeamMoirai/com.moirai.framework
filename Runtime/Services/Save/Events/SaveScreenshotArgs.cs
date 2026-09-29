@@ -5,29 +5,19 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public readonly struct SaveScreenshotArgs
     {
-        /// <summary>
-        /// 存档文件名。
-        /// </summary>
+        /// <summary>存档文件名。</summary>
         public string FileName { get; }
 
-        /// <summary>
-        /// 存档文件夹名称。
-        /// </summary>
+        /// <summary>存档文件夹名称。</summary>
         public string FolderName { get; }
 
-        /// <summary>
-        /// 截图文件名（sidecar <c>.screenshot.png</c>）。
-        /// </summary>
+        /// <summary>截图文件名（sidecar <c>.screenshot.png</c>）。</summary>
         public string ScreenshotFileName { get; }
 
-        /// <summary>
-        /// 截图宽度（像素）。
-        /// </summary>
+        /// <summary>截图宽度（像素）。</summary>
         public int Width { get; }
 
-        /// <summary>
-        /// 截图高度（像素）。
-        /// </summary>
+        /// <summary>截图高度（像素）。</summary>
         public int Height { get; }
 
         /// <summary>

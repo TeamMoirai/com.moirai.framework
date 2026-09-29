@@ -17,7 +17,9 @@ namespace Service.Audio
 
         public UnityAudioHandler Handler { get; }
 
-        /// <summary>构造后立即可播；配置建不出来会 Fail，不会静默跳过。</summary>
+        /// <summary>
+        /// 构造后立即可播；配置建不出来会 Fail，不会静默跳过。
+        /// </summary>
         public AudioServiceTestHost(params EAudioTrack[] tracks)
         {
             if (tracks == null || tracks.Length == 0)

@@ -60,8 +60,12 @@ namespace Service.ObjectPool
             }
         }
 
-        /// <summary>抛出后仍在 finally 里重排自己——真实池的维护边界就是这个形状。</summary>
-        /// <summary>执行时摘除另一个维护项——用于验证"已采集但未派发"的项被摘除后不再执行。</summary>
+        /// <summary>
+        /// 抛出后仍在 finally 里重排自己——真实池的维护边界就是这个形状。
+        /// </summary>
+        /// <summary>
+        /// 执行时摘除另一个维护项——用于验证"已采集但未派发"的项被摘除后不再执行。
+        /// </summary>
         private sealed class RemovingItem : IPoolMaintenanceItem
         {
             private readonly PoolMaintenanceScheduler _scheduler;
@@ -84,7 +88,9 @@ namespace Service.ObjectPool
             }
         }
 
-        /// <summary>执行时把另一个维护项重排到"当前时刻"——用于验证已在工作集里的项不会本轮二次收录。</summary>
+        /// <summary>
+        /// 执行时把另一个维护项重排到"当前时刻"——用于验证已在工作集里的项不会本轮二次收录。
+        /// </summary>
         private sealed class ReschedulingOtherItem : IPoolMaintenanceItem
         {
             private readonly PoolMaintenanceScheduler _scheduler;

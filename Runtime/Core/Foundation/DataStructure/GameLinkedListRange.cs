@@ -30,24 +30,16 @@ namespace Moirai.Atropos
             _terminal = terminal;
         }
 
-        /// <summary>
-        /// 获取链表范围是否有效。
-        /// </summary>
+        /// <summary>获取链表范围是否有效。</summary>
         public bool IsValid => _first != null && _terminal != null && _first != _terminal;
 
-        /// <summary>
-        /// 获取链表范围的开始结点。
-        /// </summary>
+        /// <summary>获取链表范围的开始结点。</summary>
         public LinkedListNode<T> First => _first;
 
-        /// <summary>
-        /// 获取链表范围的终结标记结点。
-        /// </summary>
+        /// <summary>获取链表范围的终结标记结点。</summary>
         public LinkedListNode<T> Terminal => _terminal;
 
-        /// <summary>
-        /// 获取链表范围的结点数量。
-        /// </summary>
+        /// <summary>获取链表范围的结点数量。</summary>
         /// <remarks>O(n) 全段走查，区间视图无计数缓存，勿在每帧热路径当作廉价属性读取。</remarks>
         public int Count
         {
@@ -135,14 +127,10 @@ namespace Moirai.Atropos
                 _currentValue = default(T);
             }
 
-            /// <summary>
-            /// 获取当前结点。
-            /// </summary>
+            /// <summary>获取当前结点。</summary>
             public T Current => _currentValue;
 
-            /// <summary>
-            /// 获取当前的枚举数。
-            /// </summary>
+            /// <summary>获取当前的枚举数。</summary>
             object IEnumerator.Current => _currentValue;
 
             /// <summary>

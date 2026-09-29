@@ -19,9 +19,7 @@ namespace Moirai.Atropos
         // 通过此标志在重入时直接走 _originalHandler，避免无限循环（无法避免前缀叠加，后端应走 GetBypassUnityHandler）。
         [NonSerialized] private static bool s_Reentering;
 
-        /// <summary>
-        /// 原始 Unity logHandler（拦截启用前的值）。
-        /// </summary>
+        /// <summary>原始 Unity logHandler（拦截启用前的值）。</summary>
         public ILogHandler OriginalHandler => _originalHandler;
 
         internal UnityLogInterceptor(ILogHandler originalHandler)

@@ -9,34 +9,22 @@ namespace Moirai.Atropos.Resource
     /// </remarks>
     internal sealed class LoadingOperationState : MemoryObject
     {
-        /// <summary>
-        /// 后端原始资源句柄（由具体资源后端解释）。
-        /// </summary>
+        /// <summary>后端原始资源句柄（由具体资源后端解释）。</summary>
         public object AssetHandle { get; set; }
 
-        /// <summary>
-        /// 后端原子资源集句柄（由具体资源后端解释）。
-        /// </summary>
+        /// <summary>后端原子资源集句柄（由具体资源后端解释）。</summary>
         public object SubAssetsHandle { get; set; }
 
-        /// <summary>
-        /// 是否完成。
-        /// </summary>
+        /// <summary>是否完成。</summary>
         public bool IsDone { get; private set; }
 
-        /// <summary>
-        /// 是否成功。
-        /// </summary>
+        /// <summary>是否成功。</summary>
         public bool Succeeded { get; private set; }
 
-        /// <summary>
-        /// 等待者数量。
-        /// </summary>
+        /// <summary>等待者数量。</summary>
         public int WaiterCount { get; private set; }
 
-        /// <summary>
-        /// 是否已请求释放。
-        /// </summary>
+        /// <summary>是否已请求释放。</summary>
         public bool ReleaseRequested { get; private set; }
 
         private Cysharp.Threading.Tasks.UniTaskCompletionSource<bool> _completion;

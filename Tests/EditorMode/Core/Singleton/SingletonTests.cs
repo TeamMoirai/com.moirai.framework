@@ -17,7 +17,9 @@ namespace Core.Singleton
     [TestFixture]
     public class SingletonTests
     {
-        /// <summary>带生命周期计数的测试单例。</summary>
+        /// <summary>
+        /// 带生命周期计数的测试单例。
+        /// </summary>
         private class CountingSingleton : Singleton<CountingSingleton>
         {
             /// <summary>OnInit 调用次数。</summary>
@@ -41,7 +43,9 @@ namespace Core.Singleton
             }
         }
 
-        /// <summary>无自定义行为的最小测试单例。</summary>
+        /// <summary>
+        /// 无自定义行为的最小测试单例。
+        /// </summary>
         private class PlainSingleton : Singleton<PlainSingleton> { }
 
         [SetUp]
@@ -56,7 +60,9 @@ namespace Core.Singleton
             ResetStaticState();
         }
 
-        /// <summary>清空静态实例并重置计数（跨用例隔离）。</summary>
+        /// <summary>
+        /// 清空静态实例并重置计数（跨用例隔离）。
+        /// </summary>
         private static void ResetStaticState()
         {
             Singleton<CountingSingleton>.s_Instance = null;

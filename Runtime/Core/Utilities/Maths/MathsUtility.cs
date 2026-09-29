@@ -22,7 +22,7 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        //// 将 float 弹向目标值（类似弹簧效果）。
+        /// 将 float 弹向目标值（类似弹簧效果）。
         /// </summary>
         /// <param name="currentValue">当前值，作为 ref 传入。</param>
         /// <param name="targetValue">目标值。</param>

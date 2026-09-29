@@ -21,9 +21,7 @@ namespace Moirai.Atropos
             {
             }
 
-            /// <summary>
-            /// 获取游戏配置项数量。
-            /// </summary>
+            /// <summary>获取游戏配置项数量。</summary>
             public int Count => _settings.Count;
 
             /// <summary>

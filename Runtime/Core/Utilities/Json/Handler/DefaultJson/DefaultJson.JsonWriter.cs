@@ -101,7 +101,9 @@ namespace Moirai.Atropos
                 WriteObject(ref sink, value, type, meta, removeNulls, readable, depth, depthLimit);
             }
 
-            /// <summary>写入简单值（基元/字符串/枚举/已知可转换类型）。不可处理类型抛错。</summary>
+            /// <summary>
+            /// 写入简单值（基元/字符串/枚举/已知可转换类型）。不可处理类型抛错。
+            /// </summary>
             private static void WriteSimpleValue(ref TSink sink, object value)
             {
                 switch (value)
@@ -176,7 +178,9 @@ namespace Moirai.Atropos
 
             #region Unity 结构体直写快路径 [UNITY STRUCT FAST PATH]
 
-            /// <summary>尝试直写常见 Unity 结构体（绕过反射）。返回 true 表示已处理。</summary>
+            /// <summary>
+            /// 尝试直写常见 Unity 结构体（绕过反射）。返回 true 表示已处理。
+            /// </summary>
             private static bool TryWriteUnityStruct(ref TSink sink, object value)
             {
                 switch (value)

@@ -3,7 +3,9 @@ using NUnit.Framework;
 
 namespace Service.Debugger
 {
-    /// <summary>内置调试窗口的注册时机测试：注册跟着激活走，而不是在 <c>OnInit</c> 里无条件构造全部窗体。</summary>
+    /// <summary>
+    /// 内置调试窗口的注册时机测试：注册跟着激活走，而不是在 <c>OnInit</c> 里无条件构造全部窗体。
+    /// </summary>
     /// <remarks>
     /// 生产默认（<see cref="Dbg.DebuggerActiveWindowType.AlwaysClose"/>， <br />
     /// 或 <see cref="Dbg.DebuggerActiveWindowType.OnlyOpenWhenDevelopment"/> 且非 debug 构建）从不打开调试器，这段构造与 <c>Initialize</c> 是纯启动开销； <br />

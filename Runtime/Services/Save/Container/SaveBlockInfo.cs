@@ -10,34 +10,22 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public readonly struct SaveBlockInfo
     {
-        /// <summary>
-        /// 数据块键（结构性坏块可能为 <c>null</c>——块边界不可读）。
-        /// </summary>
+        /// <summary>数据块键（结构性坏块可能为 <c>null</c>——块边界不可读）。</summary>
         public string Key { get; }
 
-        /// <summary>
-        /// 数据块模式版本（声明于 <c>SaveDataAttribute</c>，供迁移管线判定升级路径）。
-        /// </summary>
+        /// <summary>数据块模式版本（声明于 <c>SaveDataAttribute</c>，供迁移管线判定升级路径）。</summary>
         public int DataVersion { get; }
 
-        /// <summary>
-        /// 序列化后端标识。
-        /// </summary>
+        /// <summary>序列化后端标识。</summary>
         public ESaveBackend Backend { get; }
 
-        /// <summary>
-        /// 块载荷字节数。
-        /// </summary>
+        /// <summary>块载荷字节数。</summary>
         public int SizeBytes { get; }
 
-        /// <summary>
-        /// 逐块错误码（健康块为 <see cref="SaveError.None"/>；坏块为 <see cref="SaveError.Corrupted"/>）。
-        /// </summary>
+        /// <summary>逐块错误码（健康块为 <see cref="SaveError.None"/>；坏块为 <see cref="SaveError.Corrupted"/>）。</summary>
         public SaveError Error { get; }
 
-        /// <summary>
-        /// 块框架是否完整可读（健康块与 CRC 坏块为 <c>true</c>；结构性坏块为 <c>false</c>，此时元数据字段为零值）。
-        /// </summary>
+        /// <summary>块框架是否完整可读（健康块与 CRC 坏块为 <c>true</c>；结构性坏块为 <c>false</c>，此时元数据字段为零值）。</summary>
         public bool HasMetadata { get; }
 
         /// <summary>

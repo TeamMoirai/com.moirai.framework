@@ -9,24 +9,16 @@ namespace Moirai.Atropos.Tasks
 {
     public enum TaskStatus
     {
-        /// <summary>
-        /// 任务已启用运行并且可以更新。
-        /// </summary>
+        /// <summary>任务已启用运行并且可以更新。</summary>
         Running,
         
-        /// <summary>
-        /// 任务已暂停，将被忽略。
-        /// </summary>
+        /// <summary>任务已暂停，将被忽略。</summary>
         Paused,
         
-        /// <summary>
-        /// 任务已完成，等待广播完成事件。
-        /// </summary>
+        /// <summary>任务已完成，等待广播完成事件。</summary>
         Completed,
         
-        /// <summary>
-        /// 任务已停止，并且不会广播完成事件。
-        /// </summary>
+        /// <summary>任务已停止，并且不会广播完成事件。</summary>
         Stopped
     }
     
@@ -37,9 +29,7 @@ namespace Moirai.Atropos.Tasks
         [JsonIgnore]
         public TaskBase Task { get; private set; }
         
-        /// <summary>
-        /// 该完成事件的监听任务列表（软引用）。
-        /// </summary>
+        /// <summary>该完成事件的监听任务列表（软引用）。</summary>
         /// <remarks>监听器可能在广播前被释放；判定生命周期版本需检查其 prerequisite 是否仍含本事件。</remarks>
         [JsonIgnore]
         public readonly List<TaskBase> Listeners = new List<TaskBase>();

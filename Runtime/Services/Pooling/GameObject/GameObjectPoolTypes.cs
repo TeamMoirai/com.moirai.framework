@@ -10,19 +10,13 @@ namespace Moirai.Atropos.ObjectPool
     /// </summary>
     public enum EPoolReleaseResult : byte
     {
-        /// <summary>
-        /// 已成功回收到池。
-        /// </summary>
+        /// <summary>已成功回收到池。</summary>
         Released = 0,
 
-        /// <summary>
-        /// 实例已不在 Active 状态（重复 Despawn / 已回收）。
-        /// </summary>
+        /// <summary>实例已不在 Active 状态（重复 Despawn / 已回收）。</summary>
         NotActive = 1,
 
-        /// <summary>
-        /// 实例不归属该槽位（身份不匹配）。
-        /// </summary>
+        /// <summary>实例不归属该槽位（身份不匹配）。</summary>
         NotOwned = 2
     }
 
@@ -36,25 +30,19 @@ namespace Moirai.Atropos.ObjectPool
     /// </remarks>
     public enum EPoolPolicy : byte
     {
-        /// <summary>
-        /// 固定容量：超出保留目标立即裁剪。
-        /// </summary>
+        /// <summary>固定容量：超出保留目标立即裁剪。</summary>
         /// <remarks>可涨到 hard。一有空闲且 `total > retain` 就立刻剪空闲；`retain = clamp(minIdle, 0, soft)`。在场对象不剪。</remarks>
         /// <example>适合 HUD</example>
         [LabelText("Fixed (固定容量)")]
         Fixed = 0,
 
-        /// <summary>
-        /// 突发容忍：空闲超时才裁剪。
-        /// </summary>
+        /// <summary>突发容忍：空闲超时才裁剪。</summary>
         /// <remarks>可涨到 hard。`total > soft` 时立刻剪空闲；未超 soft 时最老空闲超过 `idleSeconds` 再剪。</remarks>
         /// <example>适合特效 / 子弹</example>
         [LabelText("Burst (突发容忍)")]
         Burst = 1,
 
-        /// <summary>
-        /// 粘性保留：不主动回收，仅手动 Flush / 低内存收缩。
-        /// </summary>
+        /// <summary>粘性保留：不主动回收，仅手动 Flush / 低内存收缩。</summary>
         /// <remarks>只涨不自动剪，等 `Flush` 或 `Application.lowMemory`。</remarks>
         /// <example>适合关卡常驻</example>
         [LabelText("Sticky (粘性保留)")]
@@ -68,24 +56,16 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 资源地址。
-        /// </summary>
+        /// <summary>资源地址。</summary>
         public readonly string Location;
 
-        /// <summary>
-        /// 分组名称。
-        /// </summary>
+        /// <summary>分组名称。</summary>
         public readonly string Group;
 
-        /// <summary>
-        /// 父级 Transform。
-        /// </summary>
+        /// <summary>父级 Transform。</summary>
         public readonly Transform Parent;
 
-        /// <summary>
-        /// 生成帧号。
-        /// </summary>
+        /// <summary>生成帧号。</summary>
         public readonly uint SpawnFrame;
 
         #endregion
@@ -139,39 +119,25 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 获取是否就绪。
-        /// </summary>
+        /// <summary>获取是否就绪。</summary>
         public readonly bool IsReady;
 
-        /// <summary>
-        /// 获取池数量。
-        /// </summary>
+        /// <summary>获取池数量。</summary>
         public readonly int PoolCount;
 
-        /// <summary>
-        /// 获取已加载预制体数量。
-        /// </summary>
+        /// <summary>获取已加载预制体数量。</summary>
         public readonly int LoadedPrefabCount;
 
-        /// <summary>
-        /// 获取总实例数量。
-        /// </summary>
+        /// <summary>获取总实例数量。</summary>
         public readonly int TotalInstanceCount;
 
-        /// <summary>
-        /// 获取活跃实例数量。
-        /// </summary>
+        /// <summary>获取活跃实例数量。</summary>
         public readonly int ActiveInstanceCount;
 
-        /// <summary>
-        /// 获取非活跃实例数量。
-        /// </summary>
+        /// <summary>获取非活跃实例数量。</summary>
         public readonly int InactiveInstanceCount;
 
-        /// <summary>
-        /// 获取待维护数量。
-        /// </summary>
+        /// <summary>获取待维护数量。</summary>
         public readonly int PendingMaintenanceCount;
 
         #endregion
@@ -216,29 +182,19 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 实例名称。
-        /// </summary>
+        /// <summary>实例名称。</summary>
         public string instanceName;
 
-        /// <summary>
-        /// 是否活跃。
-        /// </summary>
+        /// <summary>是否活跃。</summary>
         public bool isActive;
 
-        /// <summary>
-        /// 空闲时长。
-        /// </summary>
+        /// <summary>空闲时长。</summary>
         public float idleDuration;
 
-        /// <summary>
-        /// 生命周期时长。
-        /// </summary>
+        /// <summary>生命周期时长。</summary>
         public float lifeDuration;
 
-        /// <summary>
-        /// 游戏对象引用。
-        /// </summary>
+        /// <summary>游戏对象引用。</summary>
         public GameObject gameObject;
 
         #endregion
@@ -267,123 +223,77 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 条目名称。
-        /// </summary>
+        /// <summary>条目名称。</summary>
         public string entryName;
 
-        /// <summary>
-        /// 分组名称。
-        /// </summary>
+        /// <summary>分组名称。</summary>
         public string group;
 
-        /// <summary>
-        /// 资源地址。
-        /// </summary>
+        /// <summary>资源地址。</summary>
         public string location;
 
-        /// <summary>
-        /// 池策略。
-        /// </summary>
+        /// <summary>池策略。</summary>
         public EPoolPolicy policy;
 
-        /// <summary>
-        /// 最小空闲数量。
-        /// </summary>
+        /// <summary>最小空闲数量。</summary>
         public int minIdle;
 
-        /// <summary>
-        /// 保留目标。
-        /// </summary>
+        /// <summary>保留目标。</summary>
         public int retainTarget;
 
-        /// <summary>
-        /// 软容量。
-        /// </summary>
+        /// <summary>软容量。</summary>
         public int softCapacity;
 
-        /// <summary>
-        /// 硬容量。
-        /// </summary>
+        /// <summary>硬容量。</summary>
         public int hardCapacity;
 
-        /// <summary>
-        /// 是否卸载预制体。
-        /// </summary>
+        /// <summary>是否卸载预制体。</summary>
         public bool unloadPrefab;
 
-        /// <summary>
-        /// 总数量。
-        /// </summary>
+        /// <summary>总数量。</summary>
         public int totalCount;
 
-        /// <summary>
-        /// 活跃数量。
-        /// </summary>
+        /// <summary>活跃数量。</summary>
         public int activeCount;
 
-        /// <summary>
-        /// 非活跃数量。
-        /// </summary>
+        /// <summary>非活跃数量。</summary>
         public int inactiveCount;
 
-        /// <summary>
-        /// 预制体是否已加载。
-        /// </summary>
+        /// <summary>预制体是否已加载。</summary>
         public bool prefabLoaded;
 
-        /// <summary>
-        /// 距下次维护的秒数。
-        /// </summary>
+        /// <summary>距下次维护的秒数。</summary>
         public float nextMaintenanceIn;
 
-        /// <summary>
-        /// 生成次数。
-        /// </summary>
+        /// <summary>生成次数。</summary>
         public int spawnCount;
 
-        /// <summary>
-        /// 回收次数。
-        /// </summary>
+        /// <summary>回收次数。</summary>
         public int despawnCount;
 
-        /// <summary>
-        /// 命中次数。
-        /// </summary>
+        /// <summary>命中次数。</summary>
         public int hitCount;
 
-        /// <summary>
-        /// 未命中次数。
-        /// </summary>
+        /// <summary>未命中次数。</summary>
         public int missCount;
 
-        /// <summary>
-        /// 扩展次数。
-        /// </summary>
+        /// <summary>扩展次数。</summary>
         public int expandCount;
 
-        /// <summary>
-        /// 销毁次数。
-        /// </summary>
+        /// <summary>销毁次数。</summary>
         public int destroyCount;
 
-        /// <summary>
-        /// 峰值活跃数。
-        /// </summary>
+        /// <summary>峰值活跃数。</summary>
         public int peakActive;
 
-        /// <summary>
-        /// 实例列表。
-        /// </summary>
+        /// <summary>实例列表。</summary>
         internal readonly List<GameObjectPoolInstanceSnapshot> instances = new List<GameObjectPoolInstanceSnapshot>(16);
 
         #endregion
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取实例数量。
-        /// </summary>
+        /// <summary>获取实例数量。</summary>
         public int InstanceCount => instances.Count;
 
         /// <summary>

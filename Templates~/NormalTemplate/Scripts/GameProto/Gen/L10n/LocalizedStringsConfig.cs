@@ -25,13 +25,9 @@ public sealed partial class LocalizedStringsConfig : Luban.BeanBase
         return new L10n.LocalizedStringsConfig(_buf);
     }
 
-    /// <summary>
-    /// 占位符。
-    /// </summary>
+    /// <summary>占位符。</summary>
     public readonly string Key;
-    /// <summary>
-    /// 支持的多语言。
-    /// </summary>
+    /// <summary>支持的多语言。</summary>
     public readonly L10n.LocalizationBean FormattedStrings;
    
     public const int __ID__ = -345390924;

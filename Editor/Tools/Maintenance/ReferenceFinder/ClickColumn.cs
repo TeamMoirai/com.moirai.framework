@@ -14,9 +14,7 @@ namespace Moirai.Atropos.ReferenceFinder
         /// </summary>
         public delegate void SortInColumn();
 
-        /// <summary>
-        /// 列索引到排序回调的映射。
-        /// </summary>
+        /// <summary>列索引到排序回调的映射。</summary>
         public static Dictionary<int, SortInColumn> SortWithIndex = new Dictionary<int, SortInColumn>
         {
             { 0, SortByName },

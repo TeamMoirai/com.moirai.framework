@@ -14,14 +14,10 @@ namespace Moirai.Atropos.Serilog
     /// </summary>
     internal sealed class Unity3DLogEventSink : ILogEventSink
     {
-        /// <summary>
-        /// 日志事件文本格式化器。
-        /// </summary>
+        /// <summary>日志事件文本格式化器。</summary>
         private readonly ITextFormatter _formatter;
 
-        /// <summary>
-        /// Unity 原生日志器（最终输出到 Unity Console 的通道）。
-        /// </summary>
+        /// <summary>Unity 原生日志器（最终输出到 Unity Console 的通道）。</summary>
         private readonly UnityEngine.ILogger _unityLogger;
 
         /// <summary>

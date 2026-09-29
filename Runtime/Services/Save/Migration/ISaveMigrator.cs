@@ -14,19 +14,13 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public interface ISaveMigrator
     {
-        /// <summary>
-        /// 迁移起始版本（存档内记录的数据版本等于该值时本迁移器参与链）。
-        /// </summary>
+        /// <summary>迁移起始版本（存档内记录的数据版本等于该值时本迁移器参与链）。</summary>
         int FromVersion { get; }
 
-        /// <summary>
-        /// 迁移目标版本（必须大于 <see cref="FromVersion"/>）。
-        /// </summary>
+        /// <summary>迁移目标版本（必须大于 <see cref="FromVersion"/>）。</summary>
         int ToVersion { get; }
 
-        /// <summary>
-        /// 同一边（<see cref="FromVersion"/>/<see cref="ToVersion"/> 相同）内多个迁移器的执行次序（值小者先执行；缺省 0）。
-        /// </summary>
+        /// <summary>同一边（<see cref="FromVersion"/>/<see cref="ToVersion"/> 相同）内多个迁移器的执行次序（值小者先执行；缺省 0）。</summary>
         int Priority { get; }
 
         /// <summary>

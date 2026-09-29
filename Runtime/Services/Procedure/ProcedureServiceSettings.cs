@@ -24,9 +24,7 @@ namespace Moirai.Atropos.Procedure
 
 #if UNITY_EDITOR
 
-        /// <summary>
-        /// 编辑器侧订阅：设置被重置时刷新 Inspector 缓存状态。
-        /// </summary>
+        /// <summary>编辑器侧订阅：设置被重置时刷新 Inspector 缓存状态。</summary>
         internal event Action onSettingsReset;
 
         private void Reset()

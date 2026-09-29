@@ -72,7 +72,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>丢弃本轮剩余并忘记上一手，下一手等同全新袋子重开一轮；权重表保留。</summary>
+        /// <summary>
+        /// 丢弃本轮剩余并忘记上一手，下一手等同全新袋子重开一轮；权重表保留。
+        /// </summary>
         public void Reset()
         {
             _round.Clear();
@@ -81,7 +83,9 @@ namespace Moirai.Atropos
             _hasCurrentItem = false;
         }
 
-        /// <summary>清空权重表，效果含 <see cref="Reset"/>。</summary>
+        /// <summary>
+        /// 清空权重表，效果含 <see cref="Reset"/>。
+        /// </summary>
         public void Clear()
         {
             _contents.Clear();
@@ -103,7 +107,9 @@ namespace Moirai.Atropos
             return _currentItem;
         }
 
-        /// <summary>重开一轮：整表 Fisher–Yates，再把撞上上一手的项从袋口挪走。</summary>
+        /// <summary>
+        /// 重开一轮：整表 Fisher–Yates，再把撞上上一手的项从袋口挪走。
+        /// </summary>
         private void Refill()
         {
             int count = _contents.Count;

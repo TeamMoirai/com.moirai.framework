@@ -45,7 +45,9 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private int _loadingOperationSlotFreeHead = -1;
         private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
 
-        /// <summary>按 packed key 查记录槽号。不新增登记——查不到就是没有。</summary>
+        /// <summary>
+        /// 按 packed key 查记录槽号。不新增登记——查不到就是没有。
+        /// </summary>
         internal bool TryGetRecordId(ulong key, out int assetId)
         {
             return _assetRecordsByKey.TryGetValue(key, out assetId) && IsValidAssetId(assetId);
@@ -198,7 +200,9 @@ namespace Moirai.Atropos.Resource
 
         internal Type GetAssetTypeById(int id) => _typeNames.GetValue(id);
 
-        /// <summary>记录一条资源建立时，把它用到的三个名字各计一次。</summary>
+        /// <summary>
+        /// 记录一条资源建立时，把它用到的三个名字各计一次。
+        /// </summary>
         internal void RetainResourceKey(ulong key)
         {
             _packageNames.Retain(ResourceKeyCodec.UnpackPackageId(key));
@@ -206,7 +210,9 @@ namespace Moirai.Atropos.Resource
             _typeNames.Retain(ResourceKeyCodec.UnpackTypeId(key));
         }
 
-        /// <summary>记录释放时反向减数；减到零的那条轴把名字摘掉并把 id 还回空闲栈。</summary>
+        /// <summary>
+        /// 记录释放时反向减数；减到零的那条轴把名字摘掉并把 id 还回空闲栈。
+        /// </summary>
         internal void ReleaseResourceKey(ulong key)
         {
             _packageNames.Release(ResourceKeyCodec.UnpackPackageId(key));
@@ -214,7 +220,9 @@ namespace Moirai.Atropos.Resource
             _typeNames.Release(ResourceKeyCodec.UnpackTypeId(key));
         }
 
-        /// <summary>整表清空前逐键减数（如后端整体重置），不减则名字与 id 永久滞留。</summary>
+        /// <summary>
+        /// 整表清空前逐键减数（如后端整体重置），不减则名字与 id 永久滞留。
+        /// </summary>
         internal void ReleaseAllResourceKeysFromMap(ResourceUlongIntMap map)
         {
             // 方法组缓存为实例委托字段，避免冷路径批量清理时逐次 new Action 分配。

@@ -27,19 +27,13 @@ namespace Moirai.Atropos
     [AttributeUsage(AttributeTargets.Field)]
     public sealed class ProviderDropdownAttribute : PropertyAttribute
     {
-        /// <summary>
-        /// 要搜索的基类类型。为 null 时从字段类型自动推断（引用模式）。
-        /// </summary>
+        /// <summary>要搜索的基类类型。为 null 时从字段类型自动推断（引用模式）。</summary>
         public Type BaseType { get; }
 
-        /// <summary>
-        /// 可选的下拉框标签覆写。为空时从字段名自动推导。
-        /// </summary>
+        /// <summary>可选的下拉框标签覆写。为空时从字段名自动推导。</summary>
         public string Label { get; }
 
-        /// <summary>
-        /// 下拉是否显示 "(None)" 项，默认 <c>false</c>。
-        /// </summary>
+        /// <summary>下拉是否显示 "(None)" 项，默认 <c>false</c>。</summary>
         /// <remarks>基类下无任何可选派生类时强制显示 "(None)"，避免空下拉。</remarks>
         public bool ShowNone { get; }
 

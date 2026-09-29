@@ -17,35 +17,23 @@ namespace Moirai.Atropos.UI
     [AttributeUsage(AttributeTargets.Class)]
     public class WindowAttribute : Attribute
     {
-        /// <summary>
-        /// 窗口层级。
-        /// </summary>
+        /// <summary>窗口层级。</summary>
         public readonly int windowLayer;
 
-        /// <summary>
-        /// 资源定位地址。
-        /// </summary>
+        /// <summary>资源定位地址。</summary>
         public readonly string location;
 
-        /// <summary>
-        /// 全屏窗口标记。
-        /// </summary>
+        /// <summary>全屏窗口标记。</summary>
         /// <remarks>隐藏其他同 UILayer 的弹窗</remarks>
         public readonly bool fullScreen;
 
-        /// <summary>
-        /// 是内部资源无需AB加载。
-        /// </summary>
+        /// <summary>是内部资源无需AB加载。</summary>
         public readonly bool fromResources;
 
-        /// <summary>
-        /// 隐藏，等几秒后关闭窗口。
-        /// </summary>
+        /// <summary>隐藏，等几秒后关闭窗口。</summary>
         public readonly int hideTimeToClose;
         
-        /// <summary>
-        /// 缓存实例，关闭时不销毁。
-        /// </summary>
+        /// <summary>缓存实例，关闭时不销毁。</summary>
         public readonly bool cacheInstance;
 
         public WindowAttribute(int windowLayer, string location = "", bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false)

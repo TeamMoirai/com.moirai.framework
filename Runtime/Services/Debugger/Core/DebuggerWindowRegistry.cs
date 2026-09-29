@@ -42,29 +42,19 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取根节点（虚拟节点，不对应任何路径）。
-        /// </summary>
+        /// <summary>获取根节点（虚拟节点，不对应任何路径）。</summary>
         public DebuggerWindowNode Root => _root;
 
-        /// <summary>
-        /// 获取当前选中的窗口节点（未选中为 null；目录节点不可选中）。
-        /// </summary>
+        /// <summary>获取当前选中的窗口节点（未选中为 null；目录节点不可选中）。</summary>
         public DebuggerWindowNode SelectedNode => _selectedNode;
 
-        /// <summary>
-        /// 获取当前选中的窗口。
-        /// </summary>
+        /// <summary>获取当前选中的窗口。</summary>
         public IDebuggerWindow SelectedWindow => _selectedNode?.Window;
 
-        /// <summary>
-        /// 获取已注册窗口数量。
-        /// </summary>
+        /// <summary>获取已注册窗口数量。</summary>
         public int WindowCount => _windowsByPath.Count;
 
-        /// <summary>
-        /// 获取结构版本号（注册/注销/选中时递增——宿主据此重建侧边栏）。
-        /// </summary>
+        /// <summary>获取结构版本号（注册/注销/选中时递增——宿主据此重建侧边栏）。</summary>
         public int Version => _version;
 
         #endregion

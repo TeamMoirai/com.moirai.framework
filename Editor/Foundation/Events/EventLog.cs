@@ -7,9 +7,7 @@ namespace Moirai.Atropos.Events.Editor
     /// </summary>
     class EventLog
     {
-        /// <summary>
-        /// 获取日志行列表。
-        /// </summary>
+        /// <summary>获取日志行列表。</summary>
         public List<EventLogLine> lines { get; } = new List<EventLogLine>();
 
         /// <summary>

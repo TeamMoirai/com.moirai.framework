@@ -17,19 +17,13 @@ namespace Moirai.Atropos.Input
     {
         #region 状态契约 [STATE CONTRACT]
 
-        /// <summary>
-        /// 获取或设置是否启用输入。
-        /// </summary>
+        /// <summary>获取或设置是否启用输入。</summary>
         public abstract bool Enabled { get; set; }
 
-        /// <summary>
-        /// 获取或设置是否锁定玩家控制器。
-        /// </summary>
+        /// <summary>获取或设置是否锁定玩家控制器。</summary>
         public abstract bool LockPlayerController { get; set; }
 
-        /// <summary>
-        /// 获取或设置是否禁止 UI 交互。
-        /// </summary>
+        /// <summary>获取或设置是否禁止 UI 交互。</summary>
         public abstract bool PreventInteractionUI { get; set; }
 
         /// <summary>

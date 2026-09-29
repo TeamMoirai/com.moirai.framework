@@ -5,7 +5,9 @@ using UnityEngine;
 
 namespace Service.UI
 {
-    /// <summary><see cref="UIRootBinding"/> 的单例登记语义测试：UI 根靠组件登记，不按名字查找。</summary>
+    /// <summary>
+    /// <see cref="UIRootBinding"/> 的单例登记语义测试：UI 根靠组件登记，不按名字查找。
+    /// </summary>
     /// <remarks>
     /// 钉四件事：登记即成为当前根；当前根销毁后清空；先到先得（后到者不得抢位）；<c>TryGetInstance</c> 只回读不自动创建（场景没有就是没有）。 <br />
     /// EditMode 下 <c>AddComponent</c> 不触发 <c>Awake</c>， <br />

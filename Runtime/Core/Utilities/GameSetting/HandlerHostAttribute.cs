@@ -25,9 +25,7 @@ namespace Moirai.Atropos
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class HandlerHostAttribute : Attribute
     {
-        /// <summary>
-        /// 处理器类型，必须继承 <see cref="FrameworkHandler"/>。
-        /// </summary>
+        /// <summary>处理器类型，必须继承 <see cref="FrameworkHandler"/>。</summary>
         public Type HandlerType { get; }
 
         /// <param name="handlerType">处理器类型。</param>

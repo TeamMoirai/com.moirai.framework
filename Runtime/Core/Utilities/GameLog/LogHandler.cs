@@ -20,9 +20,7 @@ namespace Moirai.Atropos
     {
         [Tooltip("最小日志等级，低于该等级的日志将被丢弃。")]
         [SerializeField] private ELogLevel m_MinimumLevel = ELogLevel.Verbose;
-        /// <summary>
-        /// 获取或设置最小日志等级，低于该等级的日志将被丢弃。
-        /// </summary>
+        /// <summary>获取或设置最小日志等级，低于该等级的日志将被丢弃。</summary>
         internal ELogLevel MinimumLevel
         {
             get
@@ -40,9 +38,7 @@ namespace Moirai.Atropos
         [ShowIf(nameof(m_TimestampEnabled))]
         [SerializeField] private string m_TimestampFormat = "HH:mm:ss.fff";
 
-        /// <summary>
-        /// 获取或设置是否在日志输出中包含时间戳。
-        /// </summary>
+        /// <summary>获取或设置是否在日志输出中包含时间戳。</summary>
         /// <remarks>
         /// 各实现经后端自身的模板/格式化系统应用：<see cref="DefaultLogHandler"/> 在消息前缀拼接 <c>[HH:mm:ss.fff]</c>；
         /// <see cref="ZLoggerHandler"/> 经 <c>PrefixFormatter</c>； <br />
@@ -54,18 +50,14 @@ namespace Moirai.Atropos
             set => m_TimestampEnabled = value;
         }
 
-        /// <summary>
-        /// 获取或设置时间戳格式字符串（默认 <c>HH:mm:ss.fff</c>）。
-        /// </summary>
+        /// <summary>获取或设置时间戳格式字符串（默认 <c>HH:mm:ss.fff</c>）。</summary>
         public string TimestampFormat
         {
             get => m_TimestampFormat;
             set => m_TimestampFormat = value;
         }
 
-        /// <summary>
-        /// 获取当前时间戳前缀字符串（含尾部空格），未启用时返回 null。
-        /// </summary>
+        /// <summary>获取当前时间戳前缀字符串（含尾部空格），未启用时返回 null。</summary>
         protected string TimestampPrefix
             => m_TimestampEnabled ? StringUtility.Format("[{0}] ", DateTime.Now.ToString(m_TimestampFormat)) : null;
 

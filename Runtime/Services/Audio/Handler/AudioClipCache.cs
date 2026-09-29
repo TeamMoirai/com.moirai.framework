@@ -140,7 +140,9 @@ namespace Moirai.Atropos.Audio
             _source = null;
         }
 
-        /// <summary>把 <see cref="EAudioCachePolicy.Default"/> 解析为配置的默认策略。</summary>
+        /// <summary>
+        /// 把 <see cref="EAudioCachePolicy.Default"/> 解析为配置的默认策略。
+        /// </summary>
         public EAudioCachePolicy ResolvePolicy(EAudioCachePolicy policy)
         {
             return policy switch
@@ -159,7 +161,9 @@ namespace Moirai.Atropos.Audio
             };
         }
 
-        /// <summary>地址是否处于加载失败冷却中；冷却内不再向后端取租约，也不挂等待者。</summary>
+        /// <summary>
+        /// 地址是否处于加载失败冷却中；冷却内不再向后端取租约，也不挂等待者。
+        /// </summary>
         public bool IsFailureCoolingDown(string address)
         {
             if (_failureCooldown <= 0f) return false;
@@ -180,10 +184,14 @@ namespace Moirai.Atropos.Audio
             _failedUntil[address] = (float)GameTime.Handler.RealtimeNow + _failureCooldown;
         }
 
-        /// <summary>清空失败冷却（服务重启/显式重置时调用）。</summary>
+        /// <summary>
+        /// 清空失败冷却（服务重启/显式重置时调用）。
+        /// </summary>
         public void ClearFailureCooldowns() => _failedUntil.Clear();
 
-        /// <summary>路径是否已在缓存中加载完成。</summary>
+        /// <summary>
+        /// 路径是否已在缓存中加载完成。
+        /// </summary>
         public bool TryGetLoaded(string address, out AudioClipCacheEntry entry)
         {
             entry = null;
@@ -193,13 +201,17 @@ namespace Moirai.Atropos.Audio
             return true;
         }
 
-        /// <summary>获取条目（不引用计数，仅查询/诊断用）。</summary>
+        /// <summary>
+        /// 获取条目（不引用计数，仅查询/诊断用）。
+        /// </summary>
         public bool TryGetEntry(string address, out AudioClipCacheEntry entry)
         {
             return TryFindEntry(address, out entry);
         }
 
-        /// <summary>声部请求 clip：命中则回调就绪，未命中则挂等待者并按需启动单飞加载（同地址并发共用一次加载）。</summary>
+        /// <summary>
+        /// 声部请求 clip：命中则回调就绪，未命中则挂等待者并按需启动单飞加载（同地址并发共用一次加载）。
+        /// </summary>
         /// <param name="generation">声部加载世代；完成回调与之不符时落空（声部已换曲/已停播）。</param>
         /// <returns>已就绪或加载已受理返回 true；地址无效、满载或后端不可用返回 false。</returns>
         public bool RequestClip(string address, bool async, EAudioCachePolicy policy, AudioAgent agent, int generation)
@@ -309,7 +321,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>卸载地址缓存。<paramref name="force"/> 只放宽「Pin 与挂起等待者」两道门槛；仍有声部引用时一律拒绝。</summary>
+        /// <summary>
+        /// 卸载地址缓存。<paramref name="force"/> 只放宽「Pin 与挂起等待者」两道门槛；仍有声部引用时一律拒绝。
+        /// </summary>
         public bool Unload(string address, bool force = false)
         {
             AudioMainThread.AssertMainThread(nameof(Unload));
@@ -346,7 +360,9 @@ namespace Moirai.Atropos.Audio
             if (force) _failedUntil.Clear();
         }
 
-        /// <summary>Tick：TTL 驱逐（只扫 LRU 头，无引用且过期的连续淘汰）。</summary>
+        /// <summary>
+        /// Tick：TTL 驱逐（只扫 LRU 头，无引用且过期的连续淘汰）。
+        /// </summary>
         public void Tick()
         {
             if (_disposed || _ttl <= 0f) return;
@@ -358,7 +374,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>Retain：正在使用的 clip 不可被 LRU/TTL 驱逐。</summary>
+        /// <summary>
+        /// Retain：正在使用的 clip 不可被 LRU/TTL 驱逐。
+        /// </summary>
         public void Retain(AudioClipCacheEntry entry)
         {
             if (entry == null) return;
@@ -366,7 +384,9 @@ namespace Moirai.Atropos.Audio
             RemoveFromLru(entry);
         }
 
-        /// <summary>Release：归零后按策略回 LRU 或直接释放。</summary>
+        /// <summary>
+        /// Release：归零后按策略回 LRU 或直接释放。
+        /// </summary>
         public void Release(AudioClipCacheEntry entry)
         {
             if (entry == null) return;
@@ -391,7 +411,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>低内存：清非 Pin、无引用缓存。</summary>
+        /// <summary>
+        /// 低内存：清非 Pin、无引用缓存。
+        /// </summary>
         public void OnLowMemory()
         {
             if (_disposed) return;
@@ -442,7 +464,9 @@ namespace Moirai.Atropos.Audio
 
         #region 槽表 [SLOT TABLE]
 
-        /// <summary>按容量铺定长槽表与 2 倍容量的开址桶。</summary>
+        /// <summary>
+        /// 按容量铺定长槽表与 2 倍容量的开址桶。
+        /// </summary>
         /// <remarks>
         /// 用定长数组而非 <c>Dictionary</c>：哈希、桶增长与 rehash 全在播放与驱逐路径上，字典只增不缩会让上界成为纸面。
         /// <c>Configure</c> 每次后端初始化都会重跑；容量改小于现存条目数时抬回现存数，避免连带丢掉仍被声部引用的租约。
@@ -478,7 +502,9 @@ namespace Moirai.Atropos.Audio
             _count = 0;
         }
 
-        /// <summary>容量变更时把现存条目重新落进新表（走 All 链，不需要临时数组）。</summary>
+        /// <summary>
+        /// 容量变更时把现存条目重新落进新表（走 All 链，不需要临时数组）。
+        /// </summary>
         private void RehashExistingIntoNewTables()
         {
             AllocateTables();
@@ -490,7 +516,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>取一只空槽；满载时先驱逐 LRU 头，全 Pin/全占用则返回 -1（新地址判负）。</summary>
+        /// <summary>
+        /// 取一只空槽；满载时先驱逐 LRU 头，全 Pin/全占用则返回 -1（新地址判负）。
+        /// </summary>
         private int AcquireSlot()
         {
             if (_freeCount > 0) return _freeSlots[--_freeCount];
@@ -526,7 +554,9 @@ namespace Moirai.Atropos.Audio
         private bool TryFindEntry(string address, out AudioClipCacheEntry entry)
             => TryFindEntry(address, HashAddress(address), out entry);
 
-        /// <summary>桶内按侵入式索引链走查；地址比较走 Ordinal。</summary>
+        /// <summary>
+        /// 桶内按侵入式索引链走查；地址比较走 Ordinal。
+        /// </summary>
         private bool TryFindEntry(string address, int hash, out AudioClipCacheEntry entry)
         {
             entry = null;
@@ -556,7 +586,9 @@ namespace Moirai.Atropos.Audio
             _count++;
         }
 
-        /// <summary>摘除索引链。槽位由调用方归还，因此这里只负责链与计数。</summary>
+        /// <summary>
+        /// 摘除索引链。槽位由调用方归还，因此这里只负责链与计数。
+        /// </summary>
         private void RemoveFromTable(AudioClipCacheEntry entry)
         {
             int bucket = entry.AddressHash & _bucketMask;
@@ -590,13 +622,17 @@ namespace Moirai.Atropos.Audio
             entry.SlotIndex = -1;
         }
 
-        /// <summary>该条目是否留在池里（已加载 + 留池策略或 Pin）——<see cref="PoolViewProxy"/> 的可见性判据。</summary>
+        /// <summary>
+        /// 该条目是否留在池里（已加载 + 留池策略或 Pin）——<see cref="PoolViewProxy"/> 的可见性判据。
+        /// </summary>
         internal static bool IsPoolVisible(AudioClipCacheEntry entry)
             => entry != null && entry.Address != null && entry.IsLoaded && (entry.Pinned || entry.CacheAfterUse);
 
         #endregion 槽表 [SLOT TABLE]
 
-        /// <summary>策略只升不降：Pin 永不被降级，None 不会把已缓存的条目改成不缓存。</summary>
+        /// <summary>
+        /// 策略只升不降：Pin 永不被降级，None 不会把已缓存的条目改成不缓存。
+        /// </summary>
         private void UpgradePolicy(AudioClipCacheEntry entry, EAudioCachePolicy policy)
         {
             if (policy == EAudioCachePolicy.None) return;
@@ -702,7 +738,9 @@ namespace Moirai.Atropos.Audio
             return success;
         }
 
-        /// <summary>摘空挂起队列：声部等待者就地回调，仅带 <see cref="AudioLoadRequest.Completed"/> 的预载回调串链返回给调用方延后执行。</summary>
+        /// <summary>
+        /// 摘空挂起队列：声部等待者就地回调，仅带 <see cref="AudioLoadRequest.Completed"/> 的预载回调串链返回给调用方延后执行。
+        /// </summary>
         private static AudioLoadRequest CompletePending(AudioClipCacheEntry entry, bool success)
         {
             var request = entry.PendingHead;
@@ -799,7 +837,9 @@ namespace Moirai.Atropos.Audio
             CompletePreloads(callbacks, false);
         }
 
-        /// <summary>留池视图的只读实现：每次读都从槽表现算。</summary>
+        /// <summary>
+        /// 留池视图的只读实现：每次读都从槽表现算。
+        /// </summary>
         /// <remarks>刻意不做维护型镜像表——枚举它的只有调试面板，逐次快照的代价小于每次取用/归还/驱逐多写一份与主表同步的状态。</remarks>
         private sealed class PoolViewProxy : IReadOnlyDictionary<string, object>
         {
@@ -839,7 +879,9 @@ namespace Moirai.Atropos.Audio
             public object this[string address]
                 => TryGetValue(address, out var value) ? value : throw new KeyNotFoundException(address);
 
-            /// <summary>枚举即快照：先摘出地址串，避免调用方在枚举里卸载条目把链走断。</summary>
+            /// <summary>
+            /// 枚举即快照：先摘出地址串，避免调用方在枚举里卸载条目把链走断。
+            /// </summary>
             public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
             {
                 var addresses = SnapshotAddresses();

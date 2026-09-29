@@ -69,9 +69,7 @@ namespace Moirai.Atropos.Audio
         public bool AutoUnSoloOnEnd => (Flags & EAudioPlayFlags.AutoUnSoloOnEnd) != 0;
         public bool DoNotAutoRecycleIfNotDonePlaying => (Flags & EAudioPlayFlags.DoNotAutoRecycle) != 0;
 
-        /// <summary>
-        /// 默认 Sfx 请求（音量 1、音调 1、不抢占）。
-        /// </summary>
+        /// <summary>默认 Sfx 请求（音量 1、音调 1、不抢占）。</summary>
         public static AudioPlayRequest Default =>
             new AudioPlayRequest(0, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.DoNotAutoRecycle);
     }

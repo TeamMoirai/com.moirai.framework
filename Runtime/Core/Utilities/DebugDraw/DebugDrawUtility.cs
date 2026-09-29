@@ -15,9 +15,7 @@ namespace Moirai.Atropos
 #endif
         private static bool s_DebugDrawEnabled = false;
         private const string DEBUG_DRAWS_KEY = "DebugDraw";
-        /// <summary>
-        /// 是否应执行调试绘制。
-        /// </summary>
+        /// <summary>是否应执行调试绘制。</summary>
         public static bool DebugDrawEnabled
         {
             get

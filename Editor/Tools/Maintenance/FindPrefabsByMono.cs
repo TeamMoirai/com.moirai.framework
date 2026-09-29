@@ -7,7 +7,7 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    //// 预制体查找器 ①搜索整个项目缺失脚本的预制体，②查找含有指定 MonoBehaviour 脚本的预制体。
+    /// 预制体查找器 ①搜索整个项目缺失脚本的预制体，②查找含有指定 MonoBehaviour 脚本的预制体。
     /// </summary>
     public class FindPrefabsByMono : EditorWindow
     {

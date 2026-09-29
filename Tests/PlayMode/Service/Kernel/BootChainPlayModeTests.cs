@@ -15,7 +15,9 @@ namespace Service.Kernel
     [TestFixture]
     public sealed class BootChainPlayModeTests
     {
-        /// <summary>测试服务（计数生命周期与 Tick）。</summary>
+        /// <summary>
+        /// 测试服务（计数生命周期与 Tick）。
+        /// </summary>
         private sealed class ProbeService : ServiceBase, IServiceTickable
         {
             public int InitCount;

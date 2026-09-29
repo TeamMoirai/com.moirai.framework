@@ -214,7 +214,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        //// MD5加密。
+        /// MD5加密。
         /// </summary>
         /// <param name="context">需要加密的字符。</param>
         /// <returns>加密后的结果。</returns>

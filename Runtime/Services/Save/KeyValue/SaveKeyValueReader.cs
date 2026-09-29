@@ -401,7 +401,9 @@ namespace Moirai.Atropos.Save
 
         #region 内部读取管线 [READ PIPELINE]
 
-        /// <summary>读取单精度浮点（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。</summary>
+        /// <summary>
+        /// 读取单精度浮点（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。
+        /// </summary>
         private static float ReadFloat(ReadOnlySpan<byte> span)
         {
             return BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(span));

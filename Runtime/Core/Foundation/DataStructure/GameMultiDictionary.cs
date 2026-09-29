@@ -27,14 +27,10 @@ namespace Moirai.Atropos
             _dictionary = new Dictionary<TKey, GameLinkedListRange<TValue>>();
         }
 
-        /// <summary>
-        /// 获取多值字典中实际包含的主键数量。
-        /// </summary>
+        /// <summary>获取多值字典中实际包含的主键数量。</summary>
         public int Count => _dictionary.Count;
 
-        /// <summary>
-        /// 获取多值字典中指定主键的范围。
-        /// </summary>
+        /// <summary>获取多值字典中指定主键的范围。</summary>
         /// <param name="key">指定的主键。</param>
         /// <returns>指定主键的范围。</returns>
         public GameLinkedListRange<TValue> this[TKey key]
@@ -223,14 +219,10 @@ namespace Moirai.Atropos
                 _enumerator = dictionary.GetEnumerator();
             }
 
-            /// <summary>
-            /// 获取当前结点。
-            /// </summary>
+            /// <summary>获取当前结点。</summary>
             public KeyValuePair<TKey, GameLinkedListRange<TValue>> Current => _enumerator.Current;
 
-            /// <summary>
-            /// 获取当前的枚举数。
-            /// </summary>
+            /// <summary>获取当前的枚举数。</summary>
             object IEnumerator.Current => _enumerator.Current;
 
             /// <summary>

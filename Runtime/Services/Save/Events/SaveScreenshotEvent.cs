@@ -8,9 +8,7 @@ namespace Moirai.Atropos.Save
     /// <remarks>生产点由截图管线接线，当前尚无生产方。</remarks>
     public class SaveScreenshotEvent : EventBase<SaveScreenshotEvent>
     {
-        /// <summary>
-        /// 事件参数。
-        /// </summary>
+        /// <summary>事件参数。</summary>
         public SaveScreenshotArgs Args { get; private set; }
 
         /// <summary>

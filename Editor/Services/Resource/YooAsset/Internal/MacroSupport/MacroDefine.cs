@@ -8,9 +8,7 @@ namespace YooAsset.Editor
     /// </summary>
     public static class MacroDefine
     {
-        /// <summary>
-        /// YooAsset 版本宏定义集合。
-        /// </summary>
+        /// <summary>YooAsset 版本宏定义集合。</summary>
         public static IReadOnlyList<string> Macros { get; } = new List<string>()
         {
             "YOOASSET_3",

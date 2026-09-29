@@ -36,14 +36,10 @@ namespace Moirai.Atropos.Save
         /// <summary>派生材料缓存（volatile 引用整体替换原子读；参数变更经 Matches 失配自动失效）。</summary>
         [NonSerialized] private volatile DerivedMaterial _cache;
 
-        /// <summary>
-        /// 共享默认实例（占位参数；未配置密钥提供方时的运行期回退）。
-        /// </summary>
+        /// <summary>共享默认实例（占位参数；未配置密钥提供方时的运行期回退）。</summary>
         internal static readonly StaticSaveKeyProvider Default = new StaticSaveKeyProvider();
 
-        /// <summary>
-        /// 当前生效口令（运行期覆盖优先于序列化配置；供测试与调试回读）。
-        /// </summary>
+        /// <summary>当前生效口令（运行期覆盖优先于序列化配置；供测试与调试回读）。</summary>
         internal string Passphrase => EffectivePassphrase;
 
         /// <summary>生效口令（覆盖优先）。</summary>

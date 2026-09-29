@@ -11,9 +11,7 @@ namespace Moirai.Atropos.SourceGenerators
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class ServiceDependencyAnalyzer : DiagnosticAnalyzer
     {
-        /// <summary>
-        /// MIRAI201: ServiceDependency 依赖类型未实现 IService。
-        /// </summary>
+        /// <summary>MIRAI201: ServiceDependency 依赖类型未实现 IService。</summary>
         public static readonly DiagnosticDescriptor DependencyMustImplementIServiceRule = new DiagnosticDescriptor(
             id: "MIRAI201",
             title: "ServiceDependency 依赖类型未实现 IService",
@@ -24,9 +22,7 @@ namespace Moirai.Atropos.SourceGenerators
             description: "All types passed to [ServiceDependency] must implement IService. Non-IService types cannot be registered via the service container.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>
-        /// MIRAI202: ServiceDependency 未声明任何依赖类型。
-        /// </summary>
+        /// <summary>MIRAI202: ServiceDependency 未声明任何依赖类型。</summary>
         public static readonly DiagnosticDescriptor EmptyDependencyRule = new DiagnosticDescriptor(
             id: "MIRAI202",
             title: "ServiceDependency 未声明依赖类型",

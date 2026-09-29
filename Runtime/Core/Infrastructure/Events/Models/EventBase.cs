@@ -55,18 +55,14 @@ namespace Moirai.Atropos.Events
         /// <returns>类型 ID。</returns>
         protected static long RegisterEventType() { return ++s_LastTypeId; }
 
-        /// <summary>
-        /// 检索此事件实例的类型 ID。
-        /// </summary>
+        /// <summary>检索此事件实例的类型 ID。</summary>
         [JsonIgnore]
         public virtual long EventTypeId => -1;
 
         private static ulong s_NextEventId = 0;
 
         // 只读状态（Read-only state）
-        /// <summary>
-        /// 创建事件的时间（以毫秒为单位）。
-        /// </summary>
+        /// <summary>创建事件的时间（以毫秒为单位）。</summary>
         /// <remarks>
         /// 此值是相对于当前应用程序的开始时间的。
         /// </remarks>
@@ -88,9 +84,7 @@ namespace Moirai.Atropos.Events
         
         private LifeCycleStatus Status { get; set; }
         
-        /// <summary>
-        /// 此事件的当前传播阶段。
-        /// </summary>
+        /// <summary>此事件的当前传播阶段。</summary>
         [JsonIgnore]
         public PropagationPhase PropagationPhase { get; internal set; }
 
@@ -109,9 +103,7 @@ namespace Moirai.Atropos.Events
             Processed = true;
         }
 
-        /// <summary>
-        /// 返回此事件类型是否在事件传播路径中向上冒泡。
-        /// </summary>
+        /// <summary>返回此事件类型是否在事件传播路径中向上冒泡。</summary>
         [JsonIgnore]
         public bool Bubbles
         {
@@ -129,9 +121,7 @@ namespace Moirai.Atropos.Events
             }
         }
 
-        /// <summary>
-        /// 返回此事件类型是否在事件传播路径中向下涓滴。
-        /// </summary>
+        /// <summary>返回此事件类型是否在事件传播路径中向下涓滴。</summary>
         [JsonIgnore]
         public bool TricklesDown
         {
@@ -153,9 +143,7 @@ namespace Moirai.Atropos.Events
         
         private IEventHandler m_Target;
 
-        /// <summary>
-        /// 事件的目标处理程序（派发期间不变，不同于 <see cref="CurrentTarget"/>）。
-        /// </summary>
+        /// <summary>事件的目标处理程序（派发期间不变，不同于 <see cref="CurrentTarget"/>）。</summary>
         [JsonIgnore]
         public IEventHandler Target
         {
@@ -209,9 +197,7 @@ namespace Moirai.Atropos.Events
             }
         }
         
-        /// <summary>
-        /// 是否为此事件调用 StopPropagation()。
-        /// </summary>
+        /// <summary>是否为此事件调用 StopPropagation()。</summary>
         [JsonIgnore]
         public bool IsPropagationStopped
         {
@@ -248,9 +234,7 @@ namespace Moirai.Atropos.Events
             IsPropagationStopped = true;
         }
 
-        /// <summary>
-        /// 指示是否为此事件调用 StopImmediatePropagation()。
-        /// </summary>
+        /// <summary>指示是否为此事件调用 StopImmediatePropagation()。</summary>
         [JsonIgnore]
         public bool IsImmediatePropagationStopped
         {
@@ -277,9 +261,7 @@ namespace Moirai.Atropos.Events
             IsImmediatePropagationStopped = true;
         }
 
-        /// <summary>
-        /// 如果不应为此事件执行默认操作，则返回 <c>true</c>。
-        /// </summary>
+        /// <summary>如果不应为此事件执行默认操作，则返回 <c>true</c>。</summary>
         [JsonIgnore]
         public bool IsDefaultPrevented
         {
@@ -299,9 +281,7 @@ namespace Moirai.Atropos.Events
 
         private IEventHandler m_CurrentTarget;
 
-        /// <summary>
-        /// 事件当前正在处理的目标处理程序（沿传播路径变化，不同于 <see cref="Target"/>）。
-        /// </summary>
+        /// <summary>事件当前正在处理的目标处理程序（沿传播路径变化，不同于 <see cref="Target"/>）。</summary>
         [JsonIgnore]
         public virtual IEventHandler CurrentTarget
         {
@@ -309,9 +289,7 @@ namespace Moirai.Atropos.Events
             internal set => m_CurrentTarget = value;
         }
 
-        /// <summary>
-        /// 是否正在派发中；派发期间不得重复派发，需递归时请使用事件副本。
-        /// </summary>
+        /// <summary>是否正在派发中；派发期间不得重复派发，需递归时请使用事件副本。</summary>
         [JsonIgnore]
         public bool Dispatch
         {
@@ -369,9 +347,7 @@ namespace Moirai.Atropos.Events
         }
 
 
-        /// <summary>
-        /// 是否终止后续派发策略链（Debugger/Batch 等策略的内部短路位）。
-        /// </summary>
+        /// <summary>是否终止后续派发策略链（Debugger/Batch 等策略的内部短路位）。</summary>
         /// <remarks>订阅者只有 <see cref="StopPropagation"/> / <see cref="PreventDefault"/> 可用，setter 收窄为 internal。</remarks>
         public bool StopDispatch
         {
@@ -449,9 +425,7 @@ namespace Moirai.Atropos.Events
             LocalInit();
         }
 
-        /// <summary>
-        /// 事件是否从事件池中分配。
-        /// </summary>
+        /// <summary>事件是否从事件池中分配。</summary>
         protected bool Pooled
         {
             get => (Status & LifeCycleStatus.Pooled) != LifeCycleStatus.None;
@@ -588,9 +562,7 @@ namespace Moirai.Atropos.Events
             }
         }
 
-        /// <summary>
-        /// 检索此事件实例的类型 ID。
-        /// </summary>
+        /// <summary>检索此事件实例的类型 ID。</summary>
         [JsonIgnore]
         public override long EventTypeId => s_TypeId;
     }

@@ -19,13 +19,17 @@ namespace Testing
         public const string RecoverOrTestHost =
             "恢复条件：宿主配置 AudioGroupConfigs（或改走 AudioServiceTestHost 自建最小组）后本格完整执行";
 
-        /// <summary>常规环境跳过：宿主补配音频组后本格即可完整执行。</summary>
+        /// <summary>
+        /// 常规环境跳过：宿主补配音频组后本格即可完整执行。
+        /// </summary>
         public static string Skip(string what)
         {
             return Prefix + "，" + what + "。" + Probe + "；" + Recover + "。";
         }
 
-        /// <summary>带 TestHost 替代路径的环境跳过：关键路径也可改走代码内建最小组执行。</summary>
+        /// <summary>
+        /// 带 TestHost 替代路径的环境跳过：关键路径也可改走代码内建最小组执行。
+        /// </summary>
         public static string SkipOrTestHost(string what)
         {
             return Prefix + "，" + what + "。" + Probe + "；" + RecoverOrTestHost + "。";

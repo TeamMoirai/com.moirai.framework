@@ -28,9 +28,7 @@ namespace Moirai.Atropos.Save
         /// <summary>派生材料缓存（主密钥/用户 ID 变更经 Matches 失配自动失效）。</summary>
         [NonSerialized] private volatile DerivedMaterial _cache;
 
-        /// <summary>
-        /// 当前用户 ID（设置后下次取材料自动按新用户重派生）。
-        /// </summary>
+        /// <summary>当前用户 ID（设置后下次取材料自动按新用户重派生）。</summary>
         public string UserId
         {
             get => _userId;

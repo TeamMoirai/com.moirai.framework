@@ -12,24 +12,16 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 默认软容量。
-        /// </summary>
+        /// <summary>默认软容量。</summary>
         public const int SOFT_CAPACITY = 8;
 
-        /// <summary>
-        /// 默认硬容量。
-        /// </summary>
+        /// <summary>默认硬容量。</summary>
         public const int HARD_CAPACITY = 64;
 
-        /// <summary>
-        /// 默认空闲超时秒数。
-        /// </summary>
+        /// <summary>默认空闲超时秒数。</summary>
         public const float IDLE_SECONDS = 15f;
 
-        /// <summary>
-        /// 外部预制体池默认分组。
-        /// </summary>
+        /// <summary>外部预制体池默认分组。</summary>
         public const string PREFAB_GROUP = "Prefab";
 
         private const string PREFAB_LOCATION_PREFIX = "Prefab:";
