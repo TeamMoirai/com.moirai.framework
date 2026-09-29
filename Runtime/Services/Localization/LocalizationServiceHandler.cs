@@ -1127,8 +1127,8 @@ namespace Moirai.Atropos.Localization
 
             var category = LocalizationPluralRules.ResolveCategory(_currentLanguage?.Code, count);
             // 复数回落链的分支候选不算缺译——只有全链（类别→other→裸 key）都落空才计一次
-            var text = ResolveRawUntracked(id + "#" + category, _currentLanguage)
-                       ?? (category == "other" ? null : ResolveRawUntracked(id + "#other", _currentLanguage))
+            var text = ResolveRawUntracked(StringUtility.Concat(id, "#", category), _currentLanguage)
+                       ?? (category == "other" ? null : ResolveRawUntracked(StringUtility.Concat(id, "#", "other"), _currentLanguage))
                        ?? ResolveRawUntracked(id, _currentLanguage);
 
             if (text == null)

@@ -50,7 +50,10 @@ namespace Moirai.Atropos.Localization
         #region 多语言解析 [LOCALIZE RESOLVER]
 
         // 运行期预览数据路径的解析器方法组（静态缓存，Localize 每调用零委托分配）
-        private static readonly Func<string, string> s_RuntimeResolver = ResolveForRuntime;
+        private static readonly MarkerResolver s_RuntimeResolver = ResolveForRuntime;
+
+        /// <summary>标记 ID 解析器：入参为格式串中的 ID 切片，返回译文；<c>null</c> 表示未解析。</summary>
+        internal delegate string MarkerResolver(ReadOnlySpan<char> id);
 
         /// <summary>
         /// 返回本地化后的字符串：把 <b>{l10n:ID}</b>/<b>{i18n:ID}</b>/<b>{g11n:ID}</b> 标记替换为本地化条目。
@@ -80,60 +83,49 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 标记替换：单遍扫描 <c>{l10n:…}</c>/<c>{i18n:…}</c>/<c>{g11n:…}</c>（前缀大小写不敏感）。
         /// </summary>
-        /// <remarks>命中后由 <paramref name="resolver"/> 解析 ID（两端空白裁剪、大小写保留），返回 <c>null</c> 即未解析、标记原样保留。</remarks>
+        /// <remarks>命中后由 <paramref name="resolver"/> 解析 ID（两端空白裁剪、大小写保留），返回 <c>null</c> 即未解析、标记原样保留。 <br />
+        /// 扫描走 span、不切中间串：无标记时零分配直返原串；ID 以切片交给解析器（运行期路径查字典，故每个标记物化一次字符串）；发生替换时另加结果串一次分配。</remarks>
         /// <param name="format">原始字符串。</param>
-        /// <param name="resolver">ID → 译文；返回 <c>null</c> 表示未解析，该标记原样保留（告警由解析方负责）。</param>
+        /// <param name="resolver">ID 切片 → 译文；返回 <c>null</c> 表示未解析，该标记原样保留（告警由解析方负责）。</param>
         /// <returns>无标记或全部标记未解析时返回原串（同一实例）；否则返回拼装结果。</returns>
-        internal static string Localize(string format, Func<string, string> resolver)
+        internal static string Localize(string format, MarkerResolver resolver)
         {
             if (string.IsNullOrEmpty(format)) return format;
 
             IStringBuilder builder = null;
-            var cursor = 0;
-            var replaced = false;
-            while (cursor < format.Length)
+            var cursor = 0; // 未刷入构建器的原文起点：未解析标记留在该区间里，最终一并带回
+            var search = 0;
+            while (search < format.Length)
             {
-                var open = format.IndexOf('{', cursor);
+                var open = format.IndexOf('{', search);
                 if (open < 0) break;
 
                 if (!TryReadMarker(format, open, out var idStart, out var idEnd, out var markerEnd))
                 {
-                    cursor = open + 1;
+                    search = open + 1;
                     continue;
                 }
 
                 // ID 两端空白裁剪（对齐旧实现的 Trim 语义），不分配
                 while (idStart < idEnd && char.IsWhiteSpace(format[idStart])) idStart++;
                 while (idEnd > idStart && char.IsWhiteSpace(format[idEnd - 1])) idEnd--;
-                var textId = format.Substring(idStart, idEnd - idStart);
 
-                var replacement = resolver(textId);
-
-                // 首个有效标记才建构建器：无标记/全未解析的输入零分配直返原串
-                builder ??= StringUtility.CreateStringBuilder(format.Length);
-                builder.Append(format, cursor, open - cursor);
+                var replacement = resolver(format.AsSpan(idStart, idEnd - idStart));
                 if (replacement != null)
                 {
+                    // 首个成功替换才建构建器：无标记/全未解析不租池、不产出新串
+                    builder ??= StringUtility.CreateStringBuilder(format.Length);
+                    builder.Append(format, cursor, open - cursor);
                     builder.Append(replacement);
-                    replaced = true;
-                }
-                else
-                {
-                    builder.Append(format, open, markerEnd - open);
+                    cursor = markerEnd;
                 }
 
-                cursor = markerEnd;
+                search = markerEnd;
             }
 
             if (builder == null) return format;
 
             builder.Append(format, cursor, format.Length - cursor);
-            if (!replaced)
-            {
-                builder.Dispose();
-                return format;
-            }
-
             return builder.ToStringAndDispose();
         }
 
@@ -186,19 +178,21 @@ namespace Moirai.Atropos.Localization
             }
         }
         
-        private static string ResolveForRuntime(string textId)
+        private static string ResolveForRuntime(ReadOnlySpan<char> textId)
         {
+            // 直查：ID 物化一次进字典，不做索引/缓存
+            var id = textId.ToString();
             try
             {
                 // 单趟解析：命中即取译文；此前 Has + GetTextFromId 两趟查询
-                if (TryGetTextFromId(textId, out var text)) return text;
+                if (TryGetTextFromId(id, out var text)) return text;
 
-                LogUtility.Warning("Text ID: {0} not available.", textId);
+                LogUtility.Warning("Text ID: {0} not available.", id);
                 return null;
             }
             catch (Exception ex)
             {
-                LogUtility.Fatal("Failed to resolve localization for ID: {0}. Error: {1}", textId, ex);
+                LogUtility.Fatal("Failed to resolve localization for ID: {0}. Error: {1}", id, ex);
                 return null;
             }
         }

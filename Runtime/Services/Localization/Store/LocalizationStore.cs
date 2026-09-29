@@ -266,14 +266,6 @@ namespace Moirai.Atropos.Localization
             var row = -1;
             if (_sparseColumns == null && !_rowByKey.TryGetValue(key, out row)) return null;
 
-            return Lookup(key, row, languageIndex);
-        }
-
-        /// <summary>
-        /// 按列下标取译文（两种存储形态的统一入口；列未加载/越界/空值一律 <c>null</c>）。
-        /// </summary>
-        private string Lookup(string key, int row, int languageIndex)
-        {
             return _sparseColumns != null ? SelectSparse(key, languageIndex) : Select(row, languageIndex);
         }
 
