@@ -65,7 +65,7 @@ namespace Moirai.Atropos.Timer
             public readonly Action<float>[] ProgressHandlers = new Action<float>[PAGE_SIZE];
             public readonly byte[] Phases = new byte[PAGE_SIZE];
             // 按槽位挂载的完成信号（仅 await 时惰性创建；释放时唤醒并清空）。
-            public readonly UniTaskCompletionSource[] WaitSignals = new UniTaskCompletionSource[PAGE_SIZE];
+            public readonly AutoResetUniTaskCompletionSource[] WaitSignals = new AutoResetUniTaskCompletionSource[PAGE_SIZE];
 
             public WheelPage()
             {
@@ -106,8 +106,8 @@ namespace Moirai.Atropos.Timer
         private List<ulong> _deferredLateFire;
         private List<ulong> _fireScratch;
         // 完成信号延迟唤醒队列 + 快照（在阶段 Tick 末尾排空，避免回调在释放调用栈内同步续跑）。
-        private List<UniTaskCompletionSource> _deferredSignals;
-        private List<UniTaskCompletionSource> _signalScratch;
+        private List<AutoResetUniTaskCompletionSource> _deferredSignals;
+        private List<AutoResetUniTaskCompletionSource> _signalScratch;
 
         public void Init(int capacity)
         {
@@ -123,8 +123,8 @@ namespace Moirai.Atropos.Timer
             _deferredFixedFire = new List<ulong>(32);
             _deferredLateFire = new List<ulong>(32);
             _fireScratch = new List<ulong>(32);
-            _deferredSignals = new List<UniTaskCompletionSource>(16);
-            _signalScratch = new List<UniTaskCompletionSource>(16);
+            _deferredSignals = new List<AutoResetUniTaskCompletionSource>(16);
+            _signalScratch = new List<AutoResetUniTaskCompletionSource>(16);
             _pageCount = 0;
             _slotCapacity = 0;
             _freeCount = 0;
@@ -864,10 +864,13 @@ namespace Moirai.Atropos.Timer
             if (GetWaitSignal(slotIndex) != null)
             {
                 // 同一句柄已有等待者：额外等待者退回轮询，避免覆盖首信号使其永不唤醒。
-                return UniTask.WaitUntil(() => IsDone(handle), cancellationToken: cancellationToken);
+                // 状态经元组传入 + 静态谓词：轮询在整个 await 期间每帧求值，不留闭包分配。
+                return UniTask.WaitUntil((engine: this, handle: handle), static s => s.engine.IsDone(s.handle),
+                    cancellationToken: cancellationToken);
             }
 
-            UniTaskCompletionSource source = new UniTaskCompletionSource();
+            // 池化完成源：await 稳态不再为完成源分配（可取消令牌路径的 AttachExternalCancellation 包装仍各一次）。
+            AutoResetUniTaskCompletionSource source = AutoResetUniTaskCompletionSource.Create();
             SetWaitSignal(slotIndex, source);
             return cancellationToken.CanBeCanceled
                 ? source.Task.AttachExternalCancellation(cancellationToken)
@@ -876,7 +879,7 @@ namespace Moirai.Atropos.Timer
 
         private void SignalCompletion(int slotIndex)
         {
-            UniTaskCompletionSource source = GetWaitSignal(slotIndex);
+            AutoResetUniTaskCompletionSource source = GetWaitSignal(slotIndex);
             if (source == null)
             {
                 return;
@@ -911,13 +914,13 @@ namespace Moirai.Atropos.Timer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private UniTaskCompletionSource GetWaitSignal(int slotIndex)
+        private AutoResetUniTaskCompletionSource GetWaitSignal(int slotIndex)
         {
             return GetPage(slotIndex).WaitSignals[GetOffset(slotIndex)];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetWaitSignal(int slotIndex, UniTaskCompletionSource value)
+        private void SetWaitSignal(int slotIndex, AutoResetUniTaskCompletionSource value)
         {
             GetPage(slotIndex).WaitSignals[GetOffset(slotIndex)] = value;
         }
