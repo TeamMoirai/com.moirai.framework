@@ -47,6 +47,7 @@
 #### UI
 
 - `UGUIHandler.CurrentModal` 与末位窗口刷新改索引取用——模态查询热路径（`UIServiceHelper` 交互前置判断）每次读取零分配（此前 `LastOrDefault`/`Last` 装箱枚举器并每次新建判定委托）。
+- 布局适配器（`VerticalAdapter`/`HorizontalAdapter`/`AngleAdapter`）改同值写入跳过——开 `CalculateEveryFrame` 时内容未变不再逐帧写布局（此前每帧照写并触发 uGUI 布局重建），外部挪动仍按原样写回。
 
 #### 计时器
 
