@@ -30,17 +30,13 @@ namespace Moirai.GameProto.Config
 
         #region 处理多语言 [LOCALIZATION]
 
-        /// <summary>
-        /// 多语言表按语言分份导出后，各语言子目录下的同名数据文件名。
-        /// </summary>
+        /// <summary>多语言表按语言分份导出后，各语言子目录下的同名数据文件名。</summary>
         /// <remarks>
         /// 子目录名即语言码，与 <see cref="L10nLanguages.Codes"/> 同源，由转表脚本决定。
         /// </remarks>
         private const string LOCALIZED_STRINGS_TABLE = "l10n_tblocalizedstrings";
 
-        /// <summary>
-        /// 词条按语言各存一份，走框架的按语言列模式：常驻与取值都只有语言头 + 当前语言列。
-        /// </summary>
+        /// <summary>词条按语言各存一份，走框架的按语言列模式：常驻与取值都只有语言头 + 当前语言列。</summary>
         public override bool SupportsPerLanguageLocalizationLoad => true;
 
         /// <summary>
@@ -64,9 +60,7 @@ namespace Moirai.GameProto.Config
             return ReadLanguageColumn(languageCode);
         }
 
-        /// <summary>
-        /// 整批结果：逐语言各读一份再按 <see cref="L10nLanguages.Codes"/> 的顺序拼列。
-        /// </summary>
+        /// <summary>整批结果：逐语言各读一份再按 <see cref="L10nLanguages.Codes"/> 的顺序拼列。</summary>
         /// <remarks>
         /// 按语言列模式下运行期不会走到这里，仅供编辑器预览（预览需同时看到所有语言）。
         /// </remarks>

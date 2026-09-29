@@ -181,119 +181,89 @@ namespace Moirai.Atropos.Resource
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 是否已经初始化。
-        /// </summary>
+        /// <summary>是否已经初始化。</summary>
         public static bool IsInitialized => IsValid && s_Handler.IsInitialized;
 
-        /// <summary>
-        /// 默认资源包名称。
-        /// </summary>
+        /// <summary>默认资源包名称。</summary>
         public static string DefaultPackageName
         {
             get => s_Handler?.DefaultPackageName;
             set => RequireHandler().DefaultPackageName = value;
         }
 
-        /// <summary>
-        /// 运行模式。
-        /// </summary>
+        /// <summary>运行模式。</summary>
         public static EResourcePlayMode PlayMode
         {
             get => ResourceServiceSettings.PlayMode;
             set => ResourceServiceSettings.PlayMode = value;
         }
 
-        /// <summary>
-        /// 资源绑定服务。
-        /// </summary>
+        /// <summary>资源绑定服务。</summary>
         public static IResourceBindingService BindingService => s_Handler?.BindingService;
 
-        /// <summary>
-        /// 热更 URL，资源服务器地址。
-        /// </summary>
+        /// <summary>热更 URL，资源服务器地址。</summary>
         public static string HostServerURL
         {
             get => s_Handler?.HostServerURL;
             set => RequireHandler().HostServerURL = value;
         }
 
-        /// <summary>
-        /// 备用热更 URL。
-        /// </summary>
+        /// <summary>备用热更 URL。</summary>
         public static string FallbackHostServerURL
         {
             get => s_Handler?.FallbackHostServerURL;
             set => RequireHandler().FallbackHostServerURL = value;
         }
 
-        /// <summary>
-        /// WebGL 平台加载本地资源/加载远程资源。
-        /// </summary>
+        /// <summary>WebGL 平台加载本地资源/加载远程资源。</summary>
         public static EResourceLoadWayWebGL LoadResWayWebGL
         {
             get => s_Handler?.LoadResWayWebGL ?? EResourceLoadWayWebGL.Undefined;
             set => RequireHandler().LoadResWayWebGL = value;
         }
 
-        /// <summary>
-        /// 获取当前资源适用的游戏版本号。
-        /// </summary>
+        /// <summary>获取当前资源适用的游戏版本号。</summary>
         public static string ApplicableGameVersion => s_Handler?.ApplicableGameVersion;
 
-        /// <summary>
-        /// 获取当前内部资源版本号。
-        /// </summary>
+        /// <summary>获取当前内部资源版本号。</summary>
         public static int InternalResourceVersion => s_Handler?.InternalResourceVersion ?? 0;
 
-        /// <summary>
-        /// 当前最新的包裹版本。
-        /// </summary>
+        /// <summary>当前最新的包裹版本。</summary>
         public static string PackageVersion
         {
             get => s_Handler?.PackageVersion;
             set => RequireHandler().PackageVersion = value;
         }
 
-        /// <summary>
-        /// 是否边玩边下载。
-        /// </summary>
+        /// <summary>是否边玩边下载。</summary>
         public static bool UpdatableWhilePlaying => s_Handler?.UpdatableWhilePlaying ?? false;
 
         #endregion
 
         #region 运行时配置 [RUNTIME CONFIGURATION]
 
-        /// <summary>
-        /// 自动释放资源引用计数为 0 的资源包。
-        /// </summary>
+        /// <summary>自动释放资源引用计数为 0 的资源包。</summary>
         public static bool AutoUnloadBundleWhenUnused
         {
             get => s_Handler?.AutoUnloadBundleWhenUnused ?? false;
             set => RequireHandler().AutoUnloadBundleWhenUnused = value;
         }
 
-        /// <summary>
-        /// 同时下载的最大数目。
-        /// </summary>
+        /// <summary>同时下载的最大数目。</summary>
         public static int DownloadingMaxNum
         {
             get => s_Handler?.DownloadingMaxNum ?? 0;
             set => RequireHandler().DownloadingMaxNum = value;
         }
 
-        /// <summary>
-        /// 下载失败重试次数。
-        /// </summary>
+        /// <summary>下载失败重试次数。</summary>
         public static int FailedTryAgain
         {
             get => s_Handler?.FailedTryAgain ?? 0;
             set => RequireHandler().FailedTryAgain = value;
         }
 
-        /// <summary>
-        /// 异步系统每帧执行消耗的最大时间切片（单位：毫秒）。
-        /// </summary>
+        /// <summary>异步系统每帧执行消耗的最大时间切片（单位：毫秒）。</summary>
         public static long Milliseconds
         {
             get => s_Handler?.Milliseconds ?? 0L;
@@ -304,54 +274,42 @@ namespace Moirai.Atropos.Resource
 
         #region 容量与过期 [CAPACITY & EXPIRY]
 
-        /// <summary>
-        /// 资源记录预热容量。
-        /// </summary>
+        /// <summary>资源记录预热容量。</summary>
         public static int AssetRecordCapacity
         {
             get => s_Handler?.AssetRecordCapacity ?? 0;
             set => RequireHandler().AssetRecordCapacity = value;
         }
 
-        /// <summary>
-        /// 资源租约预热容量。
-        /// </summary>
+        /// <summary>资源租约预热容量。</summary>
         public static int AssetLeaseCapacity
         {
             get => s_Handler?.AssetLeaseCapacity ?? 0;
             set => RequireHandler().AssetLeaseCapacity = value;
         }
 
-        /// <summary>
-        /// 绑定所有者预热容量。
-        /// </summary>
+        /// <summary>绑定所有者预热容量。</summary>
         public static int BindingOwnerCapacity
         {
             get => s_Handler?.BindingOwnerCapacity ?? 0;
             set => RequireHandler().BindingOwnerCapacity = value;
         }
 
-        /// <summary>
-        /// 绑定槽位预热容量。
-        /// </summary>
+        /// <summary>绑定槽位预热容量。</summary>
         public static int BindingSlotCapacity
         {
             get => s_Handler?.BindingSlotCapacity ?? 0;
             set => RequireHandler().BindingSlotCapacity = value;
         }
 
-        /// <summary>
-        /// 无引用资源句柄进入 Idle 后的过期秒数。
-        /// </summary>
+        /// <summary>无引用资源句柄进入 Idle 后的过期秒数。</summary>
         public static float IdleAssetExpireTime
         {
             get => s_Handler?.IdleAssetExpireTime ?? 0;
             set => RequireHandler().IdleAssetExpireTime = value;
         }
 
-        /// <summary>
-        /// 空闲资源记录容量上限：超过即淘汰最长空闲者，不必等到 <see cref="IdleAssetExpireTime"/> 到期。
-        /// </summary>
+        /// <summary>空闲资源记录容量上限：超过即淘汰最长空闲者，不必等到 <see cref="IdleAssetExpireTime"/> 到期。</summary>
         /// <remarks>调小该值会立即释放多余的空闲记录。</remarks>
         public static int IdleAssetCapacity
         {

@@ -114,7 +114,9 @@ namespace Moirai.Atropos.Audio
             return true;
         }
 
-        /// <summary>查询句柄绑定的声部（代次不符即为陈旧句柄，返回 false）。</summary>
+        /// <summary>
+        /// 查询句柄绑定的声部（代次不符即为陈旧句柄，返回 false）。
+        /// </summary>
         public bool TryGet(ulong handle, out TVoice voice)
         {
             voice = null;
@@ -130,7 +132,9 @@ namespace Moirai.Atropos.Audio
             return true;
         }
 
-        /// <summary>句柄是否仍注册在案。</summary>
+        /// <summary>
+        /// 句柄是否仍注册在案。
+        /// </summary>
         public bool IsRegistered(ulong handle) => TryGet(handle, out _);
 
         /// <summary>
@@ -153,7 +157,9 @@ namespace Moirai.Atropos.Audio
             return true;
         }
 
-        /// <summary>对注册在指定用户 ID 下的每个句柄执行操作（先摘 next 再回调，回调里 Release 当前句柄不会跳过后续元素）。</summary>
+        /// <summary>
+        /// 对注册在指定用户 ID 下的每个句柄执行操作（先摘 next 再回调，回调里 Release 当前句柄不会跳过后续元素）。
+        /// </summary>
         public void ForEachHandleByUser(int userId, Action<ulong> action)
         {
             if (action == null || _headKeys.Length == 0) return;
@@ -173,7 +179,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>清空全部绑定：声部侧句柄一并归零，避免残留把下一次 Bind 的旧句柄当成有效。</summary>
+        /// <summary>
+        /// 清空全部绑定：声部侧句柄一并归零，避免残留把下一次 Bind 的旧句柄当成有效。
+        /// </summary>
         public void Clear()
         {
             for (int i = 0; i < _voices.Length; i++)
@@ -208,7 +216,9 @@ namespace Moirai.Atropos.Audio
             return _freeSlots[--_freeCount];
         }
 
-        /// <summary>扩容到 <paramref name="capacity"/>（只增不减）。</summary>
+        /// <summary>
+        /// 扩容到 <paramref name="capacity"/>（只增不减）。
+        /// </summary>
         /// <remarks>Resize 保持既有下标，声部的 <c>VoiceSlot</c> 与用户 ID 链都无需重挂；只有新槽位需要初始化 next 并铺进自由栈。</remarks>
         private void GrowTo(int capacity)
         {
@@ -228,7 +238,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>按槽位上记着的 key 摘链——不能拿声部的 UserId 反推，那个值可能已经换过。</summary>
+        /// <summary>
+        /// 按槽位上记着的 key 摘链——不能拿声部的 UserId 反推，那个值可能已经换过。
+        /// </summary>
         private void UnlinkFromUserIndex(int slot)
         {
             int userId = _slotUser[slot];
@@ -254,7 +266,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>线性探测找 <paramref name="userId"/> 的头表位；<paramref name="forInsert"/> 为真时空位就地占下。</summary>
+        /// <summary>
+        /// 线性探测找 <paramref name="userId"/> 的头表位；<paramref name="forInsert"/> 为真时空位就地占下。
+        /// </summary>
         /// <remarks>头位一旦占用就不因链空而释放（链头记 -1），探测遇到空位即可终止，无需删除标记。</remarks>
         private int FindHead(int userId, bool forInsert)
         {
@@ -289,7 +303,9 @@ namespace Moirai.Atropos.Audio
             return FindHead(userId, true);
         }
 
-        /// <summary>换一张更大的头表，把每个 key 的链头原样搬过去（槽位链本身不动）。</summary>
+        /// <summary>
+        /// 换一张更大的头表，把每个 key 的链头原样搬过去（槽位链本身不动）。
+        /// </summary>
         private void GrowHeads(int size)
         {
             int[] oldKeys = _headKeys;
@@ -319,7 +335,9 @@ namespace Moirai.Atropos.Audio
 
         private static int HashUser(int userId) => unchecked((int)((uint)userId * 2654435761U));
 
-        /// <summary>foreach 用的结构体枚举器入口：按槽位下标走，不经过任何接口分派。</summary>
+        /// <summary>
+        /// foreach 用的结构体枚举器入口：按槽位下标走，不经过任何接口分派。
+        /// </summary>
         public struct SlotEnumerable
         {
             private readonly AudioHandleRegistry<TVoice> _registry;
@@ -329,14 +347,18 @@ namespace Moirai.Atropos.Audio
             public Enumerator GetEnumerator() => new Enumerator(_registry);
         }
 
-        /// <summary>枚举出的槽位：句柄 + 声部。</summary>
+        /// <summary>
+        /// 枚举出的槽位：句柄 + 声部。
+        /// </summary>
         public struct Slot
         {
             public ulong Handle;
             public TVoice Voice;
         }
 
-        /// <summary>结构体枚举器（零装箱、零分配）。</summary>
+        /// <summary>
+        /// 结构体枚举器（零装箱、零分配）。
+        /// </summary>
         public struct Enumerator
         {
             private readonly AudioHandleRegistry<TVoice> _registry;

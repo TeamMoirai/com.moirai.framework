@@ -16,7 +16,9 @@ namespace Moirai.Atropos.Audio
         /// <returns>取到有效租约返回 true。</returns>
         bool TryAcquire(string address, out AudioClipLease lease);
 
-        /// <summary>异步取得租约。</summary>
+        /// <summary>
+        /// 异步取得租约。
+        /// </summary>
         /// <remarks>取消时须放弃并回调空租约；回调必须与调用同帧或晚于调用，不允许在返回前对已作废地址回调。</remarks>
         void AcquireAsync(string address, CancellationToken cancellationToken, Action<AudioClipLease> completed);
     }

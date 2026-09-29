@@ -55,14 +55,18 @@ namespace Service.Audio
             completed(FailLoads ? default : MakeLease());
         }
 
-        /// <summary>取一个已在缓存中的条目（不改变引用计数）。</summary>
+        /// <summary>
+        /// 取一个已在缓存中的条目（不改变引用计数）。
+        /// </summary>
         public AudioClipCacheEntry Entry(string address)
         {
             Assert.IsTrue(Cache.TryGetEntry(address, out var entry), $"缓存中应有 {address}");
             return entry;
         }
 
-        /// <summary>预建若干租约：把「测试台自己的 new」挡在被测窗口之外，量到的才全是被测路径的分配。</summary>
+        /// <summary>
+        /// 预建若干租约：把「测试台自己的 new」挡在被测窗口之外，量到的才全是被测路径的分配。
+        /// </summary>
         public void PrepareLeases(int count)
         {
             for (int i = 0; i < count; i++) _preparedLeases.Enqueue(CreateLease());
@@ -118,7 +122,9 @@ namespace Service.Audio
                 if (_owner.RecycleLeases) _owner._recycledHandles.Enqueue(this);
             }
 
-            /// <summary>重新投入使用；未归还就复用说明句柄被复制到了两处，直接抛而不是静默错账。</summary>
+            /// <summary>
+            /// 重新投入使用；未归还就复用说明句柄被复制到了两处，直接抛而不是静默错账。
+            /// </summary>
             public void Rearm()
             {
                 if (!_disposed) throw new InvalidOperationException("租约尚未归还即重新投入使用。");

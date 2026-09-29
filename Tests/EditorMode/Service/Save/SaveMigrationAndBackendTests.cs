@@ -30,7 +30,9 @@ namespace Service.Save
     /// </remarks>
     public partial class SaveMigrationAndBackendTests
     {
-        /// <summary>迁移测试用数据：v1 只有两字段，v3 当前形态——OnMigrate 级联回填。</summary>
+        /// <summary>
+        /// 迁移测试用数据：v1 只有两字段，v3 当前形态——OnMigrate 级联回填。
+        /// </summary>
         [SaveData("migrating", 3)]
         private sealed class MigratingData : SaveDataBlock
         {
@@ -54,13 +56,17 @@ namespace Service.Save
             }
         }
 
-        /// <summary>缺 <see cref="SaveDataAttribute"/> 的非法 SaveDataBlock 子类（契约破坏 fail-fast 用）。</summary>
+        /// <summary>
+        /// 缺 <see cref="SaveDataAttribute"/> 的非法 SaveDataBlock 子类（契约破坏 fail-fast 用）。
+        /// </summary>
         private sealed class AttributeLessData : SaveDataBlock
         {
             public int X;
         }
 
-        /// <summary>无基类普通 POCO（版本字段不参与迁移语义）。</summary>
+        /// <summary>
+        /// 无基类普通 POCO（版本字段不参与迁移语义）。
+        /// </summary>
         [Serializable]
         private sealed class PlainBox
         {

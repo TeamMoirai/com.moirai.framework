@@ -105,9 +105,7 @@ namespace Core.MemoryPool
         private int _autoTrim;
         private EMemoryPoolPhase _phase;
 
-        /// <summary>
-        /// Tick 用的帧号游标。EditMode 下 Time.frameCount 不推进，必须自带递增帧号才能真正走完 Tick 分支。
-        /// </summary>
+        /// <summary>Tick 用的帧号游标。EditMode 下 Time.frameCount 不推进，必须自带递增帧号才能真正走完 Tick 分支。</summary>
         protected int Frame;
 
         [SetUp]

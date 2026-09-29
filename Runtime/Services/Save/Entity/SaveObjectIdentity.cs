@@ -17,9 +17,7 @@ namespace Moirai.Atropos.Save
         /// <summary>稳定 ID（编辑器 OnValidate 空则烘焙 GUID；序列化持久）。</summary>
         [SerializeField] internal string m_Id = string.Empty;
 
-        /// <summary>
-        /// 跨会话稳定 ID（运行期新建对象未烘焙时为空串——空 ID 不注册，引用捕获写 Null）。
-        /// </summary>
+        /// <summary>跨会话稳定 ID（运行期新建对象未烘焙时为空串——空 ID 不注册，引用捕获写 Null）。</summary>
         public string Id => m_Id;
 
         /// <summary>

@@ -9,9 +9,7 @@ namespace Moirai.Atropos.Events
         
         public abstract IEventCoordinator Coordinator { get; }
         
-        /// <summary>
-        /// 获取和设置父回调处理程序。
-        /// </summary>
+        /// <summary>获取和设置父回调处理程序。</summary>
         public CallbackEventHandler Parent { get; set; }
         
         private EventCallbackRegistry _callbackRegistry;

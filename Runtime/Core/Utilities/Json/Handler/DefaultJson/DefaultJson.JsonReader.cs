@@ -21,7 +21,9 @@ namespace Moirai.Atropos
         {
             #region 公共入口 [PUBLIC ENTRY]
 
-            /// <summary>解析根值。existing 非空时向其覆盖（FromJsonOverwrite 语义：集合清空复用）。</summary>
+            /// <summary>
+            /// 解析根值。existing 非空时向其覆盖（FromJsonOverwrite 语义：集合清空复用）。
+            /// </summary>
             public static object Parse(TLexer lexer, Type targetType, object existing)
             {
                 lexer.SkipWhitespace();
@@ -203,7 +205,9 @@ namespace Moirai.Atropos
                 return null;
             }
 
-            /// <summary>NaN/Infinity 字面量（与 Newtonsoft 兼容的非标准扩展，仅浮点目标）。</summary>
+            /// <summary>
+            /// NaN/Infinity 字面量（与 Newtonsoft 兼容的非标准扩展，仅浮点目标）。
+            /// </summary>
             private static object ParseNonFinite(TLexer lexer, Type type)
             {
                 double value;
@@ -383,7 +387,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>类型化基元列表解析骨架（基元元素不可嵌套，无需深度计数）。</summary>
+            /// <summary>
+            /// 类型化基元列表解析骨架（基元元素不可嵌套，无需深度计数）。
+            /// </summary>
             private static void ParseTypedList<T>(TLexer lexer, List<T> list, Func<TLexer, T> read) where T : struct
             {
                 lexer.Expect('[');
@@ -417,7 +423,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>字符串列表快路径（高频场景；含 null 字面量）。</summary>
+            /// <summary>
+            /// 字符串列表快路径（高频场景；含 null 字面量）。
+            /// </summary>
             private static void ParseStringTypedList(TLexer lexer, List<string> list)
             {
                 lexer.Expect('[');
@@ -552,7 +560,9 @@ namespace Moirai.Atropos
                 return result;
             }
 
-            /// <summary>基元数组零装箱解析（经类型化注册表按元素类型分派）。</summary>
+            /// <summary>
+            /// 基元数组零装箱解析（经类型化注册表按元素类型分派）。
+            /// </summary>
             private static T[] ParsePrimitiveArray<T>(TLexer lexer, Func<TLexer, T> read) where T : struct
             {
                 lexer.Expect('[');
@@ -679,7 +689,9 @@ namespace Moirai.Atropos
                 return result;
             }
 
-            /// <summary>标准对象格式字典：{"key":value,...}。</summary>
+            /// <summary>
+            /// 标准对象格式字典：{"key":value,...}。
+            /// </summary>
             private static object ParseDictionary(TLexer lexer, Type type, IDictionary existing, int depth)
             {
                 IDictionary dict = existing ?? (IDictionary)Activator.CreateInstance(type);
@@ -733,7 +745,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>legacy 条目数组格式字典：[{"key":..,"value":..},...]（兼容历史存档）。</summary>
+            /// <summary>
+            /// legacy 条目数组格式字典：[{"key":..,"value":..},...]（兼容历史存档）。
+            /// </summary>
             private static object ParseDictionaryLegacy(TLexer lexer, Type type, IDictionary existing, int depth)
             {
                 IDictionary dict = existing ?? (IDictionary)Activator.CreateInstance(type);
@@ -836,7 +850,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>字符串 → 字典 key 类型（string/char/bool/枚举/Guid；数值走 lexer 的 span 解析）。</summary>
+            /// <summary>
+            /// 字符串 → 字典 key 类型（string/char/bool/枚举/Guid；数值走 lexer 的 span 解析）。
+            /// </summary>
             private static object ConvertDictionaryKey(TLexer lexer, string s, Type keyType)
             {
                 return TypeConverter.TryConvertDictionaryKey(s, keyType, out object result)
@@ -844,7 +860,9 @@ namespace Moirai.Atropos
                     : ParseNumericDictionaryKey(lexer, s, keyType);
             }
 
-            /// <summary>数值 key：经 lexer 的字符串转换（含带引号数值桥接）。</summary>
+            /// <summary>
+            /// 数值 key：经 lexer 的字符串转换（含带引号数值桥接）。
+            /// </summary>
             private static object ParseNumericDictionaryKey(TLexer lexer, string s, Type keyType)
             {
                 return lexer.ConvertString(s, keyType);
@@ -854,7 +872,9 @@ namespace Moirai.Atropos
 
             #region 词法辅助 [LEXER HELPERS]
 
-            /// <summary>消费当前 token（Peek 已确认的单字符；单次推进，无二次 SkipWhitespace）。</summary>
+            /// <summary>
+            /// 消费当前 token（Peek 已确认的单字符；单次推进，无二次 SkipWhitespace）。
+            /// </summary>
             private static void Consume(TLexer lexer)
             {
                 lexer.Consume();

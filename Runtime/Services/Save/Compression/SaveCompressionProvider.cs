@@ -11,9 +11,7 @@ namespace Moirai.Atropos.Save
     [Serializable]
     public abstract class SaveCompressionProvider : ICompressionProvider
     {
-        /// <summary>
-        /// 提供方标识（写入文件头；0 保留为「未压缩」）。
-        /// </summary>
+        /// <summary>提供方标识（写入文件头；0 保留为「未压缩」）。</summary>
         public abstract byte ProviderId { get; }
 
         /// <summary>

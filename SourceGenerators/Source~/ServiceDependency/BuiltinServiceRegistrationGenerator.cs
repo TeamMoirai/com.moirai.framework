@@ -18,9 +18,7 @@ namespace Moirai.Atropos.SourceGenerators
     [Generator]
     public class BuiltinServiceRegistrationGenerator : IIncrementalGenerator
     {
-        /// <summary>
-        /// MIRAI203: AutoRegisterService 目标类型未实现 IService。
-        /// </summary>
+        /// <summary>MIRAI203: AutoRegisterService 目标类型未实现 IService。</summary>
         private static readonly DiagnosticDescriptor s_MustImplementIServiceRule = new DiagnosticDescriptor(
             id: "MIRAI203",
             title: "AutoRegisterService 目标类型未实现 IService",
@@ -31,9 +29,7 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Types marked with [AutoRegisterService] must implement IService.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>
-        /// MIRAI204: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。
-        /// </summary>
+        /// <summary>MIRAI204: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。</summary>
         private static readonly DiagnosticDescriptor s_InvalidTargetShapeRule = new DiagnosticDescriptor(
             id: "MIRAI204",
             title: "AutoRegisterService 目标类型形状非法",
@@ -44,9 +40,7 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Auto-registration instantiates the service via a parameterless constructor; abstract, static, generic or ctor-less types are rejected.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>
-        /// MIRAI205: AutoRegisterService 作用域值非法。
-        /// </summary>
+        /// <summary>MIRAI205: AutoRegisterService 作用域值非法。</summary>
         private static readonly DiagnosticDescriptor s_InvalidScopeRule = new DiagnosticDescriptor(
             id: "MIRAI205",
             title: "AutoRegisterService 作用域值非法",

@@ -42,9 +42,7 @@ namespace Moirai.Atropos.Resource
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 当前有效条目数。
-        /// </summary>
+        /// <summary>当前有效条目数。</summary>
         public int Count => _count - _freeCount;
 
         #endregion
@@ -319,9 +317,7 @@ namespace Moirai.Atropos.Resource
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 当前有效条目数。
-        /// </summary>
+        /// <summary>当前有效条目数。</summary>
         public int Count => _count;
 
         #endregion

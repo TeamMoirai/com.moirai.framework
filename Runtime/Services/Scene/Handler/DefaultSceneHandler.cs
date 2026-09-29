@@ -22,19 +22,13 @@ namespace Moirai.Atropos.Scene
     [Serializable]
     internal sealed class DefaultSceneHandler : SceneServiceHandler
     {
-        /// <summary>
-        /// 场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。
-        /// </summary>
+        /// <summary>场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。</summary>
         [NonSerialized] private readonly SceneRegistry _registry = new SceneRegistry();
 
-        /// <summary>
-        /// 当前主场景名称（场景短名）。
-        /// </summary>
+        /// <summary>当前主场景名称（场景短名）。</summary>
         public override string CurrentMainSceneName => _registry.CurrentMainSceneName;
 
-        /// <summary>
-        /// 已完成加载的子场景资源地址快照（不含加载中的子场景）。
-        /// </summary>
+        /// <summary>已完成加载的子场景资源地址快照（不含加载中的子场景）。</summary>
         public override IReadOnlyCollection<string> LoadedSubSceneLocations => _registry.SnapshotLoadedSubScenes();
 
         /// <summary>

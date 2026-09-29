@@ -46,29 +46,19 @@ namespace Moirai.Atropos.Save
     /// 不产生失败事件。</remarks>
     public readonly struct SaveFailedArgs
     {
-        /// <summary>
-        /// 存档文件名。
-        /// </summary>
+        /// <summary>存档文件名。</summary>
         public string FileName { get; }
 
-        /// <summary>
-        /// 存档文件夹名称。
-        /// </summary>
+        /// <summary>存档文件夹名称。</summary>
         public string FolderName { get; }
 
-        /// <summary>
-        /// 数据块键（整档级失败为 <c>null</c>）。
-        /// </summary>
+        /// <summary>数据块键（整档级失败为 <c>null</c>）。</summary>
         public string Key { get; }
 
-        /// <summary>
-        /// 失败阶段。
-        /// </summary>
+        /// <summary>失败阶段。</summary>
         public ESaveFailureStage Stage { get; }
 
-        /// <summary>
-        /// 错误码。
-        /// </summary>
+        /// <summary>错误码。</summary>
         public SaveError Error { get; }
 
         /// <summary>

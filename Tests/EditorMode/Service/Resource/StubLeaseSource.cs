@@ -17,9 +17,7 @@ namespace Service.Resource
     {
         private readonly List<ResourceLeaseHandle> _released = new List<ResourceLeaseHandle>();
 
-        /// <summary>
-        /// 置为 <c>true</c> 后异步子资源图集取用直接抛 <see cref="GameException"/>，用来造"预约位已落地、取用却失败"这条窗口。
-        /// </summary>
+        /// <summary>置为 <c>true</c> 后异步子资源图集取用直接抛 <see cref="GameException"/>，用来造"预约位已落地、取用却失败"这条窗口。</summary>
         public bool SubAssetsAcquireThrows { get; set; }
 
         public IReadOnlyList<ResourceLeaseHandle> Released => _released;

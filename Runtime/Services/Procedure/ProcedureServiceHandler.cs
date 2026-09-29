@@ -28,46 +28,32 @@ namespace Moirai.Atropos.Procedure
         [NonSerialized] private List<ProcedureTransitionRecord> _transitionHistory;
         [NonSerialized] private bool _isBroadcastingTransition;
 
-        /// <summary>
-        /// 切换历史存储（懒初始化，兼容 [SerializeReference] 重建语义）。
-        /// </summary>
+        /// <summary>切换历史存储（懒初始化，兼容 [SerializeReference] 重建语义）。</summary>
         private List<ProcedureTransitionRecord> TransitionHistoryList =>
             _transitionHistory ??= new List<ProcedureTransitionRecord>(TransitionHistoryCapacity);
 
-        /// <summary>
-        /// 状态机是否已就绪（已 <see cref="Initialize"/> 且未关停）。
-        /// </summary>
+        /// <summary>状态机是否已就绪（已 <see cref="Initialize"/> 且未关停）。</summary>
         /// <remarks>
         /// 未就绪时 <see cref="CurrentProcedure"/> 等查询会 fail-fast；消费方（调试器、Inspector）应先经此属性守卫，避免轮询路径命中异常。
         /// </remarks>
         public abstract bool IsStateReady { get; }
 
-        /// <summary>
-        /// 当前流程。
-        /// </summary>
+        /// <summary>当前流程。</summary>
         public abstract ProcedureBase CurrentProcedure { get; }
 
-        /// <summary>
-        /// 当前流程持续时间。
-        /// </summary>
+        /// <summary>当前流程持续时间。</summary>
         public abstract float CurrentProcedureTime { get; }
 
-        /// <summary>
-        /// 已注册的全部流程（未初始化时为空集）。
-        /// </summary>
+        /// <summary>已注册的全部流程（未初始化时为空集）。</summary>
         public abstract IReadOnlyCollection<ProcedureBase> Procedures { get; }
 
-        /// <summary>
-        /// 最近的流程切换历史（时间升序，容量 <see cref="TransitionHistoryCapacity"/>）。
-        /// </summary>
+        /// <summary>最近的流程切换历史（时间升序，容量 <see cref="TransitionHistoryCapacity"/>）。</summary>
         /// <remarks>
         /// 关停后保留（含关停记录，供事后诊断），重新 <see cref="Initialize"/> 时清空。
         /// </remarks>
         public IReadOnlyList<ProcedureTransitionRecord> TransitionHistory => TransitionHistoryList;
 
-        /// <summary>
-        /// 是否正在广播 <see cref="ProcedureService.onProcedureChanged"/>。
-        /// </summary>
+        /// <summary>是否正在广播 <see cref="ProcedureService.onProcedureChanged"/>。</summary>
         /// <remarks>
         /// 为 true 时后端须拒绝 <c>StartProcedure</c> / <c>ChangeState</c> 重入——切换深度上限只防 OnEnter/OnLeave 环，拦不住事件回调内的同步切换（每次广播深度均已归零）。
         /// </remarks>

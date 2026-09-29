@@ -883,7 +883,9 @@ namespace Utility
             return count;
         }
 
-        /// <summary>自定义结构体：含只读计算属性（模拟 Vector3.normalized 假环场景）。</summary>
+        /// <summary>
+        /// 自定义结构体：含只读计算属性（模拟 Vector3.normalized 假环场景）。
+        /// </summary>
         [System.Serializable]
         private struct CustomPoint
         {

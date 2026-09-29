@@ -7,19 +7,13 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public readonly struct ResourceLeaseHandle
     {
-        /// <summary>
-        /// 无效句柄。
-        /// </summary>
+        /// <summary>无效句柄。</summary>
         public static readonly ResourceLeaseHandle Invalid = new ResourceLeaseHandle(-1, 0);
 
-        /// <summary>
-        /// 槽位索引。
-        /// </summary>
+        /// <summary>槽位索引。</summary>
         public readonly int Index;
 
-        /// <summary>
-        /// 代际标记，用于检测槽位是否已被复用。
-        /// </summary>
+        /// <summary>代际标记，用于检测槽位是否已被复用。</summary>
         public readonly uint Generation;
 
         /// <summary>
@@ -33,9 +27,7 @@ namespace Moirai.Atropos.Resource
             Generation = generation;
         }
 
-        /// <summary>
-        /// 是否有效。
-        /// </summary>
+        /// <summary>是否有效。</summary>
         public bool IsValid => Index >= 0 && Generation != 0;
     }
 
@@ -61,19 +53,13 @@ namespace Moirai.Atropos.Resource
             Asset = asset;
         }
 
-        /// <summary>
-        /// 资源对象。
-        /// </summary>
+        /// <summary>资源对象。</summary>
         public T Asset { get; private set; }
 
-        /// <summary>
-        /// 租约句柄。
-        /// </summary>
+        /// <summary>租约句柄。</summary>
         public ResourceLeaseHandle Handle => _handle;
 
-        /// <summary>
-        /// 是否有效。
-        /// </summary>
+        /// <summary>是否有效。</summary>
         public bool IsValid => _handle.IsValid && Asset != null;
 
         /// <summary>
@@ -98,29 +84,19 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public readonly struct ResourceKey
     {
-        /// <summary>
-        /// 加载键 ID（内部使用）。
-        /// </summary>
+        /// <summary>加载键 ID（内部使用）。</summary>
         public readonly int LoadKeyId;
 
-        /// <summary>
-        /// 资源包名称。
-        /// </summary>
+        /// <summary>资源包名称。</summary>
         public readonly string PackageName;
 
-        /// <summary>
-        /// 资源定位地址。
-        /// </summary>
+        /// <summary>资源定位地址。</summary>
         public readonly string Location;
 
-        /// <summary>
-        /// 资源类型。
-        /// </summary>
+        /// <summary>资源类型。</summary>
         public readonly Type AssetType;
 
-        /// <summary>
-        /// 资源种类。
-        /// </summary>
+        /// <summary>资源种类。</summary>
         public readonly EResourceAssetKind AssetKind;
 
         /// <summary>
@@ -153,9 +129,7 @@ namespace Moirai.Atropos.Resource
             AssetKind = EResourceAssetKind.Unknown;
         }
 
-        /// <summary>
-        /// 是否已解析 ID。
-        /// </summary>
+        /// <summary>是否已解析 ID。</summary>
         public bool HasResolvedIds => LoadKeyId > 0;
 
         /// <summary>
@@ -176,34 +150,22 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public enum EResourceAssetKind : byte
     {
-        /// <summary>
-        /// 未知。
-        /// </summary>
+        /// <summary>未知。</summary>
         Unknown = 0,
 
-        /// <summary>
-        /// 通用资源。
-        /// </summary>
+        /// <summary>通用资源。</summary>
         Asset = 1,
 
-        /// <summary>
-        /// 精灵。
-        /// </summary>
+        /// <summary>精灵。</summary>
         Sprite = 2,
 
-        /// <summary>
-        /// 材质。
-        /// </summary>
+        /// <summary>材质。</summary>
         Material = 3,
 
-        /// <summary>
-        /// 预制体。
-        /// </summary>
+        /// <summary>预制体。</summary>
         Prefab = 4,
 
-        /// <summary>
-        /// 子资源集。
-        /// </summary>
+        /// <summary>子资源集。</summary>
         SubAssets = 5,
     }
 
@@ -212,29 +174,19 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public enum EResourceAssetState : byte
     {
-        /// <summary>
-        /// 已释放。
-        /// </summary>
+        /// <summary>已释放。</summary>
         Released = 0,
 
-        /// <summary>
-        /// 加载中。
-        /// </summary>
+        /// <summary>加载中。</summary>
         Loading = 1,
 
-        /// <summary>
-        /// 活跃中。
-        /// </summary>
+        /// <summary>活跃中。</summary>
         Active = 2,
 
-        /// <summary>
-        /// 保持存活。
-        /// </summary>
+        /// <summary>保持存活。</summary>
         KeepAlive = 3,
 
-        /// <summary>
-        /// 空闲。
-        /// </summary>
+        /// <summary>空闲。</summary>
         Idle = 4,
     }
 
@@ -243,19 +195,13 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     internal enum EResourceHandleKind : byte
     {
-        /// <summary>
-        /// 无。
-        /// </summary>
+        /// <summary>无。</summary>
         None = 0,
 
-        /// <summary>
-        /// 单资源句柄。
-        /// </summary>
+        /// <summary>单资源句柄。</summary>
         AssetHandle = 1,
 
-        /// <summary>
-        /// 子资源句柄。
-        /// </summary>
+        /// <summary>子资源句柄。</summary>
         SubAssetsHandle = 2,
     }
 
@@ -264,19 +210,13 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     internal enum EResourceLeaseKind : byte
     {
-        /// <summary>
-        /// 无。
-        /// </summary>
+        /// <summary>无。</summary>
         None = 0,
 
-        /// <summary>
-        /// 直接引用。
-        /// </summary>
+        /// <summary>直接引用。</summary>
         Direct = 1,
 
-        /// <summary>
-        /// 绑定引用。
-        /// </summary>
+        /// <summary>绑定引用。</summary>
         Binding = 2,
     }
 
@@ -285,19 +225,13 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     internal enum EResourceLeaseState : byte
     {
-        /// <summary>
-        /// 空闲。
-        /// </summary>
+        /// <summary>空闲。</summary>
         Free = 0,
 
-        /// <summary>
-        /// 活跃。
-        /// </summary>
+        /// <summary>活跃。</summary>
         Active = 1,
 
-        /// <summary>
-        /// 已释放。
-        /// </summary>
+        /// <summary>已释放。</summary>
         Released = 2,
     }
 
@@ -308,14 +242,10 @@ namespace Moirai.Atropos.Resource
     [Flags]
     public enum EResourceLeaseOption : byte
     {
-        /// <summary>
-        /// 无。
-        /// </summary>
+        /// <summary>无。</summary>
         None = 0,
 
-        /// <summary>
-        /// 释放时保持存活。
-        /// </summary>
+        /// <summary>释放时保持存活。</summary>
         KeepAliveOnRelease = 1,
     }
 
@@ -324,79 +254,49 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public struct ResourceAssetInfo
     {
-        /// <summary>
-        /// 加载键 ID。
-        /// </summary>
+        /// <summary>加载键 ID。</summary>
         public int LoadKeyId;
 
-        /// <summary>
-        /// 资源包名称。
-        /// </summary>
+        /// <summary>资源包名称。</summary>
         public string Package;
 
-        /// <summary>
-        /// 资源定位地址。
-        /// </summary>
+        /// <summary>资源定位地址。</summary>
         public string Location;
 
-        /// <summary>
-        /// 类型名称。
-        /// </summary>
+        /// <summary>类型名称。</summary>
         public string TypeName;
 
-        /// <summary>
-        /// 资源种类。
-        /// </summary>
+        /// <summary>资源种类。</summary>
         public EResourceAssetKind Kind;
 
-        /// <summary>
-        /// 资源状态。
-        /// </summary>
+        /// <summary>资源状态。</summary>
         public EResourceAssetState State;
 
-        /// <summary>
-        /// 直接引用计数。
-        /// </summary>
+        /// <summary>直接引用计数。</summary>
         public int DirectRefCount;
 
-        /// <summary>
-        /// 绑定引用计数。
-        /// </summary>
+        /// <summary>绑定引用计数。</summary>
         public int BindingRefCount;
 
-        /// <summary>
-        /// 保持存活引用计数。
-        /// </summary>
+        /// <summary>保持存活引用计数。</summary>
         public int KeepAliveRefCount;
 
-        /// <summary>
-        /// 保持存活剩余秒数。
-        /// </summary>
+        /// <summary>保持存活剩余秒数。</summary>
         public float KeepAliveExpireIn;
 
-        /// <summary>
-        /// 空闲剩余秒数。
-        /// </summary>
+        /// <summary>空闲剩余秒数。</summary>
         public float IdleExpireIn;
 
-        /// <summary>
-        /// 总引用计数。
-        /// </summary>
+        /// <summary>总引用计数。</summary>
         public int RefCountTotal;
 
-        /// <summary>
-        /// 是否已请求空闲释放。
-        /// </summary>
+        /// <summary>是否已请求空闲释放。</summary>
         public bool IdleReleaseRequested;
 
-        /// <summary>
-        /// 句柄是否有效。
-        /// </summary>
+        /// <summary>句柄是否有效。</summary>
         public bool HandleValid;
 
-        /// <summary>
-        /// 句柄种类。
-        /// </summary>
+        /// <summary>句柄种类。</summary>
         public byte HandleKind;
     }
 
@@ -405,75 +305,47 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public struct ResourceBindingInfo
     {
-        /// <summary>
-        /// 是否活跃。
-        /// </summary>
+        /// <summary>是否活跃。</summary>
         public bool Active;
 
-        /// <summary>
-        /// 绑定索引。
-        /// </summary>
+        /// <summary>绑定索引。</summary>
         public int BindingIndex;
 
-        /// <summary>
-        /// 所有者 ID。
-        /// </summary>
+        /// <summary>所有者 ID。</summary>
         public int OwnerId;
 
-        /// <summary>
-        /// 所有者代际。
-        /// </summary>
+        /// <summary>所有者代际。</summary>
         public uint OwnerGeneration;
 
-        /// <summary>
-        /// 目标 GameObject ID。
-        /// </summary>
+        /// <summary>目标 GameObject ID。</summary>
         public ulong TargetGameObjectId;
 
-        /// <summary>
-        /// 目标组件 ID。
-        /// </summary>
+        /// <summary>目标组件 ID。</summary>
         public ulong TargetComponentId;
 
-        /// <summary>
-        /// 槽位键。
-        /// </summary>
+        /// <summary>槽位键。</summary>
         public ulong SlotKey;
 
-        /// <summary>
-        /// 资源 ID。
-        /// </summary>
+        /// <summary>资源 ID。</summary>
         public int AssetId;
 
-        /// <summary>
-        /// 租约句柄。
-        /// </summary>
+        /// <summary>租约句柄。</summary>
         public ResourceLeaseHandle Lease;
 
-        /// <summary>
-        /// 版本号。
-        /// </summary>
+        /// <summary>版本号。</summary>
         public uint Version;
 
-        /// <summary>
-        /// 槽位类型。
-        /// </summary>
+        /// <summary>槽位类型。</summary>
         public EResourceBindingSlotType SlotType;
 
-        /// <summary>
-        /// 是否有已应用资源。
-        /// </summary>
+        /// <summary>是否有已应用资源。</summary>
         public bool HasAppliedAsset;
 
-        /// <summary>
-        /// 是否有运行时对象。
-        /// </summary>
+        /// <summary>是否有运行时对象。</summary>
         public bool HasRuntimeObject;
 
 #if UNITY_EDITOR
-        /// <summary>
-        /// 目标对象（仅编辑器）。
-        /// </summary>
+        /// <summary>目标对象（仅编辑器）。</summary>
         public UnityEngine.Object TargetObject;
 #endif
     }
@@ -483,45 +355,29 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public struct ResourceOwnerInfo
     {
-        /// <summary>
-        /// 是否活跃。
-        /// </summary>
+        /// <summary>是否活跃。</summary>
         public bool Active;
 
-        /// <summary>
-        /// 所有者索引。
-        /// </summary>
+        /// <summary>所有者索引。</summary>
         public int OwnerIndex;
 
-        /// <summary>
-        /// 所有者 ID。
-        /// </summary>
+        /// <summary>所有者 ID。</summary>
         public int OwnerId;
 
-        /// <summary>
-        /// GameObject ID。
-        /// </summary>
+        /// <summary>GameObject ID。</summary>
         public ulong GameObjectId;
 
-        /// <summary>
-        /// 代际标记。
-        /// </summary>
+        /// <summary>代际标记。</summary>
         public uint Generation;
 
-        /// <summary>
-        /// 绑定数量。
-        /// </summary>
+        /// <summary>绑定数量。</summary>
         public int BindingCount;
 
-        /// <summary>
-        /// 是否有所有者对象。
-        /// </summary>
+        /// <summary>是否有所有者对象。</summary>
         public bool HasOwnerObject;
 
 #if UNITY_EDITOR
-        /// <summary>
-        /// 所有者对象（仅编辑器）。
-        /// </summary>
+        /// <summary>所有者对象（仅编辑器）。</summary>
         public UnityEngine.GameObject OwnerObject;
 #endif
     }

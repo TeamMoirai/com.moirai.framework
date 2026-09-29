@@ -2,7 +2,9 @@ using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos
 {
-    /// <summary>服务生命周期状态。由容器（<see cref="ServiceWorld"/>）统一维护，服务侧仅只读投影。</summary>
+    /// <summary>
+    /// 服务生命周期状态。由容器（<see cref="ServiceWorld"/>）统一维护，服务侧仅只读投影。
+    /// </summary>
     public enum EServiceState : byte
     {
         /// <summary>已创建但未初始化。</summary>
@@ -20,18 +22,16 @@ namespace Moirai.Atropos
     /// </summary>
     public enum EDeferMode : byte
     {
-        /// <summary>
-        /// 延迟到当前迭代结束后执行（默认）。适用于 Tick 中注册/注销服务。
-        /// </summary>
+        /// <summary>延迟到当前迭代结束后执行（默认）。适用于 Tick 中注册/注销服务。</summary>
         Defer = 0,
 
-        /// <summary>
-        /// 立即抛出异常（Fail-fast）。用于检测意外的迭代中注册。
-        /// </summary>
+        /// <summary>立即抛出异常（Fail-fast）。用于检测意外的迭代中注册。</summary>
         Throw = 1,
     }
 
-    /// <summary>服务作用域种类。</summary>
+    /// <summary>
+    /// 服务作用域种类。
+    /// </summary>
     public enum EServiceScopeKind : byte
     {
         /// <summary>应用级，生命周期最长，随 GameApp 关闭而销毁。</summary>
@@ -54,14 +54,10 @@ namespace Moirai.Atropos
     /// </remarks>
     public interface IService
     {
-        /// <summary>
-        /// 轮询优先级（降序，高优先先轮询、后关闭）。
-        /// </summary>
+        /// <summary>轮询优先级（降序，高优先先轮询、后关闭）。</summary>
         int Priority { get; }
 
-        /// <summary>
-        /// 所属作用域。
-        /// </summary>
+        /// <summary>所属作用域。</summary>
         EServiceScopeKind Scope { get; }
 
         /// <summary>

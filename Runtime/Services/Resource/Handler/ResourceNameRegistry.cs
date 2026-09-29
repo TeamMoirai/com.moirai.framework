@@ -30,7 +30,9 @@ namespace Moirai.Atropos.Resource
             _miss = miss;
         }
 
-        /// <summary>取 id，不存在则登记并返回新 id。归一化由调用方在此之前完成。</summary>
+        /// <summary>
+        /// 取 id，不存在则登记并返回新 id。归一化由调用方在此之前完成。
+        /// </summary>
         public int GetOrAdd(TValue value)
         {
             if (_ids.TryGetValue(value, out int id))
@@ -45,10 +47,14 @@ namespace Moirai.Atropos.Resource
             return id;
         }
 
-        /// <summary>只读查询：不登记、不分配。packed key 的非驻留取键路径走这里。</summary>
+        /// <summary>
+        /// 只读查询：不登记、不分配。packed key 的非驻留取键路径走这里。
+        /// </summary>
         public bool TryGetId(TValue value, out int id) => _ids.TryGetValue(value, out id);
 
-        /// <summary>按 id 取名。越界或该槽位已被回收时回 <paramref name="miss"/>。</summary>
+        /// <summary>
+        /// 按 id 取名。越界或该槽位已被回收时回 <paramref name="miss"/>。
+        /// </summary>
         public TValue GetValue(int id)
         {
             if (_values == null || id <= 0 || id >= _values.Length)
@@ -60,7 +66,9 @@ namespace Moirai.Atropos.Resource
             return value ?? _miss;
         }
 
-        /// <summary>记录一条持有该键的资源时 +1。</summary>
+        /// <summary>
+        /// 记录一条持有该键的资源时 +1。
+        /// </summary>
         public void Retain(int id)
         {
             if (_refCounts == null || id <= 0 || id >= _refCounts.Length)

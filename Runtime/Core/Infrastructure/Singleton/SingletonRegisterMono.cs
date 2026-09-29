@@ -46,9 +46,7 @@ namespace Moirai.Atropos
 
         #region 单例访问 [Singleton Access]
 
-        /// <summary>
-        /// 获取单例实例；首次访问时在主线程自动创建宿主 GameObject 并挂载组件。
-        /// </summary>
+        /// <summary>获取单例实例；首次访问时在主线程自动创建宿主 GameObject 并挂载组件。</summary>
         public static T Instance
         {
             get

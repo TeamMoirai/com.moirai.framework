@@ -18,9 +18,7 @@ namespace Moirai.Atropos
             _handle = handle;
         }
 
-        /// <summary>
-        /// 获取句柄是否有效。
-        /// </summary>
+        /// <summary>获取句柄是否有效。</summary>
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

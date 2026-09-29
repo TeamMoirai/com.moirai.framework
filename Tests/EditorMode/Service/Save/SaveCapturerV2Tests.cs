@@ -18,7 +18,9 @@ namespace Service.Save
     /// </remarks>
     public partial class SaveCapturerV2Tests
     {
-        /// <summary>嵌套数据类（public 实例字段递归捕获）。</summary>
+        /// <summary>
+        /// 嵌套数据类（public 实例字段递归捕获）。
+        /// </summary>
         [SaveData("V2Stats", 1)]
         public sealed class V2Stats
         {
@@ -27,7 +29,9 @@ namespace Service.Save
             public List<int> Scores;
         }
 
-        /// <summary>v2 类型矩阵测试组件。</summary>
+        /// <summary>
+        /// v2 类型矩阵测试组件。
+        /// </summary>
         internal partial class V2Component : MonoBehaviour
         {
             [SaveField]

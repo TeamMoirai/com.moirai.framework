@@ -30,14 +30,18 @@ namespace Moirai.Atropos.Debugger
 
         public List<KeyValuePair<string, object>> Metrics => _metrics;
 
-        /// <summary>追加一个用例自定义指标（如 reserve/pages/hard），落日志与 XML。</summary>
+        /// <summary>
+        /// 追加一个用例自定义指标（如 reserve/pages/hard），落日志与 XML。
+        /// </summary>
         public BenchmarkCaseResult Metric(string key, object value)
         {
             _metrics.Add(new KeyValuePair<string, object>(key, value));
             return this;
         }
 
-        /// <summary>把结果格式化成一行人类可读文本，<paramref name="tag"/> 为各 Benchmark 自己的日志前缀。</summary>
+        /// <summary>
+        /// 把结果格式化成一行人类可读文本，<paramref name="tag"/> 为各 Benchmark 自己的日志前缀。
+        /// </summary>
         public string FormatLine(string tag)
         {
             StringBuilder line = new StringBuilder(160);
@@ -96,7 +100,9 @@ namespace Moirai.Atropos.Debugger
             return result;
         }
 
-        /// <summary>追加根节点属性；同名覆盖，写入顺序即首次设置顺序。</summary>
+        /// <summary>
+        /// 追加根节点属性；同名覆盖，写入顺序即首次设置顺序。
+        /// </summary>
         public BenchmarkReport SetMetadata(string key, string value)
         {
             for (int i = 0; i < _metadata.Count; i++)

@@ -30,7 +30,9 @@ namespace Service.Audio
             fixture?.Dispose();
         }
 
-        /// <summary>留池视图是现算投影，不是要与主表同步维护的镜像表。</summary>
+        /// <summary>
+        /// 留池视图是现算投影，不是要与主表同步维护的镜像表。
+        /// </summary>
         /// <remarks>
         /// 取用/归还/抬升策略不再向镜像字典记账，装箱只可能发生在枚举/取值这一次冷路径上； <br />
         /// 「视图里还在、缓存里已无」的残影因此成为结构上不可表达的状态——本用例锁的正是它。
@@ -59,7 +61,9 @@ namespace Service.Audio
             Assert.AreEqual(0, _fixture.Cache.PoolReadOnly.Count);
         }
 
-        /// <summary>枚举期间卸载条目不得抛：视图先摘快照再交出去。</summary>
+        /// <summary>
+        /// 枚举期间卸载条目不得抛：视图先摘快照再交出去。
+        /// </summary>
         /// <remarks>交出去的是枚举快照而非包装底层字典，故「边看边清」这一调试面板与兼容入口的真实用法不会触发 <c>InvalidOperationException</c>。</remarks>
         [Test]
         public void PoolView_EnumerateWhileUnloading_DoesNotThrow()

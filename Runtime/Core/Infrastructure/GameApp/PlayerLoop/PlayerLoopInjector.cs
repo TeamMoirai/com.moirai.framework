@@ -14,13 +14,19 @@ namespace Moirai.Atropos
     /// </remarks>
     internal static class PlayerLoopInjector
     {
-        /// <summary>Moirai Update 注入点标记类型。</summary>
+        /// <summary>
+        /// Moirai Update 注入点标记类型。
+        /// </summary>
         public sealed class MoiraiUpdate { }
 
-        /// <summary>Moirai FixedUpdate 注入点标记类型。</summary>
+        /// <summary>
+        /// Moirai FixedUpdate 注入点标记类型。
+        /// </summary>
         public sealed class MoiraiFixedUpdate { }
 
-        /// <summary>Moirai LateUpdate 注入点标记类型。</summary>
+        /// <summary>
+        /// Moirai LateUpdate 注入点标记类型。
+        /// </summary>
         public sealed class MoiraiLateUpdate { }
 
         private static PlayerLoopSystem.UpdateFunction s_UpdateDelegate;
@@ -253,7 +259,9 @@ namespace Moirai.Atropos
             return false;
         }
 
-        /// <summary>三个 Moirai 标记是否全部存在于给定循环中（注入完成度实况校验）。</summary>
+        /// <summary>
+        /// 三个 Moirai 标记是否全部存在于给定循环中（注入完成度实况校验）。
+        /// </summary>
         private static bool AllMarkersPresent(PlayerLoopSystem loop)
         {
             return HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.Update), typeof(MoiraiUpdate))

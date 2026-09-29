@@ -42,9 +42,7 @@ namespace Moirai.Atropos
 
         #region 事件回调 [EVENTS]
 
-        /// <summary>
-        /// 日志事件回调，每次日志经 <see cref="LogHandler.Log"/> 记录后触发。
-        /// </summary>
+        /// <summary>日志事件回调，每次日志经 <see cref="LogHandler.Log"/> 记录后触发。</summary>
         /// <remarks>
         /// 仅在日志通过 <see cref="LogHandler.MinimumLevel"/> 过滤后触发，被过滤的日志不触发。 <br />
         /// 可用于调试器内嵌控制台、崩溃上报、测试断言等场景。
@@ -142,9 +140,7 @@ namespace Moirai.Atropos
         private static ILogHandler s_OriginalUnityHandler;
         private static UnityLogInterceptor s_Interceptor;
 
-        /// <summary>
-        /// 当前全局拦截是否已启用。
-        /// </summary>
+        /// <summary>当前全局拦截是否已启用。</summary>
         public static bool IsGlobalInterceptionEnabled => s_Interceptor != null;
 
         /// <summary>

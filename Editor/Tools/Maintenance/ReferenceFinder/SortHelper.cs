@@ -13,34 +13,22 @@ namespace Moirai.Atropos.ReferenceFinder
         /// </summary>
         public delegate int SortCompare(string lString, string rString);
 
-        /// <summary>
-        /// 已执行过排序的资产 GUID 集合。
-        /// </summary>
+        /// <summary>已执行过排序的资产 GUID 集合。</summary>
         public static readonly HashSet<string> SortedGuid = new HashSet<string>();
 
-        /// <summary>
-        /// 资产路径到上次排序方式的缓存。
-        /// </summary>
+        /// <summary>资产路径到上次排序方式的缓存。</summary>
         public static readonly Dictionary<string, SortType> SortedAsset = new Dictionary<string, SortType>();
 
-        /// <summary>
-        /// 获取或设置当前排序方式。
-        /// </summary>
+        /// <summary>获取或设置当前排序方式。</summary>
         public static SortType CurSortType = SortType.None;
 
-        /// <summary>
-        /// 路径组上次使用的排序方式。
-        /// </summary>
+        /// <summary>路径组上次使用的排序方式。</summary>
         public static SortType PathType = SortType.None;
 
-        /// <summary>
-        /// 名称组上次使用的排序方式。
-        /// </summary>
+        /// <summary>名称组上次使用的排序方式。</summary>
         public static SortType NameType = SortType.None;
 
-        /// <summary>
-        /// 排序方式到比较函数的映射。
-        /// </summary>
+        /// <summary>排序方式到比较函数的映射。</summary>
         public static readonly Dictionary<SortType, SortCompare> CompareFunction = new Dictionary<SortType, SortCompare>
         {
             { SortType.AscByPath, CompareWithPath },

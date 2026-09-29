@@ -19,9 +19,7 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public interface ISaveStorage
     {
-        /// <summary>
-        /// 后端能力自描述（原子改名/真异步/尺寸上限/易失性）。
-        /// </summary>
+        /// <summary>后端能力自描述（原子改名/真异步/尺寸上限/易失性）。</summary>
         SaveStorageCapabilities Capabilities { get; }
 
         #region 同步原语 [SYNC PRIMITIVES]

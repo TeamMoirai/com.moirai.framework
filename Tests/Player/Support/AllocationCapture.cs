@@ -5,7 +5,9 @@ using UnityEngine.Profiling;
 
 namespace Testing
 {
-    /// <summary>一次分配测量的汇总结果。</summary>
+    /// <summary>
+    /// 一次分配测量的汇总结果。
+    /// </summary>
     internal readonly struct AllocationSample
     {
         internal readonly int Allocations;
@@ -30,14 +32,10 @@ namespace Testing
     /// </remarks>
     internal static class AllocationCapture
     {
-        /// <summary>
-        /// 采样能力探测缓存：-1 未探测、0 不可用、1 可用（同一运行时内不会翻转）。
-        /// </summary>
+        /// <summary>采样能力探测缓存：-1 未探测、0 不可用、1 可用（同一运行时内不会翻转）。</summary>
         private static int s_CounterUsable = -1;
 
-        /// <summary>
-        /// 测量窗重入守卫：嵌套测量窗会让进程共享的 <see cref="Recorder"/> 单例互相开关 enabled、把分配事件错记进对方计数，故当场判红而不静默错账。
-        /// </summary>
+        /// <summary>测量窗重入守卫：嵌套测量窗会让进程共享的 <see cref="Recorder"/> 单例互相开关 enabled、把分配事件错记进对方计数，故当场判红而不静默错账。</summary>
         private static bool s_InWindow;
 
         /// <summary>
@@ -159,7 +157,9 @@ namespace Testing
             return ms;
         }
 
-        /// <summary>已知分配校准：确认测量台能抓到分配（防 0 断言因测量失效而假绿）。</summary>
+        /// <summary>
+        /// 已知分配校准：确认测量台能抓到分配（防 0 断言因测量失效而假绿）。
+        /// </summary>
         public static void CalibrateKnownAllocation()
         {
             // 采样不可用时 MeasureManaged 已 Ignore；能走到这里说明采样确实在推进，

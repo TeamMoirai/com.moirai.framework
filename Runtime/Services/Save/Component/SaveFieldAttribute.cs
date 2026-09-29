@@ -15,9 +15,7 @@ namespace Moirai.Atropos.Save
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
     public sealed class SaveFieldAttribute : Attribute
     {
-        /// <summary>
-        /// 存档键（null = 使用字段名）。重命名会破坏旧档读取，需要改名时显式指定键保持稳定。
-        /// </summary>
+        /// <summary>存档键（null = 使用字段名）。重命名会破坏旧档读取，需要改名时显式指定键保持稳定。</summary>
         public string Key { get; }
 
         /// <summary>

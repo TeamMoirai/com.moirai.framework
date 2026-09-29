@@ -76,14 +76,10 @@ namespace Moirai.Atropos.Localization
 
         #region 属性 [PROPERTIES]
 		
-        /// <summary>
-        /// 当前使用的本地化语言（未就绪时为 <see cref="Language.Unspecified"/>）。
-        /// </summary>
+        /// <summary>当前使用的本地化语言（未就绪时为 <see cref="Language.Unspecified"/>）。</summary>
         public static Language CurrentLanguage => s_Handler?.CurrentLanguage ?? Language.Unspecified;
 
-        /// <summary>
-        /// 当前语言索引（未就绪时为 -1）。
-        /// </summary>
+        /// <summary>当前语言索引（未就绪时为 -1）。</summary>
         public static int CurrentLanguageIndex => s_Handler?.CurrentLanguageIndex ?? -1;
 
         #endregion
@@ -96,15 +92,11 @@ namespace Moirai.Atropos.Localization
         /// <summary>已加载语言数（未就绪时为 0）。</summary>
         public static int LoadedLanguageCount => s_Handler?.LanguageCount ?? 0;
 
-        /// <summary>
-        /// 当前批内收录的语言，列序即批内列下标顺序；未就绪时为空。
-        /// </summary>
+        /// <summary>当前批内收录的语言，列序即批内列下标顺序；未就绪时为空。</summary>
         /// <remarks>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</remarks>
         public static IReadOnlyList<Language> LoadedLanguages => s_Handler?.LoadedLanguages ?? Array.Empty<Language>();
 
-        /// <summary>
-        /// 全部语言列的译文总字符数——常驻译文的规模下限（未就绪时为 0）。
-        /// </summary>
+        /// <summary>全部语言列的译文总字符数——常驻译文的规模下限（未就绪时为 0）。</summary>
         /// <remarks>UTF-16 每字符 2 字节，不含字符串对象头与字典开销。
         /// 用于判断是否已到必须按语言拆包加载的量级。</remarks>
         public static long ResidentChars => s_Handler?.ResidentChars ?? 0;
@@ -112,15 +104,11 @@ namespace Moirai.Atropos.Localization
         /// <summary>已登记的运行时覆盖层数量。</summary>
         public static int StringOverlayLayerCount => s_Handler?.StringOverlayLayerCount ?? 0;
 
-        /// <summary>
-        /// 本地化数据是否已加载完成（只读快照，不触发懒加载）。
-        /// </summary>
+        /// <summary>本地化数据是否已加载完成（只读快照，不触发懒加载）。</summary>
         /// <remarks>本地化器据此区分「数据未就绪」（静默推迟注入，首载成功的语言切换会重注入）与「词条真缺失」（报错）。</remarks>
         public static bool IsDataLoaded => s_Handler?.IsDataLoaded ?? false;
 
-        /// <summary>
-        /// 当前语言是否从右向左书写（未就绪为 <c>false</c>）。
-        /// </summary>
+        /// <summary>当前语言是否从右向左书写（未就绪为 <c>false</c>）。</summary>
         /// <remarks>仅 TMP 文本应用该方向（<c>TMP_Text.isRightToLeftText</c>）；UGUI Text 与 TextMesh 无 RTL 排版能力。</remarks>
         public static bool IsCurrentLanguageRightToLeft => s_Handler?.IsCurrentLanguageRightToLeft ?? false;
 
@@ -128,9 +116,7 @@ namespace Moirai.Atropos.Localization
 
         #region 事件 [EVENTS]
 
-        /// <summary>
-        /// 当语言改变时调用。
-        /// </summary>
+        /// <summary>当语言改变时调用。</summary>
         public static event Action<Language> OnLanguageChanged;
 
         #endregion
@@ -307,15 +293,21 @@ namespace Moirai.Atropos.Localization
         public static string GetTextFromId<T1>(string id, T1 arg1) =>
             s_Handler?.GetTextFromId(id, arg1) ?? id;
 
-        /// <summary>根据文本 ID 获取带两个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带两个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public static string GetTextFromId<T1, T2>(string id, T1 arg1, T2 arg2) =>
             s_Handler?.GetTextFromId(id, arg1, arg2) ?? id;
 
-        /// <summary>根据文本 ID 获取带三个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带三个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public static string GetTextFromId<T1, T2, T3>(string id, T1 arg1, T2 arg2, T3 arg3) =>
             s_Handler?.GetTextFromId(id, arg1, arg2, arg3) ?? id;
 
-        /// <summary>根据文本 ID 获取带四个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带四个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public static string GetTextFromId<T1, T2, T3, T4>(string id, T1 arg1, T2 arg2, T3 arg3, T4 arg4) =>
             s_Handler?.GetTextFromId(id, arg1, arg2, arg3, arg4) ?? id;
 
@@ -430,10 +422,14 @@ namespace Moirai.Atropos.Localization
         public static int SetStringOverlay(string sourceId, Language language, IEnumerable<KeyValuePair<string, string>> entries) =>
             s_Handler?.SetStringOverlay(sourceId, language, entries) ?? -1;
 
-        /// <summary>撤掉某个来源的全部覆盖（未就绪时为 false）。</summary>
+        /// <summary>
+        /// 撤掉某个来源的全部覆盖（未就绪时为 false）。
+        /// </summary>
         public static bool ClearStringOverlay(string sourceId) => s_Handler?.ClearStringOverlay(sourceId) ?? false;
 
-        /// <summary>撤掉全部覆盖层。</summary>
+        /// <summary>
+        /// 撤掉全部覆盖层。
+        /// </summary>
         public static void ClearAllStringOverlays() => s_Handler?.ClearAllStringOverlays();
 
         #endregion

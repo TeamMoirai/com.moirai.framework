@@ -39,7 +39,9 @@ namespace Moirai.Atropos.Audio
         [Button("从 Mixer 重建混音快照映射")]
         public void RebuildFromMixer() => RebuildMixSnapshotsFromMixer();
 
-        /// <summary>重建映射并回报结果：服务已在跑时顺带把新映射登记进状态机。</summary>
+        /// <summary>
+        /// 重建映射并回报结果：服务已在跑时顺带把新映射登记进状态机。
+        /// </summary>
         /// <returns>本次由自动绑定补齐的条目数；<c>0</c> 表示 Mixer 里没有可按名对上的快照。</returns>
         public int RebuildMixSnapshotsFromMixer()
         {

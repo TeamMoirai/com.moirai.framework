@@ -16,14 +16,10 @@ namespace Moirai.Atropos.Input
         private static readonly Dictionary<string, InputButton> s_Buttons = new Dictionary<string, InputButton>();
         private static readonly Dictionary<string, InputAxes> s_Axes = new Dictionary<string, InputAxes>();
 
-        /// <summary>
-        /// 当前注册的全部虚拟按钮（只读视图，元素顺序不保证）。
-        /// </summary>
+        /// <summary>当前注册的全部虚拟按钮（只读视图，元素顺序不保证）。</summary>
         public static IReadOnlyCollection<InputButton> Buttons => s_Buttons.Values;
 
-        /// <summary>
-        /// 当前注册的全部虚拟摇杆（只读视图，元素顺序不保证）。
-        /// </summary>
+        /// <summary>当前注册的全部虚拟摇杆（只读视图，元素顺序不保证）。</summary>
         public static IReadOnlyCollection<InputAxes> Axes => s_Axes.Values;
 
         /// <summary>

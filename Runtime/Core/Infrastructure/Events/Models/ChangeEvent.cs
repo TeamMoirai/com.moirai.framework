@@ -17,15 +17,11 @@ namespace Moirai.Atropos.Events
             SetCreateFunction(() => new ChangeEvent<T>());
         }
 
-        /// <summary>
-        /// 更改发生之前的值。
-        /// </summary>
+        /// <summary>更改发生之前的值。</summary>
         [JsonSerialize]
         public T PreviousValue { get; protected set; }
         
-        /// <summary>
-        /// 新值。
-        /// </summary>
+        /// <summary>新值。</summary>
         [JsonSerialize]
         public T NewValue { get; protected set; }
 

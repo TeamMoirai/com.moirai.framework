@@ -5,9 +5,7 @@
     /// </summary>
     public abstract class ProcedureBase
     {
-        /// <summary>
-        /// 流程处理器引用，由 <see cref="ProcedureServiceHandler.Initialize"/> 时注入。
-        /// </summary>
+        /// <summary>流程处理器引用，由 <see cref="ProcedureServiceHandler.Initialize"/> 时注入。</summary>
         internal ProcedureServiceHandler Owner { get; private set; }
 
         internal void SetOwner(ProcedureServiceHandler owner) => Owner = owner;

@@ -49,7 +49,9 @@ namespace Service.Timer
             }
         }
 
-        /// <summary>推进缩放与非缩放时钟（默认二者同步）并按 50ms 步进驱动 Update Tick。</summary>
+        /// <summary>
+        /// 推进缩放与非缩放时钟（默认二者同步）并按 50ms 步进驱动 Update Tick。
+        /// </summary>
         private void Advance(double seconds, bool advanceUnscaled = true)
         {
             int steps = (int)Math.Ceiling(seconds / 0.05);
@@ -65,7 +67,9 @@ namespace Service.Timer
             }
         }
 
-        /// <summary>仅推进帧计数（冻结时钟），驱动 Update Tick 一帧。</summary>
+        /// <summary>
+        /// 仅推进帧计数（冻结时钟），驱动 Update Tick 一帧。
+        /// </summary>
         private void FrameTick(int frames = 1)
         {
             for (int i = 0; i < frames; i++)

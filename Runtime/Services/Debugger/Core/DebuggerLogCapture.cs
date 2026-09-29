@@ -69,44 +69,28 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取环形缓冲容量。
-        /// </summary>
+        /// <summary>获取环形缓冲容量。</summary>
         public int Capacity => _capacity;
 
-        /// <summary>
-        /// 获取是否正在捕获（Start/Stop 幂等守卫——重复 Start 不会重复订阅日志回调）。
-        /// </summary>
+        /// <summary>获取是否正在捕获（Start/Stop 幂等守卫——重复 Start 不会重复订阅日志回调）。</summary>
         public bool IsRunning => _isRunning;
 
-        /// <summary>
-        /// 获取当前缓冲的日志总数。
-        /// </summary>
+        /// <summary>获取当前缓冲的日志总数。</summary>
         public int Count => _nodes.Count;
 
-        /// <summary>
-        /// 获取信息级日志计数。
-        /// </summary>
+        /// <summary>获取信息级日志计数。</summary>
         public int InfoCount => _infoCount;
 
-        /// <summary>
-        /// 获取警告级日志计数。
-        /// </summary>
+        /// <summary>获取警告级日志计数。</summary>
         public int WarningCount => _warningCount;
 
-        /// <summary>
-        /// 获取错误级日志计数。
-        /// </summary>
+        /// <summary>获取错误级日志计数。</summary>
         public int ErrorCount => _errorCount;
 
-        /// <summary>
-        /// 获取致命级（异常）日志计数。
-        /// </summary>
+        /// <summary>获取致命级（异常）日志计数。</summary>
         public int FatalCount => _fatalCount;
 
-        /// <summary>
-        /// 获取内容版本号（新日志入环或清空时递增——消费端据此节流刷新）。
-        /// </summary>
+        /// <summary>获取内容版本号（新日志入环或清空时递增——消费端据此节流刷新）。</summary>
         public int Version => _version;
 
         #endregion

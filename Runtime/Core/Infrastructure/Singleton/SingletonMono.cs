@@ -57,9 +57,7 @@ namespace Moirai.Atropos
 
         #region 单例访问 [Singleton Access]
 
-        /// <summary>
-        /// 此单例是否已有可用实例（不含退出窗口期）。
-        /// </summary>
+        /// <summary>此单例是否已有可用实例（不含退出窗口期）。</summary>
         public static bool IsValid => s_Instance != null && !s_ShuttingDown;
 
         /// <summary>
@@ -67,14 +65,10 @@ namespace Moirai.Atropos
         /// </summary>
         public static T TryGetInstance() => IsValid ? s_Instance : null;
 
-        /// <summary>
-        /// 获取单例实例（<see cref="Instance"/> 的别名，供语义化调用点使用）。
-        /// </summary>
+        /// <summary>获取单例实例（<see cref="Instance"/> 的别名，供语义化调用点使用）。</summary>
         public static T Current => Instance;
 
-        /// <summary>
-        /// 单例设计模式：获取实例；首次访问时查找场景已有实例，未找到则自动创建。
-        /// </summary>
+        /// <summary>单例设计模式：获取实例；首次访问时查找场景已有实例，未找到则自动创建。</summary>
         /// <value>实例；退出窗口期或编辑模式未找到时为 null。</value>
         public static T Instance
         {

@@ -48,9 +48,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 获取运行时宿主单例（未创建为 null）。
-        /// </summary>
+        /// <summary>获取运行时宿主单例（未创建为 null）。</summary>
         public static DebuggerRuntimeHost Instance
         {
             get;
@@ -98,9 +96,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取或设置完整调试器窗口是否展开（选中窗口的 OnEnter/OnLeave 随之配对）。
-        /// </summary>
+        /// <summary>获取或设置完整调试器窗口是否展开（选中窗口的 OnEnter/OnLeave 随之配对）。</summary>
         public bool ShowFullWindow
         {
             get
@@ -137,9 +133,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取或设置常驻统计 HUD 可见性。
-        /// </summary>
+        /// <summary>获取或设置常驻统计 HUD 可见性。</summary>
         public bool StatsOverlayVisible
         {
             get
@@ -153,9 +147,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取或设置用户窗口缩放（0.5-2，重建面板缩放）。
-        /// </summary>
+        /// <summary>获取或设置用户窗口缩放（0.5-2，重建面板缩放）。</summary>
         public float WindowScale
         {
             get
@@ -659,9 +651,7 @@ namespace Moirai.Atropos.Debugger
             _toggleButton.style.height = _iconRect.height;
         }
 
-        /// <summary>
-        /// 获取或设置悬浮入口矩形（面板参考坐标）。
-        /// </summary>
+        /// <summary>获取或设置悬浮入口矩形（面板参考坐标）。</summary>
         internal Rect IconRect
         {
             get
@@ -880,9 +870,7 @@ namespace Moirai.Atropos.Debugger
             });
         }
 
-        /// <summary>
-        /// 获取或设置主窗口矩形（面板参考坐标，自动钳制在屏幕内）。
-        /// </summary>
+        /// <summary>获取或设置主窗口矩形（面板参考坐标，自动钳制在屏幕内）。</summary>
         internal Rect WindowRect
         {
             get

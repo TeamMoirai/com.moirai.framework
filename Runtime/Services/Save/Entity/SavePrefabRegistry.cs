@@ -29,19 +29,13 @@ namespace Moirai.Atropos.Save
             /// <summary>ResourceService 定位串（YooAsset 地址；运行期生成/恢复的加载入口）。</summary>
             [SerializeField] internal string m_Location = string.Empty;
 
-            /// <summary>
-            /// 稳定键。
-            /// </summary>
+            /// <summary>稳定键。</summary>
             public string Key => m_Key;
 
-            /// <summary>
-            /// 预制体引用。
-            /// </summary>
+            /// <summary>预制体引用。</summary>
             public GameObject Prefab => m_Prefab;
 
-            /// <summary>
-            /// ResourceService 定位串。
-            /// </summary>
+            /// <summary>ResourceService 定位串。</summary>
             public string Location => m_Location;
         }
 
@@ -51,9 +45,7 @@ namespace Moirai.Atropos.Save
         /// <summary>稳定键 → 条目表（延迟构建，Ordinal 比较——键为持久化标识而非显示文本）。</summary>
         private Dictionary<string, Entry> _keyToEntry;
 
-        /// <summary>
-        /// 登记条目数。
-        /// </summary>
+        /// <summary>登记条目数。</summary>
         public int Count => m_Entries.Count;
 
         /// <summary>

@@ -4,7 +4,9 @@ using NUnit.Framework;
 
 namespace Service.UI
 {
-    /// <summary>错误日志记录器的启用判据（<see cref="UGUIHandler"/> 的 <c>ShouldEnableErrorLog</c>）单元测试。</summary>
+    /// <summary>
+    /// 错误日志记录器的启用判据（<see cref="UGUIHandler"/> 的 <c>ShouldEnableErrorLog</c>）单元测试。
+    /// </summary>
     /// <remarks>判据决定发布包里每次异常是否弹出 <c>LogUI</c>；四种窗口策略与两个环境位钉成表。纯逻辑测试，不依赖场景、Canvas 与 UI 后端。</remarks>
     [TestFixture]
     public sealed class UGUIHandlerErrorLogPolicyTests

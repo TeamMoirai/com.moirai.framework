@@ -12,24 +12,16 @@ namespace Moirai.Atropos.Save
     /// </summary>
     internal readonly struct SaveBlockEntry
     {
-        /// <summary>
-        /// 数据块键。
-        /// </summary>
+        /// <summary>数据块键。</summary>
         public readonly string Key;
 
-        /// <summary>
-        /// 数据块模式版本。
-        /// </summary>
+        /// <summary>数据块模式版本。</summary>
         public readonly int DataVersion;
 
-        /// <summary>
-        /// 序列化后端标识。
-        /// </summary>
+        /// <summary>序列化后端标识。</summary>
         public readonly ESaveBackend Backend;
 
-        /// <summary>
-        /// 序列化后的块载荷字节。
-        /// </summary>
+        /// <summary>序列化后的块载荷字节。</summary>
         public readonly byte[] Bytes;
 
         /// <summary>
@@ -55,34 +47,22 @@ namespace Moirai.Atropos.Save
     /// <see cref="HasMetadata"/> 为 <c>true</c> 时版本/后端/尺寸字段有效。</remarks>
     internal readonly struct SaveBlockError
     {
-        /// <summary>
-        /// 坏块键（<c>null</c> = 块边界不可读的结构性损坏）。
-        /// </summary>
+        /// <summary>坏块键（<c>null</c> = 块边界不可读的结构性损坏）。</summary>
         public readonly string Key;
 
-        /// <summary>
-        /// 逐块错误码（v2 恒为 <see cref="SaveError.Corrupted"/>；保留字段面向未来分型扩展）。
-        /// </summary>
+        /// <summary>逐块错误码（v2 恒为 <see cref="SaveError.Corrupted"/>；保留字段面向未来分型扩展）。</summary>
         public readonly SaveError Error;
 
-        /// <summary>
-        /// 数据块模式版本（仅 <see cref="HasMetadata"/> 为 <c>true</c> 时有效）。
-        /// </summary>
+        /// <summary>数据块模式版本（仅 <see cref="HasMetadata"/> 为 <c>true</c> 时有效）。</summary>
         public readonly int DataVersion;
 
-        /// <summary>
-        /// 序列化后端标识（仅 <see cref="HasMetadata"/> 为 <c>true</c> 时有效）。
-        /// </summary>
+        /// <summary>序列化后端标识（仅 <see cref="HasMetadata"/> 为 <c>true</c> 时有效）。</summary>
         public readonly ESaveBackend Backend;
 
-        /// <summary>
-        /// 块载荷字节数（仅 <see cref="HasMetadata"/> 为 <c>true</c> 时有效）。
-        /// </summary>
+        /// <summary>块载荷字节数（仅 <see cref="HasMetadata"/> 为 <c>true</c> 时有效）。</summary>
         public readonly int SizeBytes;
 
-        /// <summary>
-        /// 块框架是否完整可读（<c>true</c> = CRC 坏块，版本/后端/尺寸字段可信；<c>false</c> = 结构性损坏，元数据字段为零值）。
-        /// </summary>
+        /// <summary>块框架是否完整可读（<c>true</c> = CRC 坏块，版本/后端/尺寸字段可信；<c>false</c> = 结构性损坏，元数据字段为零值）。</summary>
         public readonly bool HasMetadata;
 
         /// <summary>
@@ -129,24 +109,16 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     internal static class SaveFileContainer
     {
-        /// <summary>
-        /// 容器格式当前版本。
-        /// </summary>
+        /// <summary>容器格式当前版本。</summary>
         public const int CurrentVersion = 2;
 
-        /// <summary>
-        /// 块数合理性上限（防御损坏文件的解析循环放大）。
-        /// </summary>
+        /// <summary>块数合理性上限（防御损坏文件的解析循环放大）。</summary>
         private const int MaxBlockCount = 4096;
 
-        /// <summary>
-        /// 块键字节长度上限（键名校验层已限 64 字符，此处为解析层冗余防御）。
-        /// </summary>
+        /// <summary>块键字节长度上限（键名校验层已限 64 字符，此处为解析层冗余防御）。</summary>
         private const int MaxKeyByteCount = 4096;
 
-        /// <summary>
-        /// 单块定长字段字节数（模式版本 4B + 后端 2B + 载荷长 4B + 载荷 CRC32 4B）。
-        /// </summary>
+        /// <summary>单块定长字段字节数（模式版本 4B + 后端 2B + 载荷长 4B + 载荷 CRC32 4B）。</summary>
         private const int BlockFixedFieldSize = 14;
 
         /// <summary>容器魔数。</summary>
@@ -155,7 +127,9 @@ namespace Moirai.Atropos.Save
         /// <summary>容器定长头部字节数（魔数 + 版本 + 块数）。</summary>
         private const int HeaderSize = 12;
 
-        /// <summary>单块解析结果。</summary>
+        /// <summary>
+        /// 单块解析结果。
+        /// </summary>
         private enum EBlockParseResult
         {
             /// <summary>解析成功（含载荷 CRC 校验通过）。</summary>

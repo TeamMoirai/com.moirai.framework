@@ -71,9 +71,7 @@ namespace Moirai.Atropos.Editor.Testing
 
         private RunState _run;
 
-        /// <summary>
-        /// 本域内 <see cref="RestoreRunState"/> 恢复未完单的时刻（<see cref="EditorApplication.timeSinceStartup"/> 秒）。
-        /// </summary>
+        /// <summary>本域内 <see cref="RestoreRunState"/> 恢复未完单的时刻（<see cref="EditorApplication.timeSinceStartup"/> 秒）。</summary>
         /// <remarks>
         /// -1 表示本单由本域新发起，孤儿判定不参与——只有跨域重载恢复出的单才可能已成孤儿。
         /// </remarks>
@@ -89,7 +87,9 @@ namespace Moirai.Atropos.Editor.Testing
 
         #region UI 构建 [UI BUILD]
 
-        /// <summary>打开 Test Player Runner 窗口（菜单 Window → General → Test Player Runner）。</summary>
+        /// <summary>
+        /// 打开 Test Player Runner 窗口（菜单 Window → General → Test Player Runner）。
+        /// </summary>
         [MenuItem("Window/General/Test Player Runner")]
         public static void OpenWindow()
         {
@@ -508,15 +508,11 @@ namespace Moirai.Atropos.Editor.Testing
 
         #region 判活探针 [LIVENESS PROBES]
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunning(guid)</c> 反射探针：只问本窗口这一单是否仍在跑，窗口手动跑/测试桥不干扰判定。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunning(guid)</c> 反射探针：只问本窗口这一单是否仍在跑，窗口手动跑/测试桥不干扰判定。</summary>
         private static readonly Func<string, bool> IsRunningProbe =
             CreateProbe<Func<string, bool>>("IsRunning", typeof(string));
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunActive()</c> 反射探针：任意 run 在跑即真；仅作接单门与 <see cref="IsRunningProbe"/> 不可用时的降级。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunActive()</c> 反射探针：任意 run 在跑即真；仅作接单门与 <see cref="IsRunningProbe"/> 不可用时的降级。</summary>
         private static readonly Func<bool> IsRunActiveProbe = CreateProbe<Func<bool>>("IsRunActive", null);
 
         private enum ELiveness
@@ -644,13 +640,19 @@ namespace Moirai.Atropos.Editor.Testing
             }
         }
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：单格通过。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：单格通过。
+        /// </summary>
         internal void OnTestPassed(string test) => RecordProgress(1, 0, 0, test, null);
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：单格跳过（Skip/Inconclusive/Cancel 变体）。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：单格跳过（Skip/Inconclusive/Cancel 变体）。
+        /// </summary>
         internal void OnTestSkipped(string test) => RecordProgress(0, 0, 1, test, null);
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：单格失败，附 Message+StackTrace 详情。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：单格失败，附 Message+StackTrace 详情。
+        /// </summary>
         internal void OnTestFailed(string test, string detail) => RecordProgress(0, 1, 0, test, detail);
 
         private void RecordProgress(int pass, int fail, int skip, string currentTest, string failureDetail)
@@ -671,7 +673,9 @@ namespace Moirai.Atropos.Editor.Testing
             RefreshUi();
         }
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：正常收口，计数与失败详情取自跨域真相源（磁盘运行态）。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：正常收口，计数与失败详情取自跨域真相源（磁盘运行态）。
+        /// </summary>
         internal void OnRunFinished(double durationSeconds)
         {
             RunState state = _run;
@@ -714,7 +718,9 @@ namespace Moirai.Atropos.Editor.Testing
             RefreshUi();
         }
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：UTF 报错（含玩家构建失败）按 ABORTED 收口，不锁死窗口。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：UTF 报错（含玩家构建失败）按 ABORTED 收口，不锁死窗口。
+        /// </summary>
         internal void OnRunError(string message) => FinishAborted($"TestRunner 报错：{message}");
 
         /// <summary>

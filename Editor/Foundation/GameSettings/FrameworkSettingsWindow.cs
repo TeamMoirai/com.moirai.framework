@@ -71,9 +71,7 @@ namespace Moirai.Atropos.Editor
             public static GUIStyle Meta;
             public static GUIStyle CountLabel;
 
-            /// <summary>
-            /// 样式是否已就绪。
-            /// </summary>
+            /// <summary>样式是否已就绪。</summary>
             public static bool IsReady => s_Initialized && Title != null;
 
             public static void Init()
@@ -145,14 +143,10 @@ namespace Moirai.Atropos.Editor
             // 预缓存的字段级搜索文本（含字段名、Tooltip、Header、LabelText）
             public string fieldSearchText;
 
-            /// <summary>
-            /// 资产是否已创建。
-            /// </summary>
+            /// <summary>资产是否已创建。</summary>
             public bool Exists => instance != null;
 
-            /// <summary>
-            /// 配置资产期望路径。
-            /// </summary>
+            /// <summary>配置资产期望路径。</summary>
             public string AssetPath => saveFolder + type.Name + ".asset";
         }
 
@@ -177,9 +171,7 @@ namespace Moirai.Atropos.Editor
                 _entry = entry;
             }
 
-            /// <summary>
-            /// 所属配置条目（供窗口反查）。
-            /// </summary>
+            /// <summary>所属配置条目（供窗口反查）。</summary>
             public SettingEntry Entry => _entry;
 
             [ShowInInspector, LabelText("类型 [TYPE]"), ReadOnly]

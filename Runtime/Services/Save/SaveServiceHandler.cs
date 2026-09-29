@@ -60,9 +60,7 @@ namespace Moirai.Atropos.Save
         [Tooltip("迁移回写：加载触发版本迁移成功后将迁移结果惰性回写存档（默认开）。关闭时迁移仅作用于当次加载的内存数据，同文件同会话不重复迁移（经会话级缓存），但存档文件保持旧版本。")]
         [SerializeField] private bool m_MigrationWriteBack = true;
 
-        /// <summary>
-        /// 存储后端（未配置时回退共享文件后端）。
-        /// </summary>
+        /// <summary>存储后端（未配置时回退共享文件后端）。</summary>
         /// <remarks>
         /// 严禁在核心管线惰性触达 <see cref="SaveServiceSettings"/>（<c>Resources.Load</c> 仅限主线程，工作线程触达即崩）。
         /// </remarks>
@@ -1884,9 +1882,7 @@ namespace Moirai.Atropos.Save
             return Path.Combine(BasePath, DATA_FOLDER_NAME);
         }
 
-        /// <summary>
-        /// 存档根路径（persistentDataPath，首次访问缓存；仅可在主线程访问；测试可经 <c>s_OverrideBasePath</c> 覆盖）。
-        /// </summary>
+        /// <summary>存档根路径（persistentDataPath，首次访问缓存；仅可在主线程访问；测试可经 <c>s_OverrideBasePath</c> 覆盖）。</summary>
         private static string BasePath
         {
             get

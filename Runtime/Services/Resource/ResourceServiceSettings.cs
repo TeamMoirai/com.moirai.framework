@@ -16,9 +16,7 @@ namespace Moirai.Atropos.Resource
         // 本标志只保证那条 Error 打一次。进程内单次判定即可，无需跨域重载复位。
         private static bool s_OfflineFallbackReported;
 #endif
-        /// <summary>
-        /// 资源运行模式。玩家构建里 <see cref="EResourcePlayMode.EditorSimulate"/> 在读取结果上归一为 <see cref="EResourcePlayMode.OfflinePlay"/>。
-        /// </summary>
+        /// <summary>资源运行模式（玩家构建读作 <see cref="EResourcePlayMode.OfflinePlay"/>，EditorSimulate 归一而来）。</summary>
         /// <remarks>归一不回写资产原值（要看原值请读检视面板）；首次读取归一时打一次 Error。</remarks>
         public static EResourcePlayMode PlayMode
         {

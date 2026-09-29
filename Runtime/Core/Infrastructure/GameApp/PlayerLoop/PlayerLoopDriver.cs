@@ -22,9 +22,7 @@ namespace Moirai.Atropos
 
         private const int INITIAL_CAPACITY = 32;
 
-        /// <summary>
-        /// 订阅异常分级策略：开发期 Fatal 后上抛，发布期隔离续跑。
-        /// </summary>
+        /// <summary>订阅异常分级策略：开发期 Fatal 后上抛，发布期隔离续跑。</summary>
         /// <remarks><c>const</c> 门控，发布构建裁掉死分支，零运行时成本。</remarks>
         private const bool RETHROW_SUBSCRIBER_EXCEPTIONS =
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -33,9 +31,7 @@ namespace Moirai.Atropos
             false;
 #endif
 
-        /// <summary>
-        /// 连续失败熔断默认阈值。与 <c>ServiceWorld.DEFAULT_TICK_TRIP_THRESHOLD</c> 同值（同上，不跨层引用）。
-        /// </summary>
+        /// <summary>连续失败熔断默认阈值。与 <c>ServiceWorld.DEFAULT_TICK_TRIP_THRESHOLD</c> 同值（同上，不跨层引用）。</summary>
         private const int DEFAULT_FAILURE_TRIP_THRESHOLD = 300;
 
         private static readonly ProfilerMarker s_UpdateMarker = new ProfilerMarker("PlayerLoopDriver.Update");
@@ -68,9 +64,7 @@ namespace Moirai.Atropos
 
         private static int s_FailureTripThreshold = DEFAULT_FAILURE_TRIP_THRESHOLD;
 
-        /// <summary>
-        /// 连续失败熔断阈值：同一订户在同一阶段连续异常达到该次数即被摘出。
-        /// </summary>
+        /// <summary>连续失败熔断阈值：同一订户在同一阶段连续异常达到该次数即被摘出。</summary>
         /// <remarks>下限钳制为 1（0 或负值会令订户首次失败即熔断）；与 <c>ServiceWorld.TickFailureTripThreshold</c> 同构。</remarks>
         internal static int FailureTripThreshold
         {
@@ -90,9 +84,7 @@ namespace Moirai.Atropos
         private static bool s_IsShutdown = true;
         private static bool s_LifecycleHooked;
 
-        /// <summary>
-        /// 注册表的主线程 id；0 表示尚未捕获，此时不做主线程判定。
-        /// </summary>
+        /// <summary>注册表的主线程 id；0 表示尚未捕获，此时不做主线程判定。</summary>
         internal static int s_MainThreadId;
 
         /// <summary>
@@ -250,7 +242,9 @@ namespace Moirai.Atropos
 
         #region Unity 事件注册表 [UNITY EVENT REGISTRATION]
 
-        /// <summary>注册 Shutdown / Destroy 广播回调。</summary>
+        /// <summary>
+        /// 注册 Shutdown / Destroy 广播回调。
+        /// </summary>
         public static void AddDestroyCallback(Action callback)
         {
             if (callback == null) return;
@@ -258,7 +252,9 @@ namespace Moirai.Atropos
             s_DestroyCallbacks += callback;
         }
 
-        /// <summary>注销 Destroy 广播回调。</summary>
+        /// <summary>
+        /// 注销 Destroy 广播回调。
+        /// </summary>
         public static void RemoveDestroyCallback(Action callback)
         {
             if (callback == null) return;
@@ -266,7 +262,9 @@ namespace Moirai.Atropos
             s_DestroyCallbacks -= callback;
         }
 
-        /// <summary>注册 OnDrawGizmos 回调（仅编辑器；由 <see cref="GameAppHost"/> 转发驱动）。</summary>
+        /// <summary>
+        /// 注册 OnDrawGizmos 回调（仅编辑器；由 <see cref="GameAppHost"/> 转发驱动）。
+        /// </summary>
         public static void AddDrawGizmosCallback(Action callback)
         {
             if (callback == null) return;
@@ -274,7 +272,9 @@ namespace Moirai.Atropos
             s_DrawGizmosCallbacks += callback;
         }
 
-        /// <summary>注销 OnDrawGizmos 回调。</summary>
+        /// <summary>
+        /// 注销 OnDrawGizmos 回调。
+        /// </summary>
         public static void RemoveDrawGizmosCallback(Action callback)
         {
             if (callback == null) return;
@@ -282,7 +282,9 @@ namespace Moirai.Atropos
             s_DrawGizmosCallbacks -= callback;
         }
 
-        /// <summary>注册 OnDrawGizmosSelected 回调（仅编辑器）。</summary>
+        /// <summary>
+        /// 注册 OnDrawGizmosSelected 回调（仅编辑器）。
+        /// </summary>
         public static void AddDrawGizmosSelectedCallback(Action callback)
         {
             if (callback == null) return;
@@ -290,7 +292,9 @@ namespace Moirai.Atropos
             s_DrawGizmosSelectedCallbacks += callback;
         }
 
-        /// <summary>注销 OnDrawGizmosSelected 回调。</summary>
+        /// <summary>
+        /// 注销 OnDrawGizmosSelected 回调。
+        /// </summary>
         public static void RemoveDrawGizmosSelectedCallback(Action callback)
         {
             if (callback == null) return;
@@ -298,7 +302,9 @@ namespace Moirai.Atropos
             s_DrawGizmosSelectedCallbacks -= callback;
         }
 
-        /// <summary>注册 ApplicationPause 回调。</summary>
+        /// <summary>
+        /// 注册 ApplicationPause 回调。
+        /// </summary>
         public static void AddApplicationPauseCallback(Action<bool> callback)
         {
             if (callback == null) return;
@@ -306,7 +312,9 @@ namespace Moirai.Atropos
             s_ApplicationPauseCallbacks += callback;
         }
 
-        /// <summary>注销 ApplicationPause 回调。</summary>
+        /// <summary>
+        /// 注销 ApplicationPause 回调。
+        /// </summary>
         public static void RemoveApplicationPauseCallback(Action<bool> callback)
         {
             if (callback == null) return;
@@ -314,7 +322,9 @@ namespace Moirai.Atropos
             s_ApplicationPauseCallbacks -= callback;
         }
 
-        /// <summary>注册 ApplicationFocus 回调。</summary>
+        /// <summary>
+        /// 注册 ApplicationFocus 回调。
+        /// </summary>
         public static void AddApplicationFocusCallback(Action<bool> callback)
         {
             if (callback == null) return;
@@ -322,7 +332,9 @@ namespace Moirai.Atropos
             s_ApplicationFocusCallbacks += callback;
         }
 
-        /// <summary>注销 ApplicationFocus 回调。</summary>
+        /// <summary>
+        /// 注销 ApplicationFocus 回调。
+        /// </summary>
         public static void RemoveApplicationFocusCallback(Action<bool> callback)
         {
             if (callback == null) return;
@@ -330,7 +342,9 @@ namespace Moirai.Atropos
             s_ApplicationFocusCallbacks -= callback;
         }
 
-        /// <summary>注册 ApplicationQuit 回调。</summary>
+        /// <summary>
+        /// 注册 ApplicationQuit 回调。
+        /// </summary>
         public static void AddApplicationQuitCallback(Action callback)
         {
             if (callback == null) return;
@@ -338,7 +352,9 @@ namespace Moirai.Atropos
             s_ApplicationQuitCallbacks += callback;
         }
 
-        /// <summary>注销 ApplicationQuit 回调。</summary>
+        /// <summary>
+        /// 注销 ApplicationQuit 回调。
+        /// </summary>
         public static void RemoveApplicationQuitCallback(Action callback)
         {
             if (callback == null) return;
@@ -346,19 +362,25 @@ namespace Moirai.Atropos
             s_ApplicationQuitCallbacks -= callback;
         }
 
-        /// <summary>广播 OnDrawGizmos（由宿主转发，编辑器专用）。</summary>
+        /// <summary>
+        /// 广播 OnDrawGizmos（由宿主转发，编辑器专用）。
+        /// </summary>
         public static void RaiseDrawGizmos()
         {
             s_DrawGizmosCallbacks?.Invoke();
         }
 
-        /// <summary>广播 OnDrawGizmosSelected（由宿主转发，编辑器专用）。</summary>
+        /// <summary>
+        /// 广播 OnDrawGizmosSelected（由宿主转发，编辑器专用）。
+        /// </summary>
         public static void RaiseDrawGizmosSelected()
         {
             s_DrawGizmosSelectedCallbacks?.Invoke();
         }
 
-        /// <summary>广播 ApplicationPause（由宿主 OnApplicationPause 转发）。</summary>
+        /// <summary>
+        /// 广播 ApplicationPause（由宿主 OnApplicationPause 转发）。
+        /// </summary>
         public static void RaiseApplicationPause(bool pauseStatus)
         {
             InvokeAllQuarantined(s_ApplicationPauseCallbacks, pauseStatus, "ApplicationPause");
@@ -376,7 +398,9 @@ namespace Moirai.Atropos
 
         #region 接口注册 [INTERFACE REGISTRATION]
 
-        /// <summary>注册 Update Handler。驱动中调用将延迟到本阶段 Drive 结束后提交。</summary>
+        /// <summary>
+        /// 注册 Update Handler。驱动中调用将延迟到本阶段 Drive 结束后提交。
+        /// </summary>
         public static void Register(IUpdateHandler handler)
         {
             if (handler == null) return;
@@ -384,7 +408,9 @@ namespace Moirai.Atropos
             else s_Update.Add(handler);
         }
 
-        /// <summary>注册 FixedUpdate Handler。</summary>
+        /// <summary>
+        /// 注册 FixedUpdate Handler。
+        /// </summary>
         public static void Register(IFixedUpdateHandler handler)
         {
             if (handler == null) return;
@@ -392,7 +418,9 @@ namespace Moirai.Atropos
             else s_Fixed.Add(handler);
         }
 
-        /// <summary>注册 LateUpdate Handler。</summary>
+        /// <summary>
+        /// 注册 LateUpdate Handler。
+        /// </summary>
         public static void Register(ILateUpdateHandler handler)
         {
             if (handler == null) return;
@@ -400,7 +428,9 @@ namespace Moirai.Atropos
             else s_Late.Add(handler);
         }
 
-        /// <summary>注销 Update Handler。</summary>
+        /// <summary>
+        /// 注销 Update Handler。
+        /// </summary>
         public static void Unregister(IUpdateHandler handler)
         {
             if (handler == null) return;
@@ -408,7 +438,9 @@ namespace Moirai.Atropos
             else s_Update.Remove(handler);
         }
 
-        /// <summary>注销 FixedUpdate Handler。</summary>
+        /// <summary>
+        /// 注销 FixedUpdate Handler。
+        /// </summary>
         public static void Unregister(IFixedUpdateHandler handler)
         {
             if (handler == null) return;
@@ -416,7 +448,9 @@ namespace Moirai.Atropos
             else s_Fixed.Remove(handler);
         }
 
-        /// <summary>注销 LateUpdate Handler。</summary>
+        /// <summary>
+        /// 注销 LateUpdate Handler。
+        /// </summary>
         public static void Unregister(ILateUpdateHandler handler)
         {
             if (handler == null) return;
@@ -448,7 +482,9 @@ namespace Moirai.Atropos
 
         #region Action 注册 [ACTION REGISTRATION]
 
-        /// <summary>注册每帧 Update 回调（同步，不依赖 GameObject / UniTask 延迟）。</summary>
+        /// <summary>
+        /// 注册每帧 Update 回调（同步，不依赖 GameObject / UniTask 延迟）。
+        /// </summary>
         public static void AddUpdateCallback(Action callback)
         {
             if (callback == null) return;
@@ -456,7 +492,9 @@ namespace Moirai.Atropos
             else s_UpdateCallback.Add(callback);
         }
 
-        /// <summary>注册 FixedUpdate 回调。</summary>
+        /// <summary>
+        /// 注册 FixedUpdate 回调。
+        /// </summary>
         public static void AddFixedUpdateCallback(Action callback)
         {
             if (callback == null) return;
@@ -464,7 +502,9 @@ namespace Moirai.Atropos
             else s_FixedCallback.Add(callback);
         }
 
-        /// <summary>注册 LateUpdate 回调。</summary>
+        /// <summary>
+        /// 注册 LateUpdate 回调。
+        /// </summary>
         public static void AddLateUpdateCallback(Action callback)
         {
             if (callback == null) return;
@@ -472,7 +512,9 @@ namespace Moirai.Atropos
             else s_LateCallback.Add(callback);
         }
 
-        /// <summary>注销 Update 回调。</summary>
+        /// <summary>
+        /// 注销 Update 回调。
+        /// </summary>
         public static void RemoveUpdateCallback(Action callback)
         {
             if (callback == null) return;
@@ -480,7 +522,9 @@ namespace Moirai.Atropos
             else s_UpdateCallback.Remove(callback);
         }
 
-        /// <summary>注销 FixedUpdate 回调。</summary>
+        /// <summary>
+        /// 注销 FixedUpdate 回调。
+        /// </summary>
         public static void RemoveFixedUpdateCallback(Action callback)
         {
             if (callback == null) return;
@@ -488,7 +532,9 @@ namespace Moirai.Atropos
             else s_FixedCallback.Remove(callback);
         }
 
-        /// <summary>注销 LateUpdate 回调。</summary>
+        /// <summary>
+        /// 注销 LateUpdate 回调。
+        /// </summary>
         public static void RemoveLateUpdateCallback(Action callback)
         {
             if (callback == null) return;
@@ -510,21 +556,27 @@ namespace Moirai.Atropos
             s_CoreUpdate = callback;
         }
 
-        /// <summary>设置 FixedUpdate 阶段核心钩子。语义同 <see cref="SetCoreUpdateCallback"/>。</summary>
+        /// <summary>
+        /// 设置 FixedUpdate 阶段核心钩子。语义同 <see cref="SetCoreUpdateCallback"/>。
+        /// </summary>
         internal static void SetCoreFixedUpdateCallback(Action callback)
         {
             EnsureMainThread();
             s_CoreFixedUpdate = callback;
         }
 
-        /// <summary>设置 LateUpdate 阶段核心钩子。语义同 <see cref="SetCoreUpdateCallback"/>。</summary>
+        /// <summary>
+        /// 设置 LateUpdate 阶段核心钩子。语义同 <see cref="SetCoreUpdateCallback"/>。
+        /// </summary>
         internal static void SetCoreLateUpdateCallback(Action callback)
         {
             EnsureMainThread();
             s_CoreLateUpdate = callback;
         }
 
-        /// <summary>调用核心钩子：按分级策略处置异常，但永不熔断。</summary>
+        /// <summary>
+        /// 调用核心钩子：按分级策略处置异常，但永不熔断。
+        /// </summary>
         private static void InvokeCore(Action core, string stageName)
         {
             if (core == null) return;
@@ -544,7 +596,9 @@ namespace Moirai.Atropos
 
         #region 驱动 [DRIVE]
 
-        /// <summary>PlayerLoop Update 阶段入口（由 <see cref="PlayerLoopInjector"/> 调用）。</summary>
+        /// <summary>
+        /// PlayerLoop Update 阶段入口（由 <see cref="PlayerLoopInjector"/> 调用）。
+        /// </summary>
         public static void DriveUpdate()
         {
             if (s_IsShutdown) return;
@@ -572,7 +626,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>PlayerLoop FixedUpdate 阶段入口。</summary>
+        /// <summary>
+        /// PlayerLoop FixedUpdate 阶段入口。
+        /// </summary>
         public static void DriveFixedUpdate()
         {
             if (s_IsShutdown) return;
@@ -599,7 +655,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>PlayerLoop LateUpdate（PreLateUpdate 末尾）阶段入口。</summary>
+        /// <summary>
+        /// PlayerLoop LateUpdate（PreLateUpdate 末尾）阶段入口。
+        /// </summary>
         public static void DriveLateUpdate()
         {
             if (s_IsShutdown) return;
@@ -626,7 +684,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>提交各阶段延迟缓冲。每帧每阶段各一次，无 pending 时仅两次 Count 读。</summary>
+        /// <summary>
+        /// 提交各阶段延迟缓冲。每帧每阶段各一次，无 pending 时仅两次 Count 读。
+        /// </summary>
         private static void FlushPending()
         {
             s_Update.FlushPending();
@@ -662,7 +722,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>带布尔负载的 <see cref="InvokeAllQuarantined(Action, string)"/> 重载（Focus / Pause）。</summary>
+        /// <summary>
+        /// 带布尔负载的 <see cref="InvokeAllQuarantined(Action, string)"/> 重载（Focus / Pause）。
+        /// </summary>
         private static void InvokeAllQuarantined(Action<bool> callbacks, bool arg, string stageName)
         {
             if (callbacks == null) return;
@@ -750,7 +812,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>记一次失败；达阈值则把该订户摘出本阶段并告警一次。重新注册即完全重置计数。</summary>
+            /// <summary>
+            /// 记一次失败；达阈值则把该订户摘出本阶段并告警一次。重新注册即完全重置计数。
+            /// </summary>
             private bool RecordFailure(T handler)
             {
                 _hasFailures = true;
@@ -796,7 +860,9 @@ namespace Moirai.Atropos
                 InsertByPriority(handler);
             }
 
-            /// <summary>把 <paramref name="handler"/> 并入后按优先级整表稳定排序，写回紧凑数组。</summary>
+            /// <summary>
+            /// 把 <paramref name="handler"/> 并入后按优先级整表稳定排序，写回紧凑数组。
+            /// </summary>
             private void InsertByPriority(T handler)
             {
                 _sortBuffer.Clear();
@@ -927,7 +993,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>单阶段的 Action 回调注册表（语义同 <see cref="HandlerSlot{T}"/>，无优先级）。</summary>
+        /// <summary>
+        /// 单阶段的 Action 回调注册表（语义同 <see cref="HandlerSlot{T}"/>，无优先级）。
+        /// </summary>
         private sealed class CallbackSlot
         {
             private readonly string _stageName;
@@ -946,7 +1014,9 @@ namespace Moirai.Atropos
 
             public int Count => _count;
 
-            /// <summary>驱动本阶段全部回调：隔离与熔断语义同 <see cref="HandlerSlot{T}.Drive"/>。</summary>
+            /// <summary>
+            /// 驱动本阶段全部回调：隔离与熔断语义同 <see cref="HandlerSlot{T}.Drive"/>。
+            /// </summary>
             public void Drive()
             {
                 Action[] callbacks = _callbacks;

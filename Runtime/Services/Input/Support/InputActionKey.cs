@@ -20,9 +20,7 @@ namespace Moirai.Atropos.Input
             _name = name ?? string.Empty;
         }
 
-        /// <summary>
-        /// 是否为全限定查询（分组非空）。
-        /// </summary>
+        /// <summary>是否为全限定查询（分组非空）。</summary>
         public bool HasGroup => _group.Length > 0;
 
         /// <summary>

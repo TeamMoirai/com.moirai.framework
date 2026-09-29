@@ -14,10 +14,14 @@ namespace Moirai.Atropos.Audio
         /// <summary>是否仍处于启动窗口（允许阻塞加载）。仅主线程读写。</summary>
         public static bool IsOpen => s_Open;
 
-        /// <summary>关闭启动窗口（Handler 首次 Tick 调用；Restart 时重新打开）。</summary>
+        /// <summary>
+        /// 关闭启动窗口（Handler 首次 Tick 调用；Restart 时重新打开）。
+        /// </summary>
         public static void Close() => s_Open = false;
 
-        /// <summary>重新打开（服务 Restart / 测试 SetUp）。</summary>
+        /// <summary>
+        /// 重新打开（服务 Restart / 测试 SetUp）。
+        /// </summary>
         public static void Open() => s_Open = true;
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

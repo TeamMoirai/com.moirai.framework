@@ -27,7 +27,9 @@ namespace Sirenix.OdinInspector.Editor.Drawers
 
         private ValueResolver<bool> visibleIfResolver;
 
-        /// <summary>初始化此实例。</summary>
+        /// <summary>
+        /// 初始化此实例。
+        /// </summary>
         protected override void Initialize()
         {
           this.visibleIfResolver = ValueResolver.Get<bool>(this.Property, this.Attribute.ShowIf, true);

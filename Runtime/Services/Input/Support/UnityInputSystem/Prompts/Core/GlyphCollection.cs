@@ -47,17 +47,11 @@ namespace Moirai.Atropos.Input.Prompts
         
         public GlyphMap[] PromptMaps => m_PromptMaps;
         
-        /// <summary>
-        /// 当未连接指定设备时显示的图标。
-        /// </summary>
+        /// <summary>当未连接指定设备时显示的图标。</summary>
         public PromptGlyph DisconnectGlyph => m_DisconnectGlyph;
-        /// <summary>
-        /// 当 InputSystem 不存在指定 action 时的图标。
-        /// </summary>
+        /// <summary>当 InputSystem 不存在指定 action 时的图标。</summary>
         public PromptGlyph NullGlyph => m_NullGlyph;
-        /// <summary>
-        /// 当 action 有效，但该 action 的没有输入提示时的图标。
-        /// </summary>
+        /// <summary>当 action 有效，但该 action 的没有输入提示时的图标。</summary>
         public PromptGlyph UnboundGlyph => m_UnboundGlyph;
     }
 }

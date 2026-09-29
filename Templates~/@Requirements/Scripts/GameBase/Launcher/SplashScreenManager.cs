@@ -18,9 +18,7 @@ namespace Moirai.Main
         
         private bool _isSplashing;
 
-        /// <summary>
-        /// 是否播放闪屏？如果有，需要在播放结束手动调用 <see cref="SplashEnd"/>。
-        /// </summary>
+        /// <summary>是否播放闪屏？如果有，需要在播放结束手动调用 <see cref="SplashEnd"/>。</summary>
         public bool ShowSplashScreen => m_ShowSplashScreen;
 
         protected override void OnInit()

@@ -4,7 +4,9 @@ using NUnit.Framework;
 
 namespace Service.Timer
 {
-    /// <summary>计时器性能基准（<c>[Explicit]</c>，不参与常规回归，按名手动执行）。</summary>
+    /// <summary>
+    /// 计时器性能基准（<c>[Explicit]</c>，不参与常规回归，按名手动执行）。
+    /// </summary>
     /// <remarks>
     /// Tests 侧薄壳：同步矩阵本体在运行时的 <see cref="TimerBenchmarkRunner"/>，Debugger 的 Timer 调试窗口（Run Benchmark 按钮）与这里共用同一驱动器； <br />
     /// 本入口跑完把 XML 报告写到统一文件夹 &lt;工程根&gt;/Benchmarks/timerservice-benchmark.xml。 <br />

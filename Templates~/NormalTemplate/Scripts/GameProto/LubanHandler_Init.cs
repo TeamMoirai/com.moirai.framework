@@ -20,9 +20,7 @@ namespace Moirai.GameProto.Config
 		private const string CONFIG_PATH = "Assets/AssetRaw/Default/Config/Table/";
 
 		private Tables _tables;
-		/// <summary>
-		/// 所有配置表。
-		/// </summary>
+		/// <summary>所有配置表。</summary>
 		public Tables Tables
 		{
 			get

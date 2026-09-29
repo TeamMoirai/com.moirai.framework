@@ -28,9 +28,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>编辑器预览是否已就绪（非播放态、且表数据取到了）。</summary>
         internal static bool IsEditorPreviewAvailable => GetEditorPreviewStore() != null;
 
-        /// <summary>
-        /// 编辑器预览用的语言：Inspector 里设的编辑器语言优先，未设或该语言不在表内时取表内的英语列，再退到首列。
-        /// </summary>
+        /// <summary>编辑器预览用的语言：Inspector 里设的编辑器语言优先，未设或该语言不在表内时取表内的英语列，再退到首列。</summary>
         internal static Language EditorPreviewLanguage
         {
             get

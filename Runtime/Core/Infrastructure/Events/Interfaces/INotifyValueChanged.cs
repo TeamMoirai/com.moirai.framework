@@ -5,9 +5,7 @@ namespace Moirai.Atropos.Events
     /// </summary>
     public interface INotifyValueChanged<T>
     {
-        /// <summary>
-        /// 控件的值。
-        /// </summary>
+        /// <summary>控件的值。</summary>
         T Value { get; set; }
         
         /// <summary>

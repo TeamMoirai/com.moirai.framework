@@ -10,7 +10,9 @@ using UObject = UnityEngine.Object;
 
 namespace Service.Localization
 {
-    /// <summary>本地化商业化加固测试：数据未就绪时的本地化器静默延迟、缺译追踪、格式化文化跟随游戏语言。</summary>
+    /// <summary>
+    /// 本地化商业化加固测试：数据未就绪时的本地化器静默延迟、缺译追踪、格式化文化跟随游戏语言。
+    /// </summary>
     /// <remarks>处理器级用例直接构造桩数据源（复用 <see cref="L10nProbeHandler"/>）； <br />
     /// 外观级用例走生成的 <c>Internal_PeekHandler()</c> / <c>Internal_UseHandler(next)</c> 换入换出，不反射私有字段，也不污染跨夹具的静态状态。</remarks>
     [TestFixture]
@@ -56,7 +58,9 @@ namespace Service.Localization
             };
         }
 
-        /// <summary>把桩处理器装到外观静态位（本用例内外观调用都落到它）。</summary>
+        /// <summary>
+        /// 把桩处理器装到外观静态位（本用例内外观调用都落到它）。
+        /// </summary>
         private void InstallFacadeHandler()
         {
             LocalizationService.Internal_UseHandler(_handler);

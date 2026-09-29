@@ -24,7 +24,9 @@ namespace Moirai.Atropos.Save
     [Serializable]
     public class UnityCloudSaveKvStore : CloudSaveKvStore
     {
-        /// <summary>单次远端请求超时（秒；透传 UGS <see cref="SaveOptions.RequestTimeout"/>）。</summary>
+        /// <summary>
+        /// 单次远端请求超时（秒；透传 UGS <see cref="SaveOptions.RequestTimeout"/>）。
+        /// </summary>
         [Tooltip("单次远端请求超时（秒；透传 UGS SaveOptions.RequestTimeout）。")]
         [SerializeField, Min(1)] private int m_RequestTimeoutSeconds = 15;
 

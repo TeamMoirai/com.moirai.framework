@@ -12,14 +12,10 @@ namespace Moirai.Atropos
         protected readonly List<TKey> _keyList = new List<TKey>();
         protected readonly Dictionary<TKey, TValue> _dictionary = new Dictionary<TKey, TValue>();
 
-        /// <summary>
-        /// 存储键的列表。
-        /// </summary>
+        /// <summary>存储键的列表。</summary>
         public List<TKey> Keys => _keyList;
 
-        /// <summary>
-        /// 存储字典实例。
-        /// </summary>
+        /// <summary>存储字典实例。</summary>
         public int Count => _keyList.Count;
 
         /// <summary>
@@ -42,9 +38,7 @@ namespace Moirai.Atropos
             _dictionary[_keyList[index]] = item;
         }
 
-        /// <summary>
-        /// 字典索引器。
-        /// </summary>
+        /// <summary>字典索引器。</summary>
         /// <param name="key">TKey。</param>
         public TValue this[TKey key]
         {
@@ -71,7 +65,9 @@ namespace Moirai.Atropos
             _dictionary.Clear();
         }
 
-        /// <summary>向字典添加指定键与值。</summary>
+        /// <summary>
+        /// 向字典添加指定键与值。
+        /// </summary>
         /// <param name="key">要添加元素的键。</param>
         /// <param name="item">要添加元素的值；引用类型可为 <see langword="null" />。</param>
         public virtual void Add(TKey key, TValue item)
@@ -80,7 +76,9 @@ namespace Moirai.Atropos
             _dictionary.Add(key, item);
         }
 
-        /// <summary>获取与指定键关联的值。</summary>
+        /// <summary>
+        /// 获取与指定键关联的值。
+        /// </summary>
         /// <param name="key">要获取值的键。</param>
         /// <param name="value">当此方法返回时，若找到键，则包含与指定键关联的值； <br />
         /// 否则包含 <paramref name="value" /> 参数类型的默认值。 <br />
@@ -104,7 +102,9 @@ namespace Moirai.Atropos
             return _keyList[index];
         }
 
-        /// <summary>移除指定键与关联值。</summary>
+        /// <summary>
+        /// 移除指定键与关联值。
+        /// </summary>
         /// <param name="key">要移除的键。</param>
         /// <returns>任一容器实际删除了条目即返回 true。</returns>
         public bool Remove(TKey key)

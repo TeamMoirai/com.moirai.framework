@@ -13,7 +13,9 @@ namespace Moirai.Atropos.Audio.Middleware
         /// </summary>
         EAudioBankLoadResult LoadBank(string bankPath);
 
-        /// <summary>卸载声音库；未加载或失败返回 false。</summary>
+        /// <summary>
+        /// 卸载声音库；未加载或失败返回 false。
+        /// </summary>
         bool UnloadBank(string bankPath);
     }
 }

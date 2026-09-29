@@ -12,7 +12,9 @@ namespace Moirai.Atropos
     /// </remarks>
     public static class ShuffleUtility
     {
-        /// <summary>就地 Fisher–Yates 打乱 <paramref name="list"/> 的前 <paramref name="count"/> 项（均匀置换）。</summary>
+        /// <summary>
+        /// 就地 Fisher–Yates 打乱 <paramref name="list"/> 的前 <paramref name="count"/> 项（均匀置换）。
+        /// </summary>
         public static void Shuffle<T>(IList<T> list, int count)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
@@ -22,14 +24,18 @@ namespace Moirai.Atropos
             Shuffle(list, count, ref RandomUtility.SharedStream());
         }
 
-        /// <summary>就地打乱整个列表。</summary>
+        /// <summary>
+        /// 就地打乱整个列表。
+        /// </summary>
         public static void Shuffle<T>(IList<T> list)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
             Shuffle(list, list.Count);
         }
 
-        /// <summary><see cref="Shuffle{T}(IList{T},int)"/> 的显式随机源版本；调用后流被推进。</summary>
+        /// <summary>
+        /// <see cref="Shuffle{T}(IList{T},int)"/> 的显式随机源版本；调用后流被推进。
+        /// </summary>
         public static void Shuffle<T>(IList<T> list, int count, ref RandomSource rng)
         {
             for (int i = count - 1; i > 0; i--)
@@ -66,7 +72,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary><see cref="DrawIndices(int[],int,ref RandomSource)"/> 的全局流版本。</summary>
+        /// <summary>
+        /// <see cref="DrawIndices(int[],int,ref RandomSource)"/> 的全局流版本。
+        /// </summary>
         public static void DrawIndices(int[] pool, int count)
         {
             DrawIndices(pool, count, ref RandomUtility.SharedStream());

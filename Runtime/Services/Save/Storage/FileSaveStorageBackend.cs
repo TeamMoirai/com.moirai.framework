@@ -24,9 +24,7 @@ namespace Moirai.Atropos.Save
         /// <summary>单槽备份文件后缀（实际形如 <c>xxx.sav.bak</c>）。</summary>
         private const string BACKUP_FILE_SUFFIX = ".bak";
 
-        /// <summary>
-        /// 回退替换的中转日志后缀（实际形如 <c>xxx.sav.journal</c>）。
-        /// </summary>
+        /// <summary>回退替换的中转日志后缀（实际形如 <c>xxx.sav.journal</c>）。</summary>
         /// <remarks>与 <see cref="BACKUP_FILE_SUFFIX"/> 分开：后者是项目侧 <c>CreateBackup</c>/<c>RestoreBackup</c> 的持久备份位，回退若借它中转， <br />
         /// 玩家手动恢复会捞到一份写入中途的快照。</remarks>
         internal const string JOURNAL_FILE_SUFFIX = ".journal";
@@ -34,14 +32,10 @@ namespace Moirai.Atropos.Save
         /// <summary>删除操作的退避重试次数（应对云同步/杀毒软件的短时文件锁）。</summary>
         private const int DELETE_RETRY_COUNT = 3;
 
-        /// <summary>
-        /// 共享默认实例（无状态后端，未配置存储后端时回退使用；任意线程安全）。
-        /// </summary>
+        /// <summary>共享默认实例（无状态后端，未配置存储后端时回退使用；任意线程安全）。</summary>
         internal static readonly FileSaveStorageBackend s_Default = new FileSaveStorageBackend();
 
-        /// <summary>
-        /// 后端能力自描述（本地文件：无半写窗口且中断后旧档可恢复、无线程池外真异步、不设尺寸上限、非易失、同步读权威）。
-        /// </summary>
+        /// <summary>后端能力自描述（本地文件：无半写窗口且中断后旧档可恢复、无线程池外真异步、不设尺寸上限、非易失、同步读权威）。</summary>
         public override SaveStorageCapabilities Capabilities => new SaveStorageCapabilities(
             supportsAtomicRename: true,
             supportsTrueAsyncIO: false,

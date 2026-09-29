@@ -49,24 +49,16 @@ namespace Moirai.Atropos.Save
             _folderName = folderName;
         }
 
-        /// <summary>
-        /// 当前迁移步的起始版本。
-        /// </summary>
+        /// <summary>当前迁移步的起始版本。</summary>
         public int FromVersion => _fromVersion;
 
-        /// <summary>
-        /// 当前迁移步的目标版本。
-        /// </summary>
+        /// <summary>当前迁移步的目标版本。</summary>
         public int ToVersion => _toVersion;
 
-        /// <summary>
-        /// 存档文件名（经内部核心直调时可能为 null）。
-        /// </summary>
+        /// <summary>存档文件名（经内部核心直调时可能为 null）。</summary>
         public string FileName => _fileName;
 
-        /// <summary>
-        /// 存档文件夹名称。
-        /// </summary>
+        /// <summary>存档文件夹名称。</summary>
         public string FolderName => _folderName;
 
         /// <summary>当前块集合（管理器在链末取回）。</summary>
@@ -75,9 +67,7 @@ namespace Moirai.Atropos.Save
         /// <summary>迁移失败明细（null = 未失败）。</summary>
         internal string ErrorDetail => _errorDetail;
 
-        /// <summary>
-        /// 当前存档内的全部块键快照（数组拷贝）。
-        /// </summary>
+        /// <summary>当前存档内的全部块键快照（数组拷贝）。</summary>
         public string[] BlockKeys
         {
             get
@@ -208,7 +198,9 @@ namespace Moirai.Atropos.Save
                     : RenameJsonField(entry.Bytes, oldField, newField, out result));
         }
 
-        /// <summary>字段级操作委托（变换器结果经 out 返回，未命中时 <paramref name="result"/> 为源载荷引用）。</summary>
+        /// <summary>
+        /// 字段级操作委托（变换器结果经 out 返回，未命中时 <paramref name="result"/> 为源载荷引用）。
+        /// </summary>
         private delegate bool FieldOpDelegate(SaveBlockEntry entry, out byte[] result);
 
         /// <summary>

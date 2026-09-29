@@ -12,19 +12,13 @@ namespace Moirai.Atropos.Save
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class SaveDataAttribute : Attribute
     {
-        /// <summary>
-        /// 块键（须满足块键规则：非空白、长度受限、禁止保留前缀 <c>__</c>）。
-        /// </summary>
+        /// <summary>块键（须满足块键规则：非空白、长度受限、禁止保留前缀 <c>__</c>）。</summary>
         public string Key { get; }
 
-        /// <summary>
-        /// 当前数据模式版本（从 1 起；字段结构变化时递增并同步扩展 <c>OnMigrate</c> 级联）。
-        /// </summary>
+        /// <summary>当前数据模式版本（从 1 起；字段结构变化时递增并同步扩展 <c>OnMigrate</c> 级联）。</summary>
         public int Version { get; }
 
-        /// <summary>
-        /// 序列化后端（缺省 JSON，无需类型标注）。
-        /// </summary>
+        /// <summary>序列化后端（缺省 JSON，无需类型标注）。</summary>
         /// <remarks>二进制后端要求类型带各自 AOT 标注（<c>MessagePackObject</c>/<c>MemoryPackable</c>/<c>ProtoContract</c>）。</remarks>
         public ESaveBackend Backend { get; set; }
 

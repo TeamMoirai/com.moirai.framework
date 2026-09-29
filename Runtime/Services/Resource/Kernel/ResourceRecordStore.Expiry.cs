@@ -16,15 +16,15 @@ namespace Moirai.Atropos.Resource
         // 上限只限制"这一帧做多少"，不改变淘汰次序——没做完就把请求位留着，下一帧接着摘。
         private const int IDLE_TRIM_VICTIMS_PER_PASS = 8;
 
-        /// <summary>容量被调小后请求一次淘汰：不当场做，交给下一帧的维护走查。</summary>
+        /// <summary>
+        /// 容量被调小后请求一次淘汰：不当场做，交给下一帧的维护走查。
+        /// </summary>
         internal void RequestIdleCapacityTrim()
         {
             _idleCapacityTrimPending = true;
         }
 
-        /// <summary>
-        /// 淘汰请求位，供测试读取。
-        /// </summary>
+        /// <summary>淘汰请求位，供测试读取。</summary>
         /// <remarks>运行期只有 <c>ProcessResourceMaintenance</c> 读它；"预算用尽时把请求位留回"是该路径唯一的续跑保证。</remarks>
         internal bool IdleCapacityTrimPending => _idleCapacityTrimPending;
 
@@ -330,7 +330,9 @@ namespace Moirai.Atropos.Resource
             ScheduleOnWheel(ref _keepAliveBuckets, WHEEL_KIND_KEEP_ALIVE, assetId, ref slot, slot.KeepAliveExpireTick);
         }
 
-        /// <summary>入轮：同一算法服务两座轮，仅队列种类与过期刻度来源不同。</summary>
+        /// <summary>
+        /// 入轮：同一算法服务两座轮，仅队列种类与过期刻度来源不同。
+        /// </summary>
         private void ScheduleOnWheel(ref int[] buckets, int queueKind, int assetId, ref AssetSlot slot, int expireTick)
         {
             EnsureWheelBuckets(ref buckets);
@@ -547,7 +549,9 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        /// <summary>堆比较：IdleExpireTick 越小越先淘汰（空闲最久）。失效槽排最后。</summary>
+        /// <summary>
+        /// 堆比较：IdleExpireTick 越小越先淘汰（空闲最久）。失效槽排最后。
+        /// </summary>
         private int CompareUnusedIdleTick(int a, int b)
         {
             return GetUnusedIdleTick(a).CompareTo(GetUnusedIdleTick(b));

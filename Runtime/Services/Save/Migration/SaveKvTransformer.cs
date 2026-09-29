@@ -16,7 +16,9 @@ namespace Moirai.Atropos.Save
         /// <summary>UTF-8 编解码器（无 BOM）。</summary>
         private static readonly Encoding s_Utf8 = new UTF8Encoding(false);
 
-        /// <summary>记录变换规则（返回 <c>true</c> = 规则已消费该记录，调用方不再透传）。</summary>
+        /// <summary>
+        /// 记录变换规则（返回 <c>true</c> = 规则已消费该记录，调用方不再透传）。
+        /// </summary>
         private delegate bool RecordRule(string key, ESaveKvType type, ref SaveKeyValueReader reader, ref SaveKeyValueWriter writer);
 
         /// <summary>

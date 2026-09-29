@@ -17,19 +17,13 @@ namespace Sirenix.OdinInspector
     /// <summary>消息框的类型。</summary>
     public InfoMessageType InfoMessageType;
 
-    /// <summary>
-    /// 可选：用于显示和隐藏信息框的成员字段、属性或函数。
-    /// </summary>
+    /// <summary>可选：用于显示和隐藏信息框的成员字段、属性或函数。</summary>
     public string VisibleIf;
 
-    /// <summary>
-    /// 为 <c>true</c> 时，InfoBox 会忽略 GUI.enable 标志，始终按启用状态绘制。
-    /// </summary>
+    /// <summary>为 <c>true</c> 时，InfoBox 会忽略 GUI.enable 标志，始终按启用状态绘制。</summary>
     public bool GUIAlwaysEnabled;
 
-    /// <summary>
-    /// 支持的着色格式：命名色、十六进制、RGBA/RGB，以及 Odin 属性表达式（如 <c>@this.MyColor</c>）。
-    /// </summary>
+    /// <summary>支持的着色格式：命名色、十六进制、RGBA/RGB，以及 Odin 属性表达式（如 <c>@this.MyColor</c>）。</summary>
     /// <remarks>
     /// 可用命名色：black、blue、clear、cyan、gray、green、grey、magenta、orange、purple、red、transparent、transparentBlack、transparentWhite、 <br />
     /// white、yellow。<br />
@@ -53,7 +47,9 @@ namespace Sirenix.OdinInspector
 
     public bool HasDefinedIcon { get; private set; }
 
-    /// <summary>在属性下方显示信息框。</summary>
+    /// <summary>
+    /// 在属性下方显示信息框。
+    /// </summary>
     /// <param name="message">消息框的消息。支持引用成员字符串字段、属性或方法， 通过 $ 引用。</param>
     /// <param name="infoMessageType">消息框的类型。</param>
     /// <param name="visibleIfMemberName">用于显示或隐藏消息框的 bool 成员名称。</param>
@@ -67,7 +63,9 @@ namespace Sirenix.OdinInspector
       this.VisibleIf = visibleIfMemberName;
     }
 
-    /// <summary>在属性下方显示信息框。</summary>
+    /// <summary>
+    /// 在属性下方显示信息框。
+    /// </summary>
     /// <param name="message">消息框的消息。支持引用成员字符串字段、属性或方法， 通过 $ 引用。</param>
     /// <param name="visibleIfMemberName">用于显示或隐藏消息框的 bool 成员名称。</param>
     public InfoBoxBelowAttribute(string message, string visibleIfMemberName)
@@ -77,7 +75,9 @@ namespace Sirenix.OdinInspector
       this.VisibleIf = visibleIfMemberName;
     }
 
-    /// <summary>在属性下方显示信息框。</summary>
+    /// <summary>
+    /// 在属性下方显示信息框。
+    /// </summary>
     /// <param name="message">消息框的消息。支持引用成员字符串字段、属性或方法， 通过 $ 引用。</param>
     /// <param name="icon">显示在消息旁边的图标。</param>
     /// <param name="visibleIfMemberName">用于显示或隐藏消息框的 bool 成员名称。</param>

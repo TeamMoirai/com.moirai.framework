@@ -20,14 +20,10 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public class SaveProgressEvent : EventBase<SaveProgressEvent>
     {
-        /// <summary>
-        /// 操作类别。
-        /// </summary>
+        /// <summary>操作类别。</summary>
         public ESaveProgressKind Kind { get; private set; }
 
-        /// <summary>
-        /// 事件参数。
-        /// </summary>
+        /// <summary>事件参数。</summary>
         public SaveProgressArgs Args { get; private set; }
 
         /// <summary>

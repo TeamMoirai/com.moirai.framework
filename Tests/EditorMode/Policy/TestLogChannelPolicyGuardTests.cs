@@ -38,9 +38,7 @@ namespace Policy
         /// <summary>守卫自身不参与扫描——失败提示文案与白名单理由里本来就含这些模式字符串。</summary>
         private const string SELF_FILE_NAME = "TestLogChannelPolicyGuardTests.cs";
 
-        /// <summary>
-        /// 允许发射 LogUtility 的文件（相对 <c>Tests/</c>，正斜杠分隔）及其归类。
-        /// </summary>
+        /// <summary>允许发射 LogUtility 的文件（相对 <c>Tests/</c>，正斜杠分隔）及其归类。</summary>
         private static readonly Dictionary<string, string> Allowlist = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             // ── ① 被测本体 ──

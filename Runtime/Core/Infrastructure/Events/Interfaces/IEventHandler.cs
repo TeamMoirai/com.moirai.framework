@@ -26,9 +26,7 @@ namespace Moirai.Atropos.Events
     /// </summary>
     public interface IBehaviourScope
     {
-        /// <summary>
-        /// 附加到 <see cref="MonoBehaviour"/>。
-        /// </summary>
+        /// <summary>附加到 <see cref="MonoBehaviour"/>。</summary>
         MonoBehaviour Behaviour { get; }
     }
 }

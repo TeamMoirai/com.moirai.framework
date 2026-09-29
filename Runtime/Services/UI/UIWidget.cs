@@ -7,35 +7,23 @@ namespace Moirai.Atropos.UI
 {
     public abstract class UIWidget : UIBase
     {
-        /// <summary>
-        /// 窗口组件的实例资源对象。
-        /// </summary>
+        /// <summary>窗口组件的实例资源对象。</summary>
         public override GameObject gameObject { protected set; get; }
 
-        /// <summary>
-        /// 窗口组件矩阵位置组件。
-        /// </summary>
+        /// <summary>窗口组件矩阵位置组件。</summary>
         public override RectTransform rectTransform { protected set; get; }
         
-        /// <summary>
-        /// 窗口位置组件。
-        /// </summary>
+        /// <summary>窗口位置组件。</summary>
         public override Transform transform { protected set; get; }
 
-        /// <summary>
-        /// 窗口组件名称。
-        /// </summary>
+        /// <summary>窗口组件名称。</summary>
         // ReSharper disable once InconsistentNaming
         public string WidgetName { protected set; get; } = string.Empty;
 
-        /// <summary>
-        /// UI类型。
-        /// </summary>
+        /// <summary>UI类型。</summary>
         public override UIType Type => UIType.Widget;
 
-        /// <summary>
-        /// 所属的窗口。
-        /// </summary>
+        /// <summary>所属的窗口。</summary>
         public UIWindow OwnerWindow
         {
             get
@@ -55,9 +43,7 @@ namespace Moirai.Atropos.UI
             }
         }
         
-        /// <summary>
-        /// 窗口可见性。
-        /// </summary>
+        /// <summary>窗口可见性。</summary>
         public bool Visible
         {
             get => gameObject.activeSelf;

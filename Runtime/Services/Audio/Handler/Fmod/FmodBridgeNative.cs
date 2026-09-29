@@ -197,7 +197,9 @@ namespace Moirai.Atropos.Audio.Fmod
             FMODUnity.RuntimeManager.StudioSystem.setParameterByName(name, value);
         }
 
-        /// <summary>是否为文件路径形态（含目录分隔符或 .bank 后缀）；否则按 StreamingAssets 短名处理。</summary>
+        /// <summary>
+        /// 是否为文件路径形态（含目录分隔符或 .bank 后缀）；否则按 StreamingAssets 短名处理。
+        /// </summary>
         private static bool IsPathLike(string bankPath)
             => bankPath.IndexOf('/') >= 0
                || bankPath.IndexOf('\\') >= 0

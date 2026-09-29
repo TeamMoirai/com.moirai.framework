@@ -20,14 +20,10 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public class SaveBlockChangedEvent : EventBase<SaveBlockChangedEvent>
     {
-        /// <summary>
-        /// 变动类别。
-        /// </summary>
+        /// <summary>变动类别。</summary>
         public ESaveBlockChangeKind Kind { get; private set; }
 
-        /// <summary>
-        /// 事件参数。
-        /// </summary>
+        /// <summary>事件参数。</summary>
         public SaveBlockChangedArgs Args { get; private set; }
 
         /// <summary>

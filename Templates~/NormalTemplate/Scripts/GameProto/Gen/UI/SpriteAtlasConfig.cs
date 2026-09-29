@@ -26,17 +26,11 @@ public sealed partial class SpriteAtlasConfig : Luban.BeanBase
         return new UI.SpriteAtlasConfig(_buf);
     }
 
-    /// <summary>
-    /// 资源ID。
-    /// </summary>
+    /// <summary>资源ID。</summary>
     public readonly string Id;
-    /// <summary>
-    /// 默认。
-    /// </summary>
+    /// <summary>默认。</summary>
     public readonly string Location;
-    /// <summary>
-    /// 指定资源包的名称。不传使用默认资源包。
-    /// </summary>
+    /// <summary>指定资源包的名称。不传使用默认资源包。</summary>
     public readonly string PackageName;
    
     public const int __ID__ = 539588270;

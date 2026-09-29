@@ -8,9 +8,7 @@ namespace Moirai.Atropos.Save
     /// <remarks>生产点由动态实体持久化管线接线，当前尚无生产方。</remarks>
     public class SaveEntityRestoredEvent : EventBase<SaveEntityRestoredEvent>
     {
-        /// <summary>
-        /// 事件参数。
-        /// </summary>
+        /// <summary>事件参数。</summary>
         public SaveEntityRestoredArgs Args { get; private set; }
 
         /// <summary>

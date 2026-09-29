@@ -46,7 +46,9 @@ namespace Service.Resource
             Assert.AreSame(expected, actual, "预览入口与 AssetDatabase 直读不是同一个对象：地址到资产的换算分叉了");
         }
 
-        /// <summary>取一份工程里必然导入过的贴图路径（没有则返回 null，由用例自行 Ignore）。</summary>
+        /// <summary>
+        /// 取一份工程里必然导入过的贴图路径（没有则返回 null，由用例自行 Ignore）。
+        /// </summary>
         private static string FindAnyImportedAssetPath()
         {
             string[] guids = AssetDatabase.FindAssets("t:Texture2D");

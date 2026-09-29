@@ -14,9 +14,7 @@ namespace Moirai.Atropos
     /// </remarks>
     public interface IServiceInterceptor
     {
-        /// <summary>
-        /// 执行优先级（降序，高优先先执行）。默认 0。
-        /// </summary>
+        /// <summary>执行优先级（降序，高优先先执行）。默认 0。</summary>
         int Priority => 0;
 
         /// <summary>

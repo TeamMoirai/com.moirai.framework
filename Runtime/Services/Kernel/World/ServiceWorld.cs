@@ -56,24 +56,16 @@ namespace Moirai.Atropos
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 世界是否已完成初始化（两阶段的第二阶段已提交）。
-        /// </summary>
+        /// <summary>世界是否已完成初始化（两阶段的第二阶段已提交）。</summary>
         public bool IsInitialized => _initialized;
 
-        /// <summary>
-        /// 世界是否正在初始化中（重入守卫——初始化循环内触发的新注册由外层循环接管）。
-        /// </summary>
+        /// <summary>世界是否正在初始化中（重入守卫——初始化循环内触发的新注册由外层循环接管）。</summary>
         internal bool IsInitializing => _initializing;
 
-        /// <summary>
-        /// 当前已注册的拦截器（只读视图）。
-        /// </summary>
+        /// <summary>当前已注册的拦截器（只读视图）。</summary>
         public IReadOnlyList<IServiceInterceptor> Interceptors => _interceptors;
 
-        /// <summary>
-        /// 是否存在已注册的拦截器。轮询帧边界据此跳过通知。
-        /// </summary>
+        /// <summary>是否存在已注册的拦截器。轮询帧边界据此跳过通知。</summary>
         internal bool HasInterceptors => _interceptors.Count > 0;
 
         // 重复契约处置策略（默认与旧版一致：开发期 Warn，发布期 Skip）
@@ -83,25 +75,19 @@ namespace Moirai.Atropos
         private EDuplicateContractPolicy _duplicateContractPolicy = EDuplicateContractPolicy.Skip;
 #endif
 
-        /// <summary>
-        /// 重复契约注册处置策略。仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景。
-        /// </summary>
+        /// <summary>重复契约注册处置策略。仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景。</summary>
         public EDuplicateContractPolicy DuplicateContractPolicy
         {
             get => _duplicateContractPolicy;
             set => _duplicateContractPolicy = value;
         }
 
-        /// <summary>
-        /// 连续失败熔断默认阈值。
-        /// </summary>
+        /// <summary>连续失败熔断默认阈值。</summary>
         internal const int DEFAULT_TICK_TRIP_THRESHOLD = 300;
 
         private int _tickFailureTripThreshold = DEFAULT_TICK_TRIP_THRESHOLD;
 
-        /// <summary>
-        /// 轮询异常熔断阈值：同一服务在同一轮询类别连续异常达到该次数即被摘出对应轮询列表。
-        /// </summary>
+        /// <summary>轮询异常熔断阈值：同一服务在同一轮询类别连续异常达到该次数即被摘出对应轮询列表。</summary>
         /// <remarks>
         /// 世界级配置——隔离世界（并行测试/沙盒）各持一份，互不污染；重新注册服务即完全重置该服务的计数。
         /// </remarks>
@@ -115,19 +101,13 @@ namespace Moirai.Atropos
 
         #region 作用域访问 [SCOPE ACCESS]
 
-        /// <summary>
-        /// App 作用域是否活跃。
-        /// </summary>
+        /// <summary>App 作用域是否活跃。</summary>
         public bool HasApp => HasScope(EServiceScopeKind.App);
 
-        /// <summary>
-        /// Scene 作用域是否活跃。
-        /// </summary>
+        /// <summary>Scene 作用域是否活跃。</summary>
         public bool HasScene => HasScope(EServiceScopeKind.Scene);
 
-        /// <summary>
-        /// Gameplay 作用域是否活跃。
-        /// </summary>
+        /// <summary>Gameplay 作用域是否活跃。</summary>
         public bool HasGameplay => HasScope(EServiceScopeKind.Gameplay);
 
         internal bool HasScope(EServiceScopeKind kind)

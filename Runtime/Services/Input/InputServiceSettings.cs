@@ -12,9 +12,7 @@ namespace Moirai.Atropos.Input
 
         [ProviderDropdown]
         [SerializeReference] private InputServiceHandler m_InputServiceHandler = InputService.CreateDefaultHandler();
-        /// <summary>
-        /// 当前输入处理器实例。
-        /// </summary>
+        /// <summary>当前输入处理器实例。</summary>
         public static InputServiceHandler InputServiceHandler => Instance.m_InputServiceHandler;
     }
 }

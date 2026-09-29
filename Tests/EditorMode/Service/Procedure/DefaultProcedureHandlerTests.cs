@@ -19,7 +19,9 @@ namespace Service.Procedure
     {
         #region 测试桩 [TEST PROBES]
 
-        /// <summary>生命周期探针流程——记录回调次序，支持经钩子注入 OnEnter 内切换。</summary>
+        /// <summary>
+        /// 生命周期探针流程——记录回调次序，支持经钩子注入 OnEnter 内切换。
+        /// </summary>
         private class ProbeProcedure : ProcedureBase
         {
             public readonly List<string> Log = new List<string>();
@@ -56,7 +58,9 @@ namespace Service.Procedure
 
         private sealed class ProbeB : ProbeProcedure { }
 
-        /// <summary>未注册进状态机的探针，覆盖"切换到不存在流程"路径。</summary>
+        /// <summary>
+        /// 未注册进状态机的探针，覆盖"切换到不存在流程"路径。
+        /// </summary>
         private sealed class ProbeC : ProbeProcedure { }
 
         #endregion

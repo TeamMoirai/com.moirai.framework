@@ -28,7 +28,9 @@ namespace Moirai.Atropos
             _ = Instance;
         }
 
-        /// <summary>销毁宿主（<see cref="GameApp.Shutdown"/> 调用）。幂等。</summary>
+        /// <summary>
+        /// 销毁宿主（<see cref="GameApp.Shutdown"/> 调用）。幂等。
+        /// </summary>
         internal static void Release()
         {
             GameAppHost host = s_Instance;
@@ -55,7 +57,9 @@ namespace Moirai.Atropos
         
         #region 引擎方法 [UNITY METHODS]
 
-        /// <summary>Unity 无纯 C# 的暂停事件，只能由宿主转发到静态表。</summary>
+        /// <summary>
+        /// Unity 无纯 C# 的暂停事件，只能由宿主转发到静态表。
+        /// </summary>
         private void OnApplicationPause(bool pauseStatus)
         {
             PlayerLoopDriver.RaiseApplicationPause(pauseStatus);

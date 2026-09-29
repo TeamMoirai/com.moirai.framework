@@ -35,65 +35,43 @@ namespace Moirai.Atropos.UI
 
         public override UIType Type => UIType.Window;
 
-        /// <summary>
-        /// 窗口位置组件。
-        /// </summary>
+        /// <summary>窗口位置组件。</summary>
         /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
         public override Transform transform => _panel.transform;
         
-        /// <summary>
-        /// 窗口矩阵位置组件。
-        /// </summary>
+        /// <summary>窗口矩阵位置组件。</summary>
         /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
         public override RectTransform rectTransform => _panel.transform as RectTransform;
 
-        /// <summary>
-        /// 窗口的实例资源对象。
-        /// </summary>
+        /// <summary>窗口的实例资源对象。</summary>
         /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
         public override GameObject gameObject => _panel;
 
-        /// <summary>
-        /// 窗口名称。
-        /// </summary>
+        /// <summary>窗口名称。</summary>
         public string WindowName { get; private set; }
 
-        /// <summary>
-        /// 窗口层级。
-        /// </summary>
+        /// <summary>窗口层级。</summary>
         public int WindowLayer { get; private set; }
 
-        /// <summary>
-        /// 资源定位地址。
-        /// </summary>
+        /// <summary>资源定位地址。</summary>
         public string AssetName { get; private set; }
 
-        /// <summary>
-        /// 是否为全屏窗口。
-        /// </summary>
+        /// <summary>是否为全屏窗口。</summary>
         /// <remarks>将全屏下层的UI设为隐藏</remarks>
         public virtual bool FullScreen { get; private set; } = false;
 
-        /// <summary>
-        /// 是内部资源无需AB加载。
-        /// </summary>
+        /// <summary>是内部资源无需AB加载。</summary>
         public bool FromResources { get; private set; }
         
-        /// <summary>
-        /// 隐藏窗口关闭时间。
-        /// </summary>
+        /// <summary>隐藏窗口关闭时间。</summary>
         public int HideTimeToClose { get; set; }
         
         public ulong HideTimerId { get; set; }
         
-        /// <summary>
-        /// 缓存实例，关闭时不销毁。
-        /// </summary>
+        /// <summary>缓存实例，关闭时不销毁。</summary>
         public bool CacheInstance { get; set; }
         
-        /// <summary>
-        /// 窗口深度值。
-        /// </summary>
+        /// <summary>窗口深度值。</summary>
         public int Depth
         {
             get
@@ -147,9 +125,7 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>
-        /// 窗口可见性。
-        /// </summary>
+        /// <summary>窗口可见性。</summary>
         public bool Visible
         {
             get
@@ -197,9 +173,7 @@ namespace Moirai.Atropos.UI
         }
 
         private bool _interactable;
-        /// <summary>
-        /// 窗口交互性。
-        /// </summary>
+        /// <summary>窗口交互性。</summary>
         public bool Interactable
         {
             get => _interactable;
@@ -222,19 +196,13 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>
-        /// 是否加载完毕。
-        /// </summary>
+        /// <summary>是否加载完毕。</summary>
         internal bool IsLoadDone = false;
         
-        /// <summary>
-        /// 是否被销毁。
-        /// </summary>
+        /// <summary>是否被销毁。</summary>
         internal bool IsDestroyed = false;
                 
-        /// <summary>
-        /// UI是否隐藏标志位。
-        /// </summary>
+        /// <summary>UI是否隐藏标志位。</summary>
         public bool IsHide { internal set; get; } = false;
 
         #endregion

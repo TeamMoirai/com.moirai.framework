@@ -36,9 +36,7 @@ namespace Moirai.Atropos.Resource
             set => m_PackageName = value;
         }
 
-        /// <summary>
-        /// YooAsset 运行模式（非编辑器下 EditorSimulateMode 自动回退为 OfflinePlayMode）。
-        /// </summary>
+        /// <summary>YooAsset 运行模式（非编辑器下 EditorSimulateMode 自动回退为 OfflinePlayMode）。</summary>
         public EPlayMode YooPlayMode
         {
             get => ToYooAssetPlayMode(ResourceServiceSettings.PlayMode);
@@ -49,9 +47,7 @@ namespace Moirai.Atropos.Resource
         [LabelText("资源加密模式")]
         [SerializeReference] private YooAssetEncryptorHandler m_EncryptorHandler;
 
-        /// <summary>
-        /// 资源加解密处理器（YooAsset 专有）。
-        /// </summary>
+        /// <summary>资源加解密处理器（YooAsset 专有）。</summary>
         public YooAssetEncryptorHandler EncryptorHandler => m_EncryptorHandler;
 
         [Title("下载设置(网络下载和重试配置)")]
@@ -157,30 +153,20 @@ namespace Moirai.Atropos.Resource
         
         #region 内部字段 [INTERNAL FIELDS]
 
-        /// <summary>
-        /// 默认资源包。
-        /// </summary>
+        /// <summary>默认资源包。</summary>
         public ResourcePackage DefaultPackage { get; private set; }
 
-        /// <summary>
-        /// 资源包列表。
-        /// </summary>
+        /// <summary>资源包列表。</summary>
         private Dictionary<string, ResourcePackage> PackageMap { get; } = new Dictionary<string, ResourcePackage>();
 
-        /// <summary>
-        /// 资源信息列表。
-        /// </summary>
+        /// <summary>资源信息列表。</summary>
         private readonly Dictionary<string, AssetInfo> _assetInfoMap = new Dictionary<string, AssetInfo>();
 
-        /// <summary>
-        /// 在途的包初始化任务（按包名去重，并发调用复用同一结果）。
-        /// </summary>
+        /// <summary>在途的包初始化任务（按包名去重，并发调用复用同一结果）。</summary>
         private readonly Dictionary<string, TaskCompletionSource<InitializePackageOperation>> _packageInitTasks =
             new Dictionary<string, TaskCompletionSource<InitializePackageOperation>>(StringComparer.Ordinal);
 
-        /// <summary>
-        /// 已成功初始化的包操作句柄缓存（幂等重入时返回同一句柄，避免调用方收到 null）。
-        /// </summary>
+        /// <summary>已成功初始化的包操作句柄缓存（幂等重入时返回同一句柄，避免调用方收到 null）。</summary>
         private readonly Dictionary<string, InitializePackageOperation> _packageInitOperations =
             new Dictionary<string, InitializePackageOperation>(StringComparer.Ordinal);
 

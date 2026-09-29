@@ -37,9 +37,7 @@ namespace Moirai.Atropos
         private const int PageFlagInEmptyList = 1 << 1;
         private const int PageFlagTombstone = 1 << 2;
 
-        /// <summary>
-        /// 存活上限告警的限流间隔（帧）。越界往往一炸就是整段演出，逐次打日志会把 Console 与上报通道刷爆。
-        /// </summary>
+        /// <summary>存活上限告警的限流间隔（帧）。越界往往一炸就是整段演出，逐次打日志会把 Console 与上报通道刷爆。</summary>
         private const int LiveLimitWarnIntervalFrames = 300;
 
         #endregion
@@ -164,9 +162,7 @@ namespace Moirai.Atropos
             _ = s_PoolId;
         }
 
-        /// <summary>
-        /// 获取未使用内存对象数量。
-        /// </summary>
+        /// <summary>获取未使用内存对象数量。</summary>
         public static int UnusedCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

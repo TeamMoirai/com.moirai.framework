@@ -15,9 +15,7 @@ namespace Moirai.Atropos
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 内存池故障分级门控：开发期原样上抛，发布期在边界合并上报。
-        /// </summary>
+        /// <summary>内存池故障分级门控：开发期原样上抛，发布期在边界合并上报。</summary>
         /// <remarks><c>const</c> 门控，发布版裁掉死分支；与 <c>EventDispatchPolicy</c> / <c>ServiceScope</c> 同类判据需同改。</remarks>
         internal const bool RETHROW_POOL_EXCEPTIONS =
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -26,9 +24,7 @@ namespace Moirai.Atropos
             false;
 #endif
 
-        /// <summary>
-        /// 单轮批量维护最多收集的回调异常条数，超出只留一条汇总。
-        /// </summary>
+        /// <summary>单轮批量维护最多收集的回调异常条数，超出只留一条汇总。</summary>
         internal const int MaxCollectedCallbackExceptions = 16;
 
         #endregion
@@ -118,19 +114,13 @@ namespace Moirai.Atropos
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取内存池数量。
-        /// </summary>
+        /// <summary>获取内存池数量。</summary>
         public static int Count => s_HandleCount;
 
-        /// <summary>
-        /// 获取当前帧计数。
-        /// </summary>
+        /// <summary>获取当前帧计数。</summary>
         internal static int CurrentFrame { get; private set; }
 
-        /// <summary>
-        /// 获取或设置内存池阶段。
-        /// </summary>
+        /// <summary>获取或设置内存池阶段。</summary>
         public static EMemoryPoolPhase Phase
         {
             get => s_Phase;
@@ -192,9 +182,7 @@ namespace Moirai.Atropos
 
         #region 主线程断言 [MAIN THREAD ASSERT]
 
-        /// <summary>
-        /// 当前是否执行主线程校验（编辑器与开发构建恒开，正式构建默认关闭）。
-        /// </summary>
+        /// <summary>当前是否执行主线程校验（编辑器与开发构建恒开，正式构建默认关闭）。</summary>
         /// <remarks>正式构建可经 <see cref="MemoryPool.VerifyMainThreadInRelease"/> 在运行期打开；开启后每次取还多一次静态布尔读取与分支。</remarks>
         private static bool s_ThreadGuardActive = true;
 

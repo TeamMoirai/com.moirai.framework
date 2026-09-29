@@ -13,9 +13,7 @@ namespace Moirai.Atropos.Save
 
         private static readonly uint[] s_Table = BuildTable();
 
-        /// <summary>
-        /// 增量计算的寄存器起始值（首段喂入前以此初始化）。
-        /// </summary>
+        /// <summary>增量计算的寄存器起始值（首段喂入前以此初始化）。</summary>
         public const uint INITIAL_STATE = 0xFFFFFFFFu;
 
         /// <summary>
@@ -104,14 +102,10 @@ namespace Moirai.Atropos.Save
                 _leaveOpen = leaveOpen;
             }
 
-            /// <summary>
-            /// 全部写入完成后的 CRC-32 校验值。
-            /// </summary>
+            /// <summary>全部写入完成后的 CRC-32 校验值。</summary>
             public uint Result => Crc32.Finalize(_crc);
 
-            /// <summary>
-            /// 已透传写入的字节总数。
-            /// </summary>
+            /// <summary>已透传写入的字节总数。</summary>
             public long BytesWritten => _bytesWritten;
 
             /// <inheritdoc />
@@ -208,14 +202,10 @@ namespace Moirai.Atropos.Save
                 _leaveOpen = leaveOpen;
             }
 
-            /// <summary>
-            /// 源流读尽后的 CRC-32 校验值。
-            /// </summary>
+            /// <summary>源流读尽后的 CRC-32 校验值。</summary>
             public uint Result => Crc32.Finalize(_crc);
 
-            /// <summary>
-            /// 已透传读取的字节总数（冻结后读取不再计入）。
-            /// </summary>
+            /// <summary>已透传读取的字节总数（冻结后读取不再计入）。</summary>
             public long BytesRead => _bytesRead;
 
             /// <summary>底层源流（解密链 rewind/定位用——绕过包装层直接寻址）。</summary>

@@ -11,49 +11,31 @@ namespace Moirai.Atropos.ObjectPool
     /// <typeparam name="T">池化对象类型。</typeparam>
     public interface IObjectPool<T> where T : ObjectBase
     {
-        /// <summary>
-        /// 获取池名称。
-        /// </summary>
+        /// <summary>获取池名称。</summary>
         string Name { get; }
 
-        /// <summary>
-        /// 获取池全名（类型名[.池名]）。
-        /// </summary>
+        /// <summary>获取池全名（类型名[.池名]）。</summary>
         string FullName { get; }
 
-        /// <summary>
-        /// 获取对象类型。
-        /// </summary>
+        /// <summary>获取对象类型。</summary>
         Type ObjectType { get; }
 
-        /// <summary>
-        /// 获取池内对象总数。
-        /// </summary>
+        /// <summary>获取池内对象总数。</summary>
         int Count { get; }
 
-        /// <summary>
-        /// 获取是否允许同一对象被多次取用（引用计数模式）。
-        /// </summary>
+        /// <summary>获取是否允许同一对象被多次取用（引用计数模式）。</summary>
         bool AllowMultiSpawn { get; }
 
-        /// <summary>
-        /// 获取或设置超容自动释放间隔（秒）。
-        /// </summary>
+        /// <summary>获取或设置超容自动释放间隔（秒）。</summary>
         float AutoReleaseInterval { get; set; }
 
-        /// <summary>
-        /// 获取或设置池容量（超出部分标记释放）。
-        /// </summary>
+        /// <summary>获取或设置池容量（超出部分标记释放）。</summary>
         int Capacity { get; set; }
 
-        /// <summary>
-        /// 获取或设置空闲过期时间（秒）。
-        /// </summary>
+        /// <summary>获取或设置空闲过期时间（秒）。</summary>
         float ExpireTime { get; set; }
 
-        /// <summary>
-        /// 获取或设置池优先级。
-        /// </summary>
+        /// <summary>获取或设置池优先级。</summary>
         int Priority { get; set; }
 
         /// <summary>

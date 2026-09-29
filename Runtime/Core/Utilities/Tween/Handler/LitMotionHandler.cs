@@ -23,7 +23,9 @@ namespace Moirai.Atropos
         [NonSerialized] private readonly Dictionary<long, object> _targetMap = new Dictionary<long, object>();
         private static readonly List<long> s_TempList = new List<long>();
 
-        /// <summary>暂停前各 tween 的原始 PlaybackSpeed（Resume 时恢复，避免覆盖调用方自定义速度）。</summary>
+        /// <summary>
+        /// 暂停前各 tween 的原始 PlaybackSpeed（Resume 时恢复，避免覆盖调用方自定义速度）。
+        /// </summary>
         [NonSerialized] private readonly Dictionary<long, float> _pausedSpeeds = new Dictionary<long, float>();
 
         #endregion

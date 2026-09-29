@@ -30,22 +30,16 @@ namespace Moirai.Atropos.Tests.EditorMode
         private const string STATE_PATH = "Temp/MoiraiTestRunState.json";
         private const string MARKER = "MOIRAI-TEST-RUN";
 
-        /// <summary>
-        /// 「本进程已经收过哪一单」的记号，落在 <c>SessionState</c>（进程级、跨域重载保留）。
-        /// </summary>
+        /// <summary>「本进程已经收过哪一单」的记号，落在 <c>SessionState</c>（进程级、跨域重载保留）。</summary>
         /// <remarks>
         /// 一单可能同时活在两个域里（旧域拆走前还在跑自己的 <c>Poll</c>，新域已在续跑同一份状态）；谁先收口谁算，后到的必须整块沉默（见 <see cref="AlreadyFinished"/>）。
         /// </remarks>
         private const string FINISHED_KEY = "Moirai.TestRequestRunner.Finished";
 
-        /// <summary>
-        /// 域重载后给 <c>ResumeRunningJobs</c> 留下的认领窗口；超时仍无在途作业则判孤儿单。
-        /// </summary>
+        /// <summary>域重载后给 <c>ResumeRunningJobs</c> 留下的认领窗口；超时仍无在途作业则判孤儿单。</summary>
         private const double ORPHAN_GRACE_SECONDS = 2.0;
 
-        /// <summary>
-        /// 判活探针完全不可用时的扩展宽限：宁可多等也不误杀，但宽限后强制收口，绝不把调用方永远挂在「无 .done」上。
-        /// </summary>
+        /// <summary>判活探针完全不可用时的扩展宽限：宁可多等也不误杀，但宽限后强制收口，绝不把调用方永远挂在「无 .done」上。</summary>
         private const double UNVERIFIED_ORPHAN_GRACE_SECONDS = 30.0;
 
         #endregion
@@ -101,15 +95,11 @@ namespace Moirai.Atropos.Tests.EditorMode
 
         #region 判活探针 [LIVENESS PROBES]
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunning(guid)</c> 反射探针：只问我们这一单是否仍在跑——窗口手动跑不干扰孤儿单判定。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunning(guid)</c> 反射探针：只问我们这一单是否仍在跑——窗口手动跑不干扰孤儿单判定。</summary>
         private static readonly Func<string, bool> IsRunningProbe =
             CreateProbe<Func<string, bool>>("IsRunning", typeof(string));
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunActive()</c> 反射探针：任意 run 在跑即真；仅作 <see cref="IsRunningProbe"/> 不可用时的降级。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunActive()</c> 反射探针：任意 run 在跑即真；仅作 <see cref="IsRunningProbe"/> 不可用时的降级。</summary>
         private static readonly Func<bool> IsRunActiveProbe = CreateProbe<Func<bool>>("IsRunActive", null);
 
         /// <summary>

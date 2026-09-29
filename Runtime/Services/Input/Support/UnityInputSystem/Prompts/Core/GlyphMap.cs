@@ -172,9 +172,7 @@ namespace Moirai.Atropos.Input.Prompts
 
         [NonSerialized] private string[] _deviceNames;
 
-        /// <summary>
-        /// 可用于标识此设备的设备名称。
-        /// </summary>
+        /// <summary>可用于标识此设备的设备名称。</summary>
         public string[] DeviceNames
         {
             get

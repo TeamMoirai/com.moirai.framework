@@ -15,14 +15,18 @@ namespace Service.Save
     /// </remarks>
     public partial class SaveCapturerTests
     {
-        /// <summary>测试枚举。</summary>
+        /// <summary>
+        /// 测试枚举。
+        /// </summary>
         internal enum ETestMode
         {
             Idle,
             Run,
         }
 
-        /// <summary>测试组件（字段覆盖：基元/枚举/字符串/Unity 数学类型；含私有字段验证生成捕获器的私有访问）。</summary>
+        /// <summary>
+        /// 测试组件（字段覆盖：基元/枚举/字符串/Unity 数学类型；含私有字段验证生成捕获器的私有访问）。
+        /// </summary>
         internal partial class KvTestComponent : MonoBehaviour
         {
             [SaveField]
@@ -52,7 +56,9 @@ namespace Service.Save
             /// <summary>私有字段读取（测试断言用）。</summary>
             internal float SpeedValue => Speed;
 
-            /// <summary>私有字段写入（测试准备用）。</summary>
+            /// <summary>
+            /// 私有字段写入（测试准备用）。
+            /// </summary>
             internal void SetSpeed(float value)
             {
                 Speed = value;

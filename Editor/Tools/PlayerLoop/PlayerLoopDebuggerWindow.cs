@@ -68,7 +68,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
             public bool IsThirdPartyPump => HasDelegate && !IsMoirai;
         }
 
-        /// <summary>阶段统计表行（列头取成员名，勿加 LabelText——Odin 4 会渲染成行内前缀标签导致列错位）。</summary>
+        /// <summary>
+        /// 阶段统计表行（列头取成员名，勿加 LabelText——Odin 4 会渲染成行内前缀标签导致列错位）。
+        /// </summary>
         private sealed class StageRow
         {
             [TableColumnWidth(96, false)]
@@ -276,7 +278,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
 
         #region 刷新 [REFRESH]
 
-        /// <summary>重建循环树、可见性标记与阶段统计；展开状态按路径保留。</summary>
+        /// <summary>
+        /// 重建循环树、可见性标记与阶段统计；展开状态按路径保留。
+        /// </summary>
         private void Refresh()
         {
             _totalSystems = 0;
@@ -338,7 +342,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
             return node;
         }
 
-        /// <summary>按循环实况重建三个阶段行：标记在位与否、其在上游相位列表中的下标，以及注册表计数。</summary>
+        /// <summary>
+        /// 按循环实况重建三个阶段行：标记在位与否、其在上游相位列表中的下标，以及注册表计数。
+        /// </summary>
         private void BuildStages()
         {
             _stages.Clear();
@@ -374,7 +380,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
 
         #region 过滤与展开 [FILTER & EXPANSION]
 
-        /// <summary>自底向上标记子树可见性；过滤词命中时顺带展开命中项的祖先。</summary>
+        /// <summary>
+        /// 自底向上标记子树可见性；过滤词命中时顺带展开命中项的祖先。
+        /// </summary>
         private void RecomputeVisibility()
         {
             _visibleCount = 0;
@@ -468,7 +476,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
 
         #region 循环树绘制 [TREE GUI]
 
-        /// <summary>Odin 成员全部绘制完之后接循环树：表头一行 + 滚动区内的节点树。</summary>
+        /// <summary>
+        /// Odin 成员全部绘制完之后接循环树：表头一行 + 滚动区内的节点树。
+        /// </summary>
         protected override void OnEndDrawEditors()
         {
             base.OnEndDrawEditors();

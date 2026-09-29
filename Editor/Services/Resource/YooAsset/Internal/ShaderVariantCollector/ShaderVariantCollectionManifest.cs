@@ -19,19 +19,13 @@ public class ShaderVariantCollectionManifest
     [Serializable]
     public class ShaderVariantElement : IComparable<ShaderVariantElement>
     {
-        /// <summary>
-        /// 用于稳定排序的组合键。
-        /// </summary>
+        /// <summary>用于稳定排序的组合键。</summary>
         public string SortValue { private set; get; }
 
-        /// <summary>
-        /// 变种使用的渲染通道类型。
-        /// </summary>
+        /// <summary>变种使用的渲染通道类型。</summary>
         public PassType PassType;
 
-        /// <summary>
-        /// 变种使用的着色器关键字数组。
-        /// </summary>
+        /// <summary>变种使用的着色器关键字数组。</summary>
         public string[] Keywords;
 
         /// <summary>
@@ -64,29 +58,19 @@ public class ShaderVariantCollectionManifest
     [Serializable]
     public class ShaderVariantInfo : IComparable<ShaderVariantInfo>
     {
-        /// <summary>
-        /// 用于稳定排序的组合键。
-        /// </summary>
+        /// <summary>用于稳定排序的组合键。</summary>
         public string SortValue { private set; get; }
 
-        /// <summary>
-        /// 着色器资源路径。
-        /// </summary>
+        /// <summary>着色器资源路径。</summary>
         public string AssetPath;
 
-        /// <summary>
-        /// 着色器名称。
-        /// </summary>
+        /// <summary>着色器名称。</summary>
         public string ShaderName;
 
-        /// <summary>
-        /// 着色器变种总数。
-        /// </summary>
+        /// <summary>着色器变种总数。</summary>
         public int ShaderVariantCount = 0;
 
-        /// <summary>
-        /// 着色器变种列表。
-        /// </summary>
+        /// <summary>着色器变种列表。</summary>
         public List<ShaderVariantElement> ShaderVariantElements = new List<ShaderVariantElement>(1000);
 
         /// <summary>
@@ -105,19 +89,13 @@ public class ShaderVariantCollectionManifest
     }
 
 
-    /// <summary>
-    /// 清单中的着色器总数。
-    /// </summary>
+    /// <summary>清单中的着色器总数。</summary>
     public int ShaderTotalCount;
 
-    /// <summary>
-    /// 清单中的变种总数。
-    /// </summary>
+    /// <summary>清单中的变种总数。</summary>
     public int VariantTotalCount;
 
-    /// <summary>
-    /// 着色器变种信息列表。
-    /// </summary>
+    /// <summary>着色器变种信息列表。</summary>
     public List<ShaderVariantInfo> ShaderVariantInfos = new List<ShaderVariantInfo>(1000);
 
     /// <summary>

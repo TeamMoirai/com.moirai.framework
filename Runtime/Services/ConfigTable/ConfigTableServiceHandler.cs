@@ -31,9 +31,7 @@ namespace Moirai.Atropos.ConfigTable
         /// </remarks>
         public abstract IReadOnlyList<string> GetLocalizationLanguageCodes();
 
-        /// <summary>
-        /// 本表能否按语言单独取一列（<b>可选契约</b>）。
-        /// </summary>
+        /// <summary>本表能否按语言单独取一列（<b>可选契约</b>）。</summary>
         /// <remarks>
         /// 默认 <c>false</c>：本地化侧走 <see cref="GetAllLocalizedStrings"/> 整批加载，全部语言列常驻内存。 <br />
         /// 覆写为 <c>true</c> 并实现 <see cref="GetLocalizedStringsByLanguage"/> 后改用「语言头 + 当前语言列」稀疏存储，缺译直接露 key。 <br />

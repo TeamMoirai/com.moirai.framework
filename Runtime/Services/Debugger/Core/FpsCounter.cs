@@ -37,9 +37,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取或设置刷新间隔（秒）。
-        /// </summary>
+        /// <summary>获取或设置刷新间隔（秒）。</summary>
         public float UpdateInterval
         {
             get
@@ -58,9 +56,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取当前帧率。
-        /// </summary>
+        /// <summary>获取当前帧率。</summary>
         public float CurrentFps
         {
             get

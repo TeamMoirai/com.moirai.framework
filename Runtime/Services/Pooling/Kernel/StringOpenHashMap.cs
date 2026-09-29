@@ -33,9 +33,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取已存储条目数量。
-        /// </summary>
+        /// <summary>获取已存储条目数量。</summary>
         public int Count => _count;
 
         #endregion

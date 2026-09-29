@@ -8,55 +8,39 @@ namespace Moirai.Atropos.Events
     [Serializable]
     internal class EventDebuggerRecordList
     {
-        /// <summary>
-        /// 回放会话包含的事件记录列表。
-        /// </summary>
+        /// <summary>回放会话包含的事件记录列表。</summary>
         public List<EventDebuggerEventRecord> eventList;
     }
     
     [Serializable]
     internal class EventDebuggerEventRecord
     {
-        /// <summary>
-        /// 获取事件的显示名称（含泛型参数的类型名）。
-        /// </summary>
+        /// <summary>获取事件的显示名称（含泛型参数的类型名）。</summary>
         [field: SerializeField]
         public string EventBaseName { get; private set; }
         
-        /// <summary>
-        /// 获取事件类型 ID。
-        /// </summary>
+        /// <summary>获取事件类型 ID。</summary>
         [field: SerializeField]
         public long EventTypeId { get; private set; }
         
-        /// <summary>
-        /// 获取事件类型的程序集限定名。
-        /// </summary>
+        /// <summary>获取事件类型的程序集限定名。</summary>
         [field: SerializeField]
         public string EventType { get; private set; }
         
-        /// <summary>
-        /// 获取事件实例 ID。
-        /// </summary>
+        /// <summary>获取事件实例 ID。</summary>
         [field: SerializeField]
         public ulong EventId { get; private set; }
         
         [field: SerializeField]
         internal long Timestamp { get; private set; }
         
-        /// <summary>
-        /// 获取或设置事件目标元素。
-        /// </summary>
+        /// <summary>获取或设置事件目标元素。</summary>
         public IEventHandler Target { get; set; }
         
-        /// <summary>
-        /// 获取事件记录时所处的传播阶段。
-        /// </summary>
+        /// <summary>获取事件记录时所处的传播阶段。</summary>
         public PropagationPhase PropagationPhase { get; private set; }
         
-        /// <summary>
-        /// 获取或设置事件数据的 JSON 序列化结果。
-        /// </summary>
+        /// <summary>获取或设置事件数据的 JSON 序列化结果。</summary>
         public string JsonData { get; set; }
         
         /// <summary>

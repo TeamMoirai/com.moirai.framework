@@ -26,14 +26,10 @@ namespace Moirai.Atropos.ObjectPool
         private const int WARMUP_CREATE_BATCH = 8;
         private const float WARMUP_FRAME_BUDGET_SECONDS = 0.001f;
 
-        /// <summary>
-        /// 兜底僵尸清扫间隔秒数——池无自发到期维护且有实例时按此周期扫描外部销毁的槽位。
-        /// </summary>
+        /// <summary>兜底僵尸清扫间隔秒数——池无自发到期维护且有实例时按此周期扫描外部销毁的槽位。</summary>
         private const float ZOMBIE_SWEEP_SECONDS = 30f;
 
-        /// <summary>
-        /// 维护故障退避基准秒数：按下限与上限夹住 <c>基准 × 连续失败次数</c>。
-        /// </summary>
+        /// <summary>维护故障退避基准秒数：按下限与上限夹住 <c>基准 × 连续失败次数</c>。</summary>
         /// <remarks>
         /// 只退避不摘出维护项：维护是槽位泄漏的唯一回收通道，退避仅阻止 <c>due == now</c> 的池每帧重投。
         /// </remarks>
@@ -100,48 +96,32 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取资源地址。
-        /// </summary>
+        /// <summary>获取资源地址。</summary>
         public string Location => _location;
 
-        /// <summary>
-        /// 获取分组名称。
-        /// </summary>
+        /// <summary>获取分组名称。</summary>
         public string Group => _rule.Group;
 
-        /// <summary>
-        /// 获取对象总数。
-        /// </summary>
+        /// <summary>获取对象总数。</summary>
         public int TotalCount => _totalCount;
 
-        /// <summary>
-        /// 获取活跃对象数量。
-        /// </summary>
+        /// <summary>获取活跃对象数量。</summary>
         public int ActiveCount => _activeCount;
 
-        /// <summary>
-        /// 获取非活跃对象数量。
-        /// </summary>
+        /// <summary>获取非活跃对象数量。</summary>
         public int InactiveCount => _inactiveCount;
 
-        /// <summary>
-        /// 获取预制体是否已就绪（Location 源需已加载；External 源取决于 prefab 是否有效）。
-        /// </summary>
+        /// <summary>获取预制体是否已就绪（Location 源需已加载；External 源取决于 prefab 是否有效）。</summary>
         public bool IsPrefabLoaded => _prefabSource.IsReady;
 
-        /// <summary>
-        /// 获取下次维护时间。
-        /// </summary>
+        /// <summary>获取下次维护时间。</summary>
         public float NextMaintenanceAt => _nextMaintenanceAt;
 
         #endregion
 
         #region 维护调度 [MAINTENANCE SCHEDULING]
 
-        /// <summary>
-        /// 维护堆索引——由 <see cref="PoolMaintenanceScheduler"/> 独占维护。
-        /// </summary>
+        /// <summary>维护堆索引——由 <see cref="PoolMaintenanceScheduler"/> 独占维护。</summary>
         public int MaintenanceHeapIndex { get; set; } = -1;
 
         #endregion

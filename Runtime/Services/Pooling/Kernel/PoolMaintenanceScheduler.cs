@@ -19,9 +19,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="lowMemory">是否为低内存强制维护（全量收缩）。</param>
         void ExecuteMaintenance(float now, bool lowMemory);
 
-        /// <summary>
-        /// 维护堆索引——由调度器独占维护，池方只读。
-        /// </summary>
+        /// <summary>维护堆索引——由调度器独占维护，池方只读。</summary>
         int MaintenanceHeapIndex { get; set; }
     }
 
@@ -78,14 +76,10 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取堆内待维护项数量（不含本轮工作集中尚未派发的残留项，见 <see cref="PendingCount"/>）。
-        /// </summary>
+        /// <summary>获取堆内待维护项数量（不含本轮工作集中尚未派发的残留项，见 <see cref="PendingCount"/>）。</summary>
         public int Count => _count;
 
-        /// <summary>
-        /// 获取本轮工作集中尚未派发的残留项数量（预算或迭代上界耗尽时跨调用续派）。
-        /// </summary>
+        /// <summary>获取本轮工作集中尚未派发的残留项数量（预算或迭代上界耗尽时跨调用续派）。</summary>
         public int PendingCount => _pendingCount - _pendingIndex;
 
         #endregion

@@ -7,24 +7,16 @@ namespace Moirai.Atropos.Save
     /// <see cref="Completed"/> 为已处理数。</remarks>
     public readonly struct SaveProgressArgs
     {
-        /// <summary>
-        /// 存档文件名。
-        /// </summary>
+        /// <summary>存档文件名。</summary>
         public string FileName { get; }
 
-        /// <summary>
-        /// 存档文件夹名称。
-        /// </summary>
+        /// <summary>存档文件夹名称。</summary>
         public string FolderName { get; }
 
-        /// <summary>
-        /// 已处理组件数。
-        /// </summary>
+        /// <summary>已处理组件数。</summary>
         public int Completed { get; }
 
-        /// <summary>
-        /// 组件总数（已注册快照）。
-        /// </summary>
+        /// <summary>组件总数（已注册快照）。</summary>
         public int Total { get; }
 
         /// <summary>

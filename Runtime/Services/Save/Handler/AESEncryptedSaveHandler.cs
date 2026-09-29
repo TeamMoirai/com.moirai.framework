@@ -38,9 +38,7 @@ namespace Moirai.Atropos.Save
             set => m_KeyProvider = value;
         }
 
-        /// <summary>
-        /// AES 加密器（懒加载；仅承担 AES/HMAC 机件，密钥材料经 <see cref="ISaveKeyProvider"/> 直给）。
-        /// </summary>
+        /// <summary>AES 加密器（懒加载；仅承担 AES/HMAC 机件，密钥材料经 <see cref="ISaveKeyProvider"/> 直给）。</summary>
         private SaveEncryptor Encryptor => _encryptor ??= new SaveEncryptor();
         
         /// <summary>

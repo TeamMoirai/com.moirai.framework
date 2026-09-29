@@ -24,14 +24,10 @@ namespace Moirai.Atropos.Procedure
         [NonSerialized] private bool _isStateReady;
         [NonSerialized] private int _transitionDepth;
 
-        /// <summary>
-        /// 状态机是否已就绪（已 <see cref="Initialize"/> 且未关停）。
-        /// </summary>
+        /// <summary>状态机是否已就绪（已 <see cref="Initialize"/> 且未关停）。</summary>
         public override bool IsStateReady => _isStateReady;
 
-        /// <summary>
-        /// 当前流程。
-        /// </summary>
+        /// <summary>当前流程。</summary>
         public override ProcedureBase CurrentProcedure
         {
             get
@@ -45,9 +41,7 @@ namespace Moirai.Atropos.Procedure
             }
         }
 
-        /// <summary>
-        /// 当前流程持续时间。
-        /// </summary>
+        /// <summary>当前流程持续时间。</summary>
         public override float CurrentProcedureTime
         {
             get
@@ -61,9 +55,7 @@ namespace Moirai.Atropos.Procedure
             }
         }
 
-        /// <summary>
-        /// 已注册的全部流程（未初始化时为空集）。
-        /// </summary>
+        /// <summary>已注册的全部流程（未初始化时为空集）。</summary>
         public override IReadOnlyCollection<ProcedureBase> Procedures =>
             _states != null ? (IReadOnlyCollection<ProcedureBase>)_states.Values : EmptyProcedures;
 

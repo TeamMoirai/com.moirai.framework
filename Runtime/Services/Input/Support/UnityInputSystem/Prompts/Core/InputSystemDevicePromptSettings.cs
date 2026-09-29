@@ -42,31 +42,23 @@ namespace Moirai.Atropos.Input.Prompts
         [Tooltip("额外富文本后缀标记。例如：对输入 sprite 进行重新着色，只有在 sprite 标签中添加 tint=1 时才生效，即<sprite=... tint=1>")]
         [TextAreaResizable]
         [SerializeField] private string m_RichTextTags = "";
-        /// <summary>
-        /// 用于自定义富文本格式的标记。
-        /// </summary>
+        /// <summary>用于自定义富文本格式的标记。</summary>
         /// <remarks>
         /// 此字段可用于定义可与 PromptSpriteFormatter 结合使用的其他富文本标记。
         /// </remarks>
         public string RichTextTags => m_RichTextTags;
 
-        /// <summary>
-        /// 用于标识替换图标占位符的起止。
-        /// </summary>
+        /// <summary>用于标识替换图标占位符的起止。</summary>
         public const string OPEN_TAG = "{action:";
         public const string CLOSE_TAG = "}";
         
-        /// <summary>
-        /// 用于表示 sprite 在 <see cref="m_PromptSpriteFormatter"/> 中的占位符。
-        /// </summary>
+        /// <summary>用于表示 sprite 在 <see cref="m_PromptSpriteFormatter"/> 中的占位符。</summary>
         public const string PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER = "{SPRITE}";
 
         [Tooltip("图片格式化富文本。例如“<size=200%>{SPRITE}</size>”")]
         [TextAreaResizable]
         [SerializeField] private string m_PromptSpriteFormatter = PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER;
-        /// <summary>
-        /// 向 <see cref="InputDevicePromptSystem.InsertPromptSprites"/> 返回的字符串添加额外富文本的格式化程序。
-        /// </summary>
+        /// <summary>向 <see cref="InputDevicePromptSystem.InsertPromptSprites"/> 返回的字符串添加额外富文本的格式化程序。</summary>
         /// <example>
         /// 未格式化：<![CDATA[
         /// {SPRITE} = "<sprite="PS5_Prompts" sprite="ps5_button_cross">"

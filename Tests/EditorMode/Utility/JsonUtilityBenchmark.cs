@@ -188,7 +188,9 @@ namespace Utility
             _report.WriteXml(_report.ResolveXmlPath());
         }
 
-        /// <summary>结束后清理：恢复外观 handler（触发其 OnInit 重置静态状态）、释放无用资产。</summary>
+        /// <summary>
+        /// 结束后清理：恢复外观 handler（触发其 OnInit 重置静态状态）、释放无用资产。
+        /// </summary>
         private void Cleanup(JsonHandler originalHandler)
         {
             if (originalHandler != null && !ReferenceEquals(JsonUtility.Handler, originalHandler))
@@ -288,7 +290,9 @@ namespace Utility
 
         #endregion
 
-        /// <summary>JsonHandler 中间件层：外观挂各实现（自动发现）的端到端开销（含抽象层与异常包装成本）。</summary>
+        /// <summary>
+        /// JsonHandler 中间件层：外观挂各实现（自动发现）的端到端开销（含抽象层与异常包装成本）。
+        /// </summary>
         private void RunHandlerMiddleware(List<string> results)
         {
             results.Add($"{TAG} ----- JsonHandler 中间件层（外观 JsonUtility 端到端，handler 自动发现）-----");
@@ -343,7 +347,9 @@ namespace Utility
             }
         }
 
-        /// <summary>能力矩阵：各实现（自动发现）对字节通路的实际行为验证（非计时，仅日志与结果抽样）。</summary>
+        /// <summary>
+        /// 能力矩阵：各实现（自动发现）对字节通路的实际行为验证（非计时，仅日志与结果抽样）。
+        /// </summary>
         private static void RunCapabilityMatrix(List<string> results)
         {
             results.Add($"{TAG} ----- IBufferJsonHandler 能力矩阵（自动发现）-----");
@@ -387,7 +393,9 @@ namespace Utility
             if (!double.IsNaN(u)) AddOpCase(caseName + "/UnityJson", u);
         }
 
-        /// <summary>单个操作进报告（µs/op → ns/op 口径；自适迭代次数不定，min/mean/max 同值）。</summary>
+        /// <summary>
+        /// 单个操作进报告（µs/op → ns/op 口径；自适迭代次数不定，min/mean/max 同值）。
+        /// </summary>
         private void AddOpCase(string name, double usPerOp)
         {
             _report.Add(new BenchmarkCaseResult
@@ -402,7 +410,9 @@ namespace Utility
             });
         }
 
-        /// <summary>自适迭代测量：预热 ~30ms 后计量 ~150ms，返回 µs/次。</summary>
+        /// <summary>
+        /// 自适迭代测量：预热 ~30ms 后计量 ~150ms，返回 µs/次。
+        /// </summary>
         private static double Measure(Action action)
         {
             var sw = Stopwatch.StartNew();
@@ -424,7 +434,9 @@ namespace Utility
 
         #region 数据构建 [PAYLOAD BUILDERS]
 
-        /// <summary>程序化构建数据（含插件双重编码 JSON 与 CJK 富文本）。</summary>
+        /// <summary>
+        /// 程序化构建数据（含插件双重编码 JSON 与 CJK 富文本）。
+        /// </summary>
         private static InventoryDbDto BuildInventoryDb(int itemCount)
         {
             var db = new InventoryDbDto

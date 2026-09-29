@@ -5,9 +5,7 @@
     /// </summary>
     public interface IUIAction
     { 
-        /// <summary>
-        /// 获取动作名称。
-        /// </summary>
+        /// <summary>获取动作名称。</summary>
         string ActionName { get; }
     }
 }

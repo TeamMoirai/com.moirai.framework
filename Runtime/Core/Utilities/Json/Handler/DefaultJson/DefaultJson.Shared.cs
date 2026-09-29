@@ -26,14 +26,18 @@ namespace Moirai.Atropos
             [ThreadStatic]
             public static bool DepthWarned;
 
-            /// <summary>开始一次序列化（清栈 + 重置告警）。</summary>
+            /// <summary>
+            /// 开始一次序列化（清栈 + 重置告警）。
+            /// </summary>
             public static void Begin()
             {
                 RefStack?.Clear();
                 DepthWarned = false;
             }
 
-            /// <summary>结束一次序列化（清栈兜底，异常路径未配对弹出也能恢复）。</summary>
+            /// <summary>
+            /// 结束一次序列化（清栈兜底，异常路径未配对弹出也能恢复）。
+            /// </summary>
             public static void End()
             {
                 RefStack?.Clear();
@@ -60,7 +64,9 @@ namespace Moirai.Atropos
                 return false;
             }
 
-            /// <summary>容器入口压栈（对象/数组/列表/字典；值类型不入栈）。</summary>
+            /// <summary>
+            /// 容器入口压栈（对象/数组/列表/字典；值类型不入栈）。
+            /// </summary>
             public static void PushReference(object container)
             {
                 if (container == null) return;
@@ -70,14 +76,18 @@ namespace Moirai.Atropos
                 (RefStack ??= new List<object>(maxDepth + 2)).Add(container);
             }
 
-            /// <summary>容器出口弹栈。</summary>
+            /// <summary>
+            /// 容器出口弹栈。
+            /// </summary>
             public static void PopReference()
             {
                 var stack = RefStack;
                 if (stack != null && stack.Count > 0) stack.RemoveAt(stack.Count - 1);
             }
 
-            /// <summary>是否为标量值（写入无递归风险，深度守卫不适用）。</summary>
+            /// <summary>
+            /// 是否为标量值（写入无递归风险，深度守卫不适用）。
+            /// </summary>
             public static bool IsScalarValue(object value)
             {
                 if (value == null || value is string) return true;
@@ -113,7 +123,9 @@ namespace Moirai.Atropos
         /// </summary>
         internal static class JsonTypeUtil
         {
-            /// <summary>能否作为标准 JSON 对象 key 输出（字符串化后可无损还原）。</summary>
+            /// <summary>
+            /// 能否作为标准 JSON 对象 key 输出（字符串化后可无损还原）。
+            /// </summary>
             public static bool IsStandardDictionaryKey(Type keyType)
             {
                 return keyType == typeof(string) ||
@@ -261,7 +273,9 @@ namespace Moirai.Atropos
                 return false;
             }
 
-            /// <summary>共享 Throw（标注 [DoesNotReturn]，消除调用方不可达警告）。</summary>
+            /// <summary>
+            /// 共享 Throw（标注 [DoesNotReturn]，消除调用方不可达警告）。
+            /// </summary>
             [System.Diagnostics.CodeAnalysis.DoesNotReturn]
             private static void Throw(string message)
             {

@@ -7,7 +7,9 @@ using UnityEngine;
 
 namespace Service.Kernel
 {
-    /// <summary>内置服务自动注册（[AutoRegisterService] + BuiltinServiceRegistrationGenerator）的契约守卫。</summary>
+    /// <summary>
+    /// 内置服务自动注册（[AutoRegisterService] + BuiltinServiceRegistrationGenerator）的契约守卫。
+    /// </summary>
     /// <remarks>
     /// ① 生成清单 <c>BuiltinServiceRegistration.RegisterAll</c> 的注册集合与程序集内标记集合严格相等； <br />
     /// ② 框架程序集内全部可实例化的非 MonoBehaviour <see cref="IService"/> 实现必须带标记——组合根不再持有手写清单，漏标服务将永远不会注册。

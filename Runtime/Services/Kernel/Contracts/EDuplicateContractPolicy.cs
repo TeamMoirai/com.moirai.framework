@@ -8,19 +8,13 @@ namespace Moirai.Atropos
     /// </remarks>
     public enum EDuplicateContractPolicy : byte
     {
-        /// <summary>
-        /// 静默丢弃新实例并返回既有实例。发布构建默认值（零运行时成本）。
-        /// </summary>
+        /// <summary>静默丢弃新实例并返回既有实例。发布构建默认值（零运行时成本）。</summary>
         Skip = 0,
 
-        /// <summary>
-        /// 记录警告后丢弃新实例并返回既有实例。编辑器与开发构建默认值——意外抢占契约不再静默。
-        /// </summary>
+        /// <summary>记录警告后丢弃新实例并返回既有实例。编辑器与开发构建默认值——意外抢占契约不再静默。</summary>
         Warn = 1,
 
-        /// <summary>
-        /// 抛出 <see cref="GameException"/>（fail-fast）。适用于强约束的集成验证与问题排查期。
-        /// </summary>
+        /// <summary>抛出 <see cref="GameException"/>（fail-fast）。适用于强约束的集成验证与问题排查期。</summary>
         Throw = 2,
     }
 }

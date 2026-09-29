@@ -13,9 +13,7 @@ namespace Moirai.Atropos.Audio
         private const string POOL_ROOT_NAME = "[Warmup]";
 
         private static readonly Stack<AudioSource> s_Stack = new Stack<AudioSource>(16);
-        /// <summary>
-        /// 当前栈池缓存数量（诊断用）。
-        /// </summary>
+        /// <summary>当前栈池缓存数量（诊断用）。</summary>
         public static int StackCount => s_Stack.Count;
         
         /// <summary>

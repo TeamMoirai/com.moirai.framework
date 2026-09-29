@@ -17,7 +17,9 @@ namespace Service.Audio
     [TestFixture]
     public sealed class AudioMiddlewareEventMapTests
     {
-        /// <summary>记录播放路径与推导调用的假桥。</summary>
+        /// <summary>
+        /// 记录播放路径与推导调用的假桥。
+        /// </summary>
         private sealed class RecordingBridge : IAudioMiddlewareBridge
         {
             /// <summary>返回 0 时按事件路径置真——模拟「路径写错／库没加载」。</summary>

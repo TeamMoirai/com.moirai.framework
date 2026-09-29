@@ -4,7 +4,9 @@ using NUnit.Framework;
 
 namespace Service.Audio
 {
-    /// <summary>跨后端音量语义对拍：同一份输入下两个后端给出同一个契约值，中间件落到总线的数等于 getter 报回的数。</summary>
+    /// <summary>
+    /// 跨后端音量语义对拍：同一份输入下两个后端给出同一个契约值，中间件落到总线的数等于 getter 报回的数。
+    /// </summary>
     /// <remarks>音轨音量值域统一为 0..10，任一后端写入总线的值都不得超过该值域。</remarks>
     [TestFixture]
     public sealed class AudioVolumeParityTests
@@ -61,7 +63,9 @@ namespace Service.Audio
             }
         }
 
-        /// <summary>「还没初始化」不等于「后端 inert」：桥接尚未建立的启动窗口里，音量面必须照实报设置值。</summary>
+        /// <summary>
+        /// 「还没初始化」不等于「后端 inert」：桥接尚未建立的启动窗口里，音量面必须照实报设置值。
+        /// </summary>
         /// <remarks>inert 只应在初始化明确失败时成立（见 <see cref="AudioServiceHandler.IsBackendInert"/>），否则启动窗口内读到的 0 会被用户操作写回并持久化。</remarks>
         [Test]
         public void NotYetInitializedBackend_StillReportsItsSettings()

@@ -7,19 +7,13 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public readonly struct CloudKvEntry
     {
-        /// <summary>
-        /// 载荷字节。
-        /// </summary>
+        /// <summary>载荷字节。</summary>
         public readonly byte[] Bytes;
 
-        /// <summary>
-        /// 远端最后写入时间（UTC，远端存储权威时钟）。
-        /// </summary>
+        /// <summary>远端最后写入时间（UTC，远端存储权威时钟）。</summary>
         public readonly DateTime LastWriteTimeUtc;
 
-        /// <summary>
-        /// 远端单调修订号（etag 语义：每次远端写入递增；<c>0</c> = 后端不提供版本号）。
-        /// </summary>
+        /// <summary>远端单调修订号（etag 语义：每次远端写入递增；<c>0</c> = 后端不提供版本号）。</summary>
         /// <remarks>版本号比较替代跨设备时间戳比较，客户端时钟偏移不参与裁决；后端不提供版本号时裁决回退时间戳比较。</remarks>
         public readonly long Version;
 
