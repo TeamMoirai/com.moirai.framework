@@ -7,6 +7,14 @@ namespace Moirai.Atropos
 	/// </summary>
 	public static partial class MathsUtility
     {
+        // —— Spring 积分器稳定性参数 ——
+        // 半隐式 Euler 对阻尼谐振子的稳定界随阻尼收缩：ζ≤1 时要求 ω·h ≲ 0.8（Jury 判据），
+        // 取 0.75 作为安全裕度：高频弹簧按 ω 自适应缩小子步长，防止数值发散（NaN/Infinity）与"卡顿帧子步死亡螺旋"
+        private const float SPRING_BASE_STEP = 1.0f / 60.0f;
+        private const float SPRING_MAX_DELTA_TIME = 0.25f;
+        private const int SPRING_MAX_SUBSTEPS = 32;
+        private const float SPRING_STABILITY_MARGIN = 0.75f;
+
         /// <summary>
         /// 计算弹簧速度的内部方法。
         /// </summary>
@@ -20,6 +28,23 @@ namespace Moirai.Atropos
 	        velocity += deltaTime * acceleration;
 	        return velocity;
         }
+
+        /// <summary>
+        /// 根据频率与阻尼计算保证数值稳定的子步长（使 ω·h 不超过稳定裕度）。
+        /// ζ≤1 时 ω·h≤0.75 即稳定；ζ>1（过阻尼）时稳定界随 ζ 收缩，按 0.9/ζ 进一步缩小步长。
+        /// 频率非正或过低时回退基础子步长。
+        /// </summary>
+        private static float SpringStableStep(float damping, float frequency)
+        {
+	        float omega = frequency * 2f * Mathf.PI;
+	        if (omega <= 0f)
+	        {
+		        return SPRING_BASE_STEP;
+	        }
+
+	        float stabilityMargin = Mathf.Min(SPRING_STABILITY_MARGIN, 0.9f / Mathf.Max(damping, 0.01f));
+	        return Mathf.Min(SPRING_BASE_STEP, stabilityMargin / omega);
+        }
         
         /// <summary>
         /// 将 float 弹向目标值（类似弹簧效果）。
@@ -29,17 +54,19 @@ namespace Moirai.Atropos
         /// <param name="velocity">速度值，作为 ref 传入，用于计算弹簧值的当前速度。</param>
         /// <param name="damping">阻尼，在0.01F和1F之间，阻尼越高，弹性越差。</param>
         /// <param name="frequency">频率，以 Hz 为单位，弹簧在 1 秒内应经过的周期数。</param>
-        /// <param name="deltaTime">增量时间（通常为 Time.deltaTime 或 Time.unscaledDeltaTime）。</param>
+        /// <param name="deltaTime">增量时间（通常为 Time.deltaTime 或 Time.unscaledDeltaTime）。单次积分钳制到 0.25s 且子步数上限 32，超出部分丢弃，避免卡顿帧/高频配置引发数值发散。</param>
         public static void Spring(ref float currentValue, float targetValue, ref float velocity, float damping, float frequency, float deltaTime)
         {
-	        float fixedDeltaTime = 1.0f / 60.0f; 
-	        float accumulator = deltaTime;
-	        while (accumulator > 0f)
+	        float maxStep = SpringStableStep(damping, frequency);
+	        float accumulator = Mathf.Min(deltaTime, SPRING_MAX_DELTA_TIME);
+	        int substeps = 0;
+	        while ((accumulator > 0f) && (substeps < SPRING_MAX_SUBSTEPS))
 	        {
-		        float step = Mathf.Min(accumulator, fixedDeltaTime);
+		        float step = Mathf.Min(accumulator, maxStep);
 		        velocity = SpringVelocity(currentValue, targetValue, velocity, damping, frequency, step);
 		        currentValue += step * velocity;
 		        accumulator -= step;
+		        substeps++;
 	        }
         }
 
@@ -51,18 +78,20 @@ namespace Moirai.Atropos
         /// <param name="velocity">速度值，作为 ref 传入，用于计算弹簧值的当前速度。</param>
         /// <param name="damping">阻尼，在0.01F和1F之间，阻尼越高，弹性越差。</param>
         /// <param name="frequency">频率，以 Hz 为单位，弹簧在 1 秒内应经过的周期数。</param>
-        /// <param name="deltaTime">增量时间（通常为 Time.deltaTime 或 Time.unscaledDeltaTime）。</param>
+        /// <param name="deltaTime">增量时间（通常为 Time.deltaTime 或 Time.unscaledDeltaTime）。单次积分钳制到 0.25s 且子步数上限 32，超出部分丢弃，避免卡顿帧/高频配置引发数值发散。</param>
         public static void Spring(ref Vector2 currentValue, Vector2 targetValue, ref Vector2 velocity, float damping, float frequency, float deltaTime)
         {
-	        float fixedDeltaTime = 1.0f / 60.0f; 
-	        float accumulator = deltaTime;
-	        while (accumulator > 0f)
+	        float maxStep = SpringStableStep(damping, frequency);
+	        float accumulator = Mathf.Min(deltaTime, SPRING_MAX_DELTA_TIME);
+	        int substeps = 0;
+	        while ((accumulator > 0f) && (substeps < SPRING_MAX_SUBSTEPS))
 	        {
-		        float step = Mathf.Min(accumulator, fixedDeltaTime);
+		        float step = Mathf.Min(accumulator, maxStep);
 		        velocity.x = SpringVelocity(currentValue.x, targetValue.x, velocity.x, damping, frequency, step);
 		        velocity.y = SpringVelocity(currentValue.y, targetValue.y, velocity.y, damping, frequency, step);
 		        currentValue += step * velocity;
 		        accumulator -= step;
+		        substeps++;
 	        }
         }
 
@@ -74,19 +103,21 @@ namespace Moirai.Atropos
         /// <param name="velocity">速度值，作为 ref 传入，用于计算弹簧值的当前速度。</param>
         /// <param name="damping">阻尼，在0.01F和1F之间，阻尼越高，弹性越差。</param>
         /// <param name="frequency">频率，以 Hz 为单位，弹簧在 1 秒内应经过的周期数。</param>
-        /// <param name="deltaTime">增量时间（通常为 Time.deltaTime 或 Time.unscaledDeltaTime）。</param>
+        /// <param name="deltaTime">增量时间（通常为 Time.deltaTime 或 Time.unscaledDeltaTime）。单次积分钳制到 0.25s 且子步数上限 32，超出部分丢弃，避免卡顿帧/高频配置引发数值发散。</param>
         public static void Spring(ref Vector3 currentValue, Vector3 targetValue, ref Vector3 velocity, float damping, float frequency, float deltaTime)
         {
-	        float fixedDeltaTime = 1.0f / 60.0f; 
-	        float accumulator = deltaTime;
-	        while (accumulator > 0f)
+	        float maxStep = SpringStableStep(damping, frequency);
+	        float accumulator = Mathf.Min(deltaTime, SPRING_MAX_DELTA_TIME);
+	        int substeps = 0;
+	        while ((accumulator > 0f) && (substeps < SPRING_MAX_SUBSTEPS))
 	        {
-		        float step = Mathf.Min(accumulator, fixedDeltaTime);
+		        float step = Mathf.Min(accumulator, maxStep);
 		        velocity.x = SpringVelocity(currentValue.x, targetValue.x, velocity.x, damping, frequency, step);
 		        velocity.y = SpringVelocity(currentValue.y, targetValue.y, velocity.y, damping, frequency, step);
 		        velocity.z = SpringVelocity(currentValue.z, targetValue.z, velocity.z, damping, frequency, step);
 		        currentValue += step * velocity;
 		        accumulator -= step;
+		        substeps++;
 	        }
         }
 
@@ -98,20 +129,22 @@ namespace Moirai.Atropos
         /// <param name="velocity">速度值，作为 ref 传入，用于计算弹簧值的当前速度。</param>
         /// <param name="damping">阻尼，在0.01F和1F之间，阻尼越高，弹性越差。</param>
         /// <param name="frequency">频率，以 Hz 为单位，弹簧在 1 秒内应经过的周期数。</param>
-        /// <param name="deltaTime">增量时间（通常为 Time.deltaTime 或 Time.unscaledDeltaTime）。</param>
+        /// <param name="deltaTime">增量时间（通常为 Time.deltaTime 或 Time.unscaledDeltaTime）。单次积分钳制到 0.25s 且子步数上限 32，超出部分丢弃，避免卡顿帧/高频配置引发数值发散。</param>
         public static void Spring(ref Vector4 currentValue, Vector4 targetValue, ref Vector4 velocity, float damping, float frequency, float deltaTime)
         {
-	        float fixedDeltaTime = 1.0f / 60.0f; 
-	        float accumulator = deltaTime;
-	        while (accumulator > 0f)
+	        float maxStep = SpringStableStep(damping, frequency);
+	        float accumulator = Mathf.Min(deltaTime, SPRING_MAX_DELTA_TIME);
+	        int substeps = 0;
+	        while ((accumulator > 0f) && (substeps < SPRING_MAX_SUBSTEPS))
 	        {
-		        float step = Mathf.Min(accumulator, fixedDeltaTime);
+		        float step = Mathf.Min(accumulator, maxStep);
 		        velocity.x = SpringVelocity(currentValue.x, targetValue.x, velocity.x, damping, frequency, step);
 		        velocity.y = SpringVelocity(currentValue.y, targetValue.y, velocity.y, damping, frequency, step);
 		        velocity.z = SpringVelocity(currentValue.z, targetValue.z, velocity.z, damping, frequency, step);
 		        velocity.w = SpringVelocity(currentValue.w, targetValue.w, velocity.w, damping, frequency, step);
 		        currentValue += step * velocity; 
 		        accumulator -= step;
+		        substeps++;
 	        }
         }
 
