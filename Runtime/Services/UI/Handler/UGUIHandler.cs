@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Input;
@@ -38,7 +37,21 @@ namespace Moirai.Atropos.UI
         public override Camera UICamera => _uiCamera;
 
         /// <summary>当前模态遮挡窗口。</summary>
-        public override UIWindow CurrentModal => _uiStack.LastOrDefault(IsModal);
+        public override UIWindow CurrentModal
+        {
+            get
+            {
+                // 反向手写循环：LastOrDefault(IsModal) 会装箱 List 枚举器、并每次新建判定委托——
+                // 本属性是交互前置判断（UIServiceHelper）的高频查询入口，保持零分配取末位命中。
+                for (int i = _uiStack.Count - 1; i >= 0; i--)
+                {
+                    var window = _uiStack[i];
+                    if (IsModal(window)) return window;
+                }
+
+                return null;
+            }
+        }
 
         #region 生命周期 [LIFECYCLE]
 
@@ -645,7 +658,7 @@ namespace Moirai.Atropos.UI
             Pop(window);
             OnSortWindowDepth(window.WindowLayer);
             OnSetWindowVisible();
-            if (_uiStack.Count > 0) _uiStack.Last().InternalRefresh(false);
+            if (_uiStack.Count > 0) _uiStack[_uiStack.Count - 1].InternalRefresh(false);
         }
 
         public override void HideUI<T>(string windowName)
@@ -750,7 +763,7 @@ namespace Moirai.Atropos.UI
                 }
                 _uiStack.RemoveAt(i);
             }
-            if (_uiStack.Count > 0) _uiStack.Last().InternalRefresh(false);
+            if (_uiStack.Count > 0) _uiStack[_uiStack.Count - 1].InternalRefresh(false);
         }
 
         #endregion
