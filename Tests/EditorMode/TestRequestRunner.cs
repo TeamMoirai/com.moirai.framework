@@ -522,7 +522,8 @@ namespace Moirai.Atropos.Tests.EditorMode
         /// </summary>
         /// <remarks>
         /// 取消文件内容为请求 id（裸文本或 <c>{"id":"..."}</c>）。
-        /// UTF 受理取消后会清空任务管线、<b>不再送达 RunFinished</b>（RunFinishedInvocationEvent 被 Canceled 模式跳过），故受理即由本驱动收口，已收集计数随取消报告交付；拒绝受理（作业已在收尾/已取消中/找不到 runner）则继续等 RunFinished 自然收口。
+        /// UTF 受理取消后会清空任务管线、<b>不再送达 RunFinished</b>（RunFinishedInvocationEvent 被 Canceled 模式跳过），故受理即由本驱动收口，已收集计数随取消报告交付； <br />
+        /// 拒绝受理（作业已在收尾/已取消中/找不到 runner）则继续等 RunFinished 自然收口。
         /// 收口后在途单为 null，后续回调自然空转。
         /// </remarks>
         private static void TryCancelRun()

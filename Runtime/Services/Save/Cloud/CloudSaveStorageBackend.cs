@@ -13,7 +13,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 写：镜像原子提交后双发远端；远端失败不阻断本地提交，记入待回传集合，下次远端操作成功时 backfill 回传（删除同理，目录删除按前缀尽力删、失败记待删前缀重放）；远端不可达降级为镜像直通并记告警。
-    /// 裁决去时钟化：远端修订号（<see cref="CloudKvEntry.Version"/> &gt; 0）优先比较版本号，镜像已同步修订号存于 <c>{file}.cloudver</c> sidecar，镜像脏由镜像与 sidecar 的本地 mtime 失配判定；无版本号时回退时间戳比较（下载已转写远端戳）。
+    /// 裁决去时钟化：远端修订号（<see cref="CloudKvEntry.Version"/> &gt; 0）优先比较版本号，镜像已同步修订号存于 <c>{file}.cloudver</c> sidecar， <br />
+    /// 镜像脏由镜像与 sidecar 的本地 mtime 失配判定；无版本号时回退时间戳比较（下载已转写远端戳）。
     /// 同步 API 只作用于本地镜像，远端内容须经异步 API 族获取；单槽备份 <c>.bak</c> 为本地概念，不随云同步。
     /// </remarks>
     [Serializable]

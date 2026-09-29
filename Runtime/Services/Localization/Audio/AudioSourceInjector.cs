@@ -36,7 +36,8 @@ namespace Moirai.Atropos.Localization
 		/// <summary>
 		/// 按载荷类型向音频源注入并播放。
 		/// </summary>
-		/// <remarks><see cref="string"/> = 资源 location（已单趟解析），异步加载后播放；<see cref="AudioClip"/> = 直接播放传入片段；<c>null</c> = 该语言没有语音，清空音源；其余载荷类型忽略。</remarks>
+		/// <remarks><see cref="string"/> = 资源 location（已单趟解析），异步加载后播放；<see cref="AudioClip"/> = 直接播放传入片段；<c>null</c> = 该语言没有语音， <br />
+		/// 清空音源；其余载荷类型忽略。</remarks>
 		/// <typeparam name="T1">载荷类型：<see cref="string"/>、<see cref="AudioClip"/> 或 <c>null</c>。</typeparam>
 		/// <typeparam name="T2">本地化器类型。</typeparam>
 		/// <param name="localizedData">资源 location、音频片段，或表示「本语言无语音」的 <c>null</c>。</param>

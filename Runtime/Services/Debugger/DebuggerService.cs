@@ -7,7 +7,8 @@ namespace Moirai.Atropos.Debugger
     /// </summary>
     /// <remarks>
     /// 提供窗口注册 / 检索 / 选中、激活开关、日志检索与自定义面板注册。
-    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="DebuggerServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="DebuggerServiceSettings"/> 解析； <br />
+    /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
     /// 外观方法经 <c>s_Handler</c> 直接转发，未注册时静默降级为默认值；<c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]

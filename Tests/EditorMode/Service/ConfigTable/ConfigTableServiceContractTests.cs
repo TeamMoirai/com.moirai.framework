@@ -285,7 +285,8 @@ namespace Service.ConfigTable
         }
 
         /// <summary>经 <see cref="LogUtility.OnMessageLogged"/> 捕获日志内容（Handler 无关的唯一稳定通道）。</summary>
-        /// <remarks>同时经 <see cref="UtfLogExpect"/> 声明一条 UTF 预期：默认后端走 LogUtility 的 Error 级发射，当前 Handler 对 UTF 可见时不声明会把测试判成「未处理日志」而失败。</remarks>
+        /// <remarks>同时经 <see cref="UtfLogExpect"/> 声明一条 UTF 预期：默认后端走 LogUtility 的 Error 级发射， <br />
+        /// 当前 Handler 对 UTF 可见时不声明会把测试判成「未处理日志」而失败。</remarks>
         private sealed class LogCapture : IDisposable
         {
             private readonly List<string> _messages = new List<string>();

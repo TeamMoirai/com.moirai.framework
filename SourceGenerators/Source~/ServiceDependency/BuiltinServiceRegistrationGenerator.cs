@@ -8,7 +8,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
-    /// 推送式服务注册源生成器：为标记 <c>[AutoRegisterService]</c> 的服务类生成程序集级 internal 清单类 <c>BuiltinServiceRegistration.RegisterAll(ServiceWorld)</c>。
+    /// 推送式服务注册源生成器： 为标记 <c>[AutoRegisterService]</c> 的服务类生成程序集级 internal 清单类 <br />
+    /// <c>BuiltinServiceRegistration.RegisterAll(ServiceWorld)</c>。
     /// </summary>
     /// <remarks>
     /// 清单类供组合根调用，替代手写的逐服务 RegisterService 调用；初始化顺序仍由 <c>[ServiceDependency]</c> 依赖图在世界初始化时拓扑排序决定，与注册顺序无关。

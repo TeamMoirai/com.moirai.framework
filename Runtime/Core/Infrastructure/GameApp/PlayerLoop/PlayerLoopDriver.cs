@@ -10,7 +10,8 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 订阅存于静态注册表，不挂 GameObject，场景切换 / 宿主销毁不丢失；帧开始先经 <c>GameTime.StartFrame</c> 采样，接口 Handler 与 Action 回调读同一帧快照。
-    /// 零分配契约：三个 Drive 入口与全部 <see cref="IUpdateHandler"/> 实现的热路径不得堆分配（for 循环，禁 LINQ / 闭包 / 字符串拼接）；注册 / 注销在驱动中进入所属阶段延迟缓冲，阶段迭代结束后提交。
+    /// 零分配契约：三个 Drive 入口与全部 <see cref="IUpdateHandler"/> 实现的热路径不得堆分配（for 循环，禁 LINQ / 闭包 / 字符串拼接）；注册 / 注销在驱动中进入所属阶段延迟缓冲， <br />
+    /// 阶段迭代结束后提交。
     /// 异常分级：开发构建记录后上抛，发布构建隔离续跑；同一订户连续失败达 <see cref="FailureTripThreshold"/> 熔断摘出，核心钩子与关闭广播不参与截断。
     /// 线程契约：注册表无锁，注册 / 注销仅限主线程（越线程 fail-fast），后台线程先经 <c>MainThreadDispatcher.Post/Send</c> 回主线程。
     /// 可整体交给 DI 容器（Handler 经构造注入依赖，再由组合根调 <see cref="Register(IUpdateHandler)"/>）。

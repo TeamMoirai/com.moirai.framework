@@ -6,7 +6,9 @@ namespace Moirai.Atropos.Debugger
     /// 调试器窗口接口。
     /// </summary>
     /// <remarks>
-    /// 生命周期契约：注册时 <see cref="Initialize"/>（经 <c>params</c> 注入依赖）→ 选中时 <see cref="OnEnter"/> 且宿主挂载 <see cref="CreateView"/> 视图 → 可见期间逐帧 <see cref="OnUpdate"/> → 离开时 <see cref="OnLeave"/> → 注销或服务关闭时 <see cref="Shutdown"/>。
+    /// 生命周期契约： 注册时 <see cref="Initialize"/>（经 <c>params</c> 注入依赖）→ 选中时 <see cref="OnEnter"/> 且宿主挂载 <br />
+    /// <see cref="CreateView"/> 视图 → 可见期间逐帧 <br />
+    /// <see cref="OnUpdate"/> → 离开时 <see cref="OnLeave"/> → 注销或服务关闭时 <see cref="Shutdown"/>。
     /// 视图为 UI Toolkit <see cref="VisualElement"/> 树，窗口持有自身视图状态（滚动位置、选中项等）；<see cref="CreateView"/> 每窗口实例至多调用一次，窗口注销时宿主移除缓存。
     /// </remarks>
     public interface IDebuggerWindow

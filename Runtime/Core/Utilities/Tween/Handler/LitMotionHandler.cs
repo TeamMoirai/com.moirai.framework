@@ -253,7 +253,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 等待 tween 结束（UniTask，LitMotion 原生信号版）。
         /// </summary>
-        /// <remarks>任何结束原因（自然完成/Complete/Stop/清理）均正常返回，不区分死因（<c>CancelBehavior.None</c> + <c>cancelAwaitOnMotionCanceled:false</c>）；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待，motion 不受影响）。</remarks>
+        /// <remarks>任何结束原因（自然完成/Complete/Stop/清理）均正常返回， <br />
+        /// 不区分死因（<c>CancelBehavior.None</c> + <c>cancelAwaitOnMotionCanceled: false</c>）； <br />
+        /// 仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待，motion 不受影响）。</remarks>
         public override UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {
             if (!_handleMap.TryGetValue(tweenId, out var handle) || !handle.IsActive())

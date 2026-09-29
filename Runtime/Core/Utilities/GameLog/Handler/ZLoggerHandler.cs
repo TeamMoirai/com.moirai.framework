@@ -38,7 +38,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 创建输出到 Unity 控制台的 ZLogger 配置。
         /// </summary>
-        /// <remarks>严重程度前缀由 formatter 模板的 <c>{LogLevel:short}</c> 提供，三字符记法与 <see cref="SerilogHandler"/> 的 <c>[{Level:u3}]</c> 一致。</remarks>
+        /// <remarks>严重程度前缀由 formatter 模板的 <c>{LogLevel:short}</c> 提供，三字符记法与 <see cref="SerilogHandler"/> 的 <c>[{Level:u3}]</c> 一致。 <br />
+        /// </remarks>
         private static ZLoggerOptions CreateUnityConsoleOptions()
         {
             var options = new ZLoggerOptions();

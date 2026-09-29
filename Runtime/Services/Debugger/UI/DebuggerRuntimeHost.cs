@@ -9,7 +9,8 @@ namespace Moirai.Atropos.Debugger
     /// 调试器运行时宿主（MonoBehaviour）。
     /// </summary>
     /// <remarks>
-    /// 由 <see cref="DefaultDebuggerHandler"/> 在首个 Tick 懒建（<c>DontDestroyOnLoad</c>），运行时构建 <c>PanelSettings</c> / <c>UIDocument</c>，零资产依赖。
+    /// 由 <see cref="DefaultDebuggerHandler"/> 在首个 Tick 懒建（<c>DontDestroyOnLoad</c>）， <br />
+    /// 运行时构建 <c>PanelSettings</c> / <c>UIDocument</c>，零资产依赖。
     /// 承载悬浮 FPS 入口、主窗口 chrome（侧边栏树 + 搜索过滤 + 内容区 + 拖动 / 缩放）、布局持久化与参考分辨率自适应缩放。
     /// 面板尺寸 = 屏幕尺寸 / (分辨率比例 × 用户缩放)，控件统一按 1920×1080 参考坐标编写。
     /// </remarks>

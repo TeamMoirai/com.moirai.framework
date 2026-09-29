@@ -45,7 +45,8 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 各实现经后端自身的模板/格式化系统应用：<see cref="DefaultLogHandler"/> 在消息前缀拼接 <c>[HH:mm:ss.fff]</c>；
-        /// <see cref="ZLoggerHandler"/> 经 <c>PrefixFormatter</c>；<see cref="UnityLoggingHandler"/> 与 <see cref="SerilogHandler"/> 由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制。
+        /// <see cref="ZLoggerHandler"/> 经 <c>PrefixFormatter</c>； <br />
+        /// <see cref="UnityLoggingHandler"/> 与 <see cref="SerilogHandler"/> 由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制。
         /// </remarks>
         public bool TimestampEnabled
         {

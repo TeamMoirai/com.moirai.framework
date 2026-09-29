@@ -8,7 +8,8 @@ namespace Moirai.Atropos.Input
     /// 输入服务外观（Facade）：统一的静态输入访问入口，替换 <see cref="Handler"/> 即可切换输入后端。
     /// </summary>
     /// <remarks>
-    /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="InputServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="InputServiceSettings"/> 解析， <br />
+    /// 未配置则回退 <see cref="CreateDefaultHandler"/>。
     /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
     /// </remarks>

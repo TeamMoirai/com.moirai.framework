@@ -6,8 +6,10 @@ namespace Moirai.Atropos.ObjectPool
     /// 通用对象池服务外观（Facade）：全框架统一的静态通用池访问入口。
     /// </summary>
     /// <remarks>
-    /// 通过替换 <see cref="Handler"/> 可在不同池后端之间切换；面向任意 <see cref="ObjectBase"/> 派生对象（非 GameObject），GameObject 池化请使用 <see cref="GameObjectPoolService"/>。
-    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ObjectPoolServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// 通过替换 <see cref="Handler"/> 可在不同池后端之间切换；面向任意 <see cref="ObjectBase"/> 派生对象（非 GameObject）， <br />
+    /// GameObject 池化请使用 <see cref="GameObjectPoolService"/>。
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ObjectPoolServiceSettings"/> 解析； <br />
+    /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
     /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]

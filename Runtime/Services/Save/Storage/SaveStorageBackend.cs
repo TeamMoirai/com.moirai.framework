@@ -9,7 +9,8 @@ namespace Moirai.Atropos.Save
     /// 存档存储后端抽象基类（<see cref="SaveServiceSettings"/> 以 [SerializeReference] + ProviderDropdown 持有实例）。
     /// </summary>
     /// <remarks>
-    /// 实现 <see cref="ISaveStorage"/>：同步原语为抽象契约（后端必须实现）；异步包装默认线程池卸载同步原语，真异步后端（如云存储）覆盖异步方法并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。
+    /// 实现 <see cref="ISaveStorage"/>：同步原语为抽象契约（后端必须实现）；异步包装默认线程池卸载同步原语， <br />
+    /// 真异步后端（如云存储）覆盖异步方法并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。
     /// 不支持同步 IO 的后端可在同步方法抛 <see cref="NotSupportedException"/>（同步裸名 API 随之不可用，调用方按能力降级）。
     /// 实现必须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。
     /// </remarks>

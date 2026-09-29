@@ -8,7 +8,8 @@ namespace Moirai.Atropos.Debugger
     /// </summary>
     /// <remarks>
     /// 与渲染宿主解耦：同一视图可渲染于编辑器 Inspector（IMGUI）或游戏内调试器窗口（经 <see cref="CreateView"/> 以 <c>IMGUIContainer</c> 嵌入 UI Toolkit）。
-    /// 实现 <see cref="IDebuggerWindow"/>，可经 <see cref="DebuggerService.RegisterDebugView"/> 注册；各宿主应持有独立实例（绘制状态不共享），派生类可覆写 <see cref="CreateView"/> 提供原生 UI Toolkit 视图。
+    /// 实现 <see cref="IDebuggerWindow"/>，可经 <see cref="DebuggerService.RegisterDebugView"/> 注册；各宿主应持有独立实例（绘制状态不共享）， <br />
+    /// 派生类可覆写 <see cref="CreateView"/> 提供原生 UI Toolkit 视图。
     /// </remarks>
     public abstract class ServiceDebugView : IDebuggerWindow
     {
@@ -70,7 +71,8 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <inheritdoc />
-        /// <remarks>默认实现经 <see cref="IMGUIDebuggerWindow"/> 将 <see cref="OnDraw"/> 的 GUILayout 内容嵌入 UI Toolkit 面板；派生类可覆写提供原生 UI Toolkit 视图。</remarks>
+        /// <remarks>默认实现经 <see cref="IMGUIDebuggerWindow"/> 将 <see cref="OnDraw"/> 的 GUILayout 内容嵌入 UI Toolkit 面板； <br />
+        /// 派生类可覆写提供原生 UI Toolkit 视图。</remarks>
         public virtual VisualElement CreateView()
         {
             return new IMGUIDebuggerWindow(this).CreateView();

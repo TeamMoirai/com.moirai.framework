@@ -3,7 +3,8 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 云存档冲突裁决器：<see cref="ESaveSyncPolicy.Custom"/> 时的逐键裁决插拔件（[Serializable] 抽象基类，由 <see cref="CloudSaveStorageBackend"/> 以 [SerializeReference] 持有）。
+    /// 云存档冲突裁决器：<see cref="ESaveSyncPolicy.Custom"/> 时的逐键裁决插拔件（[Serializable] 抽象基类， <br />
+    /// 由 <see cref="CloudSaveStorageBackend"/> 以 [SerializeReference] 持有）。
     /// </summary>
     /// <remarks>实现须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。</remarks>
     /// <example>

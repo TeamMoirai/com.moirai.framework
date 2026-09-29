@@ -11,8 +11,10 @@ namespace Moirai.Atropos.Scene
     /// 默认场景处理器实现，承载主场景切换、附加场景加载/卸载、进度回调和挂起加载等核心逻辑。
     /// </summary>
     /// <remarks>
-    /// 场景加载经 <see cref="ResourceService"/> 走资源系统管线加载场景——场景资源与普通资源共享包管理、下载与引用计数体系，而非引擎内建 <see cref="SceneManager"/> 加载管线，自动应用当前配置的资源后端适配器（YooAsset、Addressable 等）。
-    /// 标识约定：内部登记以资源地址（location）为键并维护场景短名（<see cref="UnityEngine.SceneManagement.Scene.name"/>）反向索引；查询/激活/卸载接口同时接受资源地址与场景短名，<see cref="CurrentMainSceneName"/> 与生命周期事件统一使用场景短名；短名碰撞时后注册者覆盖反向索引并打 Warning，按名查询可能解析到错误对象。
+    /// 场景加载经 <see cref="ResourceService"/> 走资源系统管线加载场景——场景资源与普通资源共享包管理、下载与引用计数体系，而非引擎内建 <see cref="SceneManager"/> 加载管线， <br />
+    /// 自动应用当前配置的资源后端适配器（YooAsset、Addressable 等）。
+    /// 标识约定：内部登记以资源地址（location）为键并维护场景短名（<see cref="UnityEngine.SceneManagement.Scene.name"/>）反向索引；查询/激活/卸载接口同时接受资源地址与场景短名， <br />
+    /// <see cref="CurrentMainSceneName"/> 与生命周期事件统一使用场景短名；短名碰撞时后注册者覆盖反向索引并打 Warning，按名查询可能解析到错误对象。
     /// 登记结构：全部登记状态收敛于 <see cref="SceneRegistry"/>（纯决策单元，可独立单测），本类仅负责异步编排、进度/回调边界与日志/异常翻译；句柄只存一处（主场景在途用登记簿在途字段，子场景用子场景表）。
     /// 挂起加载契约：底层加载不可中止，挂起场景必须最终 <see cref="UnSuspend"/>；等待方取消（<see cref="CancellationToken"/>）只放弃等待，登记与事件由后台续体在加载真正结束时收尾。
     /// 由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。
@@ -158,7 +160,8 @@ namespace Moirai.Atropos.Scene
         /// 场景加载核心流程——经 <see cref="ResourceService"/> 走资源系统管线加载场景。
         /// </summary>
         /// <remarks>
-        /// 门禁失败、资源后端同步失败、加载错误均抛出 <see cref="GameException"/>；等待方取消时由 <see cref="FinalizeLoadDetached"/> 后台收尾后重抛 <see cref="OperationCanceledException"/>。
+        /// 门禁失败、资源后端同步失败、加载错误均抛出 <see cref="GameException"/>； <br />
+        /// 等待方取消时由 <see cref="FinalizeLoadDetached"/> 后台收尾后重抛 <see cref="OperationCanceledException"/>。
         /// </remarks>
         private async UniTask<UnityEngine.SceneManagement.Scene> LoadSceneInternal(string location, string packageName, LoadSceneMode sceneMode,
             bool suspendLoad, uint priority, bool gcCollect, Action<float> progressCallBack, CancellationToken cancellationToken)

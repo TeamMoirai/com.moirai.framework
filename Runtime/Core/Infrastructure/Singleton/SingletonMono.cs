@@ -8,7 +8,8 @@ namespace Moirai.Atropos
     /// </summary>
     /// <typeparam name="T">继承本基类的具体单例类型。</typeparam>
     /// <remarks>
-    /// 线程模型：实例物化后任意线程访问 <see cref="Instance"/> 只走 volatile 读快速路径；物化（查找/创建）限主线程，未物化时后台线程访问抛 <see cref="GameException"/>，需后台访问的派生类应在启动阶段于主线程预热。
+    /// 线程模型：实例物化后任意线程访问 <see cref="Instance"/> 只走 volatile 读快速路径；物化（查找/创建）限主线程，未物化时后台线程访问抛 <see cref="GameException"/>， <br />
+    /// 需后台访问的派生类应在启动阶段于主线程预热。
     /// 编辑模式仅查找已有实例、不自动创建（避免向场景写入瞬时对象），未找到返回 null。
     /// 退出窗口内 <see cref="Instance"/> 返回 null 且拒绝重建；<see cref="IsValid"/> 与 <see cref="TryGetInstance"/> 同步反映该状态。
     /// 场景已有实例时默认销毁新实例（先到先得）；勾选 <see cref="m_Replaceable"/> 改为最新实例胜出。

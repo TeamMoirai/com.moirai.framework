@@ -11,12 +11,14 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// Unity Gaming Services Cloud Save 云端 KV 存储（<c>UNITY_CLOUD_SAVE_INSTALLED</c> 条件编译，安装 <c>com.unity.services.cloudsave</c> 后自动激活）。
+    /// Unity Gaming Services Cloud Save 云端 KV 存储（<c>UNITY_CLOUD_SAVE_INSTALLED</c> 条件编译， <br />
+    /// 安装 <c>com.unity.services.cloudsave</c> 后自动激活）。
     /// </summary>
     /// <remarks>
     /// 经 Player Files API 承载，单档上限 1GB、每玩家 200 文件。
     /// 前置条件：项目须先完成 <c>UnityServices.InitializeAsync()</c> 且玩家已登录，否则抛异常（由 <see cref="CloudSaveStorageBackend"/> 归一为离线降级）；缺档非错误。
-    /// 版本通道：UGS WriteLock 为 etag 语义字符串、无数值修订号——<see cref="WriteAsync"/> 恒返回 <c>0</c>，裁决回退时间戳比较（<c>FileItem.Modified</c> 为远端权威时钟）。
+    /// 版本通道：UGS WriteLock 为 etag 语义字符串、无数值修订号——<see cref="WriteAsync"/> 恒返回 <c>0</c>， <br />
+    /// 裁决回退时间戳比较（<c>FileItem.Modified</c> 为远端权威时钟）。
     /// 取消语义：UGS SDK 不接收取消令牌，仅调用前协作式检查，已发出的请求无法中止。
     /// </remarks>
     [Serializable]

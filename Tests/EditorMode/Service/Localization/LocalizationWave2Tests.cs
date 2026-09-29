@@ -10,7 +10,8 @@ using NUnit.Framework;
 namespace Service.Localization
 {
     /// <summary>本地化第二波生产特性测试：异步批加载骨架（LoadAsync）与按语言列加载契约。</summary>
-    /// <remarks>首启语言由检测链（命令行 → 编辑器设置 → 存档 → 系统语言）决定、机器相关，需要「确实落在某语言」的用例一律经 <see cref="SeedEditorLanguage"/> 显式播种，不硬编码。</remarks>
+    /// <remarks>首启语言由检测链（命令行 → 编辑器设置 → 存档 → 系统语言）决定、机器相关，需要「确实落在某语言」的用例一律经 <see cref="SeedEditorLanguage"/> 显式播种，不硬编码。 <br />
+    /// </remarks>
     [TestFixture]
     public sealed class LocalizationWave2Tests
     {
@@ -500,7 +501,8 @@ namespace Service.Localization
         }
 
         /// <summary>配置表桥处理器的受保护接缝转成 internal 供用例直调（不经反射）。</summary>
-        /// <remarks>测试程序集里不建 <c>ConfigTableServiceHandler</c> 子类（见 ConfigTableServiceContractTests 的 [SerializeReference] 污染说明），所以这里只能验「桥如何转发」，转发目标由外观的降级值给定。</remarks>
+        /// <remarks>测试程序集里不建 <c>ConfigTableServiceHandler</c> 子类（见 ConfigTableServiceContractTests 的 [SerializeReference] 污染说明）， <br />
+        /// 所以这里只能验「桥如何转发」，转发目标由外观的降级值给定。</remarks>
         internal sealed class ConfigTableBridgeProbe : ConfigTableLocalizationHandler
         {
             internal bool PerLanguageMode => SupportsPerLanguageLoad;

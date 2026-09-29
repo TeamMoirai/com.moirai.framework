@@ -161,7 +161,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 初始化指定资源包并收成成败布尔，是 <see cref="InitializePackageAsync"/> 的便捷薄壳（不更新清单）。
         /// </summary>
-        /// <remarks>非空的 <paramref name="hostServerURL"/> / <paramref name="fallbackHostServerURL"/> 先写入 <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/>；并发去重与幂等语义同 <see cref="InitializePackageAsync"/>。</remarks>
+        /// <remarks>非空的 <paramref name="hostServerURL"/> / <paramref name="fallbackHostServerURL"/> 先写入 <see cref="HostServerURL"/> <br />
+        /// / <see cref="FallbackHostServerURL"/>；并发去重与幂等语义同 <see cref="InitializePackageAsync"/>。</remarks>
         /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
         /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
         /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>

@@ -3,7 +3,8 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 字节缓冲区视图（缓冲区 + 有效区间）：载荷变换钩子（<see cref="SaveServiceHandler.OnTransformContainer"/> / <see cref="SaveServiceHandler.OnRestorePayload"/>）的输入/输出载体。
+    /// 字节缓冲区视图（缓冲区 + 有效区间），是载荷变换钩子的输入输出载体 <br />
+    /// （见 <see cref="SaveServiceHandler.OnTransformContainer"/> 与 <see cref="SaveServiceHandler.OnRestorePayload"/>）。
     /// </summary>
     /// <remarks>
     /// 明文处理器经视图别名直通（读写路径零整档拷贝），加密处理器输出新缓冲区（Offset 为 0）；视图为只读引用，不转移缓冲区所有权。

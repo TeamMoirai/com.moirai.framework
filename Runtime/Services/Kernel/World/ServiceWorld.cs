@@ -9,7 +9,8 @@ namespace Moirai.Atropos
     /// 统一服务世界（可实例化容器），管理 App/Scene/Gameplay 三个固定作用域的完整生命周期。
     /// </summary>
     /// <remarks>
-    /// 生命周期顺序：注册（两阶段，Register 仅入图）→ 初始化（<see cref="Initialize"/> 拓扑排序统一驱动 OnInit）→ 查找（跨作用域 3 槽内联，Gameplay &gt; Scene &gt; App）→ 轮询（固定序扁平直驱）→ 销毁（严格逆拓扑）。
+    /// 生命周期顺序：注册（两阶段，Register 仅入图）→ 初始化（<see cref="Initialize"/> 拓扑排序统一驱动 OnInit）→ 查找（跨作用域 3 槽内联，Gameplay &gt; Scene &gt; <br />
+    /// App）→ 轮询（固定序扁平直驱）→ 销毁（严格逆拓扑）。
     /// 可实例化：<c>new ServiceWorld()</c> 构造隔离世界（测试并行/沙盒）；进程默认世界经 <see cref="GameServices"/> 静态投影访问。
     /// 线程契约：默认世界的调用一律经 <see cref="GameServices"/> 投影并在编辑器/开发构建断言主线程；本类自身不做线程断言（可实例化世界的一个既定用途是并行测试）。
     /// </remarks>
@@ -253,7 +254,8 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 世界未初始化时服务挂入待初始化图，由 <see cref="Initialize"/> 按依赖拓扑统一驱动 OnInit。
-        /// 世界已初始化时依赖必须已就绪（缺失即抛 <see cref="GameException"/>），服务立即 OnInit；实现 <see cref="IServiceInitializableAsync"/> 的服务禁止运行时注册（无法等待，fail-fast）。
+        /// 世界已初始化时依赖必须已就绪（缺失即抛 <see cref="GameException"/>），服务立即 OnInit； <br />
+        /// 实现 <see cref="IServiceInitializableAsync"/> 的服务禁止运行时注册（无法等待，fail-fast）。
         /// 迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。
         /// </remarks>
         /// <typeparam name="T">服务具体类型（契约即类型本身）。</typeparam>
@@ -344,7 +346,8 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 触发 <c>OnShutdown</c> 并从注册表移除；注销后可重新以同契约注册全新实例。
-        /// 初始化进行中（<see cref="IsInitializing"/>）禁止：挂起图正被按索引推进的循环消费，中途摘除会让被注销的服务仍被 <c>OnInit</c>（不记激活序 → 无 <c>OnShutdown</c>）并让其后服务的索引位移而被跳过（fail-fast）。
+        /// 初始化进行中（<see cref="IsInitializing"/>）禁止：挂起图正被按索引推进的循环消费， <br />
+        /// 中途摘除会让被注销的服务仍被 <c>OnInit</c>（不记激活序 → 无 <c>OnShutdown</c>）并让其后服务的索引位移而被跳过（fail-fast）。
         /// </remarks>
         public bool Unregister(
             EServiceScopeKind scope,
@@ -483,7 +486,8 @@ namespace Moirai.Atropos
         /// 从挂起图移除指定契约所属的服务，返回该服务是否处于待初始化状态。
         /// </summary>
         /// <remarks>
-        /// 摘除粒度是<b>服务</b>而非契约——与运行时注销路径同语义（<c>ServiceScope.UnregisterDeferred</c> 按条目一次性摘掉该实例的全部契约句柄）；只摘单契约会让实例残留在 <c>_pendingInit</c> 中而被再次 OnInit。
+        /// 摘除粒度是<b>服务</b>而非契约——与运行时注销路径同语义（<c>ServiceScope.UnregisterDeferred</c> 按条目一次性摘掉该实例的全部契约句柄）； <br />
+        /// 只摘单契约会让实例残留在 <c>_pendingInit</c> 中而被再次 OnInit。
         /// </remarks>
         private bool UntrackPending(Type contractType)
         {
@@ -518,7 +522,8 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 顺序契约：作用域固定 App → Scene → Gameplay 逐段处理；段内按 <c>[ServiceDependency]</c> 拓扑序——初始化顺序完全由声明决定，与注册顺序无关。
-        /// 缺失依赖与循环依赖在此 fail-fast；挂起服务中含 <see cref="IServiceInitializableAsync"/> 实现时抛 <see cref="GameException"/>，须改用 <see cref="InitializeAsync"/>。
+        /// 缺失依赖与循环依赖在此 fail-fast；挂起服务中含 <see cref="IServiceInitializableAsync"/> 实现时抛 <see cref="GameException"/>， <br />
+        /// 须改用 <see cref="InitializeAsync"/>。
         /// </remarks>
         public void Initialize()
         {

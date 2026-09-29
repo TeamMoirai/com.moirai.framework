@@ -7,7 +7,8 @@ using UnityEngine.InputSystem;
 namespace Service.Input
 {
     /// <summary>
-    /// <see cref="UnityInputSystemHandler"/> 压制门控测试：代码内构造 InputActionAsset（Player/UI 双 Map），验证上下文 Map 随压制态整体启停、自定义资产启用所有权与查询降级语义。
+    /// <see cref="UnityInputSystemHandler"/> 压制门控测试：代码内构造 InputActionAsset（Player/UI 双 Map），验证上下文 Map 随压制态整体启停、 <br />
+    /// 自定义资产启用所有权与查询降级语义。
     /// </summary>
     /// <remarks>纯状态断言（Map/Asset enabled），不模拟设备输入。</remarks>
     [TestFixture]

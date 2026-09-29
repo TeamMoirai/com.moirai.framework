@@ -11,7 +11,8 @@ namespace Moirai.Atropos.Serilog
         /// <summary>
         /// 为日志添加 <see cref="UnityEngine.Object"/> 上下文，使 Unity Console 点击日志可定位到该对象。
         /// </summary>
-        /// <remarks>刻意不命名为 <c>ForContext</c>：Serilog 的 <c>ILogger.ForContext&lt;TProperty&gt;</c> 实例重载在解析中优先，同名扩展方法会变成静默失效的死路径。</remarks>
+        /// <remarks>刻意不命名为 <c>ForContext</c>：Serilog 的 <c>ILogger.ForContext&lt;TProperty&gt;</c> 实例重载在解析中优先，同名扩展方法会变成静默失效的死路径。 <br />
+        /// </remarks>
         /// <param name="logger">原始日志器。</param>
         /// <param name="context">日志的 <see cref="UnityEngine.Object"/> 上下文。</param>
         public static ILogger WithUnityObject(this ILogger logger, UnityEngine.Object context) => logger.ForContext(new UnityObjectEnricher(context));

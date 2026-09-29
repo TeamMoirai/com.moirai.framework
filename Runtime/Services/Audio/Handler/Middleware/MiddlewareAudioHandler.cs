@@ -10,7 +10,8 @@ namespace Moirai.Atropos.Audio.Middleware
     /// 中间件音频处理器基类——FMOD / Wwise 共用。
     /// </summary>
     /// <remarks>
-    /// 统一句柄生命周期（<see cref="AudioHandleRegistry{TVoice}"/>）、用户 ID 映射、声部与总线 Fade（<see cref="AudioFadeScheduler"/>）、总线音量/静音/暂停与场景切换清理；
+    /// 统一句柄生命周期（<see cref="AudioHandleRegistry{TVoice}"/>）、用户 ID 映射、声部与总线 Fade（<see cref="AudioFadeScheduler"/>）、 <br />
+    /// 总线音量/静音/暂停与场景切换清理；
     /// 子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。
     /// 语义与 Unity 后端对齐：暂停轨拦截新播放、<see cref="MasterVolume"/> getter 始终返回未静音值、Master/音轨 Fade 带缓动。
     /// 不支持 InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。

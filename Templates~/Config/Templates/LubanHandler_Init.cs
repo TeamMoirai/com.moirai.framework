@@ -63,7 +63,8 @@ namespace Moirai.GameProto.Config
 		/// 按当前生成路线装载一张独立表（不走 <c>Tables</c>）。
 		/// </summary>
 		/// <remarks>
-		/// 路线由转表配置决定（bin 或 json），判据同 <see cref="Load"/>：生成表构造器收 <c>ByteBuf</c> 还是 <c>JSONNode</c>，因此切换 <c>--format=json</c> 无需改动读取代码。
+		/// 路线由转表配置决定（bin 或 json），判据同 <see cref="Load"/>：生成表构造器收 <c>ByteBuf</c> 还是 <c>JSONNode</c>， <br />
+		/// 因此切换 <c>--format=json</c> 无需改动读取代码。
 		/// </remarks>
 		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
 		internal static T LoadTable<T>(string relativePath) where T : class

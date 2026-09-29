@@ -12,7 +12,8 @@ namespace Utility
     /// <see cref="DefaultTweenHandler.TweenTask"/> 静态核心的 EditMode 单元测试。
     /// </summary>
     /// <remarks>
-    /// 经 dt 注入版 <c>Update(float, float)</c> 直接驱动，不依赖引擎时间与帧监听；覆盖 ID 版本防别名、槽位回收复用、完成/停止语义、重入安全、循环模式（Restart/Yoyo/Incremental/Rewind）、延迟、销毁目标与参数校验。
+    /// 经 dt 注入版 <c>Update(float, float)</c> 直接驱动，不依赖引擎时间与帧监听；覆盖 ID 版本防别名、槽位回收复用、完成/停止语义、重入安全、 <br />
+    /// 循环模式（Restart/Yoyo/Incremental/Rewind）、延迟、销毁目标与参数校验。
     /// </remarks>
     [TestFixture]
     public class TweenTaskTests

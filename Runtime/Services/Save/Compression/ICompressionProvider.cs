@@ -6,7 +6,8 @@ namespace Moirai.Atropos.Save
     /// 存档压缩提供方契约：容器字节流与压缩字节流之间的双向流式变换（压缩在加密前、解压在解密后，顺序固定）。
     /// </summary>
     /// <remarks>
-    /// 提供方声明唯一 <see cref="ProviderId"/> 写入文件头（offset 24-27），读侧按 ID 经 <see cref="SaveCompressionRegistry"/> 查表还原；未知 ID 判别为 <see cref="SaveError.UnsupportedVersion"/>。
+    /// 提供方声明唯一 <see cref="ProviderId"/> 写入文件头（offset 24-27），读侧按 ID 经 <see cref="SaveCompressionRegistry"/> 查表还原； <br />
+    /// 未知 ID 判别为 <see cref="SaveError.UnsupportedVersion"/>。
     /// 流式契约：写侧经 <see cref="OpenCompressStream"/> 包装流灌入容器段流、读侧经 <see cref="OpenDecompressStream"/> 包装流逐段产出，均不做整档容器缓冲。
     /// 实现必须为无状态纯 .NET 逻辑（任意线程并发调用安全）。
     /// </remarks>

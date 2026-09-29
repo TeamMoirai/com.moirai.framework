@@ -11,8 +11,10 @@ namespace Moirai.Atropos.Resource
     /// 资源管理器外观（Facade）：统一的静态资源入口，提供资源加载、缓存、租约与绑定接口，替换 <see cref="Handler"/> 即切换后端。
     /// </summary>
     /// <remarks>
-    /// 未显式设置处理器时，懒加载优先从 <see cref="ResourceServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成，线程安全懒加载。
-    /// 服务未就绪（未注册/未初始化）时按读写分界：写成员（租约取用与归还、预热、卸载、实例化等）经 <c>RequireHandler()</c> 抛 <see cref="GameException"/> fail-fast；读成员降级为默认值（<c>HasAsset</c> 报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false）。
+    /// 未显式设置处理器时，懒加载优先从 <see cref="ResourceServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
+    /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成，线程安全懒加载。
+    /// 服务未就绪（未注册/未初始化）时按读写分界：写成员（租约取用与归还、预热、卸载、实例化等）经 <c>RequireHandler()</c> 抛 <see cref="GameException"/> fail-fast； <br />
+    /// 读成员降级为默认值（<c>HasAsset</c> 报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false）。
     /// 例外：<see cref="LoadSceneAsync"/> 未就绪时返回 <c>null</c>，是其消费者的既定契约。
     /// </remarks>
     [AutoRegisterService]
@@ -382,7 +384,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 初始化资源包并收成成败布尔（不更新清单）。
         /// </summary>
-        /// <remarks>非空的 host / fallback 先写入 <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/> 再初始化；并发去重与幂等语义同 <see cref="InitializePackageAsync"/>。</remarks>
+        /// <remarks>非空的 host / fallback 先写入 <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/> 再初始化； <br />
+        /// 并发去重与幂等语义同 <see cref="InitializePackageAsync"/>。</remarks>
         /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
         /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
         /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>

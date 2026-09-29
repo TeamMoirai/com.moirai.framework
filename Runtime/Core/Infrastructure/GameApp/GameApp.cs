@@ -172,7 +172,8 @@ namespace Moirai.Atropos
         /// <remarks>
         /// 编辑器退出 Play 与 <c>ApplicationQuit</c> 均走此入口。
         /// 关闭会把 <see cref="PauseGame"/> 计数归零并回放 <see cref="GameSpeed"/>，避免下一次启动从冻结实况播种出速度 0。
-        /// 关闭后运行态属性（<see cref="FrameRate"/> / <see cref="GameSpeed"/> / <see cref="RunInBackground"/> / <see cref="NeverSleep"/> / <see cref="IsGamePaused"/>）仍可读写并成为下一轮基线；帧订阅与协程不再被驱动。
+        /// 关闭后运行态属性（<see cref="FrameRate"/> / <see cref="GameSpeed"/> / <see cref="RunInBackground"/> / <see cref="NeverSleep"/> / <br />
+        /// <see cref="IsGamePaused"/>）仍可读写并成为下一轮基线；帧订阅与协程不再被驱动。
         /// </remarks>
         /// <param name="quitting">是否处于应用退出流程；退出期跳过 <see cref="GameAppHost.Release"/> 的主动销毁。</param>
         internal static void Shutdown(bool quitting = false)

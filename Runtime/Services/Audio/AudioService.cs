@@ -13,7 +13,8 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <remarks>
     /// 统一的静态音频访问入口，替换 <see cref="Handler"/> 即可在不同音频后端之间切换。
-    /// 未显式设置处理器时懒加载：优先从 <see cref="AudioServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>；Handler 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// 未显式设置处理器时懒加载：优先从 <see cref="AudioServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
+    /// Handler 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
     [HandlerHost(typeof(AudioServiceHandler))]
@@ -142,7 +143,8 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>资源句柄池（只读视图），包装后端原生句柄/租约。</summary>
-        /// <remarks>条目增删与租约释放由服务内部配对管理（<see cref="PutInAudioPool"/>/<see cref="RemoveClipFromPool"/>/<see cref="CleanAudioPool"/>），外部请勿直接改写。</remarks>
+        /// <remarks>条目增删与租约释放由服务内部配对管理（<see cref="PutInAudioPool"/>/<see cref="RemoveClipFromPool"/>/<see cref="CleanAudioPool"/>）， <br />
+        /// 外部请勿直接改写。</remarks>
         public static IReadOnlyDictionary<string, object> AssetHandlePool => s_Handler?.AssetHandlePool;
 
         /// <summary>

@@ -95,7 +95,8 @@ namespace Sirenix.OdinInspector.Editor.Drawers
         }
 
         /// <summary>
-        /// Draws the property with GUILayout support. This method is called by DrawPropertyImplementation if the GUICallType is set to GUILayout, which is the default.
+        /// Draws the property with GUILayout support. This method is called by DrawPropertyImplementation if the GUICallType is set <br />
+        /// to GUILayout, which is the default.
         /// </summary>
         protected override void DrawPropertyLayout(GUIContent label)
         {

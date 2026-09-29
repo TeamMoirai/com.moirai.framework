@@ -118,8 +118,10 @@ namespace Moirai.Atropos
         /// 等待 tween 结束（UniTask）。
         /// </summary>
         /// <remarks>
-        /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待，tween 不被停止）。
-        /// 基类默认实现为逐帧轮询兜底（async Yield 循环，无闭包/无每帧委托分配，判定晚一帧）；<see cref="DefaultTweenHandler"/> / <see cref="LitMotionHandler"/> 覆写为完成信号即时版本，<see cref="PrimeTweenHandler"/> 覆写为同构轮询版。
+        /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待， <br />
+        /// tween 不被停止）。
+        /// 基类默认实现为逐帧轮询兜底（async Yield 循环，无闭包/无每帧委托分配，判定晚一帧）； <br />
+        /// <see cref="DefaultTweenHandler"/> / <see cref="LitMotionHandler"/> 覆写为完成信号即时版本，<see cref="PrimeTweenHandler"/> 覆写为同构轮询版。
         /// </remarks>
         public virtual async UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {

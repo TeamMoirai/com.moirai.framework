@@ -897,7 +897,8 @@ namespace Moirai.Atropos
             /// 等待 tween 结束（UniTask，即时信号版）。
             /// </summary>
             /// <remarks>
-            /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待，tween 不受影响）。
+            /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待， <br />
+            /// tween 不受影响）。
             /// 已结束的 id 立即完成；注册表仅在存在等待者时产生开销。
             /// </remarks>
             internal static UniTask WaitAsync(long tweenId, CancellationToken cancellationToken)

@@ -165,7 +165,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 复位跨重启不安全的那份处理器实例状态：实例字段与 YooAssets 的静态表不同一条命。
         /// </summary>
-        /// <remarks>域重载关闭或容器在同一域内重启时实例原样存活、而 YooAssets 静态表已归零，不清会撞上 <c>already initialized</c> 与孤儿 <see cref="PackageMap"/> 条目。</remarks>
+        /// <remarks>域重载关闭或容器在同一域内重启时实例原样存活、而 YooAssets 静态表已归零，不清会撞上 <c>already initialized</c> 与孤儿 <see cref="PackageMap"/> 条目。 <br />
+        /// </remarks>
         private void ResetReloadUnsafeState()
         {
             if (YooAssets.IsInitialized)

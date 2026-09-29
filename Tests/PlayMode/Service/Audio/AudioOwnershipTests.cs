@@ -13,7 +13,8 @@ namespace Service.Audio
     /// 所有权 / 世代 / 句柄身份验收。
     /// </summary>
     /// <remarks>
-    /// 缓存层复用 <c>IAudioClipLeaseSource</c> 假件语义：与 EditorMode 的 <c>AudioCacheTestSupport</c> 同构，PlayMode 程序集看不见 EditorMode 内部类型，故在此提供等价夹具。
+    /// 缓存层复用 <c>IAudioClipLeaseSource</c> 假件语义：与 EditorMode 的 <c>AudioCacheTestSupport</c> 同构，PlayMode 程序集看不见 EditorMode 内部类型， <br />
+    /// 故在此提供等价夹具。
     /// 句柄层走 <see cref="AudioHandleRegistry{TVoice}"/> 与 <see cref="UnityAudioHandler"/> 重绑路径。
     /// </remarks>
     [TestFixture]

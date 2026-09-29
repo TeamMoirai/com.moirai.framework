@@ -9,7 +9,8 @@ namespace Core.Events
     /// <see cref="EventCallbackRegistry"/> 派发健壮性验收：回调抛异常后注册表仍可用，回调列表拷贝构造必须带上阶段计数。
     /// </summary>
     /// <remarks>
-    /// 判据：<c>m_IsInvoking</c> 未在 finally 复位时，一次抛异常会让派发深度永久为正，此后注册/注销只写进 <c>m_TemporaryCallbacks</c> 而派发仍读 <c>m_Callbacks</c>，事件系统整体静默失效；拷贝构造漏设阶段计数会让冒泡/下探路径静默丢祖先。
+    /// 判据：<c>m_IsInvoking</c> 未在 finally 复位时，一次抛异常会让派发深度永久为正，此后注册/注销只写进 <c>m_TemporaryCallbacks</c> 而派发仍读 <c>m_Callbacks</c>， <br />
+    /// 事件系统整体静默失效；拷贝构造漏设阶段计数会让冒泡/下探路径静默丢祖先。
     /// </remarks>
     public class EventCallbackRegistryDispatchTests
     {

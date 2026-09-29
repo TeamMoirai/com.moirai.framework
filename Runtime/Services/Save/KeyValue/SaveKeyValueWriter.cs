@@ -852,7 +852,8 @@ namespace Moirai.Atropos.Save
         /// 压入嵌套帧（记录载荷长度占位偏移与载荷起点）。
         /// </summary>
         /// <remarks>
-        /// 调用点在子项数写入之后：载荷长度占位在 <c>_position - 8</c>，载荷区间（4B 子项数 + 子记录）自 <c>_position - 4</c> 起——<see cref="EndNested"/> 回填的载荷长度含子项数自身。
+        /// 调用点在子项数写入之后：载荷长度占位在 <c>_position - 8</c>， <br />
+        /// 载荷区间（4B 子项数 + 子记录）自 <c>_position - 4</c> 起——<see cref="EndNested"/> 回填的载荷长度含子项数自身。
         /// 键控与元素级作用域头布局一致（尾段均为 <c>[4B 占位][4B 子项数]</c>），帧偏移算法通用。
         /// </remarks>
         private void PushNestingFrame()

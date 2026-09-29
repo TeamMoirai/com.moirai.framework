@@ -6,7 +6,8 @@ namespace Moirai.Atropos
     /// 框架处理器基类：策略模式处理器（<see cref="LogHandler"/>、JsonHandler 等）的公共父类。
     /// </summary>
     /// <remarks>
-    /// 生命周期为 <see cref="Internal_Init"/> → <see cref="OnInit"/> → 运行期 → <see cref="Internal_Shutdown"/> → <see cref="OnShutdown"/>，全部同步。
+    /// 生命周期为 <see cref="Internal_Init"/> → <see cref="OnInit"/> → 运行期 → <see cref="Internal_Shutdown"/> → <br />
+    /// <see cref="OnShutdown"/>，全部同步。
     /// <c>HandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 自动驱动：设置时初始化新实例，替换时先关闭旧实例。
     /// 需要异步初始化的对象走 Kernel 的 <c>IService.OnInitAsync</c>，处理器挂异步钩子不会被调用。
     /// </remarks>
@@ -47,7 +48,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 同步初始化回调，用于接管后端资源。
         /// </summary>
-        /// <remarks>可在此解析对其他 Handler 的依赖（如 <c>ResourceUtility.Handler</c>）；调用顺序由 <see cref="GameAppSettings.Initiation"/> 中的赋值顺序保证。</remarks>
+        /// <remarks>可在此解析对其他 Handler 的依赖（如 <c>ResourceUtility.Handler</c>）；调用顺序由 <see cref="GameAppSettings.Initiation"/> 中的赋值顺序保证。 <br />
+        /// </remarks>
         protected virtual void OnInit()
         {
         }
