@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Audio
     /// 音效管理外观（Facade），为游戏提供统一的音效播放接口。
     /// </summary>
     /// <remarks>
-    /// 统一的静态音频访问入口，替换 <see cref="Handler"/> 即可在不同音频后端之间切换。
+    /// 统一的静态音频访问入口，替换 <see cref="Handler"/> 即可在不同音频后端之间切换。 <br />
     /// 未显式设置处理器时懒加载：优先从 <see cref="AudioServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
     /// Handler 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
@@ -392,17 +392,17 @@ namespace Moirai.Atropos.Audio
         #region 音频控制 [AUDIO CONTROLS]
 
         /// <summary>
-        /// 暂停指定句柄的音频
+        /// 暂停指定句柄的音频。
         /// </summary>
         public static void Pause(ulong handle) => s_Handler?.Pause(handle);
 
         /// <summary>
-        /// 恢复播放指定句柄的音频
+        /// 恢复播放指定句柄的音频。
         /// </summary>
         public static void Unpause(ulong handle) => s_Handler?.Unpause(handle);
 
         /// <summary>
-        /// 停止指定句柄的音频
+        /// 停止指定句柄的音频。
         /// </summary>
         public static void Stop(ulong handle, float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.Stop(handle, fadeoutDuration);
 
@@ -426,7 +426,7 @@ namespace Moirai.Atropos.Audio
         public static void ForEachHandleByID(int id, Action<ulong> action) => s_Handler?.ForEachHandleByID(id, action);
 
         /// <summary>
-        /// 返回当前正在播放的指定 clip 数量
+        /// 返回当前正在播放的指定 clip 数量。
         /// </summary>
         public static int CurrentlyPlayingCount(AudioClip clip) => s_Handler?.CurrentlyPlayingCount(clip) ?? 0;
 
@@ -476,7 +476,7 @@ namespace Moirai.Atropos.Audio
         public static void UnpauseTrack(EAudioTrack track) => s_Handler?.UnpauseTrack(track);
 
         /// <summary>
-        /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
+        /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>。
         /// </summary>
         public static bool IsPaused(EAudioTrack track) => s_Handler?.IsPaused(track) ?? false;
 
@@ -524,24 +524,24 @@ namespace Moirai.Atropos.Audio
         #region 过渡 [FADES]
 
         /// <summary>
-        /// 在指定的持续时间内，淡入 Master 音轨到最终音量
+        /// 在指定的持续时间内，淡入 Master 音轨到最终音量。
         /// </summary>
         public static void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default) =>
             s_Handler?.FadeMasterTrack(duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
-        /// 停止 Master 音轨上所有当前的淡化（Fade）
+        /// 停止 Master 音轨上所有当前的淡化（Fade）。
         /// </summary>
         public static void StopFadeMasterTrack() => s_Handler?.StopFadeMasterTrack();
 
         /// <summary>
-        /// 在指定的持续时间内，淡入整个音轨到最终音量
+        /// 在指定的持续时间内，淡入整个音轨到最终音量。
         /// </summary>
         public static void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default) =>
             s_Handler?.FadeTrack(track, duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
-        /// 停止指定音轨上所有当前的淡化（Fade）
+        /// 停止指定音轨上所有当前的淡化（Fade）。
         /// </summary>
         public static void StopFadeTrack(EAudioTrack track) => s_Handler?.StopFadeTrack(track);
 
@@ -553,12 +553,12 @@ namespace Moirai.Atropos.Audio
             s_Handler?.FadeAudio(handle, duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
-        /// 停止指定句柄音频上所有当前的淡化（Fade）
+        /// 停止指定句柄音频上所有当前的淡化（Fade）。
         /// </summary>
         public static void StopFadeAudio(ulong handle) => s_Handler?.StopFadeAudio(handle);
 
         /// <summary>
-        /// 检查指定句柄的音频是否正在过渡中
+        /// 检查指定句柄的音频是否正在过渡中。
         /// </summary>
         public static bool SoundIsFadingOut(ulong handle) => s_Handler?.SoundIsFadingOut(handle) ?? false;
 

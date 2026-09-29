@@ -3,7 +3,7 @@
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// Window/Widget 组件绑定基类
+    /// Window/Widget 组件绑定基类。
     /// </summary>
     [DisallowMultipleComponent]
     public abstract class UIBindComponent : MonoBehaviour

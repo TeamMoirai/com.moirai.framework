@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Resource
     /// 名称↔ID 的计数字典注册表：packed resource key 的三个组成轴（package / location / type）共用这一份实现。
     /// </summary>
     /// <remarks>
-    /// 零分配是硬约束：不实现任何接口（免受 struct 实参装箱），不暴露 <see cref="IEnumerable{T}"/> 或 foreach 枚举（枚举器装箱即分配）。
+    /// 零分配是硬约束：不实现任何接口（免受 struct 实参装箱），不暴露 <see cref="IEnumerable{T}"/> 或 foreach 枚举（枚举器装箱即分配）。 <br />
     /// 比较器用默认而非 <see cref="IEqualityComparer{T}"/> 字段：<see cref="string"/> 与 <see cref="Type"/> 的默认比较即序数/引用语义。
     /// </remarks>
     /// <typeparam name="TValue">被登记的键类型（<see cref="string"/> 或 <see cref="Type"/>）。</typeparam>

@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Editor.Save
     /// 存档模式快照导出器：扫描全部 <see cref="SaveDataAttribute"/> 二进制后端类型，按分析器同款规则提取成员键序号，写出项目根目录 <c>.SaveSchemaSnapshot</c>。
     /// </summary>
     /// <remarks>
-    /// 行格式：<c>类型全限定名|成员名:序号;成员名:序号…</c>（序号 -1 = MessagePack 字符串键模式）。
+    /// 行格式：<c>类型全限定名|成员名:序号;成员名:序号…</c>（序号 -1 = MessagePack 字符串键模式）。 <br />
     /// 快照纳入版本控制后供 MIRAI400/401 分析器在编译期比对；二进制线格式变更前重新导出即可推进基线。
     /// </remarks>
     public static class SaveSchemaSnapshotExporter

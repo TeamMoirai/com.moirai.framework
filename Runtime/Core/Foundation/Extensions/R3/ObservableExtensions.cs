@@ -11,11 +11,8 @@ namespace Moirai.Atropos.R3
         #region 回调事件处理器 [CallbackEventHandler]
         
         /// <summary>
-        /// 为 <see cref="CallbackEventHandler"/> 创建 <see cref="Observable{TEventType}"/>
+        /// 为 <see cref="CallbackEventHandler"/> 创建 <see cref="Observable{TEventType}"/>。
         /// </summary>
-        /// <param name="handler"></param>
-        /// <typeparam name="TEventType"></typeparam>
-        /// <returns></returns>
         public static Observable<TEventType> AsObservable<TEventType>(this CallbackEventHandler handler)
             where TEventType : EventBase<TEventType>, new()
         {
@@ -23,12 +20,8 @@ namespace Moirai.Atropos.R3
         }
         
         /// <summary>
-        /// 为 <see cref="CallbackEventHandler"/> 创建 Observable 对象
+        /// 为 <see cref="CallbackEventHandler"/> 创建 Observable 对象。
         /// </summary>
-        /// <param name="handler"></param>
-        /// <param name="trickleDown"></param>
-        /// <typeparam name="TEventType"></typeparam>
-        /// <returns></returns>
         public static Observable<TEventType> AsObservable<TEventType>(this CallbackEventHandler handler, TrickleDown trickleDown)
             where TEventType : EventBase<TEventType>, new()
         {
@@ -42,12 +35,8 @@ namespace Moirai.Atropos.R3
         #endregion
         
         /// <summary>
-        /// 订阅 <see cref="Observable{TEventType}"/> 最后 Dispose 事件，为 <see cref="EventBase"/> 提供更好的性能
+        /// 订阅 <see cref="Observable{TEventType}"/> 最后 Dispose 事件，为 <see cref="EventBase"/> 提供更好的性能。
         /// </summary>
-        /// <param name="source"></param>
-        /// <param name="onNext"></param>
-        /// <typeparam name="TEventType"></typeparam>
-        /// <returns></returns>
         [StackTraceFrame]
         public static IDisposable SubscribeSafe<TEventType>(this Observable<TEventType> source, EventCallback<TEventType> onNext) where TEventType : EventBase<TEventType>, new()
         {

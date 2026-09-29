@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Editor
         private const int MENU_ITEM_PRIORITY = DefineSymbols.MENU_ITEM_PRIORITY;
 
         /// <summary>
-        /// 添加用于启用显示调试绘制的菜单项
+        /// 添加用于启用显示调试绘制的菜单项。
         /// </summary>
         [MenuItem(MENU_ITEM_PATH + "Enable Debug Draw", false, MENU_ITEM_PRIORITY)]
         private static void EnableDebugDraw()
@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Editor
         }
         
         /// <summary>
-        /// 判断[<see cref="EnableDebugDraw"/>]是否应显示为灰色的条件方法
+        /// 判断[<see cref="EnableDebugDraw"/>]是否应显示为灰色的条件方法。
         /// </summary>
         [MenuItem(MENU_ITEM_PATH + "Enable Debug Draw", true)]
         private static bool EnableDebugDrawsValidation()
@@ -29,7 +29,7 @@ namespace Moirai.Atropos.Editor
         }
         
         /// <summary>
-        /// 添加用于禁用显示调试绘制的菜单项
+        /// 添加用于禁用显示调试绘制的菜单项。
         /// </summary>
         [MenuItem(MENU_ITEM_PATH + "Disable Debug Draw", false, MENU_ITEM_PRIORITY + 1)]
         private static void DisableDebugDraw()
@@ -38,7 +38,7 @@ namespace Moirai.Atropos.Editor
         }
         
         /// <summary>
-        /// 判断[<see cref="DisableDebugDraw"/>]是否应显示为灰色的条件方法
+        /// 判断[<see cref="DisableDebugDraw"/>]是否应显示为灰色的条件方法。
         /// </summary>
         [MenuItem(MENU_ITEM_PATH + "Disable Debug Draw", true)]
         private static bool DisableDebugDrawsValidation()

@@ -83,7 +83,7 @@ namespace Moirai.Atropos.Input
         /// 获取或设置是否启用输入（未就绪时读取为 false，写入静默忽略）。
         /// </summary>
         /// <remarks>
-        /// 禁用即全局硬门控：动作类查询（按钮/轴/向量）一律返回默认值，无需消费者自查。
+        /// 禁用即全局硬门控：动作类查询（按钮/轴/向量）一律返回默认值，无需消费者自查。 <br />
         /// Input System 后端同时整体禁用全部上下文 Map；鼠标查询不参与门控。
         /// </remarks>
         public static bool Enabled
@@ -100,7 +100,7 @@ namespace Moirai.Atropos.Input
         /// 获取或设置是否锁定玩家控制器（未就绪时读取为 false，写入静默忽略）。
         /// </summary>
         /// <remarks>
-        /// Input System 后端中心化强制：锁定（含 UI 模态联动）时玩家上下文 Map 整体禁用，玩家查询返回默认值而 UI Map 保持可用。
+        /// Input System 后端中心化强制：锁定（含 UI 模态联动）时玩家上下文 Map 整体禁用，玩家查询返回默认值而 UI Map 保持可用。 <br />
         /// 旧版/移动端后端无 Map 概念，该状态仅供消费者协作自查。
         /// </remarks>
         public static bool LockPlayerController
@@ -128,7 +128,7 @@ namespace Moirai.Atropos.Input
         }
 
         /// <summary>
-        /// 获取当前输入处理器
+        /// 获取当前输入处理器。
         /// </summary>
         public static InputServiceHandler CurrentHandler => s_Handler;
 
@@ -137,70 +137,70 @@ namespace Moirai.Atropos.Input
         #region 输入查询 [INPUT QUERIES]
 
         /// <summary>
-        /// 按钮是否被按下
+        /// 按钮是否被按下。
         /// </summary>
-        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
-        /// <param name="actionGroup">输入动作分组</param>
-        /// <returns>是否按下（未就绪时为 false）</returns>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
+        /// <param name="actionGroup">输入动作分组。</param>
+        /// <returns>是否按下（未就绪时为 false）。</returns>
         public static bool GetButtonDown(string actionName, string actionGroup = "") =>
             s_Handler?.GetButtonDown(actionName, actionGroup) ?? false;
 
         /// <summary>
-        /// 按钮是否被松开
+        /// 按钮是否被松开。
         /// </summary>
-        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
-        /// <param name="actionGroup">输入动作分组</param>
-        /// <returns>是否抬起（未就绪时为 false）</returns>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
+        /// <param name="actionGroup">输入动作分组。</param>
+        /// <returns>是否抬起（未就绪时为 false）。</returns>
         public static bool GetButtonUp(string actionName, string actionGroup = "") =>
             s_Handler?.GetButtonUp(actionName, actionGroup) ?? false;
 
         /// <summary>
         /// 按钮是否被按住（<see cref="GetBool"/> 的别名，保留以贴近旧版 Input 习惯命名）。
         /// </summary>
-        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
-        /// <param name="actionGroup">输入动作分组</param>
-        /// <returns>是否按住（未就绪时为 false）</returns>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
+        /// <param name="actionGroup">输入动作分组。</param>
+        /// <returns>是否按住（未就绪时为 false）。</returns>
         public static bool GetButtonPressed(string actionName, string actionGroup = "") =>
             GetBool(actionName, actionGroup);
 
         /// <summary>
         /// 按钮是否被按住（<see cref="GetBool"/> 的别名，保留以贴近旧版 Input 习惯命名）。
         /// </summary>
-        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
-        /// <param name="actionGroup">输入动作分组</param>
-        /// <returns>是否按住（未就绪时为 false）</returns>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
+        /// <param name="actionGroup">输入动作分组。</param>
+        /// <returns>是否按住（未就绪时为 false）。</returns>
         public static bool GetButton(string actionName, string actionGroup = "") =>
             GetBool(actionName, actionGroup);
 
         /// <summary>
-        /// 获取指定输入动作的 bool
+        /// 获取指定输入动作的 bool。
         /// </summary>
-        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
-        /// <param name="actionGroup">输入动作分组</param>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
+        /// <param name="actionGroup">输入动作分组。</param>
         /// <returns>按钮状态布尔值（未就绪时为 false）。</returns>
         public static bool GetBool(string actionName, string actionGroup = "") =>
             s_Handler?.GetBool(actionName, actionGroup) ?? false;
 
         /// <summary>
-        /// 获取指定输入动作的 float
+        /// 获取指定输入动作的 float。
         /// </summary>
-        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
-        /// <param name="actionGroup">输入动作分组</param>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
+        /// <param name="actionGroup">输入动作分组。</param>
         /// <returns>返回驱动此动作的控件或绑定的当前值（未就绪时为 0）。</returns>
         public static float GetFloat(string actionName, string actionGroup = "") =>
             s_Handler?.GetFloat(actionName, actionGroup) ?? 0f;
 
         /// <summary>
-        /// 获取指定输入动作的 Vector2
+        /// 获取指定输入动作的 Vector2。
         /// </summary>
-        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空</param>
-        /// <param name="actionGroup">输入动作分组</param>
+        /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
+        /// <param name="actionGroup">输入动作分组。</param>
         /// <returns>返回驱动此动作的控件或绑定的当前值（未就绪时为 zero）。</returns>
         public static Vector2 GetVector2(string actionName, string actionGroup = "") =>
             s_Handler?.GetVector2(actionName, actionGroup) ?? Vector2.zero;
 
         /// <summary>
-        /// 获取是否按下指定鼠标按键
+        /// 获取是否按下指定鼠标按键。
         /// </summary>
         /// <param name="button">鼠标按键。</param>
         /// <returns>是否在本帧按下（未就绪时为 false）。</returns>
@@ -208,7 +208,7 @@ namespace Moirai.Atropos.Input
             s_Handler?.GetMouseButtonDown(button) ?? false;
 
         /// <summary>
-        /// 获取是否抬起指定鼠标按键
+        /// 获取是否抬起指定鼠标按键。
         /// </summary>
         /// <param name="button">鼠标按键。</param>
         /// <returns>是否在本帧抬起（未就绪时为 false）。</returns>
@@ -216,7 +216,7 @@ namespace Moirai.Atropos.Input
             s_Handler?.GetMouseButtonUp(button) ?? false;
 
         /// <summary>
-        /// 获取是否按住指定鼠标按键
+        /// 获取是否按住指定鼠标按键。
         /// </summary>
         /// <param name="button">鼠标按键。</param>
         /// <returns>是否正在按住（未就绪时为 false）。</returns>
@@ -224,14 +224,14 @@ namespace Moirai.Atropos.Input
             s_Handler?.GetMouseButtonPressed(button) ?? false;
 
         /// <summary>
-        /// 返回鼠标的当前位置
+        /// 返回鼠标的当前位置。
         /// </summary>
         /// <returns>鼠标屏幕坐标（未就绪时为 zero）。</returns>
         public static Vector2 GetMousePosition() =>
             s_Handler?.GetMousePosition() ?? Vector2.zero;
 
         /// <summary>
-        /// 获取鼠标滚轮滚动值
+        /// 获取鼠标滚轮滚动值。
         /// </summary>
         /// <returns>滚轮滚动增量（未就绪时为 zero）。</returns>
         public static Vector2 GetScrollDelta() =>

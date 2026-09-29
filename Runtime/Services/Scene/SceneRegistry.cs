@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Scene
     /// 场景登记簿——场景服务的纯状态容器与决策单元。
     /// </summary>
     /// <remarks>
-    /// 承载主/子场景登记、location 级在途防重入、子场景短名反向索引与全部登记迁移决策；不依赖日志与资源外观，决策以枚举结果返回，由 <see cref="DefaultSceneHandler"/> 在边界翻译为日志与异常。
+    /// 承载主/子场景登记、location 级在途防重入、子场景短名反向索引与全部登记迁移决策；不依赖日志与资源外观，决策以枚举结果返回，由 <see cref="DefaultSceneHandler"/> 在边界翻译为日志与异常。 <br />
     /// 全部成员仅限主线程调用（场景加载管线本身即主线程契约），不做线程守卫。
     /// </remarks>
     internal sealed class SceneRegistry

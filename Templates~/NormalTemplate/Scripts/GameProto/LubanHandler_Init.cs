@@ -62,8 +62,8 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 加载二进制配置。
 		/// </summary>
-		/// <param name="file">FileName</param>
-		/// <returns>ByteBuf</returns>
+		/// <param name="file">FileName。</param>
+		/// <returns>ByteBuf。</returns>
 		private static ByteBuf LoadByteBuf(string file)
 		{
 			LogUtility.Info("Load bin config: {0}.bytes", file);
@@ -75,8 +75,6 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 从文件中加载 json 配置。
 		/// </summary>
-		/// <param name="file"></param>
-		/// <returns></returns>
 		private static JSONNode LoadJson(string file)
 		{
 			LogUtility.Info("Load json config: {0}.json", file);
@@ -88,8 +86,6 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 加载配置文本资源。
 		/// </summary>
-		/// <param name="location"></param>
-		/// <returns></returns>
 		private static TextAsset LoadTextAsset(string location)
 		{
 #if UNITY_EDITOR

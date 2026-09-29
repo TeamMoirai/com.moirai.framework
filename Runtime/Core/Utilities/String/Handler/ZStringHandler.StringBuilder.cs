@@ -199,7 +199,7 @@ namespace Moirai.Atropos
         #region 格式化 [FORMAT]
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format(string format)
         {
@@ -208,7 +208,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T>(string format, T arg)
         {
@@ -217,7 +217,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2>(string format, T1 arg1, T2 arg2)
         {
@@ -226,7 +226,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3)
         {
@@ -235,7 +235,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
         {
@@ -244,7 +244,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
         {
@@ -253,7 +253,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
         {
@@ -262,7 +262,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
         {
@@ -271,7 +271,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
         {
@@ -280,7 +280,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
         {
@@ -289,7 +289,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
         {
@@ -298,7 +298,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11)
         {
@@ -307,7 +307,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12)
         {
@@ -316,7 +316,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
         {
@@ -325,7 +325,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
         {
@@ -334,7 +334,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
         {
@@ -343,7 +343,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 格式化字符串（0GC，ZString.Format）
+        /// 格式化字符串（0GC，ZString.Format）。
         /// </summary>
         public string Format<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
         {
@@ -356,7 +356,7 @@ namespace Moirai.Atropos
         #region 拼接 [CONCAT]
 
         /// <summary>
-        /// 连接值（0GC，ZString.Concat）
+        /// 连接值（0GC，ZString.Concat）。
         /// </summary>
         public string Concat<T>(T value)
         {
@@ -364,7 +364,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 连接值（0GC，ZString.Concat）
+        /// 连接值（0GC，ZString.Concat）。
         /// </summary>
         public string Concat<T1, T2>(T1 value1, T2 value2)
         {
@@ -372,7 +372,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 连接值（0GC，ZString.Concat）
+        /// 连接值（0GC，ZString.Concat）。
         /// </summary>
         public string Concat<T1, T2, T3>(T1 value1, T2 value2, T3 value3)
         {
@@ -380,7 +380,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 连接值（0GC，ZString.Concat）
+        /// 连接值（0GC，ZString.Concat）。
         /// </summary>
         public string Concat<T1, T2, T3, T4>(T1 value1, T2 value2, T3 value3, T4 value4)
         {
@@ -392,7 +392,7 @@ namespace Moirai.Atropos
         #region 连接 [JOIN]
 
         /// <summary>
-        /// 使用分隔符连接（0GC，ZString.Join）
+        /// 使用分隔符连接（0GC，ZString.Join）。
         /// </summary>
         public string Join<T>(string separator, ReadOnlySpan<T> values)
         {
@@ -401,7 +401,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用分隔符连接（0GC，ZString.Join）
+        /// 使用分隔符连接（0GC，ZString.Join）。
         /// </summary>
         public string Join<T>(string separator, T[] values)
         {

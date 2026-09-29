@@ -15,7 +15,7 @@ namespace Moirai.Atropos
         /// 是否由包内的 <c>RuntimeInitializeOnLoadMethod</c> 自动完成启动。
         /// </summary>
         /// <remarks>
-        /// 置 <c>false</c> 可自建闪屏或等热更程序集装载完再拉起服务。
+        /// 置 <c>false</c> 可自建闪屏或等热更程序集装载完再拉起服务。 <br />
         /// 必须在 <c>AfterAssembliesLoaded</c> 或更早设置；包内读取点在 <c>BeforeSceneLoad</c>，同阶段顺序不受保证。
         /// </remarks>
         public static bool AutoBoot { get; set; } = true;
@@ -48,8 +48,8 @@ namespace Moirai.Atropos
         /// 内置 App 服务全部注册之后、世界初始化（拓扑排序 + 统一 <c>OnInit</c>）之前触发。
         /// </summary>
         /// <remarks>
-        /// 在此注册的服务与内置服务同等参与拓扑序，声明 <c>[ServiceDependency]</c> 可被正确排序。
-        /// 只有 AOT 侧程序集赶得上此时机；热更域入口（如 <c>HotfixEntry.Entrance</c>）跑在其后，请直接调 <c>GameServices.RegisterService</c>。
+        /// 在此注册的服务与内置服务同等参与拓扑序，声明 <c>[ServiceDependency]</c> 可被正确排序。 <br />
+        /// 只有 AOT 侧程序集赶得上此时机；热更域入口（如 <c>HotfixEntry.Entrance</c>）跑在其后，请直接调 <c>GameServices.RegisterService</c>。 <br />
         /// 逐个订阅调用，单个模块抛异常只影响它自己。
         /// </remarks>
         public static event Action ServicesComposing;
@@ -86,7 +86,7 @@ namespace Moirai.Atropos
         /// 组合根失败时触发（内置服务注册、项目模块或世界初始化抛出异常）。
         /// </summary>
         /// <remarks>
-        /// 原因已先以 Error 级带栈记录；本事件供挂崩溃上报与兜底 UI。
+        /// 原因已先以 Error 级带栈记录；本事件供挂崩溃上报与兜底 UI。 <br />
         /// 此刻 PlayerLoop 已在跑但服务世界可能只初始化了一半，不要在此继续推进游戏逻辑。
         /// </remarks>
         public static event Action<Exception> BootFailed;

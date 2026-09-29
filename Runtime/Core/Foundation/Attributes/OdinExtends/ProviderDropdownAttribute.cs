@@ -8,7 +8,7 @@ namespace Moirai.Atropos
     /// 为 <see cref="SerializeReference"/> 字段或类型名字段提供实现类下拉菜单。
     /// </summary>
     /// <remarks>
-    /// 引用模式（推荐）：配合 <see cref="SerializeReference"/>，字段为抽象类，选中后直接存实例并展开编辑子字段。
+    /// 引用模式（推荐）：配合 <see cref="SerializeReference"/>，字段为抽象类，选中后直接存实例并展开编辑子字段。 <br />
     /// 类型名模式：字段为 <c>string</c>，存类型全名，运行时经 <c>ReflectionUtility.ResolveImplType&lt;T&gt;</c> 创建实例，适用于接口类型。
     /// </remarks>
     /// <example>

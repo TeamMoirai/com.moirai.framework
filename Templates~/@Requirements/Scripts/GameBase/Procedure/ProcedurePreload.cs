@@ -9,7 +9,7 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 预加载
+    /// 流程 => 预加载。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedurePreload : ProcedurePremainBase

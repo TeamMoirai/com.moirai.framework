@@ -10,13 +10,13 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 版本模型：存档数据版本为 int 递增（0 = 版本化前的基线存档）；游戏层在启动期设置 <see cref="CurrentVersion"/>， <br />
-    /// 并为每个历史版本跃迁注册 <see cref="ISaveMigrator"/>（SaveHost SourceGenerator 扫描实现类经模块初始化器自注册，AOT 安全）。
+    /// 并为每个历史版本跃迁注册 <see cref="ISaveMigrator"/>（SaveHost SourceGenerator 扫描实现类经模块初始化器自注册，AOT 安全）。 <br />
     /// 链契约：加载/写入管线触达版本低于 <see cref="CurrentVersion"/> 的存档时，沿 <c>FromVersion == 当前步版本</c> 的迁移器逐段升级， <br />
     /// 同一边多个迁移器按 <see cref="ISaveMigrator.Priority"/> 升序执行；同起始版本多条不同目标版本的边、 <br />
-    /// 链缺失或执行异常均为 <see cref="SaveError.MigrationFailed"/> fail-fast，降级为 <see cref="SaveError.UnsupportedVersion"/>。
+    /// 链缺失或执行异常均为 <see cref="SaveError.MigrationFailed"/> fail-fast，降级为 <see cref="SaveError.UnsupportedVersion"/>。 <br />
     /// 启用版本化（<see cref="CurrentVersion"/> 从 0 调大）且存在旧档时，须注册自版本 0 起的迁移链（旧档无元数据块按版本 0 处理；形状未变可用空迁移器桥接 0→1）； <br />
     /// 每次迁移步向 <see cref="SaveMetadata.MigrationHistory"/> 追加 <c>"{起始}->{目标}|{迁移器类型全名}|{UTC ISO-8601}"</c>， <br />
-    /// 迁移成功后由处理器按 <see cref="SaveServiceHandler.MigrationWriteBack"/> 惰性回写（默认开，同文件同会话重复迁移经会话级缓存短路）。
+    /// 迁移成功后由处理器按 <see cref="SaveServiceHandler.MigrationWriteBack"/> 惰性回写（默认开，同文件同会话重复迁移经会话级缓存短路）。 <br />
     /// 注册表在启动期（主线程）写入、管线期（工作线程）只读快照。
     /// </remarks>
     public static class SaveMigrationManager
@@ -64,7 +64,8 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="migrator">迁移器实例。</param>
         /// <exception cref="ArgumentNullException">迁移器为 null。</exception>
-        /// <exception cref="ArgumentException">版本契约破坏（FromVersion &lt; 0 或 ToVersion &lt;= FromVersion——仅允许升级方向，天然杜绝版本环）。</exception>
+        /// <exception cref="ArgumentException">版本契约破坏（FromVersion &lt; 0 或 ToVersion &lt;= FromVersion——仅允许升级方向， <br />
+        /// 天然杜绝版本环）。</exception>
         public static void Register(ISaveMigrator migrator)
         {
             if (migrator == null)

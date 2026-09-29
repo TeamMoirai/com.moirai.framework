@@ -34,7 +34,7 @@ namespace Unity.IL2CPP.CompilerServices
     /// 标注在程序集/结构体/类/方法/属性/委托上，指示 IL2CPP 转换器关闭某项运行时检查。
     /// </summary>
     /// <remarks>
-    /// 仅影响 IL2CPP Player 构建；Editor 下 Mono 保持全量隐式检查，框架显式 <c>GameException</c> 校验不受影响。
+    /// 仅影响 IL2CPP Player 构建；Editor 下 Mono 保持全量隐式检查，框架显式 <c>GameException</c> 校验不受影响。 <br />
     /// 转换器按属性完整类型名匹配、不校验程序集身份，故各程序集可自带 internal 同名副本。
     /// </remarks>
     /// <example>

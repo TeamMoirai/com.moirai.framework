@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Resource
     /// 资源管理器处理器抽象基类（策略模式抽象策略），定义通用资源加载、缓存、租约与绑定契约。
     /// </summary>
     /// <remarks>
-    /// 框架通用，不依赖具体资源系统；由具体后端（如 <see cref="YooAssetHandler"/>、<see cref="AddressableHandler"/>）实现。
+    /// 框架通用，不依赖具体资源系统；由具体后端（如 <see cref="YooAssetHandler"/>、<see cref="AddressableHandler"/>）实现。 <br />
     /// 由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。
     /// </remarks>
     [Serializable]
@@ -365,8 +365,8 @@ namespace Moirai.Atropos.Resource
         /// 编辑器预览用：把一个定位地址解析成资产，<b>不得依赖播放态与后端运行时</b>。
         /// </summary>
         /// <remarks>
-        /// 地址不是资产路径的后端（如按文件名寻址、地址只在包清单里）覆写本方法补上换算表；预览只要求同一地址指向同一份资产，不要求同一条加载路径。
-        /// 实现侧不要建租约、不要进记录表（预览取完即弃，进计数等于每次重绘租一次）。
+        /// 地址不是资产路径的后端（如按文件名寻址、地址只在包清单里）覆写本方法补上换算表；预览只要求同一地址指向同一份资产，不要求同一条加载路径。 <br />
+        /// 实现侧不要建租约、不要进记录表（预览取完即弃，进计数等于每次重绘租一次）。 <br />
         /// 编辑态拿到的是 settings 里那份实例、从未走过 <c>Internal_Init</c>，覆写里只准做地址到资产的换算，别碰包与句柄等运行期状态。
         /// </remarks>
         public virtual UObject LoadAssetForEditor(string location)

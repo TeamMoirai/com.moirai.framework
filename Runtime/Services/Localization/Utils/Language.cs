@@ -12,276 +12,276 @@ namespace Moirai.Atropos.Localization
 
         private static readonly Language[] s_BuiltinLanguages;
         /// <summary>
-        /// 参考自 <see cref="UnityEngine.SystemLanguage"/>
+        /// 参考自 <see cref="UnityEngine.SystemLanguage"/>。
         /// </summary>
         /// <remarks>
         /// 保留 Unspecified 作为默认。
         /// <para>返回共享实例而非每次新建：语言表在检测链与查询路径上高频访问，
         /// 逐次重建会产生约 45 个对象的分配。作为代价，<b>调用方禁止原地改写元素或长度</b>，
-        /// 否则会污染全局语言表。</para>
+        /// 否则会污染全局语言表。</para>。
         /// </remarks>
         public static Language[] BuiltinLanguages => s_BuiltinLanguages;
 
         /// <summary>
-        /// 南非荷兰语
+        /// 南非荷兰语。
         /// </summary>
         public static Language Afrikaans { get; } = new Language(
             nameof(SystemLanguage.Afrikaans), "af", false, "Afrikaans");
 
         /// <summary>
-        /// 阿拉伯语
+        /// 阿拉伯语。
         /// </summary>
         public static Language Arabic { get; } = new Language(
             nameof(SystemLanguage.Arabic), "ar", false, "العربية");
 
         /// <summary>
-        /// 巴斯克语
+        /// 巴斯克语。
         /// </summary>
         public static Language Basque { get; } = new Language(
             nameof(SystemLanguage.Basque), "eu", false, "Euskara");
 
         /// <summary>
-        /// 白俄罗斯语
+        /// 白俄罗斯语。
         /// </summary>
         public static Language Belarusian { get; } = new Language(
             nameof(SystemLanguage.Belarusian), "be", false, "Беларуская");
 
         /// <summary>
-        /// 保加利亚语
+        /// 保加利亚语。
         /// </summary>
         public static Language Bulgarian { get; } = new Language(
             nameof(SystemLanguage.Bulgarian), "bg", false, "Български");
 
         /// <summary>
-        /// 加泰罗尼亚语
+        /// 加泰罗尼亚语。
         /// </summary>
         public static Language Catalan { get; } = new Language(
             nameof(SystemLanguage.Catalan), "ca", false, "Català");
 
         /// <summary>
-        /// 中文
+        /// 中文。
         /// </summary>
         public static Language Chinese { get; } = new Language(
             nameof(SystemLanguage.Chinese), "zh", false, "中文");
 
         /// <summary>
-        /// 捷克语
+        /// 捷克语。
         /// </summary>
         public static Language Czech { get; } = new Language(
             nameof(SystemLanguage.Czech), "cs", false, "Čeština");
 
         /// <summary>
-        /// 丹麦语
+        /// 丹麦语。
         /// </summary>
         public static Language Danish { get; } = new Language(
             nameof(SystemLanguage.Danish), "da", false, "Dansk");
 
         /// <summary>
-        /// 荷兰语
+        /// 荷兰语。
         /// </summary>
         public static Language Dutch { get; } = new Language(
             nameof(SystemLanguage.Dutch), "nl", false, "Nederlands");
 
         /// <summary>
-        /// 英语
+        /// 英语。
         /// </summary>
         public static Language English { get; } = new Language(
             nameof(SystemLanguage.English), "en", false, "English");
 
         /// <summary>
-        /// 爱沙尼亚语
+        /// 爱沙尼亚语。
         /// </summary>
         public static Language Estonian { get; } = new Language(
             nameof(SystemLanguage.Estonian), "et", false, "Eesti");
 
         /// <summary>
-        /// 法罗语
+        /// 法罗语。
         /// </summary>
         public static Language Faroese { get; } = new Language(
             nameof(SystemLanguage.Faroese), "fo", false, "Føroyskt");
 
         /// <summary>
-        /// 芬兰语
+        /// 芬兰语。
         /// </summary>
         public static Language Finnish { get; } = new Language(
             nameof(SystemLanguage.Finnish), "fi", false, "Suomi");
 
         /// <summary>
-        /// 法语
+        /// 法语。
         /// </summary>
         public static Language French { get; } = new Language(
             nameof(SystemLanguage.French), "fr", false, "Français");
 
         /// <summary>
-        /// 德语
+        /// 德语。
         /// </summary>
         public static Language German { get; } = new Language(
             nameof(SystemLanguage.German), "de", false, "Deutsch");
 
         /// <summary>
-        /// 希腊语
+        /// 希腊语。
         /// </summary>
         public static Language Greek { get; } = new Language(
             nameof(SystemLanguage.Greek), "el", false, "Ελληνικά");
 
         /// <summary>
-        /// 希伯来语
+        /// 希伯来语。
         /// </summary>
         public static Language Hebrew { get; } = new Language(
             nameof(SystemLanguage.Hebrew), "he", false, "עברית");
 
         /// <summary>
-        /// 匈牙利语
+        /// 匈牙利语。
         /// </summary>
         public static Language Hungarian { get; } = new Language(
             SystemLanguage.Hungarian.ToString(), "hu", false, "Magyar");
 
         /// <summary>
-        /// 冰岛语
+        /// 冰岛语。
         /// </summary>
         public static Language Icelandic { get; } = new Language(
             nameof(SystemLanguage.Icelandic), "is", false, "Íslenska");
 
         /// <summary>
-        /// 印度尼西亚语
+        /// 印度尼西亚语。
         /// </summary>
         public static Language Indonesian { get; } = new Language(
             nameof(SystemLanguage.Indonesian), "id", false, "Bahasa Indonesia");
 
         /// <summary>
-        /// 意大利语
+        /// 意大利语。
         /// </summary>
         public static Language Italian { get; } = new Language(
             nameof(SystemLanguage.Italian), "it", false, "Italiano");
 
         /// <summary>
-        /// 日语
+        /// 日语。
         /// </summary>
         public static Language Japanese { get; } = new Language(
             nameof(SystemLanguage.Japanese), "ja", false, "日本語");
 
         /// <summary>
-        /// 韩语
+        /// 韩语。
         /// </summary>
         public static Language Korean { get; } = new Language(
             nameof(SystemLanguage.Korean), "ko", false, "한국어");
 
         /// <summary>
-        /// 拉脱维亚语
+        /// 拉脱维亚语。
         /// </summary>
         public static Language Latvian { get; } = new Language(
             nameof(SystemLanguage.Latvian), "lv", false, "Latviešu");
 
         /// <summary>
-        /// 立陶宛语
+        /// 立陶宛语。
         /// </summary>
         public static Language Lithuanian { get; } = new Language(
             nameof(SystemLanguage.Lithuanian), "lt", false, "Lietuvių");
 
         /// <summary>
-        /// 挪威语
+        /// 挪威语。
         /// </summary>
         public static Language Norwegian { get; } = new Language(
             nameof(SystemLanguage.Norwegian), "no", false, "Norsk");
 
         /// <summary>
-        /// 波兰语
+        /// 波兰语。
         /// </summary>
         public static Language Polish { get; } = new Language(
             nameof(SystemLanguage.Polish), "pl", false, "Polski");
 
         /// <summary>
-        /// 葡萄牙语
+        /// 葡萄牙语。
         /// </summary>
         public static Language Portuguese { get; } = new Language(
             nameof(SystemLanguage.Portuguese), "pt", false, "Português");
 
         /// <summary>
-        /// 罗马尼亚语
+        /// 罗马尼亚语。
         /// </summary>
         public static Language Romanian { get; } = new Language(
             nameof(SystemLanguage.Romanian), "ro", false, "Română");
 
         /// <summary>
-        /// 俄语
+        /// 俄语。
         /// </summary>
         public static Language Russian { get; } = new Language(
             nameof(SystemLanguage.Russian), "ru", false, "Русский");
 
         /// <summary>
-        /// 塞尔维亚克罗地亚语
+        /// 塞尔维亚克罗地亚语。
         /// </summary>
         public static Language SerboCroatian { get; } = new Language(
             nameof(SystemLanguage.SerboCroatian), "hr", false, "Hrvatski");
 
         /// <summary>
-        /// 斯洛伐克语
+        /// 斯洛伐克语。
         /// </summary>
         public static Language Slovak { get; } = new Language(
             nameof(SystemLanguage.Slovak), "sk", false, "Slovenčina");
 
         /// <summary>
-        /// 斯洛文尼亚语
+        /// 斯洛文尼亚语。
         /// </summary>
         public static Language Slovenian { get; } = new Language(
             nameof(SystemLanguage.Slovenian), "sl", false, "Slovenščina");
 
         /// <summary>
-        /// 西班牙语
+        /// 西班牙语。
         /// </summary>
         public static Language Spanish { get; } = new Language(
             nameof(SystemLanguage.Spanish), "es", false, "Español");
 
         /// <summary>
-        /// 瑞典语
+        /// 瑞典语。
         /// </summary>
         public static Language Swedish { get; } = new Language(
             nameof(SystemLanguage.Swedish), "sv", false, "Svenska");
 
         /// <summary>
-        /// 泰语
+        /// 泰语。
         /// </summary>
         public static Language Thai { get; } = new Language(
             nameof(SystemLanguage.Thai), "th", false, "ไทย");
 
         /// <summary>
-        /// 土耳其语
+        /// 土耳其语。
         /// </summary>
         public static Language Turkish { get; } = new Language(
             nameof(SystemLanguage.Turkish), "tr", false, "Türkçe");
 
         /// <summary>
-        /// 乌克兰语
+        /// 乌克兰语。
         /// </summary>
         public static Language Ukrainian { get; } = new Language(
             nameof(SystemLanguage.Ukrainian), "uk", false, "Українська");
 
         /// <summary>
-        /// 越南语
+        /// 越南语。
         /// </summary>
         public static Language Vietnamese { get; } = new Language(
             nameof(SystemLanguage.Vietnamese), "vi", false, "Tiếng Việt");
 
         /// <summary>
-        /// 简体中文
+        /// 简体中文。
         /// </summary>
         public static Language ChineseSimplified { get; } = new Language(
             nameof(SystemLanguage.ChineseSimplified), "zh-Hans", false, "简体中文");
 
         /// <summary>
-        /// 繁体中文
+        /// 繁体中文。
         /// </summary>
         public static Language ChineseTraditional { get; } = new Language(
             nameof(SystemLanguage.ChineseTraditional), "zh-Hant", false, "繁體中文");
 
         /// <summary>
-        /// 印地语
+        /// 印地语。
         /// </summary>
         public static Language Hindi { get; } = new Language(
             nameof(SystemLanguage.Hindi), "hi", false, "हिन्दी");
 
         /// <summary>
-        /// 未指定
+        /// 未指定。
         /// </summary>
         public static Language Unspecified { get; } = new Language(
             "Unspecified", "und", false, "Unspecified");

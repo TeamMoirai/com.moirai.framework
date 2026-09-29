@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 字段级操作按块记录的后端分发：JSON 后端走 DOM 变换（需 Newtonsoft.Json），KeyValue 后端走 KVT 记录重写； <br />
-    /// 二进制后端（MessagePack/MemoryPack/Protobuf）的字段级操作不受支持（拒绝并记告警），请改用 <see cref="TransformBlock{T}"/> 保留旧类型整对象迁移。
+    /// 二进制后端（MessagePack/MemoryPack/Protobuf）的字段级操作不受支持（拒绝并记告警），请改用 <see cref="TransformBlock{T}"/> 保留旧类型整对象迁移。 <br />
     /// 目标块/字段不存在时操作为无操作（返回 <c>false</c>，兼容从未写过该块的旧档）；反序列化失败/格式损坏等真异常记为迁移失败并中止整条迁移链。
     /// </remarks>
     public sealed class SaveMigrationContext

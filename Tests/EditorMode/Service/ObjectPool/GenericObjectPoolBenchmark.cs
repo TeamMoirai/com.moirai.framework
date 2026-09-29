@@ -12,7 +12,7 @@ namespace Service.ObjectPool
 {
     /// <summary>通用对象池性能基准（<c>[Explicit]</c> 手动运行，不进常规测试流程）。</summary>
     /// <remarks>
-    /// 编辑器 Mono 基准噪声约 ±2x，数据仅作回归趋势参考，不作绝对性能结论；需要结论时以同一工具、同一数据做前后对照。
+    /// 编辑器 Mono 基准噪声约 ±2x，数据仅作回归趋势参考，不作绝对性能结论；需要结论时以同一工具、同一数据做前后对照。 <br />
     /// 跑完经 <see cref="BenchmarkReport"/> 落统一文件夹 &lt;工程根&gt;/Benchmarks/genericobjectpool-benchmark.xml。
     /// </remarks>
     [Explicit]

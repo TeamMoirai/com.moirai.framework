@@ -103,7 +103,7 @@ namespace Moirai.Atropos.Resource
 
         /// <inheritdoc />
         /// <remarks>只能答"有没有这条地址"：OnDisk / Online 的分别要 <c>GetDownloadSizeAsync</c>，
-        /// 那是异步的，同步问不出来。命中一律回 AssetOnDisk，不当"已在本地"的保证用。
+        /// 那是异步的，同步问不出来。命中一律回 AssetOnDisk，不当"已在本地"的保证用。 <br />
         /// 要精确判断请走 <c>IsNeedDownloadFromRemote</c> / <c>GetDownloadSize</c>（本后端保持 fail-fast）。</remarks>
         public override EResourceHasAssetResult HasAsset(string location, string packageName = "")
         {

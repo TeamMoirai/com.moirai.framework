@@ -9,8 +9,8 @@ namespace Moirai.Atropos.Localization.Editor
     /// 构建期渠道语言烘焙钩子：出包前读取命令行参数 <c>localizationLanguage</c>，非空即按值烘焙 <c>LocalizationBuildConfig</c>，缺省不动现有烘焙产物。
     /// </summary>
     /// <remarks>
-    /// 参数须为 <c>-CustomArgs:</c> 片段，如 <c>-CustomArgs:platform=Android;localizationLanguage=zh-Hans</c>。
-    /// 前缀缺失的构建（GUI 发起、测试玩家构建）按「缺省不动」静默早退；前缀存在而键缺失则报错并判构建失败。
+    /// 参数须为 <c>-CustomArgs:</c> 片段，如 <c>-CustomArgs:platform=Android;localizationLanguage=zh-Hans</c>。 <br />
+    /// 前缀缺失的构建（GUI 发起、测试玩家构建）按「缺省不动」静默早退；前缀存在而键缺失则报错并判构建失败。 <br />
     /// 解析失败抛异常进构建报告。
     /// </remarks>
     public sealed class LocalizationChannelBuildHook : IPreprocessBuildWithReport

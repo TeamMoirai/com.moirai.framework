@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Save
     /// 实体表块（保留块 <c>__entities</c>）的 KVT 读写（纯函数）。
     /// </summary>
     /// <remarks>
-    /// 布局：<c>spawns</c> 序列（元素 = 嵌套对象，id/prefab/scene/parent 四键，可空键写 Null）+ <c>destroyed</c> 序列（字符串元素）。
+    /// 布局：<c>spawns</c> 序列（元素 = 嵌套对象，id/prefab/scene/parent 四键，可空键写 Null）+ <c>destroyed</c> 序列（字符串元素）。 <br />
     /// 读侧键匹配容错：未知键跳过、缺失键按默认。
     /// </remarks>
     internal static class SaveEntityTable

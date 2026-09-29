@@ -10,8 +10,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 实现 <see cref="ISaveStorage"/>：同步原语为抽象契约（后端必须实现）；异步包装默认线程池卸载同步原语， <br />
-    /// 真异步后端（如云存储）覆盖异步方法并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。
-    /// 不支持同步 IO 的后端可在同步方法抛 <see cref="NotSupportedException"/>（同步裸名 API 随之不可用，调用方按能力降级）。
+    /// 真异步后端（如云存储）覆盖异步方法并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。 <br />
+    /// 不支持同步 IO 的后端可在同步方法抛 <see cref="NotSupportedException"/>（同步裸名 API 随之不可用，调用方按能力降级）。 <br />
     /// 实现必须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。
     /// </remarks>
     [Serializable]
@@ -51,7 +51,8 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
         /// <param name="bytes">成功时的文件字节。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.FileNotFound"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、 <br />
+        /// <see cref="SaveError.FileNotFound"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
         public abstract SaveError TryReadAllBytes(string filePath, out byte[] bytes);
 
         /// <summary>
@@ -103,7 +104,8 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
         /// <param name="stream">成功时的只读流（生命周期由调用方管理）。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.FileNotFound"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、 <br />
+        /// <see cref="SaveError.FileNotFound"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
         public virtual SaveError TryOpenRead(string filePath, out Stream stream)
         {
             SaveError error = TryReadAllBytes(filePath, out byte[] bytes);

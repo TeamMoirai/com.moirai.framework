@@ -10,22 +10,22 @@ namespace Moirai.Atropos.Tasks
     public enum TaskStatus
     {
         /// <summary>
-        /// 任务已启用运行并且可以更新
+        /// 任务已启用运行并且可以更新。
         /// </summary>
         Running,
         
         /// <summary>
-        /// 任务已暂停，将被忽略
+        /// 任务已暂停，将被忽略。
         /// </summary>
         Paused,
         
         /// <summary>
-        /// 任务已完成，等待广播完成事件
+        /// 任务已完成，等待广播完成事件。
         /// </summary>
         Completed,
         
         /// <summary>
-        /// 任务已停止，并且不会广播完成事件
+        /// 任务已停止，并且不会广播完成事件。
         /// </summary>
         Stopped
     }
@@ -70,7 +70,7 @@ namespace Moirai.Atropos.Tasks
     }
     
     /// <summary>
-    /// 框架任务的基类
+    /// 框架任务的基类。
     /// </summary>
     public abstract class TaskBase : CallbackEventHandler, IDisposable
     {
@@ -94,9 +94,8 @@ namespace Moirai.Atropos.Tasks
         public abstract string GetTaskID();
         
         /// <summary>
-        /// 调试使用情况
+        /// 调试使用情况。
         /// </summary>
-        /// <returns></returns>
         protected virtual string GetTaskName()
         {
 #if UNITY_EDITOR
@@ -185,10 +184,8 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 发布先决条件（如果包含其引用）
+        /// 发布先决条件（如果包含其引用）。
         /// </summary>
-        /// <param name="evt"></param>
-        /// <returns></returns>
         internal bool ReleasePrerequisite(TaskCompleteEvent evt)
         {
             return _prerequisites.Remove(evt);
@@ -200,18 +197,16 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 获取任务完成事件
+        /// 获取任务完成事件。
         /// </summary>
-        /// <returns></returns>
         public TaskCompleteEvent GetCompleteEvent()
         {
             return _completeEvent;
         }
         
         /// <summary>
-        /// 在此任务运行之前添加先决条件任务
+        /// 在此任务运行之前添加先决条件任务。
         /// </summary>
-        /// <param name="taskBase"></param>
         public void RegisterPrerequisite(TaskBase taskBase)
         {
             var evt = taskBase.GetCompleteEvent();
@@ -221,9 +216,8 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 删除先决条件任务（如果存在）
+        /// 删除先决条件任务（如果存在）。
         /// </summary>
-        /// <param name="taskBase"></param>
         public bool UnregisterPrerequisite(TaskBase taskBase)
         {
             if (_prerequisites == null) return false;

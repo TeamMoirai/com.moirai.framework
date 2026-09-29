@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// 缓动动画处理器抽象基类。
     /// </summary>
     /// <remarks>
-    /// 实现方可为 PrimeTween、LitMotion、DOTween 或自研引擎。
+    /// 实现方可为 PrimeTween、LitMotion、DOTween 或自研引擎。 <br />
     /// 所有缓动方法统一接收 <see cref="TweenEase"/>，实现方可用 <see cref="TweenEase.IsCurve"/> / <see cref="TweenEase.IsEase"/>
     /// 判断并转换为自身格式，也可直接调用 <see cref="TweenEase.Evaluate(float)"/>。
     /// </remarks>
@@ -119,7 +119,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待， <br />
-        /// tween 不被停止）。
+        /// tween 不被停止）。 <br />
         /// 基类默认实现为逐帧轮询兜底（async Yield 循环，无闭包/无每帧委托分配，判定晚一帧）； <br />
         /// <see cref="DefaultTweenHandler"/> / <see cref="LitMotionHandler"/> 覆写为完成信号即时版本，<see cref="PrimeTweenHandler"/> 覆写为同构轮询版。
         /// </remarks>

@@ -17,16 +17,16 @@ namespace Moirai.Atropos.Audio
 
         [Tooltip("如果不配置 AudioGroupConfigs，则会从 AudioMixer 读取音轨配置")]
         [SerializeField] private AudioMixer m_AudioMixer;
-        /// <summary>音频混音器</summary>
+        /// <summary>音频混音器。</summary>
         internal static AudioMixer AudioMixer => Instance.m_AudioMixer;
 
         [SerializeField] private AudioGroupConfig[] m_AudioGroupConfigs;
-        /// <summary>音轨配置</summary>
+        /// <summary>音轨配置。</summary>
         internal static AudioGroupConfig[] AudioGroupConfigs => Instance.m_AudioGroupConfigs;
 
         [Tooltip("混音快照配置：状态 → AudioMixerSnapshot 映射；Priority < 0 使用内置默认优先级。空 Snapshot 可由「从 Mixer 重建」按名自动补齐，手工非空映射优先")]
         [SerializeField] private AudioMixSnapshotEntry[] m_MixSnapshots;
-        /// <summary>混音快照配置</summary>
+        /// <summary>混音快照配置。</summary>
         internal static AudioMixSnapshotEntry[] MixSnapshots => Instance.m_MixSnapshots;
 
         /// <summary>

@@ -4,7 +4,7 @@ namespace Moirai.Atropos
     /// 服务生命周期 seam（内部）：容器驱动状态转换与状态读取的唯一入口。
     /// </summary>
     /// <remarks>
-    /// 状态机由容器（<see cref="ServiceWorld"/> / <see cref="ServiceScope"/>）经本接口统一驱动，服务侧 <see cref="ServiceBase.State"/> 仅为只读投影。
+    /// 状态机由容器（<see cref="ServiceWorld"/> / <see cref="ServiceScope"/>）经本接口统一驱动，服务侧 <see cref="ServiceBase.State"/> 仅为只读投影。 <br />
     /// 本接口同时是<b>可注册的判据</b>： <see cref="ServiceWorld.Register"/> 据此拒绝不经 <see cref="ServiceBase"/> / <br />
     /// <see cref="ServiceMono{TScope}"/> 派生而自行实现 <br />
     /// <see cref="IService"/> 的类型——容器读不到状态的服务永远判不出就绪（<see cref="ServiceWorld.IsServiceReady"/>）。

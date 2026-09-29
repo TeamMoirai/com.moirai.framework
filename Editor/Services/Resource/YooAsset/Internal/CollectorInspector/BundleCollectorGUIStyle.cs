@@ -4,7 +4,7 @@ using UnityEngine;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 扩展的 IMGUI 样式集合
+    /// 扩展的 IMGUI 样式集合。
     /// </summary>
     internal static class BundleCollectorGUIStyle
     {

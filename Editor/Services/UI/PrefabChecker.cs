@@ -5,12 +5,12 @@ using UnityEngine;
 namespace Moirai.Atropos.UI.Editor
 {
     /// <summary>
-    /// Prefab检查工具，提供Prefab状态判断方法
+    /// Prefab检查工具，提供Prefab状态判断方法。
     /// </summary>
     public static class PrefabChecker
     {
         /// <summary>
-        /// 判断是否正在编辑Prefab资产
+        /// 判断是否正在编辑Prefab资产。
         /// </summary>
         public static bool IsEditingPrefabAsset(GameObject go)
         {
@@ -19,7 +19,7 @@ namespace Moirai.Atropos.UI.Editor
         }
 
         /// <summary>
-        /// 判断是否为Prefab资产（包括Variant、Model或正在编辑的Prefab）
+        /// 判断是否为Prefab资产（包括Variant、Model或正在编辑的Prefab）。
         /// </summary>
         public static bool IsPrefabAsset(GameObject go)
         {

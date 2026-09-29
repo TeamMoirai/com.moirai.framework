@@ -10,7 +10,7 @@ namespace Service.Input
     /// <see cref="PreventInputOnEnable"/> 所有权语义测试：OnDisable 仅恢复本组件实际修改过的标志，未勾选选项不得触碰全局状态。
     /// </summary>
     /// <remarks>
-    /// Edit Mode 下普通 MonoBehaviour 不自动调用 OnEnable/OnDisable，经反射唤起生命周期（反射白名单用途）；勾选字段是 internal，直接赋值。
+    /// Edit Mode 下普通 MonoBehaviour 不自动调用 OnEnable/OnDisable，经反射唤起生命周期（反射白名单用途）；勾选字段是 internal，直接赋值。 <br />
     /// 经 <c>InputService.Handler</c> 注入真实 UIMobile 后端（InternalsVisibleTo + 生成的 setter）。
     /// </remarks>
     [TestFixture]

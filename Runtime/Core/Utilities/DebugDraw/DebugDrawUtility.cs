@@ -4,7 +4,7 @@ using Debug = UnityEngine.Debug;
 namespace Moirai.Atropos
 {	
 	/// <summary>
-	/// Debug Draw helpers
+	/// Debug Draw helpers。
 	/// </summary>
 	public static class DebugDrawUtility
 	{
@@ -16,7 +16,7 @@ namespace Moirai.Atropos
         private static bool s_DebugDrawEnabled = false;
         private const string DEBUG_DRAWS_KEY = "DebugDraw";
         /// <summary>
-        /// 是否应执行调试绘制
+        /// 是否应执行调试绘制。
         /// </summary>
         public static bool DebugDrawEnabled
         {
@@ -46,15 +46,15 @@ namespace Moirai.Atropos
         #region 射线 [CASTS]
 
         /// <summary>
-        /// 投射常规 2D 射线并绘制调试射线
+        /// 投射常规 2D 射线并绘制调试射线。
         /// </summary>
-        /// <returns>射线检测到的对象</returns>
-        /// <param name="rayOriginPoint">射线原点</param>
-        /// <param name="rayDirection">射线方向</param>
-        /// <param name="rayDistance">射线距离</param>
-        /// <param name="mask">遮罩</param>
-        /// <param name="color">颜色</param>
-        /// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线</param>
+        /// <returns>射线检测到的对象。</returns>
+        /// <param name="rayOriginPoint">射线原点。</param>
+        /// <param name="rayDirection">射线方向。</param>
+        /// <param name="rayDistance">射线距离。</param>
+        /// <param name="mask">遮罩。</param>
+        /// <param name="color">颜色。</param>
+        /// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线。</param>
         public static RaycastHit2D RayCast(Vector2 rayOriginPoint, Vector2 rayDirection, float rayDistance, LayerMask mask, Color color,bool drawGizmo=false)
 		{	
 			if (drawGizmo && DebugDrawEnabled) 
@@ -66,15 +66,15 @@ namespace Moirai.Atropos
 		}
         
         /// <summary>
-        /// 投射常规 2D 射线并绘制调试射线
+        /// 投射常规 2D 射线并绘制调试射线。
         /// </summary>
-        /// <returns>射线检测到的对象</returns>
-        /// <param name="rayOriginPoint">射线原点</param>
-        /// <param name="rayDirection">射线方向</param>
-        /// <param name="rayDistance">射线距离</param>
-        /// <param name="mask">遮罩</param>
-        /// <param name="color">颜色</param>
-        /// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线</param>
+        /// <returns>射线检测到的对象。</returns>
+        /// <param name="rayOriginPoint">射线原点。</param>
+        /// <param name="rayDirection">射线方向。</param>
+        /// <param name="rayDistance">射线距离。</param>
+        /// <param name="mask">遮罩。</param>
+        /// <param name="color">颜色。</param>
+        /// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线。</param>
         public static RaycastHit2D[] RayCastAll(Vector2 rayOriginPoint, Vector2 rayDirection, float rayDistance, LayerMask mask, Color color,bool drawGizmo=false)
 		{	
 			if (drawGizmo && DebugDrawEnabled) 
@@ -85,17 +85,16 @@ namespace Moirai.Atropos
 		}
 
         /// <summary>
-        /// 投射 2D 箱型射线并绘制调试射线
+        /// 投射 2D 箱型射线并绘制调试射线。
         /// </summary>
-        /// <param name="origin">射线原点</param>
-        /// <param name="size">箱型射线大小</param>
-        /// <param name="angle">射线角度（以度为单位）</param>
-        /// <param name="direction">射线方向</param>
-        /// <param name="length">射线距离</param>
-        /// <param name="mask">遮罩</param>
-        /// <param name="color">颜色</param>
-        /// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线</param>
-        /// <returns></returns>
+        /// <param name="origin">射线原点。</param>
+        /// <param name="size">箱型射线大小。</param>
+        /// <param name="angle">射线角度（以度为单位）。</param>
+        /// <param name="direction">射线方向。</param>
+        /// <param name="length">射线距离。</param>
+        /// <param name="mask">遮罩。</param>
+        /// <param name="color">颜色。</param>
+        /// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线。</param>
         public static RaycastHit2D BoxCast(Vector2 origin, Vector2 size, float angle, Vector2 direction, float length, LayerMask mask, Color color, bool drawGizmo = false)
         {
             if (drawGizmo && DebugDrawEnabled)
@@ -137,16 +136,16 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 在不分配内存的情况下绘制调试射线
+        /// 在不分配内存的情况下绘制调试射线。
         /// </summary>
-        /// <returns>在不分配内存的射线</returns>
-        /// <param name="array">数组</param>
-        /// <param name="rayOriginPoint">射线原点</param>
-        /// <param name="rayDirection">射线方向</param>
-        /// <param name="rayDistance">射线距离</param>
-        /// <param name="mask">遮罩</param>
-        /// <param name="color">颜色</param>
-        /// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线</param>
+        /// <returns>在不分配内存的射线。</returns>
+        /// <param name="array">数组。</param>
+        /// <param name="rayOriginPoint">射线原点。</param>
+        /// <param name="rayDirection">射线方向。</param>
+        /// <param name="rayDistance">射线距离。</param>
+        /// <param name="mask">遮罩。</param>
+        /// <param name="color">颜色。</param>
+        /// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线。</param>
         public static RaycastHit2D MonoRayCastNonAlloc(RaycastHit2D[] array, Vector2 rayOriginPoint, Vector2 rayDirection, float rayDistance, LayerMask mask, Color color, bool drawGizmo=false)
 		{	
 			if (drawGizmo && DebugDrawEnabled) 
@@ -162,16 +161,16 @@ namespace Moirai.Atropos
 		}
 
 		/// <summary>
-		/// 投射常规 3D 射线并绘制调试射线
+		/// 投射常规 3D 射线并绘制调试射线。
 		/// </summary>
-		/// <returns>射线检测到的对象</returns>
-		/// <param name="rayOriginPoint">射线原点</param>
-		/// <param name="rayDirection">射线方向</param>
-		/// <param name="rayDistance">射线距离</param>
-		/// <param name="mask">遮罩</param>
-		/// <param name="color">颜色</param>
-		/// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线</param>
-		/// <param name="queryTriggerInteraction">指定此查询是否应命中触发器</param>
+		/// <returns>射线检测到的对象。</returns>
+		/// <param name="rayOriginPoint">射线原点。</param>
+		/// <param name="rayDirection">射线方向。</param>
+		/// <param name="rayDistance">射线距离。</param>
+		/// <param name="mask">遮罩。</param>
+		/// <param name="color">颜色。</param>
+		/// <param name="drawGizmo">如果为<c>true</c>则绘制调试射线。</param>
+		/// <param name="queryTriggerInteraction">指定此查询是否应命中触发器。</param>
 		public static RaycastHit Raycast3D(Vector3 rayOriginPoint, Vector3 rayDirection, float rayDistance, LayerMask mask, Color color, bool drawGizmo=false, QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal)
 		{
 			if (drawGizmo && DebugDrawEnabled) 
@@ -189,13 +188,13 @@ namespace Moirai.Atropos
         #region 调试绘制 [DEBUG DRAW]
 
         /// <summary>
-        /// 绘制从原点位置沿 Vector3 方向的调试箭头
+        /// 绘制从原点位置沿 Vector3 方向的调试箭头。
         /// </summary>
-        /// <param name="origin">原点</param>
-        /// <param name="direction">方向</param>
-        /// <param name="color">颜色</param>
-        /// <param name="arrowHeadLength">箭头长度</param>
-        /// <param name="arrowHeadAngle">箭头角度</param>
+        /// <param name="origin">原点。</param>
+        /// <param name="direction">方向。</param>
+        /// <param name="color">颜色。</param>
+        /// <param name="arrowHeadLength">箭头长度。</param>
+        /// <param name="arrowHeadAngle">箭头角度。</param>
         public static void DrawGizmoArrow(Vector3 origin, Vector3 direction, Color color, float arrowHeadLength = 3f, float arrowHeadAngle = 25f)
 	    {
             if (!DebugDrawEnabled) return;
@@ -207,13 +206,13 @@ namespace Moirai.Atropos
 	    }
 
 	    /// <summary>
-	    /// 绘制一个从原点位置沿 Vector3 方向的调试箭头
+	    /// 绘制一个从原点位置沿 Vector3 方向的调试箭头。
 	    /// </summary>
-	    /// <param name="origin">原点</param>
-	    /// <param name="direction">方向</param>
-	    /// <param name="color">颜色</param>
-	    /// <param name="arrowHeadLength">箭头长度</param>
-	    /// <param name="arrowHeadAngle">箭头角度</param>
+	    /// <param name="origin">原点。</param>
+	    /// <param name="direction">方向。</param>
+	    /// <param name="color">颜色。</param>
+	    /// <param name="arrowHeadLength">箭头长度。</param>
+	    /// <param name="arrowHeadAngle">箭头角度。</param>
 	    public static void DebugDrawArrow(Vector3 origin, Vector3 direction, Color color, float arrowHeadLength = 0.2f, float arrowHeadAngle = 35f)
         {
             if (!DebugDrawEnabled) return;
@@ -224,14 +223,14 @@ namespace Moirai.Atropos
 	    }
 
 		/// <summary>
-		/// 绘制一个从原点位置沿 Vector3 方向的调试箭头
+		/// 绘制一个从原点位置沿 Vector3 方向的调试箭头。
 		/// </summary>
-		/// <param name="origin">原点</param>
-		/// <param name="direction">方向</param>
-		/// <param name="color">颜色</param>
-		/// <param name="arrowLength">箭头长度</param>
-		/// <param name="arrowHeadLength">箭头长度</param>
-		/// <param name="arrowHeadAngle">箭头角度</param>
+		/// <param name="origin">原点。</param>
+		/// <param name="direction">方向。</param>
+		/// <param name="color">颜色。</param>
+		/// <param name="arrowLength">箭头长度。</param>
+		/// <param name="arrowHeadLength">箭头长度。</param>
+		/// <param name="arrowHeadAngle">箭头角度。</param>
 		public static void DebugDrawArrow(Vector3 origin, Vector3 direction, Color color, float arrowLength, float arrowHeadLength = 0.20f, float arrowHeadAngle = 35.0f)
         {
             if (!DebugDrawEnabled) return;
@@ -242,11 +241,11 @@ namespace Moirai.Atropos
 		}
 
 		/// <summary>
-		/// 在指定点绘制指定大小和颜色的调试十字
+		/// 在指定点绘制指定大小和颜色的调试十字。
 		/// </summary>
-		/// <param name="spot">点</param>
-		/// <param name="crossSize">十字大小</param>
-		/// <param name="color">颜色</param>
+		/// <param name="spot">点。</param>
+		/// <param name="crossSize">十字大小。</param>
+		/// <param name="color">颜色。</param>
 		public static void DebugDrawCross(Vector3 spot, float crossSize, Color color)
         {
             if (!DebugDrawEnabled) return;
@@ -272,14 +271,14 @@ namespace Moirai.Atropos
 		}
 
 		/// <summary>
-		/// 绘制 DebugDrawArrow 的箭头末端
+		/// 绘制 DebugDrawArrow 的箭头末端。
 		/// </summary>
-		/// <param name="drawGizmos">如果为<c>true</c>则绘制调试</param>
-		/// <param name="arrowEndPosition">箭头结束位置</param>
-		/// <param name="direction">方向</param>
-		/// <param name="color">颜色</param>
-		/// <param name="arrowHeadLength">箭头长度</param>
-		/// <param name="arrowHeadAngle">箭头角度</param>
+		/// <param name="drawGizmos">如果为<c>true</c>则绘制调试。</param>
+		/// <param name="arrowEndPosition">箭头结束位置。</param>
+		/// <param name="direction">方向。</param>
+		/// <param name="color">颜色。</param>
+		/// <param name="arrowHeadLength">箭头长度。</param>
+		/// <param name="arrowHeadAngle">箭头角度。</param>
 		private static void DrawArrowEnd(bool drawGizmos, Vector3 arrowEndPosition, Vector3 direction, Color color, float arrowHeadLength = 0.25f, float arrowHeadAngle = 40.0f)
         {
             if (!DebugDrawEnabled) return;
@@ -310,8 +309,8 @@ namespace Moirai.Atropos
 		/// <summary>
 		/// 绘制调试以在屏幕上具体化对象的边界。
 		/// </summary>
-		/// <param name="bounds">边界</param>
-		/// <param name="color">颜色</param>
+		/// <param name="bounds">边界。</param>
+		/// <param name="color">颜色。</param>
 		public static void DrawHandlesBounds(Bounds bounds, Color color)
         {
             if (!DebugDrawEnabled) return;
@@ -350,12 +349,8 @@ namespace Moirai.Atropos
 		}
 
         /// <summary>
-        /// 在指定位置和大小以及指定颜色处绘制一个实心矩形
+        /// 在指定位置和大小以及指定颜色处绘制一个实心矩形。
         /// </summary>
-        /// <param name="position"></param>
-        /// <param name="size"></param>
-        /// <param name="borderColor"></param>
-        /// <param name="solidColor"></param>
         public static void DrawSolidRectangle(Vector3 position, Vector3 size, Color borderColor, Color solidColor)
         {
             if (!DebugDrawEnabled) return;
@@ -373,11 +368,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 在指定位置绘制指定大小和颜色的球体
+        /// 在指定位置绘制指定大小和颜色的球体。
         /// </summary>
-        /// <param name="position">位置</param>
-        /// <param name="size">大小</param>
-        /// <param name="color">颜色</param>
+        /// <param name="position">位置。</param>
+        /// <param name="size">大小。</param>
+        /// <param name="color">颜色。</param>
         public static void DrawGizmoPoint(Vector3 position, float size, Color color)
         {
             if (!DebugDrawEnabled) return;
@@ -387,11 +382,11 @@ namespace Moirai.Atropos
 		}
 
 		/// <summary>
-		/// 在指定位置绘制指定颜色和大小的立方体
+		/// 在指定位置绘制指定颜色和大小的立方体。
 		/// </summary>
-		/// <param name="position">位置</param>
-		/// <param name="color">颜色</param>
-		/// <param name="size">大小</param>
+		/// <param name="position">位置。</param>
+		/// <param name="color">颜色。</param>
+		/// <param name="size">大小。</param>
 		public static void DrawCube(Vector3 position, Color color, Vector3 size)
         {
             if (!DebugDrawEnabled) return;
@@ -417,12 +412,8 @@ namespace Moirai.Atropos
 		}
 
         /// <summary>
-        /// 在指定位置、偏移和指定大小处绘制立方体
+        /// 在指定位置、偏移和指定大小处绘制立方体。
         /// </summary>
-        /// <param name="transform"></param>
-        /// <param name="offset"></param>
-        /// <param name="cubeSize"></param>
-        /// <param name="wireOnly"></param>
         public static void DrawGizmoCube(Transform transform, Vector3 offset, Vector3 cubeSize, bool wireOnly)
         {
             if (!DebugDrawEnabled) return;
@@ -440,11 +431,11 @@ namespace Moirai.Atropos
         }
 
 		/// <summary>
-		/// 绘制矩形
+		/// 绘制矩形。
 		/// </summary>
-		/// <param name="center">中心</param>
-		/// <param name="size">大小</param>
-		/// <param name="color">颜色</param>
+		/// <param name="center">中心。</param>
+		/// <param name="size">大小。</param>
+		/// <param name="color">颜色。</param>
 		public static void DrawGizmoRectangle(Vector2 center, Vector2 size, Color color)
         {
             if (!DebugDrawEnabled) return;
@@ -463,12 +454,12 @@ namespace Moirai.Atropos
         }
 
 		/// <summary>
-		/// 绘制矩形
+		/// 绘制矩形。
 		/// </summary>
-		/// <param name="center">中心</param>
-		/// <param name="size">大小</param>
-		/// <param name="rotationMatrix">旋转矩阵</param>
-		/// <param name="color">颜色</param>
+		/// <param name="center">中心。</param>
+		/// <param name="size">大小。</param>
+		/// <param name="rotationMatrix">旋转矩阵。</param>
+		/// <param name="color">颜色。</param>
 		public static void DrawGizmoRectangle(Vector2 center, Vector2 size, Matrix4x4 rotationMatrix, Color color)
         {
             if (!DebugDrawEnabled) return;
@@ -491,10 +482,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 基于 Rect 和颜色绘制矩形
+        /// 基于 Rect 和颜色绘制矩形。
         /// </summary>
-        /// <param name="rectangle">Rect 矩形</param>
-        /// <param name="color">颜色</param>
+        /// <param name="rectangle">Rect 矩形。</param>
+        /// <param name="color">颜色。</param>
         public static void DrawRectangle(Rect rectangle, Color color)
         {
             if (!DebugDrawEnabled) return;
@@ -506,11 +497,11 @@ namespace Moirai.Atropos
 		}	
 
 		/// <summary>
-		/// 在指定位置绘制指定颜色和大小的矩形
+		/// 在指定位置绘制指定颜色和大小的矩形。
 		/// </summary>
-		/// <param name="position">位置</param>
-		/// <param name="color">颜色</param>
-		/// <param name="size">大小</param>
+		/// <param name="position">位置。</param>
+		/// <param name="color">颜色。</param>
+		/// <param name="size">大小。</param>
 		public static void DrawRectangle(Vector3 position, Color color, Vector3 size)
         {
             if (!DebugDrawEnabled) return;
@@ -532,11 +523,11 @@ namespace Moirai.Atropos
 		}
 
 		/// <summary>
-		/// 在指定位置绘制指定颜色和大小的点
+		/// 在指定位置绘制指定颜色和大小的点。
 		/// </summary>
-		/// <param name="position">位置</param>
-		/// <param name="color">颜色</param>
-		/// <param name="size">大小</param>
+		/// <param name="position">位置。</param>
+		/// <param name="color">颜色。</param>
+		/// <param name="size">大小。</param>
 		public static void DrawPoint(Vector3 position, Color color, float size)
         {
             if (!DebugDrawEnabled) return;
@@ -569,11 +560,11 @@ namespace Moirai.Atropos
 		}
 
         /// <summary>
-        /// 绘制指定颜色和大小的线
+        /// 绘制指定颜色和大小的线。
         /// </summary>
-        /// <param name="position">位置</param>
-        /// <param name="color">颜色</param>
-        /// <param name="size">大小</param>
+        /// <param name="position">位置。</param>
+        /// <param name="color">颜色。</param>
+        /// <param name="size">大小。</param>
         public static void DrawGizmoPoint(Vector3 position, Color color, float size)
         {
             if (!DebugDrawEnabled) return;

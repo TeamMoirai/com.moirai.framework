@@ -830,8 +830,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 解码base64；
         /// </summary>
-        /// <param name="context">需要解码的内容</param>
-        /// <returns>解码后的内容</returns>
+        /// <param name="context">需要解码的内容。</param>
+        /// <returns>解码后的内容。</returns>
         public static string DecodeFromBase64(string context)
         {
             return Encoding.UTF8.GetString(Convert.FromBase64String(context));
@@ -840,8 +840,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 编码base64；
         /// </summary>
-        /// <param name="context">需要编码的内容</param>
-        /// <returns>编码后的内容</returns>
+        /// <param name="context">需要编码的内容。</param>
+        /// <returns>编码后的内容。</returns>
         public static string EncodeToBase64(string context)
         {
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(context));
@@ -852,10 +852,8 @@ namespace Moirai.Atropos
         private static readonly StringBuilder s_StringBuilderCache = new StringBuilder(1024);
         
         /// <summary>
-        /// 将字符串转换为十六进制
+        /// 将字符串转换为十六进制。
         /// </summary>
-        /// <param name="srcData"></param>
-        /// <returns></returns>
         public static string ConvertToHexString(string srcData)
         {
             string hexString = string.Empty;
@@ -875,10 +873,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将字节数组转换为十六进制
+        /// 将字节数组转换为十六进制。
         /// </summary>
-        /// <param name="bytes"></param>
-        /// <returns></returns>
         public static string ConvertToHexString(byte[] bytes)
         {
             string hexString = string.Empty;
@@ -900,9 +896,9 @@ namespace Moirai.Atropos
         /// 约束数值长度，少增多减。
         /// </summary>
         /// <remarks>例如 128 约束 5 位等于 12800，1024 约束 3 位等于 102。</remarks>
-        /// <param name="srcValue">原始数值</param>
-        /// <param name="length">需要保留的长度</param>
-        /// <returns>修改后的int数值</returns>
+        /// <param name="srcValue">原始数值。</param>
+        /// <param name="length">需要保留的长度。</param>
+        /// <returns>修改后的int数值。</returns>
         public static long RetainInt64(long srcValue, ushort length)
         {
             if (length == 0)
@@ -940,9 +936,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 转换byte长度到对应单位；
         /// </summary>
-        /// <param name="bytes">byte长度</param>
-        /// <param name="decimals">保留的小数长度</param>
-        /// <returns>格式化后的单位</returns>
+        /// <param name="bytes">byte长度。</param>
+        /// <param name="decimals">保留的小数长度。</param>
+        /// <returns>格式化后的单位。</returns>
         public static string FormatBytes(long bytes, int decimals = 2)
         {
             string[] suffix = { "Byte", "KB", "MB", "GB", "TB" };
@@ -955,13 +951,13 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// object类型转换为bytes
+        /// object类型转换为bytes。
         /// </summary>
-        /// <param name="obj">对象</param>
-        /// <returns>byte数组</returns>
+        /// <param name="obj">对象。</param>
+        /// <returns>byte数组。</returns>
         /// <remarks>
-        /// SECURITY WARNING: BinaryFormatter is vulnerable to deserialization attacks.
-        /// See: https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide
+        /// 安全警告：BinaryFormatter 存在反序列化攻击风险。 <br />
+        /// 参见：https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide。
         /// </remarks>
         [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static byte[] Object2Bytes(object obj)

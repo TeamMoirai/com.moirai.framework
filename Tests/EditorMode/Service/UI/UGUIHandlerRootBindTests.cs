@@ -7,7 +7,7 @@ namespace Service.UI
 {
     /// <summary><see cref="UGUIHandler.TryBindRoot"/> 的续等语义测试：缺绑定、缺 Canvas 都不得一次性放弃。</summary>
     /// <remarks>
-    /// 钉三件事：无绑定时挂起且只报一条 Error 级诊断；有绑定无 Canvas 时挂起且只报一条 Fatal 级诊断（Canvas 补上后能续绑成功）；绑定成功后不再续等。
+    /// 钉三件事：无绑定时挂起且只报一条 Error 级诊断；有绑定无 Canvas 时挂起且只报一条 Fatal 级诊断（Canvas 补上后能续绑成功）；绑定成功后不再续等。 <br />
     /// 刻意不按名字查找是另一条已钉住的路径。EditMode 下 <c>DontDestroyOnLoad</c> 会抛，实现侧有 <c>Application.isPlaying</c> 守卫，故成功路径也能在编辑器夹具里走到。
     /// </remarks>
     [TestFixture]

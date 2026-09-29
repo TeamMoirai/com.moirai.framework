@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Resource
         #region 文件偏移加解密 [FileOffset Encryptor/Decryptor]
 
         /// <summary>
-        /// 文件偏移加密方式
+        /// 文件偏移加密方式。
         /// </summary>
         public class FileOffsetEncryptor : IBundleEncryptor
         {
@@ -39,7 +39,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 资源文件偏移加载解密类
+        /// 资源文件偏移加载解密类。
         /// </summary>
         internal class FileOffsetDecryptor : IBundleOffsetDecryptor, IBundleMemoryDecryptor
         {

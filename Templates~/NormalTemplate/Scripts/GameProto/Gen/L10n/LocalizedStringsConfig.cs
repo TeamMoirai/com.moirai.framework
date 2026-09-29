@@ -26,11 +26,11 @@ public sealed partial class LocalizedStringsConfig : Luban.BeanBase
     }
 
     /// <summary>
-    /// 占位符
+    /// 占位符。
     /// </summary>
     public readonly string Key;
     /// <summary>
-    /// 支持的多语言
+    /// 支持的多语言。
     /// </summary>
     public readonly L10n.LocalizationBean FormattedStrings;
    

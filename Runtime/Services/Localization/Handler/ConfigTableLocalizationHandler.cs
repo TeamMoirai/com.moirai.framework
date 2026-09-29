@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Localization
     /// 配置表数据源本地化处理器（默认实现）：从 <see cref="ConfigTableService"/> 的多语言配置表读取语言代码与字符串字典。
     /// </summary>
     /// <remarks>
-    /// 语言必须随表自报：<c>GetLocalizationLanguageCodes</c> 返回空时产出空批，由基类以「数据未就绪」拒载并保持重试，不回落任何全局注册表。
+    /// 语言必须随表自报：<c>GetLocalizationLanguageCodes</c> 返回空时产出空批，由基类以「数据未就绪」拒载并保持重试，不回落任何全局注册表。 <br />
     /// 配置表按语言分份存储时（<see cref="ConfigTableService.SupportsPerLanguageLocalizationLoad"/>）走基类按语言列模式，常驻与取值都只有「语言头 + 当前语言列」。
     /// </remarks>
     [Serializable]

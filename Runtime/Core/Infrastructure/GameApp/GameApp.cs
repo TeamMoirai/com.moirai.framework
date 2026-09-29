@@ -21,7 +21,7 @@ namespace Moirai.Atropos
         /// <see cref="GameApp"/> 各类订阅的可注销句柄。
         /// </summary>
         /// <remarks>
-        /// 注册表按委托相等比较注销，lambda 每次求值都是新实例、摘不掉；句柄在注册时攥住确切实例，lambda 也能干净注销。
+        /// 注册表按委托相等比较注销，lambda 每次求值都是新实例、摘不掉；句柄在注册时攥住确切实例，lambda 也能干净注销。 <br />
         /// 非线程安全，只在主线程创建与释放；框架 <see cref="Shutdown"/> 后 Dispose 是空操作。
         /// </remarks>
         public sealed class Subscription : IDisposable
@@ -81,7 +81,7 @@ namespace Moirai.Atropos
         /// 获取或设置期望的游戏速度（映射到 <c>Time.timeScale</c>）。
         /// </summary>
         /// <remarks>
-        /// 暂停期间写入只更新解除暂停后的目标值，<c>Time.timeScale</c> 保持 0（暂停优先）。
+        /// 暂停期间写入只更新解除暂停后的目标值，<c>Time.timeScale</c> 保持 0（暂停优先）。 <br />
         /// 判断时间是否真正冻结请读 <c>GameSpeed &lt;= 0</c> 或 <c>Time.timeScale</c>，不要读 <see cref="IsGamePaused"/>。
         /// </remarks>
         public static float GameSpeed
@@ -170,8 +170,8 @@ namespace Moirai.Atropos
         /// 关闭游戏框架（幂等）：退掉未配对的暂停、清空订阅、释放宿主。
         /// </summary>
         /// <remarks>
-        /// 编辑器退出 Play 与 <c>ApplicationQuit</c> 均走此入口。
-        /// 关闭会把 <see cref="PauseGame"/> 计数归零并回放 <see cref="GameSpeed"/>，避免下一次启动从冻结实况播种出速度 0。
+        /// 编辑器退出 Play 与 <c>ApplicationQuit</c> 均走此入口。 <br />
+        /// 关闭会把 <see cref="PauseGame"/> 计数归零并回放 <see cref="GameSpeed"/>，避免下一次启动从冻结实况播种出速度 0。 <br />
         /// 关闭后运行态属性（<see cref="FrameRate"/> / <see cref="GameSpeed"/> / <see cref="RunInBackground"/> / <see cref="NeverSleep"/> / <br />
         /// <see cref="IsGamePaused"/>）仍可读写并成为下一轮基线；帧订阅与协程不再被驱动。
         /// </remarks>
@@ -310,7 +310,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="action">帧回调；<c>null</c> 时不注册并返回 <c>null</c>。</param>
         /// <returns>可用于注销的句柄（同参数重复注册会被驱动去重，任一持有句柄 Dispose 即注销该唯一登记）。
-        /// 用 lambda 注册时**只能**靠本句柄注销——<see cref="RemoveUpdateListener"/> 按委托相等比较，
+        /// 用 lambda 注册时<b>只能</b>靠本句柄注销——<see cref="RemoveUpdateListener"/> 按委托相等比较，
         /// 再写一个同样体的 lambda 是新实例，摘不掉。</returns>
         public static Subscription AddUpdateListener(Action action)
         {
@@ -374,7 +374,7 @@ namespace Moirai.Atropos
         /// 订阅帧逻辑到 Update 阶段（接口式）。
         /// </summary>
         /// <remarks>
-        /// Action 适合无状态挂钩，Handler 适合携带状态、需要阶段内顺序的系统（实现 <see cref="IPlayerLoopPriority"/> 控制先后，数值小者先跑）。
+        /// Action 适合无状态挂钩，Handler 适合携带状态、需要阶段内顺序的系统（实现 <see cref="IPlayerLoopPriority"/> 控制先后，数值小者先跑）。 <br />
         /// 同一实例重复注册被忽略，驱动中调用延迟到本阶段结束后提交；注册表持强引用，注销必须成对，热路径禁止堆分配。
         /// </remarks>
         public static void AddUpdateHandler(IUpdateHandler handler)

@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Localization
     /// 基于图片的本地化注入器基类：按载荷类型把本地化图片资源注入 Sprite/Texture 目标。
     /// </summary>
     /// <remarks>
-    /// 载荷：<see cref="int"/> 为语言下标（数组模式）、<see cref="string"/> 为资源 location（资源模式）；其余载荷类型忽略。
+    /// 载荷：<see cref="int"/> 为语言下标（数组模式）、<see cref="string"/> 为资源 location（资源模式）；其余载荷类型忽略。 <br />
     /// 资源从资源系统异步加载，租约由注入器持有，切换语言时释放上一份，销毁时随 <see cref="IDisposable"/> 释放。
     /// </remarks>
     public abstract class ImageInjectorBase : ILocalizationInjector, IDisposable

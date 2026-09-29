@@ -15,8 +15,8 @@ namespace Service.Save
     /// 压缩转换链测试：GZip 往返、压+加组合、旧档（无压缩位）兼容读、文件头 <c>CompressionProviderId</c> 分型（未知 ID / 标志位不一致）、注册表契约。
     /// </summary>
     /// <remarks>
-    /// 压缩注入经 internal 属性 <c>CompressionProvider</c>（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），不触达全局配置。
-    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// 压缩注入经 internal 属性 <c>CompressionProvider</c>（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），不触达全局配置。 <br />
+    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。
     /// </remarks>
     public class SaveCompressionTests

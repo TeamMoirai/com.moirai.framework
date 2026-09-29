@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Timer
     /// 计时器处理器抽象基类（策略模式抽象策略）。
     /// </summary>
     /// <remarks>
-    /// 默认实现为 <see cref="DefaultTimerHandler"/>（四级时间轮 + 帧计时 + 阶段触发）。
+    /// 默认实现为 <see cref="DefaultTimerHandler"/>（四级时间轮 + 帧计时 + 阶段触发）。 <br />
     /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。
     /// </remarks>
     [Serializable]
@@ -94,8 +94,8 @@ namespace Moirai.Atropos.Timer
         /// 等待计时器完成。
         /// </summary>
         /// <remarks>
-        /// 默认实现每帧轮询 <see cref="IsDone"/>；<see cref="DefaultTimerHandler"/> 覆写为按槽位完成信号驱动。
-        /// 信号实现下每槽仅挂一个完成信号：同一句柄的首个 await 走信号唤醒，后续 await 退回轮询。
+        /// 默认实现每帧轮询 <see cref="IsDone"/>；<see cref="DefaultTimerHandler"/> 覆写为按槽位完成信号驱动。 <br />
+        /// 信号实现下每槽仅挂一个完成信号：同一句柄的首个 await 走信号唤醒，后续 await 退回轮询。 <br />
         /// 完成 / 取消在引擎本阶段 Tick 末尾统一唤醒；<c>Shutdown</c> 时同步排空，避免 await 方永久挂起。
         /// </remarks>
         internal virtual UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default)

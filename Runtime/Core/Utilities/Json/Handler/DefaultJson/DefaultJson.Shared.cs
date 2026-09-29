@@ -91,7 +91,7 @@ namespace Moirai.Atropos
             /// 判断子级复合值是否会被深度守卫截断。
             /// </summary>
             /// <remarks>
-            /// 命中时调用方应跳过整个成员/元素以保持输出合法，且只告警一次。
+            /// 命中时调用方应跳过整个成员/元素以保持输出合法，且只告警一次。 <br />
             /// 深度上限由调用方按次传入，不读静态 <c>maxDepth</c>，以保证多 handler 实例各自配置时语义一致。
             /// </remarks>
             public static bool WouldExceedDepth(object childValue, int parentDepth, int depthLimit)
@@ -135,7 +135,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// <para><c>GetGenericArguments()</c> 与 <c>GenericTypeArguments</c> 每次调用分配新 <c>Type[]</c>；
-        /// 字典/列表键值类型集合有限（按类型收敛），缓存后同类型重复序列化/解析零分配。</para>
+        /// 字典/列表键值类型集合有限（按类型收敛），缓存后同类型重复序列化/解析零分配。</para>。
         /// </remarks>
         internal static class GenericArgsCache
         {
@@ -169,7 +169,7 @@ namespace Moirai.Atropos
             /// 将字符串转换为非数值目标类型（string/char/bool/枚举/Guid/DateTime/TimeSpan/DateTimeOffset）。
             /// </summary>
             /// <remarks>
-            /// 返回 false 表示目标类型为数值，调用方需走各自的 span 数值解析路径。
+            /// 返回 false 表示目标类型为数值，调用方需走各自的 span 数值解析路径。 <br />
             /// 转换失败会抛 <see cref="GameException"/>，不是返回 false。
             /// </remarks>
             public static bool TryConvertFromString(string s, Type type, out object result)

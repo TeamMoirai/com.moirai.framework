@@ -18,7 +18,7 @@ namespace Utility
     /// <remarks>
     /// ① 序列化器核心对比（DefaultJson string/bytes vs Newtonsoft vs Unity JsonUtility 参考）； <br />
     /// ② <see cref="JsonHandler"/> 中间件层经 <see cref="AssemblyUtility.GetRuntimeTypes"/> 自动发现全部实现，按与 GameAppSettings 配置流同链路实例化， <br />
-    /// 新增实现无需改本基准；③ <see cref="IBufferJsonHandler"/> 能力矩阵。
+    /// 新增实现无需改本基准；③ <see cref="IBufferJsonHandler"/> 能力矩阵。 <br />
     /// 数据全程序化构建（零外部文件依赖），结束恢复外观并清理临时状态；逐场景自适应迭代（每测量段约 150ms），结果经 <see cref="BenchmarkReport"/> 落 <c>&lt;工程根&gt; <br />
     /// /Benchmarks/jsonutility-benchmark.xml</c>。
     /// </remarks>

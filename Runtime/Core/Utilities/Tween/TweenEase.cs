@@ -24,12 +24,12 @@ namespace Moirai.Atropos
         public enum ETweenType : byte
         {
             /// <summary>
-            /// 内置缓动曲线
+            /// 内置缓动曲线。
             /// </summary>
             Ease,
 
             /// <summary>
-            /// 自定义动画曲线
+            /// 自定义动画曲线。
             /// </summary>
             AnimationCurve
         }

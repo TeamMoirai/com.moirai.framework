@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Audio
     /// 音频侧的异常上报与退避（内部）。
     /// </summary>
     /// <remarks>
-    /// 容器的 tick 隔离在开发构建下会记录后重新抛出并打断整轮 tick，故音频内部的隔离必须自己做，一条音出错不该让输入/UI/存档当帧停摆。
+    /// 容器的 tick 隔离在开发构建下会记录后重新抛出并打断整轮 tick，故音频内部的隔离必须自己做，一条音出错不该让输入/UI/存档当帧停摆。 <br />
     /// 策略是退避而非熔断：同一位置在 <see cref="BackoffSeconds"/> 内不重复打印，并累计被吞掉的次数。
     /// </remarks>
     internal static class AudioFault

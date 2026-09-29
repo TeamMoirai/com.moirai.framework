@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Localization
 	/// 音频源注入器：按载荷类型把本地化音频注入 <see cref="AudioSource"/> 并播放。
 	/// </summary>
 	/// <remarks>
-	/// 载荷：<see cref="string"/> 为资源 location（异步加载后播放）、<see cref="AudioClip"/> 直接播放、<c>null</c> 表示该语言无语音（清空音源）。
+	/// 载荷：<see cref="string"/> 为资源 location（异步加载后播放）、<see cref="AudioClip"/> 直接播放、<c>null</c> 表示该语言无语音（清空音源）。 <br />
 	/// 资源路径下的租约由注入器持有直到下次加载或销毁，防止播放期间被周期性 UnloadUnusedAssets 回收。
 	/// </remarks>
 	public class AudioSourceInjector : ILocalizationInjector, IDisposable

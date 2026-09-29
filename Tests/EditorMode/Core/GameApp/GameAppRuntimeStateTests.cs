@@ -10,9 +10,9 @@ namespace Core.GameApp
     /// / <c>ResetGameSpeed</c>）。
     /// </summary>
     /// <remarks>
-    /// 全部经 public 门面驱动，不碰私有计数——要锁的是外部可见行为，不是实现细节。
+    /// 全部经 public 门面驱动，不碰私有计数——要锁的是外部可见行为，不是实现细节。 <br />
     /// 暂停判据落在引擎 <c>Time.timeScale</c> 上，夹具因此会写引擎全局状态（编辑模式下改的是 Project Settings &gt; Time 那份）；SetUp/TearDown 双向复位， <br />
-    /// 不清理会污染编辑器与后续用例。
+    /// 不清理会污染编辑器与后续用例。 <br />
     /// 不调 <c>GameApp.Initialize</c> / <c>Shutdown</c>：它们会注入 PlayerLoop、物化宿主并关停真实服务世界，编辑器里代价大且不可逆。
     /// </remarks>
     public class GameAppRuntimeStateTests

@@ -13,7 +13,7 @@ using Luban;
 namespace Moirai.GameProto.Config.Test
 {
 /// <summary>
-/// 道具配置
+/// 道具配置。
 /// </summary>
 public partial class TbItem
 {

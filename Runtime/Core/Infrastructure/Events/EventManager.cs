@@ -103,7 +103,7 @@ namespace Moirai.Atropos.Events
         private CallbackEventHandler _eventHandler;
         
         /// <summary>
-        /// 获取事件系统 <see cref="CallbackEventHandler"/>
+        /// 获取事件系统 <see cref="CallbackEventHandler"/>。
         /// </summary>
         public static CallbackEventHandler EventHandler => Instance._eventHandler;
         private static EventManager GetInstance()
@@ -152,7 +152,6 @@ namespace Moirai.Atropos.Events
         /// </summary>
         /// <param name="eventBase">要发送的事件。</param>
         /// <param name="dispatchMode">事件调度模式。</param>
-        /// <param name="monoDispatchType"></param>
         public static void SendEvent(EventBase eventBase, DispatchMode dispatchMode = DispatchMode.Default, MonoDispatchType monoDispatchType = MonoDispatchType.Update)
         {
             if (!s_Instance) return;

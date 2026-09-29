@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 namespace Moirai.Atropos.Input.Prompts
 {
     /// <summary>
-    /// InputSystem 的设备提示设置
+    /// InputSystem 的设备提示设置。
     /// </summary>
     [FrameworkSetting("[框架]按键提示", "InputSystem 按键提示图标设置", -449,
         "Assets/Settings/InputSystem/Resources/")]
@@ -51,13 +51,13 @@ namespace Moirai.Atropos.Input.Prompts
         public string RichTextTags => m_RichTextTags;
 
         /// <summary>
-        /// 用于标识替换图标占位符的起止
+        /// 用于标识替换图标占位符的起止。
         /// </summary>
         public const string OPEN_TAG = "{action:";
         public const string CLOSE_TAG = "}";
         
         /// <summary>
-        /// 用于表示 sprite 在 <see cref="m_PromptSpriteFormatter"/> 中的占位符
+        /// 用于表示 sprite 在 <see cref="m_PromptSpriteFormatter"/> 中的占位符。
         /// </summary>
         public const string PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER = "{SPRITE}";
 

@@ -55,7 +55,7 @@ namespace Moirai.Atropos.Audio
         private bool _keysCached;
 
         /// <summary>
-        /// 音频类型
+        /// 音频类型。
         /// </summary>
         public EAudioTrack AudioTrack
         {
@@ -95,7 +95,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 当前音轨是否静音
+        /// 当前音轨是否静音。
         /// </summary>
         public bool Mute
         {
@@ -113,8 +113,8 @@ namespace Moirai.Atropos.Audio
         /// 当前音轨的音量，线性 <c>0..1</c>。
         /// </summary>
         /// <remarks>夹取放在 setter 而不是只放在写 Mixer 的那一刻：<c>Volume</c> 是对外可读的，
-        /// 让存着的值越界就会让 getter 报回一个契约外的数（旧写法正是如此，2.5 能原样读回来）。
-        /// 0 保留为 0（写 Mixer 时才换算成 <see cref="MINIMAL_VOLUME"/> 对应的 -80dB），
+        /// 让存着的值越界就会让 getter 报回一个契约外的数（旧写法正是如此，2.5 能原样读回来）。 <br />
+        /// 0 保留为 0（写 Mixer 时才换算成 <see cref="MINIMAL_VOLUME"/> 对应的 -80dB），。 <br />
         /// 这样 UI 拉到 0 再读回来仍是 0。</remarks>
         public float Volume
         {
@@ -130,12 +130,12 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 预设同时播放的最大数量
+        /// 预设同时播放的最大数量。
         /// </summary>
         public int MaxChannel => m_MaxChannel;
 
         /// <summary>
-        /// 当没有可用的Agent时，是否可拓展
+        /// 当没有可用的Agent时，是否可拓展。
         /// </summary>
         public bool CanExpand => m_CanExpand;
 
@@ -149,7 +149,7 @@ namespace Moirai.Atropos.Audio
             : HARD_CHANNEL_CEILING_DEFAULT;
 
         /// <summary>
-        /// 写入设置
+        /// 写入设置。
         /// </summary>
         public void SetSettings()
         {
@@ -159,7 +159,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 加载设置
+        /// 加载设置。
         /// </summary>
         public void LoadSettings()
         {
@@ -186,7 +186,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 将音量应用于所属音轨
+        /// 将音量应用于所属音轨。
         /// </summary>
         private void ApplyTrackVolume()
         {
@@ -198,7 +198,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 将归一化音量转换为混音器组 db
+        /// 将归一化音量转换为混音器组 db。
         /// </summary>
         private float NormalizedToMixerVolume(float normalizedVolume)
         {

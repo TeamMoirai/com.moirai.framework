@@ -93,7 +93,7 @@ namespace Moirai.Atropos.Save
         /// 将本组件的全部启用字段捕获为键值字节（主线程调用）。
         /// </summary>
         /// <remarks>
-        /// 首个记录为 <see cref="SchemaScopeKey"/> 模式版本作用域（组件类型全名 → <see cref="ISaveComponentCapturer.SchemaVersion"/>，恢复侧路由迁移钩子的依据）。
+        /// 首个记录为 <see cref="SchemaScopeKey"/> 模式版本作用域（组件类型全名 → <see cref="ISaveComponentCapturer.SchemaVersion"/>，恢复侧路由迁移钩子的依据）。 <br />
         /// 随后逐绑定写入「键 = 组件类型全名」的嵌套作用域；同类型多绑定时后者追加（键重复由编辑器 UI 约束避免）。
         /// </remarks>
         /// <param name="writer">键值写入器。</param>

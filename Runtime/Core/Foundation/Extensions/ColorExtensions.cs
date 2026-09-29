@@ -5,12 +5,8 @@ namespace Moirai.Atropos
     public static class ColorExtensions
     {
         /// <summary>
-        /// 返回指定的两个最小值/最大值之间的随机颜色
+        /// 返回指定的两个最小值/最大值之间的随机颜色。
         /// </summary>
-        /// <param name="color"></param>
-        /// <param name="min"></param>
-        /// <param name="max"></param>
-        /// <returns></returns>
         public static Color RandomColor(this Color color, Color min, Color max)
         {
             Color c = new Color()

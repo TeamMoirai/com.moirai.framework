@@ -7,7 +7,7 @@ namespace Service.Debugger
     /// <remarks>
     /// 生产默认（<see cref="Dbg.DebuggerActiveWindowType.AlwaysClose"/>， <br />
     /// 或 <see cref="Dbg.DebuggerActiveWindowType.OnlyOpenWhenDevelopment"/> 且非 debug 构建）从不打开调试器，这段构造与 <c>Initialize</c> 是纯启动开销； <br />
-    /// 运行期从关切到开时必须补齐，且只补一次。
+    /// 运行期从关切到开时必须补齐，且只补一次。 <br />
     /// 激活策略经处理器的 internal 覆盖点给定，不改设置资产（那是跨夹具共享的全局配置）；编辑器里默认策略恰好落在「激活」一侧，未激活形态不覆盖就测不到。
     /// </remarks>
     [TestFixture]

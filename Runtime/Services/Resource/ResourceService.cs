@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Resource
     /// 未显式设置处理器时，懒加载优先从 <see cref="ResourceServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
     /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成，线程安全懒加载。
     /// 服务未就绪（未注册/未初始化）时按读写分界：写成员（租约取用与归还、预热、卸载、实例化等）经 <c>RequireHandler()</c> 抛 <see cref="GameException"/> fail-fast； <br />
-    /// 读成员降级为默认值（<c>HasAsset</c> 报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false）。
+    /// 读成员降级为默认值（<c>HasAsset</c> 报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false）。 <br />
     /// 例外：<see cref="LoadSceneAsync"/> 未就绪时返回 <c>null</c>，是其消费者的既定契约。
     /// </remarks>
     [AutoRegisterService]
@@ -182,7 +182,7 @@ namespace Moirai.Atropos.Resource
         #region 属性 [PROPERTIES]
 
         /// <summary>
-        /// 是否已经初始化
+        /// 是否已经初始化。
         /// </summary>
         public static bool IsInitialized => IsValid && s_Handler.IsInitialized;
 
@@ -645,7 +645,7 @@ namespace Moirai.Atropos.Resource
         /// 编辑器（非播放态）按定位地址取资产，直读 <c>AssetDatabase</c>，是预览与工具面的统一入口。
         /// </summary>
         /// <remarks>
-        /// 播放态恒返回 <c>null</c>（真在跑时应读运行期已注入的那份）。
+        /// 播放态恒返回 <c>null</c>（真在跑时应读运行期已注入的那份）。 <br />
         /// 不建记录、不返租约（Inspector 每次重绘都会调用）；取不到一律返回 <c>null</c> 而不抛，避免打死组件面板。
         /// </remarks>
         /// <param name="location">资源定位地址（本项目约定即 <c>Assets/...</c> 资产路径）。</param>

@@ -197,9 +197,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
     /// Odin 原生 Drawer，为 <see cref="ExpandAttribute"/> 接管 Odin 绘制。
     /// </summary>
     /// <remarks>
-    /// 优先级 super=1，优先于默认 managed reference drawer 与 DrawWithUnity(10000)。
+    /// 优先级 super=1，优先于默认 managed reference drawer 与 DrawWithUnity(10000)。 <br />
     /// Object 引用目标必须用 Odin <see cref="PropertyTree"/> 展开：Unity SerializedProperty
-    /// 不会应用子类型上的 LabelText / Min / EnumCondition 等 Odin 特性。
+    /// 不会应用子类型上的 LabelText / Min / EnumCondition 等 Odin 特性。 <br />
     /// 禁止 PropertyField(本属性)——会重入导致内容×2。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]

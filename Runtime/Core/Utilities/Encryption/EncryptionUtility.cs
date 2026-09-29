@@ -146,10 +146,10 @@ namespace Moirai.Atropos
         #region MD5 [MD5]
         
         /// <summary>
-        /// Generate MD5
+        /// 生成 MD5 摘要。
         /// </summary>
-        /// <param name="context">bytes</param>
-        /// <returns>hash</returns>
+        /// <param name="context">字节数组。</param>
+        /// <returns>哈希值。</returns>
         public static string GenerateMD5(byte[] context)
         {
 #if NET_STANDARD_2_0
@@ -170,11 +170,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// MD5加密，返回16位加密后的大写16进制字符
+        /// MD5加密，返回16位加密后的大写16进制字符。
         /// </summary>
-        /// <param name="context">需要加密的字符</param>
-        /// <returns>加密后的结果</returns>
-        /// <remarks>SECURITY: MD5 is cryptographically broken. Use SHA-256 or stronger for security-sensitive hashing.</remarks>
+        /// <param name="context">需要加密的字符。</param>
+        /// <returns>加密后的结果。</returns>
+        /// <remarks>安全提示：MD5 已在密码学上被攻破，安全敏感场景请改用 SHA-256 或更强的哈希算法。</remarks>
         [System.Obsolete("MD5 is cryptographically broken. Use SHA-256 (e.g. HmacSHA256) for security-sensitive hashing.")]
         public static string MD5Encrypt16(string context)
         {
@@ -191,11 +191,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// MD5加密，返回32位加密后的大写16进制字符
+        /// MD5加密，返回32位加密后的大写16进制字符。
         /// </summary>
-        /// <param name="context">需要加密的字符</param>
-        /// <returns>加密后的结果</returns>
-        /// <remarks>SECURITY: MD5 is cryptographically broken. Use SHA-256 or stronger for security-sensitive hashing.</remarks>
+        /// <param name="context">需要加密的字符。</param>
+        /// <returns>加密后的结果。</returns>
+        /// <remarks>安全提示：MD5 已在密码学上被攻破，安全敏感场景请改用 SHA-256 或更强的哈希算法。</remarks>
         [System.Obsolete("MD5 is cryptographically broken. Use SHA-256 (e.g. HmacSHA256) for security-sensitive hashing.")]
         public static string MD5Encrypt32(string context)
         {
@@ -214,11 +214,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// MD5加密 
+        //// MD5加密。
         /// </summary>
-        /// <param name="context">需要加密的字符</param>
-        /// <returns>加密后的结果</returns>
-        /// <remarks>SECURITY: MD5 is cryptographically broken. Use SHA-256 or stronger for security-sensitive hashing.</remarks>
+        /// <param name="context">需要加密的字符。</param>
+        /// <returns>加密后的结果。</returns>
+        /// <remarks>安全提示：MD5 已在密码学上被攻破，安全敏感场景请改用 SHA-256 或更强的哈希算法。</remarks>
         [System.Obsolete("MD5 is cryptographically broken. Use SHA-256 (e.g. HmacSHA256) for security-sensitive hashing.")]
         public static string MD5Encrypt(string context)
         {
@@ -270,10 +270,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 生成16位密钥
+        /// 生成16位密钥。
         /// </summary>
-        /// <param name="key">原始密钥信息</param>
-        /// <returns>加密后的值</returns>
+        /// <param name="key">原始密钥信息。</param>
+        /// <returns>加密后的值。</returns>
         public static byte[] Generate16BytesAESKey(string key)
         {
             if (string.IsNullOrEmpty(key))
@@ -298,10 +298,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 生成24位密钥
+        /// 生成24位密钥。
         /// </summary>
-        /// <param name="key">原始密钥信息</param>
-        /// <returns>加密后的值</returns>
+        /// <param name="key">原始密钥信息。</param>
+        /// <returns>加密后的值。</returns>
         public static byte[] Generate24BytesAESKey(string key)
         {
             if (string.IsNullOrEmpty(key))
@@ -326,10 +326,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 生成32位密钥
+        /// 生成32位密钥。
         /// </summary>
-        /// <param name="key">原始密钥信息</param>
-        /// <returns>加密后的值</returns>
+        /// <param name="key">原始密钥信息。</param>
+        /// <returns>加密后的值。</returns>
         public static byte[] Generate32BytesAESKey(string key)
         {
             if (string.IsNullOrEmpty(key))
@@ -358,11 +358,11 @@ namespace Moirai.Atropos
         #region HMAC-SHA [HMACSHA]
 
         /// <summary>
-        /// 加密算法HMACSHA1 base64
+        /// 加密算法HMACSHA1 base64。
         /// </summary>
-        /// <param name="context">被加密的数据</param>
-        /// <param name="key">加密密码</param>
-        /// <returns>加密后的字段</returns>
+        /// <param name="context">被加密的数据。</param>
+        /// <param name="key">加密密码。</param>
+        /// <returns>加密后的字段。</returns>
         public static string HmacSHA1ToBase64(string context, string key)
         {
             string encrpytedResult = string.Empty;
@@ -376,11 +376,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 加密算法HMACSHA1
+        /// 加密算法HMACSHA1。
         /// </summary>
-        /// <param name="context">被加密的数据</param>
-        /// <param name="key">加密密码</param>
-        /// <returns>加密后的字段</returns>
+        /// <param name="context">被加密的数据。</param>
+        /// <param name="key">加密密码。</param>
+        /// <returns>加密后的字段。</returns>
         public static string HmacSHA1(string context, string key)
         {
             using (HMACSHA1 mac = new HMACSHA1(Encoding.UTF8.GetBytes(key)))
@@ -391,11 +391,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 加密算法HMACSHA1，输出16位字符串
+        /// 加密算法HMACSHA1，输出16位字符串。
         /// </summary>
-        /// <param name="context">被加密的数据</param>
-        /// <param name="key">加密密码</param>
-        /// <returns>加密后的字段</returns>
+        /// <param name="context">被加密的数据。</param>
+        /// <param name="key">加密密码。</param>
+        /// <returns>加密后的字段。</returns>
         public static string HmacSHA1ToHex(string context, string key)
         {
             string encrpytedResult = string.Empty;
@@ -416,11 +416,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 加密算法HMACSHA256
+        /// 加密算法HMACSHA256。
         /// </summary>
-        /// <param name="context">被加密的数据</param>
-        /// <param name="key">加密密钥</param>
-        /// <returns>加密后的字段</returns>
+        /// <param name="context">被加密的数据。</param>
+        /// <param name="key">加密密钥。</param>
+        /// <returns>加密后的字段。</returns>
         public static string HmacSHA256(string context, string key)
         {
             using (HMACSHA256 mac = new HMACSHA256(Encoding.UTF8.GetBytes(key)))
@@ -431,11 +431,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 加密算法HMACSHA256 base64
+        /// 加密算法HMACSHA256 base64。
         /// </summary>
-        /// <param name="context">被加密的数据</param>
-        /// <param name="key">加密密钥</param>
-        /// <returns>加密后的字段</returns>
+        /// <param name="context">被加密的数据。</param>
+        /// <param name="key">加密密钥。</param>
+        /// <returns>加密后的字段。</returns>
         public static string HmacSHA256ToBase64(string context, string key)
         {
             var keyBytes = Encoding.UTF8.GetBytes(key);
@@ -448,11 +448,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 加密算法HMACSHA256，输出16位字符串
+        /// 加密算法HMACSHA256，输出16位字符串。
         /// </summary>
-        /// <param name="context">被加密的数据</param>
-        /// <param name="key">加密密码</param>
-        /// <returns>加密后的字段</returns>
+        /// <param name="context">被加密的数据。</param>
+        /// <param name="key">加密密码。</param>
+        /// <returns>加密后的字段。</returns>
         public static string HmacSHA256ToHex(string context, string key)
         {
             string encrpytedResult = string.Empty;
@@ -758,10 +758,10 @@ namespace Moirai.Atropos
         #endregion
 
         /// <summary>
-        /// 生成验证码
+        /// 生成验证码。
         /// </summary>
-        /// <param name="length">指定验证码的长度</param>
-        /// <returns>验证码字符串</returns>
+        /// <param name="length">指定验证码的长度。</param>
+        /// <returns>验证码字符串。</returns>
         public static string CreateValidateCode(int length)
         {
             string ch = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ1234567890@#$%&?";
@@ -781,11 +781,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 异或加密（相同为0，不同为1）
+        /// 异或加密（相同为0，不同为1）。
         /// </summary>
-        /// <param name="context">需要加密的内容</param>
-        /// <param name="key">密钥</param>
-        /// <returns>加密后的内容</returns>
+        /// <param name="context">需要加密的内容。</param>
+        /// <param name="key">密钥。</param>
+        /// <returns>加密后的内容。</returns>
         /// <code>
         /// X | Y | Result
         /// ==============
@@ -808,11 +808,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 异或解密
+        /// 异或解密。
         /// </summary>
-        /// <param name="context">需要解密的内容</param>
-        /// <param name="key">密钥</param>
-        /// <returns>解密后的内容</returns>
+        /// <param name="context">需要解密的内容。</param>
+        /// <param name="key">密钥。</param>
+        /// <returns>解密后的内容。</returns>
         public static byte[] XorDecrypt(byte[] context, byte[] key)
         {
             byte[] outputBytes = new byte[context.Length];

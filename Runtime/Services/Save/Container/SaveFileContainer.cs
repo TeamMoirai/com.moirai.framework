@@ -122,9 +122,9 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 布局（小端序）：<c>[4B 魔数 "MRSB"][4B 容器版本][4B 块数]{逐块：[4B 键字节长][键 UTF8][4B 模式版本][2B 后端][4B 载荷长][4B 载荷CRC32][载荷]}</c>；逐块独立序列化， <br />
-    /// 块级后端/版本/迁移互不影响。
-    /// v2 逐块 CRC32 自校验：载荷 CRC 不符的坏块跳过并记入坏块清单、其余块照常可救；块框架越界的结构性损坏保留已解析前缀后终止解析并记终结坏块。
-    /// 容器版本 1 旧档硬切作废，读取判别为 <see cref="SaveError.UnsupportedVersion"/>，不做双格式兼容读。
+    /// 块级后端/版本/迁移互不影响。 <br />
+    /// v2 逐块 CRC32 自校验：载荷 CRC 不符的坏块跳过并记入坏块清单、其余块照常可救；块框架越界的结构性损坏保留已解析前缀后终止解析并记终结坏块。 <br />
+    /// 容器版本 1 旧档硬切作废，读取判别为 <see cref="SaveError.UnsupportedVersion"/>，不做双格式兼容读。 <br />
     /// 整档 CRC 由文件头层（<see cref="SaveFileHeader"/>）先行把关，逐块 CRC 是头校验放行后的第二道细粒度隔离层。
     /// </remarks>
     internal static class SaveFileContainer

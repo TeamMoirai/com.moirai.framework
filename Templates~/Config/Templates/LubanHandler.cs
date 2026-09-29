@@ -172,10 +172,9 @@ namespace Moirai.GameProto.Config
         }
 
         /// <summary>
-        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas
+        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas。
         /// </summary>
-        /// <param name="id">UISprite - SpriteAtlas 配置表的 id</param>
-        /// <param name="cancellationToken"></param>
+        /// <param name="id">UISprite - SpriteAtlas 配置表的 id。</param>
 #pragma warning disable CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
         public override async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
 #pragma warning restore CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行

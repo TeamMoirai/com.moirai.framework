@@ -12,10 +12,10 @@ namespace Moirai.Atropos.Save
     /// 动态实体持久化核心：驱动会话生成/销毁表、生成与恢复管线、模板差分捕获。
     /// </summary>
     /// <remarks>
-    /// 全部入口均触碰场景对象，须在主线程调用。
+    /// 全部入口均触碰场景对象，须在主线程调用。 <br />
     /// 外观 <c>SaveService.Entity.cs</c> 经本核心实现； <br />
-    /// 测试经可注入的模板加载器（<see cref="s_TemplateLoaderSync"/>/<see cref="s_TemplateLoaderAsync"/>）与 <see cref="ResetForTests"/> 隔离。
-    /// 块布局：实体表为保留块 <c>__entities</c>（生成记录 + 预置对象销毁 ID）；实体数据为每实体一个 <c>entity:{EntityId}</c> 块（与模板基准差分后的稀疏 KVT，只写相对模板的变动字段）。
+    /// 测试经可注入的模板加载器（<see cref="s_TemplateLoaderSync"/>/<see cref="s_TemplateLoaderAsync"/>）与 <see cref="ResetForTests"/> 隔离。 <br />
+    /// 块布局：实体表为保留块 <c>__entities</c>（生成记录 + 预置对象销毁 ID）；实体数据为每实体一个 <c>entity:{EntityId}</c> 块（与模板基准差分后的稀疏 KVT，只写相对模板的变动字段）。 <br />
     /// CarryForward：保存仅 upsert 活跃实体，未访问场景/生成失败实体的块原样滞留；绕过 <c>DestroyPersistent</c> 直接销毁的实体记录与块同样滞留，须走显式销毁移除。
     /// </remarks>
     internal static class SaveEntityPersistence
@@ -448,7 +448,7 @@ namespace Moirai.Atropos.Save
         /// 捕获实体差分块与实体表块，并按批触发保存进度事件。
         /// </summary>
         /// <remarks>
-        /// 须在主线程调用；活跃实体逐只全量捕获后与模板基准差分，无基准（加载器缺失/预制体无 <c>SaveComponent</c>）退化为全量写入。
+        /// 须在主线程调用；活跃实体逐只全量捕获后与模板基准差分，无基准（加载器缺失/预制体无 <c>SaveComponent</c>）退化为全量写入。 <br />
         /// 不在册实体（已被绕过 <c>DestroyPersistent</c> 销毁）跳过捕获但保留记录（CarryForward——原块滞留）。
         /// </remarks>
         /// <param name="fileName">存档文件名（进度事件参数）。</param>
@@ -672,7 +672,7 @@ namespace Moirai.Atropos.Save
         /// 恢复管线：销毁多余实体 → 生成缺失实体并落位 → 父子接线 → 差分块写回 → 激活并派发实体恢复事件。
         /// </summary>
         /// <remarks>
-        /// 差分块在未激活期写回——激活触发的 <c>Awake</c> 见恢复后状态。
+        /// 差分块在未激活期写回——激活触发的 <c>Awake</c> 见恢复后状态。 <br />
         /// 会话生成/销毁表以档案状态整体替换；生成失败的实体保留其档案记录（原块滞留，下次保存不丢）。
         /// </remarks>
         /// <param name="blocks">档内全部健康块（键 → 载荷）。</param>

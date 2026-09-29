@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Debugger
     /// 调试器 UI 样式工厂：全模块唯一的控件构建入口。
     /// </summary>
     /// <remarks>
-    /// 视觉样式由共享样式库「Debugger UI.uss」定义（经「Debugger UI Theme.tss」挂载到 <c>PanelSettings</c>），本工厂只负责结构与 USS 类挂载；三态由 USS 伪类驱动。
+    /// 视觉样式由共享样式库「Debugger UI.uss」定义（经「Debugger UI Theme.tss」挂载到 <c>PanelSettings</c>），本工厂只负责结构与 USS 类挂载；三态由 USS 伪类驱动。 <br />
     /// 所有尺寸均为参考分辨率（1920×1080）面板坐标，实际缩放由 <c>PanelSettings.scale</c> 统一处理。
     /// </remarks>
     public static class DebuggerUI

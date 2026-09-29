@@ -4,7 +4,7 @@ namespace Moirai.Atropos.Input
     /// 应用焦点与输入 Enabled 的联动守卫：失焦时记录当前 Enabled 并强制关闭，回焦时还原。
     /// </summary>
     /// <remarks>
-    /// 重复的同向焦点事件被忽略，避免连续两次失焦覆盖「失焦前状态」导致输入永久关闭。
+    /// 重复的同向焦点事件被忽略，避免连续两次失焦覆盖「失焦前状态」导致输入永久关闭。 <br />
     /// 纯逻辑单元便于单测，由 <see cref="InputService"/> 持有静态实例。
     /// </remarks>
     internal sealed class FocusInputGuard

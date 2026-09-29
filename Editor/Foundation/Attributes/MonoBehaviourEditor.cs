@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Attributes.Editor
 {
     /// <summary>
-    /// 该类为所有 MonoBehaviour 提供了一个基础的自定义编辑器
+    /// 该类为所有 MonoBehaviour 提供了一个基础的自定义编辑器。
     /// </summary>
     [CustomEditor(typeof(MonoBehaviour), true)]
     [CanEditMultipleObjects]

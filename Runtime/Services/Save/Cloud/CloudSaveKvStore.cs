@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Save
     /// 由 <see cref="CloudSaveStorageBackend"/> 以 [SerializeReference] 持有）。
     /// </summary>
     /// <remarks>
-    /// 键为相对存档根目录（<c>persistentDataPath/Data/</c>）的路径，<c>/</c> 分隔（如 <c>Save/slot1.sav</c>），不携带本机目录结构。
+    /// 键为相对存档根目录（<c>persistentDataPath/Data/</c>）的路径，<c>/</c> 分隔（如 <c>Save/slot1.sav</c>），不携带本机目录结构。 <br />
     /// 远端不可达/IO 失败/未登录一律抛异常，由 <see cref="CloudSaveStorageBackend"/> 归一为离线降级；缺档非错误——<see cref="ReadAsync"/> 返回 <c>null</c>、 <br />
     /// <see cref="ExistsAsync"/> 返回 <c>false</c>、<see cref="DeleteAsync"/> 幂等。
     /// 实现须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API；时间戳由远端权威时钟给出（<c>DateTimeKind.Utc</c>）。

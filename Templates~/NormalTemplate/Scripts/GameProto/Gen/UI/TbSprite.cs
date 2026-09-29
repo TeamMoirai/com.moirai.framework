@@ -13,7 +13,7 @@ using Luban;
 namespace Moirai.GameProto.Config.UI
 {
 /// <summary>
-/// UI图标配置
+/// UI图标配置。
 /// </summary>
 public partial class TbSprite
 {

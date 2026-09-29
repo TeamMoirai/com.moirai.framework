@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Save
     /// 存档预制体注册表：登记可持久化动态实体的预制体及其稳定键与 <see cref="ResourceService"/> 定位串。
     /// </summary>
     /// <remarks>
-    /// 动态实体按「存注册键、读注册表反查定位串」持久化；被持久化的预制体须先登记入册，未登记键在生成/恢复期记录错误日志并跳过。
+    /// 动态实体按「存注册键、读注册表反查定位串」持久化；被持久化的预制体须先登记入册，未登记键在生成/恢复期记录错误日志并跳过。 <br />
     /// 查找表延迟构建（首次查询时），编辑器期经 <see cref="OnValidate"/> 失效重建；须在主线程调用。
     /// </remarks>
     [CreateAssetMenu(fileName = "SavePrefabRegistry", menuName = "Moirai/Save Prefab Registry", order = 1)]

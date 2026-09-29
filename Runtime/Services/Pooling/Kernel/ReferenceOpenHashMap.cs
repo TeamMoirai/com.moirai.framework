@@ -8,7 +8,7 @@ namespace Moirai.Atropos.ObjectPool
     /// 引用键开放寻址哈希表（桶链 + ArrayPool 租借），对象引用到 int 的零分配映射。
     /// </summary>
     /// <remarks>
-    /// 以 <see cref="RuntimeHelpers.GetHashCode(object)"/>（引用身份哈希）分桶，<see cref="Object.ReferenceEquals(object,object)"/> 判等。
+    /// 以 <see cref="RuntimeHelpers.GetHashCode(object)"/>（引用身份哈希）分桶，<see cref="Object.ReferenceEquals(object,object)"/> 判等。 <br />
     /// struct 语义：必须存储于可变字段后调用；Dispose 后归还全部内部数组。
     /// </remarks>
     internal struct ReferenceOpenHashMap

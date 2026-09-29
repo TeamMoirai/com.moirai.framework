@@ -14,7 +14,7 @@ namespace Service.Scene
     /// 场景进度回报契约的 PlayMode 用例：进度变化才回报、首轮询值必报、回落也露出、成功收尾一次 1.0、失败不伪报。
     /// </summary>
     /// <remarks>
-    /// 被测的 <see cref="DefaultSceneHandler.AwaitSceneHandle"/> 每轮 <c>await UniTask.Yield</c>，续体要靠 PlayerLoop 推进；
+    /// 被测的 <see cref="DefaultSceneHandler.AwaitSceneHandle"/> 每轮 <c>await UniTask.Yield</c>，续体要靠 PlayerLoop 推进； <br />
     /// EditMode 的 NUnit 用例在主线程里阻塞、没有能推进 UniTask 的帧泵（<c>MainThreadDispatcher.Pump()</c> 只驱动它自己的队列，
     /// 且本仓 EditMode 用例一律靠 <c>UniTaskStatus</c> 断挂起、从不把 UniTask 跑到完成），故这条契约只能住 PlayMode 侧。
     /// </remarks>

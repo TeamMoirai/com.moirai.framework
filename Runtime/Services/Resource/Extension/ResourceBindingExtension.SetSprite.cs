@@ -10,14 +10,8 @@ namespace Moirai.Atropos.Resource
         #region Image SetSprite [IMAGE SET SPRITE]
 
         /// <summary>
-        /// 设置 Image 的精灵。
+        /// 只读缓存方式设置 Image 的精灵：未加载返回 false，不触发后端加载。
         /// </summary>
-        /// <param name="image">目标 Image。</param>
-        /// <param name="location">资源定位地址。</param>
-        /// <param name="setNativeSize">是否设置原始尺寸。</param>
-        /// <param name="cancellationToken">取消令牌。</param>
-        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
-        /// <summary>只读缓存设置 Image 精灵：未加载返回 false，不触发后端加载。</summary>
         public static bool TrySetSprite(this Image image, string location, bool setNativeSize = false,
             string packageName = "")
         {
@@ -38,6 +32,14 @@ namespace Moirai.Atropos.Resource
             return bindingService.TryBindSpriteCached(owner, image, key, options) == EResourceBindStatus.Success;
         }
 
+        /// <summary>
+        /// 设置 Image 的精灵。
+        /// </summary>
+        /// <param name="image">目标 Image。</param>
+        /// <param name="location">资源定位地址。</param>
+        /// <param name="setNativeSize">是否设置原始尺寸。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <param name="packageName">资源包名称；留空走默认包，DLC 包里的精灵要显式给出。</param>
         public static void SetSprite(this Image image, string location, bool setNativeSize = false,
             CancellationToken cancellationToken = default, string packageName = "")
         {

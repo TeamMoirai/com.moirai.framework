@@ -11,7 +11,7 @@ namespace Moirai.Atropos
     /// 等级过滤在各 <see cref="LogHandler"/> 的 <see cref="LogHandler.Log"/> 入口按 <see cref="LogHandler.MinimumLevel"/> <br />
     /// 执行（含全局拦截器转发的三方日志）；
     /// <see cref="OnMessageLogged"/> 仅在日志通过过滤后触发。
-    /// 未显式设置处理器时按编译期可用的最优后端自动选择（优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。
+    /// 未显式设置处理器时按编译期可用的最优后端自动选择（优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。 <br />
     /// 日志方法由 T4 模板生成，见 <c>LogUtility.LogMethods.tt</c>。
     /// </remarks>
     [HandlerHost(typeof(LogHandler))]
@@ -46,7 +46,7 @@ namespace Moirai.Atropos
         /// 日志事件回调，每次日志经 <see cref="LogHandler.Log"/> 记录后触发。
         /// </summary>
         /// <remarks>
-        /// 仅在日志通过 <see cref="LogHandler.MinimumLevel"/> 过滤后触发，被过滤的日志不触发。
+        /// 仅在日志通过 <see cref="LogHandler.MinimumLevel"/> 过滤后触发，被过滤的日志不触发。 <br />
         /// 可用于调试器内嵌控制台、崩溃上报、测试断言等场景。
         /// </remarks>
         internal static event Action<ELogLevel, string, Exception> OnMessageLogged;
@@ -182,7 +182,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 各 <see cref="LogHandler"/> 的后端输出必须经由本方法获取通道： 直接使用 <c>Debug.unityLogger</c> 会被 <see cref="UnityLogInterceptor"/> <br />
-        /// 当作第三方日志重捕，造成级别前缀叠加。
+        /// 当作第三方日志重捕，造成级别前缀叠加。 <br />
         /// 与初始化顺序无关：拦截未启用时返回当前 handler，启用后返回拦截器锁定的原始 handler。
         /// </remarks>
         internal static ILogHandler GetBypassUnityHandler()

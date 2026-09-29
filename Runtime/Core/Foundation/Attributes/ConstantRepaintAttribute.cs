@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 这个属性会让自定义编辑器不断重新绘制
+    /// 这个属性会让自定义编辑器不断重新绘制。
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public class ConstantRepaintAttribute : Attribute
@@ -12,7 +12,7 @@ namespace Moirai.Atropos
         #region 字段 [FIELDS]
 
         /// <summary>
-        /// 只需要在运行时不断重新喷漆
+        /// 只需要在运行时不断重新喷漆。
         /// </summary>
         public bool runtimeOnly;
 

@@ -7,7 +7,7 @@ namespace Moirai.Atropos
     /// <remarks>
     /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载），未显式设置时使用 <see cref="DefaultGameTimeHandler"/>。
     /// 帧内高频读取走 <see cref="StartFrame"/> 每帧采样的静态字段（零虚调用开销）； <br />
-    /// 对精度敏感的服务经 <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/> 实时直读双精度时钟。
+    /// 对精度敏感的服务经 <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/> 实时直读双精度时钟。 <br />
     /// 测试注入自定义 <see cref="GameTimeHandler"/> 即可让依赖时间的服务获得与 Unity 主循环无关的确定性推进，调用方代码无需改动。
     /// </remarks>
     [HandlerHost(typeof(GameTimeHandler))]

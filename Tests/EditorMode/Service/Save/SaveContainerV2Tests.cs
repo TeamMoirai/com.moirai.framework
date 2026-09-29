@@ -15,7 +15,7 @@ namespace Service.Save
     /// 容器 v2 Handler 级测试：逐块 CRC32 部分恢复（头 CRC 重算放行后坏块隔离）、整档 CRC 坏仍整档拒绝（头校验优先）、v1 容器硬切拒载、坏块列报与写回收留。
     /// </summary>
     /// <remarks>
-    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。
     /// </remarks>
     public class SaveContainerV2Tests

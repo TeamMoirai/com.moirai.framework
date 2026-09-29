@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     /// </summary>
     /// <typeparam name="T">目标 ScriptableObject 类型。</typeparam>
     /// <remarks>
-    /// 可用于继承自 <see cref="ReferenceHolder{T}"/> 的任意类；
+    /// 可用于继承自 <see cref="ReferenceHolder{T}"/> 的任意类； <br />
     /// 以弱引用登记所有存活实例，供静态查询（<see cref="ReferenceHolder{T}.Any"/> / <see cref="ReferenceHolder{T}.All"/>）。
     /// </remarks>
     // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global

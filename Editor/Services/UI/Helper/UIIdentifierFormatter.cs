@@ -8,28 +8,28 @@ using UnityEngine;
 namespace Moirai.Atropos.UI.Editor
 {
     /// <summary>
-    /// 标识符格式化器接口，定义变量名和类名的格式化规则
+    /// 标识符格式化器接口，定义变量名和类名的格式化规则。
     /// </summary>
     public interface IUIIdentifierFormatter
     {
         /// <summary>
-        /// 生成私有组件字段名
+        /// 生成私有组件字段名。
         /// </summary>
         string GetPrivateComponentName(string regexName, string componentName, EBindType bindType);
 
         /// <summary>
-        /// 生成公共属性名
+        /// 生成公共属性名。
         /// </summary>
         string GetPublicComponentName(string variableName);
 
         /// <summary>
-        /// 生成类名
+        /// 生成类名。
         /// </summary>
         string GetClassName(GameObject targetObject);
     }
 
     /// <summary>
-    /// 默认标识符格式化器实现
+    /// 默认标识符格式化器实现。
     /// </summary>
     public sealed class DefaultUIIdentifierFormatter : IUIIdentifierFormatter
     {
@@ -81,7 +81,7 @@ namespace Moirai.Atropos.UI.Editor
         }
 
         /// <summary>
-        /// 规范化标识符，移除非法字符并拼接
+        /// 规范化标识符，移除非法字符并拼接。
         /// </summary>
         private static string NormalizeIdentifier(string value)
         {
@@ -113,7 +113,7 @@ namespace Moirai.Atropos.UI.Editor
         }
 
         /// <summary>
-        /// 确保标识符安全，处理数字开头和C#关键字
+        /// 确保标识符安全，处理数字开头和C#关键字。
         /// </summary>
         private static string MakeSafeIdentifier(string identifier)
         {

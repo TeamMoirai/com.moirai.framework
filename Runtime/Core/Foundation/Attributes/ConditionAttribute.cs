@@ -69,7 +69,7 @@ namespace Moirai.Atropos.Attributes
         }
 
         /// <summary>
-        /// 简单的条件属性
+        /// 简单的条件属性。
         /// </summary>
         /// <param name="conditionBoolean">条件所使用的属性名称。</param>
         /// <param name="hideInInspector">是否显示在检查面板中。</param>

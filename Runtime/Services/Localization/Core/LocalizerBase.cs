@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Localization
 		/// 编辑态为预览补一次 <see cref="Prepare"/>：只建注入器，不碰目标组件。
 		/// </summary>
 		/// <remarks>非播放态没有 <c>Awake</c>，注入器因此是空的；而预览要的「这个地址能不能用」
-		/// 恰恰是注入器的判据，自己再写一份类型对照表迟早与注入器漂移。
+		/// 恰恰是注入器的判据，自己再写一份类型对照表迟早与注入器漂移。 <br />
 		/// 找不到目标组件时不记成功，允许组件后补上之后重试（几次 <c>TryGetComponent</c>，远比类型表分叉便宜）。</remarks>
 		protected void EnsurePreparedForPreview()
 		{
@@ -98,7 +98,7 @@ namespace Moirai.Atropos.Localization
 		/// </summary>
 		/// <remarks>
 		/// 编辑态直读资产库是为了让「location 写错 / 资产没入库 / 类型不对」在 Inspector 里就看见——
-		/// 这三条在运行期只表现为「图没出来」，得逐个点开日志才归因。
+		/// 这三条在运行期只表现为「图没出来」，得逐个点开日志才归因。 <br />
 		/// 播放态不读资产库：那时注入器已按后端取过一份，再从库里另取一份等于替预览编一条运行期不走的路径。
 		/// </remarks>
 		/// <param name="id">词条 ID（其译文即资源定位地址 location）。</param>

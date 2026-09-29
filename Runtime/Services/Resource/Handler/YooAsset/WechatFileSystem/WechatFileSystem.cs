@@ -48,7 +48,7 @@ public static class WechatFileSystemCreater
 }
 
 /// <summary>
-/// 微信小游戏文件系统
+/// 微信小游戏文件系统。
 /// </summary>
 internal class WechatFileSystem : WebNetworkFileSystem
 {

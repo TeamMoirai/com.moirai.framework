@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Editor
     /// 打包工具窗口：左侧预设列表 + 右侧配置详情，UI Toolkit 布局。
     /// </summary>
     /// <remarks>
-    /// 配置字段由窗口内嵌的 Odin PropertyTree 绘制（<see cref="BuildConfig"/> 上的 Odin 特性驱动；该类位于编辑器程序集，Odin 默认编辑器不接管，须显式建树）。
+    /// 配置字段由窗口内嵌的 Odin PropertyTree 绘制（<see cref="BuildConfig"/> 上的 Odin 特性驱动；该类位于编辑器程序集，Odin 默认编辑器不接管，须显式建树）。 <br />
     /// 不要继承 <c>OdinEditorWindow</c>——其会向根元素注入一个参与布局的空属性树 IMGUIContainer，挤占窗口高度且无法可靠隐藏。
     /// </remarks>
     public class BuildPipelineWindow : EditorWindow

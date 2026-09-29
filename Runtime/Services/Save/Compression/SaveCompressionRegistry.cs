@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Save
     /// 压缩提供方注册表：文件头 <c>CompressionProviderId</c> → <see cref="ICompressionProvider"/> 实例。
     /// </summary>
     /// <remarks>
-    /// 内建注册 GZip（ID 1）；自定义提供方经 <see cref="Register"/> 登记后才能读回其写出的旧档。ID 0 保留为「未压缩」，重复 ID 登记 fail-fast。
+    /// 内建注册 GZip（ID 1）；自定义提供方经 <see cref="Register"/> 登记后才能读回其写出的旧档。ID 0 保留为「未压缩」，重复 ID 登记 fail-fast。 <br />
     /// 注册/注销为非热路径加锁，读侧查表允许并发；注册应集中在初始化期完成。
     /// </remarks>
     public static class SaveCompressionRegistry

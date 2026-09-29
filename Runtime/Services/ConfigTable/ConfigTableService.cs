@@ -45,8 +45,8 @@ namespace Moirai.Atropos.ConfigTable
         /// 初始化配置表服务。由容器在构建期调用。
         /// </summary>
         /// <remarks>
-        /// 依赖 <see cref="ResourceService"/> 已就绪：表数据经资源系统装载，初始化序必须排在资源服务之后。
-        /// 被 <see cref="Localization.LocalizationService"/> 反向依赖（本地化默认数据源即配置表）。
+        /// 依赖 <see cref="ResourceService"/> 已就绪：表数据经资源系统装载，初始化序必须排在资源服务之后。 <br />
+        /// 被 <see cref="Localization.LocalizationService"/> 反向依赖（本地化默认数据源即配置表）。 <br />
         /// 本服务无运行时轮询状态，不注册 Profiler 窗口。
         /// </remarks>
         public override void OnInit()
@@ -120,7 +120,7 @@ namespace Moirai.Atropos.ConfigTable
         /// 编辑器预览取数用的处理器：运行期已注册那份优先，未注册时直读 <see cref="ConfigTableServiceSettings"/> 里配置的实例。
         /// </summary>
         /// <remarks>
-        /// 不装进 <c>s_Handler</c>、不调 <c>Internal_Init</c>，预览因此不需要服务世界。
+        /// 不装进 <c>s_Handler</c>、不调 <c>Internal_Init</c>，预览因此不需要服务世界。 <br />
         /// 运行期一族静态查询读 <c>s_Handler</c>、非播放态恒为空，预览不可走它们（会把已生成的工程报成"表未生成"）。
         /// </remarks>
         private static ConfigTableServiceHandler PreviewHandler

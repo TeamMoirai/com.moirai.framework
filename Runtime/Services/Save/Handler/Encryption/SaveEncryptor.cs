@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Save
     /// 存档加密器：AES-256-CBC + 随机 IV + HMAC-SHA256（encrypt-then-MAC）+ PBKDF2（SHA-256）密钥派生。
     /// </summary>
     /// <remarks>
-    /// 密文布局：<c>[16B 随机 IV][密文][32B HMAC-SHA256(IV‖密文)]</c>；加密密钥与 MAC 密钥由同一次 PBKDF2 派生的 64 字节拆分（前 32B 加密、后 32B 认证）。
+    /// 密文布局：<c>[16B 随机 IV][密文][32B HMAC-SHA256(IV‖密文)]</c>；加密密钥与 MAC 密钥由同一次 PBKDF2 派生的 64 字节拆分（前 32B 加密、后 32B 认证）。 <br />
     /// 防篡改依赖 HMAC（先验证 MAC 后解密，常数时间比较）；防意外存储损坏由文件头 CRC32 承担。
     /// </remarks>
     public class SaveEncryptor
@@ -560,7 +560,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 两遍流式、先验证后解密：第一遍以 64KB 池化循环预验 [IV‖密文] 的 HMAC 并比对尾部摘要， <br />
-        /// 不符抛 <see cref="SaveDecryptStreamException"/>（<see cref="SaveError.IntegrityCheckFailed"/>），杜绝填充 oracle。
+        /// 不符抛 <see cref="SaveDecryptStreamException"/>（<see cref="SaveError.IntegrityCheckFailed"/>），杜绝填充 oracle。 <br />
         /// 预验通过后冻结载荷 CRC 包装层并 rewind 回载荷起点，第二遍限长 [IV‖密文] 解密（HMAC 尾留在限长段外，任意时刻关闭均安全）；底层流须可寻址。
         /// </remarks>
         /// <param name="source">存储载荷源流（<see cref="Crc32.Crc32ReadStream"/> 包装层——第一遍预验读取经此累计载荷 CRC；底层流须可寻址）。</param>
@@ -890,7 +890,7 @@ namespace Moirai.Atropos.Save
         /// PBKDF2-SHA256 派生 64 字节密钥材料（前 32B 加密密钥、后 32B MAC 密钥）。
         /// </summary>
         /// <remarks>
-        /// 同（口令, 盐文, 迭代次数）组合命中实例缓存时无锁复用；未命中时派生本体在锁外执行（10 万迭代级开销不阻塞并发线程），仅安装阶段取锁二次判读。
+        /// 同（口令, 盐文, 迭代次数）组合命中实例缓存时无锁复用；未命中时派生本体在锁外执行（10 万迭代级开销不阻塞并发线程），仅安装阶段取锁二次判读。 <br />
         /// 并发同参派生结果幂等，后到者覆盖安装等值结果。
         /// </remarks>
         /// <param name="sKey">口令。</param>

@@ -7,10 +7,10 @@ namespace Moirai.Atropos
     /// MonoBehaviour 服务基类。Awake 自动注册到指定作用域，OnDestroy 自动注销。
     /// </summary>
     /// <remarks>
-    /// 适用于需要 Unity 生命周期（Update/FixedUpdate/LateUpdate/碰撞/协程）的 Gameplay 层服务。
+    /// 适用于需要 Unity 生命周期（Update/FixedUpdate/LateUpdate/碰撞/协程）的 Gameplay 层服务。 <br />
     /// 不可实现 <see cref="IServiceTickable"/> 等轮询接口（含 <see cref="IServiceGizmoDrawable"/>）——Mono 服务由 Unity 自身生命周期驱动， <br />
-    /// 注册时由 <see cref="ServiceScope"/> 拒绝。
-    /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。
+    /// 注册时由 <see cref="ServiceScope"/> 拒绝。 <br />
+    /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。 <br />
     /// 重复注册自动销毁 GameObject（同契约幂等）。
     /// </remarks>
     /// <typeparam name="TScope">作用域标记类型。</typeparam>

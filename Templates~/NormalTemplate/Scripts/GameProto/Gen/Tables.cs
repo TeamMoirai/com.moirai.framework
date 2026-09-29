@@ -14,23 +14,23 @@ namespace Moirai.GameProto.Config
 public partial class Tables
 {
     /// <summary>
-    /// 道具配置
+    /// 道具配置。
     /// </summary>
     public Test.TbItem TbItem {get; }
     /// <summary>
-    /// 多语言配置
+    /// 多语言配置。
     /// </summary>
     public L10n.TbLocalizedStrings TbLocalizedStrings {get; }
     /// <summary>
-    /// UI弹窗配置
+    /// UI弹窗配置。
     /// </summary>
     public UI.TbUIWindow TbUIWindow {get; }
     /// <summary>
-    /// UI图标配置
+    /// UI图标配置。
     /// </summary>
     public UI.TbSprite TbSprite {get; }
     /// <summary>
-    /// UI图集配置
+    /// UI图集配置。
     /// </summary>
     public UI.TbSpriteAtlas TbSpriteAtlas {get; }
 

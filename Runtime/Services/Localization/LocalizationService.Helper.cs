@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Localization
     /// </summary>
     partial class LocalizationService
     {
-        /// <summary>不存在时的默认语言</summary>
+        /// <summary>不存在时的默认语言。</summary>
         public static readonly Language DefaultLanguage = Language.English;
 
         // 所有内置语言（Name / Code，忽略大小写直接命中，省掉每次查询的 ToLower 分配）
@@ -56,11 +56,10 @@ namespace Moirai.Atropos.Localization
         /// 返回本地化后的字符串：把 <b>{l10n:ID}</b>/<b>{i18n:ID}</b>/<b>{g11n:ID}</b> 标记替换为本地化条目。
         /// </summary>
         /// <remarks>
-        /// 单遍扫描、无正则：无标记时零分配直返原串，有标记时经池化构建器一次拼装。
+        /// 单遍扫描、无正则：无标记时零分配直返原串，有标记时经池化构建器一次拼装。 <br />
         /// 未解析的标记（ID 不存在或解析失败）原样保留。
         /// </remarks>
-        /// <param name="format">使用本地化的字符串</param>
-        /// <returns></returns>
+        /// <param name="format">使用本地化的字符串。</param>
         /// <list type="tabel">
         /// <item><term>l10n</term><description>本地化，Localization 缩写</description></item>
         /// <item><term>i18n</term><description>国际化，Internationalization 缩写</description></item>
@@ -212,7 +211,7 @@ namespace Moirai.Atropos.Localization
         /// 把自报语言代码序列解析为语言序列，列序即输入序。
         /// </summary>
         /// <remarks>
-        /// 内置语言按 Name/Code 命中；认不出的代码按自定义语言直通（<see cref="Language"/> 相等性按 Code）。
+        /// 内置语言按 Name/Code 命中；认不出的代码按自定义语言直通（<see cref="Language"/> 相等性按 Code）。 <br />
         /// 本方法是语言列序的唯一解析入口，运行期处理与编辑器预览共用，不存在第二份语言真相源。
         /// </remarks>
         internal static List<Language> ResolveLanguages(IReadOnlyList<string> codes)
@@ -242,11 +241,11 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 根据 名称/Code 获取语言。
         /// </summary>
-        /// <param name="str">语言 Name 或 Code（不区分大小写）</param>
-        /// <param name="onlySupported">是否只获取当前批内收录的语言</param>
-        /// <returns>无法识别的输入、或 <paramref name="onlySupported"/> 为真且语言不在批内时为 <see cref="DefaultLanguage"/></returns>
+        /// <param name="str">语言 Name 或 Code（不区分大小写）。</param>
+        /// <param name="onlySupported">是否只获取当前批内收录的语言。</param>
+        /// <returns>无法识别的输入、或 <paramref name="onlySupported"/> 为真且语言不在批内时为 <see cref="DefaultLanguage"/>。</returns>
         /// <remarks>「是否支持」的唯一真相源是已加载的语言批（全局注册表已删）：批未就绪时退化为身份解析
-        /// 直接放行，可用性由切换方在加载完成后校验（<c>ChangeLanguage</c> 有一次性告警）——
+        /// 直接放行，可用性由切换方在加载完成后校验（<c>ChangeLanguage</c> 有一次性告警）——。 <br />
         /// 不再出现"数据没加载就把 zh-Hans 静默落成默认英语"的双源歧义。</remarks>
         public static Language ToLanguage(string str, bool onlySupported)
         {

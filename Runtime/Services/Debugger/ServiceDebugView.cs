@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Debugger
     /// 服务调试视图抽象基类：定义单个服务的调试内容并以 GUILayout 绘制。
     /// </summary>
     /// <remarks>
-    /// 与渲染宿主解耦：同一视图可渲染于编辑器 Inspector（IMGUI）或游戏内调试器窗口（经 <see cref="CreateView"/> 以 <c>IMGUIContainer</c> 嵌入 UI Toolkit）。
+    /// 与渲染宿主解耦：同一视图可渲染于编辑器 Inspector（IMGUI）或游戏内调试器窗口（经 <see cref="CreateView"/> 以 <c>IMGUIContainer</c> 嵌入 UI Toolkit）。 <br />
     /// 实现 <see cref="IDebuggerWindow"/>，可经 <see cref="DebuggerService.RegisterDebugView"/> 注册；各宿主应持有独立实例（绘制状态不共享）， <br />
     /// 派生类可覆写 <see cref="CreateView"/> 提供原生 UI Toolkit 视图。
     /// </remarks>

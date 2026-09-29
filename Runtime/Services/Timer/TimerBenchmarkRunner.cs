@@ -10,9 +10,9 @@ namespace Moirai.Atropos.Timer
     /// 计时器性能基准运行时驱动器：跑同步用例矩阵并产出统一的 <see cref="BenchmarkReport"/>。
     /// </summary>
     /// <remarks>
-    /// 双通道入口共用（Debugger 的 Timer 调试窗口与测试程序集的 <c>[Explicit]</c> 薄壳），会短暂时卡主线程。
-    /// 直驱隔离的 <see cref="DefaultTimerHandler"/>（不经 <see cref="TimerService"/> 门面），不扰动运行中的真实服务。
-    /// 同步矩阵全部使用测量窗内不触发、不依赖时钟推进的长延迟定时器；依赖真实帧的触发 / 同刻突发用例在 Tests 的 PlayMode 基准。
+    /// 双通道入口共用（Debugger 的 Timer 调试窗口与测试程序集的 <c>[Explicit]</c> 薄壳），会短暂时卡主线程。 <br />
+    /// 直驱隔离的 <see cref="DefaultTimerHandler"/>（不经 <see cref="TimerService"/> 门面），不扰动运行中的真实服务。 <br />
+    /// 同步矩阵全部使用测量窗内不触发、不依赖时钟推进的长延迟定时器；依赖真实帧的触发 / 同刻突发用例在 Tests 的 PlayMode 基准。 <br />
     /// 每用例先预热再计时取最小 / 均值 / 最大；软校验只累加 failures 与 LogWarning，正确性回归由 Timer 测试族负责。
     /// </remarks>
     public static class TimerBenchmarkRunner

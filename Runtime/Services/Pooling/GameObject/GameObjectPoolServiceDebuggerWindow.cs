@@ -23,7 +23,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>池集合签名哈希种子（顺序敏感：新建/销毁均会改变签名）。</summary>
         private const int POOL_SET_HASH_SEED = 17;
 
-        /// <summary>GameObject 池窗口是否显示实例清单</summary>
+        /// <summary>GameObject 池窗口是否显示实例清单。</summary>
         private const string POOL_SHOW_INSTANCES = "Debugger.GameObjectPool.ShowInstances";
 
         #endregion

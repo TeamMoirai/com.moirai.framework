@@ -17,9 +17,9 @@ namespace Moirai.Atropos.Tests.EditorMode
     /// </summary>
     /// <remarks>
     /// 经 <c>EditorApplication.update</c> 轮询：状态每 ~1s 覆写 <c>Temp/MoiraiEditorState.json</c>； <br />
-    /// 动作 <c>Temp/MoiraiEditorCommand.json</c> 进、结论 <c>Temp/MoiraiEditorCommand.result.json</c> 出，调用方只读文件与发命令，不再需要人。
+    /// 动作 <c>Temp/MoiraiEditorCommand.json</c> 进、结论 <c>Temp/MoiraiEditorCommand.result.json</c> 出，调用方只读文件与发命令，不再需要人。 <br />
     /// 心跳即判活：静态构造每次域加载都跑，<c>domainSeq</c> 递增即「新域已起来」（<c>SessionState</c> 跨域重载保留、随编辑器退出清空，配合 <c>pid</c> 区分重载与重启）； <br />
-    /// 心跳停推说明主线程没在跑 <c>update</c>（导入中、域重载中、被原生模态框挡住，或 Interaction Mode 非 No Throttling）。
+    /// 心跳停推说明主线程没在跑 <c>update</c>（导入中、域重载中、被原生模态框挡住，或 Interaction Mode 非 No Throttling）。 <br />
     /// 编译报错时 Unity 保留旧域继续跑，桥照常心跳且 <c>isCompiling</c> 归 false——判据是 <c>assemblies[].unix</c> 未越过自己的改动时刻且 <c>consoleErrors</c> 上涨。
     /// <c>dirtyScenes</c> 大于 0 时刷新/重编译可能撞上原生「保存场景？」对话框，那会连心跳一起停住主线程。
     /// 桥住在测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控的调试桥，与 <see cref="TestRequestRunner"/> 同处），关掉 Test Tools 包即无心跳，不参与发布。

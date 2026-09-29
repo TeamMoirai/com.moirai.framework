@@ -11,8 +11,8 @@ namespace Moirai.Atropos
     /// 默认补间动画处理器：基于结构体数组 + 版本号 ID，稳态 0 GC。
     /// </summary>
     /// <remarks>
-    /// 语义契约：自然完成 / <see cref="Complete"/> 应用终值并触发 OnComplete；<see cref="Stop"/> 中断且不触发 OnComplete；
-    /// 目标先于补间销毁时中断（kill）且不触发 OnComplete，是否告警由 <c>warnIfTargetDestroyed</c> 控制。
+    /// 语义契约：自然完成 / <see cref="Complete"/> 应用终值并触发 OnComplete；<see cref="Stop"/> 中断且不触发 OnComplete； <br />
+    /// 目标先于补间销毁时中断（kill）且不触发 OnComplete，是否告警由 <c>warnIfTargetDestroyed</c> 控制。 <br />
     /// 单例状态机：所有实例共享 <see cref="TweenTask"/> 静态状态，运行期仅应存在一个活跃实例。
     /// </remarks>
     [Serializable]

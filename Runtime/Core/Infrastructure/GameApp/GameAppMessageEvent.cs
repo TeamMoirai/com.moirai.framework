@@ -20,17 +20,17 @@
             Empty = 10000,
 
             /// <summary>
-            /// 游戏对焦
+            /// 游戏对焦。
             /// </summary>
             ApplicationFocus = 10001,
 
             /// <summary>
-            /// 游戏失焦
+            /// 游戏失焦。
             /// </summary>
             NotApplicationFocus = 10002,
 
             /// <summary>
-            /// 游戏退出
+            /// 游戏退出。
             /// </summary>
             ApplicationQuit = 10003,
         }
