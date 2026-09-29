@@ -148,7 +148,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 窗口可见性
+        /// 窗口可见性。
         /// </summary>
         public bool Visible
         {
@@ -198,7 +198,7 @@ namespace Moirai.Atropos.UI
 
         private bool _interactable;
         /// <summary>
-        /// 窗口交互性
+        /// 窗口交互性。
         /// </summary>
         public bool Interactable
         {
@@ -253,13 +253,13 @@ namespace Moirai.Atropos.UI
         #region 刘海屏适配 [NOTCH ADAPTATION]
 
         /// <summary>
-        /// 移动设备屏幕适配
+        /// 移动设备屏幕适配。
         /// </summary>
-        /// <param name="fitRect">适配的RectTransform对象</param>
-        /// <param name="liuHaiFit">是否开启刘海屏顶部适配</param>
-        /// <param name="topSpacing">刘海屏顶部适配偏移高度</param>
-        /// <param name="bottomFit">是否开启刘海屏底部适配</param>
-        /// <param name="bottomSpacing">刘海屏底部适配偏移高度</param>
+        /// <param name="fitRect">适配的RectTransform对象。</param>
+        /// <param name="liuHaiFit">是否开启刘海屏顶部适配。</param>
+        /// <param name="topSpacing">刘海屏顶部适配偏移高度。</param>
+        /// <param name="bottomFit">是否开启刘海屏底部适配。</param>
+        /// <param name="bottomSpacing">刘海屏底部适配偏移高度。</param>
         public void SetUIFit(RectTransform fitRect, bool liuHaiFit = true, float topSpacing = 0, bool bottomFit = true, float bottomSpacing = 0)
         {
             if (_setUISafeFitHelper == null)
@@ -270,9 +270,8 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 设置 <see cref="rect"/> 不受当前适配影响
+        /// 设置 <see cref="rect"/> 不受当前适配影响。
         /// </summary>
-        /// <param name="rect"></param>
         public void SetUINotFit(RectTransform rect)
         {
             if (rect == null)
@@ -284,10 +283,10 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 设置某一个节点不受指定 <see cref="refRect"/> 的影响
+        /// 设置某一个节点不受指定 <see cref="refRect"/> 的影响。
         /// </summary>
-        /// <param name="rect">设置的RectTransform</param>
-        /// <param name="refRect">依赖的RectTransform</param>
+        /// <param name="rect">设置的RectTransform。</param>
+        /// <param name="refRect">依赖的RectTransform。</param>
         public void SetUINotFit(RectTransform rect, RectTransform refRect)
         {
             if (rect == null || refRect == null)
@@ -342,7 +341,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 打开窗口后触发
+        /// 打开窗口后触发。
         /// </summary>
         internal void InternalCreate()
         {
@@ -673,7 +672,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 手动强制刷新所有子对象的布局
+        /// 手动强制刷新所有子对象的布局。
         /// </summary>
         /// <remarks>用于解决动态更新布局后不会自动刷新的问题</remarks>
         protected virtual void ForceRebuildLayoutImmediate()

@@ -18,8 +18,8 @@ namespace Service.Save
     /// 版本化文件头校验（v2 / v1 旧档作废）、损坏兜底分型、块键与路径参数校验、删除与槽位/块枚举、外观兼容映射与降级契约。
     /// </summary>
     /// <remarks>
-    /// 经 <c>s_OverrideBasePath</c> 将存档根指向临时目录（<c>InternalsVisibleTo</c> 暴露 internal 管线入口），全流程真实文件 IO。
-    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// 经 <c>s_OverrideBasePath</c> 将存档根指向临时目录（<c>InternalsVisibleTo</c> 暴露 internal 管线入口），全流程真实文件 IO。 <br />
+    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。
     /// </remarks>
     public class SaveServiceHandlerTests

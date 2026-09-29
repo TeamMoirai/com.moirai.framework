@@ -5,7 +5,7 @@ namespace Moirai.Atropos.UI
     /// </summary>
     /// <remarks>
     /// <c>InputService.PreventInteractionUI</c> 是无持有者语义的全局布尔，谁写 false 都会清掉别人的压制位；
-    /// 本类型记录最后一次申请方，使交还只由持有者完成。
+    /// 本类型记录最后一次申请方，使交还只由持有者完成。 <br />
     /// 线程契约：仅主线程。
     /// </remarks>
     internal sealed class UIInteractionLease

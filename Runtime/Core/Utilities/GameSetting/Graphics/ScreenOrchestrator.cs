@@ -7,7 +7,7 @@ namespace Moirai.Atropos
     /// 屏幕设置编排器：屏幕相关设置均异步（帧末）生效且彼此可能冲突，统一以 <c>Screen.fullScreenMode</c> 为优先按序应用。
     /// </summary>
     /// <remarks>
-    /// 请求先缓存，在 <c>LateUpdate</c> 中按 全屏 → 全屏模式 → 分辨率/刷新率 的顺序应用，逐步之间让出一帧。
+    /// 请求先缓存，在 <c>LateUpdate</c> 中按 全屏 → 全屏模式 → 分辨率/刷新率 的顺序应用，逐步之间让出一帧。 <br />
     /// 同一属性以最后一次请求为准；新请求会取消上一轮未完成的应用协程。
     /// </remarks>
     public sealed class ScreenOrchestrator : SingletonMono_Persistent<ScreenOrchestrator>
@@ -40,9 +40,8 @@ namespace Moirai.Atropos
         #region 公共方法 [PUBLIC METHODS]
 
         /// <summary>
-        /// 设置分辨率
+        /// 设置分辨率。
         /// </summary>
-        /// <param name="resolution"></param>
         public void RequestResolution(Resolution resolution)
         {
             _requestedResolution = resolution;
@@ -65,27 +64,24 @@ namespace Moirai.Atropos
 #endif
 
         /// <summary>
-        /// 设置全屏
+        /// 设置全屏。
         /// </summary>
-        /// <param name="fullScreen"></param>
         public void RequestFullScreen(bool fullScreen)
         {
             _requestedFullScreen = fullScreen;
         }
 
         /// <summary>
-        /// 设置全屏模式
+        /// 设置全屏模式。
         /// </summary>
-        /// <param name="fullScreenMode"></param>
         public void RequestFullScreenMode(FullScreenMode fullScreenMode)
         {
             _requestedFullScreenMode = fullScreenMode;
         }
 
         /// <summary>
-        /// 获取当前分辨率
+        /// 获取当前分辨率。
         /// </summary>
-        /// <returns></returns>
         public static Resolution GetCurrentResolution()
         {
             if (Screen.fullScreenMode == FullScreenMode.Windowed)

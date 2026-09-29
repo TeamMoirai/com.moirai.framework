@@ -10,7 +10,7 @@ namespace Service.Resource
     /// </summary>
     /// <remarks>
     /// <c>[SerializeReference]</c> 的后端引用一旦静默失效（改名、挪程序集、类型下线），Unity 不报错，
-    /// 只把那条引用读成 null——服务照样初始化成功，之后每一次取用都打在空后端上，这是它唯一的自动防线。
+    /// 只把那条引用读成 null——服务照样初始化成功，之后每一次取用都打在空后端上，这是它唯一的自动防线。 <br />
     /// 值比对走 <see cref="SerializedObject"/> 的原生字段对公开属性：属性层加过夹取、换过默认值或忘了转发，
     /// 都会在这里露出来。
     /// </remarks>

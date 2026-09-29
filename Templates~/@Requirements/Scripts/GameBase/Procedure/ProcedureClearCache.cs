@@ -4,7 +4,7 @@ using Moirai.Atropos.Resource;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 清理缓存
+    /// 流程 => 清理缓存。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureClearCache : ProcedurePremainBase

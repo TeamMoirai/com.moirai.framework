@@ -10,8 +10,8 @@ namespace Moirai.Atropos
     /// 静态服务管理外观，是默认 <see cref="ServiceWorld"/> 实例的投影。
     /// </summary>
     /// <remarks>
-    /// 全部操作转发到 <see cref="Default"/> 世界；需要隔离世界的场景（测试并行/沙盒）直接 <c>new ServiceWorld()</c>，不触碰本类。
-    /// 线程契约：所有公共方法仅限 Unity 主线程调用，由 <see cref="EnsureMainThread"/> 在编辑器/开发构建断言（发布构建内联为无操作）；
+    /// 全部操作转发到 <see cref="Default"/> 世界；需要隔离世界的场景（测试并行/沙盒）直接 <c>new ServiceWorld()</c>，不触碰本类。 <br />
+    /// 线程契约：所有公共方法仅限 Unity 主线程调用，由 <see cref="EnsureMainThread"/> 在编辑器/开发构建断言（发布构建内联为无操作）； <br />
     /// 后台线程请经 <c>MainThreadDispatcher.Post(Action)</c> / <c>MainThreadDispatcher.Send(Action)</c> 切回。
     /// </remarks>
     public static partial class GameServices
@@ -140,7 +140,7 @@ namespace Moirai.Atropos
         /// 异步关闭全部作用域，逆序 Gameplay → Scene → App。
         /// </summary>
         /// <remarks>
-        /// 对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭。
+        /// 对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭。 <br />
         /// 游戏驱动的优雅退出应在 OnApplicationQuit 之前调用本方法——Unity 的退出回调无法等待异步操作，OnApplicationQuit 内只做同步兜底关闭。
         /// </remarks>
         public static async UniTask ShutdownAsync()
@@ -179,7 +179,7 @@ namespace Moirai.Atropos
         /// 注册服务到指定作用域（统一入口）。
         /// </summary>
         /// <remarks>
-        /// 世界未初始化时仅入图，由世界初始化（组合根 <c>InitializeAsync</c>）按依赖拓扑统一驱动 OnInit；世界已初始化时立即 OnInit，依赖必须已就绪、缺失即 fail-fast。
+        /// 世界未初始化时仅入图，由世界初始化（组合根 <c>InitializeAsync</c>）按依赖拓扑统一驱动 OnInit；世界已初始化时立即 OnInit，依赖必须已就绪、缺失即 fail-fast。 <br />
         /// 迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。
         /// </remarks>
         /// <typeparam name="T">服务具体类型（契约即类型本身）。</typeparam>
@@ -221,7 +221,7 @@ namespace Moirai.Atropos
         /// 确保服务已注册到指定作用域，未注册时创建默认实例并注册（幂等）。
         /// </summary>
         /// <remarks>
-        /// HandlerHost 外观懒加载路径（<c>CreateDefaultHandler</c>）调用：首次经外观访问服务时自动完成世界注册——世界未初始化时挂入待初始化图（依赖校验在初始化拓扑时统一执行），已初始化时立即注册并初始化。
+        /// HandlerHost 外观懒加载路径（<c>CreateDefaultHandler</c>）调用：首次经外观访问服务时自动完成世界注册——世界未初始化时挂入待初始化图（依赖校验在初始化拓扑时统一执行），已初始化时立即注册并初始化。 <br />
         /// 关闭态阻断懒加载复活——显式 RegisterService 是关闭后重建世界的唯一路径。
         /// </remarks>
         /// <typeparam name="T">服务具体类型（契约即类型本身，须有无参构造函数）。</typeparam>

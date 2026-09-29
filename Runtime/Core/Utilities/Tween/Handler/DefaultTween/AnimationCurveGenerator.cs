@@ -35,7 +35,7 @@ namespace Moirai.Atropos
         protected object[] _parameters;
         
         /// <summary>
-        /// 生成资源并将其保存在请求的路径中
+        /// 生成资源并将其保存在请求的路径中。
         /// </summary>
         public virtual void GenerateAnimationCurvesAsset()
         {
@@ -61,12 +61,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 创建指定类型和分辨率的动画曲线，并将其添加到指定资源中
+        /// 创建指定类型和分辨率的动画曲线，并将其添加到指定资源中。
         /// </summary>
-        /// <param name="asset"></param>
-        /// <param name="curveType"></param>
-        /// <param name="curveResolution"></param>
-        /// <param name="anti"></param>
         protected virtual void CreateAnimationCurve(ScriptableObject asset, TweenUtility.EEase curveType, int curveResolution, bool anti)
         {
             // 生成动画曲线

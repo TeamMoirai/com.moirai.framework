@@ -9,11 +9,11 @@ namespace Moirai.Atropos
     /// 剥离 MonoBehaviour 的游戏逻辑驱动器：由 Unity PlayerLoop 直接回调。
     /// </summary>
     /// <remarks>
-    /// 订阅存于静态注册表，不挂 GameObject，场景切换 / 宿主销毁不丢失；帧开始先经 <c>GameTime.StartFrame</c> 采样，接口 Handler 与 Action 回调读同一帧快照。
+    /// 订阅存于静态注册表，不挂 GameObject，场景切换 / 宿主销毁不丢失；帧开始先经 <c>GameTime.StartFrame</c> 采样，接口 Handler 与 Action 回调读同一帧快照。 <br />
     /// 零分配契约：三个 Drive 入口与全部 <see cref="IUpdateHandler"/> 实现的热路径不得堆分配（for 循环，禁 LINQ / 闭包 / 字符串拼接）；注册 / 注销在驱动中进入所属阶段延迟缓冲， <br />
-    /// 阶段迭代结束后提交。
-    /// 异常分级：开发构建记录后上抛，发布构建隔离续跑；同一订户连续失败达 <see cref="FailureTripThreshold"/> 熔断摘出，核心钩子与关闭广播不参与截断。
-    /// 线程契约：注册表无锁，注册 / 注销仅限主线程（越线程 fail-fast），后台线程先经 <c>MainThreadDispatcher.Post/Send</c> 回主线程。
+    /// 阶段迭代结束后提交。 <br />
+    /// 异常分级：开发构建记录后上抛，发布构建隔离续跑；同一订户连续失败达 <see cref="FailureTripThreshold"/> 熔断摘出，核心钩子与关闭广播不参与截断。 <br />
+    /// 线程契约：注册表无锁，注册 / 注销仅限主线程（越线程 fail-fast），后台线程先经 <c>MainThreadDispatcher.Post/Send</c> 回主线程。 <br />
     /// 可整体交给 DI 容器（Handler 经构造注入依赖，再由组合根调 <see cref="Register(IUpdateHandler)"/>）。
     /// </remarks>
     internal static class PlayerLoopDriver
@@ -689,7 +689,7 @@ namespace Moirai.Atropos
         /// 单阶段的接口 Handler 注册表：紧凑数组 + 独立的延迟缓冲与失败计数。
         /// </summary>
         /// <remarks>
-        /// 数组恒按有效优先级升序（未实现 <see cref="IPlayerLoopPriority"/> 者计 0），同优先级维持注册序；
+        /// 数组恒按有效优先级升序（未实现 <see cref="IPlayerLoopPriority"/> 者计 0），同优先级维持注册序； <br />
         /// 末位允许时走 O(1) 追加快路，否则整表稳定排序插入。
         /// </remarks>
         private sealed class HandlerSlot<T> where T : class

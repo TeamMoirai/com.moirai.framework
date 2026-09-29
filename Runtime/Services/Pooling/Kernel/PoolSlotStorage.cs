@@ -8,7 +8,7 @@ namespace Moirai.Atropos.ObjectPool
     /// 分页槽位存储：128 槽 / 页 + 页级自由栈，索引稳定、扩容免整块拷贝。
     /// </summary>
     /// <remarks>
-    /// struct 语义：必须存储于可变字段后调用（方法直接改写字段状态）。
+    /// struct 语义：必须存储于可变字段后调用（方法直接改写字段状态）。 <br />
     /// 槽位内容由调用方在 <see cref="AllocSlot"/> 返回后全量初始化（含链表指针复位）。
     /// </remarks>
     /// <typeparam name="TSlot">槽位结构类型（字段由调用方定义）。</typeparam>

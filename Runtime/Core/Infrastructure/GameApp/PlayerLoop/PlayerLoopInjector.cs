@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     /// 将 <see cref="PlayerLoopDriver"/> 的 Drive 回调注入 Unity PlayerLoop。
     /// </summary>
     /// <remarks>
-    /// 注入与复原只针对本框架的三个标记：基于当前循环插入、不覆盖 UniTask / 第三方系统，复原也只逐项摘掉自己。
+    /// 注入与复原只针对本框架的三个标记：基于当前循环插入、不覆盖 UniTask / 第三方系统，复原也只逐项摘掉自己。 <br />
     /// ECS/DOTS 若在 <c>AfterSceneLoad</c> 前重置循环，由 <c>VerifyInjection</c> 自动补插；更晚的重建完成后请调 <see cref="Reinject"/>。
     /// </remarks>
     internal static class PlayerLoopInjector
@@ -101,7 +101,7 @@ namespace Moirai.Atropos
         /// <c>AfterSceneLoad</c> 自愈校验：按循环实况补插 Moirai 标记，不信任注入标志位。
         /// </summary>
         /// <remarks>
-        /// 相位必须严格晚于注入点（<c>BeforeSceneLoad</c>），否则 <c>s_Injected</c> 恒为 false、首行判定即返回、永不执行。
+        /// 相位必须严格晚于注入点（<c>BeforeSceneLoad</c>），否则 <c>s_Injected</c> 恒为 false、首行判定即返回、永不执行。 <br />
         /// 未初始化（<c>GameApp</c> 未启动，如 EditMode）时不主动注入；更晚的重置请自行调用 <see cref="Reinject"/>。
         /// </remarks>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]

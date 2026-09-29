@@ -48,12 +48,12 @@ namespace Moirai.Atropos.Audio
         private float _masterVolume;
         private bool _masterMute;
 
-        /// <summary>音量设置有修改时触发的事件</summary>
-        /// <returns><see cref="bool"/> hasChanged</returns>
+        /// <summary>音量设置有修改时触发的事件。</summary>
+        /// <returns><see cref="bool"/> hasChanged。</returns>
         public event Action<bool> onSettingChanged;
 
         private TrackWidgets[] _trackLookup;
-        /// <summary>运行时查找表，按 (int)EAudioTrack 索引 </summary>
+        /// <summary>运行时查找表，按 (int)EAudioTrack 索引。</summary>
         private TrackWidgets[] TrackLookup
         {
             get
@@ -278,7 +278,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// Read，更新滑动条、切换组件的值
+        /// Read，更新滑动条、切换组件的值。
         /// </summary>
         private void UpdateComponentsValue()
         {

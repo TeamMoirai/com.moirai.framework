@@ -5,7 +5,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 实现必须为纯 .NET 逻辑（工作线程调用，禁止触达 Unity 主线程 API）； <br />
-    /// 二进制后端要求目标类型带各自 AOT 标注（<c>MessagePackObject</c>/<c>MemoryPackable</c>/<c>ProtoContract</c>），未标注时序列化器应 fail-fast。
+    /// 二进制后端要求目标类型带各自 AOT 标注（<c>MessagePackObject</c>/<c>MemoryPackable</c>/<c>ProtoContract</c>），未标注时序列化器应 fail-fast。 <br />
     /// 内置实现经 <see cref="SaveSerializerRegistry"/> 注册；<see cref="SaveServiceSettings.DefaultBackend"/> 为未显式声明后端的数据块提供默认值。
     /// </remarks>
     public interface ISaveSerializer

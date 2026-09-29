@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Localization.Editor
     /// <remarks>
     /// 数据来源分两条：播放态走已注册服务；非播放态走编辑器预览入口（<c>ConfigTableService.GetAllLocalizedStringsForEditor</c>、
     /// <c>ResourceService.LoadAssetForEditor</c>），两条都不要求服务世界启动，无需进 Play。
-    /// 预览取不到数据时只标注一行原因，不打断 Inspector 绘制，也不回写目标组件。
+    /// 预览取不到数据时只标注一行原因，不打断 Inspector 绘制，也不回写目标组件。 <br />
     /// 基类须为 <c>OdinEditor</c>，不可改用 <c>UnityEditor.Editor</c>（会顶掉 Odin 特性驱动的绘制）。
     /// </remarks>
     [CustomEditor(typeof(LocalizerBase), true)]

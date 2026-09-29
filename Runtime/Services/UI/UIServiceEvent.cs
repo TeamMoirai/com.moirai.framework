@@ -18,7 +18,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 窗口打开后触发的事件
+        /// 窗口打开后触发的事件。
         /// </summary>
         public static void Shown(UIWindow window)
         {
@@ -27,7 +27,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 关闭窗口后触发的事件
+        /// 关闭窗口后触发的事件。
         /// </summary>
         public static void Closed(UIWindow window)
         {

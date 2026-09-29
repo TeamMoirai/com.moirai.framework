@@ -7,8 +7,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// SaveHost SourceGenerator 将版本发射为捕获器 <see cref="ISaveComponentCapturer.SchemaVersion"/>， <br />
-    /// 保存时按组件类型记入 KVT 块内 <c>$schemas</c> 作用域。
-    /// 恢复时版本不符走 <see cref="ISaveComponentMigrator"/> 迁移钩子；组件未实现钩子则记告警并按 KVT 键匹配容错恢复。
+    /// 保存时按组件类型记入 KVT 块内 <c>$schemas</c> 作用域。 <br />
+    /// 恢复时版本不符走 <see cref="ISaveComponentMigrator"/> 迁移钩子；组件未实现钩子则记告警并按 KVT 键匹配容错恢复。 <br />
     /// 字段结构变化时应递增版本并实现迁移钩子。
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]

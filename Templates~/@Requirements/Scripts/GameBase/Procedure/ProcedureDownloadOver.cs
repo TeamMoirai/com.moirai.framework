@@ -4,7 +4,7 @@ using Moirai.Atropos.Resource;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 下载完成
+    /// 流程 => 下载完成。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureDownloadOver : ProcedurePremainBase

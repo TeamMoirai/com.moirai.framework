@@ -6,7 +6,7 @@ namespace Moirai.Atropos
     /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceWorld"/> 控制。
     /// </summary>
     /// <remarks>
-    /// 依赖通过 <c>[ServiceDependency]</c> 特性声明，世界初始化时按依赖图拓扑排序驱动 <see cref="OnInit"/>。
+    /// 依赖通过 <c>[ServiceDependency]</c> 特性声明，世界初始化时按依赖图拓扑排序驱动 <see cref="OnInit"/>。 <br />
     /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。
     /// </remarks>
     public abstract class ServiceBase : IService, IServiceLifecycle

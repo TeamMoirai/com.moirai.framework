@@ -9,7 +9,7 @@ namespace Service.Resource
     /// 热路径 key 直查契约：打包一次之后按 key 建/查记录，与字符串轴入口结果一致且不再走名称字典。
     /// </summary>
     /// <remarks>
-    /// 这里钉语义：两条入口必须指向同一条记录，否则「打包 key 一次解析」会把缓存命中打成旁路。
+    /// 这里钉语义：两条入口必须指向同一条记录，否则「打包 key 一次解析」会把缓存命中打成旁路。 <br />
     /// 0-GC 数字在玩家侧（<c>ResourceLeaseAllocationTests</c>）。
     /// </remarks>
     public sealed class ResourceRecordStoreKeyHotPathTests

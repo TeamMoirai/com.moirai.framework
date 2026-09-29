@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Resource
     /// packed resource key 的位域编解码，以及 assetKind / assetType 的互相归一（纯静态、零状态）。
     /// </summary>
     /// <remarks>
-    /// 三条名称轴的登记在 <see cref="ResourceNameRegistry{TValue}"/>，取 id 与计数在 handler 侧。
+    /// 三条名称轴的登记在 <see cref="ResourceNameRegistry{TValue}"/>，取 id 与计数在 handler 侧。 <br />
     /// 各轴 id 上限（即该轴位宽上限）由本类界定，越界必抛而非静默截断。
     /// </remarks>
     internal static class ResourceKeyCodec

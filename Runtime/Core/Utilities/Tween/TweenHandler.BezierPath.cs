@@ -9,9 +9,6 @@ namespace Moirai.Atropos
         /// <summary>
         /// N 阶贝塞尔曲线的计算。
         /// </summary>
-        /// <param name="t"></param>
-        /// <param name="points"></param>
-        /// <returns></returns>
         protected static Vector3 CalculateBezierPoint(float t, Vector3[] points)
         {
             int n = points.Length - 1;
@@ -30,9 +27,6 @@ namespace Moirai.Atropos
         /// <summary>
         /// 计算二项式系数。
         /// </summary>
-        /// <param name="n"></param>
-        /// <param name="k"></param>
-        /// <returns></returns>
         protected static int BinomialCoefficient(int n, int k)
         {
             if (k < 0 || k > n) return 0;

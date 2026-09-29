@@ -27,15 +27,15 @@ public sealed partial class SpriteConfig : Luban.BeanBase
     }
 
     /// <summary>
-    /// 资源ID
+    /// 资源ID。
     /// </summary>
     public readonly string Id;
     /// <summary>
-    /// SpriteAtlas 中的名字
+    /// SpriteAtlas 中的名字。
     /// </summary>
     public readonly string SpriteName;
     /// <summary>
-    /// 资源所在的 SpriteAtlas ID
+    /// 资源所在的 SpriteAtlas ID。
     /// </summary>
     public readonly string SpriteAtlasId;
    

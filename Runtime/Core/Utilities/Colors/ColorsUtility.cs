@@ -5,13 +5,8 @@ namespace Moirai.Atropos
     public static partial class ColorsUtility
     {
         /// <summary>
-        /// 从合理值（0-255）创建新的 Color
+        /// 从合理值（0-255）创建新的 Color。
         /// </summary>
-        /// <param name="r"></param>
-        /// <param name="g"></param>
-        /// <param name="b"></param>
-        /// <param name="a"></param>
-        /// <returns></returns>
         public static Color CreateColor(int r, int g, int b, int a)
         {
 	        return new Color(r / 255f, g / 255f, b / 255f, a / 255f);
@@ -20,12 +15,8 @@ namespace Moirai.Atropos
         
         
         /// <summary>
-        /// 返回两个渐变之间的线性插值
+        /// 返回两个渐变之间的线性插值。
         /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <param name="t"></param>
-        /// <returns></returns>
 	    public static Gradient LerpGradients(Gradient a, Gradient b, float t) 
 		{
 			Gradient result = new Gradient();

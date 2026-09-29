@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Localization.Editor
     /// 渠道默认语言烘焙器：把 <c>LocalizationBuildConfig</c> 写进 <c>Assets/Resources/</c>，随包分发。
     /// </summary>
     /// <remarks>
-    /// 只写 <see cref="ASSET_PATH"/> 这一目录约定，不改写任何被版本管理的源资产，是否纳入版本控制由出包方决定。
+    /// 只写 <see cref="ASSET_PATH"/> 这一目录约定，不改写任何被版本管理的源资产，是否纳入版本控制由出包方决定。 <br />
     /// 玩家侧读取见 <c>LocalizationService.GetBakedChannelLanguage()</c>（仅播放器生效）。
     /// </remarks>
     public static class LocalizationBuildBaker

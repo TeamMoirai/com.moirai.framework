@@ -9,10 +9,9 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 顺序固定： ① 内置服务注册清单（源生成器按 <see cref="AutoRegisterServiceAttribute"/> 标记生成）→ ② <br />
-        /// <see cref="GameApp.ServicesComposing"/> 交回项目侧注册自有 <br />
-        /// App 服务 → ③ <see cref="ServiceWorld.InitializeAsync"/> 提交两阶段构建的第二阶段。
-        /// 初始化顺序由 <see cref="ServiceDependencyAttribute"/> 声明拓扑决定、与注册顺序无关，缺失依赖与循环依赖 fail-fast。
-        /// 需要调试面板的服务应声明 <c>[ServiceDependency(typeof(DebuggerService))]</c> 以保证拓扑先行。
+        /// <see cref="GameApp.ServicesComposing"/> 交回项目侧注册自有 App 服务 → ③ <see cref="ServiceWorld.InitializeAsync"/> 提交两阶段构建的第二阶段。
+        /// 初始化顺序由 <see cref="ServiceDependencyAttribute"/> 声明拓扑决定、与注册顺序无关，缺失依赖与循环依赖 fail-fast。 <br />
+        /// 需要调试面板的服务应声明 <c>[ServiceDependency(typeof(DebuggerService))]</c> 以保证拓扑先行。 <br />
         /// 由 <see cref="GameApp.Boot"/> 调用，触发点 <see cref="GameAppSettings.Initiation"/> 相位为 <c>BeforeSceneLoad</c>。
         /// </remarks>
         internal static partial UniTaskVoid InitializeAppServices()

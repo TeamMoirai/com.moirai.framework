@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <remarks>
     /// Unity 后端驱动 <see cref="AudioMixerSnapshot.TransitionTo"/>； <br />
-    /// 中间件后端经回调写总线/RTPC（见 <see cref="SetMiddlewareTransitionHandler"/>）。
+    /// 中间件后端经回调写总线/RTPC（见 <see cref="SetMiddlewareTransitionHandler"/>）。 <br />
     /// 状态优先级：数值大者可打断小者、同级可切换，不可被更低优先级打断（除非强制）。
     /// </remarks>
     [Serializable]

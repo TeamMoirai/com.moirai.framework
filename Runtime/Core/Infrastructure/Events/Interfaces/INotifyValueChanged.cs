@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Events
         T Value { get; set; }
         
         /// <summary>
-        /// 设置值，即使不同，也不会通知使用 <see cref="ChangeEvent{T}"/> 注册回调
+        /// 设置值，即使不同，也不会通知使用 <see cref="ChangeEvent{T}"/> 注册回调。
         /// </summary>
         /// <param name="newValue">要设置的新值。</param>
         void SetValueWithoutNotify(T newValue);

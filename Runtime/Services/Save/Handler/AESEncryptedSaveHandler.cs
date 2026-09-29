@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 密钥材料由处理器内嵌的 <see cref="SaveKeyProvider"/> 提供（空 = 回退 <see cref="StaticSaveKeyProvider.Default"/> 占位默认， <br />
-    /// 上线前须在 Inspector 配置项目专属提供方）。
+    /// 上线前须在 Inspector 配置项目专属提供方）。 <br />
     /// 派生材料由提供方按参数缓存；提供方须为纯 .NET，工作线程调用安全。
     /// </remarks>
     [Serializable]

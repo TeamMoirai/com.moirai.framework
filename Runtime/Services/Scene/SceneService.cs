@@ -12,10 +12,10 @@ namespace Moirai.Atropos.Scene
     /// </summary>
     /// <remarks>
     /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="SceneServiceSettings"/> 解析， <br />
-    /// 未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。
+    /// 未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。 <br />
     /// 错误契约：加载失败抛出 <see cref="GameException"/>；卸载失败以 <c>false</c> 返回并保留登记；服务未注册时查询降级返回默认值、 <br />
-    /// 加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。
-    /// 生命周期事件（<see cref="MainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。
+    /// 加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。 <br />
+    /// 生命周期事件（<see cref="MainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。 <br />
     /// 场景短名须尽量全局唯一：碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。
     /// </remarks>
     [AutoRegisterService]

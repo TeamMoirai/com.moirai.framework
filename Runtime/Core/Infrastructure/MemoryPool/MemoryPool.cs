@@ -60,7 +60,7 @@ namespace Moirai.Atropos
         /// 存活（在外）对象数量上限的全局默认值，0 表示不限制。
         /// </summary>
         /// <remarks>
-        /// 硬上限约束的是空闲缓存而非总量，<c>Acquire</c> 未命中即构造、永不失败；新池在静态构造时取该默认值，之后可按类型用 <see cref="SetLiveLimit{T}"/> 覆盖。
+        /// 硬上限约束的是空闲缓存而非总量，<c>Acquire</c> 未命中即构造、永不失败；新池在静态构造时取该默认值，之后可按类型用 <see cref="SetLiveLimit{T}"/> 覆盖。 <br />
         /// 越界时带池身份限流上报，开发期直接抛出。
         /// </remarks>
         public static int DefaultLiveLimit;

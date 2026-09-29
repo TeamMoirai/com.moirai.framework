@@ -7,7 +7,7 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 预制体查找器 ①搜索整个项目缺失脚本的预制体，②查找含有指定 MonoBehaviour 脚本的预制体 
+    //// 预制体查找器 ①搜索整个项目缺失脚本的预制体，②查找含有指定 MonoBehaviour 脚本的预制体。
     /// </summary>
     public class FindPrefabsByMono : EditorWindow
     {
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Editor
         static RectOffset _horizontalPaddingOnly;
 
         /// <summary>
-        /// Menu bound method
+        /// 菜单绑定方法。
         /// </summary>
         [MenuItem("Tools/资产相关/预制体查找器", false, 504)]
         public static void MenuAction()
@@ -37,7 +37,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// Opens and resizes the window
+        /// 打开窗口并设置其尺寸。
         /// </summary>
         public static void OpenWindow()
         {
@@ -49,7 +49,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// Initializes padding variables and GUI styles
+        /// 初始化内边距变量与 GUI 样式。
         /// </summary>
         static void InitializePaddingAndStyles()
         {
@@ -71,7 +71,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// Draws tab buttons
+        /// 绘制标签页按钮。
         /// </summary>
         protected virtual void DrawTabs()
         {
@@ -83,7 +83,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// Detects changes in tabs selection
+        /// 检测标签页选择变化。
         /// </summary>
         protected virtual void HandleTabsChange()
         {
@@ -97,7 +97,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// Draws the content of the selected tab
+        /// 绘制当前选中标签页的内容。
         /// </summary>
         protected virtual void DrawSelectedTab()
         {
@@ -113,7 +113,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// Draws the search by mono form
+        /// 绘制按 MonoBehaviour 搜索的表单。
         /// </summary>
         protected virtual void DrawSearchByMonoBehaviour()
         {
@@ -151,7 +151,7 @@ namespace Moirai.Atropos.Editor
         }
         
         /// <summary>
-        /// Draws the search missing form
+        /// 绘制查找缺失组件的表单。
         /// </summary>
         protected virtual void DrawSearchMissing()
         {
@@ -187,7 +187,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// Draws the result list
+        /// 绘制结果列表。
         /// </summary>
         protected virtual void DrawResultsList()
         {
@@ -247,7 +247,7 @@ namespace Moirai.Atropos.Editor
         
         #if  UNITY_EDITOR
         /// <summary>
-        /// On GUI we draw our window's contents
+        /// OnGUI 中绘制窗口内容。
         /// </summary>
         protected virtual void OnGUI()
         {
@@ -260,9 +260,8 @@ namespace Moirai.Atropos.Editor
         #endif
         
         /// <summary>
-        /// Gets all prefabs and sorts them alphabetically
+        /// 获取全部预制体并按名称字母序排序。
         /// </summary>
-        /// <returns></returns>
         public static string[] GetAllPrefabsInProject()
         {
             string[] assetPaths = AssetDatabase.GetAllAssetPaths();

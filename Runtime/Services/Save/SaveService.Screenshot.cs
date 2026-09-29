@@ -11,8 +11,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 截图管线：帧末捕获屏幕 → GPU Blit 降采样 + 小图回读编码 PNG → 经存储层（<see cref="ISaveStorage"/>， <br />
-    /// 云后端天然跟随）原子写 sidecar <c>{存档基名}.screenshot.png</c> → 镜像元数据块（缩略图文件名 + 活动场景名）→ 派发 <see cref="ScreenshotCaptured"/> 事件。
-    /// 截图仅限运行态主线程；存档删除时 sidecar 级联删除（防止同名新档复活陈旧缩略图）。
+    /// 云后端天然跟随）原子写 sidecar <c>{存档基名}.screenshot.png</c> → 镜像元数据块（缩略图文件名 + 活动场景名）→ 派发 <see cref="ScreenshotCaptured"/> 事件。 <br />
+    /// 截图仅限运行态主线程；存档删除时 sidecar 级联删除（防止同名新档复活陈旧缩略图）。 <br />
     /// 联动开关：<see cref="SaveServiceSettings.CaptureScreenshotOnSave"/> 开启时， <br />
     /// 块保存（<see cref="SaveBlockAsync{T}"/>）与组件保存（<see cref="SaveComponentsAsync"/>）成功后自动捕获——保留块（<c>__</c> 前缀，含元数据镜像回写）豁免联动。
     /// </remarks>
@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Save
         /// 捕获当前帧屏幕截图并写入存档 sidecar，同时镜像槽位元数据（缩略图文件名/活动场景名），IO 在工作线程执行。
         /// </summary>
         /// <remarks>
-        /// 仅限运行态主线程调用（帧末等待 + 屏幕捕获为主线程约束）；非运行态/批处理模式返回 <see cref="SaveError.NotSupported"/>。
+        /// 仅限运行态主线程调用（帧末等待 + 屏幕捕获为主线程约束）；非运行态/批处理模式返回 <see cref="SaveError.NotSupported"/>。 <br />
         /// 截图失败（sidecar 写入异常）返回 <see cref="SaveError.IoFailed"/> 并记录错误日志，不上抛；元数据镜像为尽力而为（镜像失败不影响返回码）； <br />
         /// 处理器未就绪降级为 <see cref="SaveError.HandlerNotReady"/>。
         /// </remarks>

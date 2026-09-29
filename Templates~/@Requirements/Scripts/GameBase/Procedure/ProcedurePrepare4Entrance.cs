@@ -4,7 +4,7 @@ using Moirai.Atropos;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 准备进入主游戏流程（<see cref="GameLogic.HotfixEntry.Entrance"/>）
+    /// 流程 => 准备进入主游戏流程（<see cref="GameLogic.HotfixEntry.Entrance"/>）。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedurePrepare4Entrance : ProcedurePremainBase

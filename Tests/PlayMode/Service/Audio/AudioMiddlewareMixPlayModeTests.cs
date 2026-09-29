@@ -54,7 +54,7 @@ namespace Service.Audio
         /// </summary>
         /// <remarks>
         /// <see cref="AudioMixStateMachine.Request"/> 只在过渡真的施加到混音上时才返回 true， <br />
-        /// 既无 Mixer 又无施加通道一律拒绝并保持 <see cref="AudioMixStateMachine.Current"/> 不变；
+        /// 既无 Mixer 又无施加通道一律拒绝并保持 <see cref="AudioMixStateMachine.Current"/> 不变； <br />
         /// 故优先级 / 回落语义要可观测，必须挂该接缝（与 EditorMode 的 <c>AudioMixStateMachineTests</c> 同一口径）。
         /// </remarks>
         private static AudioMixStateMachine CreateMixMachine()

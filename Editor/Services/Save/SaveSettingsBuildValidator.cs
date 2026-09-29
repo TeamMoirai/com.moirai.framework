@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Save.Editor
     /// 构建期存档密钥自检：出包前复用运行期判据 <see cref="SaveServiceSettings.UsesPlaceholderSaveKey"/>，占位口令 / 盐时报出。
     /// </summary>
     /// <remarks>
-    /// 默认只告警；设环境变量 <c>MOIRAI_SAVE_SETTINGS_STRICT=1</c>（值非 "0" 即视为开严）改为硬失败。
+    /// 默认只告警；设环境变量 <c>MOIRAI_SAVE_SETTINGS_STRICT=1</c>（值非 "0" 即视为开严）改为硬失败。 <br />
     /// 运行期不拦占位密钥——已有存档可能正是用占位值写成，拦了会把配置问题升级成存档打不开。
     /// </remarks>
     public class SaveSettingsBuildValidator : IPreprocessBuildWithReport

@@ -10,7 +10,7 @@ namespace Service.Resource
     /// AddressableHandler 的契约守卫：实验性后端的能力缺失必须以 <see cref="GameException"/> 暴露，已接通的低内存回收委托必须真的落地。
     /// </summary>
     /// <remarks>
-    /// 运行时符号随 <c>ADDRESSABLES_INSTALLED</c> 条件编译存在，经反射定位；未安装 Addressables 时整组忽略。
+    /// 运行时符号随 <c>ADDRESSABLES_INSTALLED</c> 条件编译存在，经反射定位；未安装 Addressables 时整组忽略。 <br />
     /// 只钉"哪些成员仍然抛"与"哪些委托必须落地"，已接通的取用族不在此列——
     /// 它们的正解是真的返回值，拿反射断言"不抛"等于什么都没断言。
     /// </remarks>

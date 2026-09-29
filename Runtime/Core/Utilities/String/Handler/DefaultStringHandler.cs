@@ -39,8 +39,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取一个字符串构建器适配器（0 GC）。
         /// </summary>
-        /// <param name="capacity">初始容量</param>
-        /// <returns>可复用的字符串构建器适配器</returns>
+        /// <param name="capacity">初始容量。</param>
+        /// <returns>可复用的字符串构建器适配器。</returns>
         /// <remarks>优先从池中获取，回退到创建新实例。</remarks>
         public override IStringBuilder CreateStringBuilder(int capacity = 256)
         {
@@ -61,10 +61,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用适配器构建字符串（简化模式）
+        /// 使用适配器构建字符串（简化模式）。
         /// </summary>
-        /// <param name="action">构建字符串的操作</param>
-        /// <returns>构建的字符串</returns>
+        /// <param name="action">构建字符串的操作。</param>
+        /// <returns>构建的字符串。</returns>
         public override string GetString(Action<IStringBuilder> action)
         {
             if (action == null) return string.Empty;
@@ -82,7 +82,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 清空所有缓存和池
+        /// 清空所有缓存和池。
         /// </summary>
         public override void Clear()
         {
@@ -102,7 +102,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 释放适配器到池中（0 GC）。
         /// </summary>
-        /// <param name="adapter">要释放的适配器</param>
+        /// <param name="adapter">要释放的适配器。</param>
         /// <remarks>委托给 <see cref="DefaultStringBuilder.Dispose"/>，保证 GetString / Format / ToStringAndDispose 所有路径统一走池回收。</remarks>
         private void Release(IStringBuilder adapter)
         {
@@ -135,7 +135,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取一个 StringBuilder（内部方法）
+        /// 获取一个 StringBuilder（内部方法）。
         /// </summary>
         private static StringBuilder AcquireBuilder(int capacity = 256)
         {
@@ -166,7 +166,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 释放 StringBuilder（内部方法）
+        /// 释放 StringBuilder（内部方法）。
         /// </summary>
         private static void ReleaseBuilder(StringBuilder stringBuilder)
         {

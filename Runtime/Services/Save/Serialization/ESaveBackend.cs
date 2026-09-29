@@ -4,7 +4,7 @@ namespace Moirai.Atropos.Save
     /// 存档序列化后端标识。
     /// </summary>
     /// <remarks>
-    /// 容器内逐块记录后端标识（<see cref="SaveBlockInfo.Backend"/>），读取时按块还原——不同数据块可在同一存档文件内混用不同后端。
+    /// 容器内逐块记录后端标识（<see cref="SaveBlockInfo.Backend"/>），读取时按块还原——不同数据块可在同一存档文件内混用不同后端。 <br />
     /// 二进制后端为项目级硬依赖（NuGet 引入）；未接入时 <see cref="SaveSerializerRegistry.GetRequired"/> fail-fast。
     /// </remarks>
     public enum ESaveBackend

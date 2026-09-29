@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Moirai.GameLogic
 {
     /// <summary>
-    /// 预加载游戏对象
+    /// 预加载游戏对象。
     /// </summary>
     /// <remarks>比如一些持久化对象</remarks>
     [DefaultExecutionOrder(-100)]
@@ -33,9 +33,8 @@ namespace Moirai.GameLogic
         }
         
         /// <summary>
-        /// 进入游戏主流程 => 加载持久化对象
+        /// 进入游戏主流程 => 加载持久化对象。
         /// </summary>
-        /// <param name="evt"></param>
         /// <remarks>依赖服务，所以必须进入 <see cref="HotfixEntry"/> 后再实例化</remarks>
         private void OnHotfixEntryEvent(HotfixEntryEvent evt)
         {
@@ -45,7 +44,7 @@ namespace Moirai.GameLogic
         }
 
         /// <summary>
-        /// 分帧加载预制体
+        /// 分帧加载预制体。
         /// </summary>
         private async UniTaskVoid Load()
         {

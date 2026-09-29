@@ -75,13 +75,13 @@ namespace Moirai.Atropos.Input
 
         /// <!-- 常用按键状态 -->
 
-        /// <summary>如果在此帧被按下，则返回 <c>true</c></summary>
+        /// <summary>如果在此帧被按下，则返回 <c>true</c>。</summary>
         public bool IsDown => Started;
-        /// <summary>如果在此帧前就被按下，则返回 <c>true</c></summary>
+        /// <summary>如果在此帧前就被按下，则返回 <c>true</c>。</summary>
         public bool IsPressed => m_Value && !IsDown;
-        /// <summary>如果在此帧被松开，则返回 <c>true</c></summary>
+        /// <summary>如果在此帧被松开，则返回 <c>true</c>。</summary>
         public bool IsUp => Canceled;
-        /// <summary>如果在此帧前就被松开，则返回 <c>true</c></summary>
+        /// <summary>如果在此帧前就被松开，则返回 <c>true</c>。</summary>
         public bool IsOff => !m_Value && !IsUp;
 
         /// <summary>

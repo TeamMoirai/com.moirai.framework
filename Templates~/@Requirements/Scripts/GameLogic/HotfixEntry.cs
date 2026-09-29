@@ -24,7 +24,7 @@ namespace Moirai.GameLogic
     }
 
     /// <summary>
-    /// 游戏主程序入口
+    /// 游戏主程序入口。
     /// </summary>
 #if OBFUZ_INSTALLED && ENABLE_OBFUZ
     [ObfuzIgnore(ObfuzScope.TypeName | ObfuzScope.MethodName)]
@@ -36,7 +36,6 @@ namespace Moirai.GameLogic
         /// <summary>
         /// 热更域App主入口。
         /// </summary>
-        /// <param name="objects"></param>
         public static void Entrance(object[] objects)
         {
             s_HotfixAssembly = (List<Assembly>)objects[0];

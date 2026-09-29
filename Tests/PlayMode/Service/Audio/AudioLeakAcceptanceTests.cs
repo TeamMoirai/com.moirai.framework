@@ -12,7 +12,7 @@ namespace Service.Audio
     /// 泄漏验收：混合 Play / Stop / Preload / Unload / ClearCache 后账本必须归零。
     /// </summary>
     /// <remarks>
-    /// 缓存层走可控租约源；Handler 层经 <see cref="AudioServiceTestHost"/> 注入最小 AudioGroupConfigs。
+    /// 缓存层走可控租约源；Handler 层经 <see cref="AudioServiceTestHost"/> 注入最小 AudioGroupConfigs。 <br />
     /// 关键路径验收不得依赖宿主工程的 Settings 配置，配置建不出来时 TestHost 直接 Fail 而非静默跳过。
     /// </remarks>
     [TestFixture]

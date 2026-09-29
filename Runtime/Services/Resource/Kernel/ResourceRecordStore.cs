@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Resource
     /// 资源记录内核的键空间：三条名称轴（package / location / type）的登记、packed key 的组装与拆解，以及键的引用计数。
     /// </summary>
     /// <remarks>
-    /// 位域布局与 assetKind / assetType 归一在 <see cref="ResourceKeyCodec"/>，单条轴的登记与回收在 <see cref="ResourceNameRegistry{TValue}"/>。
+    /// 位域布局与 assetKind / assetType 归一在 <see cref="ResourceKeyCodec"/>，单条轴的登记与回收在 <see cref="ResourceNameRegistry{TValue}"/>。 <br />
     /// 包名是运行期可写的接缝，故以 <see cref="Func{TResult}"/> 注入并每次活读，避免读到构造时捕获的旧包名。
     /// </remarks>
     internal sealed partial class ResourceRecordStore

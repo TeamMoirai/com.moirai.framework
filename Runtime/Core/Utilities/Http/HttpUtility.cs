@@ -48,7 +48,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 发送表单格式的 POST 请求（x-www-form-urlencoded）
+        /// 发送表单格式的 POST 请求（x-www-form-urlencoded）。
         /// </summary>
         /// <param name="url">网络URL。</param>
         /// <param name="formFields">Post数据。</param>
@@ -64,7 +64,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 发送多部分表单的 POST 请求（multipart/form-data，支持文件上传）
+        /// 发送多部分表单的 POST 请求（multipart/form-data，支持文件上传）。
         /// </summary>
         /// <param name="url">网络URL。</param>
         /// <param name="formData">Post数据。</param>

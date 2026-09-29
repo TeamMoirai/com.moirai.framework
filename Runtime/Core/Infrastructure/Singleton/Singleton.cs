@@ -8,9 +8,9 @@ namespace Moirai.Atropos
     /// </summary>
     /// <typeparam name="T">继承本基类的具体单例类型。</typeparam>
     /// <remarks>
-    /// 线程模型：任意线程可安全访问 <see cref="Instance"/>，惰性创建走 volatile 快速路径 + 双检锁，快速路径无锁开销。
-    /// 初始化契约：实例先发布后初始化——<see cref="OnInit"/> 在锁内、实例已写入后执行；同线程递归访问取回正在初始化的同一实例，跨线程首次访问阻塞至完成后返回。
-    /// 释放契约：<see cref="Dispose"/> 幂等，仅当前活动实例触发 <see cref="OnShutdown"/> 并清空引用，对陈旧或已释放实例调用为 no-op。
+    /// 线程模型：任意线程可安全访问 <see cref="Instance"/>，惰性创建走 volatile 快速路径 + 双检锁，快速路径无锁开销。 <br />
+    /// 初始化契约：实例先发布后初始化——<see cref="OnInit"/> 在锁内、实例已写入后执行；同线程递归访问取回正在初始化的同一实例，跨线程首次访问阻塞至完成后返回。 <br />
+    /// 释放契约：<see cref="Dispose"/> 幂等，仅当前活动实例触发 <see cref="OnShutdown"/> 并清空引用，对陈旧或已释放实例调用为 no-op。 <br />
     /// 域重载：关闭 Domain Reload 时静态实例跨播放会话存活，派生类如需会话间重置需自行提供 Reset 钩子（基类无法自动注册泛型派生类的初始化方法）。
     /// </remarks>
     public abstract class Singleton<T> : IDisposable where T : Singleton<T>, new()
@@ -89,7 +89,7 @@ namespace Moirai.Atropos
         /// <para>仅当前活动实例（<c>s_Instance == this</c>）可被释放；对陈旧实例或已释放实例重复调用为 no-op。
         /// 释放后再次访问 <see cref="Instance"/> 将创建新实例并重新初始化。</para>
         /// <para><see cref="OnShutdown"/> 在锁内执行且先于引用清空——期间访问 <see cref="Instance"/>
-        /// 仍取回正在关闭中的当前实例，不会创建替身。</para>
+        /// 仍取回正在关闭中的当前实例，不会创建替身。</para>。
         /// </remarks>
         public void Dispose()
         {

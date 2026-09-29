@@ -10,7 +10,7 @@ namespace Moirai.Atropos.ObjectPool
     /// GameObject 池服务外观（Facade）：全框架统一的静态游戏对象池访问入口。
     /// </summary>
     /// <remarks>
-    /// 通过替换 <see cref="Handler"/> 可在不同对象池后端之间切换；支持资源地址与外部 Prefab 两种来源，经 <see cref="GameObjectPoolSource"/> 统一入口。
+    /// 通过替换 <see cref="Handler"/> 可在不同对象池后端之间切换；支持资源地址与外部 Prefab 两种来源，经 <see cref="GameObjectPoolSource"/> 统一入口。 <br />
     /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="GameObjectPoolServiceSettings"/> 解析； <br />
     /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
     /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。

@@ -18,7 +18,7 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 不用 ZLogger 内置的 <c>AddZLoggerUnityDebug</c>：它经 <c>UnityEngine.Debug.Log</c> 输出， <br />
-    /// 会落入被 <see cref="UnityLogInterceptor"/> 劫持的 <c>Debug.unityLogger</c>，使框架自身输出再次进入日志管线。
+    /// 会落入被 <see cref="UnityLogInterceptor"/> 劫持的 <c>Debug.unityLogger</c>，使框架自身输出再次进入日志管线。 <br />
     /// 不做 PrettyStacktrace 预处理：直写原始 handler 时 Unity 捕获的是真实调用栈（管线帧已 <c>[HideInCallstack]</c>）。
     /// </remarks>
     internal sealed class ZLoggerBypassUnityDebugLoggerProvider : ILoggerProvider, IAsyncDisposable

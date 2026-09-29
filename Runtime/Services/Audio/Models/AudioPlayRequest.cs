@@ -9,19 +9,19 @@ namespace Moirai.Atropos.Audio
     public enum EAudioPlayFlags : byte
     {
         None = 0,
-        /// <summary>循环播放</summary>
+        /// <summary>循环播放。</summary>
         Loop = 1 << 0,
-        /// <summary>跨场景持久</summary>
+        /// <summary>跨场景持久。</summary>
         Persistent = 1 << 1,
-        /// <summary>播放时淡入</summary>
+        /// <summary>播放时淡入。</summary>
         FadeInOnPlay = 1 << 2,
-        /// <summary>单轨 Solo</summary>
+        /// <summary>单轨 Solo。</summary>
         SoloSingleTrack = 1 << 3,
-        /// <summary>全轨 Solo</summary>
+        /// <summary>全轨 Solo。</summary>
         SoloAllTracks = 1 << 4,
-        /// <summary>结束自动取消 Solo</summary>
+        /// <summary>结束自动取消 Solo。</summary>
         AutoUnSoloOnEnd = 1 << 5,
-        /// <summary>不抢占未播完的通道</summary>
+        /// <summary>不抢占未播完的通道。</summary>
         DoNotAutoRecycle = 1 << 6,
     }
 

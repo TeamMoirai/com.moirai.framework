@@ -8,7 +8,7 @@ namespace Moirai.Atropos
     /// Unity 全局日志拦截器：替换 <c>Debug.unityLogger.logHandler</c> 后，把所有 Unity 日志（含第三方插件）转发至 Moirai 日志管线。
     /// </summary>
     /// <remarks>
-    /// 由 <see cref="LogUtility.EnableGlobalInterception"/> / <see cref="LogUtility.DisableGlobalInterception"/> 成对启用与禁用。
+    /// 由 <see cref="LogUtility.EnableGlobalInterception"/> / <see cref="LogUtility.DisableGlobalInterception"/> 成对启用与禁用。 <br />
     /// 循环防护：后端输出必须经 <see cref="LogUtility.GetBypassUnityHandler"/> 直写控制台；重入守卫兜底误用被拦截通道的后端，此路径会带上已渲染的前缀，后端不应依赖它。
     /// </remarks>
     internal sealed class UnityLogInterceptor : ILogHandler

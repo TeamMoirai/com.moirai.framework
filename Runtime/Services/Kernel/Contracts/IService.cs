@@ -47,10 +47,9 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 实现约束： 必须派生自 <see cref="ServiceBase"/>（纯 C#）或 <see cref="ServiceMono{TScope}"/>（MonoBehaviour）——两者实现的 <br />
-    /// <c>IServiceLifecycle</c> <br />
-    /// 是容器驱动状态机的唯一入口；裸实现本接口的类型会在 <see cref="ServiceWorld.Register"/> 处被拒绝。
+    /// <c>IServiceLifecycle</c> 是容器驱动状态机的唯一入口；裸实现本接口的类型会在 <see cref="ServiceWorld.Register"/> 处被拒绝。
     /// 依赖用 <c>[ServiceDependency]</c> 特性声明；<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑排序驱动 <see cref="OnInit"/>，初始化顺序由声明决定、 <br />
-    /// 与注册顺序无关。
+    /// 与注册顺序无关。 <br />
     /// 缺失依赖与循环依赖在初始化期抛 <see cref="GameException"/>（fail-fast）。
     /// </remarks>
     public interface IService
@@ -124,7 +123,7 @@ namespace Moirai.Atropos
     /// 异步初始化服务，由 <see cref="ServiceWorld.InitializeAsync"/> 在拓扑序位置处等待完成。
     /// </summary>
     /// <remarks>
-    /// 实现本接口的服务必须在世界初始化前注册（两阶段的第一阶段）；世界已初始化后的运行时注册抛 <see cref="GameException"/>（运行时注册无法等待异步初始化）。
+    /// 实现本接口的服务必须在世界初始化前注册（两阶段的第一阶段）；世界已初始化后的运行时注册抛 <see cref="GameException"/>（运行时注册无法等待异步初始化）。 <br />
     /// 同步 <see cref="ServiceWorld.Initialize"/> 遇到本接口实现者同样抛异常，须改用 <see cref="ServiceWorld.InitializeAsync"/>。
     /// </remarks>
     public interface IServiceInitializableAsync : IService

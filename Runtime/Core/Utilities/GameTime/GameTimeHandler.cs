@@ -6,8 +6,8 @@ namespace Moirai.Atropos
     /// 游戏时间处理器基类（策略模式抽象策略），框架内置 <see cref="DefaultGameTimeHandler"/> 引擎时钟实现。
     /// </summary>
     /// <remarks>
-    /// 双精度读取点 <see cref="ScaledNow"/>/<see cref="UnscaledNow"/>/<see cref="RealtimeNow"/> 是实时直读而非帧缓存，供计时器等对精度敏感的服务在帧内任意时刻读取。
-    /// 帧采样快照由 <see cref="GameTime.StartFrame"/> 每帧统一拉取。
+    /// 双精度读取点 <see cref="ScaledNow"/>/<see cref="UnscaledNow"/>/<see cref="RealtimeNow"/> 是实时直读而非帧缓存，供计时器等对精度敏感的服务在帧内任意时刻读取。 <br />
+    /// 帧采样快照由 <see cref="GameTime.StartFrame"/> 每帧统一拉取。 <br />
     /// 测试注入自定义实现（覆写 <see cref="ScaledNow"/>/<see cref="UnscaledNow"/>）即可让依赖时间的服务获得与 Unity 主循环无关的确定性推进。
     /// </remarks>
     [Serializable]
@@ -28,8 +28,8 @@ namespace Moirai.Atropos
         /// 当前真实墙钟（秒，双精度，自进程启动起算），不受 timeScale / 暂停 / 播放态影响。
         /// </summary>
         /// <remarks>
-        /// 供 TTL 驱逐、失败冷却这类「真实流逝」语义的组件读取；引擎时钟下同 <c>Time.realtimeSinceStartupAsDouble</c>。
-        /// 与 <see cref="UnscaledNow"/> 的差别：编辑器未播放或应用暂停期间 unscaledTime 停止推进，realtime 始终推进。
+        /// 供 TTL 驱逐、失败冷却这类「真实流逝」语义的组件读取；引擎时钟下同 <c>Time.realtimeSinceStartupAsDouble</c>。 <br />
+        /// 与 <see cref="UnscaledNow"/> 的差别：编辑器未播放或应用暂停期间 unscaledTime 停止推进，realtime 始终推进。 <br />
         /// 默认取 <see cref="UnscaledNow"/>，无真实墙钟概念的虚拟实现因此自动获得可注入的确定性时间源。
         /// </remarks>
         public virtual double RealtimeNow => UnscaledNow;

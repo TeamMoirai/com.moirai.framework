@@ -11,8 +11,8 @@ namespace Moirai.Atropos.Save
     /// <remarks>
     /// 写入为「临时文件 + <c>Flush(true)</c> 强制落盘 + 原子替换」（NTFS <see cref="File.Replace"/> 元数据级原子， <br />
     /// 平台不支持时转 <see cref="FallbackReplace"/>： 旧档先改名到 <c>.journal</c>，再把临时文件改名到位， <br />
-    /// 两步之间崩溃由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回）。
-    /// 删除带退避重试（应对云同步/杀毒软件短时锁文件）；备份为单档 <c>.bak</c> 副本（项目侧手动备份位，与写入用的 <c>.journal</c> 互不占用），恢复经临时文件原子替换回源路径。
+    /// 两步之间崩溃由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回）。 <br />
+    /// 删除带退避重试（应对云同步/杀毒软件短时锁文件）；备份为单档 <c>.bak</c> 副本（项目侧手动备份位，与写入用的 <c>.journal</c> 互不占用），恢复经临时文件原子替换回源路径。 <br />
     /// 提供孤儿临时文件清扫与中断恢复；无状态纯 .NET 实现，可在任意线程调用；共享实例 <see cref="s_Default"/> 供未配置后端时回退。
     /// </remarks>
     [Serializable]
@@ -502,7 +502,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 不写成「删掉旧档再改名」——那两步之间崩溃或断电等于存档消失；到位失败时转 <see cref="RollbackJournal"/> 抬回，进程崩在两步之间时旧档完整留在日志位， <br />
-        /// 由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回。
+        /// 由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回。 <br />
         /// 不复用 <see cref="BACKUP_FILE_SUFFIX"/>（项目侧手动备份的持久单槽位），借它中转会让玩家「恢复上一版」捞到写入中途的快照。
         /// </remarks>
         /// <param name="tempFilePath">已落盘的临时文件路径（本次要写入的新内容）。</param>
@@ -536,8 +536,8 @@ namespace Moirai.Atropos.Save
         /// 到位失败后的回滚：把 journal 抬回主档位置，原异常由调用方继续上抛。
         /// </summary>
         /// <remarks>
-        /// 只在 journal 确实还在时才动主档——主档位置上可能是并发恢复刚抬回来的旧档，无判据地删掉它就删了唯一可读副本。
-        /// 本类第一不变量：任一时刻主档或 journal 至少一处可读，回滚路径自己不得破坏。
+        /// 只在 journal 确实还在时才动主档——主档位置上可能是并发恢复刚抬回来的旧档，无判据地删掉它就删了唯一可读副本。 <br />
+        /// 本类第一不变量：任一时刻主档或 journal 至少一处可读，回滚路径自己不得破坏。 <br />
         /// 抬回失败时保留 journal 与原样主档残迹，交给下次初始化的 <see cref="RecoverInterruptedWrites"/> 按「主档非空才算已提交」裁决。
         /// </remarks>
         /// <param name="journalFilePath">中转日志文件路径（旧档内容）。</param>

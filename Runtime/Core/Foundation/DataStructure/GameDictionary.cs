@@ -62,35 +62,38 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>Removes all keys and values from the <see cref="T:Moirai.Atropos.GameFrameworkDictionary`2" />.</summary>
+        /// <summary>
+        /// 从 <see cref="T:Moirai.Atropos.GameFrameworkDictionary`2" /> 移除所有键与值。
+        /// </summary>
         public void Clear()
         {
             _keyList.Clear();
             _dictionary.Clear();
         }
 
-        /// <summary>Adds the specified key and value to the dictionary.</summary>
-        /// <param name="key">The key of the element to add.</param>
-        /// <param name="item">The value of the element to add. The value can be <see langword="null" /> for reference types.</param>
+        /// <summary>向字典添加指定键与值。</summary>
+        /// <param name="key">要添加元素的键。</param>
+        /// <param name="item">要添加元素的值；引用类型可为 <see langword="null" />。</param>
         public virtual void Add(TKey key, TValue item)
         {
             _keyList.Add(key);
             _dictionary.Add(key, item);
         }
 
-        /// <summary>Gets the value associated with the specified key.</summary>
-        /// <param name="key">The key of the value to get.</param>
-        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is <br />
-        /// found; <br />
-        /// otherwise, the default value for the type of the <paramref name="value" /> parameter. This <br />
-        /// parameter is passed uninitialized.</param>
+        /// <summary>获取与指定键关联的值。</summary>
+        /// <param name="key">要获取值的键。</param>
+        /// <param name="value">当此方法返回时，若找到键，则包含与指定键关联的值； <br />
+        /// 否则包含 <paramref name="value" /> 参数类型的默认值。 <br />
+        /// 该参数以未初始化状态传入。</param>
         public bool TryGetValue(TKey key, out TValue value)
         {
             return _dictionary.TryGetValue(key, out value);
         }
 
-        /// <summary>Determines whether the <see cref="T:System.Collections.Generic.Dictionary`2" /> contains the specified key.</summary>
-        /// <param name="key">The key to locate in the </param>
+        /// <summary>
+        /// 确定 <see cref="T:System.Collections.Generic.Dictionary`2" /> 是否包含指定键。
+        /// </summary>
+        /// <param name="key">要在其中查找的键。</param>
         public bool ContainsKey(TKey key)
         {
             return _dictionary.ContainsKey(key);

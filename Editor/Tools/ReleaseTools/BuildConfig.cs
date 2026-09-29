@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Editor
         private string _packageVersion = "";
 
         /// <summary>
-        /// 资源版本号
+        /// 资源版本号。
         /// </summary>
         [FoldoutGroup("基础设置")]
         [HorizontalGroup("基础设置/VersionRow")]

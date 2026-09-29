@@ -13,7 +13,7 @@ using Luban;
 namespace Moirai.GameProto.Config.L10n
 {
 /// <summary>
-/// 支持的多语言
+/// 支持的多语言。
 /// </summary>
 public sealed partial class LocalizationBean : Luban.BeanBase
 {
@@ -29,11 +29,11 @@ public sealed partial class LocalizationBean : Luban.BeanBase
     }
 
     /// <summary>
-    /// 英语
+    /// 英语。
     /// </summary>
     public readonly string English;
     /// <summary>
-    /// 简体中文
+    /// 简体中文。
     /// </summary>
     public readonly string ChineseSimplified;
    

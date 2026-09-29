@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Audio
     /// 音频音量过渡调度器（Unity / 中间件后端共用）。
     /// </summary>
     /// <remarks>
-    /// 紧凑列表 + swap-remove，Update 零 GC；声部句柄与总线伪句柄共用一张过渡表。
+    /// 紧凑列表 + swap-remove，Update 零 GC；声部句柄与总线伪句柄共用一张过渡表。 <br />
     /// 总线伪句柄占用高位段 0xFFFFFFFF_********，与真实句柄（自 1 递增）无碰撞。
     /// </remarks>
     internal sealed class AudioFadeScheduler

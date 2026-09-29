@@ -19,7 +19,7 @@ namespace Moirai.Atropos.ConfigTable
 
         private bool IsConfigRootValid => Directory.Exists(Application.dataPath + m_ConfigRootRelativePath);
 
-        /// <summary>配置表目录的完整路径</summary>
+        /// <summary>配置表目录的完整路径。</summary>
         public static string ConfigRootFullPath => Application.dataPath + Instance.m_ConfigRootRelativePath;
 
         [Header("配置导出路径")]
@@ -33,13 +33,13 @@ namespace Moirai.Atropos.ConfigTable
         [SerializeField] private string m_ClientCodeOutPutPath = "Assets/Scripts/GameProto";
         private string ClientCodeOutPutPath => GetRelativePath(ConfigRootFullPath, m_ClientCodeOutPutPath);
 
-        /// <summary>资源验证根目录</summary>
+        /// <summary>资源验证根目录。</summary>
         /// <example>../Client/</example>
         private string PathValidatorRoot => GetRelativePath(ConfigRootFullPath, Application.dataPath + "/..");
 
 
         /// <summary>
-        /// 计算从 <see cref="relativeTo"/> 到 <see cref="path"/> 的相对路径
+        /// 计算从 <see cref="relativeTo"/> 到 <see cref="path"/> 的相对路径。
         /// </summary>
         /// <remarks>将绝对路径转换为相对于指定目录的 Unity 风格相对路径</remarks>
         /// <remarks>

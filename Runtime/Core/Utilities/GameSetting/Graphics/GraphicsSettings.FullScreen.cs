@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 全屏
+    /// 全屏。
     /// </summary>
     public partial class GraphicsSettings
     {

@@ -4,7 +4,7 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.UI.Adapter
 {
     /// <summary>
-    /// 安全区域适配器
+    /// 安全区域适配器。
     /// </summary>
     public class SafeAreaAdapter : AdapterBase
     {

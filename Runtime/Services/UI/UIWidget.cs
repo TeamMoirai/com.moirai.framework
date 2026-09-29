@@ -56,7 +56,7 @@ namespace Moirai.Atropos.UI
         }
         
         /// <summary>
-        /// 窗口可见性
+        /// 窗口可见性。
         /// </summary>
         public bool Visible
         {
@@ -152,20 +152,14 @@ namespace Moirai.Atropos.UI
         /// <param name="parentUI">父节点UI。</param>
         /// <param name="widgetRoot">组件根节点。</param>
         /// <param name="visible">是否可见。</param>
-        /// <returns></returns>
         public bool Create(UIBase parentUI, GameObject widgetRoot, bool visible = true)
         {
             return CreateImp(parentUI, widgetRoot, false, visible);
         }
 
         /// <summary>
-        /// 根据资源名创建
+        /// 根据资源名创建。
         /// </summary>
-        /// <param name="resPath"></param>
-        /// <param name="parentUI"></param>
-        /// <param name="parentTrans"></param>
-        /// <param name="visible"></param>
-        /// <returns></returns>
         public bool CreateByPath(string resPath, UIBase parentUI, Transform parentTrans = null, bool visible = true)
         {
             GameObject goInst = ResourceService.LoadGameObject(resPath, parent: parentTrans);

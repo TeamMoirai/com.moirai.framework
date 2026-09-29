@@ -14,7 +14,7 @@ namespace Service.ConfigTable
 {
     /// <summary><see cref="ConfigTableService"/> 外观与默认后端的契约测试。</summary>
     /// <remarks>
-    /// 钉三件事：外观在无后端时的降级值、默认后端的兜底语义、服务依赖声明的存在性。
+    /// 钉三件事：外观在无后端时的降级值、默认后端的兜底语义、服务依赖声明的存在性。 <br />
     /// 本组不建自定义 Handler 子类：<see cref="ConfigTableServiceHandler"/> 是 [Serializable] 框架基类，经 [SerializeReference] 用在设置资产里，
     /// 测试程序集里的派生类会污染生产资产的 Inspector 下拉框；需要「已安装后端」的场景直接用包内默认实现 <c>DefaultConfigTableHandler</c>（internal）。
     /// </remarks>

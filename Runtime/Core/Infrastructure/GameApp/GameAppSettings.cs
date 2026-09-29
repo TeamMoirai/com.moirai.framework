@@ -64,7 +64,7 @@ namespace Moirai.Atropos
         internal static TweenHandler TweenHandler => Instance.m_TweenHandler;
 
         /// <summary>
-        /// 游戏设置初始化
+        /// 游戏设置初始化。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initiation()

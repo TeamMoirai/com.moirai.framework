@@ -26,11 +26,11 @@ public sealed partial class UIWindowConfig : Luban.BeanBase
     }
 
     /// <summary>
-    /// 资源ID
+    /// 资源ID。
     /// </summary>
     public readonly string Id;
     /// <summary>
-    /// 默认主题
+    /// 默认主题。
     /// </summary>
     public readonly string DefaultRes;
    

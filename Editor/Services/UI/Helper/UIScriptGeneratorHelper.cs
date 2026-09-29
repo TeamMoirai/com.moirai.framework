@@ -11,7 +11,7 @@ using UnityEngine;
 namespace Moirai.Atropos.UI.Editor
 {
     /// <summary>
-    /// UI脚本生成器辅助类，提供脚本生成的核心编排逻辑
+    /// UI脚本生成器辅助类，提供脚本生成的核心编排逻辑。
     /// </summary>
     public static class UIScriptGeneratorHelper
     {
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.UI.Editor
         private static IUIScriptFileWriter s_ScriptFileWriter;
         private static readonly List<UIBindData> s_UIBindData = new List<UIBindData>();
 
-        /// <summary>标识符格式化器</summary>
+        /// <summary>标识符格式化器。</summary>
         internal static IUIIdentifierFormatter IdentifierFormatter =>
             ReflectionUtility.ResolveImplType(
                 ref s_IdentifierFormatter,

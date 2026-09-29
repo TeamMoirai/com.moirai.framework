@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Sirenix.OdinInspector.Editor.Drawers
 {
     /// <summary>
-    /// 参考 <see cref="InlineButtonAttributeDrawer{T}"/>
+    /// 参考 <see cref="InlineButtonAttributeDrawer{T}"/>。
     /// </summary>
     [DrawerPriority(DrawerPriorityLevel.WrapperPriority)]
     public class InlineEnableButtonAttributeDrawer<T> : OdinAttributeDrawer<InlineEnableButtonAttribute, T>

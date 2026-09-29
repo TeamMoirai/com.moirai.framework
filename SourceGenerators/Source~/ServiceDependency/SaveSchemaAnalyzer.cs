@@ -15,8 +15,8 @@ namespace Moirai.Atropos.SourceGenerators
     /// <remarks>
     /// MIRAI400： <c>[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]</c> 类型的成员键序号（<c>[Key]</c>/<c>[MemoryPackOrder]</c>/ <br />
     /// <c>[ProtoMember]</c>）与快照不符告警。
-    /// MIRAI401：快照成员被删除且类型未重写 <c>OnMigrate</c> 迁移钩子告警（旧档字段将静默丢失）。
-    /// 快照来自附加文件 <c>.SaveSchemaSnapshot</c>（行格式：<c>类型全限定名|成员名:序号;成员名:序号…</c>，序号 -1 = 字符串键）。
+    /// MIRAI401：快照成员被删除且类型未重写 <c>OnMigrate</c> 迁移钩子告警（旧档字段将静默丢失）。 <br />
+    /// 快照来自附加文件 <c>.SaveSchemaSnapshot</c>（行格式：<c>类型全限定名|成员名:序号;成员名:序号…</c>，序号 -1 = 字符串键）。 <br />
     /// 快照文件不存在时分析器完全静默；启用需自行加入版本控制， <br />
     /// Unity 编辑器无 AdditionalFiles 界面时经 <c>csc.rsp</c> 的 <c>/additionalfile: </c> 或 CI 的 <c>dotnet build</c> 接线。
     /// </remarks>

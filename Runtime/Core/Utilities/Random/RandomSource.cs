@@ -6,7 +6,7 @@ namespace Moirai.Atropos
     /// 框架统一随机流：xoshiro128**（周期 2^128），值语义、零分配、可在任意线程使用。
     /// </summary>
     /// <remarks>
-    /// 方法会就地推进自身状态，只能在可写的局部变量或字段上调用；经属性 / readonly 字段取到的副本会重复输出同一批数。
+    /// 方法会就地推进自身状态，只能在可写的局部变量或字段上调用；经属性 / readonly 字段取到的副本会重复输出同一批数。 <br />
     /// 有界取值用带拒绝的 Lemire 乘移法，不做取模，不存在模偏置。
     /// </remarks>
     public struct RandomSource

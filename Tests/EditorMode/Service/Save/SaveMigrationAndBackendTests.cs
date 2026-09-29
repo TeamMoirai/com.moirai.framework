@@ -23,8 +23,8 @@ namespace Service.Save
     /// 序列化后端（MessagePack / MemoryPack / protobuf-net）与 <see cref="SaveDataBlock"/> 版本迁移管线测试。
     /// </summary>
     /// <remarks>
-    /// 数据类建在测试程序集内（<see cref="SaveDataBlock"/> 非 <c>[SerializeReference]</c> 持有类型，无 Inspector 污染）；
-    /// 迁移/未来版本保护经 internal 管线直调（<c>InternalsVisibleTo</c>），真实文件 IO。
+    /// 数据类建在测试程序集内（<see cref="SaveDataBlock"/> 非 <c>[SerializeReference]</c> 持有类型，无 Inspector 污染）； <br />
+    /// 迁移/未来版本保护经 internal 管线直调（<c>InternalsVisibleTo</c>），真实文件 IO。 <br />
     /// 三个第三方后端的标注类型与对应用例整块由 <c>MESSAGEPACK_INSTALLED</c> / <c>MEMORYPACK_INSTALLED</c> /
     /// <c>PROTOBUF_INSTALLED</c> 门控（与运行时注册表同一套符号）：依赖未接入的工程里本夹具只剩 JSON 用例，仍可编译执行。
     /// </remarks>

@@ -14,14 +14,13 @@ namespace Moirai.Atropos.SourceGenerators
     /// </summary>
     /// <remarks>
     /// 捕获器嵌套在组件类型内部以访问私有字段（零反射零装箱），经模块初始化器自注册到 <c>SaveCapturerRegistry</c>； <br />
-    /// 迁移器自注册到 <c>SaveMigrationManager.Register</c>（AOT 安全）。
+    /// 迁移器自注册到 <c>SaveMigrationManager.Register</c>（AOT 安全）。 <br />
     /// 支持字段：基元/枚举/string/DateTime/TimeSpan、Unity 数学类型、集合（数组/List/Queue/Stack/HashSet/Dictionary，元素递归支持标量与嵌套数据类，引用元素不支持）、 <br />
-    /// 嵌套 <c>[SaveData]</c> 数据类、UnityEngine.Object 引用（场景对象存引用 ID，其余存资产定位串）。
+    /// 嵌套 <c>[SaveData]</c> 数据类、UnityEngine.Object 引用（场景对象存引用 ID，其余存资产定位串）。 <br />
     /// 捕获器额外发射 <see cref="SaveFieldModel.SchemaVersion"/>（<c>[SaveComponentSchema]</c> 声明，缺省 1）； <br />
-    /// 非 MonoBehaviour 类型上的 <c>[SaveField]</c> 不生成捕获器。
+    /// 非 MonoBehaviour 类型上的 <c>[SaveField]</c> 不生成捕获器。 <br />
     /// 诊断 MIRAI300–308： 字段类型不支持 / 存档键重复 / 迁移器无法自注册 / 包含类型须为 partial class / 须为实例字段 / 场景引用需 SaveObjectIdentity / 引用类型不明 / <br />
-    /// 嵌套数据类型无效 / <br />
-    /// 集合元素或映射键值类型不支持。
+    /// 嵌套数据类型无效 / 集合元素或映射键值类型不支持。
     /// </remarks>
     [Generator(LanguageNames.CSharp)]
     public sealed class SaveHostGenerator : IIncrementalGenerator

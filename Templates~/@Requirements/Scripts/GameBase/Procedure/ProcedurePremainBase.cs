@@ -3,7 +3,7 @@ using Moirai.Atropos.Procedure;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 进入游戏流程前的流程基类
+    /// 进入游戏流程前的流程基类。
     /// </summary>
     [ProcedureLauncher]
     public abstract class ProcedurePremainBase : ProcedureBase

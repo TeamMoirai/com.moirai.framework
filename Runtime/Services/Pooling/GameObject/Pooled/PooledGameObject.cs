@@ -15,7 +15,7 @@ namespace Moirai.Atropos.ObjectPool
     /// 池化 GameObject 租约（纯 C#，非 MonoBehaviour）。
     /// </summary>
     /// <remarks>
-    /// 持有 (owner, slot, generation) 身份，Dispose 时按代系回收。
+    /// 持有 (owner, slot, generation) 身份，Dispose 时按代系回收。 <br />
     /// 与 <see cref="GameObjectPoolService"/> 共用 Spawn / SpawnAsync / Despawn 动词，location 与 Prefab 引用同一套 API。
     /// </remarks>
     public class PooledGameObject : IDisposable

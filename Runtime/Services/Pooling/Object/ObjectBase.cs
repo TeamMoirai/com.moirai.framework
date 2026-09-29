@@ -4,7 +4,7 @@ namespace Moirai.Atropos.ObjectPool
     /// 通用对象池对象基类。
     /// </summary>
     /// <remarks>
-    /// 池化对象必须继承此类并实现 <see cref="Release(bool)"/>；对象经 <see cref="MemoryPool"/> 复用，重置逻辑写在 <see cref="Clear"/>。
+    /// 池化对象必须继承此类并实现 <see cref="Release(bool)"/>；对象经 <see cref="MemoryPool"/> 复用，重置逻辑写在 <see cref="Clear"/>。 <br />
     /// 生命周期： 外部构造并 <c>Initialize</c> → <c>Register</c> 入池 → <see cref="OnSpawn"/> / <see cref="OnDespawn"/> 往复 → <br />
     /// <see cref="Release(bool)"/> 永久移除。
     /// </remarks>

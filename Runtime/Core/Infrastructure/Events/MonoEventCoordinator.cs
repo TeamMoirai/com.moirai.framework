@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Events
     }
 
     /// <summary>
-    /// 基于 MonoBehaviour 的 EventCoordinator，可以启用和禁用，并且可以由调试器跟踪
+    /// 基于 MonoBehaviour 的 EventCoordinator，可以启用和禁用，并且可以由调试器跟踪。
     /// </summary>
     public abstract class MonoEventCoordinator : MonoBehaviour, IEventCoordinator
     {

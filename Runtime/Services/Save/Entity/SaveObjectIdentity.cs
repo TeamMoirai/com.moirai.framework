@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Save
     /// 存档对象身份：为预置场景对象提供跨会话稳定 ID（编辑器期烘焙）。
     /// </summary>
     /// <remarks>
-    /// 无代码保存的 <c>UnityEngine.Object</c> 场景引用字段经本组件持久化：捕获存 ID 字符串，恢复经 <see cref="SaveEntityRegistry"/> 反查当前场景内的同名 ID 对象。
+    /// 无代码保存的 <c>UnityEngine.Object</c> 场景引用字段经本组件持久化：捕获存 ID 字符串，恢复经 <see cref="SaveEntityRegistry"/> 反查当前场景内的同名 ID 对象。 <br />
     /// 动态生成实体（运行期 <c>Instantiate</c>）的 ID 注入与作用域拆分由实体持久化提供。
     /// </remarks>
     [AddComponentMenu("Moirai/Save Object Identity")]
@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Save
         /// 编辑器期烘焙稳定 ID（空则赋新 GUID）。
         /// </summary>
         /// <remarks>
-        /// 预制体资产本体不烘焙（资产上的 ID 会被全部实例共享而必然撞键）；场景内实例仍各自烘焙，经该预制体动态生成的实体由实体管线在激活前注入每实例唯一 ID。
+        /// 预制体资产本体不烘焙（资产上的 ID 会被全部实例共享而必然撞键）；场景内实例仍各自烘焙，经该预制体动态生成的实体由实体管线在激活前注入每实例唯一 ID。 <br />
         /// 复制物体（Ctrl+D）会连 ID 一起拷贝——重复 ID 在运行期注册时按首到先得处理并记告警，需重新烘焙时清空 ID 字段即可。
         /// </remarks>
         private void OnValidate()

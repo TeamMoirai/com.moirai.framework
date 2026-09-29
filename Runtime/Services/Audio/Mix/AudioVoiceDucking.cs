@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Audio
     /// 自动 Ducking：Voice 音轨有声在播时把混音切到 <see cref="EMixSnapshot.Dialogue"/>，全部播完再回落。
     /// </summary>
     /// <remarks>
-    /// 按「当前是否有 Voice 在播」由各后端声部表实算，不用播放/结束计数（计数漏减会永久压低混音，实算漏一次 Tick 下次自动纠正）。
+    /// 按「当前是否有 Voice 在播」由各后端声部表实算，不用播放/结束计数（计数漏减会永久压低混音，实算漏一次 Tick 下次自动纠正）。 <br />
     /// duck 请求被更高优先级状态挡下时不记为生效，回落也只在仍由本组件占着 Dialogue 时才做。
     /// </remarks>
     internal static class AudioVoiceDucking

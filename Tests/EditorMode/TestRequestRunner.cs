@@ -13,10 +13,10 @@ namespace Moirai.Atropos.Tests.EditorMode
     /// 请求式测试驱动：轮询工程 <c>Temp/</c> 下的请求文件跑一轮 Test Runner，进度与结果回写指定路径。
     /// </summary>
     /// <remarks>
-    /// 住在测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控），不进玩家包，是编辑器内的便利设施。
+    /// 住在测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控），不进玩家包，是编辑器内的便利设施。 <br />
     /// 协议：请求 <c>Temp/MoiraiTestRequest.json</c>（读到即删）、取消 <c>Temp/MoiraiTestRequest.cancel.json</c>、
-    /// 进度 <c>{output}.progress</c>、结果 <c>{output}</c> 与配对标记 <c>{output}.done</c>；调用方只轮询、不双向通信。
-    /// 调用方必须自带唯一 <c>id</c> 并只认配对的 <c>.done</c>；<c>assemblies</c> 与 <c>tests</c> 全空直接拒绝。
+    /// 进度 <c>{output}.progress</c>、结果 <c>{output}</c> 与配对标记 <c>{output}.done</c>；调用方只轮询、不双向通信。 <br />
+    /// 调用方必须自带唯一 <c>id</c> 并只认配对的 <c>.done</c>；<c>assemblies</c> 与 <c>tests</c> 全空直接拒绝。 <br />
     /// 编译、导入、切 PlayMode 或已有任意 run 在跑时不接单；域重载后按作业 guid 判活，判不了即按 ABORTED 强制收口。
     /// </remarks>
     [InitializeOnLoad]
@@ -521,9 +521,9 @@ namespace Moirai.Atropos.Tests.EditorMode
         /// 取消通道：按请求 id 匹配在途单，命中即删除取消文件并经 <c>CancelTestRun</c> 取消作业，不匹配的取消请求直接清掉。
         /// </summary>
         /// <remarks>
-        /// 取消文件内容为请求 id（裸文本或 <c>{"id":"..."}</c>）。
+        /// 取消文件内容为请求 id（裸文本或 <c>{"id":"..."}</c>）。 <br />
         /// UTF 受理取消后会清空任务管线、<b>不再送达 RunFinished</b>（RunFinishedInvocationEvent 被 Canceled 模式跳过），故受理即由本驱动收口，已收集计数随取消报告交付； <br />
-        /// 拒绝受理（作业已在收尾/已取消中/找不到 runner）则继续等 RunFinished 自然收口。
+        /// 拒绝受理（作业已在收尾/已取消中/找不到 runner）则继续等 RunFinished 自然收口。 <br />
         /// 收口后在途单为 null，后续回调自然空转。
         /// </remarks>
         private static void TryCancelRun()

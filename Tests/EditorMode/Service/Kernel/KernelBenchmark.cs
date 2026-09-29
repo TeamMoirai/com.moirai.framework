@@ -8,7 +8,7 @@ namespace Service.Kernel
 {
     /// <summary>内核性能基准（<c>[Explicit]</c>，不参与常规回归，优化对比时手动运行）。</summary>
     /// <remarks>
-    /// 测量项：服务注册、跨作用域查找、Tick 分派（含 GC 采样）。
+    /// 测量项：服务注册、跨作用域查找、Tick 分派（含 GC 采样）。 <br />
     /// 编辑器 Mono 基准噪声 ±2×，只做同轮内相对比较；跑完经 <see cref="BenchmarkReport"/> 落统一文件夹 &lt;工程根&gt; <br />
     /// /Benchmarks/kernelbenchmark-benchmark.xml。
     /// </remarks>

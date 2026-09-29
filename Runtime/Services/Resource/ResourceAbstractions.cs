@@ -308,7 +308,7 @@ namespace Moirai.Atropos.Resource
         /// 包版本号。
         /// </summary>
         /// <remarks>
-        /// 异步后端在操作完成前无法得知版本号——默认实现保存调用时的快照值；
+        /// 异步后端在操作完成前无法得知版本号——默认实现保存调用时的快照值； <br />
         /// 后端应派生并覆写为实时透读底层操作（推荐），避免调用方在操作完成后仍取到创建期的过期空值。
         /// </remarks>
         public virtual string PackageVersion { get; set; }

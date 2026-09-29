@@ -13,7 +13,7 @@ using HybridCLR;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 代码初始化
+    /// 流程 => 代码初始化。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureLoadAssembly : ProcedurePremainBase

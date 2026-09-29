@@ -18,7 +18,7 @@ namespace Moirai.Atropos.UI
     public class WindowAttribute : Attribute
     {
         /// <summary>
-        /// 窗口层级
+        /// 窗口层级。
         /// </summary>
         public readonly int windowLayer;
 

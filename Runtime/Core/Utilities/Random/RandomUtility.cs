@@ -8,7 +8,7 @@ namespace Moirai.Atropos
     /// 框架统一随机入口：每线程一条 <see cref="RandomSource"/> 流，线程安全、取值零分配、可播种。
     /// </summary>
     /// <remarks>
-    /// 取值不受 <c>UnityEngine.Random.InitState</c> 影响，框架随机与 Unity 随机是两条独立流；要复现走 <see cref="Reseed(ulong)"/>。
+    /// 取值不受 <c>UnityEngine.Random.InitState</c> 影响，框架随机与 Unity 随机是两条独立流；要复现走 <see cref="Reseed(ulong)"/>。 <br />
     /// 不播种时初始种子取自进程熵源（每次运行都不同）；<see cref="Reseed(ulong)"/> 后单线程逐位可复现，多线程只保证「同一种子 + 同一线程」的流一致。
     /// </remarks>
     public static class RandomUtility
@@ -122,7 +122,7 @@ namespace Moirai.Atropos
         /// 返回本线程那条流的可写引用（全局重新播种后即就地换血）。
         /// </summary>
         /// <remarks>
-        /// 供需要在一轮循环里反复取数的调用方使用（如 <see cref="ShuffleUtility"/>），省掉每次过门面的开销。
+        /// 供需要在一轮循环里反复取数的调用方使用（如 <see cref="ShuffleUtility"/>），省掉每次过门面的开销。 <br />
         /// 它是引用而非句柄，不要长期保存为值字段——换线程即换语义。
         /// </remarks>
         public static ref RandomSource SharedStream()

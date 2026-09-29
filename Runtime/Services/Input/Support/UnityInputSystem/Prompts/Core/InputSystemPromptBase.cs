@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 namespace Moirai.Atropos.Input.Prompts
 {
     /// <summary>
-    /// InputSystem 提示抽象类
+    /// InputSystem 提示抽象类。
     /// </summary>
     public abstract class InputSystemPromptBase : MonoBehaviour
     {
@@ -37,9 +37,8 @@ namespace Moirai.Atropos.Input.Prompts
         protected abstract void RefreshPrompt();
         
         /// <summary>
-        /// 当活动输入设备更改时调用
+        /// 当活动输入设备更改时调用。
         /// </summary>
-        /// <param name="device"></param>
         private void DeviceChanged(InputDevice device)
         {
             RefreshPrompt();

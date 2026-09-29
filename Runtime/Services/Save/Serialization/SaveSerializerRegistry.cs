@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Save
     /// 存档序列化后端注册表：后端标识 → 序列化器实例的静态查询点。
     /// </summary>
     /// <remarks>
-    /// 内置后端在静态构造期注册；自定义后端经 <see cref="Register"/> 开放注册（重复后端 fail-fast）。
+    /// 内置后端在静态构造期注册；自定义后端经 <see cref="Register"/> 开放注册（重复后端 fail-fast）。 <br />
     /// 查询未注册后端（依赖未接入/标识非法）由 <see cref="GetRequired"/> 抛 <see cref="GameException"/> fail-fast，避免静默降级导致块数据损坏。
     /// </remarks>
     public static class SaveSerializerRegistry

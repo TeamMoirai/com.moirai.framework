@@ -9,8 +9,8 @@ namespace Moirai.Atropos.Audio
     /// AudioSource 空间整形选项（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线），对应 Unity AudioSource 的「空间设置 / 3D Sound Settings」面板。
     /// </summary>
     /// <remarks>
-    /// 「往哪儿播」（Location/AttachToTransform）留在 <see cref="AudioPlayOptions"/>，「怎么响」收拢在本类型。
-    /// 经 <see cref="AudioPlayColdParams.Spatial"/> 进入冷路径，仅在 BeginPlayback 时写入 AudioSource，热循环不拷贝本类型。
+    /// 「往哪儿播」（Location/AttachToTransform）留在 <see cref="AudioPlayOptions"/>，「怎么响」收拢在本类型。 <br />
+    /// 经 <see cref="AudioPlayColdParams.Spatial"/> 进入冷路径，仅在 BeginPlayback 时写入 AudioSource，热循环不拷贝本类型。 <br />
     /// 零值结构体等于「无多普勒、零衰减距离、无混响」，需要自定义时从 <see cref="Default"/> 起覆盖。
     /// </remarks>
     [Serializable]

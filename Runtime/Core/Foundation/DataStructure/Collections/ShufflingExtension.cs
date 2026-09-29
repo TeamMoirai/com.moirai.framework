@@ -13,9 +13,9 @@ namespace Moirai.Atropos.Collections
         /// <summary>
         /// 原地洗牌（Fisher–Yates 算法），修改原列表顺序。
         /// </summary>
-        /// <typeparam name="T">元素类型</typeparam>
-        /// <param name="list">待洗牌列表，不能为 null</param>
-        /// <exception cref="ArgumentNullException">list 为 null</exception>
+        /// <typeparam name="T">元素类型。</typeparam>
+        /// <param name="list">待洗牌列表，不能为 null。</param>
+        /// <exception cref="ArgumentNullException">list 为 null。</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Shuffle<T>(this IList<T> list)
         {
@@ -27,10 +27,10 @@ namespace Moirai.Atropos.Collections
         /// <summary>
         /// 返回一个新列表，包含原列表元素经洗牌后的顺序（原列表不变）。
         /// </summary>
-        /// <typeparam name="T">元素类型</typeparam>
-        /// <param name="list">原始列表，不能为 null</param>
-        /// <returns>新顺序的列表</returns>
-        /// <exception cref="ArgumentNullException">list 为 null</exception>
+        /// <typeparam name="T">元素类型。</typeparam>
+        /// <param name="list">原始列表，不能为 null。</param>
+        /// <returns>新顺序的列表。</returns>
+        /// <exception cref="ArgumentNullException">list 为 null。</exception>
         public static List<T> Shuffled<T>(this IReadOnlyList<T> list)
         {
             if (list == null) throw new ArgumentNullException(nameof(list));
@@ -43,11 +43,11 @@ namespace Moirai.Atropos.Collections
         /// <summary>
         /// 从列表中随机选取一个元素。
         /// </summary>
-        /// <typeparam name="T">元素类型</typeparam>
-        /// <param name="list">列表，不能为 null 且不能为空</param>
-        /// <returns>随机元素</returns>
-        /// <exception cref="ArgumentNullException">list 为 null</exception>
-        /// <exception cref="InvalidOperationException">列表为空</exception>
+        /// <typeparam name="T">元素类型。</typeparam>
+        /// <param name="list">列表，不能为 null 且不能为空。</param>
+        /// <returns>随机元素。</returns>
+        /// <exception cref="ArgumentNullException">list 为 null。</exception>
+        /// <exception cref="InvalidOperationException">列表为空。</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T RandomElement<T>(this IReadOnlyList<T> list)
         {

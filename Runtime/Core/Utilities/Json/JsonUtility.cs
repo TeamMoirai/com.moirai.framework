@@ -101,7 +101,7 @@ namespace Moirai.Atropos
         /// <param name="obj">要序列化的对象。</param>
         /// <returns>UTF8 JSON 字节（调用方持有所有权）。</returns>
         /// <remarks>
-        /// 当前 Handler 实现 <see cref="IBufferJsonHandler"/> 时走字节快速通路（无 string 中间态）；
+        /// 当前 Handler 实现 <see cref="IBufferJsonHandler"/> 时走字节快速通路（无 string 中间态）； <br />
         /// 否则自动回退 string 路径后 UTF8 编码，调用方无感。
         /// </remarks>
         public static byte[] ToJsonBytes(object obj)
@@ -179,10 +179,8 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 格式化 Json 字符串
+        /// 格式化 Json 字符串。
         /// </summary>
-        /// <param name="json"></param>
-        /// <returns></returns>
         public static string FormatJson(string json)
         {
             if (string.IsNullOrEmpty(json)) return string.Empty;
