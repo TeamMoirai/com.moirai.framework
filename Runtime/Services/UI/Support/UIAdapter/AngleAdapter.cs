@@ -41,8 +41,21 @@ namespace Moirai.Atropos.UI.Adapter
             for (int i = 0; i < SelfRect.childCount; i++)
             {
                 var item = SelfRect.GetChild(i) as RectTransform;
-                item.localRotation = Quaternion.Euler(0, 0, sumGap);
-                item.localPosition = new Vector2(Distance * Mathf.Cos((sumGap + 90) * Mathf.PI / 180f), Distance * Mathf.Sin((sumGap + 90) * Mathf.PI / 180f));
+                var rotation = Quaternion.Euler(0, 0, sumGap);
+                var position = new Vector2(Distance * Mathf.Cos((sumGap + 90) * Mathf.PI / 180f), Distance * Mathf.Sin((sumGap + 90) * Mathf.PI / 180f));
+
+                // 同值写入跳过：Transform 赋值不比较值，照写即每帧弄脏层级（内容没变也一样）。
+                // 命中即当前值已等于目标，跳过与写入等价；被外部转动/挪动时值不等，照旧写回。
+                if (item.localRotation != rotation)
+                {
+                    item.localRotation = rotation;
+                }
+
+                if ((Vector2)item.localPosition != position)
+                {
+                    item.localPosition = position;
+                }
+
                 if (Clockwise)
                 {
                     sumGap -= Gap;
