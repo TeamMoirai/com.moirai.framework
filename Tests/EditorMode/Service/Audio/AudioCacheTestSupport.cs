@@ -8,9 +8,10 @@ namespace Service.Audio
 {
     /// <summary>
     /// Clip 缓存测试台：可控的 <see cref="IAudioClipLeaseSource"/> 假件 + 台账不变量断言。
-    /// <para>假件把「同地址实际向后端发起的加载次数」与「尚未归还后端的租约数」显式记账，
-    /// 异步完成由测试手动放行（<see cref="CompleteNext"/>），以便断言迟到回调的世代校验。</para>
     /// </summary>
+    /// <remarks>
+    /// 假件记账「同地址向后端发起的加载次数」与「未归还租约数」；异步完成由测试经 <see cref="CompleteNext"/> 手动放行，以断言迟到回调的世代校验。
+    /// </remarks>
     internal sealed class AudioCacheTestSupport : IAudioClipLeaseSource, IDisposable
     {
         private readonly Dictionary<string, int> _loads = new Dictionary<string, int>();
@@ -38,10 +39,8 @@ namespace Service.Audio
         /// <summary>true 时异步加载不立即回调，改由 <see cref="CompleteNext"/> 放行。</summary>
         public bool ManualAsync;
 
-        /// <summary>
-        /// true 时归还的句柄重新投入使用。只给基准用例用：它把循环长度与预建租约数解耦，
-        /// 否则几万轮驱逐会先造出几万条 <see cref="AudioClip"/>。身份比对类用例必须保持 false。
-        /// </summary>
+        /// <summary>true 时归还的句柄重新投入使用，仅基准用例使用。</summary>
+        /// <remarks>它把循环长度与预建租约数解耦；身份比对类用例必须保持 false，否则几万轮驱逐会先造出几万条 <see cref="AudioClip"/>。</remarks>
         public bool RecycleLeases;
 
         /// <summary>挂起中的异步加载数。</summary>
@@ -82,7 +81,9 @@ namespace Service.Audio
             pending.Completed(fail ? default : MakeLease());
         }
 
-        /// <summary>放行全部挂起的异步加载。</summary>
+        /// <summary>
+        /// 放行全部挂起的异步加载。
+        /// </summary>
         public void CompleteAll(bool fail = false)
         {
             while (_pending.Count > 0)
@@ -91,7 +92,9 @@ namespace Service.Audio
             }
         }
 
-        /// <summary>取一个已在缓存中的条目（不改变引用计数）。</summary>
+        /// <summary>
+        /// 取一个已在缓存中的条目（不改变引用计数）。
+        /// </summary>
         public AudioClipCacheEntry Entry(string address)
         {
             Assert.IsTrue(Cache.TryGetEntry(address, out var entry), $"缓存中应有 {address}");
@@ -110,9 +113,9 @@ namespace Service.Audio
         }
 
         /// <summary>
-        /// 预建若干租约：分配类用例借此把"测试台自己的 new"挡在被测窗口之外，
-        /// 否则量到的是夹具开销而不是产码开销。
+        /// 预建若干租约，把测试台自身的分配挡在被测窗口之外。
         /// </summary>
+        /// <remarks>用于分配类用例，否则量到的是夹具开销而不是产码开销。</remarks>
         public void PrepareLeases(int count)
         {
             for (int i = 0; i < count; i++) _preparedLeases.Enqueue(CreateLease());
@@ -169,7 +172,9 @@ namespace Service.Audio
                 if (_owner.RecycleLeases) _owner._recycledHandles.Enqueue(this);
             }
 
-            /// <summary>重新投入使用；未归还就复用说明句柄被复制到了两处，直接抛而不是静默错账。</summary>
+            /// <summary>
+            /// 重新投入使用；未归还就复用说明句柄被复制到了两处，直接抛而不是静默错账。
+            /// </summary>
             public void Rearm()
             {
                 if (!_disposed) throw new InvalidOperationException("租约尚未归还即重新投入使用。");
@@ -181,9 +186,9 @@ namespace Service.Audio
         #region 台账不变量 [LEDGER INVARIANTS]
 
         /// <summary>
-        /// 遍历缓存内部链表的不变量断言：两条双向链自洽无环、LRU 链上的条目必为「无引用且非 Pin 非 Loading」
-        /// 且按最后使用时间递增、<c>Count</c> 与 All 链长度一致。用于锁死驱逐与槽位复用的记账。
+        /// 遍历缓存内部链表的不变量断言，用于锁定驱逐与槽位复用的记账。
         /// </summary>
+        /// <remarks>两条双向链自洽无环；LRU 链上的条目必为「无引用且非 Pin 非 Loading」且按最后使用时间递增；<c>Count</c> 与 All 链长度一致。</remarks>
         public void CheckInvariants()
         {
             var inAll = new HashSet<AudioClipCacheEntry>();

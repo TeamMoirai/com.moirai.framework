@@ -10,18 +10,15 @@ using PopupWindow = UnityEditor.PopupWindow;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// <see cref="ProviderDropdownAttribute"/> 的 Drawer（Odin 为框架必备组件，本 Drawer 为唯一实现，
-    /// 不再提供 Unity 原生 PropertyDrawer 路径）。
-    /// 下拉行绘制与子属性展开由本 Drawer 全权负责：<b>子属性优先交由 Odin PropertyTree 绘制</b>——
-    /// 实现类字段上的 Odin 特性（[ValueDropdown]、[LabelText]、[InfoBox] 等）由此正常生效。
-    /// <para>无需在每个字段上手动添加 <c>[DrawWithUnity]</c>。</para>
+    /// <see cref="ProviderDropdownAttribute"/> 的 Drawer：接管下拉行绘制与子属性展开，是 Odin 下该特性的唯一实现。
     /// </summary>
     /// <remarks>
-    /// 优先级设为 super=1，确保在 Odin 4.0.x 下优先于默认 managed reference drawer 与 DrawWithUnity(10000)，始终接管绘制。
-    /// 优先获取 Unity SerializedProperty（SerializedObject 场景）走串行化属性路径绘制；
-    /// 4.0.x 下 UnityPropertyPath 解析失败或纯 Odin 宿主（无 SerializedObject）时，
-    /// 退化为 Odin 值条目驱动路径（<see cref="DrawValueEntryFallback"/>），不再回退到 Odin 默认 managed-reference 绘制，
-    /// 从而避免其子内容渲染失效。
+    /// 子属性优先交由 Odin PropertyTree 绘制，实现类字段上的 Odin 特性（<c>[ValueDropdown]</c>、<c>[LabelText]</c>、<c>[InfoBox]</c> 等）据此生效， <br />
+    /// 无需再手加 <c>[DrawWithUnity]</c>。 <br />
+    /// 优先级 super=1，确保优先于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)，始终接管绘制。 <br />
+    /// 优先走 Unity SerializedProperty 串行化路径； <br />
+    /// <c>UnityPropertyPath</c> 解析失败或纯 Odin 宿主（无 SerializedObject）时退化为 Odin 值条目路径（<see cref="DrawValueEntryFallback"/>）， <br />
+    /// 不回退 Odin 默认 managed-reference 绘制。 <br />
     /// Odin 未解析出子属性时（如未启用多态序列化后端），子属性区回退为 Unity 序列化绘制。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]
@@ -36,8 +33,7 @@ namespace Moirai.Atropos
         #region 类型菜单缓存 [TYPE MENU CACHE]
 
         /// <summary>
-        /// 类型菜单缓存：按基类全局共享一份（TypeCache 查询、排序、选项数组、索引字典），
-        /// 避免同一基类的每个属性每次绘制重复构建。
+        /// 类型菜单缓存：按基类全局共享一份（TypeCache 查询、排序、选项数组、索引字典），避免同一基类的每个属性每次绘制重复构建。
         /// </summary>
         internal sealed class TypeMenuCache
         {
@@ -97,11 +93,15 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>按类型全名或简单名查选项索引（0 = None），O(1)。</summary>
+            /// <summary>
+            /// 按类型全名或简单名查选项索引（0 = None），O(1)。
+            /// </summary>
             internal int IndexOfName(string typeName) =>
                 !string.IsNullOrEmpty(typeName) && _nameToIndex.TryGetValue(typeName, out int index) ? index : 0;
 
-            /// <summary>按 Type 查选项索引（0 = None），O(1)。</summary>
+            /// <summary>
+            /// 按 Type 查选项索引（0 = None），O(1)。
+            /// </summary>
             internal int IndexOfType(Type type) =>
                 type != null && _typeToIndex.TryGetValue(type, out int index) ? index : 0;
         }
@@ -111,8 +111,7 @@ namespace Moirai.Atropos
         #region 通用与共享绘制 [SHARED]
 
         /// <summary>
-        /// 每字段的下拉选项视图：把 <c>(None)</c> 的显示决策与索引换算集中到这里，
-        /// 供串行化属性路径与值条目路径共用同一套"本地选项"（其索引从 0 连续递增）。
+        /// 每字段的下拉选项视图：集中 <c>(None)</c> 的显示决策与索引换算，供串行化属性路径与值条目路径共用同一套「本地选项」（索引从 0 连续递增）。
         /// </summary>
         internal readonly struct ProviderOptions
         {
@@ -148,14 +147,18 @@ namespace Moirai.Atropos
             /// <summary>本地选项数量（恒 ≥ 1：候选为空时仍强制包含 (None)）。</summary>
             internal readonly int Count => NameOptions.Length;
 
-            /// <summary>缓存索引（0=None，1..n=类型）→ 本地索引。</summary>
+            /// <summary>
+            /// 缓存索引（0=None，1..n=类型）→ 本地索引。
+            /// </summary>
             internal readonly int CacheToLocal(int cacheIndex)
             {
                 if (IncludeNone) return cacheIndex;
                 return cacheIndex <= 0 ? 0 : Mathf.Min(cacheIndex - 1, Count - 1);
             }
 
-            /// <summary>本地索引 → 缓存索引（0=None，1..n=类型）。</summary>
+            /// <summary>
+            /// 本地索引 → 缓存索引（0=None，1..n=类型）。
+            /// </summary>
             internal readonly int LocalToCache(int localIndex)
             {
                 if (IncludeNone) return localIndex;
@@ -163,7 +166,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>写入选项：string 模式存类型全名，引用模式存实例，0 = None。</summary>
+        /// <summary>
+        /// 写入选项：string 模式存类型全名，引用模式存实例，0 = None。
+        /// </summary>
         private static void ApplySelection(SerializedProperty property, int index, TypeMenuCache cache)
         {
             if (property.propertyType == SerializedPropertyType.String)
@@ -181,8 +186,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 写入选项并注册撤销：
-        /// Update → Undo.RecordObject → 写值 → ApplyModifiedProperties，保证 Ctrl+Z 可回退。
+        /// 写入选项并注册撤销：<c>Update</c> → <c>Undo.RecordObject</c> → 写值 → <c>ApplyModifiedProperties</c>，保证 Ctrl+Z 可回退。
         /// </summary>
         private static void ApplySelectionWithUndo(SerializedProperty property, int index, TypeMenuCache cache)
         {
@@ -192,7 +196,9 @@ namespace Moirai.Atropos
             property.serializedObject.ApplyModifiedProperties();
         }
 
-        /// <summary>读取当前选项索引（按属性类型自动分派，字典 O(1) 查询）。</summary>
+        /// <summary>
+        /// 读取当前选项索引（按属性类型自动分派，字典 O(1) 查询）。
+        /// </summary>
         private static int FindCurrentIndex(TypeMenuCache cache, SerializedProperty property) =>
             property.propertyType == SerializedPropertyType.String
                 ? cache.IndexOfName(property.stringValue)
@@ -200,7 +206,9 @@ namespace Moirai.Atropos
                     ? 0
                     : cache.IndexOfType(property.managedReferenceValue.GetType());
 
-        /// <summary>foldout 键：对象实例 ID + 属性路径，避免不同对象的相同属性路径互相干扰。</summary>
+        /// <summary>
+        /// foldout 键：对象实例 ID + 属性路径，避免不同对象的相同属性路径互相干扰。
+        /// </summary>
         private static string FoldoutKey(SerializedProperty property) =>
             property.serializedObject.targetObject.GetInstanceID() + property.propertyPath;
 
@@ -209,7 +217,9 @@ namespace Moirai.Atropos
 
         private static void SetFoldout(string key, bool value) => s_Foldouts[key] = value;
 
-        /// <summary>遍历直接可见子属性（高度计算与 Unity 序列化回退绘制共用）。visitor 需跨迭代持有时应自行 Copy。</summary>
+        /// <summary>
+        /// 遍历直接可见子属性（高度计算与 Unity 序列化回退绘制共用）。visitor 需跨迭代持有时应自行 Copy。
+        /// </summary>
         private static void ForEachVisibleChild(SerializedProperty property, Action<SerializedProperty> visit)
         {
             var child = property.Copy();
@@ -230,7 +240,9 @@ namespace Moirai.Atropos
             return child.NextVisible(true) && !SerializedProperty.EqualContents(child, end);
         }
 
-        /// <summary>子属性区高度：内边距 ×2 + 子属性高度与间距（Unity 序列化回退路径用）。</summary>
+        /// <summary>
+        /// 子属性区高度：内边距 ×2 + 子属性高度与间距（Unity 序列化回退路径用）。
+        /// </summary>
         private static float GetChildrenHeight(SerializedProperty property)
         {
             float spacing = EditorGUIUtility.standardVerticalSpacing;
@@ -247,11 +259,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 绘制下拉行：标签 + popup 按钮（引用模式且需展开子属性时右侧并排 foldout 箭头）。<br />
-        /// 串行化属性路径与值条目路径共用，保证两种驱动下行内交互完全一致。<br />
-        /// 返回 foldout 展开状态（string 模式恒为 true）。<br />
-        /// <paramref name="applySelection"/> 收到的是<b>缓存索引</b>（0=None，1..n=类型）。
+        /// 绘制下拉行：标签 + popup 按钮（引用模式且需展开子属性时右侧并排 foldout 箭头），串行化属性路径与值条目路径共用。
         /// </summary>
+        /// <returns>foldout 展开状态（string 模式恒为 true）。</returns>
+        /// <remarks>
+        /// <paramref name="applySelection"/> 收到的是缓存索引（<c>0</c>=None，<c>1..n</c>=类型）。
+        /// </remarks>
         private static bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
             ProviderOptions options, bool reserveFoldout, Action<SerializedProperty, int> applySelection)
         {
@@ -261,10 +274,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 下拉行核心绘制（不依赖 SerializedProperty）。<br />
-        /// 供串行化属性路径与值条目回退路径共用，保证两种驱动下行内交互完全一致。<br />
-        /// <paramref name="currentLocalIndex"/> 与 <paramref name="onSelectedLocal"/> 均为<b>本地索引</b>。
+        /// 下拉行核心绘制（不依赖 SerializedProperty）：供串行化属性路径与值条目回退路径共用，保证两种驱动下行内交互一致。
         /// </summary>
+        /// <remarks>
+        /// <paramref name="currentLocalIndex"/> 与 <paramref name="onSelectedLocal"/> 均为本地索引。
+        /// </remarks>
         private static bool DrawRowCore(Rect position, GUIContent label, ProviderOptions options, bool reserveFoldout,
             string foldKey, int currentLocalIndex, Action<int> onSelectedLocal)
         {
@@ -316,7 +330,9 @@ namespace Moirai.Atropos
             EditorGUI.indentLevel = indent;
         }
 
-        /// <summary>显示带类型详情的自定义下拉弹窗（两条路径共用）。</summary>
+        /// <summary>
+        /// 显示带类型详情的自定义下拉弹窗（两条路径共用）。
+        /// </summary>
         private static void ShowDropdown(Rect activatorRect, ProviderOptions options, int currentLocalIndex, Action<int> onSelectedLocal)
         {
             PopupWindow.Show(activatorRect, new TypeDropdownPopup(options, currentLocalIndex, onSelectedLocal));
@@ -400,9 +416,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 值条目驱动回退路径：当无法取得 Unity SerializedProperty（4.0.x 路径解析失败 / 纯 Odin 宿主）时，
-        /// 行读取/写入改由 Odin <see cref="InspectorProperty.ValueEntry"/> 完成，子内容仍交由 Odin PropertyTree 绘制，
-        /// 保证自定义下拉与序列化内容在任何宿主下都能正常显示。
+        /// 值条目驱动回退路径：无法取得 Unity SerializedProperty（路径解析失败 / 纯 Odin 宿主）时，行读取与写入改走 Odin <see cref="InspectorProperty.ValueEntry"/>， <br />
+        /// 子内容仍由 Odin PropertyTree 绘制。
         /// </summary>
         private void DrawValueEntryFallback(GUIContent label)
         {
@@ -447,7 +462,9 @@ namespace Moirai.Atropos
             DrawChildrenWithOdin();
         }
 
-        /// <summary>值条目模式写入当前选中项（string 模式存类型全名，引用模式存实例，缓存索引 0 = None）。</summary>
+        /// <summary>
+        /// 值条目模式写入当前选中项（string 模式存类型全名，引用模式存实例，缓存索引 0 = None）。
+        /// </summary>
         private void ApplyValue(ProviderOptions opts, int index)
         {
             var valueEntry = Property.ValueEntry;
@@ -468,7 +485,9 @@ namespace Moirai.Atropos
             GUI.changed = true;
         }
 
-        /// <summary>子属性是否在 Odin 侧存在可见项（State.Visible 由 Odin 处理隐藏特性后写入）。</summary>
+        /// <summary>
+        /// 子属性是否在 Odin 侧存在可见项（State.Visible 由 Odin 处理隐藏特性后写入）。
+        /// </summary>
         private bool HasVisibleOdinChildren()
         {
             var children = Property.Children;
@@ -477,7 +496,9 @@ namespace Moirai.Atropos
             return false;
         }
 
-        /// <summary>子属性交由 Odin PropertyTree 绘制，子字段上的 Odin 特性（ValueDropdown 等）正常生效。</summary>
+        /// <summary>
+        /// 子属性交由 Odin PropertyTree 绘制，子字段上的 Odin 特性（ValueDropdown 等）正常生效。
+        /// </summary>
         private void DrawChildrenWithOdin()
         {
             using (new EditorGUILayout.VerticalScope(ChildrenBoxStyle))

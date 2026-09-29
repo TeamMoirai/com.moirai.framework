@@ -4,9 +4,9 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.Localization
 {
 	/// <summary>
-	/// <see cref="RawImage"/> 本地化注入器，将本地化纹理资源应用到 RawImage 组件。
-	/// <para>预期资源类型为 <see cref="Texture"/>；若加载到的是 <see cref="Sprite"/>，会改用其底层纹理。</para>
+	/// <see cref="RawImage"/> 本地化注入器：把本地化纹理资源应用到 RawImage 组件。
 	/// </summary>
+	/// <remarks>预期资源类型为 <see cref="Texture"/>；加载到 <see cref="Sprite"/> 时改用其底层纹理。</remarks>
 	public class RawImageInjector : ImageInjectorBase
 	{
 		private readonly RawImage _rawImage;

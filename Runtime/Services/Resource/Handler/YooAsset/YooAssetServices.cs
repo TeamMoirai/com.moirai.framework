@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Resource
     #region 远端资源服务 [RemoteService]
 
     /// <summary>
-    /// 远端资源地址查询服务类
+    /// 远端资源地址查询服务类。
     /// </summary>
     internal class RemoteService : IRemoteService
     {

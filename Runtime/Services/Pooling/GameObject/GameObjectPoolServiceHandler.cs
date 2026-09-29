@@ -7,9 +7,11 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// GameObject 池处理器抽象基类（策略模式抽象策略）。
-    /// <para>默认实现为 <see cref="DefaultGameObjectPoolHandler"/>（分页槽位 + 代系租约 + 最小堆维护调度，PoolCatalog 数据驱动）。</para>
-    /// <para>可在 <see cref="GameObjectPoolServiceSettings"/> 中替换为自定义对象池后端。</para>
     /// </summary>
+    /// <remarks>
+    /// 默认实现为 <see cref="DefaultGameObjectPoolHandler"/>（分页槽位 + 代系租约 + 最小堆维护调度，PoolCatalog 数据驱动）。 <br />
+    /// 可在 <see cref="GameObjectPoolServiceSettings"/> 中替换为自定义对象池后端。
+    /// </remarks>
     [Serializable]
     public abstract class GameObjectPoolServiceHandler : FrameworkHandler
     {

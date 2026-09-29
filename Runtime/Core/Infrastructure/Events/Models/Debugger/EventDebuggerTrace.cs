@@ -2,17 +2,11 @@ namespace Moirai.Atropos.Events
 {
     internal class EventDebuggerTrace
     {
-        /// <summary>
-        /// 获取事件记录信息。
-        /// </summary>
+        /// <summary>获取事件记录信息。</summary>
         public EventDebuggerEventRecord EventBase { get; }
-        /// <summary>
-        /// 获取或设置事件处理耗时（毫秒）。
-        /// </summary>
+        /// <summary>获取或设置事件处理耗时（毫秒）。</summary>
         public long Duration { get; set; }
-        /// <summary>
-        /// 获取关联的事件协调器。
-        /// </summary>
+        /// <summary>获取关联的事件协调器。</summary>
         public IEventCoordinator Coordinator { get; }
         /// <summary>
         /// 创建事件处理轨迹记录。
@@ -29,25 +23,15 @@ namespace Moirai.Atropos.Events
     }
     internal class EventDebuggerCallTrace : EventDebuggerTrace
     {
-        /// <summary>
-        /// 获取回调的哈希码。
-        /// </summary>
+        /// <summary>获取回调的哈希码。</summary>
         public int CallbackHashCode { get; }
-        /// <summary>
-        /// 获取回调的显示名称。
-        /// </summary>
+        /// <summary>获取回调的显示名称。</summary>
         public string CallbackName { get; }
-        /// <summary>
-        /// 获取回调执行后传播是否已停止。
-        /// </summary>
+        /// <summary>获取回调执行后传播是否已停止。</summary>
         public bool PropagationHasStopped { get; }
-        /// <summary>
-        /// 获取回调执行后是否已立即停止同元素上的后续回调。
-        /// </summary>
+        /// <summary>获取回调执行后是否已立即停止同元素上的后续回调。</summary>
         public bool ImmediatePropagationHasStopped { get; }
-        /// <summary>
-        /// 获取回调执行后是否已阻止默认行为。
-        /// </summary>
+        /// <summary>获取回调执行后是否已阻止默认行为。</summary>
         public bool DefaultHasBeenPrevented { get; }
 
         /// <summary>
@@ -78,14 +62,10 @@ namespace Moirai.Atropos.Events
 
     internal class EventDebuggerDefaultActionTrace : EventDebuggerTrace
     {
-        /// <summary>
-        /// 获取执行默认行为时所处的传播阶段。
-        /// </summary>
+        /// <summary>获取执行默认行为时所处的传播阶段。</summary>
         public PropagationPhase Phase { get; }
 
-        /// <summary>
-        /// 获取事件目标的完整类型名。
-        /// </summary>
+        /// <summary>获取事件目标的完整类型名。</summary>
         public string TargetName
         {
             get { return EventBase.Target.GetType().FullName; }
@@ -106,9 +86,7 @@ namespace Moirai.Atropos.Events
     }
     class EventDebuggerPathTrace : EventDebuggerTrace
     {
-        /// <summary>
-        /// 获取事件的传播路径。
-        /// </summary>
+        /// <summary>获取事件的传播路径。</summary>
         public PropagationPaths Paths { get; }
 
         /// <summary>

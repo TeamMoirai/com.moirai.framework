@@ -4,9 +4,11 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// IMGUI 调试视图适配器（将 <see cref="ServiceDebugView"/> 的 GUILayout 内容嵌入 UI Toolkit 调试器）。
-    /// <para>经 <see cref="IMGUIContainer"/> 承载绘制——既有 IMGUI 调试视图零改动即可在游戏内调试器渲染；仅该窗口打开期间产生 IMGUI 同步布局开销。</para>
+    /// IMGUI 调试视图适配器：将 <see cref="ServiceDebugView"/> 的 GUILayout 内容嵌入 UI Toolkit 调试器。
     /// </summary>
+    /// <remarks>
+    /// 经 <see cref="IMGUIContainer"/> 承载绘制；仅该窗口打开期间产生 IMGUI 同步布局开销。
+    /// </remarks>
     public sealed class IMGUIDebuggerWindow : IDebuggerWindow
     {
         #region 字段 [FIELDS]
@@ -30,9 +32,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取被适配的服务调试视图。
-        /// </summary>
+        /// <summary>获取被适配的服务调试视图。</summary>
         public ServiceDebugView View => _view;
 
         #endregion

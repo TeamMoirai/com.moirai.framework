@@ -9,13 +9,14 @@ using UnityEngine.TestTools;
 namespace Core.Tasks
 {
     /// <summary>
-    /// Tasks 编排骨架的 PlayMode 集成测试：需要事件广播与每帧驱动的那两条路径。
-    /// <para>子任务完成会 <c>PostComplete</c> 派发事件、<see cref="TaskRunner"/> 的隔离判据只在
-    /// <c>Update</c> 里成立，而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/> 的静态入口
-    /// 在非 play mode 直接返回 null——这两件事在 EditMode 里测不到，故住在 PlayMode 侧；
-    /// 不依赖广播的三条（空队列、Reset 交还、引用下穿）见 <c>Tests/EditorMode/Core/Tasks/SequenceTaskTests</c>。</para>
-    /// <para>摘除/归还是否发生，一律用池的 LIFO 复用来观测（取回同一只实例），不去读内核私有集合。</para>
+    /// Tasks 编排骨架的 PlayMode 集成测试：覆盖需要事件广播与每帧驱动的那两条路径。
     /// </summary>
+    /// <remarks>
+    /// 子任务完成会 <c>PostComplete</c> 派发事件、<see cref="TaskRunner"/> 的隔离判据只在 <c>Update</c> 里成立，
+    /// 而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/> 的静态入口在非 play mode 直接返回 null；这两件事在 EditMode 里测不到。 <br />
+    /// 不依赖广播的三条（空队列、Reset 交还、引用下穿）见 <c>Tests/EditorMode/Core/Tasks/SequenceTaskTests</c>。 <br />
+    /// 摘除 / 归还是否发生，一律用池的 LIFO 复用来观测（取回同一只实例），不去读内核私有集合。
+    /// </remarks>
     [TestFixture]
     public sealed class TaskRunnerPlayModeTests
     {
@@ -71,7 +72,9 @@ namespace Core.Tasks
             Assert.AreSame(first, OneTickTask.GetPooled(), "第一段也应完好地回到池里");
         }
 
-        /// <summary>首轮 Tick 即完成并广播的子任务。</summary>
+        /// <summary>
+        /// 首轮 Tick 即完成并广播的子任务。
+        /// </summary>
         private sealed class OneTickTask : PooledTaskBase<OneTickTask>
         {
             internal int Ticks;
@@ -83,7 +86,9 @@ namespace Core.Tasks
             }
         }
 
-        /// <summary>只计数、永不自行结束的良性任务。</summary>
+        /// <summary>
+        /// 只计数、永不自行结束的良性任务。
+        /// </summary>
         private sealed class HealthyTask : PooledTaskBase<HealthyTask>
         {
             internal int Ticks;
@@ -94,7 +99,9 @@ namespace Core.Tasks
             }
         }
 
-        /// <summary>每次 Tick 都抛的任务，模拟"毒任务"。</summary>
+        /// <summary>
+        /// 每次 Tick 都抛的任务，模拟"毒任务"。
+        /// </summary>
         private sealed class PoisonTask : PooledTaskBase<PoisonTask>
         {
             public override void Tick()

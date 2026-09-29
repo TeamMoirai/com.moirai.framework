@@ -6,9 +6,11 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 游戏框架多值字典类。
-    /// <para><b>终结哨兵契约</b>：每个主键区间以一个持有 <c>default(TValue)</c> 的结点收尾——区间边界判定一律用
-    /// 结点身份（<c>!= Terminal</c>）而非值相等，业务值等于 default 不影响边界判定；哨兵结点不参与区间取值。</para>
     /// </summary>
+    /// <remarks>
+    /// 每个主键区间以持有 <c>default(TValue)</c> 的终结哨兵结点收尾，边界判定用结点身份而非值相等，
+    /// 业务值等于 default 不影响判定；哨兵结点不参与取值。
+    /// </remarks>
     /// <typeparam name="TKey">指定多值字典的主键类型。</typeparam>
     /// <typeparam name="TValue">指定多值字典的值类型。</typeparam>
     public sealed class GameMultiDictionary<TKey, TValue> : IEnumerable<KeyValuePair<TKey, GameLinkedListRange<TValue>>>, IEnumerable
@@ -25,14 +27,10 @@ namespace Moirai.Atropos
             _dictionary = new Dictionary<TKey, GameLinkedListRange<TValue>>();
         }
 
-        /// <summary>
-        /// 获取多值字典中实际包含的主键数量。
-        /// </summary>
+        /// <summary>获取多值字典中实际包含的主键数量。</summary>
         public int Count => _dictionary.Count;
 
-        /// <summary>
-        /// 获取多值字典中指定主键的范围。
-        /// </summary>
+        /// <summary>获取多值字典中指定主键的范围。</summary>
         /// <param name="key">指定的主键。</param>
         /// <returns>指定主键的范围。</returns>
         public GameLinkedListRange<TValue> this[TKey key]
@@ -221,14 +219,10 @@ namespace Moirai.Atropos
                 _enumerator = dictionary.GetEnumerator();
             }
 
-            /// <summary>
-            /// 获取当前结点。
-            /// </summary>
+            /// <summary>获取当前结点。</summary>
             public KeyValuePair<TKey, GameLinkedListRange<TValue>> Current => _enumerator.Current;
 
-            /// <summary>
-            /// 获取当前的枚举数。
-            /// </summary>
+            /// <summary>获取当前的枚举数。</summary>
             object IEnumerator.Current => _enumerator.Current;
 
             /// <summary>

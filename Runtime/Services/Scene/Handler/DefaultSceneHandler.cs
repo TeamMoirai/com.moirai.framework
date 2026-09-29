@@ -8,35 +8,27 @@ using UnityEngine.SceneManagement;
 namespace Moirai.Atropos.Scene
 {
     /// <summary>
-    /// 默认场景处理器实现。
-    /// <para><see cref="SceneServiceHandler"/> 的内置实现，承载主场景切换、附加场景加载/卸载、进度回调和挂起加载等核心逻辑。</para>
-    /// <para>场景加载经由 <see cref="ResourceService"/> 走资源系统管线——自动应用当前配置的资源后端适配器（YooAsset、Addressable 等），
-    /// 场景资源与普通资源共享包管理、下载与引用计数体系，而非引擎内建 <see cref="SceneManager"/> 加载管线。</para>
-    /// <para>标识约定：内部登记以资源地址（location）为键，同时维护场景短名（<see cref="UnityEngine.SceneManagement.Scene.name"/>）反向索引；
-    /// 查询/激活/卸载接口同时接受资源地址与场景短名，<see cref="CurrentMainSceneName"/> 与生命周期事件统一使用场景短名。
-    /// 场景短名须尽量全局唯一——碰撞时后注册者覆盖反向索引并打 Warning，按名查询可能解析到错误对象。</para>
-    /// <para>登记结构：全部登记状态收敛于 <see cref="SceneRegistry"/>（纯决策单元，可独立单测）；
-    /// 本类仅负责异步编排、进度/回调边界与日志/异常翻译。句柄只存一处（主场景在途用登记簿在途字段，子场景用子场景表）。</para>
-    /// <para>挂起加载契约：底层加载不可中止，挂起场景必须最终 <see cref="UnSuspend"/>；
-    /// 等待方取消（<see cref="CancellationToken"/>）只放弃等待，登记与事件由后台续体在加载真正结束时收尾。</para>
-    /// <para>由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。</para>
+    /// 默认场景处理器实现，承载主场景切换、附加场景加载/卸载、进度回调和挂起加载等核心逻辑。
     /// </summary>
+    /// <remarks>
+    /// 场景加载经 <see cref="ResourceService"/> 走资源系统管线加载场景——场景资源与普通资源共享包管理、下载与引用计数体系，而非引擎内建 <see cref="SceneManager"/> 加载管线， <br />
+    /// 自动应用当前配置的资源后端适配器（YooAsset、Addressable 等）。 <br />
+    /// 标识约定：内部登记以资源地址（location）为键并维护场景短名（<see cref="UnityEngine.SceneManagement.Scene.name"/>）反向索引；查询/激活/卸载接口同时接受资源地址与场景短名， <br />
+    /// <see cref="CurrentMainSceneName"/> 与生命周期事件统一使用场景短名；短名碰撞时后注册者覆盖反向索引并打 Warning，按名查询可能解析到错误对象。
+    /// 登记结构：全部登记状态收敛于 <see cref="SceneRegistry"/>（纯决策单元，可独立单测），本类仅负责异步编排、进度/回调边界与日志/异常翻译；句柄只存一处（主场景在途用登记簿在途字段，子场景用子场景表）。 <br />
+    /// 挂起加载契约：底层加载不可中止，挂起场景必须最终 <see cref="UnSuspend"/>；等待方取消（<see cref="CancellationToken"/>）只放弃等待，登记与事件由后台续体在加载真正结束时收尾。 <br />
+    /// 由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。
+    /// </remarks>
     [Serializable]
     internal sealed class DefaultSceneHandler : SceneServiceHandler
     {
-        /// <summary>
-        /// 场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。
-        /// </summary>
+        /// <summary>场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。</summary>
         [NonSerialized] private readonly SceneRegistry _registry = new SceneRegistry();
 
-        /// <summary>
-        /// 当前主场景名称（场景短名）。
-        /// </summary>
+        /// <summary>当前主场景名称（场景短名）。</summary>
         public override string CurrentMainSceneName => _registry.CurrentMainSceneName;
 
-        /// <summary>
-        /// 已完成加载的子场景资源地址快照（不含加载中的子场景）。
-        /// </summary>
+        /// <summary>已完成加载的子场景资源地址快照（不含加载中的子场景）。</summary>
         public override IReadOnlyCollection<string> LoadedSubSceneLocations => _registry.SnapshotLoadedSubScenes();
 
         /// <summary>
@@ -49,8 +41,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 处理器关闭，卸载已加载子场景并释放主场景在途/已完成句柄。
-        /// <para>登记簿排空保证每个句柄只从唯一登记处取出一次；逐项隔离异常，单个句柄处置失败不中断关闭链。</para>
         /// </summary>
+        /// <remarks>
+        /// 登记簿排空保证每个句柄只从唯一登记处取出一次；逐项隔离异常，单个句柄处置失败不中断关闭链。
+        /// </remarks>
         protected override void OnShutdown()
         {
             // 排空前先取日志上下文（Shutdown 会重置全部字段）
@@ -107,8 +101,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 同步发起场景加载（回调式）。
-        /// <para>回调契约：无论成败恰好回调一次；失败时以默认场景回调，调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// 回调契约：无论成败恰好回调一次；失败时以默认场景回调，调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>。
+        /// </remarks>
         /// <param name="location">场景资源定位地址。</param>
         /// <param name="packageName">资源包名称。</param>
         /// <param name="sceneMode">场景加载模式。</param>
@@ -156,9 +152,11 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 场景加载核心流程——经 <see cref="ResourceService"/> 走资源系统管线加载场景。
-        /// <para>门禁失败、资源后端同步失败、加载错误均抛出 <see cref="GameException"/>；
-        /// 等待方取消时由 <see cref="FinalizeLoadDetached"/> 后台收尾后重抛 <see cref="OperationCanceledException"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// 门禁失败、资源后端同步失败、加载错误均抛出 <see cref="GameException"/>； <br />
+        /// 等待方取消时由 <see cref="FinalizeLoadDetached"/> 后台收尾后重抛 <see cref="OperationCanceledException"/>。
+        /// </remarks>
         private async UniTask<UnityEngine.SceneManagement.Scene> LoadSceneInternal(string location, string packageName, LoadSceneMode sceneMode,
             bool suspendLoad, uint priority, bool gcCollect, Action<float> progressCallBack, CancellationToken cancellationToken)
         {
@@ -253,8 +251,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 等待场景加载句柄完成，支持取消等待；进度回调仅在进度变化时回报（异常被隔离记录），成功完成时以 1.0 收尾一次。
-        /// <para>取 internal 是给 PlayMode 帧驱动用例直接触达，不开反射接缝。</para>
         /// </summary>
+        /// <remarks>
+        /// internal 可见性供 PlayMode 帧驱动用例直接触达，不开反射接缝。
+        /// </remarks>
         internal static async UniTask AwaitSceneHandle(ResourceSceneHandle handle, Action<float> progressCallBack, CancellationToken cancellationToken)
         {
             // 进度判重：无变化不重复回报——进度回调是调用方代码，churn 无收益。
@@ -299,8 +299,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 加载完成收尾——登记迁移、主场景句柄切换与事件派发。
-        /// <para>加载失败时清理全部登记、释放句柄并抛出 <see cref="GameException"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// 加载失败时清理全部登记、释放句柄并抛出 <see cref="GameException"/>。
+        /// </remarks>
         private UnityEngine.SceneManagement.Scene FinalizeSceneLoad(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode, bool gcCollect)
         {
             _registry.UnmarkOperation(location);
@@ -356,8 +358,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 放弃等待后的后台收尾续体——轮询至加载真正完成后执行与同步路径一致的收尾逻辑。
-        /// <para>处理器已关闭（<see cref="OnShutdown"/> 已排空登记簿）或登记被清理时直接返回，放弃过期收尾。</para>
         /// </summary>
+        /// <remarks>
+        /// 处理器已关闭（<see cref="OnShutdown"/> 已排空登记簿）或登记被清理时直接返回，放弃过期收尾。
+        /// </remarks>
         private async UniTaskVoid FinalizeLoadDetached(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode, bool gcCollect)
         {
             while (!handle.IsDone)
@@ -483,9 +487,11 @@ namespace Moirai.Atropos.Scene
         }
 
         /// <summary>
-        /// 卸载子场景（回调式）。回调契约：卸载发起后无论成败恰好回调一次（参数为是否成功）；
-        /// 无效请求（地址未登记、存在在途操作）不发起亦不回调。
+        /// 卸载子场景（回调式）。回调契约：卸载发起后无论成败恰好回调一次（参数为是否成功）。
         /// </summary>
+        /// <remarks>
+        /// 无效请求（地址未登记、存在在途操作）不发起亦不回调。
+        /// </remarks>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <param name="callBack">卸载完成回调（参数为是否卸载成功）。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
@@ -523,8 +529,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 卸载核心流程（异步）——等待资源系统卸载操作完成，成功后清理登记并派发事件。
-        /// <para>卸载失败或句柄已失效时保留登记（场景仍在场）并返回 <c>false</c> 供重试；在途标记由 finally 保证释放。</para>
         /// </summary>
+        /// <remarks>
+        /// 卸载失败或句柄已失效时保留登记（场景仍在场）并返回 <c>false</c> 供重试；在途标记由 finally 保证释放。
+        /// </remarks>
         private async UniTask<bool> UnloadSceneInternal(string location, string sceneName, ResourceSceneHandle handle, Action<float> progressCallBack)
         {
             try

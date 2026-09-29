@@ -1,9 +1,9 @@
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 一条配置自检结果：<see cref="Field"/> 是设置项名，<see cref="Detail"/> 说清"为什么会出问题"与建议取值。
-    /// <para>刻意不带严重级别——自检只报不改，全部落 Warning。</para>
+    /// 一条配置自检结果：<see cref="Field"/> 是设置项名，<see cref="Detail"/> 说明问题原因与建议取值。
     /// </summary>
+    /// <remarks>不带严重级别，全部按 Warning 上报。</remarks>
     internal struct ResourceSettingsIssue
     {
         internal string Field;
@@ -11,13 +11,12 @@ namespace Moirai.Atropos.Resource
     }
 
     /// <summary>
-    /// 设置项自检：把"值单看合法、但相互关系不成立"的配置挑出来。
-    /// <para><b>只报不改</b>：夹取会掩盖配置错误，而这些值本身都合法，只是永远不参与决策——它在 Inspector
-    /// 里看得见、在版本库里能 diff，沉默的代价是带着一个从未被读取的值发到发行版，排查时人人都以为调过它了。
-    /// 这条政策与 <see cref="PlayMode"/> 读取时"只归一返回值、不回写资产"是同一个取向。</para>
-    /// <para>判据以数组形式交给调用方（调用方持数组，与本包诊断面同形），所以同一份规则既能被
-    /// <c>ResourceService.OnInit</c> 在启动时打一次，也能被构建期检查原样复用，不必两处各写一遍。</para>
+    /// 设置项自检：挑出"值单看合法、但相互关系不成立"的配置。
     /// </summary>
+    /// <remarks>
+    /// <b>只报不改</b>：夹取会掩盖配置错误，取向与 <see cref="PlayMode"/> 读取时"只归一返回值、不回写资产"一致。
+    /// 判据以数组形式交给调用方，同一份规则可被 <c>ResourceService.OnInit</c> 启动期与构建期检查各复用一次。
+    /// </remarks>
     public sealed partial class ResourceServiceSettings
     {
         /// <summary>
@@ -98,8 +97,8 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// 打印配置问题并返回条数，供启动期与构建期各调一次。
-        /// <para>缓冲复用：启动与构建各跑一趟，不为 8 个槽位反复分配。</para>
         /// </summary>
+        /// <remarks>内部缓冲复用，不为 8 个槽位反复分配。</remarks>
         internal int ReportConfigurationIssues()
         {
             if (s_IssueBuffer == null)

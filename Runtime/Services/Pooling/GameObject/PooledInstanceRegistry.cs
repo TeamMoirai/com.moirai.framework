@@ -4,9 +4,11 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 池化实例注册表：GameObject 引用 → (池, Slot) 的零分配反向映射。
-    /// <para>代系由 Slot 独占维护（租期级），本表仅负责实例身份解析；主线程单线程访问，无需同步。</para>
+    /// 池化实例注册表：<see cref="GameObject"/> 引用 → (池, Slot) 的零分配反向映射。
     /// </summary>
+    /// <remarks>
+    /// 代系由 Slot 独占维护（租期级），本表仅负责实例身份解析；仅主线程访问，无需同步。
+    /// </remarks>
     internal sealed class PooledInstanceRegistry : IDisposable
     {
         #region 结构体 [STRUCTS]

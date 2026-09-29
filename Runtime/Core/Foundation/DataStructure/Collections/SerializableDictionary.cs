@@ -226,8 +226,6 @@ namespace Moirai.Atropos.Collections
 	/// <summary>
 	/// 可序列化的字典实现，因为 Unity 仍然无法原生序列化字典。
 	/// </summary>
-	/// <typeparam name="TKey"></typeparam>
-	/// <typeparam name="TValue"></typeparam>
 	[Serializable]
 	public class SerializableDictionary<TKey, TValue> : SerializableDictionaryBase<TKey, TValue, TValue>
 	{

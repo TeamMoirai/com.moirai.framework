@@ -7,11 +7,13 @@ namespace Service.Resource
 {
     /// <summary>
     /// 真实设置资产的回归门禁：读的是工程里那份 <c>ResourceServiceSettings.asset</c>，不是测试自造的实例。
-    /// <para><c>[SerializeReference]</c> 的后端引用一旦静默失效（改名、挪程序集、类型下线），Unity 不报错，
-    /// 只把那条引用读成 null——服务照样初始化成功，之后每一次取用都打在空后端上。这是它唯一的自动防线。</para>
-    /// <para>值比对走 <see cref="SerializedObject"/> 的原生字段对公开属性：属性层加过夹取、换过默认值、
-    /// 或忘了转发，都会在这里露出来（内核抽取那一轮真的动过这几个读数）。</para>
     /// </summary>
+    /// <remarks>
+    /// <c>[SerializeReference]</c> 的后端引用一旦静默失效（改名、挪程序集、类型下线），Unity 不报错，
+    /// 只把那条引用读成 null——服务照样初始化成功，之后每一次取用都打在空后端上，这是它唯一的自动防线。 <br />
+    /// 值比对走 <see cref="SerializedObject"/> 的原生字段对公开属性：属性层加过夹取、换过默认值或忘了转发，
+    /// 都会在这里露出来。
+    /// </remarks>
     public sealed class ResourceSettingsAssetRegressionTests
     {
         [Test]
@@ -97,9 +99,10 @@ namespace Service.Resource
 
         /// <summary>
         /// 取工程里那份设置资产；没有就整组忽略（包不能要求宿主工程一定有这份资产）。
-        /// <para>多于一份时直接判失败而不是忽略：加载方按类型名搜资产，那时"打包后取到哪一份"已经不确定，
-        /// 这是会在真机上随机发作的一类配置错误。</para>
         /// </summary>
+        /// <remarks>
+        /// 多于一份时直接判失败而不是忽略：加载方按类型名搜资产，此时"打包后取到哪一份"已经不确定。
+        /// </remarks>
         private static ResourceServiceSettings LoadProjectSettings()
         {
             string[] guids = AssetDatabase.FindAssets("t:ResourceServiceSettings");

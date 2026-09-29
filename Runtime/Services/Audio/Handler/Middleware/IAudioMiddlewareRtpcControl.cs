@@ -2,8 +2,8 @@ namespace Moirai.Atropos.Audio.Middleware
 {
     /// <summary>
     /// 可选桥接能力：设置实时参数（FMOD event parameter / Wwise RTPC）。
-    /// <para>同样不走 <see cref="IAudioMiddlewareBridge"/> 主接口，理由见 <see cref="IAudioMiddlewareBankControl"/>。</para>
     /// </summary>
+    /// <remarks>不走 <see cref="IAudioMiddlewareBridge"/> 主接口，理由见 <see cref="IAudioMiddlewareBankControl"/>。</remarks>
     internal interface IAudioMiddlewareRtpcControl
     {
         /// <summary>

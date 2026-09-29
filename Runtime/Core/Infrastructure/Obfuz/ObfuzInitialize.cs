@@ -8,9 +8,9 @@ namespace Moirai.Atropos.Obfuz
     public class ObfuzInitialize
     {
         /// <summary>
-        /// 初始化EncryptionService后被混淆的代码才能正常运行，
-        /// 因此尽可能地早地初始化它。
+        /// 初始化 <c>EncryptionService</c>，被混淆的代码依赖它才能运行。
         /// </summary>
+        /// <remarks>在 <c>AfterAssembliesLoaded</c> 相位尽早执行。</remarks>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void SetUpStaticSecretKey()
         {

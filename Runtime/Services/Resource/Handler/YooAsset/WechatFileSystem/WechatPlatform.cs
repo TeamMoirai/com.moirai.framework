@@ -5,7 +5,7 @@ using YooAsset;
 using WeChatWASM;
 
 /// <summary>
-/// 微信小游戏平台实现
+/// 微信小游戏平台实现。
 /// </summary>
 internal class WechatPlatform : IWebPlatformStrategy
 {

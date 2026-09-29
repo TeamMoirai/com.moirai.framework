@@ -61,7 +61,7 @@ namespace Moirai.Atropos
         #region 基础方法 [CORE METHODS]
 
         /// <summary>
-        /// 初始化Tween配置
+        /// 初始化Tween配置。
         /// </summary>
         protected override void OnInit()
         {
@@ -178,10 +178,12 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 等待 tween 结束（UniTask，逐帧轮询版）。
-        /// <para>任何结束原因（自然完成/Complete/Stop/目标销毁）→ 正常返回，不区分死因；
-        /// 仅外部 CancellationToken 取消 → OperationCanceledException（放弃等待，tween 不受影响）。</para>
-        /// <para>等待判定为逐帧轮询，完成通知最多晚一帧。</para>
         /// </summary>
+        /// <remarks>
+        /// 任何结束原因（自然完成/Complete/Stop/目标销毁）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待， <br />
+        /// tween 不受影响）。 <br />
+        /// 等待判定为逐帧轮询，完成通知最多晚一帧。
+        /// </remarks>
         public override async UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {
             var tween = GetTween(tweenId);

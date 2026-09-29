@@ -6,8 +6,8 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 默认游戏框架日志辅助器，基于 <see cref="UnityEngine.Debug"/> 输出到 Unity 控制台。
-    /// <para>日志仅记录、不抛异常：Fatal 等级以错误形式输出，流程是否中断由调用方自行决定。</para>
     /// </summary>
+    /// <remarks>日志仅记录、不抛异常：Fatal 等级以错误形式输出，流程是否中断由调用方自行决定。</remarks>
     [Serializable]
     internal sealed class DefaultLogHandler : LogHandler
     {
@@ -85,10 +85,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 对多行日志逐行包裹颜色标签。
-        /// 单次整体包裹 <color></color> 时,Unity Console 只会为第一行着色,后续行不应用颜色,表现为乱码;
-        /// 逐行包裹可让每一行都正确着色。同时兼容 \r\n 换行符。
+        /// 对多行日志逐行包裹颜色标签，兼容 <c>\r\n</c> 换行。
         /// </summary>
+        /// <remarks>整体包裹 <c>&lt;color&gt;</c> 时 Unity Console 只会为第一行着色，逐行包裹才能让每行都正确着色。</remarks>
         /// <param name="logStr">原始日志文本。</param>
         /// <param name="color">颜色字符串。</param>
         /// <returns>逐行着色后的文本。</returns>

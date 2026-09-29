@@ -7,9 +7,11 @@ namespace Service.Resource
 {
     /// <summary>
     /// 设置项自检的判据表：每条规则各钉"越界时报"与"合法时不报"两面，外加默认值必须干净。
-    /// <para>驱动方式是把资产值经 <see cref="SerializedObject"/> 写进一份**克隆**再读判据——
-    /// 既反射不到任何私有字段（口径见 CLAUDE.md《测试可见性》），也绝不碰工程里那份真资产。</para>
     /// </summary>
+    /// <remarks>
+    /// 驱动方式是把资产值经 <see cref="SerializedObject"/> 写进一份克隆再读判据：
+    /// 不反射任何私有字段，也绝不碰工程里那份真资产。
+    /// </remarks>
     public sealed class ResourceServiceSettingsValidationTests
     {
         private ResourceServiceSettings _settings;
@@ -39,7 +41,9 @@ namespace Service.Resource
             Assert.AreEqual(0, CountIssues(), "默认值被自检判成有问题，先怀疑判据而不是默认值。");
         }
 
-        /// <summary>卸载档低于每帧档：帧驱动取较大值，卸载档永远顶不上去。</summary>
+        /// <summary>
+        /// 卸载档低于每帧档：帧驱动取较大值，卸载档永远顶不上去。
+        /// </summary>
         [Test]
         public void WhenUnloadingBelowPerFrame_IsReported()
         {
@@ -51,7 +55,9 @@ namespace Service.Resource
             Assert.AreEqual(0, CountIssues(), "把关系摆正之后该清零");
         }
 
-        /// <summary>每帧档非正数：时间轮以 expireBudget > 0 为闸门，0 就是不推进。</summary>
+        /// <summary>
+        /// 每帧档非正数：时间轮以 expireBudget > 0 为闸门，0 就是不推进。
+        /// </summary>
         [Test]
         public void PerFrameNotPositive_IsReported()
         {
@@ -59,7 +65,9 @@ namespace Service.Resource
             AssertReportsField("m_ExpireProcessCountPerFrame");
         }
 
-        /// <summary>销毁扫描配额非正数：被截断的 OnDestroy 留下的租约就永不回收。</summary>
+        /// <summary>
+        /// 销毁扫描配额非正数：被截断的 OnDestroy 留下的租约就永不回收。
+        /// </summary>
         [Test]
         public void DestroySweepBudgetNotPositive_IsReported()
         {
@@ -67,7 +75,9 @@ namespace Service.Resource
             AssertReportsField("m_DestroySweepBudget");
         }
 
-        /// <summary>空闲过期超过 256 格轮盘的一圈：记录会被跳过直到轮盘绕回。</summary>
+        /// <summary>
+        /// 空闲过期超过 256 格轮盘的一圈：记录会被跳过直到轮盘绕回。
+        /// </summary>
         [Test]
         public void IdleExpireTimeBeyondWheelSpan_IsReported()
         {
@@ -78,7 +88,9 @@ namespace Service.Resource
             Assert.AreEqual(0, CountIssues(), "刚好一圈之内的值不该被报");
         }
 
-        /// <summary>卸载上限非正数：调度比较恒真，卸载变成每帧一次。</summary>
+        /// <summary>
+        /// 卸载上限非正数：调度比较恒真，卸载变成每帧一次。
+        /// </summary>
         [Test]
         public void MaxUnloadIntervalNotPositive_IsReported()
         {
@@ -86,7 +98,9 @@ namespace Service.Resource
             AssertReportsField("m_MaxUnloadUnusedAssetsInterval");
         }
 
-        /// <summary>下限高于上限：预约档先被上限触发，下限形同废弃。</summary>
+        /// <summary>
+        /// 下限高于上限：预约档先被上限触发，下限形同废弃。
+        /// </summary>
         [Test]
         public void MinAboveMaxUnloadInterval_IsReported()
         {
@@ -94,7 +108,9 @@ namespace Service.Resource
             AssertReportsField("m_MinUnloadUnusedAssetsInterval");
         }
 
-        /// <summary>GC 节流为负：每次请求都真收。</summary>
+        /// <summary>
+        /// GC 节流为负：每次请求都真收。
+        /// </summary>
         [Test]
         public void NegativeGCCollectInterval_IsReported()
         {

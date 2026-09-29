@@ -5,7 +5,7 @@ namespace Moirai.Atropos
     public partial class GraphicsSettings
     {
         /// <summary>
-        /// 写入分辨率设置
+        /// 写入分辨率设置。
         /// </summary>
         public static void SetResolutionSettings(int resolutionIndex)
         {
@@ -14,7 +14,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 写入全屏设置
+        /// 写入全屏设置。
         /// </summary>
         public static void SetFullScreenSettings(bool fullScreen)
         {
@@ -23,7 +23,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 写入窗口模式设置
+        /// 写入窗口模式设置。
         /// </summary>
         public static void SetWindowModeSettings(int fullScreenMode)
         {
@@ -32,9 +32,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 设置垂直同步
+        /// 设置垂直同步。
         /// </summary>
-        /// <param name="enabled"></param>
         public static void SetVSyncSettings(bool enabled)
         {
             SetVSync(enabled);
@@ -42,7 +41,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 加载设置
+        /// 加载设置。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void GraphicsSettingsInitiation()
@@ -64,7 +63,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 移除设置
+        /// 移除设置。
         /// </summary>
         public static void RemoveSetting()
         {

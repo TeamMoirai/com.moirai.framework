@@ -4,17 +4,18 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 服务调试视图抽象基类。
-    /// <para>定义单个服务的调试内容并以 GUILayout 绘制，与渲染宿主解耦——同一视图可渲染于编辑器 Inspector（IMGUI）或游戏内调试器窗口（经 <see cref="CreateView"/> 默认实现以 <c>IMGUIContainer</c> 嵌入 UI Toolkit 面板）。</para>
-    /// <para>实现 <see cref="IDebuggerWindow"/>，可经 <see cref="DebuggerService.RegisterDebugView"/> 直接注册进游戏内调试器；各宿主应持有独立实例（滚动位置等绘制状态不共享）。派生类可覆写 <see cref="CreateView"/> 提供原生 UI Toolkit 视图。</para>
+    /// 服务调试视图抽象基类：定义单个服务的调试内容并以 GUILayout 绘制。
     /// </summary>
+    /// <remarks>
+    /// 与渲染宿主解耦：同一视图可渲染于编辑器 Inspector（IMGUI）或游戏内调试器窗口（经 <see cref="CreateView"/> 以 <c>IMGUIContainer</c> 嵌入 UI Toolkit）。 <br />
+    /// 实现 <see cref="IDebuggerWindow"/>，可经 <see cref="DebuggerService.RegisterDebugView"/> 注册；各宿主应持有独立实例（绘制状态不共享）， <br />
+    /// 派生类可覆写 <see cref="CreateView"/> 提供原生 UI Toolkit 视图。
+    /// </remarks>
     public abstract class ServiceDebugView : IDebuggerWindow
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 键值行左侧标签的固定宽度（派生类可据此推导自定义行宽）。
-        /// </summary>
+        /// <summary>键值行左侧标签的固定宽度（派生类可据此推导自定义行宽）。</summary>
         protected const float ITEM_LABEL_WIDTH = 146f;
 
         private const float PROGRESS_BAR_HEIGHT = 18f;
@@ -23,19 +24,13 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 调试视图标题（宿主窗口与 Inspector 分区的显示名）。
-        /// </summary>
+        /// <summary>调试视图标题（宿主窗口与 Inspector 分区的显示名）。</summary>
         public abstract string Title { get; }
 
-        /// <summary>
-        /// 服务是否就绪——未就绪时仅绘制提示信息而不绘制调试内容。
-        /// </summary>
+        /// <summary>服务是否就绪——未就绪时仅绘制提示信息而不绘制调试内容。</summary>
         public abstract bool IsReady { get; }
 
-        /// <summary>
-        /// 服务未就绪时显示的提示文案。
-        /// </summary>
+        /// <summary>服务未就绪时显示的提示文案。</summary>
         protected virtual string NotReadyMessage => "Service not ready (enter Play Mode and finish initialization).";
 
         #endregion
@@ -68,7 +63,8 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <inheritdoc />
-        /// <remarks>默认实现经 <see cref="IMGUIDebuggerWindow"/> 将 <see cref="OnDraw"/> 的 GUILayout 内容嵌入 UI Toolkit 面板；派生类可覆写提供原生 UI Toolkit 视图。</remarks>
+        /// <remarks>默认实现经 <see cref="IMGUIDebuggerWindow"/> 将 <see cref="OnDraw"/> 的 GUILayout 内容嵌入 UI Toolkit 面板； <br />
+        /// 派生类可覆写提供原生 UI Toolkit 视图。</remarks>
         public virtual VisualElement CreateView()
         {
             return new IMGUIDebuggerWindow(this).CreateView();
@@ -189,9 +185,7 @@ namespace Moirai.Atropos.Debugger
         private static GUIStyle s_BoldLabelStyle;
         private static GUISkin s_BoldLabelStyleSkin;
 
-        /// <summary>
-        /// 加粗标签样式（按当前皮肤缓存，Inspector 与游戏内皮肤切换时自动重建）。
-        /// </summary>
+        /// <summary>加粗标签样式（按当前皮肤缓存，Inspector 与游戏内皮肤切换时自动重建）。</summary>
         private static GUIStyle BoldLabelStyle
         {
             get
@@ -210,9 +204,7 @@ namespace Moirai.Atropos.Debugger
         private static GUIStyle s_CenteredLabelStyle;
         private static GUISkin s_CenteredLabelStyleSkin;
 
-        /// <summary>
-        /// 居中标签样式（按当前皮肤缓存，用于进度条内文本）。
-        /// </summary>
+        /// <summary>居中标签样式（按当前皮肤缓存，用于进度条内文本）。</summary>
         private static GUIStyle CenteredLabelStyle
         {
             get

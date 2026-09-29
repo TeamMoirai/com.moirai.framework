@@ -8,29 +8,19 @@ namespace Moirai.Atropos
     /// </summary>
     public enum EMemoryPoolPhase : byte
     {
-        /// <summary>
-        /// 启动阶段。
-        /// </summary>
+        /// <summary>启动阶段。</summary>
         Boot = 0,
 
-        /// <summary>
-        /// 加载阶段。
-        /// </summary>
+        /// <summary>加载阶段。</summary>
         Loading,
 
-        /// <summary>
-        /// 游戏阶段。
-        /// </summary>
+        /// <summary>游戏阶段。</summary>
         Gameplay,
 
-        /// <summary>
-        /// 后台阶段。
-        /// </summary>
+        /// <summary>后台阶段。</summary>
         Background,
 
-        /// <summary>
-        /// 低内存阶段。
-        /// </summary>
+        /// <summary>低内存阶段。</summary>
         LowMemory
     }
 

@@ -9,8 +9,7 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 基于 ZLogger（com.cysharp.zlogger）的日志辅助器。
-    /// <para>由 asmdef 版本定义 ZLOGGER_INSTALLED 自动启用；默认创建输出到 Unity Console 的 logger 工厂。</para>
+    /// 基于 ZLogger（com.cysharp.zlogger）的日志辅助器，由 <c>ZLOGGER_INSTALLED</c> 自动启用，默认创建输出到 Unity Console 的 logger 工厂。
     /// </summary>
     [Serializable]
     internal sealed class ZLoggerHandler : LogHandler
@@ -38,9 +37,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 创建输出到 Unity 控制台的 ZLogger 配置。
-        /// <para>严重程度前缀由 formatter 模板提供：<c>{LogLevel:short}</c> 三字符记法（INF/WRN/ERR/CRI...），
-        /// 与 SerilogHandler outputTemplate 的 <c>[{Level:u3}]</c> 输出一致。</para>
         /// </summary>
+        /// <remarks>严重程度前缀由 formatter 模板的 <c>{LogLevel:short}</c> 提供，三字符记法与 <see cref="SerilogHandler"/> 的 <c>[{Level:u3}]</c> 一致。 <br />
+        /// </remarks>
         private static ZLoggerOptions CreateUnityConsoleOptions()
         {
             var options = new ZLoggerOptions();

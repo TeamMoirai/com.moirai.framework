@@ -14,11 +14,12 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// V3-P9 云存档一体测试：写双发、读策略裁决矩阵（Latest/LocalWins/CloudWins/Custom）、单侧对齐、
-    /// 离线降级、待回传 backfill 重放、枚举并集、同步原语镜像直通、云端键规范化。
-    /// <para>远端为内存 Fake（含时钟偏移与故障注入；internal + 非 [Serializable]，避免 ProviderDropdown 扫描污染）；
-    /// 本地镜像落临时目录（<c>s_OverrideBasePath</c>），时间戳经 <c>File.SetLastWriteTimeUtc</c> 显式控制。</para>
+    /// 云存档一体测试：写双发、读策略裁决矩阵（Latest/LocalWins/CloudWins/Custom）、单侧对齐、离线降级、待回传 backfill 重放、枚举并集、同步原语镜像直通、云端键规范化。
     /// </summary>
+    /// <remarks>
+    /// 远端为内存 Fake（含时钟偏移与故障注入；internal 且非 <c>[Serializable]</c>，避免 ProviderDropdown 扫描污染）； <br />
+    /// 本地镜像落临时目录（<c>s_OverrideBasePath</c>），时间戳经 <c>File.SetLastWriteTimeUtc</c> 显式控制。
+    /// </remarks>
     public class SaveCloudStorageBackendTests
     {
         /// <summary>

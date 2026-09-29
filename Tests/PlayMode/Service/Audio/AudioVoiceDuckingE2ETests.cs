@@ -10,8 +10,10 @@ namespace Service.Audio
 {
     /// <summary>
     /// 自动 Ducking 端到端：Voice 有声 → Dialogue 快照；播完 → 回落。
-    /// <para>用可注入的 Snapshot 配置与 Mix 状态机驱动，不依赖项目 Mixer 资产。</para>
     /// </summary>
+    /// <remarks>
+    /// 用可注入的 Snapshot 配置与 Mix 状态机驱动，不依赖项目 Mixer 资产。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioVoiceDuckingE2ETests
     {

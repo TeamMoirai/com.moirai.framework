@@ -7,21 +7,26 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 将 <see cref="PlayerLoopDriver"/> 的 Drive 回调注入 Unity PlayerLoop。
-    /// <para>注入与复原都只针对本框架的三个标记：注入基于当前 PlayerLoop，不覆盖 UniTask /
-    /// 第三方已插入的系统；<see cref="RestoreDefault"/> 也只逐项摘掉自己，不把整条引擎默认循环盖回去。</para>
-    /// <para>ECS/DOTS 若在 <c>AfterSceneLoad</c> 之前（含 <c>BeforeSceneLoad</c>）重置 PlayerLoop，由
-    /// <c>VerifyInjection</c>（<c>AfterSceneLoad</c>）按循环实况自动补插；更晚的重建在完成后调用
-    /// <see cref="Reinject"/>。</para>
     /// </summary>
+    /// <remarks>
+    /// 注入与复原只针对本框架的三个标记：基于当前循环插入、不覆盖 UniTask / 第三方系统，复原也只逐项摘掉自己。 <br />
+    /// ECS/DOTS 若在 <c>AfterSceneLoad</c> 前重置循环，由 <c>VerifyInjection</c> 自动补插；更晚的重建完成后请调 <see cref="Reinject"/>。
+    /// </remarks>
     internal static class PlayerLoopInjector
     {
-        /// <summary>Moirai Update 注入点标记类型。</summary>
+        /// <summary>
+        /// Moirai Update 注入点标记类型。
+        /// </summary>
         public sealed class MoiraiUpdate { }
 
-        /// <summary>Moirai FixedUpdate 注入点标记类型。</summary>
+        /// <summary>
+        /// Moirai FixedUpdate 注入点标记类型。
+        /// </summary>
         public sealed class MoiraiFixedUpdate { }
 
-        /// <summary>Moirai LateUpdate 注入点标记类型。</summary>
+        /// <summary>
+        /// Moirai LateUpdate 注入点标记类型。
+        /// </summary>
         public sealed class MoiraiLateUpdate { }
 
         private static PlayerLoopSystem.UpdateFunction s_UpdateDelegate;
@@ -99,14 +104,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// AfterSceneLoad 自愈校验：第三方若基于默认循环重建 PlayerLoop，会抹掉 Moirai 标记——
-        /// 此处按循环实况补插，不信任注入标志位。
-        /// <para><b>相位必须严格晚于注入点</b>（<c>GameAppSettings.Initiation</c> 的
-        /// <c>BeforeSceneLoad</c>）：挂在那之前时 <c>s_Injected</c> 恒为 false，首行判定即返回，
-        /// 本方法一次也不会执行。</para>
-        /// <para>未初始化（GameApp 未启动，如 EditMode）时不主动注入；若第三方重置发生在
-        /// AfterSceneLoad 之后（如自定义 bootstrap 末尾），仍需在重置完成后调用 <see cref="Reinject"/>。</para>
+        /// <c>AfterSceneLoad</c> 自愈校验：按循环实况补插 Moirai 标记，不信任注入标志位。
         /// </summary>
+        /// <remarks>
+        /// 相位必须严格晚于注入点（<c>BeforeSceneLoad</c>），否则 <c>s_Injected</c> 恒为 false、首行判定即返回、永不执行。 <br />
+        /// 未初始化（<c>GameApp</c> 未启动，如 EditMode）时不主动注入；更晚的重置请自行调用 <see cref="Reinject"/>。
+        /// </remarks>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void VerifyInjection()
         {
@@ -130,10 +133,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 复原到「本框架未注入」的状态：仅逐项移除 Moirai 自身系统，保留 UniTask 等其它第三方注入。
-        /// <para>关闭流程即走这里：进程可能还要继续跑若干帧（重启场景、退出流程中的异步存档落盘），
-        /// 这些依赖第三方 Pump——它们不会自行重新注入，被整条循环盖掉的瞬间其 <c>await</c> 就永不续跑。</para>
+        /// 复原到「本框架未注入」的状态：仅逐项移除 Moirai 自身系统，保留 UniTask 等第三方注入。
         /// </summary>
+        /// <remarks>关闭流程走这里；不能整条盖回默认循环，否则已被抹掉的第三方系统（如 UniTask）不会自行重注入。</remarks>
         public static void RestoreDefault()
         {
             PlayerLoopSystem loop = UnityPlayerLoop.GetCurrentPlayerLoop();
@@ -257,7 +259,9 @@ namespace Moirai.Atropos
             return false;
         }
 
-        /// <summary>三个 Moirai 标记是否全部存在于给定循环中（注入完成度实况校验）。</summary>
+        /// <summary>
+        /// 三个 Moirai 标记是否全部存在于给定循环中（注入完成度实况校验）。
+        /// </summary>
         private static bool AllMarkersPresent(PlayerLoopSystem loop)
         {
             return HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.Update), typeof(MoiraiUpdate))

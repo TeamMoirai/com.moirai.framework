@@ -9,11 +9,14 @@ using UnityEngine;
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// UI服务外观（Facade）。
-    /// <para>统一的静态 UI 访问入口，通过替换 <see cref="Handler"/> 即可在不同 UI 后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="UIServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// UI 服务外观（Facade）：全框架统一的静态 UI 访问入口。
     /// </summary>
+    /// <remarks>
+    /// 替换 <see cref="Handler"/> 即可在不同 UI 后端之间切换。 <br />
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="UIServiceSettings"/> 解析； <br />
+    /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// </remarks>
     [AutoRegisterService]
     [HandlerHost(typeof(UIServiceHandler))]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]
@@ -29,8 +32,10 @@ namespace Moirai.Atropos.UI
 
         /// <summary>
         /// 从 <see cref="UIServiceSettings"/> 解析 UI 处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>
+        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
+        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static UIServiceHandler GetHandlerFromSettings()
         {
@@ -43,8 +48,10 @@ namespace Moirai.Atropos.UI
 
         /// <summary>
         /// 初始化 UI 服务。由容器在构建期调用。
-        /// <para>确保 <c>UIService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
         /// </summary>
+        /// <remarks>
+        /// 确保 <c>UIService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。
+        /// </remarks>
         public override void OnInit()
         {
             _ = Handler;
@@ -52,9 +59,10 @@ namespace Moirai.Atropos.UI
 
         /// <summary>
         /// 关闭 UI 服务。由容器在关闭期调用。
-        /// <para>先摘除 Handler 引用再关闭——窗口销毁链抛异常时（如用户 OnDestroy 回调）不得让
-        /// 半关状态的 Handler 残留，后续外观访问应经关闭守卫走显式重建而非复用半关实例。</para>
         /// </summary>
+        /// <remarks>
+        /// 先摘除 <c>Handler</c> 引用再关闭：窗口销毁链抛异常时不得让半关状态的 Handler 残留。
+        /// </remarks>
         public override void OnShutdown()
         {
             var handler = s_Handler;
@@ -81,19 +89,13 @@ namespace Moirai.Atropos.UI
 
         #region 属性 [PROPERTIES]
 		
-        /// <summary>
-        /// UI根节点。
-        /// </summary>
+        /// <summary>UI根节点。</summary>
         public static Transform UIRoot => s_Handler?.UIRoot;
 
-        /// <summary>
-        /// UI专用摄像机。
-        /// </summary>
+        /// <summary>UI专用摄像机。</summary>
         public static Camera UICamera => s_Handler?.UICamera;
 
-        /// <summary>
-        /// 当前模态遮挡窗口。
-        /// </summary>
+        /// <summary>当前模态遮挡窗口。</summary>
         public static UIWindow CurrentModal => s_Handler?.CurrentModal;
 
         #endregion
@@ -103,12 +105,12 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 设置屏幕安全区域（异形屏支持）。
         /// </summary>
-        /// <param name="safeRect">安全区域</param>
+        /// <param name="safeRect">安全区域。</param>
         public static void ApplyScreenSafeRect(Rect safeRect) =>
             s_Handler?.ApplyScreenSafeRect(safeRect);
 
         /// <summary>
-        /// 模拟IPhoneX异形屏
+        /// 模拟IPhoneX异形屏。
         /// </summary>
         public static void SimulateIPhoneXNotchScreen() =>
             s_Handler?.SimulateIPhoneXNotchScreen();
@@ -145,7 +147,7 @@ namespace Moirai.Atropos.UI
         /// 查询窗口是否存在。
         /// </summary>
         /// <typeparam name="T">界面类型。</typeparam>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <returns>是否存在。</returns>
         public static bool HasWindow<T>(string windowName = null) where T : UIWindow =>
             s_Handler?.HasWindow<T>(windowName) ?? false;
@@ -154,7 +156,7 @@ namespace Moirai.Atropos.UI
         /// 查询窗口是否存在。
         /// </summary>
         /// <param name="type">界面类型。</param>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <returns>是否存在。</returns>
         public static bool HasWindow(Type type, string windowName = null) =>
             s_Handler?.HasWindow(type, windowName) ?? false;
@@ -203,7 +205,7 @@ namespace Moirai.Atropos.UI
         /// 异步打开窗口。
         /// </summary>
         /// <typeparam name="T">窗口类。</typeparam>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -215,7 +217,7 @@ namespace Moirai.Atropos.UI
         /// 同步打开窗口。
         /// </summary>
         /// <typeparam name="T">窗口类。</typeparam>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -227,7 +229,7 @@ namespace Moirai.Atropos.UI
         /// 异步打开窗口。
         /// </summary>
         /// <param name="type">窗口类型。</param>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -238,7 +240,7 @@ namespace Moirai.Atropos.UI
         /// 同步打开窗口。
         /// </summary>
         /// <param name="type">窗口类型。</param>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>
@@ -249,7 +251,7 @@ namespace Moirai.Atropos.UI
         /// 异步打开窗口并等待加载完成。
         /// </summary>
         /// <typeparam name="T">窗口类。</typeparam>
-        /// <param name="windowName">窗口名称</param>
+        /// <param name="windowName">窗口名称。</param>
         /// <param name="assetName">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="userData">用户自定义数据。</param>

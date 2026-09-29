@@ -3,14 +3,13 @@ using System.Collections.Generic;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 用于获取不重复随机对象的类。随机地从 bag 中取出值，并且永远不会再次获取它们
-    /// <para>一轮之内按权重表正好覆盖一次（同一项按其 <c>quantity</c> 出现那么多次），取空后自动重洗下一轮；
-    /// 比「每次独立随机」不会漏播，也不会连播。</para>
-    /// <para>重洗时只把落在袋口的那一项换到随机非袋口位置，因此换手处不会连续两次拿到同一项，
-    /// 而每轮覆盖仍严格等于权重表。旧实现在这里会把刚取出的项留在可取区，n 项时换手连点概率 <c>1/(n-1)</c>。</para>
+    /// 不重复随机取用器：一轮内按权重表恰好覆盖一次，取空后自动重洗下一轮。
     /// </summary>
+    /// <remarks>
+    /// 重洗只把袋口那项换到随机非袋口位置，因此换手处不会连续两次取到同一项，每轮覆盖仍严格等于权重表。
+    /// </remarks>
     /// <example>
-    /// Usage :
+    /// 用法：
     /// <code><![CDATA[
     /// 初始化：
     /// var shuffleBag = new ShuffleBag<int>(40);
@@ -60,12 +59,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将指定数量的对象添加到袋子中
-        /// <para>本轮剩余不受影响，新项自下一轮起生效。旧实现在这里会把取用游标拨回袋尾，
-        /// 使本轮已经取出过的项重新可取，"一轮不重复"当场失效。</para>
+        /// 将指定数量的对象加入权重表。
         /// </summary>
-        /// <param name="item">对象</param>
-        /// <param name="quantity">权重</param>
+        /// <remarks>不影响本轮剩余，新项自下一轮起生效。</remarks>
+        /// <param name="item">对象。</param>
+        /// <param name="quantity">权重。</param>
         public void Add(T item, int quantity)
         {
             for (int i = 0; i < quantity; i++)
@@ -74,7 +72,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>丢弃本轮剩余并忘记上一手，下一手等同全新袋子重开一轮；权重表保留。</summary>
+        /// <summary>
+        /// 丢弃本轮剩余并忘记上一手，下一手等同全新袋子重开一轮；权重表保留。
+        /// </summary>
         public void Reset()
         {
             _round.Clear();
@@ -83,7 +83,9 @@ namespace Moirai.Atropos
             _hasCurrentItem = false;
         }
 
-        /// <summary>清空权重表，效果含 <see cref="Reset"/>。</summary>
+        /// <summary>
+        /// 清空权重表，效果含 <see cref="Reset"/>。
+        /// </summary>
         public void Clear()
         {
             _contents.Clear();
@@ -105,7 +107,9 @@ namespace Moirai.Atropos
             return _currentItem;
         }
 
-        /// <summary>重开一轮：整表 Fisher–Yates，再把撞上上一手的项从袋口挪走。</summary>
+        /// <summary>
+        /// 重开一轮：整表 Fisher–Yates，再把撞上上一手的项从袋口挪走。
+        /// </summary>
         private void Refill()
         {
             int count = _contents.Count;

@@ -13,11 +13,11 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 框架配置统一管理窗口（Odin 实现）。
-    /// 自动发现所有 FrameworkSettings&lt;T&gt; 子类，侧边栏为 Odin 菜单树（内置搜索/键盘导航/状态图标），
-    /// 内容区由 Odin 原生管线绘制（与独立 Inspector 同一宿主，managed reference 及其 Odin 特性完整生效），
-    /// 支持创建、Ping、重置和打开目录操作。
+    /// 框架配置统一管理窗口（Odin 实现）：自动发现所有 <c>FrameworkSettings&lt;T&gt;</c> 子类，侧边栏为 Odin 菜单树，内容区由 Odin 原生管线绘制。
     /// </summary>
+    /// <remarks>
+    /// 侧边栏内置搜索 / 键盘导航 / 状态图标；内容区与独立 Inspector 同一宿主，managed reference 及其 Odin 特性完整生效；支持创建、Ping、重置和打开目录。
+    /// </remarks>
     public class FrameworkSettingsWindow : OdinMenuEditorWindow
     {
         #region 菜单 [MENU]
@@ -71,9 +71,7 @@ namespace Moirai.Atropos.Editor
             public static GUIStyle Meta;
             public static GUIStyle CountLabel;
 
-            /// <summary>
-            /// 样式是否已就绪。
-            /// </summary>
+            /// <summary>样式是否已就绪。</summary>
             public static bool IsReady => s_Initialized && Title != null;
 
             public static void Init()
@@ -145,14 +143,10 @@ namespace Moirai.Atropos.Editor
             // 预缓存的字段级搜索文本（含字段名、Tooltip、Header、LabelText）
             public string fieldSearchText;
 
-            /// <summary>
-            /// 资产是否已创建。
-            /// </summary>
+            /// <summary>资产是否已创建。</summary>
             public bool Exists => instance != null;
 
-            /// <summary>
-            /// 配置资产期望路径。
-            /// </summary>
+            /// <summary>配置资产期望路径。</summary>
             public string AssetPath => saveFolder + type.Name + ".asset";
         }
 
@@ -177,9 +171,7 @@ namespace Moirai.Atropos.Editor
                 _entry = entry;
             }
 
-            /// <summary>
-            /// 所属配置条目（供窗口反查）。
-            /// </summary>
+            /// <summary>所属配置条目（供窗口反查）。</summary>
             public SettingEntry Entry => _entry;
 
             [ShowInInspector, LabelText("类型 [TYPE]"), ReadOnly]
@@ -502,8 +494,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 向上遍历继承链，找到具体的 FrameworkSettings&lt;T&gt; 泛型基类。
-        /// CRTP 模式下无法用 IsAssignableFrom 直接判断，必须检查泛型定义。
+        /// 向上遍历继承链，找到具体的 <c>FrameworkSettings&lt;T&gt;</c> 泛型基类；CRTP 模式下须检查泛型定义，不能直接用 <c>IsAssignableFrom</c>。
         /// </summary>
         private static Type FindGenericBaseType(Type type)
         {
@@ -528,10 +519,11 @@ namespace Moirai.Atropos.Editor
         #region 字段搜索文本构建器 [FIELD SEARCH BUILDER]
 
         /// <summary>
-        /// 扫描 entry.type 的所有序列化字段，将字段名（Nicified）、
-        /// [Tooltip]、[Header]、[LabelText]（Odin）的文本拼接为一个字符串，
-        /// 供搜索时一次性匹配，避免逐帧反射。
+        /// 扫描 <c>entry.type</c> 的所有序列化字段，把字段名（Nicified）、<c>[Tooltip]</c>、<c>[Header]</c>、Odin <c>[LabelText]</c> 文本拼成一个字符串。
         /// </summary>
+        /// <remarks>
+        /// 供搜索时一次性匹配，避免逐帧反射。
+        /// </remarks>
         private static void BuildFieldSearchText(SettingEntry entry)
         {
             var sb = new StringBuilder(256);
@@ -572,8 +564,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 沿继承链向上收集字段，直到遇到 FrameworkSettings&lt;T&gt; 泛型基类或 ScriptableObject 为止。
-        /// 同一字段名只保留最子类的版本（Unity 序列化行为）。
+        /// 沿继承链向上收集字段，直到遇到 <c>FrameworkSettings&lt;T&gt;</c> 泛型基类或 <c>ScriptableObject</c>；同名字段只保留最子类的版本。
         /// </summary>
         private static void CollectFieldsUpChain(Type type, List<FieldInfo> result)
         {
@@ -592,8 +583,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 通过类型名检测 Odin 的 LabelTextAttribute，取出 Text 值。
-        /// 若项目未安装 Odin 则静默跳过，零开销。
+        /// 通过类型名检测 Odin 的 <c>LabelTextAttribute</c> 并取出 <c>Text</c> 值；项目未安装 Odin 时静默跳过。
         /// </summary>
         private static void TryAppendOdinLabelText(FieldInfo field, StringBuilder sb)
         {
@@ -607,8 +597,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 去掉 m_ / _ 前缀后调用 NicifyVariableName，生成带空格的可读名称。
-        /// m_moveSpeed → "Move Speed"
+        /// 去掉 <c>m_</c> / <c>_</c> 前缀后调用 <c>NicifyVariableName</c>，生成带空格的可读名称（<c>m_moveSpeed</c> → <c>Move Speed</c>）。
         /// </summary>
         private static string NicifyFieldName(string raw)
         {
@@ -659,10 +648,11 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 按配置类型在菜单树中选中对应条目（已创建匹配资产本体，未创建匹配创建页面）。
-        /// 树未就绪时（域重载早期）延迟到下一帧重试；编程式选中必须走 OdinMenuItem.Select，
-        /// TrySelectMenuItemWithObject 延迟到下一次 OnGUI 消费，窗口无焦点时不生效。
+        /// 按配置类型在菜单树中选中对应条目（已创建匹配资产本体，未创建匹配创建页面），树未就绪时延迟到下一帧重试。
         /// </summary>
+        /// <remarks>
+        /// 编程式选中必须走 <c>OdinMenuItem.Select</c>；<c>TrySelectMenuItemWithObject</c> 延迟到下一次 OnGUI 消费，窗口无焦点时不生效。
+        /// </remarks>
         private void SelectEntry(Type type)
         {
             if (type == null) return;
@@ -698,8 +688,7 @@ namespace Moirai.Atropos.Editor
         #region 操作 [ACTIONS]
 
         /// <summary>
-        /// 创建或 Ping 配置资产。通过反射调用 FrameworkSettings&lt;T&gt;.Instance，
-        /// 因为具体泛型参数 T 在编译期未知。
+        /// 创建或 Ping 配置资产：反射调用 <c>FrameworkSettings&lt;T&gt;.Instance</c>，因为具体泛型参数 <c>T</c> 在编译期未知。
         /// </summary>
         private void CreateOrPingAsset(SettingEntry entry)
         {
@@ -728,8 +717,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 二次确认后重置配置到默认值。通过创建临时实例并 CopySerialized 将所有序列化字段
-        /// 恢复到字段初始值（等效 Inspector 面板的 Reset），同时保留资产原有的 m_Name。
+        /// 二次确认后把配置重置到默认值：创建临时实例并 <c>CopySerialized</c> 恢复全部序列化字段（等效 Inspector 的 Reset），保留资产原有 <c>m_Name</c>。
         /// </summary>
         private void ResetSetting(SettingEntry entry)
         {

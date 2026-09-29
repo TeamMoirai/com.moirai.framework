@@ -55,7 +55,8 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
         /// </summary>
         /// <param name="targetType">要查找的目标类型。</param>
         /// <param name="fieldName">成员名称。</param>
-        /// <returns>返回一个元组：getPropType 为成员类型，fieldOrMethodInfo 为对应的 <see cref="FieldInfo"/>、<see cref="PropertyInfo"/> 或 <see cref="MethodInfo"/>，未找到时为 null。</returns>
+        /// <returns>返回一个元组：getPropType 为成员类型，fieldOrMethodInfo 为对应的 <see cref="FieldInfo"/>、 <br />
+        /// <see cref="PropertyInfo"/> 或 <see cref="MethodInfo"/>，未找到时为 null。</returns>
         public static (GetPropType getPropType, object fieldOrMethodInfo) GetProp(Type targetType, string fieldName)
         {
             const BindingFlags bindAttr = BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic |
@@ -85,8 +86,8 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
         }
 
         /// <summary>
-        /// 以宽松规则判断给定值是否等价于 true：null 与空字符串返回 false；可转换为布尔类型时按其布尔值判断；
-        /// 其余情况尝试转换为 <see cref="UnityEngine.Object"/> 判断（Unity 假 null 视为 false）；仍无法转换时视为 true。
+        /// 以宽松规则判断给定值是否等价于 <c>true</c>：<c>null</c> 与空字符串为 false；可转布尔时按布尔值； <br />
+        /// 否则尝试转 <see cref="UnityEngine.Object"/> 判断（Unity 假 null 视为 false）；仍无法转换时视为 true。
         /// </summary>
         /// <param name="value">待判断的值。</param>
         /// <returns>值等价于 true 返回 <c>true</c>，否则返回 <c>false</c>。</returns>

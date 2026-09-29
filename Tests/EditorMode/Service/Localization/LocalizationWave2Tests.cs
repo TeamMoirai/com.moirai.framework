@@ -11,9 +11,9 @@ namespace Service.Localization
 {
     /// <summary>
     /// 本地化第二波生产特性测试：异步批加载骨架（LoadAsync）与按语言列加载契约。
-    /// <para>首启语言由检测链（命令行 → 编辑器设置 → 存档 → 系统语言）决定、机器相关，
-    /// 需要"确实落在某语言"的用例一律经 <see cref="SeedEditorLanguage"/> 显式播种，不硬编码。</para>
     /// </summary>
+    /// <remarks>首启语言由检测链（命令行 → 编辑器设置 → 存档 → 系统语言）决定、机器相关，需要「确实落在某语言」的用例一律经 <see cref="SeedEditorLanguage"/> 显式播种，不硬编码。 <br />
+    /// </remarks>
     [TestFixture]
     public sealed class LocalizationWave2Tests
     {
@@ -53,7 +53,9 @@ namespace Service.Localization
             return handler;
         }
 
-        /// <summary>构造整批数据源探针：languages 列序即词条列序，entries 为 (key, 各语言译文)。</summary>
+        /// <summary>
+        /// 构造整批数据源探针：languages 列序即词条列序，entries 为 (key, 各语言译文)。
+        /// </summary>
         private static L10nProbeHandler CreateBatchProbe(Language[] languages, params (string key, string[] texts)[] entries)
         {
             var handler = new L10nProbeHandler { Languages = languages.ToList() };
@@ -258,9 +260,9 @@ namespace Service.Localization
         }
 
         /// <summary>
-        /// 配置表桥处理器的列模式开关完全跟随后端自报：无后端时必须是 <c>false</c>，
-        /// 否则桥会进列模式却永远拿不到语言头，把「整批可用」的存量项目变成不可用。
+        /// 配置表桥处理器的列模式开关完全跟随后端自报。
         /// </summary>
+        /// <remarks>无后端时必须是 <c>false</c>，否则桥会进列模式却永远拿不到语言头，把「整批可用」的存量项目变成不可用。</remarks>
         [Test]
         public void ConfigTableBridge_WithoutPerLanguageSource_StaysOnBatchPath()
         {
@@ -506,9 +508,9 @@ namespace Service.Localization
 
         /// <summary>
         /// 配置表桥处理器的受保护接缝转成 internal 供用例直调（不经反射）。
-        /// <para>测试程序集里不建 <c>ConfigTableServiceHandler</c> 子类（见 ConfigTableServiceContractTests
-        /// 的 [SerializeReference] 污染说明），所以这里只能验「桥如何转发」，转发目标由外观的降级值给定。</para>
         /// </summary>
+        /// <remarks>测试程序集里不建 <c>ConfigTableServiceHandler</c> 子类（见 ConfigTableServiceContractTests 的 [SerializeReference] 污染说明）， <br />
+        /// 所以这里只能验「桥如何转发」，转发目标由外观的降级值给定。</remarks>
         internal sealed class ConfigTableBridgeProbe : ConfigTableLocalizationHandler
         {
             internal bool PerLanguageMode => SupportsPerLanguageLoad;

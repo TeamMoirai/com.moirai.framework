@@ -5,9 +5,10 @@ namespace Moirai.Main
 {
     /// <summary>
     /// 防止裁剪引用。
-    /// <remarks>如果在主工程无引用，link.xml的防裁剪也无效。</remarks>
-    /// <remarks>最好是AOT显示保留引用，Preserve有可能还会裁成员变量。</remarks>
     /// </summary>
+    /// <remarks>
+    /// 主工程无引用时 <c>link.xml</c> 的防裁剪亦无效；建议由 AOT 显式保留引用，<c>Preserve</c> 可能仍会裁掉成员变量。
+    /// </remarks>
     [Preserve]
     public class DisStripCode : MonoBehaviour
     {

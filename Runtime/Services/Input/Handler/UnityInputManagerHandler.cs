@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Input
     /// <para>Vector2 动作遵循约定：读取同名 "X X"/"Y Y" 后缀轴（例如 "Move" 读取 "Move X" 与 "Move Y"）。</para>
     /// <para>门控能力：旧版 API 无动作分组概念，此后端仅支持 <c>Enabled=false</c> 全局硬门控（动作类查询
     /// 一律降级返回默认值）；玩家/UI 上下文压制（Action Map 切换）为 Input System 后端专属能力，
-    /// 需要上下文隔离的项目请使用 Input System 后端。</para>
+    /// 需要上下文隔离的项目请使用 Input System 后端。</para>。
     /// </remarks>
     [Serializable]
     internal sealed class UnityInputManagerHandler : InputServiceHandler

@@ -25,13 +25,9 @@ public sealed partial class UIWindowConfig : Luban.BeanBase
         return new UI.UIWindowConfig(_buf);
     }
 
-    /// <summary>
-    /// 资源ID
-    /// </summary>
+    /// <summary>资源ID。</summary>
     public readonly string Id;
-    /// <summary>
-    /// 默认主题
-    /// </summary>
+    /// <summary>默认主题。</summary>
     public readonly string DefaultRes;
    
     public const int __ID__ = -298857824;

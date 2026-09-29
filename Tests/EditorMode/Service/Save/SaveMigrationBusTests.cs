@@ -13,17 +13,20 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// V3-P5 迁移总线测试：版本链解析（单步/多步/缺链/歧义/降级拒绝/注册校验）、迁移上下文块级与字段级操作（JSON/KVT）、
-    /// 回写开/关行为、迁移历史审计、元数据版本盖章、显式 MigrateSave、组件模式版本钩子路由。
-    /// <para>全部经 internal 同步核心路径（真实文件 IO）；迁移器类为顶层 internal（SaveHost SG 自注册可发现），
-    /// SetUp 手动注册兜底（SG 对测试程序集生成不稳定）——TearDown 经 <c>SaveMigrationManager.ResetForTests</c> 复位全局状态防串扰。</para>
-    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获；DefaultLogHandler 同步链路下补 <c>LogAssert.Expect</c>。</para>
+    /// 迁移总线测试：版本链解析（单步/多步/缺链/歧义/降级拒绝/注册校验）、迁移上下文块级与字段级操作（JSON/KVT）、回写开/关行为、迁移历史审计、元数据版本盖章、显式 MigrateSave、组件模式版本钩子路由。
     /// </summary>
+    /// <remarks>
+    /// 全部经 internal 同步核心路径（真实文件 IO）；迁移器类为顶层 internal（SaveHost SG 自注册可发现），
+    /// SetUp 手动注册兜底（SG 对测试程序集生成不稳定）——TearDown 经 <c>SaveMigrationManager.ResetForTests</c> 复位全局状态防串扰。 <br />
+    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获；DefaultLogHandler 同步链路下补 <c>LogAssert.Expect</c>。
+    /// </remarks>
     public class SaveMigrationBusTests
     {
         #region 测试数据与迁移器 [FIXTURES]
 
-        /// <summary>JSON 块测试数据（v1 形态）。</summary>
+        /// <summary>
+        /// JSON 块测试数据（v1 形态）。
+        /// </summary>
         [Serializable]
         private sealed class ProfileData
         {
@@ -31,7 +34,9 @@ namespace Service.Save
             public string Title;
         }
 
-        /// <summary>v2 形态（Gold 改名 Coins）。</summary>
+        /// <summary>
+        /// v2 形态（Gold 改名 Coins）。
+        /// </summary>
         [Serializable]
         private sealed class ProfileDataV2
         {
@@ -39,7 +44,9 @@ namespace Service.Save
             public string Title;
         }
 
-        /// <summary>v3 形态（Coins 改型 string）。</summary>
+        /// <summary>
+        /// v3 形态（Coins 改型 string）。
+        /// </summary>
         [Serializable]
         private sealed class ProfileDataV3
         {
@@ -47,7 +54,9 @@ namespace Service.Save
             public string Title;
         }
 
-        /// <summary>声明块键的测试数据（RenameField&lt;T&gt; 键解析用）。</summary>
+        /// <summary>
+        /// 声明块键的测试数据（RenameField&lt;T&gt; 键解析用）。
+        /// </summary>
         [SaveData("hero", 1)]
         [Serializable]
         private sealed class HeroData
@@ -55,14 +64,18 @@ namespace Service.Save
             public int Level;
         }
 
-        /// <summary>HeroData 改名后形态（Level → level）。</summary>
+        /// <summary>
+        /// HeroData 改名后形态（Level → level）。
+        /// </summary>
         [Serializable]
         private sealed class HeroDataV2
         {
             public int level;
         }
 
-        /// <summary>迁移记录探针基类（记录执行轨迹）。</summary>
+        /// <summary>
+        /// 迁移记录探针基类（记录执行轨迹）。
+        /// </summary>
         internal abstract class ProbeMigratorBase : ISaveMigrator
         {
             public abstract int FromVersion { get; }
@@ -71,7 +84,9 @@ namespace Service.Save
             public abstract UniTask Migrate(SaveMigrationContext context);
         }
 
-        /// <summary>1→2：ProfileData 块字段 Gold → Coins 改名。</summary>
+        /// <summary>
+        /// 1→2：ProfileData 块字段 Gold → Coins 改名。
+        /// </summary>
         internal sealed class RenameGoldMigrator : ProbeMigratorBase
         {
             public static int RunCount;
@@ -86,7 +101,9 @@ namespace Service.Save
             }
         }
 
-        /// <summary>2→3：ProfileData 块 Coins int → string 改型。</summary>
+        /// <summary>
+        /// 2→3：ProfileData 块 Coins int → string 改型。
+        /// </summary>
         internal sealed class RetypeCoinsMigrator : ProbeMigratorBase
         {
             public static int RunCount;
@@ -101,7 +118,9 @@ namespace Service.Save
             }
         }
 
-        /// <summary>同边优先级探针 A（Priority 10，应当后执行）。</summary>
+        /// <summary>
+        /// 同边优先级探针 A（Priority 10，应当后执行）。
+        /// </summary>
         internal sealed class PriorityLateMigrator : ProbeMigratorBase
         {
             public static readonly List<string> ExecutionOrder = new List<string>();
@@ -116,7 +135,9 @@ namespace Service.Save
             }
         }
 
-        /// <summary>同边优先级探针 B（Priority 1，应当先执行）。</summary>
+        /// <summary>
+        /// 同边优先级探针 B（Priority 1，应当先执行）。
+        /// </summary>
         internal sealed class PriorityEarlyMigrator : ProbeMigratorBase
         {
             public override int FromVersion => 5;
@@ -130,7 +151,9 @@ namespace Service.Save
             }
         }
 
-        /// <summary>抛异常迁移器（fail-fast 归一用）。</summary>
+        /// <summary>
+        /// 抛异常迁移器（fail-fast 归一用）。
+        /// </summary>
         internal sealed class ThrowingMigrator : ProbeMigratorBase
         {
             public override int FromVersion => 1;
@@ -142,7 +165,9 @@ namespace Service.Save
             }
         }
 
-        /// <summary>返回未完成任务的迁移器（同步完成断言用）。</summary>
+        /// <summary>
+        /// 返回未完成任务的迁移器（同步完成断言用）。
+        /// </summary>
         internal sealed class AsyncViolatingMigrator : ProbeMigratorBase
         {
             public override int FromVersion => 1;
@@ -155,7 +180,9 @@ namespace Service.Save
             }
         }
 
-        /// <summary>非法版本边迁移器（To &lt;= From）。</summary>
+        /// <summary>
+        /// 非法版本边迁移器（To &lt;= From）。
+        /// </summary>
         /// <remarks>必须用 struct——生成器只扫描 class 声明，避免非法迁移器被自注册进模块初始化器（注册期 ArgumentException 会炸毁整个程序集的模块初始化）。</remarks>
         private struct InvalidEdgeMigrator : ISaveMigrator
         {
@@ -166,7 +193,9 @@ namespace Service.Save
             public UniTask Migrate(SaveMigrationContext context) => UniTask.CompletedTask;
         }
 
-        /// <summary>TransformBlock 探针（1→2 整块变换）。</summary>
+        /// <summary>
+        /// TransformBlock 探针（1→2 整块变换）。
+        /// </summary>
         internal sealed class TransformBlockMigrator : ProbeMigratorBase
         {
             public override int FromVersion => 1;
@@ -179,14 +208,18 @@ namespace Service.Save
             }
         }
 
-        /// <summary>含模式版本迁移钩子的测试组件。</summary>
+        /// <summary>
+        /// 含模式版本迁移钩子的测试组件。
+        /// </summary>
         private sealed class SchemaProbeComponent : MonoBehaviour, ISaveComponentMigrator
         {
             internal int Value;
             internal int MigratedFrom = -1;
             internal string MigratedText;
 
-            /// <summary>迁移钩子：v1 存档中 Value 键为 legacy_value（字符串），改为 int Value。</summary>
+            /// <summary>
+            /// 迁移钩子：v1 存档中 Value 键为 legacy_value（字符串），改为 int Value。
+            /// </summary>
             public void OnMigrateComponent(int fromVersion, ref SaveKeyValueReader reader, int recordCount)
             {
                 MigratedFrom = fromVersion;
@@ -210,7 +243,9 @@ namespace Service.Save
             }
         }
 
-        /// <summary>SchemaProbeComponent 的手写捕获器（当前模式版本 2；SG 对测试程序集生成不稳定的兜底惯例）。</summary>
+        /// <summary>
+        /// SchemaProbeComponent 的手写捕获器（当前模式版本 2；SG 对测试程序集生成不稳定的兜底惯例）。
+        /// </summary>
         private sealed class SchemaProbeFallbackCapturer : ISaveComponentCapturer
         {
             private static readonly string[] s_FieldNames = { "Value" };
@@ -474,7 +509,9 @@ namespace Service.Save
             Assert.AreEqual(SaveError.MigrationFailed, error, "同起始版本多条不同目标边应 fail-fast");
         }
 
-        /// <summary>歧义边探针（1→9）。</summary>
+        /// <summary>
+        /// 歧义边探针（1→9）。
+        /// </summary>
         internal sealed class AmbiguousForkMigrator : ISaveMigrator
         {
             public int FromVersion => 1;
@@ -628,7 +665,9 @@ namespace Service.Save
             Assert.AreEqual(1, loaded.Gold);
         }
 
-        /// <summary>无操作迁移器（操作全部指向不存在的块/字段）。</summary>
+        /// <summary>
+        /// 无操作迁移器（操作全部指向不存在的块/字段）。
+        /// </summary>
         internal sealed class NoOpAbsentMigrator : ISaveMigrator
         {
             public int FromVersion => 1;
@@ -659,7 +698,9 @@ namespace Service.Save
             Assert.AreEqual(3, loaded.Gold);
         }
 
-        /// <summary>块改名迁移器。</summary>
+        /// <summary>
+        /// 块改名迁移器。
+        /// </summary>
         internal sealed class RenameBlockMigrator : ISaveMigrator
         {
             public int FromVersion => 1;
@@ -687,7 +728,9 @@ namespace Service.Save
             Assert.AreEqual(9, loaded.level, "经类型声明键解析的改名应生效");
         }
 
-        /// <summary>RenameField&lt;TData&gt; 键解析迁移器。</summary>
+        /// <summary>
+        /// RenameField&lt;TData&gt; 键解析迁移器。
+        /// </summary>
         internal sealed class RenameByTypeMigrator : ISaveMigrator
         {
             public int FromVersion => 1;

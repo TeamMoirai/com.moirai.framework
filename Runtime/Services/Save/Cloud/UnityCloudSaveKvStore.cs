@@ -11,19 +11,22 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// Unity Gaming Services Cloud Save 云端 KV 存储（整文件经 <c>UNITY_CLOUD_SAVE_INSTALLED</c> 条件编译——项目安装
-    /// <c>com.unity.services.cloudsave</c> 后自动激活；Player Files API 承载——单档上限 1GB、每玩家 200 文件）。
-    /// <para>前置条件：项目须先完成 <c>UnityServices.InitializeAsync()</c> 且玩家已登录（Authentication）——
-    /// 未初始化/未登录/远端失败一律抛异常（远端失败语义——<see cref="CloudSaveStorageBackend"/> 归一为离线降级）；
-    /// 缺档非错误（<see cref="CloudSaveExceptionReason.NotFound"/> → <c>null</c>/<c>false</c>/幂等）。</para>
-    /// <para>版本通道：UGS 的 WriteLock 为 etag 语义字符串（非单调数值），不提供数值修订号——<see cref="WriteAsync"/> 恒返回 <c>0</c>，
-    /// 同步裁决回退时间戳比较（<c>FileItem.Modified</c> 为远端权威时钟）。</para>
-    /// <para>取消语义：UGS SDK 不接收取消令牌——调用前协作式检查，已发出的请求无法中止。</para>
+    /// Unity Gaming Services Cloud Save 云端 KV 存储（<c>UNITY_CLOUD_SAVE_INSTALLED</c> 条件编译， <br />
+    /// 安装 <c>com.unity.services.cloudsave</c> 后自动激活）。
     /// </summary>
+    /// <remarks>
+    /// 经 Player Files API 承载，单档上限 1GB、每玩家 200 文件。 <br />
+    /// 前置条件：项目须先完成 <c>UnityServices.InitializeAsync()</c> 且玩家已登录，否则抛异常（由 <see cref="CloudSaveStorageBackend"/> 归一为离线降级）；缺档非错误。 <br />
+    /// 版本通道：UGS WriteLock 为 etag 语义字符串、无数值修订号——<see cref="WriteAsync"/> 恒返回 <c>0</c>， <br />
+    /// 裁决回退时间戳比较（<c>FileItem.Modified</c> 为远端权威时钟）。 <br />
+    /// 取消语义：UGS SDK 不接收取消令牌，仅调用前协作式检查，已发出的请求无法中止。
+    /// </remarks>
     [Serializable]
     public class UnityCloudSaveKvStore : CloudSaveKvStore
     {
-        /// <summary>单次远端请求超时（秒；透传 UGS <see cref="SaveOptions.RequestTimeout"/>）。</summary>
+        /// <summary>
+        /// 单次远端请求超时（秒；透传 UGS <see cref="SaveOptions.RequestTimeout"/>）。
+        /// </summary>
         [Tooltip("单次远端请求超时（秒；透传 UGS SaveOptions.RequestTimeout）。")]
         [SerializeField, Min(1)] private int m_RequestTimeoutSeconds = 15;
 

@@ -5,10 +5,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器日志捕获器（线程安全入队 + 主线程排空的环形缓冲）。
-    /// <para>订阅 <see cref="Application.logMessageReceivedThreaded"/> 捕获任意线程日志；原始字段经并发队列暂存，主线程 <see cref="Drain"/> 期间完成 <see cref="LogNode"/> 池化分配（内部读取 <see cref="Time.frameCount"/>，仅限主线程）。</para>
-    /// <para>环形缓冲满时按先进先出淘汰最旧结点（归还内存池）；各级别计数在增删时增量维护，消费端零遍历。</para>
+    /// 调试器日志捕获器：线程安全入队 + 主线程排空的环形缓冲。
     /// </summary>
+    /// <remarks>
+    /// 订阅 <see cref="Application.logMessageReceivedThreaded"/> 捕获任意线程日志；原始字段经并发队列暂存， <br />
+    /// 主线程 <see cref="Drain"/> 期间完成 <see cref="LogNode"/> 池化分配。 <br />
+    /// 环形缓冲满时按先进先出淘汰最旧结点（归还内存池）；各级别计数增量维护，消费端零遍历。
+    /// </remarks>
     public sealed class DebuggerLogCapture
     {
         #region 类型 [TYPES]
@@ -66,44 +69,28 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取环形缓冲容量。
-        /// </summary>
+        /// <summary>获取环形缓冲容量。</summary>
         public int Capacity => _capacity;
 
-        /// <summary>
-        /// 获取是否正在捕获（Start/Stop 幂等守卫——重复 Start 不会重复订阅日志回调）。
-        /// </summary>
+        /// <summary>获取是否正在捕获（Start/Stop 幂等守卫——重复 Start 不会重复订阅日志回调）。</summary>
         public bool IsRunning => _isRunning;
 
-        /// <summary>
-        /// 获取当前缓冲的日志总数。
-        /// </summary>
+        /// <summary>获取当前缓冲的日志总数。</summary>
         public int Count => _nodes.Count;
 
-        /// <summary>
-        /// 获取信息级日志计数。
-        /// </summary>
+        /// <summary>获取信息级日志计数。</summary>
         public int InfoCount => _infoCount;
 
-        /// <summary>
-        /// 获取警告级日志计数。
-        /// </summary>
+        /// <summary>获取警告级日志计数。</summary>
         public int WarningCount => _warningCount;
 
-        /// <summary>
-        /// 获取错误级日志计数。
-        /// </summary>
+        /// <summary>获取错误级日志计数。</summary>
         public int ErrorCount => _errorCount;
 
-        /// <summary>
-        /// 获取致命级（异常）日志计数。
-        /// </summary>
+        /// <summary>获取致命级（异常）日志计数。</summary>
         public int FatalCount => _fatalCount;
 
-        /// <summary>
-        /// 获取内容版本号（新日志入环或清空时递增——消费端据此节流刷新）。
-        /// </summary>
+        /// <summary>获取内容版本号（新日志入环或清空时递增——消费端据此节流刷新）。</summary>
         public int Version => _version;
 
         #endregion

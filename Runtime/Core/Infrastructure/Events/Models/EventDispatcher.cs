@@ -7,9 +7,11 @@ using Debug = UnityEngine.Debug;
 namespace Moirai.Atropos.Events
 {
     /// <summary>
-    /// 事件派发链异常分级策略：开发期 <see cref="LogUtility.Fatal(System.Exception, UnityEngine.Object)"/> 后上抛，发布期隔离续跑。
-    /// <para><c>const</c> 门控：JIT 裁掉死分支，发布构建零运行时成本。深度计数（<c>m_IsInvoking</c>）与引用计数归还在 <c>finally</c> 中无条件执行，与本开关无关。</para>
+    /// 事件派发链的异常分级策略：开发期记录后上抛，发布期隔离续跑。
     /// </summary>
+    /// <remarks>
+    /// <c>const</c> 门控，发布构建裁掉死分支；深度计数与引用计数归还在 <c>finally</c> 中无条件执行，与本开关无关。
+    /// </remarks>
     internal static class EventDispatchPolicy
     {
         internal const bool RETHROW_DISPATCH_EXCEPTIONS =
@@ -22,24 +24,18 @@ namespace Moirai.Atropos.Events
 
     public enum DispatchMode
     {
-        /// <summary>
-        /// 默认 => Queued
-        /// </summary>
+        /// <summary>默认 => Queued。</summary>
         Default = Queued,
         
-        /// <summary>
-        /// 队列
-        /// </summary>
+        /// <summary>队列。</summary>
         Queued = 1,
         
-        /// <summary>
-        /// 立即
-        /// </summary>
+        /// <summary>立即。</summary>
         Immediate = 2,
     }
     
     /// <summary>
-    /// 门（Gate）控制调度程序何时处理事件
+    /// 门（Gate）控制调度程序何时处理事件。
     /// </summary>
     public readonly struct EventDispatcherGate : IDisposable, IEquatable<EventDispatcherGate>
     {
@@ -56,7 +52,7 @@ namespace Moirai.Atropos.Events
         }
 
         /// <summary>
-        /// IDisposable.Dispose 的实现。打开门。如果所有入口都打开，则处理队列中的
+        /// IDisposable.Dispose 的实现。打开门。如果所有入口都打开，则处理队列中的。
         /// </summary>
         public void Dispose()
         {

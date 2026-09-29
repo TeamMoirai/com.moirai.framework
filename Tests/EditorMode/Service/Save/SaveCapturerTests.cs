@@ -9,18 +9,24 @@ namespace Service.Save
 {
     /// <summary>
     /// 生成捕获器行为测试：注册表自注册、全字段捕获/恢复往返、掩码过滤、未知键跳过与缺失键保留当前值。
-    /// <para>测试组件声明在本程序集（partial + internal，捕获器经 SaveHostGenerator 生成并模块初始化器注册）。</para>
     /// </summary>
+    /// <remarks>
+    /// 测试组件声明在本程序集（partial + internal，捕获器经 <c>SaveHostGenerator</c> 生成并模块初始化器注册）。
+    /// </remarks>
     public partial class SaveCapturerTests
     {
-        /// <summary>测试枚举。</summary>
+        /// <summary>
+        /// 测试枚举。
+        /// </summary>
         internal enum ETestMode
         {
             Idle,
             Run,
         }
 
-        /// <summary>测试组件（字段覆盖：基元/枚举/字符串/Unity 数学类型；含私有字段验证生成捕获器的私有访问）。</summary>
+        /// <summary>
+        /// 测试组件（字段覆盖：基元/枚举/字符串/Unity 数学类型；含私有字段验证生成捕获器的私有访问）。
+        /// </summary>
         internal partial class KvTestComponent : MonoBehaviour
         {
             [SaveField]
@@ -50,7 +56,9 @@ namespace Service.Save
             /// <summary>私有字段读取（测试断言用）。</summary>
             internal float SpeedValue => Speed;
 
-            /// <summary>私有字段写入（测试准备用）。</summary>
+            /// <summary>
+            /// 私有字段写入（测试准备用）。
+            /// </summary>
             internal void SetSpeed(float value)
             {
                 Speed = value;
@@ -220,8 +228,10 @@ namespace Service.Save
 
                 /// <summary>
                 /// 测试兜底捕获器（SaveHost SG 对嵌套测试组件生成缺失时的手写等价物，行为对齐 SG 生成模式）。
-                /// <para>字段序 = KvTestComponent 声明序（Hp/player_name/Speed/Position/Rotation/Mode/Active/Coins）。</para>
                 /// </summary>
+                /// <remarks>
+                /// 字段序 = KvTestComponent 声明序（Hp/player_name/Speed/Position/Rotation/Mode/Active/Coins）。
+                /// </remarks>
                 private sealed class KvTestComponentFallbackCapturer : ISaveComponentCapturer
                 {
                     private static readonly string[] s_FieldNames = { "Hp", "player_name", "Speed", "Position", "Rotation", "Mode", "Active", "Coins" };

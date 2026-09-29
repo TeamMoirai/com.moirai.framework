@@ -9,14 +9,14 @@ namespace Moirai.Atropos
     /// <summary>
     /// 缓动动画统一外观（Facade）。
     /// </summary>
-    /// <para>
-    /// 所有缓动参数类型为 <see cref="TweenEase"/>，支持隐式转换：
-    /// <code>
-    /// TweenUtility.Position(t, end, 0.3f); // 默认 Linear
-    /// TweenUtility.Position(t, end, 0.3f, TweenUtility.EEase.OutQuad); // 枚举缓动
-    /// TweenUtility.Position(t, end, 0.3f, myAnimationCurve); // 曲线缓动
+    /// <remarks>所有缓动参数类型为 <see cref="TweenEase"/>，支持隐式转换。</remarks>
+    /// <example>
+    /// <code lang="csharp">
+    /// TweenUtility.Position(t, end, 0.3f);                              // 默认 Linear
+    /// TweenUtility.Position(t, end, 0.3f, TweenUtility.EEase.OutQuad);  // 枚举缓动
+    /// TweenUtility.Position(t, end, 0.3f, myAnimationCurve);            // 曲线缓动
     /// </code>
-    /// </para>
+    /// </example>
     [HandlerHost(typeof(TweenHandler))]
     public static partial class TweenUtility
     {
@@ -93,9 +93,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 等待 tween 结束（UniTask）。
-        /// <para>任何结束原因（自然完成/Complete/Stop/目标销毁/清理）→ 正常返回，不区分死因；
-        /// 仅外部 CancellationToken 取消 → OperationCanceledException（放弃等待，tween 不被停止）。</para>
         /// </summary>
+        /// <remarks>任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因； <br />
+        /// 仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待，tween 不被停止）。</remarks>
         public static UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {
             return Handler.WaitAsync(tweenId, cancellationToken);
@@ -565,11 +565,13 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 零分配 Custom：回调直接持有 object 目标。
-        /// 调用侧使用 static lambda / 方法组（不捕获局部变量）时无闭包分配，适合高频调用。
-        /// <code>
+        /// </summary>
+        /// <remarks>调用侧使用 static lambda / 方法组（不捕获局部变量）时无闭包分配，适合高频调用。</remarks>
+        /// <example>
+        /// <code lang="csharp">
         /// TweenUtility.Custom(hud, 0f, 1f, 0.3f, static (t, v) => ((HudView)t).Fill(v));
         /// </code>
-        /// </summary>
+        /// </example>
         public static long Custom(object target, float startValue, float endValue, float duration, Action<object, float> onValueChange, TweenEase ease = default,
             int cycles = 1, ECycleMode cycleMode = ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {

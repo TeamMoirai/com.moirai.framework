@@ -17,28 +17,30 @@ namespace Moirai.Atropos.Audio
 
         [Tooltip("如果不配置 AudioGroupConfigs，则会从 AudioMixer 读取音轨配置")]
         [SerializeField] private AudioMixer m_AudioMixer;
-        /// <summary>音频混音器</summary>
+        /// <summary>音频混音器。</summary>
         internal static AudioMixer AudioMixer => Instance.m_AudioMixer;
 
         [SerializeField] private AudioGroupConfig[] m_AudioGroupConfigs;
-        /// <summary>音轨配置</summary>
+        /// <summary>音轨配置。</summary>
         internal static AudioGroupConfig[] AudioGroupConfigs => Instance.m_AudioGroupConfigs;
 
         [Tooltip("混音快照配置：状态 → AudioMixerSnapshot 映射；Priority < 0 使用内置默认优先级。空 Snapshot 可由「从 Mixer 重建」按名自动补齐，手工非空映射优先")]
         [SerializeField] private AudioMixSnapshotEntry[] m_MixSnapshots;
-        /// <summary>混音快照配置</summary>
+        /// <summary>混音快照配置。</summary>
         internal static AudioMixSnapshotEntry[] MixSnapshots => Instance.m_MixSnapshots;
 
         /// <summary>
-        /// 从 AudioMixer 按名重建 MixSnapshots 映射（一键绑定）。
-        /// <para>已有非空 Snapshot 的手工映射保留；仅补齐空缺并铺全状态。</para>
+        /// 从 <c>AudioMixer</c> 按名重建混音快照映射（一键绑定）。
         /// </summary>
+        /// <remarks>
+        /// 已有非空 Snapshot 的手工映射保留；仅补齐空缺并铺全状态。
+        /// </remarks>
         [ContextMenu("从 Mixer 重建混音快照映射")]
         [Button("从 Mixer 重建混音快照映射")]
         public void RebuildFromMixer() => RebuildMixSnapshotsFromMixer();
 
         /// <summary>
-        /// 重建映射并回报结果：服务已在跑时顺带把新映射登记进状态机，避免"改了配置但当前会话毫无变化"。
+        /// 重建映射并回报结果：服务已在跑时顺带把新映射登记进状态机。
         /// </summary>
         /// <returns>本次由自动绑定补齐的条目数；<c>0</c> 表示 Mixer 里没有可按名对上的快照。</returns>
         public int RebuildMixSnapshotsFromMixer()

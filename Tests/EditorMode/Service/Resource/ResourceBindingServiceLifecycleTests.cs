@@ -6,10 +6,12 @@ using UnityEngine;
 namespace Service.Resource
 {
     /// <summary>
-    /// ResourceBindingService 的关停/重置分界与销毁态兜底回收用例。
-    /// <para>全部只走槽位层：用未初始化的裸 <see cref="YooAssetHandler"/> 构造绑定服务，
-    /// 不触达 YooAssets 静态初始化，也不落任何租约，保证编辑模式下的确定性。</para>
+    /// ResourceBindingService 的关停/重置分界与销毁态兜底回收的契约守卫。
     /// </summary>
+    /// <remarks>
+    /// 全部只走槽位层：用未初始化的裸 <see cref="YooAssetHandler"/> 构造绑定服务，
+    /// 不触达 YooAssets 静态初始化，也不落任何租约，保证编辑模式下的确定性。
+    /// </remarks>
     public sealed class ResourceBindingServiceLifecycleTests
     {
         private ResourceBindingService _bindings;

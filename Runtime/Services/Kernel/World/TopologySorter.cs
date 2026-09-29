@@ -4,10 +4,12 @@ using System.Collections.Generic;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 服务依赖图拓扑排序器（Kahn 算法）。世界初始化期一次性使用，非热路径。
-    /// <para>确定性：同入度节点按注册顺序出队（稳定序），保证同图同序。</para>
-    /// <para>缺失依赖与循环依赖在此 fail-fast——错误消息含完整剩余环成员。</para>
+    /// 服务依赖图拓扑排序器（Kahn 算法），世界初始化期一次性使用，非热路径。
     /// </summary>
+    /// <remarks>
+    /// 确定性：同入度节点按注册顺序出队（稳定序），保证同图同序。 <br />
+    /// 缺失依赖与循环依赖在此 fail-fast，错误消息含完整剩余环成员。
+    /// </remarks>
     internal static class TopologySorter
     {
         /// <summary>

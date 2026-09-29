@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Resource
         #region 文件偏移加解密 [FileOffset Encryptor/Decryptor]
 
         /// <summary>
-        /// 文件偏移加密方式
+        /// 文件偏移加密方式。
         /// </summary>
         public class FileOffsetEncryptor : IBundleEncryptor
         {
@@ -39,13 +39,12 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 资源文件偏移加载解密类
+        /// 资源文件偏移加载解密类。
         /// </summary>
         internal class FileOffsetDecryptor : IBundleOffsetDecryptor, IBundleMemoryDecryptor
         {
             /// <summary>
-            /// 同步方式获取解密的资源包对象
-            /// 注意：加载流对象在资源包对象释放的时候会自动释放
+            /// 同步方式获取解密的资源包对象（加载流随资源包对象释放自动释放）。
             /// </summary>
             long IBundleOffsetDecryptor.GetFileOffset(BundleDecryptArgs args)
             {
@@ -53,8 +52,7 @@ namespace Moirai.Atropos.Resource
             }
 
             /// <summary>
-            /// 异步方式获取解密的资源包对象
-            /// 注意：加载流对象在资源包对象释放的时候会自动释放
+            /// 异步方式获取解密的资源包对象（加载流随资源包对象释放自动释放）。
             /// </summary>
             byte[] IBundleMemoryDecryptor.GetDecryptedData(BundleDecryptArgs args)
             {

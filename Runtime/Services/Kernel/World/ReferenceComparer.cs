@@ -4,15 +4,12 @@ using System.Runtime.CompilerServices;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 基于引用相等性的比较器。
-    /// <para>使用 <see cref="object.ReferenceEquals"/> 判断相等，并返回运行时默认（引用）哈希码，适用于以对象实例为键的字典等场景。</para>
+    /// 基于引用相等性的比较器，适用于以对象实例为键的字典等场景。
     /// </summary>
     /// <typeparam name="T">参与比较的引用类型。</typeparam>
     internal sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
     {
-        /// <summary>
-        /// 获取比较器单例实例。
-        /// </summary>
+        /// <summary>获取比较器单例实例。</summary>
         public static readonly ReferenceComparer<T> Instance = new ReferenceComparer<T>();
 
         private ReferenceComparer() { }

@@ -4,16 +4,12 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源记录内核的键空间——三条名称轴（package / location / type）的登记、packed key 的组装
-    /// 与拆解，以及"这条键还有没有人认得"的引用计数。
-    /// <para>位域布局与 assetKind / assetType 归一在 <see cref="ResourceKeyCodec"/>（纯静态）；
-    /// 单条轴的登记与回收在 <see cref="ResourceNameRegistry{TValue}"/>（每轴一份）；这里只剩把两者
-    /// 接起来的那几行。</para>
-    /// <para>与后端之间只有 <paramref name="defaultPackageName"/> 这一根活的连线：包名是可写接缝
-    /// （<c>ResourceService.DefaultPackageName</c> 的 setter 运行期可达），构造时捕获值会永远读到旧包名，
-    /// 所以按 <see cref="Func{TResult}"/> 注入、每次活读。后端算子（校验与释放原生句柄）之后要搬进来时
-    /// 再立接口，为一根线立一个类型不值。</para>
+    /// 资源记录内核的键空间：三条名称轴（package / location / type）的登记、packed key 的组装与拆解，以及键的引用计数。
     /// </summary>
+    /// <remarks>
+    /// 位域布局与 assetKind / assetType 归一在 <see cref="ResourceKeyCodec"/>，单条轴的登记与回收在 <see cref="ResourceNameRegistry{TValue}"/>。 <br />
+    /// 包名是运行期可写的接缝，故以 <see cref="Func{TResult}"/> 注入并每次活读，避免读到构造时捕获的旧包名。
+    /// </remarks>
     internal sealed partial class ResourceRecordStore
     {
         // 三套分页 slot 数组共用的页布局：一页 256 槽、按位取页号与页内下标。
@@ -49,7 +45,9 @@ namespace Moirai.Atropos.Resource
         [NonSerialized] private int _loadingOperationSlotFreeHead = -1;
         private readonly ResourceUlongIntMap _assetLoadingOperationByKey = new ResourceUlongIntMap();
 
-        /// <summary>按 packed key 查记录槽号。不新增登记——查不到就是没有。</summary>
+        /// <summary>
+        /// 按 packed key 查记录槽号。不新增登记——查不到就是没有。
+        /// </summary>
         internal bool TryGetRecordId(ulong key, out int assetId)
         {
             return _assetRecordsByKey.TryGetValue(key, out assetId) && IsValidAssetId(assetId);
@@ -202,7 +200,9 @@ namespace Moirai.Atropos.Resource
 
         internal Type GetAssetTypeById(int id) => _typeNames.GetValue(id);
 
-        /// <summary>记录一条资源建立时，把它用到的三个名字各计一次。</summary>
+        /// <summary>
+        /// 记录一条资源建立时，把它用到的三个名字各计一次。
+        /// </summary>
         internal void RetainResourceKey(ulong key)
         {
             _packageNames.Retain(ResourceKeyCodec.UnpackPackageId(key));
@@ -210,7 +210,9 @@ namespace Moirai.Atropos.Resource
             _typeNames.Retain(ResourceKeyCodec.UnpackTypeId(key));
         }
 
-        /// <summary>记录释放时反向减数；减到零的那条轴把名字摘掉并把 id 还回空闲栈。</summary>
+        /// <summary>
+        /// 记录释放时反向减数；减到零的那条轴把名字摘掉并把 id 还回空闲栈。
+        /// </summary>
         internal void ReleaseResourceKey(ulong key)
         {
             _packageNames.Release(ResourceKeyCodec.UnpackPackageId(key));
@@ -218,7 +220,9 @@ namespace Moirai.Atropos.Resource
             _typeNames.Release(ResourceKeyCodec.UnpackTypeId(key));
         }
 
-        /// <summary>整表清空前逐键减数（如后端整体重置），不减则名字与 id 永久滞留。</summary>
+        /// <summary>
+        /// 整表清空前逐键减数（如后端整体重置），不减则名字与 id 永久滞留。
+        /// </summary>
         internal void ReleaseAllResourceKeysFromMap(ResourceUlongIntMap map)
         {
             // 方法组缓存为实例委托字段，避免冷路径批量清理时逐次 new Action 分配。

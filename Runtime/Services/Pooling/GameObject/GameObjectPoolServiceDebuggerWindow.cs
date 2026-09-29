@@ -7,9 +7,11 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// GameObject 池信息窗口（摘要常驻 + 池视图常驻：侧边栏同款 Foldout 折叠浏览、计数器告警、实例清单与冲刷操作）。
-    /// <para>摘要卡与池视图构建一次常驻——轮询仅原地刷新数值，实例行仅在展开期间按轮询重建；池集合经签名哈希检测变化时才整体重建，交互不落在重建边界被吞掉。</para>
+    /// GameObject 池信息窗口：摘要常驻 + 侧边栏同款 Foldout 折叠浏览、计数器告警、实例清单与冲刷操作。
     /// </summary>
+    /// <remarks>
+    /// 摘要卡与池视图构建一次常驻，轮询仅原地刷新数值；实例行仅在展开期间重建，池集合经签名哈希检测到变化时才整体重建。
+    /// </remarks>
     public sealed class GameObjectPoolServiceDebuggerWindow : ScrollableDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]
@@ -21,7 +23,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>池集合签名哈希种子（顺序敏感：新建/销毁均会改变签名）。</summary>
         private const int POOL_SET_HASH_SEED = 17;
 
-        /// <summary>GameObject 池窗口是否显示实例清单</summary>
+        /// <summary>GameObject 池窗口是否显示实例清单。</summary>
         private const string POOL_SHOW_INSTANCES = "Debugger.GameObjectPool.ShowInstances";
 
         #endregion

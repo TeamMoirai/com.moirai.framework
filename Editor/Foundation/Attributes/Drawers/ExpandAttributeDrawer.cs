@@ -51,8 +51,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         }
 
         /// <summary>
-        /// 绘制标题栏背景与属性名，并逐行绘制子字段（含 SerializeReference 多态子字段；
-        /// Object 引用会展开目标 ScriptableObject/资产的序列化字段）。
+        /// 绘制标题栏背景与属性名，并逐行绘制子字段（含 SerializeReference 多态子字段；Object 引用会展开目标 ScriptableObject / 资产的序列化字段）。
         /// </summary>
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -171,8 +170,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         }
 
         /// <summary>
-        /// 直接绘制 Object 引用字段。
-        /// 不能用 PropertyField(property)——属性带 Expand 时会重入 Drawer，内容翻倍。
+        /// 直接绘制 Object 引用字段；不能用 <c>PropertyField(property)</c>——属性带 Expand 时会重入 Drawer 导致内容翻倍。
         /// </summary>
         internal static void DrawObjectFieldDirect(Rect rect, SerializedProperty property)
         {
@@ -199,9 +197,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
     /// Odin 原生 Drawer，为 <see cref="ExpandAttribute"/> 接管 Odin 绘制。
     /// </summary>
     /// <remarks>
-    /// 优先级 super=1，优先于默认 managed reference drawer 与 DrawWithUnity(10000)。
+    /// 优先级 super=1，优先于默认 managed reference drawer 与 DrawWithUnity(10000)。 <br />
     /// Object 引用目标必须用 Odin <see cref="PropertyTree"/> 展开：Unity SerializedProperty
-    /// 不会应用子类型上的 LabelText / Min / EnumCondition 等 Odin 特性。
+    /// 不会应用子类型上的 LabelText / Min / EnumCondition 等 Odin 特性。 <br />
     /// 禁止 PropertyField(本属性)——会重入导致内容×2。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]
@@ -320,9 +318,8 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         }
 
         /// <summary>
-        /// Object 引用：标题 + 引用框 + 展开目标 SO。
-        /// 顶层字段走 Unity SerializedObject；列表/数组的自定义元素用 PropertyTree.Create(boxedValue)
-        /// 绘制，使 PoolEntry 等类型上的 LabelText / Min / EnumCondition 生效。
+        /// Object 引用：标题 + 引用框 + 展开目标 SO。顶层字段走 Unity SerializedObject，列表 / 数组的自定义元素用 <c>PropertyTree.Create(boxedValue)</c> 绘制， <br />
+        /// 使 <c>PoolEntry</c> 等类型上的 <c>LabelText</c> / <c>Min</c> / <c>EnumCondition</c> 生效。
         /// </summary>
         private static void DrawObjectReferencePath(SerializedProperty prop, string titleText)
         {
@@ -364,8 +361,7 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         }
 
         /// <summary>
-        /// 数组/列表：逐元素展开，子字段用反射读 LabelText 后交给 Unity PropertyField。
-        /// 不用 PropertyTree.Create/Dispose（每帧建树会拖垮 Inspector）。
+        /// 数组 / 列表：逐元素展开，子字段用反射读 <c>LabelText</c> 后交给 Unity PropertyField 绘制；不每帧 <c>PropertyTree.Create</c>（会拖垮 Inspector）。
         /// </summary>
         private static void DrawTargetProperty(SerializedProperty property)
         {
@@ -459,7 +455,9 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
             }
         }
 
-        /// <summary>从字段上的 LabelText.Text 读显示名（不解析 @ 表达式）。</summary>
+        /// <summary>
+        /// 从字段上的 LabelText.Text 读显示名（不解析 @ 表达式）。
+        /// </summary>
         private static string ResolveFieldLabelText(System.Type elementType, string fieldName)
         {
             if (elementType == null || string.IsNullOrEmpty(fieldName))

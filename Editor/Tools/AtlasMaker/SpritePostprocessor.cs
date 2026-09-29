@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Editor
         private static AtlasConfiguration Config => AtlasConfiguration.instance;
 
         /// <summary>
-        /// 初始化文件名缓存
+        /// 初始化文件名缓存。
         /// </summary>
         private static void EnsureCacheInitialized()
         {
@@ -55,7 +55,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 重置缓存（配置变更时调用）
+        /// 重置缓存（配置变更时调用）。
         /// </summary>
         public static void ResetCache()
         {
@@ -65,7 +65,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 从缓存中移除文件
+        /// 从缓存中移除文件。
         /// </summary>
         private static void RemoveFromCache(string assetPath)
         {
@@ -85,7 +85,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 添加文件到缓存
+        /// 添加文件到缓存。
         /// </summary>
         private static void AddToCache(string assetPath)
         {

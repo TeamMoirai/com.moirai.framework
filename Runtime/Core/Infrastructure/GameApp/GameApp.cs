@@ -8,22 +8,22 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 游戏框架静态外观：生命周期、协程、帧与 Unity 事件订阅。
-    /// <para>本类不含任何 MonoBehaviour 成员：帧逻辑订阅由 <see cref="PlayerLoopDriver"/> 的静态注册表驱动，
-    /// Unity 只在 MonoBehaviour 上派发的消息（协程 / Gizmos / ApplicationPause）由 <see cref="GameAppHost"/> 承接。</para>
     /// </summary>
+    /// <remarks>
+    /// 本类不含 MonoBehaviour 成员：帧逻辑订阅由 <see cref="PlayerLoopDriver"/> 静态表驱动，
+    /// 只在 MonoBehaviour 上派发的消息（协程 / Gizmos / ApplicationPause）由 <see cref="GameAppHost"/> 承接。
+    /// </remarks>
     public partial class GameApp
     {
         #region 订阅句柄 [SUBSCRIPTION]
 
         /// <summary>
         /// <see cref="GameApp"/> 各类订阅的可注销句柄。
-        /// <para>存在的理由：注册表按<b>委托相等</b>比较来注销，而 lambda 每次求值都是新的委托实例——
-        /// <c>AddUpdateListener(() =&gt; Foo())</c> 之后重写一个同样体的 lambda 去 Remove 是摘不掉的，
-        /// 订阅连同闭包捕获的对象会一直留到 <see cref="Shutdown"/>。句柄在注册时就攥住那个确切实例，
-        /// 因此 lambda 也能干净注销。</para>
-        /// <para>非线程安全；只在主线程创建与释放。框架已 <see cref="Shutdown"/> 后 Dispose 是空操作
-        /// （注册表已被清空）。</para>
         /// </summary>
+        /// <remarks>
+        /// 注册表按委托相等比较注销，lambda 每次求值都是新实例、摘不掉；句柄在注册时攥住确切实例，lambda 也能干净注销。 <br />
+        /// 非线程安全，只在主线程创建与释放；框架 <see cref="Shutdown"/> 后 Dispose 是空操作。
+        /// </remarks>
         public sealed class Subscription : IDisposable
         {
             private Action _disposeAction;
@@ -36,7 +36,9 @@ namespace Moirai.Atropos
             /// <summary>是否仍处于订阅状态（未 Dispose 过）。</summary>
             public bool IsSubscribed => _disposeAction != null;
 
-            /// <summary>注销订阅。幂等——重复调用安全。</summary>
+            /// <summary>
+            /// 注销订阅。幂等——重复调用安全。
+            /// </summary>
             public void Dispose()
             {
                 Action dispose = _disposeAction;
@@ -63,26 +65,21 @@ namespace Moirai.Atropos
         private static bool s_NeverSleep;
         private static int s_PauseDepth;
 
-        /// <summary>
-        /// 获取游戏是否已关闭。
-        /// </summary>
+        /// <summary>获取游戏是否已关闭。</summary>
         public static bool IsShutdown { get; internal set; } = true;
 
-        /// <summary>
-        /// 获取或设置游戏帧率。
-        /// </summary>
+        /// <summary>获取或设置游戏帧率。</summary>
         public static int FrameRate
         {
             get => s_FrameRate;
             set => Application.targetFrameRate = s_FrameRate = value;
         }
 
-        /// <summary>
-        /// 获取或设置<b>期望的</b>游戏速度（映射到 <c>Time.timeScale</c>）。
-        /// <para>处于暂停（<see cref="IsGamePaused"/>）时，写入只更新"解除暂停后回到的目标值"，
-        /// <c>Time.timeScale</c> 保持 0——暂停优先于速度设定。要判定时间是否真的冻结，
-        /// 读 <c>GameSpeed &lt;= 0</c> 或引擎的 <c>Time.timeScale</c>，不要读 <see cref="IsGamePaused"/>。</para>
-        /// </summary>
+        /// <summary>获取或设置期望的游戏速度（映射到 <c>Time.timeScale</c>）。</summary>
+        /// <remarks>
+        /// 暂停期间写入只更新解除暂停后的目标值，<c>Time.timeScale</c> 保持 0（暂停优先）。 <br />
+        /// 判断时间是否真正冻结请读 <c>GameSpeed &lt;= 0</c> 或 <c>Time.timeScale</c>，不要读 <see cref="IsGamePaused"/>。
+        /// </remarks>
         public static float GameSpeed
         {
             get => s_GameSpeed;
@@ -95,37 +92,25 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>
-        /// 获取游戏是否被暂停，即 <see cref="PauseGame"/> 的引用计数是否非零。
-        /// <para><b>语义变更</b>：旧实现是 <c>GameSpeed &lt;= 0</c>，把"有人请求暂停"和
-        /// "速度被调到 0"混为一谈，导致 <see cref="ResumeGame"/> 在后者情形下恢复一个陈旧值。
-        /// 现在两者解耦：慢放到 0 不算暂停。</para>
-        /// </summary>
+        /// <summary>获取游戏是否被暂停，即 <see cref="PauseGame"/> 的引用计数是否非零。</summary>
+        /// <remarks>与速度解耦：把速度调到 0 不算暂停。</remarks>
         public static bool IsGamePaused => s_PauseDepth > 0;
 
-        /// <summary>
-        /// 获取当前的暂停请求层数（<see cref="PauseGame"/> 加一、<see cref="ResumeGame"/> 减一）。
-        /// <para>只给调试面板定位"哪一层没配对 Resume"用；判暂停请读 <see cref="IsGamePaused"/>。</para>
-        /// </summary>
+        /// <summary>获取当前的暂停请求层数（<see cref="PauseGame"/> 加一、<see cref="ResumeGame"/> 减一）。</summary>
+        /// <remarks>仅供调试定位未配对 <see cref="ResumeGame"/> 的层；判暂停请读 <see cref="IsGamePaused"/>。</remarks>
         internal static int PauseDepth => s_PauseDepth;
 
-        /// <summary>
-        /// 获取是否正常游戏速度（期望值约等于 1，容差 0.01）。暂停不影响本判定。
-        /// </summary>
+        /// <summary>获取是否正常游戏速度（期望值约等于 1，容差 0.01）。暂停不影响本判定。</summary>
         public static bool IsNormalGameSpeed => Mathf.Abs(s_GameSpeed - 1f) < 0.01f;
 
-        /// <summary>
-        /// 获取或设置是否允许后台运行。
-        /// </summary>
+        /// <summary>获取或设置是否允许后台运行。</summary>
         public static bool RunInBackground
         {
             get => s_RunInBackground;
             set => Application.runInBackground = s_RunInBackground = value;
         }
 
-        /// <summary>
-        /// 获取或设置是否禁止休眠。
-        /// </summary>
+        /// <summary>获取或设置是否禁止休眠。</summary>
         public static bool NeverSleep
         {
             get => s_NeverSleep;
@@ -168,20 +153,15 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 关闭游戏框架。幂等——重复调用安全。
-        /// 统一入口：编辑器退出 Play 模式与 ApplicationQuit 均通过此方法清理。
-        /// <para>关闭会把未配对完的暂停一并退掉（<see cref="PauseGame"/> 的计数归零并回放
-        /// <see cref="GameSpeed"/>）——留着会让关闭后的若干帧一直跑在 <c>timeScale = 0</c> 上，
-        /// 且下一次 <see cref="Initialize"/> 会从被冻结的引擎实况播种出 <c>GameSpeed = 0</c>，
-        /// 而 <see cref="ResumeGame"/> 在计数 0 是空操作，届时没有任何 API 能把速度救回来。</para>
-        /// <para>关闭后的运行态属性（<see cref="FrameRate"/> / <see cref="GameSpeed"/> /
-        /// <see cref="RunInBackground"/> / <see cref="NeverSleep"/> / <see cref="IsGamePaused"/>）
-        /// 仍可读写且不抛：它们是引擎状态的门面，不依赖框架存活，写入即刻生效并成为下一轮启动的基线。
-        /// 帧订阅与协程不在此列——注册表已清空、宿主已释放，订阅不会被驱动，协程可能拿不到宿主。</para>
+        /// 关闭游戏框架（幂等）：退掉未配对的暂停、清空订阅、释放宿主。
         /// </summary>
-        /// <param name="quitting">是否处于应用退出流程。退出期引擎会随场景 teardown 自行销毁宿主，
-        /// 此时跳过 <see cref="GameAppHost.Release"/> 的主动 <c>Destroy</c>（退出期 Destroy 不受支持，
-        /// 且销毁本就会发生）。</param>
+        /// <remarks>
+        /// 编辑器退出 Play 与 <c>ApplicationQuit</c> 均走此入口。 <br />
+        /// 关闭会把 <see cref="PauseGame"/> 计数归零并回放 <see cref="GameSpeed"/>，避免下一次启动从冻结实况播种出速度 0。 <br />
+        /// 关闭后运行态属性（<see cref="FrameRate"/> / <see cref="GameSpeed"/> / <see cref="RunInBackground"/> / <see cref="NeverSleep"/> / <br />
+        /// <see cref="IsGamePaused"/>）仍可读写并成为下一轮基线；帧订阅与协程不再被驱动。
+        /// </remarks>
+        /// <param name="quitting">是否处于应用退出流程；退出期跳过 <see cref="GameAppHost.Release"/> 的主动销毁。</param>
         internal static void Shutdown(bool quitting = false)
         {
             if (IsShutdown) return;
@@ -219,11 +199,9 @@ namespace Moirai.Atropos
         #region 公共 API [PUBLIC API]
 
         /// <summary>
-        /// 暂停游戏。引用计数式：多个来源各自 <see cref="PauseGame"/> 时，须各自
-        /// <see cref="ResumeGame"/> 才真正恢复（例如"弹窗暂停"叠加"切后台暂停"）。
-        /// <para>计数 0→1 时把 <c>Time.timeScale</c> 压到 0；已在暂停中则只加计数。
-        /// 期望速度保存在 <see cref="GameSpeed"/> 中，暂停期间的写入只会更新恢复目标。</para>
+        /// 暂停游戏：引用计数式，各来源须各自 <see cref="ResumeGame"/> 才真正恢复。
         /// </summary>
+        /// <remarks>计数 0→1 时把 <c>Time.timeScale</c> 压到 0，已在暂停中只加计数；暂停期间的 <see cref="GameSpeed"/> 写入只更新恢复目标。</remarks>
         public static void PauseGame()
         {
             if (s_PauseDepth == 0) Time.timeScale = 0f;
@@ -233,10 +211,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 恢复游戏，<see cref="PauseGame"/> 的逆操作；计数归零才真正回速。
-        /// <para>计数已为 0 时是空操作——不会把 <c>Time.timeScale</c> 拉回某个陈旧值（旧实现的
-        /// <c>s_GameSpeedBeforePause</c> 正是这么坏的：直接用 <c>GameSpeed = 0</c> 冻结过一局之后，
-        /// <see cref="ResumeGame"/> 会恢复成初值而非实况）。</para>
         /// </summary>
+        /// <remarks>计数已为 0 时是空操作，不会把 <c>Time.timeScale</c> 拉回陈旧值。</remarks>
         public static void ResumeGame()
         {
             if (s_PauseDepth == 0) return;
@@ -320,7 +296,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="action">帧回调；<c>null</c> 时不注册并返回 <c>null</c>。</param>
         /// <returns>可用于注销的句柄（同参数重复注册会被驱动去重，任一持有句柄 Dispose 即注销该唯一登记）。
-        /// 用 lambda 注册时**只能**靠本句柄注销——<see cref="RemoveUpdateListener"/> 按委托相等比较，
+        /// 用 lambda 注册时<b>只能</b>靠本句柄注销——<see cref="RemoveUpdateListener"/> 按委托相等比较，
         /// 再写一个同样体的 lambda 是新实例，摘不掉。</returns>
         public static Subscription AddUpdateListener(Action action)
         {
@@ -382,62 +358,67 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 订阅帧逻辑到 Update 阶段（接口式）。
-        /// <para>与 <see cref="AddUpdateListener(Action)"/> 的分工：Action 适合无状态的零散挂钩；
-        /// Handler 适合携带状态、经构造注入依赖、并需要指定阶段内顺序的系统——
-        /// 实现 <see cref="IPlayerLoopPriority"/> 即可控制先后（数值小者先跑，未实现计 0）。</para>
-        /// <para>同一实例重复注册忽略；驱动中调用延迟到本阶段迭代结束后提交。注销必须成对，
-        /// 注册表持强引用。热路径禁止堆分配，详见 <c>IUpdateHandler</c>。</para>
         /// </summary>
+        /// <remarks>
+        /// Action 适合无状态挂钩，Handler 适合携带状态、需要阶段内顺序的系统（实现 <see cref="IPlayerLoopPriority"/> 控制先后，数值小者先跑）。 <br />
+        /// 同一实例重复注册被忽略，驱动中调用延迟到本阶段结束后提交；注册表持强引用，注销必须成对，热路径禁止堆分配。
+        /// </remarks>
         public static void AddUpdateHandler(IUpdateHandler handler)
         {
             PlayerLoopDriver.Register(handler);
         }
 
-        /// <summary>反注册 Update 阶段 Handler。</summary>
+        /// <summary>
+        /// 反注册 Update 阶段 Handler。
+        /// </summary>
         public static void RemoveUpdateHandler(IUpdateHandler handler)
         {
             PlayerLoopDriver.Unregister(handler);
         }
 
-        /// <summary>订阅帧逻辑到 FixedUpdate 阶段。语义同 <see cref="AddUpdateHandler"/>。</summary>
+        /// <summary>
+        /// 订阅帧逻辑到 FixedUpdate 阶段。语义同 <see cref="AddUpdateHandler"/>。
+        /// </summary>
         public static void AddFixedUpdateHandler(IFixedUpdateHandler handler)
         {
             PlayerLoopDriver.Register(handler);
         }
 
-        /// <summary>反注册 FixedUpdate 阶段 Handler。</summary>
+        /// <summary>
+        /// 反注册 FixedUpdate 阶段 Handler。
+        /// </summary>
         public static void RemoveFixedUpdateHandler(IFixedUpdateHandler handler)
         {
             PlayerLoopDriver.Unregister(handler);
         }
 
         /// <summary>
-        /// 订阅帧逻辑到 LateUpdate 阶段（注入于 PreLateUpdate 末尾，晚于 MonoBehaviour.LateUpdate）。
-        /// 语义同 <see cref="AddUpdateHandler"/>。
+        /// 订阅帧逻辑到 LateUpdate 阶段（晚于 <c>MonoBehaviour.LateUpdate</c>）。
         /// </summary>
         public static void AddLateUpdateHandler(ILateUpdateHandler handler)
         {
             PlayerLoopDriver.Register(handler);
         }
 
-        /// <summary>反注册 LateUpdate 阶段 Handler。</summary>
+        /// <summary>
+        /// 反注册 LateUpdate 阶段 Handler。
+        /// </summary>
         public static void RemoveLateUpdateHandler(ILateUpdateHandler handler)
         {
             PlayerLoopDriver.Unregister(handler);
         }
 
         /// <summary>
-        /// 把对象注册到它<b>实现的每一个</b>帧阶段（Update / FixedUpdate / LateUpdate）。
-        /// <para>多阶段系统的便利入口。只需登记某一阶段时用 <c>AddXxxHandler</c>——它们按参数类型
-        /// 各自唯一，传一个三接口全实现的对象进去也不会像驱动内部的同名 <c>Register</c> 三重载那样
-        /// 需要显式转型。</para>
+        /// 把对象注册到它实现的每一个帧阶段（Update / FixedUpdate / LateUpdate）。
         /// </summary>
         public static void AddFrameHandler(object handler)
         {
             PlayerLoopDriver.RegisterAll(handler);
         }
 
-        /// <summary>从其曾注册的全部帧阶段注销。语义同 <see cref="AddFrameHandler"/> 的逆。</summary>
+        /// <summary>
+        /// 从其曾注册的全部帧阶段注销。语义同 <see cref="AddFrameHandler"/> 的逆。
+        /// </summary>
         public static void RemoveFrameHandler(object handler)
         {
             PlayerLoopDriver.UnregisterAll(handler);
@@ -468,9 +449,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 注册OnDrawGizmos事件（仅编辑器）。
-        /// <para>订阅写入 <see cref="PlayerLoopDriver"/> 静态表，宿主销毁不丢失；此处只确保派发者存在。</para>
+        /// 注册 OnDrawGizmos 事件（仅编辑器）。
         /// </summary>
+        /// <remarks>订阅写入 <see cref="PlayerLoopDriver"/> 静态表，宿主销毁不丢失；此处仅确保派发者存在。</remarks>
         /// <returns>可用于注销的句柄；<paramref name="action"/> 为 <c>null</c> 时返回 <c>null</c>。</returns>
         public static Subscription AddOnDrawGizmosListener(Action action)
         {
@@ -510,12 +491,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 注册OnApplicationPause事件。
-        /// <para>暂停回调只能由 MonoBehaviour 消息派发，故注册时一并物化 <see cref="GameAppHost"/>。</para>
+        /// 注册 OnApplicationPause 事件。
         /// </summary>
-        /// <returns>可用于注销的句柄；<paramref name="action"/> 为 <c>null</c> 时返回 <c>null</c>。
-        /// 这类回调用 lambda 的情形最多，而 <see cref="RemoveOnApplicationPauseListener"/> 摘不掉
-        /// 事后重写的 lambda——注销请持本句柄。</returns>
+        /// <remarks>暂停回调只能由 MonoBehaviour 消息派发，故注册时一并物化 <see cref="GameAppHost"/>。</remarks>
+        /// <returns>可用于注销的句柄；<paramref name="action"/> 为 <c>null</c> 时返回 <c>null</c>。这类回调常用 lambda，注销请持本句柄。</returns>
         public static Subscription AddOnApplicationPauseListener(Action<bool> action)
         {
             if (action == null) return null;
@@ -538,8 +517,7 @@ namespace Moirai.Atropos
         #region 私有方法 [PRIVATE METHODS]
 
         /// <summary>
-        /// 用引擎实况播种运行态。配置资产的默认值已由 <c>GameAppSettings.Initiation</c> 推给引擎，
-        /// 这里从引擎回读而非直读资产——本类运行期因此不再解引用可能加载失败的设置资产。
+        /// 从引擎实况播种运行态（默认值已由 <c>GameAppSettings.Initiation</c> 推给引擎）。
         /// </summary>
         private static void SeedRuntimeFromEngine()
         {

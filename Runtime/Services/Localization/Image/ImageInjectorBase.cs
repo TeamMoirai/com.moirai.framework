@@ -6,11 +6,12 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 基于图片的本地化注入器基类，共享以下通用模式：<br />
-    /// - 按载荷类型派发：<see cref="int"/> 为语言下标（数组模式），<see cref="string"/> 为资源 location（资源模式）<br />
-    /// - 从资源系统异步加载资源（租约由注入器持有，切换语言时释放上一份，销毁时随 IDisposable 释放）<br />
-    /// - 处理 Sprite/Texture 类型转换，并输出相应日志
+    /// 基于图片的本地化注入器基类：按载荷类型把本地化图片资源注入 Sprite/Texture 目标。
     /// </summary>
+    /// <remarks>
+    /// 载荷：<see cref="int"/> 为语言下标（数组模式）、<see cref="string"/> 为资源 location（资源模式）；其余载荷类型忽略。 <br />
+    /// 资源从资源系统异步加载，租约由注入器持有，切换语言时释放上一份，销毁时随 <see cref="IDisposable"/> 释放。
+    /// </remarks>
     public abstract class ImageInjectorBase : ILocalizationInjector, IDisposable
 #if UNITY_EDITOR
         , IInjectorAssetPreview
@@ -23,9 +24,8 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 按载荷类型注入本地化数据。
-        /// <para><see cref="int"/> = 当前语言下标，从预分配数组取用；<see cref="string"/> = 资源 location
-        /// （本地化器已经 <c>TryGetTextFromId</c> 单趟解析），异步加载后应用。其余载荷类型忽略。</para>
         /// </summary>
+        /// <remarks><see cref="int"/> = 当前语言下标（从预分配数组取用）；<see cref="string"/> = 资源 location（已单趟解析），异步加载后应用；其余载荷类型忽略。</remarks>
         /// <typeparam name="T1">载荷类型：<see cref="int"/> 或 <see cref="string"/>。</typeparam>
         /// <typeparam name="T2">本地化器类型。</typeparam>
         /// <param name="localizedData">语言下标或资源 location。</param>
@@ -82,8 +82,7 @@ namespace Moirai.Atropos.Localization
         protected abstract void ApplyFromArray(int index);
 
         /// <summary>
-        /// 将加载到的资源应用到目标组件。<br />
-        /// 在资源成功加载并通过验证后调用。
+        /// 将加载并通过验证的资源应用到目标组件。
         /// </summary>
         protected abstract void ApplyAsset(UObject asset);
 
@@ -93,8 +92,7 @@ namespace Moirai.Atropos.Localization
         protected abstract string GetExpectedTypeName();
 
         /// <summary>
-        /// 尝试转换不匹配的资源类型并应用。<br />
-        /// 如果转换已处理则返回 true，否则返回 false。
+        /// 尝试把不匹配的资源类型转换后应用到目标；已处理返回 <c>true</c>，否则返回 <c>false</c>。
         /// </summary>
         protected abstract bool TryConvertAndApply(UObject asset);
 

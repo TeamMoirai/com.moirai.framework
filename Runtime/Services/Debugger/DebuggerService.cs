@@ -3,11 +3,14 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器服务外观（Facade）。
-    /// <para>统一的静态调试器访问入口：窗口注册/检索/选中、激活开关、日志检索与自定义面板注册。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="DebuggerServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。外观方法经 <c>s_Handler</c> 直接转发（未注册时静默降级为默认值——仅主动注册方可使用服务）。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// 调试器服务外观（Facade）：全框架统一的静态调试器访问入口。
     /// </summary>
+    /// <remarks>
+    /// 提供窗口注册 / 检索 / 选中、激活开关、日志检索与自定义面板注册。 <br />
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="DebuggerServiceSettings"/> 解析； <br />
+    /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。 <br />
+    /// 外观方法经 <c>s_Handler</c> 直接转发，未注册时静默降级为默认值；<c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// </remarks>
     [AutoRegisterService]
     [HandlerHost(typeof(DebuggerServiceHandler))]
     public partial class DebuggerService : ServiceBase, IServiceTickable
@@ -22,8 +25,10 @@ namespace Moirai.Atropos.Debugger
 
         /// <summary>
         /// 从 <see cref="DebuggerServiceSettings"/> 解析调试器处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>
+        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
+        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static DebuggerServiceHandler GetHandlerFromSettings()
         {
@@ -36,8 +41,10 @@ namespace Moirai.Atropos.Debugger
 
         /// <summary>
         /// 初始化调试器服务。由容器在构建期调用。
-        /// <para>确保 <c>DebuggerService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
         /// </summary>
+        /// <remarks>
+        /// 确保 <c>DebuggerService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。
+        /// </remarks>
         public override void OnInit()
         {
             _ = Handler;
@@ -45,9 +52,10 @@ namespace Moirai.Atropos.Debugger
 
         /// <summary>
         /// 关闭调试器服务。由容器在关闭期调用。
-        /// <para>先摘除 Handler 引用再关闭——窗口关闭回调抛异常时不得让半关状态的 Handler 残留，
-        /// 否则下一次懒加载会向旧注册表重复注册窗口。</para>
         /// </summary>
+        /// <remarks>
+        /// 先摘除 <c>Handler</c> 引用再关闭：窗口关闭回调抛异常时不得让半关状态的 Handler 残留。
+        /// </remarks>
         public override void OnShutdown()
         {
             var handler = s_Handler;
@@ -65,9 +73,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 状态 [STATE]
 
-        /// <summary>
-        /// 获取或设置调试器是否激活（悬浮入口可见）。
-        /// </summary>
+        /// <summary>获取或设置调试器是否激活（悬浮入口可见）。</summary>
         public static bool ActiveWindow
         {
             get => s_Handler?.ActiveWindow ?? false;
@@ -78,9 +84,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取或设置完整调试器窗口是否展开。
-        /// </summary>
+        /// <summary>获取或设置完整调试器窗口是否展开。</summary>
         public static bool ShowFullWindow
         {
             get => s_Handler?.ShowFullWindow ?? false;
@@ -91,19 +95,13 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取调试器激活策略（直接读自 <see cref="DebuggerServiceSettings"/>，不依赖服务注册状态）。
-        /// </summary>
+        /// <summary>获取调试器激活策略（直接读自 <see cref="DebuggerServiceSettings"/>，不依赖服务注册状态）。</summary>
         public static DebuggerActiveWindowType ActiveWindowType => DebuggerServiceSettings.ActiveWindowType;
 
-        /// <summary>
-        /// 获取调试器窗口注册表（路径树导航模型；服务未注册时为 null）。
-        /// </summary>
+        /// <summary>获取调试器窗口注册表（路径树导航模型；服务未注册时为 null）。</summary>
         public static DebuggerWindowRegistry WindowRegistry => s_Handler?.WindowRegistry;
 
-        /// <summary>
-        /// 获取日志捕获器（服务未注册时为 null）。
-        /// </summary>
+        /// <summary>获取日志捕获器（服务未注册时为 null）。</summary>
         public static DebuggerLogCapture LogCapture => s_Handler?.LogCapture;
 
         #endregion
@@ -145,8 +143,10 @@ namespace Moirai.Atropos.Debugger
 
         /// <summary>
         /// 以流式构建器注册自定义调试面板。
-        /// <para>一行注册：滑条、开关、按钮、折叠组等控件经 <see cref="DebugPanelBuilder"/> 声明，窗口标题取路径末段。</para>
         /// </summary>
+        /// <remarks>
+        /// 滑条 / 开关 / 按钮 / 折叠组等控件经 <see cref="DebugPanelBuilder"/> 声明，窗口标题取路径末段。
+        /// </remarks>
         /// <param name="path">调试器窗口路径（如 "Game/Player"）。</param>
         /// <param name="configure">面板构建回调。</param>
         public static void RegisterPanel(string path, System.Action<DebugPanelBuilder> configure)

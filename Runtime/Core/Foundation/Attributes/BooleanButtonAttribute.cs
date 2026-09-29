@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Attributes
 {
     /// <summary>
-    /// 将 Bool 类型的字段显示为按钮组
+    /// 将 Bool 类型的字段显示为按钮组。
     /// </summary>
     [Conditional("UNITY_EDITOR")]
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = false, Inherited = true)]

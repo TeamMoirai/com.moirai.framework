@@ -11,10 +11,9 @@ using NUnit.Framework;
 namespace Service.Timer
 {
     /// <summary>
-    /// 复合路由 + 双引擎架构的重构验收测试：跨泳道隔离、句柄复用 ABA、Fixed/Late 延后派发、
-    /// Unsafe 绑定、进度回调、All 系列、GetLeftFrames、复合真实并发峰值、WaitAsync 完成/取消/已结束。
-    /// <para>经 <see cref="GameTime.Handler"/> 注入虚拟时钟，手动驱动 <c>Tick/FixedTick/LateTick</c>。</para>
+    /// 复合路由 + 双引擎架构测试：跨泳道隔离、句柄复用 ABA、Fixed/Late 延后派发、Unsafe 绑定、进度回调、All 系列、GetLeftFrames、复合真实并发峰值、WaitAsync 完成/取消/已结束。
     /// </summary>
+    /// <remarks>经 <see cref="GameTime.Handler"/> 注入虚拟时钟，手动驱动 <c>Tick/FixedTick/LateTick</c>。</remarks>
     public class DefaultTimerHandlerArchitectureTests
     {
         private DefaultTimerHandler _handler;
@@ -50,7 +49,9 @@ namespace Service.Timer
             }
         }
 
-        /// <summary>推进缩放与非缩放时钟（默认二者同步）并按 50ms 步进驱动 Update Tick。</summary>
+        /// <summary>
+        /// 推进缩放与非缩放时钟（默认二者同步）并按 50ms 步进驱动 Update Tick。
+        /// </summary>
         private void Advance(double seconds, bool advanceUnscaled = true)
         {
             int steps = (int)Math.Ceiling(seconds / 0.05);
@@ -66,7 +67,9 @@ namespace Service.Timer
             }
         }
 
-        /// <summary>仅推进帧计数（冻结时钟），驱动 Update Tick 一帧。</summary>
+        /// <summary>
+        /// 仅推进帧计数（冻结时钟），驱动 Update Tick 一帧。
+        /// </summary>
         private void FrameTick(int frames = 1)
         {
             for (int i = 0; i < frames; i++)

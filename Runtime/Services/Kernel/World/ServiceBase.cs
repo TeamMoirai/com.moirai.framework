@@ -4,24 +4,23 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceWorld"/> 控制。
-    /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明，世界初始化时按依赖图拓扑排序驱动 <see cref="OnInit"/>。</para>
-    /// <para>运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。</para>
     /// </summary>
+    /// <remarks>
+    /// 依赖通过 <c>[ServiceDependency]</c> 特性声明，世界初始化时按依赖图拓扑排序驱动 <see cref="OnInit"/>。 <br />
+    /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。
+    /// </remarks>
     public abstract class ServiceBase : IService, IServiceLifecycle
     {
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 轮询优先级（降序：数值越大越先 Tick，同值按注册先后）。
-        /// <para>框架内置服务统一 ≤ -1000（见 <see cref="ServicePriorityOrder"/>）；业务服务默认 0 及以上。</para>
-        /// </summary>
+        /// <summary>轮询优先级（降序：数值越大越先 Tick，同值按注册先后）。</summary>
+        /// <remarks>
+        /// 框架内置服务统一 ≤ -1000（见 <see cref="ServicePriorityOrder"/>）；业务服务默认 0 及以上。
+        /// </remarks>
         public virtual int Priority => 0;
         public virtual EServiceScopeKind Scope => EServiceScopeKind.App;
 
-        /// <summary>
-        /// 当前生命周期状态（只读投影——唯一事实源在容器侧，由容器经 <see cref="IServiceLifecycle"/> 驱动转换；
-        /// 写入端口对本类之外的任何代码关闭）。
-        /// </summary>
+        /// <summary>当前生命周期状态（只读投影；唯一事实源在容器侧，由容器经 <see cref="IServiceLifecycle"/> 驱动转换）。</summary>
         public EServiceState State { get; private set; } = EServiceState.Created;
 
         #endregion

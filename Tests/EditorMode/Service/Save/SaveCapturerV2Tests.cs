@@ -10,14 +10,17 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// SaveHost SG v2 捕获器测试：集合（List/Dictionary/Stack/数组）、嵌套 [SaveData] 数据类、
-    /// 场景对象引用（SaveObjectIdentity 稳定 ID）、资产引用（SaveAssetCatalog 定位串）的捕获/恢复往返。
-    /// <para>测试组件依赖 SaveHost SG 生成捕获器（2026-09-11 起测试程序集生成链路已修复）；
-    /// <see cref="Capturer_IsRegistered"/> 失败即生成链路回归信号。</para>
+    /// SaveHost SG v2 捕获器测试：集合（List/Dictionary/Stack/数组）、嵌套 <c>[SaveData]</c> 数据类、 <br />
+    /// 场景对象引用（<see cref="SaveObjectIdentity"/> 稳定 ID）、资产引用（<see cref="SaveAssetCatalog"/> 定位串）的捕获/恢复往返。
     /// </summary>
+    /// <remarks>
+    /// 测试组件依赖 SaveHost SG 生成捕获器；<see cref="Capturer_IsRegistered"/> 失败即生成链路回归信号。
+    /// </remarks>
     public partial class SaveCapturerV2Tests
     {
-        /// <summary>嵌套数据类（public 实例字段递归捕获）。</summary>
+        /// <summary>
+        /// 嵌套数据类（public 实例字段递归捕获）。
+        /// </summary>
         [SaveData("V2Stats", 1)]
         public sealed class V2Stats
         {
@@ -26,7 +29,9 @@ namespace Service.Save
             public List<int> Scores;
         }
 
-        /// <summary>v2 类型矩阵测试组件。</summary>
+        /// <summary>
+        /// v2 类型矩阵测试组件。
+        /// </summary>
         internal partial class V2Component : MonoBehaviour
         {
             [SaveField]

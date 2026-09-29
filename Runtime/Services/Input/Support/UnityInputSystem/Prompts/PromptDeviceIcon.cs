@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.Input.Prompts
 {
     /// <summary>
-    /// 显示输入设备的图标
+    /// 显示输入设备的图标。
     /// </summary>
     [RequireComponent(typeof(Image))]
     public class PromptDeviceIcon : InputSystemPromptBase

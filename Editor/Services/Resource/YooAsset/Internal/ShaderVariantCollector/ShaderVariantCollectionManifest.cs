@@ -8,34 +8,28 @@ using UnityEngine.Rendering;
 using UnityEditor;
 
 /// <summary>
-/// 着色器变种集合的可序列化清单
+/// 着色器变种集合的可序列化清单。
 /// </summary>
 [Serializable]
 public class ShaderVariantCollectionManifest
 {
     /// <summary>
-    /// 单个着色器变种的序列化信息
+    /// 单个着色器变种的序列化信息。
     /// </summary>
     [Serializable]
     public class ShaderVariantElement : IComparable<ShaderVariantElement>
     {
-        /// <summary>
-        /// 用于稳定排序的组合键
-        /// </summary>
+        /// <summary>用于稳定排序的组合键。</summary>
         public string SortValue { private set; get; }
 
-        /// <summary>
-        /// 变种使用的渲染通道类型
-        /// </summary>
+        /// <summary>变种使用的渲染通道类型。</summary>
         public PassType PassType;
 
-        /// <summary>
-        /// 变种使用的着色器关键字数组
-        /// </summary>
+        /// <summary>变种使用的着色器关键字数组。</summary>
         public string[] Keywords;
 
         /// <summary>
-        /// 生成排序键
+        /// 生成排序键。
         /// </summary>
         public void MakeSortValue()
         {
@@ -59,38 +53,28 @@ public class ShaderVariantCollectionManifest
     }
 
     /// <summary>
-    /// 单个着色器及其变种列表的序列化信息
+    /// 单个着色器及其变种列表的序列化信息。
     /// </summary>
     [Serializable]
     public class ShaderVariantInfo : IComparable<ShaderVariantInfo>
     {
-        /// <summary>
-        /// 用于稳定排序的组合键
-        /// </summary>
+        /// <summary>用于稳定排序的组合键。</summary>
         public string SortValue { private set; get; }
 
-        /// <summary>
-        /// 着色器资源路径
-        /// </summary>
+        /// <summary>着色器资源路径。</summary>
         public string AssetPath;
 
-        /// <summary>
-        /// 着色器名称
-        /// </summary>
+        /// <summary>着色器名称。</summary>
         public string ShaderName;
 
-        /// <summary>
-        /// 着色器变种总数
-        /// </summary>
+        /// <summary>着色器变种总数。</summary>
         public int ShaderVariantCount = 0;
 
-        /// <summary>
-        /// 着色器变种列表
-        /// </summary>
+        /// <summary>着色器变种列表。</summary>
         public List<ShaderVariantElement> ShaderVariantElements = new List<ShaderVariantElement>(1000);
 
         /// <summary>
-        /// 生成排序键
+        /// 生成排序键。
         /// </summary>
         public void MakeSortValue()
         {
@@ -105,28 +89,22 @@ public class ShaderVariantCollectionManifest
     }
 
 
-    /// <summary>
-    /// 清单中的着色器总数
-    /// </summary>
+    /// <summary>清单中的着色器总数。</summary>
     public int ShaderTotalCount;
 
-    /// <summary>
-    /// 清单中的变种总数
-    /// </summary>
+    /// <summary>清单中的变种总数。</summary>
     public int VariantTotalCount;
 
-    /// <summary>
-    /// 着色器变种信息列表
-    /// </summary>
+    /// <summary>着色器变种信息列表。</summary>
     public List<ShaderVariantInfo> ShaderVariantInfos = new List<ShaderVariantInfo>(1000);
 
     /// <summary>
-    /// 添加着色器变种信息
+    /// 添加着色器变种信息。
     /// </summary>
-    /// <param name="assetPath">着色器资源路径</param>
-    /// <param name="shaderName">着色器名称</param>
-    /// <param name="passType">渲染通道类型</param>
-    /// <param name="keywords">着色器关键字数组</param>
+    /// <param name="assetPath">着色器资源路径。</param>
+    /// <param name="shaderName">着色器名称。</param>
+    /// <param name="passType">渲染通道类型。</param>
+    /// <param name="keywords">着色器关键字数组。</param>
     public void AddShaderVariant(string assetPath, string shaderName, PassType passType, string[] keywords)
     {
         List<string> sortedKeywords = new List<string>(keywords);
@@ -160,10 +138,10 @@ public class ShaderVariantCollectionManifest
     }
 
     /// <summary>
-    /// 从 ShaderVariantCollection 提取清单数据
+    /// 从 ShaderVariantCollection 提取清单数据。
     /// </summary>
-    /// <param name="svc">待解析的着色器变种集合</param>
-    /// <returns>提取后的着色器变种清单</returns>
+    /// <param name="svc">待解析的着色器变种集合。</param>
+    /// <returns>提取后的着色器变种清单。</returns>
     public static ShaderVariantCollectionManifest Extract(ShaderVariantCollection svc)
     {
         if (svc == null)

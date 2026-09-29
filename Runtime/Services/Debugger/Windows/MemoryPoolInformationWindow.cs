@@ -6,9 +6,11 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 内存池信息窗口（按程序集分组的类级统计，低利用率/高未命中告警着色）。
-    /// <para>摘要卡（含开关）构建一次常驻——轮询只重建清单区，避免点击落在重建边界被吞掉。</para>
+    /// 内存池信息窗口：按程序集分组的类级统计，低利用率 / 高未命中告警着色。
     /// </summary>
+    /// <remarks>
+    /// 摘要卡（含开关）构建一次常驻，轮询只重建清单区。
+    /// </remarks>
     public sealed class MemoryPoolInformationWindow : ScrollableDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]
@@ -56,8 +58,10 @@ namespace Moirai.Atropos.Debugger
 
         /// <summary>
         /// 基准区：Run 同步跑 <see cref="MemoryPoolBenchmarkRunner"/>（会短暂时卡主线程），Export 落 XML。
-        /// 状态行按钮引用跨轮询存活（轮询只重建清单区）。
         /// </summary>
+        /// <remarks>
+        /// 状态行按钮引用跨轮询存活（轮询只重建清单区）。
+        /// </remarks>
         private void BuildBenchmarkSection(VisualElement root)
         {
             VisualElement card = AddSection(root, "MemoryPool Benchmark");

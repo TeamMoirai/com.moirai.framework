@@ -20,9 +20,7 @@ namespace Moirai.GameProto.Config
 		private const string CONFIG_PATH = "Assets/AssetRaw/Default/Config/Table/";
 
 		private Tables _tables;
-		/// <summary>
-		/// 所有配置表。
-		/// </summary>
+		/// <summary>所有配置表。</summary>
 		public Tables Tables
 		{
 			get
@@ -34,8 +32,10 @@ namespace Moirai.GameProto.Config
 
 		/// <summary>
 		/// 加载配置。
-		/// <remarks>自动判断加载bin或json配置</remarks>
 		/// </summary>
+		/// <remarks>
+		/// 依生成表构造器所需缓冲类型自动选择 bin 或 json 配置源。
+		/// </remarks>
 		private Tables Load()
 		{
 			ConstructorInfo tablesCtor = typeof(Tables).GetConstructors()[0];
@@ -60,8 +60,8 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 加载二进制配置。
 		/// </summary>
-		/// <param name="file">FileName</param>
-		/// <returns>ByteBuf</returns>
+		/// <param name="file">FileName。</param>
+		/// <returns>ByteBuf。</returns>
 		private static ByteBuf LoadByteBuf(string file)
 		{
 			LogUtility.Info("Load bin config: {0}.bytes", file);
@@ -73,8 +73,6 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 从文件中加载 json 配置。
 		/// </summary>
-		/// <param name="file"></param>
-		/// <returns></returns>
 		private static JSONNode LoadJson(string file)
 		{
 			LogUtility.Info("Load json config: {0}.json", file);
@@ -86,8 +84,6 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 加载配置文本资源。
 		/// </summary>
-		/// <param name="location"></param>
-		/// <returns></returns>
 		private static TextAsset LoadTextAsset(string location)
 		{
 #if UNITY_EDITOR

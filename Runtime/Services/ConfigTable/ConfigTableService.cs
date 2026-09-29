@@ -8,11 +8,12 @@ using UnityEngine;
 namespace Moirai.Atropos.ConfigTable
 {
     /// <summary>
-    /// 配置表服务外观（Facade）。
-    /// <para>统一的静态配置表访问入口，通过替换 <see cref="Handler"/> 即可在不同配置表后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ConfigTableServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// 配置表服务外观（Facade）：统一的静态配置表访问入口，替换 <see cref="Handler"/> 即可在不同后端之间零成本切换。
     /// </summary>
+    /// <remarks>
+    /// 未显式设置处理器时，懒加载优先从 <see cref="ConfigTableServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成，线程安全懒加载。
+    /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(ResourceService))]
     [HandlerHost(typeof(ConfigTableServiceHandler))]
@@ -28,8 +29,8 @@ namespace Moirai.Atropos.ConfigTable
 
         /// <summary>
         /// 从 <see cref="ConfigTableServiceSettings"/> 解析配置表处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ConfigTableServiceHandler GetHandlerFromSettings()
         {
@@ -42,12 +43,12 @@ namespace Moirai.Atropos.ConfigTable
 
         /// <summary>
         /// 初始化配置表服务。由容器在构建期调用。
-        /// <para>调试面板显式豁免：本服务无运行时轮询状态可供观察，不注册 Profiler 窗口。</para>
-        /// <para>依赖 <see cref="ResourceService"/>：配置表后端（如游戏侧 Luban 处理器）的表数据经资源系统装载，
-        /// 首次读取表内容需要资源服务已就绪——该依赖必须显式声明，否则初始化序会退化为注册序（历史故障：
-        /// 本地化服务先于资源服务初始化时触发首次读表，装载失败并使处理器停留在半初始化状态）。</para>
-        /// <para>被 <see cref="Localization.LocalizationService"/> 反向依赖（本地化默认数据源即配置表）。</para>
         /// </summary>
+        /// <remarks>
+        /// 依赖 <see cref="ResourceService"/> 已就绪：表数据经资源系统装载，初始化序必须排在资源服务之后。 <br />
+        /// 被 <see cref="Localization.LocalizationService"/> 反向依赖（本地化默认数据源即配置表）。 <br />
+        /// 本服务无运行时轮询状态，不注册 Profiler 窗口。
+        /// </remarks>
         public override void OnInit()
         {
             _ = Handler;
@@ -81,9 +82,7 @@ namespace Moirai.Atropos.ConfigTable
         public static IReadOnlyList<string> GetLocalizationLanguageCodes() =>
             s_Handler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
 
-        /// <summary>
-        /// 当前配置表处理器是否支持按语言单独取列。未注册处理器时为 <c>false</c>（走整批加载）。
-        /// </summary>
+        /// <summary>当前配置表处理器是否支持按语言单独取列。未注册处理器时为 <c>false</c>（走整批加载）。</summary>
         public static bool SupportsPerLanguageLocalizationLoad =>
             s_Handler != null && s_Handler.SupportsPerLanguageLocalizationLoad;
 
@@ -115,21 +114,24 @@ namespace Moirai.Atropos.ConfigTable
 #if UNITY_EDITOR
         #region 编辑器预览 [EDITOR PREVIEW]
 
-        /// <summary>
-        /// 编辑器预览取数用的处理器：运行期已注册那份优先，未注册时直读 <see cref="ConfigTableServiceSettings"/>
-        /// 里配置的实例——不装进 <c>s_Handler</c>、不调 <c>Internal_Init</c>，预览因此不需要服务世界。
-        /// <para>运行期一族静态查询读的是 <c>s_Handler</c>，非播放态恒为空：预览走它们等于永远拿不到表，
-        /// 而"表未生成"这种露法会把一个已生成的工程说成没生成。</para>
-        /// </summary>
+        /// <summary>编辑器预览取数用的处理器：运行期已注册那份优先，未注册时直读 <see cref="ConfigTableServiceSettings"/> 里配置的实例。</summary>
+        /// <remarks>
+        /// 不装进 <c>s_Handler</c>、不调 <c>Internal_Init</c>，预览因此不需要服务世界。 <br />
+        /// 运行期一族静态查询读 <c>s_Handler</c>、非播放态恒为空，预览不可走它们（会把已生成的工程报成"表未生成"）。
+        /// </remarks>
         private static ConfigTableServiceHandler PreviewHandler
             => s_Handler ?? ConfigTableServiceSettings.ConfigTableServiceHandler;
 
-        /// <summary>编辑器预览取数：全表多语言文本，列序即 <see cref="GetLocalizationLanguageCodesForEditor"/> 的自报序。</summary>
+        /// <summary>
+        /// 编辑器预览取数：全表多语言文本，列序即 <see cref="GetLocalizationLanguageCodesForEditor"/> 的自报序。
+        /// </summary>
         /// <returns>取不到时为 <c>null</c>（由调用方缓存失败并限流告警）。</returns>
         public static Dictionary<string, List<string>> GetAllLocalizedStringsForEditor() =>
             PreviewHandler?.GetAllLocalizedStrings();
 
-        /// <summary>编辑器预览取数：与 <see cref="GetAllLocalizedStringsForEditor"/> 同源、同列序的语言自报。</summary>
+        /// <summary>
+        /// 编辑器预览取数：与 <see cref="GetAllLocalizedStringsForEditor"/> 同源、同列序的语言自报。
+        /// </summary>
         public static IReadOnlyList<string> GetLocalizationLanguageCodesForEditor() =>
             PreviewHandler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
 

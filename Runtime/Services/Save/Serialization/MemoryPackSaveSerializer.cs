@@ -5,13 +5,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// MemoryPack 序列化后端（<c>MemoryPack</c> NuGet 包，零编码开销二进制格式）。
-    /// <para>数据类型需 <c>[MemoryPackable]</c> partial 标注并依赖 MemoryPack SourceGenerator 产出 AOT 安全序列化代码。</para>
     /// </summary>
+    /// <remarks>数据类型需 <c>[MemoryPackable]</c> partial 标注，依赖 MemoryPack SourceGenerator 产出 AOT 安全序列化代码。</remarks>
     public sealed class MemoryPackSaveSerializer : ISaveSerializer
     {
-        /// <summary>
-        /// 后端标识（恒为 <see cref="ESaveBackend.MemoryPack"/>）。
-        /// </summary>
+        /// <summary>后端标识（恒为 <see cref="ESaveBackend.MemoryPack"/>）。</summary>
         public ESaveBackend Backend => ESaveBackend.MemoryPack;
 
         /// <summary>

@@ -8,18 +8,15 @@ using UnityEngine.Serialization;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 框架内置的反射式 Json 序列化器（商业化加固版）。
+    /// 框架内置的反射式 Json 序列化器。
     /// </summary>
     /// <remarks>
-    /// <para><b>正确性</b>：数值固定以 InvariantCulture 输出/解析（浮点 "R" 往返格式）；字典输出标准 Json 对象格式
-    /// （复杂 key 回退 legacy 条目数组，两种格式均可解析）；<see cref="DateTime"/>/<see cref="Guid"/>/<see cref="TimeSpan"/>
-    /// 等无公开字段类型显式转字符串，不再静默丢失；截断/畸形输入一律抛错，绝不静默丢数据。</para>
-    /// <para><b>健壮性</b>：未知字段默认忽略（存档前向/后向兼容）；序列化与反序列化双侧深度守卫
-    /// （防引用环与深嵌套栈溢出）；错误信息带偏移/行列位置。</para>
-    /// <para><b>性能</b>：反射元数据经 <see cref="ReflectionCache"/> 缓存（线程安全）；解析基于 span 零拷贝
-    /// （key 匹配与数值读取无中间字符串）；写入单遍直写（无中间列表/子序列化字符串）。</para>
-    /// <para><b>AOT 约束</b>：不使用表达式树/Reflection.Emit，IL2CPP + HybridCLR 安全。</para>
-    /// <para>通用属性标识见 <c>JsonUtility.Attributes.cs</c>（各 JsonHandler 共享）。</para>
+    /// 数值固定以 <c>InvariantCulture</c> 输出/解析（浮点 <c>"R"</c> 往返格式）； <br />
+    /// <see cref="DateTime"/>/<see cref="Guid"/>/<see cref="TimeSpan"/> 等无公开字段类型显式转字符串，不静默丢数据。
+    /// 字典默认输出标准 Json 对象格式，复杂 key 回退 legacy 条目数组，两种格式均可解析；未知字段默认忽略。 <br />
+    /// 序列化与反序列化双侧有深度守卫（防引用环与深嵌套栈溢出）；截断或畸形输入一律抛错，错误信息带偏移/行列位置。 <br />
+    /// 反射元数据经 <see cref="ReflectionCache"/> 缓存（线程安全）；解析基于 span 零拷贝，写入单遍直写。 <br />
+    /// 不使用表达式树与 <c>Reflection.Emit</c>，IL2CPP + HybridCLR 安全；通用属性标识见 <c>JsonUtility.Attributes.cs</c>。
     /// </remarks>
     public static partial class DefaultJson
     {
@@ -28,32 +25,29 @@ namespace Moirai.Atropos
 
         #region 公共 API [PUBLIC API]
         /// <summary>
-        /// 将 JSON 字符串转换为类型化对象
+        /// 将 JSON 字符串转换为类型化对象。
         /// </summary>
-        /// <param name="json">要转换的字符串</param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
+        /// <param name="json">要转换的字符串。</param>
         public static T FromJson<T>(string json)
         {
             return (T)Parse(json, typeof(T), null);
         }
 
         /// <summary>
-        /// 将 JSON 字符串转换为类型化对象
+        /// 将 JSON 字符串转换为类型化对象。
         /// </summary>
-        /// <param name="json">要转换的字符串</param>
-        /// <param name="type">要转换为的类型</param>
-        /// <returns></returns>
+        /// <param name="json">要转换的字符串。</param>
+        /// <param name="type">要转换为的类型。</param>
         public static object FromJson(string json, Type type)
         {
             return Parse(json, type, null);
         }
 
         /// <summary>
-        /// 用 JSON 字符串中的值覆盖对象数据
+        /// 用 JSON 字符串中的值覆盖对象数据。
         /// </summary>
-        /// <param name="obj">要更新的对象</param>
-        /// <param name="json">要使用的 JSON</param>
+        /// <param name="obj">要更新的对象。</param>
+        /// <param name="json">要使用的 JSON。</param>
         public static void FromJsonOverwrite(object obj, string json)
         {
             if (obj == null)
@@ -65,12 +59,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 序列化为 JSON 的简单方法。将对象转换为 JSON 字符串
+        /// 序列化为 JSON 的简单方法。将对象转换为 JSON 字符串。
         /// </summary>
-        /// <param name="obj">要转换的对象</param>
-        /// <param name="removeNulls">删除空值</param>
-        /// <param name="readable">包括制表符（tab）和回车（return），使结果易于阅读</param>
-        /// <returns></returns>
+        /// <param name="obj">要转换的对象。</param>
+        /// <param name="removeNulls">删除空值。</param>
+        /// <param name="readable">包括制表符（tab）和回车（return），使结果易于阅读。</param>
         public static string ToJson(object obj, bool removeNulls = true, bool readable = false)
         {
             LoopGuard.Begin();
@@ -95,9 +88,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 序列化为 UTF8 JSON 字节（紧凑格式，与 <see cref="ToJson"/> 输出 UTF8 编码逐字节等价）。
         /// </summary>
-        /// <param name="obj">要转换的对象</param>
-        /// <param name="removeNulls">删除空值</param>
-        /// <returns>UTF8 JSON 字节（调用方持有所有权）</returns>
+        /// <param name="obj">要转换的对象。</param>
+        /// <param name="removeNulls">删除空值。</param>
+        /// <returns>UTF8 JSON 字节（调用方持有所有权）。</returns>
         public static byte[] ToJsonBytes(object obj, bool removeNulls = true)
         {
             LoopGuard.Begin();
@@ -119,22 +112,19 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson{T}(string)"/> 接受相同的输入集合）
+        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson{T}(string)"/> 接受相同的输入集合）。
         /// </summary>
-        /// <param name="json">要转换的 UTF8 字节</param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
+        /// <param name="json">要转换的 UTF8 字节。</param>
         public static T FromJson<T>(byte[] json)
         {
             return (T)ParseBytes(json, typeof(T), null);
         }
 
         /// <summary>
-        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson(string, Type)"/> 接受相同的输入集合）
+        /// 将 UTF8 JSON 字节转换为类型化对象（与 <see cref="FromJson(string, Type)"/> 接受相同的输入集合）。
         /// </summary>
-        /// <param name="json">要转换的 UTF8 字节</param>
-        /// <param name="type">要转换为的类型</param>
-        /// <returns></returns>
+        /// <param name="json">要转换的 UTF8 字节。</param>
+        /// <param name="type">要转换为的类型。</param>
         public static object FromJson(byte[] json, Type type)
         {
             return ParseBytes(json, type, null);
@@ -186,27 +176,33 @@ namespace Moirai.Atropos
         #endregion
 
         /// <summary>
-        /// 类型反射元数据缓存（线程安全）。
-        /// 避免每次序列化/反序列化重复执行 GetFields/GetProperties/GetMethods 与特性扫描，
-        /// 这是反射式 Json 的最大 GC 与性能开销来源。
+        /// 类型反射元数据缓存（线程安全）：缓存字段/属性/方法的扫描结果，免除逐次序列化的重复反射开销。
         /// </summary>
         internal static class ReflectionCache
         {
             internal sealed class TypeMeta
             {
-                /// <summary>可序列化字段（含基类，已解析序列化名）。</summary>
+                /// <summary>
+                /// 可序列化字段（含基类，已解析序列化名）。
+                /// </summary>
                 public (string Name, FieldInfo Field)[] SerializeFields = Array.Empty<(string, FieldInfo)>();
 
-                /// <summary>可反序列化字段（含 JsonSerializeAs / FormerlySerializedAs / 本名 别名表）。</summary>
+                /// <summary>
+                /// 可反序列化字段（含 JsonSerializeAs / FormerlySerializedAs / 本名 别名表）。
+                /// </summary>
                 public (FieldInfo Field, string[] Names)[] DeserializeFields = Array.Empty<(FieldInfo, string[])>();
 
                 /// <summary>可反序列化字段的 UTF8 编码别名表（与 <see cref="DeserializeFields"/> 平行，供字节解析零拷贝 key 匹配）。</summary>
                 public byte[][][] DeserializeFieldNamesUtf8 = Array.Empty<byte[][]>();
 
-                /// <summary>可序列化属性（已解析序列化名）。</summary>
+                /// <summary>
+                /// 可序列化属性（已解析序列化名）。
+                /// </summary>
                 public (string Name, PropertyInfo Property)[] SerializeProperties = Array.Empty<(string, PropertyInfo)>();
 
-                /// <summary>可反序列化属性（含别名表）。</summary>
+                /// <summary>
+                /// 可反序列化属性（含别名表）。
+                /// </summary>
                 public (PropertyInfo Property, string[] Names)[] DeserializeProperties = Array.Empty<(PropertyInfo, string[])>();
 
                 /// <summary>可反序列化属性的 UTF8 编码别名表（与 <see cref="DeserializeProperties"/> 平行）。</summary>
@@ -235,7 +231,9 @@ namespace Moirai.Atropos
                 return meta;
             }
 
-            /// <summary>将反序列化别名表预编码为 UTF8 字节（一次性成本，字节解析热路径零分配）。</summary>
+            /// <summary>
+            /// 将反序列化别名表预编码为 UTF8 字节（一次性成本，字节解析热路径零分配）。
+            /// </summary>
             private static void EncodeUtf8NameTables(TypeMeta meta)
             {
                 meta.DeserializeFieldNamesUtf8 = EncodeNameTable(meta.DeserializeFields.Length, i => meta.DeserializeFields[i].Names);
@@ -425,10 +423,9 @@ namespace Moirai.Atropos
             }
 
             /// <summary>
-            /// 按继承链收集回调（基类在前、派生类在后）。
-            /// 反序列化回调按此顺序执行——与 C# 构造顺序 / Newtonsoft OnDeserialized 惯例一致，
-            /// 保证基类的初始化回调先于派生类运行（派生类回调可能依赖基类状态就绪）。
+            /// 按继承链收集序列化回调，基类在前、派生类在后。
             /// </summary>
+            /// <remarks>回调按收集顺序执行，与 C# 构造顺序及 Newtonsoft 的 OnDeserialized 惯例一致，保证基类回调先于派生类运行。</remarks>
             private static void CollectCallbacks(Type type, List<MethodInfo> before, List<MethodInfo> after)
             {
                 if (type.BaseType != null && type.BaseType != typeof(object))

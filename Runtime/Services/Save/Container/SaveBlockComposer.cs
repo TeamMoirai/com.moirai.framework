@@ -5,8 +5,15 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档数据块组合器：块列表的不可变合并/替换/删除/查找（纯函数，供 EditMode 测试直调）。
-    /// <para>所有操作返回新数组（源列表不被修改），调用方决定写回时机——保证读-改-写中断时原文件不受影响。</para>
     /// </summary>
+    /// <remarks>所有操作返回新数组，源列表不被修改；调用方决定写回时机，读-改-写中断时原文件不受影响。</remarks>
+    /// <example>
+    /// <code lang="csharp">
+    /// var blocks = new List&lt;SaveBlockEntry&gt; { new SaveBlockEntry("stats", 1, ESaveBackend.Json, statsBytes) };
+    /// blocks = SaveBlockComposer.Upsert(blocks, new SaveBlockEntry("inventory", 1, ESaveBackend.Json, inventoryBytes));
+    /// blocks = SaveBlockComposer.Remove(blocks, "stats");
+    /// </code>
+    /// </example>
     internal static class SaveBlockComposer
     {
         /// <summary>

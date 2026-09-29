@@ -3,9 +3,12 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器窗口注册表（路径树导航模型，纯数据结构无生命周期副作用）。
-    /// <para>扁平字典提供 O(1) 路径检索；树节点仅供侧边栏导航渲染。窗口生命周期（<see cref="IDebuggerWindow.Initialize"/> / <see cref="IDebuggerWindow.Shutdown"/>）由服务处理器在注册表之外管理。</para>
+    /// 调试器窗口注册表：路径树导航模型，纯数据结构无生命周期副作用。
     /// </summary>
+    /// <remarks>
+    /// 扁平字典提供 O(1) 路径检索，树节点仅供侧边栏导航渲染； <br />
+    /// 窗口生命周期（<see cref="IDebuggerWindow.Initialize"/> / <see cref="IDebuggerWindow.Shutdown"/>）由服务处理器在注册表之外管理。
+    /// </remarks>
     public sealed class DebuggerWindowRegistry
     {
         #region 字段 [FIELDS]
@@ -39,29 +42,19 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取根节点（虚拟节点，不对应任何路径）。
-        /// </summary>
+        /// <summary>获取根节点（虚拟节点，不对应任何路径）。</summary>
         public DebuggerWindowNode Root => _root;
 
-        /// <summary>
-        /// 获取当前选中的窗口节点（未选中为 null；目录节点不可选中）。
-        /// </summary>
+        /// <summary>获取当前选中的窗口节点（未选中为 null；目录节点不可选中）。</summary>
         public DebuggerWindowNode SelectedNode => _selectedNode;
 
-        /// <summary>
-        /// 获取当前选中的窗口。
-        /// </summary>
+        /// <summary>获取当前选中的窗口。</summary>
         public IDebuggerWindow SelectedWindow => _selectedNode?.Window;
 
-        /// <summary>
-        /// 获取已注册窗口数量。
-        /// </summary>
+        /// <summary>获取已注册窗口数量。</summary>
         public int WindowCount => _windowsByPath.Count;
 
-        /// <summary>
-        /// 获取结构版本号（注册/注销/选中时递增——宿主据此重建侧边栏）。
-        /// </summary>
+        /// <summary>获取结构版本号（注册/注销/选中时递增——宿主据此重建侧边栏）。</summary>
         public int Version => _version;
 
         #endregion

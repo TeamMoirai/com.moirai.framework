@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 提供 JSON 序列化和反序列化
+    /// 提供 JSON 序列化和反序列化。
     /// </summary>
     [Serializable]
     internal sealed class DefaultJsonHandler : JsonHandler, IBufferJsonHandler

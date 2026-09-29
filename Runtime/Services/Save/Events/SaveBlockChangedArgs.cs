@@ -5,29 +5,19 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public readonly struct SaveBlockChangedArgs
     {
-        /// <summary>
-        /// 存档文件名。
-        /// </summary>
+        /// <summary>存档文件名。</summary>
         public string FileName { get; }
 
-        /// <summary>
-        /// 存档文件夹名称。
-        /// </summary>
+        /// <summary>存档文件夹名称。</summary>
         public string FolderName { get; }
 
-        /// <summary>
-        /// 数据块键。
-        /// </summary>
+        /// <summary>数据块键。</summary>
         public string Key { get; }
 
-        /// <summary>
-        /// 序列化后端标识。
-        /// </summary>
+        /// <summary>序列化后端标识。</summary>
         public ESaveBackend Backend { get; }
 
-        /// <summary>
-        /// 块载荷字节数。
-        /// </summary>
+        /// <summary>块载荷字节数。</summary>
         public int SizeBytes { get; }
 
         /// <summary>

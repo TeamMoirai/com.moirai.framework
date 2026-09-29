@@ -4,23 +4,17 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 音频句柄注册表的声部引用契约。
-    /// <para><see cref="VoiceSlot"/> 由注册表单点写入（绑定占槽、卸绑置回 -1），
-    /// 实现方只需保证它随声部的复用生命周期被正确复位。</para>
     /// </summary>
+    /// <remarks><see cref="VoiceSlot"/> 由注册表单点写入（绑定占槽、卸绑置回 -1），实现方只需保证它随声部的复用生命周期被正确复位。</remarks>
     internal interface IAudioVoiceRef
     {
-        /// <summary>
-        /// 用户定义 ID（声部自报值）。
-        /// <para><b>注册表不以它建索引</b>：索引一律以 <see cref="RegisterUser"/> 显式传入的 ID 为准，
-        /// 因为 Unity 侧 <c>AudioAgent.ID</c> 要到播放调用内部才赋值，而登记必须发生在播放之前。</para>
-        /// </summary>
+        /// <summary>用户定义 ID（声部自报值）。</summary>
+        /// <remarks>注册表不以它建索引，索引一律以 <see cref="RegisterUser"/> 显式传入的 ID 为准（Unity 侧 <c>AudioAgent.ID</c> 到播放调用内部才赋值，而登记必须发生在播放之前）。 <br />
+        /// </remarks>
         int UserId { get; }
 
-        /// <summary>
-        /// 声部侧句柄（双向关联的 agent→handle 方向）。
-        /// 由 <c>AudioHandleRegistry.Bind/Release</c> 单点写入，保证与注册表映射不失步；
-        /// 实现方请勿在绑定生命周期内于其他位置赋值。
-        /// </summary>
+        /// <summary>声部侧句柄（双向关联的 agent→handle 方向）。</summary>
+        /// <remarks>由 <c>AudioHandleRegistry.Bind/Release</c> 单点写入，实现方请勿在绑定生命周期内于其他位置赋值。</remarks>
         ulong BoundHandle { get; set; }
 
         /// <summary>注册表槽位下标；<c>-1</c> 表示未注册。由注册表单点维护，句柄按它 O(1) 定位声部。</summary>
@@ -29,13 +23,12 @@ namespace Moirai.Atropos.Audio
 
     /// <summary>
     /// 音频句柄注册表（Unity / 中间件后端共用）。
-    /// <para>职责：句柄生成与解析、句柄 → 声部绑定、用户 ID → 句柄遍历、按 ID 批量操作。</para>
-    /// <para>不变量：句柄 ↔ 声部为 1:1；<see cref="Bind"/> 重绑前会自动卸掉声部旧句柄；句柄低 20 位是槽号、
-    /// 高位是代次，代次不符即判假——所以槽位复用给新声部后，旧句柄不会命中。</para>
-    /// <para>零分配：声部表是"一只声部数组 + 一只同 ID 链数组 + 一只自由栈"，用户 ID 索引是一张开址头表
-    /// （key → 该 ID 的链头槽号）。这里没有 <c>Dictionary</c>、没有 <c>List&lt;ulong&gt;</c> 池、也没有遍历快照——
-    /// 每次播放、每次停播和每帧多处扫描都走这张表，托管字典的哈希与扩容尖峰会直接进播放帧。</para>
     /// </summary>
+    /// <remarks>
+    /// 职责：句柄生成与解析、句柄 → 声部绑定、用户 ID → 句柄遍历、按 ID 批量操作。 <br />
+    /// 句柄 ↔ 声部为 1:1；<see cref="Bind"/> 重绑前自动卸掉声部旧句柄；句柄低 20 位是槽号、高位是代次，代次不符即判假，槽位复用后旧句柄不会命中。 <br />
+    /// 零分配：声部表为数组 + 自由栈，用户 ID 索引为开址头表，无 <c>Dictionary</c>、无 <c>List&lt;ulong&gt;</c> 池、无遍历快照——播放、停播与每帧扫描都走这张表。
+    /// </remarks>
     /// <typeparam name="TVoice">后端声部类型（Unity 为 <see cref="AudioAgent"/>，中间件为私有 Voice）。</typeparam>
     internal sealed class AudioHandleRegistry<TVoice> where TVoice : class, IAudioVoiceRef
     {
@@ -121,7 +114,9 @@ namespace Moirai.Atropos.Audio
             return true;
         }
 
-        /// <summary>查询句柄绑定的声部（代次不符即为陈旧句柄，返回 false）。</summary>
+        /// <summary>
+        /// 查询句柄绑定的声部（代次不符即为陈旧句柄，返回 false）。
+        /// </summary>
         public bool TryGet(ulong handle, out TVoice voice)
         {
             voice = null;
@@ -137,7 +132,9 @@ namespace Moirai.Atropos.Audio
             return true;
         }
 
-        /// <summary>句柄是否仍注册在案。</summary>
+        /// <summary>
+        /// 句柄是否仍注册在案。
+        /// </summary>
         public bool IsRegistered(ulong handle) => TryGet(handle, out _);
 
         /// <summary>
@@ -161,9 +158,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 对注册在指定用户 ID 下的每个句柄执行操作。
-        /// <para>先摘 next 再回调：所以回调里 Release 当前句柄不会跳过后续元素，
-        /// 也不需要像旧实现那样复制一份快照列表。</para>
+        /// 对注册在指定用户 ID 下的每个句柄执行操作（先摘 next 再回调，回调里 Release 当前句柄不会跳过后续元素）。
         /// </summary>
         public void ForEachHandleByUser(int userId, Action<ulong> action)
         {
@@ -184,7 +179,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>清空全部绑定：声部侧句柄一并归零，避免残留把下一次 Bind 的旧句柄当成有效。</summary>
+        /// <summary>
+        /// 清空全部绑定：声部侧句柄一并归零，避免残留把下一次 Bind 的旧句柄当成有效。
+        /// </summary>
         public void Clear()
         {
             for (int i = 0; i < _voices.Length; i++)
@@ -221,9 +218,8 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>
         /// 扩容到 <paramref name="capacity"/>（只增不减）。
-        /// <para>Resize 保持既有下标，所以声部上的 <c>VoiceSlot</c> 与用户 ID 链都不用重挂——
-        /// 只有新槽位需要把 next 初始化，并把它们铺进自由栈。</para>
         /// </summary>
+        /// <remarks>Resize 保持既有下标，声部的 <c>VoiceSlot</c> 与用户 ID 链都无需重挂；只有新槽位需要初始化 next 并铺进自由栈。</remarks>
         private void GrowTo(int capacity)
         {
             if (capacity > SlotMask) capacity = SlotMask;
@@ -242,7 +238,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
-        /// <summary>按槽位上记着的 key 摘链——不能拿声部的 UserId 反推，那个值可能已经换过。</summary>
+        /// <summary>
+        /// 按槽位上记着的 key 摘链——不能拿声部的 UserId 反推，那个值可能已经换过。
+        /// </summary>
         private void UnlinkFromUserIndex(int slot)
         {
             int userId = _slotUser[slot];
@@ -270,9 +268,8 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>
         /// 线性探测找 <paramref name="userId"/> 的头表位；<paramref name="forInsert"/> 为真时空位就地占下。
-        /// <para>头位一旦占用就不因链空而释放（链头记 -1 即可），于是探测遇到空位就能直接终止，
-        /// 不需要删除标记——这是"同一批 ID 反复起播/停播"这种用法下最省事且不分配的做法。</para>
         /// </summary>
+        /// <remarks>头位一旦占用就不因链空而释放（链头记 -1），探测遇到空位即可终止，无需删除标记。</remarks>
         private int FindHead(int userId, bool forInsert)
         {
             if (_headKeys.Length == 0)
@@ -306,7 +303,9 @@ namespace Moirai.Atropos.Audio
             return FindHead(userId, true);
         }
 
-        /// <summary>换一张更大的头表，把每个 key 的链头原样搬过去（槽位链本身不动）。</summary>
+        /// <summary>
+        /// 换一张更大的头表，把每个 key 的链头原样搬过去（槽位链本身不动）。
+        /// </summary>
         private void GrowHeads(int size)
         {
             int[] oldKeys = _headKeys;
@@ -336,7 +335,9 @@ namespace Moirai.Atropos.Audio
 
         private static int HashUser(int userId) => unchecked((int)((uint)userId * 2654435761U));
 
-        /// <summary>foreach 用的结构体枚举器入口：按槽位下标走，不经过任何接口分派。</summary>
+        /// <summary>
+        /// foreach 用的结构体枚举器入口：按槽位下标走，不经过任何接口分派。
+        /// </summary>
         public struct SlotEnumerable
         {
             private readonly AudioHandleRegistry<TVoice> _registry;
@@ -346,14 +347,18 @@ namespace Moirai.Atropos.Audio
             public Enumerator GetEnumerator() => new Enumerator(_registry);
         }
 
-        /// <summary>枚举出的槽位：句柄 + 声部。</summary>
+        /// <summary>
+        /// 枚举出的槽位：句柄 + 声部。
+        /// </summary>
         public struct Slot
         {
             public ulong Handle;
             public TVoice Voice;
         }
 
-        /// <summary>结构体枚举器（零装箱、零分配）。</summary>
+        /// <summary>
+        /// 结构体枚举器（零装箱、零分配）。
+        /// </summary>
         public struct Enumerator
         {
             private readonly AudioHandleRegistry<TVoice> _registry;

@@ -5,9 +5,7 @@ using System.Reflection;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 通知框架的堆栈跟踪（stack trace）记录使用此属性的方法或构造函数的跟踪帧（trace frame）
-    /// 指示应将方法或构造函数用作获取特定堆栈帧的参考点。
-    /// 使用时，它有助于查找和检索与跟踪目的相关的堆栈帧。
+    /// 标记获取特定堆栈帧（trace frame）的参考点：框架的堆栈跟踪记录使用此属性的方法或构造函数。
     /// </summary>
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, Inherited = false)]
     public sealed class StackTraceFrameAttribute : Attribute
@@ -16,7 +14,7 @@ namespace Moirai.Atropos
     }
     
     /// <summary>
-    /// 诊断实用程序
+    /// 诊断实用程序。
     /// </summary>
     public static class DiagnosticsUtility
     {

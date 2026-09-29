@@ -12,10 +12,12 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 基于 Unity 音频系统（<see cref="AudioSource"/>/<see cref="AudioMixer"/>）的默认音频处理器。
-    /// <para>句柄生命周期：Play 绑定 → 结束/抢占时 <see cref="OnAgentPlaybackEnded"/> 自动释放，杜绝无界增长与旧句柄别名。</para>
-    /// <para>句柄注册与音量过渡复用 <see cref="AudioHandleRegistry{TVoice}"/> / <see cref="AudioFadeScheduler"/>，
-    /// 与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。</para>
     /// </summary>
+    /// <remarks>
+    /// 句柄生命周期：Play 绑定 → 结束/抢占时 <see cref="OnAgentPlaybackEnded"/> 自动释放，杜绝无界增长与旧句柄别名。 <br />
+    /// 句柄注册与音量过渡复用 <see cref="AudioHandleRegistry{TVoice}"/> / <see cref="AudioFadeScheduler"/>， <br />
+    /// 与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。
+    /// </remarks>
     [Serializable]
     internal sealed class UnityAudioHandler : AudioServiceHandler, IAudioFadeTarget
     {
@@ -53,7 +55,7 @@ namespace Moirai.Atropos.Audio
 
         /// <inheritdoc />
         /// <remarks>就是 <c>unityAudioDisabled</c> 本身。该字段只在 <c>#if UNITY_EDITOR</c> 内被赋值，
-        /// 所以玩家构建里这条恒 false——它表达的是"开发者在编辑器菜单里关了音频"，不是设备故障。
+        /// 所以玩家构建里这条恒 false——它表达的是"开发者在编辑器菜单里关了音频"，不是设备故障。 <br />
         /// 其余 27 处 <c>_unityAudioDisabled</c> 短路仍直读字段：同文件里两种拼法并存比绕一层钩子更好读。</remarks>
         internal override bool IsBackendInert => _unityAudioDisabled;
 
@@ -298,7 +300,7 @@ namespace Moirai.Atropos.Audio
         /// <remarks>
         /// 不用 <c>StopAllButPersistent</c>：后台回来时 BGM/环境音应当从断点继续，而不是被重起或静音。
         /// <para>淡入淡出按未缩放真实时间推进，因此挂起期间开始的斜坡在恢复时会直接落到目标音量——
-        /// 与"真实时间已经过去"一致，不做补帧。</para>
+        /// 与"真实时间已经过去"一致，不做补帧。</para>。
         /// </remarks>
         public override void OnApplicationPaused(bool paused)
         {

@@ -9,29 +9,19 @@ namespace Moirai.Atropos.Save
     /// <typeparam name="T">存档数据类型。</typeparam>
     internal static class SaveBlockDescriptor<T>
     {
-        /// <summary>
-        /// 是否声明了 <see cref="SaveDataAttribute"/>。
-        /// </summary>
+        /// <summary>是否声明了 <see cref="SaveDataAttribute"/>。</summary>
         internal static readonly bool HasAttribute;
 
-        /// <summary>
-        /// 声明的块键（未声明时为 null）。
-        /// </summary>
+        /// <summary>声明的块键（未声明时为 null）。</summary>
         internal static readonly string Key;
 
-        /// <summary>
-        /// 声明的当前数据模式版本（未声明时为 1）。
-        /// </summary>
+        /// <summary>声明的当前数据模式版本（未声明时为 1）。</summary>
         internal static readonly int Version;
 
-        /// <summary>
-        /// 声明的序列化后端（未声明时为 <see cref="ESaveBackend.Json"/>）。
-        /// </summary>
+        /// <summary>声明的序列化后端（未声明时为 <see cref="ESaveBackend.Json"/>）。</summary>
         internal static readonly ESaveBackend Backend;
 
-        /// <summary>
-        /// 类型是否为 <see cref="SaveDataBlock"/> 子类（决定加载期版本迁移与版本保护是否生效）。
-        /// </summary>
+        /// <summary>类型是否为 <see cref="SaveDataBlock"/> 子类（决定加载期版本迁移与版本保护是否生效）。</summary>
         internal static readonly bool IsMigrationAware;
 
         static SaveBlockDescriptor()

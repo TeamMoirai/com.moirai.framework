@@ -6,9 +6,11 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 输入信息窗口（Input System 合并视图：设备摘要、触摸、加速度、陀螺仪与磁场传感器）。
-    /// <para>项目以 Input System 为唯输入后端（旧 <see cref="UnityEngine.Input"/> API 已禁用）——传感器经设备模型读取，未连接设备显示占位说明。</para>
+    /// 输入信息窗口：Input System 设备摘要、触摸、加速度、陀螺仪与磁场传感器。
     /// </summary>
+    /// <remarks>
+    /// 项目以 Input System 为唯一输入后端；传感器经设备模型读取，未连接设备显示占位说明。
+    /// </remarks>
     public sealed class InputInformationWindow : PollingDebuggerWindowBase
     {
         #region 构建窗口 [BUILD WINDOW]

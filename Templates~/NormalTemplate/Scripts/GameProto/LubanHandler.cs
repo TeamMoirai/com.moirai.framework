@@ -47,9 +47,11 @@ namespace Moirai.GameProto.Config
         
 
         /// <summary>
-        /// 自报本表提供的语言：顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
-        /// <para>框架据此校验列数并解析缺译回退链，不再依赖「向全局注册表注册语言」这一副作用。</para>
+        /// 自报本表提供的语言；顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
         /// </summary>
+        /// <remarks>
+        /// 框架据此校验列数并解析缺译回退链，不依赖「向全局注册表注册语言」这一副作用。
+        /// </remarks>
         public override IReadOnlyList<string> GetLocalizationLanguageCodes()
         {
             if (_localizationLanguageCodes == null)
@@ -61,9 +63,8 @@ namespace Moirai.GameProto.Config
         }
 
         /// <summary>
-        /// 初始化所有可用的多语言
+        /// 初始化所有可用的多语言。
         /// </summary>
-        /// <returns></returns>
         private void ResolveLocalization()
         {
             LogUtility.Info("<color=yellow>\u25bc\u25bc\u25bc\u25bc " +
@@ -151,10 +152,9 @@ namespace Moirai.GameProto.Config
         }
 
         /// <summary>
-        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas
+        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas。
         /// </summary>
-        /// <param name="id">UISprite - SpriteAtlas 配置表的 id</param>
-        /// <param name="cancellationToken"></param>
+        /// <param name="id">UISprite - SpriteAtlas 配置表的 id。</param>
 #pragma warning disable CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
         public override async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
 #pragma warning restore CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行

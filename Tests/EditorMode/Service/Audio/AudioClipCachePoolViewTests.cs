@@ -5,10 +5,9 @@ using NUnit.Framework;
 namespace Service.Audio
 {
     /// <summary>
-    /// 留池视图（<c>PoolReadOnly</c> 现算投影）的结构回归：视图不得与主表镜像同步、枚举期间卸载不得抛。
-    /// <para>分配计量部分已迁至 Tests/Player 的同名基准（编辑器托管分配计数器不推进，
-    /// 分配断言在编辑器内无条件成立——测不出分配不等于没有分配）。</para>
+    /// 留池视图（<c>PoolReadOnly</c> 现算投影）的结构回归：不与主表镜像同步、枚举期间卸载不抛。
     /// </summary>
+    /// <remarks>分配计量见 Tests/Player 的同名基准；编辑器托管分配计数器不推进，分配断言在此无条件成立。</remarks>
     [TestFixture]
     public class AudioClipCachePoolViewTests
     {
@@ -32,11 +31,12 @@ namespace Service.Audio
         }
 
         /// <summary>
-        /// 留池视图是**现算投影**，不是一份要与主表同步维护的镜像表。
-        /// <para>旧实现每次取用/归还/抬升策略都往镜像字典写一笔（为此还要在条目上挂一只装箱副本防止重复装箱），
-        /// 漏掉一处同步就留下"视图里还在、缓存里已无"的残影。改成投影后，装箱只可能发生在枚举/取值这一次
-        /// 冷路径上，而残影成为结构上不可表达的状态——这里锁的正是它。</para>
+        /// 留池视图是现算投影，不是要与主表同步维护的镜像表。
         /// </summary>
+        /// <remarks>
+        /// 取用/归还/抬升策略不再向镜像字典记账，装箱只可能发生在枚举/取值这一次冷路径上； <br />
+        /// 「视图里还在、缓存里已无」的残影因此成为结构上不可表达的状态——本用例锁的正是它。
+        /// </remarks>
         [Test]
         public void PoolView_IsComputedProjection_LeavesNoStaleEntry()
         {
@@ -62,10 +62,9 @@ namespace Service.Audio
         }
 
         /// <summary>
-        /// 枚举期间卸载条目不得炸：视图必须先摘快照再交出去。
-        /// <para>旧实现返回的是 <c>ReadOnlyDictionary</c> 包装，枚举底层字典时任何写操作都会
-        /// <c>InvalidOperationException</c>；而"边看边清"恰恰是调试面板与兼容入口的真实用法。</para>
+        /// 枚举期间卸载条目不得抛：视图先摘快照再交出去。
         /// </summary>
+        /// <remarks>交出去的是枚举快照而非包装底层字典，故「边看边清」这一调试面板与兼容入口的真实用法不会触发 <c>InvalidOperationException</c>。</remarks>
         [Test]
         public void PoolView_EnumerateWhileUnloading_DoesNotThrow()
         {

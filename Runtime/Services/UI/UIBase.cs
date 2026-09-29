@@ -17,10 +17,7 @@ namespace Moirai.Atropos.UI
 #endif
     public abstract class UIBase
     {
-        /// <summary>
-        /// 依赖注入回调。外部可设置为接收一个 UIBase 实例的委托，
-        /// 在 UI 初始化或创建时由框架调用以注入所需的服务/依赖。
-        /// </summary>
+        /// <summary>依赖注入回调：框架在 UI 初始化或创建时调用，用于注入所需的服务 / 依赖。</summary>
 #pragma warning disable CS8632 // 只能在 "#nullable" 注释上下文内的代码中使用可为 null 的引用类型的注释。
         public static Action<UIBase>? Injector;
 #pragma warning restore CS8632 // 只能在 "#nullable" 注释上下文内的代码中使用可为 null 的引用类型的注释。
@@ -39,32 +36,24 @@ namespace Moirai.Atropos.UI
         /// </summary>
         public enum UIType
         {
-            /// <summary>无</summary>
+            /// <summary>无。</summary>
             None,
-            /// <summary>弹窗</summary>
+            /// <summary>弹窗。</summary>
             Window,
-            /// <summary>控件</summary>
+            /// <summary>控件。</summary>
             Widget,
         }
         
-        /// <summary>
-        /// 所属UI父节点。
-        /// </summary>
+        /// <summary>所属UI父节点。</summary>
         protected UIBase _parent = null;
 
-        /// <summary>
-        /// UI父节点。
-        /// </summary>
+        /// <summary>UI父节点。</summary>
         public UIBase Parent => _parent;
 
-        /// <summary>
-        /// 自定义数据集。
-        /// </summary>
+        /// <summary>自定义数据集。</summary>
         protected System.Object[] _params;
         
-        /// <summary>
-        /// 自定义数据。
-        /// </summary>
+        /// <summary>自定义数据。</summary>
         public System.Object UserData
         {
             get
@@ -80,57 +69,37 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>
-        /// 自定义数据集。
-        /// </summary>
+        /// <summary>自定义数据集。</summary>
         public System.Object[] Params => _params;
 
-        /// <summary>
-        /// 窗口的实例资源对象。
-        /// </summary>
+        /// <summary>窗口的实例资源对象。</summary>
         // ReSharper disable once InconsistentNaming
         public virtual GameObject gameObject { get; protected set; }
 
-        /// <summary>
-        /// 窗口位置组件。
-        /// </summary>
+        /// <summary>窗口位置组件。</summary>
         // ReSharper disable once InconsistentNaming
         public virtual Transform transform { get; protected set; }
 
-        /// <summary>
-        /// 窗口矩阵位置组件。
-        /// </summary>
+        /// <summary>窗口矩阵位置组件。</summary>
         // ReSharper disable once InconsistentNaming
         public virtual RectTransform rectTransform { get; protected set; }
 
-        /// <summary>
-        /// UI类型。
-        /// </summary>
+        /// <summary>UI类型。</summary>
         public virtual UIType Type => UIType.None;
 
-        /// <summary>
-        /// 资源是否准备完毕。
-        /// </summary>
+        /// <summary>资源是否准备完毕。</summary>
         public bool IsPrepare { get; protected set; }
 
-        /// <summary>
-        /// UI子组件列表。
-        /// </summary>
+        /// <summary>UI子组件列表。</summary>
         public List<UIWidget> ChildList = new List<UIWidget>();
 
-        /// <summary>
-        /// 存在Update更新的UI子组件列表。
-        /// </summary>
+        /// <summary>存在Update更新的UI子组件列表。</summary>
         protected List<UIWidget> _updateChildList = null;
 
-        /// <summary>
-        /// 是否持有Update行为。
-        /// </summary>
+        /// <summary>是否持有Update行为。</summary>
         protected bool _updateListValid = false;
 
-        /// <summary>
-        /// 是否标记脏排序
-        /// </summary>
+        /// <summary>是否标记脏排序。</summary>
         protected bool _isSortingOrderDirty = false;
 
         /// <summary>
@@ -174,9 +143,7 @@ namespace Moirai.Atropos.UI
         /// <remarks>不限于打开窗口，关闭上层窗口时也会触发刷新。</remarks>
         protected virtual void OnRefresh() { }
 
-        /// <summary>
-        /// 是否需要 Update。
-        /// </summary>
+        /// <summary>是否需要 Update。</summary>
         protected bool _hasOverrideUpdate = true;
 
         /// <summary>
@@ -288,8 +255,7 @@ namespace Moirai.Atropos.UI
         #region UI 组件 [UI WIDGET]
 
         /// <summary>
-        /// 创建UIWidget通过父UI位置节点。
-        /// <remarks>因为资源实例已经存在父物体所以不需要异步。</remarks>
+        /// 通过父 UI 位置节点创建 <see cref="UIWidget"/>。
         /// </summary>
         /// <param name="goPath">父UI位置节点。</param>
         /// <param name="visible">是否可见。</param>
@@ -309,10 +275,8 @@ namespace Moirai.Atropos.UI
 
 
         /// <summary>
-        /// 创建UIWidget通过父UI位置节点。
-        /// <remarks>因为资源实例已经存在父物体所以不需要异步。</remarks>
+        /// 通过指定的父节点创建 <see cref="UIWidget"/>。
         /// </summary>
-        /// <param name="parentTrans"></param>
         /// <param name="goPath">父UI位置节点。</param>
         /// <param name="visible">是否可见。</param>
         /// <typeparam name="T">UIWidget。</typeparam>
@@ -329,8 +293,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 创建UIWidget通过游戏物体。
-        /// <remarks>因为资源实例已经存在父物体所以不需要异步。</remarks>
+        /// 通过游戏物体创建 <see cref="UIWidget"/>。
         /// </summary>
         /// <param name="goRoot">游戏物体。</param>
         /// <param name="visible">是否可见。</param>
@@ -454,14 +417,6 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 异步调整图标数量。
         /// </summary>
-        /// <param name="listIcon"></param>
-        /// <param name="tarNum"></param>
-        /// <param name="parentTrans"></param>
-        /// <param name="prefab"></param>
-        /// <param name="assetPath"></param>
-        /// <param name="maxNumPerFrame"></param>
-        /// <param name="updateAction"></param>
-        /// <typeparam name="T"></typeparam>
         public void AsyncAdjustIconNum<T>(List<T> listIcon, int tarNum, Transform parentTrans, GameObject prefab = null,
             string assetPath = "", int maxNumPerFrame = 5,
             Action<T, int> updateAction = null) where T : UIWidget, new()
@@ -472,14 +427,6 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 异步创建接口。
         /// </summary>
-        /// <param name="listIcon"></param>
-        /// <param name="tarNum"></param>
-        /// <param name="parentTrans"></param>
-        /// <param name="maxNumPerFrame"></param>
-        /// <param name="updateAction"></param>
-        /// <param name="prefab"></param>
-        /// <param name="assetPath"></param>
-        /// <typeparam name="T"></typeparam>
         private async UniTaskVoid AsyncAdjustIconNumInternal<T>(List<T> listIcon, int tarNum, Transform parentTrans, int maxNumPerFrame,
             Action<T, int> updateAction, GameObject prefab, string assetPath) where T : UIWidget, new()
         {

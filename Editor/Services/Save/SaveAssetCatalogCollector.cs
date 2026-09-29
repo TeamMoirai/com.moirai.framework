@@ -11,12 +11,13 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Editor.Save
 {
     /// <summary>
-    /// 资产引用收集器：扫描已打开场景中的 <see cref="SaveComponent"/>，把资产引用字段（UnityEngine.Object 派生且非
-    /// GameObject/Component 派生）当前引用的资产登记进 <see cref="SaveAssetCatalog"/>（缺失定位串按文件名寻址约定推导）。
-    /// <para>消除「漏登记 → 捕获静默写 Null」面：登记后失效目录查找缓存、标脏并保存目录资产；
-    /// 同一次扫描内同一资产只登记一次（本地去重集——目录查找缓存在 Add 后不会同步重建）；
-    /// 场景对象实例（非项目资产）与无法推导定位串的资产仅告警不登记。项目使用自定义寻址约定时须人工复核定位串。</para>
+    /// 资产引用收集器：扫描已打开场景中的 <see cref="SaveComponent"/>，把资产引用字段当前引用的资产登记进 <see cref="SaveAssetCatalog"/>。
     /// </summary>
+    /// <remarks>
+    /// 资产引用字段指 <c>UnityEngine.Object</c> 派生且非 GameObject / Component 派生的字段；缺失定位串按文件名寻址约定推导。 <br />
+    /// 登记后失效目录查找缓存、标脏并保存目录资产；同一次扫描内同一资产只登记一次。 <br />
+    /// 场景对象实例（非项目资产）与无法推导定位串的资产仅告警不登记；使用自定义寻址约定时须人工复核定位串。
+    /// </remarks>
     public static class SaveAssetCatalogCollector
     {
         /// <summary>

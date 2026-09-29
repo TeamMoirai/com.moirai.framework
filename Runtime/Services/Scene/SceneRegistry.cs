@@ -6,10 +6,11 @@ namespace Moirai.Atropos.Scene
 {
     /// <summary>
     /// 场景登记簿——场景服务的纯状态容器与决策单元。
-    /// <para>承载主/子场景登记、location 级在途防重入、子场景短名反向索引与全部登记迁移决策；
-    /// 不依赖日志与资源外观，决策以枚举结果返回，由 <see cref="DefaultSceneHandler"/> 在边界翻译为日志与异常。</para>
-    /// <para>全部成员仅限主线程调用（场景加载管线本身即主线程契约），不做线程守卫。</para>
     /// </summary>
+    /// <remarks>
+    /// 承载主/子场景登记、location 级在途防重入、子场景短名反向索引与全部登记迁移决策；不依赖日志与资源外观，决策以枚举结果返回，由 <see cref="DefaultSceneHandler"/> 在边界翻译为日志与异常。 <br />
+    /// 全部成员仅限主线程调用（场景加载管线本身即主线程契约），不做线程守卫。
+    /// </remarks>
     internal sealed class SceneRegistry
     {
         /// <summary>
@@ -93,8 +94,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 待执行卸载的解析结果——规范化登记地址、场景短名与句柄。
-        /// <para>仅当门禁判定为 <see cref="EUnloadGate.Allow"/> 时完整有效；非 Allow 时仅 <see cref="Location"/> 可用于日志（NotRegistered 时为默认值）。</para>
         /// </summary>
+        /// <remarks>
+        /// 仅当门禁判定为 <see cref="EUnloadGate.Allow"/> 时完整有效；非 Allow 时仅 <see cref="Location"/> 可用于日志（NotRegistered 时为默认值）。
+        /// </remarks>
         internal readonly struct PendingUnload
         {
             /// <summary>子场景登记地址。</summary>
@@ -143,8 +146,7 @@ namespace Moirai.Atropos.Scene
         internal string MainLoadingLocation => _mainSceneLoadingLocation;
 
         /// <summary>
-        /// 取当前激活场景作为初始主场景（编辑器下启动场景可能不在 Build Settings，
-        /// <c>GetSceneByBuildIndex(0)</c> 会得到无效场景）。
+        /// 取当前激活场景作为初始主场景（编辑器下启动场景可能不在 Build Settings，<c>GetSceneByBuildIndex(0)</c> 会得到无效场景）。
         /// </summary>
         internal void CaptureActiveMainScene(UnityEngine.SceneManagement.Scene scene)
         {

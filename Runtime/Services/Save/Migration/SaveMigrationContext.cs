@@ -4,15 +4,13 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档迁移上下文（<see cref="ISaveMigrator.Migrate"/> 的纯数据操作面）。
-    /// <para>操作对象为当前迁移步的存档块集合：块级 <see cref="RenameBlock"/>/<see cref="DeleteBlock"/>/<see cref="TransformBlock{T}"/>；
-    /// 字段级 <see cref="RenameField(string, string, string)"/>/<see cref="RetypeField{TOld, TNew}(string, string, Func{TOld, TNew})"/>
-    /// 按块记录的后端分发——JSON 后端走 DOM 变换（需 Newtonsoft.Json），KeyValue 后端走 KVT 记录重写，
-    /// 二进制后端（MessagePack/MemoryPack/Protobuf）的字段级操作不受支持（拒绝并记告警；用 <see cref="TransformBlock{T}"/> 保留旧类型整对象迁移，
-    /// 键序纪律由分析器 MIRAI400/401 把关）。</para>
-    /// <para>目标块/字段不存在时操作为无操作（返回 <c>false</c>，兼容从未写过该块的旧档）；
-    /// 反序列化失败/格式损坏等真异常记为迁移失败并中止整条迁移链。</para>
+    /// 存档迁移上下文（<see cref="ISaveMigrator.Migrate"/> 的纯数据操作面）：块级改名/删除/整块变换与字段级改名/改型。
     /// </summary>
+    /// <remarks>
+    /// 字段级操作按块记录的后端分发：JSON 后端走 DOM 变换（需 Newtonsoft.Json），KeyValue 后端走 KVT 记录重写； <br />
+    /// 二进制后端（MessagePack/MemoryPack/Protobuf）的字段级操作不受支持（拒绝并记告警），请改用 <see cref="TransformBlock{T}"/> 保留旧类型整对象迁移。 <br />
+    /// 目标块/字段不存在时操作为无操作（返回 <c>false</c>，兼容从未写过该块的旧档）；反序列化失败/格式损坏等真异常记为迁移失败并中止整条迁移链。
+    /// </remarks>
     public sealed class SaveMigrationContext
     {
 #if NEWTONSOFT_JSON_INSTALLED
@@ -51,24 +49,16 @@ namespace Moirai.Atropos.Save
             _folderName = folderName;
         }
 
-        /// <summary>
-        /// 当前迁移步的起始版本。
-        /// </summary>
+        /// <summary>当前迁移步的起始版本。</summary>
         public int FromVersion => _fromVersion;
 
-        /// <summary>
-        /// 当前迁移步的目标版本。
-        /// </summary>
+        /// <summary>当前迁移步的目标版本。</summary>
         public int ToVersion => _toVersion;
 
-        /// <summary>
-        /// 存档文件名（经内部核心直调时可能为 null）。
-        /// </summary>
+        /// <summary>存档文件名（经内部核心直调时可能为 null）。</summary>
         public string FileName => _fileName;
 
-        /// <summary>
-        /// 存档文件夹名称。
-        /// </summary>
+        /// <summary>存档文件夹名称。</summary>
         public string FolderName => _folderName;
 
         /// <summary>当前块集合（管理器在链末取回）。</summary>
@@ -77,9 +67,7 @@ namespace Moirai.Atropos.Save
         /// <summary>迁移失败明细（null = 未失败）。</summary>
         internal string ErrorDetail => _errorDetail;
 
-        /// <summary>
-        /// 当前存档内的全部块键快照（数组拷贝）。
-        /// </summary>
+        /// <summary>当前存档内的全部块键快照（数组拷贝）。</summary>
         public string[] BlockKeys
         {
             get
@@ -151,9 +139,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 整块变换：按块记录的后端反序列化为 <typeparamref name="T"/> → 转换 → 同后端回写（块不存在为无操作）。
-        /// <para>二进制后端迁移的正路——旧类型保留在工程中即可读出旧档；<paramref name="newDataVersion"/> 用于同步推进块级模式版本
-        /// （避免 <see cref="SaveDataBlock.OnMigrate"/> 类型级级联对同一变更重复执行）。</para>
         /// </summary>
+        /// <remarks>
+        /// 二进制后端迁移的正路——旧类型保留在工程中即可读出旧档。
+        /// <paramref name="newDataVersion"/> 用于同步推进块级模式版本，避免 <see cref="SaveDataBlock.OnMigrate"/> 类型级级联对同一变更重复执行。
+        /// </remarks>
         /// <typeparam name="T">块数据类型（旧形态）。</typeparam>
         /// <param name="key">数据块键。</param>
         /// <param name="transform">对象变换（返回替换对象）。</param>
@@ -208,7 +198,9 @@ namespace Moirai.Atropos.Save
                     : RenameJsonField(entry.Bytes, oldField, newField, out result));
         }
 
-        /// <summary>字段级操作委托（变换器结果经 out 返回，未命中时 <paramref name="result"/> 为源载荷引用）。</summary>
+        /// <summary>
+        /// 字段级操作委托（变换器结果经 out 返回，未命中时 <paramref name="result"/> 为源载荷引用）。
+        /// </summary>
         private delegate bool FieldOpDelegate(SaveBlockEntry entry, out byte[] result);
 
         /// <summary>
@@ -230,9 +222,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 字段改型（JSON 顶层属性 DOM 改型 / KVT 标量记录装箱改型；字段不存在为无操作）。
-        /// <para>KVT 侧 <typeparamref name="TNew"/> 须为 KVT 支持的标量类型（枚举按底层类型）；
-        /// JSON 侧建议限定基元/字符串/DateTime，复杂类型改型请用 <see cref="TransformBlock{T}"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// KVT 侧 <typeparamref name="TNew"/> 须为 KVT 支持的标量类型（枚举按底层类型）；JSON 侧建议限定基元/字符串/DateTime， <br />
+        /// 复杂类型改型请用 <see cref="TransformBlock{T}"/>。
+        /// </remarks>
         /// <typeparam name="TOld">旧值类型。</typeparam>
         /// <typeparam name="TNew">新值类型。</typeparam>
         /// <param name="key">数据块键。</param>

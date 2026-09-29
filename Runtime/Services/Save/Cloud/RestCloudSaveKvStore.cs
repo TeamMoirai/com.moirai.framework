@@ -12,20 +12,18 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// REST 通用云端 KV 存储（HttpClient 纯 .NET 传输，可在任意线程调用；不触达 Unity 主线程 API）。
-    /// <para>框架定义的极简 REST 契约，服务端按契约实现即可接入（路径段逐段 URL 转义，<c>/</c> 为路径分隔符）：</para>
-    /// <para>　读：<c>GET {baseUrl}/{keyPrefix}{key}</c> → 200 载荷字节，响应头 <c>X-Save-Revision</c>（long，修订号）/
-    /// <c>ETag</c>（回退通道，引号包裹的 long）与 <c>Last-Modified</c>（远端权威时间戳）；404 = 缺档返回 <c>null</c>。</para>
-    /// <para>　写：<c>PUT {baseUrl}/{keyPrefix}{key}</c>（application/octet-stream 原始字节）→ 2xx，响应头同上返回新修订号（无则 0 = 无版本通道）。</para>
-    /// <para>　删：<c>DELETE {baseUrl}/{keyPrefix}{key}</c> → 2xx/404 均视为成功（幂等）。</para>
-    /// <para>　存在：<c>HEAD {baseUrl}/{keyPrefix}{key}</c> → 200/404。</para>
-    /// <para>　枚举：<c>GET {baseUrl}?prefix={keyPrefix}{prefix}</c>（服务端前缀过滤下推）→ 200 JSON 数组
-    /// <c>[{"key":"完整键（含 keyPrefix）","size":123,"modified":"ISO8601","revision":42}]</c>；modified/revision 可缺省（0/未知）。
-    /// 返回键须携带 keyPrefix（本端剥离后交还调用方），前缀外键被防御性跳过。</para>
-    /// <para>超时/非约定状态码/网络失败一律抛异常（远端失败语义——<see cref="CloudSaveStorageBackend"/> 归一为离线降级）；
-    /// 用户取消经 <paramref name="cancellationToken"/> 传播 <see cref="OperationCanceledException"/>（不视为远端失败）。</para>
-    /// <para>平台限制：HttpClient 依赖 raw socket——WebGL 不可用（WebGL 项目请使用 UGS 后端或 UnityWebRequest 自定义实现）。</para>
+    /// REST 通用云端 KV 存储：按框架极简 REST 契约读写远端条目（HttpClient 纯 .NET 传输，任意线程可调用）。
     /// </summary>
+    /// <remarks>
+    /// 契约（路径段逐段 URL 转义，<c>/</c> 为分隔符）：读 <c>GET {baseUrl}/{keyPrefix}{key}</c> 返回 200 与载荷字节， <br />
+    /// 响应头 <c>X-Save-Revision</c>（long 修订号）/ <c>ETag</c>（回退通道，引号包裹的 long）/ <c>Last-Modified</c>（远端权威时间戳），404 = 缺档； <br />
+    /// 写 <c>PUT</c>（application/octet-stream）、删 <c>DELETE</c>（2xx/404 均成功）、存在 <c>HEAD</c>（200/404）。 <br />
+    /// 枚举 <c>GET {baseUrl}?prefix={keyPrefix}{prefix}</c> 由服务端前缀过滤下推， <br />
+    /// 返回 JSON 数组 <c>[{"key","size","modified","revision"}]</c>（modified/revision 可缺省）；返回键须含 keyPrefix（本端剥离后交还调用方），前缀外键防御性跳过。 <br />
+    /// 超时/非约定状态码/网络失败一律抛异常，由 <see cref="CloudSaveStorageBackend"/> 归一为离线降级；用户取消抛 <see cref="OperationCanceledException"/>， <br />
+    /// 不计为远端失败。 <br />
+    /// 依赖 raw socket，WebGL 不可用（WebGL 项目改用 UGS 后端或 UnityWebRequest 自定义实现）。
+    /// </remarks>
     [Serializable]
     public class RestCloudSaveKvStore : CloudSaveKvStore
     {

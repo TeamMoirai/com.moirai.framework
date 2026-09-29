@@ -12,12 +12,14 @@ namespace Service.Audio
 {
     /// <summary>
     /// 中间件事件路径面：映射表优先、按名回落只提示一次、计数与播放同一条解析路径、播放失败可归因。
-    /// <para>对应上线门槛 G1（<c>GetEventPathFromClip</c> 与映射表联调）与 G2-1（事件映射策略）、G5（失败注入）。</para>
     /// </summary>
+    /// <remarks>对应门槛 G1（<c>GetEventPathFromClip</c> 与映射表联调）、G2-1（事件映射策略）与 G5（失败注入）。</remarks>
     [TestFixture]
     public sealed class AudioMiddlewareEventMapTests
     {
-        /// <summary>记录播放路径与推导调用的假桥。</summary>
+        /// <summary>
+        /// 记录播放路径与推导调用的假桥。
+        /// </summary>
         private sealed class RecordingBridge : IAudioMiddlewareBridge
         {
             /// <summary>返回 0 时按事件路径置真——模拟「路径写错／库没加载」。</summary>

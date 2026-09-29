@@ -12,13 +12,12 @@ namespace Service.Audio
 {
     /// <summary>
     /// 中间件 Bank / RTPC 能力契约：Stub 幂等语义、Handler 外观派发、真 SDK 桥的能力接口实现。
-    /// <para>文件头归类（反射政策 C-19）：本文件含 2 处 Assembly.GetType 字符串类型探测
-    /// （FmodBridgeNative / WwiseBridgeNative 能力探测）——目标类型仅存在于 *_INSTALLED 宏下，
-    /// 编译期引用不可达，只能按名探测；非字段读写，属能力探测正当用途（ReflectionPolicyGuardTests
-    /// 只拦 BindingFlags 的 NonPublic 字面，字符串探测在其雷达外，故在此显式归类）。</para>
-    /// <para>刻意不依赖 <c>FMOD_INSTALLED</c> / <c>WWISE_INSTALLED</c>：CI 无插件也能跑；
-    /// Native 类型存在时（已定义宏）经反射断言其实现了能力接口。</para>
     /// </summary>
+    /// <remarks>
+    /// 不依赖 <c>FMOD_INSTALLED</c> / <c>WWISE_INSTALLED</c>，CI 无插件也能跑；宏已定义时经反射断言 Native 桥实现了能力接口。 <br />
+    /// 本文件含 2 处 <c>Assembly.GetType</c> 按名类型探测（FmodBridgeNative / WwiseBridgeNative）：目标类型仅存在于 <c>*_INSTALLED</c> 宏下，编译期引用不可达， <br />
+    /// 属能力探测正当用途。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioMiddlewareBankRtpcTests
     {
@@ -143,7 +142,9 @@ namespace Service.Audio
             AssertBankAndRtpc(CreateDefaultBridge(typeof(WwiseAudioHandler)));
         }
 
-        /// <summary>断言桥类型（或实例）实现了 Bank / RTPC 能力接口。</summary>
+        /// <summary>
+        /// 断言桥类型（或实例）实现了 Bank / RTPC 能力接口。
+        /// </summary>
         private static void AssertBankAndRtpc(object bridgeOrType)
         {
             Assert.IsNotNull(bridgeOrType);
@@ -263,7 +264,9 @@ namespace Service.Audio
             }
         }
 
-        /// <summary>仅实现主桥接口的假件——验证能力探测安全降级，也是能力子类化的底座。</summary>
+        /// <summary>
+        /// 仅实现主桥接口的假件——验证能力探测安全降级，也是能力子类化的底座。
+        /// </summary>
         private class BridgeWithoutCapabilities : IAudioMiddlewareBridge
         {
             public bool Initialize(UnityEngine.Transform instanceRoot) => true;
@@ -283,7 +286,9 @@ namespace Service.Audio
 
         #region 加载失败可归因 [LOAD FAILURE DIAGNOSIS]
 
-        /// <summary>可编排加载结果、并统计触达次数的假桥。</summary>
+        /// <summary>
+        /// 可编排加载结果、并统计触达次数的假桥。
+        /// </summary>
         private sealed class ControllableBankBridge : BridgeWithoutCapabilities, IAudioMiddlewareBankControl
         {
             public EAudioBankLoadResult NextResult = EAudioBankLoadResult.Loaded;

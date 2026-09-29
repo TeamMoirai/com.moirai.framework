@@ -7,12 +7,14 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// GameObject 池服务外观（Facade）。
-    /// <para>统一的静态游戏对象池访问入口，通过替换 <see cref="Handler"/> 即可在不同对象池后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="GameObjectPoolServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
-    /// <para>支持两种池化来源：资源地址（经 ResourceService 加载）、外部 Prefab 引用，经 <see cref="GameObjectPoolSource"/> 统一入口。</para>
+    /// GameObject 池服务外观（Facade）：全框架统一的静态游戏对象池访问入口。
     /// </summary>
+    /// <remarks>
+    /// 通过替换 <see cref="Handler"/> 可在不同对象池后端之间切换；支持资源地址与外部 Prefab 两种来源，经 <see cref="GameObjectPoolSource"/> 统一入口。 <br />
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="GameObjectPoolServiceSettings"/> 解析； <br />
+    /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// </remarks>
     [AutoRegisterService]
     [HandlerHost(typeof(GameObjectPoolServiceHandler))]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
@@ -29,8 +31,10 @@ namespace Moirai.Atropos.ObjectPool
 
         /// <summary>
         /// 从 <see cref="GameObjectPoolServiceSettings"/> 解析游戏对象池处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>
+        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
+        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static GameObjectPoolServiceHandler GetHandlerFromSettings()
         {

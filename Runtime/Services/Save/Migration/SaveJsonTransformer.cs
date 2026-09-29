@@ -9,11 +9,12 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// JSON 块载荷迁移变换器（Newtonsoft JObject DOM）：顶层属性改名/改型。
-    /// <para>仅作用于块根对象的顶层属性（存档 POCO 字段层）；嵌套对象内部字段的迁移用
-    /// <see cref="SaveMigrationContext.TransformBlock{T}"/> 以旧类型整对象读出后改写。</para>
-    /// <para>改型建议限定基元/字符串/DateTime（DOM 原生类型）；复杂类型改型同样走 <see cref="SaveMigrationContext.TransformBlock{T}"/>。
-    /// 依赖 Newtonsoft.Json（<c>com.unity.nuget.newtonsoft-json</c>）——未安装时字段级操作记录迁移失败（fail-fast）。</para>
     /// </summary>
+    /// <remarks>
+    /// 仅作用于块根对象的顶层属性（存档 POCO 字段层）；嵌套对象内部字段的迁移请用 <see cref="SaveMigrationContext.TransformBlock{T}"/> 以旧类型整对象读出后改写。 <br />
+    /// 改型建议限定基元/字符串/DateTime（DOM 原生类型），复杂类型同样走 <see cref="SaveMigrationContext.TransformBlock{T}"/>。 <br />
+    /// 依赖 Newtonsoft.Json（<c>com.unity.nuget.newtonsoft-json</c>）——未安装时字段级操作记录迁移失败（fail-fast）。
+    /// </remarks>
     internal static class SaveJsonTransformer
     {
 #if NEWTONSOFT_JSON_INSTALLED

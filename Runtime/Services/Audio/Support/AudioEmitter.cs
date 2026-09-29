@@ -155,10 +155,14 @@ namespace Moirai.Atropos.Audio
             _insideTriggerRange = false;
         }
 
-        /// <summary>手动开始播放。</summary>
+        /// <summary>
+        /// 手动开始播放。
+        /// </summary>
         public void Play() => StartPlayback();
 
-        /// <summary>手动停止（可淡出）。</summary>
+        /// <summary>
+        /// 手动停止（可淡出）。
+        /// </summary>
         public void Stop() => StopPlayback();
 
         private void StartPlayback()

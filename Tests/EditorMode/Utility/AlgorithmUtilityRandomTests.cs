@@ -6,9 +6,7 @@ using NUnit.Framework;
 namespace Utility
 {
     /// <summary>
-    /// 锁住 <see cref="AlgorithmUtility"/> 随机面改接统一随机源后的行为：
-    /// 位数区间不再有空集死循环、long 版不越界且上下界口径与 int 版一致、
-    /// 每次 new Random 的老路子不会在同一 tick 里给出同一个数。
+    /// 锁住 <see cref="AlgorithmUtility"/> 随机面的行为契约：位数区间无空集死循环、long 版不越界且上下界口径与 int 版一致、每 tick 取数不重复。
     /// </summary>
     public class AlgorithmUtilityRandomTests
     {

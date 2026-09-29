@@ -5,29 +5,19 @@ namespace Moirai.Atropos.Events.Editor
     /// </summary>
     class EventLogLine
     {
-        /// <summary>
-        /// 获取该行在日志中的行号（从 1 开始）。
-        /// </summary>
+        /// <summary>获取该行在日志中的行号（从 1 开始）。</summary>
         public int LineNumber { get; }
 
-        /// <summary>
-        /// 获取事件的时间戳文本。
-        /// </summary>
+        /// <summary>获取事件的时间戳文本。</summary>
         public string Timestamp { get; }
 
-        /// <summary>
-        /// 获取事件名（事件基类名称）。
-        /// </summary>
+        /// <summary>获取事件名（事件基类名称）。</summary>
         public string EventName { get; }
 
-        /// <summary>
-        /// 获取事件目标对象的显示名称。
-        /// </summary>
+        /// <summary>获取事件目标对象的显示名称。</summary>
         public string Target { get; }
 
-        /// <summary>
-        /// 获取关联的原始事件记录，可为 <c>null</c>。
-        /// </summary>
+        /// <summary>获取关联的原始事件记录，可为 <c>null</c>。</summary>
         public EventDebuggerEventRecord EventBase { get; }
 
         /// <summary>

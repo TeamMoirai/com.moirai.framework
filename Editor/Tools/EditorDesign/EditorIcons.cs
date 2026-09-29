@@ -7,12 +7,11 @@ using System.IO;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 脚本来自
-    /// https://github.com/nukadelic/UnityEditorIcons/blob/master/EditorIcons.cs
-    ///
-    /// 图标列表来自
-    /// https://gist.github.com/MattRix/c1f7840ae2419d8eb2ec0695448d432
+    /// 编辑器图标浏览器：列出 Unity 内置图标，支持搜索过滤，并给出选中图标的 <c>EditorGUIUtility.IconContent("名")</c> 取用串。
     /// </summary>
+    /// <remarks>
+    /// 移植自 nukadelic/UnityEditorIcons（图标列表源自 MattRix 的 gist）；菜单：Window → Editor Design → Editor Icons。
+    /// </remarks>
     public class EditorIcons : EditorWindow
     {
         [MenuItem("Window/Editor Design/Editor Icons", priority = 500)]

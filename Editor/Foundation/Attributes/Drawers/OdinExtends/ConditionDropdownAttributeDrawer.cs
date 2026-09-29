@@ -27,7 +27,9 @@ namespace Sirenix.OdinInspector.Editor.Drawers
 
         private ValueResolver<bool> visibleIfResolver;
 
-        /// <summary>Initializes this instance.</summary>
+        /// <summary>
+        /// 初始化此实例。
+        /// </summary>
         protected override void Initialize()
         {
           this.visibleIfResolver = ValueResolver.Get<bool>(this.Property, this.Attribute.ShowIf, true);
@@ -95,7 +97,7 @@ namespace Sirenix.OdinInspector.Editor.Drawers
         }
 
         /// <summary>
-        /// Draws the property with GUILayout support. This method is called by DrawPropertyImplementation if the GUICallType is set to GUILayout, which is the default.
+        /// 使用 GUILayout 支持绘制该属性。当 GUICallType 设为 GUILayout（默认值）时， 本方法由 DrawPropertyImplementation 调用。
         /// </summary>
         protected override void DrawPropertyLayout(GUIContent label)
         {

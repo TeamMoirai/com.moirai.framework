@@ -12,21 +12,18 @@ namespace Moirai.Atropos
         /// 统一反序列化解析器（string / UTF8 字节双路径的单一结构实现）。
         /// </summary>
         /// <remarks>
-        /// <para><b>单一来源</b>：值分派、容器/对象/字典（标准与 legacy 格式）解析、深度守卫、
-        /// 未知字段跳过、null 字面量、覆盖模式、类型化数组/列表快路径——全部只实现一次；
-        /// token 的编码差异（char / UTF8）下沉到 <see cref="IJsonLexer"/> 的两个实现。</para>
-        /// <para><b>类型化集合注册表</b>：<see cref="LexerTokens{TLexer}"/> 按（Lexer 类型 × 元素类型）
-        /// 静态化 token 读取委托——两个 Lexer 各自注册，数组/列表循环逻辑单一来源。</para>
-        /// <para><b>兼容性</b>：接受标准与 legacy 字典格式、带引号历史数值、NaN/Infinity 字面量、BOM 头；
-        /// 未知字段默认忽略；数值解析固定 InvariantCulture。</para>
-        /// <para><b>安全</b>：闭合括号循环（截断即抛错）、深度守卫（容器递归软跳过）、
-        /// 错误信息带偏移/行列/上下文片段。</para>
+        /// 单一实现：值分派、容器与对象与字典（标准与 legacy）解析、深度守卫、未知字段跳过、null 字面量、覆盖模式、类型化集合快路径；token 编码差异下沉到 <see cref="IJsonLexer"/>。 <br />
+        /// 类型化集合注册表 <see cref="LexerTokens{TLexer}"/> 按「Lexer 类型 × 元素类型」静态化读取委托，两个 Lexer 各自注册。 <br />
+        /// 兼容：标准与 legacy 字典格式、带引号历史数值、NaN/Infinity、BOM 头；未知字段默认忽略；数值固定 InvariantCulture。 <br />
+        /// 安全：闭合括号循环（截断即抛错）、深度守卫（容器递归软跳过）、错误信息带偏移与行列与上下文片段。
         /// </remarks>
         internal static class JsonReader<TLexer> where TLexer : class, IJsonLexer
         {
             #region 公共入口 [PUBLIC ENTRY]
 
-            /// <summary>解析根值。existing 非空时向其覆盖（FromJsonOverwrite 语义：集合清空复用）。</summary>
+            /// <summary>
+            /// 解析根值。existing 非空时向其覆盖（FromJsonOverwrite 语义：集合清空复用）。
+            /// </summary>
             public static object Parse(TLexer lexer, Type targetType, object existing)
             {
                 lexer.SkipWhitespace();
@@ -208,7 +205,9 @@ namespace Moirai.Atropos
                 return null;
             }
 
-            /// <summary>NaN/Infinity 字面量（与 Newtonsoft 兼容的非标准扩展，仅浮点目标）。</summary>
+            /// <summary>
+            /// NaN/Infinity 字面量（与 Newtonsoft 兼容的非标准扩展，仅浮点目标）。
+            /// </summary>
             private static object ParseNonFinite(TLexer lexer, Type type)
             {
                 double value;
@@ -388,7 +387,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>类型化基元列表解析骨架（基元元素不可嵌套，无需深度计数）。</summary>
+            /// <summary>
+            /// 类型化基元列表解析骨架（基元元素不可嵌套，无需深度计数）。
+            /// </summary>
             private static void ParseTypedList<T>(TLexer lexer, List<T> list, Func<TLexer, T> read) where T : struct
             {
                 lexer.Expect('[');
@@ -422,7 +423,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>字符串列表快路径（高频场景；含 null 字面量）。</summary>
+            /// <summary>
+            /// 字符串列表快路径（高频场景；含 null 字面量）。
+            /// </summary>
             private static void ParseStringTypedList(TLexer lexer, List<string> list)
             {
                 lexer.Expect('[');
@@ -557,7 +560,9 @@ namespace Moirai.Atropos
                 return result;
             }
 
-            /// <summary>基元数组零装箱解析（经类型化注册表按元素类型分派）。</summary>
+            /// <summary>
+            /// 基元数组零装箱解析（经类型化注册表按元素类型分派）。
+            /// </summary>
             private static T[] ParsePrimitiveArray<T>(TLexer lexer, Func<TLexer, T> read) where T : struct
             {
                 lexer.Expect('[');
@@ -684,7 +689,9 @@ namespace Moirai.Atropos
                 return result;
             }
 
-            /// <summary>标准对象格式字典：{"key":value,...}。</summary>
+            /// <summary>
+            /// 标准对象格式字典：{"key":value,...}。
+            /// </summary>
             private static object ParseDictionary(TLexer lexer, Type type, IDictionary existing, int depth)
             {
                 IDictionary dict = existing ?? (IDictionary)Activator.CreateInstance(type);
@@ -738,7 +745,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>legacy 条目数组格式字典：[{"key":..,"value":..},...]（兼容历史存档）。</summary>
+            /// <summary>
+            /// legacy 条目数组格式字典：[{"key":..,"value":..},...]（兼容历史存档）。
+            /// </summary>
             private static object ParseDictionaryLegacy(TLexer lexer, Type type, IDictionary existing, int depth)
             {
                 IDictionary dict = existing ?? (IDictionary)Activator.CreateInstance(type);
@@ -841,7 +850,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>字符串 → 字典 key 类型（string/char/bool/枚举/Guid；数值走 lexer 的 span 解析）。</summary>
+            /// <summary>
+            /// 字符串 → 字典 key 类型（string/char/bool/枚举/Guid；数值走 lexer 的 span 解析）。
+            /// </summary>
             private static object ConvertDictionaryKey(TLexer lexer, string s, Type keyType)
             {
                 return TypeConverter.TryConvertDictionaryKey(s, keyType, out object result)
@@ -849,7 +860,9 @@ namespace Moirai.Atropos
                     : ParseNumericDictionaryKey(lexer, s, keyType);
             }
 
-            /// <summary>数值 key：经 lexer 的字符串转换（含带引号数值桥接）。</summary>
+            /// <summary>
+            /// 数值 key：经 lexer 的字符串转换（含带引号数值桥接）。
+            /// </summary>
             private static object ParseNumericDictionaryKey(TLexer lexer, string s, Type keyType)
             {
                 return lexer.ConvertString(s, keyType);
@@ -859,7 +872,9 @@ namespace Moirai.Atropos
 
             #region 词法辅助 [LEXER HELPERS]
 
-            /// <summary>消费当前 token（Peek 已确认的单字符；单次推进，无二次 SkipWhitespace）。</summary>
+            /// <summary>
+            /// 消费当前 token（Peek 已确认的单字符；单次推进，无二次 SkipWhitespace）。
+            /// </summary>
             private static void Consume(TLexer lexer)
             {
                 lexer.Consume();
@@ -869,9 +884,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 类型化 token 读取注册表：按（Lexer 类型 × 元素类型）静态化委托，
-        /// 消除值类型数组/列表解析的逐元素装箱。两个 Lexer 在各自静态构造中注册。
+        /// 类型化 token 读取注册表：按（Lexer 类型 × 元素类型）静态化委托，消除值类型数组/列表解析的逐元素装箱。
         /// </summary>
+        /// <remarks>两个 Lexer 在各自静态构造中注册。</remarks>
         internal static class LexerTokens<TLexer> where TLexer : class, IJsonLexer
         {
             public static Func<TLexer, bool> Boolean;

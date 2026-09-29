@@ -5,15 +5,13 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 以 <see cref="RuntimeTypeHandle.Value"/>（类型句柄指针）判定契约键相等性的比较器。
-    /// <para>契约解析是注册、注销与跨作用域绑定维护每次都要走的热点：显式给出指针相等与指针哈希，
-    /// 就不把取键语义寄托在 <see cref="RuntimeTypeHandle"/> 各运行时实现自身的哈希策略上
-    /// （同包的 <c>MemoryPoolRegistry</c> 已按 <c>Type.TypeHandle.Value</c> 指针建表）。</para>
     /// </summary>
+    /// <remarks>
+    /// 契约解析是注册、注销与跨作用域绑定维护的热点路径：显式给出指针相等与指针哈希，取键语义不寄托在 <see cref="RuntimeTypeHandle"/> 各运行时实现自身的哈希策略上。
+    /// </remarks>
     internal sealed class ContractHandleComparer : IEqualityComparer<RuntimeTypeHandle>
     {
-        /// <summary>
-        /// 获取比较器单例实例。
-        /// </summary>
+        /// <summary>获取比较器单例实例。</summary>
         public static readonly ContractHandleComparer Instance = new ContractHandleComparer();
 
         private ContractHandleComparer() { }

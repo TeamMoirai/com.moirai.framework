@@ -7,7 +7,7 @@ using System.Linq;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 维护类，可通过菜单栏从项目中删除所有空目录 
+    /// 维护类，可通过菜单栏从项目中删除所有空目录。
     /// </summary>
     public static class CleanEmptyFolders
     {
@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
         private static List<DirectoryInfo> _listOfEmptyDirectories = new List<DirectoryInfo>();
 
         /// <summary>
-        /// 分析项目中的空目录并删除它们及其关联的元文件 
+        /// 分析项目中的空目录并删除它们及其关联的元文件。
         /// </summary>
         [MenuItem("Tools/资产相关/清理空文件夹", false, 501)]
         public static void CleanupMissingScripts()
@@ -42,11 +42,8 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 如果文件夹为空，则返回true并更新空文件夹列表
+        /// 如果文件夹为空，则返回true并更新空文件夹列表。
         /// </summary>
-        /// <param name="directory"></param>
-        /// <param name="listOfEmptyDirectories"></param>
-        /// <returns></returns>
         static bool GetEmptyDirectories(DirectoryInfo directory, List<DirectoryInfo> listOfEmptyDirectories)
         {
             bool directoryIsEmpty = true;

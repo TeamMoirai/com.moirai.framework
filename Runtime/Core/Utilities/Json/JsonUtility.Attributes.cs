@@ -20,7 +20,7 @@ namespace Moirai.Atropos
     // =====================================================================
 
     /// <summary>
-    /// 标记要序列化的属性或字段，即使它是私有的
+    /// 标记要序列化的属性或字段，即使它是私有的。
     /// </summary>
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
     public class JsonSerializeAttribute : JsonPropertyAttribute
@@ -30,7 +30,7 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 标记要不序列化的字段属性
+    /// 标记要不序列化的字段属性。
     /// </summary>
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
     public class JsonDoNotSerializeAttribute : JsonPropertyAttribute
@@ -40,19 +40,19 @@ namespace Moirai.Atropos
     }
     
     /// <summary>
-    /// 序列化前要调用的方法
+    /// 序列化前要调用的方法。
     /// </summary>
     [AttributeUsage(AttributeTargets.Method)]
     public class JsonBeforeSerializationAttribute : Attribute { }
 
     /// <summary>
-    /// 序列化后要调用的方法
+    /// 序列化后要调用的方法。
     /// </summary>
     [AttributeUsage(AttributeTargets.Method)]
     public class JsonAfterDeserializationAttribute : Attribute { }
 
     /// <summary>
-    /// 将属性标记为要使用其他名称序列化的字段
+    /// 将属性标记为要使用其他名称序列化的字段。
     /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method)]
     public class JsonSerializeAsAttribute : JsonPropertyAttribute
@@ -62,7 +62,7 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 标记属性或字段的序列化方式
+    /// 标记属性或字段的序列化方式。
     /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class JsonPropertyAttribute : Attribute
@@ -70,18 +70,12 @@ namespace Moirai.Atropos
 
         #region 变量 [VARIABLES]
 
-        /// <summary>
-        /// 是否可以被序列化
-        /// </summary>
+        /// <summary>是否可以被序列化。</summary>
         public readonly bool Serializable;
-        /// <summary>
-        /// 序列化时的名称
-        /// </summary>
+        /// <summary>序列化时的名称。</summary>
         public readonly string SerializeName;
       
-        /// <summary>
-        /// 是否可以反序列化
-        /// </summary>
+        /// <summary>是否可以反序列化。</summary>
         public readonly bool Deserializable;
 
         #endregion
@@ -102,10 +96,10 @@ namespace Moirai.Atropos
     public static partial class JsonUtility
     {
         /// <summary>
-        /// 在序列化之前调用（反射元数据走 DefaultJson.ReflectionCache 缓存）
+        /// 在序列化之前调用（反射元数据走 DefaultJson.ReflectionCache 缓存）。
         /// </summary>
-        /// <param name="obj">要序列化的对象</param>
-        /// <param name="objectType">对象的类型</param>
+        /// <param name="obj">要序列化的对象。</param>
+        /// <param name="objectType">对象的类型。</param>
         public static void PreSerialization(object obj, Type objectType)
         {
             if (obj == null || objectType == null) return;
@@ -117,10 +111,10 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 在反序列化之后调用（反射元数据走 DefaultJson.ReflectionCache 缓存）
+        /// 在反序列化之后调用（反射元数据走 DefaultJson.ReflectionCache 缓存）。
         /// </summary>
-        /// <param name="obj">要序列化的对象</param>
-        /// <param name="objectType">对象的类型</param>
+        /// <param name="obj">要序列化的对象。</param>
+        /// <param name="objectType">对象的类型。</param>
         public static void PostDeserialize(object obj, Type objectType)
         {
             if (obj == null || objectType == null) return;
@@ -132,14 +126,14 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取字段的序列化数据
+        /// 获取字段的序列化数据。
         /// </summary>
-        /// <param name="obj">要序列化的对象</param>
-        /// <param name="field">目标字段</param>
-        /// <param name="removeNulls">不序列化 null 的对象</param>
-        /// <param name="key">序列化的键</param>
-        /// <param name="value">序列化的值</param>
-        /// <returns>是否需要序列化</returns>
+        /// <param name="obj">要序列化的对象。</param>
+        /// <param name="field">目标字段。</param>
+        /// <param name="removeNulls">不序列化 null 的对象。</param>
+        /// <param name="key">序列化的键。</param>
+        /// <param name="value">序列化的值。</param>
+        /// <returns>是否需要序列化。</returns>
         public static bool SerializeObject(object obj, FieldInfo field, bool removeNulls,
             out string key, out object value)
         {
@@ -170,14 +164,14 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取属性的序列化数据
+        /// 获取属性的序列化数据。
         /// </summary>
-        /// <param name="obj">要序列化的对象</param>
-        /// <param name="property">目标属性</param>
-        /// <param name="removeNulls">不序列化 null 的对象</param>
-        /// <param name="key">序列化的键</param>
-        /// <param name="value">序列化的值</param>
-        /// <returns>是否需要序列化</returns>
+        /// <param name="obj">要序列化的对象。</param>
+        /// <param name="property">目标属性。</param>
+        /// <param name="removeNulls">不序列化 null 的对象。</param>
+        /// <param name="key">序列化的键。</param>
+        /// <param name="value">序列化的值。</param>
+        /// <returns>是否需要序列化。</returns>
         public static bool SerializeObject(object obj, PropertyInfo property, bool removeNulls,
             out string key, out object value)
         {
@@ -210,10 +204,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 默认不序列化的类型（各 JsonHandler 通用契约）
+        /// 默认不序列化的类型（各 JsonHandler 通用契约）。
         /// </summary>
-        /// <param name="type">对象的类型</param>
-        /// <returns></returns>
+        /// <param name="type">对象的类型。</param>
         /// <remarks>
         /// <see cref="UnityEngine.Object"/> 派生类型（GameObject/Component/Sprite/Texture/Material 等）一律排除：
         /// 反射式序列化会触达原生侧对象，既是性能陷阱也可能抛异常；Newtonsoft 侧同样无法（也不应）序列化它们。

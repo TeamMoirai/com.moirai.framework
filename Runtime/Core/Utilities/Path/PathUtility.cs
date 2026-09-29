@@ -11,14 +11,12 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取符合Unity格式的路径。
         /// </summary>
-        /// <param name="path"></param>
         /// <example>D:\Usr\Framework\ -> D:/Usr/Framework/</example>
         public static string FormatToUnityPath(string path) => GetRegularPath(path);
         
         /// <summary>
         /// 获取符合系统文件格式的路径。
         /// </summary>
-        /// <param name="path"></param>
         /// <example>D:/Usr/Framework/ -> D:\Usr\Framework\</example>
         public static string FormatToSysFilePath(string path) => FormatUNCPath(path);
         
@@ -55,11 +53,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 从路径的末尾向前截取指定级别的目录
+        /// 从路径的末尾向前截取指定级别的目录。
         /// </summary>
-        /// <param name="fullPath"></param>
-        /// <param name="levels"></param>
-        /// <returns></returns>
         public static string TruncatePath(string fullPath, int levels)
         {
             for (int i = 0; i < levels; i++)
@@ -75,8 +70,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取共同的路径；
         /// </summary>
-        /// <param name="paths">传入的路径合集</param>
-        /// <returns>共同的路径</returns>
+        /// <param name="paths">传入的路径合集。</param>
+        /// <returns>共同的路径。</returns>
         public static string CommonPath(string[] paths)
         {
             var firstPath = paths[0];
@@ -115,11 +110,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 标准 Windows 文件路径地址合并；
-        /// 返回结果示例：Resources\JsonData\
+        /// 标准 Windows 文件路径地址合并，返回结果示例：<c>Resources\JsonData\</c>。
         /// </summary>
-        /// <param name="paths">路径params</param>
-        /// <returns>合并的路径</returns>
+        /// <param name="paths">路径params。</param>
+        /// <returns>合并的路径。</returns>
         // ReSharper disable once InconsistentNaming
         public static string CombineUNCPath(params string[] paths)
         {
@@ -129,11 +123,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 格式化UNC地址<br />
+        /// 格式化 UNC 地址。
         /// </summary>
-        /// <param name="path">需要格式化的地址</param>
-        /// <returns>格式化后的UNC地址</returns>
-        /// <para>关于UNC的介绍：https://learn.microsoft.com/zh-cn/dotnet/standard/io/file-path-formats#unc-paths</para>
+        /// <param name="path">需要格式化的地址。</param>
+        /// <returns>格式化后的 UNC 地址。</returns>
+        /// <remarks>关于 UNC 的介绍：https://learn.microsoft.com/zh-cn/dotnet/standard/io/file-path-formats#unc-paths</remarks>
         /// <example>D:/Usr/Framework/ -> D:\Usr\Framework\</example>
         // ReSharper disable once InconsistentNaming
         private static string FormatUNCPath(string path)
@@ -143,10 +137,10 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 返回结果示例：github.com/Usr/Framework
+        /// 返回结果示例：github.com/Usr/Framework。
         /// </summary>
-        /// <param name="paths">路径</param>
-        /// <returns>合并的路径</returns>
+        /// <param name="paths">路径。</param>
+        /// <returns>合并的路径。</returns>
         public static string CombineURL(params string[] paths)
         {
             var pathResult = System.IO.Path.Combine(paths);
@@ -165,11 +159,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 判断是否是路径；
-        /// 需要注意根目录下的文件可能不带/或\符号！
+        /// 判断是否是路径。
         /// </summary>
-        /// <param name="path">路径str</param>
-        /// <returns>是否是路径</returns>
+        /// <remarks>根目录下的文件可能不带 <c>/</c> 或 <c>\</c> 符号。</remarks>
+        /// <param name="path">路径str。</param>
+        /// <returns>是否是路径。</returns>
         public static bool IsPath(string path)
         {
             return path.Contains("\\") || path.Contains("/");

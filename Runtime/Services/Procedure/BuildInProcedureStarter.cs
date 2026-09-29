@@ -17,10 +17,11 @@ namespace Moirai.Atropos.Procedure
         
         /// <summary>
         /// 启动流程（引导入口，失败 fail-fast）。
-        /// <para>流程服务未注册、类型解析失败或入口流程无效时抛出 <see cref="GameException"/>——
-        /// 启动链配置错误属发布级缺陷，静默吞掉会让玩家面对永久黑屏；异常经 <c>Forget()</c> 转为
-        /// <c>UniTaskScheduler.UnobservedTaskException</c> 输出错误日志，调用方不应捕获吞掉。</para>
         /// </summary>
+        /// <remarks>
+        /// 流程服务未注册、类型解析失败或入口流程无效时抛出 <see cref="GameException"/>——启动链配置错误属发布级缺陷，静默吞掉会让玩家面对永久黑屏； <br />
+        /// 异常经 <c>Forget()</c> 转为 <c>UniTaskScheduler.UnobservedTaskException</c> 输出错误日志，调用方不应捕获吞掉。
+        /// </remarks>
         /// <param name="cancellationToken">取消令牌（由 <see cref="BuildInProcedureStarter"/> 传入宿主销毁令牌，
         /// 避免退出播放/应用后让帧续体撞上域拆除）。</param>
         private static async UniTask StartProcedure(CancellationToken cancellationToken = default)

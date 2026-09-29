@@ -13,9 +13,11 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 池化 GameObject 租约（纯 C#，非 MonoBehaviour）。
-    /// <para>持有 (owner, slot, generation) 身份，是原 Handle 与包装层的合并形态；Dispose 时按代系回收。</para>
-    /// <para>与 <see cref="GameObjectPoolService"/> 共用 Spawn / SpawnAsync / Despawn 动词，location 与 Prefab 引用同一套 API。</para>
     /// </summary>
+    /// <remarks>
+    /// 持有 (owner, slot, generation) 身份，Dispose 时按代系回收。 <br />
+    /// 与 <see cref="GameObjectPoolService"/> 共用 Spawn / SpawnAsync / Despawn 动词，location 与 Prefab 引用同一套 API。
+    /// </remarks>
     public class PooledGameObject : IDisposable
 #if R3_INSTALLED
         , IDisposableUnregister
@@ -42,24 +44,16 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取池化游戏对象。
-        /// </summary>
+        /// <summary>获取池化游戏对象。</summary>
         public GameObject GameObject => _instance;
 
-        /// <summary>
-        /// 获取池化游戏对象的 Transform。
-        /// </summary>
+        /// <summary>获取池化游戏对象的 Transform。</summary>
         public Transform Transform => _transform;
 
-        /// <summary>
-        /// 获取租约是否仍指向有效且处于 Active 状态的实例（租期代系校验）。
-        /// </summary>
+        /// <summary>获取租约是否仍指向有效且处于 Active 状态的实例（租期代系校验）。</summary>
         public bool IsValid => _owner != null && _owner.IsAlive(_slotIndex, _generation);
 
-        /// <summary>
-        /// 获取是否已释放。
-        /// </summary>
+        /// <summary>获取是否已释放。</summary>
         protected bool IsDisposed { get; private set; }
 
         #endregion

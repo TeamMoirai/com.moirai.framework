@@ -5,19 +5,12 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// Unity 全局日志拦截器。实现 <see cref="ILogHandler"/>，替换 <c>Debug.unityLogger.logHandler</c> 后
-    /// 拦截所有 Unity 日志（含第三方插件），将其转发至 Moirai 日志管线。
-    /// <para>
-    /// 通过 <see cref="LogUtility.EnableGlobalInterception"/> 启用，
-    /// <see cref="LogUtility.DisableGlobalInterception"/> 禁用。
-    /// </para>
-    /// <para>
-    /// 循环防护（双保险）：各 <see cref="LogHandler"/> 实现的后端输出经由
-    /// <see cref="LogUtility.GetBypassUnityHandler"/> 获取的原始通道直写控制台，不回到本拦截器；
-    /// 重入守卫（<c>s_Reentering</c>）兜底——后端若误用被拦截的通道输出，重入调用直达原始 handler，
-    /// 不会再次进入日志管线（但消息会带上已渲染的前缀，因此后端不应依赖兜底路径）。
-    /// </para>
+    /// Unity 全局日志拦截器：替换 <c>Debug.unityLogger.logHandler</c> 后，把所有 Unity 日志（含第三方插件）转发至 Moirai 日志管线。
     /// </summary>
+    /// <remarks>
+    /// 由 <see cref="LogUtility.EnableGlobalInterception"/> / <see cref="LogUtility.DisableGlobalInterception"/> 成对启用与禁用。 <br />
+    /// 循环防护：后端输出必须经 <see cref="LogUtility.GetBypassUnityHandler"/> 直写控制台；重入守卫兜底误用被拦截通道的后端，此路径会带上已渲染的前缀，后端不应依赖它。
+    /// </remarks>
     internal sealed class UnityLogInterceptor : ILogHandler
     {
         private readonly ILogHandler _originalHandler;
@@ -26,9 +19,7 @@ namespace Moirai.Atropos
         // 通过此标志在重入时直接走 _originalHandler，避免无限循环（无法避免前缀叠加，后端应走 GetBypassUnityHandler）。
         [NonSerialized] private static bool s_Reentering;
 
-        /// <summary>
-        /// 原始 Unity logHandler（拦截启用前的值）。
-        /// </summary>
+        /// <summary>原始 Unity logHandler（拦截启用前的值）。</summary>
         public ILogHandler OriginalHandler => _originalHandler;
 
         internal UnityLogInterceptor(ILogHandler originalHandler)

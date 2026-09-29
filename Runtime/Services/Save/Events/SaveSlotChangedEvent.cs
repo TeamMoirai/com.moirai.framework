@@ -7,9 +7,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public class SaveSlotChangedEvent : EventBase<SaveSlotChangedEvent>
     {
-        /// <summary>
-        /// 事件参数。
-        /// </summary>
+        /// <summary>事件参数。</summary>
         public SaveSlotChangedArgs Args { get; private set; }
 
         /// <summary>

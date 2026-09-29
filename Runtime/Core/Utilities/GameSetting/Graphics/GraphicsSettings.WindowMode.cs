@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 窗口模式
+    /// 窗口模式。
     /// </summary>
     public partial class GraphicsSettings
     {
@@ -68,7 +68,6 @@ namespace Moirai.Atropos
         /// <summary>
         /// 返回当前窗口模式索引。
         /// </summary>
-        /// <returns></returns>
         public static int GetWindowModeIndex()
         {
             // 在N帧后重置。假设此时Screen.fullScreenMode已更新完成。
@@ -94,9 +93,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 设置窗口模式
+        /// 设置窗口模式。
         /// </summary>
-        /// <param name="index"></param>
         public static void SetWindowModeIndex(int index)
         {
             var options = Instance.GetWindowModeOptions();

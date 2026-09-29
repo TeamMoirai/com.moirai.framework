@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     /// </summary>
     /// <typeparam name="T">目标 ScriptableObject 类型。</typeparam>
     /// <remarks>
-    /// 可用于继承自 <see cref="ReferenceHolder{T}"/> 的任意类；
+    /// 可用于继承自 <see cref="ReferenceHolder{T}"/> 的任意类； <br />
     /// 以弱引用登记所有存活实例，供静态查询（<see cref="ReferenceHolder{T}.Any"/> / <see cref="ReferenceHolder{T}.All"/>）。
     /// </remarks>
     // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
@@ -109,14 +109,10 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>
-        /// 最早登记的存活实例（无则 null）。
-        /// </summary>
+        /// <summary>最早登记的存活实例（无则 null）。</summary>
         public static T Any => s_Instances != null && s_Instances.Count > 0 && s_Instances[0].TryGetTarget(out T target) ? target : null;
 
-        /// <summary>
-        /// 遍历所有存活实例（跳过已失效弱引用）。
-        /// </summary>
+        /// <summary>遍历所有存活实例（跳过已失效弱引用）。</summary>
         public static IEnumerator<T> All
         {
             get

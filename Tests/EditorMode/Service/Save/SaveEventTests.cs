@@ -14,12 +14,14 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// V3-P4 事件 API 测试：静态事件触发时机/次数/参数、失败事件阶段分型、后台线程派发主线程化、进度批次判定。
-    /// <para>全部经 internal 同步核心路径在主线程内联派发断言（EditMode 主线程 = <c>MainThreadDispatcher.IsMainThread</c>）；
-    /// 后台派发用 <c>Task.Run</c> + <c>MainThreadDispatcher.Pump()</c> 确定性验证入队路径。</para>
-    /// <para>错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
-    /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。</para>
+    /// 事件 API 测试：静态事件触发时机/次数/参数、失败事件阶段分型、后台线程派发主线程化、进度批次判定。
     /// </summary>
+    /// <remarks>
+    /// 全部经 internal 同步核心路径在主线程内联派发断言（EditMode 主线程 = <c>MainThreadDispatcher.IsMainThread</c>）； <br />
+    /// 后台派发用 <c>Task.Run</c> + <c>MainThreadDispatcher.Pump()</c> 确定性验证入队路径。 <br />
+    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
+    /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。
+    /// </remarks>
     public class SaveEventTests
     {
         [Serializable]

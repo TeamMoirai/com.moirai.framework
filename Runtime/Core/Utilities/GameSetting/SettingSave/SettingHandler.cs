@@ -9,9 +9,7 @@ namespace Moirai.Atropos
     [Serializable]
     public abstract class SettingHandler : FrameworkHandler
     {
-        /// <summary>
-        /// 获取游戏配置项数量。
-        /// </summary>
+        /// <summary>获取游戏配置项数量。</summary>
         public abstract int Count { get; }
 
         /// <summary>

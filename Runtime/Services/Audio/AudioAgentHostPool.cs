@@ -4,19 +4,16 @@ using UnityEngine;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// AudioSource 宿主对象池——始终使用内部栈池复用运行时创建的空 GameObject + AudioSource。
-    /// <para>扩展通道时不反复 <c>new GameObject</c>/<c>Destroy</c>；归还即失活入栈。</para>
-    /// <para>闲置宿主统一挂在 <c>[Warmup]</c> 节点下，与各音轨 Category 实例区分。</para>
+    /// AudioSource 宿主对象池——复用运行时创建的空 GameObject + AudioSource。
     /// </summary>
+    /// <remarks>扩展通道时不反复 <c>new GameObject</c>/<c>Destroy</c>，归还即失活入栈；闲置宿主统一挂在 <c>[Warmup]</c> 节点下。</remarks>
     internal static class AudioAgentHostPool
     {
         private static Transform s_PoolRoot;
         private const string POOL_ROOT_NAME = "[Warmup]";
 
         private static readonly Stack<AudioSource> s_Stack = new Stack<AudioSource>(16);
-        /// <summary>
-        /// 当前栈池缓存数量（诊断用）。
-        /// </summary>
+        /// <summary>当前栈池缓存数量（诊断用）。</summary>
         public static int StackCount => s_Stack.Count;
         
         /// <summary>
