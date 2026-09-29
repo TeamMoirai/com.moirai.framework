@@ -10,9 +10,7 @@ namespace Moirai.Atropos.Localization
 	[System.Serializable]
 	public class TextLocalizerPlayableAsset : PlayableAsset
 	{
-		/// <summary>
-		/// 本地化文本 ID，创建可播放实例时会被传递给 <see cref="TextLocalizerPlayableBehaviour"/>。
-		/// </summary>
+		/// <summary>本地化文本 ID，创建可播放实例时会被传递给 <see cref="TextLocalizerPlayableBehaviour"/>。</summary>
 		public string textId;
 
 		/// <summary>

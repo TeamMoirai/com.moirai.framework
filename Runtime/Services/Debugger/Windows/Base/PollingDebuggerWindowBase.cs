@@ -3,10 +3,12 @@ using UnityEngine;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 轮询刷新的调试器窗口基类（按固定间隔重建内容——仅窗口可见期间驱动）。
-    /// <para>用于运行时状态信息窗口（Screen/Scene/Time/Profiler 等）：免除逐行 Getter 闭包与每帧分配，统一以重建节流。</para>
-    /// <para>内容为进程级常量的静态信息窗口（如 Path）传 0 禁用轮询——进入窗口时构建一次（<see cref="ScrollableDebuggerWindowBase.OnEnter"/> 触发 <see cref="ScrollableDebuggerWindowBase.Rebuild"/>），运行期零轮询开销；含任一运行期可变字段（电池、焦点、网络、渲染状态等）的窗口请保持轮询。</para>
+    /// 轮询刷新的调试器窗口基类：按固定间隔重建内容，仅窗口可见期间驱动。
     /// </summary>
+    /// <remarks>
+    /// 用于运行时状态信息窗口（Screen / Scene / Time / Profiler 等），免除逐行 Getter 闭包与每帧分配。 <br />
+    /// 进程级常量的静态信息窗口（如 Path）传 0 禁用轮询，进入窗口时构建一次；含运行期可变字段的窗口请保持轮询。
+    /// </remarks>
     public abstract class PollingDebuggerWindowBase : ScrollableDebuggerWindowBase
     {
         #region 字段 [FIELDS]

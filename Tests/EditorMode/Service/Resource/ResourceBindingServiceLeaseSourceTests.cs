@@ -7,11 +7,12 @@ using UnityEngine;
 namespace Service.Resource
 {
     /// <summary>
-    /// 用假租约接缝驱动绑定服务：验证绑定层与后端解耦是实的，并直接断言
-    /// "归还租约"这一步真的发生——此前只能在未初始化的裸后端上由"槽位被收走"间接代理。
-    /// <para>能这么测的全部前提是把后端契约收成 <see cref="IResourceLeaseSource"/> 九个成员：
-    /// 收之前假后端要落 74 个抽象成员，等于不可 mock。</para>
+    /// 用假租约接缝驱动绑定服务的契约守卫：绑定层与后端解耦必须是实的，且"归还租约"这一步真的发生。
     /// </summary>
+    /// <remarks>
+    /// 假后端只需实现 <see cref="IResourceLeaseSource"/> 九个成员即可驱动绑定层，
+    /// 不触达 YooAssets 静态初始化。
+    /// </remarks>
     public sealed class ResourceBindingServiceLeaseSourceTests
     {
         [TearDown]

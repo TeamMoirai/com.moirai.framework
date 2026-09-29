@@ -13,7 +13,9 @@ namespace Service.Save
         /// <summary>测试用自定义后端标识（避开内置与保留标识）。</summary>
         private const ESaveBackend CustomBackend = (ESaveBackend)100;
 
-        /// <summary>自定义序列化器桩（纯标记实现，不接入块管线）。</summary>
+        /// <summary>
+        /// 自定义序列化器桩（纯标记实现，不接入块管线）。
+        /// </summary>
         private sealed class StubSerializer : ISaveSerializer
         {
             private readonly ESaveBackend _backend;

@@ -26,23 +26,27 @@ namespace Moirai.Atropos
             [ThreadStatic]
             public static bool DepthWarned;
 
-            /// <summary>开始一次序列化（清栈 + 重置告警）。</summary>
+            /// <summary>
+            /// 开始一次序列化（清栈 + 重置告警）。
+            /// </summary>
             public static void Begin()
             {
                 RefStack?.Clear();
                 DepthWarned = false;
             }
 
-            /// <summary>结束一次序列化（清栈兜底，异常路径未配对弹出也能恢复）。</summary>
+            /// <summary>
+            /// 结束一次序列化（清栈兜底，异常路径未配对弹出也能恢复）。
+            /// </summary>
             public static void End()
             {
                 RefStack?.Clear();
             }
 
             /// <summary>
-            /// 该引用是否正在序列化中（构成引用环）。
-            /// null/值类型/字符串不参与跟踪（无环可能）。调用方应跳过该成员/元素。
+            /// 判断该引用是否正在序列化中，即构成引用环。
             /// </summary>
+            /// <remarks>null、值类型与字符串不参与跟踪；返回 true 时调用方应跳过该成员/元素。</remarks>
             public static bool IsSerializingReference(object value)
             {
                 if (value == null) return false;
@@ -60,7 +64,9 @@ namespace Moirai.Atropos
                 return false;
             }
 
-            /// <summary>容器入口压栈（对象/数组/列表/字典；值类型不入栈）。</summary>
+            /// <summary>
+            /// 容器入口压栈（对象/数组/列表/字典；值类型不入栈）。
+            /// </summary>
             public static void PushReference(object container)
             {
                 if (container == null) return;
@@ -70,14 +76,18 @@ namespace Moirai.Atropos
                 (RefStack ??= new List<object>(maxDepth + 2)).Add(container);
             }
 
-            /// <summary>容器出口弹栈。</summary>
+            /// <summary>
+            /// 容器出口弹栈。
+            /// </summary>
             public static void PopReference()
             {
                 var stack = RefStack;
                 if (stack != null && stack.Count > 0) stack.RemoveAt(stack.Count - 1);
             }
 
-            /// <summary>是否为标量值（写入无递归风险，深度守卫不适用）。</summary>
+            /// <summary>
+            /// 是否为标量值（写入无递归风险，深度守卫不适用）。
+            /// </summary>
             public static bool IsScalarValue(object value)
             {
                 if (value == null || value is string) return true;
@@ -88,10 +98,12 @@ namespace Moirai.Atropos
             }
 
             /// <summary>
-            /// 子级复合值是否会被深度守卫截断。
-            /// 命中时调用方应跳过整个成员/元素，保持输出合法；仅告警一次。
-            /// depthLimit 由调用方按次传入（与 Writer 的安全网同源，不读静态 maxDepth——多 handler 实例各自配置时保持一致语义）。
+            /// 判断子级复合值是否会被深度守卫截断。
             /// </summary>
+            /// <remarks>
+            /// 命中时调用方应跳过整个成员/元素以保持输出合法，且只告警一次。 <br />
+            /// 深度上限由调用方按次传入，不读静态 <c>maxDepth</c>，以保证多 handler 实例各自配置时语义一致。
+            /// </remarks>
             public static bool WouldExceedDepth(object childValue, int parentDepth, int depthLimit)
             {
                 if (parentDepth + 1 < depthLimit || IsScalarValue(childValue)) return false;
@@ -111,7 +123,9 @@ namespace Moirai.Atropos
         /// </summary>
         internal static class JsonTypeUtil
         {
-            /// <summary>能否作为标准 JSON 对象 key 输出（字符串化后可无损还原）。</summary>
+            /// <summary>
+            /// 能否作为标准 JSON 对象 key 输出（字符串化后可无损还原）。
+            /// </summary>
             public static bool IsStandardDictionaryKey(Type keyType)
             {
                 return keyType == typeof(string) ||
@@ -133,7 +147,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// <para><c>GetGenericArguments()</c> 与 <c>GenericTypeArguments</c> 每次调用分配新 <c>Type[]</c>；
-        /// 字典/列表键值类型集合有限（按类型收敛），缓存后同类型重复序列化/解析零分配。</para>
+        /// 字典/列表键值类型集合有限（按类型收敛），缓存后同类型重复序列化/解析零分配。</para>。
         /// </remarks>
         internal static class GenericArgsCache
         {
@@ -152,9 +166,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 共享类型转换（Reader / ByteReader 共享）。
-        /// 所有方法接收 string 参数——字节路径的 Reader 在物化字符串后调用。
+        /// 字符串到目标类型的共享转换，char 路径与字节路径的 Reader 共用。
         /// </summary>
+        /// <remarks>所有方法接收 string；字节路径的 Reader 在物化字符串后调用。</remarks>
         internal static class TypeConverter
         {
             /// <summary>legacy 字典格式的成员名常量。</summary>
@@ -164,10 +178,12 @@ namespace Moirai.Atropos
             public const string ValueMember = "value";
 
             /// <summary>
-            /// 尝试将字符串转换为非数值目标类型（string/char/bool/枚举/Guid/DateTime/TimeSpan/DateTimeOffset）。
-            /// 返回 false 表示目标类型为数值——调用方需走各自的 span 数值解析路径（char/byte span 差异不适合共享）。
-            /// 不匹配的值会抛 <see cref="GameException"/>（不是返回 false）。
+            /// 将字符串转换为非数值目标类型（string/char/bool/枚举/Guid/DateTime/TimeSpan/DateTimeOffset）。
             /// </summary>
+            /// <remarks>
+            /// 返回 false 表示目标类型为数值，调用方需走各自的 span 数值解析路径。 <br />
+            /// 转换失败会抛 <see cref="GameException"/>，不是返回 false。
+            /// </remarks>
             public static bool TryConvertFromString(string s, Type type, out object result)
             {
                 if (type == typeof(string) || type == typeof(object)) { result = s; return true; }
@@ -231,10 +247,9 @@ namespace Moirai.Atropos
             }
 
             /// <summary>
-            /// 尝试将字符串转换为非数值字典 key 类型（string/char/bool/枚举/Guid）。
-            /// 返回 false 表示 key 为数值类型——调用方需走各自的 span 数值解析。
-            /// 不匹配的值会抛 <see cref="GameException"/>。
+            /// 将字符串转换为非数值字典 key 类型（string/char/bool/枚举/Guid）。
             /// </summary>
+            /// <remarks>返回 false 表示 key 为数值类型，调用方需走各自的 span 数值解析；转换失败抛 <see cref="GameException"/>。</remarks>
             public static bool TryConvertDictionaryKey(string s, Type keyType, out object result)
             {
                 if (keyType == typeof(string)) { result = s; return true; }
@@ -258,7 +273,9 @@ namespace Moirai.Atropos
                 return false;
             }
 
-            /// <summary>共享 Throw（标注 [DoesNotReturn]，消除调用方不可达警告）。</summary>
+            /// <summary>
+            /// 共享 Throw（标注 [DoesNotReturn]，消除调用方不可达警告）。
+            /// </summary>
             [System.Diagnostics.CodeAnalysis.DoesNotReturn]
             private static void Throw(string message)
             {

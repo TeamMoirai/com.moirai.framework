@@ -4,7 +4,7 @@ using UnityEngine;
 using YooAsset.Editor;
 
 /// <summary>
-/// 提供着色器变种收集工具窗口
+/// 提供着色器变种收集工具窗口。
 /// </summary>
 public class ShaderVariantCollectorWindow : EditorWindow
 {

@@ -12,8 +12,7 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
     public static class Util
     {
         /// <summary>
-        /// 按目标类型从对象中解析出可赋值的目标对象：GameObject 与 Component 之间按需转换（取 <c>gameObject</c> 或
-        /// <c>GetComponent</c>），Texture2D 可解析为其所属资源中的 Sprite，其余情况要求对象实例与目标类型兼容。
+        /// 按目标类型从对象中解析出可赋值的目标对象：GameObject 与 Component 按需转换，<c>Texture2D</c> 可解析为其所属资源中的 <c>Sprite</c>，其余要求实例与目标类型兼容。
         /// </summary>
         /// <param name="fieldResult">序列化属性当前引用的对象。</param>
         /// <param name="fieldType">期望的目标类型。</param>

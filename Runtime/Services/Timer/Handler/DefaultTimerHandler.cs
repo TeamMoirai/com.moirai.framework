@@ -8,14 +8,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Timer
 {
     /// <summary>
-    /// 计时器处理器默认实现——两套独立引擎的复合外观（Composite）。
-    /// <para>时间轮（<see cref="WheelTimerEngine"/>，按秒）与帧计时（<see cref="FrameTimerEngine"/>，按帧）
-    /// 各占一条泳道，自持独立的槽位池与句柄命名空间，互不知晓、互不糅合。</para>
-    /// <para>本类只负责：创建时按语义落到对应引擎；句柄操作按 <see cref="TimerHandleLayout.LaneOf"/> 内嵌泳道号路由；
-    /// 阶段推进与统计调试跨引擎扇出 / 聚合。对外 API 保持不变（<c>Delay</c> / <c>WaitFrame</c> / <c>Cancel</c> /
-    /// <c>Pause</c> / <c>Resume</c>）。</para>
-    /// <para>可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。</para>
+    /// 计时器处理器默认实现：时间轮（按秒）与帧计时（按帧）两条泳道的复合外观（Composite）。
     /// </summary>
+    /// <remarks>
+    /// 两条泳道各自持有独立的槽位池与句柄命名空间；创建时按语义落到对应引擎，
+    /// 句柄操作按 <see cref="TimerHandleLayout.LaneOf"/> 内嵌泳道号路由，阶段推进与统计调试跨引擎扇出 / 聚合。 <br />
+    /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。
+    /// </remarks>
     [Serializable]
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]

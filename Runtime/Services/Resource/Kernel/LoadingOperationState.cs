@@ -1,41 +1,30 @@
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 加载操作状态，用于跟踪异步加载的去重和等待（后端无关：原始句柄以后端对象形式存放，由具体后端模式匹配取用）。
-    /// <para>完成源与状态同生共死：<see cref="Complete"/> 一次唤醒所有等待者，等待方不再
-    /// <c>while (!IsDone) await UniTask.Yield()</c> 空转。源经 <see cref="Preserve"/> 允许多等待者，
-    /// <see cref="Clear"/> 时整棵重置回池。</para>
+    /// 加载操作状态：跟踪异步加载的去重与等待（后端无关，原始句柄以后端对象形式存放、由后端模式匹配取用）。
     /// </summary>
+    /// <remarks>
+    /// 完成源与状态同生共死：<see cref="Complete"/> 一次唤醒所有等待者，等待方不必空转轮询。 <br />
+    /// 源经 <see cref="Preserve"/> 支持多等待者，<see cref="Clear"/> 时整棵重置回池。
+    /// </remarks>
     internal sealed class LoadingOperationState : MemoryObject
     {
-        /// <summary>
-        /// 后端原始资源句柄（由具体资源后端解释）。
-        /// </summary>
+        /// <summary>后端原始资源句柄（由具体资源后端解释）。</summary>
         public object AssetHandle { get; set; }
 
-        /// <summary>
-        /// 后端原子资源集句柄（由具体资源后端解释）。
-        /// </summary>
+        /// <summary>后端原子资源集句柄（由具体资源后端解释）。</summary>
         public object SubAssetsHandle { get; set; }
 
-        /// <summary>
-        /// 是否完成。
-        /// </summary>
+        /// <summary>是否完成。</summary>
         public bool IsDone { get; private set; }
 
-        /// <summary>
-        /// 是否成功。
-        /// </summary>
+        /// <summary>是否成功。</summary>
         public bool Succeeded { get; private set; }
 
-        /// <summary>
-        /// 等待者数量。
-        /// </summary>
+        /// <summary>等待者数量。</summary>
         public int WaiterCount { get; private set; }
 
-        /// <summary>
-        /// 是否已请求释放。
-        /// </summary>
+        /// <summary>是否已请求释放。</summary>
         public bool ReleaseRequested { get; private set; }
 
         private Cysharp.Threading.Tasks.UniTaskCompletionSource<bool> _completion;

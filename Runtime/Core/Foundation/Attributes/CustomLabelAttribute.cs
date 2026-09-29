@@ -11,9 +11,7 @@ namespace Moirai.Atropos.Attributes
     [AttributeUsage(AttributeTargets.Field)]
     public class CustomLabelAttribute : PropertyAttribute
     {
-        /// <summary>
-        /// 字段在 Inspector 中显示的自定义标签文本。
-        /// </summary>
+        /// <summary>字段在 Inspector 中显示的自定义标签文本。</summary>
         public string label;
         /// <summary>
         /// 创建自定义标签特性实例。

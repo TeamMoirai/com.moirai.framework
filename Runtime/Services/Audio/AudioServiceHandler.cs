@@ -6,42 +6,33 @@ using UnityEngine.Audio;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 音频处理器抽象基类（策略模式抽象策略）。定义 <see cref="AudioService"/> 外观调用的音频后端契约。
-    /// <para>默认实现为 <see cref="UnityAudioHandler"/>（基于 Unity AudioSource/AudioMixer），可替换为自定义音频后端。</para>
-    /// <para>场景3D音效挂到场景物件、技能3D音效挂到技能特效上，并在 <see cref="AudioSource"/> 的Output上设置对应分类的 <see cref="AudioMixerGroup"/>。</para>
-    /// <para>跨后端语义约定（Unity / 中间件保持一致）：</para>
-    /// <para>1. 暂停的音轨会拦截新播放（<see cref="Play"/> 直接返回 0）；</para>
-    /// <para>2. <see cref="MasterVolume"/> getter 始终返回未静音的设置值（静音只影响实际输出）；</para>
-    /// <para>3. 主音量与音轨音量都是线性 <c>0..1</c>，且夹取只发生在契约入口一次——
-    /// 曾经 Unity 侧允许 0..10 而中间件落总线时偷偷 Clamp01，同一份设置换后端上限就从 10 变 1；</para>
-    /// <para>4. Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动，带缓动且可中途停止；</para>
-    /// <para>5. 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证；</para>
-    /// <para>6. 后端整体失效时（<see cref="IsBackendInert"/>）音量面读作 0、写作无效——两后端同一个口径，
-    /// 不允许出现"报着一个音量却完全听不见"的第三种状态。</para>
-    /// <para>Unity 专属成员（中间件后端返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。</para>
+    /// 音频处理器抽象基类（策略模式抽象策略）：定义 <see cref="AudioService"/> 外观调用的音频后端契约。
     /// </summary>
+    /// <remarks>
+    /// 默认实现为 <see cref="UnityAudioHandler"/>，可替换为自定义音频后端。 <br />
+    /// 场景 3D 音效挂到场景物件或技能特效上，并在 <see cref="AudioSource"/> 的 Output 上设置对应分类的 <see cref="AudioMixerGroup"/>。 <br />
+    /// 跨后端语义约定：暂停音轨拦截新播放（<see cref="Play"/> 返回 0）；<see cref="MasterVolume"/> getter 报未静音的设置值； <br />
+    /// 主音量与音轨音量都是线性 <c>0..1</c>、在契约入口夹取一次；Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动且可中途停止； <br />
+    /// 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证；后端整体失效时（<see cref="IsBackendInert"/>）音量面读作 0、写作无效。 <br />
+    /// Unity 专属成员（中间件返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。
+    /// </remarks>
     [Serializable]
     internal abstract class AudioServiceHandler : FrameworkHandler
     {
         #region 处理器属性 [HANDLER PROPERTIES]
 
-        /// <summary>
-        /// 音频混响器。
-        /// </summary>
+        /// <summary>音频混响器。</summary>
         /// <remarks>Unity 专属；中间件后端返回 null。</remarks>
         public abstract AudioMixer AudioMixer { get; }
 
         /// <summary>实例化根节点。</summary>
         public abstract Transform InstanceRoot { get; set; }
 
-        /// <summary>
-        /// 已缓存音频资源的只读视图（后端原生句柄/租约的 object 包装）。
-        /// </summary>
+        /// <summary>已缓存音频资源的只读视图（后端原生句柄/租约的 object 包装）。</summary>
         /// <remarks>
-        /// 条目的增删与租约释放由服务内部配对管理（<see cref="PutInAudioPool"/> / <see cref="RemoveClipFromPool"/> /
-        /// <see cref="CleanAudioPool"/>，以及 Clip 缓存自身的驱逐与卸载），因此这里只给只读形态：
-        /// 外部若直接从字典里摘走一项，租约就脱离了引用计数，等于一条没人会释放的后端引用。
-        /// <para>中间件后端仅作键值占位，不持有真实资源句柄。</para>
+        /// 条目增删与租约释放由服务内部配对管理（<see cref="PutInAudioPool"/> / <see cref="RemoveClipFromPool"/> /
+        /// <see cref="CleanAudioPool"/> 与 Clip 缓存自身的驱逐卸载）；外部摘走一项等于留下一条无人释放的后端引用。
+        /// 中间件后端仅作键值占位，不持有真实资源句柄。
         /// </remarks>
         public abstract IReadOnlyDictionary<string, object> AssetHandlePool { get; }
 
@@ -49,38 +40,24 @@ namespace Moirai.Atropos.Audio
 
         #region 音轨状态 [TRACK STATUS]
 
-        /// <summary>
-        /// 后端整体失效（音频引擎不可用）时的统一口径：<b>音量面读作 0、写作无效</b>，
-        /// 且不入库、不落总线；播放与批量控制同样静默 no-op。
-        /// <para>两个后端都有这个状态，只是原来各叫各的：Unity 侧是
-        /// <c>AudioSettings.unityAudioDisabled</c>（反射读一次，<c>#if UNITY_EDITOR</c> 内，
-        /// 所以玩家构建里恒为 false——它表示"开发者在编辑器菜单里关了音频"，不是设备故障）；
-        /// 中间件侧是"桥接 <c>Initialize</c> 返回 false"，按上线门槛 G5 整体禁用、运行期不自愈。</para>
-        /// <para>刻意与"<c>_bridge</c> 还没建起来"区分开：未初始化是启动过程中间态，那段时间的
-        /// getter 必须照实报设置值，否则设置面板在初始化前打开会把滑杆显示成 0、用户一动就把 0 写回并持久化。
-        /// 只有"初始化明确失败"才算 inert。</para>
-        /// <para>为什么要把这个直觉命名：新后端只要漏判 getter，就留下第三种状态——
-        /// "报着一个音量，却一点声音都没有"，而那恰恰是最无法归因的线上症状。</para>
-        /// <para><c>internal</c> 而非 <c>protected</c>：契约是 public 的，后端只允许框架内替换。</para>
-        /// </summary>
+        /// <summary>后端整体失效（音频引擎不可用）时的统一口径：音量面读作 0、写作无效，播放与批量控制静默 no-op。</summary>
+        /// <remarks>
+        /// 只有"初始化明确失败"才算 inert；未初始化（桥接尚未建起）是启动中间态，那段时间 getter 必须照实报设置值。 <br />
+        /// Unity 侧取 <c>AudioSettings.unityAudioDisabled</c>（仅编辑器内赋值，玩家构建恒 false）； <br />
+        /// 中间件侧为桥接 <c>Initialize</c> 返回 false，整体禁用且本次运行内不自愈。
+        /// </remarks>
         internal virtual bool IsBackendInert => false;
 
-        /// <summary>
-        /// 所有音轨。
-        /// </summary>
+        /// <summary>所有音轨。</summary>
         /// <remarks>Unity 专属；中间件后端返回空数组。</remarks>
         public abstract AudioCategory[] AudioCategories { get; }
 
-        /// <summary>
-        /// 主音轨（总音量）音量。
-        /// </summary>
+        /// <summary>主音轨（总音量）音量。</summary>
         /// <remarks>线性 <c>0..1</c>（1 = 满刻度）；越界值在 setter 处夹取，getter 报回的就是实际生效值。
         /// 该值域对 Unity 与中间件后端一致。</remarks>
         public abstract float MasterVolume { get; set; }
 
-        /// <summary>
-        /// 主音轨（总音量）静音。
-        /// </summary>
+        /// <summary>主音轨（总音量）静音。</summary>
         public abstract bool MasterMute { get; set; }
 
         /// <summary>
@@ -339,17 +316,17 @@ namespace Moirai.Atropos.Audio
         #region 音频控制 [AUDIO CONTROLS]
 
         /// <summary>
-        /// 暂停指定句柄的音频
+        /// 暂停指定句柄的音频。
         /// </summary>
         public abstract void Pause(ulong handle);
 
         /// <summary>
-        /// 恢复播放指定句柄的音频
+        /// 恢复播放指定句柄的音频。
         /// </summary>
         public abstract void Unpause(ulong handle);
 
         /// <summary>
-        /// 停止指定句柄的音频
+        /// 停止指定句柄的音频。
         /// </summary>
         public abstract void Stop(ulong handle, float fadeoutDuration = 0f);
 
@@ -375,7 +352,7 @@ namespace Moirai.Atropos.Audio
         public abstract void ForEachHandleByID(int id, Action<ulong> action);
 
         /// <summary>
-        /// 返回当前正在播放的指定 clip 数量
+        /// 返回当前正在播放的指定 clip 数量。
         /// </summary>
         /// <remarks>中间件后端按 clip 名映射的事件路径统计。</remarks>
         public abstract int CurrentlyPlayingCount(AudioClip clip);
@@ -406,13 +383,12 @@ namespace Moirai.Atropos.Audio
         #region 音轨控制 [TRACK CONTROLS]
 
         /// <summary>
-        /// 音轨暂停标记（按 <see cref="EAudioTrack"/> 下标索引），契约第 1 条"暂停的音轨拦截新播放"的唯一真相源。
-        /// <para>两后端此前各自声明一份同名数组、各写一遍"取数组 + 判空 + 判界"，六个现场三份逻辑——
-        /// 这类同名异处的状态正是跨后端语义分歧的产地（音量值域那条就是这么长出来的）。</para>
-        /// <para>但**分配与释放仍留在各后端自己的时机**：Unity 在 <c>Initialize</c> 建、<c>OnShutdown</c> 置 null，
-        /// 中间件经 <c>EnsureTrackArrays</c> 懒建。"未分配即视为未暂停"（含 Unity 初始化前调 <c>PauseTrack</c>
-        /// 会被忘掉这条）两边都有调用侧依赖，收进基类顺手改成懒分配就是行为改动，不该混在重构里。</para>
+        /// 音轨暂停标记（按 <see cref="EAudioTrack"/> 下标索引）："暂停的音轨拦截新播放"的唯一真相源。
         /// </summary>
+        /// <remarks>
+        /// 分配与释放仍留在各后端自己的时机：Unity 在 <c>Initialize</c> 建、<c>OnShutdown</c> 置 null，中间件经 <c>EnsureTrackArrays</c> 懒建。 <br />
+        /// 数组未分配或下标越界一律按未暂停处理。
+        /// </remarks>
         [NonSerialized] internal bool[] _pausedTracks;
 
         /// <summary>
@@ -448,7 +424,7 @@ namespace Moirai.Atropos.Audio
         public abstract void UnpauseTrack(EAudioTrack track);
 
         /// <summary>
-        /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>
+        /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>。
         /// </summary>
         public abstract bool IsPaused(EAudioTrack track);
 
@@ -483,10 +459,10 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>
         /// 场景加载后是否停掉所有非持久音频：仅 <see cref="UnityEngine.SceneManagement.LoadSceneMode.Single"/>（整景切换）恒停。
-        /// <para>Additive（流式分区/关卡分片）加载<b>永不</b>触发自动停音——叠加加载没有"停掉全部非持久音"的
-        /// 合理用例，需要收口的游戏流程应在自己明确的切换点显式调用 <see cref="StopAllButPersistent"/>，
-        /// 而不是挂在一个全局场景钩子上。</para>
         /// </summary>
+        /// <remarks>
+        /// Additive（流式分区/关卡分片）加载永不触发自动停音；需要收口的流程应在明确的切换点显式调用 <see cref="StopAllButPersistent"/>。
+        /// </remarks>
         internal static bool ShouldStopNonPersistentOnSceneLoad(UnityEngine.SceneManagement.LoadSceneMode mode)
         {
             return mode == UnityEngine.SceneManagement.LoadSceneMode.Single;
@@ -508,19 +484,13 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>
         /// 音量过渡调度器（声部句柄与 Master/音轨总线伪句柄共用）。
-        /// <para>放在基类不是图省事：两个后端的总线过渡族此前逐字相同，只把"落到哪儿"经
-        /// <see cref="IAudioFadeTarget.ApplyFade"/> 分派出去。同一段编排写两遍，就是下一处分歧的产地。</para>
-        /// <para><c>internal</c> 而非 <c>protected</c>：调度器是内部类型，而本契约是 public——
-        /// 既然后端只允许框架内替换，就不该为"外部也能派生"这条不存在的需求把内部件抬成 public。</para>
         /// </summary>
         [NonSerialized] internal readonly AudioFadeScheduler _fades = new AudioFadeScheduler();
 
         /// <summary>
         /// 在指定的持续时间内，淡入 Master 音轨到最终音量。
         /// </summary>
-        /// <remarks>时长为 0 等价于直接赋值；总线伪句柄与声部句柄共用同一张调度表。
-        /// 后端 inert 时不排过渡——排了也不会响，却让 <see cref="SoundIsFadingOut"/> 报真，
-        /// 那是"报着一个音量却完全听不见"的同一种假象。</remarks>
+        /// <remarks>时长为 0 等价于直接赋值；总线伪句柄与声部句柄共用同一张调度表。后端 inert 时不排过渡。</remarks>
         public virtual void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
         {
             if (IsBackendInert) return;
@@ -616,17 +586,25 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public abstract void CleanAudioPool();
 
-        /// <summary>预加载地址（策略默认 Pin 常驻）。</summary>
+        /// <summary>
+        /// 预加载地址（策略默认 Pin 常驻）。
+        /// </summary>
         /// <returns>已加载完成返回 true；加载中或失败返回 false。</returns>
         public abstract bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin);
 
-        /// <summary>异步预加载地址。</summary>
+        /// <summary>
+        /// 异步预加载地址。
+        /// </summary>
         public abstract void PreloadAsync(string address, EAudioCachePolicy policy, Action<bool> completed = null);
 
-        /// <summary>卸载地址缓存。force=true 时忽略引用计数。</summary>
+        /// <summary>
+        /// 卸载地址缓存。force=true 时忽略引用计数。
+        /// </summary>
         public abstract bool UnloadClipCache(string address, bool force = false);
 
-        /// <summary>清空 Clip 缓存。force=true 时连 Pin 一并清。</summary>
+        /// <summary>
+        /// 清空 Clip 缓存。force=true 时连 Pin 一并清。
+        /// </summary>
         public abstract void ClearClipCache(bool force = false);
 
         #endregion 资源池 [ASSET POOL]

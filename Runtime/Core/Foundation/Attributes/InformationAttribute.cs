@@ -15,17 +15,11 @@ namespace Moirai.Atropos.Attributes
 		/// </summary>
 		public enum InformationType { Error, Info, None, Warning }
 
-		/// <summary>
-		/// 要显示的提示消息文本。
-		/// </summary>
+		/// <summary>要显示的提示消息文本。</summary>
 		public readonly string Message;
-		/// <summary>
-		/// 提示消息的显示级别。
-		/// </summary>
+		/// <summary>提示消息的显示级别。</summary>
 		public readonly InformationType Type;
-		/// <summary>
-		/// 消息是否显示在字段下方（默认显示在上方）。
-		/// </summary>
+		/// <summary>消息是否显示在字段下方（默认显示在上方）。</summary>
 		public readonly bool MessageAfterProperty;
 
 		/// <summary>

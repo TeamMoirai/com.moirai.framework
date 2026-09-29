@@ -6,7 +6,9 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Moirai.Atropos.SourceGenerators
 {
-    /// <summary>字段捕获分类（与 KVT 记录类型一一对应）。</summary>
+    /// <summary>
+    /// 字段捕获分类（与 KVT 记录类型一一对应）。
+    /// </summary>
     internal enum FieldKind
     {
         Unsupported,
@@ -51,7 +53,9 @@ namespace Moirai.Atropos.SourceGenerators
         AssetReference,
     }
 
-    /// <summary>序列容器种类（恢复侧容器构建策略）。</summary>
+    /// <summary>
+    /// 序列容器种类（恢复侧容器构建策略）。
+    /// </summary>
     internal enum SequenceContainer
     {
         None,
@@ -142,7 +146,9 @@ namespace Moirai.Atropos.SourceGenerators
         public Location Location { get; set; }
     }
 
-    /// <summary>嵌套链类型信息（自包含组件向外逐层）。</summary>
+    /// <summary>
+    /// 嵌套链类型信息（自包含组件向外逐层）。
+    /// </summary>
     internal sealed class ContainingTypeInfo
     {
         /// <summary>类型元数据名。</summary>
@@ -213,11 +219,13 @@ namespace Moirai.Atropos.SourceGenerators
 
         /// <summary>
         /// 从语法上下文创建字段模型（一个字段声明可含多个变量，逐一展开）。
-        /// <para>注：不用 <c>ForAttributeWithMetadataName</c>——该增量 API 在本项目部分编译单元上静默不产出（实证），改用语义扫描。</para>
         /// </summary>
+        /// <remarks>
+        /// 采用语义扫描而非 <c>ForAttributeWithMetadataName</c>（该增量 API 在本项目部分编译单元上静默不产出）。
+        /// </remarks>
         /// <param name="context">语法提供上下文。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>字段模型数组（无 [SaveField] 标注时为空）。</returns>
+        /// <returns>字段模型数组（无 <c>[SaveField]</c> 标注时为空）。</returns>
         public static SaveFieldModel[] Create(GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -735,19 +743,25 @@ namespace Moirai.Atropos.SourceGenerators
             Args = args;
         }
 
-        /// <summary>创建不支持成员诊断（MIRAI308——集合元素/映射键值等嵌套位置）。</summary>
+        /// <summary>
+        /// 创建不支持成员诊断（MIRAI308——集合元素/映射键值等嵌套位置）。
+        /// </summary>
         public static DiagnosticInfo UnsupportedMember(string memberPath, string typeDisplay, string reason, Location location)
         {
             return new DiagnosticInfo(Diagnostics.UnsupportedNestedMember, location, new object[] { memberPath, typeDisplay, reason });
         }
 
-        /// <summary>创建引用类型不明诊断（MIRAI306）。</summary>
+        /// <summary>
+        /// 创建引用类型不明诊断（MIRAI306）。
+        /// </summary>
         public static DiagnosticInfo AmbiguousReference(string memberPath, Location location)
         {
             return new DiagnosticInfo(Diagnostics.AmbiguousReferenceType, location, new object[] { memberPath });
         }
 
-        /// <summary>创建嵌套数据类型无效诊断（MIRAI307）。</summary>
+        /// <summary>
+        /// 创建嵌套数据类型无效诊断（MIRAI307）。
+        /// </summary>
         public static DiagnosticInfo InvalidNested(string memberPath, string typeDisplay, string reason, Location location)
         {
             return new DiagnosticInfo(Diagnostics.InvalidNestedType, location, new object[] { memberPath, typeDisplay, reason });

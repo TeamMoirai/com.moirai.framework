@@ -8,11 +8,11 @@ using YooAsset.Editor;
 namespace Moirai.Atropos.Resource.Editor
 {
     /// <summary>
-    /// <see cref="YooAssetHandler.CollectorPackageDropdownAttribute"/> 的绘制器。
-    /// 每次构建/绘制实时读取 YooAsset 收集器设置中的包裹名作为选项。
-    /// 提供 IMGUI（OnGUI）与 UITK（CreatePropertyGUI）双路径，宿主自动二选一；
-    /// Odin 上下文由 <see cref="CollectorPackageDropdownOdinDrawer"/> 接管（见其说明）。
+    /// <see cref="YooAssetHandler.CollectorPackageDropdownAttribute"/> 的绘制器，选项实时取自 YooAsset 收集器设置中的包裹名。
     /// </summary>
+    /// <remarks>
+    /// 提供 IMGUI（OnGUI）与 UITK（CreatePropertyGUI）双路径，宿主自动二选一；Odin 上下文由 <see cref="CollectorPackageDropdownOdinDrawer"/> 接管。
+    /// </remarks>
     [CustomPropertyDrawer(typeof(YooAssetHandler.CollectorPackageDropdownAttribute), true)]
     internal sealed class CollectorPackageDropdownAttributeDrawer : PropertyDrawer
     {
@@ -28,8 +28,7 @@ namespace Moirai.Atropos.Resource.Editor
             => DrawPopupIMGUI(position, property, label);
 
         /// <summary>
-        /// IMGUI 行绘制：Unity OnGUI 与 <see cref="CollectorPackageDropdownOdinDrawer"/> 共用，
-        /// 保证两种宿主下的选项、置顶与写回行为一致。
+        /// IMGUI 行绘制：Unity OnGUI 与 <see cref="CollectorPackageDropdownOdinDrawer"/> 共用，保证两种宿主下的选项、置顶与写回行为一致。
         /// </summary>
         internal static void DrawPopupIMGUI(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -69,8 +68,7 @@ namespace Moirai.Atropos.Resource.Editor
         #region UITK 支持 [UITK SUPPORT]
 
         /// <summary>
-        /// UITK 入口：返回原生 <see cref="PopupField{T}"/>，
-        /// 使标签与 UITK 窗口中的其他字段对齐（IMGUI 回退绘制会导致样式错位）。
+        /// UITK 入口：返回原生 <see cref="PopupField{T}"/>，使标签与 UITK 窗口中其他字段对齐（IMGUI 回退绘制会样式错位）。
         /// </summary>
         public override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
@@ -113,15 +111,13 @@ namespace Moirai.Atropos.Resource.Editor
         #endregion
 
         /// <summary>
-        /// 实时读取收集器包裹名构建选项，并解析当前值的索引；
-        /// 当前值已不在选项中（包裹被改名/删除）时临时置顶显示。IMGUI / UITK / Odin 共用。
+        /// 实时读取收集器包裹名构建选项并解析当前值索引；当前值已不在选项中（包裹被改名 / 删除）时临时置顶显示，IMGUI / UITK / Odin 共用。
         /// </summary>
         private static List<string> CollectOptions(SerializedProperty property, out int index)
             => CollectOptions(property.stringValue, out index);
 
         /// <summary>
-        /// 同 <see cref="CollectOptions(SerializedProperty, out int)"/>，供无 Unity SerializedProperty 的
-        /// Odin ValueEntry 回退路径使用。
+        /// 同 <see cref="CollectOptions(SerializedProperty, out int)"/>，供无 Unity SerializedProperty 的 Odin ValueEntry 回退路径使用。
         /// </summary>
         internal static List<string> CollectOptions(string current, out int index)
         {
@@ -146,18 +142,14 @@ namespace Moirai.Atropos.Resource.Editor
     }
 
     /// <summary>
-    /// Odin 原生 Drawer，为 <see cref="YooAssetHandler.CollectorPackageDropdownAttribute"/> 接管 Odin 绘制，
-    /// 与 <see cref="ProviderDropdownDrawer"/> 同一套宿主约定。<br />
-    /// 必须接管的原因：Odin 开启 UITK 集成（Preferences → Odin → General → Enable UIToolkit Support）时，
-    /// 其 <c>UnityPropertyAttributeDrawer</c> 只要检测到 Unity 绘制器重写了 CreatePropertyGUI（按方法存在与否
-    /// 静态判定，不看返回值）便会放弃 IMGUI OnGUI 路径，改走内嵌 UITK 元素——该内嵌在 FrameworkSettingsWindow
-    /// 等自定义 IMGUI 宿主中会中断整帧布局，导致整个 Inspector 内容区静默空白。本 Drawer 使 Odin 上下文
-    /// 永远走 IMGUI 行绘制，不再触达 Unity 绘制器的 UITK 路径。
+    /// 为 <see cref="YooAssetHandler.CollectorPackageDropdownAttribute"/> 提供 Odin 原生绘制， <br />
+    /// 与 <see cref="ProviderDropdownDrawer"/> 同一套宿主约定。
     /// </summary>
     /// <remarks>
-    /// 优先级与 <see cref="ProviderDropdownDrawer"/> 一致（wrapper=10001），高于 Odin 默认
-    /// managed reference drawer 和 DrawWithUnity(10000)。纯 Unity 宿主（OnGUI）与 UITK 宿主
-    /// （CreatePropertyGUI）不受影响，仍由 <see cref="CollectorPackageDropdownAttributeDrawer"/> 双路径服务。
+    /// 必须接管：Odin 开启 UITK 集成时，其 <c>UnityPropertyAttributeDrawer</c> 检测到 Unity 绘制器重写了 <c>CreatePropertyGUI</c> 便改走内嵌 UITK 元素，
+    /// 在自定义 IMGUI 宿主中会中断布局致内容区空白；本 Drawer 使 Odin 永远走 IMGUI 行绘制。 <br />
+    /// 优先级 wrapper=10001，高于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)。 <br />
+    /// 纯 Unity 宿主（OnGUI）与 UITK 宿主（CreatePropertyGUI）不受影响，仍由 <see cref="CollectorPackageDropdownAttributeDrawer"/> 双路径服务。
     /// </remarks>
     [DrawerPriority(0, 10001, 0)]
     internal sealed class CollectorPackageDropdownOdinDrawer

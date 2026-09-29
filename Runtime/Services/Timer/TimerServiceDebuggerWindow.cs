@@ -5,9 +5,11 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Timer
 {
     /// <summary>
-    /// 计时器服务调试视图（原生 UI Toolkit，经 <see cref="TimerService.OnInit"/> 注册进游戏内调试器 "Profiler/Timer"）。
-    /// <para>展示计时器运行时统计（活跃/容量/峰值/占用率）、活跃计时器采样与"僵尸"一次性计时器检测；按 0.5s 节流重建。</para>
+    /// 计时器服务调试视图（原生 UI Toolkit，注册进游戏内调试器 "Profiler/Timer"）。
     /// </summary>
+    /// <remarks>
+    /// 展示运行时统计（活跃 / 容量 / 峰值 / 占用率）、活跃计时器采样与"僵尸"一次性计时器检测；按 0.5s 节流重建。
+    /// </remarks>
     public sealed class TimerServiceDebuggerWindow : PollingDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]
@@ -58,9 +60,10 @@ namespace Moirai.Atropos.Timer
 
         /// <summary>
         /// 基准区：Run 同步跑 <see cref="TimerBenchmarkRunner"/>（会短暂时卡主线程），Export 落 XML 到统一文件夹。
-        /// 与 MemoryPoolInformationWindow 的基准区同范式——回调触发/同刻突发这类依赖真实帧的用例
-        /// 在 Tests 的 PlayMode 基准（TimerFireBenchmarkTests），此处只有同步矩阵。
         /// </summary>
+        /// <remarks>
+        /// 仅含同步矩阵；回调触发 / 同刻突发这类依赖真实帧的用例在 Tests 的 PlayMode 基准（TimerFireBenchmarkTests）。
+        /// </remarks>
         private void BuildBenchmarkSection(VisualElement root)
         {
             VisualElement card = AddSection(root, "Timer Benchmark");

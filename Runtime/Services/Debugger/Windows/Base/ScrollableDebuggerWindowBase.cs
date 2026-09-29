@@ -4,8 +4,10 @@ namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 可滚动调试器窗口基类（UI Toolkit）。
-    /// <para><see cref="CreateView"/> 构建统一样式的垂直滚动视图并委托 <see cref="BuildWindow"/> 填充内容；派生类经 <see cref="Rebuild"/> 重建内容（采样、轮询刷新场景）。</para>
     /// </summary>
+    /// <remarks>
+    /// <see cref="CreateView"/> 构建统一样式的垂直滚动视图并委托 <see cref="BuildWindow"/> 填充内容；派生类经 <see cref="Rebuild"/> 重建内容（采样、轮询刷新场景）。
+    /// </remarks>
     public abstract class ScrollableDebuggerWindowBase : IDebuggerWindow
     {
         #region 字段 [FIELDS]

@@ -79,7 +79,7 @@ com.moirai.framework/
 - **对象池化：** 高频创建/销毁对象（事件、任务、缓冲区、GameObject）必须池化；池接口沿用各池家族既定词汇——内存池 `Acquire`/`Release`、事件 `Acquire`/`Dispose` 配对、对象池服务 `Spawn`/`Despawn`，新池先对齐同家族词汇不另造第三套；池对象实现状态重置；容量按场景配置，支持运行时回收。
 - **Unity 引擎：** GetComponent 必须 Awake/Start 缓存；禁止 GameObject.Find/SendMessage/BroadcastMessage；私有序列化字段 m_ 前缀（公共序列化字段无前缀 lowerCamelCase）；yield return 缓存静态只读或用协程工具；高频异步用 UniTask（禁止同步 IO 和 Coroutine 做 IO）；用 Mathf 不用 Math；ScriptableObject 做数据驱动配置并运行时缓存引用。
 - **异常与错误处理：** 禁止 try-catch 做逻辑控制；热路径严禁 try-catch（**例外**：`PlayerLoopDriver.HandlerSlot/CallbackSlot.Drive` 与内核 `ServiceScope` 轮询循环内的 per-subscriber try/catch 属有意隔离——订阅/服务抛出不得截断同阶段其余项；异常本身仍按分级上抛或隔离，不吞）；用 Debug.Assert/Assert.IsTrue（仅 Editor）；非热路径公共 API 做参数校验抛 ArgumentException；异常不吞——要么处理要么上抛。
-- **代码组织：** 一文件一顶层类；类/接口/公有方法/枚举必须 &lt;summary&gt;（内容独占行）；严禁 TODO 入主干；#region 用于小范围分组（双语标签），严禁大段折叠掩盖 SRP 违例（违反则拆类）；asmdef 最小化依赖、禁止循环引用。
+- **代码组织：** 一文件一顶层类；类/接口/公有方法/枚举必须 &lt;summary&gt;（内容独占行，见《XML 文档注释》）；严禁 TODO 入主干；#region 用于小范围分组（双语标签），严禁大段折叠掩盖 SRP 违例（违反则拆类）；asmdef 最小化依赖、禁止循环引用。
 - **AOT/IL2CPP 兼容：** 禁止 Reflection.Emit/动态代码生成；反射仅限序列化/编辑器，运行时避免；泛型 AOT 预编译缺失时需预生成元数据或用非泛型路径；Type/enum 缓存为静态只读字段避免反复 GetType。
 - **测试可见性（强制）：** 测试不得用反射读写字段/属性（`GetField("m_…", BindingFlags.NonPublic)`）——需要触达的成员把访问级别 `private`→`internal`，`Runtime/AssemblyInfo.cs` 已对 `Moirai.Atropos.Editor` 与三个测试程序集（`.Tests.EditorMode`/`.Tests.PlayMode`/`.Tests.Player`）开了 `InternalsVisibleTo`。反射把字段名变成测试依赖：改名不报编译错，只在运行期 `GetField` 返回 null 后 NRE；`internal` 由编译器把关。序列化字段改 `internal` 不影响 Unity 序列化（`[SerializeField]` 不要求 `private`），前缀仍走 `m_`/`s_`/`_` 私有家族口径。反射只留两类正当用途：遍历 API 形状与断成员标注做契约守卫（`ResourceSeamShapeGuardTests`、`ResourceMethodSetContractTests`、`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`——这类只能反射，别当违例删掉）、唤起 Unity 生命周期回调（`Awake`/`OnEnable`/`OnInit`）。已有窄接缝的成员不为此放开字段：换处理器走生成的 `Internal_PeekHandler()`/`Internal_UseHandler(next)`，`s_Handler` 保持 `private`。
 - **工具链与质量门：** 启用 Roslyn Analyzers；.editorconfig indent_size=4；提交前通过 ZeroAlloc 性能测试；PR 须通过编译 + Analyzer + 测试三重门。
@@ -127,6 +127,17 @@ com.moirai.framework/
 - **测试**：类 `<被测>Tests`（`AudioClipCacheTests`）、基准 `<被测>Benchmark`（一律 `[Explicit]`，不随常规套件跑）、夹具 `XxxTestSupport`/`XxxTestHost`/`MemoryPoolFixture`（派生式基座）。方法名 `场景_条件_期望` 三段式（`RetainRelease_CycleAllocatesZeroBytes`、`PauseGame_NestedSources_OnlyLastResumeRestoresSpeed`）。异常断言沿 `InnerException`/`AggregateException` 链判定，不用 `Assert.Throws<T>` 硬匹配（泛型 `new T()` 实走 `Activator.CreateInstance<T>()`，原始异常会被包装）。
 
 **冲突怎么判**：DotSettings 与代码打架时以 DotSettings 为准（它是门禁，也是评审依据）；表里没写、仓内已成词汇的那一档（`Handler`/`Bridge`/`Registry`/`Support`）按仓库现状走。两类冲突都不许用 `// ReSharper disable` 或规则抑制绕过——要改先改规则，再改代码。
+
+### XML 文档注释
+
+口径参考 Microsoft .NET API 文档惯例（`summary` 陈义 / `remarks` 补充 / `example` 用法 / 覆写用 `inheritdoc`）与 Google C# Style Guide「注释描述是什么，不描述怎么做与为何」。全文与 ✅/❌ 对照见 [`Documentation~/zh/CodeComments.md`](Documentation~/zh/CodeComments.md)（英文对照 [`en/CodeComments.md`](Documentation~/en/CodeComments.md)）。
+
+- **`summary` 一句话：** **类型与方法**用三行式（`/// <summary>`、内容、`/// </summary>` 各占一行，内容 ≤2 行，断行用 `<br />`、summary 是单段不套 `<para>`）；**其余一律单行内联**（属性/字段/枚举成员/事件等，`/// <summary>一句话</summary>`）。第三人称动词短语只答「是什么 / 做什么」；行内引用用 `<c>`/`<see cref="…"/>`/`<paramref name="…"/>`。
+- **`remarks` 放调用方必须知道的不变量（≤6 条，可省）：** 线程/时序约束、性能承诺（0-GC、帧预算）、生命周期配对（谁 Acquire 谁 Release）、降级与失败语义、幂等性、协议文件与调用顺序；**一条一行**短句罗列，长条目可续行（续行以 `<br />` 结尾、末行不加），分主题用 `<para>`。**精简是压缩不是删除**——调用方可感知的信息必须保留。
+- **排版（换行是手段，不是违规）：** 单行 ≤120 字符（中文按 1 字符计），超限按语义断行；`<code>`/`<example>` 内是预格式、不受行宽限制。禁止把多条约束挤成 200+ 字符的长条行，也禁止把一两句话拆成碎段。
+- **叙述禁入（任何标签内）：** 日期、提交号/PR 号/分支名、`CHANGELOG` 引用、「实测/实证/复现/事故/教训/评审/先红后绿/回归锁」一类过程叙事、「原为 X 现改为 Y」变更史——归宿是 `CHANGELOG.md`、提交信息与评审底稿。
+- **`example` 允许且鼓励（≤15 行）：** 短用法示例进 `<example>` + `<code lang="csharp">`，与单测呼应；不把示例写成完整业务流程。
+- **结构化标签与语言：** `<param>`/`<returns>` 各一行不复述类型、会抛处写 `<exception cref>`、覆写优先 `<inheritdoc/>` 只补差异；叙述用中文、类型名/成员名/路径/协议字段保持原文。
 
 ## 测试规范
 

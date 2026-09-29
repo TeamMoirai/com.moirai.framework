@@ -9,38 +9,54 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 写入原语接口：值的编码差异（char / UTF8 字节、转义、数字格式化、缩进）由各 Sink 实现。
-        /// 结构逻辑（分派/容器/守卫/反射成员遍历）统一在 <see cref="JsonWriter{TSink}"/> 中单一实现。
         /// </summary>
         /// <remarks>
+        /// <para>结构逻辑（分派/容器/守卫/反射成员遍历）统一在 <see cref="JsonWriter{TSink}"/> 中单一实现。</para>
         /// <para><b>调用粒度契约</b>：接口按"每值"分发（每个字段/元素一次调用），而非每字符——
         /// 接口开销被原语内部的工作量摊薄；Sink 为 struct 经 ref 传递，无装箱。</para>
         /// <para><b>WriteAscii 契约</b>：仅接收保证 ASCII 的内容（结构片段 / InvariantCulture 数值串）；
-        /// 实现保留防御性 UTF8 回退以正确处理意外输入。</para>
+        /// 实现保留防御性 UTF8 回退以正确处理意外输入。</para>。
         /// </remarks>
         internal interface IJsonSink
         {
-            /// <summary>预留至少 count 字符/字节的容量（CharSink 为 no-op）。</summary>
+            /// <summary>
+            /// 预留至少 count 字符/字节的容量（CharSink 为 no-op）。
+            /// </summary>
             void Reserve(int count);
 
-            /// <summary>写入 ASCII 结构字符（{ } [ ] , : 等）。</summary>
+            /// <summary>
+            /// 写入 ASCII 结构字符（{ } [ ] , : 等）。
+            /// </summary>
             void WriteAscii(char c);
 
-            /// <summary>写入 ASCII 原始串（结构片段，如 "{\"key\":"）。</summary>
+            /// <summary>
+            /// 写入 ASCII 原始串（结构片段，如 "{\"key\":"）。
+            /// </summary>
             void WriteAscii(string s);
 
-            /// <summary>写入带引号的转义字符串（含代理对处理）。</summary>
+            /// <summary>
+            /// 写入带引号的转义字符串（含代理对处理）。
+            /// </summary>
             void WriteEscaped(string s);
 
-            /// <summary>写入带引号的转义单字符。</summary>
+            /// <summary>
+            /// 写入带引号的转义单字符。
+            /// </summary>
             void WriteEscaped(char c);
 
-            /// <summary>写入有符号整数（各 Sink 用最优格式化：栈缓冲数字 / 直写字节）。</summary>
+            /// <summary>
+            /// 写入有符号整数（各 Sink 用最优格式化：栈缓冲数字 / 直写字节）。
+            /// </summary>
             void WriteInt64(long v);
 
-            /// <summary>写入无符号整数。</summary>
+            /// <summary>
+            /// 写入无符号整数。
+            /// </summary>
             void WriteUInt64(ulong v);
 
-            /// <summary>写入换行 + level 个制表符（readable 模式缩进；字节路径语义相同）。</summary>
+            /// <summary>
+            /// 写入换行 + level 个制表符（readable 模式缩进；字节路径语义相同）。
+            /// </summary>
             void WriteIndent(int level);
         }
 
@@ -178,7 +194,9 @@ namespace Moirai.Atropos
                 _sb.Append('"');
             }
 
-            /// <summary>零分配写入 \uXXXX 转义（栈上十六进制，对齐 Utf8Sink.WriteHex4）。</summary>
+            /// <summary>
+            /// 零分配写入 \uXXXX 转义（栈上十六进制，对齐 Utf8Sink.WriteHex4）。
+            /// </summary>
             private static void AppendUnicodeEscape(IStringBuilder sb, char c)
             {
                 sb.Append("\\u");
@@ -193,7 +211,9 @@ namespace Moirai.Atropos
                 sb.Append((ReadOnlySpan<char>)hex);
             }
 
-            /// <summary>数字低位在前写入后原地反转。返回写入后的长度。</summary>
+            /// <summary>
+            /// 数字低位在前写入后原地反转。返回写入后的长度。
+            /// </summary>
             private static int FormatDigits(Span<char> buffer, int pos, ulong v)
             {
                 if (v == 0)
@@ -224,7 +244,9 @@ namespace Moirai.Atropos
                 return pos;
             }
 
-            /// <summary>是否含需转义字符（引号/反斜杠/控制字符）。</summary>
+            /// <summary>
+            /// 是否含需转义字符（引号/反斜杠/控制字符）。
+            /// </summary>
             private static bool NeedsEscape(string s)
             {
                 if (string.IsNullOrEmpty(s)) return false;
@@ -458,7 +480,9 @@ namespace Moirai.Atropos
                 Buffer[Position++] = (byte)'"';
             }
 
-            /// <summary>数字低位在前写入后原地反转。调用方须已 Reserve(20)。</summary>
+            /// <summary>
+            /// 数字低位在前写入后原地反转。调用方须已 Reserve(20)。
+            /// </summary>
             private void WriteDigits(ulong v)
             {
                 if (v == 0)
@@ -487,7 +511,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>写入 4 位大写十六进制（\uXXXX 转义用）。调用方须已 Reserve。</summary>
+            /// <summary>
+            /// 写入 4 位大写十六进制（\uXXXX 转义用）。调用方须已 Reserve。
+            /// </summary>
             private void WriteHex4(char c)
             {
                 uint v = c;
@@ -498,7 +524,9 @@ namespace Moirai.Atropos
                 }
             }
 
-            /// <summary>将码点（≤0x10FFFF）编码为 UTF8（1-4 字节）。</summary>
+            /// <summary>
+            /// 将码点（≤0x10FFFF）编码为 UTF8（1-4 字节）。
+            /// </summary>
             private void WriteUtf8Rune(uint rune)
             {
                 if (rune < 0x80)
@@ -530,7 +558,9 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>UTF8 字节路径的线程本地 scratch 缓冲（含 1MB 保留上限）。</summary>
+        /// <summary>
+        /// UTF8 字节路径的线程本地 scratch 缓冲（含 1MB 保留上限）。
+        /// </summary>
         internal static class ByteScratch
         {
             private const int INITIAL_CAPACITY = 256;
@@ -541,13 +571,17 @@ namespace Moirai.Atropos
             [ThreadStatic]
             private static byte[] t_Buffer;
 
-            /// <summary>取出（或新建）scratch 缓冲。写入完成后调用 <see cref="Return"/> 归还。</summary>
+            /// <summary>
+            /// 取出（或新建）scratch 缓冲。写入完成后调用 <see cref="Return"/> 归还。
+            /// </summary>
             public static byte[] Rent()
             {
                 return t_Buffer ??= new byte[INITIAL_CAPACITY];
             }
 
-            /// <summary>归还缓冲（超上限丢弃，下次从初始容量重新生长）。</summary>
+            /// <summary>
+            /// 归还缓冲（超上限丢弃，下次从初始容量重新生长）。
+            /// </summary>
             public static void Return(byte[] buffer)
             {
                 t_Buffer = buffer.Length <= MAX_RETAINED ? buffer : null;

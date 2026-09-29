@@ -7,8 +7,8 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 音频服务调试视图（原生 UI Toolkit，经 <see cref="AudioService.OnInit"/> 注册进游戏内调试器 "Profiler/Audio"）。
-    /// <para>提供主音量与各音轨（枚举全量生成）音量/静音/暂停/恢复/停止实时控制，并支持写入音频设置。</para>
     /// </summary>
+    /// <remarks>提供主音量与各音轨（枚举全量生成）的音量/静音/暂停/恢复/停止实时控制，并支持写入音频设置。</remarks>
     public sealed class AudioServiceDebuggerWindow : ScrollableDebuggerWindowBase
     {
         #region 构建窗口 [BUILD WINDOW]
@@ -47,8 +47,7 @@ namespace Moirai.Atropos.Audio
         #region 私有 [PRIVATE]
 
         /// <summary>
-        /// Clip 缓存与 Ducking 概览。这些计数此前没有任何运行期读者，而线上"音效没出来"的第一嫌疑
-        /// 恰恰是缓存满载判负、地址在失败冷却、或快照没绑上——不显示就等于看不到。
+        /// Clip 缓存与 Ducking 概览（条目/容量/加载中/常驻/失败冷却/留池与混音快照状态）。
         /// </summary>
         private static void AddCacheControls(VisualElement card)
         {

@@ -6,15 +6,14 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 统一服务世界（可实例化容器）。管理 App/Scene/Gameplay 三个固定作用域的完整生命周期：
-    /// 注册（两阶段：Register 仅入图）→ 初始化（<see cref="Initialize"/> 拓扑排序统一驱动 OnInit）→
-    /// 查找（跨作用域 3 槽内联，Gameplay &gt; Scene &gt; App）→ 轮询（固定序扁平直驱）→ 销毁（严格逆拓扑）。
-    /// <para><b>可实例化</b>：<c>new ServiceWorld()</c> 构造隔离世界（测试并行/沙盒场景）；
-    /// 进程默认世界经 <see cref="GameServices"/> 静态投影访问。</para>
-    /// <para><b>线程契约</b>：默认世界的调用一律经 <see cref="GameServices"/> 投影，那边在编辑器/开发构建
-    /// 断言主线程。本类自身<b>不做</b>线程断言——可实例化世界的一个既定用途就是并行测试，
-    /// 把它钉死在 Unity 主线程上会让这个场景不可用。</para>
+    /// 统一服务世界（可实例化容器），管理 App/Scene/Gameplay 三个固定作用域的完整生命周期。
     /// </summary>
+    /// <remarks>
+    /// 生命周期顺序：注册（两阶段，Register 仅入图）→ 初始化（<see cref="Initialize"/> 拓扑排序统一驱动 OnInit）→ 查找（跨作用域 3 槽内联，Gameplay &gt; Scene &gt; <br />
+    /// App）→ 轮询（固定序扁平直驱）→ 销毁（严格逆拓扑）。 <br />
+    /// 可实例化：<c>new ServiceWorld()</c> 构造隔离世界（测试并行/沙盒）；进程默认世界经 <see cref="GameServices"/> 静态投影访问。 <br />
+    /// 线程契约：默认世界的调用一律经 <see cref="GameServices"/> 投影并在编辑器/开发构建断言主线程；本类自身不做线程断言（可实例化世界的一个既定用途是并行测试）。
+    /// </remarks>
     public sealed class ServiceWorld : IDisposable
     {
         #region 常量 [CONSTANTS]
@@ -57,24 +56,16 @@ namespace Moirai.Atropos
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 世界是否已完成初始化（两阶段的第二阶段已提交）。
-        /// </summary>
+        /// <summary>世界是否已完成初始化（两阶段的第二阶段已提交）。</summary>
         public bool IsInitialized => _initialized;
 
-        /// <summary>
-        /// 世界是否正在初始化中（重入守卫——初始化循环内触发的新注册由外层循环接管）。
-        /// </summary>
+        /// <summary>世界是否正在初始化中（重入守卫——初始化循环内触发的新注册由外层循环接管）。</summary>
         internal bool IsInitializing => _initializing;
 
-        /// <summary>
-        /// 当前已注册的拦截器（只读视图）。
-        /// </summary>
+        /// <summary>当前已注册的拦截器（只读视图）。</summary>
         public IReadOnlyList<IServiceInterceptor> Interceptors => _interceptors;
 
-        /// <summary>
-        /// 是否存在已注册的拦截器。轮询帧边界据此跳过通知。
-        /// </summary>
+        /// <summary>是否存在已注册的拦截器。轮询帧边界据此跳过通知。</summary>
         internal bool HasInterceptors => _interceptors.Count > 0;
 
         // 重复契约处置策略（默认与旧版一致：开发期 Warn，发布期 Skip）
@@ -84,27 +75,22 @@ namespace Moirai.Atropos
         private EDuplicateContractPolicy _duplicateContractPolicy = EDuplicateContractPolicy.Skip;
 #endif
 
-        /// <summary>
-        /// 重复契约注册处置策略。仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景。
-        /// </summary>
+        /// <summary>重复契约注册处置策略。仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景。</summary>
         public EDuplicateContractPolicy DuplicateContractPolicy
         {
             get => _duplicateContractPolicy;
             set => _duplicateContractPolicy = value;
         }
 
-        /// <summary>
-        /// 连续失败熔断默认阈值。
-        /// </summary>
+        /// <summary>连续失败熔断默认阈值。</summary>
         internal const int DEFAULT_TICK_TRIP_THRESHOLD = 300;
 
         private int _tickFailureTripThreshold = DEFAULT_TICK_TRIP_THRESHOLD;
 
-        /// <summary>
-        /// 轮询异常熔断阈值：同一服务在同一轮询类别连续异常达到该次数即被摘出对应轮询列表。
-        /// <para>世界级配置——隔离世界（并行测试/沙盒）各持一份，互不污染。
-        /// 重新注册服务即完全重置该服务的计数。</para>
-        /// </summary>
+        /// <summary>轮询异常熔断阈值：同一服务在同一轮询类别连续异常达到该次数即被摘出对应轮询列表。</summary>
+        /// <remarks>
+        /// 世界级配置——隔离世界（并行测试/沙盒）各持一份，互不污染；重新注册服务即完全重置该服务的计数。
+        /// </remarks>
         internal int TickFailureTripThreshold
         {
             get => _tickFailureTripThreshold;
@@ -115,19 +101,13 @@ namespace Moirai.Atropos
 
         #region 作用域访问 [SCOPE ACCESS]
 
-        /// <summary>
-        /// App 作用域是否活跃。
-        /// </summary>
+        /// <summary>App 作用域是否活跃。</summary>
         public bool HasApp => HasScope(EServiceScopeKind.App);
 
-        /// <summary>
-        /// Scene 作用域是否活跃。
-        /// </summary>
+        /// <summary>Scene 作用域是否活跃。</summary>
         public bool HasScene => HasScope(EServiceScopeKind.Scene);
 
-        /// <summary>
-        /// Gameplay 作用域是否活跃。
-        /// </summary>
+        /// <summary>Gameplay 作用域是否活跃。</summary>
         public bool HasGameplay => HasScope(EServiceScopeKind.Gameplay);
 
         internal bool HasScope(EServiceScopeKind kind)
@@ -251,11 +231,13 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 注册服务到指定作用域（两阶段第一阶段：仅入图，不初始化）。
-        /// <para>世界未初始化时：服务挂入待初始化图，由 <see cref="Initialize"/> 按依赖拓扑统一驱动 OnInit。</para>
-        /// <para>世界已初始化时：依赖必须已就绪（缺失即抛 <see cref="GameException"/>），服务立即 OnInit——
-        /// 实现 <see cref="IServiceInitializableAsync"/> 的服务禁止运行时注册（无法等待，fail-fast）。</para>
-        /// <para>迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。</para>
         /// </summary>
+        /// <remarks>
+        /// 世界未初始化时服务挂入待初始化图，由 <see cref="Initialize"/> 按依赖拓扑统一驱动 OnInit。 <br />
+        /// 世界已初始化时依赖必须已就绪（缺失即抛 <see cref="GameException"/>），服务立即 OnInit； <br />
+        /// 实现 <see cref="IServiceInitializableAsync"/> 的服务禁止运行时注册（无法等待，fail-fast）。 <br />
+        /// 迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。
+        /// </remarks>
         /// <typeparam name="T">服务具体类型（契约即类型本身）。</typeparam>
         /// <param name="scope">目标作用域。</param>
         /// <param name="service">要注册的服务实例。</param>
@@ -271,9 +253,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 以显式契约类型注册服务实例（运行时 Type 版本）。
-        /// <para>同一实例可依次以多个契约注册（多契约绑定）——首个调用创建条目，后续调用仅附加契约句柄。</para>
-        /// <para>依赖声明始终从 <c>service.GetType()</c> 实现类型读取。</para>
         /// </summary>
+        /// <remarks>
+        /// 同一实例可依次以多个契约注册（多契约绑定）——首个调用创建条目，后续调用仅附加契约句柄；依赖声明始终从 <c>service.GetType()</c> 实现类型读取。
+        /// </remarks>
         /// <param name="scope">目标作用域。</param>
         /// <param name="contractType">契约类型（注册键与解析键）。</param>
         /// <param name="service">要注册的服务实例。</param>
@@ -340,11 +323,12 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 运行时注销并关闭指定作用域中的单个服务。
-        /// <para>触发 <c>OnShutdown</c> 并从注册表移除；注销后可重新以同契约注册全新实例。</para>
-        /// <para>初始化进行中（<see cref="IsInitializing"/>）禁止：此时图正在被按索引推进的循环消费，
-        /// 摘除会让被注销的服务仍持局部引用而被 <c>OnInit</c>（且因条目已删不记激活序 → 无 <c>OnShutdown</c>），
-        /// 并让后续服务的索引位移而被跳过。与"异步服务禁止运行时注册"同为 fail-fast 策略。</para>
         /// </summary>
+        /// <remarks>
+        /// 触发 <c>OnShutdown</c> 并从注册表移除；注销后可重新以同契约注册全新实例。 <br />
+        /// 初始化进行中（<see cref="IsInitializing"/>）禁止：挂起图正被按索引推进的循环消费， <br />
+        /// 中途摘除会让被注销的服务仍被 <c>OnInit</c>（不记激活序 → 无 <c>OnShutdown</c>）并让其后服务的索引位移而被跳过（fail-fast）。
+        /// </remarks>
         public bool Unregister(
             EServiceScopeKind scope,
             Type contractType,
@@ -479,11 +463,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 从挂起图移除指定契约所属的服务。返回该服务是否处于待初始化状态。
-        /// <para>摘除粒度是<b>服务</b>而非契约——与运行时注销路径同语义（<c>ServiceScope.UnregisterDeferred</c>
-        /// 按条目一次性摘掉该实例的全部契约句柄）。只摘单契约会让实例残留在 <c>_pendingInit</c> 中，
-        /// 后续 Initialize 会对已注销的服务再驱动 OnInit，且因条目已删而不记录激活序（OnShutdown 丢失）。</para>
+        /// 从挂起图移除指定契约所属的服务，返回该服务是否处于待初始化状态。
         /// </summary>
+        /// <remarks>
+        /// 摘除粒度是<b>服务</b>而非契约——与运行时注销路径同语义（<c>ServiceScope.UnregisterDeferred</c> 按条目一次性摘掉该实例的全部契约句柄）； <br />
+        /// 只摘单契约会让实例残留在 <c>_pendingInit</c> 中而被再次 OnInit。
+        /// </remarks>
         private bool UntrackPending(Type contractType)
         {
             if (!_pendingContracts.Remove(contractType, out IService service)) return false;
@@ -514,11 +499,12 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 初始化世界（两阶段第二阶段）：按依赖图拓扑排序统一驱动全部挂起服务的 <c>OnInit</c>。
-        /// <para>顺序契约：作用域固定 App → Scene → Gameplay 逐段处理；段内按 <c>[ServiceDependency]</c> 拓扑序——
-        /// 初始化顺序完全由声明决定，与注册顺序无关。缺失依赖与循环依赖在此 fail-fast。</para>
-        /// <para>挂起服务中含 <see cref="IServiceInitializableAsync"/> 实现时抛 <see cref="GameException"/>——
-        /// 改用 <see cref="InitializeAsync"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// 顺序契约：作用域固定 App → Scene → Gameplay 逐段处理；段内按 <c>[ServiceDependency]</c> 拓扑序——初始化顺序完全由声明决定，与注册顺序无关。 <br />
+        /// 缺失依赖与循环依赖在此 fail-fast；挂起服务中含 <see cref="IServiceInitializableAsync"/> 实现时抛 <see cref="GameException"/>， <br />
+        /// 须改用 <see cref="InitializeAsync"/>。
+        /// </remarks>
         public void Initialize()
         {
             if (_initialized || _disposed || _initializing) return;
@@ -611,11 +597,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 初始化期图变更拦截（注销 / 关闭作用域共用）。
-        /// <para>挂起图正被按索引推进的循环消费：中途摘除会让被注销的服务因局部引用仍被 <c>OnInit</c>
-        /// （条目已删 → 不记激活序 → <c>OnShutdown</c> 丢失），并让其后服务的索引位移而被跳过。
-        /// 与其静默损坏，不如 fail-fast。</para>
+        /// 初始化期图变更拦截：初始化进行中调用即抛 <see cref="GameException"/>（注销 / 关闭作用域共用）。
         /// </summary>
+        /// <remarks>
+        /// 挂起图正被按索引推进的循环消费，中途摘除会让被注销的服务因局部引用仍被 <c>OnInit</c>（不记激活序 → <c>OnShutdown</c> 丢失）并让其后服务的索引位移而被跳过。
+        /// </remarks>
         private void EnsureNotInitializing(string action)
         {
             if (!_initializing) return;
@@ -772,9 +758,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 关闭指定作用域。服务按逆初始化序（依赖方先）关闭。
-        /// <para>初始化进行中禁止（同 <see cref="Unregister"/>）：作用域销毁后其服务仍留在挂起图里，
-        /// 会成为幽灵拓扑节点并被重新 <c>OnInit</c>。</para>
         /// </summary>
+        /// <remarks>
+        /// 初始化进行中禁止（同 <see cref="Unregister"/>）：作用域销毁后其服务仍留在挂起图里，会成为幽灵拓扑节点并被重新 <c>OnInit</c>。
+        /// </remarks>
         public void ShutdownScope(EServiceScopeKind kind)
         {
             EnsureNotInitializing("shut down a scope");
@@ -875,9 +862,11 @@ namespace Moirai.Atropos
         #region CrossScopeBindings 值类型 [CROSS-SCOPE BINDINGS STRUCT]
 
         /// <summary>
-        /// 跨作用域契约绑定值类型。内联 App/Scene/Gameplay 三个引用槽（null 即空槽），
-        /// <see cref="TryGetBest"/> 按 Gameplay &gt; Scene &gt; App 优先级返回最优服务。
+        /// 跨作用域契约绑定值类型：内联 App/Scene/Gameplay 三个引用槽（null 即空槽）。
         /// </summary>
+        /// <remarks>
+        /// <see cref="TryGetBest"/> 按 Gameplay &gt; Scene &gt; App 优先级返回最优服务。
+        /// </remarks>
         private struct CrossScopeBindings
         {
             private IService _app;

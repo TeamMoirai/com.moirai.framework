@@ -13,13 +13,16 @@ namespace Core.Singleton
 {
     /// <summary>
     /// <see cref="SingletonMono{T}"/> 的 EditMode 单元测试。
-    /// 编辑模式下 MonoBehaviour 回调不会自动触发，故以反射模拟 Awake/OnDestroy 生命周期，
-    /// 覆盖：实例物化、退出窗口、多实例消解与销毁清理。
     /// </summary>
+    /// <remarks>
+    /// 编辑模式下 MonoBehaviour 回调不自动触发，故以反射模拟 <c>Awake</c>/<c>OnDestroy</c> 生命周期；覆盖实例物化、退出窗口、多实例消解与销毁清理。
+    /// </remarks>
     [TestFixture]
     public class SingletonMonoTests
     {
-        /// <summary>带生命周期计数的测试单例（每个用例独立清理静态状态）。</summary>
+        /// <summary>
+        /// 带生命周期计数的测试单例（每个用例独立清理静态状态）。
+        /// </summary>
         private class TestSingletonMono : SingletonMono<TestSingletonMono>
         {
             /// <summary>OnInit 调用次数。</summary>
@@ -33,7 +36,9 @@ namespace Core.Singleton
             protected override void OnShutdown() => ShutdownCount++;
         }
 
-        /// <summary>专用于后台线程 fail-fast 探测的独立类型（避免与其他用例共享静态状态）。</summary>
+        /// <summary>
+        /// 专用于后台线程 fail-fast 探测的独立类型（避免与其他用例共享静态状态）。
+        /// </summary>
         private class BackgroundProbeSingleton : SingletonMono<BackgroundProbeSingleton> { }
 
         private static readonly MethodInfo AwakeMethod = typeof(SingletonMono<TestSingletonMono>)
@@ -61,7 +66,9 @@ namespace Core.Singleton
             _createdObjects.Clear();
         }
 
-        /// <summary>重置静态状态并销毁测试期间创建的对象（跨用例隔离）。</summary>
+        /// <summary>
+        /// 重置静态状态并销毁测试期间创建的对象（跨用例隔离）。
+        /// </summary>
         private static void ResetStaticState()
         {
             SingletonMono<TestSingletonMono>.s_Instance = null;
@@ -72,7 +79,9 @@ namespace Core.Singleton
             SingletonMono<BackgroundProbeSingleton>.s_Instance = null;
         }
 
-        /// <summary>创建挂载测试单例的 GameObject（编辑模式下回调不自动触发）。</summary>
+        /// <summary>
+        /// 创建挂载测试单例的 GameObject（编辑模式下回调不自动触发）。
+        /// </summary>
         private TestSingletonMono CreateSingletonGameObject()
         {
             var go = new GameObject("SingletonMonoTest_Object");
@@ -237,13 +246,19 @@ namespace Core.Singleton
 
         #region 辅助方法 [Helpers]
 
-        /// <summary>反射调用受保护的 Awake（编辑模式下不会自动触发）。</summary>
+        /// <summary>
+        /// 反射调用受保护的 Awake（编辑模式下不会自动触发）。
+        /// </summary>
         private static void InvokeAwake(TestSingletonMono instance) => AwakeMethod.Invoke(instance, null);
 
-        /// <summary>反射调用受保护的 OnDestroy。</summary>
+        /// <summary>
+        /// 反射调用受保护的 OnDestroy。
+        /// </summary>
         private static void InvokeOnDestroy(TestSingletonMono instance) => OnDestroyMethod.Invoke(instance, null);
 
-        /// <summary>设置 m_Replaceable 序列化字段（protected internal，直接赋值）。</summary>
+        /// <summary>
+        /// 设置 m_Replaceable 序列化字段（protected internal，直接赋值）。
+        /// </summary>
         private static void SetReplaceable(TestSingletonMono instance, bool value) => instance.m_Replaceable = value;
 
         #endregion

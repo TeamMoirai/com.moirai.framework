@@ -8,11 +8,12 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// <see cref="AudioService"/> 的播放选项（服务语义层：音轨/音量/淡入/独奏/时间/缓存）。
-    /// <para>体量较大，属于冷路径配置对象：播放时由 <see cref="AudioAgent"/> 拆出热路径字段缓存，不整份驻留热循环。</para>
-    /// <para>热路径字段：ID / Track / Volume / Loop / Persistent / Priority / Location / Attach / FadeIn* / Solo*。</para>
-    /// <para>空间整形（声像/3D 衰减/多普勒/旁通/曲线）已拆入 <see cref="AudioSpatialOptions"/>
-    /// ——「往哪儿播」与「怎么响」是两件事，经 <see cref="Spatial"/> 字段整体携带。</para>
     /// </summary>
+    /// <remarks>
+    /// 冷路径配置对象： 播放时由 <see cref="AudioAgent"/> 拆出热路径字段（ID / Track / Volume / Loop / Persistent / Priority / Location / <br />
+    /// Attach / FadeIn* / Solo*）缓存，不整份驻留热循环。 <br />
+    /// 空间整形（声像/3D 衰减/多普勒/旁通/曲线）经 <see cref="Spatial"/> 字段整体携带，与「往哪儿播」分离，见 <see cref="AudioSpatialOptions"/>。
+    /// </remarks>
     [Serializable]
     public struct AudioPlayOptions
     {
@@ -116,11 +117,10 @@ namespace Moirai.Atropos.Audio
 
         // 空间设置
         [Header("空间设置 [Spatial Settings]")]
-        /// <summary>
-        /// 空间整形选项（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线）。
-        /// <para>公共字段而非属性（同 <see cref="AudioPlayColdParams"/> 的字段风格）：消费端大量
-        /// <c>options.Spatial.SpatialBlend = x</c> 成员式赋值，属性 getter 返回结构体副本会把它们全部变成 CS1612。</para>
-        /// </summary>
+        /// <summary>空间整形选项（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线）。</summary>
+        /// <remarks>
+        /// 公共字段而非属性：消费端大量 <c>options.Spatial.SpatialBlend = x</c> 成员式赋值，属性 getter 返回结构体副本会把它们全部变成 CS1612。
+        /// </remarks>
         public AudioSpatialOptions Spatial;
 
         [Tooltip("此音频可以“附加”到该 Transform 并在播放时跟随它")]
@@ -154,24 +154,16 @@ namespace Moirai.Atropos.Audio
             return new AudioPlayRequest(m_ID, m_Volume, m_Pitch, m_AudioTrack, priority, flags);
         }
 
-        /// <summary>
-        /// 默认选项，旨在适应最常见的情况。
-        /// 使用选项时，最好仅覆盖需要的内容。
-        ///
+        /// <summary>默认选项，适用于最常见的情况；使用时最好只覆盖需要的内容。</summary>
         /// <example>
-        /// 初始化一个新的本地 AudioPlayOptions，覆盖它的循环、位置和音轨设置，并使用它调用一个播放事件
-        ///
-        /// <code>
+        /// <code lang="csharp">
         /// AudioPlayOptions options = AudioPlayOptions.Default;
-        /// options.loop = Loop;
-        /// options.location = Vector3.zero;
-        /// options.AudioTrack = AudioTracks.Music;
-        ///
-        /// AudioService.Play(options);
+        /// options.Loop = true;
+        /// options.Location = Vector3.zero;
+        /// options.AudioTrack = EAudioTrack.Music;
+        /// AudioService.Play(clip, options);
         /// </code>
-        /// </example>>
-        ///
-        /// </summary>
+        /// </example>
         public static AudioPlayOptions Default => new AudioPlayOptions()
         {
             m_ID = 0,

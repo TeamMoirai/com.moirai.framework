@@ -23,9 +23,8 @@ namespace Moirai.Atropos.Audio
 
     /// <summary>
     /// 音频遮挡与 HRTF 管理器——对激活声源做射线遮挡检测，并驱动低通/空间化。
-    /// <para>挂在 AudioListener 所在物体或全局服务根；每帧以可配置间隔轮询。</para>
-    /// <para>Unity 后端：改 <see cref="AudioLowPassFilter"/> 截止；中间件后端：写 RTPC/LPF。</para>
     /// </summary>
+    /// <remarks>挂在 AudioListener 所在物体或全局服务根，每帧以可配置间隔轮询；Unity 后端改 <see cref="AudioLowPassFilter"/> 截止，中间件后端写 RTPC/LPF。</remarks>
     [AddComponentMenu("Moirai/Audio/Audio Occlusion HRTF")]
     public sealed class AudioOcclusionHrtf : MonoBehaviour
     {

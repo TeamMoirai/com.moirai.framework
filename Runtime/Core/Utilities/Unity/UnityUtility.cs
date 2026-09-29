@@ -6,14 +6,14 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 这个类封装了所有跟Unity相关的工具函数
+    /// 这个类封装了所有跟Unity相关的工具函数。
     /// </summary>
     public static partial class UnityUtility
     {
         #region 应用程序 [APPLICATION]
 
         /// <summary>
-        /// 退出。editor停止播放，runtime则退出游戏
+        /// 退出。editor停止播放，runtime则退出游戏。
         /// </summary>
         public static void Quit()
         {
@@ -29,12 +29,12 @@ namespace Moirai.Atropos
         #region Unity 组件 [UNITY COMPONENT]
 
         /// <summary>
-        /// 对unity对象进行升序排序
+        /// 对unity对象进行升序排序。
         /// </summary>
-        /// <typeparam name="T">组件类型</typeparam>
-        /// <typeparam name="K">排序的值</typeparam>
-        /// <param name="comps">传入的组件数组</param>
-        /// <param name="handler">处理的方法</param>
+        /// <typeparam name="T">组件类型。</typeparam>
+        /// <typeparam name="K">排序的值。</typeparam>
+        /// <param name="comps">传入的组件数组。</param>
+        /// <param name="handler">处理的方法。</param>
         public static void SortCompsByAscending<T, K>(T[] comps, Func<T, K> handler)
             where K : IComparable<K>
             where T : Component
@@ -48,12 +48,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 对unity对象进行降序排序
+        /// 对unity对象进行降序排序。
         /// </summary>
-        /// <typeparam name="T">组件类型</typeparam>
-        /// <typeparam name="K">排序的值</typeparam>
-        /// <param name="comps">传入的组件数组</param>
-        /// <param name="handler">处理的方法</param>
+        /// <typeparam name="T">组件类型。</typeparam>
+        /// <typeparam name="K">排序的值。</typeparam>
+        /// <param name="comps">传入的组件数组。</param>
+        /// <param name="handler">处理的方法。</param>
         public static void SortCompsByDescending<T, K>(T[] comps, Func<T, K> handler)
             where K : IComparable<K>
             where T : Component
@@ -71,10 +71,10 @@ namespace Moirai.Atropos
         #region 图形 [GRAPHICS]
 
         /// <summary>
-        /// 通过相机截取屏幕并转换为Texture2D
+        /// 通过相机截取屏幕并转换为Texture2D。
         /// </summary>
-        /// <param name="camera">目标相机</param>
-        /// <returns>相机抓取的屏幕Texture2D</returns>
+        /// <param name="camera">目标相机。</param>
+        /// <returns>相机抓取的屏幕Texture2D。</returns>
         public static Texture2D CameraScreenshotAsTextureRGB(Camera camera)
         {
             return CameraScreenshotAsTexture(camera, TextureFormat.RGB565);
@@ -103,7 +103,7 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// Texture旋转
+        /// Texture旋转。
         /// </summary>
         public static Texture2D RotateTexture(Texture2D texture, float eulerAngles)
         {
@@ -150,11 +150,11 @@ namespace Moirai.Atropos
         #region 数学 [MATH]
         
         /// <summary>
-        /// 获取一个圆内随机点
+        /// 获取一个圆内随机点。
         /// </summary>
-        /// <param name="center">中心点</param>
-        /// <param name="radius">半径</param>
-        /// <returns>圆内随机点</returns>
+        /// <param name="center">中心点。</param>
+        /// <param name="radius">半径。</param>
+        /// <returns>圆内随机点。</returns>
         public static Vector2 GetRandomPointInCircle(Vector2 center, float radius)
         {
             if (radius < 0)
@@ -165,12 +165,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取一个圆内随机点
+        /// 获取一个圆内随机点。
         /// </summary>
-        /// <param name="center">中心点</param>
-        /// <param name="miniRadius">最小半径</param>
-        /// <param name="maxRadius">最大半径</param>
-        /// <returns>圆内随机点</returns>
+        /// <param name="center">中心点。</param>
+        /// <param name="miniRadius">最小半径。</param>
+        /// <param name="maxRadius">最大半径。</param>
+        /// <returns>圆内随机点。</returns>
         public static Vector2 GetRandomPointInCircle(Vector2 center, float miniRadius, float maxRadius)
         {
             if (miniRadius < 0)
@@ -184,11 +184,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取一个球内随机点
+        /// 获取一个球内随机点。
         /// </summary>
-        /// <param name="center">中心点</param>
-        /// <param name="radius">半径</param>
-        /// <returns>球内随机点</returns>
+        /// <param name="center">中心点。</param>
+        /// <param name="radius">半径。</param>
+        /// <returns>球内随机点。</returns>
         public static Vector3 GetRandomPointInSphere(Vector3 center, float radius)
         {
             if (radius < 0)
@@ -199,12 +199,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取一个球内随机点
+        /// 获取一个球内随机点。
         /// </summary>
-        /// <param name="center">中心点</param>
-        /// <param name="miniRadius">最小半径</param>
-        /// <param name="maxRadius">最大半径</param>
-        /// <returns>球内随机点</returns>
+        /// <param name="center">中心点。</param>
+        /// <param name="miniRadius">最小半径。</param>
+        /// <param name="maxRadius">最大半径。</param>
+        /// <returns>球内随机点。</returns>
         public static Vector3 GetRandomPointInSphere(Vector3 center, float miniRadius, float maxRadius)
         {
             if (miniRadius < 0)
@@ -218,7 +218,7 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 是否约等于另一个浮点数
+        /// 是否约等于另一个浮点数。
         /// </summary>
         public static bool Approximately(float sourceValue, float targetValue)
         {
@@ -226,7 +226,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 限制一个向量在最大值与最小值之间
+        /// 限制一个向量在最大值与最小值之间。
         /// </summary>
         public static Vector3 Clamp(Vector3 value, Vector3 min, Vector3 max)
         {
@@ -244,7 +244,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获得固定位数小数的向量
+        /// 获得固定位数小数的向量。
         /// </summary>
         public static Vector3 Round(Vector3 value, int decimals)
         {
@@ -255,7 +255,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 限制一个向量在最大值与最小值之间
+        /// 限制一个向量在最大值与最小值之间。
         /// </summary>
         public static Vector3 Clamp(Vector3 value, float minX, float minY, float minZ, float maxX, float maxY,
             float maxZ)
@@ -274,7 +274,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获得固定位数小数的向量
+        /// 获得固定位数小数的向量。
         /// </summary>
         public static Vector2 Round(Vector2 value, int decimals)
         {
@@ -288,11 +288,9 @@ namespace Moirai.Atropos
         #region 游戏对象 [GAME OBJECT]
 
         /// <summary>
-        /// 通过类型查找任意活动的对象(实例)
+        /// 通过类型查找任意活动的对象(实例)。
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="includeInactive">是否包含不活动对象</param>
-        /// <returns></returns>
+        /// <param name="includeInactive">是否包含不活动对象。</param>
         public static T FindObjectByType<T>(bool includeInactive = false) where T : UObject
         {
             return
@@ -305,11 +303,9 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过类型查找活动的第一个对象(实例)
+        /// 通过类型查找活动的第一个对象(实例)。
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="includeInactive">是否包含不活动对象</param>
-        /// <returns></returns>
+        /// <param name="includeInactive">是否包含不活动对象。</param>
         public static T FindFirstObjectByType<T>(bool includeInactive = false) where T : UObject
         {
             return
@@ -322,11 +318,9 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过类型查找所有活动的对象(实例)
+        /// 通过类型查找所有活动的对象(实例)。
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="includeInactive">是否包含不活动对象</param>
-        /// <returns></returns>
+        /// <param name="includeInactive">是否包含不活动对象。</param>
         public static T[] FindObjectsByType<T>(bool includeInactive = false) where T : UObject
         {
             return
@@ -341,11 +335,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 通过类型查找活动的第一个对象(实例)
+        /// 通过类型查找活动的第一个对象(实例)。
         /// </summary>
         /// <param name="classType">要查找的对象类型。</param>
-        /// <param name="includeInactive">是否包含不活动对象</param>
-        /// <returns></returns>
+        /// <param name="includeInactive">是否包含不活动对象。</param>
         public static UObject FindFirstObjectByType(Type classType, bool includeInactive = false)
         {
             return
@@ -358,11 +351,10 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过类型查找所有活动的对象(实例)
+        /// 通过类型查找所有活动的对象(实例)。
         /// </summary>
         /// <param name="classType">要查找的对象类型。</param>
-        /// <param name="includeInactive">是否包含不活动对象</param>
-        /// <returns></returns>
+        /// <param name="includeInactive">是否包含不活动对象。</param>
         public static UObject[] FindObjectsByType(Type classType, bool includeInactive = false)
         {
             return
@@ -381,8 +373,6 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取对象的 EntityId。
         /// </summary>
-        /// <param name="target"></param>
-        /// <returns></returns>
         public static int GetObjectEntityId(UObject target)
         {
             if (target == null) return 0;

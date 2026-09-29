@@ -15,18 +15,15 @@ namespace Moirai.Atropos.Save
     }
 
     /// <summary>
-    /// 存取失败的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.SaveFailed"/>/<see cref="SaveService.LoadFailed"/> 二选一订阅）。
+    /// 存取失败的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.SaveFailed"/>/<see cref="SaveService.LoadFailed"/> <br />
+    /// 二选一订阅）。
     /// </summary>
     public class SaveFailedEvent : EventBase<SaveFailedEvent>
     {
-        /// <summary>
-        /// 操作类别。
-        /// </summary>
+        /// <summary>操作类别。</summary>
         public ESaveFailureOperation Operation { get; private set; }
 
-        /// <summary>
-        /// 事件参数。
-        /// </summary>
+        /// <summary>事件参数。</summary>
         public SaveFailedArgs Args { get; private set; }
 
         /// <summary>

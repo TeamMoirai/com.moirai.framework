@@ -6,12 +6,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 键值捕获写入器（KVT 格式，ref struct）。
-    /// <para>记录布局：对象级 <c>[2B 键长][键 UTF8][1B 类型][4B 载荷长][载荷]</c>；集合元素级 <c>[1B 类型][4B 载荷长][载荷]</c>。
-    /// 每个节点都带显式载荷长度——读取侧可 O(1) 跳过未知键（字段废弃向后兼容的关键）。</para>
-    /// <para>嵌套对象/序列/映射经 Begin/End 对写入（End 回填载荷长度）；由 SaveHost SourceGenerator 生成的捕获器驱动；
-    /// 须在主线程调用（读取 MonoBehaviour 字段）。</para>
+    /// 键值捕获写入器（KVT 格式，<c>ref struct</c>）。
     /// </summary>
+    /// <remarks>
+    /// 记录布局：对象级 <c>[2B 键长][键 UTF8][1B 类型][4B 载荷长][载荷]</c>；集合元素级 <c>[1B 类型][4B 载荷长][载荷]</c>。 <br />
+    /// 每个节点都带显式载荷长度——读取侧可 O(1) 跳过未知键（字段废弃向后兼容的关键）。 <br />
+    /// 嵌套对象/序列/映射经 Begin/End 对写入（End 回填载荷长度）；由 SaveHost SourceGenerator 生成的捕获器驱动，须在主线程调用（读取 <c>MonoBehaviour</c> 字段）。
+    /// </remarks>
     public ref struct SaveKeyValueWriter
     {
         /// <summary>UTF-8 编码器（无 BOM）。</summary>
@@ -41,9 +42,7 @@ namespace Moirai.Atropos.Save
             _nestingDepth = 0;
         }
 
-        /// <summary>
-        /// 已写入的字节数。
-        /// </summary>
+        /// <summary>已写入的字节数。</summary>
         public int Length => _position;
 
         /// <summary>
@@ -614,9 +613,9 @@ namespace Moirai.Atropos.Save
         #region 写入管线 [WRITE PIPELINE]
 
         /// <summary>
-        /// 写入原始记录（键 + 类型 + 已编码载荷区间——含 4B 载荷长度前缀）。
-        /// <para>仅迁移变换器原样透传未命中规则的数据记录用；载荷区间须取自 <see cref="SaveKeyValueReader"/> 记录头之后、<c>SkipRecordPayload</c> 前后的游标差。</para>
+        /// 写入原始记录（键 + 类型 + 已编码载荷区间，含 4B 载荷长度前缀）。
         /// </summary>
+        /// <remarks>仅迁移变换器原样透传未命中规则的数据记录用；载荷区间须取自 <see cref="SaveKeyValueReader"/> 记录头之后、<c>SkipRecordPayload</c> 前后的游标差。</remarks>
         /// <param name="key">记录键。</param>
         /// <param name="type">记录类型。</param>
         /// <param name="rawPayloadWithLengthPrefix">已编码载荷区间（4B 长度前缀 + 载荷字节）。</param>
@@ -671,73 +670,97 @@ namespace Moirai.Atropos.Save
 
         #region 载荷编码 [PAYLOAD ENCODERS]
 
-        /// <summary>写入布尔载荷。</summary>
+        /// <summary>
+        /// 写入布尔载荷。
+        /// </summary>
         private void WriteBooleanPayload(bool value)
         {
             Advance(1)[0] = value ? (byte)1 : (byte)0;
         }
 
-        /// <summary>写入有符号字节载荷。</summary>
+        /// <summary>
+        /// 写入有符号字节载荷。
+        /// </summary>
         private void WriteSBytePayload(sbyte value)
         {
             Advance(1)[0] = unchecked((byte)value);
         }
 
-        /// <summary>写入无符号字节载荷。</summary>
+        /// <summary>
+        /// 写入无符号字节载荷。
+        /// </summary>
         private void WriteBytePayload(byte value)
         {
             Advance(1)[0] = value;
         }
 
-        /// <summary>写入有符号 16 位载荷。</summary>
+        /// <summary>
+        /// 写入有符号 16 位载荷。
+        /// </summary>
         private void WriteInt16Payload(short value)
         {
             BinaryPrimitives.WriteInt16LittleEndian(Advance(2), value);
         }
 
-        /// <summary>写入无符号 16 位载荷。</summary>
+        /// <summary>
+        /// 写入无符号 16 位载荷。
+        /// </summary>
         private void WriteUInt16Payload(ushort value)
         {
             BinaryPrimitives.WriteUInt16LittleEndian(Advance(2), value);
         }
 
-        /// <summary>写入有符号 32 位载荷。</summary>
+        /// <summary>
+        /// 写入有符号 32 位载荷。
+        /// </summary>
         private void WriteInt32Payload(int value)
         {
             BinaryPrimitives.WriteInt32LittleEndian(Advance(4), value);
         }
 
-        /// <summary>写入无符号 32 位载荷。</summary>
+        /// <summary>
+        /// 写入无符号 32 位载荷。
+        /// </summary>
         private void WriteUInt32Payload(uint value)
         {
             BinaryPrimitives.WriteUInt32LittleEndian(Advance(4), value);
         }
 
-        /// <summary>写入有符号 64 位载荷。</summary>
+        /// <summary>
+        /// 写入有符号 64 位载荷。
+        /// </summary>
         private void WriteInt64Payload(long value)
         {
             BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value);
         }
 
-        /// <summary>写入无符号 64 位载荷。</summary>
+        /// <summary>
+        /// 写入无符号 64 位载荷。
+        /// </summary>
         private void WriteUInt64Payload(ulong value)
         {
             BinaryPrimitives.WriteUInt64LittleEndian(Advance(8), value);
         }
 
-        /// <summary>写入单精度浮点载荷（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。</summary>
+        /// <summary>
+        /// 写入单精度浮点载荷（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。
+        /// </summary>
         private void WriteSinglePayload(float value)
         {
             BinaryPrimitives.WriteInt32LittleEndian(Advance(4), BitConverter.SingleToInt32Bits(value));
         }
 
-        /// <summary>写入双精度浮点载荷。</summary>
+        /// <summary>
+        /// 写入双精度浮点载荷。
+        /// </summary>
         private void WriteDoublePayload(double value)
         {
             BinaryPrimitives.WriteInt64LittleEndian(Advance(8), BitConverter.DoubleToInt64Bits(value));
         }
 
-        /// <summary>写入十进制载荷。</summary>
+        /// <summary>
+        /// 写入十进制载荷。
+        /// </summary>
         private void WriteDecimalPayload(decimal value)
         {
             Span<int> bits = stackalloc int[4];
@@ -748,32 +771,42 @@ namespace Moirai.Atropos.Save
             BinaryPrimitives.WriteInt32LittleEndian(Advance(4), bits[3]);
         }
 
-        /// <summary>写入字符载荷。</summary>
+        /// <summary>
+        /// 写入字符载荷。
+        /// </summary>
         private void WriteCharPayload(char value)
         {
             BinaryPrimitives.WriteUInt16LittleEndian(Advance(2), value);
         }
 
-        /// <summary>写入字符串载荷。</summary>
+        /// <summary>
+        /// 写入字符串载荷。
+        /// </summary>
         private void WriteStringPayload(string value, int byteCount)
         {
             s_Utf8.GetBytes(value, Advance(byteCount));
         }
 
-        /// <summary>写入日期时间载荷。</summary>
+        /// <summary>
+        /// 写入日期时间载荷。
+        /// </summary>
         private void WriteDateTimePayload(DateTime value)
         {
             BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value.Ticks);
             Advance(1)[0] = (byte)value.Kind;
         }
 
-        /// <summary>写入时间跨度载荷。</summary>
+        /// <summary>
+        /// 写入时间跨度载荷。
+        /// </summary>
         private void WriteTimeSpanPayload(TimeSpan value)
         {
             BinaryPrimitives.WriteInt64LittleEndian(Advance(8), value.Ticks);
         }
 
-        /// <summary>写入二维向量载荷。</summary>
+        /// <summary>
+        /// 写入二维向量载荷。
+        /// </summary>
         private void WriteVector2Payload(Vector2 value)
         {
             Span<byte> span = Advance(8);
@@ -781,7 +814,9 @@ namespace Moirai.Atropos.Save
             WriteFloat(span.Slice(4), value.y);
         }
 
-        /// <summary>写入三维向量载荷。</summary>
+        /// <summary>
+        /// 写入三维向量载荷。
+        /// </summary>
         private void WriteVector3Payload(Vector3 value)
         {
             Span<byte> span = Advance(12);
@@ -790,7 +825,9 @@ namespace Moirai.Atropos.Save
             WriteFloat(span.Slice(8), value.z);
         }
 
-        /// <summary>写入包围盒载荷。</summary>
+        /// <summary>
+        /// 写入包围盒载荷。
+        /// </summary>
         private void WriteBoundsPayload(Bounds value)
         {
             Span<byte> span = Advance(24);
@@ -802,13 +839,17 @@ namespace Moirai.Atropos.Save
             WriteFloat(span.Slice(20), value.extents.z);
         }
 
-        /// <summary>写入单精度浮点（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。</summary>
+        /// <summary>
+        /// 写入单精度浮点（netstandard2.1 无 BinaryPrimitives 浮点重载，经位模式转换）。
+        /// </summary>
         private static void WriteFloat(Span<byte> span, float value)
         {
             BinaryPrimitives.WriteInt32LittleEndian(span, BitConverter.SingleToInt32Bits(value));
         }
 
-        /// <summary>写入 4 个连续 float。</summary>
+        /// <summary>
+        /// 写入 4 个连续 float。
+        /// </summary>
         private void WriteFloat4(Span<byte> span, float a, float b, float c, float d)
         {
             WriteFloat(span, a);
@@ -849,10 +890,12 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 压入嵌套帧（记录载荷长度占位偏移与载荷起点）。
-        /// <para>调用点在子项数写入之后：载荷长度占位在 <c>_position - 8</c>，载荷区间（4B 子项数 + 子记录）自 <c>_position - 4</c> 起——
-        /// <see cref="EndNested"/> 回填的载荷长度含子项数自身（读取侧 <c>ReadChildCount</c>/<c>SkipRecordPayload</c> 依此消费）。
-        /// 键控与元素级作用域头布局一致（尾段均为 [4B 占位][4B 子项数]），帧偏移算法通用。</para>
         /// </summary>
+        /// <remarks>
+        /// 调用点在子项数写入之后：载荷长度占位在 <c>_position - 8</c>， <br />
+        /// 载荷区间（4B 子项数 + 子记录）自 <c>_position - 4</c> 起——<see cref="EndNested"/> 回填的载荷长度含子项数自身。 <br />
+        /// 键控与元素级作用域头布局一致（尾段均为 <c>[4B 占位][4B 子项数]</c>），帧偏移算法通用。
+        /// </remarks>
         private void PushNestingFrame()
         {
             if (_nestingStack == null)
@@ -867,7 +910,9 @@ namespace Moirai.Atropos.Save
             _nestingStack[_nestingDepth++] = new NestingFrame(_position - 8, _position - 4);
         }
 
-        /// <summary>嵌套帧：长度占位偏移 + 载荷起点。</summary>
+        /// <summary>
+        /// 嵌套帧：长度占位偏移 + 载荷起点。
+        /// </summary>
         private readonly struct NestingFrame
         {
             public readonly int LengthPlaceholderOffset;

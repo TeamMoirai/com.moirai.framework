@@ -6,28 +6,20 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 实体生成记录：一个动态实体的持久化身份（稳定 ID + 预制体注册键 + 所属场景 + 父对象 ID）。
-    /// <para>位置/旋转等运行态不入本表——由实体块（<c>entity:{EntityId}</c>）的组件差分承载。</para>
     /// </summary>
+    /// <remarks>位置/旋转等运行态不入本表——由实体块（<c>entity:{EntityId}</c>）的组件差分承载。</remarks>
     public readonly struct SaveSpawnRecord
     {
-        /// <summary>
-        /// 实体稳定标识。
-        /// </summary>
+        /// <summary>实体稳定标识。</summary>
         public string EntityId { get; }
 
-        /// <summary>
-        /// 预制体注册键（<see cref="SavePrefabRegistry"/>）。
-        /// </summary>
+        /// <summary>预制体注册键（<see cref="SavePrefabRegistry"/>）。</summary>
         public string PrefabKey { get; }
 
-        /// <summary>
-        /// 所属场景名（恢复时同名场景已加载则落位其中，否则落位活跃场景并记告警）。
-        /// </summary>
+        /// <summary>所属场景名（恢复时同名场景已加载则落位其中，否则落位活跃场景并记告警）。</summary>
         public string SceneName { get; }
 
-        /// <summary>
-        /// 父对象稳定 ID（空 = 场景根；恢复第二轮接线，指向另一实体或预置对象均可）。
-        /// </summary>
+        /// <summary>父对象稳定 ID（空 = 场景根；恢复第二轮接线，指向另一实体或预置对象均可）。</summary>
         public string ParentId { get; }
 
         /// <summary>
@@ -48,9 +40,11 @@ namespace Moirai.Atropos.Save
 
     /// <summary>
     /// 实体表块（保留块 <c>__entities</c>）的 KVT 读写（纯函数）。
-    /// <para>布局：<c>spawns</c> 序列（元素 = 嵌套对象：id/prefab/scene/parent 四键，可空键写 Null）+
-    /// <c>destroyed</c> 序列（字符串元素）。读侧键匹配容错（未知键跳过、缺失键按默认）。</para>
     /// </summary>
+    /// <remarks>
+    /// 布局：<c>spawns</c> 序列（元素 = 嵌套对象，id/prefab/scene/parent 四键，可空键写 Null）+ <c>destroyed</c> 序列（字符串元素）。 <br />
+    /// 读侧键匹配容错：未知键跳过、缺失键按默认。
+    /// </remarks>
     internal static class SaveEntityTable
     {
         /// <summary>记录键：生成记录序列。</summary>

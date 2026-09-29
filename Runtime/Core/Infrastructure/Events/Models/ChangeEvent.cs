@@ -17,15 +17,11 @@ namespace Moirai.Atropos.Events
             SetCreateFunction(() => new ChangeEvent<T>());
         }
 
-        /// <summary>
-        /// 更改发生之前的值。
-        /// </summary>
+        /// <summary>更改发生之前的值。</summary>
         [JsonSerialize]
         public T PreviousValue { get; protected set; }
         
-        /// <summary>
-        /// 新值。
-        /// </summary>
+        /// <summary>新值。</summary>
         [JsonSerialize]
         public T NewValue { get; protected set; }
 
@@ -45,12 +41,12 @@ namespace Moirai.Atropos.Events
         }
 
         /// <summary>
-        /// 从事件池中获取事件，并使用给定的值对其进行初始化。
-        /// 使用此功能，而不是创建新事件。使用此方法获取的事件需要释放回池中。可以使用 Dispose() 来释放它们。
+        /// 从事件池获取以给定新旧值初始化的事件。
         /// </summary>
-        /// <param name="previousValue">The previous value.</param>
-        /// <param name="newValue">The new value.</param>
-        /// <returns>初始化的事件。</returns>
+        /// <remarks>取到的事件必须经 <c>Dispose()</c> 归还池中，不要直接 <c>new</c>。</remarks>
+        /// <param name="previousValue">变化前的值。</param>
+        /// <param name="newValue">新值。</param>
+        /// <returns>已初始化的事件。</returns>
         public static ChangeEvent<T> GetPooled(T previousValue, T newValue)
         {
             ChangeEvent<T> e = GetPooled();

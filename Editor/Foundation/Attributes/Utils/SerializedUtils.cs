@@ -49,8 +49,7 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
         }
 
         /// <summary>
-        /// 解析序列化属性路径，返回其对应成员（字段或属性）的信息及该成员的直接宿主对象；
-        /// 路径中含数组/列表元素段时逐级下钻到对应元素。
+        /// 解析序列化属性路径，返回其对应成员（字段或属性）的信息及该成员的直接宿主对象；路径含数组 / 列表元素段时逐级下钻到对应元素。
         /// </summary>
         /// <param name="property">待解析的序列化属性。</param>
         /// <returns>返回一个元组：fieldOrProp 为成员信息，parent 为成员的直接宿主对象；解析失败时两者均为默认值/null。</returns>

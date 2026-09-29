@@ -11,9 +11,7 @@ namespace Moirai.Atropos.ReferenceFinder
     /// </summary>
     internal sealed class AssetViewItem : TreeViewItem
     {
-        /// <summary>
-        /// 该项对应的资源描述数据（路径、依赖与被引用信息）。
-        /// </summary>
+        /// <summary>该项对应的资源描述数据（路径、依赖与被引用信息）。</summary>
         public ReferenceFinderData.AssetDescription data;
     }
 }

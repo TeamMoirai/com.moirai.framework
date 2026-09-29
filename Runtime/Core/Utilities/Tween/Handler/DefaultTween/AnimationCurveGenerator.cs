@@ -9,8 +9,7 @@ using UnityEditor;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 允许在指定路径中创建和保存 .curves 资源
-    /// 此资源将包括来自 Tween 库的曲线（反曲线或非曲线），以便在任意需要动画曲线的地方使用
+    /// 允许在指定路径创建并保存 <c>.curves</c> 资源：收集 Tween 库的缓动曲线（含反曲线）供任意动画曲线处使用。
     /// </summary>
     // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
     public class AnimationCurveGenerator : MonoBehaviour
@@ -36,7 +35,7 @@ namespace Moirai.Atropos
         protected object[] _parameters;
         
         /// <summary>
-        /// 生成资源并将其保存在请求的路径中
+        /// 生成资源并将其保存在请求的路径中。
         /// </summary>
         public virtual void GenerateAnimationCurvesAsset()
         {
@@ -62,12 +61,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 创建指定类型和分辨率的动画曲线，并将其添加到指定资源中
+        /// 创建指定类型和分辨率的动画曲线，并将其添加到指定资源中。
         /// </summary>
-        /// <param name="asset"></param>
-        /// <param name="curveType"></param>
-        /// <param name="curveResolution"></param>
-        /// <param name="anti"></param>
         protected virtual void CreateAnimationCurve(ScriptableObject asset, TweenUtility.EEase curveType, int curveResolution, bool anti)
         {
             // 生成动画曲线

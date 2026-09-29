@@ -18,9 +18,8 @@ namespace Moirai.Atropos.ConfigTable
 
 #if UNITY_EDITOR
         /// <summary>
-        /// 编辑器注入自定义实现
+        /// 编辑器注入自定义实现。
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         public static void InjectConfigTableHandler<T>() where T : ConfigTableServiceHandler, new()
         {
             if (ConfigTableServiceHandler is null or DefaultConfigTableHandler)

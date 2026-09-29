@@ -3,12 +3,15 @@ using Moirai.Atropos.Debugger;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 通用对象池服务外观（Facade）。
-    /// <para>统一的静态通用池访问入口，通过替换 <see cref="Handler"/> 即可在不同池后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ObjectPoolServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
-    /// <para>通用池面向任意 <see cref="ObjectBase"/> 派生对象（非 GameObject）；GameObject 池化请使用 <see cref="GameObjectPoolService"/>。</para>
+    /// 通用对象池服务外观（Facade）：全框架统一的静态通用池访问入口。
     /// </summary>
+    /// <remarks>
+    /// 通过替换 <see cref="Handler"/> 可在不同池后端之间切换；面向任意 <see cref="ObjectBase"/> 派生对象（非 GameObject）， <br />
+    /// GameObject 池化请使用 <see cref="GameObjectPoolService"/>。 <br />
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ObjectPoolServiceSettings"/> 解析； <br />
+    /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// </remarks>
     [AutoRegisterService]
     [HandlerHost(typeof(ObjectPoolServiceHandler))]
     [ServiceDependency(typeof(DebuggerService))]
@@ -25,8 +28,10 @@ namespace Moirai.Atropos.ObjectPool
 
         /// <summary>
         /// 从 <see cref="ObjectPoolServiceSettings"/> 解析通用对象池处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>
+        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
+        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ObjectPoolServiceHandler GetHandlerFromSettings()
         {
@@ -39,8 +44,10 @@ namespace Moirai.Atropos.ObjectPool
 
         /// <summary>
         /// 初始化通用对象池服务。由容器在构建期调用。
-        /// <para>确保 <c>ObjectPoolService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
         /// </summary>
+        /// <remarks>
+        /// 确保 <c>ObjectPoolService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。
+        /// </remarks>
         public override void OnInit()
         {
             _ = Handler;
@@ -68,9 +75,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 		
-        /// <summary>
-        /// 获取池数量（未就绪时为 0）。
-        /// </summary>
+        /// <summary>获取池数量（未就绪时为 0）。</summary>
         public static int Count => s_Handler?.Count ?? 0;
 
         #endregion

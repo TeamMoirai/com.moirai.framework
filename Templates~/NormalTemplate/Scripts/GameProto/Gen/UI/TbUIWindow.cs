@@ -13,7 +13,7 @@ using Luban;
 namespace Moirai.GameProto.Config.UI
 {
 /// <summary>
-/// UI弹窗配置
+/// UI弹窗配置。
 /// </summary>
 public partial class TbUIWindow
 {

@@ -6,9 +6,8 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 框架基础设置：帧率 / 游戏速度 / 后台运行 / 休眠的开机默认值，以及各 Utility 的可拔插 Handler 配置。
-    /// <para>m_* 字段仅作开机默认值，由 <c>Initiation</c> 推给引擎一次；运行期读写经 <see cref="GameApp"/>
-    /// 的运行态属性进行，不回写本资产。</para>
     /// </summary>
+    /// <remarks><c>m_*</c> 字段仅作开机默认值，由 <c>Initiation</c> 推给引擎一次；运行期读写走 <see cref="GameApp"/>，不回写本资产。</remarks>
     [FrameworkSetting("[框架]基础配置", "框架基础设置", int.MinValue)]
     public sealed partial class GameAppSettings : FrameworkSettings<GameAppSettings>
     {
@@ -65,7 +64,7 @@ namespace Moirai.Atropos
         internal static TweenHandler TweenHandler => Instance.m_TweenHandler;
 
         /// <summary>
-        /// 游戏设置初始化
+        /// 游戏设置初始化。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initiation()
@@ -83,8 +82,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 组合根：注册内置 App 服务并驱动世界初始化。由 <see cref="GameApp.Boot"/> 调用，
-        /// internal 而非 private 是为让启动入口收敛在 GameApp 一处（项目经 <c>AutoBoot</c> 可推迟到那时机）。
+        /// 组合根：注册内置 App 服务并驱动世界初始化（由 <see cref="GameApp.Boot"/> 调用）。
         /// </summary>
         internal static partial UniTaskVoid InitializeAppServices();
     }

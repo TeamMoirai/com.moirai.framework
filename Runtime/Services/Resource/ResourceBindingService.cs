@@ -10,8 +10,7 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源绑定服务实现，管理 Owner/Binding/Target 三级关系，
-    /// 使用分页 slot 数组 + generation 验证 + 栈式 free list。
+    /// 资源绑定服务实现：管理 Owner/Binding/Target 三级关系，底部分页 slot 数组 + generation 验证 + 栈式 free list。
     /// </summary>
     internal sealed partial class ResourceBindingService : IResourceBindingService
     {
@@ -136,9 +135,8 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 创建资源绑定服务。
         /// </summary>
-        /// <param name="leaseSource">租约提供方。刻意不收 <see cref="ResourceServiceHandler"/>：
-        /// 绑定层用到的后端能力只有 <see cref="IResourceLeaseSource"/> 那九个成员，握整个后端契约
-        /// 会让本服务与后端互相构造、互相驱动，两边都无法单独测试或替换。</param>
+        /// <param name="leaseSource">租约提供方（<see cref="IResourceLeaseSource"/> 窄接缝， <br />
+        /// 而非整个 <see cref="ResourceServiceHandler"/>）。</param>
         public ResourceBindingService(IResourceLeaseSource leaseSource)
         {
             _leaseSource = leaseSource;

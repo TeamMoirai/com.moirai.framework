@@ -21,34 +21,22 @@ namespace Moirai.Main
     /// </summary>
     public class UpdateData
     {
-        /// <summary>
-        /// 当前版本信息。
-        /// </summary>
+        /// <summary>当前版本信息。</summary>
         public string CurrentVersion;
     
-        /// <summary>
-        /// 是否底包更新。
-        /// </summary>
+        /// <summary>是否底包更新。</summary>
         public UpdateType UpdateType;
     
-        /// <summary>
-        /// 是否强制更新。
-        /// </summary>
+        /// <summary>是否强制更新。</summary>
         public EUpdateStyle UpdateStyle;
     
-        /// <summary>
-        /// 是否提示。
-        /// </summary>
+        /// <summary>是否提示。</summary>
         public EUpdateNotice UpdateNotice;
     
-        /// <summary>
-        /// 热更资源地址。
-        /// </summary>
+        /// <summary>热更资源地址。</summary>
         public string HostServerURL;
     
-        /// <summary>
-        /// 备用热更资源地址。
-        /// </summary>
+        /// <summary>备用热更资源地址。</summary>
         public string FallbackHostServerURL;
     }
 }

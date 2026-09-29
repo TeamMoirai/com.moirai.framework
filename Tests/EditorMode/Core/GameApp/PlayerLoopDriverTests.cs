@@ -11,11 +11,12 @@ using App = Moirai.Atropos.GameApp;
 namespace Core.GameApp
 {
     /// <summary>
-    /// <see cref="PlayerLoopDriver"/> 的架构验收测试：帧时钟同帧采样、延迟缓冲按阶段隔离、
-    /// 订阅方抛异常不卡死注册、优先级插入、Gizmos / Pause 静态表转发、注销时机。
-    /// <para>经 <see cref="GameTime.Handler"/> 注入虚拟时钟，手动调用 <c>Drive*</c> 推进；
-    /// 不走 <see cref="PlayerLoopDriver.Initialize"/>，以免改写编辑器全局 PlayerLoop。</para>
+    /// <see cref="PlayerLoopDriver"/> 的架构验收测试：帧时钟同帧采样、延迟缓冲按阶段隔离、订阅方抛异常不卡死注册、优先级插入、Gizmos / Pause 静态表转发与注销时机。
     /// </summary>
+    /// <remarks>
+    /// 经 <see cref="GameTime.Handler"/> 注入虚拟时钟，手动调用 <c>Drive*</c> 推进；不走 <see cref="PlayerLoopDriver.Initialize"/>， <br />
+    /// 以免改写编辑器全局 PlayerLoop。
+    /// </remarks>
     public class PlayerLoopDriverTests
     {
         #region 测试替身 [DOUBLES]
@@ -33,7 +34,9 @@ namespace Core.GameApp
             public override float FixedDeltaTime => FixedDelta;
         }
 
-        /// <summary>仅 Update 阶段——避开 Register 的三重载二义性。</summary>
+        /// <summary>
+        /// 仅 Update 阶段——避开 Register 的三重载二义性。
+        /// </summary>
         private class Probe : IUpdateHandler
         {
             private readonly List<string> _order;
@@ -70,7 +73,9 @@ namespace Core.GameApp
             public int Priority { get; }
         }
 
-        /// <summary>三阶段全实现，用于 RegisterAll 与"单阶段注册不得被升级"两项。</summary>
+        /// <summary>
+        /// 三阶段全实现，用于 RegisterAll 与"单阶段注册不得被升级"两项。
+        /// </summary>
         private sealed class AllStagesProbe : IUpdateHandler, IFixedUpdateHandler, ILateUpdateHandler
         {
             public int UpdateCalls;

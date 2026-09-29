@@ -7,10 +7,11 @@ using UnityEngine.TestTools;
 namespace Service.Audio
 {
     /// <summary>
-    /// AudioPlayOptionsSO 回归：时间参数（PlaybackTime/PlaybackDuration）必须真的进入播放请求；
-    /// 随机曲集下的并发/重播检查必须作用于「本次候选 clip」而非上一曲。
-    /// <para>成员触达一律走 internal 接缝（《测试规范》：测试禁反射）。</para>
+    /// AudioPlayOptionsSO 回归：时间参数（PlaybackTime / PlaybackDuration）必须真的进入播放请求，且随机曲集下的并发 / 重播检查作用于「本次候选 clip」而非上一曲。
     /// </summary>
+    /// <remarks>
+    /// 成员触达一律走 internal 接缝（《测试规范》：测试禁反射）。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioPlayOptionsSOTests
     {

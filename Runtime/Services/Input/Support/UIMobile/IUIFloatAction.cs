@@ -5,9 +5,7 @@
     /// </summary>
     public interface IUIFloatAction : IUIAction
     {
-        /// <summary>
-        /// 获取动作携带的浮点数值。
-        /// </summary>
+        /// <summary>获取动作携带的浮点数值。</summary>
         float FloatValue { get; }
     }
 }

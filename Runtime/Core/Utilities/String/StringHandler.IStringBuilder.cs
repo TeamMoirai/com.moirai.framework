@@ -3,19 +3,14 @@ using System;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 字符串构建器适配器接口。
-    /// 统一 <see cref="System.Text.StringBuilder"/> 和 <see cref="Cysharp.Text.Utf16ValueStringBuilder"/> 的操作。
+    /// 字符串构建器适配器接口：统一 <see cref="System.Text.StringBuilder"/> 与 <see cref="Cysharp.Text.Utf16ValueStringBuilder"/> 的操作。
     /// </summary>
     public partial interface IStringBuilder : IDisposable
     {
-        /// <summary>
-        /// 获取当前长度。
-        /// </summary>
+        /// <summary>获取当前长度。</summary>
         int Length { get; }
 
-        /// <summary>
-        /// 获取或设置指定位置的字符。
-        /// </summary>
+        /// <summary>获取或设置指定位置的字符。</summary>
         char this[int index] { get; set; }
 
         /// <summary>

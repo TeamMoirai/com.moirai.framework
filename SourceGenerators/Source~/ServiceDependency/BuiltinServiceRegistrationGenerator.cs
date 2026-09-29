@@ -8,18 +8,17 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
-    /// 推送式服务注册源生成器：收集当前编译单元内全部标记 [AutoRegisterService] 的服务类，
-    /// 生成程序集级 internal 清单类 <c>BuiltinServiceRegistration.RegisterAll(ServiceWorld)</c>，
-    /// 供组合根调用——替代手写的逐服务 RegisterService 调用。
-    /// <para>初始化顺序仍由 [ServiceDependency] 依赖图在世界初始化时拓扑排序决定，与注册顺序无关。</para>
-    /// <para>无有效标记类型时不产出任何源文件（避免空清单类污染其他程序集）。</para>
+    /// 推送式服务注册源生成器： 为标记 <c>[AutoRegisterService]</c> 的服务类生成程序集级 internal 清单类 <br />
+    /// <c>BuiltinServiceRegistration.RegisterAll(ServiceWorld)</c>。
     /// </summary>
+    /// <remarks>
+    /// 清单类供组合根调用，替代手写的逐服务 RegisterService 调用；初始化顺序仍由 <c>[ServiceDependency]</c> 依赖图在世界初始化时拓扑排序决定，与注册顺序无关。 <br />
+    /// 无有效标记类型时不产出任何源文件（避免空清单类污染其他程序集）。
+    /// </remarks>
     [Generator]
     public class BuiltinServiceRegistrationGenerator : IIncrementalGenerator
     {
-        /// <summary>
-        /// MIRAI203: AutoRegisterService 目标类型未实现 IService。
-        /// </summary>
+        /// <summary>MIRAI203: AutoRegisterService 目标类型未实现 IService。</summary>
         private static readonly DiagnosticDescriptor s_MustImplementIServiceRule = new DiagnosticDescriptor(
             id: "MIRAI203",
             title: "AutoRegisterService 目标类型未实现 IService",
@@ -30,9 +29,7 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Types marked with [AutoRegisterService] must implement IService.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>
-        /// MIRAI204: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。
-        /// </summary>
+        /// <summary>MIRAI204: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。</summary>
         private static readonly DiagnosticDescriptor s_InvalidTargetShapeRule = new DiagnosticDescriptor(
             id: "MIRAI204",
             title: "AutoRegisterService 目标类型形状非法",
@@ -43,9 +40,7 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Auto-registration instantiates the service via a parameterless constructor; abstract, static, generic or ctor-less types are rejected.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>
-        /// MIRAI205: AutoRegisterService 作用域值非法。
-        /// </summary>
+        /// <summary>MIRAI205: AutoRegisterService 作用域值非法。</summary>
         private static readonly DiagnosticDescriptor s_InvalidScopeRule = new DiagnosticDescriptor(
             id: "MIRAI205",
             title: "AutoRegisterService 作用域值非法",

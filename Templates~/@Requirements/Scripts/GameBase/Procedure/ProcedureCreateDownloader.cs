@@ -8,7 +8,7 @@ using JsonUtility = Moirai.Atropos.JsonUtility;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 创建补丁下载器
+    /// 流程 => 创建补丁下载器。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureCreateDownloader : ProcedurePremainBase
@@ -123,9 +123,8 @@ namespace Moirai.Main
         }
 
         /// <summary>
-        /// 显示更新方式
+        /// 显示更新方式。
         /// </summary>
-        /// <returns></returns>
         private void ShowUpdateType(UpdateData data)
         {
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_Load_Checked);

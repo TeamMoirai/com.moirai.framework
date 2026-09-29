@@ -15,7 +15,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 修复对象材质shader
+        /// 修复对象材质shader。
         /// </summary>
         public static void FixedMaterialShader_GameObject(Transform transform)
         {
@@ -33,7 +33,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 修复ui上带的材质
+        /// 修复ui上带的材质。
         /// </summary>
         public static void FixedMaterialShader_UI(Transform transform)
         {
@@ -49,7 +49,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 修复TMP字体
+        /// 修复TMP字体。
         /// </summary>
         public static void FixedMaterialShader_Tmp(Transform transform)
         {
@@ -67,7 +67,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 修复场景材质shader和天空盒shader
+        /// 修复场景材质shader和天空盒shader。
         /// </summary>
         public static void FixedMaterialShader_Scenne(GameObject[] obj)
         {
@@ -84,7 +84,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 等待能获取到场景物体时，修复材质shader
+        /// 等待能获取到场景物体时，修复材质shader。
         /// </summary>
         public static async UniTaskVoid WaitGetRootGameObjects(UnityEngine.SceneManagement.Scene scene)
         {

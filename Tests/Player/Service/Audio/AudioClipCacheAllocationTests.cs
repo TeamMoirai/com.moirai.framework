@@ -5,14 +5,15 @@ using Testing;
 namespace Service.Audio
 {
     /// <summary>
-    /// Clip 缓存热路径的 0-GC 验收（<b>真机计量</b>，经 <see cref="AllocationCapture.MeasureManaged"/>）。
-    /// <para>这五格原住在 EditorMode 程序集：编辑器观测不到托管分配、恒 <c>Assert.Ignore</c>——死格。
-    /// 迁入 Tests/Player 与 <c>AudioPerformanceTests</c> 同宿主：编辑器套件可见——采样可用的运行时
-    /// 真跑断言、探不到的运行时整组 Ignore（不是假绿），验收以 L3 玩家运行收到的 GC.Alloc 采样为准
-    /// （Unity 官方 AllocatingGCMemory 同机制）。</para>
-    /// <para>口径：预热一次丢弃（JIT/池扩容/新地址入账落在预热里），再计 N 次；新地址入账是冷路径
-    /// （满载且有新地址时才走），驱逐链路单次给常数上限而不是 0——锁的是「不随规模增长」。</para>
+    /// Clip 缓存热路径的 0-GC 验收：经 <see cref="AllocationCapture.MeasureManaged"/> 计量托管分配。
     /// </summary>
+    /// <remarks>
+    /// 夹具住在 <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>），与 <c>AudioPerformanceTests</c> 同宿主；编辑器套件可见， <br />
+    /// 但编辑器侧观测不到托管分配。 <br />
+    /// 采样可用的运行时真跑断言、探不到的运行时整组 Ignore（不是假绿），验收以 L3 玩家运行收到的 <c>GC.Alloc</c> 采样为准。 <br />
+    /// 口径：预热一次丢弃（JIT、池扩容、新地址入账落在预热里），再计 N 次。 <br />
+    /// 新地址入账是冷路径（满载且有新地址时才走），驱逐链路单次给常数上限而不是 0——锁的是「不随规模增长」。
+    /// </remarks>
     [TestFixture]
     [Category("Performance")]
     public sealed class AudioClipCacheAllocationTests

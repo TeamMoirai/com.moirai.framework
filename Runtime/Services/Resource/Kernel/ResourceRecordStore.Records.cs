@@ -5,10 +5,9 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源记录内核的记录侧——带代际校验的资产槽、分页 arena、两条索引表与诊断快照。
-    /// <para>与后端的全部牵连收在 <see cref="IResourceRecordHost"/>：三个原生句柄算子
-    /// 与三个配置读数。本分部不出现任何后端类型名。</para>
+    /// 资源记录内核的记录侧：带代际校验的资产槽、分页 arena、两条索引表与诊断快照。
     /// </summary>
+    /// <remarks>与后端的牵连全部收在 <see cref="IResourceRecordHost"/>（三个原生句柄算子与三个配置读数），本分部不出现后端类型名。</remarks>
     internal sealed partial class ResourceRecordStore
     {
         #region 常量 [CONSTANTS]
@@ -17,10 +16,8 @@ namespace Moirai.Atropos.Resource
         private const int WHEEL_KIND_KEEP_ALIVE = 1;
         private const int WHEEL_KIND_IDLE = 2;
 
-        /// <summary>
-        /// 空闲/保活刻度按"一秒一格"落进 256 格轮盘，所以一套轮最多只能表达 255 格的存活期；
-        /// 超过一圈的配置值不是报错，而是被跳过、直到轮盘绕回来——设置项自检要拿它当上限。
-        /// </summary>
+        /// <summary>空闲/保活刻度按一秒一格落进 256 格轮盘，一条记录最多表达 255 格存活期。</summary>
+        /// <remarks>超过一圈的配置值会被跳过直到轮盘绕回（不报错），设置项自检以本值为上限。</remarks>
         internal const int IdleWheelSpanSeconds = EXPIRY_WHEEL_BUCKET_COUNT - 1;
         #endregion
 
@@ -106,10 +103,10 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 按已打包的 key 建/并记录——热路径专用，跳过三条名称轴的字典往返。
-        /// <paramref name="key"/> 必须来自 <see cref="GetAssetRecordKey"/> / <see cref="GetLoadingOperationKey"/>
-        /// （名称已登记），否则 <see cref="RetainResourceKey"/> 会计在不存在的 id 上。
+        /// 按已打包的 key 建/并资产记录，热路径专用，跳过三条名称轴的字典往返。
         /// </summary>
+        /// <remarks><paramref name="key"/> 必须来自 <see cref="GetAssetRecordKey"/> 或 <see cref="GetLoadingOperationKey"/>（名称已登记）， <br />
+        /// 否则 <see cref="RetainResourceKey"/> 会计在不存在的 id 上。</remarks>
         internal int GetOrCreateAssetRecordByKey(ulong key, EResourceAssetKind assetKind,
             EResourceHandleKind handleKind, UObject asset, object assetHandle)
         {
@@ -167,10 +164,10 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 按已打包的 SubAssets key 建/并子资源记录——热路径专用。
-        /// <para>与 <see cref="GetOrCreateAssetRecordByKey"/> 的差别只在句柄合并：
-        /// 子资源用 <c>IsHandleValid</c> 双侧判断（图集句柄恒非 null 资产），槽位与索引段共用。</para>
+        /// 按已打包的 SubAssets key 建/并子资源记录，热路径专用。
         /// </summary>
+        /// <remarks>与 <see cref="GetOrCreateAssetRecordByKey"/> 的差别只在句柄合并：子资源用 <c>IsHandleValid</c> 双侧判断（图集句柄恒非 null 资产），槽位与索引段共用。 <br />
+        /// </remarks>
         internal int GetOrCreateSubAssetsRecordByKey(ulong key, object subAssetsHandle)
         {
             if (_assetRecordsByKey.TryGetValue(key, out int existingId) && IsValidAssetId(existingId))

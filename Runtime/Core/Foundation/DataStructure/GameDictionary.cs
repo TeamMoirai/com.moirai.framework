@@ -12,14 +12,10 @@ namespace Moirai.Atropos
         protected readonly List<TKey> _keyList = new List<TKey>();
         protected readonly Dictionary<TKey, TValue> _dictionary = new Dictionary<TKey, TValue>();
 
-        /// <summary>
-        /// 存储键的列表。
-        /// </summary>
+        /// <summary>存储键的列表。</summary>
         public List<TKey> Keys => _keyList;
 
-        /// <summary>
-        /// 存储字典实例。
-        /// </summary>
+        /// <summary>存储字典实例。</summary>
         public int Count => _keyList.Count;
 
         /// <summary>
@@ -42,9 +38,7 @@ namespace Moirai.Atropos
             _dictionary[_keyList[index]] = item;
         }
 
-        /// <summary>
-        /// 字典索引器。
-        /// </summary>
+        /// <summary>字典索引器。</summary>
         /// <param name="key">TKey。</param>
         public TValue this[TKey key]
         {
@@ -62,32 +56,42 @@ namespace Moirai.Atropos
             }
         }
 
-        /// <summary>Removes all keys and values from the <see cref="T:Moirai.Atropos.GameFrameworkDictionary`2" />.</summary>
+        /// <summary>
+        /// 从 <see cref="T:Moirai.Atropos.GameFrameworkDictionary`2" /> 移除所有键与值。
+        /// </summary>
         public void Clear()
         {
             _keyList.Clear();
             _dictionary.Clear();
         }
 
-        /// <summary>Adds the specified key and value to the dictionary.</summary>
-        /// <param name="key">The key of the element to add.</param>
-        /// <param name="item">The value of the element to add. The value can be <see langword="null" /> for reference types.</param>
+        /// <summary>
+        /// 向字典添加指定键与值。
+        /// </summary>
+        /// <param name="key">要添加元素的键。</param>
+        /// <param name="item">要添加元素的值；引用类型可为 <see langword="null" />。</param>
         public virtual void Add(TKey key, TValue item)
         {
             _keyList.Add(key);
             _dictionary.Add(key, item);
         }
 
-        /// <summary>Gets the value associated with the specified key.</summary>
-        /// <param name="key">The key of the value to get.</param>
-        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value for the type of the <paramref name="value" /> parameter. This parameter is passed uninitialized.</param>
+        /// <summary>
+        /// 获取与指定键关联的值。
+        /// </summary>
+        /// <param name="key">要获取值的键。</param>
+        /// <param name="value">当此方法返回时，若找到键，则包含与指定键关联的值； <br />
+        /// 否则包含 <paramref name="value" /> 参数类型的默认值。 <br />
+        /// 该参数以未初始化状态传入。</param>
         public bool TryGetValue(TKey key, out TValue value)
         {
             return _dictionary.TryGetValue(key, out value);
         }
 
-        /// <summary>Determines whether the <see cref="T:System.Collections.Generic.Dictionary`2" /> contains the specified key.</summary>
-        /// <param name="key">The key to locate in the </param>
+        /// <summary>
+        /// 确定 <see cref="T:System.Collections.Generic.Dictionary`2" /> 是否包含指定键。
+        /// </summary>
+        /// <param name="key">要在其中查找的键。</param>
         public bool ContainsKey(TKey key)
         {
             return _dictionary.ContainsKey(key);
@@ -98,7 +102,9 @@ namespace Moirai.Atropos
             return _keyList[index];
         }
 
-        /// <summary>移除指定键与关联值。</summary>
+        /// <summary>
+        /// 移除指定键与关联值。
+        /// </summary>
         /// <param name="key">要移除的键。</param>
         /// <returns>任一容器实际删除了条目即返回 true。</returns>
         public bool Remove(TKey key)
@@ -112,10 +118,12 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 游戏框架顺序字典类。
-    /// <para><b>复杂度契约</b>：Add 为 O(n log n)（每次插入后全表排序）——面向小规模有序遍历场景；
-    /// 大规模高频插入请改用有序结构（二分定位插入或 BCL SortedDictionary），本类不承诺插入性能。</para>
+    /// 游戏框架顺序字典类（按键有序遍历）。
     /// </summary>
+    /// <remarks>
+    /// <c>Add</c> 为 O(n log n)（每次插入后全表排序），只适合小规模有序遍历；
+    /// 大规模或高频插入请改用二分定位插入或 BCL <c>SortedDictionary</c>。
+    /// </remarks>
     /// <typeparam name="TKey">指定字典Key的元素类型。</typeparam>
     /// <typeparam name="TValue">指定字典Value的元素类型。</typeparam>
     public class GameSortedDictionary<TKey, TValue> : GameDictionary<TKey, TValue>

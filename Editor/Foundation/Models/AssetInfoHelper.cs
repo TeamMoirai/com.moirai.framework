@@ -8,19 +8,15 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 编辑器用
+    /// 编辑器用。
     /// </summary>
     public static class AssetInfoHelper
     {
         public enum AssetCheckResult
         {
-            /// <summary>
-            /// 路径正确但是 GUID 错误
-            /// </summary>
+            /// <summary>路径正确但是 GUID 错误。</summary>
             FailGuidNotFound = -4,
-            /// <summary>
-            /// GUID 正确但是路径错误
-            /// </summary>
+            /// <summary>GUID 正确但是路径错误。</summary>
             FailPathNotFound = -3,
             FailAssetNotExist = -2,
             Fail = -1,
@@ -31,11 +27,8 @@ namespace Moirai.Atropos.Editor
         }
         
         /// <summary>
-        /// 根据 GUID 检查资源是否合法
+        /// 根据 GUID 检查资源是否合法。
         /// </summary>
-        /// <param name="guid"></param>
-        /// <param name="path"></param>
-        /// <typeparam name="T"></typeparam>
         public static AssetCheckResult CheckAssetGuidAndPath<T>(string guid, string path) where T : UObject
         {
             if (string.IsNullOrEmpty(guid) && string.IsNullOrEmpty(path))
@@ -181,12 +174,9 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 根据 guid 和 path 的值获取属性的高度
+        /// 根据 guid 和 path 的值获取属性的高度。
         /// </summary>
-        /// <param name="path"></param>
-        /// <param name="initialLines">初始属性个数</param>
-        /// <param name="guid"></param>
-        /// <returns></returns>
+        /// <param name="initialLines">初始属性个数。</param>
         public static float GetAssetInfoHeight<T>(string guid, string path, int initialLines = 1)
             where T : UObject
         {
@@ -224,13 +214,8 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 绘制资源信息
+        /// 绘制资源信息。
         /// </summary>
-        /// <param name="position"></param>
-        /// <param name="property"></param>
-        /// <param name="guidProperty"></param>
-        /// <param name="pathProperty"></param>
-        /// <typeparam name="T"></typeparam>
         public static void DrawBaseAssetInfo<T>(ref Rect position, SerializedProperty property, string guidProperty, string pathProperty)
             where T : UObject
         {
@@ -312,13 +297,8 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 绘制资源信息
+        /// 绘制资源信息。
         /// </summary>
-        /// <param name="property"></param>
-        /// <param name="guidProperty"></param>
-        /// <param name="pathProperty"></param>
-        /// <param name="title"></param>
-        /// <typeparam name="T"></typeparam>
         public static void DrawBaseAssetInfo<T>(SerializedProperty property, string guidProperty, string pathProperty, string title = "")
             where T : UObject
         {
@@ -389,12 +369,8 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 绘制资源信息
+        /// 绘制资源信息。
         /// </summary>
-        /// <param name="guidProperty"></param>
-        /// <param name="pathProperty"></param>
-        /// <param name="title"></param>
-        /// <typeparam name="T"></typeparam>
         public static void DrawBaseAssetInfo<T>(SerializedProperty guidProperty, SerializedProperty pathProperty, string title = "")
             where T : UObject
         {

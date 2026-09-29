@@ -8,8 +8,8 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// <see cref="IAudioClipLeaseSource"/> 的生产实现：把 clip 租约请求转发到资源后端的 Lease API。
-    /// <para>缓存本身不认识 <see cref="ResourceAssetLease{T}"/>，后端换实现不影响缓存语义。</para>
     /// </summary>
+    /// <remarks>缓存本身不认识 <see cref="ResourceAssetLease{T}"/>，后端换实现不影响缓存语义。</remarks>
     internal sealed class ResourceClipLeaseSource : IAudioClipLeaseSource
     {
         /// <inheritdoc />

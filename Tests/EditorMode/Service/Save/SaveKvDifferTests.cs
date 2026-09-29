@@ -8,8 +8,10 @@ namespace Service.Save
 {
     /// <summary>
     /// KVT 模板差分器测试：标量变动/嵌套递归/序列整条/新增记录/类型漂移/恒透传作用域/体积收缩/坏档异常。
-    /// <para>差分块内容经 <see cref="SaveKeyValueReader"/> 读回断言（纯函数无场景依赖）。</para>
     /// </summary>
+    /// <remarks>
+    /// 差分块内容经 <see cref="SaveKeyValueReader"/> 读回断言（纯函数无场景依赖）。
+    /// </remarks>
     public class SaveKvDifferTests
     {
         /// <summary>UTF-8 解码器。</summary>

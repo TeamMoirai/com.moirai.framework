@@ -7,13 +7,13 @@ using UnityEngine.Assertions;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 静态服务管理外观——默认 <see cref="ServiceWorld"/> 实例的投影。
-    /// <para>全部操作转发到 <see cref="Default"/> 世界；需要隔离世界的场景（测试并行/沙盒）直接
-    /// <c>new ServiceWorld()</c>，不触碰本类。</para>
-    /// <para><b>线程契约</b>：所有公共方法仅限 Unity 主线程调用，由 <see cref="EnsureMainThread"/>
-    /// 在编辑器/开发构建断言（发布构建被内联为无操作）。
-    /// 后台线程请通过 <c>MainThreadDispatcher.Post(Action)</c> / <c>MainThreadDispatcher.Send(Action)</c> 切回。</para>
+    /// 静态服务管理外观，是默认 <see cref="ServiceWorld"/> 实例的投影。
     /// </summary>
+    /// <remarks>
+    /// 全部操作转发到 <see cref="Default"/> 世界；需要隔离世界的场景（测试并行/沙盒）直接 <c>new ServiceWorld()</c>，不触碰本类。 <br />
+    /// 线程契约：所有公共方法仅限 Unity 主线程调用，由 <see cref="EnsureMainThread"/> 在编辑器/开发构建断言（发布构建内联为无操作）； <br />
+    /// 后台线程请经 <c>MainThreadDispatcher.Post(Action)</c> / <c>MainThreadDispatcher.Send(Action)</c> 切回。
+    /// </remarks>
     public static partial class GameServices
     {
         #region 状态 [STATE]
@@ -22,24 +22,16 @@ namespace Moirai.Atropos
 
         private static ServiceWorld s_World;
 
-        /// <summary>
-        /// 默认服务世界（首次访问时创建）。
-        /// </summary>
+        /// <summary>默认服务世界（首次访问时创建）。</summary>
         public static ServiceWorld Default => s_World ??= new ServiceWorld();
 
-        /// <summary>
-        /// App 作用域是否活跃。
-        /// </summary>
+        /// <summary>App 作用域是否活跃。</summary>
         public static bool HasApp => s_World?.HasScope(EServiceScopeKind.App) ?? false;
 
-        /// <summary>
-        /// Scene 作用域是否活跃。
-        /// </summary>
+        /// <summary>Scene 作用域是否活跃。</summary>
         public static bool HasScene => s_World?.HasScope(EServiceScopeKind.Scene) ?? false;
 
-        /// <summary>
-        /// Gameplay 作用域是否活跃。
-        /// </summary>
+        /// <summary>Gameplay 作用域是否活跃。</summary>
         public static bool HasGameplay => s_World?.HasScope(EServiceScopeKind.Gameplay) ?? false;
 
         #endregion
@@ -56,12 +48,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 主线程亲和断言。仅编辑器/开发构建参与编译——发布构建方法体为空、被内联后零开销
-        /// （不依赖 <see cref="UnityEngine.Assertions.Assert"/> 自身是否被裁剪）。
-        /// <para><c>s_MainThreadId == 0</c> 是"捕获钩子尚未运行"的启动窗口（SubsystemRegistration 之前的
-        /// 其它程序集静态构造），此窗口内放行：不采纳线程号以免把后台线程误认成主线程，
-        /// 真正的捕获仍由 <see cref="CaptureMainThreadId"/> 在钩子内完成。</para>
+        /// 主线程亲和断言：非主线程调用在编辑器/开发构建触发断言失败。
         /// </summary>
+        /// <remarks>
+        /// 仅编辑器/开发构建参与编译，发布构建方法体为空、内联后零开销。
+        /// <c>s_MainThreadId == 0</c> 是捕获钩子尚未运行的启动窗口（SubsystemRegistration 之前的其它程序集静态构造），此窗口内放行；
+        /// 真正的捕获由 <see cref="CaptureMainThreadId"/> 在钩子内完成。
+        /// </remarks>
         internal static void EnsureMainThread()
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -77,9 +70,7 @@ namespace Moirai.Atropos
 
         #region 拦截器 [INTERCEPTORS]
 
-        /// <summary>
-        /// 当前已注册的拦截器（只读视图）。
-        /// </summary>
+        /// <summary>当前已注册的拦截器（只读视图）。</summary>
         public static IReadOnlyList<IServiceInterceptor> Interceptors => Default.Interceptors;
 
         /// <summary>
@@ -115,8 +106,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 异步关闭指定作用域。对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭，
-        /// 再执行同步 <c>OnShutdown</c>。
+        /// 异步关闭指定作用域，对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭再执行同步 <c>OnShutdown</c>。
         /// </summary>
         public static async UniTask ShutdownContainerAsync(EServiceScopeKind scope)
         {
@@ -137,11 +127,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 异步关闭全部作用域。逆序：Gameplay → Scene → App。
-        /// 对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭。
-        /// <para>游戏驱动的优雅退出应在 OnApplicationQuit 之前调用本方法——
-        /// Unity 的退出回调无法等待异步操作，OnApplicationQuit 内只做同步兜底关闭。</para>
+        /// 异步关闭全部作用域，逆序 Gameplay → Scene → App。
         /// </summary>
+        /// <remarks>
+        /// 对实现 <see cref="IAsyncShutdownService"/> 的服务先异步关闭。 <br />
+        /// 游戏驱动的优雅退出应在 OnApplicationQuit 之前调用本方法——Unity 的退出回调无法等待异步操作，OnApplicationQuit 内只做同步兜底关闭。
+        /// </remarks>
         public static async UniTask ShutdownAsync()
         {
             EnsureMainThread();
@@ -154,10 +145,10 @@ namespace Moirai.Atropos
 
         #region 重复契约策略 [DUPLICATE CONTRACT POLICY]
 
-        /// <summary>
-        /// 重复契约注册处置策略。仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景；
-        /// 同实例幂等与多契约绑定不受影响。
-        /// </summary>
+        /// <summary>重复契约注册处置策略，仅作用于"同作用域内已占用契约再次显式注册不同实例"的场景。</summary>
+        /// <remarks>
+        /// 同实例重复注册的幂等返回与多契约绑定不受本策略影响。
+        /// </remarks>
         public static EDuplicateContractPolicy DuplicateContractPolicy
         {
             get => Default.DuplicateContractPolicy;
@@ -174,10 +165,11 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 注册服务到指定作用域（统一入口）。
-        /// <para>世界未初始化时仅入图——由世界初始化（组合根 <c>InitializeAsync</c>）按依赖拓扑统一驱动 OnInit；
-        /// 世界已初始化时立即 OnInit（依赖必须已就绪，缺失即 fail-fast）。</para>
-        /// <para>迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。</para>
         /// </summary>
+        /// <remarks>
+        /// 世界未初始化时仅入图，由世界初始化（组合根 <c>InitializeAsync</c>）按依赖拓扑统一驱动 OnInit；世界已初始化时立即 OnInit，依赖必须已就绪、缺失即 fail-fast。 <br />
+        /// 迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。
+        /// </remarks>
         /// <typeparam name="T">服务具体类型（契约即类型本身）。</typeparam>
         /// <param name="scope">目标作用域。</param>
         /// <param name="service">要注册的服务实例。</param>
@@ -194,8 +186,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 以显式契约类型注册服务实例（运行时 Type 版本）。
-        /// <para>同一实例可依次以多个契约注册（多契约绑定）——首个调用创建条目，后续调用仅附加契约句柄。</para>
         /// </summary>
+        /// <remarks>
+        /// 同一实例可依次以多个契约注册（多契约绑定）——首个调用创建条目，后续调用仅附加契约句柄。
+        /// </remarks>
         /// <param name="scope">目标作用域。</param>
         /// <param name="contractType">契约类型（注册键与解析键）。</param>
         /// <param name="service">要注册的服务实例。</param>
@@ -212,12 +206,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 确保服务已注册到指定作用域——未注册时创建默认实例并注册（幂等）。
-        /// <para>HandlerHost 外观懒加载路径（<c>CreateDefaultHandler</c>）调用：首次经外观访问服务时
-        /// 自动完成世界注册——世界未初始化时挂入待初始化图（依赖校验在初始化拓扑时统一执行），
-        /// 已初始化时立即注册并初始化。</para>
-        /// <para>关闭态阻断懒加载复活——显式 RegisterService 是关闭后重建世界的唯一路径。</para>
+        /// 确保服务已注册到指定作用域，未注册时创建默认实例并注册（幂等）。
         /// </summary>
+        /// <remarks>
+        /// HandlerHost 外观懒加载路径（<c>CreateDefaultHandler</c>）调用：首次经外观访问服务时自动完成世界注册——世界未初始化时挂入待初始化图（依赖校验在初始化拓扑时统一执行），已初始化时立即注册并初始化。 <br />
+        /// 关闭态阻断懒加载复活——显式 RegisterService 是关闭后重建世界的唯一路径。
+        /// </remarks>
         /// <typeparam name="T">服务具体类型（契约即类型本身，须有无参构造函数）。</typeparam>
         /// <param name="scope">目标作用域。</param>
         internal static void EnsureRegistered<T>(EServiceScopeKind scope = EServiceScopeKind.App)
@@ -283,8 +277,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 获取服务（未找到抛 <see cref="GameException"/>）。
-        /// <para>按 Gameplay &gt; Scene &gt; App 优先级返回最优服务；容器未构建时同样抛出。</para>
         /// </summary>
+        /// <remarks>
+        /// 按 Gameplay &gt; Scene &gt; App 优先级返回最优服务；容器未构建时同样抛出。
+        /// </remarks>
         public static T GetRequiredService<T>() where T : class
         {
             EnsureMainThread();

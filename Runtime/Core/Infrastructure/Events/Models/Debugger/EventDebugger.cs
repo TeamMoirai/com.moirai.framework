@@ -105,9 +105,7 @@ namespace Moirai.Atropos.Events
 
     internal class EventDebugger
     {
-        /// <summary>
-        /// 获取或设置调试器关联的事件协调器；编辑器构建下 getter 返回 <see cref="CoordinatorDebug"/>，setter 为空操作。
-        /// </summary>
+        /// <summary>获取或设置调试器关联的事件协调器；编辑器构建下 getter 返回 <see cref="CoordinatorDebug"/>，setter 为空操作。</summary>
         public IEventCoordinator Coordinator
         {
 #if UNITY_EDITOR
@@ -123,9 +121,7 @@ namespace Moirai.Atropos.Events
 
 #if UNITY_EDITOR
         private IEventCoordinator m_CoordinatorDebug;
-        /// <summary>
-        /// 获取或设置编辑器调试使用的事件协调器，设置时会注册其事件类型处理计数。
-        /// </summary>
+        /// <summary>获取或设置编辑器调试使用的事件协调器，设置时会注册其事件类型处理计数。</summary>
         public IEventCoordinator CoordinatorDebug
         {
             get { return m_CoordinatorDebug; }
@@ -141,17 +137,11 @@ namespace Moirai.Atropos.Events
         }
 #endif
 
-        /// <summary>
-        /// 获取或设置当前是否正在回放事件。
-        /// </summary>
+        /// <summary>获取或设置当前是否正在回放事件。</summary>
         public bool IsReplaying { get; internal set; }
-        /// <summary>
-        /// 获取或设置回放速度倍率（默认 <c>1.0</c>）。
-        /// </summary>
+        /// <summary>获取或设置回放速度倍率（默认 <c>1.0</c>）。</summary>
         public float PlaybackSpeed { get; set; } = 1.0f;
-        /// <summary>
-        /// 获取或设置回放是否处于暂停状态。
-        /// </summary>
+        /// <summary>获取或设置回放是否处于暂停状态。</summary>
         public bool IsPlaybackPaused { get; set; }
 
         /// <summary>
@@ -602,17 +592,13 @@ namespace Moirai.Atropos.Events
         private readonly Dictionary<IEventCoordinator, Stack<EventDebuggerTrace>> m_StackOfProcessedEvent;
         private readonly Dictionary<IEventCoordinator, Dictionary<long, int>> m_EventTypeProcessedCount;
 
-        /// <summary>
-        /// 获取当前协调器按事件类型 ID 统计的处理数量；无记录时返回 null。
-        /// </summary>
+        /// <summary>获取当前协调器按事件类型 ID 统计的处理数量；无记录时返回 null。</summary>
         public Dictionary<long, int> EventTypeProcessedCount => m_EventTypeProcessedCount.TryGetValue(Coordinator, out var eventTypeProcessedCountForCoordinator) ? eventTypeProcessedCountForCoordinator : null;
 
         private readonly Dictionary<IEventCoordinator, long> m_ModificationCount;
         private readonly bool m_Log;
 
-        /// <summary>
-        /// 获取或设置是否挂起日志记录，挂起期间不再添加新的调试记录。
-        /// </summary>
+        /// <summary>获取或设置是否挂起日志记录，挂起期间不再添加新的调试记录。</summary>
         public bool Suspended { get; set; }
 
         // 方法

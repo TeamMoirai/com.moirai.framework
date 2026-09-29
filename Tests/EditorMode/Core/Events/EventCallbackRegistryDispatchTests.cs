@@ -6,20 +6,24 @@ using UnityEngine.TestTools;
 namespace Core.Events
 {
     /// <summary>
-    /// <see cref="EventCallbackRegistry"/> 的派发健壮性验收：
-    /// 回调抛异常之后注册表必须仍然可用，回调列表拷贝构造必须带上阶段计数。
-    /// <para>回归目标：<c>m_IsInvoking</c> 未放在 finally 时，一次抛异常会让派发深度永久为正，
-    /// 此后所有注册/注销只写进 <c>m_TemporaryCallbacks</c>，而派发仍读 <c>m_Callbacks</c>，
-    /// 事件系统整体静默失效；拷贝构造漏设阶段计数会让冒泡/下探路径静默丢祖先。</para>
+    /// <see cref="EventCallbackRegistry"/> 派发健壮性验收：回调抛异常后注册表仍可用，回调列表拷贝构造必须带上阶段计数。
     /// </summary>
+    /// <remarks>
+    /// 判据：<c>m_IsInvoking</c> 未在 finally 复位时，一次抛异常会让派发深度永久为正，此后注册/注销只写进 <c>m_TemporaryCallbacks</c> 而派发仍读 <c>m_Callbacks</c>， <br />
+    /// 事件系统整体静默失效；拷贝构造漏设阶段计数会让冒泡/下探路径静默丢祖先。
+    /// </remarks>
     public class EventCallbackRegistryDispatchTests
     {
         #region 测试替身 [DOUBLES]
 
-        /// <summary>仅用于测试的最小事件类型。</summary>
+        /// <summary>
+        /// 仅用于测试的最小事件类型。
+        /// </summary>
         public sealed class ProbeEvent : EventBase<ProbeEvent>
         {
-            /// <summary>从事件池取出一个实例。</summary>
+            /// <summary>
+            /// 从事件池取出一个实例。
+            /// </summary>
             /// <returns>可用于派发的测试事件。</returns>
             public static ProbeEvent Take() => GetPooled();
         }

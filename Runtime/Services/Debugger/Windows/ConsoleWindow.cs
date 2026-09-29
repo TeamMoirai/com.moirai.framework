@@ -5,9 +5,12 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 控制台窗口（日志流虚拟化列表 + 分级过滤 + 搜索 + 锁滚动 + 详情与复制）。
-    /// <para><see cref="ListView"/> makeItem/bindItem 虚拟化渲染——仅可视行分配元素；计数经 <see cref="DebuggerLogCapture"/> 增量维护，窗口零遍历刷新。</para>
+    /// 控制台窗口：日志流虚拟化列表 + 分级过滤 + 搜索 + 锁滚动 + 详情与复制。
     /// </summary>
+    /// <remarks>
+    /// <see cref="ListView"/> <c>makeItem</c> / <c>bindItem</c> 虚拟化渲染，仅可视行分配元素；计数经 <see cref="DebuggerLogCapture"/> 增量维护， <br />
+    /// 窗口零遍历刷新。
+    /// </remarks>
     public sealed class ConsoleWindow : IDebuggerWindow
     {
         #region 常量 [CONSTANTS]

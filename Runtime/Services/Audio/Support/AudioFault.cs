@@ -5,12 +5,11 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 音频侧的异常上报与退避（内部）。
-    /// <para>容器的 tick 隔离在开发构建下是「记录后重新抛出并打断整轮 tick」
-    /// （<c>ServiceScope</c> 的 rethrow 开关），所以音频内部的隔离必须自己做：
-    /// 一条音出问题不该让输入、UI、存档当帧停摆。</para>
-    /// <para>策略是退避而不是熔断：抛一次不会把音频服务踢出轮询（那会变成"音频默默不再更新"这种
-    /// 更难查的事故），只是同一位置在 <see cref="BackoffSeconds"/> 内不再重复打印，并累计被吞掉的次数。</para>
     /// </summary>
+    /// <remarks>
+    /// 容器的 tick 隔离在开发构建下会记录后重新抛出并打断整轮 tick，故音频内部的隔离必须自己做，一条音出错不该让输入/UI/存档当帧停摆。 <br />
+    /// 策略是退避而非熔断：同一位置在 <see cref="BackoffSeconds"/> 内不重复打印，并累计被吞掉的次数。
+    /// </remarks>
     internal static class AudioFault
     {
         /// <summary>同一位置的重复上报间隔（秒）。</summary>
@@ -50,7 +49,9 @@ namespace Moirai.Atropos.Audio
                 where, BackoffSeconds, swallowed, exception);
         }
 
-        /// <summary>清空退避与计数状态（服务关停时调用）。</summary>
+        /// <summary>
+        /// 清空退避与计数状态（服务关停时调用）。
+        /// </summary>
         public static void Reset()
         {
             s_Swallowed.Clear();

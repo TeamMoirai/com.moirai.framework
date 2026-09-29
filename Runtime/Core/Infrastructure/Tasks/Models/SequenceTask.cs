@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Tasks
 {
     /// <summary>
-    /// 按顺序执行复合任务
+    /// 按顺序执行复合任务。
     /// </summary>
     public class SequenceTask : PooledTaskBase<SequenceTask>, IEnumerable<TaskBase>
     {
@@ -43,9 +43,8 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 将任务附加到序列末尾
+        /// 将任务附加到序列末尾。
         /// </summary>
-        /// <param name="task"></param>
         public SequenceTask Append(TaskBase task)
         {
             _tasks.Enqueue(task);

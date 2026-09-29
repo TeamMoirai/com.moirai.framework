@@ -9,9 +9,11 @@ using UnityEngine;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 单个基准用例的测量结果：计时统计（min/mean/max ms、ns/次）、GC 分配增量与各用例上报的自定义指标。
-    /// <para>由各 Benchmark 的测量逻辑填充，交给 <see cref="BenchmarkReport"/> 统一落日志与 XML。</para>
+    /// 单个基准用例的测量结果：计时统计（min / mean / max ms、ns / 次）、GC 分配增量与各用例上报的自定义指标。
     /// </summary>
+    /// <remarks>
+    /// 由各 Benchmark 的测量逻辑填充，交给 <see cref="BenchmarkReport"/> 统一落日志与 XML。
+    /// </remarks>
     public sealed class BenchmarkCaseResult
     {
         private readonly List<KeyValuePair<string, object>> _metrics = new();
@@ -28,14 +30,18 @@ namespace Moirai.Atropos.Debugger
 
         public List<KeyValuePair<string, object>> Metrics => _metrics;
 
-        /// <summary>追加一个用例自定义指标（如 reserve/pages/hard），落日志与 XML。</summary>
+        /// <summary>
+        /// 追加一个用例自定义指标（如 reserve/pages/hard），落日志与 XML。
+        /// </summary>
         public BenchmarkCaseResult Metric(string key, object value)
         {
             _metrics.Add(new KeyValuePair<string, object>(key, value));
             return this;
         }
 
-        /// <summary>把结果格式化成一行人类可读文本，<paramref name="tag"/> 为各 Benchmark 自己的日志前缀。</summary>
+        /// <summary>
+        /// 把结果格式化成一行人类可读文本，<paramref name="tag"/> 为各 Benchmark 自己的日志前缀。
+        /// </summary>
         public string FormatLine(string tag)
         {
             StringBuilder line = new StringBuilder(160);
@@ -57,10 +63,12 @@ namespace Moirai.Atropos.Debugger
 
     /// <summary>
     /// 框架级基准报告：收集 <see cref="BenchmarkCaseResult"/>，输出统一的自定义 <c>&lt;benchmark&gt;</c> XML。
-    /// <para>&lt;benchmark&gt; 根节点的环境头（生成时间、Unity 版本、机器、CPU、内存）由本类固定写入，
-    /// 各 Benchmark 只通过 <see cref="SetMetadata"/> 补自己关心的根属性（如 phase/trials/failures），
-    /// 保证所有基准产物结构一致、可被同一套工具 diff。</para>
     /// </summary>
+    /// <remarks>
+    /// <c>&lt;benchmark&gt;</c> 根节点的环境头（生成时间、Unity 版本、机器、CPU、内存）由本类固定写入；
+    /// 各 Benchmark 只通过 <see cref="SetMetadata"/> 补自己关心的根属性（如 <c>phase</c> / <c>trials</c> / <c>failures</c>），产物结构一致、 <br />
+    /// 可被同一套工具 diff。
+    /// </remarks>
     public sealed class BenchmarkReport
     {
         /// <summary>约定的导出路径环境变量名，未设置时落到 &lt;工程根&gt;/Benchmarks/。</summary>
@@ -92,7 +100,9 @@ namespace Moirai.Atropos.Debugger
             return result;
         }
 
-        /// <summary>追加根节点属性；同名覆盖，写入顺序即首次设置顺序。</summary>
+        /// <summary>
+        /// 追加根节点属性；同名覆盖，写入顺序即首次设置顺序。
+        /// </summary>
         public BenchmarkReport SetMetadata(string key, string value)
         {
             for (int i = 0; i < _metadata.Count; i++)
@@ -109,10 +119,11 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <summary>
-        /// 解析导出路径：优先环境变量 <see cref="XML_PATH_ENV_VAR"/>，否则统一文件夹——
-        /// 编辑器为工程根下 Benchmarks/&lt;name&gt;-benchmark.xml（经 <c>Application.dataPath</c> 父目录推根，
-        /// <c>temporaryCachePath</c> 在编辑器指向系统临时目录、推不出工程根）；玩家为应用同级的 Benchmarks/。
+        /// 解析导出路径：优先环境变量 <see cref="XML_PATH_ENV_VAR"/>，否则落到统一文件夹。
         /// </summary>
+        /// <remarks>
+        /// 编辑器为工程根下 <c>Benchmarks/&lt;name&gt;-benchmark.xml</c>（经 <c>Application.dataPath</c> 父目录推根）；玩家为应用同级的 <c>Benchmarks/</c>。
+        /// </remarks>
         public string ResolveXmlPath()
         {
             string fromEnv = Environment.GetEnvironmentVariable(XML_PATH_ENV_VAR);
@@ -125,7 +136,9 @@ namespace Moirai.Atropos.Debugger
             return Path.Combine(projectRoot, "Benchmarks", fileName);
         }
 
-        /// <summary>把整份报告写成 <c>&lt;benchmark&gt;</c> XML；异常吞掉并经 <paramref name="log"/> 上报（默认 Debug.Log）。</summary>
+        /// <summary>
+        /// 把整份报告写成 <c>&lt;benchmark&gt;</c> XML；异常吞掉并经 <paramref name="log"/> 上报（默认 Debug.Log）。
+        /// </summary>
         public void WriteXml(string path, Action<string> log = null)
         {
             log ??= Debug.Log;

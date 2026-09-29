@@ -7,13 +7,21 @@ using Moirai.Atropos.Debugger;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档服务外观（Facade）。
-    /// <para>统一的静态存档访问入口。存档文件为「单文件多数据块」容器：一个文件（存档槽）内含多个按键寻址的数据块，
-    /// 块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体；便捷单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）为快速通道，映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。</para>
-    /// <para>序列化后端（JSON/MessagePack/MemoryPack/protobuf-net）与存储管线（明文/AES 加密）两轴可插拔，经 <see cref="SaveServiceSettings"/> 配置。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="SaveServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// 存档服务外观（Facade）：统一的静态存档访问入口。
     /// </summary>
+    /// <remarks>
+    /// 存档为「单文件多数据块」容器：块级 API（<c>SaveBlockAsync</c>/<c>LoadBlockAsync</c>/…）为主体， <br />
+    /// 便捷单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。 <br />
+    /// 序列化后端（JSON/MessagePack/MemoryPack/protobuf-net）与存储管线（明文/AES 加密）两轴可插拔，经 <see cref="SaveServiceSettings"/> 配置。 <br />
+    /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 解析，settings 未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
+    /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// </remarks>
+    /// <example>
+    /// <code lang="csharp">
+    /// await SaveService.SaveAsync(save, "slot1");
+    /// MySave restored = await SaveService.LoadAsync&lt;MySave&gt;("slot1");
+    /// </code>
+    /// </example>
     [AutoRegisterService]
     [HandlerHost(typeof(SaveServiceHandler))]
     [ServiceDependency(typeof(DebuggerService))]
@@ -32,8 +40,10 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从 <see cref="SaveServiceSettings"/> 解析存档处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>
+        /// 首次调用即经 <c>GameServices.EnsureRegistered</c>（幂等）完成世界注册。
+        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static SaveServiceHandler GetHandlerFromSettings()
         {
@@ -45,9 +55,11 @@ namespace Moirai.Atropos.Save
         private static bool s_WarnedSyncMirrorRead;
 
         /// <summary>
-        /// 同步裸名读按位告警（会话级一次性）：存储后端同步读非权威（云镜像，<see cref="SaveStorageCapabilities.SyncReadsAuthoritative"/> 为 <c>false</c>）时，
-        /// 同步裸名读 API 返回的是本地镜像（可能滞后于远端）——远端内容须经异步 API 族裁决获取。
+        /// 存储后端同步读非权威（云镜像）时对同步裸名读 API 发出会话级一次性告警。
         /// </summary>
+        /// <remarks>
+        /// 同步读 API 返回本地镜像，可能滞后于远端；远端内容须经异步 API 族裁决获取。
+        /// </remarks>
         private static void WarnSyncMirrorReadOnce()
         {
             if (s_WarnedSyncMirrorRead || s_Handler == null)
@@ -70,8 +82,10 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 初始化存档服务。由容器在构建期调用。
-        /// <para>确保 <c>SaveService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
         /// </summary>
+        /// <remarks>
+        /// 调用时触发 <see cref="Handler"/> 懒加载并完成赋值。
+        /// </remarks>
         public override void OnInit()
         {
             // 确保 Handler 已初始化（加密处理器在此阶段注入密钥与派生参数）
@@ -95,9 +109,11 @@ namespace Moirai.Atropos.Save
         #region 块级读写 [BLOCK SAVE / LOAD]
 
         /// <summary>
-        /// 将数据块异步写入存档文件（读-改-写合并进既有块集合；原子替换；同文件写路径串行排队）。
-        /// <para>失败抛出 <see cref="GameException"/>（含路径上下文）；处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。</para>
+        /// 将数据块异步写入存档文件（读-改-写合并进既有块集合）。
         /// </summary>
+        /// <remarks>
+        /// 同文件写路径串行排队，落盘为原子替换；失败或处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="data">存档数据对象。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -115,8 +131,10 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从存档文件异步加载指定数据块。
-        /// <para>文件/块不存在或加载失败（损坏/解密失败/反序列化失败，均已记录错误日志）返回 <c>default</c>——需要错误判别时使用 <see cref="TryLoadBlockAsync{T}"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// 文件/块不存在或加载失败（损坏/解密失败/反序列化失败，均记错误日志）返回 <c>default</c>；需要错误判别时改用 <see cref="TryLoadBlockAsync{T}"/>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="key">数据块键。</param>
@@ -127,10 +145,12 @@ namespace Moirai.Atropos.Save
             s_Handler?.LoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult<T>(default);
 
         /// <summary>
-        /// 从存档文件异步加载指定数据块并返回完整错误判别结果。
-        /// <para>处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
-        /// 块缺失细分（容器 v2）：目标块损坏返回 <see cref="SaveError.Corrupted"/>（与其余健康块互不影响），确无该块才返回 <see cref="SaveError.FileNotFound"/>。</para>
+        /// 从存档文件异步加载指定数据块，返回带错误类别的结果。
         /// </summary>
+        /// <remarks>
+        /// 处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。 <br />
+        /// 块缺失细分：目标块损坏返回 <see cref="SaveError.Corrupted"/>（不影响其余健康块），确无该块才返回 <see cref="SaveError.FileNotFound"/>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="key">数据块键。</param>
@@ -141,9 +161,11 @@ namespace Moirai.Atropos.Save
             s_Handler?.TryLoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult(SaveResult<T>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
-        /// 将数据块写入存档文件（在调用线程执行完整管线，阻塞直至完成；处理器未就绪时抛 <see cref="GameException"/>）。
-        /// <para>仅限主线程调用；适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveBlockAsync{T}"/> 避免阻塞。</para>
+        /// 将数据块同步写入存档文件（在调用线程执行完整管线，阻塞至完成）。
         /// </summary>
+        /// <remarks>
+        /// 仅限主线程调用；处理器未就绪时抛 <see cref="GameException"/>。适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveBlockAsync{T}"/>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="data">存档数据对象。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -155,9 +177,11 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 从存档文件加载指定数据块（在调用线程执行，阻塞直至完成）。
-        /// <para>仅限主线程调用；文件/块不存在或加载失败（均已记录错误日志）返回 <c>default</c>，处理器未就绪时同样降级返回 <c>default</c>。</para>
+        /// 从存档文件同步加载指定数据块（在调用线程执行，阻塞至完成）。
         /// </summary>
+        /// <remarks>
+        /// 仅限主线程调用；文件/块不存在或加载失败（均记错误日志）、处理器未就绪均返回 <c>default</c>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="key">数据块键。</param>
@@ -170,10 +194,12 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 从存档文件加载指定数据块并返回完整错误判别结果（在调用线程执行，阻塞直至完成）。
-        /// <para>仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
-        /// 块缺失细分（容器 v2）：目标块损坏返回 <see cref="SaveError.Corrupted"/>（与其余健康块互不影响），确无该块才返回 <see cref="SaveError.FileNotFound"/>。</para>
+        /// 从存档文件同步加载指定数据块，返回带错误类别的结果（在调用线程执行，阻塞至完成）。
         /// </summary>
+        /// <remarks>
+        /// 仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。 <br />
+        /// 块缺失细分：目标块损坏返回 <see cref="SaveError.Corrupted"/>（不影响其余健康块），确无该块才返回 <see cref="SaveError.FileNotFound"/>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="key">数据块键。</param>
@@ -186,9 +212,11 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 从存档文件中删除指定数据块（删除最后一个块时整档移除），IO 在工作线程执行。
-        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空任务。</para>
+        /// 异步删除存档文件中的指定数据块（删除最后一个块时整档移除）。
         /// </summary>
+        /// <remarks>
+        /// IO 在工作线程执行；失败抛 <see cref="GameException"/>，处理器未就绪时静默降级为空任务。
+        /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="key">数据块键。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -207,10 +235,12 @@ namespace Moirai.Atropos.Save
             s_Handler?.DeleteBlock(fileName, key, folderName);
 
         /// <summary>
-        /// 枚举存档文件内的全部数据块（含保留块；同步执行，加密处理器下需解密整档）。
-        /// <para>容器 v2 逐块校验下坏块同样列入清单——<see cref="SaveBlockInfo.Error"/> 非 <see cref="SaveError.None"/> 即坏块，
-        /// 其框架字段仅在 <see cref="SaveBlockInfo.HasMetadata"/> 为 <c>true</c> 时可信。</para>
+        /// 同步枚举存档文件内的全部数据块（含保留块）。
         /// </summary>
+        /// <remarks>
+        /// 加密处理器下需解密整档。坏块同样列入清单：<see cref="SaveBlockInfo.Error"/> 非 <see cref="SaveError.None"/> 即坏块，
+        /// 其框架字段仅在 <see cref="SaveBlockInfo.HasMetadata"/> 为 <c>true</c> 时可信。
+        /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>块元信息数组（健康块在前、坏块在后）；整档缺档/损坏/处理器未就绪时为空数组（损坏已记录错误日志）。</returns>
@@ -225,9 +255,11 @@ namespace Moirai.Atropos.Save
         #region 便捷读写 [QUICK SAVE / LOAD]
 
         /// <summary>
-        /// 将存档对象异步写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块写入），IO 在工作线程执行。
-        /// <para>失败抛出 <see cref="GameException"/>（含路径上下文）；处理器未就绪时抛 <see cref="GameException"/>。</para>
+        /// 将存档对象异步写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/>）。
         /// </summary>
+        /// <remarks>
+        /// IO 在工作线程执行；失败（含路径上下文）或处理器未就绪时抛 <see cref="GameException"/>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="saveObject">存档对象。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -238,9 +270,11 @@ namespace Moirai.Atropos.Save
             SaveBlockAsync(saveObject, fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
-        /// 从磁盘异步加载存档（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块读取），IO 在工作线程执行。
-        /// <para>文件不存在或加载失败（损坏/解密失败/反序列化失败，均已记录错误日志）返回 <c>default</c>——需要错误判别时使用 <see cref="TryLoadAsync{T}"/>。</para>
+        /// 从磁盘异步加载存档（映射到保留块 <see cref="MAIN_BLOCK_KEY"/>）。
         /// </summary>
+        /// <remarks>
+        /// IO 在工作线程执行；文件不存在或加载失败（损坏/解密失败/反序列化失败，均记错误日志）返回 <c>default</c>；需要错误判别时改用 <see cref="TryLoadAsync{T}"/>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -250,9 +284,11 @@ namespace Moirai.Atropos.Save
             LoadBlockAsync<T>(fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
-        /// 从磁盘异步加载存档并返回完整错误判别结果，IO 在工作线程执行。
-        /// <para>处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。</para>
+        /// 从磁盘异步加载存档，返回带错误类别的结果。
         /// </summary>
+        /// <remarks>
+        /// IO 在工作线程执行；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -262,9 +298,11 @@ namespace Moirai.Atropos.Save
             TryLoadBlockAsync<T>(fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
-        /// 将存档对象写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块写入；在调用线程执行完整管线，阻塞直至完成）。
-        /// <para>仅限主线程调用；适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveAsync{T}"/> 避免阻塞。</para>
+        /// 将存档对象同步写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/>，在调用线程执行，阻塞至完成）。
         /// </summary>
+        /// <remarks>
+        /// 仅限主线程调用；适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveAsync{T}"/>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="saveObject">存档对象。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -273,9 +311,11 @@ namespace Moirai.Atropos.Save
             SaveBlock(saveObject, fileName, MAIN_BLOCK_KEY, folderName);
 
         /// <summary>
-        /// 从磁盘加载存档（映射到保留块 <see cref="MAIN_BLOCK_KEY"/> 的块读取；在调用线程执行，阻塞直至完成）。
-        /// <para>仅限主线程调用；文件不存在或加载失败（均已记录错误日志）返回 <c>default</c>，处理器未就绪时同样降级返回 <c>default</c>。</para>
+        /// 从磁盘同步加载存档（映射到保留块 <see cref="MAIN_BLOCK_KEY"/>，在调用线程执行，阻塞至完成）。
         /// </summary>
+        /// <remarks>
+        /// 仅限主线程调用；文件不存在或加载失败（均记错误日志）、处理器未就绪均返回 <c>default</c>。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -284,9 +324,11 @@ namespace Moirai.Atropos.Save
             LoadBlock<T>(fileName, MAIN_BLOCK_KEY, folderName);
 
         /// <summary>
-        /// 从磁盘加载存档并返回完整错误判别结果（在调用线程执行，阻塞直至完成）。
-        /// <para>仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。</para>
+        /// 从磁盘同步加载存档，返回带错误类别的结果（在调用线程执行，阻塞至完成）。
         /// </summary>
+        /// <remarks>
+        /// 仅限主线程调用；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/> 失败结果。
+        /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -299,10 +341,13 @@ namespace Moirai.Atropos.Save
         #region 组件存取 [COMPONENTS]
 
         /// <summary>
-        /// 将全部已注册 <see cref="SaveComponent"/> 的勾选字段异步写入存档文件（每组件一个 KVT 块；组件捕获在主线程，合并写回在工作线程）。
-        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）；重复块键的组件记录告警并跳过。
-        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>SaveEntitiesAsync</c> 持久化。</para>
+        /// 将全部已注册 <see cref="SaveComponent"/> 的勾选字段异步写入存档文件（每组件一个 KVT 块）。
         /// </summary>
+        /// <remarks>
+        /// 组件捕获在主线程、合并写回在工作线程；重复块键的组件记录告警并跳过。 <br />
+        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>SaveEntitiesAsync</c> 持久化。 <br />
+        /// 失败或处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。
+        /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
@@ -323,9 +368,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从存档文件异步恢复全部已注册 <see cref="SaveComponent"/> 的勾选字段（读盘在工作线程，字段写回在主线程）。
-        /// <para>缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过（不阻断其它组件）。
-        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>RestoreEntitiesAsync</c> 恢复。</para>
         /// </summary>
+        /// <remarks>
+        /// 缺块组件保留当前值；KVT 损坏的组件记录错误日志并跳过，不阻断其它组件。 <br />
+        /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>RestoreEntitiesAsync</c> 恢复。
+        /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
@@ -357,9 +404,11 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 在主线程将块字节恢复到组件字段（非 async 方法：SaveKeyValueReader 为 ref struct）。
-        /// <para>按批触发 <see cref="LoadProgress"/> 事件。</para>
+        /// 在主线程将块字节恢复到组件字段。
         /// </summary>
+        /// <remarks>
+        /// 非 async 方法（<c>SaveKeyValueReader</c> 为 ref struct）；按批触发 <see cref="LoadProgress"/> 事件。
+        /// </remarks>
         /// <param name="components">活跃组件快照。</param>
         /// <param name="blocks">块键 → 载荷字节。</param>
         /// <param name="fileName">存档文件名（进度事件参数）。</param>
@@ -446,8 +495,10 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将槽位元数据异步写入存档文件（保留块 <c>__meta</c>，JSON 后端）。
-        /// <para>失败抛出 <see cref="GameException"/>；处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。</para>
         /// </summary>
+        /// <remarks>
+        /// 失败或处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。
+        /// </remarks>
         /// <param name="metadata">槽位元数据。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -458,8 +509,10 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从存档文件异步读取槽位元数据（保留块 <c>__meta</c>）。
-        /// <para>元数据缺失返回 <see cref="SaveError.FileNotFound"/>（既有存档可无元数据块）；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// 元数据缺失返回 <see cref="SaveError.FileNotFound"/>（既有存档可无元数据块）；处理器未就绪时降级为 <see cref="SaveError.HandlerNotReady"/>。
+        /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>

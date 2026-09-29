@@ -8,13 +8,12 @@ namespace Moirai.Atropos.Audio.Wwise
 {
     /// <summary>
     /// 真实 Wwise 桥接。需导入 Wwise Unity 插件并定义 <c>WWISE_INSTALLED</c>。
-    /// <para>约定：事件路径用 Wwise 事件名（如 Sfx/Hit）；总线 RTPC/Volume 用 bus:/ 前缀映射。</para>
-    /// <para>3D 发声体：按实例租用池化 GameObject（Wwise 持续跟发射体位置，单发射体会让并发 3D 串位）。
-    /// 位置在 PostEvent 时固定；持续跟随需业务侧自行挂点/驱动位置。</para>
-    /// <para>能力接口：<see cref="IAudioMiddlewareBankControl"/>（SoundBank）与 <see cref="IAudioMiddlewareRtpcControl"/>（RTPC）。</para>
     /// </summary>
     /// <remarks>
-    /// 本文件可能在无 Wwise SDK 的机器上审阅/合并，无法本地编译核对；整文件受 <c>WWISE_INSTALLED</c> 编译保护，
+    /// 事件路径用 Wwise 事件名（如 Sfx/Hit）；总线 RTPC/Volume 用 bus:/ 前缀映射。 <br />
+    /// 3D 发声体按实例租用池化 GameObject（Wwise 持续跟发射体位置，单发射体会让并发 3D 串位），位置在 PostEvent 时固定。 <br />
+    /// 能力接口：<see cref="IAudioMiddlewareBankControl"/>（SoundBank）与 <see cref="IAudioMiddlewareRtpcControl"/>（RTPC）。 <br />
+    /// 整文件受 <c>WWISE_INSTALLED</c> 编译保护， <br />
     /// 调用的标准 Wwise Unity API 为 <c>AkSoundEngine.LoadBank</c> / <c>UnloadBank</c> / <c>SetRTPCValue</c>。
     /// </remarks>
     internal sealed class WwiseBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
@@ -198,7 +197,7 @@ namespace Moirai.Atropos.Audio.Wwise
 
         /// <inheritdoc />
         /// <remarks>
-        /// 走 <c>AkSoundEngine.UnloadBank(bankID, IntPtr.Zero)</c>（按名加载，内存池由 Wwise 自管）。
+        /// 走 <c>AkSoundEngine.UnloadBank(bankID, IntPtr.Zero)</c>（按名加载，内存池由 Wwise 自管）。 <br />
         /// 未加载或失败返回 false；卸载失败时保留记账以便重试。
         /// </remarks>
         public bool UnloadBank(string bankPath)

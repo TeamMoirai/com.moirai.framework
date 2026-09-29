@@ -37,9 +37,7 @@ namespace Moirai.Atropos
         private const int PageFlagInEmptyList = 1 << 1;
         private const int PageFlagTombstone = 1 << 2;
 
-        /// <summary>
-        /// 存活上限告警的限流间隔（帧）。越界往往一炸就是整段演出，逐次打日志会把 Console 与上报通道刷爆。
-        /// </summary>
+        /// <summary>存活上限告警的限流间隔（帧）。越界往往一炸就是整段演出，逐次打日志会把 Console 与上报通道刷爆。</summary>
         private const int LiveLimitWarnIntervalFrames = 300;
 
         #endregion
@@ -153,20 +151,18 @@ namespace Moirai.Atropos
         #region 公共 API [PUBLIC API]
 
         /// <summary>
-        /// 显式物化并注册本类型的内存池（AOT/IL2CPP 安全路径）。
-        /// <para>直接引用封闭泛型 <c>MemoryPool&lt;T&gt;</c> 的静态构造——编译期确定，IL2CPP 生成独立元数据；
-        /// 替代 <c>MemoryPoolRegistry.GetHandle(Type)</c> 动态路径的 <c>MakeGenericType</c> 反射（对未 AOT 预编译类型会失败）。</para>
-        /// <para>IL2CPP 工程中对每种内存对象类型在启动期调用一次（或经泛型路径 <c>Acquire</c> 首次调用时隐式完成）。</para>
+        /// 显式物化并注册本类型的内存池（AOT / IL2CPP 安全路径）。
         /// </summary>
+        /// <remarks>
+        /// 以编译期确定的封闭泛型静态构造替代 <c>MakeGenericType</c> 反射（后者对未 AOT 预编译类型会失败）；IL2CPP 工程建议对每种类型在启动期调用一次。
+        /// </remarks>
         public static void EnsureRegistered()
         {
             // 读静态字段即触发静态构造（幂等）。
             _ = s_PoolId;
         }
 
-        /// <summary>
-        /// 获取未使用内存对象数量。
-        /// </summary>
+        /// <summary>获取未使用内存对象数量。</summary>
         public static int UnusedCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -212,10 +208,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 设置存活（在外）对象数量上限，0 表示不限制。
-        /// <para>池的硬上限只约束空闲缓存，不约束总量——未命中即构造、<c>Acquire</c> 永不失败，
-        /// 所以业务漏还一只就永久少一只，表现为缓慢上涨的 OOM 而不是当场报错。本上限是给"漏还"这件事
-        /// 装一个可发现的边界：越界时带池身份限流上报，开发期直接抛出。</para>
         /// </summary>
+        /// <remarks>硬上限只约束空闲缓存、不约束总量，本上限给漏还装可发现边界：越界带池身份限流上报，开发期直接抛出。</remarks>
         /// <param name="limit">存活上限，负数按 0（不限制）处理。</param>
         public static void SetLiveLimit(int limit)
         {
@@ -227,10 +221,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 上报存活上限越界。开发期抛出（漏还要第一时间被人看见，而不是等正式包 OOM）；
-        /// 发布版限流打 Fatal 后照常发放——在这里拒绝取用会让已经开跑的演出当场断，
-        /// 比多几只对象更糟，且拒绝发放也修不了调用方的漏还。
+        /// 上报存活上限越界：开发期抛出，发布版限流打 Fatal 后照常发放。
         /// </summary>
+        /// <remarks>发布版不拒绝取用——那会当场中断已在跑的演出，且修不了调用方的漏还。</remarks>
         private static void ReportLiveLimitBreached()
         {
             s_LiveLimitBreaches++;
@@ -1145,11 +1138,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 结构自检：走查空闲链与空槽链，与页计数、全局计数、链表指针和标志位交叉核对。
-        /// <para>页链表换来的是 O(1) 摘挂，代价是一次漏挂/漏摘就会让后面的索引落到已释放内存上——
-        /// 那种失配平时不响，只在某条特定路径上以随机崩溃或数据错乱的形式回来。QA / 开发构建里在关键节点
-        /// （关卡结束、场景卸载、加载完成）调一次，就能把"随机崩溃"变成"当场说出哪个页的哪条链断了"。</para>
-        /// <para>本方法只读不改，且会为拼错误文案分配字符串——不要放进热路径或每帧调用。</para>
         /// </summary>
+        /// <remarks>只读不改，但会为错误文案分配字符串——勿放进热路径或每帧调用；建议在关卡结束、场景卸载、加载完成等关键节点调用一次。</remarks>
         /// <returns>一切自洽返回 <see langword="null"/>；否则返回首个失配的可读描述。</returns>
         public static string ValidateStructure()
         {
@@ -1450,9 +1440,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 对象全部归还后补做延迟的 Native 元数据释放。仅在空闲量已归零时进行，
-        /// 否则会带着仍挂在空闲链上的对象释放页数组，留下悬空槽位。
+        /// 对象全部归还后补做延迟的 Native 元数据释放。
         /// </summary>
+        /// <remarks>仅在空闲量已归零时执行，否则会释放页数组、留下悬空槽位。</remarks>
         private static void CompletePendingNativeMetadataClear()
         {
             if (!s_PendingClearNativeMetadata || s_InUse != 0)

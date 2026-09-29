@@ -10,11 +10,12 @@ using UnityPlayerLoop = UnityEngine.LowLevel.PlayerLoop;
 namespace Moirai.Atropos.Editor.PlayerLoopDebug
 {
     /// <summary>
-    /// PlayerLoop 结构可视化（Odin 实现）：注入状态、三阶段订阅统计，以及可折叠 / 可过滤的循环树。
-    /// <para>树上分色标出本框架的三个标记，与"挂着委托却不是 Moirai"的第三方 Pump（UniTask 等）——
-    /// 关闭流程只逐项摘自己、正是为了保住后者，所以它是排查停摆时第一眼要看的东西。</para>
-    /// <para>菜单：Window → PlayerLoop Debugger</para>
+    /// PlayerLoop 结构可视化窗口（Odin 实现）：展示注入状态、三阶段订阅统计，以及可折叠 / 可过滤的循环树。
     /// </summary>
+    /// <remarks>
+    /// 树上分色标出本框架的三个标记与第三方 Pump（UniTask 等）；关闭流程只逐项摘自己的委托，故第三方 Pump 是排查停摆时的首要观察点。 <br />
+    /// 菜单：Window → PlayerLoop Debugger。
+    /// </remarks>
     public sealed class PlayerLoopDebuggerWindow : OdinEditorWindow
     {
         #region 常量 [CONSTANTS]
@@ -67,7 +68,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
             public bool IsThirdPartyPump => HasDelegate && !IsMoirai;
         }
 
-        /// <summary>阶段统计表行（列头取成员名，勿加 LabelText——Odin 4 会渲染成行内前缀标签导致列错位）。</summary>
+        /// <summary>
+        /// 阶段统计表行（列头取成员名，勿加 LabelText——Odin 4 会渲染成行内前缀标签导致列错位）。
+        /// </summary>
         private sealed class StageRow
         {
             [TableColumnWidth(96, false)]
@@ -275,7 +278,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
 
         #region 刷新 [REFRESH]
 
-        /// <summary>重建循环树、可见性标记与阶段统计；展开状态按路径保留。</summary>
+        /// <summary>
+        /// 重建循环树、可见性标记与阶段统计；展开状态按路径保留。
+        /// </summary>
         private void Refresh()
         {
             _totalSystems = 0;
@@ -337,7 +342,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
             return node;
         }
 
-        /// <summary>按循环实况重建三个阶段行：标记在位与否、其在上游相位列表中的下标，以及注册表计数。</summary>
+        /// <summary>
+        /// 按循环实况重建三个阶段行：标记在位与否、其在上游相位列表中的下标，以及注册表计数。
+        /// </summary>
         private void BuildStages()
         {
             _stages.Clear();
@@ -373,7 +380,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
 
         #region 过滤与展开 [FILTER & EXPANSION]
 
-        /// <summary>自底向上标记子树可见性；过滤词命中时顺带展开命中项的祖先。</summary>
+        /// <summary>
+        /// 自底向上标记子树可见性；过滤词命中时顺带展开命中项的祖先。
+        /// </summary>
         private void RecomputeVisibility()
         {
             _visibleCount = 0;
@@ -467,7 +476,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
 
         #region 循环树绘制 [TREE GUI]
 
-        /// <summary>Odin 成员全部绘制完之后接循环树：表头一行 + 滚动区内的节点树。</summary>
+        /// <summary>
+        /// Odin 成员全部绘制完之后接循环树：表头一行 + 滚动区内的节点树。
+        /// </summary>
         protected override void OnEndDrawEditors()
         {
             base.OnEndDrawEditors();

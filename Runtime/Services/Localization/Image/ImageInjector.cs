@@ -4,9 +4,9 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.Localization
 {
 	/// <summary>
-	/// <see cref="Image"/> 本地化注入器，将本地化图片资源应用到 UI 图片组件。
-	/// <para>预期资源类型为 <see cref="Sprite"/>；若加载到的是 <see cref="Texture2D"/>，会自动创建 Sprite 后再应用。</para>
+	/// <see cref="Image"/> 本地化注入器：把本地化图片资源应用到 UI 图片组件。
 	/// </summary>
+	/// <remarks>预期资源类型为 <see cref="Sprite"/>；加载到 <see cref="Texture2D"/> 时会先创建 Sprite 再应用。</remarks>
 	public class ImageInjector : ImageInjectorBase
 	{
 		private readonly Image _image;

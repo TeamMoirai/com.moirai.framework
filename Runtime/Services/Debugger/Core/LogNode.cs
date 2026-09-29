@@ -36,9 +36,7 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取日志时间（UTC）。
-        /// </summary>
+        /// <summary>获取日志时间（UTC）。</summary>
         public DateTime LogTime
         {
             get
@@ -47,9 +45,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取日志帧计数。
-        /// </summary>
+        /// <summary>获取日志帧计数。</summary>
         public int LogFrameCount
         {
             get
@@ -58,9 +54,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取日志类型。
-        /// </summary>
+        /// <summary>获取日志类型。</summary>
         public LogType LogType
         {
             get
@@ -69,9 +63,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取日志内容。
-        /// </summary>
+        /// <summary>获取日志内容。</summary>
         public string LogMessage
         {
             get
@@ -80,9 +72,7 @@ namespace Moirai.Atropos.Debugger
             }
         }
 
-        /// <summary>
-        /// 获取日志堆栈信息。
-        /// </summary>
+        /// <summary>获取日志堆栈信息。</summary>
         public string StackTrace
         {
             get

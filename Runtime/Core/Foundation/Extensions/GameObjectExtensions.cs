@@ -13,11 +13,8 @@ namespace Moirai.Atropos
         private static List<Component> s_ComponentCache = new List<Component>();
 
         /// <summary>
-        /// （0GC)获取组件
+        /// （0GC)获取组件。
         /// </summary>
-        /// <param name="this"></param>
-        /// <param name="componentType"></param>
-        /// <returns></returns>
         /// <remarks>不分配无用内存</remarks>
         public static Component GetComponentNoAlloc(this GameObject @this, Type componentType)
         {
@@ -28,11 +25,8 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// （0GC)获取组件
+        /// （0GC)获取组件。
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="this"></param>
-        /// <returns></returns>
         /// <remarks>不分配无用内存</remarks>
         public static T GetComponentNoAlloc<T>(this GameObject @this) where T : Component
         {
@@ -47,7 +41,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 在特定分支（在层级结构内部）中获取一个“目标”组件。该分支由“分支根对象”定义，而“分支根对象”又由所选的“分支根组件”来确定。返回的组件必须来自“分支根对象”的子对象。
         /// </summary>
-        /// <param name="callerComponent">调用者组件</param>
+        /// <param name="callerComponent">调用者组件。</param>
         /// <param name="includeInactive">是否包含未激活的对象？</param>
         /// <typeparam name="T1">分支根组件的类型。</typeparam>
         /// <typeparam name="T2">目标组件的类型。</typeparam>
@@ -85,7 +79,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 在特定分支（层级结构内）中获取一个“目标”组件。该分支由“分支根对象”界定，而“分支根对象”由选定的“分支根组件”来确定。返回的组件必须来自“分支根对象”的某个子对象。
         /// </summary>
-        /// <param name="callerComponent">调用者组件</param>
+        /// <param name="callerComponent">调用者组件。</param>
         /// <param name="includeInactive">是否包含未激活的对象？</param>
         /// <typeparam name="T1">目标组件的类型。</typeparam>
         /// <returns>目标组件。</returns>
@@ -95,11 +89,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 检查一个游戏对象是否是另一个游戏对象的子对象
+        /// 检查一个游戏对象是否是另一个游戏对象的子对象。
         /// </summary>
-        /// <param name="gameObject">要检查的游戏对象</param>
-        /// <param name="parent">要检查的父对象</param>
-        /// <returns></returns>
+        /// <param name="gameObject">要检查的游戏对象。</param>
+        /// <param name="parent">要检查的父对象。</param>
         public static bool IsChildOf(this GameObject gameObject, GameObject parent)
         {
             Transform t = gameObject.transform;
@@ -114,11 +107,8 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取对象、其子级或父级（按此顺序）上的组件，如果未找到，则将该组件添加到该对象中
+        /// 获取对象、其子级或父级（按此顺序）上的组件，如果未找到，则将该组件添加到该对象中。
         /// </summary>
-        /// <param name="this"></param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
         public static T GetComponentAroundOrAdd<T>(this GameObject @this) where T : Component
         {
             T component = @this.GetComponentInChildren<T>(true);
@@ -174,7 +164,6 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="gameObject">目标对象。</param>
         /// <param name="type">要获取或增加的组件类型。</param>
-        /// <exception cref="ArgumentNullException"></exception>
         [TypeInferenceRule(TypeInferenceRules.TypeReferencedByFirstArgument)]
         public static void RemoveMonoBehaviour(this GameObject gameObject, Type type)
         {
@@ -237,7 +226,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="go">要处理的游戏对象。</param>
         /// <param name="value">激活或停用对象，<c>true</c> 激活游戏对象，<c>false</c> 停用游戏对象。</param>
-        /// <param name="cacheValue">要更新的激活状态缓存</param>
+        /// <param name="cacheValue">要更新的激活状态缓存。</param>
         public static void SetActive(this GameObject go, bool value, ref bool cacheValue)
         {
             if (go != null && value != cacheValue)

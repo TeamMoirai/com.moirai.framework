@@ -9,11 +9,12 @@ using UnityEngine;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 本地化处理器抽象基类（策略模式抽象策略）。
-    /// <para>承载语言管理、语言切换、运行时覆盖与文本查询；词条存储与取值解析落在
-    /// <see cref="LocalizationStore"/>，与编辑器预览共用同一套解析路径。</para>
-    /// <para>默认整批加载、全语言常驻；数据源自报支持按语言取列时转为列模式，常驻与取值都只有当前语言列。</para>
+    /// 本地化处理器抽象基类（策略模式抽象策略）：承载语言管理、语言切换、运行时覆盖与文本查询。
     /// </summary>
+    /// <remarks>
+    /// 词条存储与取值解析落在 <see cref="LocalizationStore"/>，与编辑器预览共用同一套解析路径。 <br />
+    /// 默认整批加载、全语言常驻；数据源自报支持按语言取列时转为列模式，常驻与取值都只有当前语言列。
+    /// </remarks>
     [Serializable]
     public abstract class LocalizationServiceHandler : FrameworkHandler
     {
@@ -59,14 +60,10 @@ namespace Moirai.Atropos.Localization
         /// <summary>缺译追踪集合的最大容量。</summary>
         private const int MAX_TRACKED_MISSING_KEYS = 256;
 
-        /// <summary>
-        /// 当前使用的本地化语言
-        /// </summary>
+        /// <summary>当前使用的本地化语言。</summary>
         public Language CurrentLanguage => _currentLanguage ?? LocalizationService.GetCurrentLanguage(true, ref _settingSource);
 
-        /// <summary>
-        /// 当前语言索引（数据未就绪或语言未解析时为 -1）
-        /// </summary>
+        /// <summary>当前语言索引（数据未就绪或语言未解析时为 -1）。</summary>
         public int CurrentLanguageIndex
         {
             get
@@ -82,13 +79,13 @@ namespace Moirai.Atropos.Localization
         /// <summary>当前语言是否从右向左书写（未就绪为 <c>false</c>）。</summary>
         internal bool IsCurrentLanguageRightToLeft => _currentLanguage?.IsRightToLeft ?? false;
 
-        /// <summary>语言是否在当前批内（调用方须已确认数据加载完成，见 <see cref="IsDataLoaded"/>）。</summary>
+        /// <summary>
+        /// 语言是否在当前批内（调用方须已确认数据加载完成，见 <see cref="IsDataLoaded"/>）。
+        /// </summary>
         internal bool IsLanguageAvailable(Language language) => language != null && Store.IndexOf(language) >= 0;
 
-        /// <summary>
-        /// 当前批内收录的语言（列序即批内列下标顺序；数据未就绪时为空）。
-        /// <para>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</para>
-        /// </summary>
+        /// <summary>当前批内收录的语言，列序即批内列下标顺序；数据未就绪时为空。</summary>
+        /// <remarks>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</remarks>
         public IReadOnlyList<Language> LoadedLanguages
         {
             get
@@ -98,7 +95,7 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>已加载的词条数（数据未就绪时为 0）</summary>
+        /// <summary>已加载的词条数（数据未就绪时为 0）。</summary>
         public int EntryCount
         {
             get
@@ -108,7 +105,7 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>已加载的语言数（数据未就绪时为 0）</summary>
+        /// <summary>已加载的语言数（数据未就绪时为 0）。</summary>
         public int LanguageCount
         {
             get
@@ -118,9 +115,7 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>
-        /// 全部语言列的译文总字符数。
-        /// </summary>
+        /// <summary>全部语言列的译文总字符数。</summary>
         /// <remarks>UTF-16 下每字符 2 字节，是常驻译文的<b>下限</b>估算（不含字符串对象头与字典开销），
         /// 用于判断是否到了必须按语言拆包加载的量级。</remarks>
         public long ResidentChars
@@ -161,9 +156,7 @@ namespace Moirai.Atropos.Localization
             _hasLoggedMissingCap = false;
         }
 
-        /// <summary>
-        /// 当语言改变时调用。
-        /// </summary>
+        /// <summary>当语言改变时调用。</summary>
         /// <remarks>在全部本地化器重注入<em>之后</em>触发，回调内查询文本即已是新语言。
         /// 需要「关服自动摘除」的订阅请用 <see cref="SubscribeLanguageChanged"/>。</remarks>
         public event Action<Language> OnLanguageChanged;
@@ -211,10 +204,11 @@ namespace Moirai.Atropos.Localization
         #region 数据源 [DATA SOURCE]
 
         /// <summary>
-        /// 加载一批本地化词条（<b>推荐扩展点</b>）。
-        /// <para>批自带语言头，列下标顺序即 <see cref="LocalizationTextBatch.Languages"/> 的顺序，
-        /// 因此不再依赖「语言取自全局注册表、列序取自反射字段声明序」这类跨文件隐含约定。</para>
+        /// 加载一批本地化词条（推荐扩展点）。
         /// </summary>
+        /// <remarks>
+        /// 批自带语言头，列下标顺序即 <see cref="LocalizationTextBatch.Languages"/> 的顺序，接收方只需校验二者等长。
+        /// </remarks>
         internal virtual LocalizationTextBatch LoadLocalizedTextBatch()
         {
             var (languages, strings) = LoadLocalizedData();
@@ -222,26 +216,26 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 加载本地化数据源（兼容扩展点）。
-        /// <para>改用 <see cref="LoadLocalizedTextBatch"/> 的实现无需再管本方法；保留是为了不打断存量处理器。</para>
+        /// 加载本地化数据源（兼容扩展点；新实现应改用 <see cref="LoadLocalizedTextBatch"/>）。
         /// </summary>
         /// <returns>语言列表与本地化字符串字典。</returns>
         protected virtual (List<Language> languages, Dictionary<string, List<string>> strings) LoadLocalizedData()
             => (new List<Language>(), new Dictionary<string, List<string>>());
 
         /// <summary>
-        /// 异步加载本地化词条（<b>异步扩展点</b>）。
-        /// <para>默认实现直接包装同步批加载（<see cref="LoadLocalizedTextBatch"/>），
-        /// 大数据源（远程词库、分通道流式表）应覆写为真正的异步实现。</para>
+        /// 异步加载本地化词条（异步扩展点；默认包装同步 <see cref="LoadLocalizedTextBatch"/>）。
         /// </summary>
+        /// <remarks>大数据源（远程词库、分通道流式表）应覆写为真正的异步实现。</remarks>
         internal virtual UniTask<LocalizationTextBatch> LoadLocalizedTextBatchAsync()
             => UniTask.FromResult(LoadLocalizedTextBatch());
 
         /// <summary>
         /// 异步确保本地化数据已加载（启动期预热的推荐入口）。
-        /// <para>幂等 + 在途去重：并发调用共享同一任务；已加载时立即完成。
-        /// 完成后与同步首载走同一条语言解析 + 重注入 + 广播路径。</para>
         /// </summary>
+        /// <remarks>
+        /// 幂等且在途去重：并发调用共享同一任务，已加载时立即完成。 <br />
+        /// 完成后与同步首载走同一条语言解析 + 重注入 + 广播路径。
+        /// </remarks>
         public UniTask LoadAsync()
         {
             if (_dataLoaded) return UniTask.CompletedTask;
@@ -301,12 +295,11 @@ namespace Moirai.Atropos.Localization
             CompleteLoad();
         }
 
-        /// <summary>
-        /// 声明本处理器支持按语言列加载（<b>可选契约</b>）。
-        /// <para>默认 <c>false</c>：整批加载、全语言常驻。数据源可按语言单独取列时覆写为 <c>true</c>
-        /// 并实现 <see cref="LoadLanguageHeader"/> 与 <see cref="LoadLanguageColumn"/>，
-        /// 常驻即降为「语言头 + 当前语言列」，是否值得启用按 <see cref="ResidentChars"/> 量级判断。</para>
-        /// </summary>
+        /// <summary>声明本处理器支持按语言列加载（可选契约；默认 <c>false</c>，即整批加载、全语言常驻）。</summary>
+        /// <remarks>
+        /// 覆写为 <c>true</c> 必须同时实现 <see cref="LoadLanguageHeader"/> 与 <see cref="LoadLanguageColumn"/>； <br />
+        /// 启用后常驻降为「语言头 + 当前语言列」，是否值得按 <see cref="ResidentChars"/> 量级判断。
+        /// </remarks>
         protected virtual bool SupportsPerLanguageLoad => false;
 
         /// <summary>
@@ -325,11 +318,12 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 懒式加载本地化数据源并解析当前语言。
-        /// <para>数据加载依赖资源服务（配置表），服务注册期资源尚未就绪；
-        /// 首次访问多语言 API 时资源必然已加载完成，故推迟到调用点执行。</para>
-        /// <para>批为空或列数失配都视为数据未就绪，不置成功标记，下次访问自动重试；
-        /// 异步预加载在途期间不抢跑——查询按未就绪降级（返回 ID 原文），避免同源两路并发加载。</para>
         /// </summary>
+        /// <remarks>
+        /// 数据加载依赖资源服务，注册期资源尚未就绪，故推迟到首次访问多语言 API 时执行。 <br />
+        /// 批为空或列数失配都视为数据未就绪，不置成功标记，下次访问自动重试； <br />
+        /// 异步预加载在途期间查询按未就绪降级（返回 ID 原文），不并发加载。
+        /// </remarks>
         private void EnsureLocalizedStringsLoaded()
         {
             if (_dataLoaded || _isAsyncLoading) return;
@@ -349,9 +343,9 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 数据就绪后的统一收口：置已载标记、落实语言切换意图/首启检测。
-        /// <para>同步懒加载、异步预加载、按语言列模式共用——保证三条路径的语言解析与持久化语义完全一致。</para>
+        /// 数据就绪后的统一收口：置已载标记并落实语言切换意图或首启检测。
         /// </summary>
+        /// <remarks>同步懒加载、异步预加载与按语言列模式共用，保证三条路径的语言解析与持久化语义一致。</remarks>
         private void CompleteLoad()
         {
             _dataLoaded = true;
@@ -435,8 +429,10 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 把取到的批（或取数异常）换入存储。
-        /// <para>同步懒加载与异步预加载共用的统一出口：异常只报一次、成功复位闸门、列数失调整批拒载并保留旧快照。</para>
         /// </summary>
+        /// <remarks>
+        /// 同步懒加载与异步预加载共用的统一出口：异常只报一次、成功复位闸门、列数失调整批拒载并保留旧快照。
+        /// </remarks>
         private void ApplyLoadedBatch(LocalizationTextBatch batch, Exception sourceError)
         {
             if (batch == null || batch.Languages.Length == 0)
@@ -478,14 +474,14 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 强制重载本地化词条（配置表热更、远程词库下发后调用）。
-        /// <para>不走 <see cref="EnsureLocalizedStringsLoaded"/>：它能区分「从未加载」与「已加载」，
-        /// 但分不出「旧快照还在」与「重载成功」——按换批世代号比较换入前后的快照，
-        /// 失败的热更才不会触发一次假的语言变更广播。</para>
-        /// <para>未换入新快照时一切保持不动（旧快照、当前语言、已显示文案）；
-        /// 换入后当前语言仍在批内则强制重注入并广播（语言未变但词条可能已更新），
-        /// 不在批内则按检测链、再按语言表首项兜底重选。覆盖层按契约不被换批清空。</para>
+        /// 强制重载本地化词条：换入新词条快照，并按当前语言重注入、广播。
         /// </summary>
+        /// <remarks>
+        /// 配置表热更、远程词库下发后调用。 <br />
+        /// 未换入新快照时一切保持不动（旧快照、当前语言、已显示文案）。 <br />
+        /// 换入后当前语言仍在批内则强制重注入并广播（语言未变但词条可能已更新），
+        /// 不在批内则按检测链、再按语言表首项兜底重选；覆盖层不被换批清空。
+        /// </remarks>
         public void ReloadTexts()
         {
             if (_isSwitching)
@@ -517,9 +513,9 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 换批后落实当前语言：仍在批内则强制重注入并广播（语言未变词条可能已更新），
-        /// 不在批内（热更砍掉了语言）则按检测链、再按语言表首项兜底重选。
+        /// 换批后落实当前语言：仍在批内则强制重注入并广播，不在批内则按检测链、再按语言表首项兜底重选。
         /// </summary>
+        /// <remarks>当前语言未变时词条也可能已更新，故仍走重注入与广播。</remarks>
         private void ReapplyCurrentLanguageAfterReload()
         {
             var currentIndex = Store.IndexOf(_currentLanguage);
@@ -535,10 +531,11 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 按语言列模式的热重载：重取语言头与列缓存。
-        /// <para>头取不到时保留旧快照（与整批拒载同语义）；头变更后当前语言不在新头内则按兜底重选。
-        /// 覆盖层按契约不被重载清空。</para>
+        /// 按语言列模式热重载：重取语言头与列缓存。
         /// </summary>
+        /// <remarks>
+        /// 头取不到时保留旧快照（与整批拒载同语义）；头变更后当前语言不在新头内则按兜底重选；覆盖层不被重载清空。
+        /// </remarks>
         private void ReloadPerLanguageTexts()
         {
             IReadOnlyList<Language> header = null;
@@ -593,11 +590,11 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 解析首启语言：检测链结果优先，没随这批词条发行时按语言表首项兜底。
-        /// <para>检测链给出的语言完全可能没随包发行（中文系统跑只出英日两语的包）。
-        /// 早退会让 <see cref="_currentLanguage"/> 停在 null，于是<b>每一条</b>查询都露出 ID——
-        /// 首启必须落在一个真实存在的语言上。</para>
+        /// 解析首启语言：检测链结果优先，该语言未随本批词条发行时按语言表首项兜底。
         /// </summary>
+        /// <remarks>
+        /// 检测链给出的语言可能未随包发行，早退会让 <see cref="_currentLanguage"/> 停在 <c>null</c>，使每条查询都露出 ID。
+        /// </remarks>
         private Language ResolveInitialLanguage()
         {
             var detectedIndex = Store.IndexOf(CurrentLanguage);
@@ -611,8 +608,8 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 更改当前语言。
         /// </summary>
-        /// <param name="language">例如：<see cref="Language.ChineseSimplified"/></param>
-        /// <param name="logSource">是否打印设置来源</param>
+        /// <param name="language">例如：<see cref="Language.ChineseSimplified"/>。</param>
+        /// <param name="logSource">是否打印设置来源。</param>
         public void ChangeLanguage(Language language, bool logSource = false) => ChangeLanguage(language, logSource, true);
 
         /// <summary>
@@ -716,11 +713,12 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 重注入全部本地化器。先重注入再抛事件：订阅者在 OnLanguageChanged 回调里取文本必须已拿到新语言。
-        /// 快照遍历 + 异常隔离，单个本地化器失败不影响其余，也防注入期间销毁导致的集合变更。
-        /// <para>快照从 <see cref="ArrayPool{T}"/> 租用：万级本地化器下每次切换不再落一个引用数组的
-        /// 常驻垃圾，租用后清零归还，池也不替已销毁的本地化器续命。</para>
+        /// 重注入全部本地化器，然后抛出语言变更事件。
         /// </summary>
+        /// <remarks>
+        /// 先重注入再抛事件：订阅者在 OnLanguageChanged 回调里取文本必须已拿到新语言。 <br />
+        /// 以 <see cref="ArrayPool{T}"/> 租用快照遍历并逐项异常隔离，单个本地化器失败不影响其余，也不受注入期间集合变更影响。
+        /// </remarks>
         private void ReinjectLocalizers()
         {
             var count = _localizers.Count;
@@ -797,16 +795,16 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 更改当前语言。
         /// </summary>
-        /// <param name="language">要切换的语言Name或Code</param>
+        /// <param name="language">要切换的语言Name或Code。</param>
         /// <remarks>不区分大小写。例如简体中文 => "ChineseSimplified" "zh-Hans" "chineseSimplified"均可。
-        /// 只做身份解析（无法识别的输入回落默认语言）；语言是否随包发行由批内可用性校验判定并告警，
+        /// 只做身份解析（无法识别的输入回落默认语言）；语言是否随包发行由批内可用性校验判定并告警，。 <br />
         /// 不再依赖任何全局注册表，未加载时也不会被静默回落默认语言。</remarks>
         public void ChangeLanguage(string language) => ChangeLanguage(LocalizationService.ToLanguage(language, false));
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
-        /// <param name="index">要切换已加载的语言索引</param>
+        /// <param name="index">要切换已加载的语言索引。</param>
         public void ChangeLanguage(int index)
         {
             EnsureLocalizedStringsLoaded();
@@ -823,7 +821,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 激活上一个语言。
         /// </summary>
-        /// <returns>激活的语言名称</returns>
+        /// <returns>激活的语言名称。</returns>
         public string ActivatePreviousLanguage()
         {
             EnsureLocalizedStringsLoaded();
@@ -842,7 +840,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 激活下一个语言。
         /// </summary>
-        /// <returns>激活的语言名称</returns>
+        /// <returns>激活的语言名称。</returns>
         public string ActivateNextLanguage()
         {
             EnsureLocalizedStringsLoaded();
@@ -866,9 +864,7 @@ namespace Moirai.Atropos.Localization
             LogUtility.Warning("Language {0} is not available.", language);
         }
 
-        /// <summary>
-        /// 当前语言的格式化文化（数字/日期等随游戏语言而非设备系统文化）。
-        /// </summary>
+        /// <summary>当前语言的格式化文化（数字/日期等随游戏语言而非设备系统文化）。</summary>
         /// <remarks>SerializeReference 还原的处理器不保证跑过构造器，读取侧做不变文化兜底。</remarks>
         internal CultureInfo FormatCulture => _formatCulture ?? CultureInfo.InvariantCulture;
 
@@ -894,10 +890,12 @@ namespace Moirai.Atropos.Localization
         #region 订阅与本地化器 [SUBSCRIPTIONS & LOCALIZERS]
 
         /// <summary>
-        /// 以句柄订阅语言变更。
-        /// <para>与 <see cref="OnLanguageChanged"/> 在同一次派发里触发、时序契约一致（重注入之后）；
-        /// 区别是句柄 <c>Dispose</c> 即摘除，且<b>关服时框架统一作废</b>。</para>
+        /// 以句柄订阅语言变更，<c>Dispose</c> 即摘除订阅。
         /// </summary>
+        /// <remarks>
+        /// 与 <see cref="OnLanguageChanged"/> 在同一次派发里触发、时序契约一致（重注入之后）。 <br />
+        /// 关服时框架统一作废全部句柄订阅。
+        /// </remarks>
         public IDisposable SubscribeLanguageChanged(Action<Language> callback)
         {
             if (callback == null) return LanguageChangeSubscription.Completed;
@@ -927,7 +925,7 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 移除本地化器
+        /// 移除本地化器。
         /// </summary>
         public void RemoveLocalizer(LocalizerBase localizer)
         {
@@ -955,7 +953,7 @@ namespace Moirai.Atropos.Localization
         /// 单趟按 ID 取当前语言译文：命中与否用返回值区分，不把缺译伪装成译文原文。
         /// </summary>
         /// <remarks>与 <see cref="GetTextFromId(string,object[])"/> 同一条解析路径（覆盖层 → 当前语言，
-        /// 缺译按既有口径追踪一次），但只查一趟字典——本地化器注入前的「有则注、无则报」判断
+        /// 缺译按既有口径追踪一次），但只查一趟字典——本地化器注入前的「有则注、无则报」判断。 <br />
         /// 不该比取值本身多花一倍查询；需要原文回显的调用方仍用 <c>GetTextFromId</c> 族。</remarks>
         /// <param name="id">文本 ID。</param>
         /// <param name="text">命中的译文；词条缺失或当前语言留空时为 <c>null</c>。</param>
@@ -973,8 +971,8 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <remarks>格式化文化跟随当前游戏语言（<see cref="FormatCulture"/>），不随设备系统文化漂移——
         /// 德语设备跑英语包时数字仍显示为「1.5」而非「1,5」。</remarks>
-        /// <param name="id">文本 ID</param>
-        /// <param name="p">Format</param>
+        /// <param name="id">文本 ID。</param>
+        /// <param name="p">Format。</param>
         public string GetTextFromId(string id, params object[] p)
         {
             EnsureLocalizedStringsLoaded();
@@ -998,9 +996,9 @@ namespace Moirai.Atropos.Localization
         /// 根据文本 ID 获取带一个格式化参数的本地化字符串。
         /// </summary>
         /// <remarks>走 <see cref="StringUtility.Format{T1}(string,T1)"/>：装了 ZString 时不装箱、不建参数数组；
-        /// 未装 ZString 时退化到 <c>StringBuilder.AppendFormat</c>，那条路径仍会装箱。
-        /// 文化边界：ZString 快路径下基元数字按不变规则格式化（不随文化漂移），自定义 <see cref="IFormattable"/> 实参按其默认文化；
-        /// 需要严格跟随游戏语言文化（日期/货币/小数分隔符）时改用 <see cref="GetTextFromId(string,object[])"/>。
+        /// 未装 ZString 时退化到 <c>StringBuilder.AppendFormat</c>，那条路径仍会装箱。 <br />
+        /// 文化边界：ZString 快路径下基元数字按不变规则格式化（不随文化漂移），自定义 <see cref="IFormattable"/> 实参按其默认文化； <br />
+        /// 需要严格跟随游戏语言文化（日期/货币/小数分隔符）时改用 <see cref="GetTextFromId(string,object[])"/>。 <br />
         /// 参数超过 4 个的文案请改用 <see cref="GetTextFromId(string,object[])"/>，并考虑把它拆成两条 ID。</remarks>
         public string GetTextFromId<T1>(string id, T1 arg1)
         {
@@ -1020,7 +1018,9 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>根据文本 ID 获取带两个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带两个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public string GetTextFromId<T1, T2>(string id, T1 arg1, T2 arg2)
         {
             EnsureLocalizedStringsLoaded();
@@ -1039,7 +1039,9 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>根据文本 ID 获取带三个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带三个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public string GetTextFromId<T1, T2, T3>(string id, T1 arg1, T2 arg2, T3 arg3)
         {
             EnsureLocalizedStringsLoaded();
@@ -1058,7 +1060,9 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>根据文本 ID 获取带四个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。</summary>
+        /// <summary>
+        /// 根据文本 ID 获取带四个格式化参数的本地化字符串（装箱边界说明见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
+        /// </summary>
         public string GetTextFromId<T1, T2, T3, T4>(string id, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
         {
             EnsureLocalizedStringsLoaded();
@@ -1081,9 +1085,9 @@ namespace Moirai.Atropos.Localization
         /// 根据文本 ID 和指定语言获取本地化字符串。
         /// </summary>
         /// <remarks>格式化文化跟随<em>被查询的语言</em>（而非当前语言），与译文语义一致。</remarks>
-        /// <param name="id">文本 ID</param>
-        /// <param name="language">要获取的语言；<c>null</c> 表示当前语言</param>
-        /// <param name="p">Format</param>
+        /// <param name="id">文本 ID。</param>
+        /// <param name="language">要获取的语言；<c>null</c> 表示当前语言。</param>
+        /// <param name="p">Format。</param>
         public string GetTextFromIdLanguage(string id, Language language, params object[] p)
         {
             EnsureLocalizedStringsLoaded();
@@ -1106,11 +1110,12 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 取复数词条：按当前语言的 CLDR cardinal 规则在 <c>id#zero|one|two|few|many|other</c> 中选中类别，
-        /// 回落顺序 <c>id#类别 → id#other → id</c> 裸 key；全链缺失按缺译处理（追踪 + 告警一次）并返回 ID 原文。
+        /// 取复数词条：按当前语言的 CLDR 规则选中 <c>id#类别</c>，全链缺失时按缺译处理并返回 ID 原文。
         /// </summary>
-        /// <remarks>占位符约定：<c>{0}</c> = 数量，<c>{1..}</c> = 调用方参数——复数文案不该让调用方再手写一遍 count。
-        /// 格式化文化跟随当前语言。</remarks>
+        /// <remarks>
+        /// 回落顺序 <c>id#类别 → id#other → id</c> 裸 key；缺译时追踪并只告警一次。 <br />
+        /// 占位符：<c>{0}</c> = 数量，<c>{1..}</c> = 调用方参数；格式化文化跟随当前语言。
+        /// </remarks>
         /// <param name="id">复数词条基础 ID。</param>
         /// <param name="count">数量（决定 CLDR 类别，同时作为 <c>{0}</c>）。</param>
         /// <param name="p">附加格式化参数（对应 <c>{1}</c> 起的占位符）。</param>
@@ -1256,7 +1261,7 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 获取所有多语言索引
+        /// 获取所有多语言索引。
         /// </summary>
         public List<string> GetAllIds()
         {
@@ -1270,9 +1275,11 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 覆盖指定语言下的一批词条（运营热改文案、QA 强改、远程补丁走同一条路）。
-        /// <para>叠加语义：未覆盖的词条仍取批内译文，值为空/仅空白等同于「不覆盖」；
-        /// 覆盖层不会被换批动作清空，也不会跨关服存活。同名来源即同一层，按 key 合并。</para>
         /// </summary>
+        /// <remarks>
+        /// 叠加语义：未覆盖的词条仍取批内译文，值为空或仅空白等同于不覆盖；同名来源即同一层，按 key 合并。 <br />
+        /// 覆盖层不随换批清空，也不跨关服存活。
+        /// </remarks>
         /// <param name="sourceId">来源标识（诊断用，如 remote-ops / qa-force）。</param>
         /// <param name="language">被覆盖的语言；不在当前批内时忽略。</param>
         /// <param name="entries">key → 新译文。</param>
@@ -1286,10 +1293,14 @@ namespace Moirai.Atropos.Localization
             return Store.SetOverlay(sourceId, language, entries);
         }
 
-        /// <summary>撤掉某个来源的全部覆盖；返回是否确实存在该层。</summary>
+        /// <summary>
+        /// 撤掉某个来源的全部覆盖；返回是否确实存在该层。
+        /// </summary>
         public bool ClearStringOverlay(string sourceId) => !string.IsNullOrEmpty(sourceId) && Store.ClearOverlay(sourceId);
 
-        /// <summary>撤掉全部覆盖层。</summary>
+        /// <summary>
+        /// 撤掉全部覆盖层。
+        /// </summary>
         public void ClearAllStringOverlays() => Store.ClearAllOverlays();
 
         /// <summary>已登记的覆盖层数量。</summary>
@@ -1307,8 +1318,8 @@ namespace Moirai.Atropos.Localization
 
     /// <summary>
     /// <see cref="LocalizationServiceHandler.SubscribeLanguageChanged"/> 的订阅句柄。
-    /// <para>Dispose 幂等；处理器关服时由框架统一作废，此后 Dispose 只是空操作。</para>
     /// </summary>
+    /// <remarks><c>Dispose</c> 幂等；处理器关服时由框架统一作废，此后 <c>Dispose</c> 为空操作。</remarks>
     public sealed class LanguageChangeSubscription : IDisposable
     {
         internal static readonly LanguageChangeSubscription Completed = new LanguageChangeSubscription();

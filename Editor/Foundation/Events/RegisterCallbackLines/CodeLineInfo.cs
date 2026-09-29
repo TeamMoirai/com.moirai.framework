@@ -14,24 +14,16 @@ namespace Moirai.Atropos.Events.Editor
         /// <inheritdoc/>
         public CallbackEventHandler CallbackHandler { get; }
 
-        /// <summary>
-        /// 获取回调注册点所在的源文件路径。
-        /// </summary>
+        /// <summary>获取回调注册点所在的源文件路径。</summary>
         public string FileName { get; }
 
-        /// <summary>
-        /// 获取回调注册点所在的行号。
-        /// </summary>
+        /// <summary>获取回调注册点所在的行号。</summary>
         public int LineNumber { get; }
 
-        /// <summary>
-        /// 获取该代码行的哈希码，用于高亮匹配。
-        /// </summary>
+        /// <summary>获取该代码行的哈希码，用于高亮匹配。</summary>
         public int LineHashCode { get; }
 
-        /// <summary>
-        /// 获取或设置该行是否处于高亮状态。
-        /// </summary>
+        /// <summary>获取或设置该行是否处于高亮状态。</summary>
         public bool Highlighted { get; set; }
 
         /// <summary>

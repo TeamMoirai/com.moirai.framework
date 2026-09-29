@@ -10,10 +10,11 @@ namespace Service.Audio
 {
     /// <summary>
     /// 暂停与音轨门控的 PlayMode 集成测试（真实 AudioSource + 真实斜坡计时）。
-    /// <para>沿用 <see cref="AudioServicePlayModeTests"/> 的自建隔离：直接构造 <see cref="UnityAudioHandler"/>
-    /// 并反射调 OnInit，不依赖完整 GameEntry 启动链。</para>
-    /// <para>斜坡计时走 <c>GameTime.unscaledTime</c>，因此等待一律用真实秒数。</para>
     /// </summary>
+    /// <remarks>
+    /// 沿用 <see cref="AudioServicePlayModeTests"/> 的自建隔离：直接构造 <see cref="UnityAudioHandler"/> 并反射唤起其初始化，不依赖完整 GameEntry 启动链。 <br />
+    /// 斜坡计时走 <c>GameTime.unscaledTime</c>，因此等待一律用真实秒数。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioPausePlayModeTests
     {
@@ -90,7 +91,9 @@ namespace Service.Audio
                 EAudioPlayFlags.DoNotAutoRecycle), null);
         }
 
-        /// <summary>推进真实秒数并驱动服务 Tick（淡入淡出按 unscaled 计时）。</summary>
+        /// <summary>
+        /// 推进真实秒数并驱动服务 Tick（淡入淡出按 unscaled 计时）。
+        /// </summary>
         private IEnumerator Advance(float seconds)
         {
             const int steps = 3;

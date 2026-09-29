@@ -28,24 +28,16 @@ namespace Moirai.Atropos.Resource
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 所有者 ID。
-        /// </summary>
+        /// <summary>所有者 ID。</summary>
         public int OwnerId { get; private set; }
 
-        /// <summary>
-        /// GameObject ID。
-        /// </summary>
+        /// <summary>GameObject ID。</summary>
         public ulong GameObjectId { get; private set; }
 
-        /// <summary>
-        /// 代际标记。
-        /// </summary>
+        /// <summary>代际标记。</summary>
         public uint Generation { get; private set; }
 
-        /// <summary>
-        /// 是否已注册。
-        /// </summary>
+        /// <summary>是否已注册。</summary>
         public bool IsRegistered { get; private set; }
 
         #endregion

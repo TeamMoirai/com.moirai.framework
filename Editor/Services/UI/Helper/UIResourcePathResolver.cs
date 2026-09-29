@@ -5,23 +5,23 @@ using UnityEngine;
 namespace Moirai.Atropos.UI.Editor
 {
     /// <summary>
-    /// 资源路径解析器接口，定义UI资源路径的解析规则
+    /// 资源路径解析器接口，定义UI资源路径的解析规则。
     /// </summary>
     public interface IUIResourcePathResolver
     {
         /// <summary>
-        /// 获取资源路径
+        /// 获取资源路径。
         /// </summary>
         string GetResourcePath(GameObject targetObject, UIScriptGenerateData scriptGenerateData);
 
         /// <summary>
-        /// 判断是否可以生成
+        /// 判断是否可以生成。
         /// </summary>
         bool CanGenerate(GameObject targetObject, UIScriptGenerateData scriptGenerateData);
     }
 
     /// <summary>
-    /// 默认资源路径解析器实现
+    /// 默认资源路径解析器实现。
     /// </summary>
     public sealed class DefaultUIResourcePathResolver : IUIResourcePathResolver
     {

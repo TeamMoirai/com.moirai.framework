@@ -100,8 +100,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取已加载的程序集中的指定类型（接口或基类）的所有实现类/子类。
         /// </summary>
-        /// <param name="typeBase">指定接口或基类类型</param>
-        /// <returns>所有实现类/子类的 Type 列表</returns>
+        /// <param name="typeBase">指定接口或基类类型。</param>
+        /// <returns>所有实现类/子类的 Type 列表。</returns>
         public static List<Type> GetRuntimeTypes(Type typeBase)
         {
             var types = GetTypes();

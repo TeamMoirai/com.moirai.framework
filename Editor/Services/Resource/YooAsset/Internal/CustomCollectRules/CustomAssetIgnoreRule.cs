@@ -5,7 +5,7 @@ namespace YooAsset.Editor
     public class CustomNormalIgnoreRule : IAssetIgnoreRule
     {
         /// <summary>
-        /// 查询是否为忽略文件
+        /// 查询是否为忽略文件。
         /// </summary>
         /// <remarks><see cref="NormalIgnoreRule"/></remarks>
         public bool IsIgnoreAsset(EditorAssetInfo assetInfo)

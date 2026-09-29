@@ -15,19 +15,13 @@ namespace Moirai.Atropos.Events.Editor
     /// </summary>
     class EventTypeChoice : IComparable<EventTypeChoice>
     {
-        /// <summary>
-        /// 选项显示名称（具体事件类型名或分组名）。
-        /// </summary>
+        /// <summary>选项显示名称（具体事件类型名或分组名）。</summary>
         public string Name;
 
-        /// <summary>
-        /// 选项所属分组名（取事件基接口名，未分类时为 IUncategorized）。
-        /// </summary>
+        /// <summary>选项所属分组名（取事件基接口名，未分类时为 IUncategorized）。</summary>
         public string Group;
 
-        /// <summary>
-        /// 事件类型标识：具体类型为正数，分组为负数，「全部」为 0。
-        /// </summary>
+        /// <summary>事件类型标识：具体类型为正数，分组为负数，「全部」为 0。</summary>
         public long TypeId;
 
         /// <summary>
@@ -87,9 +81,7 @@ namespace Moirai.Atropos.Events.Editor
         /// </summary>
         public int GetSelectedCount() => m_Choices.Count(c => c.TypeId > 0 && m_State[c.TypeId]);
 
-        /// <summary>
-        /// 该控件及其子元素的 USS 类名。
-        /// </summary>
+        /// <summary>该控件及其子元素的 USS 类名。</summary>
         public new static readonly string ussClassName = "event-debugger-filter";
         public static readonly string ussContainerClassName = ussClassName + "__container";
         public static readonly string ussListViewClassName = ussClassName + "__list-view";
@@ -99,9 +91,7 @@ namespace Moirai.Atropos.Events.Editor
         public static readonly string ussItemCountClassName = ussClassName + "__item-count";
         public static readonly string ussItemToggleClassName = ussClassName + "__item-toggle";
 
-        /// <summary>
-        /// 获取各事件类型标识对应的启用/禁用状态。
-        /// </summary>
+        /// <summary>获取各事件类型标识对应的启用/禁用状态。</summary>
         public IReadOnlyDictionary<long, bool> State => m_State;
 
         /// <summary>

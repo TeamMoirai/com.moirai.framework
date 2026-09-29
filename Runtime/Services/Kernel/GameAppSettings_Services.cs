@@ -6,19 +6,14 @@ namespace Moirai.Atropos
     {
         /// <summary>
         /// 注册 App 作用域服务并启动游戏流程（Composition Root）。
-        /// <para>① 注册全部内置 App 服务——注册清单由 <c>BuiltinServiceRegistrationGenerator</c>
-        /// 按服务类上的 <see cref="AutoRegisterServiceAttribute"/> 标记生成（
-        /// <c>BuiltinServiceRegistration.RegisterAll</c>），服务实例经生成的无参构造调用创建；
-        /// <see cref="ServiceDependencyAttribute"/> 声明在世界初始化时做拓扑排序
-        /// （缺失依赖与循环依赖 fail-fast），初始化顺序由声明决定、与注册顺序无关；</para>
-        /// <para>② <see cref="GameApp.ServicesComposing"/> 交回项目侧注册自有 App 服务，
-        /// 与内置服务同等参与下面的拓扑排序；</para>
-        /// <para>③ <see cref="ServiceWorld.InitializeAsync"/> 提交两阶段构建的第二阶段。</para>
-        /// <para>调试器依赖：各服务 OnInit 经 <see cref="Debugger.DebuggerService"/> 注册调试面板——
-        /// 需要调试面板的服务应声明 <c>[ServiceDependency(typeof(DebuggerService))]</c> 以保证拓扑序。</para>
-        /// <para>由 <see cref="GameApp.Boot"/> 调用（其触发点 <see cref="GameAppSettings.Initiation"/>
-        /// 相位为 <c>BeforeSceneLoad</c>）。</para>
         /// </summary>
+        /// <remarks>
+        /// 顺序固定： ① 内置服务注册清单（源生成器按 <see cref="AutoRegisterServiceAttribute"/> 标记生成）→ ② <br />
+        /// <see cref="GameApp.ServicesComposing"/> 交回项目侧注册自有 App 服务 → ③ <see cref="ServiceWorld.InitializeAsync"/> 提交两阶段构建的第二阶段。
+        /// 初始化顺序由 <see cref="ServiceDependencyAttribute"/> 声明拓扑决定、与注册顺序无关，缺失依赖与循环依赖 fail-fast。 <br />
+        /// 需要调试面板的服务应声明 <c>[ServiceDependency(typeof(DebuggerService))]</c> 以保证拓扑先行。 <br />
+        /// 由 <see cref="GameApp.Boot"/> 调用，触发点 <see cref="GameAppSettings.Initiation"/> 相位为 <c>BeforeSceneLoad</c>。
+        /// </remarks>
         internal static partial UniTaskVoid InitializeAppServices()
         {
             return Initialize();

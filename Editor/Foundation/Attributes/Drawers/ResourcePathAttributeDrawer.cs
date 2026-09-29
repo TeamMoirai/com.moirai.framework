@@ -14,7 +14,8 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Attributes.Editor.Drawers
 {
     /// <summary>
-    /// <see cref="ResourcePathAttribute"/> 特性绘制器：以资源对象字段编辑字符串属性，按 <see cref="EStr"/> 指定的格式（Resources 相对路径、AssetDatabase 路径或 GUID）在字符串与资源对象之间转换。
+    /// <see cref="ResourcePathAttribute"/> 特性绘制器：以资源对象字段编辑字符串属性，按 <see cref="EStr"/> 指定的格式（Resources 相对路径、 <br />
+    /// AssetDatabase 路径或 GUID）在字符串与资源对象之间转换。
     /// </summary>
     [CustomPropertyDrawer(typeof(ResourcePathAttribute))]
     public class ResourcePathAttributeDrawer : PropertyDrawer

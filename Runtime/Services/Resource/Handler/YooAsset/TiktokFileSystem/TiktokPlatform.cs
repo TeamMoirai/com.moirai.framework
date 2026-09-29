@@ -5,7 +5,7 @@ using YooAsset;
 using TTSDK;
 
 /// <summary>
-/// 抖音小游戏平台实现
+/// 抖音小游戏平台实现。
 /// </summary>
 internal class TiktokPlatform : IWebPlatformStrategy
 {

@@ -12,26 +12,16 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Editor.Testing
 {
     /// <summary>
-    /// Test Player Runner：把「在 Player 里跑测试」的常用启动参数收进一个窗口，一键发起。
-    /// <para>背景（2026-09-28 L3 实证）：Player 测试的收录以<b>编辑器可见性</b>为前提、结果经 PlayerConnection
-    /// 回传编辑器而非玩家落盘、构建期由 UTF 注入引导场景——GUI 与 CLI 走同一 <c>PlayerLauncher</c> 机制。
-    /// 本窗口即 GUI 通道的产品化：目标平台、测试过滤、心跳超时、报告输出路径收拢一处，附 CLI 等价命令
-    /// 便于复制进 CI 或本机 batch（batch 需先关 GUI 编辑器——工程锁互斥）。</para>
-    /// <para>菜单：Window → General → Test Player Runner。</para>
-    /// <para>实现取向：UI Toolkit（本窗口住测试程序集，其 asmdef 以 <c>overrideReferences</c> 收窄预编译引用、
-    /// 不含 Odin——呈现层不得依赖 Odin）；设置字段用 <c>[SerializeField]</c> 走 EditorWindow 自身序列化，
-    /// 跨域重载保留。</para>
-    /// <para>域重载存活：Player 构建可能触发域重载，回调宿主与计数随 <c>Temp/MoiraiPlayerTestRun.json</c>
-    /// 落盘恢复（与测试桥 <c>TestRequestRunner</c> 同一教训：跨域的真相只能住磁盘）。</para>
-    /// <para>护栏（与测试桥同款语义，2026-09-28 增量复审补齐）：<b>接单门</b>——正在编译/导入/切 PlayMode
-    /// 或编辑器里有任意 Test Runner 作业在跑时拒绝发起（ICallbacks 无法归因到具体 run，并发会把结果串进
-    /// 同一份账，残余竞态与测试桥同判——两门互为反向挡板）；<b>错误回调</b>——实现 <c>IErrorCallbacks</c>，
-    /// UTF 报错（含玩家构建失败）按 ABORTED 收口并当场清状态文件，不再把 Run 按钮永久钉死在灰态；
-    /// <b>取消</b>——受理即收口（UTF 受理取消后不再送达 RunFinished），拒绝受理则等自然收口；
-    /// <b>孤儿单</b>——域重载后按作业 guid 判活（探针缺失逐级降级宽限），证实已死即 ABORTED 强制收口，
-    /// 编辑器侧悬挂由取消按钮兜底、玩家侧断连由心跳超时参数兜底；<b>失败详情</b>——Message 与 StackTrace
-    /// 并采、有上限，玩家侧失败可归因。</para>
+    /// Test Player Runner：收拢「在 Player 里跑测试」的启动参数并一键发起的编辑器窗口。
     /// </summary>
+    /// <remarks>
+    /// 菜单 <c>Window → General → Test Player Runner</c>；与 CLI 同一 <c>PlayerLauncher</c> 机制（结果经 PlayerConnection 回传编辑器），
+    /// 附等价命令行便于复制进 CI 或本机 batch——batch 需先关 GUI 编辑器（工程锁互斥）。 <br />
+    /// 启动条件：正在编译、导入、切 PlayMode 或已有任意 Test Runner 作业在跑时拒绝发起。 <br />
+    /// 域重载后按作业 guid 判活（探针缺失逐级降级宽限），证实已死即按 ABORTED 强制收口；失败详情 Message 与 StackTrace 并采、有上限。 <br />
+    /// 呈现代码限 UI Toolkit：本窗口住测试程序集，其 asmdef 以 <c>overrideReferences</c> 收窄预编译引用、不含 Odin； <br />
+    /// 设置字段走 <c>[SerializeField]</c> 的 EditorWindow 自身序列化，跨域重载保留。
+    /// </remarks>
     public sealed class TestPlayerRunnerWindow : EditorWindow
     {
         #region 常量 [CONSTANTS]
@@ -81,10 +71,10 @@ namespace Moirai.Atropos.Editor.Testing
 
         private RunState _run;
 
-        /// <summary>
-        /// 本域内 <see cref="RestoreRunState"/> 恢复未完单的时刻（<see cref="EditorApplication.timeSinceStartup"/> 秒）。
-        /// -1 表示本单是本域新发起的，孤儿判定不参与——只有跨域重载恢复出的单才可能已成孤儿。
-        /// </summary>
+        /// <summary>本域内 <see cref="RestoreRunState"/> 恢复未完单的时刻（<see cref="EditorApplication.timeSinceStartup"/> 秒）。</summary>
+        /// <remarks>
+        /// -1 表示本单由本域新发起，孤儿判定不参与——只有跨域重载恢复出的单才可能已成孤儿。
+        /// </remarks>
         private double _restoredAt = -1d;
 
         private RunCallbacks _callbacks;
@@ -97,7 +87,9 @@ namespace Moirai.Atropos.Editor.Testing
 
         #region UI 构建 [UI BUILD]
 
-        /// <summary>打开 Test Player Runner 窗口（菜单 Window → General → Test Player Runner）。</summary>
+        /// <summary>
+        /// 打开 Test Player Runner 窗口（菜单 Window → General → Test Player Runner）。
+        /// </summary>
         [MenuItem("Window/General/Test Player Runner")]
         public static void OpenWindow()
         {
@@ -516,15 +508,11 @@ namespace Moirai.Atropos.Editor.Testing
 
         #region 判活探针 [LIVENESS PROBES]
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunning(guid)</c> 反射探针：只问本窗口这一单是否仍在跑，窗口手动跑/测试桥不干扰判定。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunning(guid)</c> 反射探针：只问本窗口这一单是否仍在跑，窗口手动跑/测试桥不干扰判定。</summary>
         private static readonly Func<string, bool> IsRunningProbe =
             CreateProbe<Func<string, bool>>("IsRunning", typeof(string));
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunActive()</c> 反射探针：任意 run 在跑即真；仅作接单门与 <see cref="IsRunningProbe"/> 不可用时的降级。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunActive()</c> 反射探针：任意 run 在跑即真；仅作接单门与 <see cref="IsRunningProbe"/> 不可用时的降级。</summary>
         private static readonly Func<bool> IsRunActiveProbe = CreateProbe<Func<bool>>("IsRunActive", null);
 
         private enum ELiveness
@@ -586,9 +574,11 @@ namespace Moirai.Atropos.Editor.Testing
         }
 
         /// <summary>
-        /// 接单门用：编辑器里有任意 Test Runner 作业在跑即真（含测试桥与本窗口外的手动发起）；
-        /// 探针不可用时放行，不因基础设施故障卡死接单。
+        /// 接单门用：编辑器里有任意 Test Runner 作业在跑即真（含测试桥与本窗口外的手动发起）。
         /// </summary>
+        /// <remarks>
+        /// 探针不可用时放行，不因基础设施故障卡死接单。
+        /// </remarks>
         private static bool IsAnyRunActive()
         {
             if (IsRunActiveProbe == null) return false;
@@ -650,13 +640,19 @@ namespace Moirai.Atropos.Editor.Testing
             }
         }
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：单格通过。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：单格通过。
+        /// </summary>
         internal void OnTestPassed(string test) => RecordProgress(1, 0, 0, test, null);
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：单格跳过（Skip/Inconclusive/Cancel 变体）。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：单格跳过（Skip/Inconclusive/Cancel 变体）。
+        /// </summary>
         internal void OnTestSkipped(string test) => RecordProgress(0, 0, 1, test, null);
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：单格失败，附 Message+StackTrace 详情。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：单格失败，附 Message+StackTrace 详情。
+        /// </summary>
         internal void OnTestFailed(string test, string detail) => RecordProgress(0, 1, 0, test, detail);
 
         private void RecordProgress(int pass, int fail, int skip, string currentTest, string failureDetail)
@@ -677,7 +673,9 @@ namespace Moirai.Atropos.Editor.Testing
             RefreshUi();
         }
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：正常收口，计数与失败详情取自跨域真相源（磁盘运行态）。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：正常收口，计数与失败详情取自跨域真相源（磁盘运行态）。
+        /// </summary>
         internal void OnRunFinished(double durationSeconds)
         {
             RunState state = _run;
@@ -720,13 +718,17 @@ namespace Moirai.Atropos.Editor.Testing
             RefreshUi();
         }
 
-        /// <summary>由回调宿主驱动（编辑器主线程）：UTF 报错（含玩家构建失败）按 ABORTED 收口，不锁死窗口。</summary>
+        /// <summary>
+        /// 由回调宿主驱动（编辑器主线程）：UTF 报错（含玩家构建失败）按 ABORTED 收口，不锁死窗口。
+        /// </summary>
         internal void OnRunError(string message) => FinishAborted($"TestRunner 报错：{message}");
 
         /// <summary>
-        /// ABORTED 收口：错误回调/取消/孤儿单共用。已收集的计数与失败详情随报告交付（已跑完的格子不白跑），
-        /// 状态文件当场清理——Run 按钮立即解禁，不留「报错即永久灰死 + 域重载自锁复现」的死结。
+        /// ABORTED 收口：错误回调、取消与孤儿单共用，已收集的计数与失败详情随报告交付，状态文件当场清理。
         /// </summary>
+        /// <remarks>
+        /// 状态文件清理后 Run 按钮立即解禁，不留「报错即永久灰死」的死结。
+        /// </remarks>
         private void FinishAborted(string reason)
         {
             RunState state = _run;
@@ -777,10 +779,11 @@ namespace Moirai.Atropos.Editor.Testing
         }
 
         /// <summary>
-        /// 孤儿单判定（与测试桥同款）：只在「跨域重载恢复出的未完单」上参与。按作业 guid 判活，
-        /// 探针缺失或抛错逐级降级，扩展宽限后仍无法证实在跑即 ABORTED 强制收口——状态文件不能把
-        /// Run 按钮永远钉死在灰态。窗口关闭期间判定不跑，重开窗口的 OnEnable 会接上。
+        /// 孤儿单判定（与测试桥同款）：只在跨域重载恢复出的未完单上参与，按作业 guid 判活，扩展宽限后仍无法证实在跑即按 ABORTED 收口。
         /// </summary>
+        /// <remarks>
+        /// 探针缺失或抛错逐级降级；状态文件不能把 Run 按钮永远钉死在灰态——窗口关闭期间判定不跑，重开窗口的 <c>OnEnable</c> 会接上。
+        /// </remarks>
         private void PollRunLiveness()
         {
             if (_run == null || _run.finished || _restoredAt < 0d) return;
@@ -826,10 +829,12 @@ namespace Moirai.Atropos.Editor.Testing
         }
 
         /// <summary>
-        /// ICallbacks 宿主（ScriptableObject 存活跨域重载——UTF 的 CallbacksHolder 列表不序列化，
-        /// 每次域加载都重注册）。计数与失败详情不住这里——它们只活在窗口 <see cref="RunState"/>（磁盘真相源），
-        /// 本宿主只做分类转发，跨域重载后由 UTF <c>ResumeRunningJobs</c> 续跑作业、窗口从盘上接账。
+        /// <see cref="ICallbacks"/> 宿主（<c>ScriptableObject</c> 存活跨域重载）：只做分类转发，不持有计数与失败详情。
         /// </summary>
+        /// <remarks>
+        /// UTF 的 <c>CallbacksHolder</c> 列表不序列化，每次域加载都要重注册；计数与失败详情只活在窗口 <c>RunState</c>（磁盘真相源）， <br />
+        /// 跨域重载后由 UTF <c>ResumeRunningJobs</c> 续跑作业、窗口从盘上接账。
+        /// </remarks>
         private sealed class RunCallbacks : ScriptableObject, ICallbacks, IErrorCallbacks
         {
             private static RunCallbacks s_Instance;

@@ -3,41 +3,35 @@
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器处理器抽象基类（策略模式抽象策略）。定义 <see cref="DebuggerService"/> 外观调用的调试器后端契约。
-    /// <para>默认实现为 <see cref="DefaultDebuggerHandler"/>（UI Toolkit 运行时调试器），可在 <see cref="DebuggerServiceSettings"/> 中替换为自定义实现。</para>
+    /// 调试器处理器抽象基类（策略模式抽象策略）：<see cref="DebuggerService"/> 外观调用的后端契约。
     /// </summary>
+    /// <remarks>
+    /// 默认实现为 <see cref="DefaultDebuggerHandler"/>（UI Toolkit 运行时调试器），可在 <see cref="DebuggerServiceSettings"/> 中替换为自定义实现。
+    /// </remarks>
     [Serializable]
     public abstract class DebuggerServiceHandler : FrameworkHandler
     {
-        /// <summary>
-        /// 获取或设置调试器是否激活（悬浮入口可见；关闭时零 UI 开销）。
-        /// </summary>
+        /// <summary>获取或设置调试器是否激活（悬浮入口可见；关闭时零 UI 开销）。</summary>
         public abstract bool ActiveWindow
         {
             get;
             set;
         }
 
-        /// <summary>
-        /// 获取或设置完整调试器窗口是否展开。
-        /// </summary>
+        /// <summary>获取或设置完整调试器窗口是否展开。</summary>
         public abstract bool ShowFullWindow
         {
             get;
             set;
         }
 
-        /// <summary>
-        /// 获取调试器窗口注册表（路径树导航模型）。
-        /// </summary>
+        /// <summary>获取调试器窗口注册表（路径树导航模型）。</summary>
         public abstract DebuggerWindowRegistry WindowRegistry
         {
             get;
         }
 
-        /// <summary>
-        /// 获取日志捕获器（环形缓冲，供控制台与外部工具消费）。
-        /// </summary>
+        /// <summary>获取日志捕获器（环形缓冲，供控制台与外部工具消费）。</summary>
         public abstract DebuggerLogCapture LogCapture
         {
             get;

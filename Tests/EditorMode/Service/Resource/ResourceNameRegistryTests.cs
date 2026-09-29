@@ -7,9 +7,11 @@ using UnityEngine;
 namespace Service.Resource
 {
     /// <summary>
-    /// ResourceNameRegistry 的行为契约：三条 packed key 名称轴共用一份实现，
-    /// 所以这份实现必须逐条对上原来三份拷贝的语义，尤其是两处"看着一样其实不同"的分岔。
+    /// packed key 三条名称轴的共享注册表实现的行为契约。
     /// </summary>
+    /// <remarks>
+    /// 三条名称轴共用同一份实现，其中两处"看着一样其实不同"的分岔必须逐个对齐。
+    /// </remarks>
     public sealed class ResourceNameRegistryTests
     {
         private const int Max = 8;

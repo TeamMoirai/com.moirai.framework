@@ -8,14 +8,14 @@ namespace Moirai.Atropos.Audio.Middleware
 {
     /// <summary>
     /// 中间件音频处理器基类——FMOD / Wwise 共用。
-    /// <para>统一：句柄生命周期（<see cref="AudioHandleRegistry{TVoice}"/>）、用户 ID 映射、
-    /// 声部与总线 Fade（<see cref="AudioFadeScheduler"/>）、总线音量/静音/暂停、场景切换清理。</para>
-    /// <para>子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。</para>
-    /// <para>冷路径 API（PlayFadeByID / StopByID 等）直接用 lambda，不做委托缓存——UI 触发频率低，可读性优先。</para>
-    /// <para>语义与 Unity 后端对齐：暂停轨拦截新播放、MasterVolume getter 始终返回未静音值、
-    /// Master/音轨 Fade 带缓动（经共享过渡调度器驱动总线音量）。</para>
-    /// <para>不支持项：InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。</para>
     /// </summary>
+    /// <remarks>
+    /// 统一句柄生命周期（<see cref="AudioHandleRegistry{TVoice}"/>）、用户 ID 映射、声部与总线 Fade（<see cref="AudioFadeScheduler"/>）、 <br />
+    /// 总线音量/静音/暂停与场景切换清理； <br />
+    /// 子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。 <br />
+    /// 语义与 Unity 后端对齐：暂停轨拦截新播放、<see cref="MasterVolume"/> getter 始终返回未静音值、Master/音轨 Fade 带缓动。 <br />
+    /// 不支持 InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。
+    /// </remarks>
     [Serializable]
     internal abstract class MiddlewareAudioHandler : AudioServiceHandler, IAudioFadeTarget
     {
@@ -52,7 +52,9 @@ namespace Moirai.Atropos.Audio.Middleware
                 set => Slot = value;
             }
 
-            /// <summary>归还池前复位全部字段，避免脏状态随复用泄漏。</summary>
+            /// <summary>
+            /// 归还池前复位全部字段，避免脏状态随复用泄漏。
+            /// </summary>
             public void Reset()
             {
                 Handle = 0UL;
@@ -91,7 +93,9 @@ namespace Moirai.Atropos.Audio.Middleware
             _voicePool.Push(voice);
         }
 
-        /// <summary>卸绑全部句柄并把 Voice 归还池（Reset 字段防脏状态随复用泄漏）。</summary>
+        /// <summary>
+        /// 卸绑全部句柄并把 Voice 归还池（Reset 字段防脏状态随复用泄漏）。
+        /// </summary>
         private void ReleaseAllVoicesToPool()
         {
             foreach (var slot in _handles.Slots)
@@ -139,9 +143,8 @@ namespace Moirai.Atropos.Audio.Middleware
 
         /// <summary>
         /// 测试接缝：取默认桥实例（懒建，与运行期同一实例）。
-        /// <para>用例要断言"该后端的默认桥实现了哪些能力接口"，而 <see cref="CreateDefaultBridge"/> 是 protected，
-        /// 直取只能靠反射。按框架口径（需要触达的成员开 internal，不用反射）在此开一个窄接缝。</para>
         /// </summary>
+        /// <remarks>用例需断言默认桥实现了哪些能力接口，而 <see cref="CreateDefaultBridge"/> 为 protected，故开此 internal 窄接缝。</remarks>
         /// <returns>默认中间件桥。</returns>
         internal IAudioMiddlewareBridge Internal_PeekDefaultBridge() => _bridge ??= CreateDefaultBridge();
 
@@ -159,9 +162,7 @@ namespace Moirai.Atropos.Audio.Middleware
         /// </summary>
         public void SetBridge(IAudioMiddlewareBridge bridge) => _bridge = bridge;
 
-        /// <summary>
-        /// 当前桥接。
-        /// </summary>
+        /// <summary>当前桥接。</summary>
         public IAudioMiddlewareBridge Bridge => _bridge;
 
         private void EnsureTrackArrays()
@@ -517,8 +518,7 @@ namespace Moirai.Atropos.Audio.Middleware
             => PlayEventPath(ResolveEventPath(clip), request, cold);
 
         /// <summary>
-        /// 解析 clip 对应的事件路径：先查 <see cref="AudioEventMapping"/> 映射表，未命中才回落到
-        /// 桥接按 <c>clip.name</c> 推导（并就该 clip 提示一次——事件名与 clip 名不一致时静默推导出错最难查）。
+        /// 解析 clip 对应的事件路径：先查 <see cref="AudioEventMapping"/> 映射表，未命中才回落按 <c>clip.name</c> 推导并提示一次。
         /// </summary>
         private string ResolveEventPath(AudioClip clip)
         {
@@ -567,7 +567,9 @@ namespace Moirai.Atropos.Audio.Middleware
             return map;
         }
 
-        /// <summary>映射表变更后需重建缓存（编辑器/热更里改配置时调用）。</summary>
+        /// <summary>
+        /// 映射表变更后需重建缓存（编辑器/热更里改配置时调用）。
+        /// </summary>
         public void InvalidateEventMap()
         {
             _eventByClip = null;
@@ -591,9 +593,9 @@ namespace Moirai.Atropos.Audio.Middleware
 
         /// <inheritdoc />
         /// <remarks>
-        /// 需要桥接实现 <see cref="IAudioMiddlewareBankControl"/>；未实现时提示一次并返回 false。
+        /// 需要桥接实现 <see cref="IAudioMiddlewareBankControl"/>；未实现时提示一次并返回 false。 <br />
         /// 只有 <see cref="EAudioBankLoadResult.Failed"/> 才告警（同一库一次）——幂等命中与「插件启动时
-        /// 自行加载过的 master/Init 库」都是正常路径，报出来只会把真失败淹成噪音。
+        /// 自行加载过的 master/Init 库」都是正常路径，报出来只会把真失败淹成噪音。 <br />
         /// 返回 <c>true</c> 仅表示本次调用真的完成了加载。
         /// </remarks>
         public override bool LoadBank(string bankPath)
@@ -945,11 +947,8 @@ namespace Moirai.Atropos.Audio.Middleware
 
         /// <summary>
         /// 把 <see cref="_handleScratch"/> 里已收集好的句柄逐条停掉并清空。
-        /// <para>收 / 停必须分成两趟：<see cref="Stop"/> 会当场解绑句柄，边枚举槽表边停会跳元素。
-        /// 这个"先攒进共用暂存、再统一停"的形状原本在四个批量入口里各写一遍（含两次 Clear），
-        /// 而暂存是共享的——收完忘了清、或在停的趟里又去取它，都是能悄悄长出来的坏形。
-        /// 现在半边走这一个方法，暂存的取用规矩就只剩一处需要守。</para>
         /// </summary>
+        /// <remarks>收 / 停必须分成两趟：<see cref="Stop"/> 会当场解绑句柄，边枚举槽表边停会跳元素。</remarks>
         private void StopCollected(float fadeoutDuration)
         {
             for (int i = 0; i < _handleScratch.Count; i++)

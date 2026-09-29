@@ -8,9 +8,10 @@ namespace Service.Audio
 {
     /// <summary>
     /// AudioEmitter / BgmPlaylist 场景组件验收：播放句柄、同 ID 替换、触发半径、列表切换。
-    /// <para>关键路径走 <see cref="AudioServiceTestHost"/>（最小配置 + 换入 s_Handler），
-    /// 配置缺失会 Fail 而不是 Ignore——避免「全绿零覆盖」。</para>
     /// </summary>
+    /// <remarks>
+    /// 关键路径走 <see cref="AudioServiceTestHost"/>（最小配置 + 换入 s_Handler），配置缺失会 Fail 而不是 Ignore——避免「全绿零覆盖」。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioEmitterPlaylistTests
     {

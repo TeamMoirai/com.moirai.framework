@@ -8,16 +8,11 @@ namespace Moirai.Atropos
     /// </summary>
     /// <typeparam name="T">继承本基类的具体单例类型。</typeparam>
     /// <remarks>
-    /// <para><b>线程模型</b>：实例物化后，任意线程访问 <see cref="Instance"/> 只命中
-    /// volatile 读原子快速路径；<b>物化（查找/创建）只能发生在主线程</b>——后台线程在实例
-    /// 尚未物化时访问将抛出 <see cref="GameException"/>（替代越线程调用 Unity API 的未定义行为）。
-    /// 需要后台线程访问的派生类应在启动阶段于主线程预热（参照 MainThreadDispatcher.BootstrapOnPlay）。</para>
-    /// <para><b>编辑模式</b>：仅查找已有实例、不自动创建（避免向场景写入瞬时对象），
-    /// 未找到时返回 null。</para>
-    /// <para><b>退出窗口</b>：应用退出/播放停止期间 <see cref="Instance"/> 返回 null 且拒绝重新创建，
-    /// 防止退出期复活单例；<see cref="IsValid"/> 与 <see cref="TryGetInstance"/> 同步反映该状态。</para>
-    /// <para><b>多实例策略</b>：场景中已存在实例时，默认销毁新实例（先到先得）；
-    /// 勾选 <see cref="m_Replaceable"/> 后改为最新实例胜出（适用于局部需要重建的单例，eg：背景音乐）。</para>
+    /// 线程模型：实例物化后任意线程访问 <see cref="Instance"/> 只走 volatile 读快速路径；物化（查找/创建）限主线程，未物化时后台线程访问抛 <see cref="GameException"/>， <br />
+    /// 需后台访问的派生类应在启动阶段于主线程预热。 <br />
+    /// 编辑模式仅查找已有实例、不自动创建（避免向场景写入瞬时对象），未找到返回 null。 <br />
+    /// 退出窗口内 <see cref="Instance"/> 返回 null 且拒绝重建；<see cref="IsValid"/> 与 <see cref="TryGetInstance"/> 同步反映该状态。 <br />
+    /// 场景已有实例时默认销毁新实例（先到先得）；勾选 <see cref="m_Replaceable"/> 改为最新实例胜出。
     /// </remarks>
     [DefaultExecutionOrder(-1000)]
     public abstract class SingletonMono<T> : MonoBehaviour where T : SingletonMono<T>
@@ -62,9 +57,7 @@ namespace Moirai.Atropos
 
         #region 单例访问 [Singleton Access]
 
-        /// <summary>
-        /// 此单例是否已有可用实例（不含退出窗口期）。
-        /// </summary>
+        /// <summary>此单例是否已有可用实例（不含退出窗口期）。</summary>
         public static bool IsValid => s_Instance != null && !s_ShuttingDown;
 
         /// <summary>
@@ -72,14 +65,10 @@ namespace Moirai.Atropos
         /// </summary>
         public static T TryGetInstance() => IsValid ? s_Instance : null;
 
-        /// <summary>
-        /// 获取单例实例（<see cref="Instance"/> 的别名，供语义化调用点使用）。
-        /// </summary>
+        /// <summary>获取单例实例（<see cref="Instance"/> 的别名，供语义化调用点使用）。</summary>
         public static T Current => Instance;
 
-        /// <summary>
-        /// 单例设计模式：获取实例；首次访问时查找场景已有实例，未找到则自动创建。
-        /// </summary>
+        /// <summary>单例设计模式：获取实例；首次访问时查找场景已有实例，未找到则自动创建。</summary>
         /// <value>实例；退出窗口期或编辑模式未找到时为 null。</value>
         public static T Instance
         {

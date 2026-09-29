@@ -4,15 +4,12 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 屏幕设置<br />
-    /// 所有与屏幕相关的功能都是异步的（在帧结束时执行）<br />
-    /// 并且有些功能彼此矛盾，例如：
-    /// Screen.fullScreen = true 与 Screen.fullScreenMode = FullScreenMode.Windowed
-    /// <br />
-    /// 为了解决这个问题，决定始终以 Screen.fullScreenMode 为优先。
-    /// <br />
-    /// 因此，需要这个辅助方法来按顺序正确执行它们。
+    /// 屏幕设置编排器：屏幕相关设置均异步（帧末）生效且彼此可能冲突，统一以 <c>Screen.fullScreenMode</c> 为优先按序应用。
     /// </summary>
+    /// <remarks>
+    /// 请求先缓存，在 <c>LateUpdate</c> 中按 全屏 → 全屏模式 → 分辨率/刷新率 的顺序应用，逐步之间让出一帧。 <br />
+    /// 同一属性以最后一次请求为准；新请求会取消上一轮未完成的应用协程。
+    /// </remarks>
     public sealed class ScreenOrchestrator : SingletonMono_Persistent<ScreenOrchestrator>
     {
         private Resolution? _requestedResolution;
@@ -43,18 +40,17 @@ namespace Moirai.Atropos
         #region 公共方法 [PUBLIC METHODS]
 
         /// <summary>
-        /// 设置分辨率
+        /// 设置分辨率。
         /// </summary>
-        /// <param name="resolution"></param>
         public void RequestResolution(Resolution resolution)
         {
             _requestedResolution = resolution;
         }
 
         /// <summary>
-        /// 设置刷新率
+        /// 设置刷新率。
         /// </summary>
-        /// <remarks>注意：RefreshRate类已于2021_2版本（2021年）添加，但直到2022.2版本（注意是2022年，而非2021年）才在Screen.SetResolution方法中实际使用。</remarks>
+        /// <remarks>重载依赖 Unity 版本：<c>UNITY_2022_2_OR_NEWER</c> 接受 <c>RefreshRate</c>，更早版本接受 <c>int</c>。</remarks>
 #if UNITY_2022_2_OR_NEWER
         public void RequestRefreshRate(RefreshRate refreshRate)
         {
@@ -68,27 +64,24 @@ namespace Moirai.Atropos
 #endif
 
         /// <summary>
-        /// 设置全屏
+        /// 设置全屏。
         /// </summary>
-        /// <param name="fullScreen"></param>
         public void RequestFullScreen(bool fullScreen)
         {
             _requestedFullScreen = fullScreen;
         }
 
         /// <summary>
-        /// 设置全屏模式
+        /// 设置全屏模式。
         /// </summary>
-        /// <param name="fullScreenMode"></param>
         public void RequestFullScreenMode(FullScreenMode fullScreenMode)
         {
             _requestedFullScreenMode = fullScreenMode;
         }
 
         /// <summary>
-        /// 获取当前分辨率
+        /// 获取当前分辨率。
         /// </summary>
-        /// <returns></returns>
         public static Resolution GetCurrentResolution()
         {
             if (Screen.fullScreenMode == FullScreenMode.Windowed)

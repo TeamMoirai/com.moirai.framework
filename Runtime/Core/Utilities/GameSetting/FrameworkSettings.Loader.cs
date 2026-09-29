@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     public partial class FrameworkSettings<T>
     {
         /// <summary>
-        /// 加载或创建设置文件，新创建时通过 onNewAsset 回调初始化
+        /// 加载或创建设置文件，新创建时通过 onNewAsset 回调初始化。
         /// </summary>
         // ReSharper disable once InconsistentNaming
         public static TSetting LoadSettingSO<TSetting>(string settingPath, Action<TSetting> onNewAsset = null) where TSetting : ScriptableObject
@@ -90,10 +90,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取资源数据库中给定类型的所有实例
+        /// 获取资源数据库中给定类型的所有实例。
         /// </summary>
-        /// <typeparam name="TSetting"></typeparam>
-        /// <returns></returns>
         private static TSetting[] GetAllSettings<TSetting>() where TSetting : ScriptableObject
         {
             // 参考自 https://answers.unity.com/questions/1425758/how-can-i-find-all-instances-of-a-scriptable-objec.html

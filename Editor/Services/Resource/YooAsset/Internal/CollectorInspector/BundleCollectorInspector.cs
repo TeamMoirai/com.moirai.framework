@@ -7,7 +7,7 @@ using UnityEngine;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 资源收集器的 Inspector 扩展
+    /// 资源收集器的 Inspector 扩展。
     /// </summary>
     [InitializeOnLoad]
     internal static class BundleCollectorInspector
@@ -36,9 +36,9 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// Inspector 默认头部绘制完成后的回调
+        /// Inspector 默认头部绘制完成后的回调。
         /// </summary>
-        /// <param name="editor">当前正在绘制的 Inspector 编辑器实例</param>
+        /// <param name="editor">当前正在绘制的 Inspector 编辑器实例。</param>
         private static void OnPostHeaderGUI(UnityEditor.Editor editor)
         {
             // 注意：多目标选择的时候不绘制
@@ -260,7 +260,7 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 获取规则列表用于下拉框展示的名称数组
+        /// 获取规则列表用于下拉框展示的名称数组。
         /// </summary>
         private static string[] GetRuleDisplayNames(List<RuleDisplayName> rules, bool showAlias)
         {
@@ -271,7 +271,7 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 根据规则类名查找规则在列表中的索引
+        /// 根据规则类名查找规则在列表中的索引。
         /// </summary>
         private static int GetRuleIndex(List<RuleDisplayName> rules, string className)
         {
@@ -283,7 +283,7 @@ namespace YooAsset.Editor
 
         #region 数据查找与编辑
         /// <summary>
-        /// 获取当前创建收集器所选择的目标包裹和分组
+        /// 获取当前创建收集器所选择的目标包裹和分组。
         /// </summary>
         private static bool TryGetCreateCollectorTarget(out BundleCollectorPackage package, out BundleCollectorGroup group)
         {
@@ -304,7 +304,7 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 将创建目标的包裹/分组索引收敛到当前配置的合法范围
+        /// 将创建目标的包裹/分组索引收敛到当前配置的合法范围。
         /// </summary>
         private static void ClampCreateTargetIndices()
         {
@@ -328,7 +328,7 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 按文件夹路径精确获取已配置的收集器信息
+        /// 按文件夹路径精确获取已配置的收集器信息。
         /// </summary>
         private static bool TryGetCollector(string folderPath, out CollectorContext result)
         {
@@ -361,7 +361,7 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 为指定文件夹在目标包裹分组下创建收集器
+        /// 为指定文件夹在目标包裹分组下创建收集器。
         /// </summary>
         private static bool TryAddCollector(string folderPath, BundleCollectorPackage package, BundleCollectorGroup group, out CollectorContext result)
         {
@@ -388,12 +388,12 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 将收集器移动到目标包裹的第一个分组
+        /// 将收集器移动到目标包裹的第一个分组。
         /// </summary>
-        /// <param name="collector">要移动的收集器实例</param>
-        /// <param name="fromGroup">原分组</param>
-        /// <param name="toPackage">目标包裹</param>
-        /// <returns>目标包裹无分组或无需移动时返回 false</returns>
+        /// <param name="collector">要移动的收集器实例。</param>
+        /// <param name="fromGroup">原分组。</param>
+        /// <param name="toPackage">目标包裹。</param>
+        /// <returns>目标包裹无分组或无需移动时返回 false。</returns>
         private static bool MoveCollectorToPackage(BundleCollector collector, BundleCollectorGroup fromGroup, BundleCollectorPackage toPackage)
         {
             if (toPackage.Groups.Count == 0)
@@ -415,11 +415,11 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 将收集器在同一包裹内移动到目标分组
+        /// 将收集器在同一包裹内移动到目标分组。
         /// </summary>
-        /// <param name="collector">要移动的收集器实例</param>
-        /// <param name="fromGroup">原分组</param>
-        /// <param name="toGroup">目标分组</param>
+        /// <param name="collector">要移动的收集器实例。</param>
+        /// <param name="fromGroup">原分组。</param>
+        /// <param name="toGroup">目标分组。</param>
         private static void MoveCollectorToGroup(BundleCollector collector, BundleCollectorGroup fromGroup, BundleCollectorGroup toGroup)
         {
             if (toGroup == fromGroup)
@@ -433,10 +433,10 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 标记收集器已修改并持久化配置文件
+        /// 标记收集器已修改并持久化配置文件。
         /// </summary>
-        /// <param name="group">收集器所属分组</param>
-        /// <param name="collector">被修改的收集器</param>
+        /// <param name="group">收集器所属分组。</param>
+        /// <param name="collector">被修改的收集器。</param>
         private static void CommitModify(BundleCollectorGroup group, BundleCollector collector)
         {
             BundleCollectorSettingData.ModifyCollector(group, collector);
@@ -446,7 +446,7 @@ namespace YooAsset.Editor
         /// <summary>
         /// 在修改配置前登记 Undo，使操作可撤销。
         /// </summary>
-        /// <param name="name">Undo 操作名称</param>
+        /// <param name="name">Undo 操作名称。</param>
         private static void RecordUndo(string name)
         {
             Undo.RecordObject(BundleCollectorSettingData.Setting, name);

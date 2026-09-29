@@ -4,8 +4,10 @@ namespace Moirai.Atropos.UI.Adapter
 {
     /// <summary>
     /// UI 适配器抽象基类。
-    /// <para>要求挂载对象具有 <see cref="RectTransform"/>，且同一对象上不可重复挂载；编辑器与运行时均会执行。</para>
     /// </summary>
+    /// <remarks>
+    /// 要求挂载对象具有 <see cref="RectTransform"/>，且同一对象上不可重复挂载。
+    /// </remarks>
     [RequireComponent(typeof(RectTransform))]
     [DisallowMultipleComponent]
     [ExecuteAlways]

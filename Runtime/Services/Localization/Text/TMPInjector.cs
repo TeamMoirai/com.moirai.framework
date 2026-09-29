@@ -4,9 +4,9 @@ using TMPro;
 namespace Moirai.Atropos.Localization
 {
 	/// <summary>
-	/// TMP 文本本地化注入器，将本地化字符串写入 <see cref="TMP_Text"/> 组件。
-	/// <para>仅在安装 TextMeshPro 或 uGUI 2 包（定义对应宏）后编译。</para>
+	/// TMP 文本本地化注入器：把本地化字符串写入 <see cref="TMP_Text"/> 组件。
 	/// </summary>
+	/// <remarks>仅在安装 TextMeshPro 或 uGUI 2 包（定义对应宏）后编译。</remarks>
 	public class TMPInjector : ILocalizationInjector
 	{
 		readonly TMP_Text tmp;

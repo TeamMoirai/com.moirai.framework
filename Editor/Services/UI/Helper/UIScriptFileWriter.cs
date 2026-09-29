@@ -12,7 +12,7 @@ namespace Moirai.Atropos.UI.Editor
     }
 
     /// <summary>
-    /// 默认脚本文件写入器实现
+    /// 默认脚本文件写入器实现。
     /// </summary>
     public sealed class DefaultUIScriptFileWriter : IUIScriptFileWriter
     {

@@ -48,10 +48,8 @@ namespace Moirai.GameLogic
         }
 
         /// <summary>
-        /// 从配置表获取弹窗资产的位置
+        /// 从配置表获取弹窗资产的位置。
         /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
         private static string GetWindowLocation(string id)
         {
             // LogUtility.Info("Load UI: {0}", id);

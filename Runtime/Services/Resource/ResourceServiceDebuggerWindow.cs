@@ -5,9 +5,9 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源服务调试视图（原生 UI Toolkit，经 <see cref="ResourceService.OnInit"/> 注册进游戏内调试器 "Profiler/Resource"）。
-    /// <para>展示运行模式与已加载资产快照（定位地址/状态/引用计数），按 0.5s 节流重建。</para>
+    /// 资源服务调试视图（原生 UI Toolkit），展示运行模式与已加载资产快照（定位地址/状态/引用计数）。
     /// </summary>
+    /// <remarks>经 <see cref="ResourceService.OnInit"/> 注册进游戏内调试器 "Profiler/Resource"，按 0.5s 节流重建。</remarks>
     public sealed class ResourceServiceDebuggerWindow : PollingDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]

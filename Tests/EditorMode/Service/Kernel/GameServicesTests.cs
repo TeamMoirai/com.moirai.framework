@@ -10,10 +10,10 @@ using UnityEngine.TestTools;
 namespace Service.Kernel
 {
     /// <summary>
-    /// 内核（ServiceWorld/GameServices）测试。
-    /// <para>两阶段语义：RegisterService 仅入图（世界未初始化时不驱动 OnInit），
-    /// <see cref="ServiceWorld.Initialize"/> 按依赖图拓扑统一驱动——初始化顺序与注册顺序无关。</para>
+    /// 内核（ServiceWorld / GameServices）测试。
     /// </summary>
+    /// <remarks>两阶段语义：RegisterService 仅入图（世界未初始化时不驱动 OnInit），<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑统一驱动——初始化顺序与注册顺序无关。 <br />
+    /// </remarks>
     [TestFixture]
     public class GameServicesTests
     {
@@ -768,7 +768,9 @@ namespace Service.Kernel
             Assert.AreEqual(0, interceptor.Events.Count, "移除后不应再收到事件");
         }
 
-        /// <summary>观察器型拦截器：四个非否决回调一律抛。</summary>
+        /// <summary>
+        /// 观察器型拦截器：四个非否决回调一律抛。
+        /// </summary>
         private sealed class ExplodingInterceptor : IServiceInterceptor
         {
             public void OnBeforeScopeTick(EServiceScopeKind scope, float elapseSeconds, float realElapseSeconds)
@@ -1462,7 +1464,9 @@ namespace Service.Kernel
         // 注册约束测试 [REGISTRATION CONSTRAINTS]
         // ═══════════════════════════════════════════════════════
 
-        /// <summary>裸实现 IService：无容器可驱动的状态机。</summary>
+        /// <summary>
+        /// 裸实现 IService：无容器可驱动的状态机。
+        /// </summary>
         private sealed class RawContractService : IService
         {
             public int Priority => 0;
@@ -1483,9 +1487,9 @@ namespace Service.Kernel
 
         /// <summary>
         /// MonoBehaviour + Gizmo 能力的服务。
-        /// <para>刻意<b>不加</b> <c>ExecuteAlways</c>：EditMode 下 AddComponent 不触发 Awake，
-        /// 才不会被 <see cref="ServiceMono{TScope}"/> 的自动注册抢跑掉本用例要验的守卫。</para>
         /// </summary>
+        /// <remarks>刻意不加 <c>ExecuteAlways</c>：EditMode 下 AddComponent 不触发 Awake， <br />
+        /// 才不会被 <see cref="ServiceMono{TScope}"/> 的自动注册抢跑掉本用例要验的守卫。</remarks>
         private sealed class MonoGizmoService : ServiceMono<AppScope>, IServiceGizmoDrawable
         {
             public override void OnInit() { }

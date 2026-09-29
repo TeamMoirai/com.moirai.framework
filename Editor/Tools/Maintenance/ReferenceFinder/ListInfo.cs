@@ -5,19 +5,13 @@ namespace Moirai.Atropos.ReferenceFinder
     /// </summary>
     internal sealed class ListInfo
     {
-        /// <summary>
-        /// 列表数量。
-        /// </summary>
+        /// <summary>列表数量。</summary>
         public int Count;
 
-        /// <summary>
-        /// 列表名称。
-        /// </summary>
+        /// <summary>列表名称。</summary>
         public string Name;
 
-        /// <summary>
-        /// 列表类型。
-        /// </summary>
+        /// <summary>列表类型。</summary>
         public string Type;
     }
 }

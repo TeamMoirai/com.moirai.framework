@@ -14,8 +14,8 @@ namespace Moirai.Atropos.Editor
 {
     /// <summary>
     /// 打包工具类。
-    /// <remarks>通过 <see cref="CommandLineReader"/> 可以不前台开启 Unity 实现静默打包以及 CLI 工作流</remarks>
     /// </summary>
+    /// <remarks>通过 <see cref="CommandLineReader"/> 可在不前台开启 Unity 的情况下静默打包，支持 CLI 工作流。</remarks>
     /// <example>
     /// <code><![CDATA[
     /// set WORKSPACE=.
@@ -133,7 +133,7 @@ namespace Moirai.Atropos.Editor
         #region 参数化构建入口 [PARAM BUILD ENTRY]
 
         /// <summary>
-        /// 通过 BuildConfig 执行完整构建流程
+        /// 通过 BuildConfig 执行完整构建流程。
         /// </summary>
         public static void BuildWithConfig(BuildConfig config, bool buildPlayer)
         {
@@ -235,7 +235,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 旧版 BuildInternal，供 CLI 入口兼容
+        /// 旧版 BuildInternal，供 CLI 入口兼容。
         /// </summary>
         private static void BuildInternal(BuildTarget buildTarget, string outputRoot, string packageVersion = "1.0",
             EBuildPipeline buildPipeline = EBuildPipeline.ScriptableBuildPipeline)
@@ -294,7 +294,7 @@ namespace Moirai.Atropos.Editor
         #region 最小包后处理 [MIN PACKAGE POSTPROCESS]
 
         /// <summary>
-        /// 读取文件的文本数据
+        /// 读取文件的文本数据。
         /// </summary>
         public static string ReadAllText(string filePath)
         {
@@ -307,8 +307,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 最小包模式：删除 StreamingAssets 中不带保留 tag 的 .bundle 文件
-        /// 使用构建输出的 BuildReport（JSON）获取 bundle 的 tag 信息
+        /// 最小包模式：删除 StreamingAssets 中不带保留 tag 的 <c>.bundle</c> 文件，tag 信息取自构建输出 <c>BuildReport</c>（JSON）。
         /// </summary>
         public static void ProcessMinimalPackage(string packageVersion, string retainTags,
             string outputPackageDirectory)

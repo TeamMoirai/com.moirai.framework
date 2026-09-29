@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Sirenix.OdinInspector.Editor.Drawers
 {
     /// <summary>
-    /// 参考 <see cref="InlineButtonAttributeDrawer{T}"/>
+    /// 参考 <see cref="InlineButtonAttributeDrawer{T}"/>。
     /// </summary>
     [DrawerPriority(DrawerPriorityLevel.WrapperPriority)]
     public class InlineEnableButtonAttributeDrawer<T> : OdinAttributeDrawer<InlineEnableButtonAttribute, T>
@@ -32,7 +32,9 @@ namespace Sirenix.OdinInspector.Editor.Drawers
             this.tooltip = this.Property.GetAttribute<PropertyTooltipAttribute>()?.Tooltip ?? this.Property.GetAttribute<TooltipAttribute>()?.tooltip;
         }
 
-        /// <summary>Draws the property.</summary>
+        /// <summary>
+        /// Draws the property.
+        /// </summary>
         protected override void DrawPropertyLayout(GUIContent label)
         {
             if (this.labelGetter.HasError || this.clickAction.HasError || this.showIfGetter.HasError || this.buttonColorGetter.HasError || this.textColorGetter.HasError)

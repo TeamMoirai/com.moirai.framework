@@ -27,14 +27,10 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取匹配器是否有效。
-        /// </summary>
+        /// <summary>获取匹配器是否有效。</summary>
         public bool IsValid => _kinds != null && _segmentCount > 0;
 
-        /// <summary>
-        /// 获取是否为字面量模式（无通配符）。
-        /// </summary>
+        /// <summary>获取是否为字面量模式（无通配符）。</summary>
         public bool IsLiteralPattern => _isLiteral;
 
         #endregion

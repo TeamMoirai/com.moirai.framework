@@ -7,24 +7,28 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档目标绑定：目标组件 + 勾选参与存档的字段名列表（Inspector 勾选配置的序列化载体）。
-    /// <para>字段名须为该组件类型上 <see cref="SaveFieldAttribute"/> 标注字段的捕获键（默认 = 字段名）。</para>
     /// </summary>
+    /// <remarks>字段名须为该组件类型上 <see cref="SaveFieldAttribute"/> 标注字段的捕获键（默认 = 字段名）。</remarks>
     [Serializable]
     public sealed class SaveTargetBinding
     {
-        /// <summary>目标组件（同 GameObject 上的可保存组件）。</summary>
+        /// <summary>
+        /// 目标组件（同 GameObject 上的可保存组件）。
+        /// </summary>
         [SerializeField] internal Component Target;
 
-        /// <summary>勾选参与存档的字段键列表。</summary>
+        /// <summary>
+        /// 勾选参与存档的字段键列表。
+        /// </summary>
         [SerializeField] internal List<string> EnabledFields = new List<string>();
     }
 
     /// <summary>
-    /// 无代码保存组件：挂载到 GameObject，Inspector 勾选目标组件的 <see cref="SaveFieldAttribute"/> 字段，
-    /// 运行期经 SaveHost SourceGenerator 生成的强类型捕获器零反射捕获/恢复。
-    /// <para>Awake 注册 <see cref="SaveComponentRegistry"/>、OnDestroy 注销；
-    /// 存取经 <see cref="SaveService.SaveComponentsAsync"/> / <see cref="SaveService.LoadComponentsAsync"/> 触发（时机由游戏层决定）。</para>
+    /// 无代码保存组件：挂载到 GameObject，Inspector 勾选目标组件的 <see cref="SaveFieldAttribute"/> 字段，运行期经生成捕获器零反射捕获/恢复。
     /// </summary>
+    /// <remarks>Awake 注册 <see cref="SaveComponentRegistry"/>、OnDestroy 注销； <br />
+    /// 存取经 <see cref="SaveService.SaveComponentsAsync"/> / <see cref="SaveService.LoadComponentsAsync"/> 触发（时机由游戏层决定）。 <br />
+    /// </remarks>
     [AddComponentMenu("Moirai/Save Component")]
     [DisallowMultipleComponent]
     public sealed class SaveComponent : MonoBehaviour
@@ -41,9 +45,7 @@ namespace Moirai.Atropos.Save
         /// <summary>KVT 块内模式版本作用域保留键（"$" 不可能出现在 C# 类型全名中，与绑定作用域键天然隔离）。</summary>
         internal const string SchemaScopeKey = "$schemas";
 
-        /// <summary>
-        /// 数据块键（自动派生：场景命名空间：物体路径——已保存场景命名空间为资产路径（同名 Additive 防撞），未保存场景为场景名）。
-        /// </summary>
+        /// <summary>数据块键（自动派生：场景命名空间：物体路径——已保存场景命名空间为资产路径（同名 Additive 防撞），未保存场景为场景名）。</summary>
         public string ResolvedBlockKey => _resolvedBlockKey;
 
         /// <summary>
@@ -56,9 +58,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 确保块键已解析并注册（幂等）。
-        /// <para>实体管线在编辑模式下的兜底入口——非 ExecuteInEditMode 组件的 Awake 在编辑模式不执行，
-        /// 生成/恢复后显式调用补齐注册（播放态 Awake 已执行，重复调用无副作用）。</para>
         /// </summary>
+        /// <remarks>实体管线在编辑模式下的兜底入口：非 ExecuteInEditMode 组件的 Awake 在编辑模式不执行，生成/恢复后显式调用补齐注册（播放态重复调用无副作用）。</remarks>
         internal void EnsureActivated()
         {
             if (_resolvedBlockKey == null)
@@ -72,9 +73,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 解析场景命名空间（预置组件块键的场景段）：已保存场景用资产路径（同名 Additive 场景防撞键——
-        /// 场景名不区分不同路径的同名场景文件）；未保存/动态场景回退场景名。
+        /// 解析场景命名空间（预置组件块键的场景段）：已保存场景用资产路径，未保存/动态场景回退场景名。
         /// </summary>
+        /// <remarks>已保存场景用资产路径作键，给不同路径的同名 Additive 场景防撞。</remarks>
         /// <param name="scene">目标场景（<c>default</c>/未初始化场景回退空串，防御非法场景句柄）。</param>
         /// <returns>场景命名空间串。</returns>
         internal static string ResolveSceneNamespace(UnityEngine.SceneManagement.Scene scene)
@@ -92,9 +93,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将本组件的全部启用字段捕获为键值字节（主线程调用）。
-        /// <para>格式：首个记录为 <see cref="SchemaScopeKey"/> 模式版本作用域（组件类型全名 → <see cref="ISaveComponentCapturer.SchemaVersion"/>，恢复侧路由迁移钩子的依据）；
-        /// 随后逐绑定写入「键 = 组件类型全名」的嵌套作用域；同类型多绑定时后者追加（键重复由编辑器 UI 约束避免）。</para>
         /// </summary>
+        /// <remarks>
+        /// 首个记录为 <see cref="SchemaScopeKey"/> 模式版本作用域（组件类型全名 → <see cref="ISaveComponentCapturer.SchemaVersion"/>，恢复侧路由迁移钩子的依据）。 <br />
+        /// 随后逐绑定写入「键 = 组件类型全名」的嵌套作用域；同类型多绑定时后者追加（键重复由编辑器 UI 约束避免）。
+        /// </remarks>
         /// <param name="writer">键值写入器。</param>
         internal void Capture(ref SaveKeyValueWriter writer)
         {
@@ -161,10 +164,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 从键值字节恢复本组件的全部启用字段（主线程调用）。
-        /// <para>顶层记录键 = 组件类型全名；按类型名路由到绑定，作用域内精确消费记录；未知类型跳过、缺失绑定跳过。
-        /// <see cref="SchemaScopeKey"/> 记录提供存档模式版本——与捕获器当前版本不符时走 <see cref="ISaveComponentMigrator"/> 迁移钩子
-        /// （组件未实现钩子则记告警并按键匹配容错恢复）。</para>
         /// </summary>
+        /// <remarks>
+        /// 顶层记录键 = 组件类型全名，按类型名路由到绑定、作用域内精确消费记录；未知类型与缺失绑定跳过。
+        /// <see cref="SchemaScopeKey"/> 记录提供存档模式版本，与捕获器当前版本不符时走 <see cref="ISaveComponentMigrator"/> 迁移钩子（组件未实现钩子则记告警并按键匹配容错恢复）。
+        /// </remarks>
         /// <param name="reader">键值读取器。</param>
         internal void Restore(ref SaveKeyValueReader reader)
         {
@@ -282,8 +286,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 拼装物体层级路径（场景根到本物体的名称链）。
-        /// <para>同场景同名兄弟物体以兄弟索引消歧（「Name」或「Name[N]」，N 为 <see cref="Transform.GetSiblingIndex"/> 中同名次序）。</para>
         /// </summary>
+        /// <remarks>同场景同名兄弟物体以兄弟索引消歧（<c>Name</c> 或 <c>Name[N]</c>，N 为 <see cref="Transform.GetSiblingIndex"/> 中的同名次序）。</remarks>
         internal string TransformPath()
         {
             // 一次上行收集链段，再反向追加写出，避免逐级字符串重分配。
@@ -372,8 +376,8 @@ namespace Moirai.Atropos.Save
 
     /// <summary>
     /// 存档组件注册表：场景内活跃 <see cref="SaveComponent"/> 的快照源（Awake 注册 / OnDestroy 注销）。
-    /// <para>无域重载进入播放时经 <see cref="ResetStatics"/> 清空，避免跨会话残留陈旧引用。</para>
     /// </summary>
+    /// <remarks>无域重载进入播放时经 <see cref="ResetStatics"/> 清空，避免跨会话残留陈旧引用。</remarks>
     public static class SaveComponentRegistry
     {
         /// <summary>活跃组件表（插入序；快照供存取管线遍历）。</summary>

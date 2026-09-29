@@ -9,7 +9,7 @@ using UnityEditor.SceneManagement;
 using YooAsset.Editor;
 
 /// <summary>
-/// 收集资源包裹中材质产生的着色器变种
+/// 收集资源包裹中材质产生的着色器变种。
 /// </summary>
 public static class ShaderVariantCollector
 {
@@ -37,12 +37,12 @@ public static class ShaderVariantCollector
 
 
     /// <summary>
-    /// 启动着色器变种收集流程
+    /// 启动着色器变种收集流程。
     /// </summary>
     /// <param name="savePath">收集结果保存路径，扩展名必须为 .shadervariants。</param>
-    /// <param name="packageName">参与收集的资源包裹名称</param>
-    /// <param name="processMaxNum">每批处理的材质数量</param>
-    /// <param name="completedCallback">收集完成后的回调</param>
+    /// <param name="packageName">参与收集的资源包裹名称。</param>
+    /// <param name="processMaxNum">每批处理的材质数量。</param>
+    /// <param name="completedCallback">收集完成后的回调。</param>
     public static void Run(string savePath, string packageName, int processMaxNum, Action completedCallback)
     {
         if (_steps != ESteps.None)

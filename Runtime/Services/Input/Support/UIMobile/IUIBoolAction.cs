@@ -5,9 +5,7 @@
     /// </summary>
     public interface IUIBoolAction : IUIAction
     {
-        /// <summary>
-        /// 获取动作携带的布尔值。
-        /// </summary>
+        /// <summary>获取动作携带的布尔值。</summary>
         bool BoolValue { get; }
     }
 }

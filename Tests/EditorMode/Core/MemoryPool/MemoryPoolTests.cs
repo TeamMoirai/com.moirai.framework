@@ -38,10 +38,10 @@ namespace Core.MemoryPool
 
         private MemoryPoolInfo[] _infoBuffer = Array.Empty<MemoryPoolInfo>();
 
-        /// <summary>
-        /// Tick 用的帧号游标。EditMode 下 Time.frameCount 不推进，必须自带递增帧号才能真正走完 Tick 分支；
-        /// 播种口径与 MemoryPoolFixture 一致（自 CurrentFrame 起跳 +100，避免与并行夹具的帧号互相回退）。
-        /// </summary>
+        /// <summary>Tick 用的帧号游标：EditMode 下 <c>Time.frameCount</c> 不推进，必须自带递增帧号才能真正走完 Tick 分支。</summary>
+        /// <remarks>
+        /// 播种口径与 <c>MemoryPoolFixture</c> 一致（自 <c>CurrentFrame</c> 起跳 +100，避免与并行夹具的帧号互相回退）。
+        /// </remarks>
         private int _tickFrame;
 
         private void TickRegistry()

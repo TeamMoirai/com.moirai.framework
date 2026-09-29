@@ -8,17 +8,14 @@ using Debug = UnityEngine.Debug;
 namespace Service.Audio
 {
     /// <summary>
-    /// Clip 缓存热路径的 CPU 预算基准（<c>[Explicit]</c>：不进常规回归，只在需要时按名执行）。
-    /// <para>口径：预热固定轮数后按<b>固定调用次数</b>计时，重复三轮取最快一轮，换算单次纳秒。
-    /// 用固定次数而不是固定时长，是为了让不同机器的样本量一致——时长窗口会让慢机器只跑到很少的次数，
-    /// 机器抖动直接进结论；取最小值则让"抖动"只表现为轮与轮的差异，而不污染跨改动的对比。</para>
-    /// <para>预算取"松到不被抖动判红、紧到能抓住数量级退化"的量级。实测值两条通道：逐条经 <c>Debug.Log</c>
-    /// 报出（与 PlayMode CPU 回归同前缀，便于 grep），一轮跑完经 <see cref="BenchmarkReport"/> 写 XML 到
-    /// 统一文件夹 &lt;工程根&gt;/Benchmarks/audiocache-benchmark.xml（<c>MOIRAI_BENCH_XML</c> 可覆盖）——
-    /// 跨改动对比取 XML 里的数。离线跑只能看量级（时钟桩与 JIT 都跟 Unity 不同），真机数值以编辑器内
-    /// 按名运行为准。这里是纯托管路径的缓存层基准，端到端（声部/混音）的预算由 PlayMode 的
-    /// <c>AudioCpuRegressionTests</c> 把。</para>
+    /// Clip 缓存热路径的 CPU 预算基准（<c>[Explicit]</c>，不进常规回归，按名执行）。
     /// </summary>
+    /// <remarks>
+    /// 预热固定轮数后按固定调用次数计时，重复三轮取最快一轮换算单次纳秒。 <br />
+    /// 逐条结果经 Unity 日志报出（与 PlayMode CPU 回归同前缀，便于 grep）；一轮跑完经 <see cref="BenchmarkReport"/> 写 XML 到
+    /// &lt;工程根&gt;/Benchmarks/audiocache-benchmark.xml（<c>MOIRAI_BENCH_XML</c> 可覆盖），跨改动对比取该 XML 的数。 <br />
+    /// 离线运行只反映量级；端到端（声部/混音）预算由 PlayMode 的 <c>AudioCpuRegressionTests</c> 负责。
+    /// </remarks>
     [TestFixture]
     [Explicit]
     public class AudioCacheBenchmark
@@ -43,7 +40,9 @@ namespace Service.Audio
         private const double IdleTickBudgetNs = 350d;
         private const double EvictBudgetNs = 6_000d;
 
-        /// <summary>已加载条目的重复取用：播放路径每帧都会走这一步。</summary>
+        /// <summary>
+        /// 已加载条目的重复取用：播放路径每帧都会走这一步。
+        /// </summary>
         [Test]
         public void CacheHit_PreloadWithinBudget()
         {
@@ -58,7 +57,9 @@ namespace Service.Audio
             Assert.LessOrEqual(ns, HitBudgetNs, "已加载条目重复取用的单次耗时超预算");
         }
 
-        /// <summary>空闲 Tick：无可驱逐时应当是常数开销（只比一下 LRU 头的时间）。</summary>
+        /// <summary>
+        /// 空闲 Tick：无可驱逐时应当是常数开销（只比一下 LRU 头的时间）。
+        /// </summary>
         [Test]
         public void IdleTick_WithinBudget()
         {
@@ -75,7 +76,9 @@ namespace Service.Audio
             Assert.LessOrEqual(ns, IdleTickBudgetNs, "空闲 Tick 的单次耗时超预算");
         }
 
-        /// <summary>满载驱逐：新地址挤掉 LRU 头 + 条目复用 + 同步取租约的整条链路。</summary>
+        /// <summary>
+        /// 满载驱逐：新地址挤掉 LRU 头 + 条目复用 + 同步取租约的整条链路。
+        /// </summary>
         [Test]
         public void EvictionAtCapacity_WithinBudget()
         {
@@ -107,7 +110,9 @@ namespace Service.Audio
             Assert.LessOrEqual(ns, EvictBudgetNs, "满载驱逐链路的单次耗时超预算");
         }
 
-        /// <summary>预热后重复计时 <see cref="RepeatWindows"/> 轮，取最快一轮：抖动只会让某一轮变慢，取最小值才可比。</summary>
+        /// <summary>
+        /// 预热后重复计时 <see cref="RepeatWindows"/> 轮，取最快一轮：抖动只会让某一轮变慢，取最小值才可比。
+        /// </summary>
         private static double Measure(Action body, int calls)
         {
             for (int i = 0; i < WarmupCalls; i++) body();
@@ -142,7 +147,9 @@ namespace Service.Audio
             }.Metric("budgetNs", budgetNs.ToString("F0")));
         }
 
-        /// <summary>一轮基准结束后把 XML 报告写到统一文件夹（域重载会重建 fixture，所以报告是 static）。</summary>
+        /// <summary>
+        /// 一轮基准结束后把 XML 报告写到统一文件夹（域重载会重建 fixture，所以报告是 static）。
+        /// </summary>
         [OneTimeSetUp]
         public static void SetUpReport()
         {

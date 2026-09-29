@@ -9,10 +9,11 @@ using UnityEngine.TestTools;
 namespace Service.Audio
 {
     /// <summary>
-    /// Audio 服务 PlayMode 集成测试（真实 AudioSource）。
-    /// <para>自建隔离：直接构造 <see cref="UnityAudioHandler"/> 并 Initialize，不依赖完整 GameEntry 启动链。</para>
-    /// <para>覆盖：句柄生命周期自动释放、同 ID 替换、多 ID 分层、Fade ease、Host 池复用。</para>
+    /// Audio 服务 PlayMode 集成测试（真实 AudioSource）：句柄生命周期自动释放、同 ID 替换、多 ID 分层、Fade ease、Host 池复用。
     /// </summary>
+    /// <remarks>
+    /// 自建隔离：直接构造 <see cref="UnityAudioHandler"/> 并 Initialize，不依赖完整 GameEntry 启动链。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioServicePlayModeTests
     {
@@ -237,9 +238,11 @@ namespace Service.Audio
         }
 
         /// <summary>
-        /// 回归：自然结束计时必须走 unscaled 时间——timeScale=0 时 AudioSource 仍按真实时间播完，
-        /// agent 必须检测结束并自动释放句柄（修复前 Duration 按 scaled 累加，暂停时句柄永久悬挂、通道不可复用）。
+        /// 回归：自然结束计时必须走 unscaled 时间——<c>timeScale=0</c> 时 AudioSource 仍按真实时间播完，agent 必须检测结束并自动释放句柄。
         /// </summary>
+        /// <remarks>
+        /// Duration 必须按 unscaled 累加，否则暂停中结束的句柄会永久悬挂、通道不可复用。
+        /// </remarks>
         [UnityTest]
         public IEnumerator NaturalEnd_AtZeroTimeScale_ReleasesHandle()
         {

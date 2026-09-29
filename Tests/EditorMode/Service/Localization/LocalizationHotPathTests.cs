@@ -8,13 +8,9 @@ using UObject = UnityEngine.Object;
 
 namespace Service.Localization
 {
-    /// <summary>
-    /// 热路径回归锁：注册去重集合与列表的并进退一致性、重注入/广播的池化快照遍历语义、单趟取值 <c>TryGetTextFromId</c>、
-    /// 空白格在两条取值入口上的口径分叉（露 key / 给 null）与注入器载荷类型派发。
-    /// <para>去重与异常隔离的行为面由 HandlerTests/HardeningTests 既有夹具锁定，这里补的是只有改坏内部容器
-    /// 才会暴露的回归（快照遍历期间集合被改动、HashSet 与 List 失同步）与新增单趟查询/载荷派发的语义面；
-    /// 0-GC 本身在编辑器 Mono 下不可计量（分配计数器恒 0），不在本夹具断言。</para>
-    /// </summary>
+    /// <summary>热路径契约：注册去重集合与列表的并进退一致性、重注入/广播的池化快照遍历语义、单趟取值 <c>TryGetTextFromId</c>、 <br />
+    /// 空白格在两条取值入口上的口径分叉（露 key / 给 null）与注入器载荷类型派发。</summary>。
+    /// <remarks>锁的是只有改坏内部容器才暴露的失效（快照遍历期间集合被改动、HashSet 与 List 失同步）；0-GC 在编辑器 Mono 下不可计量（分配计数器恒 0），不在本夹具断言。</remarks>
     [TestFixture]
     public sealed class LocalizationHotPathTests
     {
@@ -58,7 +54,9 @@ namespace Service.Localization
             };
         }
 
-        /// <summary>装载批并完成首启语言解析，返回切换目标语言（与当前语言相异）。</summary>
+        /// <summary>
+        /// 装载批并完成首启语言解析，返回切换目标语言（与当前语言相异）。
+        /// </summary>
         private Language LoadAndResolveTargetLanguage()
         {
             LoadStrings("ui.title", "Title", "标题");
@@ -67,7 +65,9 @@ namespace Service.Localization
             return current == English ? Chinese : English;
         }
 
-        /// <summary>装载「中文格留空」的批并切到中文：空白格与缺失格在取值口径上必须同形。</summary>
+        /// <summary>
+        /// 装载「中文格留空」的批并切到中文：空白格与缺失格在取值口径上必须同形。
+        /// </summary>
         private void LoadBlankChineseCellAndSwitchToChinese()
         {
             LoadStrings("ui.title", "Title", null);
@@ -319,7 +319,9 @@ namespace Service.Localization
 
         #endregion
 
-        /// <summary>数组模式探针：只记下标，不碰目标组件。</summary>
+        /// <summary>
+        /// 数组模式探针：只记下标，不碰目标组件。
+        /// </summary>
         private sealed class ProbeImageInjector : ImageInjectorBase
         {
             public readonly List<int> AppliedIndices = new List<int>();

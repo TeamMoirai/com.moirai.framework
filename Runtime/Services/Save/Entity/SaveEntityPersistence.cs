@@ -9,13 +9,15 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 动态实体持久化核心（internal 静态）：会话生成/销毁表、生成管线（未激活临时父技巧）、模板差分捕获、恢复管线。
-    /// <para>外观 <c>SaveService.Entity.cs</c> 经本核心实现；测试经可注入的模板加载器（<see cref="s_TemplateLoaderSync"/>/<see cref="s_TemplateLoaderAsync"/>）
-    /// 与 <see cref="ResetForTests"/> 隔离。主线程契约（全部入口均触碰场景对象）。</para>
-    /// <para>块布局：实体表 = 保留块 <c>__entities</c>（生成记录 + 预置对象销毁 ID）；实体数据 = 每实体一个 <c>entity:{EntityId}</c> 块
-    /// （与预制体模板基准差分后的稀疏 KVT——只写相对模板的变动字段）。CarryForward 语义：保存仅 upsert 活跃实体，
-    /// 未访问场景/生成失败实体的块原样滞留；绕过 <c>DestroyPersistent</c> 直接销毁的实体记录与块同样滞留（须走显式销毁移除）。</para>
+    /// 动态实体持久化核心：驱动会话生成/销毁表、生成与恢复管线、模板差分捕获。
     /// </summary>
+    /// <remarks>
+    /// 全部入口均触碰场景对象，须在主线程调用。 <br />
+    /// 外观 <c>SaveService.Entity.cs</c> 经本核心实现； <br />
+    /// 测试经可注入的模板加载器（<see cref="s_TemplateLoaderSync"/>/<see cref="s_TemplateLoaderAsync"/>）与 <see cref="ResetForTests"/> 隔离。 <br />
+    /// 块布局：实体表为保留块 <c>__entities</c>（生成记录 + 预置对象销毁 ID）；实体数据为每实体一个 <c>entity:{EntityId}</c> 块（与模板基准差分后的稀疏 KVT，只写相对模板的变动字段）。 <br />
+    /// CarryForward：保存仅 upsert 活跃实体，未访问场景/生成失败实体的块原样滞留；绕过 <c>DestroyPersistent</c> 直接销毁的实体记录与块同样滞留，须走显式销毁移除。
+    /// </remarks>
     internal static class SaveEntityPersistence
     {
         /// <summary>实体块键前缀（保留——用户块键不得以此前缀开头，由实体管线独占管理）。</summary>
@@ -160,9 +162,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 生成核心：接管模板克隆（staging 下未激活实例），注入实体身份与块键，就位后激活并登记会话生成表。
-        /// <para>未激活期完成全部就位（父级/场景/变换）——激活触发的 Awake 即见最终状态。</para>
+        /// 生成核心：接管模板克隆、注入实体身份与块键，就位后激活并登记会话生成表。
         /// </summary>
+        /// <remarks>全部就位（父级/场景/变换）在未激活期完成——激活触发的 <c>Awake</c> 即见最终状态。</remarks>
         /// <param name="template">模板克隆（staging 下未激活；本方法接管其生命周期）。</param>
         /// <param name="prefabKey">预制体注册键。</param>
         /// <param name="entityId">实体稳定标识（<c>null</c> = 新 GUID，新生成路径）。</param>
@@ -306,9 +308,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 激活实体并完成注册（编辑模式兜底：非 ExecuteInEditMode 组件的 Awake 在编辑模式不执行，
-        /// 此处显式补齐——播放态 Awake 已执行，注册与 EnsureActivated 均幂等无副作用）。
+        /// 激活实体并完成注册（编辑模式补齐未执行的 <c>Awake</c>）。
         /// </summary>
+        /// <remarks>注册与 <c>EnsureActivated</c> 均幂等——播放态 <c>Awake</c> 已执行时重复调用无副作用。</remarks>
         /// <param name="instance">实体实例（调用前应保持未激活的全部就位已完成）。</param>
         private static void ActivateEntity(GameObject instance)
         {
@@ -443,10 +445,12 @@ namespace Moirai.Atropos.Save
         #region 捕获 [CAPTURE]
 
         /// <summary>
-        /// 捕获实体差分块与实体表块（主线程；按批触发保存进度事件）。
-        /// <para>活跃实体逐只全量捕获后与模板基准差分；无基准（加载器缺失/预制体无 SaveComponent）退化为全量写入。
-        /// 不在册实体（已被绕过 DestroyPersistent 销毁）跳过捕获但保留其记录（CarryForward——原块滞留）。</para>
+        /// 捕获实体差分块与实体表块，并按批触发保存进度事件。
         /// </summary>
+        /// <remarks>
+        /// 须在主线程调用；活跃实体逐只全量捕获后与模板基准差分，无基准（加载器缺失/预制体无 <c>SaveComponent</c>）退化为全量写入。 <br />
+        /// 不在册实体（已被绕过 <c>DestroyPersistent</c> 销毁）跳过捕获但保留记录（CarryForward——原块滞留）。
+        /// </remarks>
         /// <param name="fileName">存档文件名（进度事件参数）。</param>
         /// <param name="folderName">存档文件夹名称（进度事件参数）。</param>
         /// <returns>块条目列表（末位恒为实体表块）。</returns>
@@ -483,9 +487,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 计算陈旧实体块键（档内生成表 − 会话生成表 = 已被 DestroyPersistent 移除的实体；
-        /// 以及两表均无登记的孤儿实体块——历史中断写入的残留）。
+        /// 计算陈旧实体块键：档内生成表与当前会话生成表的差集，以及两表均无登记的孤儿实体块。
         /// </summary>
+        /// <remarks>前者为已被 <c>DestroyPersistent</c> 移除的实体；后者为中断写入残留的孤儿块。</remarks>
         /// <param name="existingBlocks">档内现有块（键 → 载荷；缺档为空字典）。</param>
         /// <returns>应删除的块键列表。</returns>
         internal static List<string> ComputeStaleEntityKeys(Dictionary<string, byte[]> existingBlocks)
@@ -558,11 +562,12 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 增量保存判定（会话级脏跟踪 + 档写入时间守卫）：存在有效基准且档未被外部改写时，
-        /// 逐实体比对比分载荷与实体表字节——零变化返回 <c>true</c>（调用方零 IO 跳过，替代三趟 IO 的整档读改写）。
-        /// <para>基准失效（无记录/档缺失/写入时间失配）返回 <c>false</c> 且 <paramref name="dirtyEntries"/> 为 <c>null</c>——
-        /// 调用方按全量模式合并（全部条目 upsert + 孤儿清理由 <see cref="StaleKeyResolver"/> 读档判定）。</para>
+        /// 增量保存判定：存在有效基准且档未被外部改写时，逐实体比对差分载荷与实体表字节。
         /// </summary>
+        /// <remarks>
+        /// 零变化返回 <c>true</c>（调用方零 IO 跳过）；基准失效（无记录/档缺失/写入时间失配）返回 <c>false</c> 且 <paramref name="dirtyEntries"/> 为 <c>null</c>。
+        /// <paramref name="dirtyEntries"/> 为 <c>null</c> 时调用方按全量模式合并（全部条目 upsert，孤儿清理由 <see cref="StaleKeyResolver"/> 读档判定）。
+        /// </remarks>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="entries">本次捕获的全部实体条目（末位恒为实体表块）。</param>
         /// <param name="handler">存档处理器（档写入时间查询）。</param>
@@ -664,10 +669,12 @@ namespace Moirai.Atropos.Save
         #region 恢复 [RESTORE]
 
         /// <summary>
-        /// 恢复管线：DestroyUnwanted（会话实体整体替换 + 销毁表预置对象）→ SpawnMissing（未激活生成 + 场景落位）
-        /// → 父子接线（第二轮）→ RestoreAll（差分块未激活写回，Awake 见恢复后状态）→ 激活 + 实体恢复事件。
-        /// <para>会话生成/销毁表以档案状态整体替换（CarryForward 基准）；生成失败的实体保留其档案记录（原块滞留，下次保存不丢）。</para>
+        /// 恢复管线：销毁多余实体 → 生成缺失实体并落位 → 父子接线 → 差分块写回 → 激活并派发实体恢复事件。
         /// </summary>
+        /// <remarks>
+        /// 差分块在未激活期写回——激活触发的 <c>Awake</c> 见恢复后状态。 <br />
+        /// 会话生成/销毁表以档案状态整体替换；生成失败的实体保留其档案记录（原块滞留，下次保存不丢）。
+        /// </remarks>
         /// <param name="blocks">档内全部健康块（键 → 载荷）。</param>
         /// <param name="fileName">存档文件名（进度事件参数）。</param>
         /// <param name="folderName">存档文件夹名称（进度事件参数）。</param>
@@ -799,9 +806,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 第三轮差分块写回（非 async 方法：SaveKeyValueReader 为 ref struct，不可进 async 上下文）。
-        /// <para>缺块实体保留模板默认值；KVT 损坏的实体记录错误日志并跳过（不阻断其它实体）。</para>
+        /// 第三轮差分块写回（非 async：<c>SaveKeyValueReader</c> 为 <c>ref struct</c>，不可进 async 上下文）。
         /// </summary>
+        /// <remarks>缺块实体保留模板默认值；KVT 损坏的实体记录错误日志并跳过，不阻断其它实体。</remarks>
         /// <param name="pending">待恢复实体列表。</param>
         /// <param name="blocks">档内全部健康块。</param>
         private static void ApplyEntityDiffBlocks(List<PendingRestore> pending, Dictionary<string, byte[]> blocks)
