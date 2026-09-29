@@ -48,6 +48,10 @@
 
 - `UGUIHandler.CurrentModal` 与末位窗口刷新改索引取用——模态查询热路径（`UIServiceHelper` 交互前置判断）每次读取零分配（此前 `LastOrDefault`/`Last` 装箱枚举器并每次新建判定委托）。
 
+#### 计时器
+
+- `WheelTimerEngine.WaitAsync` 改池化完成源、次等待者轮询改元组状态静态谓词——`await` 稳态不再为完成源与轮询闭包分配（可取消令牌路径仍各一次包装分配）。
+
 #### 测试
 
 - `Tests/Player` 补 `UniTask` 引用与缺失 using；`PlayerTestBootstrap` 掐 `AutoBoot` 收进 `#if !UNITY_EDITOR`（编辑器 PlayMode 域依赖自动启动链，L2 门禁前提）。
