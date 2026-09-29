@@ -52,6 +52,10 @@
 
 - `WheelTimerEngine.WaitAsync` 改池化完成源、次等待者轮询改元组状态静态谓词——`await` 稳态不再为完成源与轮询闭包分配（可取消令牌路径仍各一次包装分配）。
 
+#### 本地化
+
+- `Localize` 标记替换改 span 扫描 + 惰性构建器：无标记零分配直返原串，未解析标记按原文带回；ID 以切片交给解析器（运行期路径查字典，每个标记物化一次 ID 串），发生替换时另加结果串一次分配；查键直查字典，不引入索引/缓存。
+
 #### 测试
 
 - `Tests/Player` 补 `UniTask` 引用与缺失 using；`PlayerTestBootstrap` 掐 `AutoBoot` 收进 `#if !UNITY_EDITOR`（编辑器 PlayMode 域依赖自动启动链，L2 门禁前提）。

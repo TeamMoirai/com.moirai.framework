@@ -92,7 +92,7 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 取覆盖译文；未覆盖或覆盖为空/仅空白时返回 <c>null</c>（空覆盖等于「不覆盖」而非「覆盖成空」）。
+        /// 取覆盖译文；未覆盖或覆盖为空/仅空白时返回 <c>false</c>（空覆盖等于「不覆盖」而非「覆盖成空」）。
         /// </summary>
         public bool TryGet(Language language, string key, out string text)
         {
