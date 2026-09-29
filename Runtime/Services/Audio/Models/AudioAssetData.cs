@@ -4,14 +4,10 @@ namespace Moirai.Atropos.Audio
 {
     public class AudioAssetData : MemoryObject
     {
-        /// <summary>
-        /// 资源句柄（后端原生句柄的 object 包装）。
-        /// </summary>
+        /// <summary>资源句柄（后端原生句柄的 object 包装）。</summary>
         public object AssetOperationHandle { private set; get; }
 
-        /// <summary>
-        /// 是否使用对象池。
-        /// </summary>
+        /// <summary>是否使用对象池。</summary>
         public bool InPool { private set; get; }
 
         /// <summary>
@@ -40,7 +36,6 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 回收音频数据。
         /// </summary>
-        /// <param name="audioAssetData"></param>
         internal static void Dealloc(AudioAssetData audioAssetData)
         {
             if (audioAssetData == null) return;

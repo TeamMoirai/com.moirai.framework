@@ -3,13 +3,10 @@ using System;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 字符串工具静态外观，提供格式化、连接、构建和操作功能。
-    /// 通过可插拔的 <see cref="StringHandler"/> 实现底层池化策略，减少 GC 压力。
+    /// 字符串工具静态外观：提供格式化、连接、构建和操作功能，底层池化策略由可插拔的 <see cref="StringHandler"/> 实现。
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 使用方式：
-    /// <code>
+    /// <example>
+    /// <code lang="csharp">
     /// // 直接格式化
     /// string msg = StringUtility.Format("HP: {0}/{1}", hp, maxHp);
     ///
@@ -23,8 +20,7 @@ namespace Moirai.Atropos
     ///     sb.Append("Hello ").Append(name);
     /// });
     /// </code>
-    /// </para>
-    /// </remarks>
+    /// </example>
     [HandlerHost(typeof(StringHandler))]
     public static partial class StringUtility
     {
@@ -49,7 +45,8 @@ namespace Moirai.Atropos
         /// 获取一个池化字符串构建器适配器。
         /// </summary>
         /// <param name="capacity">初始容量（字符数）。</param>
-        /// <returns>可复用的 <see cref="StringHandler.IStringBuilder"/>，使用后须调用 <see cref="IDisposable.Dispose"/> 或 <see cref="StringHandler.IStringBuilder.ToStringAndDispose"/> 归还池。</returns>
+        /// <returns>可复用的 <see cref="StringHandler.IStringBuilder"/>， <br />
+        /// 使用后须调用 <see cref="IDisposable.Dispose"/> 或 <see cref="StringHandler.IStringBuilder.ToStringAndDispose"/> 归还池。</returns>
         public static IStringBuilder CreateStringBuilder(int capacity = 256) => Handler.CreateStringBuilder(capacity);
 
         /// <summary>

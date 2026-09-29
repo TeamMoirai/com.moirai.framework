@@ -11,36 +11,48 @@ namespace Sirenix.OdinInspector
     [Conditional("UNITY_EDITOR")]
     public class InlineEnableButtonAttribute : Attribute
     {
-        /// <summary>
-        /// A resolved string that defines the action to perform when the button is clicked, such as an expression or method invocation.
-        /// </summary>
+        /// <summary>经解析的字符串，定义点击按钮时执行的操作，例如表达式或方法 调用。</summary>
         public string Action;
-        /// <summary>Optional label of the button.</summary>
+        /// <summary>可选：按钮的标签。</summary>
         public string Label;
-        /// <summary>
-        /// Optional resolved string that specifies a condition for whether to show the inline button or not.
-        /// </summary>
+        /// <summary>可选：指定是否显示内联按钮的经解析的字符串。</summary>
         public string ShowIf;
-        /// <summary>Supports a variety of color formats, including named colors (e.g. "red", "orange", "green", "blue"), hex codes (e.g. "#FF0000" and "#FF0000FF"), and RGBA (e.g. "RGBA(1,1,1,1)") or RGB (e.g. "RGB(1,1,1)"), including Odin attribute expressions (e.g "@this.MyColor"). Here are the available named colors: black, blue, clear, cyan, gray, green, grey, magenta, orange, purple, red, transparent, transparentBlack, transparentWhite, white, yellow, lightblue, lightcyan, lightgray, lightgreen, lightgrey, lightmagenta, lightorange, lightpurple, lightred, lightyellow, darkblue, darkcyan, darkgray, darkgreen, darkgrey, darkmagenta, darkorange, darkpurple, darkred, darkyellow. </summary>
+        /// <summary>支持的着色格式：命名色、十六进制、RGBA/RGB，以及 Odin 属性表达式（如 <c>@this.MyColor</c>）。</summary>
+        /// <remarks>
+        /// 可用命名色：black、blue、clear、cyan、gray、green、grey、magenta、orange、purple、red、transparent、transparentBlack、transparentWhite、 <br />
+        /// white、yellow。<br />
+        /// 浅色系：lightblue、lightcyan、lightgray、lightgreen、lightgrey、lightmagenta、lightorange、lightpurple、lightred、lightyellow。<br />
+        /// 深色系：darkblue、darkcyan、darkgray、darkgreen、darkgrey、darkmagenta、darkorange、darkpurple、darkred、darkyellow。
+        /// </remarks>
         public string ButtonColor;
-        /// <summary>Supports a variety of color formats, including named colors (e.g. "red", "orange", "green", "blue"), hex codes (e.g. "#FF0000" and "#FF0000FF"), and RGBA (e.g. "RGBA(1,1,1,1)") or RGB (e.g. "RGB(1,1,1)"), including Odin attribute expressions (e.g "@this.MyColor"). Here are the available named colors: black, blue, clear, cyan, gray, green, grey, magenta, orange, purple, red, transparent, transparentBlack, transparentWhite, white, yellow, lightblue, lightcyan, lightgray, lightgreen, lightgrey, lightmagenta, lightorange, lightpurple, lightred, lightyellow, darkblue, darkcyan, darkgray, darkgreen, darkgrey, darkmagenta, darkorange, darkpurple, darkred, darkyellow. </summary>
+        /// <summary>支持的着色格式：命名色、十六进制、RGBA/RGB，以及 Odin 属性表达式（如 <c>@this.MyColor</c>）。</summary>
+        /// <remarks>
+        /// 可用命名色：black、blue、clear、cyan、gray、green、grey、magenta、orange、purple、red、transparent、transparentBlack、transparentWhite、 <br />
+        /// white、yellow。<br />
+        /// 浅色系：lightblue、lightcyan、lightgray、lightgreen、lightgrey、lightmagenta、lightorange、lightpurple、lightred、lightyellow。<br />
+        /// 深色系：darkblue、darkcyan、darkgray、darkgreen、darkgrey、darkmagenta、darkorange、darkpurple、darkred、darkyellow。
+        /// </remarks>
         public string TextColor;
         public SdfIconType Icon;
         public IconAlignment IconAlignment;
 
-        /// <summary>Draws a button to the right of the property.</summary>
-        /// <param name="action">A resolved string that defines the action to perform when the button is clicked, such as an expression or method invocation.</param>
-        /// <param name="label">Optional label of the button.</param>
+        /// <summary>
+        /// 在属性右侧绘制按钮。
+        /// </summary>
+        /// <param name="action">经解析的字符串，定义点击按钮时执行的操作，例如 表达式或方法调用。</param>
+        /// <param name="label">可选：按钮的标签。</param>
         public InlineEnableButtonAttribute(string action, string label = null)
         {
           this.Action = action;
           this.Label = label;
         }
 
-        /// <summary>Draws a button to the right of the property.</summary>
-        /// <param name="action">A resolved string that defines the action to perform when the button is clicked, such as an expression or method invocation.</param>
-        /// <param name="icon">The icon to be shown inside the button.</param>
-        /// <param name="label">Optional label of the button.</param>
+        /// <summary>
+        /// 在属性右侧绘制按钮。
+        /// </summary>
+        /// <param name="action">经解析的字符串，定义点击按钮时执行的操作，例如 表达式或方法调用。</param>
+        /// <param name="icon">显示在按钮内的图标。</param>
+        /// <param name="label">可选：按钮的标签。</param>
         public InlineEnableButtonAttribute(string action, SdfIconType icon, string label = null)
         {
           this.Action = action;

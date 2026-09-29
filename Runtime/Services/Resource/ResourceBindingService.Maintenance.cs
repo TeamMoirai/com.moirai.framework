@@ -10,10 +10,9 @@ namespace Moirai.Atropos.Resource
     partial class ResourceBindingService
     {
         /// <summary>
-        /// 终态关停：排空所有所有者与绑定后**保持关闭位**，此后的注册与绑定一律以
-        /// <see cref="EResourceBindStatus.ServiceShutdown"/> 拒绝。
-        /// <para>槽位页已整体释放，若放行就会把新注册写进 <c>null</c> 页表。</para>
+        /// 终态关停：排空所有所有者与绑定后保持关闭位，此后的注册与绑定一律以 <see cref="EResourceBindStatus.ServiceShutdown"/> 拒绝。
         /// </summary>
+        /// <remarks>槽位页已整体释放，放行会把新注册写进 <c>null</c> 页表。</remarks>
         internal void Shutdown()
         {
             _isShutdown = true;
@@ -21,8 +20,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 重置：排空同 <see cref="Shutdown"/>，但完成后放行新的注册——供强制回收全部资源时
-        /// 复用同一实例的路径调用。
+        /// 重置：排空同 <see cref="Shutdown"/>，但完成后放行新的注册，供强制回收全部资源时复用同一实例的路径调用。
         /// </summary>
         internal void Reset()
         {
@@ -138,10 +136,8 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>
         /// 按预算轮转扫描所有者与绑定槽位，回收"Unity 对象已销毁、但 <c>OnDestroy</c> 没把账收走"的那部分。
-        /// <para>典型现场是场景卸载与退出播放：销毁派发被截断后，槽位连同其租约会一路留到进程结束。</para>
         /// </summary>
-        /// <param name="budget">本帧两类槽位各可查验的数量。刻意不给默认值：调用方一律显式传，
-        /// 才能让"这个配额没人调"在编译期就暴露出来，而不是悄悄沿用一个常量。</param>
+        /// <param name="budget">本帧两类槽位各可查验的数量（无默认值，必须显式传）。</param>
         internal void ProcessDestroyedObjects(int budget)
         {
             if (_isShutdown || budget <= 0 || _ownerPages == null)

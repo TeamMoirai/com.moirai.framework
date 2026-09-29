@@ -5,13 +5,11 @@ using UnityEngine.InputSystem;
 namespace Moirai.Atropos.Input.Prompts
 {
     /// <summary>
-    /// InputSystem 提示抽象类
+    /// InputSystem 提示抽象类。
     /// </summary>
     public abstract class InputSystemPromptBase : MonoBehaviour
     {
-        /// <summary>
-        /// 是否有效，用于检验必须的组件。
-        /// </summary>
+        /// <summary>是否有效，用于检验必须的组件。</summary>
         protected abstract bool IsValid { get; }
         
         private void OnEnable()
@@ -37,9 +35,8 @@ namespace Moirai.Atropos.Input.Prompts
         protected abstract void RefreshPrompt();
         
         /// <summary>
-        /// 当活动输入设备更改时调用
+        /// 当活动输入设备更改时调用。
         /// </summary>
-        /// <param name="device"></param>
         private void DeviceChanged(InputDevice device)
         {
             RefreshPrompt();

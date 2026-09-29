@@ -9,10 +9,9 @@ namespace Moirai.Atropos
     public static class CoroutineUtility
     {
         /// <summary>
-        /// 等待指定的帧数
+        /// 等待指定的帧数。
         /// </summary>
-        /// <param name="frameCount">帧数</param>
-        /// <returns></returns>
+        /// <param name="frameCount">帧数。</param>
         /// <example>yield return CoroutineUtility.WaitFor(1);</example>
         public static IEnumerator WaitForFrames(int frameCount)
         {
@@ -24,10 +23,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 等待指定的秒数（使用常规时间） 
+        /// 等待指定的秒数（使用常规时间）。
         /// </summary>
-        /// <param name="seconds">秒数</param>
-        /// <returns></returns>
+        /// <param name="seconds">秒数。</param>
         /// <example>yield return CoroutineUtility.WaitFor(1f);</example>
         public static IEnumerator WaitFor(float seconds)
         {
@@ -38,10 +36,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 等待指定的秒数（使用未缩放的时间）
+        /// 等待指定的秒数（使用未缩放的时间）。
         /// </summary>
-        /// <param name="seconds">秒数</param>
-        /// <returns></returns>
+        /// <param name="seconds">秒数。</param>
         /// <example>yield return CoroutineUtility.WaitForUnscaled(1f);</example>
         public static IEnumerator WaitForUnscaled(float seconds)
         {

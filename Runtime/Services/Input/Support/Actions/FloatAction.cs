@@ -7,9 +7,7 @@ namespace Moirai.Atropos.Input
     {
         [SerializeField] private float m_Value;
 
-        /// <summary>
-        /// 动作的当前值。
-        /// </summary>
+        /// <summary>动作的当前值。</summary>
         public float Value
         {
             get => m_Value;

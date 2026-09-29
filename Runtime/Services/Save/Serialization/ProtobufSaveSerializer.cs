@@ -7,14 +7,14 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// protobuf-net 序列化后端（<c>protobuf-net</c> NuGet 包，Proto3 契约）。
-    /// <para>数据类型需 <c>[ProtoContract]</c>/<c>[ProtoMember(n)]</c> 标注并依赖 protobuf-net BuildTools SourceGenerator
-    /// 预生成 AOT 安全序列化器（<c>RuntimeTypeModel</c> 反射发射路径在 IL2CPP 下不可用，禁止依赖）。</para>
     /// </summary>
+    /// <remarks>
+    /// 数据类型需 <c>[ProtoContract]</c>/<c>[ProtoMember(n)]</c> 标注， <br />
+    /// 依赖 protobuf-net BuildTools SourceGenerator 预生成 AOT 安全序列化器（<c>RuntimeTypeModel</c> 反射发射路径在 IL2CPP 下不可用，禁止依赖）。
+    /// </remarks>
     public sealed class ProtobufSaveSerializer : ISaveSerializer
     {
-        /// <summary>
-        /// 后端标识（恒为 <see cref="ESaveBackend.Protobuf"/>）。
-        /// </summary>
+        /// <summary>后端标识（恒为 <see cref="ESaveBackend.Protobuf"/>）。</summary>
         public ESaveBackend Backend => ESaveBackend.Protobuf;
 
         /// <summary>

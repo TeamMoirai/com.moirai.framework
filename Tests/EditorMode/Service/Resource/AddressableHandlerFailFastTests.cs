@@ -7,13 +7,13 @@ using NUnit.Framework;
 namespace Service.Resource
 {
     /// <summary>
-    /// AddressableHandler 的契约测试：实验性后端的能力缺失必须以 GameException 暴露，
-    /// 禁止退回静默 no-op；已经接上的那条链（低内存回收委托）则必须真的走通。
-    /// 运行时符号随 ADDRESSABLES_INSTALLED 条件编译存在，用反射定位并断言；
-    /// 未安装 Addressables 的环境下整组忽略。
-    /// <para>这里只钉"哪些成员仍然抛"与"哪些委托必须落地"。接通了的取用族不在此列——
-    /// 它们的正解是真的返回值，拿反射断言"不抛"等于什么都不断。</para>
+    /// AddressableHandler 的契约守卫：实验性后端的能力缺失必须以 <see cref="GameException"/> 暴露，已接通的低内存回收委托必须真的落地。
     /// </summary>
+    /// <remarks>
+    /// 运行时符号随 <c>ADDRESSABLES_INSTALLED</c> 条件编译存在，经反射定位；未安装 Addressables 时整组忽略。 <br />
+    /// 只钉"哪些成员仍然抛"与"哪些委托必须落地"，已接通的取用族不在此列——
+    /// 它们的正解是真的返回值，拿反射断言"不抛"等于什么都没断言。
+    /// </remarks>
     public sealed class AddressableHandlerFailFastTests
     {
         private const string HandlerTypeName = "Moirai.Atropos.Resource.AddressableHandler";
@@ -88,10 +88,12 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 低内存这条链必须是通的：登记进去的强制回收委托要真的被调用，且以 force=true 调用。
-        /// <para>这一对成员原本都是空方法体，于是 <c>Application.lowMemory</c> 到了这座后端什么也不做，
-        /// 而调用方看到的行为是"成功返回"——静默 no-op 里最典型的一种。</para>
+        /// 低内存这条链必须是通的：登记的强制回收委托要真的被调用，且以 <c>force=true</c> 调用。
         /// </summary>
+        /// <remarks>
+        /// 这一对成员若落成空方法体，<c>Application.lowMemory</c> 到了这座后端什么也不做，
+        /// 而调用方看到的行为是"成功返回"。
+        /// </remarks>
         [Test]
         public void OnLowMemory_InvokesRegisteredForceUnloadAction()
         {
@@ -131,10 +133,12 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 反射调用指定成员并断言抛出带预期片段的 GameException。
-        /// <para>public 与 internal 都要查：同步取用族的三个成员是 <c>internal override</c>，
-        /// 只按 public 找会得到"成员不存在"，看着像后端删了它们。</para>
+        /// 反射调用指定成员并断言抛出带预期片段的 <see cref="GameException"/>。
         /// </summary>
+        /// <remarks>
+        /// public 与 internal 都要查：同步取用族的三个成员是 <c>internal override</c>，
+        /// 只按 public 找会得到"成员不存在"，看着像后端删了它们。
+        /// </remarks>
         /// <param name="methodName">成员名。</param>
         /// <param name="args">实参表。</param>
         /// <returns>是否实际执行了调用（false 表示后端类型不存在而忽略）。</returns>

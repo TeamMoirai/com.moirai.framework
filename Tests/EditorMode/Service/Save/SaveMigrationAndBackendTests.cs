@@ -21,14 +21,18 @@ namespace Service.Save
 {
     /// <summary>
     /// 序列化后端（MessagePack / MemoryPack / protobuf-net）与 <see cref="SaveDataBlock"/> 版本迁移管线测试。
-    /// <para>数据类建在测试程序集内（<see cref="SaveDataBlock"/> 非 [SerializeReference] 持有类型，无 Inspector 污染）；
-    /// 迁移/未来版本保护经 internal 管线直调（<c>InternalsVisibleTo</c>），真实文件 IO。</para>
-    /// <para>三个第三方后端的标注类型与对应用例整块由 <c>MESSAGEPACK_INSTALLED</c> / <c>MEMORYPACK_INSTALLED</c> /
-    /// <c>PROTOBUF_INSTALLED</c> 门控（与运行时注册表同一套符号）：依赖未接入的工程里本夹具只剩 JSON 用例，仍可编译执行。</para>
     /// </summary>
+    /// <remarks>
+    /// 数据类建在测试程序集内（<see cref="SaveDataBlock"/> 非 <c>[SerializeReference]</c> 持有类型，无 Inspector 污染）； <br />
+    /// 迁移/未来版本保护经 internal 管线直调（<c>InternalsVisibleTo</c>），真实文件 IO。 <br />
+    /// 三个第三方后端的标注类型与对应用例整块由 <c>MESSAGEPACK_INSTALLED</c> / <c>MEMORYPACK_INSTALLED</c> /
+    /// <c>PROTOBUF_INSTALLED</c> 门控（与运行时注册表同一套符号）：依赖未接入的工程里本夹具只剩 JSON 用例，仍可编译执行。
+    /// </remarks>
     public partial class SaveMigrationAndBackendTests
     {
-        /// <summary>迁移测试用数据：v1 只有两字段，v3 当前形态——OnMigrate 级联回填。</summary>
+        /// <summary>
+        /// 迁移测试用数据：v1 只有两字段，v3 当前形态——OnMigrate 级联回填。
+        /// </summary>
         [SaveData("migrating", 3)]
         private sealed class MigratingData : SaveDataBlock
         {
@@ -52,13 +56,17 @@ namespace Service.Save
             }
         }
 
-        /// <summary>缺 <see cref="SaveDataAttribute"/> 的非法 SaveDataBlock 子类（契约破坏 fail-fast 用）。</summary>
+        /// <summary>
+        /// 缺 <see cref="SaveDataAttribute"/> 的非法 SaveDataBlock 子类（契约破坏 fail-fast 用）。
+        /// </summary>
         private sealed class AttributeLessData : SaveDataBlock
         {
             public int X;
         }
 
-        /// <summary>无基类普通 POCO（版本字段不参与迁移语义）。</summary>
+        /// <summary>
+        /// 无基类普通 POCO（版本字段不参与迁移语义）。
+        /// </summary>
         [Serializable]
         private sealed class PlainBox
         {

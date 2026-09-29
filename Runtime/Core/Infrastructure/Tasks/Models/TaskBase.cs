@@ -9,24 +9,16 @@ namespace Moirai.Atropos.Tasks
 {
     public enum TaskStatus
     {
-        /// <summary>
-        /// 任务已启用运行并且可以更新
-        /// </summary>
+        /// <summary>任务已启用运行并且可以更新。</summary>
         Running,
         
-        /// <summary>
-        /// 任务已暂停，将被忽略
-        /// </summary>
+        /// <summary>任务已暂停，将被忽略。</summary>
         Paused,
         
-        /// <summary>
-        /// 任务已完成，等待广播完成事件
-        /// </summary>
+        /// <summary>任务已完成，等待广播完成事件。</summary>
         Completed,
         
-        /// <summary>
-        /// 任务已停止，并且不会广播完成事件
-        /// </summary>
+        /// <summary>任务已停止，并且不会广播完成事件。</summary>
         Stopped
     }
     
@@ -37,11 +29,8 @@ namespace Moirai.Atropos.Tasks
         [JsonIgnore]
         public TaskBase Task { get; private set; }
         
-        /// <summary>
-        /// 对 subtask 的软引用，监听器可以在广播此事件之前被 disposition 处理。
-        /// 因此们检查 subtask 的 prerequisite 是否包含此事件，以确定其生命周期版本。
-        /// </summary>
-        /// <returns></returns>
+        /// <summary>该完成事件的监听任务列表（软引用）。</summary>
+        /// <remarks>监听器可能在广播前被释放；判定生命周期版本需检查其 prerequisite 是否仍含本事件。</remarks>
         [JsonIgnore]
         public readonly List<TaskBase> Listeners = new List<TaskBase>();
         
@@ -71,7 +60,7 @@ namespace Moirai.Atropos.Tasks
     }
     
     /// <summary>
-    /// 框架任务的基类
+    /// 框架任务的基类。
     /// </summary>
     public abstract class TaskBase : CallbackEventHandler, IDisposable
     {
@@ -95,9 +84,8 @@ namespace Moirai.Atropos.Tasks
         public abstract string GetTaskID();
         
         /// <summary>
-        /// 调试使用情况
+        /// 调试使用情况。
         /// </summary>
-        /// <returns></returns>
         protected virtual string GetTaskName()
         {
 #if UNITY_EDITOR
@@ -186,10 +174,8 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 发布先决条件（如果包含其引用）
+        /// 发布先决条件（如果包含其引用）。
         /// </summary>
-        /// <param name="evt"></param>
-        /// <returns></returns>
         internal bool ReleasePrerequisite(TaskCompleteEvent evt)
         {
             return _prerequisites.Remove(evt);
@@ -201,18 +187,16 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 获取任务完成事件
+        /// 获取任务完成事件。
         /// </summary>
-        /// <returns></returns>
         public TaskCompleteEvent GetCompleteEvent()
         {
             return _completeEvent;
         }
         
         /// <summary>
-        /// 在此任务运行之前添加先决条件任务
+        /// 在此任务运行之前添加先决条件任务。
         /// </summary>
-        /// <param name="taskBase"></param>
         public void RegisterPrerequisite(TaskBase taskBase)
         {
             var evt = taskBase.GetCompleteEvent();
@@ -222,9 +206,8 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 删除先决条件任务（如果存在）
+        /// 删除先决条件任务（如果存在）。
         /// </summary>
-        /// <param name="taskBase"></param>
         public bool UnregisterPrerequisite(TaskBase taskBase)
         {
             if (_prerequisites == null) return false;
@@ -285,11 +268,11 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 取一只池化任务。<b>返回时引用计数为 0，即"无人持有"</b>：谁要把任务存下来，
-        /// 必须先 <see cref="Acquire"/> 再在交还时 <see cref="Dispose"/>（<see cref="TaskRunner.RegisterTask"/>
-        /// 与 <see cref="SequenceTask.Append"/> 就是这么配的）。这里刻意不自增，
-        /// 否则"取来就转手"的写法会凭空多出一辈子还不掉的引用。
+        /// 从池中取一只任务，返回时引用计数为 0。
         /// </summary>
+        /// <remarks>
+        /// 要长期持有需自行 <c>Acquire</c> 并在交还时 <c>Dispose</c>（见 <c>TaskRunner.RegisterTask</c>、<c>SequenceTask.Append</c>）。
+        /// </remarks>
         public static T GetPooled()
         {
             T t = s_Pool.Get();

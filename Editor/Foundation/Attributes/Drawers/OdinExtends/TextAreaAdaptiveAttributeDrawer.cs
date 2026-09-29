@@ -6,10 +6,7 @@ using UnityEngine;
 namespace Sirenix.OdinInspector
 {
     /// <summary>
-    /// 多行文本块：高度随内容行数在 MinLines 与 MaxLines 之间自适应，超出 MaxLines 后由文本框自身滚动。
-    /// 可作用于字符串字段与 <c>[ShowInInspector]</c> 属性。
-    /// <para>Unity 的 <c>[TextArea]</c> / <c>[Multiline]</c> 在 Odin 下只对序列化字段生效，
-    /// 属性会退化成单行标签；Odin 自带的 <c>[MultiLineProperty]</c> 又是固定行数。两者都不满足预览类界面。</para>
+    /// 多行文本块：高度随内容行数在 <c>MinLines</c> 与 <c>MaxLines</c> 之间自适应，超出后由文本框自身滚动；可作用于字符串字段与 <c>[ShowInInspector]</c> 属性。
     /// </summary>
     /// <seealso cref="Sirenix.OdinInspector.Editor.Drawers.TextAreaAdaptiveAttributeDrawer" />
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]

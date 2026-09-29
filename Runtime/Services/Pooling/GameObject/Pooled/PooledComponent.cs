@@ -6,10 +6,12 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 池化组件租约：在 <see cref="PooledGameObject"/> 之上缓存目标组件，跨池复用保留（存于 Slot.UserData）。
-    /// <para>通用场景请用 <see cref="Pooled{TComponent}"/>；需要自定义 Init / 组件解析时继承本类型（CRTP）。</para>
-    /// <para>UserData 为单消费者槽位：异种占用时缓存降级为非驻留，不覆盖原数据。</para>
+    /// 池化组件租约：在 <see cref="PooledGameObject"/> 之上缓存目标组件，跨池复用保留（存于 <c>Slot.UserData</c>）。
     /// </summary>
+    /// <remarks>
+    /// 通用场景请用 <see cref="Pooled{TComponent}"/>；需要自定义 Init / 组件解析时继承本类型（CRTP）。
+    /// <c>UserData</c> 为单消费者槽位：异种占用时缓存降级为非驻留，不覆盖原数据。
+    /// </remarks>
     /// <typeparam name="T">包装器自身类型。</typeparam>
     /// <typeparam name="TComponent">目标组件类型。</typeparam>
     public class PooledComponent<T, TComponent> : PooledGameObject
@@ -24,15 +26,11 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取缓存的目标组件。租约失效或未解析时为 null。
-        /// </summary>
+        /// <summary>获取缓存的目标组件。租约失效或未解析时为 null。</summary>
         public TComponent Component => Cache != null ? Cache.Component : null;
 
         private ComponentCache _cache;
-        /// <summary>
-        /// 获取组件缓存（仅读取已解析结果；创建职责在 <see cref="ResolveComponent"/>）。
-        /// </summary>
+        /// <summary>获取组件缓存（仅读取已解析结果；创建职责在 <see cref="ResolveComponent"/>）。</summary>
         protected ComponentCache Cache
         {
             get
@@ -56,9 +54,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public class ComponentCache
         {
-            /// <summary>
-            /// 缓存的目标组件。
-            /// </summary>
+            /// <summary>缓存的目标组件。</summary>
             public TComponent Component;
         }
 
@@ -213,8 +209,10 @@ namespace Moirai.Atropos.ObjectPool
 
     /// <summary>
     /// 通用组件池化租约（无自定义逻辑的默认形态）。
-    /// <para><see cref="GameObjectPoolService.SpawnPooled{TComponent}"/> 的返回类型。</para>
     /// </summary>
+    /// <remarks>
+    /// <see cref="GameObjectPoolService.SpawnPooled{TComponent}"/> 的返回类型。
+    /// </remarks>
     /// <typeparam name="TComponent">目标组件类型。</typeparam>
     public sealed class Pooled<TComponent> : PooledComponent<Pooled<TComponent>, TComponent>
         where TComponent : Component

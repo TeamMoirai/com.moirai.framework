@@ -82,11 +82,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取变量的名称
+        /// 获取变量的名称。
         /// </summary>
-        /// <typeparam name="T">任意类型的变量</typeparam>
-        /// <param name="memberExperssion">变量的表达式</param>
-        /// <returns>传入变量的名称</returns>
+        /// <typeparam name="T">任意类型的变量。</typeparam>
+        /// <param name="memberExperssion">变量的表达式。</param>
+        /// <returns>传入变量的名称。</returns>
         /// <example>
         /// <code>
         /// object dotNet=new object();
@@ -129,8 +129,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 设置对象属性值。
-        /// 使用此方法为对象属性进行赋值时,若Type类型赋予正确,则可赋值非public类型的属性值.
+        /// 设置对象属性值（Type 正确时可赋值非 public 属性）。
         /// </summary>
         /// <param name="type">属性可写的类Type。</param>
         /// <param name="obj">目标对象。</param>
@@ -252,7 +251,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="type">类型。</param>
         /// <param name="propertyName">属性名。</param>
-        /// <returns>属性信息</returns>
+        /// <returns>属性信息。</returns>
         public static PropertyInfo GetProperty(Type type, string propertyName)
         {
             var property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic);
@@ -269,7 +268,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="obj">目标对象。</param>
         /// <param name="fieldName">字段名。</param>
-        /// <returns>字段值</returns>
+        /// <returns>字段值。</returns>
         public static object GetFieldValue(object obj, string fieldName)
         {
             if (obj == null)
@@ -316,8 +315,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取类Type类型中的所有字段名；
         /// </summary>
-        /// <param name="type">type类型</param>
-        /// <returns>名称数组</returns>
+        /// <param name="type">type类型。</param>
+        /// <returns>名称数组。</returns>
         public static FieldInfo[] GetTypeAllFields(Type type)
         {
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic |
@@ -350,14 +349,13 @@ namespace Moirai.Atropos
         
         
         /// <summary>
-        /// 将一个对象上的字段值赋予到另一个对象上名字相同的字段上
-        /// 此方法可识别属性与字段，赋值时尽量将属性的索引字段也进行命名统一
+        /// 将一个对象上的字段值赋予到另一个对象上名字相同的字段上，属性与字段均可识别。
         /// </summary>
-        /// <typeparam name="T">需要赋值的源类型</typeparam>
-        /// <typeparam name="K">目标类型</typeparam>
-        /// <param name="source">源对象</param>
-        /// <param name="target">目标对象</param>
-        /// <returns>被赋值后的目标对象</returns>
+        /// <typeparam name="T">需要赋值的源类型。</typeparam>
+        /// <typeparam name="K">目标类型。</typeparam>
+        /// <param name="source">源对象。</param>
+        /// <param name="target">目标对象。</param>
+        /// <returns>被赋值后的目标对象。</returns>
         public static K AssignSameFieldValue<T, K>(T source, K target)
             where T : class
             where K : class
@@ -391,24 +389,24 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 遍历实例对象上的所有字段
-        /// 此方法可识别属性与字段，打印属性时候需要特别注意过滤自动属性的额外字段
+        /// 遍历实例对象上的所有字段，属性与字段均可识别。
         /// </summary>
-        /// <typeparam name="T">实例对象类型</typeparam>
-        /// <param name="obj">实例对象</param>
-        /// <param name="handler">遍历到一条字段执行的方法</param>
+        /// <remarks>打印属性时需过滤自动属性生成的额外字段。</remarks>
+        /// <typeparam name="T">实例对象类型。</typeparam>
+        /// <param name="obj">实例对象。</param>
+        /// <param name="handler">遍历到一条字段执行的方法。</param>
         public static void TraverseInstanceAllFileds<T>(T obj, Action<string, object> handler)
         {
             TraverseInstanceAllFileds(typeof(T), obj, handler);
         }
 
         /// <summary>
-        /// 遍历实例对象上的所有字段
-        /// 此方法可识别属性与字段，打印属性时候需要特别注意过滤自动属性的额外字段
+        /// 遍历实例对象上的所有字段，属性与字段均可识别。
         /// </summary>
-        /// <param name="type">实例对象类型</param>
-        /// <param name="obj">实例对象</param>
-        /// <param name="handler">遍历到一条字段执行的方法</param>
+        /// <remarks>打印属性时需过滤自动属性生成的额外字段。</remarks>
+        /// <param name="type">实例对象类型。</param>
+        /// <param name="obj">实例对象。</param>
+        /// <param name="handler">遍历到一条字段执行的方法。</param>
         public static void TraverseInstanceAllFileds(Type type, object obj, Action<string, object> handler)
         {
             if (type == null)
@@ -427,22 +425,20 @@ namespace Moirai.Atropos
 
 
         /// <summary>
-        /// 遍历type类型上的非对象字段
-        /// 包含静态、常量、属性等
+        /// 遍历 type 类型上的非对象字段（含静态、常量、属性等）。
         /// </summary>
-        /// <typeparam name="T">遍历的类型</typeparam>
-        /// <param name="handler">遍历到一条字段执行的方法</param>
+        /// <typeparam name="T">遍历的类型。</typeparam>
+        /// <param name="handler">遍历到一条字段执行的方法。</param>
         public static void TraverseTypeFields<T>(Action<string, object> handler)
         {
             TraverseTypeFields(typeof(T), handler);
         }
 
         /// <summary>
-        /// 遍历type类型上的非对象字段
-        /// 包含静态、常量、属性等
+        /// 遍历 type 类型上的非对象字段（含静态、常量、属性等）。
         /// </summary>
-        /// <param name="type">遍历的类型</param>
-        /// <param name="handler">遍历到一条字段执行的方法</param>
+        /// <param name="type">遍历的类型。</param>
+        /// <param name="handler">遍历到一条字段执行的方法。</param>
         public static void TraverseTypeFields(Type type, Action<string, object> handler)
         {
             if (type == null)
@@ -458,12 +454,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 查询单个类型中存在的目标特性
+        /// 查询单个类型中存在的目标特性。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <param name="type">目标类型</param>
-        /// <param name="inherit">是否查找基类中的特性</param>
-        /// <returns>特性数组</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <param name="type">目标类型。</param>
+        /// <param name="inherit">是否查找基类中的特性。</param>
+        /// <returns>特性数组。</returns>
         public static T[] GetAttributes<T>(Type type, bool inherit = false)
             where T : Attribute
         {
@@ -472,12 +468,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 查询单个类型中存在的目标特性
+        /// 查询单个类型中存在的目标特性。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <typeparam name="K">目标类型</typeparam>
-        /// <param name="inherit">是否查找基类中的特性</param>
-        /// <returns>特性数组</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <typeparam name="K">目标类型。</typeparam>
+        /// <param name="inherit">是否查找基类中的特性。</param>
+        /// <returns>特性数组。</returns>
         public static T[] GetAttributes<T, K>(bool inherit = false)
             where T : Attribute
             where K : class
@@ -486,12 +482,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取程序集中所有被挂载的特性数组
+        /// 获取程序集中所有被挂载的特性数组。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <param name="assembly">目标程序集</param>
-        /// <param name="inherit">是否查找基类中的特性</param>
-        /// <returns>特性数组</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <param name="assembly">目标程序集。</param>
+        /// <param name="inherit">是否查找基类中的特性。</param>
+        /// <returns>特性数组。</returns>
         public static T[] GetAttributesInAssembly<T>(Assembly assembly, bool inherit = false)
             where T : Attribute
         {
@@ -508,12 +504,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 通过特性获取类
+        /// 通过特性获取类。
         /// </summary>
-        /// <typeparam name="T">查找的指定类型</typeparam>
-        /// <param name="assembly">目标程序集</param>
-        /// <param name="inherit">是否查找基类中的特性</param>
-        /// <returns>查找到的类型</returns>
+        /// <typeparam name="T">查找的指定类型。</typeparam>
+        /// <param name="assembly">目标程序集。</param>
+        /// <param name="inherit">是否查找基类中的特性。</param>
+        /// <returns>查找到的类型。</returns>
         public static Type[] GetTypesByAttribute<T>(Assembly assembly, bool inherit = false)
             where T : Attribute
         {
@@ -532,12 +528,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取指定类型中，挂载了目标特性的方法信息
+        /// 获取指定类型中，挂载了目标特性的方法信息。
         /// </summary>
-        /// <typeparam name="T">查找的指定类型</typeparam>
-        /// <typeparam name="K">特性类型</typeparam>
-        /// <param name="inherit">是否查找基类中的特性</param>
-        /// <returns>方法信息数组</returns>
+        /// <typeparam name="T">查找的指定类型。</typeparam>
+        /// <typeparam name="K">特性类型。</typeparam>
+        /// <param name="inherit">是否查找基类中的特性。</param>
+        /// <returns>方法信息数组。</returns>
         public static MethodInfo[] GetTypeMethodsByAttribute<T, K>(bool inherit = false)
             where T : class
             where K : Attribute
@@ -546,12 +542,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        ///  获取指定类型中，挂载了目标特性的方法信息
+        /// 获取指定类型中，挂载了目标特性的方法信息。
         /// </summary>
-        /// <param name="type">查找的指定类型</param>
-        /// <param name="attributeType">特性类型</param>
-        /// <param name="inherit">是否查找基类中的特性</param>
-        /// <returns>方法信息数组</returns>
+        /// <param name="type">查找的指定类型。</param>
+        /// <param name="attributeType">特性类型。</param>
+        /// <param name="inherit">是否查找基类中的特性。</param>
+        /// <returns>方法信息数组。</returns>
         public static MethodInfo[] GetTypeMethodsByAttribute(Type type, Type attributeType, bool inherit = false)
         {
             if (type == null)
@@ -567,12 +563,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取指定类型中，挂载了目标特性的方法信息
+        /// 获取指定类型中，挂载了目标特性的方法信息。
         /// </summary>
-        /// <typeparam name="T">特性类型</typeparam>
-        /// <param name="type">查找的指定类型</param>
-        /// <param name="inherit">是否查找基类中的特性</param>
-        /// <returns>方法信息数组</returns>
+        /// <typeparam name="T">特性类型。</typeparam>
+        /// <param name="type">查找的指定类型。</param>
+        /// <param name="inherit">是否查找基类中的特性。</param>
+        /// <returns>方法信息数组。</returns>
         public static MethodInfo[] GetTypeMethodsByAttribute<T>(Type type, bool inherit = false)
             where T : Attribute
         {
@@ -584,11 +580,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取当前程序集下所有标记指定特效的方法信息
+        /// 获取当前程序集下所有标记指定特效的方法信息。
         /// </summary>
-        /// <typeparam name="T">特性类型</typeparam>
-        /// <param name="assembly">目标程序集</param>
-        /// <returns>方法信息数组</returns>
+        /// <typeparam name="T">特性类型。</typeparam>
+        /// <param name="assembly">目标程序集。</param>
+        /// <returns>方法信息数组。</returns>
         public static MethodInfo[] GetAssemblyMethodsByAttribute<T>(Assembly assembly,
             bool inherit = false)
             where T : Attribute
@@ -610,23 +606,22 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 反射工具，得到反射类的对象
+        /// 反射工具，得到反射类的对象。
         /// </summary>
-        /// <param name="type">类型</param>
-        /// <param name="args">构造参数</param>
-        /// <returns>实例化后的对象</returns>
+        /// <param name="type">类型。</param>
+        /// <param name="args">构造参数。</param>
+        /// <returns>实例化后的对象。</returns>
         public static object GetTypeInstance(Type type, params object[] args)
         {
             return Activator.CreateInstance(type, args);
         }
         
         /// <summary>
-        /// 反射工具，得到反射类的对象
-        /// 被反射对象必须是有无参公共构造 
+        /// 反射工具，得到反射类的对象（要求有无参公共构造）。
         /// </summary>
-        /// <param name="typeName">类型名</param>
-        /// <param name="assemblies">程序集集合</param>
-        /// <returns>实例化后的对象</returns>
+        /// <param name="typeName">类型名。</param>
+        /// <param name="assemblies">程序集集合。</param>
+        /// <returns>实例化后的对象。</returns>
         public static object GetTypeInstance(string typeName, params Assembly[] assemblies)
         {
             object inst = null;
@@ -644,12 +639,12 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 反射工具，得到反射类的对象
+        /// 反射工具，得到反射类的对象。
         /// </summary>
-        /// <param name="typeName">类型名</param>
-        /// <param name="args">构造参数</param>
-        /// <param name="assemblies">程序集集合</param>
-        /// <returns>实例化后的对象</returns>
+        /// <param name="typeName">类型名。</param>
+        /// <param name="args">构造参数。</param>
+        /// <param name="assemblies">程序集集合。</param>
+        /// <returns>实例化后的对象。</returns>
         public static object GetTypeInstance(string typeName, object[] args,
             params Assembly[] assemblies)
         {
@@ -668,11 +663,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取所有派生类的实例对象
+        /// 获取所有派生类的实例对象。
         /// </summary>
-        /// <typeparam name="T">目标类型</typeparam>
-        /// <param name="assembly">需要检测的程序集</param>
-        /// <returns>反射生成后的对象数组</returns>
+        /// <typeparam name="T">目标类型。</typeparam>
+        /// <param name="assembly">需要检测的程序集。</param>
+        /// <returns>反射生成后的对象数组。</returns>
         public static T[] GetDerivedTypeInstances<T>(Assembly assembly = null)
             where T : class
         {
@@ -690,11 +685,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取目标类的派生对象
+        /// 获取目标类的派生对象。
         /// </summary>
-        /// <param name="type">基类</param>
-        /// <param name="assembly">需要检测的程序集</param>
-        /// <returns>实例对象</returns>
+        /// <param name="type">基类。</param>
+        /// <param name="assembly">需要检测的程序集。</param>
+        /// <returns>实例对象。</returns>
         public static object[] GetDerivedTypeInstances(Type type, Assembly assembly = null)
         {
             List<object> list = new List<object>();
@@ -710,13 +705,13 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取对象实体
+        /// 通过特性获取对象实体。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <param name="type">基类</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <param name="inherit">是否检查基类特性</param>
-        /// <returns>生成的对象</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <param name="type">基类。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <param name="inherit">是否检查基类特性。</param>
+        /// <returns>生成的对象。</returns>
         public static object GetInstanceByAttribute<T>(Type type, Assembly assembly,
             bool inherit = false)
             where T : Attribute
@@ -737,13 +732,13 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取对象实体
+        /// 通过特性获取对象实体。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <typeparam name="K">基类，new()约束</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <param name="inherit">是否检查基类特性</param>
-        /// <returns>生成的对象</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <typeparam name="K">基类，new()约束。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <param name="inherit">是否检查基类特性。</param>
+        /// <returns>生成的对象。</returns>
         public static K GetInstanceByAttribute<T, K>(Assembly assembly = null,
             bool inherit = false)
             where T : Attribute
@@ -765,13 +760,12 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取对象实体数组
-        /// 生成的对象必须是无参可构造
+        /// 通过特性获取对象实体数组（生成的对象必须可无参构造）。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <typeparam name="K">基类，new()约束</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>生成的对象数组</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <typeparam name="K">基类，new()约束。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>生成的对象数组。</returns>
         public static K[] GetInstancesByAttribute<T, K>(Assembly assembly)
             where T : Attribute
             where K : class
@@ -780,14 +774,13 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取对象实体数组
-        /// 生成的对象必须是无参可构造
+        /// 通过特性获取对象实体数组（生成的对象必须可无参构造）。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <typeparam name="K">基类，new()约束</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <param name="inherit">是否检查基类特性</param>
-        /// <returns>生成的对象数组</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <typeparam name="K">基类，new()约束。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <param name="inherit">是否检查基类特性。</param>
+        /// <returns>生成的对象数组。</returns>
         public static K[] GetInstancesByAttribute<T, K>(bool inherit, Assembly assembly = null)
             where T : Attribute
             where K : class
@@ -807,13 +800,12 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取对象实体数组
-        /// 生成的对象必须是无参可构造
+        /// 通过特性获取对象实体数组（生成的对象必须可无参构造）。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <param name="type">基类，new()约束</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>生成的对象数组</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <param name="type">基类，new()约束。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>生成的对象数组。</returns>
         public static object[] GetInstancesByAttribute<T>(Type type, Assembly assembly = null)
             where T : Attribute
         {
@@ -821,14 +813,13 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取对象实体数组
-        /// 生成的对象必须是无参可构造
+        /// 通过特性获取对象实体数组（生成的对象必须可无参构造）。
         /// </summary>
-        /// <typeparam name="T">目标特性</typeparam>
-        /// <param name="type">基类，new()约束</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <param name="inherit">是否检查基类特性</param>
-        /// <returns>生成的对象数组</returns>
+        /// <typeparam name="T">目标特性。</typeparam>
+        /// <param name="type">基类，new()约束。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <param name="inherit">是否检查基类特性。</param>
+        /// <returns>生成的对象数组。</returns>
         public static object[] GetInstancesByAttribute<T>(Type type, bool inherit,
             Assembly assembly = null)
             where T : Attribute
@@ -848,12 +839,12 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取目标派生类的所有可实例化类
+        /// 通过特性获取目标派生类的所有可实例化类。
         /// </summary>
-        /// <typeparam name="T">特性类型</typeparam>
-        /// <typeparam name="K">派生的基类</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类数组</returns>
+        /// <typeparam name="T">特性类型。</typeparam>
+        /// <typeparam name="K">派生的基类。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类数组。</returns>
         public static Type[] GetDerivedTypesByAttribute<T, K>(Assembly assembly = null)
             where T : Attribute
             where K : class
@@ -862,13 +853,13 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取目标派生类的所有可实例化类
+        /// 通过特性获取目标派生类的所有可实例化类。
         /// </summary>
-        /// <typeparam name="T">特性类型</typeparam>
-        /// <typeparam name="K">派生的基类</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <param name="inherit">是否检查基类特性</param>
-        /// <returns>非抽象派生类数组</returns>
+        /// <typeparam name="T">特性类型。</typeparam>
+        /// <typeparam name="K">派生的基类。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <param name="inherit">是否检查基类特性。</param>
+        /// <returns>非抽象派生类数组。</returns>
         public static Type[] GetDerivedTypesByAttribute<T, K>(bool inherit,
             Assembly assembly = null)
             where T : Attribute
@@ -878,12 +869,12 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取目标派生类的所有可实例化类
+        /// 通过特性获取目标派生类的所有可实例化类。
         /// </summary>
-        /// <typeparam name="T">特性类型</typeparam>
-        /// <param name="type">派生的基类</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类数组</returns>
+        /// <typeparam name="T">特性类型。</typeparam>
+        /// <param name="type">派生的基类。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类数组。</returns>
         public static Type[] GetDerivedTypesByAttribute<T>(Type type, Assembly assembly = null)
             where T : Attribute
         {
@@ -891,13 +882,13 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 通过特性获取目标派生类的所有可实例化类
+        /// 通过特性获取目标派生类的所有可实例化类。
         /// </summary>
-        /// <typeparam name="T">特性类型</typeparam>
-        /// <param name="type">派生的基类</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <param name="inherit">是否检查基类特性</param>
-        /// <returns>非抽象派生类数组</returns>
+        /// <typeparam name="T">特性类型。</typeparam>
+        /// <param name="type">派生的基类。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <param name="inherit">是否检查基类特性。</param>
+        /// <returns>非抽象派生类数组。</returns>
         public static Type[] GetDerivedTypesByAttribute<T>(Type type, bool inherit,
             Assembly assembly = null)
             where T : Attribute
@@ -911,11 +902,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型的第一个派生类
+        /// 获取某类型的第一个派生类。
         /// </summary>
-        /// <typeparam name="T">基类</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类</returns>
+        /// <typeparam name="T">基类。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类。</returns>
         public static Type GetDerivedType<T>(Assembly assembly = null)
             where T : class
         {
@@ -923,11 +914,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        ///  获取某类型的第一个派生类
+        /// 获取某类型的第一个派生类。
         /// </summary>
-        /// <param name="type">基类</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类</returns>
+        /// <param name="type">基类。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类。</returns>
         public static Type GetDerivedType(Type type, Assembly assembly = null)
         {
             Type[] types;
@@ -942,11 +933,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型在指定程序集的所有派生类数组
+        /// 获取某类型在指定程序集的所有派生类数组。
         /// </summary>
-        /// <typeparam name="T">基类</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类</returns>
+        /// <typeparam name="T">基类。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类。</returns>
         public static Type[] GetDerivedTypes<T>(Assembly assembly = null)
             where T : class
         {
@@ -960,11 +951,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型在指定程序集的所有派生类数组
+        /// 获取某类型在指定程序集的所有派生类数组。
         /// </summary>
-        /// <param name="type">基类</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类</returns>
+        /// <param name="type">基类。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类。</returns>
         public static Type[] GetDerivedTypes(Type type, Assembly assembly = null)
         {
             Type[] types;
@@ -976,11 +967,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型在指定程序集的所有派生类数组
+        /// 获取某类型在指定程序集的所有派生类数组。
         /// </summary>
-        /// <typeparam name="T">基类</typeparam>
-        /// <param name="assemblies">查询的程序集</param>
-        /// <returns>非抽象派生类</returns>
+        /// <typeparam name="T">基类。</typeparam>
+        /// <param name="assemblies">查询的程序集。</param>
+        /// <returns>非抽象派生类。</returns>
         public static Type[] GetDerivedTypes<T>(params Assembly[] assemblies)
             where T : class
         {
@@ -988,11 +979,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型在指定程序集的所有派生类数组
+        /// 获取某类型在指定程序集的所有派生类数组。
         /// </summary>
-        /// <param name="type">基类</param>
-        /// <param name="assemblies">查询的程序集集合</param>
-        /// <returns>非抽象派生类</returns>
+        /// <param name="type">基类。</param>
+        /// <param name="assemblies">查询的程序集集合。</param>
+        /// <returns>非抽象派生类。</returns>
         public static Type[] GetDerivedTypes(Type type, params Assembly[] assemblies)
         {
             List<Type> types;
@@ -1018,11 +1009,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型的第一个派生类完全限定名
+        /// 获取某类型的第一个派生类完全限定名。
         /// </summary>
-        /// <typeparam name="T">基类</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类完全限定名</returns>
+        /// <typeparam name="T">基类。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类完全限定名。</returns>
         public static string GetDerivedTypeName<T>(Assembly assembly = null)
             where T : class
         {
@@ -1030,11 +1021,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        ///  获取某类型的第一个派生类完全限定名
+        /// 获取某类型的第一个派生类完全限定名。
         /// </summary>
-        /// <param name="type">基类</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类完全限定名</returns>
+        /// <param name="type">基类。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类完全限定名。</returns>
         public static string GetDerivedTypeName(Type type, Assembly assembly = null)
         {
             Type[] types;
@@ -1049,11 +1040,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型在指定程序集的所有派生类完全限定名数组
+        /// 获取某类型在指定程序集的所有派生类完全限定名数组。
         /// </summary>
-        /// <typeparam name="T">基类</typeparam>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类完全限定名</returns>
+        /// <typeparam name="T">基类。</typeparam>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类完全限定名。</returns>
         public static string[] GetDerivedTypeNames<T>(Assembly assembly = null)
             where T : class
         {
@@ -1068,11 +1059,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型在指定程序集的所有派生类完全限定名数组
+        /// 获取某类型在指定程序集的所有派生类完全限定名数组。
         /// </summary>
-        /// <param name="type">基类</param>
-        /// <param name="assembly">查询的程序集</param>
-        /// <returns>非抽象派生类完全限定名</returns>
+        /// <param name="type">基类。</param>
+        /// <param name="assembly">查询的程序集。</param>
+        /// <returns>非抽象派生类完全限定名。</returns>
         public static string[] GetDerivedTypeNames(Type type, Assembly assembly = null)
         {
             Type[] types;
@@ -1085,11 +1076,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型在指定程序集的所有派生类完全限定名数组
+        /// 获取某类型在指定程序集的所有派生类完全限定名数组。
         /// </summary>
-        /// <param name="type">基类</param>
-        /// <param name="assemblies">查询的程序集集合</param>
-        /// <returns>非抽象派生类完全限定名</returns>
+        /// <param name="type">基类。</param>
+        /// <param name="assemblies">查询的程序集集合。</param>
+        /// <returns>非抽象派生类完全限定名。</returns>
         public static string[] GetDerivedTypeNames(Type type, params Assembly[] assemblies)
         {
             List<string> types;
@@ -1114,11 +1105,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型在指定程序集的所有派生类完全限定名数组
+        /// 获取某类型在指定程序集的所有派生类完全限定名数组。
         /// </summary>
-        /// <typeparam name="T">基类</typeparam>
-        /// <param name="assemblies">查询的程序集集合</param>
-        /// <returns>非抽象派生类完全限定名</returns>
+        /// <typeparam name="T">基类。</typeparam>
+        /// <param name="assemblies">查询的程序集集合。</param>
+        /// <returns>非抽象派生类完全限定名。</returns>
         public static string[] GetDerivedTypeNames<T>(params Assembly[] assemblies)
             where T : class
         {
@@ -1126,11 +1117,8 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 获取某类型中没有参数的 static 方法
+        /// 获取某类型中没有参数的 static 方法。
         /// </summary>
-        /// <param name="type"></param>
-        /// <param name="methodName"></param>
-        /// <returns></returns>
         public static MethodInfo GetStaticMethodWithNoParametersInBase(this Type type, string methodName)
         {
             MethodInfo[] methods = type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
@@ -1148,39 +1136,15 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 根据实现类的完整类型名称，解析并返回指定接口 <typeparamref name="T"/> 的实例。
-        /// 支持缓存复用，并在配置类型无效或实例化失败时自动回退到备用类型 <paramref name="fallbackType"/>。
         /// </summary>
         /// <typeparam name="T">目标类型，通常为接口或抽象基类，且必须为引用类型。</typeparam>
-        /// <param name="cachedInstance">
-        /// 缓存实例的引用（传入 <see langword="ref"/>）。
-        /// 若该实例非 <see langword="null"/> 且其类型全名与解析后的目标类型名一致，则直接返回该缓存实例，跳过反射创建。
-        /// </param>
-        /// <param name="implTypeName">
-        /// 实现类的完整类型名称（包含命名空间），例如 "MyNamespace.MyClass"。
-        /// 若为 <see langword="null"/> 或空白字符串，则直接使用 <paramref name="fallbackType"/> 作为目标类型。
-        /// </param>
-        /// <param name="fallbackType">
-        /// 当 <paramref name="implTypeName"/> 指定的类型不存在、无法赋值给 <typeparamref name="T"/>，
-        /// 或实例化失败时，将使用此类型作为最终回退。
-        /// </param>
-        /// <returns>
-        /// 类型为 <typeparamref name="T"/> 的实例，可能来自缓存、配置类型或回退类型。
-        /// 若所有尝试（包括回退类型）均实例化失败，则返回 <see langword="null"/>，同时通过 <see cref="LogUtility.Fatal(string, Object)"/> 记录错误信息。
-        /// </returns>
+        /// <param name="cachedInstance">缓存实例的引用（<see langword="ref"/>）；非 null 且类型全名一致时直接返回缓存，跳过反射创建。</param>
+        /// <param name="implTypeName">实现类的完整类型名（含命名空间）；为 null 或空白时直接使用 <paramref name="fallbackType"/>。</param>
+        /// <param name="fallbackType">当 <paramref name="implTypeName"/> 不存在、无法赋值给 <typeparamref name="T"/> 或实例化失败时的回退类型。</param>
+        /// <returns>类型为 <typeparamref name="T"/> 的实例（可能来自缓存、配置类型或回退类型）；全部失败时返回 <see langword="null"/> 并记录错误。</returns>
         /// <remarks>
-        /// <para>
-        /// 本方法通过 <see cref="Activator.CreateInstance(Type, bool)"/> 动态创建对象，
-        /// 传入 <see langword="true"/> 允许调用非公共构造函数（如内部或私有构造），提高了灵活性。
-        /// </para>
-        /// <para>
-        /// <b>错误处理策略：</b> 该方法不会抛出任何异常。当发生类型加载失败或实例化错误时，
-        /// 会依次尝试回退，仅在完全失败时返回 <see langword="null"/> 并记录错误日志，
-        /// 适用于需要高容错性的框架初始化场景。
-        /// </para>
-        /// <para>
-        /// <b>Unity 环境建议：</b> 若使用 Unity 2019.3+，推荐使用 <see cref="UnityEngine.SerializeReference"/>
-        /// 特性序列化抽象类型，由引擎自动处理派生类实例化，可减少反射开销和手动配置错误。
-        /// </para>
+        /// 通过 <see cref="Activator.CreateInstance(Type, bool)"/> 创建对象，传入 <see langword="true"/> 允许调用非公共构造函数（内部或私有构造）。 <br />
+        /// 本方法不抛出任何异常：类型加载失败或实例化出错时依次回退，仅在完全失败时返回 <see langword="null"/> 并记录错误日志。
         /// </remarks>
         public static T ResolveImplType<T>(ref T cachedInstance, string implTypeName, Type fallbackType) where T : class
         {

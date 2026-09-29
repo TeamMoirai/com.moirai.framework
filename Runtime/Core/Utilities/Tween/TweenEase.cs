@@ -4,31 +4,31 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 统一缓动参数。通过隐式转换可直接从 <see cref="TweenUtility.EEase"/> 或
-    /// <see cref="AnimationCurve"/> 赋值，调用侧无需关心底层差异。
-    /// <para>枚举模式零堆分配（不持有曲线）；曲线仅在 AnimationCurve 模式下持有，
-    /// 曲线缺失时 <see cref="Evaluate"/> 回退 Linear。</para>
-    /// <code>
-    /// // 以下三种写法均可（前两种零分配）：
-    /// TweenUtility.Position(t, end, 0.3f); // 默认 Linear
-    /// TweenUtility.Position(t, end, 0.3f, TweenUtility.EEase.OutQuad); // 枚举
-    /// TweenUtility.Position(t, end, 0.3f, myAnimationCurve); // 曲线
-    /// </code>
+    /// 统一缓动参数：可从 <see cref="TweenUtility.EEase"/> 或 <see cref="AnimationCurve"/> 隐式转换。
     /// </summary>
+    /// <remarks>
+    /// 枚举模式零堆分配（不持有曲线）；曲线仅在 AnimationCurve 模式下持有，
+    /// 曲线缺失时 <see cref="Evaluate"/> 回退 <see cref="TweenUtility.EEase.Linear"/>。
+    /// </remarks>
+    /// <example>
+    /// <code lang="csharp">
+    /// TweenUtility.Position(t, end, 0.3f);                              // 默认 Linear
+    /// TweenUtility.Position(t, end, 0.3f, TweenUtility.EEase.OutQuad);  // 枚举
+    /// TweenUtility.Position(t, end, 0.3f, myAnimationCurve);            // 曲线
+    /// </code>
+    /// </example>
     [Serializable]
     public struct TweenEase : IEquatable<TweenEase>
     {
-        /// <summary>缓动数据源类型。</summary>
+        /// <summary>
+        /// 缓动数据源类型。
+        /// </summary>
         public enum ETweenType : byte
         {
-            /// <summary>
-            /// 内置缓动曲线
-            /// </summary>
+            /// <summary>内置缓动曲线。</summary>
             Ease,
 
-            /// <summary>
-            /// 自定义动画曲线
-            /// </summary>
+            /// <summary>自定义动画曲线。</summary>
             AnimationCurve
         }
 
@@ -62,9 +62,9 @@ namespace Moirai.Atropos
         #region 构造函数 [CONSTRUCTOR]
 
         /// <summary>
-        /// 枚举模式构造：零堆分配——Ease 模式不持有 AnimationCurve，
-        /// <see cref="Evaluate"/> 在曲线缺失时回退 <see cref="TweenUtility.EEase.Linear"/>。
+        /// 枚举模式构造：不持有 <see cref="AnimationCurve"/>。
         /// </summary>
+        /// <remarks>曲线缺失时 <see cref="Evaluate"/> 回退 <see cref="TweenUtility.EEase.Linear"/>。</remarks>
         public TweenEase(TweenUtility.EEase ease = TweenUtility.EEase.Linear)
         {
             m_TweenType = ETweenType.Ease;
@@ -100,11 +100,11 @@ namespace Moirai.Atropos
         #region 公共方法 [PUBLIC METHODS]
 
         /// <summary>
-        /// 对归一化时间 t∈[0,1] 求值，返回缓动后的进度。
-        /// 允许返回值超出 [0,1]（Back/Elastic 等有超调）。
+        /// 对归一化时间求值，返回缓动后的进度。
         /// </summary>
-        /// <param name="t"></param>
-        /// <returns></returns>
+        /// <remarks>允许返回值超出 [0,1]（Back/Elastic 等有超调）。</remarks>
+        /// <param name="t">归一化时间，通常为 [0,1]。</param>
+        /// <returns>缓动后的进度，可能超出 [0,1]。</returns>
         public float Evaluate(float t)
         {
             if (m_TweenType == ETweenType.AnimationCurve)
@@ -151,8 +151,7 @@ namespace Moirai.Atropos
         public static implicit operator TweenEase(TweenUtility.EEase ease) => new TweenEase(ease);
 
         /// <summary>
-        /// 从 <see cref="AnimationCurve"/> 隐式构造。
-        /// null 回退为 Linear。
+        /// 从 <see cref="AnimationCurve"/> 隐式构造，null 回退为 Linear。
         /// </summary>
         public static implicit operator TweenEase(AnimationCurve curve)
             => curve != null ? new TweenEase(curve) : new TweenEase(TweenUtility.EEase.Linear);

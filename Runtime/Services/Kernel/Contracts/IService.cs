@@ -2,7 +2,9 @@ using Cysharp.Threading.Tasks;
 
 namespace Moirai.Atropos
 {
-    /// <summary>服务生命周期状态。由容器（<see cref="ServiceWorld"/>）统一维护，服务侧仅只读投影。</summary>
+    /// <summary>
+    /// 服务生命周期状态。由容器（<see cref="ServiceWorld"/>）统一维护，服务侧仅只读投影。
+    /// </summary>
     public enum EServiceState : byte
     {
         /// <summary>已创建但未初始化。</summary>
@@ -20,18 +22,16 @@ namespace Moirai.Atropos
     /// </summary>
     public enum EDeferMode : byte
     {
-        /// <summary>
-        /// 延迟到当前迭代结束后执行（默认）。适用于 Tick 中注册/注销服务。
-        /// </summary>
+        /// <summary>延迟到当前迭代结束后执行（默认）。适用于 Tick 中注册/注销服务。</summary>
         Defer = 0,
 
-        /// <summary>
-        /// 立即抛出异常（Fail-fast）。用于检测意外的迭代中注册。
-        /// </summary>
+        /// <summary>立即抛出异常（Fail-fast）。用于检测意外的迭代中注册。</summary>
         Throw = 1,
     }
 
-    /// <summary>服务作用域种类。</summary>
+    /// <summary>
+    /// 服务作用域种类。
+    /// </summary>
     public enum EServiceScopeKind : byte
     {
         /// <summary>应用级，生命周期最长，随 GameApp 关闭而销毁。</summary>
@@ -43,25 +43,21 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 服务核心契约。
-    /// <para><b>实现约束</b>：必须由 <see cref="ServiceBase"/>（纯 C#）或 <see cref="ServiceMono{TScope}"/>
-    /// （MonoBehaviour）派生——两者实现的 <c>IServiceLifecycle</c> 是容器驱动状态机的唯一入口。
-    /// 直接裸实现本接口的类型会在注册时被 <see cref="ServiceWorld.Register"/> 拒绝：
-    /// 其状态永远停在 <see cref="EServiceState.Created"/>，任何声明它为依赖的服务都过不了依赖校验。</para>
-    /// <para>依赖通过 <c>[ServiceDependency]</c> 特性声明；世界初始化（<see cref="ServiceWorld.Initialize"/>）时
-    /// 按依赖图拓扑排序驱动 <see cref="OnInit"/>——初始化顺序由声明决定，与注册顺序无关。</para>
-    /// <para>缺失依赖与循环依赖在初始化期即抛 <see cref="GameException"/>（fail-fast）。</para>
+    /// 服务核心契约：声明服务的轮询优先级、所属作用域与初始化/关闭回调。
     /// </summary>
+    /// <remarks>
+    /// 实现约束： 必须派生自 <see cref="ServiceBase"/>（纯 C#）或 <see cref="ServiceMono{TScope}"/>（MonoBehaviour）——两者实现的 <br />
+    /// <c>IServiceLifecycle</c> 是容器驱动状态机的唯一入口；裸实现本接口的类型会在 <see cref="ServiceWorld.Register"/> 处被拒绝。
+    /// 依赖用 <c>[ServiceDependency]</c> 特性声明；<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑排序驱动 <see cref="OnInit"/>，初始化顺序由声明决定、 <br />
+    /// 与注册顺序无关。 <br />
+    /// 缺失依赖与循环依赖在初始化期抛 <see cref="GameException"/>（fail-fast）。
+    /// </remarks>
     public interface IService
     {
-        /// <summary>
-        /// 轮询优先级（降序，高优先先轮询、后关闭）。
-        /// </summary>
+        /// <summary>轮询优先级（降序，高优先先轮询、后关闭）。</summary>
         int Priority { get; }
 
-        /// <summary>
-        /// 所属作用域。
-        /// </summary>
+        /// <summary>所属作用域。</summary>
         EServiceScopeKind Scope { get; }
 
         /// <summary>
@@ -120,11 +116,12 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 异步初始化服务。由 <see cref="ServiceWorld.InitializeAsync"/> 在拓扑序位置处等待完成。
-    /// <para>约束：实现本接口的服务必须在世界初始化前注册（两阶段的第一阶段）；
-    /// 世界已初始化后的运行时注册将抛 <see cref="GameException"/>（fail-fast）——运行时注册无法等待异步初始化。</para>
-    /// <para>同步 <see cref="ServiceWorld.Initialize"/> 遇到本接口实现者同样抛异常——改用 <see cref="ServiceWorld.InitializeAsync"/>。</para>
+    /// 异步初始化服务，由 <see cref="ServiceWorld.InitializeAsync"/> 在拓扑序位置处等待完成。
     /// </summary>
+    /// <remarks>
+    /// 实现本接口的服务必须在世界初始化前注册（两阶段的第一阶段）；世界已初始化后的运行时注册抛 <see cref="GameException"/>（运行时注册无法等待异步初始化）。 <br />
+    /// 同步 <see cref="ServiceWorld.Initialize"/> 遇到本接口实现者同样抛异常，须改用 <see cref="ServiceWorld.InitializeAsync"/>。
+    /// </remarks>
     public interface IServiceInitializableAsync : IService
     {
         /// <summary>
@@ -134,10 +131,12 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 异步关闭服务。由 <see cref="ServiceWorld.ShutdownScopeAsync"/> / DisposeAsync
-    /// 在 <c>OnShutdown</c> 调用前按逆拓扑序异步关闭。
-    /// <para>用于资源异步卸载、网络连接优雅关闭等场景。</para>
+    /// 异步关闭服务，用于资源异步卸载、网络连接优雅关闭等场景。
     /// </summary>
+    /// <remarks>
+    /// 由 <see cref="ServiceWorld.ShutdownScopeAsync"/> / <see cref="ServiceWorld.DisposeAsync"/> 在 <c>OnShutdown</c> <br />
+    /// 调用前按逆拓扑序异步关闭。
+    /// </remarks>
     public interface IAsyncShutdownService : IService
     {
         /// <summary>

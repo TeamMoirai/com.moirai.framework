@@ -10,14 +10,14 @@ namespace Moirai.Atropos
     public static class AlgorithmUtility
     {
         /// <summary>
-        /// 快速排序：降序
+        /// 快速排序：降序。
         /// </summary>
-        /// <typeparam name="T">数组类型</typeparam>
-        /// <typeparam name="K">比较类型</typeparam>
-        /// <param name="array">需要排序的数组对象</param>
-        /// <param name="handler">排序条件</param>
-        /// <param name="start">起始位</param>
-        /// <param name="end">结束位</param>
+        /// <typeparam name="T">数组类型。</typeparam>
+        /// <typeparam name="K">比较类型。</typeparam>
+        /// <param name="array">需要排序的数组对象。</param>
+        /// <param name="handler">排序条件。</param>
+        /// <param name="start">起始位。</param>
+        /// <param name="end">结束位。</param>
         public static void SortByDescend<T, K>(IList<T> array, Func<T, K> handler, int start, int end)
          where K : IComparable<K>
         {
@@ -49,14 +49,14 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 快速排序：升序
+        /// 快速排序：升序。
         /// </summary>
-        /// <typeparam name="T">数组类型</typeparam>
-        /// <typeparam name="K">比较类型</typeparam>
-        /// <param name="array">需要排序的数组对象</param>
-        /// <param name="handler">排序条件</param>
-        /// <param name="start">起始位</param>
-        /// <param name="end">结束位</param>
+        /// <typeparam name="T">数组类型。</typeparam>
+        /// <typeparam name="K">比较类型。</typeparam>
+        /// <param name="array">需要排序的数组对象。</param>
+        /// <param name="handler">排序条件。</param>
+        /// <param name="start">起始位。</param>
+        /// <param name="end">结束位。</param>
         public static void SortByAscend<T, K>(IList<T> array, Func<T, K> handler, int start, int end)
          where K : IComparable<K>
         {
@@ -88,12 +88,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 冒泡排序：升序
+        /// 冒泡排序：升序。
         /// </summary>
-        /// <typeparam name="T">数组类型</typeparam>
-        /// <typeparam name="K">比较类型</typeparam>
-        /// <param name="array">需要排序的数组对象</param>
-        /// <param name="handler">排序条件</param>
+        /// <typeparam name="T">数组类型。</typeparam>
+        /// <typeparam name="K">比较类型。</typeparam>
+        /// <param name="array">需要排序的数组对象。</param>
+        /// <param name="handler">排序条件。</param>
         public static void SortByAscend<T, K>(IList<T> array, Func<T, K> handler)
          where K : IComparable<K>
         {
@@ -110,12 +110,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 冒泡排序：降序
+        /// 冒泡排序：降序。
         /// </summary>
-        /// <typeparam name="T">数组类型</typeparam>
-        /// <typeparam name="K">比较类型</typeparam>
-        /// <param name="array">需要排序的数组对象</param>
-        /// <param name="handler">排序条件</param>
+        /// <typeparam name="T">数组类型。</typeparam>
+        /// <typeparam name="K">比较类型。</typeparam>
+        /// <param name="array">需要排序的数组对象。</param>
+        /// <param name="handler">排序条件。</param>
         public static void SortByDescend<T, K>(IList<T> array, Func<T, K> handler)
          where K : IComparable<K>
         {
@@ -132,12 +132,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 冒泡排序：升序
+        /// 冒泡排序：升序。
         /// </summary>
-        /// <typeparam name="T">数组类型</typeparam>
-        /// <typeparam name="K">比较类型</typeparam>
-        /// <param name="array">需要排序的数组对象</param>
-        /// <param name="comparison">排序条件</param>
+        /// <typeparam name="T">数组类型。</typeparam>
+        /// <typeparam name="K">比较类型。</typeparam>
+        /// <param name="array">需要排序的数组对象。</param>
+        /// <param name="comparison">排序条件。</param>
         public static void SortByAscend<T, K>(IList<T> array, Comparison<T> comparison)
         {
          for (int i = 0; i < array.Count; i++)
@@ -153,12 +153,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 冒泡排序：降序
+        /// 冒泡排序：降序。
         /// </summary>
-        /// <typeparam name="T">数组类型</typeparam>
-        /// <typeparam name="K">比较类型</typeparam>
-        /// <param name="array">需要排序的数组对象</param>
-        /// <param name="comparison">排序条件</param>
+        /// <typeparam name="T">数组类型。</typeparam>
+        /// <typeparam name="K">比较类型。</typeparam>
+        /// <param name="array">需要排序的数组对象。</param>
+        /// <param name="comparison">排序条件。</param>
         public static void SortByDescend<T, K>(IList<T> array, Comparison<T> comparison)
         {
          for (int i = 0; i < array.Count; i++)
@@ -174,7 +174,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        ///  获取最小
+        /// 获取最小。
         /// </summary>
         public static T Min<T, K>(IList<T> array, Func<T, K> handler)
          where K : IComparable<K>
@@ -193,7 +193,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取最大值
+        /// 获取最大值。
         /// </summary>
         public static T Max<T, K>(IList<T> array, Func<T, K> handler)
          where K : IComparable<K>
@@ -212,7 +212,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        ///  获取最小
+        /// 获取最小。
         /// </summary>
         public static T Min<T, K>(IList<T> array, Comparison<T> comparison)
         {
@@ -230,7 +230,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取最大值
+        /// 获取最大值。
         /// </summary>
         public static T Max<T, K>(IList<T> array, Comparison<T> comparison)
         {
@@ -248,7 +248,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获得传入元素某个符合条件的所有对象
+        /// 获得传入元素某个符合条件的所有对象。
         /// </summary>
         public static T Find<T>(IList<T> array, Predicate<T> handler)
         {
@@ -265,7 +265,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获得传入元素某个符合条件的所有对象
+        /// 获得传入元素某个符合条件的所有对象。
         /// </summary>
         public static T[] FindAll<T>(IList<T> array, Predicate<T> handler)
         {
@@ -285,9 +285,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 泛型二分查找，需要传入升序数组
+        /// 泛型二分查找，需要传入升序数组。
         /// </summary>
-        /// <returns>返回对象在数组中的序号，若不存在，则返回-1</returns>
+        /// <returns>返回对象在数组中的序号，若不存在，则返回-1。</returns>
         public static int BinarySearch<T, K>(IList<T> array, K target, Func<T, K> handler)
          where K : IComparable<K>
         {
@@ -311,11 +311,11 @@ namespace Moirai.Atropos
         /// <summary>
         /// 生成至多 <paramref name="length"/> 位十进制、且落在 [<paramref name="minValue"/>, <paramref name="maxValue"/>] 内的随机整数。
         /// </summary>
-        /// <param name="length">位数（含前导零，即可表达 [0, 10^length) ）</param>
-        /// <param name="minValue">下界（含；负数会被抬到 0，因为位数表达不出负值）</param>
-        /// <param name="maxValue">上界（含）</param>
-        /// <returns>生成的int整数</returns>
-        /// <exception cref="ArgumentException">位数能表达的值与区间无交集时抛出，而不是原地空转</exception>
+        /// <param name="length">位数（含前导零，即可表达 [0, 10^length) ）。</param>
+        /// <param name="minValue">下界（含；负数会被抬到 0，因为位数表达不出负值）。</param>
+        /// <param name="maxValue">上界（含）。</param>
+        /// <returns>生成的int整数。</returns>
+        /// <exception cref="ArgumentException">位数能表达的值与区间无交集时抛出，而不是原地空转。</exception>
         public static int RandomRange(int length, int minValue, int maxValue)
         {
             if (length <= 0)
@@ -349,11 +349,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 随机在范围内生成一个int
+        /// 随机在范围内生成一个int。
         /// </summary>
-        /// <param name="minValue">随机取值最小区间（含）</param>
-        /// <param name="maxValue">随机取值最大区间（不含）</param>
-        /// <returns>生成的int整数</returns>
+        /// <param name="minValue">随机取值最小区间（含）。</param>
+        /// <param name="maxValue">随机取值最大区间（不含）。</param>
+        /// <returns>生成的int整数。</returns>
         public static int RandomRange(int minValue, int maxValue)
         {
          // 旧实现每次调用都 new 一个 Random（Guid 播种），既白造对象又扰动不到全局流；
@@ -362,11 +362,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 随机在范围内生成一个long
+        /// 随机在范围内生成一个long。
         /// </summary>
-        /// <param name="minValue">随机取值最小区间（含）</param>
-        /// <param name="maxValue">随机取值最大区间（不含，与 int 版同口径）</param>
-        /// <returns>生成的long</returns>
+        /// <param name="minValue">随机取值最小区间（含）。</param>
+        /// <param name="maxValue">随机取值最大区间（不含，与 int 版同口径）。</param>
+        /// <returns>生成的long。</returns>
         public static long RandomRange(long minValue, long maxValue)
         {
          // 旧实现是 NextBytes 拼一个可能为负的 long，再按 double 缩放进区间：
@@ -376,54 +376,54 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 返回一个0.0~1.0之间的随机数
+        /// 返回一个0.0~1.0之间的随机数。
         /// </summary>
-        /// <returns>随机数</returns>
+        /// <returns>随机数。</returns>
         public static double RandomDouble()
         {
          return RandomUtility.NextDouble();
         }
 
         /// <summary>
-        /// 交换两个值
+        /// 交换两个值。
         /// </summary>
-        /// <typeparam name="T">传入的对象类型</typeparam>
-        /// <param name="lhs">第一个需要交换的值</param>
-        /// <param name="rhs">第二个需要交换的值</param>
+        /// <typeparam name="T">传入的对象类型。</typeparam>
+        /// <param name="lhs">第一个需要交换的值。</param>
+        /// <param name="rhs">第二个需要交换的值。</param>
         public static void Swap<T>(ref T lhs, ref T rhs)
         {
          (lhs, rhs) = (rhs, lhs);
         }
 
         /// <summary>
-        /// 交换数组中的两个元素
+        /// 交换数组中的两个元素。
         /// </summary>
-        /// <typeparam name="T">传入的对象类型</typeparam>
-        /// <param name="array">传入的数组</param>
-        /// <param name="lhs">序号A</param>
-        /// <param name="rhs">序号B</param>
+        /// <typeparam name="T">传入的对象类型。</typeparam>
+        /// <param name="array">传入的数组。</param>
+        /// <param name="lhs">序号A。</param>
+        /// <param name="rhs">序号B。</param>
         public static void Swap<T>(IList<T> array, int lhs, int rhs)
         {
          (array[lhs], array[rhs]) = (array[rhs], array[lhs]);
         }
 
         /// <summary>
-        /// 随机打乱数组
+        /// 随机打乱数组。
         /// </summary>
-        /// <typeparam name="T">数组类型</typeparam>
-        /// <param name="array">数组</param>
+        /// <typeparam name="T">数组类型。</typeparam>
+        /// <param name="array">数组。</param>
         public static void Disrupt<T>(IList<T> array)
         {
          Disrupt(array, 0, array.Count);
         }
 
         /// <summary>
-        /// 随机打乱数组
+        /// 随机打乱数组。
         /// </summary>
-        /// <typeparam name="T">数组类型</typeparam>
-        /// <param name="array">数组</param>
-        /// <param name="startIndex">起始序号</param>
-        /// <param name="count">数量</param>
+        /// <typeparam name="T">数组类型。</typeparam>
+        /// <param name="array">数组。</param>
+        /// <param name="startIndex">起始序号。</param>
+        /// <param name="count">数量。</param>
         public static void Disrupt<T>(IList<T> array, int startIndex, int count)
         {
          int index = 0;
@@ -442,7 +442,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 产生均匀随机数
+        /// 产生均匀随机数。
         /// </summary>
         public static double AverageRandom(double minValue, double maxValue)
         {
@@ -453,9 +453,9 @@ namespace Moirai.Atropos
 
 
         /// <summary>
-        /// 1或-1的随机值
+        /// 1或-1的随机值。
         /// </summary>
-        /// <returns> 1或-1</returns>
+        /// <returns>1或-1。</returns>
         public static int OneOrMinusOne()
         {
          return RandomUtility.NextInt(2) * 2 - 1;
@@ -464,9 +464,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 数组去重；
         /// </summary>
-        /// <typeparam name="T">可比数据类型</typeparam>
-        /// <param name="array">源数据</param>
-        /// <returns>去重后的数据</returns>
+        /// <typeparam name="T">可比数据类型。</typeparam>
+        /// <param name="array">源数据。</param>
+        /// <returns>去重后的数据。</returns>
         public static T[] Distinct<T>(IList<T> array)
          where T : IComparable
         {
@@ -497,11 +497,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 产生正态分布的随机数
+        /// 产生正态分布的随机数。
         /// </summary>
-        /// <param name="mean">均值</param>
-        /// <param name="stdDev">方差</param>
-        /// <returns>随机数</returns>
+        /// <param name="mean">均值。</param>
+        /// <param name="stdDev">方差。</param>
+        /// <returns>随机数。</returns>
         public static double NextGauss(double mean, double stdDev)
         {
          double u1 = 1.0 - RandomUtility.NextDouble();
@@ -511,10 +511,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// Fisher–Yates shuffle 洗牌算法
+        /// Fisher–Yates shuffle 洗牌算法。
         /// </summary>
-        /// <param name="array">待洗牌列表</param>
-        /// <param name="randomSeed">洗牌种子：同一种子必得同一顺序，且不影响全局随机流</param>
+        /// <param name="array">待洗牌列表。</param>
+        /// <param name="randomSeed">洗牌种子：同一种子必得同一顺序，且不影响全局随机流。</param>
         public static void Shuffle<T>(IList<T> array, int randomSeed)
         {
             if (array == null) throw new ArgumentNullException(nameof(array));

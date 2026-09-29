@@ -8,10 +8,11 @@ using Mp = Moirai.Atropos.MemoryPool;
 namespace Core.MemoryPool
 {
     /// <summary>
-    /// 上线加固面回归：存活上限（漏还可见性）、在外高水位、结构自检、批量异常采集上限、维护边界上报。
-    /// <para>这些判据都是"发布包里不会当场报错、几周后才以 OOM 或随机崩溃回来"的那一类，
-    /// 所以配套的是可发现的边界与只读自检，而不是新的运行时约束。</para>
+    /// 上线加固面回归：存活上限（漏还可见性）、在外高水位、结构自检、批量异常采集上限与维护边界上报。
     /// </summary>
+    /// <remarks>
+    /// 这些判据属于「发布包里不会当场报错、几周后才以 OOM 或随机崩溃回来」的一类，配套的是可发现的边界与只读自检，而不是新的运行时约束。
+    /// </remarks>
     public sealed class MemoryPoolHardeningTests : MemoryPoolFixture
     {
         [Test]

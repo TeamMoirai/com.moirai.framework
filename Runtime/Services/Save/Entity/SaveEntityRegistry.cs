@@ -6,12 +6,13 @@ using UnityEngine.SceneManagement;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档实体注册表：稳定 ID → 活跃 <see cref="SaveObjectIdentity"/> 的静态查询点（Awake 注册 / OnDestroy 注销）。
-    /// <para>无代码保存的场景引用字段经本表反查恢复目标。主线程契约（注册/注销/查询均随 Unity 主线程生命周期与捕获/恢复管线）。</para>
-    /// <para>作用域分表（框架作用域铁律）：<b>场景表</b>登记常规场景对象，场景卸载时整体清扫（对象的 OnDestroy 注销已先行，
-    /// 清扫兜底残留死引用）；<b>全局表</b>登记 DontDestroyOnLoad 场景对象，跨场景常驻直至注销。注册时按对象所在场景自动路由。</para>
-    /// <para>重复 ID 首到先得并记告警（复制物体连 ID 拷贝是已知编辑器工作流陷阱——以首个注册者为准，后者不覆盖，避免引用静默换绑）。</para>
+    /// 存档实体注册表：稳定 ID → 活跃 <see cref="SaveObjectIdentity"/> 的静态查询点。
     /// </summary>
+    /// <remarks>
+    /// 注册/注销/查询均须在主线程调用；无代码保存的场景引用字段经本表反查恢复目标。 <br />
+    /// 作用域分表：场景表登记常规场景对象，场景卸载时整体清扫（对象 <c>OnDestroy</c> 注销先行，清扫兜底残留死引用）；全局表登记 <c>DontDestroyOnLoad</c> 对象并跨场景常驻；注册时按对象所在场景自动路由。 <br />
+    /// 重复 ID 首到先得并记告警，后者不覆盖（避免引用静默换绑）。
+    /// </remarks>
     public static class SaveEntityRegistry
     {
         /// <summary>DontDestroyOnLoad 场景名（引擎固定命名，全局作用域路由判据）。</summary>
@@ -36,9 +37,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 注册身份组件（空 ID 不注册并记告警；重复 ID 首到先得并记告警）。
-        /// <para>按对象所在场景路由作用域：DontDestroyOnLoad 场景入全局表，其余入场景表。</para>
+        /// 注册身份组件：空 ID 不注册、重复 ID 首到先得，均记告警。
         /// </summary>
+        /// <remarks>按对象所在场景路由作用域：<c>DontDestroyOnLoad</c> 场景入全局表，其余入场景表。</remarks>
         /// <param name="identity">身份组件。</param>
         public static void Register(SaveObjectIdentity identity)
         {
@@ -128,9 +129,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 场景卸载清扫：移除场景表内已随场景销毁的残留登记（全局表常驻不动）。
-        /// <para>场景对象的 OnDestroy 注销在本事件前已完成，此处兜底漏网死引用（fake-null）。</para>
+        /// 场景卸载清扫：移除场景表内已随场景销毁的残留登记。
         /// </summary>
+        /// <remarks>场景对象的 <c>OnDestroy</c> 注销先于本事件完成，此处兜底漏网死引用（fake-null）；全局表常驻不动。</remarks>
         /// <param name="scene">已卸载场景。</param>
         private static void OnSceneUnloaded(UnityEngine.SceneManagement.Scene scene)
         {

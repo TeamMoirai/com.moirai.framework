@@ -6,16 +6,18 @@ using UnityEngine.TestTools;
 namespace Service.Kernel
 {
     /// <summary>
-    /// 启动链/关闭链 PlayMode 测试。
-    /// <para>覆盖 EditMode 无法验证的运行时行为：服务世界在播放态的真实构建、
-    /// Tick 驱动链、作用域级联关闭。</para>
-    /// <para>注意：本夹具自建隔离世界（<c>new ServiceWorld()</c>），不触碰 <see cref="GameServices.Default"/>——
-    /// 避免与 GameEntry 启动链产生的真实世界互相污染。</para>
+    /// 启动链 / 关闭链 PlayMode 测试。
     /// </summary>
+    /// <remarks>
+    /// 覆盖 EditMode 无法验证的运行时行为：服务世界在播放态的真实构建、Tick 驱动链、作用域级联关闭。 <br />
+    /// 本夹具自建隔离世界（<c>new ServiceWorld()</c>），不触碰 <see cref="GameServices.Default"/>，避免与 GameEntry 启动链产生的真实世界互相污染。
+    /// </remarks>
     [TestFixture]
     public sealed class BootChainPlayModeTests
     {
-        /// <summary>测试服务（计数生命周期与 Tick）。</summary>
+        /// <summary>
+        /// 测试服务（计数生命周期与 Tick）。
+        /// </summary>
         private sealed class ProbeService : ServiceBase, IServiceTickable
         {
             public int InitCount;

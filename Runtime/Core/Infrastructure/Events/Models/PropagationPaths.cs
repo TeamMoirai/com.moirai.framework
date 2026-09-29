@@ -14,33 +14,21 @@ namespace Moirai.Atropos.Events
         [Flags]
         public enum Type
         {
-            /// <summary>
-            /// 无任何传播路径。
-            /// </summary>
+            /// <summary>无任何传播路径。</summary>
             None = 0,
-            /// <summary>
-            /// 包含 TrickleDown（下探）路径。
-            /// </summary>
+            /// <summary>包含 TrickleDown（下探）路径。</summary>
             TrickleDown = 1,
-            /// <summary>
-            /// 包含 BubbleUp（冒泡）路径。
-            /// </summary>
+            /// <summary>包含 BubbleUp（冒泡）路径。</summary>
             BubbleUp = 2
         }
 
-        /// <summary>
-        /// TrickleDown（下探）阶段的处理元素列表。
-        /// </summary>
+        /// <summary>TrickleDown（下探）阶段的处理元素列表。</summary>
         public readonly List<CallbackEventHandler> TrickleDownPath;
 
-        /// <summary>
-        /// 事件目标元素列表。
-        /// </summary>
+        /// <summary>事件目标元素列表。</summary>
         public readonly List<CallbackEventHandler> TargetElements;
 
-        /// <summary>
-        /// BubbleUp（冒泡）阶段的处理元素列表。
-        /// </summary>
+        /// <summary>BubbleUp（冒泡）阶段的处理元素列表。</summary>
         public readonly List<CallbackEventHandler> BubbleUpPath;
 
         private const int k_DefaultPropagationDepth = 16;

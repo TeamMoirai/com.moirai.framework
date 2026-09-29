@@ -6,7 +6,7 @@ using UnityEngine.Events;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 闪屏管理器
+    /// 闪屏管理器。
     /// </summary>
     public class SplashScreenManager : SingletonMono<SplashScreenManager>
     {
@@ -18,9 +18,7 @@ namespace Moirai.Main
         
         private bool _isSplashing;
 
-        /// <summary>
-        /// 是否播放闪屏？如果有，需要在播放结束手动调用 <see cref="SplashEnd"/>
-        /// </summary>
+        /// <summary>是否播放闪屏？如果有，需要在播放结束手动调用 <see cref="SplashEnd"/>。</summary>
         public bool ShowSplashScreen => m_ShowSplashScreen;
 
         protected override void OnInit()
@@ -34,9 +32,8 @@ namespace Moirai.Main
         }
         
         /// <summary>
-        /// 处理闪屏开始事件
+        /// 处理闪屏开始事件。
         /// </summary>
-        /// <param name="evt"></param>
         private void OnSplashScreenEvent(SplashScreenEvent evt)
         {
             if (_isSplashing) return;
@@ -49,7 +46,7 @@ namespace Moirai.Main
         }
         
         /// <summary>
-        /// 手动触发闪屏结束
+        /// 手动触发闪屏结束。
         /// </summary>
         public void SplashEnd()
         {

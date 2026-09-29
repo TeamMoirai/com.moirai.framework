@@ -8,14 +8,14 @@ using UnityEngine.InputSystem.Controls;
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 基于 Unity Input System（Package），需定义 ENABLE_INPUT_SYSTEM。
-    /// <para>压制门控（中心化，消费者零负担）：</para>
-    /// <para>1) <c>Enabled=false</c>——动作类查询（按钮/轴/向量）一律返回默认值（硬门控）；</para>
-    /// <para>2) 玩家压制（锁定/模态/禁用）——玩家上下文 Map（默认 Player）整体禁用；</para>
-    /// <para>3) UI 压制（PreventInteractionUI/禁用）——UI 上下文 Map（默认 UI）整体禁用。</para>
-    /// <para>模态打开时玩家 Map 断开而 UI Map 保持可用，模态自身热键不受影响；未列入两类 Map 的动作
-    /// 不受上下文压制（仅受 Enabled 全局门控）。鼠标查询不参与门控（无源设备本就降级为默认值）。</para>
+    /// 基于 Unity Input System（Package）的输入处理器，需定义 ENABLE_INPUT_SYSTEM。
     /// </summary>
+    /// <remarks>
+    /// 压制门控由后端中心化：<c>Enabled=false</c> 时动作类查询（按钮/轴/向量）一律返回默认值（硬门控）。 <br />
+    /// 玩家压制（锁定/模态/禁用）整体禁用玩家上下文 Map（默认 Player）；UI 压制整体禁用 UI 上下文 Map（默认 UI）。 <br />
+    /// 模态打开时玩家 Map 断开而 UI Map 保持可用，模态自身热键不受影响；未列入两类 Map 的动作不受上下文压制。 <br />
+    /// 鼠标查询不参与门控。
+    /// </remarks>
     [Serializable]
     internal sealed class UnityInputSystemHandler : InputServiceHandler
     {
@@ -253,10 +253,10 @@ namespace Moirai.Atropos.Input
         }
 
         /// <summary>
-        /// 解析动作缓存条目（全局 Enabled 硬门控 + 上下文压制门控在此收敛）。
-        /// <para>返回 null 表示查询降级（未启用/被压制/未找到/资产缺失）；返回条目的
-        /// <see cref="CachedAction.Action"/> 为 null 表示未找到负缓存。</para>
+        /// 解析动作缓存条目，全局硬门控与上下文压制门控在此收敛。
         /// </summary>
+        /// <remarks>返回 <c>null</c> 表示查询降级（未启用/被压制/未找到/资产缺失）；返回条目的 <see cref="CachedAction.Action"/> 为 <c>null</c> 表示未找到负缓存。 <br />
+        /// </remarks>
         private CachedAction GetCachedAction(string actionGroup, string actionName)
         {
             // 全局硬门控：未启用时动作类查询一律降级（鼠标查询不经此路径，不受门控）
@@ -307,9 +307,9 @@ namespace Moirai.Atropos.Input
         }
 
         /// <summary>
-        /// 按当前有效压制态启用/禁用上下文 Map（<see cref="InputStateMachine.SuppressionChanged"/> 驱动，OnInit 末尾对齐一次）。
-        /// <para>未列入两类 Map 的动作不受影响；Map 禁用后其全部动作（含尚未缓存的）查询自然降级。</para>
+        /// 按当前有效压制态启用或禁用上下文 Map（由 <see cref="InputStateMachine.SuppressionChanged"/> 驱动，OnInit 末尾对齐一次）。
         /// </summary>
+        /// <remarks>未列入两类 Map 的动作不受影响；Map 禁用后其全部动作（含尚未缓存的）查询自然降级。</remarks>
         private void ApplySuppressionState()
         {
             var asset = _boundActions;

@@ -2,13 +2,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// JSON 序列化后端（框架内置 <see cref="JsonUtility"/> 零分配字节通路，默认后端）。
-    /// <para>无类型标注要求，任意可序列化 POCO 开箱即用；字节始终为紧凑 UTF8 JSON（容器本身为二进制，块内不再缩进美化）。</para>
     /// </summary>
+    /// <remarks>无类型标注要求，任意可序列化 POCO 开箱即用；字节始终为紧凑 UTF8 JSON（容器本身为二进制，块内不再缩进美化）。</remarks>
     public sealed class JsonSaveSerializer : ISaveSerializer
     {
-        /// <summary>
-        /// 后端标识（恒为 <see cref="ESaveBackend.Json"/>）。
-        /// </summary>
+        /// <summary>后端标识（恒为 <see cref="ESaveBackend.Json"/>）。</summary>
         public ESaveBackend Backend => ESaveBackend.Json;
 
         /// <summary>

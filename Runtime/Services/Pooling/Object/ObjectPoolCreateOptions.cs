@@ -7,34 +7,22 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 字段 [FIELDS]
 
-        /// <summary>
-        /// 池名称（同类型多池区分键）。
-        /// </summary>
+        /// <summary>池名称（同类型多池区分键）。</summary>
         public readonly string Name;
 
-        /// <summary>
-        /// 是否允许同一对象被多次取用（引用计数模式）。
-        /// </summary>
+        /// <summary>是否允许同一对象被多次取用（引用计数模式）。</summary>
         public readonly bool AllowMultiSpawn;
 
-        /// <summary>
-        /// 超容自动释放间隔（秒）；null 表示不启用。
-        /// </summary>
+        /// <summary>超容自动释放间隔（秒）；null 表示不启用。</summary>
         public readonly float? AutoReleaseInterval;
 
-        /// <summary>
-        /// 池容量；null 表示不限。
-        /// </summary>
+        /// <summary>池容量；null 表示不限。</summary>
         public readonly int? Capacity;
 
-        /// <summary>
-        /// 空闲过期时间（秒）；null 表示不过期。
-        /// </summary>
+        /// <summary>空闲过期时间（秒）；null 表示不过期。</summary>
         public readonly float? ExpireTime;
 
-        /// <summary>
-        /// 池优先级（调试排序用）。
-        /// </summary>
+        /// <summary>池优先级（调试排序用）。</summary>
         public readonly int Priority;
 
         #endregion

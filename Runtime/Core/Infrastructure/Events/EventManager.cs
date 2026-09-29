@@ -12,11 +12,11 @@ namespace Moirai.Atropos.Events
     /// using var evt = GameEvent.GetPooled("Save");
     /// EventManager.SendEvent(evt);
     /// </code>
-    /// 
+    ///
     /// <para>捕获从游戏任意位置发出的所有 GameEvent 类型事件，并执行名为 GameOver 的操作。</para>
     /// 要开始监听其他任意类的 GameEvent 事件，必须：
     /// <code><![CDATA[
-    /// 1 - 自定义事件。例如: 
+    /// 1 - 自定义事件。例如:
     /// public class GameEvent : EventBase<GameEvent>
     /// {
     ///     public string EventName { get; private set; }
@@ -38,7 +38,7 @@ namespace Moirai.Atropos.Events
     ///         EventManager.SendEvent(evt);
     ///     }
     /// }
-    /// 
+    ///
     /// 2 - 在启用和禁用上，分别开始和停止监听事件：
     /// void OnEnable()
     /// {
@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Events
     /// {
     ///     EventManager.UnregisterCallback<GameEvent>(HandleEvent);
     /// }
-    /// 
+    ///
     /// 3 - 为该事件实现 HandleEvent。例如：
     /// public void HandleEvent(GameEvent gameEvent)
     /// {
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Events
     ///	        // DO SOMETHING
     ///	    }
     /// }
-    /// 
+    ///
     /// 4 - 触发 GameOver 事件。例如：
     /// GameEvent.Trigger("GameOver");
     /// ]]></code>
@@ -102,9 +102,7 @@ namespace Moirai.Atropos.Events
         
         private CallbackEventHandler _eventHandler;
         
-        /// <summary>
-        /// 获取事件系统 <see cref="CallbackEventHandler"/>
-        /// </summary>
+        /// <summary>获取事件系统 <see cref="CallbackEventHandler"/>。</summary>
         public static CallbackEventHandler EventHandler => Instance._eventHandler;
         private static EventManager GetInstance()
         {
@@ -152,7 +150,6 @@ namespace Moirai.Atropos.Events
         /// </summary>
         /// <param name="eventBase">要发送的事件。</param>
         /// <param name="dispatchMode">事件调度模式。</param>
-        /// <param name="monoDispatchType"></param>
         public static void SendEvent(EventBase eventBase, DispatchMode dispatchMode = DispatchMode.Default, MonoDispatchType monoDispatchType = MonoDispatchType.Update)
         {
             if (!s_Instance) return;

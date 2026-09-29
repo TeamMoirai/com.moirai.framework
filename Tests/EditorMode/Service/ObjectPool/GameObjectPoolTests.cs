@@ -10,8 +10,8 @@ using Mp = Moirai.Atropos.MemoryPool;
 namespace Service.GameObjectPool
 {
     /// <summary>
-    /// GameObject 池回归测试：注入 fake IPrefabLoader 直测 RuntimeGameObjectPool 的
-    /// Spawn/Despawn 往返、句柄代系校验、容量约束、Flush 裁剪与策略规划器。
+    /// GameObject 池回归测试：注入 fake <c>IPrefabLoader</c> 直测 <c>RuntimeGameObjectPool</c> 的 Spawn/Despawn 往返、句柄代系校验、容量约束、 <br />
+    /// Flush 裁剪与策略规划器。
     /// </summary>
     public sealed class GameObjectPoolTests
     {

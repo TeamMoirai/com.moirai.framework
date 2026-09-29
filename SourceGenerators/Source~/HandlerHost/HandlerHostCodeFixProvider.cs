@@ -12,9 +12,11 @@ using Microsoft.CodeAnalysis.Editing;
 namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
-    /// 为 MIRAI101 / MIRAI102 诊断提供快速修复：生成 CreateDefaultHandler 方法。
-    /// 对 MIRAI102（settings-only）补充代码兜底工厂后即转为"settings 优先 / 代码兜底"契约。
+    /// 为 MIRAI101 / MIRAI102 诊断提供快速修复：生成 <c>CreateDefaultHandler</c> 方法。
     /// </summary>
+    /// <remarks>
+    /// 对 MIRAI102（settings-only）补充代码兜底工厂后转为「settings 优先 / 代码兜底」契约。
+    /// </remarks>
     [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(HandlerHostCodeFixProvider))]
     public class HandlerHostCodeFixProvider : CodeFixProvider
     {

@@ -11,9 +11,10 @@ namespace Moirai.Atropos.Editor
 {
     /// <summary>
     /// 打包配置（AssetBundle + Player）。
-    /// <para>Inspector 绘制由 Odin 特性驱动（见 <see cref="BuildConfigEditor"/>），
-    /// YooAsset/BuildTarget 枚举无本地化标签，各中文显示名集中在本文件维护。</para>
     /// </summary>
+    /// <remarks>
+    /// Inspector 绘制由 Odin 特性驱动（见 <see cref="BuildConfigEditor"/>）；YooAsset / BuildTarget 枚举无本地化标签，中文显示名集中在本文件维护。
+    /// </remarks>
     public class BuildConfig : ScriptableObject
     {
         #region 基础设置 [BASIC]
@@ -40,9 +41,7 @@ namespace Moirai.Atropos.Editor
 
         private string _packageVersion = "";
 
-        /// <summary>
-        /// 资源版本号
-        /// </summary>
+        /// <summary>资源版本号。</summary>
         [FoldoutGroup("基础设置")]
         [HorizontalGroup("基础设置/VersionRow")]
         [PropertyOrder(1)]
@@ -77,9 +76,7 @@ namespace Moirai.Atropos.Editor
         [Tooltip("带这些Tag的bundle不会被删除")]
         [SerializeField] internal string m_RetainTags = "";
 
-        /// <summary>
-        /// 最小包模式帮助文本（随保留Tag动态变化）。
-        /// </summary>
+        /// <summary>最小包模式帮助文本（随保留Tag动态变化）。</summary>
         private string MinimalHelpText
         {
             get

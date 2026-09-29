@@ -9,15 +9,13 @@ namespace Service.Audio
 {
     /// <summary>
     /// 热路径 0-GC 验收：稳态 Play / 音量 / IsPlaying / Stop、空闲 Tick、按 ID 遍历均不得分配。
-    /// <para><b>真机计量</b>：字节口径的 GC 计数 API 在 Unity 内无实现（2026-09-28 三处实测：
-    /// <c>GC.GetAllocatedBytesForCurrentThread</c> 在编辑器 Mono、Mono 玩家、IL2CPP 玩家全恒 0），
-    /// 本测量走 <c>GC.Alloc</c> 采样事件数（UTF 官方 AllocatingGCMemory 同机制）。夹具住在
-    /// <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>）：编辑器套件可见——采样可用的
-    /// 运行时真跑断言、探不到的运行时整组 Ignore；验收以 L3 玩家运行收到的采样为准。</para>
-    /// <para>自建隔离：反射 OnInit <see cref="UnityAudioHandler"/>，不依赖 GameEntry。</para>
-    /// <para>测量口径见 <see cref="AllocationCapture.MeasureManaged"/>（预热一次丢弃后计数）；
-    /// 计数器不可用的运行时整组按 Ignore 收口——"测不出分配"不等于"没有分配"。</para>
     /// </summary>
+    /// <remarks>
+    /// 分配观测走 <c>GC.Alloc</c> 采样事件数；Unity 内不存在字节口径的 GC 计数 API，事件口径是唯一通道。 <br />
+    /// 夹具住在 <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>），编辑器套件可见：采样可用的运行时真跑断言，验收以 L3 玩家运行收到的采样为准。 <br />
+    /// 自建隔离：反射唤起 <see cref="UnityAudioHandler"/> 的初始化，不依赖 GameEntry。 <br />
+    /// 测量口径见 <see cref="AllocationCapture.MeasureManaged"/>（预热一次丢弃后计数）；计数器不可用的运行时整组按 <c>Assert.Ignore</c> 收口——「测不出分配」不等于「没有分配」。
+    /// </remarks>
     [TestFixture]
     [Category("Performance")]
     public sealed class AudioPerformanceTests

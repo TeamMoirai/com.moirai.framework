@@ -9,28 +9,26 @@ namespace Moirai.Atropos.Audio
     public enum EAudioPlayFlags : byte
     {
         None = 0,
-        /// <summary>循环播放</summary>
+        /// <summary>循环播放。</summary>
         Loop = 1 << 0,
-        /// <summary>跨场景持久</summary>
+        /// <summary>跨场景持久。</summary>
         Persistent = 1 << 1,
-        /// <summary>播放时淡入</summary>
+        /// <summary>播放时淡入。</summary>
         FadeInOnPlay = 1 << 2,
-        /// <summary>单轨 Solo</summary>
+        /// <summary>单轨 Solo。</summary>
         SoloSingleTrack = 1 << 3,
-        /// <summary>全轨 Solo</summary>
+        /// <summary>全轨 Solo。</summary>
         SoloAllTracks = 1 << 4,
-        /// <summary>结束自动取消 Solo</summary>
+        /// <summary>结束自动取消 Solo。</summary>
         AutoUnSoloOnEnd = 1 << 5,
-        /// <summary>不抢占未播完的通道</summary>
+        /// <summary>不抢占未播完的通道。</summary>
         DoNotAutoRecycle = 1 << 6,
     }
 
     /// <summary>
-    /// 播放热路径请求——固定 16 字节，按值拷贝零堆分配。
-    /// <para>布局：Id(4) + Volume(4) + Pitch(4) + Packed(4)。</para>
-    /// <para>Packed = Track:8 | Priority:8 | Flags:8 | pad:8。</para>
-    /// <para>位置/曲线/旁通等冷参数见 <see cref="AudioPlayColdParams"/>。</para>
+    /// 播放热路径请求——固定 16 字节，按值拷贝零堆分配；布局 Id(4) + Volume(4) + Pitch(4) + Packed(4)，Packed = Track:8 | Priority:8 | Flags:8 | pad:8。
     /// </summary>
+    /// <remarks>位置/曲线/旁通等冷参数见 <see cref="AudioPlayColdParams"/>。</remarks>
     public readonly struct AudioPlayRequest
     {
         /// <summary>用户定义 ID。</summary>
@@ -71,9 +69,7 @@ namespace Moirai.Atropos.Audio
         public bool AutoUnSoloOnEnd => (Flags & EAudioPlayFlags.AutoUnSoloOnEnd) != 0;
         public bool DoNotAutoRecycleIfNotDonePlaying => (Flags & EAudioPlayFlags.DoNotAutoRecycle) != 0;
 
-        /// <summary>
-        /// 默认 Sfx 请求（音量 1、音调 1、不抢占）。
-        /// </summary>
+        /// <summary>默认 Sfx 请求（音量 1、音调 1、不抢占）。</summary>
         public static AudioPlayRequest Default =>
             new AudioPlayRequest(0, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.DoNotAutoRecycle);
     }

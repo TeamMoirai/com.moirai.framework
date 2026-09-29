@@ -41,6 +41,12 @@
 | [TweenUtility](TweenUtility.md) | 缓动动画：可插拔引擎（自研/PrimeTween/LitMotion）、统一缓动参数 |
 | [Testing](Testing.md) | 测试规范：分层归属、用例规范、运行通道、覆盖率门禁、发布出口准则 |
 
+## 开发规范
+
+| 文档 | 说明 |
+|------|------|
+| [CodeComments](CodeComments.md) | XML 文档注释规范：`summary` 一句话、`remarks` 放调用方不变量、叙述禁入、`example` 用法示例 |
+
 ---
 
 [« 返回主 README](../../README.md)

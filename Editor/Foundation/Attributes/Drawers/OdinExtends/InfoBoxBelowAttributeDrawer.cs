@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Sirenix.OdinInspector.Editor.Drawers
 {
     /// <summary>
-    /// 参考 <see cref="InfoBoxAttributeDrawer"/>
+    /// 参考 <see cref="InfoBoxAttributeDrawer"/>。
     /// </summary>
     [DrawerPriority(0.0, 10001.0, 0.0)]
     // ReSharper disable once UnusedType.Global
@@ -41,7 +41,9 @@ namespace Sirenix.OdinInspector.Editor.Drawers
             }
         }
 
-        /// <summary>Draws the property.</summary>
+        /// <summary>
+        /// Draws the property.
+        /// </summary>
         protected override void DrawPropertyLayout(GUIContent label)
         {
             // 先绘制属性

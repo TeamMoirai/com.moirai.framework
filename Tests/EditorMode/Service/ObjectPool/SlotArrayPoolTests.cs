@@ -5,8 +5,8 @@ namespace Service.ObjectPool
 {
     /// <summary>
     /// SlotArrayPool 回归测试：零长度、长度向上取整、同长度复用、清零归还、超大数组丢弃。
-    /// <para>池为静态共享——用例尽量使用独立长度档位，避免互相污染。</para>
     /// </summary>
+    /// <remarks>池为静态共享——用例尽量使用独立长度档位，避免互相污染。</remarks>
     public sealed class SlotArrayPoolTests
     {
         #region 空与长度 [EMPTY & LENGTH]

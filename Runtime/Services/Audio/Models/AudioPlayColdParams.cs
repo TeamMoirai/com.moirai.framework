@@ -5,11 +5,9 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 播放冷路径参数——位置/跟随/淡入/时间与空间整形，仅在 <c>BeginPlayback</c> 写入 AudioSource。
-    /// <para>与 16 字节热请求 <see cref="AudioPlayRequest"/> 分离，热循环不拷贝本类型。</para>
-    /// <para>可为 null：Agent 使用默认空间/无曲线。</para>
-    /// <para>空间整形收敛为单字段 <see cref="Spatial"/>（与 <see cref="AudioPlayOptions.Spatial"/> 同构），
-    /// 从选项提取时一次结构体拷贝替代逐字段抄写。</para>
     /// </summary>
+    /// <remarks>与 16 字节热请求 <see cref="AudioPlayRequest"/> 分离，热循环不拷贝本类型；可为 null，此时 Agent 使用默认空间/无曲线。
+    /// 空间整形经单字段 <see cref="Spatial"/>（与 <see cref="AudioPlayOptions.Spatial"/> 同构）整体携带。</remarks>
     public sealed class AudioPlayColdParams
     {
         /// <summary>播放位置。</summary>
@@ -42,11 +40,8 @@ namespace Moirai.Atropos.Audio
         /// <summary>自定义播放时长（0 = 整段）。</summary>
         public float PlaybackDuration;
 
-        /// <summary>
-        /// 空间整形（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线）。
-        /// <para>零值结构体会把声源整形成「无多普勒、零衰减距离、无混响」，复位/缺省一律用
-        /// <see cref="AudioSpatialOptions.Default"/>。</para>
-        /// </summary>
+        /// <summary>空间整形（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线）。</summary>
+        /// <remarks>零值结构体等于「无多普勒、零衰减距离、无混响」，复位/缺省一律用 <see cref="AudioSpatialOptions.Default"/>。</remarks>
         public AudioSpatialOptions Spatial = AudioSpatialOptions.Default;
 
         /// <summary>

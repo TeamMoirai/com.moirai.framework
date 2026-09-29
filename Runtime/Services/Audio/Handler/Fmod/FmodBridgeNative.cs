@@ -8,12 +8,12 @@ namespace Moirai.Atropos.Audio.Fmod
 {
     /// <summary>
     /// 真实 FMOD.Studio 桥接。需导入 FMOD Unity 插件并定义 <c>FMOD_INSTALLED</c>。
-    /// <para>能力接口：<see cref="IAudioMiddlewareBankControl"/>（Studio bank）与 <see cref="IAudioMiddlewareRtpcControl"/>（event parameter）。</para>
     /// </summary>
     /// <remarks>
-    /// 本文件可能在无 FMOD SDK 的机器上审阅/合并，无法本地编译核对；整文件受 <c>FMOD_INSTALLED</c> 编译保护，
-    /// 调用的标准 FMOD Unity API 为 <c>RuntimeManager.LoadBank</c> / <c>StudioSystem.loadBankFile</c> /
-    /// <c>Bank.unload</c> / <c>setParameterByName</c>。
+    /// 能力接口：<see cref="IAudioMiddlewareBankControl"/>（Studio bank）与 <see cref="IAudioMiddlewareRtpcControl"/>（event parameter）。 <br />
+    /// 整文件受 <c>FMOD_INSTALLED</c> 编译保护， <br />
+    /// 调用的标准 FMOD Unity API 为 <c>RuntimeManager.LoadBank</c> / <c>StudioSystem.loadBankFile</c> / <c>Bank.unload</c> / <br />
+    /// <c>setParameterByName</c>。
     /// </remarks>
     internal sealed class FmodBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {
@@ -197,7 +197,9 @@ namespace Moirai.Atropos.Audio.Fmod
             FMODUnity.RuntimeManager.StudioSystem.setParameterByName(name, value);
         }
 
-        /// <summary>是否为文件路径形态（含目录分隔符或 .bank 后缀）；否则按 StreamingAssets 短名处理。</summary>
+        /// <summary>
+        /// 是否为文件路径形态（含目录分隔符或 .bank 后缀）；否则按 StreamingAssets 短名处理。
+        /// </summary>
         private static bool IsPathLike(string bankPath)
             => bankPath.IndexOf('/') >= 0
                || bankPath.IndexOf('\\') >= 0

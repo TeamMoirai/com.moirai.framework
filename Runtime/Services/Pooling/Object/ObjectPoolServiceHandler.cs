@@ -4,9 +4,11 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 通用对象池处理器抽象基类（策略模式抽象策略）。
-    /// <para>默认实现为 <see cref="DefaultObjectPoolHandler"/>（分页槽位存储 + 按名链 + 最小堆维护调度）。</para>
-    /// <para>可在 <see cref="ObjectPoolServiceSettings"/> 中替换为自定义实现。</para>
     /// </summary>
+    /// <remarks>
+    /// 默认实现为 <see cref="DefaultObjectPoolHandler"/>（分页槽位存储 + 按名链 + 最小堆维护调度）。 <br />
+    /// 可在 <see cref="ObjectPoolServiceSettings"/> 中替换为自定义实现。
+    /// </remarks>
     [Serializable]
     public abstract class ObjectPoolServiceHandler : FrameworkHandler
     {
@@ -23,9 +25,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 池管理 [POOL MANAGEMENT]
 
-        /// <summary>
-        /// 获取池数量。
-        /// </summary>
+        /// <summary>获取池数量。</summary>
         public abstract int Count { get; }
 
         /// <summary>

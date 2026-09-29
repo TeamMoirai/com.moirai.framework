@@ -2,9 +2,12 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 通用对象池对象基类。
-    /// <para>池化对象必须继承此类并实现 <see cref="Release(bool)"/>；对象经 <see cref="MemoryPool"/> 复用，重置逻辑写在 <see cref="Clear"/>。</para>
-    /// <para>生命周期：外部构造并 <c>Initialize</c> → <c>Register</c> 入池 → <see cref="OnSpawn"/>/<see cref="OnDespawn"/> 往复 → <see cref="Release(bool)"/> 永久移除。</para>
     /// </summary>
+    /// <remarks>
+    /// 池化对象必须继承此类并实现 <see cref="Release(bool)"/>；对象经 <see cref="MemoryPool"/> 复用，重置逻辑写在 <see cref="Clear"/>。 <br />
+    /// 生命周期： 外部构造并 <c>Initialize</c> → <c>Register</c> 入池 → <see cref="OnSpawn"/> / <see cref="OnDespawn"/> 往复 → <br />
+    /// <see cref="Release(bool)"/> 永久移除。
+    /// </remarks>
     public abstract class ObjectBase : MemoryObject
     {
         #region 字段 [FIELDS]
@@ -18,37 +21,27 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取对象名称（用于按名取用）。
-        /// </summary>
+        /// <summary>获取对象名称（用于按名取用）。</summary>
         public string Name => _name;
 
-        /// <summary>
-        /// 获取对象引用目标（判等与查找键）。
-        /// </summary>
+        /// <summary>获取对象引用目标（判等与查找键）。</summary>
         public object Target => _target;
 
-        /// <summary>
-        /// 获取或设置是否锁定（锁定对象不会被自动释放）。
-        /// </summary>
+        /// <summary>获取或设置是否锁定（锁定对象不会被自动释放）。</summary>
         public bool Locked
         {
             get => _locked;
             set => _locked = value;
         }
 
-        /// <summary>
-        /// 获取或设置最近使用时间（实时时钟，由池维护）。
-        /// </summary>
+        /// <summary>获取或设置最近使用时间（实时时钟，由池维护）。</summary>
         public float LastUseTime
         {
             get => _lastUseTime;
             internal set => _lastUseTime = value;
         }
 
-        /// <summary>
-        /// 获取自定义可释放标记（默认恒 true；子类可覆写以阻止自动释放）。
-        /// </summary>
+        /// <summary>获取自定义可释放标记（默认恒 true；子类可覆写以阻止自动释放）。</summary>
         public virtual bool CustomCanReleaseFlag => true;
 
         #endregion
@@ -126,9 +119,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <typeparam name="TTarget">引用目标类型。</typeparam>
     public abstract class ObjectBase<TTarget> : ObjectBase where TTarget : class
     {
-        /// <summary>
-        /// 获取强类型引用目标。
-        /// </summary>
+        /// <summary>获取强类型引用目标。</summary>
         public new TTarget Target => (TTarget)base.Target;
 
         /// <summary>

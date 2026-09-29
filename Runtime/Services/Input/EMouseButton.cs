@@ -5,19 +5,13 @@ namespace Moirai.Atropos.Input
     /// </summary>
     public enum EMouseButton
     {
-        /// <summary>
-        /// 左键。
-        /// </summary>
+        /// <summary>左键。</summary>
         Left = 0,
 
-        /// <summary>
-        /// 右键。
-        /// </summary>
+        /// <summary>右键。</summary>
         Right = 1,
 
-        /// <summary>
-        /// 中键。
-        /// </summary>
+        /// <summary>中键。</summary>
         Middle = 2,
     }
 }

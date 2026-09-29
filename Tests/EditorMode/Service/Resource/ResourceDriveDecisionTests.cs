@@ -4,8 +4,7 @@ using NUnit.Framework;
 namespace Service.Resource
 {
     /// <summary>
-    /// 资源服务驱动编排回归测试：卸载调度与过期预算的纯函数决策矩阵，
-    /// 以及未接线状态下 DriveTeardown 的幂等安全性。
+    /// 资源服务驱动编排的契约守卫：卸载调度与过期预算的纯函数决策矩阵、未接线状态下 <c>DriveTeardown</c> 的幂等安全性。
     /// </summary>
     public sealed class ResourceDriveDecisionTests
     {

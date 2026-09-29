@@ -15,9 +15,7 @@ namespace Moirai.Atropos.Events.Editor
     /// </summary>
     internal interface ICoordinatorChoice
     {
-        /// <summary>
-        /// 获取选项对应的事件协调器。
-        /// </summary>
+        /// <summary>获取选项对应的事件协调器。</summary>
         MonoEventCoordinator Coordinator { get; }
     }
 
@@ -26,9 +24,7 @@ namespace Moirai.Atropos.Events.Editor
     /// </summary>
     internal class CoordinatorChoice : ICoordinatorChoice
     {
-        /// <summary>
-        /// 获取选项对应的事件协调器。
-        /// </summary>
+        /// <summary>获取选项对应的事件协调器。</summary>
         public MonoEventCoordinator Coordinator { get; }
 
         /// <summary>
@@ -65,9 +61,7 @@ namespace Moirai.Atropos.Events.Editor
         private IVisualElementScheduledItem m_ConnectWindowScheduledItem;
         private IVisualElementScheduledItem m_RestoreSelectionScheduledItem;
 
-        /// <summary>
-        /// 获取或设置当前正在调试的事件协调器。
-        /// </summary>
+        /// <summary>获取或设置当前正在调试的事件协调器。</summary>
         public MonoEventCoordinator CoordinatorDebug { get; set; }
 
         /// <summary>

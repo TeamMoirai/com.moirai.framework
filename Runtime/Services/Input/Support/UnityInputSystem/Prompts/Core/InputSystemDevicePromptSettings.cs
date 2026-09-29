@@ -8,7 +8,7 @@ using UnityEngine.InputSystem;
 namespace Moirai.Atropos.Input.Prompts
 {
     /// <summary>
-    /// InputSystem 的设备提示设置
+    /// InputSystem 的设备提示设置。
     /// </summary>
     [FrameworkSetting("[框架]按键提示", "InputSystem 按键提示图标设置", -449,
         "Assets/Settings/InputSystem/Resources/")]
@@ -42,46 +42,35 @@ namespace Moirai.Atropos.Input.Prompts
         [Tooltip("额外富文本后缀标记。例如：对输入 sprite 进行重新着色，只有在 sprite 标签中添加 tint=1 时才生效，即<sprite=... tint=1>")]
         [TextAreaResizable]
         [SerializeField] private string m_RichTextTags = "";
-        /// <summary>
-        /// 用于自定义富文本格式的标记。
-        /// </summary>
+        /// <summary>用于自定义富文本格式的标记。</summary>
         /// <remarks>
         /// 此字段可用于定义可与 PromptSpriteFormatter 结合使用的其他富文本标记。
         /// </remarks>
         public string RichTextTags => m_RichTextTags;
 
-        /// <summary>
-        /// 用于标识替换图标占位符的起止
-        /// </summary>
+        /// <summary>用于标识替换图标占位符的起止。</summary>
         public const string OPEN_TAG = "{action:";
         public const string CLOSE_TAG = "}";
         
-        /// <summary>
-        /// 用于表示 sprite 在 <see cref="m_PromptSpriteFormatter"/> 中的占位符
-        /// </summary>
+        /// <summary>用于表示 sprite 在 <see cref="m_PromptSpriteFormatter"/> 中的占位符。</summary>
         public const string PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER = "{SPRITE}";
 
         [Tooltip("图片格式化富文本。例如“<size=200%>{SPRITE}</size>”")]
         [TextAreaResizable]
         [SerializeField] private string m_PromptSpriteFormatter = PROMPT_SPRITE_FORMATTER_SPRITE_PLACEHOLDER;
-        /// <summary>
-        /// 用于向从 <see cref="InputDevicePromptSystem.InsertPromptSprites"/> 返回的字符串添加额外富文本的格式化程序
+        /// <summary>向 <see cref="InputDevicePromptSystem.InsertPromptSprites"/> 返回的字符串添加额外富文本的格式化程序。</summary>
         /// <example>
-        /// TMP 支持的富文本格式：https://docs.unity3d.com/Packages/com.unity.textmeshpro@3.2/manual/RichText.html
-        /// <br /><br />- 未格式化
-        /// <![CDATA[
+        /// 未格式化：<![CDATA[
         /// {SPRITE} = "<sprite="PS5_Prompts" sprite="ps5_button_cross">"
         /// ]]>
-        /// <br /><br />- 输出双倍大小
-        /// <![CDATA[
+        /// 输出双倍大小：<![CDATA[
         /// <size=200%>{SPRITE}</size> = "<size=200%><sprite="PS5_Prompts" sprite="ps5_button_cross"></size>"
         /// ]]>
-        /// <br /><br />- 修改垂直位置
-        /// <![CDATA[
+        /// 修改垂直位置：<![CDATA[
         /// <voffset=-3px>{SPRITE}</voffset> = "<voffset=-3px><sprite="PS5_Prompts" sprite="ps5_button_cross"></voffset>"
         /// ]]>
+        /// 富文本语法见 <see href="https://docs.unity3d.com/Packages/com.unity.textmeshpro@3.2/manual/RichText.html"/>。
         /// </example>
-        /// </summary>
         public string PromptSpriteFormatter => m_PromptSpriteFormatter;
         
         [System.Serializable]

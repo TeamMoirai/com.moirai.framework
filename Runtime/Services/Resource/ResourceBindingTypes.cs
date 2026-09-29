@@ -11,50 +11,31 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public enum EResourceBindStatus : byte
     {
-        /// <summary>
-        /// 成功。
-        /// </summary>
+        /// <summary>成功。</summary>
         Success = 0,
 
-        /// <summary>
-        /// 无效键。
-        /// </summary>
+        /// <summary>无效键。</summary>
         InvalidKey = 1,
 
-        /// <summary>
-        /// 缺少所有者。
-        /// </summary>
+        /// <summary>缺少所有者。</summary>
         MissingOwner = 2,
 
-        /// <summary>
-        /// 缺少目标。
-        /// </summary>
+        /// <summary>缺少目标。</summary>
         MissingTarget = 3,
 
-        /// <summary>
-        /// 所有者已过期。
-        /// </summary>
+        /// <summary>所有者已过期。</summary>
         StaleOwner = 4,
 
-        /// <summary>
-        /// 请求已被调用方取消。与"加载失败"分道：取消是调用方主动要的结果，
-        /// 按失败处理会让上层把它当成后端故障去重试或告警。
-        /// </summary>
+        /// <summary>请求已被调用方取消；与"加载失败"分道，避免上层按后端故障重试或告警。</summary>
         Cancelled = 5,
 
-        /// <summary>
-        /// 加载失败。
-        /// </summary>
+        /// <summary>加载失败。</summary>
         LoadFailed = 6,
 
-        /// <summary>
-        /// 应用失败。
-        /// </summary>
+        /// <summary>应用失败。</summary>
         ApplyFailed = 7,
 
-        /// <summary>
-        /// 服务已关闭。
-        /// </summary>
+        /// <summary>服务已关闭。</summary>
         ServiceShutdown = 8,
     }
 
@@ -64,19 +45,13 @@ namespace Moirai.Atropos.Resource
     [Flags]
     public enum EResourceBindingOption : byte
     {
-        /// <summary>
-        /// 无。
-        /// </summary>
+        /// <summary>无。</summary>
         None = 0,
 
-        /// <summary>
-        /// 释放时保持存活。
-        /// </summary>
+        /// <summary>释放时保持存活。</summary>
         KeepAliveOnRelease = 1,
 
-        /// <summary>
-        /// 设置原始尺寸。
-        /// </summary>
+        /// <summary>设置原始尺寸。</summary>
         SetNativeSize = 2,
     }
 
@@ -85,44 +60,28 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     public enum EResourceBindingSlotType : byte
     {
-        /// <summary>
-        /// 无。
-        /// </summary>
+        /// <summary>无。</summary>
         None = 0,
 
-        /// <summary>
-        /// Image 精灵。
-        /// </summary>
+        /// <summary>Image 精灵。</summary>
         ImageSprite = 1,
 
-        /// <summary>
-        /// Image 材质。
-        /// </summary>
+        /// <summary>Image 材质。</summary>
         ImageMaterial = 2,
 
-        /// <summary>
-        /// SpriteRenderer 精灵。
-        /// </summary>
+        /// <summary>SpriteRenderer 精灵。</summary>
         SpriteRendererSprite = 3,
 
-        /// <summary>
-        /// Renderer 共享材质。
-        /// </summary>
+        /// <summary>Renderer 共享材质。</summary>
         RendererSharedMaterial = 4,
 
-        /// <summary>
-        /// Renderer 材质实例。
-        /// </summary>
+        /// <summary>Renderer 材质实例。</summary>
         RendererMaterialInstance = 5,
 
-        /// <summary>
-        /// 预制体源。
-        /// </summary>
+        /// <summary>预制体源。</summary>
         PrefabSource = 6,
 
-        /// <summary>
-        /// 子精灵。
-        /// </summary>
+        /// <summary>子精灵。</summary>
         SubSprite = 7,
     }
 

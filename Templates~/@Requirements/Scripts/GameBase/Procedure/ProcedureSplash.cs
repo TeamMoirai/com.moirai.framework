@@ -4,7 +4,7 @@ using Moirai.Atropos.Procedure;
 namespace Moirai.Main
 {
     /// <summary>
-    /// 流程 => 闪屏
+    /// 流程 => 闪屏。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureSplash : ProcedurePremainBase
@@ -28,9 +28,8 @@ namespace Moirai.Main
         }
         
         /// <summary>
-        /// 处理闪屏结束事件
+        /// 处理闪屏结束事件。
         /// </summary>
-        /// <param name="evt"></param>
         private void OnSplashScreenEvent(SplashScreenEvent evt)
         {
             if (evt.Stage == SplashScreenEvent.ESplashStage.End)
@@ -43,24 +42,20 @@ namespace Moirai.Main
     }
 
     /// <summary>
-    /// 闪屏事件
+    /// 闪屏事件。
     /// </summary>
     public class SplashScreenEvent : EventBase<SplashScreenEvent>, IProcedureEvent
     {
         public enum ESplashStage
         {
-            /// <summary>
-            /// 闪屏开始
-            /// </summary>
+            /// <summary>闪屏开始。</summary>
             Start,
 
-            /// <summary>
-            /// 闪屏结束
-            /// </summary>
+            /// <summary>闪屏结束。</summary>
             End,
         }
 
-        /// <summary>闪屏阶段</summary>
+        /// <summary>闪屏阶段。</summary>
         public ESplashStage Stage { get; private set; }
 
         private static SplashScreenEvent GetPooled(ESplashStage stage)

@@ -9,11 +9,9 @@ using UnityEngine.TestTools;
 namespace Service.Audio
 {
     /// <summary>
-    /// <see cref="AudioClipCache"/> 语义回归：单飞加载、引用计数、LRU/TTL/Pin 驱逐、容量上界、
-    /// lowMemory 回收、迟到回调作废，以及关停后的租约全部归还。
-    /// <para>TTL 与失败冷却的时间判据经 <see cref="GameTime"/> 注入虚拟时钟确定性推进
-    /// （<see cref="AdvanceRealtime"/>），不依赖真实墙钟等待。</para>
+    /// <see cref="AudioClipCache"/> 语义回归：单飞加载、引用计数、LRU/TTL/Pin 驱逐、容量上界、lowMemory 回收、迟到回调作废、关停后租约归还。
     /// </summary>
+    /// <remarks>TTL 与失败冷却的时间判据经 <see cref="GameTime"/> 注入虚拟时钟确定性推进（<see cref="AdvanceRealtime"/>），不依赖真实墙钟等待。</remarks>
     [TestFixture]
     public class AudioClipCacheTests
     {
@@ -65,7 +63,9 @@ namespace Service.Audio
             if (failures.Count > 0) throw new AggregateException(failures);
         }
 
-        /// <summary>确定性推进虚拟时钟（秒）。TTL 到期与失败冷却以此驱动，不依赖真实墙钟。</summary>
+        /// <summary>
+        /// 确定性推进虚拟时钟（秒）。TTL 到期与失败冷却以此驱动，不依赖真实墙钟。
+        /// </summary>
         private void AdvanceRealtime(double seconds)
         {
             _realtimeNow += seconds;

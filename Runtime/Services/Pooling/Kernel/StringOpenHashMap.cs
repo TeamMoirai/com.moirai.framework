@@ -6,8 +6,10 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 开放寻址字符串到 int 的零分配 HashMap（桶链 + ArrayPool 租借，Ordinal 判等）。
-    /// <para>struct 语义——必须存储于可变字段后调用（方法直接改写字段状态）；Dispose 后归还全部内部数组。</para>
     /// </summary>
+    /// <remarks>
+    /// struct 语义：必须存储于可变字段后调用（方法直接改写字段状态）；Dispose 后归还全部内部数组。
+    /// </remarks>
     internal struct StringOpenHashMap
     {
         #region 常量 [CONSTANTS]
@@ -31,9 +33,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取已存储条目数量。
-        /// </summary>
+        /// <summary>获取已存储条目数量。</summary>
         public int Count => _count;
 
         #endregion

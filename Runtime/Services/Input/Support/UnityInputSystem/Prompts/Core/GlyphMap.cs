@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Input.Prompts
 {
     /// <summary>
-    /// 图标与 TMP Sheet 绑定
+    /// 图标与 TMP Sheet 绑定。
     /// </summary>
     [Serializable]
     public class PromptGlyph
@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Input.Prompts
         [TableColumnWidth(57, Resizable = false)]
         [PreviewField(Alignment = ObjectFieldAlignment.Left)]
         [SerializeField] private Sprite m_Icon;
-        /// <summary>对应的图标。假设 TMP Sprite 资源和 Sprite 已同步并且有相同的名称</summary>
+        /// <summary>对应的图标。假设 TMP Sprite 资源和 Sprite 已同步并且有相同的名称。</summary>
         public Sprite Icon => m_Icon;
 
         [VerticalGroup("Binding"), LabelText("Sprite Sheet Name")]
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Input.Prompts
     }
 
     /// <summary>
-    /// 动作的完整路径和对应图标
+    /// 动作的完整路径和对应图标。
     /// </summary>
     [Serializable]
     public class ActionGlyph : PromptGlyph
@@ -36,13 +36,13 @@ namespace Moirai.Atropos.Input.Prompts
         [Tooltip("动作绑定的完整路径，例如 \"<Gamepad>/leftStick\"")]
         [VerticalGroup("Binding"), LabelText("Binding Path")]
         [SerializeField] private string m_ActionBindingPath;
-        /// <summary>动作绑定的完整路径，例如 <![CDATA["<Gamepad>/leftStick"]]></summary>
+        /// <summary>动作绑定的完整路径，例如 <![CDATA["<Gamepad>/leftStick"]]>。</summary>
         /// <remarks>详情可见 - https://docs.unity3d.com/Packages/com.unity.inputsystem@1.5/manual/ActionBindings.html</remarks>
         public string ActionBindingPath => m_ActionBindingPath;
     }
 
     /// <summary>
-    /// 自定义 sprite 条目，用于根据设备使用不同的图标（例如，用于控制器图标）
+    /// 自定义 sprite 条目，用于根据设备使用不同的图标（例如，用于控制器图标）。
     /// </summary>
     [Serializable]
     public class DeviceGlyph
@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Input.Prompts
         [Tooltip("设备类型")]
         [ValueDropdown(nameof(DeviceNames))]
         [SerializeField] private string m_DeviceName;
-        /// <summary>设备类型</summary>
+        /// <summary>设备类型。</summary>
         public string DeviceName => m_DeviceName;
 
         // ReSharper disable once InconsistentNaming
@@ -143,38 +143,36 @@ namespace Moirai.Atropos.Input.Prompts
 
         [Tooltip("设备图标")]
         [SerializeField] private Sprite m_DeviceSprite;
-        /// <summary>设备图标</summary>
+        /// <summary>设备图标。</summary>
         public Sprite DeviceSprite => m_DeviceSprite;
     }
 
     /// <summary>
-    /// 单个输入设备（如 PlayStation 4 Controller）的数据
+    /// 单个输入设备（如 PlayStation 4 Controller）的数据。
     /// </summary>
     [CreateAssetMenu(menuName = "Moirai/Input/Glyph Map", order = 1)]
     public class GlyphMap : ScriptableObject
     {
         [Tooltip("此资产支持的设备类型（可以是多个，例如 mouse/keyboard）")]
         [SerializeField] private DeviceGlyph[] m_DeviceGlyphs;
-        /// <summary>此资产支持的设备类型（可以是多个，例如 mouse/keyboard）</summary>
+        /// <summary>此资产支持的设备类型（可以是多个，例如 mouse/keyboard）。</summary>
         public DeviceGlyph[] DeviceGlyphs => m_DeviceGlyphs;
 
         [Tooltip("设备描述")]
         [TextAreaResizable]
         [SerializeField] private string m_DeviceDescription;
-        /// <summary>设备描述</summary>
+        /// <summary>设备描述。</summary>
         public string DeviceDescription => m_DeviceDescription;
 
         [Tooltip("所有动作绑定及其相应提示图标的列表")]
         [TableList(ShowPaging = true)]
         [SerializeField] private ActionGlyph[] m_ActionGlyphs;
-        /// <summary>所有动作绑定及其相应提示图标的列表</summary>
+        /// <summary>所有动作绑定及其相应提示图标的列表。</summary>
         public ActionGlyph[] ActionGlyphs => m_ActionGlyphs;
 
         [NonSerialized] private string[] _deviceNames;
 
-        /// <summary>
-        /// 可用于标识此设备的设备名称
-        /// </summary>
+        /// <summary>可用于标识此设备的设备名称。</summary>
         public string[] DeviceNames
         {
             get

@@ -29,14 +29,10 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取池名称。
-        /// </summary>
+        /// <summary>获取池名称。</summary>
         public string Name => _name;
 
-        /// <summary>
-        /// 获取池全名（类型全名[.池名]，惰性缓存）。
-        /// </summary>
+        /// <summary>获取池全名（类型全名[.池名]，惰性缓存）。</summary>
         public string FullName
         {
             get
@@ -52,48 +48,32 @@ namespace Moirai.Atropos.ObjectPool
             }
         }
 
-        /// <summary>
-        /// 获取对象类型。
-        /// </summary>
+        /// <summary>获取对象类型。</summary>
         public abstract Type ObjectType { get; }
 
-        /// <summary>
-        /// 获取池内对象总数。
-        /// </summary>
+        /// <summary>获取池内对象总数。</summary>
         public abstract int Count { get; }
 
-        /// <summary>
-        /// 获取是否允许引用计数复用。
-        /// </summary>
+        /// <summary>获取是否允许引用计数复用。</summary>
         public abstract bool AllowMultiSpawn { get; }
 
-        /// <summary>
-        /// 获取或设置超容自动释放间隔（秒）。
-        /// </summary>
+        /// <summary>获取或设置超容自动释放间隔（秒）。</summary>
         public abstract float AutoReleaseInterval { get; set; }
 
-        /// <summary>
-        /// 获取或设置池容量。
-        /// </summary>
+        /// <summary>获取或设置池容量。</summary>
         public abstract int Capacity { get; set; }
 
-        /// <summary>
-        /// 获取或设置空闲过期时间（秒）。
-        /// </summary>
+        /// <summary>获取或设置空闲过期时间（秒）。</summary>
         public abstract float ExpireTime { get; set; }
 
-        /// <summary>
-        /// 获取或设置池优先级。
-        /// </summary>
+        /// <summary>获取或设置池优先级。</summary>
         public abstract int Priority { get; set; }
 
         #endregion
 
         #region 维护调度 [MAINTENANCE SCHEDULING]
 
-        /// <summary>
-        /// 维护堆索引——由 <see cref="PoolMaintenanceScheduler"/> 独占维护。
-        /// </summary>
+        /// <summary>维护堆索引——由 <see cref="PoolMaintenanceScheduler"/> 独占维护。</summary>
         public int MaintenanceHeapIndex { get; set; } = -1;
 
         /// <summary>

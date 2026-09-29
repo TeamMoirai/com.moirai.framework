@@ -4,12 +4,12 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 默认游戏时间处理器，直读 <see cref="Time"/> 引擎时钟。
-    /// <para>作为 <see cref="GameTime.Handler"/> 的缺省后端；测试可整体替换为
-    /// 自定义 <see cref="GameTimeHandler"/>（虚拟时钟）实现确定性推进。</para>
-    /// <para>全部时间读取（初始化播种、Tick 推进、Stop/Resume/Restart/GetLeftTime、槽位触发时刻）
-    /// 统一经 <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/> 双精度入口。</para>
+    /// 默认游戏时间处理器：直读 <see cref="Time"/> 引擎时钟，作为 <see cref="GameTime.Handler"/> 的缺省后端。
     /// </summary>
+    /// <remarks>
+    /// 全部时间读取经 <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/> 双精度入口统一供出。 <br />
+    /// 测试可整体替换为自定义 <see cref="GameTimeHandler"/>（虚拟时钟）实现确定性推进。
+    /// </remarks>
     [Serializable]
     internal sealed class DefaultGameTimeHandler : GameTimeHandler
     {

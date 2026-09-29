@@ -13,14 +13,14 @@ using ILogger = Microsoft.Extensions.Logging.ILogger;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// ZLogger 的 Unity 控制台输出通道（绕过全局拦截器版本）。
-    /// <para>ZLogger 内置的 <c>AddZLoggerUnityDebug</c> 经由 <c>UnityEngine.Debug.Log</c> 输出，
-    /// 会落入被 <see cref="UnityLogInterceptor"/> 劫持的 <c>Debug.unityLogger</c>，使框架自身输出
-    /// 再次进入日志管线。本实现与内置 <c>UnityDebugLogProcessor</c> 行为一致，但直写
-    /// <see cref="LogUtility.GetBypassUnityHandler"/> 返回的原始 handler。</para>
-    /// <para>与内置实现的行为差异：不做 PrettyStacktrace 预处理——直写 handler 时 Unity 捕获的是
-    /// 真实调用栈（管线帧已 [HideInCallstack]），无需清洗。</para>
+    /// ZLogger 的 Unity 控制台输出通道：行为同内置 <c>UnityDebugLogProcessor</c>， <br />
+    /// 但直写 <see cref="LogUtility.GetBypassUnityHandler"/> 返回的原始 handler 以绕过全局拦截器。
     /// </summary>
+    /// <remarks>
+    /// 不用 ZLogger 内置的 <c>AddZLoggerUnityDebug</c>：它经 <c>UnityEngine.Debug.Log</c> 输出， <br />
+    /// 会落入被 <see cref="UnityLogInterceptor"/> 劫持的 <c>Debug.unityLogger</c>，使框架自身输出再次进入日志管线。 <br />
+    /// 不做 PrettyStacktrace 预处理：直写原始 handler 时 Unity 捕获的是真实调用栈（管线帧已 <c>[HideInCallstack]</c>）。
+    /// </remarks>
     internal sealed class ZLoggerBypassUnityDebugLoggerProvider : ILoggerProvider, IAsyncDisposable
     {
         private readonly ZLoggerOptions _options;

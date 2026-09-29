@@ -9,9 +9,7 @@ namespace Moirai.Atropos.Scene
         [InfoBox("默认场景加载处理器后端。可替换为自定义场景管理实现。", InfoMessageType.None)]
         [ProviderDropdown]
         [SerializeReference] private SceneServiceHandler m_SceneServiceHandler = SceneService.CreateDefaultHandler();
-        /// <summary>
-        /// 默认场景加载处理器后端。
-        /// </summary>
+        /// <summary>默认场景加载处理器后端。</summary>
         public static SceneServiceHandler SceneServiceHandler => Instance.m_SceneServiceHandler;
     }
 }

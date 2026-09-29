@@ -4,13 +4,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 持久化实体恢复的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.EntityRestored"/> 二选一订阅）。
-    /// <para>随 P4 先行定义；生产点由动态实体持久化（P7）接线。</para>
     /// </summary>
+    /// <remarks>生产点由动态实体持久化管线接线，当前尚无生产方。</remarks>
     public class SaveEntityRestoredEvent : EventBase<SaveEntityRestoredEvent>
     {
-        /// <summary>
-        /// 事件参数。
-        /// </summary>
+        /// <summary>事件参数。</summary>
         public SaveEntityRestoredArgs Args { get; private set; }
 
         /// <summary>

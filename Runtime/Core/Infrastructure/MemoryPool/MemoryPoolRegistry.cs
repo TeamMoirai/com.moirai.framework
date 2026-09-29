@@ -15,12 +15,8 @@ namespace Moirai.Atropos
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 内存池故障分级门控，与 <c>EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS</c>、
-        /// <c>ServiceScope.RETHROW_TICK_EXCEPTIONS</c> 同一约定：开发期原样上抛第一时间暴露缺陷，
-        /// 发布期只在边界合并上报让游戏继续跑。<c>const</c> 门控让死分支被裁掉，发布版零运行时成本。
-        /// <para>改这个判据要连同上面两处一起改，房内约定不一致比统一用错更糟。</para>
-        /// </summary>
+        /// <summary>内存池故障分级门控：开发期原样上抛，发布期在边界合并上报。</summary>
+        /// <remarks><c>const</c> 门控，发布版裁掉死分支；与 <c>EventDispatchPolicy</c> / <c>ServiceScope</c> 同类判据需同改。</remarks>
         internal const bool RETHROW_POOL_EXCEPTIONS =
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             true;
@@ -28,10 +24,7 @@ namespace Moirai.Atropos
             false;
 #endif
 
-        /// <summary>
-        /// 单轮批量维护最多收集多少条回调异常。整批对象的 <c>OnEvict()</c> 都在抛时，
-        /// 无上限收集本身就是在"内存紧张、正在修剪"的那一刻攒出一次 GC 毛刺，因此超出部分只留一条汇总。
-        /// </summary>
+        /// <summary>单轮批量维护最多收集的回调异常条数，超出只留一条汇总。</summary>
         internal const int MaxCollectedCallbackExceptions = 16;
 
         #endregion
@@ -121,19 +114,13 @@ namespace Moirai.Atropos
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取内存池数量。
-        /// </summary>
+        /// <summary>获取内存池数量。</summary>
         public static int Count => s_HandleCount;
 
-        /// <summary>
-        /// 获取当前帧计数。
-        /// </summary>
+        /// <summary>获取当前帧计数。</summary>
         internal static int CurrentFrame { get; private set; }
 
-        /// <summary>
-        /// 获取或设置内存池阶段。
-        /// </summary>
+        /// <summary>获取或设置内存池阶段。</summary>
         public static EMemoryPoolPhase Phase
         {
             get => s_Phase;
@@ -195,18 +182,12 @@ namespace Moirai.Atropos
 
         #region 主线程断言 [MAIN THREAD ASSERT]
 
-        /// <summary>
-        /// 当前是否执行主线程校验。
-        /// <para>编辑器与开发构建恒开。正式构建默认关——但调用点不再被 <c>[Conditional]</c> 整条裁掉，
-        /// 因为 QA / soak 构建需要能在跑起来之后打开它：跨线程取还不会当场报错，而是把非托管页元数据
-        /// 与侵入式链表改坏，几周后以随机崩溃或数据错乱的形式回来，那时已经查不到是谁在别的线程动的手。</para>
-        /// <para>关着时的成本是每个取还动作读一个静态布尔并分支一次。</para>
-        /// </summary>
+        /// <summary>当前是否执行主线程校验（编辑器与开发构建恒开，正式构建默认关闭）。</summary>
+        /// <remarks>正式构建可经 <see cref="MemoryPool.VerifyMainThreadInRelease"/> 在运行期打开；开启后每次取还多一次静态布尔读取与分支。</remarks>
         private static bool s_ThreadGuardActive = true;
 
         /// <summary>
-        /// 按编译期分级与 <see cref="MemoryPool.VerifyMainThreadInRelease"/> 刷新线程守卫，
-        /// 由 <c>MemoryPoolSetting</c> 在初始化时调用。
+        /// 按编译期分级与 <see cref="MemoryPool.VerifyMainThreadInRelease"/> 刷新线程守卫。
         /// </summary>
         internal static void RefreshThreadGuard()
         {
@@ -502,9 +483,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 设置指定类型内存池的存活（在外）对象数量上限，0 表示不限制。
-        /// <para>硬容量只约束空闲缓存、不约束总量，所以这个上限是给"业务漏还"装的可发现边界：
-        /// 越界时带池身份上报，开发期直接抛出。</para>
         /// </summary>
+        /// <remarks>硬容量只约束空闲缓存、不约束总量，本上限给漏还装可发现边界：越界带池身份上报，开发期抛出。</remarks>
         /// <param name="type">内存对象类型。</param>
         /// <param name="limit">存活上限，负数按 0（不限制）处理。</param>
         public static void SetLiveLimit(Type type, int limit)
@@ -514,10 +494,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 逐个池做结构自检（走查页链表并与计数交叉核对），把所有失配汇总成一条可读描述。
-        /// <para>只读不改，且会分配字符串：给开发 / QA 构建在关键节点（关卡结束、场景卸载、加载完成）
-        /// 或自动化冒烟流程里调用，不要放进每帧。自检过程中任何意外都会被收进报告，本身不外抛。</para>
+        /// 逐个池做结构自检，把全部失配汇总成一条可读描述。
         /// </summary>
+        /// <remarks>只读不改但会分配字符串，勿放进每帧；建议在关卡结束、场景卸载、加载完成等关键节点调用，自检中的意外会收进报告、本身不外抛。</remarks>
         /// <returns>一切自洽返回 <see langword="null"/>；否则返回带池身份的问题清单。</returns>
         public static string ValidateAll()
         {
@@ -861,8 +840,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 池回调（构造 / Clear / OnEvict）期间禁止全局维护入口重入：
-        /// 这类调用会跨过当前持有页元数据引用的池，把底下的非托管数组换掉。
+        /// 池回调（构造 / Clear / OnEvict）期间重入全局维护入口时抛出。
         /// </summary>
         private static void ThrowIfInCallback()
         {
@@ -873,8 +851,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 收集一条批量维护期间产生的异常，超出 <see cref="MaxCollectedCallbackExceptions"/> 后只留一条汇总。
-        /// 池自己的批量路径（页退役、整批修剪）也走这里，保证"上限"只有一处定义。
+        /// 收集一条批量维护期间的异常，超出 <see cref="MaxCollectedCallbackExceptions"/> 后只留一条汇总。
         /// </summary>
         internal static void AddCollected(ref List<Exception> exceptions, Exception exception)
         {
@@ -936,11 +913,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 每帧维护边界的故障收口：合并成一条带失败数量的 Fatal，然后按分级决定是否上抛。
-        /// <para>这里与 <see cref="ClearAll"/> 之类的显式调用不同——TickAll 由 <c>GameApp</c> 的更新派发驱动，
-        /// 没有业务能接住它，发布版外溢只会每帧刷一条栈；而一个池的坏回调已经在池内逐项隔离过了，
-        /// 能逃到这里的都是框架级缺陷，必须留下带身份的记录。</para>
+        /// 每帧维护边界的故障收口：合并成一条带失败数量的 Fatal，再按分级决定是否上抛。
         /// </summary>
+        /// <remarks>由 <c>GameApp</c> 更新派发驱动，发布版不上抛以免每帧刷栈；能逃到这里的都是框架级缺陷，留带身份记录。</remarks>
         private static void ReportMaintenanceFault(List<Exception> exceptions)
         {
             if (exceptions == null)

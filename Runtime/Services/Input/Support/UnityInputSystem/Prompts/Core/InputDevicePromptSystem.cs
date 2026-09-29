@@ -10,9 +10,9 @@ using UnityEngine.InputSystem.Utilities;
 namespace Moirai.Atropos.Input.Prompts
 {
     /// <summary>
-    /// 设备类型的枚举
-    /// TODO - 删除，使用更有效的 InputSystem types?
+    /// 输入设备类型枚举。
     /// </summary>
+    /// <remarks>TODO：待评估改用 InputSystem 的设备类型。</remarks>
     public enum InputDeviceType
     {
         Mouse,
@@ -22,7 +22,7 @@ namespace Moirai.Atropos.Input.Prompts
     }
     
     /// <summary>
-    /// 封装绑定映射项
+    /// 封装绑定映射项。
     /// </summary>
     public class ActionBindingMapEntry
     {
@@ -35,44 +35,28 @@ namespace Moirai.Atropos.Input.Prompts
     public static class InputDevicePromptSystem
     {
         
-        /// <summary>
-        /// 动作路径的映射（例如，“Player/Move”到绑定映射条目，例如“Gamepad/leftStick”）
-        /// </summary>
+        /// <summary>动作路径的映射（例如，“Player/Move”到绑定映射条目，例如“Gamepad/leftStick”）。</summary>
         private static Dictionary<string, List<ActionBindingMapEntry>> s_ActionBindingMap = new Dictionary<string, List<ActionBindingMapEntry>>();
         
-        /// <summary>
-        /// 设备名称（例如“DualShockGamepadHID”）到设备提示数据（动作绑定和精灵列表）的映射
-        /// </summary>
+        /// <summary>设备名称（例如“DualShockGamepadHID”）到设备提示数据（动作绑定和精灵列表）的映射。</summary>
         private static Dictionary<string, GlyphMap> s_DeviceDataBindingMap = new Dictionary<string, GlyphMap>();
         
-        /// <summary>
-        /// 当前是否已初始化
-        /// </summary>
+        /// <summary>当前是否已初始化。</summary>
         private static bool s_Initialized = false;
 
-        /// <summary>
-        /// 是否已尝试过初始化——失败后不再重复尝试，避免每次调用重复刷告警
-        /// </summary>
+        /// <summary>是否已尝试过初始化——失败后不再重复尝试，避免每次调用重复刷告警。</summary>
         private static bool s_InitializeAttempted = false;
         
-        /// <summary>
-        /// 设置文件
-        /// </summary>
+        /// <summary>设置文件。</summary>
         private static InputSystemDevicePromptSettings s_Settings;
         
-        /// <summary>
-        /// 当前活动设备
-        /// </summary>
+        /// <summary>当前活动设备。</summary>
         private static InputDevice s_ActiveDevice;
         
-        /// <summary>
-        /// 当活动设备更改时委派
-        /// </summary>
+        /// <summary>当活动设备更改时委派。</summary>
         public static Action<InputDevice> OnActiveDeviceChanged = delegate {  };
         
-        /// <summary>
-        /// 输入系统上按钮按下的事件侦听器
-        /// </summary>
+        /// <summary>输入系统上按钮按下的事件侦听器。</summary>
         private static IDisposable s_EventListener;
 
         private static GlyphMap s_PlatformDeviceOverride;
@@ -109,7 +93,7 @@ namespace Moirai.Atropos.Input.Prompts
         }
         
         /// <summary>
-        /// 初始化数据结构和加载设置，首次使用时调用
+        /// 初始化数据结构和加载设置，首次使用时调用。
         /// </summary>
         private static void Initialize()
         {
@@ -149,7 +133,7 @@ namespace Moirai.Atropos.Input.Prompts
         }
 
         /// <summary>
-        /// 确保已尝试初始化；曾初始化失败则静默返回（告警只在首次失败时输出一次），由调用方按降级路径处理
+        /// 确保已尝试初始化；曾初始化失败则静默返回（告警只在首次失败时输出一次），由调用方按降级路径处理。
         /// </summary>
         private static void EnsureInitialized()
         {
@@ -189,10 +173,8 @@ namespace Moirai.Atropos.Input.Prompts
 #endif
 
         /// <summary>
-        /// 在设备更改时调用
+        /// 在设备更改时调用。
         /// </summary>
-        /// <param name="device"></param>
-        /// <param name="change"></param>
         private static void OnDeviceChange(InputDevice device, InputDeviceChange change)
         {
             // 如果活动设备已断开连接，则恢复为默认设备
@@ -212,11 +194,9 @@ namespace Moirai.Atropos.Input.Prompts
             RegexOptions.IgnoreCase | RegexOptions.Compiled
         );
         /// <summary>
-        /// 将给定字符串中的标记替换为 TMPPro 字符串以插入设备提示 sprite
+        /// 将给定字符串中的标记替换为 TMPPro 字符串以插入设备提示 sprite。
         /// </summary>
-        /// <param name="inputText"></param>
-        /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标</param>
-        /// <returns></returns>
+        /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标。</param>
         public static string InsertPromptSprites(string inputText, bool isComposite)
         {
             EnsureInitialized();
@@ -245,12 +225,11 @@ namespace Moirai.Atropos.Input.Prompts
         }
         
         /// <summary>
-        /// 获取给定输入标签（例如 “Player/Jump”）的第一个匹配精灵（例如 DualShock Cross Button Sprite）
+        /// 获取给定输入标签（例如 “Player/Jump”）的第一个匹配精灵（例如 DualShock Cross Button Sprite）。
         /// </summary>
-        /// <param name="inputTag"></param>
-        /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标</param>
-        /// <returns></returns>
-        /// <remarks>不支持复合标签。例如 WASD，如果 <see cref="isComposite"/> = <c>false</c>，会只返回第一个 W，建议将 <see cref="isComposite"/> 设为 <c>true</c></remarks>
+        /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标。</param>
+        /// <remarks>不支持复合标签。例如 WASD，如果 <see cref="isComposite"/> = <c>false</c>，会只返回第一个 W， <br />
+        /// 建议将 <see cref="isComposite"/> 设为 <c>true</c></remarks>
         public static Sprite GetActionPathBindingSprite(string inputTag, bool isComposite)
         {
             EnsureInitialized();
@@ -294,10 +273,8 @@ namespace Moirai.Atropos.Input.Prompts
         }
 
         /// <summary>
-        /// 获取给定精灵名称的 DeviceSpriteEntries 列表中的当前活动设备匹配 sprite
+        /// 获取给定精灵名称的 DeviceSpriteEntries 列表中的当前活动设备匹配 sprite。
         /// </summary>
-        /// <param name="spriteName"></param>
-        /// <returns></returns>
         public static Sprite GetDeviceSprite(string spriteName)
         {
             EnsureInitialized();
@@ -339,11 +316,9 @@ namespace Moirai.Atropos.Input.Prompts
         }
 
         /// <summary>
-        /// 为给定标记的所有匹配 sprite 创建 TextMeshPro 格式字符串
+        /// 为给定标记的所有匹配 sprite 创建 TextMeshPro 格式字符串。
         /// </summary>
-        /// <param name="inputTag"></param>
-        /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标</param>
-        /// <returns></returns>
+        /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标。</param>
         /// <remarks>支持复合标签。如果 <see cref="isComposite"/> = <c>false</c>。则返回活动设备的所有匹配项（按顺序）。例如 WASD，则会返回 4 个 TextSprite</remarks>
         private static string GetActionPathBindingTextSpriteTags(string inputTag, bool isComposite = false)
         {
@@ -410,11 +385,9 @@ namespace Moirai.Atropos.Input.Prompts
         }
 
         /// <summary>
-        /// 获取给定标签的所有匹配提示条目（例如 “Player/Jump”）
+        /// 获取给定标签的所有匹配提示条目（例如 “Player/Jump”）。
         /// </summary>
-        /// <param name="inputTag"></param>
-        /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标</param>
-        /// <returns></returns>
+        /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标。</param>
         private static (GlyphMap validDevice, List<ActionGlyph> validEntries) GetActionPathBindingPromptEntries(string inputTag, string modifier, bool isComposite)
         {
             GlyphMap validDevice;
@@ -530,10 +503,8 @@ namespace Moirai.Atropos.Input.Prompts
         }
         
         /// <summary>
-        /// 从绑定路径中提取用法，例如 “*/{Submit}” 返回 “Submit”
+        /// 从绑定路径中提取用法，例如 “*/{Submit}” 返回 “Submit”。
         /// </summary>
-        /// <param name="actionBinding"></param>
-        /// <returns></returns>
         private static string GetUsageFromBindingPath(string actionBinding)
         {
             return actionBinding.Contains("*/{") ? actionBinding.Substring(3, actionBinding.Length - 4) : String.Empty;
@@ -553,8 +524,6 @@ namespace Moirai.Atropos.Input.Prompts
         /// <summary>
         /// 根据修饰符，获取指定的动作名称。
         /// </summary>
-        /// <param name="actionName"></param>
-        /// <param name="modifier"></param>
         /// <remarks>必须按照正反、上下左右这样的顺序排列组合按键，确保可以正确解析。</remarks>
         private static void GetModifiedActionName(ref string actionName, string modifier)
         {
@@ -580,7 +549,7 @@ namespace Moirai.Atropos.Input.Prompts
         }
         
         /// <summary>
-        /// 根据当前设置优先级查找默认设备
+        /// 根据当前设置优先级查找默认设备。
         /// </summary>
         private static void FindDefaultDevice()
         {
@@ -608,7 +577,7 @@ namespace Moirai.Atropos.Input.Prompts
         }
         
         /// <summary>
-        /// 构建所有动作的内部映射（例如，将“Player/Jump”映射到可用的绑定路径，例如“Gamepad/ButtonSouth”）
+        /// 构建所有动作的内部映射（例如，将“Player/Jump”映射到可用的绑定路径，例如“Gamepad/ButtonSouth”）。
         /// </summary>
         private static void BuildBindingMaps()
         {
@@ -734,9 +703,8 @@ namespace Moirai.Atropos.Input.Prompts
         }
         
         /// <summary>
-        /// 在任意设备上按下按钮时调用
+        /// 在任意设备上按下按钮时调用。
         /// </summary>
-        /// <param name="button"></param>
         private static void OnButtonPressed(InputControl button)
         {
             if (s_ActiveDevice==button.device) return;

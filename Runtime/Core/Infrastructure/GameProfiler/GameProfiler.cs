@@ -15,9 +15,9 @@ namespace Moirai.Atropos
         private static int s_SampleLevel = 0;
 
         /// <summary>
-        /// 免域重载复位：嵌套深度带脏值进下一 Play 会让采样层级错位（Begin/End 跨会话不配对时）。
-        /// ProfileLevel 一并复位为「未设置」——等级由 Debugger 启动时重设，残留旧等级没有正当语义。
+        /// 免域重载复位：清空采样嵌套深度并把 <c>ProfileLevel</c> 复位为「未设置」。
         /// </summary>
+        /// <remarks>不清会让脏深度跨会话带入下一 Play，导致采样层级错位。</remarks>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetOnDomainReload()
         {

@@ -7,13 +7,14 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 本地文件存储后端（默认）：存档以文件形式落于磁盘目录树。
-    /// <para>写入为「临时文件 + Flush(true) 强制落盘 + 原子替换」（NTFS <see cref="File.Replace"/> 元数据级原子，
-    /// 平台不支持时转 <see cref="FallbackReplace"/>：旧档先改名到 <c>.journal</c>，再把临时文件改名到位，
-    /// 两步之间崩溃由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回）；删除带退避重试（应对云同步/杀毒软件短时锁文件）；
-    /// 备份为单档 <c>.bak</c> 副本（项目侧手动备份位，与写入用的 <c>.journal</c> 互不占用），
-    /// 恢复经临时文件原子替换回源路径；提供孤儿临时文件清扫与中断恢复。</para>
-    /// <para>无状态纯 .NET 实现，可在任意线程调用；共享实例 <see cref="s_Default"/> 供未配置后端时回退。</para>
     /// </summary>
+    /// <remarks>
+    /// 写入为「临时文件 + <c>Flush(true)</c> 强制落盘 + 原子替换」（NTFS <see cref="File.Replace"/> 元数据级原子， <br />
+    /// 平台不支持时转 <see cref="FallbackReplace"/>： 旧档先改名到 <c>.journal</c>，再把临时文件改名到位， <br />
+    /// 两步之间崩溃由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回）。 <br />
+    /// 删除带退避重试（应对云同步/杀毒软件短时锁文件）；备份为单档 <c>.bak</c> 副本（项目侧手动备份位，与写入用的 <c>.journal</c> 互不占用），恢复经临时文件原子替换回源路径。 <br />
+    /// 提供孤儿临时文件清扫与中断恢复；无状态纯 .NET 实现，可在任意线程调用；共享实例 <see cref="s_Default"/> 供未配置后端时回退。
+    /// </remarks>
     [Serializable]
     public class FileSaveStorageBackend : SaveStorageBackend
     {
@@ -23,24 +24,18 @@ namespace Moirai.Atropos.Save
         /// <summary>单槽备份文件后缀（实际形如 <c>xxx.sav.bak</c>）。</summary>
         private const string BACKUP_FILE_SUFFIX = ".bak";
 
-        /// <summary>
-        /// 回退替换的中转日志后缀（实际形如 <c>xxx.sav.journal</c>）。
-        /// <para>与 <see cref="BACKUP_FILE_SUFFIX"/> 分开：后者是项目侧 <c>CreateBackup</c>/<c>RestoreBackup</c>
-        /// 的持久备份位，回退若借它中转，玩家手动恢复会捞到一份写入中途的快照。</para>
-        /// </summary>
+        /// <summary>回退替换的中转日志后缀（实际形如 <c>xxx.sav.journal</c>）。</summary>
+        /// <remarks>与 <see cref="BACKUP_FILE_SUFFIX"/> 分开：后者是项目侧 <c>CreateBackup</c>/<c>RestoreBackup</c> 的持久备份位，回退若借它中转， <br />
+        /// 玩家手动恢复会捞到一份写入中途的快照。</remarks>
         internal const string JOURNAL_FILE_SUFFIX = ".journal";
 
         /// <summary>删除操作的退避重试次数（应对云同步/杀毒软件的短时文件锁）。</summary>
         private const int DELETE_RETRY_COUNT = 3;
 
-        /// <summary>
-        /// 共享默认实例（无状态后端，未配置存储后端时回退使用；任意线程安全）。
-        /// </summary>
+        /// <summary>共享默认实例（无状态后端，未配置存储后端时回退使用；任意线程安全）。</summary>
         internal static readonly FileSaveStorageBackend s_Default = new FileSaveStorageBackend();
 
-        /// <summary>
-        /// 后端能力自描述（本地文件：无半写窗口且中断后旧档可恢复、无线程池外真异步、不设尺寸上限、非易失、同步读权威）。
-        /// </summary>
+        /// <summary>后端能力自描述（本地文件：无半写窗口且中断后旧档可恢复、无线程池外真异步、不设尺寸上限、非易失、同步读权威）。</summary>
         public override SaveStorageCapabilities Capabilities => new SaveStorageCapabilities(
             supportsAtomicRename: true,
             supportsTrueAsyncIO: false,
@@ -71,9 +66,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 查询目标文件的最后写入时间（经 <see cref="FileInfo.Refresh()"/> 强制刷新元数据——
-        /// <see cref="File.GetLastWriteTimeUtc(string)"/> 在 Windows 上可能命中目录枚举缓存，写后立即读取会拿到滞后值，会话级增量守卫要求新鲜元数据）。
+        /// 查询目标文件的最后写入时间（经 <see cref="FileInfo.Refresh()"/> 强制刷新元数据以规避缓存滞后值）。
         /// </summary>
+        /// <remarks><see cref="File.GetLastWriteTimeUtc(string)"/> 在 Windows 上可能命中目录枚举缓存，写后立即读取会拿到滞后值；会话级增量守卫要求新鲜元数据。</remarks>
         /// <param name="filePath">文件完整路径。</param>
         /// <param name="writeTimeUtc">成功时的最后写入时间（UTC）。</param>
         /// <returns>文件存在返回 <c>true</c>；缺档/查询失败返回 <c>false</c>。</returns>
@@ -166,9 +161,12 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 流式原子写入：临时文件流（可寻址）交委托写入全部内容 → 强制落盘 → 原子替换目标（失败抛 <see cref="GameException"/> 并清理临时文件）。
-        /// <para>委托抛 <see cref="GameException"/>/<see cref="OperationCanceledException"/> 原样上抛，其余异常归一为 <see cref="GameException"/>（含路径上下文）。</para>
+        /// 流式原子写入：临时文件流（可寻址）交委托写入全部内容 → 强制落盘 → 原子替换目标。
         /// </summary>
+        /// <remarks>
+        /// 失败抛 <c>GameException</c> 并清理临时文件；委托抛 <c>GameException</c>/<see cref="OperationCanceledException"/> 原样上抛， <br />
+        /// 其余异常归一为 <c>GameException</c>（含路径上下文）。
+        /// </remarks>
         /// <param name="filePath">目标文件完整路径。</param>
         /// <param name="writeFile">写入委托（收到的临时文件流生命周期仅限本次调用）。</param>
         /// <param name="cancellationToken">取消令牌（替换前检查）。</param>
@@ -238,11 +236,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 删除文件（幂等：不存在视为成功；带退避重试）。
-        /// <para>先清同路径中转日志（<see cref="JOURNAL_FILE_SUFFIX"/>）再删主档：不清 journal 的话，
-        /// <see cref="RecoverInterruptedWrites"/> 会在下次初始化把删掉的旧档抬回来；而先删主档的话，
-        /// journal 被云同步/杀软锁住时就留下「主档已没、journal 尚存」的形态——本槽在本次会话里消失，
-        /// 下次开机又自己复活。</para>
         /// </summary>
+        /// <remarks>
+        /// 须先清同路径中转日志（<see cref="JOURNAL_FILE_SUFFIX"/>）再删主档：反序会在 journal 被云同步/杀软锁住时留下「主档已没、journal 尚存」的形态， <br />
+        /// 令已删槽位在下次初始化被 <see cref="RecoverInterruptedWrites"/> 抬回。
+        /// </remarks>
         /// <param name="filePath">文件完整路径。</param>
         public override void DeleteFile(string filePath)
         {
@@ -360,10 +358,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 抬回上次写入中断留下的日志档（<see cref="FallbackReplace"/> 的两步之间崩溃即属此类）：
-        /// 主档不在而日志档在 → 改名回主档，旧存档重新可读；主档在 → 日志档属陈旧残留，删掉且不覆盖新档。
-        /// <para>尽力而为，失败仅告警；须在 <see cref="CleanupOrphanTempFiles"/> 之前跑（先抬回主档，再扫临时残留）。</para>
+        /// 抬回上次写入中断留下的日志档（<see cref="FallbackReplace"/> 两步之间崩溃即属此类）：主档不在而日志档在则改名回主档，主档在则删除日志档且不覆盖新档。
         /// </summary>
+        /// <remarks>尽力而为，失败仅告警；须在 <see cref="CleanupOrphanTempFiles"/> 之前调用（先抬回主档，再扫临时残留）。</remarks>
         /// <param name="rootDirectory">存档数据根目录。</param>
         public override void RecoverInterruptedWrites(string rootDirectory)
         {
@@ -470,8 +467,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 原子替换：目标存在时优先 <see cref="File.Replace"/>（NTFS 元数据级原子，无丢失窗口），
-        /// 平台不支持时转 <see cref="FallbackReplace"/>；目标不存在时直接改名。
+        /// 原子替换目标文件：优先 <see cref="File.Replace"/>（NTFS 元数据级原子，无丢失窗口），平台不支持时转 <see cref="FallbackReplace"/>；目标不存在时直接改名。
         /// </summary>
         /// <param name="tempFilePath">临时文件路径。</param>
         /// <param name="saveFilePath">目标存档路径。</param>
@@ -496,14 +492,13 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 没有原子替换能力的平台（Android / iOS / WebGL 等 POSIX 语义）下的回退写法：
-        /// 先把旧档改名到日志位，再把临时文件改名到位，成功后清掉日志。
-        /// <para>刻意不写成「删掉旧档再改名」——那两步之间崩溃或断电就等于存档消失。到位那一步失败时转
-        /// <see cref="RollbackJournal"/> 抬回；进程整个崩在两步之间时旧档完整留在日志位，
-        /// 由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回。</para>
-        /// <para>刻意不复用 <see cref="BACKUP_FILE_SUFFIX"/>：那是项目侧手动备份的持久单槽位，借它中转会让
-        /// 玩家「恢复上一版」捞到一份写入中途的快照。</para>
+        /// 无原子替换能力的平台（Android / iOS / WebGL 等 POSIX 语义）下的回退写法：旧档先改名到日志位，临时文件再改名到位，成功后清掉日志。
         /// </summary>
+        /// <remarks>
+        /// 不写成「删掉旧档再改名」——那两步之间崩溃或断电等于存档消失；到位失败时转 <see cref="RollbackJournal"/> 抬回，进程崩在两步之间时旧档完整留在日志位， <br />
+        /// 由 <see cref="RecoverInterruptedWrites"/> 在下次初始化抬回。 <br />
+        /// 不复用 <see cref="BACKUP_FILE_SUFFIX"/>（项目侧手动备份的持久单槽位），借它中转会让玩家「恢复上一版」捞到写入中途的快照。
+        /// </remarks>
         /// <param name="tempFilePath">已落盘的临时文件路径（本次要写入的新内容）。</param>
         /// <param name="saveFilePath">目标存档路径。</param>
         internal static void FallbackReplace(string tempFilePath, string saveFilePath)
@@ -533,12 +528,12 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 到位失败后的回滚：把 journal 抬回主档位置，原异常由调用方继续上抛。
-        /// <para>只在 journal 确实还在时才动主档：此时主档位置上可能是并发恢复刚抬回来的旧档，
-        /// 无判据地删掉它就把唯一可读副本删了。本类的第一不变量是「任一时刻主档或 journal 至少一处可读」，
-        /// 回滚路径自己不得破坏它。</para>
-        /// <para>抬回失败时保留 journal 与原样主档残迹，交给下次初始化的
-        /// <see cref="RecoverInterruptedWrites"/> 按「主档非空才算已提交」裁决。</para>
         /// </summary>
+        /// <remarks>
+        /// 只在 journal 确实还在时才动主档——主档位置上可能是并发恢复刚抬回来的旧档，无判据地删掉它就删了唯一可读副本。 <br />
+        /// 本类第一不变量：任一时刻主档或 journal 至少一处可读，回滚路径自己不得破坏。 <br />
+        /// 抬回失败时保留 journal 与原样主档残迹，交给下次初始化的 <see cref="RecoverInterruptedWrites"/> 按「主档非空才算已提交」裁决。
+        /// </remarks>
         /// <param name="journalFilePath">中转日志文件路径（旧档内容）。</param>
         /// <param name="saveFilePath">目标存档路径。</param>
         internal static void RollbackJournal(string journalFilePath, string saveFilePath)

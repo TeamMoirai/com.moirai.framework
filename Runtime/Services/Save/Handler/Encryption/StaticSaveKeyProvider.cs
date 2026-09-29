@@ -6,9 +6,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 静态密钥提供方（默认）：固定口令 + 盐文经 PBKDF2-SHA256 派生密钥材料。
-    /// <para>SECURITY: 上线前必须替换占位口令与盐文（可在 Inspector 序列化配置，或运行期经 <see cref="SetDerivationParameters"/> 注入——如按平台账号派生）。</para>
-    /// <para>运行期注入只写 <see cref="NonSerialized"/> 覆盖字段——序列化配置保持为构建期基线，运行期覆盖不脏化设置资产（编辑器下不会被误序列化回写）。</para>
     /// </summary>
+    /// <remarks>
+    /// SECURITY: 上线前必须替换占位口令与盐文（可在 Inspector 序列化配置，或运行期经 <see cref="SetDerivationParameters"/> 注入，如按平台账号派生）。 <br />
+    /// 运行期注入只写 <c>NonSerialized</c> 覆盖字段——序列化配置保持为构建期基线，不脏化设置资产。
+    /// </remarks>
     [Serializable]
     public class StaticSaveKeyProvider : SaveKeyProvider
     {
@@ -34,14 +36,10 @@ namespace Moirai.Atropos.Save
         /// <summary>派生材料缓存（volatile 引用整体替换原子读；参数变更经 Matches 失配自动失效）。</summary>
         [NonSerialized] private volatile DerivedMaterial _cache;
 
-        /// <summary>
-        /// 共享默认实例（占位参数；未配置密钥提供方时的运行期回退）。
-        /// </summary>
+        /// <summary>共享默认实例（占位参数；未配置密钥提供方时的运行期回退）。</summary>
         internal static readonly StaticSaveKeyProvider Default = new StaticSaveKeyProvider();
 
-        /// <summary>
-        /// 当前生效口令（运行期覆盖优先于序列化配置；供测试与调试回读）。
-        /// </summary>
+        /// <summary>当前生效口令（运行期覆盖优先于序列化配置；供测试与调试回读）。</summary>
         internal string Passphrase => EffectivePassphrase;
 
         /// <summary>生效口令（覆盖优先）。</summary>

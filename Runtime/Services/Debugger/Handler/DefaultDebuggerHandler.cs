@@ -7,8 +7,11 @@ namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 基于 UI Toolkit 运行时界面的默认调试器处理器。
-    /// <para><see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性，并在首个 Tick 懒建运行时宿主（<see cref="DebuggerRuntimeHost"/>，纯运行时构建的 UIDocument，无资产依赖）。</para>
     /// </summary>
+    /// <remarks>
+    /// <see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性， <br />
+    /// 并在首个 Tick 懒建运行时宿主 <see cref="DebuggerRuntimeHost"/>（无资产依赖）。
+    /// </remarks>
     [Serializable]
     internal sealed class DefaultDebuggerHandler : DebuggerServiceHandler
     {
@@ -35,24 +38,16 @@ namespace Moirai.Atropos.Debugger
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取控制台环形缓冲容量。
-        /// </summary>
+        /// <summary>获取控制台环形缓冲容量。</summary>
         public int ConsoleCapacity => m_ConsoleCapacity;
 
-        /// <summary>
-        /// 获取悬浮入口与统计的帧率刷新间隔（秒）。
-        /// </summary>
+        /// <summary>获取悬浮入口与统计的帧率刷新间隔（秒）。</summary>
         public float FpsUpdateInterval => m_FpsUpdateInterval;
 
-        /// <summary>
-        /// 获取常驻统计 HUD 初始可见性。
-        /// </summary>
+        /// <summary>获取常驻统计 HUD 初始可见性。</summary>
         public bool StatsOverlayVisible => m_StatsOverlayVisible;
 
-        /// <summary>
-        /// 获取主窗口不透明度（0.2-1）。
-        /// </summary>
+        /// <summary>获取主窗口不透明度（0.2-1）。</summary>
         public float WindowOpacity => m_WindowOpacity;
 
         /// <inheritdoc />
@@ -117,11 +112,7 @@ namespace Moirai.Atropos.Debugger
         /// <inheritdoc />
         public override DebuggerLogCapture LogCapture => _logCapture;
 
-        /// <summary>
-        /// 激活策略覆盖点（测试/代码装配用；<c>null</c> = 用 <see cref="DebuggerServiceSettings"/> 的配置）。
-        /// <para>刻意做成 internal 成员而非反射写私有字段：未激活形态（生产默认）在编辑器里靠改设置资产才可复现，
-        /// 而那会污染跨夹具的全局配置。</para>
-        /// </summary>
+        /// <summary>激活策略覆盖点（测试 / 代码装配用；<c>null</c> 表示用 <see cref="DebuggerServiceSettings"/> 的配置）。</summary>
         internal DebuggerActiveWindowType? Internal_ActiveWindowTypeOverride { get; set; }
 
         #endregion
@@ -302,10 +293,11 @@ namespace Moirai.Atropos.Debugger
 
         /// <summary>
         /// 补齐内置调试窗口：只在调试器真正激活时执行一次。
-        /// <para>未激活的构建（生产默认 <see cref="DebuggerActiveWindowType.OnlyOpenWhenDevelopment"/> 且非 debug，
-        /// 或 <see cref="DebuggerActiveWindowType.AlwaysClose"/>）连注册表都不填——注册表为空时
-        /// <see cref="DebuggerService"/> 的窗口枚举与浮窗入口本就不可达。</para>
         /// </summary>
+        /// <remarks>
+        /// 未激活的构建（<see cref="DebuggerActiveWindowType.OnlyOpenWhenDevelopment"/> 且非 debug， <br />
+        /// 或 <see cref="DebuggerActiveWindowType.AlwaysClose"/>）注册表保持为空。
+        /// </remarks>
         private void EnsureBuiltInWindowsRegistered()
         {
             if (_builtInWindowsRegistered)

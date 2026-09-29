@@ -15,11 +15,13 @@ using UObject = UnityEngine.Object;
 namespace Service.Save
 {
     /// <summary>
-    /// 实体增量保存闭环测试（独立夹具——执行模型统一为 [UnityTest] 协程，避免与 async Task 用例混跑的线程归属/事件派发串扰）：
-    /// 零变化零 IO 跳过、字段变化仅写脏块、销毁清理陈旧块、外部改写守卫失效走全量、恢复后基准失效走全量。
-    /// <para>模板加载器注入假实现（绕开 ResourceService/EditMode 限制）；全流程真实文件 IO（<c>s_OverrideBasePath</c> 指向临时目录）；
-    /// 外观处理器经 <see cref="SetFacadeHandler"/> 反射注入（生成的 Handler 属性 setter 拒绝 null）。</para>
+    /// 实体增量保存闭环测试：零变化零 IO 跳过、字段变化仅写脏块、销毁清理陈旧块、外部改写守卫失效走全量、恢复后基准失效走全量。
     /// </summary>
+    /// <remarks>
+    /// 独立夹具：执行模型统一为 <c>[UnityTest]</c> 协程 + <c>WaitForTask</c>，避免与 <c>async Task</c> 用例混跑的线程归属与事件派发串扰。 <br />
+    /// 模板加载器注入假实现（绕开 ResourceService/EditMode 限制）；全流程真实文件 IO（<c>s_OverrideBasePath</c> 指向临时目录）； <br />
+    /// 外观处理器经 <see cref="SetFacadeHandler"/> 反射注入（生成的 Handler 属性 setter 拒绝 null）。
+    /// </remarks>
     public class SaveEntityIncrementalTests
     {
         /// <summary>注册键：测试模板。</summary>
@@ -160,9 +162,12 @@ namespace Service.Save
         private static void SetFacadeHandler(SaveServiceHandler handler) => SaveService.Internal_UseHandler(handler);
 
         /// <summary>
-        /// 主线程等待异步任务完成（逐帧 yield 保持编辑器泵——工作线程入队的事件/日志在主线程派发窗口内到达；
-        /// 协程用例的线程归属与派发时序确定性依赖本模式，禁止改用 async Task + AsTask await——EditMode 无 SyncContext，续体落线程池会触发 Unity API 主线程违例）。
+        /// 主线程等待异步任务完成（逐帧 yield 保持编辑器泵）。
         /// </summary>
+        /// <remarks>
+        /// 工作线程入队的事件/日志在主线程派发窗口内到达，协程用例的线程归属与派发时序确定性依赖本模式。 <br />
+        /// 禁止改用 <c>async Task</c> + <c>AsTask</c> await：EditMode 无 SyncContext，续体落线程池会触发 Unity API 主线程违例。
+        /// </remarks>
         private static IEnumerator WaitForTask(Task task)
         {
             while (!task.IsCompleted)

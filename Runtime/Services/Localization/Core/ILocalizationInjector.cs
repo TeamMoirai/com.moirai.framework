@@ -6,9 +6,9 @@ namespace Moirai.Atropos.Localization
 	public interface ILocalizationInjector
 	{
 		/// <summary>
-		/// 将本地化数据注入目标组件。载荷类型的语义由具体注入器自定：文本注入器把 <c>string</c> 当译文；
-		/// 资源类注入器（图片 / 音频）按 <c>int</c> 语言下标、<c>string</c> 资源 location、资产直注派发。
+		/// 将本地化数据注入目标组件；载荷类型的语义由具体注入器自定。
 		/// </summary>
+		/// <remarks>文本注入器把 <c>string</c> 当译文；资源类注入器（图片 / 音频）按 <c>int</c> 语言下标、<c>string</c> 资源 location 或资产直注派发。</remarks>
 		/// <typeparam name="T1">本地化数据的类型。</typeparam>
 		/// <typeparam name="T2">本地化器的类型。</typeparam>
 		/// <param name="localizedData">待注入的本地化数据。</param>

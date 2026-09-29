@@ -8,13 +8,12 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 缓动动画处理器抽象基类。
-    /// <para>
-    /// 实现方可为 PrimeTween、LitMotion、DOTween 或自研引擎。
-    /// 所有缓动方法统一接收 <see cref="TweenEase"/>，
-    /// 实现方可通过 <see cref="TweenEase.IsCurve"/> / <see cref="TweenEase.IsEase"/>
-    /// 判断并转换为自身格式，也可直接调用 <see cref="TweenEase.Evaluate(float)"/>。
-    /// </para>
     /// </summary>
+    /// <remarks>
+    /// 实现方可为 PrimeTween、LitMotion、DOTween 或自研引擎。 <br />
+    /// 所有缓动方法统一接收 <see cref="TweenEase"/>，实现方可用 <see cref="TweenEase.IsCurve"/> / <see cref="TweenEase.IsEase"/>
+    /// 判断并转换为自身格式，也可直接调用 <see cref="TweenEase.Evaluate(float)"/>。
+    /// </remarks>
     [Serializable]
     public abstract partial class TweenHandler : FrameworkHandler
     {
@@ -97,8 +96,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 暂停指定 tween（冻结时间推进）。
-        /// 默认实现不支持暂停——抛出 <see cref="GameException"/>；实现方按需覆写。
         /// </summary>
+        /// <remarks>默认实现不支持暂停，实现方按需覆写。</remarks>
+        /// <exception cref="GameException">默认实现被调用（未覆写）时抛出。</exception>
         public virtual void Pause(long tweenId)
         {
             throw new GameException(StringUtility.Format("TweenHandler '{0}' does not implement Pause.", GetType().Name));
@@ -106,8 +106,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 恢复指定 tween。
-        /// 默认实现不支持恢复——抛出 <see cref="GameException"/>；实现方按需覆写。
         /// </summary>
+        /// <remarks>默认实现不支持恢复，实现方按需覆写。</remarks>
+        /// <exception cref="GameException">默认实现被调用（未覆写）时抛出。</exception>
         public virtual void Resume(long tweenId)
         {
             throw new GameException(StringUtility.Format("TweenHandler '{0}' does not implement Resume.", GetType().Name));
@@ -115,11 +116,13 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 等待 tween 结束（UniTask）。
-        /// <para>任何结束原因（自然完成/Complete/Stop/目标销毁/清理）→ 正常返回，不区分死因；
-        /// 仅外部 CancellationToken 取消 → OperationCanceledException（放弃等待，tween 不被停止）。</para>
-        /// <para>基类默认实现为逐帧轮询兜底（async Yield 循环，无闭包/无每帧委托分配，判定晚一帧）；
-        /// DefaultTweenHandler / LitMotionHandler 覆写为完成信号即时版本；PrimeTweenHandler 覆写为同构轮询版。</para>
         /// </summary>
+        /// <remarks>
+        /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待， <br />
+        /// tween 不被停止）。 <br />
+        /// 基类默认实现为逐帧轮询兜底（async Yield 循环，无闭包/无每帧委托分配，判定晚一帧）； <br />
+        /// <see cref="DefaultTweenHandler"/> / <see cref="LitMotionHandler"/> 覆写为完成信号即时版本，<see cref="PrimeTweenHandler"/> 覆写为同构轮询版。
+        /// </remarks>
         public virtual async UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {
             while (IsAlive(tweenId))
@@ -412,9 +415,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 零分配 Custom 重载：回调直接持有 object 目标，避免泛型闭包分配。
-        /// 调用侧使用 static lambda / 方法组时无任何堆分配。
-        /// 默认实现回退到泛型版本；DefaultTweenHandler 覆写为直存回调（0 GC）。
         /// </summary>
+        /// <remarks>
+        /// 调用侧使用 static lambda / 方法组时无堆分配；默认实现回退到泛型版本，<see cref="DefaultTweenHandler"/> 覆写为直存回调（0 GC）。
+        /// </remarks>
         public virtual long Custom(object target, float startValue, float endValue, float duration, Action<object, float> onValueChange, TweenEase ease = default,
             int cycles = 1, TweenUtility.ECycleMode cycleMode = TweenUtility.ECycleMode.Restart, float startDelay = 0, bool useUnscaledTime = false, Action onComplete = null)
         {

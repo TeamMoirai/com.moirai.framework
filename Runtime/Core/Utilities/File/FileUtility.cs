@@ -17,7 +17,6 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="filePath">文件夹路径。</param>
         /// <param name="isCreateDir">是否需要创建不存在的文件夹。</param>
-        /// <returns></returns>
         public static bool CreateFile(string filePath, bool isCreateDir = true)
         {
             if (!System.IO.File.Exists(filePath))
@@ -51,7 +50,6 @@ namespace Moirai.Atropos
         /// <param name="filePath">文件夹路径。</param>
         /// <param name="info">文件实例信息。</param>
         /// <param name="isCreateDir">是否需要创建不存在的文件夹。</param>
-        /// <returns></returns>
         public static bool CreateFile(string filePath, string info, bool isCreateDir = true)
         {
             StreamWriter sw;
@@ -116,10 +114,8 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 将字节长度转换为易读的字符串格式，
+        /// 将字节长度转换为易读的字符串格式，。
         /// </summary>
-        /// <param name="length"></param>
-        /// <returns></returns>
         /// <remarks>根据大小自动选择单位（Bytes/KB/MB/GB）。依次判断是否小于1024（Bytes）、1MB（转KB）、1GB（转MB），否则转为GB，均保留两位小数。</remarks>
         public static string GetLengthString(long length)
         {
@@ -137,10 +133,8 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将字节数转换为易读的存储容量单位字符串（如KB、MB等），
+        /// 将字节数转换为易读的存储容量单位字符串（如KB、MB等），。
         /// </summary>
-        /// <param name="byteLength"></param>
-        /// <returns></returns>
         /// <remarks>通过逐级比较字节长度与2的幂次方阈值（1024=2^10），选择最合适的单位进行格式化输出，保留两位小数。</remarks>
         public static string GetByteLengthString(long byteLength)
         {

@@ -101,9 +101,8 @@ namespace Moirai.Atropos.Localization
 
 		/// <summary>
 		/// 应用语言联动的呈现属性：TMP 的 RTL 方向（阿拉伯/希伯来等）与按语言索引的字体资产。
-		/// <para>下标与 <c>LocalizationService.CurrentLanguageIndex</c> 同一约定（同 ImageLocalizer 数组语义）；
-		/// 越界或空元素一律保持组件原值，不做清空。</para>
 		/// </summary>
+		/// <remarks>下标与 <c>LocalizationService.CurrentLanguageIndex</c> 同一约定；越界或空元素一律保持组件原值，不做清空。</remarks>
 		private void ApplyLanguagePresentation()
 		{
 			var languageIndex = LocalizationService.CurrentLanguageIndex;

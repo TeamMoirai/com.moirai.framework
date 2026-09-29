@@ -5,21 +5,26 @@ using UnityEngine;
 namespace Core.Events
 {
     /// <summary>
-    /// <see cref="MonoEventCoordinator"/> 销毁排空验收：OnDestroy 必须释放仍滞留派发队列的事件，
-    /// 配平入队时的 <c>Acquire()</c>，否则池化事件净泄漏 + 残留态。
+    /// <see cref="MonoEventCoordinator"/> 销毁排空验收：<c>OnDestroy</c> 必须释放仍滞留派发队列的事件，配平入队时的 <c>Acquire()</c>，否则池化事件净泄漏并残留态。
     /// </summary>
     public sealed class MonoEventCoordinatorDrainTests
     {
         #region 测试替身 [DOUBLES]
 
-        /// <summary>仅用于测试的最小事件类型。</summary>
+        /// <summary>
+        /// 仅用于测试的最小事件类型。
+        /// </summary>
         public sealed class ProbeEvent : EventBase<ProbeEvent>
         {
-            /// <summary>从事件池取出一个实例。</summary>
+            /// <summary>
+            /// 从事件池取出一个实例。
+            /// </summary>
             public static ProbeEvent Take() => GetPooled();
         }
 
-        /// <summary>暴露 protected 生命周期的测试协调器（EditMode 下 AddComponent 不跑 Awake/OnDestroy）。</summary>
+        /// <summary>
+        /// 暴露 protected 生命周期的测试协调器（EditMode 下 AddComponent 不跑 Awake/OnDestroy）。
+        /// </summary>
         private sealed class TestCoordinator : MonoEventCoordinator
         {
             public override CallbackEventHandler GetCallbackEventHandler() => null;

@@ -5,10 +5,9 @@ using Cysharp.Threading.Tasks;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 加载去重——同一条 packed key 的并发请求只发一次后端加载，其余在此排队等结果。
-    /// <para>排队与成败只认计数，句柄本身由具体后端解释：本文件因此不出现任何后端类型，
-    /// 把句柄写进槽的两个 Attach 留在后端侧。</para>
+    /// 加载去重：同一条 packed key 的并发请求只发一次后端加载，其余在此排队等结果。
     /// </summary>
+    /// <remarks>排队与成败只认计数，句柄由具体后端解释；本文件不出现后端类型，句柄入槽的两个 Attach 留在后端侧。</remarks>
     internal sealed partial class ResourceRecordStore
     {
         internal bool TryBeginLoading(ulong assetObjectKey)

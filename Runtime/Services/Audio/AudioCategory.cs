@@ -6,10 +6,9 @@ using UnityEngine.Audio;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// 音频轨道（类别）。管理一组可复用的 <see cref="AudioAgent"/> 通道。
-    /// <para>取通道顺序：空闲 → 硬上限内扩展 → 按优先级 Voice Stealing。</para>
-    /// <para>Unity Priority 语义：0 最高，255 最低；仅抢占「不更重要」的非持久音。</para>
+    /// 音频轨道（类别）：管理一组可复用的 <see cref="AudioAgent"/> 通道。
     /// </summary>
+    /// <remarks>取通道顺序：空闲 → 硬上限内扩展 → 按优先级 Voice Stealing。Priority 0 最高、255 最低；仅抢占「不更重要」的非持久音。</remarks>
     [Serializable]
     public class AudioCategory
     {
@@ -20,9 +19,7 @@ namespace Moirai.Atropos.Audio
         private const float NO_CHANNEL_LOG_INTERVAL = 3f;
         private float _lastNoChannelLogAt;
 
-        /// <summary>
-        /// 所属音频处理器（Agent 绑定用，勿用全局 AudioService.Handler）。
-        /// </summary>
+        /// <summary>所属音频处理器（Agent 绑定用，勿用全局 AudioService.Handler）。</summary>
         internal AudioServiceHandler Handler => _handler;
 
         #region 构造函数 [CONSTRUCTORS]
@@ -30,7 +27,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音频轨道构造函数。
         /// </summary>
-        /// <param name="handler">音频处理器</param>
+        /// <param name="handler">音频处理器。</param>
         /// <param name="audioGroupConfig">音频轨道组配置。</param>
         /// <exception cref="ArgumentNullException">handler 或 audioGroupConfig 为 null。</exception>
         internal AudioCategory(AudioServiceHandler handler, AudioGroupConfig audioGroupConfig)
@@ -63,34 +60,22 @@ namespace Moirai.Atropos.Audio
 
         #region 公共属性 [PUBLIC PROPERTIES]
 
-        /// <summary>
-        /// 对应的音轨。
-        /// </summary>
+        /// <summary>对应的音轨。</summary>
         public EAudioTrack AudioTrack => _audioGroupConfig.AudioTrack;
 
-        /// <summary>
-        /// 下属所有的音频代理。
-        /// </summary>
+        /// <summary>下属所有的音频代理。</summary>
         public List<AudioAgent> AudioAgents { get; private set; }
 
-        /// <summary>
-        /// 音频混响器。
-        /// </summary>
+        /// <summary>音频混响器。</summary>
         public AudioMixer AudioMixer => AudioMixerGroup != null ? AudioMixerGroup.audioMixer : null;
 
-        /// <summary>
-        /// 音频混响器组。
-        /// </summary>
+        /// <summary>音频混响器组。</summary>
         public AudioMixerGroup AudioMixerGroup => _audioGroupConfig.AudioMixerGroup;
 
-        /// <summary>
-        /// 实例化根节点。
-        /// </summary>
+        /// <summary>实例化根节点。</summary>
         public Transform InstanceRoot { get; private set; }
 
-        /// <summary>
-        /// 当前通道数。
-        /// </summary>
+        /// <summary>当前通道数。</summary>
         public int ChannelCount => AudioAgents.Count;
 
         #endregion

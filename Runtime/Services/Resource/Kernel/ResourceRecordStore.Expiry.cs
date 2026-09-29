@@ -5,10 +5,9 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源记录内核的过期侧——两座侵入式时间轮（KeepAlive / Idle）、未用候选表与容量淘汰。
-    /// <para>摘链一律按槽里存下的桶号走、绝不从当前 tick 反推，走查途中不得同步摘除；
-    /// 这两条各记过一次真实事故，改前先读方法上的注释。</para>
+    /// 资源记录内核的过期侧：两座侵入式时间轮（KeepAlive / Idle）、未用候选表与容量淘汰。
     /// </summary>
+    /// <remarks>摘链一律按槽里存下的桶号走、绝不从当前 tick 反推，走查途中不得同步摘除。</remarks>
     internal sealed partial class ResourceRecordStore
     {
         // 一趟容量淘汰最多摘掉几条。挑受害者是整表扫（候选表无序、又不是轮盘序），
@@ -17,23 +16,22 @@ namespace Moirai.Atropos.Resource
         // 上限只限制"这一帧做多少"，不改变淘汰次序——没做完就把请求位留着，下一帧接着摘。
         private const int IDLE_TRIM_VICTIMS_PER_PASS = 8;
 
-        /// <summary>容量被调小后请求一次淘汰：不当场做，交给下一帧的维护走查。</summary>
+        /// <summary>
+        /// 容量被调小后请求一次淘汰：不当场做，交给下一帧的维护走查。
+        /// </summary>
         internal void RequestIdleCapacityTrim()
         {
             _idleCapacityTrimPending = true;
         }
 
-        /// <summary>
-        /// 淘汰请求位。运行期只有 <c>ProcessResourceMaintenance</c> 读它，这里另开一个读数给测试：
-        /// "预算用尽时把请求位留回"是这条路径唯一的续跑保证，漏掉就静默停在超限状态。
-        /// </summary>
+        /// <summary>淘汰请求位，供测试读取。</summary>
+        /// <remarks>运行期只有 <c>ProcessResourceMaintenance</c> 读它；"预算用尽时把请求位留回"是该路径唯一的续跑保证。</remarks>
         internal bool IdleCapacityTrimPending => _idleCapacityTrimPending;
 
         /// <summary>
         /// 按最小堆弹出空闲最久（<see cref="AssetSlot.IdleExpireTick"/> 最小）的受害者淘汰。
-        /// <para>候选表是按过期刻度的二叉最小堆：<c>UnusedCandidateIndex</c> 即堆下标。
-        /// 每趟最多 <paramref name="maxVictims"/> 条，没做完把请求位留回。</para>
         /// </summary>
+        /// <remarks>候选表是按过期刻度的二叉最小堆（<c>UnusedCandidateIndex</c> 即堆下标）；每趟最多 <paramref name="maxVictims"/> 条，没做完把请求位留回。</remarks>
         internal void TrimIdleAssetCapacity(int maxVictims)
         {
             _idleCapacityTrimPending = false;
@@ -141,9 +139,9 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 两座时间轮共用的桶走查。KeepAlive（kind=1）到期清保活计数后转状态；Idle（kind=2）到期无引用则释放。
-        /// <para>摘链一律按槽里存下的桶号（<see cref="RemoveFromWheel"/>），走查途中只记 next、不在此同步摘除未到期节点。</para>
+        /// 两座时间轮共用的桶走查：KeepAlive（kind=1）到期清保活计数后转状态，Idle（kind=2）到期无引用则释放。
         /// </summary>
+        /// <remarks>摘链按槽里存下的桶号（<see cref="RemoveFromWheel"/>）；走查途中只记 next，不在此同步摘除未到期节点。</remarks>
         private int ProcessWheelBucket(int[] buckets, int queueKind, int bucketTick, int currentTick,
             int maxCount, out bool completed)
         {
@@ -332,7 +330,9 @@ namespace Moirai.Atropos.Resource
             ScheduleOnWheel(ref _keepAliveBuckets, WHEEL_KIND_KEEP_ALIVE, assetId, ref slot, slot.KeepAliveExpireTick);
         }
 
-        /// <summary>入轮：同一算法服务两座轮，仅队列种类与过期刻度来源不同。</summary>
+        /// <summary>
+        /// 入轮：同一算法服务两座轮，仅队列种类与过期刻度来源不同。
+        /// </summary>
         private void ScheduleOnWheel(ref int[] buckets, int queueKind, int assetId, ref AssetSlot slot, int expireTick)
         {
             EnsureWheelBuckets(ref buckets);
@@ -549,7 +549,9 @@ namespace Moirai.Atropos.Resource
             }
         }
 
-        /// <summary>堆比较：IdleExpireTick 越小越先淘汰（空闲最久）。失效槽排最后。</summary>
+        /// <summary>
+        /// 堆比较：IdleExpireTick 越小越先淘汰（空闲最久）。失效槽排最后。
+        /// </summary>
         private int CompareUnusedIdleTick(int a, int b)
         {
             return GetUnusedIdleTick(a).CompareTo(GetUnusedIdleTick(b));

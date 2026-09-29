@@ -56,9 +56,7 @@ namespace Moirai.Atropos.Events.Editor
 
         private int m_LineNumber;
 
-        /// <summary>
-        /// 获取该代码行的哈希码，用于与回调记录匹配高亮。
-        /// </summary>
+        /// <summary>获取该代码行的哈希码，用于与回调记录匹配高亮。</summary>
         public int HashCode { get; private set; }
 
         /// <summary>

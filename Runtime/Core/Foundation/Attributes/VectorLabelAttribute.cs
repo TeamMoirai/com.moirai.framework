@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Attributes
 {
     /// <summary>
-    /// 将 Vector 的 XY(ZW) 轴分别显示为指定的 Label
+    /// 将 Vector 的 XY(ZW) 轴分别显示为指定的 Label。
     /// </summary>
     [Conditional("UNITY_EDITOR")]
     [AttributeUsage(AttributeTargets.Field)]

@@ -9,14 +9,13 @@ using UnityEngine.TestTools;
 namespace Service.Localization
 {
     /// <summary>
-    /// 本地化处理器（<see cref="LocalizationServiceHandler"/>）行为测试：
-    /// 首启语言可解析性、首查询取译、缺译即露 key、重注入与事件时序、格式化异常隔离、加载期校验。
-    /// <para>处理器级用例直接构造桩数据源（与 <c>DefaultProcedureHandlerTests</c> 同约定），
-    /// 不碰 <see cref="LocalizationService"/> 的静态 Handler——那是跨用例状态，
-    /// 写脏会让 <c>ServiceContractTests</c> 的降级断言按执行顺序随机失败。</para>
-    /// <para>首启语言取自检测链（命令行 → 编辑器设置 → 存档 → 系统语言），机器相关，
-    /// 因此需要"确实发生切换"的用例一律经 <see cref="OtherLoadedLanguage"/> 取目标语言，不硬编码。</para>
+    /// 本地化处理器（<see cref="LocalizationServiceHandler"/>）行为测试：首启语言可解析性、首查询取译、缺译即露 key、重注入与事件时序、格式化异常隔离、加载期校验。
     /// </summary>
+    /// <remarks>
+    /// 处理器级用例直接构造桩数据源（与 <c>DefaultProcedureHandlerTests</c> 同约定），不碰 <see cref="LocalizationService"/> 的静态 Handler——那是跨用例状态， <br />
+    /// 写脏会让 <c>ServiceContractTests</c> 的降级断言按执行顺序随机失败。 <br />
+    /// 首启语言取自检测链（命令行 → 编辑器设置 → 存档 → 系统语言），机器相关，因此需要「确实发生切换」的用例一律经 <see cref="OtherLoadedLanguage"/> 取目标语言，不硬编码。
+    /// </remarks>
     [TestFixture]
     public sealed class LocalizationServiceHandlerTests
     {
@@ -40,7 +39,9 @@ namespace Service.Localization
             _handler = null;
         }
 
-        /// <summary>装载英/中两列词条；<c>null</c> 表示该列缺译。</summary>
+        /// <summary>
+        /// 装载英/中两列词条；<c>null</c> 表示该列缺译。
+        /// </summary>
         private void LoadStrings(string key, string english, string chinese)
         {
             _handler.Languages = new List<Language> { English, Chinese };
@@ -50,7 +51,9 @@ namespace Service.Localization
             };
         }
 
-        /// <summary>取一个必定与当前不同的已加载语言——首启语言由检测链决定，用例不能假定。</summary>
+        /// <summary>
+        /// 取一个必定与当前不同的已加载语言——首启语言由检测链决定，用例不能假定。
+        /// </summary>
         private Language OtherLoadedLanguage()
         {
             _ = _handler.EntryCount;
@@ -992,7 +995,9 @@ namespace Service.Localization
         #endregion
     }
 
-    /// <summary>桩本地化器——记录重注入次序，可切换为抛异常。文件级类型：<c>AddComponent</c> 不接受嵌套类型。</summary>
+    /// <summary>
+    /// 桩本地化器——记录重注入次序，可切换为抛异常。文件级类型：<c>AddComponent</c> 不接受嵌套类型。
+    /// </summary>
     internal sealed class L10nProbeLocalizer : LocalizerBase
     {
         public Action OnLocalized;
@@ -1011,7 +1016,9 @@ namespace Service.Localization
         }
     }
 
-    /// <summary>桩本地化数据源——语言经返回元组随批自报（语言头与词条同源同序）。</summary>
+    /// <summary>
+    /// 桩本地化数据源——语言经返回元组随批自报（语言头与词条同源同序）。
+    /// </summary>
     // 缓解口径（三条禁令 #1）：派生框架基类但不带 [Serializable] 且 internal——[Serializable] 不被
     // 继承，SerializeReference 的 Inspector 下拉只收录带该特性的派生，替身不进生产资产下拉。
     internal sealed class L10nProbeHandler : LocalizationServiceHandler

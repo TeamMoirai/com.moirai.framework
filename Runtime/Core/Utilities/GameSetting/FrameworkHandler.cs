@@ -3,22 +3,20 @@
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 框架处理器基类。所有策略模式处理器（LogHandler、JsonHandler等）继承此类。
-    /// <para>生命周期：<see cref="Internal_Init"/> → <see cref="OnInit"/> → 运行期 →
-    /// <see cref="Internal_Shutdown"/> → <see cref="OnShutdown"/>。</para>
-    /// <para>由 <c>HandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 自动调用 <see cref="Internal_Init"/>，
-    /// 替换后端时对旧实例调用 <see cref="Internal_Shutdown"/>。</para>
-    /// <para>本基类只有同步生命周期。需要异步初始化的对象走 Kernel 的 <c>IService.OnInitAsync</c>，
-    /// 那条链路由服务世界接线；处理器挂异步钩子不会被调用。</para>
+    /// 框架处理器基类：策略模式处理器（<see cref="LogHandler"/>、JsonHandler 等）的公共父类。
     /// </summary>
+    /// <remarks>
+    /// 生命周期为 <see cref="Internal_Init"/> → <see cref="OnInit"/> → 运行期 → <see cref="Internal_Shutdown"/> → <br />
+    /// <see cref="OnShutdown"/>，全部同步。
+    /// <c>HandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 自动驱动：设置时初始化新实例，替换时先关闭旧实例。
+    /// 需要异步初始化的对象走 Kernel 的 <c>IService.OnInitAsync</c>，处理器挂异步钩子不会被调用。
+    /// </remarks>
     [Serializable]
     public abstract class FrameworkHandler
     {
         // 标记 [NonSerialized] 以保证域重载后重置其值，避免序列化快照的状态污染
         [NonSerialized] private bool _initialized;
-        /// <summary>
-        /// 处理器是否已初始化。
-        /// </summary>
+        /// <summary>处理器是否已初始化。</summary>
         public virtual bool IsInitialized => _initialized;
 
         #region 同步生命周期 [SYNC LIFECYCLE]
@@ -47,9 +45,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 同步初始化回调，用于接管后端资源。
-        /// <para>在此方法中解析对其他 Handler 的依赖（如 <c>ResourceUtility.Handler</c>）。
-        /// 调用顺序由 <see cref="GameAppSettings.Initiation"/> 中的赋值顺序保证。</para>
         /// </summary>
+        /// <remarks>可在此解析对其他 Handler 的依赖（如 <c>ResourceUtility.Handler</c>）；调用顺序由 <see cref="GameAppSettings.Initiation"/> 中的赋值顺序保证。 <br />
+        /// </remarks>
         protected virtual void OnInit()
         {
         }

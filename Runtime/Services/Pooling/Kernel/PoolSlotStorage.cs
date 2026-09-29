@@ -5,28 +5,24 @@ using UnityEngine;
 namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
-    /// 分页槽位存储：128 槽/页 + 页级自由栈——索引稳定、扩容免整块拷贝。
-    /// <para>struct 语义——必须存储于可变字段后调用（方法直接改写字段状态）。</para>
-    /// <para>槽位内容由调用方在 <see cref="AllocSlot"/> 返回后全量初始化（含链表指针复位）。</para>
+    /// 分页槽位存储：128 槽 / 页 + 页级自由栈，索引稳定、扩容免整块拷贝。
     /// </summary>
+    /// <remarks>
+    /// struct 语义：必须存储于可变字段后调用（方法直接改写字段状态）。 <br />
+    /// 槽位内容由调用方在 <see cref="AllocSlot"/> 返回后全量初始化（含链表指针复位）。
+    /// </remarks>
     /// <typeparam name="TSlot">槽位结构类型（字段由调用方定义）。</typeparam>
     internal struct PoolSlotStorage<TSlot> where TSlot : struct
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>
-        /// 页内偏移位数（128 槽/页）。
-        /// </summary>
+        /// <summary>页内偏移位数（128 槽/页）。</summary>
         internal const int PAGE_BITS = 7;
 
-        /// <summary>
-        /// 每页槽位数量。
-        /// </summary>
+        /// <summary>每页槽位数量。</summary>
         internal const int PAGE_SIZE = 1 << PAGE_BITS;
 
-        /// <summary>
-        /// 页内偏移掩码。
-        /// </summary>
+        /// <summary>页内偏移掩码。</summary>
         internal const int PAGE_MASK = PAGE_SIZE - 1;
 
         private const int INITIAL_PAGE_ARRAY_CAPACITY = 4;
@@ -46,9 +42,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 属性 [PROPERTIES]
 
-        /// <summary>
-        /// 获取当前槽位总容量（已分配页数 × 页大小）。
-        /// </summary>
+        /// <summary>获取当前槽位总容量（已分配页数 × 页大小）。</summary>
         public int SlotCount => _pageCount << PAGE_BITS;
 
         #endregion

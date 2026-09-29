@@ -26,17 +26,11 @@ public sealed partial class SpriteConfig : Luban.BeanBase
         return new UI.SpriteConfig(_buf);
     }
 
-    /// <summary>
-    /// 资源ID
-    /// </summary>
+    /// <summary>资源ID。</summary>
     public readonly string Id;
-    /// <summary>
-    /// SpriteAtlas 中的名字
-    /// </summary>
+    /// <summary>SpriteAtlas 中的名字。</summary>
     public readonly string SpriteName;
-    /// <summary>
-    /// 资源所在的 SpriteAtlas ID
-    /// </summary>
+    /// <summary>资源所在的 SpriteAtlas ID。</summary>
     public readonly string SpriteAtlasId;
    
     public const int __ID__ = -1097674847;

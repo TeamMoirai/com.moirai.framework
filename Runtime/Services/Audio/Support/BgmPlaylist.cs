@@ -6,9 +6,8 @@ namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// BGM 播放列表：顺序/随机 + 跨曲淡切 + 分层 ID。
-    /// <para>切歌用 <see cref="AudioService.StopByID"/> + Fade 交叉过渡，
-    /// 同层替换不打断其它 Music 分层。</para>
     /// </summary>
+    /// <remarks>切歌用 <see cref="AudioService.StopByID"/> + Fade 交叉过渡，同层替换不打断其它 Music 分层。</remarks>
     [DisallowMultipleComponent]
     [AddComponentMenu("Moirai/Audio/BGM Playlist")]
     public sealed class BgmPlaylist : MonoBehaviour
@@ -24,8 +23,7 @@ namespace Moirai.Atropos.Audio
         internal static int s_NextAutoId = -1;
 
         /// <summary>
-        /// Enter Play Mode Options 关闭域重载时静态跨局残留：进玩前清一次注册表与游标。
-        /// 正常路径仍靠 OnDisable 归还；这里是崩溃/强杀后的兜底，不是主清理通道。
+        /// 域重载关闭时清理静态注册表与游标（进玩前）——正常路径靠 OnDisable 归还，这里是崩溃/强杀后的兜底。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStaticIdRegistry()
@@ -99,9 +97,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 解析分层 ID：显式正数优先（撞车 fail-fast，本实例不启动播放）；
-        /// 0（<see cref="AutoId"/>）走自动分配（负区间），避免多个列表默认同 ID 互相 StopByID。
-        /// <para>internal 为测试接缝（EditMode 无法自动执行 OnEnable）。</para>
+        /// 解析分层 ID：显式正数优先（撞车 fail-fast，本实例不启动播放），0 走负区间自动分配。
         /// </summary>
         internal void ResolveLayerId()
         {
@@ -166,7 +162,9 @@ namespace Moirai.Atropos.Audio
             if (_playing) AudioService.StopByID(_id, 0f);
         }
 
-        /// <summary>从列表开头播放（Shuffle 重新洗一轮）。</summary>
+        /// <summary>
+        /// 从列表开头播放（Shuffle 重新洗一轮）。
+        /// </summary>
         public void PlayFromStart()
         {
             if (_layerConflicted) return;
@@ -175,10 +173,14 @@ namespace Moirai.Atropos.Audio
             PlayNextInternal();
         }
 
-        /// <summary>播放下一首（带跨曲淡切）。</summary>
+        /// <summary>
+        /// 播放下一首（带跨曲淡切）。
+        /// </summary>
         public void PlayNext() => PlayNextInternal();
 
-        /// <summary>播放上一首。</summary>
+        /// <summary>
+        /// 播放上一首。
+        /// </summary>
         public void PlayPrevious()
         {
             if (_layerConflicted || m_Tracks.Count == 0) return;
@@ -186,7 +188,9 @@ namespace Moirai.Atropos.Audio
             PlayIndex(next);
         }
 
-        /// <summary>播放指定下标。</summary>
+        /// <summary>
+        /// 播放指定下标。
+        /// </summary>
         public void PlayIndex(int index)
         {
             if (_layerConflicted) return;
@@ -195,7 +199,9 @@ namespace Moirai.Atropos.Audio
             StartTrack(m_Tracks[_index]);
         }
 
-        /// <summary>停止本层（可淡出）。</summary>
+        /// <summary>
+        /// 停止本层（可淡出）。
+        /// </summary>
         public void Stop()
         {
             // 冲突/未解析实例不占层；0 是「未指定 ID」的默认音组，误停会波及所有无 ID 播放

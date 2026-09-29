@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 自定义分辨率
+    /// 自定义分辨率。
     /// </summary>
     [Serializable]
     public class CustomResolution
@@ -51,7 +51,7 @@ namespace Moirai.Atropos
     }
 
     /// <summary>
-    /// 分辨率
+    /// 分辨率。
     /// </summary>
     public partial class GraphicsSettings
     {
@@ -93,10 +93,8 @@ namespace Moirai.Atropos
         [Tooltip("如果启用，则自定义分辨率选项将作为第一个选项添加。")]
         [SerializeField] private bool m_AddCustomResolutionOptionIfWindowed = false;
 
-        /// <summary>
-        /// 不建议在移动设备上更改分辨率设置。
-        /// 这样做可能会引发意外的副作用，而且通常移动设备只支持单一分辨率。
-        /// </summary>
+        /// <summary>是否允许在移动设备上更改分辨率（默认 false）。</summary>
+        /// <remarks>移动设备通常只支持单一分辨率，改动可能引发意外副作用；URP 下建议改用 renderScale。</remarks>
         public static bool AllowResolutionChangeOnMobile = false;
 
         private List<Resolution> _resolutionValues;
@@ -108,9 +106,7 @@ namespace Moirai.Atropos
         public static event Action OnMaxResolutionChanged;
         public static event Action<int> OnResolutionChanged;
 
-        /// <summary>
-        /// 是否处于窗口模式
-        /// </summary>
+        /// <summary>是否处于窗口模式。</summary>
         private bool IsWindowed => Screen.fullScreenMode == FullScreenMode.Windowed;
 
         private Resolution[] GetResolutions()
@@ -413,9 +409,8 @@ namespace Moirai.Atropos
         private int _lastSetResolutionFrame = 0;
 
         /// <summary>
-        /// 获取当前分辨率索引
+        /// 获取当前分辨率索引。
         /// </summary>
-        /// <returns></returns>
         public static int GetResolutionIndex()
         {
             // 每N帧后重置，以便ScreenOrchestrator有时间调整分辨率。
@@ -466,13 +461,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 根据索引设置分辨率。<br />
-        /// 详见：https://docs.unity3d.com/ScriptReference/Screen.SetResolution.html
+        /// 按可用分辨率列表中的索引设置分辨率。
         /// </summary>
-        /// <param name="index"></param>
+        /// <param name="index">分辨率索引，越界时收敛到有效范围。</param>
         /// <remarks>
-        /// 注意：在编辑器中无效。<br />
-        /// 注意：分辨率切换不会立即生效，而是在当前帧渲染完成后才会执行。<br />
+        /// 在编辑器中无效；切换不会立即生效，而是在当前帧渲染完成后执行。 <br />
+        /// 移动平台在 <see cref="AllowResolutionChangeOnMobile"/> 为 false 时忽略该请求并告警。 <br />
+        /// 详见 <see href="https://docs.unity3d.com/ScriptReference/Screen.SetResolution.html"/>。
         /// </remarks>
         public static void SetResolutionIndex(int index)
         {

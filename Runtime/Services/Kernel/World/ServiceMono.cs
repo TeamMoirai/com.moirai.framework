@@ -5,35 +5,28 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// MonoBehaviour 服务基类。Awake 自动注册到指定作用域，OnDestroy 自动注销。
-    /// <para>适用于需要 Unity 生命周期（Update/FixedUpdate/LateUpdate/碰撞/协程）的 Gameplay 层服务。</para>
-    /// <para>不可实现 <see cref="IServiceTickable"/> 等轮询接口（含 <see cref="IServiceGizmoDrawable"/>）
-    /// ——Mono 服务由 Unity 自身生命周期驱动，注册时由 <see cref="ServiceScope"/> 拒绝。</para>
-    /// <para>运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。</para>
-    /// <para>重复注册自动销毁 GameObject（同契约幂等）。</para>
     /// </summary>
+    /// <remarks>
+    /// 适用于需要 Unity 生命周期（Update/FixedUpdate/LateUpdate/碰撞/协程）的 Gameplay 层服务。 <br />
+    /// 不可实现 <see cref="IServiceTickable"/> 等轮询接口（含 <see cref="IServiceGizmoDrawable"/>）——Mono 服务由 Unity 自身生命周期驱动， <br />
+    /// 注册时由 <see cref="ServiceScope"/> 拒绝。 <br />
+    /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。 <br />
+    /// 重复注册自动销毁 GameObject（同契约幂等）。
+    /// </remarks>
     /// <typeparam name="TScope">作用域标记类型。</typeparam>
     public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle
         where TScope : IServiceScope, new()
     {
-        /// <summary>
-        /// 本实例是否已完成作用域注册——未注册的重复副本在 OnDestroy 中不得触碰注册表。
-        /// </summary>
+        /// <summary>本实例是否已完成作用域注册——未注册的重复副本在 OnDestroy 中不得触碰注册表。</summary>
         [NonSerialized] private bool _registeredToScope;
 
-        /// <summary>
-        /// 当前生命周期状态（只读投影——由容器经 <see cref="IServiceLifecycle"/> 驱动转换；
-        /// 写入端口对本类之外的任何代码关闭）。
-        /// </summary>
+        /// <summary>当前生命周期状态（只读投影；由容器经 <see cref="IServiceLifecycle"/> 驱动转换）。</summary>
         public EServiceState State { get; private set; } = EServiceState.Created;
 
-        /// <summary>
-        /// 轮询优先级（降序，高优先先 Tick）。Mono 服务不参与容器 Tick，此属性仅用于诊断。
-        /// </summary>
+        /// <summary>轮询优先级（降序，高优先先 Tick）。Mono 服务不参与容器 Tick，此属性仅用于诊断。</summary>
         public virtual int Priority => 0;
 
-        /// <summary>
-        /// 所属作用域种类。
-        /// </summary>
+        /// <summary>所属作用域种类。</summary>
         public virtual EServiceScopeKind Scope => ScopeKindCache<TScope>.Kind;
 
         #region 生命周期 [LIFECYCLE]
@@ -77,10 +70,10 @@ namespace Moirai.Atropos
 
         #region Unity 生命周期 [UNITY LIFECYCLE]
 
-        /// <summary>
-        /// 是否 DontDestroyOnLoad。App 作用域默认 true，Scene/Gameplay 默认 false。
-        /// <para>隐藏基类 <see cref="UnityEngine.Object.DontDestroyOnLoad(Object)"/> 静态方法（CS0108）。</para>
-        /// </summary>
+        /// <summary>是否 DontDestroyOnLoad。App 作用域默认 true，Scene/Gameplay 默认 false。</summary>
+        /// <remarks>
+        /// 隐藏基类 <see cref="UnityEngine.Object.DontDestroyOnLoad(Object)"/> 静态方法（CS0108）。
+        /// </remarks>
         protected new virtual bool DontDestroyOnLoad => Scope == EServiceScopeKind.App;
 
         protected virtual void Awake()
@@ -129,9 +122,7 @@ namespace Moirai.Atropos
     /// </summary>
     public interface IServiceScope
     {
-        /// <summary>
-        /// 作用域种类。
-        /// </summary>
+        /// <summary>作用域种类。</summary>
         EServiceScopeKind Kind { get; }
     }
 
@@ -167,19 +158,13 @@ namespace Moirai.Atropos
     /// </summary>
     public static class ServiceScopeOrder
     {
-        /// <summary>
-        /// App 作用域优先级（全局，生命周期最长）。
-        /// </summary>
+        /// <summary>App 作用域优先级（全局，生命周期最长）。</summary>
         public const int APP = -10000;
 
-        /// <summary>
-        /// Scene 作用域优先级（场景卸载时重置）。
-        /// </summary>
+        /// <summary>Scene 作用域优先级（场景卸载时重置）。</summary>
         public const int SCENE = -5000;
 
-        /// <summary>
-        /// Gameplay 作用域优先级（单局玩法）。
-        /// </summary>
+        /// <summary>Gameplay 作用域优先级（单局玩法）。</summary>
         public const int GAMEPLAY = 0;
 
         /// <summary>
@@ -199,9 +184,7 @@ namespace Moirai.Atropos
     /// </summary>
     internal static class ScopeKindCache<TScope> where TScope : IServiceScope, new()
     {
-        /// <summary>
-        /// 作用域种类。
-        /// </summary>
+        /// <summary>作用域种类。</summary>
         public static readonly EServiceScopeKind Kind = new TScope().Kind;
     }
 }

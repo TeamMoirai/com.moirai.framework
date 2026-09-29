@@ -11,18 +11,16 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取文件夹中的所有文件；
         /// </summary>
-        /// <param name="path">地址</param>
-        /// <returns>文件地址</returns>
+        /// <param name="path">地址。</param>
+        /// <returns>文件地址。</returns>
         public static string[] GetAllFiles(string path)
         {
             return Directory.GetFiles(path, ".", SearchOption.AllDirectories);
         }
         
         /// <summary>
-        /// 获取文件夹下所有文件大小
+        /// 获取文件夹下所有文件大小。
         /// </summary>
-        /// <param name="directoryPath"></param>
-        /// <returns></returns>
         public static int GetAllFileSize(string directoryPath)
         {
             int sum = 0;
@@ -55,8 +53,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取文件夹中的文件数量；
         /// </summary>
-        /// <param name="folderPath">文件夹路径</param>
-        /// <returns>文件数量</returns>
+        /// <param name="folderPath">文件夹路径。</param>
+        /// <returns>文件数量。</returns>
         public static int FolderFileCount(string folderPath)
         {
             int count = 0;
@@ -74,10 +72,10 @@ namespace Moirai.Atropos
         /// <summary>
         /// 遍历文件夹下的所有文件地址；
         /// </summary>
-        /// <param name="folderPath">文件夹路径</param>
-        /// <param name="handler">遍历到一个文件时的处理的函数</param>
+        /// <param name="folderPath">文件夹路径。</param>
+        /// <param name="handler">遍历到一个文件时的处理的函数。</param>
         /// <exception cref="IOException">
-        /// Folder path is invalid
+        /// 文件夹路径无效。
         /// </exception>
         public static void TraverseFolderFilePath(string folderPath, Action<string> handler)
         {
@@ -95,10 +93,10 @@ namespace Moirai.Atropos
         /// <summary>
         /// 遍历文件夹下的文件；
         /// </summary>
-        /// <param name="folderPath">文件夹路径</param>
-        /// <param name="handler">遍历到一个文件时的处理的函数</param>
+        /// <param name="folderPath">文件夹路径。</param>
+        /// <param name="handler">遍历到一个文件时的处理的函数。</param>
         /// <exception cref="IOException">
-        /// Folder path is invalid
+        /// 文件夹路径无效。
         /// </exception>
         public static void TraverseFolderFile(string folderPath, Action<FileSystemInfo> handler)
         {
@@ -118,9 +116,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 创建文件夹
+        /// 创建文件夹。
         /// </summary>
-        /// <param name="path">文件夹地址</param>
+        /// <param name="path">文件夹地址。</param>
         public static void CreateFolder(string path)
         {
             if (!Directory.Exists(path))
@@ -130,10 +128,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 创建文件夹
+        /// 创建文件夹。
         /// </summary>
-        /// <param name="path">父文件夹</param>
-        /// <param name="folderName">子文件夹名称</param>
+        /// <param name="path">父文件夹。</param>
+        /// <param name="folderName">子文件夹名称。</param>
         public static void CreateFolder(string path, string folderName)
         {
             var fullPath = System.IO.Path.Combine(path, folderName);
@@ -146,9 +144,9 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 删除文件夹下的所有文件以及文件夹
+        /// 删除文件夹下的所有文件以及文件夹。
         /// </summary>
-        /// <param name="folderPath">文件夹路径</param>
+        /// <param name="folderPath">文件夹路径。</param>
         public static void DeleteFolder(string folderPath)
         {
             if (Directory.Exists(folderPath))
@@ -173,9 +171,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 拷贝文件到文件夹；
         /// </summary>
-        /// <param name="sourceFileName">文件地址</param>
-        /// <param name="folderPath">文件夹</param>
-        /// <param name="overwrite">是否覆写</param>
+        /// <param name="sourceFileName">文件地址。</param>
+        /// <param name="folderPath">文件夹。</param>
+        /// <param name="overwrite">是否覆写。</param>
         public static void CopyFileToDirectory(string sourceFileName, string folderPath, bool overwrite = true)
         {
             if (System.IO.File.Exists(sourceFileName))
@@ -192,11 +190,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 拷贝文件到新地址
+        /// 拷贝文件到新地址。
         /// </summary>
-        /// <param name="sourceFileName">原文件地址</param>
-        /// <param name="destFileName">目标文件地址</param>
-        /// <param name="overwrite">是否覆写</param>
+        /// <param name="sourceFileName">原文件地址。</param>
+        /// <param name="destFileName">目标文件地址。</param>
+        /// <param name="overwrite">是否覆写。</param>
         public static void CopyFile(string sourceFileName, string destFileName, bool overwrite = true)
         {
             if (System.IO.File.Exists(sourceFileName))
@@ -214,8 +212,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 拷贝文件夹的内容到另一个文件夹；
         /// </summary>
-        /// <param name="source">原始地址</param>
-        /// <param name="target">目标地址</param>
+        /// <param name="source">原始地址。</param>
+        /// <param name="target">目标地址。</param>
         public static void CopyDirectory(string source, string target)
         {
             DirectoryInfo diSource = new DirectoryInfo(source);
@@ -226,8 +224,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 拷贝所有文件夹的内容到另一个文件夹；
         /// </summary>
-        /// <param name="source">原始地址</param>
-        /// <param name="target">目标地址</param>
+        /// <param name="source">原始地址。</param>
+        /// <param name="target">目标地址。</param>
         public static void CopyDirectoryRecursively(DirectoryInfo source, DirectoryInfo target)
         {
             Directory.CreateDirectory(target.FullName);
@@ -247,9 +245,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 安全删除文件
+        /// 安全删除文件。
         /// </summary>
-        /// <param name="fileFullPath">文件地址</param>
+        /// <param name="fileFullPath">文件地址。</param>
         public static void DeleteFile(string fileFullPath)
         {
             if (System.IO.File.Exists(fileFullPath))
@@ -259,11 +257,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 通过文件名删除文件夹下的文件。
-        /// 部分操作平台存在使用File.Delete()无法删除文件的情况，此方法能处理此问题。
+        /// 按文件名删除文件夹下的文件。
         /// </summary>
-        /// <param name="directoryPath">文件夹地址</param>
-        /// <param name="fileNames">文件名集合</param>
+        /// <param name="directoryPath">文件夹地址。</param>
+        /// <param name="fileNames">文件名集合。</param>
+        /// <remarks>逐文件调用 <see cref="FileInfo.Delete"/>，可处理部分平台上 <c>File.Delete</c> 删不掉的情况；目录不存在或文件名为 null 时直接返回。</remarks>
         public static void DeleteDirectoryFiles(string directoryPath, IEnumerable<string> fileNames)
         {
             if (!Directory.Exists(directoryPath))
@@ -282,12 +280,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 重命名文件；
-        /// 第一个参数需要：盘符+地址+文件名+后缀；
-        /// 第二个参数仅需文件名+后缀名；
+        /// 重命名文件，保持原目录不变。
         /// </summary>
-        /// <param name="oldFileFullPath">旧文件的完整路径，需要带后缀名</param>
-        /// <param name="newFileNamewithExtension">新的文件名，仅需文件名+后缀名</param>
+        /// <param name="oldFileFullPath">旧文件的完整路径，需要带后缀名。</param>
+        /// <param name="newFileNamewithExtension">新的文件名，仅需文件名+后缀名。</param>
+        /// <remarks>源文件不存在时先创建空文件再改名；目标同名文件已存在时先删除再移动。</remarks>
         public static void RenameFile(string oldFileFullPath, string newFileNamewithExtension)
         {
             if (!System.IO.File.Exists(oldFileFullPath))
@@ -307,8 +304,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 读取文件内容到byte数组，不作binary或者text转换；
         /// </summary>
-        /// <param name="fileFullPath">文件的完整路径，包括后缀名等</param>
-        /// <returns>读取到的文件byte数组</returns>
+        /// <param name="fileFullPath">文件的完整路径，包括后缀名等。</param>
+        /// <returns>读取到的文件byte数组。</returns>
         public static byte[] ReadFile(string fileFullPath)
         {
             if (!System.IO.File.Exists(fileFullPath))
@@ -316,18 +313,15 @@ namespace Moirai.Atropos
             return System.IO.File.ReadAllBytes(fileFullPath);
         }
 
-        /// <summary>
-        /// 标准的UTF-8是不含BOM的；
-        /// 构造的UTF8Encoding，排除掉UTF8-BOM的影响；
-        /// </summary>
+        /// <summary>不含 BOM 的 UTF-8 编码，本类所有文本读写共用。</summary>
         private static readonly UTF8Encoding s_UTF8Encoding = new UTF8Encoding(false);
         
         /// <summary>
-        /// 不适用Text类型！；
-        /// 读取二进制文件，返回byte array；
+        /// 以二进制方式读取文件，返回原始字节，不做文本转换。
         /// </summary>
-        /// <param name="fileFullPath">文件的完整路径</param>
-        /// <returns>文件被读取的二进制</returns>
+        /// <param name="fileFullPath">文件的完整路径。</param>
+        /// <returns>文件被读取的二进制。</returns>
+        /// <exception cref="IOException">文件不存在。</exception>
         public static byte[] ReadBinaryFile(string fileFullPath)
         {
             if (!System.IO.File.Exists(fileFullPath))
@@ -342,10 +336,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 读取指定路径下某text类型文件的内容
+        /// 读取指定路径下某text类型文件的内容。
         /// </summary>
-        /// <param name="fileFullPath">文件的完整路径，包含文件名与扩展名</param>
-        /// <returns>指定文件的包含的内容</returns>
+        /// <param name="fileFullPath">文件的完整路径，包含文件名与扩展名。</param>
+        /// <returns>指定文件的包含的内容。</returns>
         public static string ReadTextFileContent(string fileFullPath)
         {
             if (!System.IO.File.Exists(fileFullPath))
@@ -363,11 +357,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 读取指定路径下某text类型文件的内容
+        /// 读取指定路径下某text类型文件的内容。
         /// </summary>
-        /// <param name="folderPath">文件夹路径</param>
-        /// <param name="fileName">文件名称，包含文件名与扩展名</param>
-        /// <returns>指定文件的包含的内容</returns>
+        /// <param name="folderPath">文件夹路径。</param>
+        /// <param name="fileName">文件名称，包含文件名与扩展名。</param>
+        /// <returns>指定文件的包含的内容。</returns>
         public static string ReadTextFileContent(string folderPath, string fileName)
         {
             if (!Directory.Exists(folderPath))
@@ -376,14 +370,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用UTF8编码；
-        /// 追加写入文件信息；
-        /// 若文件为空，则自动创建；
-        /// 此方法为text类型文件写入；
+        /// 以 UTF-8 向 <paramref name="filePath"/>/<paramref name="fileName"/> 追加一行文本。
         /// </summary>
-        /// <param name="filePath">文件路径</param>
-        /// <param name="fileName">文件名</param>
-        /// <param name="context">写入的信息</param>
+        /// <param name="filePath">文件路径。</param>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="context">写入的信息。</param>
+        /// <remarks>目录或文件不存在时自动创建；共享方式为 <c>FileShare.ReadWrite</c>。</remarks>
         public static void AppendWriteTextFile(string filePath, string fileName, string context)
         {
             if (!Directory.Exists(filePath))
@@ -401,13 +393,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用UTF8编码；
-        /// 追加写入文件信息；
-        /// 若文件为空，则自动创建；
-        /// 此方法为text类型文件写入
+        /// 以 UTF-8 向 <paramref name="fileFullPath"/> 追加一行文本。
         /// </summary>
-        /// <param name="fileFullPath">文件完整路径</param>
-        /// <param name="context">写入的信息</param>
+        /// <param name="fileFullPath">文件完整路径。</param>
+        /// <param name="context">写入的信息。</param>
+        /// <remarks>目录或文件不存在时自动创建；共享方式为 <c>FileShare.ReadWrite</c>。</remarks>
         public static void AppendWriteTextFile(string fileFullPath, string context)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -426,15 +416,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用UTF8编码；
-        /// 写入文件信息；
-        /// 若文件为空，则自动创建；
-        /// 此方法为text类型文件写入；
+        /// 以 UTF-8 写入文本：<paramref name="append"/> 为 true 时追加到末尾，否则从文件头写入。
         /// </summary>
-        /// <param name="filePath">文件路径</param>
-        /// <param name="fileName">文件名</param>
-        /// <param name="context">写入的信息</param>
-        /// <param name="append">是否追加</param>
+        /// <param name="filePath">文件路径。</param>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="context">写入的信息。</param>
+        /// <param name="append">是否追加。</param>
+        /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void WriteTextFile(string filePath, string fileName, string context, bool append = false)
         {
             if (!Directory.Exists(filePath))
@@ -453,14 +441,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用UTF8编码；
-        /// 写入文件信息；
-        /// 若文件为空，则自动创建；
-        /// 此方法为text类型文件写入；
+        /// 以 UTF-8 写入文本：<paramref name="append"/> 为 true 时追加到末尾，否则从文件头写入。
         /// </summary>
-        /// <param name="fileFullPath">文件完整路径</param>
-        /// <param name="context">写入的信息</param>
-        /// <param name="append">是否追加</param>
+        /// <param name="fileFullPath">文件完整路径。</param>
+        /// <param name="context">写入的信息。</param>
+        /// <param name="append">是否追加。</param>
+        /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void WriteTextFile(string fileFullPath, string context, bool append = false)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -480,11 +466,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 不适用Text类型！；
-        /// 写入二进制类型文件；
+        /// 以二进制方式写入文件，原有内容会被清空，不做文本转换。
         /// </summary>
-        /// <param name="context">文件内容</param>
-        /// <param name="fileFullPath">文件完整路径，带后缀名</param>
+        /// <param name="context">文件内容。</param>
+        /// <param name="fileFullPath">文件完整路径，带后缀名。</param>
         public static void WriteBinaryFile(byte[] context, string fileFullPath)
         {
             using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.Create))
@@ -498,11 +483,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将byte数组写成文件；
-        /// 若写入时文件夹路径不存在，则创建文件夹；
+        /// 将字节数组写入文件，目录不存在时自动创建。
         /// </summary>
-        /// <param name="context">需要写入的数据byte数组</param>
-        /// <param name="fileFullPath">文件的完整路径，包括后缀名等</param>
+        /// <param name="context">需要写入的数据byte数组。</param>
+        /// <param name="fileFullPath">文件的完整路径，包括后缀名等。</param>
+        /// <remarks>写入前不截断文件，新内容比原文件短时尾部会残留旧数据。</remarks>
         public static void WriteFile(byte[] context, string fileFullPath)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -515,13 +500,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 追加写入；
-        /// 将byte数组写成文件；
-        /// 若写入时文件夹路径不存在，则创建文件夹；
+        /// 从文件内的 <paramref name="startPosition"/> 位置写入字节数组，目录不存在时自动创建。
         /// </summary>
-        /// <param name="context">需要写入的数据byte数组</param>
-        /// <param name="fileFullPath">文件的完整路径，包括后缀名等</param>
-        /// <param name="startPosition">追加写入的起始位置</param>
+        /// <param name="context">需要写入的数据byte数组。</param>
+        /// <param name="fileFullPath">文件的完整路径，包括后缀名等。</param>
+        /// <param name="startPosition">追加写入的起始位置。</param>
         public static void WriteFile(byte[] context, string fileFullPath, int startPosition)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -536,9 +519,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 追加并完全写入所有bytes;
         /// </summary>
-        /// <param name="path">写入的地址</param>
-        /// <param name="bytesArray">数组集合</param>
-        /// <returns>写入的长度</returns>
+        /// <param name="path">写入的地址。</param>
+        /// <param name="bytesArray">数组集合。</param>
+        /// <returns>写入的长度。</returns>
         public static long AppendAndWriteAllBytes(string path, params byte[][] bytesArray)
         {
             using (MemoryStream stream = new MemoryStream())
@@ -559,12 +542,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 完全覆写；
-        ///  使用UTF8编码；
+        /// 以 UTF-8 完全覆写文本文件，先清空原内容。
         /// </summary>
-        /// <param name="filePath">w文件路径</param>
-        /// <param name="fileName">文件名</param>
-        /// <param name="context">写入的信息</param>
+        /// <param name="filePath">w文件路径。</param>
+        /// <param name="fileName">文件名。</param>
+        /// <param name="context">写入的信息。</param>
+        /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void OverwriteTextFile(string filePath, string fileName, string context)
         {
             if (!Directory.Exists(filePath))
@@ -584,11 +567,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 完全覆写；
-        ///  使用UTF8编码；
+        /// 以 UTF-8 完全覆写文本文件，先清空原内容。
         /// </summary>
-        /// <param name="fileFullPath">文件完整路径</param>
-        /// <param name="context">写入的信息</param>
+        /// <param name="fileFullPath">文件完整路径。</param>
+        /// <param name="context">写入的信息。</param>
+        /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void OverwriteTextFile(string fileFullPath, string context)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -608,14 +591,14 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 写入二进制
+        /// 写入二进制。
         /// </summary>
-        /// <param name="fileFullPath">完整文件路径，带后缀名</param>
-        /// <param name="context">内容</param>
-        /// <returns>是否写入成功</returns>
+        /// <param name="fileFullPath">完整文件路径，带后缀名。</param>
+        /// <param name="context">内容。</param>
+        /// <returns>是否写入成功。</returns>
         /// <remarks>
-        /// SECURITY WARNING: BinaryFormatter is vulnerable to deserialization attacks.
-        /// See: https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide
+        /// 安全警告：BinaryFormatter 存在反序列化攻击风险。 <br />
+        /// 参见：https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide。
         /// </remarks>
         [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static bool WriterFormattedBinary(string fileFullPath, object context)
@@ -633,13 +616,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 写入二进制；
-        /// 传入的路径必为 ：{ Asset\Core\ } 格式
+        /// 用 <see cref="BinaryFormatter"/> 将对象序列化写入文件，<paramref name="filePath"/> 为文件夹路径。
         /// </summary>
-        /// <param name="filePath">文件夹路径</param>
-        /// <param name="fileName">带后缀的文件名</param>
-        /// <param name="context">内容</param>
-        /// <returns>是否写入成功</returns>
+        /// <param name="filePath">文件夹路径。</param>
+        /// <param name="fileName">带后缀的文件名。</param>
+        /// <param name="context">内容。</param>
+        /// <returns>是否写入成功。</returns>
+        /// <remarks>已废弃：<see cref="BinaryFormatter"/> 存在反序列化攻击风险，请改用 JSON 序列化。</remarks>
         [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static bool WriterFormattedBinary(string filePath, string fileName, object context)
         {
@@ -656,10 +639,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 读取二进制
+        /// 读取二进制。
         /// </summary>
-        /// <param name="fileFullPath">完整文件路径</param>
-        /// <returns>内容</returns>
+        /// <param name="fileFullPath">完整文件路径。</param>
+        /// <returns>内容。</returns>
         [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static object ReadFormattedBinary(string fileFullPath)
         {
@@ -674,10 +657,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 清空text类型的文本
+        /// 清空text类型的文本。
         /// </summary>
-        /// <param name="fileFullPath">完整文件路径</param>
-        /// <returns>是否写入成功</returns>
+        /// <param name="fileFullPath">完整文件路径。</param>
+        /// <returns>是否写入成功。</returns>
         public static bool ClearTextContext(string fileFullPath)
         {
             if (!System.IO.File.Exists(fileFullPath))
@@ -687,11 +670,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取文件大小；
-        /// 若文件存在，则返回正确的大小；若不存在，则返回0；
+        /// 获取文件大小：文件存在时返回其字节数，目录或文件不存在时返回 0。
         /// </summary>
-        /// <param name="filePath">文件地址</param>
-        /// <returns>文件long类型的长度</returns>
+        /// <param name="filePath">文件地址。</param>
+        /// <returns>文件long类型的长度。</returns>
         public static long GetFileSizeByFileInfo(string filePath)
         {
             if (!Directory.Exists(System.IO.Path.GetDirectoryName(filePath)))
@@ -709,9 +691,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 判断是否是二级路径；
         /// </summary>
-        /// <param name="basePath">上级路径</param>
-        /// <param name="subPath">下级路径</param>
-        /// <returns>是否是二级路径</returns>
+        /// <param name="basePath">上级路径。</param>
+        /// <param name="subPath">下级路径。</param>
+        /// <returns>是否是二级路径。</returns>
         public static bool IsSubDirectory(string basePath, string subPath)
         {
             DirectoryInfo baseDirInfo = new DirectoryInfo(basePath);
@@ -733,9 +715,9 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取文件夹所包含的文件大小；
         /// </summary>
-        /// <param name="path">路径</param>
-        /// <param name="searchPattern">要与文件名匹配的搜索字符串。此参数可以包含有效文本路径和通配符（* 和 ？）的组合，但它不支持正则表达式</param>
-        /// <returns>文件夹大小</returns>
+        /// <param name="path">路径。</param>
+        /// <param name="searchPattern">要与文件名匹配的搜索字符串。此参数可以包含有效文本路径和通配符（* 和 ？）的组合，但它不支持正则表达式。</param>
+        /// <returns>文件夹大小。</returns>
         public static long GetDirectorySize(string path, string searchPattern = ".")
         {
             if (!Directory.Exists(path))
@@ -752,9 +734,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 清空文件夹
+        /// 清空文件夹。
         /// </summary>
-        /// <param name="path">地址</param>
+        /// <param name="path">地址。</param>
         public static void EmptyFolder(string path)
         {
             DeleteFolder(path);

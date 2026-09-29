@@ -8,19 +8,13 @@ namespace Moirai.Atropos.Timer
 {
     /// <summary>
     /// 计时器性能基准运行时驱动器：跑同步用例矩阵并产出统一的 <see cref="BenchmarkReport"/>。
-    /// <para>双通道入口共用本驱动器：Debugger 的 Timer 调试窗口（Run Benchmark 按钮）与
-    /// 测试程序集的 [Explicit] 薄壳——两个入口测的是同一份代码（口径同 <see cref="Debugger.MemoryPoolBenchmarkRunner"/>）。
-    /// 会短暂时卡主线程。</para>
-    /// <para>直驱隔离的 <see cref="DefaultTimerHandler"/>（不经 <see cref="TimerService"/> 门面）：
-    /// 门面的懒加载要活服务世界（EditMode 下 GameApp 关闭态被 EnsureRegistered 阻断），
-    /// 隔离实例让矩阵在编辑器与玩家、Boot 前后都跑得起来，且不扰动运行中的真实服务。
-    /// 同步矩阵全部使用长延迟定时器（测量窗内不触发、不依赖时钟推进）：Add/Remove 热路径、
-    /// 控制操作（Stop/Resume/Restart/查询）、时间轮混合延迟插入、页增长、句柄守卫、
-    /// 空闲与挂起 Tick、调试 API、句柄复用。回调触发与同刻突发（依赖真实帧推进）
-    /// 在 Tests 的 PlayMode 专属基准 <c>TimerFireBenchmarkTests</c>。</para>
-    /// <para>测量：每用例先跑一轮预热再计时 N 轮取最小/均值/最大；软校验只累加 failures 计数
-    /// 并 LogWarning——正确性回归由 Timer 测试族负责。</para>
     /// </summary>
+    /// <remarks>
+    /// 双通道入口共用（Debugger 的 Timer 调试窗口与测试程序集的 <c>[Explicit]</c> 薄壳），会短暂时卡主线程。 <br />
+    /// 直驱隔离的 <see cref="DefaultTimerHandler"/>（不经 <see cref="TimerService"/> 门面），不扰动运行中的真实服务。 <br />
+    /// 同步矩阵全部使用测量窗内不触发、不依赖时钟推进的长延迟定时器；依赖真实帧的触发 / 同刻突发用例在 Tests 的 PlayMode 基准。 <br />
+    /// 每用例先预热再计时取最小 / 均值 / 最大；软校验只累加 failures 与 LogWarning，正确性回归由 Timer 测试族负责。
+    /// </remarks>
     public static class TimerBenchmarkRunner
     {
         #region 配置 [CONFIGURATION]

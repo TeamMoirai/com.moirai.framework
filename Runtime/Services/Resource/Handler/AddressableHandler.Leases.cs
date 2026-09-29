@@ -11,15 +11,13 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// Addressables 后端的取用面——记录内核的持有者，也是内核看向本后端的唯一一面。
-    /// <para>记账（记录槽、租约、去重、时间轮）全在 <see cref="ResourceRecordStore"/>，与 YooAsset 后端共用同一份；
-    /// 本文件只做三件事：把 Addressables 的异步加载接成内核要的"赢家路径"、把 <c>AsyncOperationHandle&lt;T&gt;</c>
-    /// 包成内核能存放的引用型句柄、以及把三个配置读数交给内核。</para>
-    /// <para><c>Addressables</c> 没有同步取资产的公开 API（只有 <c>WaitForAsyncOpsToWrapUp</c> 这类等全部的），
-    /// 所以同步族的 <c>AcquireDirect</c> / <c>LoadLease&lt;T&gt;</c> / <c>AcquireBinding</c> /
-    /// <c>AcquirePrefabSourceLease</c> 与图集族仍按 <see cref="CreateNotSupported"/> 快速失败——
-    /// 这是后端能力差，不是没写完，静默返回 Invalid 才是必须避免的假成功。</para>
+    /// Addressables 后端的取用面：记录内核的持有者，也是内核看向本后端的唯一一面。
     /// </summary>
+    /// <remarks>
+    /// 记账（记录槽、租约、去重、时间轮）全在 <see cref="ResourceRecordStore"/>，与 YooAsset 后端共用同一份。 <br />
+    /// 本文件把异步加载接成内核的赢家路径、把 <c>AsyncOperationHandle&lt;T&gt;</c> 包成引用型句柄、并把三个配置读数交给内核。 <br />
+    /// Addressables 无同步取资产 API，故同步族与图集族按 <see cref="CreateNotSupported"/> 快速失败，不静默返回 Invalid。
+    /// </remarks>
     partial class AddressableHandler : IResourceRecordHost
     {
         #region 内核接线 [KERNEL WIRING]
@@ -45,7 +43,7 @@ namespace Moirai.Atropos.Resource
 
         /// <inheritdoc />
         /// <remarks>只有图集形态的记录（<see cref="SpriteAtlas"/>）有子精灵可取；单资产句柄返回 null
-        /// 是正解，不是降级。按名取用走 <c>SpriteAtlas.GetSprite</c>——本机 6000.3 的 CoreModule 里
+        /// 是正解，不是降级。按名取用走 <c>SpriteAtlas.GetSprite</c>——本机 6000.3 的 CoreModule 里。 <br />
         /// 并没有 <c>TryGetSprite</c>（那串只出现在 TextCore 模块的另一套类型上），别照着记忆写。</remarks>
         Sprite IResourceRecordHost.GetSubSprite(object handle, string spriteName)
         {
@@ -64,7 +62,9 @@ namespace Moirai.Atropos.Resource
         
         #region 句柄包装 [HANDLE WRAPPER]
 
-        /// <summary>内核侧只需要"还活着吗"和"放掉"，不需要知道 Addressables 的泛型参数。</summary>
+        /// <summary>
+        /// 内核侧只需要"还活着吗"和"放掉"，不需要知道 Addressables 的泛型参数。
+        /// </summary>
         private interface IAddressableHandleRef
         {
             bool IsValid { get; }
@@ -73,8 +73,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 引用型句柄包装。<see cref="AsyncOperationHandle{TObject}"/> 是 struct 且与非泛型版无共同基类，
-        /// 直接塞进内核的 <c>object</c> 槽会装箱、且解箱要精确知道 T；这里用"类持 struct 字段"绕开两者。
+        /// 引用型句柄包装：以类持 struct 字段，避免句柄进内核 <c>object</c> 槽时装箱与解箱。
         /// </summary>
         private sealed class AddressableHandleRef<TObject> : IAddressableHandleRef
         {
@@ -90,8 +89,7 @@ namespace Moirai.Atropos.Resource
             public bool IsValid => !_released && _handle.IsValid();
 
             /// <summary>
-            /// 图集形态下按名取子精灵；其余 TObject 恒 null。用 as 判定而不是再开一种包装，
-            /// 因为内核只认 IAddressableHandleRef，多一种包装就得在宿主里多一处分支。
+            /// 图集形态下按名取子精灵，其余 <c>TObject</c> 恒返回 <c>null</c>。
             /// </summary>
             internal Sprite GetSprite(string spriteName)
             {
@@ -261,8 +259,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// 取用一条资源并挂上租约——Addressables 侧唯一可行的形态是异步，
-        /// 因此同步族不接（见类头说明），这里只服务异步成员。
+        /// 取用一条资源并挂上租约，只服务异步成员（Addressables 侧唯一可行的形态是异步）。
         /// </summary>
         private async UniTask<ResourceLeaseHandle> AcquireLeaseAsync(ResourceKey key, EResourceLeaseKind leaseKind,
             EResourceLeaseOption options, CancellationToken cancellationToken)
@@ -290,10 +287,9 @@ namespace Moirai.Atropos.Resource
         #region 图集取用 [SUB-ASSET ACQUIRE]
 
         /// <summary>
-        /// 按图集地址取子精灵的租约。Addressables 没有"一个地址拿全部子资产"的公开 API
-        /// （<c>LoadAllAssetsAsync</c> 只在 AssetBundle 层），所以这里对齐 YooAsset 的形态：
-        /// 一条地址加载 <see cref="SpriteAtlas"/>，按名取用留给记录句柄，一次加载多次取。
+        /// 按图集地址取子精灵的租约：一条地址加载 <see cref="SpriteAtlas"/>，按名取用留给记录句柄。
         /// </summary>
+        /// <remarks>Addressables 没有"一个地址拿全部子资产"的公开 API（<c>LoadAllAssetsAsync</c> 只在 AssetBundle 层），故对齐 YooAsset 的形态。</remarks>
         private UniTask<ResourceLeaseHandle> AcquireSubAssetsAsync(string location, string packageName,
             EResourceLeaseOption options, CancellationToken cancellationToken)
         {

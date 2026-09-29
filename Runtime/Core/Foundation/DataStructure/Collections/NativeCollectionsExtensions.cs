@@ -5,7 +5,7 @@ using Unity.Collections;
 namespace Moirai.Atropos.Collections
 {
     /// <summary>
-    /// Native Collections 扩展
+    /// Native Collections 扩展。
     /// </summary>
     public static class NativeCollectionsExtensions
     {

@@ -8,13 +8,9 @@ namespace Moirai.Atropos.Localization
 	/// </summary>
 	public class TextLocalizerPlayableBehaviour : PlayableBehaviour
 	{
-		/// <summary>
-		/// 本地化文本 ID，由 <see cref="TextLocalizerPlayableAsset"/> 传入。
-		/// </summary>
+		/// <summary>本地化文本 ID，由 <see cref="TextLocalizerPlayableAsset"/> 传入。</summary>
 		public string textId;
-		/// <summary>
-		/// 当前绑定的 <see cref="TextLocalizer"/> 组件，来自轨道的 playerData。
-		/// </summary>
+		/// <summary>当前绑定的 <see cref="TextLocalizer"/> 组件，来自轨道的 playerData。</summary>
 		TextLocalizer textLocalizer;
 
 		/// <summary>

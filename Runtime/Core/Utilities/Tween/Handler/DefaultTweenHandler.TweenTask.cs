@@ -9,20 +9,14 @@ namespace Moirai.Atropos
     internal sealed partial class DefaultTweenHandler
     {
         /// <summary>
-        /// Tween 核心更新循环。结构体数组 + 版本号ID，稳态 0 GC。
-        /// <para>
-        /// 设计要点：
-        /// <list type="bullet">
-        /// <item>版本号存于独立 <see cref="s_Versions"/> 数组——与状态内容解耦，
-        /// Reset 整结构覆盖不会破坏 tweenId 代际唯一性；</item>
-        /// <item>回收先于回调（CompleteAt）——回调内对旧 id 的 Stop/Complete 成为 no-op，
-        /// 回调内 Create 复用同槽位安全，消除重入"误杀新 tween"缺陷；</item>
-        /// <item>用户回调统一 try/catch——单个回调异常不中断整帧更新；</item>
-        /// <item>迭代采用 s_Count 快照——回调中新建的 tween 下一帧才开始计时。</item>
-        /// </list>
-        /// </para>
-        /// <para>本类为 DefaultTweenHandler 专用单例状态机：多个 handler 实例共享同一份静态状态。</para>
+        /// Tween 核心更新循环：结构体数组 + 版本号 ID 驱动全部活跃 tween，稳态 0 GC。
         /// </summary>
+        /// <remarks>
+        /// 静态状态由所有 <see cref="DefaultTweenHandler"/> 实例共享。 <br />
+        /// 迭代取 <c>s_Count</c> 快照：回调中新建的 tween 下一帧才开始计时。 <br />
+        /// 完成路径先回收再回调：回调内对旧 id 的 Stop/Complete 为 no-op，回调内 Create 复用同槽位安全。 <br />
+        /// 用户回调统一 try/catch：单个回调异常不中断整帧更新。
+        /// </remarks>
         internal static class TweenTask
         {
             private const int INITIAL_CAPACITY = 256;
@@ -49,8 +43,7 @@ namespace Moirai.Atropos
             #region 静态重置 [STATIC RESET]
 
             /// <summary>
-            /// 关闭域重载（Enter Play Mode Options）时进入 Play 的静态清理：
-            /// 清空槽位与代际版本，防陈旧 tweenId 复活；挂起的 awaiter 全部取消。
+            /// 关闭域重载进入 Play 时的静态清理：清空槽位与代际版本，取消全部挂起 awaiter。
             /// </summary>
             [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
             internal static void ResetStatics()
@@ -74,8 +67,7 @@ namespace Moirai.Atropos
             #region ID 编码 [ID ENCODING]
 
             /// <summary>
-            /// 编码 tweenId：高 32 位 = 数组索引，低 32 位 = 版本号。
-            /// 版本号从 1 起步（0 为"无 tween"哨兵值）；int 回绕后相邻代际仍可区分。
+            /// 编码 tweenId：高 32 位为数组索引，低 32 位为版本号（从 1 起步，0 为无 tween 哨兵）。
             /// </summary>
             private static long EncodeId(int index, int version)
             {
@@ -159,11 +151,12 @@ namespace Moirai.Atropos
             }
 
             /// <summary>
-            /// 回收槽位：重置状态并压入空闲索引栈，同时结算该槽位的挂起 awaiter。
-            /// 不区分结束原因（完成/Stop/销毁/清理）→ awaiter 一律正常返回；
-            /// 仅外部 CancellationToken 取消等待路径会以 OCE 结束。
-            /// s_InFree 标记防止同一槽位被重复入栈（如 Stop 后回调中再次 Complete 同一 tween）。
+            /// 回收槽位：重置状态并入空闲索引栈，同时结算该槽位的挂起 awaiter。
             /// </summary>
+            /// <remarks>
+            /// 不区分结束原因（完成/Stop/销毁/清理），awaiter 一律正常返回；仅外部 CancellationToken 取消等待路径以 OCE 结束。
+            /// <c>s_InFree</c> 标记防止同一槽位被重复入栈。
+            /// </remarks>
             private static void Recycle(int index)
             {
                 s_States[index].Reset();
@@ -739,12 +732,10 @@ namespace Moirai.Atropos
 
             /// <summary>
             /// 完成路径统一入口：应用终值 → 回收 → 触发 OnComplete。
-            /// <para>
-            /// 先回收再回调：回调内对旧 id 的 Stop/Complete 因 IsActive 校验成为 no-op；
-            /// 回调内 Create 复用本槽位也安全（版本由下一次 Create 递增）——
-            /// 消除"回调创建的新 tween 被外层 Recycle 误杀"的重入缺陷。
-            /// </para>
             /// </summary>
+            /// <remarks>
+            /// 先回收再回调：回调内对旧 id 的 Stop/Complete 因 IsActive 校验为 no-op，回调内 Create 复用本槽位亦安全。
+            /// </remarks>
             private static void CompleteAt(int index)
             {
                 ApplyValue(ref s_States[index], 1f);
@@ -805,7 +796,9 @@ namespace Moirai.Atropos
                 return count;
             }
 
-            /// <summary>停止 = 中断：不触发 OnComplete；挂起 awaiter 正常返回（不区分结束原因）。</summary>
+            /// <summary>
+            /// 停止 = 中断：不触发 OnComplete；挂起 awaiter 正常返回（不区分结束原因）。
+            /// </summary>
             internal static void Stop(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
@@ -817,8 +810,8 @@ namespace Moirai.Atropos
 
             /// <summary>
             /// 立即完成：应用当前方向的终值并触发 OnComplete（与自然完成同语义）。
-            /// Yoyo/Rewind 中途 Complete 落在交换/倒放后的当前终值上。
             /// </summary>
+            /// <remarks>Yoyo/Rewind 中途 Complete 落在交换/倒放后的当前终值上。</remarks>
             internal static void Complete(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
@@ -886,7 +879,9 @@ namespace Moirai.Atropos
 
             #region 暂停与等待 [PAUSE & AWAIT]
 
-            /// <summary>暂停指定 tween（冻结时间推进，含延迟倒计时）。死 id 静默 no-op。</summary>
+            /// <summary>
+            /// 暂停指定 tween（冻结时间推进，含延迟倒计时）。死 id 静默 no-op。
+            /// </summary>
             internal static void Pause(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
@@ -894,7 +889,9 @@ namespace Moirai.Atropos
                     s_States[index].IsPaused = true;
             }
 
-            /// <summary>恢复指定 tween。死 id 或未暂停时静默 no-op。</summary>
+            /// <summary>
+            /// 恢复指定 tween。死 id 或未暂停时静默 no-op。
+            /// </summary>
             internal static void Resume(long tweenId)
             {
                 DecodeId(tweenId, out int index, out int version);
@@ -904,10 +901,12 @@ namespace Moirai.Atropos
 
             /// <summary>
             /// 等待 tween 结束（UniTask，即时信号版）。
-            /// <para>任何结束原因（自然完成/Complete/Stop/目标销毁/清理）→ 正常返回，不区分死因；
-            /// 仅外部 CancellationToken 取消 → OperationCanceledException（放弃等待，tween 不受影响）。</para>
-            /// <para>已结束的 id → 立即完成。注册表仅在存在等待者时产生开销。</para>
             /// </summary>
+            /// <remarks>
+            /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待， <br />
+            /// tween 不受影响）。 <br />
+            /// 已结束的 id 立即完成；注册表仅在存在等待者时产生开销。
+            /// </remarks>
             internal static UniTask WaitAsync(long tweenId, CancellationToken cancellationToken)
             {
                 DecodeId(tweenId, out int index, out int version);
@@ -947,9 +946,9 @@ namespace Moirai.Atropos
             }
 
             /// <summary>
-            /// 结算指定槽位的全部挂起 awaiter（Recycle 时调用，统一正常完成——不区分结束原因）。
-            /// 池化 source 的版本守卫保证后续的陈旧 TrySet* 全部为 no-op。
+            /// 结算指定槽位的全部挂起 awaiter（Recycle 时调用，统一正常完成）。
             /// </summary>
+            /// <remarks>池化 source 的版本守卫保证后续陈旧 TrySet* 全部为 no-op。</remarks>
             private static void CompleteAwaiters(int slot)
             {
                 lock (s_AwaiterLock)
@@ -977,10 +976,7 @@ namespace Moirai.Atropos
 
             #region 贝塞尔 [BEZIER]
 
-            /// <summary>
-            /// De Casteljau 算法计算 N 阶贝塞尔曲线。
-            /// 无 Pow / 二项式系数计算，复用静态缓冲（按需扩容），0 GC。
-            /// </summary>
+            /// <summary>De Casteljau 算法计算 N 阶贝塞尔曲线：无 Pow/二项式系数，复用静态缓冲（按需扩容），0 GC。</summary>
             private static Vector3[] s_BezierScratch;
 
             private static Vector3 CalculateBezierPoint(float t, Vector3[] points)

@@ -7,16 +7,13 @@ using UnityEngine;
 namespace Service.Audio
 {
     /// <summary>
-    /// 总线过渡对拍：Master / 音轨淡入淡出由 <see cref="AudioServiceHandler"/> 契约直接实现，
-    /// 两个后端只在 <see cref="IAudioFadeTarget.ApplyFade"/> 的落点上分岔。这里量的就是这个落点。
-    /// <para>补这一件的动机是那六条成员曾在两个后端里逐字各存一份——同一段编排写两遍，
-    /// 改一份留一份就是下一次跨后端分歧的产地（音量值域那条分歧正是这么长出来的）。
-    /// 上移之后"两份实现同值"不再是巧合，得有对拍盯着，否则收回基类的东西一旦再漂移，
-    /// 编译期不会响，运行期只是"换了个后端声音淡得不一样"。</para>
-    /// <para><b>刻意不经 <c>Tick</c> 推进</b>：过渡表是契约上的 internal 成员，测试程序集在
-    /// <c>InternalsVisibleTo</c> 白名单内，直接按给定时刻推表比等真实帧边界稳定得多，
-    /// 也不会把结论绑在<c>GameTime.unscaledTime</c> 是否被驱动这件事上。</para>
+    /// 总线过渡对拍：Master / 音轨淡入淡出由 <see cref="AudioServiceHandler"/> 契约实现。
     /// </summary>
+    /// <remarks>
+    /// 两个后端只在 <see cref="IAudioFadeTarget.ApplyFade"/> 的落点上分岔，用例量的就是这个落点。 <br />
+    /// 不经 <c>Tick</c> 推进，而是按给定时刻直推 internal 过渡表（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），
+    /// 故结论不依赖 <c>GameTime.unscaledTime</c> 是否被驱动。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioBusFadeParityTests
     {

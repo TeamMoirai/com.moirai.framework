@@ -4,7 +4,7 @@ using UnityEngine.Networking;
 using YooAsset;
 
 /// <summary>
-/// vivo 小游戏平台实现
+/// vivo 小游戏平台实现。
 /// </summary>
 internal class VivoPlatform : IWebPlatformStrategy
 {

@@ -4,12 +4,12 @@ using UnityEngine;
 namespace Moirai.Atropos.Editor
 {
     /// <summary>
-    /// 清理所选 GameObjects 上所有缺失的脚本
+    /// 清理所选 GameObjects 上所有缺失的脚本。
     /// </summary>
     public static class CleanupMissingScripts
     {
         /// <summary>
-        /// 清理所选 GameObjects 上所有缺失的脚本
+        /// 清理所选 GameObjects 上所有缺失的脚本。
         /// </summary>
         [MenuItem("Tools/资产相关/清理所选 GameObjects 上所有缺失的脚本", false, 503)]
         public static void ProcessCleaning()

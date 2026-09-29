@@ -9,10 +9,12 @@ using NUnit.Framework;
 namespace Service.Resource
 {
     /// <summary>
-    /// ResourceService 方法集契约测试：锁定外观公开面，防止后续重构悄然漂移。
-    /// 含 legacy 族 Obsolete 特性、运行时配置属性读写、InitializePackageAsync/TryInitializePackageAsync 签名、
-    /// HasAsset 三值语义四类断言。
+    /// <see cref="ResourceService"/> 方法集契约测试：锁定外观公开面，防止后续重构悄然漂移。
     /// </summary>
+    /// <remarks>
+    /// 断言四类：legacy 族 <c>Obsolete</c> 特性、运行时配置属性读写、
+    /// <c>InitializePackageAsync</c>/<c>TryInitializePackageAsync</c> 签名、<c>HasAsset</c> 三值语义。
+    /// </remarks>
     public sealed class ResourceMethodSetContractTests
     {
         private const BindingFlags StaticPublic = BindingFlags.Public | BindingFlags.Static;
@@ -139,11 +141,11 @@ namespace Service.Resource
 
         /// <summary>
         /// 包初始化原语签名：返回操作结果对象而非布尔；包名必填，是否初始化清单可选。
-        /// <para>2026-09-24 同步（commit bbe7dcc3「包管理 API 名实一致」）：本方法原为
-        /// <c>UniTask&lt;bool&gt;</c> + 三字符串参数，实为 <see cref="ResourceService.TryInitializePackageAsync"/>
-        /// 的形状，两条 API 名实对不上。改为 <c>UniTask&lt;ResourcePackageInitResult&gt;</c> +
-        /// <c>(customPackageName, needInitManifest)</c> 后，旧签名的断言移交下方 Try 版本用例。</para>
         /// </summary>
+        /// <remarks>
+        /// 形状是 <c>UniTask&lt;ResourcePackageInitResult&gt;</c> 加 <c>(customPackageName, needInitManifest)</c>； <br />
+        /// 返回布尔加三字符串参数是 <see cref="ResourceService.TryInitializePackageAsync"/> 的形状。
+        /// </remarks>
         [Test]
         public void InitializePackageAsync_Signature()
         {
@@ -183,8 +185,7 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 返回 <see cref="IResourceOperation"/> 的 Handler 方法冻结为存量名单：新成员一律走 UniTask，
-        /// 不得再引入轮询句柄（改名/适配留到下个 API 窗口，这里只锁不再涨）。
+        /// 返回 <see cref="IResourceOperation"/> 的 Handler 方法冻结为存量名单：新成员一律走 UniTask，不得再引入轮询句柄。
         /// </summary>
         [Test]
         public void Handler_IResourceOperationReturns_FrozenAllowlist()
@@ -241,8 +242,7 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 配置属性 setter 走 <c>RequireHandler()</c>——未就绪时抛 <see cref="GameException"/>，
-        /// 不得静默丢写（与租约/卸载写路径同一条 fail-fast 总原则）。
+        /// 配置属性 setter 走 <c>RequireHandler()</c>：未就绪时抛 <see cref="GameException"/>，不得静默丢写。
         /// </summary>
         [Test]
         public void ConfigSetters_WhenHandlerUnready_ThrowInsteadOfSilentDrop()
@@ -262,9 +262,11 @@ namespace Service.Resource
         }
 
         /// <summary>
-        /// 服务未就绪时 <c>GetAssetInfos(tag/tags)</c> 必须回空数组而不是 null——读降级口径与
-        /// <c>HasAsset→NotExist</c>、<c>IsLocationValid→false</c> 对齐，调用方 <c>foreach</c> 不得 NRE。
+        /// 服务未就绪时 <c>GetAssetInfos(tag/tags)</c> 必须回空数组而不是 null，调用方 <c>foreach</c> 不得 NRE。
         /// </summary>
+        /// <remarks>
+        /// 读降级口径与 <c>HasAsset</c> 给 NotExist、<c>IsLocationValid</c> 给 false 对齐。
+        /// </remarks>
         [Test]
         public void GetAssetInfos_WhenHandlerUnready_ReturnsEmptyNotNull()
         {

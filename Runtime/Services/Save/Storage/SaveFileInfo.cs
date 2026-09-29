@@ -7,19 +7,13 @@ namespace Moirai.Atropos.Save
     /// </summary>
     public readonly struct SaveFileInfo
     {
-        /// <summary>
-        /// 存档文件名（不含扩展名，与 <c>Save</c>/<c>Load</c> 的 <c>fileName</c> 参数同构）。
-        /// </summary>
+        /// <summary>存档文件名（不含扩展名，与 <c>Save</c>/<c>Load</c> 的 <c>fileName</c> 参数同构）。</summary>
         public readonly string FileName;
 
-        /// <summary>
-        /// 文件大小（字节）。
-        /// </summary>
+        /// <summary>文件大小（字节）。</summary>
         public readonly long SizeBytes;
 
-        /// <summary>
-        /// 最后写入时间（UTC）。
-        /// </summary>
+        /// <summary>最后写入时间（UTC）。</summary>
         public readonly DateTime LastWriteTimeUtc;
 
         /// <summary>

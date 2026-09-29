@@ -5,7 +5,7 @@ using YooAsset;
 using KSWASM;
 
 /// <summary>
-/// 快手小游戏平台实现
+/// 快手小游戏平台实现。
 /// </summary>
 internal class KuaiShouPlatform : IWebPlatformStrategy
 {

@@ -7,9 +7,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 按用户派生的密钥提供方：HKDF-SHA256（extract：主密钥 + 用户 ID 盐 → expand 64B 拆分加密/认证密钥）。
-    /// <para>不同用户产出完全独立的密钥材料——多账号存档互相不可读；未设用户 ID 时以空盐派生（等价单用户默认档）。
-    /// 主密钥序列化于设置资产（SECURITY: 上线前必须替换占位值）；用户 ID 仅内存（运行期注入）。</para>
     /// </summary>
+    /// <remarks>
+    /// 不同用户产出完全独立的密钥材料——多账号存档互相不可读；未设用户 ID 时以空盐派生（等价单用户默认档）。 <br />
+    /// 主密钥序列化于设置资产（SECURITY: 上线前必须替换占位值）；用户 ID 仅内存（运行期注入）。
+    /// </remarks>
     [Serializable]
     // ReSharper disable once InconsistentNaming
     public class HKDFPerUserSaveKeyProvider : SaveKeyProvider
@@ -26,9 +28,7 @@ namespace Moirai.Atropos.Save
         /// <summary>派生材料缓存（主密钥/用户 ID 变更经 Matches 失配自动失效）。</summary>
         [NonSerialized] private volatile DerivedMaterial _cache;
 
-        /// <summary>
-        /// 当前用户 ID（设置后下次取材料自动按新用户重派生）。
-        /// </summary>
+        /// <summary>当前用户 ID（设置后下次取材料自动按新用户重派生）。</summary>
         public string UserId
         {
             get => _userId;
@@ -36,7 +36,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <inheritdoc />
-        /// <para>主密钥序列化于设置资产：仍是出厂占位即任何人都能按同一主密钥派生出同一套用户密钥。</para>
+        /// <remarks>主密钥序列化于设置资产：仍是出厂占位即任何拿到包的人都能派生出同一套用户密钥。</remarks>
         internal override bool UsesPlaceholderCredentials => IsFactoryPlaceholder(m_MasterSecret);
 
         /// <summary>

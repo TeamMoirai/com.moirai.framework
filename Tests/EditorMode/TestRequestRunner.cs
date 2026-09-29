@@ -10,37 +10,15 @@ using UnityEngine;
 namespace Moirai.Atropos.Tests.EditorMode
 {
     /// <summary>
-    /// 请求式测试驱动：让开着 Unity 编辑器的工作机（或本仓库的 Agent 会话）不抢锁、不重启就能跑 Test Runner。
-    /// <para>batchmode 打不开同一个工程（<c>Temp/UnityLockfile</c> 被占），而「改完代码要证据」这件事又不该
-    /// 每次都等人去点 Test Runner。这里在测试程序集里挂一个 <c>EditorApplication.update</c> 轮询（调试桥）：
-    /// 工程 <c>Temp/</c> 下出现请求文件就按里面的过滤器执行一轮，把结果与逐格进度回写到指定路径。
-    /// 作业模型对齐调试桥：每单持有 TestRunner 作业 guid，判活/取消/超时都按 guid 精确到本单，
-    /// 而不是「编辑器里有任意 run 在跑」的粗粒度猜测。</para>
-    /// <para><b>跨域重载</b>：PlayMode 进出场各触发一次域重载，静态字段会归零。本驱动把「请求 + 计数 + 失败详情 +
-    /// 作业 guid」落盘到 <c>Temp/MoiraiTestRunState.json</c>，每次域加载时恢复并重新注册回调，并在
-    /// <c>AssemblyReloadEvents.beforeAssemblyReload</c> 兜底落盘一次；Test Framework 侧
-    /// <c>TestJobDataHolder.ResumeRunningJobs</c> 会续跑作业，派发时按注册表找回调，因此 PlayMode 全程可收齐结果。</para>
-    /// <para>协议（都是 <c>Temp/</c> 下的普通文件，调用方只轮询、不双向通信）：</para>
-    /// <list type="bullet">
-    ///   <item><description>请求 <c>Temp/MoiraiTestRequest.json</c>：<c>{id, mode(EditMode|PlayMode), output, assemblies[], tests[], timeoutSeconds}</c>。读到即删除，避免重复执行。</description></item>
-    ///   <item><description>取消 <c>Temp/MoiraiTestRequest.cancel.json</c>：内容为要取消的请求 <c>id</c>（裸文本或 <c>{"id":"..."}</c> 均可）。
-    ///   匹配在途单即删除文件并经 <c>TestRunnerApi.CancelTestRun</c> 取消作业；UTF 取消后不再送达 RunFinished，
-    ///   受理即由驱动收口（ABORTED 格式，附已收集计数）；拒绝受理才等 RunFinished 自然收口。</description></item>
-    ///   <item><description>进度 <c>{output}.progress</c>：先写 <c>STARTED</c>，随后是正在跑的用例全名；收口时删除。</description></item>
-    ///   <item><description>结果 <c>{output}</c>：计数 + 逐格失败详情；写完再落 <c>{output}.done</c>，内容为请求里的 <c>id</c>。</description></item>
-    /// </list>
-    /// <para>调用方必须自带唯一 <c>id</c> 并只认配对的 <c>.done</c>，否则会把上一轮留下的旧报告当成这次的结论。
-    /// <c>timeoutSeconds</c> 为可选墙钟上限（0 或缺省不限时；编译、导入与域重载的等待计入），超时按 ABORTED 收口
-    /// 并尽力取消 Test Runner 作业（作业可能已在收尾，取消未必受理）；ABORTED 报告附带已收集到的
-    /// <c>collected passed/failed/skipped</c> 与墙钟时长，已跑完的格子不白跑。<c>assemblies</c> 与 <c>tests</c>
-    /// 均为空的请求会被直接拒绝收口——空过滤器会让 Test Runner 重跑上一次的选择集。</para>
-    /// <para><b>接单门</b>：正在编译、正在导入、正在切换 PlayMode、或编辑器里有任意 run 在跑（含窗口手动发起）时
-    /// 不接新单——ICallbacks 无法归因到具体 run，与本驱动并发会把结果串进同一份账。</para>
-    /// <para><b>孤儿单</b>：域重载后先给 UTF 认领窗口，随后按作业 guid 判活（探针缺失时降级为「任意 run 在跑」，
-    /// 判活完全不可用则再给扩展宽限），仍无在途作业即 ABORTED 强制收口——调用方永不会等不到 <c>.done</c>。</para>
-    /// <para>驱动住在测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控的调试桥），不进玩家包；它是编辑器内的便利设施，
-    /// 不替代发布流程里的自动化测试。</para>
+    /// 请求式测试驱动：轮询工程 <c>Temp/</c> 下的请求文件跑一轮 Test Runner，进度与结果回写指定路径。
     /// </summary>
+    /// <remarks>
+    /// 住在测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控），不进玩家包，是编辑器内的便利设施。 <br />
+    /// 协议：请求 <c>Temp/MoiraiTestRequest.json</c>（读到即删）、取消 <c>Temp/MoiraiTestRequest.cancel.json</c>、
+    /// 进度 <c>{output}.progress</c>、结果 <c>{output}</c> 与配对标记 <c>{output}.done</c>；调用方只轮询、不双向通信。 <br />
+    /// 调用方必须自带唯一 <c>id</c> 并只认配对的 <c>.done</c>；<c>assemblies</c> 与 <c>tests</c> 全空直接拒绝。 <br />
+    /// 编译、导入、切 PlayMode 或已有任意 run 在跑时不接单；域重载后按作业 guid 判活，判不了即按 ABORTED 强制收口。
+    /// </remarks>
     [InitializeOnLoad]
     internal static class TestRequestRunner
     {
@@ -52,21 +30,16 @@ namespace Moirai.Atropos.Tests.EditorMode
         private const string STATE_PATH = "Temp/MoiraiTestRunState.json";
         private const string MARKER = "MOIRAI-TEST-RUN";
 
-        /// <summary>
-        /// 「本进程已经收过哪一单」的记号，落在 <c>SessionState</c>（进程级、跨域重载保留）。
-        /// 一单可能同时活在两个域里：旧域拆走前还在跑自己的 <c>Poll</c>，新域已经在续跑同一份状态。
-        /// 谁先收口谁算，后到的必须整块沉默——见 <see cref="AlreadyFinished"/>。
-        /// </summary>
+        /// <summary>「本进程已经收过哪一单」的记号，落在 <c>SessionState</c>（进程级、跨域重载保留）。</summary>
+        /// <remarks>
+        /// 一单可能同时活在两个域里（旧域拆走前还在跑自己的 <c>Poll</c>，新域已在续跑同一份状态）；谁先收口谁算，后到的必须整块沉默（见 <see cref="AlreadyFinished"/>）。
+        /// </remarks>
         private const string FINISHED_KEY = "Moirai.TestRequestRunner.Finished";
 
-        /// <summary>
-        /// 域重载后给 <c>ResumeRunningJobs</c> 留下的认领窗口；超时仍无在途作业则判孤儿单。
-        /// </summary>
+        /// <summary>域重载后给 <c>ResumeRunningJobs</c> 留下的认领窗口；超时仍无在途作业则判孤儿单。</summary>
         private const double ORPHAN_GRACE_SECONDS = 2.0;
 
-        /// <summary>
-        /// 判活探针完全不可用时的扩展宽限：宁可多等也不误杀，但宽限后强制收口，绝不把调用方永远挂在「无 .done」上。
-        /// </summary>
+        /// <summary>判活探针完全不可用时的扩展宽限：宁可多等也不误杀，但宽限后强制收口，绝不把调用方永远挂在「无 .done」上。</summary>
         private const double UNVERIFIED_ORPHAN_GRACE_SECONDS = 30.0;
 
         #endregion
@@ -122,15 +95,11 @@ namespace Moirai.Atropos.Tests.EditorMode
 
         #region 判活探针 [LIVENESS PROBES]
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunning(guid)</c> 反射探针：只问我们这一单是否仍在跑——窗口手动跑不干扰孤儿单判定。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunning(guid)</c> 反射探针：只问我们这一单是否仍在跑——窗口手动跑不干扰孤儿单判定。</summary>
         private static readonly Func<string, bool> IsRunningProbe =
             CreateProbe<Func<string, bool>>("IsRunning", typeof(string));
 
-        /// <summary>
-        /// <c>TestRunnerApi.IsRunActive()</c> 反射探针：任意 run 在跑即真；仅作 <see cref="IsRunningProbe"/> 不可用时的降级。
-        /// </summary>
+        /// <summary><c>TestRunnerApi.IsRunActive()</c> 反射探针：任意 run 在跑即真；仅作 <see cref="IsRunningProbe"/> 不可用时的降级。</summary>
         private static readonly Func<bool> IsRunActiveProbe = CreateProbe<Func<bool>>("IsRunActive", null);
 
         /// <summary>
@@ -227,9 +196,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         }
 
         /// <summary>
-        /// 注册 ICallbacks。必须每次域加载都做：UTF 的 <c>CallbacksHolder</c> 列表不序列化，
-        /// 重载后为空；派发时才查表，故续跑作业能收到本次新注册的实例。
+        /// 注册 <see cref="ICallbacks"/>。
         /// </summary>
+        /// <remarks>
+        /// 必须每次域加载都做：UTF 的 <c>CallbacksHolder</c> 列表不序列化、重载后为空，而派发时才查表，故续跑作业能收到本次新注册的实例。
+        /// </remarks>
         private static void RegisterCallbacks()
         {
             if (s_CallbacksRegistered) return;
@@ -319,9 +290,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         }
 
         /// <summary>
-        /// 原子消费请求：先改名再读取。若「读完再删」，删除一旦失败就会留下完整请求文件，
-        /// 下一帧把同一单重复执行；改名本身就是消费标记，改名失败则原文件原封不动、下一帧重试。
+        /// 原子消费请求：先改名再读取。
         /// </summary>
+        /// <remarks>
+        /// 若「读完再删」，删除失败会留下完整请求文件，下一帧把同一单重复执行；改名本身就是消费标记，改名失败则原文件原封不动、下一帧重试。
+        /// </remarks>
         private static Request TryConsumeRequest()
         {
             if (!File.Exists(REQUEST_PATH)) return null;
@@ -433,10 +406,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         #region 收口 [COMPLETION]
 
         /// <summary>
-        /// 墙钟超时收口：请求可带 <c>timeoutSeconds</c>（0 不限时）。编译、导入与 PlayMode 切换期间
-        /// 暂缓判定（与孤儿单同组守卫），墙钟计时包含这些等待——与调试桥作业超时同语义。
-        /// 收口同时尽力取消 Test Runner 作业（此前作业会继续在后台跑完白烧 CPU）。
+        /// 墙钟超时收口：请求可带 <c>timeoutSeconds</c>（0 不限时），超时即收口并尽力取消 Test Runner 作业。
         /// </summary>
+        /// <remarks>
+        /// 编译、导入与 PlayMode 切换期间暂缓判定（与孤儿单同组守卫），墙钟计时包含这些等待，与调试桥作业超时同语义。
+        /// </remarks>
         private static void TryTimeoutRun()
         {
             if (s_State == null || s_State.deadline <= 0d) return;
@@ -454,10 +428,11 @@ namespace Moirai.Atropos.Tests.EditorMode
         }
 
         /// <summary>
-        /// 域重载后作业若已不在（编辑器崩溃、强制退出 Play、续跑失败），不能把调用方永远卡在「无 .done」。
-        /// 宽限期内给 UTF 的 <c>ResumeRunningJobs</c> 认领；判活按作业 guid 精确到本单，探针缺失或抛错
-        /// 逐级降级，扩展宽限后仍无法证实在跑即 ABORTED 强制收口。
+        /// 域重载后作业判活收口：宽限期内给 UTF 的 <c>ResumeRunningJobs</c> 认领，按作业 guid 精确到本单判活，探针缺失或抛错逐级降级，扩展宽限后仍无法证实在跑即按 ABORTED 强制收口。
         /// </summary>
+        /// <remarks>
+        /// 作业已不在（编辑器崩溃、强制退出 Play、续跑失败）时，不得把调用方永远卡在「无 <c>.done</c>」。
+        /// </remarks>
         private static void TryAbortOrphanedRun()
         {
             if (s_State == null || s_RestoredAt < 0d) return;
@@ -533,12 +508,14 @@ namespace Moirai.Atropos.Tests.EditorMode
         #region 取消 [CANCELLATION]
 
         /// <summary>
-        /// 取消通道：取消文件内容为请求 id（裸文本或 <c>{"id":"..."}</c>）。匹配在途单即删除文件并经
-        /// <c>CancelTestRun</c> 取消作业。UTF 取消受理后会清空任务管线、<b>不再送达 RunFinished</b>
-        /// （RunFinishedInvocationEvent 被 Canceled 模式跳过），故受理即由本驱动收口，已收集计数随取消报告交付；
-        /// 拒绝受理（作业已在收尾/已取消中/找不到 runner）则继续等 RunFinished 自然收口。不匹配的取消请求
-        /// 直接清掉（它指向的单已不存在）。收口后的在途单为 null，后续回调自然空转。
+        /// 取消通道：按请求 id 匹配在途单，命中即删除取消文件并经 <c>CancelTestRun</c> 取消作业，不匹配的取消请求直接清掉。
         /// </summary>
+        /// <remarks>
+        /// 取消文件内容为请求 id（裸文本或 <c>{"id":"..."}</c>）。 <br />
+        /// UTF 受理取消后会清空任务管线、<b>不再送达 RunFinished</b>（RunFinishedInvocationEvent 被 Canceled 模式跳过），故受理即由本驱动收口，已收集计数随取消报告交付； <br />
+        /// 拒绝受理（作业已在收尾/已取消中/找不到 runner）则继续等 RunFinished 自然收口。 <br />
+        /// 收口后在途单为 null，后续回调自然空转。
+        /// </remarks>
         private static void TryCancelRun()
         {
             if (s_State == null || !File.Exists(CANCEL_PATH)) return;
@@ -627,8 +604,7 @@ namespace Moirai.Atropos.Tests.EditorMode
         #region 结果回调 [RESULT CALLBACKS]
 
         /// <summary>
-        /// Test Runner 结果回调：随域加载静态重注册（见 <see cref="RegisterCallbacks"/>），
-        /// <c>s_State</c> 为空（无本驱动的在途单）时全部空转，不干扰窗口里手动发起的测试。
+        /// Test Runner 结果回调：随域加载静态重注册，<c>s_State</c> 为空（无本驱动的在途单）时全部空转，不干扰窗口里手动发起的测试。
         /// </summary>
         private sealed class Callbacks : ICallbacks, IErrorCallbacks
         {

@@ -37,14 +37,10 @@ namespace Moirai.Atropos
             _name = name ?? string.Empty;
         }
 
-        /// <summary>
-        /// 获取类型。
-        /// </summary>
+        /// <summary>获取类型。</summary>
         public Type Type => _type;
 
-        /// <summary>
-        /// 获取名称。
-        /// </summary>
+        /// <summary>获取名称。</summary>
         public string Name => _name;
 
         /// <summary>
@@ -91,9 +87,7 @@ namespace Moirai.Atropos
             return _type == value._type && _name == value._name;
         }
 
-        /// <summary>
-        /// 判断两个对象是否相等。
-        /// </summary>
+        /// <summary>判断两个对象是否相等。</summary>
         /// <param name="a">值 a。</param>
         /// <param name="b">值 b。</param>
         /// <returns>两个对象是否相等。</returns>
@@ -102,9 +96,7 @@ namespace Moirai.Atropos
             return a.Equals(b);
         }
 
-        /// <summary>
-        /// 判断两个对象是否不相等。
-        /// </summary>
+        /// <summary>判断两个对象是否不相等。</summary>
         /// <param name="a">值 a。</param>
         /// <param name="b">值 b。</param>
         /// <returns>两个对象是否不相等。</returns>

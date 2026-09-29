@@ -12,15 +12,8 @@ namespace Moirai.Atropos
         // Core methods ---------------------------------------------------------------------------------------------------------------
 
         /// <summary>
-        /// 根据 currentTime 在 startValue 和 endValue 之间沿指定的补间曲线移动值
+        /// 根据 currentTime 在 startValue 和 endValue 之间沿指定的补间曲线移动值。
         /// </summary>
-        /// <param name="currentTime"></param>
-        /// <param name="initialTime"></param>
-        /// <param name="endTime"></param>
-        /// <param name="startValue"></param>
-        /// <param name="endValue"></param>
-        /// <param name="curve"></param>
-        /// <returns></returns>
         [BurstCompile]
         public static float Tween(float currentTime, float initialTime, float endTime, float startValue, float endValue, TweenUtility.EEase curve)
         {

@@ -13,7 +13,7 @@ using Luban;
 namespace Moirai.GameProto.Config.L10n
 {
 /// <summary>
-/// 多语言配置
+/// 多语言配置。
 /// </summary>
 public partial class TbLocalizedStrings
 {

@@ -3,8 +3,7 @@ using System;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 记录内核的宿主侧——内核句柄的懒建、几个接缝转发，以及属于表现层的 ResourceOwner 登记。
-    /// <para>记账实现全在 <see cref="ResourceRecordStore"/>；这里每多一行，就说明内核的接缝还差一度。</para>
+    /// 记录内核的宿主侧：内核句柄的懒建、接缝转发，以及表现层的 ResourceOwner 登记；记账全在 <see cref="ResourceRecordStore"/>。
     /// </summary>
     partial class YooAssetHandler
     {

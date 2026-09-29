@@ -24,12 +24,12 @@ namespace Moirai.Atropos.Localization
 
     /// <summary>
     /// 本地化词条存储：持有当前批的扁平词条与覆盖层，并执行「覆盖层 → 指定语言」的取值解析。
-    /// <para>词条以「key → 行索引」+ 行主序扁平数组（row × 语言数 + 列）存放，不再保留
-    /// 「每词条一个 <c>List&lt;string&gt;</c> + 字典装箱」的批对象——万级词条下少一倍容器对象开销。</para>
-    /// <para>与查询语义一起从处理器里拆出来，是为了让运行期数据源与编辑器预览共用同一套存储与解析
-    /// （编辑器预览只是换一批数据源，不该有第二份取值逻辑）。</para>
-    /// <para>本类不打日志、不做语言解析，失败一律以返回值交给调用方归因。</para>
     /// </summary>
+    /// <remarks>
+    /// 词条以「key → 行索引」+ 行主序扁平数组（row × 语言数 + 列）存放，万级词条下容器开销约为逐词条列表的一半。 <br />
+    /// 运行期数据源与编辑器预览共用本存储与解析逻辑。 <br />
+    /// 本类不打日志、不做语言解析，失败一律以返回值交给调用方归因。
+    /// </remarks>
     internal sealed class LocalizationStore
     {
         private Language[] _languages = Array.Empty<Language>();
@@ -116,7 +116,9 @@ namespace Moirai.Atropos.Localization
             return true;
         }
 
-        /// <summary>清空到未加载态（关服时调用）。</summary>
+        /// <summary>
+        /// 清空到未加载态（关服时调用）。
+        /// </summary>
         public void Clear()
         {
             ClearData();
@@ -124,9 +126,9 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 仅清空词条数据（保留覆盖层）——按语言列整轮重载用；
-        /// 覆盖层契约独立于词条批，换批/换列都不得顺带抹掉运营热改。
+        /// 仅清空词条数据而保留覆盖层（按语言列整轮重载用）。
         /// </summary>
+        /// <remarks>覆盖层契约独立于词条批，换批与换列都不得顺带抹掉运营热改。</remarks>
         public void ClearData()
         {
             _languages = Array.Empty<Language>();
@@ -146,7 +148,9 @@ namespace Moirai.Atropos.Localization
             return _sparseKeySet != null ? _sparseKeySet.Contains(key) : _rowByKey.ContainsKey(key);
         }
 
-        /// <summary>取全部词条 key 的新列表（诊断/工具用，逐次分配；列模式下为已加载列的并集）。</summary>
+        /// <summary>
+        /// 取全部词条 key 的新列表（诊断/工具用，逐次分配；列模式下为已加载列的并集）。
+        /// </summary>
         public List<string> GetAllKeys()
         {
             if (_sparseKeySet != null) return new List<string>(_sparseKeySet);
@@ -182,8 +186,8 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 进入按语言列模式：语言头就位，全部列标记为未加载。
-        /// <para>若此前是整批行表，行表一并丢弃——两种存储形态互斥。</para>
         /// </summary>
+        /// <remarks>若此前是整批行表，行表一并丢弃——两种存储形态互斥。</remarks>
         public void BeginSparse(Language[] languages)
         {
             _languages = languages ?? Array.Empty<Language>();
@@ -195,7 +199,9 @@ namespace Moirai.Atropos.Localization
             _generation++;
         }
 
-        /// <summary>丢弃全部已加载列（保留语言头与覆盖层）——按语言列整轮重载用。</summary>
+        /// <summary>
+        /// 丢弃全部已加载列（保留语言头与覆盖层）——按语言列整轮重载用。
+        /// </summary>
         public void ClearSparseColumns()
         {
             if (_sparseColumns == null) return;
@@ -210,7 +216,9 @@ namespace Moirai.Atropos.Localization
             _generation++;
         }
 
-        /// <summary>指定语言的列是否已加载（含「已加载的空列」语义）。</summary>
+        /// <summary>
+        /// 指定语言的列是否已加载（含「已加载的空列」语义）。
+        /// </summary>
         public bool IsColumnLoaded(int languageIndex)
         {
             return _sparseColumns != null
@@ -261,13 +269,17 @@ namespace Moirai.Atropos.Localization
             return Lookup(key, row, languageIndex);
         }
 
-        /// <summary>按列下标取译文（两种存储形态的统一入口；列未加载/越界/空值一律 <c>null</c>）。</summary>
+        /// <summary>
+        /// 按列下标取译文（两种存储形态的统一入口；列未加载/越界/空值一律 <c>null</c>）。
+        /// </summary>
         private string Lookup(string key, int row, int languageIndex)
         {
             return _sparseColumns != null ? SelectSparse(key, languageIndex) : Select(row, languageIndex);
         }
 
-        /// <summary>列模式取译文：列未加载、key 缺失、空/仅空白一律返回 <c>null</c>。</summary>
+        /// <summary>
+        /// 列模式取译文：列未加载、key 缺失、空/仅空白一律返回 <c>null</c>。
+        /// </summary>
         private string SelectSparse(string key, int languageIndex)
         {
             if (_sparseColumns == null || languageIndex < 0 || languageIndex >= _sparseColumns.Length) return null;
@@ -288,7 +300,9 @@ namespace Moirai.Atropos.Localization
             return null;
         }
 
-        /// <summary>取指定行/列的译文；越界或为空/仅空白时视为缺译，返回 <c>null</c>。</summary>
+        /// <summary>
+        /// 取指定行/列的译文；越界或为空/仅空白时视为缺译，返回 <c>null</c>。
+        /// </summary>
         private string Select(int row, int column)
         {
             if (column < 0) return null;
@@ -300,7 +314,9 @@ namespace Moirai.Atropos.Localization
 
         #region 覆盖层 [OVERLAY]
 
-        /// <summary>取（必要时建）指定来源的覆盖层；同名来源复用，来源顺序即优先级。</summary>
+        /// <summary>
+        /// 取（必要时建）指定来源的覆盖层；同名来源复用，来源顺序即优先级。
+        /// </summary>
         private LocalizationOverlay GetOrAddOverlay(string sourceId)
         {
             for (var i = 0; i < _overlays.Count; i++)
@@ -333,7 +349,9 @@ namespace Moirai.Atropos.Localization
             return overlay.Count;
         }
 
-        /// <summary>撤掉某个来源的全部覆盖；返回是否确实存在该层。</summary>
+        /// <summary>
+        /// 撤掉某个来源的全部覆盖；返回是否确实存在该层。
+        /// </summary>
         public bool ClearOverlay(string sourceId)
         {
             for (var i = 0; i < _overlays.Count; i++)
@@ -347,10 +365,14 @@ namespace Moirai.Atropos.Localization
             return false;
         }
 
-        /// <summary>撤掉全部覆盖层。</summary>
+        /// <summary>
+        /// 撤掉全部覆盖层。
+        /// </summary>
         public void ClearAllOverlays() => _overlays.Clear();
 
-        /// <summary>枚举已登记的覆盖层（来源标识与该层条数），供诊断使用。</summary>
+        /// <summary>
+        /// 枚举已登记的覆盖层（来源标识与该层条数），供诊断使用。
+        /// </summary>
         public List<LocalizationOverlay> GetOverlays() => _overlays;
 
         #endregion

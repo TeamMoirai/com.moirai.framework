@@ -4,9 +4,11 @@ namespace Moirai.Atropos.Timer
 {
     /// <summary>
     /// 计时器触发所在的 PlayerLoop 阶段。
-    /// <para>时间轮在 <see cref="TimerPhase.Update"/> 推进；Fixed/Late 阶段到期的时间计时器延后到对应 Tick 触发，
-    /// 帧计时器则各自在对应 Tick 中逐帧推进。</para>
     /// </summary>
+    /// <remarks>
+    /// 时间轮在 <see cref="TimerPhase.Update"/> 推进；Fixed/Late 到期的时间计时器延后到对应 Tick 触发，
+    /// 帧计时器各自在对应 Tick 中逐帧推进。
+    /// </remarks>
     public enum TimerPhase : byte
     {
         /// <summary>逻辑帧 Update（默认）。</summary>
@@ -18,9 +20,11 @@ namespace Moirai.Atropos.Timer
     }
 
     /// <summary>
-    /// 零分配计时器回调绑定（函数指针优先，兼容 Action）。
-    /// <para>热路径请使用 <c>delegate*</c> 或缓存方法组，禁止捕获闭包。</para>
+    /// 零分配计时器回调绑定（函数指针优先，兼容 <see cref="System.Action"/>）。
     /// </summary>
+    /// <remarks>
+    /// 热路径请使用 <c>delegate*</c> 或缓存方法组，禁止捕获闭包。
+    /// </remarks>
     public readonly unsafe struct TimerUnsafeBinding
     {
         internal const byte TYPE_PTR = 0;

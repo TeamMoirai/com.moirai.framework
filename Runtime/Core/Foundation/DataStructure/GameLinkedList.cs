@@ -24,39 +24,25 @@ namespace Moirai.Atropos
             _cachedNodes = new Queue<LinkedListNode<T>>();
         }
 
-        /// <summary>
-        /// 获取链表中实际包含的结点数量。
-        /// </summary>
+        /// <summary>获取链表中实际包含的结点数量。</summary>
         public int Count => _linkedList.Count;
 
-        /// <summary>
-        /// 获取链表结点缓存数量。
-        /// </summary>
+        /// <summary>获取链表结点缓存数量。</summary>
         public int CachedNodeCount => _cachedNodes.Count;
 
-        /// <summary>
-        /// 获取链表的第一个结点。
-        /// </summary>
+        /// <summary>获取链表的第一个结点。</summary>
         public LinkedListNode<T> First => _linkedList.First;
 
-        /// <summary>
-        /// 获取链表的最后一个结点。
-        /// </summary>
+        /// <summary>获取链表的最后一个结点。</summary>
         public LinkedListNode<T> Last => _linkedList.Last;
 
-        /// <summary>
-        /// 获取一个值，该值指示 ICollection`1 是否为只读。
-        /// </summary>
+        /// <summary>获取一个值，该值指示 ICollection`1 是否为只读。</summary>
         public bool IsReadOnly => ((ICollection<T>)_linkedList).IsReadOnly;
 
-        /// <summary>
-        /// 获取可用于同步对 ICollection 的访问的对象。
-        /// </summary>
+        /// <summary>获取可用于同步对 ICollection 的访问的对象。</summary>
         public object SyncRoot => ((ICollection)_linkedList).SyncRoot;
 
-        /// <summary>
-        /// 获取一个值，该值指示是否同步对 ICollection 的访问（线程安全）。
-        /// </summary>
+        /// <summary>获取一个值，该值指示是否同步对 ICollection 的访问（线程安全）。</summary>
         public bool IsSynchronized => ((ICollection)_linkedList).IsSynchronized;
 
         /// <summary>
@@ -354,14 +340,10 @@ namespace Moirai.Atropos
                 _enumerator = linkedList.GetEnumerator();
             }
 
-            /// <summary>
-            /// 获取当前结点。
-            /// </summary>
+            /// <summary>获取当前结点。</summary>
             public T Current => _enumerator.Current;
 
-            /// <summary>
-            /// 获取当前的枚举数。
-            /// </summary>
+            /// <summary>获取当前的枚举数。</summary>
             object IEnumerator.Current => _enumerator.Current;
 
             /// <summary>

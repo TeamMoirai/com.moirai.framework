@@ -5,17 +5,15 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// CRC-32（IEEE 802.3，多项式 0xEDB88320）查表实现，用于存档载荷的存储损坏检测。
-    /// <para>仅面向意外损坏（位翻转/截断）的完整性校验；防篡改由加密处理器的 HMAC 层承担。</para>
     /// </summary>
+    /// <remarks>仅校验意外损坏（位翻转/截断）；防篡改由加密处理器的 HMAC 层承担。</remarks>
     internal static class Crc32
     {
         private const uint POLYNOMIAL = 0xEDB88320u;
 
         private static readonly uint[] s_Table = BuildTable();
 
-        /// <summary>
-        /// 增量计算的寄存器起始值（首段喂入前以此初始化）。
-        /// </summary>
+        /// <summary>增量计算的寄存器起始值（首段喂入前以此初始化）。</summary>
         public const uint INITIAL_STATE = 0xFFFFFFFFu;
 
         /// <summary>
@@ -76,9 +74,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// CRC-32 增量计算包装流（写透传到底层流并增量累计校验值——流式写管线的载荷 CRC 累计载体）。
-        /// <para>只写、禁寻址（Seek 会破坏增量语义）；校验结果在全部写入完成后经 <see cref="Result"/> 读取。</para>
+        /// CRC-32 增量计算包装流：写透传到底层流并增量累计校验值。
         /// </summary>
+        /// <remarks>只写、禁寻址（Seek 会破坏增量语义）；校验结果在全部写入完成后经 <see cref="Result"/> 读取。</remarks>
         internal sealed class Crc32Stream : Stream
         {
             /// <summary>底层目标流。</summary>
@@ -104,14 +102,10 @@ namespace Moirai.Atropos.Save
                 _leaveOpen = leaveOpen;
             }
 
-            /// <summary>
-            /// 全部写入完成后的 CRC-32 校验值。
-            /// </summary>
+            /// <summary>全部写入完成后的 CRC-32 校验值。</summary>
             public uint Result => Crc32.Finalize(_crc);
 
-            /// <summary>
-            /// 已透传写入的字节总数。
-            /// </summary>
+            /// <summary>已透传写入的字节总数。</summary>
             public long BytesWritten => _bytesWritten;
 
             /// <inheritdoc />
@@ -177,10 +171,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// CRC-32 增量计算读包装流（读透传并增量累计校验值——流式读管线的载荷 CRC 累计载体）。
-        /// <para>默认只读禁寻址（Seek 会破坏增量语义）；<see cref="Freeze"/> 冻结后停止喂入并放开寻址——
-        /// 解密链「第一遍 HMAC 预验（喂 CRC）→ rewind → 第二遍限长解密读（不再喂）」两遍流式的核心机件。</para>
+        /// CRC-32 增量计算读包装流：读透传并增量累计校验值。
         /// </summary>
+        /// <remarks>默认只读禁寻址（Seek 会破坏增量语义）；<see cref="Freeze"/> 冻结后停止喂入并放开寻址，支撑解密链「HMAC 预验喂 CRC → rewind → 限长解密读不再喂」的两遍流式。</remarks>
         internal sealed class Crc32ReadStream : Stream
         {
             /// <summary>底层源流。</summary>
@@ -209,14 +202,10 @@ namespace Moirai.Atropos.Save
                 _leaveOpen = leaveOpen;
             }
 
-            /// <summary>
-            /// 源流读尽后的 CRC-32 校验值。
-            /// </summary>
+            /// <summary>源流读尽后的 CRC-32 校验值。</summary>
             public uint Result => Crc32.Finalize(_crc);
 
-            /// <summary>
-            /// 已透传读取的字节总数（冻结后读取不再计入）。
-            /// </summary>
+            /// <summary>已透传读取的字节总数（冻结后读取不再计入）。</summary>
             public long BytesRead => _bytesRead;
 
             /// <summary>底层源流（解密链 rewind/定位用——绕过包装层直接寻址）。</summary>

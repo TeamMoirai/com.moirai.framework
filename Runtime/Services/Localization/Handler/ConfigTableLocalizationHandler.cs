@@ -6,20 +6,17 @@ using Moirai.Atropos.ConfigTable;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 配置表数据源本地化处理器（默认实现）。
-    /// <para>从 <see cref="ConfigTableService"/> 加载的多语言配置表获取语言代码与字符串字典。</para>
-    /// <para><b>语言必须随表自报</b>：<c>GetLocalizationLanguageCodes</c> 返回空时本处理器产出空批，
-    /// 由基类以「数据未就绪」拒载并保持重试——拒绝回落任何全局注册表，语言列序只有一个真相源。</para>
-    /// <para>配置表按语言分份存储时（处理器自报 <see cref="ConfigTableService.SupportsPerLanguageLocalizationLoad"/>）
-    /// 走基类的按语言列模式：常驻与取值都只有「语言头 + 当前语言列」。</para>
+    /// 配置表数据源本地化处理器（默认实现）：从 <see cref="ConfigTableService"/> 的多语言配置表读取语言代码与字符串字典。
     /// </summary>
+    /// <remarks>
+    /// 语言必须随表自报：<c>GetLocalizationLanguageCodes</c> 返回空时产出空批，由基类以「数据未就绪」拒载并保持重试，不回落任何全局注册表。 <br />
+    /// 配置表按语言分份存储时（<see cref="ConfigTableService.SupportsPerLanguageLocalizationLoad"/>）走基类按语言列模式，常驻与取值都只有「语言头 + 当前语言列」。
+    /// </remarks>
     [Serializable]
     internal class ConfigTableLocalizationHandler : LocalizationServiceHandler
     {
-        /// <summary>
-        /// 是否走按语言列模式，完全由配置表处理器的自报决定——本类不额外设门槛，
-        /// 否则「表已按语言分份、服务却整批常驻」这种半启用状态无法从任何一侧解释。
-        /// </summary>
+        /// <summary>是否走按语言列模式，完全由配置表处理器的自报决定。</summary>
+        /// <remarks>本类不额外设门槛，避免出现「表已按语言分份、服务却整批常驻」的半启用状态。</remarks>
         protected override bool SupportsPerLanguageLoad => ConfigTableService.SupportsPerLanguageLocalizationLoad;
 
         /// <summary>
@@ -35,9 +32,9 @@ namespace Moirai.Atropos.Localization
             => language == null ? null : ConfigTableService.GetLocalizedStringsByLanguage(language.Code);
 
         /// <summary>
-        /// 从配置表加载一批词条：语言由表自报，列序即自报顺序（经外观共享的 <c>ResolveLanguages</c> 解析，
-        /// 与编辑器预览同一条语言解析路径）。
+        /// 从配置表加载一批词条：语言由表自报，列序即自报顺序。
         /// </summary>
+        /// <remarks>语言经外观共享的 <c>ResolveLanguages</c> 解析，与编辑器预览走同一条语言解析路径。</remarks>
         internal override LocalizationTextBatch LoadLocalizedTextBatch()
         {
             var strings = ConfigTableService.GetAllLocalizedStrings();
@@ -46,9 +43,9 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 异步批加载：表字节已随资源服务预加载完毕，读表本身为纯内存展开；
-        /// 让出一帧，避免整表展开压在调用方的首查询帧上。
+        /// 异步批加载：读表并让出一帧，避免整表展开压在调用方的首查询帧上。
         /// </summary>
+        /// <remarks>表字节已随资源服务预加载完毕，读表本身为纯内存展开。</remarks>
         internal override async UniTask<LocalizationTextBatch> LoadLocalizedTextBatchAsync()
         {
             await UniTask.Yield();

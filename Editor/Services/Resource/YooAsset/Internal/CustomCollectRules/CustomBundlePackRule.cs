@@ -4,7 +4,7 @@ using System.IO;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 将特效纹理按首字符分组到资源包
+    /// 将特效纹理按首字符分组到资源包。
     /// </summary>
     [DisplayName("打包特效纹理（自定义）")]
     public class PackEffectTexture : IBundlePackRule

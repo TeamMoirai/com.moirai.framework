@@ -35,65 +35,43 @@ namespace Moirai.Atropos.UI
 
         public override UIType Type => UIType.Window;
 
-        /// <summary>
-        /// 窗口位置组件。
-        /// </summary>
+        /// <summary>窗口位置组件。</summary>
         /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
         public override Transform transform => _panel.transform;
         
-        /// <summary>
-        /// 窗口矩阵位置组件。
-        /// </summary>
+        /// <summary>窗口矩阵位置组件。</summary>
         /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
         public override RectTransform rectTransform => _panel.transform as RectTransform;
 
-        /// <summary>
-        /// 窗口的实例资源对象。
-        /// </summary>
+        /// <summary>窗口的实例资源对象。</summary>
         /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
         public override GameObject gameObject => _panel;
 
-        /// <summary>
-        /// 窗口名称。
-        /// </summary>
+        /// <summary>窗口名称。</summary>
         public string WindowName { get; private set; }
 
-        /// <summary>
-        /// 窗口层级。
-        /// </summary>
+        /// <summary>窗口层级。</summary>
         public int WindowLayer { get; private set; }
 
-        /// <summary>
-        /// 资源定位地址。
-        /// </summary>
+        /// <summary>资源定位地址。</summary>
         public string AssetName { get; private set; }
 
-        /// <summary>
-        /// 是否为全屏窗口。
-        /// </summary>
+        /// <summary>是否为全屏窗口。</summary>
         /// <remarks>将全屏下层的UI设为隐藏</remarks>
         public virtual bool FullScreen { get; private set; } = false;
 
-        /// <summary>
-        /// 是内部资源无需AB加载。
-        /// </summary>
+        /// <summary>是内部资源无需AB加载。</summary>
         public bool FromResources { get; private set; }
         
-        /// <summary>
-        /// 隐藏窗口关闭时间。
-        /// </summary>
+        /// <summary>隐藏窗口关闭时间。</summary>
         public int HideTimeToClose { get; set; }
         
         public ulong HideTimerId { get; set; }
         
-        /// <summary>
-        /// 缓存实例，关闭时不销毁。
-        /// </summary>
+        /// <summary>缓存实例，关闭时不销毁。</summary>
         public bool CacheInstance { get; set; }
         
-        /// <summary>
-        /// 窗口深度值。
-        /// </summary>
+        /// <summary>窗口深度值。</summary>
         public int Depth
         {
             get
@@ -147,9 +125,7 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>
-        /// 窗口可见性
-        /// </summary>
+        /// <summary>窗口可见性。</summary>
         public bool Visible
         {
             get
@@ -197,9 +173,7 @@ namespace Moirai.Atropos.UI
         }
 
         private bool _interactable;
-        /// <summary>
-        /// 窗口交互性
-        /// </summary>
+        /// <summary>窗口交互性。</summary>
         public bool Interactable
         {
             get => _interactable;
@@ -222,19 +196,13 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>
-        /// 是否加载完毕。
-        /// </summary>
+        /// <summary>是否加载完毕。</summary>
         internal bool IsLoadDone = false;
         
-        /// <summary>
-        /// 是否被销毁。
-        /// </summary>
+        /// <summary>是否被销毁。</summary>
         internal bool IsDestroyed = false;
                 
-        /// <summary>
-        /// UI是否隐藏标志位。
-        /// </summary>
+        /// <summary>UI是否隐藏标志位。</summary>
         public bool IsHide { internal set; get; } = false;
 
         #endregion
@@ -253,13 +221,13 @@ namespace Moirai.Atropos.UI
         #region 刘海屏适配 [NOTCH ADAPTATION]
 
         /// <summary>
-        /// 移动设备屏幕适配
+        /// 移动设备屏幕适配。
         /// </summary>
-        /// <param name="fitRect">适配的RectTransform对象</param>
-        /// <param name="liuHaiFit">是否开启刘海屏顶部适配</param>
-        /// <param name="topSpacing">刘海屏顶部适配偏移高度</param>
-        /// <param name="bottomFit">是否开启刘海屏底部适配</param>
-        /// <param name="bottomSpacing">刘海屏底部适配偏移高度</param>
+        /// <param name="fitRect">适配的RectTransform对象。</param>
+        /// <param name="liuHaiFit">是否开启刘海屏顶部适配。</param>
+        /// <param name="topSpacing">刘海屏顶部适配偏移高度。</param>
+        /// <param name="bottomFit">是否开启刘海屏底部适配。</param>
+        /// <param name="bottomSpacing">刘海屏底部适配偏移高度。</param>
         public void SetUIFit(RectTransform fitRect, bool liuHaiFit = true, float topSpacing = 0, bool bottomFit = true, float bottomSpacing = 0)
         {
             if (_setUISafeFitHelper == null)
@@ -270,9 +238,8 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 设置 <see cref="rect"/> 不受当前适配影响
+        /// 设置 <see cref="rect"/> 不受当前适配影响。
         /// </summary>
-        /// <param name="rect"></param>
         public void SetUINotFit(RectTransform rect)
         {
             if (rect == null)
@@ -284,10 +251,10 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 设置某一个节点不受指定 <see cref="refRect"/> 的影响
+        /// 设置某一个节点不受指定 <see cref="refRect"/> 的影响。
         /// </summary>
-        /// <param name="rect">设置的RectTransform</param>
-        /// <param name="refRect">依赖的RectTransform</param>
+        /// <param name="rect">设置的RectTransform。</param>
+        /// <param name="refRect">依赖的RectTransform。</param>
         public void SetUINotFit(RectTransform rect, RectTransform refRect)
         {
             if (rect == null || refRect == null)
@@ -342,7 +309,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 打开窗口后触发
+        /// 打开窗口后触发。
         /// </summary>
         internal void InternalCreate()
         {
@@ -606,9 +573,11 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 关闭动画等待。子类可 override 以播放关闭动画（淡出、缩放等）。
-        /// 窗口在动画期间保持可见，动画结束后自动隐藏。
+        /// 关闭动画等待：子类可 override 以播放关闭动画（淡出、缩放等）。
         /// </summary>
+        /// <remarks>
+        /// 窗口在动画期间保持可见，动画结束后自动隐藏。
+        /// </remarks>
         protected virtual async UniTask CloseAnimation()
         {
             await UniTask.WaitForSeconds(0.25f, true, cancellationToken: _cts.Token);
@@ -671,7 +640,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 手动强制刷新所有子对象的布局
+        /// 手动强制刷新所有子对象的布局。
         /// </summary>
         /// <remarks>用于解决动态更新布局后不会自动刷新的问题</remarks>
         protected virtual void ForceRebuildLayoutImmediate()

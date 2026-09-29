@@ -5,9 +5,8 @@ namespace Moirai.Atropos.Pool
 {
 #pragma warning disable IDE1006
     /// <summary>
-    /// 内部简单对象池
+    /// 内部简单对象池。
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     // ReSharper disable once InconsistentNaming
     internal class Internal_ObjectPool<T> where T : new()
 #pragma warning restore IDE1006 

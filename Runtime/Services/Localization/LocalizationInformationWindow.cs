@@ -6,10 +6,12 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Localization
 {
     /// <summary>
-    /// 本地化服务调试视图（原生 UI Toolkit，经 <see cref="LocalizationService.OnInit"/> 注册进游戏内调试器 "Profiler/Localization"）。
-    /// <para>展示当前语言与常驻词条规模，支持点击切换可用语言，按 1s 节流重建。</para>
-    /// <para>常驻规模一栏是"是否需要按语言拆包加载"的量化判据，不要凭感觉决定。</para>
+    /// 本地化服务调试视图（原生 UI Toolkit，经 <see cref="LocalizationService.OnInit"/> 注册进调试器 "Profiler/Localization"）。
     /// </summary>
+    /// <remarks>
+    /// 展示当前语言与常驻词条规模，支持点击切换可用语言，按 1s 节流重建。 <br />
+    /// 常驻规模一栏是「是否需要按语言拆包加载」的量化判据。
+    /// </remarks>
     public sealed class LocalizationInformationWindow : PollingDebuggerWindowBase
     {
         #region 字段 [FIELDS]

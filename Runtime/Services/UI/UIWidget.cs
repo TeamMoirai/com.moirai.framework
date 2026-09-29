@@ -7,35 +7,23 @@ namespace Moirai.Atropos.UI
 {
     public abstract class UIWidget : UIBase
     {
-        /// <summary>
-        /// 窗口组件的实例资源对象。
-        /// </summary>
+        /// <summary>窗口组件的实例资源对象。</summary>
         public override GameObject gameObject { protected set; get; }
 
-        /// <summary>
-        /// 窗口组件矩阵位置组件。
-        /// </summary>
+        /// <summary>窗口组件矩阵位置组件。</summary>
         public override RectTransform rectTransform { protected set; get; }
         
-        /// <summary>
-        /// 窗口位置组件。
-        /// </summary>
+        /// <summary>窗口位置组件。</summary>
         public override Transform transform { protected set; get; }
 
-        /// <summary>
-        /// 窗口组件名称。
-        /// </summary>
+        /// <summary>窗口组件名称。</summary>
         // ReSharper disable once InconsistentNaming
         public string WidgetName { protected set; get; } = string.Empty;
 
-        /// <summary>
-        /// UI类型。
-        /// </summary>
+        /// <summary>UI类型。</summary>
         public override UIType Type => UIType.Widget;
 
-        /// <summary>
-        /// 所属的窗口。
-        /// </summary>
+        /// <summary>所属的窗口。</summary>
         public UIWindow OwnerWindow
         {
             get
@@ -55,9 +43,7 @@ namespace Moirai.Atropos.UI
             }
         }
         
-        /// <summary>
-        /// 窗口可见性
-        /// </summary>
+        /// <summary>窗口可见性。</summary>
         public bool Visible
         {
             get => gameObject.activeSelf;
@@ -152,20 +138,14 @@ namespace Moirai.Atropos.UI
         /// <param name="parentUI">父节点UI。</param>
         /// <param name="widgetRoot">组件根节点。</param>
         /// <param name="visible">是否可见。</param>
-        /// <returns></returns>
         public bool Create(UIBase parentUI, GameObject widgetRoot, bool visible = true)
         {
             return CreateImp(parentUI, widgetRoot, false, visible);
         }
 
         /// <summary>
-        /// 根据资源名创建
+        /// 根据资源名创建。
         /// </summary>
-        /// <param name="resPath"></param>
-        /// <param name="parentUI"></param>
-        /// <param name="parentTrans"></param>
-        /// <param name="visible"></param>
-        /// <returns></returns>
         public bool CreateByPath(string resPath, UIBase parentUI, Transform parentTrans = null, bool visible = true)
         {
             GameObject goInst = ResourceService.LoadGameObject(resPath, parent: parentTrans);
@@ -185,8 +165,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 根据prefab或者模版来创建新的 widget。
-        /// <remarks>存在父物体得资源故不需要异步加载。</remarks>
+        /// 根据 prefab 或模版创建新的 widget。
         /// </summary>
         /// <param name="parentUI">父物体UI。</param>
         /// <param name="goPrefab">实例化预制体。</param>
@@ -281,9 +260,9 @@ namespace Moirai.Atropos.UI
         #region 销毁 [DESTROY]
 
         /// <summary>
-        /// 组件被销毁调用。
-        /// <remarks>请勿手动调用！</remarks>
+        /// 组件被销毁时调用。
         /// </summary>
+        /// <remarks>框架内部使用，请勿手动调用。</remarks>
         internal void OnDestroyWidget()
         {
             Parent?.SetUpdateDirty();

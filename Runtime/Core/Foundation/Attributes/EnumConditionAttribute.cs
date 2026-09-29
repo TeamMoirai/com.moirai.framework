@@ -12,13 +12,9 @@ namespace Moirai.Atropos.Attributes
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Class | AttributeTargets.Struct)]
 	public class EnumConditionAttribute : PropertyAttribute
 	{
-		/// <summary>
-		/// 用作条件的布尔成员名称。
-		/// </summary>
+		/// <summary>用作条件的布尔成员名称。</summary>
 		public string ConditionEnum = "";
-		/// <summary>
-		/// 枚举值命中时是否直接隐藏目标成员（否则仅禁用编辑）。
-		/// </summary>
+		/// <summary>枚举值命中时是否直接隐藏目标成员（否则仅禁用编辑）。</summary>
 		public bool Hidden;
 
 		private readonly BitArray _bitArray = new BitArray(32);

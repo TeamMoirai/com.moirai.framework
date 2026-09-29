@@ -19,7 +19,7 @@ namespace Moirai.Atropos.ConfigTable
 
         private bool IsConfigRootValid => Directory.Exists(Application.dataPath + m_ConfigRootRelativePath);
 
-        /// <summary>配置表目录的完整路径</summary>
+        /// <summary>配置表目录的完整路径。</summary>
         public static string ConfigRootFullPath => Application.dataPath + Instance.m_ConfigRootRelativePath;
 
         [Header("配置导出路径")]
@@ -33,13 +33,13 @@ namespace Moirai.Atropos.ConfigTable
         [SerializeField] private string m_ClientCodeOutPutPath = "Assets/Scripts/GameProto";
         private string ClientCodeOutPutPath => GetRelativePath(ConfigRootFullPath, m_ClientCodeOutPutPath);
 
-        /// <summary>资源验证根目录</summary>
+        /// <summary>资源验证根目录。</summary>
         /// <example>../Client/</example>
         private string PathValidatorRoot => GetRelativePath(ConfigRootFullPath, Application.dataPath + "/..");
 
 
         /// <summary>
-        /// 计算从 <see cref="relativeTo"/> 到 <see cref="path"/> 的相对路径
+        /// 计算从 <see cref="relativeTo"/> 到 <see cref="path"/> 的相对路径。
         /// </summary>
         /// <remarks>将绝对路径转换为相对于指定目录的 Unity 风格相对路径</remarks>
         /// <remarks>
@@ -61,10 +61,11 @@ namespace Moirai.Atropos.ConfigTable
         }
 
         /// <summary>
-        /// 将框架内置的 Config 模板复制到用户指定的目录。<br />
-        /// 若选中的目录名不包含 "Config"，则自动在其下创建 Config 子目录。<br />
-        /// 目标路径在 Assets 内时会自动添加 "~" 后缀以避免 Unity 导入。
+        /// 将框架内置的 Config 模板复制到用户指定目录；目录名不含 <c>Config</c> 时自动在其下创建 <c>Config</c> 子目录。
         /// </summary>
+        /// <remarks>
+        /// 目标路径在 <c>Assets</c> 内时自动追加 <c>~</c> 后缀以避免 Unity 导入。
+        /// </remarks>
         [Button("生成 Config 到指定目录", ButtonSizes.Large), PropertyOrder(-999f)]
         [HideIf(nameof(IsConfigRootValid))]
         private void CopyTemplatesConfigToTarget()
@@ -105,8 +106,7 @@ namespace Moirai.Atropos.ConfigTable
 
         private const string DEFAULT_CONFIG_FOLDER_NAME = "Config";
         /// <summary>
-        /// 弹出目录选择对话框，返回 Config 目录的完整路径。
-        /// 若选中目录名不含 "Config"，则自动在其下拼接 Config 子目录。
+        /// 弹出目录选择对话框，返回 Config 目录的完整路径；选中目录名不含 <c>Config</c> 时自动拼接 <c>Config</c> 子目录。
         /// </summary>
         /// <returns>Config 目录完整路径，若路径在 Assets 内则带 "~" 后缀；用户取消则返回 null。</returns>
         private string SelectConfigRootRelativePath()
