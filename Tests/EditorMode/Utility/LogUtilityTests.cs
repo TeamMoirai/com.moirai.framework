@@ -12,7 +12,8 @@ namespace Utility
     /// <c>LogUtility</c> 外观与 <c>LogHandler</c> 抽象的单元测试。
     /// </summary>
     /// <remarks>
-    /// 不创建 <c>LogHandler</c> 子类（避免 <c>[SerializeReference]</c> Inspector 下拉污染），用 <c>DefaultLogHandler</c> + <see cref="LogUtility.OnMessageLogged"/> 事件捕获日志条目。
+    /// 不创建 <c>LogHandler</c> 子类（避免 <c>[SerializeReference]</c> Inspector 下拉污染）， <br />
+    /// 用 <c>DefaultLogHandler</c> + <see cref="LogUtility.OnMessageLogged"/> 事件捕获日志条目。
     /// </remarks>
     public class LogUtilityTests
     {

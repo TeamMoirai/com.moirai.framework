@@ -11,7 +11,8 @@ namespace Moirai.Atropos
     /// 框架内置的反射式 Json 序列化器。
     /// </summary>
     /// <remarks>
-    /// 数值固定以 <c>InvariantCulture</c> 输出/解析（浮点 <c>"R"</c> 往返格式）；<see cref="DateTime"/>/<see cref="Guid"/>/<see cref="TimeSpan"/> 等无公开字段类型显式转字符串，不静默丢数据。
+    /// 数值固定以 <c>InvariantCulture</c> 输出/解析（浮点 <c>"R"</c> 往返格式）； <br />
+    /// <see cref="DateTime"/>/<see cref="Guid"/>/<see cref="TimeSpan"/> 等无公开字段类型显式转字符串，不静默丢数据。
     /// 字典默认输出标准 Json 对象格式，复杂 key 回退 legacy 条目数组，两种格式均可解析；未知字段默认忽略。
     /// 序列化与反序列化双侧有深度守卫（防引用环与深嵌套栈溢出）；截断或畸形输入一律抛错，错误信息带偏移/行列位置。
     /// 反射元数据经 <see cref="ReflectionCache"/> 缓存（线程安全）；解析基于 span 零拷贝，写入单遍直写。

@@ -7,7 +7,8 @@ namespace Moirai.Atropos.Save
     /// 存档文件头（固定 32 字节，小端序）：魔数 + 格式版本 + 保存时间 + 载荷长度 + 载荷 CRC32 + 压缩提供方 ID + 特性标志。
     /// </summary>
     /// <remarks>
-    /// 布局：<c>[4B 魔数 "MRSA"][4B 格式版本][8B UTC ticks][4B 载荷长度][4B 载荷 CRC32][4B 压缩提供方 ID][4B 标志][载荷]</c>；文件头始终为明文，载荷为多块容器经压缩（可选）+ 加密变换后的字节。
+    /// 布局：<c>[4B 魔数 "MRSA"][4B 格式版本][8B UTC ticks][4B 载荷长度][4B 载荷 CRC32][4B 压缩提供方 ID][4B 标志][载荷]</c>；文件头始终为明文， <br />
+    /// 载荷为多块容器经压缩（可选）+ 加密变换后的字节。
     /// 压缩提供方 ID 为零即「未压缩」语义；v1 旧档（单块无容器）不兼容，读取判别为 <see cref="SaveError.UnsupportedVersion"/> 作废。
     /// </remarks>
     internal readonly struct SaveFileHeader
@@ -110,7 +111,8 @@ namespace Moirai.Atropos.Save
         /// </remarks>
         /// <param name="source">文件头字节序列（至少 <see cref="Size"/> 字节）。</param>
         /// <param name="header">解析成功时的文件头。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.UnsupportedVersion"/> 或 <see cref="SaveError.Corrupted"/>。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidFormat"/>、 <br />
+        /// <see cref="SaveError.UnsupportedVersion"/> 或 <see cref="SaveError.Corrupted"/>。</returns>
         public static SaveError Read(ReadOnlySpan<byte> source, out SaveFileHeader header)
         {
             header = default;

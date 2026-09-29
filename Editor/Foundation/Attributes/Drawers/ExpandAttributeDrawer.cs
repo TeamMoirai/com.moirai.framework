@@ -318,7 +318,8 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
         }
 
         /// <summary>
-        /// Object 引用：标题 + 引用框 + 展开目标 SO。顶层字段走 Unity SerializedObject，列表 / 数组的自定义元素用 <c>PropertyTree.Create(boxedValue)</c> 绘制，使 <c>PoolEntry</c> 等类型上的 <c>LabelText</c> / <c>Min</c> / <c>EnumCondition</c> 生效。
+        /// Object 引用：标题 + 引用框 + 展开目标 SO。顶层字段走 Unity SerializedObject，列表 / 数组的自定义元素用 <c>PropertyTree.Create(boxedValue)</c> 绘制， <br />
+        /// 使 <c>PoolEntry</c> 等类型上的 <c>LabelText</c> / <c>Min</c> / <c>EnumCondition</c> 生效。
         /// </summary>
         private static void DrawObjectReferencePath(SerializedProperty prop, string titleText)
         {

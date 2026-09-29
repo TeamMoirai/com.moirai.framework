@@ -94,7 +94,8 @@ namespace Moirai.Atropos
         /// <summary>
         /// 等待 tween 结束（UniTask）。
         /// </summary>
-        /// <remarks>任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待，tween 不被停止）。</remarks>
+        /// <remarks>任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因； <br />
+        /// 仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待，tween 不被停止）。</remarks>
         public static UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {
             return Handler.WaitAsync(tweenId, cancellationToken);

@@ -13,8 +13,10 @@ namespace Moirai.Atropos.Save
     /// 存档处理器抽象基类：承载格式与编排管线（路径解析与参数校验、多块容器组装与解析、版本化文件头读写与 CRC、载荷变换钩子、按路径串行门、槽位与块枚举），持久化 IO 委托存储层。
     /// </summary>
     /// <remarks>
-    /// 序列化后端（<see cref="ISaveSerializer"/>）、存储后端（<see cref="ISaveStorage"/>）与存储管线三轴正交可插拔；文件 IO 在工作线程执行，大存档不阻塞主线程（<see cref="CancellationToken"/> 协作式取消贯穿读写）。
-    /// 错误语义：写入失败 fail-fast 抛 <see cref="GameException"/>（不容忍半档状态）；读取失败返回 <c>default</c> 并记错误日志（错误判别用 Try* 族的 <see cref="SaveResult{T}"/>）；删除幂等——目标不存在视为成功。
+    /// 序列化后端（<see cref="ISaveSerializer"/>）、存储后端（<see cref="ISaveStorage"/>）与存储管线三轴正交可插拔；文件 IO 在工作线程执行， <br />
+    /// 大存档不阻塞主线程（<see cref="CancellationToken"/> 协作式取消贯穿读写）。
+    /// 错误语义：写入失败 fail-fast 抛 <see cref="GameException"/>（不容忍半档状态）； <br />
+    /// 读取失败返回 <c>default</c> 并记错误日志（错误判别用 Try* 族的 <see cref="SaveResult{T}"/>）；删除幂等——目标不存在视为成功。
     /// 实例由 <see cref="SaveServiceSettings"/> 序列化持有，经 <see cref="SaveService"/> 静态外观访问。
     /// </remarks>
     public abstract class SaveServiceHandler : FrameworkHandler
@@ -597,7 +599,8 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 加密处理器下需解密整档，大存档场景请节流调用频率。
-        /// 坏块同样列入清单（<see cref="SaveBlockInfo.Error"/> 非 <see cref="SaveError.None"/>）；框架字段（键/版本/后端/尺寸）仅在 <see cref="SaveBlockInfo.HasMetadata"/> 为 <c>true</c> 时可信。
+        /// 坏块同样列入清单（<see cref="SaveBlockInfo.Error"/> 非 <see cref="SaveError.None"/>）； <br />
+        /// 框架字段（键/版本/后端/尺寸）仅在 <see cref="SaveBlockInfo.HasMetadata"/> 为 <c>true</c> 时可信。
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
@@ -712,7 +715,8 @@ namespace Moirai.Atropos.Save
         /// 删除整个存档文件夹并返回目录先前的存在性（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteSaveFolder"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；<c>true</c> = 存在并已删除，<c>false</c> = 本不存在。
+        /// 事件行为同 <see cref="DeleteSaveFolder"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；<c>true</c> = 存在并已删除， <br />
+        /// <c>false</c> = 本不存在。
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="TryDeleteAllSaveFiles"/>）。</param>
@@ -764,7 +768,8 @@ namespace Moirai.Atropos.Save
         /// 删除存档数据根目录并返回目录先前的存在性（<c>persistentDataPath/Data/</c> 及其下所有存档）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteAllSaveFiles"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；<c>true</c> = 存在并已删除，<c>false</c> = 本不存在。
+        /// 事件行为同 <see cref="DeleteAllSaveFiles"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；<c>true</c> = 存在并已删除， <br />
+        /// <c>false</c> = 本不存在。
         /// 持分层门执行（根级），与所有存档的块级读写互斥。
         /// </remarks>
         /// <returns>目录先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
@@ -869,7 +874,8 @@ namespace Moirai.Atropos.Save
         /// 异步删除整个存档文件夹并返回目录先前的存在性（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteSaveFolderAsync"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；持分层门执行（根 + 文件夹两级），存在性判定与删除在同一临界区内完成。
+        /// 事件行为同 <see cref="DeleteSaveFolderAsync"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；持分层门执行（根 + 文件夹两级）， <br />
+        /// 存在性判定与删除在同一临界区内完成。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="TryDeleteAllSaveFilesAsync"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
@@ -1311,7 +1317,8 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// IO 在工作线程执行，单趟读单趟写。
-        /// 删除集双通道：<paramref name="removals"/> 为调用方已确定集合（会话内可判定，无需读档）；<paramref name="removalResolver"/> 在持门读档后解析（孤儿判定依赖档内实时块集，不得在门外预计算）。
+        /// 删除集双通道：<paramref name="removals"/> 为调用方已确定集合（会话内可判定，无需读档）；<paramref name="removalResolver"/> 在持门读档后解析（孤儿判定依赖档内实时块集， <br />
+        /// 不得在门外预计算）。
         /// </remarks>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="additions">待 upsert 的块条目（可为空——纯删除合并）。</param>
@@ -1986,7 +1993,8 @@ namespace Moirai.Atropos.Save
         /// 校验数据块键：非空白、长度受限、不含控制字符/路径分隔符、禁止保留前缀。
         /// </summary>
         /// <remarks>
-        /// 保留前缀（<c>__</c>）禁止用户新建块，但对既有保留块（<c>__main__</c>/<c>__meta</c>）的读写/删除合法；经 <see cref="MAIN_BLOCK_KEY"/>/<see cref="META_BLOCK_KEY"/> 常量访问时豁免前缀校验。
+        /// 保留前缀（<c>__</c>）禁止用户新建块，但对既有保留块（<c>__main__</c>/<c>__meta</c>）的读写/删除合法； <br />
+        /// 经 <see cref="MAIN_BLOCK_KEY"/>/<see cref="META_BLOCK_KEY"/> 常量访问时豁免前缀校验。
         /// </remarks>
         /// <param name="key">数据块键。</param>
         private static void ValidateBlockKey(string key)
@@ -2127,7 +2135,8 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 将存档流（头 + 载荷）经流式管线还原为容器块列表（头读取 → CRC 增量包装 → 解密链 → 解压包装流 → 段池拉取 → 整档 CRC 把关 → 容器跨段解析；错误分型触发 <see cref="SaveService.LoadFailed"/> 事件）。
+        /// 将存档流（头 + 载荷）经流式管线还原为容器块列表（头读取 → CRC 增量包装 → 解密链 → 解压包装流 → 段池拉取 → 整档 CRC 把关 → 容器跨段解析； <br />
+        /// 错误分型触发 <see cref="SaveService.LoadFailed"/> 事件）。
         /// </summary>
         /// <remarks>
         /// 读路径全程无整档文件/容器驻留：解密/解压链输出经 256KB 池化段拉取（归还于 finally），峰值与文件大小解耦。
@@ -2136,7 +2145,10 @@ namespace Moirai.Atropos.Save
         /// <param name="stream">存档只读流（调用方管理生命周期；当前位置即文件起点）。</param>
         /// <param name="blocks">成功时的健康数据块列表。</param>
         /// <param name="blockErrors">坏块清单（无坏块为 <c>null</c>）。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>（含部分恢复）、<see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.UnsupportedVersion"/>、<see cref="SaveError.Corrupted"/>、<see cref="SaveError.DecryptionFailed"/>、<see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>（含部分恢复）、<see cref="SaveError.InvalidFormat"/>、 <br />
+        /// <see cref="SaveError.UnsupportedVersion"/>、<see cref="SaveError.Corrupted"/>、 <br />
+        /// <see cref="SaveError.DecryptionFailed"/>、 <br />
+        /// <see cref="SaveError.IntegrityCheckFailed"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
         private SaveError ReadAndRestoreContainer(SavePaths paths, Stream stream, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors)
         {
             blocks = null;

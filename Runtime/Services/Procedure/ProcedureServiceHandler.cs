@@ -7,10 +7,17 @@ namespace Moirai.Atropos.Procedure
     /// 流程处理器抽象基类（策略模式抽象策略）——自包含状态机契约，不依赖外部 FSM 服务。
     /// </summary>
     /// <remarks>
-    /// 定义 <see cref="ProcedureService"/> 外观调用的后端契约，<see cref="ProcedureBase"/> 子类经 <c>Owner</c> 回调本处理器；默认实现为 <see cref="DefaultProcedureHandler"/>，由 <see cref="ProcedureServiceSettings"/> 驱动初始化。
-    /// 同步生命周期契约：流程服务仅经 HandlerHost 生成的 <c>Handler</c> 属性驱动 <see cref="FrameworkHandler.OnInit"/> / <see cref="FrameworkHandler.OnShutdown"/>；基类的 <c>OnInitAsync</c> / <c>OnShutdownAsync</c> 不会被 await，需要异步就绪的后端应在 <see cref="FrameworkHandler.OnInit"/> 内自管。
-    /// 切换广播契约：后端须在每次切换完成（<c>OnEnter</c> 返回后）调用 <see cref="RecordTransition"/>——历史记录与 <see cref="ProcedureService.onProcedureChanged"/> 广播由基类统一承载，关停切换（To 为 null）仅记历史。
-    /// 广播期间 <see cref="IsBroadcastingTransition"/> 为 true，后端 <c>StartProcedure</c> / <c>ChangeState</c> 须拒绝重入（抛 <see cref="GameException"/>）；OnEnter/OnLeave 内的嵌套切换发生在记录之前，不受该标志影响。
+    /// 定义 <see cref="ProcedureService"/> 外观调用的后端契约，<see cref="ProcedureBase"/> 子类经 <c>Owner</c> 回调本处理器； <br />
+    /// 默认实现为 <see cref="DefaultProcedureHandler"/>，由 <see cref="ProcedureServiceSettings"/> 驱动初始化。
+    /// 同步生命周期契约： 流程服务仅经 HandlerHost 生成的 <c>Handler</c> 属性驱动 <see cref="FrameworkHandler.OnInit"/> / <br />
+    /// <see cref="FrameworkHandler.OnShutdown"/>；基类的 <c>OnInitAsync</c> / <c>OnShutdownAsync</c> 不会被 await， <br />
+    /// 需要异步就绪的后端应在 <see cref="FrameworkHandler.OnInit"/> 内自管。
+    /// 切换广播契约： 后端须在每次切换完成（<c>OnEnter</c> 返回后）调用 <see cref="RecordTransition"/>——历史记录与 <br />
+    /// <see cref="ProcedureService.onProcedureChanged"/> <br />
+    /// 广播由基类统一承载，关停切换（To 为 null）仅记历史。
+    /// 广播期间 <see cref="IsBroadcastingTransition"/> 为 true， <br />
+    /// 后端 <c>StartProcedure</c> / <c>ChangeState</c> 须拒绝重入（抛 <see cref="GameException"/>）；OnEnter/OnLeave 内的嵌套切换发生在记录之前， <br />
+    /// 不受该标志影响。
     /// </remarks>
     [Serializable]
     public abstract class ProcedureServiceHandler : FrameworkHandler

@@ -16,8 +16,11 @@ namespace Utility
     /// JSON 序列化基准（<c>[Explicit]</c>，按名手动执行）：对比序列化器核心、<see cref="JsonHandler"/> 中间件层与 <see cref="IBufferJsonHandler"/> 能力矩阵。
     /// </summary>
     /// <remarks>
-    /// ① 序列化器核心对比（DefaultJson string/bytes vs Newtonsoft vs Unity JsonUtility 参考）；② <see cref="JsonHandler"/> 中间件层经 <see cref="AssemblyUtility.GetRuntimeTypes"/> 自动发现全部实现，按与 GameAppSettings 配置流同链路实例化，新增实现无需改本基准；③ <see cref="IBufferJsonHandler"/> 能力矩阵。
-    /// 数据全程序化构建（零外部文件依赖），结束恢复外观并清理临时状态；逐场景自适应迭代（每测量段约 150ms），结果经 <see cref="BenchmarkReport"/> 落 <c>&lt;工程根&gt;/Benchmarks/jsonutility-benchmark.xml</c>。
+    /// ① 序列化器核心对比（DefaultJson string/bytes vs Newtonsoft vs Unity JsonUtility 参考）； <br />
+    /// ② <see cref="JsonHandler"/> 中间件层经 <see cref="AssemblyUtility.GetRuntimeTypes"/> 自动发现全部实现，按与 GameAppSettings 配置流同链路实例化， <br />
+    /// 新增实现无需改本基准；③ <see cref="IBufferJsonHandler"/> 能力矩阵。
+    /// 数据全程序化构建（零外部文件依赖），结束恢复外观并清理临时状态；逐场景自适应迭代（每测量段约 150ms），结果经 <see cref="BenchmarkReport"/> 落 <c>&lt;工程根&gt; <br />
+    /// /Benchmarks/jsonutility-benchmark.xml</c>。
     /// </remarks>
     [TestFixture]
     [Explicit]
@@ -245,7 +248,8 @@ namespace Utility
         #region Handler 自动发现 [HANDLER DISCOVERY]
 
         /// <summary>
-        /// 发现全部 <see cref="JsonHandler"/> 实现（排除抽象与测试程序集），经 <see cref="ReflectionUtility.ResolveImplType{T}"/> 实例化（与 GameAppSettings 配置流同链路）。
+        /// 发现全部 <see cref="JsonHandler"/> 实现（排除抽象与测试程序集）， <br />
+        /// 经 <see cref="ReflectionUtility.ResolveImplType{T}"/> 实例化（与 GameAppSettings 配置流同链路）。
         /// </summary>
         /// <remarks>
         /// 单个 handler 实例化失败仅记录，不中断整体。

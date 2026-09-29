@@ -250,7 +250,8 @@ namespace Moirai.Atropos.Input.Prompts
         /// <param name="inputTag"></param>
         /// <param name="isComposite">如果按键动作为复合，是否尝试获取合成后的图标</param>
         /// <returns></returns>
-        /// <remarks>不支持复合标签。例如 WASD，如果 <see cref="isComposite"/> = <c>false</c>，会只返回第一个 W，建议将 <see cref="isComposite"/> 设为 <c>true</c></remarks>
+        /// <remarks>不支持复合标签。例如 WASD，如果 <see cref="isComposite"/> = <c>false</c>，会只返回第一个 W， <br />
+        /// 建议将 <see cref="isComposite"/> 设为 <c>true</c></remarks>
         public static Sprite GetActionPathBindingSprite(string inputTag, bool isComposite)
         {
             EnsureInitialized();

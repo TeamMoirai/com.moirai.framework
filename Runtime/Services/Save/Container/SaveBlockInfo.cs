@@ -5,7 +5,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 只读值对象，不含块数据本体；坏块也列入清单——<see cref="Error"/> 非 <see cref="SaveError.None"/> 即坏块（载荷不可信）。
-    /// 坏块的 <see cref="DataVersion"/>/<see cref="Backend"/>/<see cref="SizeBytes"/> 仅在 <see cref="HasMetadata"/> 为 <c>true</c>（框架完好的 CRC 坏块）时可信；结构性坏块为零值且 <see cref="Key"/> 可能为 <c>null</c>。
+    /// 坏块的 <see cref="DataVersion"/>/<see cref="Backend"/>/<see cref="SizeBytes"/> 仅在 <see cref="HasMetadata"/> 为 <br />
+    /// <c>true</c>（框架完好的 CRC 坏块）时可信；结构性坏块为零值且 <see cref="Key"/> 可能为 <c>null</c>。
     /// </remarks>
     public readonly struct SaveBlockInfo
     {

@@ -6,7 +6,8 @@ namespace Moirai.Atropos.Save
     /// 存档迁移器契约：声明一个文件级数据版本跃迁（<see cref="FromVersion"/> → <see cref="ToVersion"/>）的纯数据变换。
     /// </summary>
     /// <remarks>
-    /// 实现类由 SaveHost SourceGenerator 扫描并经模块初始化器自注册 <see cref="SaveMigrationManager"/>（AOT 安全），也可手动 <see cref="SaveMigrationManager.Register(ISaveMigrator)"/>；实现须为可实例化的非抽象类且提供无参构造。
+    /// 实现类由 SaveHost SourceGenerator 扫描并经模块初始化器自注册 <see cref="SaveMigrationManager"/>（AOT 安全）， <br />
+    /// 也可手动 <see cref="SaveMigrationManager.Register(ISaveMigrator)"/>；实现须为可实例化的非抽象类且提供无参构造。
     /// 版本号约定：int 递增（0 = 版本化前的基线存档）；语义化三段式映射建议——主版本.次版本.修订依次乘 10000/100 偏移相加（如 1.2.3 → 10203），映射规则由项目文档固化后勿再变更。
     /// <see cref="ToVersion"/> 必须大于 <see cref="FromVersion"/>（仅允许升级方向）。
     /// 迁移在加载管线内同步执行（读档串行门持有期，可能在主线程）——<see cref="Migrate"/> 必须同步完成，禁止内部切线程/异步等待（返回未完成的任务将 fail-fast），且禁止触达 Unity 主线程 API。

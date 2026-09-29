@@ -16,8 +16,10 @@ namespace Moirai.Atropos.Tests.EditorMode
     /// 编辑器状态桥：把「编辑器此刻在干什么」持续落盘到 <c>Temp/</c>，并接收同目录下的动作请求。
     /// </summary>
     /// <remarks>
-    /// 经 <c>EditorApplication.update</c> 轮询：状态每 ~1s 覆写 <c>Temp/MoiraiEditorState.json</c>；动作 <c>Temp/MoiraiEditorCommand.json</c> 进、结论 <c>Temp/MoiraiEditorCommand.result.json</c> 出，调用方只读文件与发命令，不再需要人。
-    /// 心跳即判活：静态构造每次域加载都跑，<c>domainSeq</c> 递增即「新域已起来」（<c>SessionState</c> 跨域重载保留、随编辑器退出清空，配合 <c>pid</c> 区分重载与重启）；心跳停推说明主线程没在跑 <c>update</c>（导入中、域重载中、被原生模态框挡住，或 Interaction Mode 非 No Throttling）。
+    /// 经 <c>EditorApplication.update</c> 轮询：状态每 ~1s 覆写 <c>Temp/MoiraiEditorState.json</c>； <br />
+    /// 动作 <c>Temp/MoiraiEditorCommand.json</c> 进、结论 <c>Temp/MoiraiEditorCommand.result.json</c> 出，调用方只读文件与发命令，不再需要人。
+    /// 心跳即判活：静态构造每次域加载都跑，<c>domainSeq</c> 递增即「新域已起来」（<c>SessionState</c> 跨域重载保留、随编辑器退出清空，配合 <c>pid</c> 区分重载与重启）； <br />
+    /// 心跳停推说明主线程没在跑 <c>update</c>（导入中、域重载中、被原生模态框挡住，或 Interaction Mode 非 No Throttling）。
     /// 编译报错时 Unity 保留旧域继续跑，桥照常心跳且 <c>isCompiling</c> 归 false——判据是 <c>assemblies[].unix</c> 未越过自己的改动时刻且 <c>consoleErrors</c> 上涨。
     /// <c>dirtyScenes</c> 大于 0 时刷新/重编译可能撞上原生「保存场景？」对话框，那会连心跳一起停住主线程。
     /// 桥住在测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控的调试桥，与 <see cref="TestRequestRunner"/> 同处），关掉 Test Tools 包即无心跳，不参与发布。
@@ -116,7 +118,8 @@ namespace Moirai.Atropos.Tests.EditorMode
             /// 本域加载时 <c>Moirai.Atropos.Tests.EditorMode.dll</c> 的 UTC 秒。
             /// </summary>
             /// <remarks>
-            /// 与 <c>assemblies[]</c> 里同名那份不等即 dll 已更新而本域尚未重载（后台 <c>AssetImportWorker</c> 代编是常态，且「没有资产改动」的 <c>Refresh</c> 不触发重载）；只比 <c>assemblies[].unix</c> 与自己的改动时刻会把旧域读成新代码。
+            /// 与 <c>assemblies[]</c> 里同名那份不等即 dll 已更新而本域尚未重载（后台 <c>AssetImportWorker</c> 代编是常态，且「没有资产改动」的 <c>Refresh</c> 不触发重载）； <br />
+            /// 只比 <c>assemblies[].unix</c> 与自己的改动时刻会把旧域读成新代码。
             /// </remarks>
             public long domainDllUnix;
             public AssemblyStamp[] assemblies;
@@ -441,7 +444,8 @@ namespace Moirai.Atropos.Tests.EditorMode
         /// 受理回执先落一次盘，再由动作覆写成结论。
         /// </summary>
         /// <remarks>
-        /// <c>refresh</c>/<c>recompile</c> 有可能当场把本域拆走（编译与域重载就是这次调用发起的），「动作之后」的写盘永远不会执行，没有配对的 <c>.done</c> 调用方只能干等；受理回执只承诺「已接下这一单」，结论一律以状态文件为准。
+        /// <c>refresh</c>/<c>recompile</c> 有可能当场把本域拆走（编译与域重载就是这次调用发起的），「动作之后」的写盘永远不会执行，没有配对的 <c>.done</c> 调用方只能干等；受理回执只承诺「已接下这一单」， <br />
+        /// 结论一律以状态文件为准。
         /// </remarks>
         private static void Accept(EditorCommand command, string action, string what)
         {
@@ -539,10 +543,12 @@ namespace Moirai.Atropos.Tests.EditorMode
         #region 反射探针 [REFLECTION PROBES]
 
         /// <summary>
-        /// <c>LogEntries.GetCountsByType</c> 反射探针：那是 <c>internal static</c>、不在文档 API 面上，成员缺失或签名变动时整块退回 <c>null</c>（状态里落 -1），绝不把「读不到」说成「没有错」。
+        /// <c>LogEntries.GetCountsByType</c> 反射探针：那是 <c>internal static</c>、不在文档 API 面上，成员缺失或签名变动时整块退回 <c>null</c>（状态里落 -1）， <br />
+        /// 绝不把「读不到」说成「没有错」。
         /// </summary>
         /// <remarks>
-        /// 类型取 <c>typeof(EditorApplication).Assembly</c> 而不是按程序集名拼字符串——<c>LogEntries</c> 与 <c>EditorApplication</c> 同模块，而模块名在各版本间挪过。
+        /// 类型取 <c>typeof(EditorApplication).Assembly</c> 而不是按程序集名拼字符串——<c>LogEntries</c> 与 <c>EditorApplication</c> 同模块， <br />
+        /// 而模块名在各版本间挪过。
         /// </remarks>
         private static readonly Func<int[]> ConsoleCountsProbe = CreateConsoleProbe();
 

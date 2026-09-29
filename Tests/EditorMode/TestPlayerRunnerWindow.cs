@@ -826,7 +826,8 @@ namespace Moirai.Atropos.Editor.Testing
         /// <see cref="ICallbacks"/> 宿主（<c>ScriptableObject</c> 存活跨域重载）：只做分类转发，不持有计数与失败详情。
         /// </summary>
         /// <remarks>
-        /// UTF 的 <c>CallbacksHolder</c> 列表不序列化，每次域加载都要重注册；计数与失败详情只活在窗口 <c>RunState</c>（磁盘真相源），跨域重载后由 UTF <c>ResumeRunningJobs</c> 续跑作业、窗口从盘上接账。
+        /// UTF 的 <c>CallbacksHolder</c> 列表不序列化，每次域加载都要重注册；计数与失败详情只活在窗口 <c>RunState</c>（磁盘真相源）， <br />
+        /// 跨域重载后由 UTF <c>ResumeRunningJobs</c> 续跑作业、窗口从盘上接账。
         /// </remarks>
         private sealed class RunCallbacks : ScriptableObject, ICallbacks, IErrorCallbacks
         {

@@ -46,8 +46,11 @@ namespace Moirai.Atropos
     /// 服务核心契约：声明服务的轮询优先级、所属作用域与初始化/关闭回调。
     /// </summary>
     /// <remarks>
-    /// 实现约束：必须派生自 <see cref="ServiceBase"/>（纯 C#）或 <see cref="ServiceMono{TScope}"/>（MonoBehaviour）——两者实现的 <c>IServiceLifecycle</c> 是容器驱动状态机的唯一入口；裸实现本接口的类型会在 <see cref="ServiceWorld.Register"/> 处被拒绝。
-    /// 依赖用 <c>[ServiceDependency]</c> 特性声明；<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑排序驱动 <see cref="OnInit"/>，初始化顺序由声明决定、与注册顺序无关。
+    /// 实现约束： 必须派生自 <see cref="ServiceBase"/>（纯 C#）或 <see cref="ServiceMono{TScope}"/>（MonoBehaviour）——两者实现的 <br />
+    /// <c>IServiceLifecycle</c> <br />
+    /// 是容器驱动状态机的唯一入口；裸实现本接口的类型会在 <see cref="ServiceWorld.Register"/> 处被拒绝。
+    /// 依赖用 <c>[ServiceDependency]</c> 特性声明；<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑排序驱动 <see cref="OnInit"/>，初始化顺序由声明决定、 <br />
+    /// 与注册顺序无关。
     /// 缺失依赖与循环依赖在初始化期抛 <see cref="GameException"/>（fail-fast）。
     /// </remarks>
     public interface IService
@@ -136,7 +139,8 @@ namespace Moirai.Atropos
     /// 异步关闭服务，用于资源异步卸载、网络连接优雅关闭等场景。
     /// </summary>
     /// <remarks>
-    /// 由 <see cref="ServiceWorld.ShutdownScopeAsync"/> / <see cref="ServiceWorld.DisposeAsync"/> 在 <c>OnShutdown</c> 调用前按逆拓扑序异步关闭。
+    /// 由 <see cref="ServiceWorld.ShutdownScopeAsync"/> / <see cref="ServiceWorld.DisposeAsync"/> 在 <c>OnShutdown</c> <br />
+    /// 调用前按逆拓扑序异步关闭。
     /// </remarks>
     public interface IAsyncShutdownService : IService
     {

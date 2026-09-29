@@ -6,7 +6,8 @@ namespace Moirai.Atropos.Save
     /// <summary>
     /// 存档压缩提供方抽象基类：由 <see cref="SaveServiceSettings"/> 以 [SerializeReference] + ProviderDropdown 持有（框架插拔件）。
     /// </summary>
-    /// <remarks>实现 <see cref="ICompressionProvider"/> 流式契约；写侧用设置实例压缩并写入其 <see cref="ProviderId"/>，读侧按文件头 ID 经 <see cref="SaveCompressionRegistry"/> 查表解压——自定义提供方须先注册才能读回旧档。</remarks>
+    /// <remarks>实现 <see cref="ICompressionProvider"/> 流式契约；写侧用设置实例压缩并写入其 <see cref="ProviderId"/>， <br />
+    /// 读侧按文件头 ID 经 <see cref="SaveCompressionRegistry"/> 查表解压——自定义提供方须先注册才能读回旧档。</remarks>
     [Serializable]
     public abstract class SaveCompressionProvider : ICompressionProvider
     {

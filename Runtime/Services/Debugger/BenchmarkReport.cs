@@ -62,7 +62,8 @@ namespace Moirai.Atropos.Debugger
     /// </summary>
     /// <remarks>
     /// <c>&lt;benchmark&gt;</c> 根节点的环境头（生成时间、Unity 版本、机器、CPU、内存）由本类固定写入；
-    /// 各 Benchmark 只通过 <see cref="SetMetadata"/> 补自己关心的根属性（如 <c>phase</c> / <c>trials</c> / <c>failures</c>），产物结构一致、可被同一套工具 diff。
+    /// 各 Benchmark 只通过 <see cref="SetMetadata"/> 补自己关心的根属性（如 <c>phase</c> / <c>trials</c> / <c>failures</c>），产物结构一致、 <br />
+    /// 可被同一套工具 diff。
     /// </remarks>
     public sealed class BenchmarkReport
     {

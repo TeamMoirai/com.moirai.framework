@@ -18,7 +18,8 @@ public static class GooglePlayFileSystemCreater
 }
 
 /// <summary>
-/// Google Play Asset Delivery 文件系统：经 PlayAssetDelivery 加载资源包而非本地文件 I/O（https://developer.android.com/guide/playcore/asset-delivery）。
+/// Google Play Asset Delivery 文件系统：经 PlayAssetDelivery 加载资源包而非本地文件 I/O（https: <br />
+/// //developer.android.com/guide/playcore/asset-delivery）。
 /// </summary>
 internal class GooglePlayFileSystem : BuiltinFileSystem, IFileSystem
 {

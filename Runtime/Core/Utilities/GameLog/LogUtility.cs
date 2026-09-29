@@ -8,7 +8,8 @@ namespace Moirai.Atropos
     /// 游戏框架日志外观：统一的静态日志入口，后端由 <see cref="Handler"/> 替换。
     /// </summary>
     /// <remarks>
-    /// 等级过滤在各 <see cref="LogHandler"/> 的 <see cref="LogHandler.Log"/> 入口按 <see cref="LogHandler.MinimumLevel"/> 执行（含全局拦截器转发的三方日志）；
+    /// 等级过滤在各 <see cref="LogHandler"/> 的 <see cref="LogHandler.Log"/> 入口按 <see cref="LogHandler.MinimumLevel"/> <br />
+    /// 执行（含全局拦截器转发的三方日志）；
     /// <see cref="OnMessageLogged"/> 仅在日志通过过滤后触发。
     /// 未显式设置处理器时按编译期可用的最优后端自动选择（优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。
     /// 日志方法由 T4 模板生成，见 <c>LogUtility.LogMethods.tt</c>。
@@ -180,7 +181,8 @@ namespace Moirai.Atropos
         /// 获取可直写 Unity 控制台、绕过全局拦截器的 logHandler。
         /// </summary>
         /// <remarks>
-        /// 各 <see cref="LogHandler"/> 的后端输出必须经由本方法获取通道：直接使用 <c>Debug.unityLogger</c> 会被 <see cref="UnityLogInterceptor"/> 当作第三方日志重捕，造成级别前缀叠加。
+        /// 各 <see cref="LogHandler"/> 的后端输出必须经由本方法获取通道： 直接使用 <c>Debug.unityLogger</c> 会被 <see cref="UnityLogInterceptor"/> <br />
+        /// 当作第三方日志重捕，造成级别前缀叠加。
         /// 与初始化顺序无关：拦截未启用时返回当前 handler，启用后返回拦截器锁定的原始 handler。
         /// </remarks>
         internal static ILogHandler GetBypassUnityHandler()

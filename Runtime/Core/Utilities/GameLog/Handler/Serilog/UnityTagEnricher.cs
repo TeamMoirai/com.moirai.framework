@@ -7,7 +7,8 @@ namespace Moirai.Atropos.Serilog
     /// <summary>
     /// 将 Unity 标签写入日志事件属性的增强器。
     /// </summary>
-    /// <remarks>经 <see cref="LoggerExtensions.WithUnityTag"/> 附加后，<see cref="Unity3DLogEventSink"/> 将其作为 Unity 日志标签输出。</remarks>
+    /// <remarks>经 <see cref="LoggerExtensions.WithUnityTag"/> 附加后，<see cref="Unity3DLogEventSink"/> 将其作为 Unity 日志标签输出。 <br />
+    /// </remarks>
     internal sealed class UnityTagEnricher : ILogEventEnricher
     {
         /// <summary>

@@ -5,7 +5,9 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 状态机由容器（<see cref="ServiceWorld"/> / <see cref="ServiceScope"/>）经本接口统一驱动，服务侧 <see cref="ServiceBase.State"/> 仅为只读投影。
-    /// 本接口同时是<b>可注册的判据</b>：<see cref="ServiceWorld.Register"/> 据此拒绝不经 <see cref="ServiceBase"/> / <see cref="ServiceMono{TScope}"/> 派生而自行实现 <see cref="IService"/> 的类型——容器读不到状态的服务永远判不出就绪（<see cref="ServiceWorld.IsServiceReady"/>）。
+    /// 本接口同时是<b>可注册的判据</b>： <see cref="ServiceWorld.Register"/> 据此拒绝不经 <see cref="ServiceBase"/> / <br />
+    /// <see cref="ServiceMono{TScope}"/> 派生而自行实现 <br />
+    /// <see cref="IService"/> 的类型——容器读不到状态的服务永远判不出就绪（<see cref="ServiceWorld.IsServiceReady"/>）。
     /// 拦截器通知一律由容器发出，本接口不承担横切（见 <see cref="IServiceInterceptor"/>）。
     /// </remarks>
     internal interface IServiceLifecycle

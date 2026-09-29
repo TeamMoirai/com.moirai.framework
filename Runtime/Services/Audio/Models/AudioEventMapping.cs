@@ -6,7 +6,8 @@ namespace Moirai.Atropos.Audio
     /// <summary>
     /// AudioClip → 中间件事件路径映射项。
     /// </summary>
-    /// <remarks>配置在中间件后端（<see cref="Middleware.MiddlewareAudioHandler"/>），让 <c>Play(clip, ...)</c> 不必依赖「clip 名恰好等于事件名」。</remarks>
+    /// <remarks>配置在中间件后端（<see cref="Middleware.MiddlewareAudioHandler"/>），让 <c>Play(clip, ...)</c> 不必依赖「clip 名恰好等于事件名」。 <br />
+    /// </remarks>
     [Serializable]
     public sealed class AudioEventMapping
     {

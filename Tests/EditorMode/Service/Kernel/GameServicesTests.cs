@@ -10,7 +10,8 @@ using UnityEngine.TestTools;
 namespace Service.Kernel
 {
     /// <summary>内核（ServiceWorld / GameServices）测试。</summary>
-    /// <remarks>两阶段语义：RegisterService 仅入图（世界未初始化时不驱动 OnInit），<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑统一驱动——初始化顺序与注册顺序无关。</remarks>
+    /// <remarks>两阶段语义：RegisterService 仅入图（世界未初始化时不驱动 OnInit），<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑统一驱动——初始化顺序与注册顺序无关。 <br />
+    /// </remarks>
     [TestFixture]
     public class GameServicesTests
     {
@@ -1479,7 +1480,8 @@ namespace Service.Kernel
         }
 
         /// <summary>MonoBehaviour + Gizmo 能力的服务。</summary>
-        /// <remarks>刻意不加 <c>ExecuteAlways</c>：EditMode 下 AddComponent 不触发 Awake，才不会被 <see cref="ServiceMono{TScope}"/> 的自动注册抢跑掉本用例要验的守卫。</remarks>
+        /// <remarks>刻意不加 <c>ExecuteAlways</c>：EditMode 下 AddComponent 不触发 Awake， <br />
+        /// 才不会被 <see cref="ServiceMono{TScope}"/> 的自动注册抢跑掉本用例要验的守卫。</remarks>
         private sealed class MonoGizmoService : ServiceMono<AppScope>, IServiceGizmoDrawable
         {
             public override void OnInit() { }

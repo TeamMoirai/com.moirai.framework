@@ -87,7 +87,8 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
     }
 
     /// <summary>
-    /// Odin 原生 Drawer，为 <see cref="BooleanButtonAttribute"/> 自动接管 Odin 绘制，直接在 Odin 布局上下文中绘制按钮组，不经过 Unity PropertyField / SerializedProperty。
+    /// Odin 原生 Drawer，为 <see cref="BooleanButtonAttribute"/> 自动接管 Odin 绘制，直接在 Odin 布局上下文中绘制按钮组， <br />
+    /// 不经过 Unity PropertyField / SerializedProperty。
     /// </summary>
     /// <remarks>
     /// 无需在每个字段上手动添加 <c>[DrawWithUnity]</c>。

@@ -10,7 +10,8 @@ namespace Moirai.Atropos.Timer
     /// 计时器服务外观（Facade）：全框架统一的静态计时器访问入口。
     /// </summary>
     /// <remarks>
-    /// 默认后端 <see cref="DefaultTimerHandler"/> 是时间轮（<c>Delay</c> 系列）与帧计时（<c>WaitFrame</c> 系列）两条泳道的复合外观，可在 <see cref="TimerServiceSettings"/> 中替换。
+    /// 默认后端 <see cref="DefaultTimerHandler"/> 是时间轮（<c>Delay</c> 系列）与帧计时（<c>WaitFrame</c> 系列）两条泳道的复合外观， <br />
+    /// 可在 <see cref="TimerServiceSettings"/> 中替换。
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册 / 未初始化时返回安全默认值。
     /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>

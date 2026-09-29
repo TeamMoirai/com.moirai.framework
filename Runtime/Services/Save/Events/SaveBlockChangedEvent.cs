@@ -15,7 +15,8 @@ namespace Moirai.Atropos.Save
     }
 
     /// <summary>
-    /// 块保存/删除的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.BlockSaved"/>/<see cref="SaveService.BlockDeleted"/> 二选一订阅）。
+    /// 块保存/删除的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.BlockSaved"/>/<see cref="SaveService.BlockDeleted"/> <br />
+    /// 二选一订阅）。
     /// </summary>
     public class SaveBlockChangedEvent : EventBase<SaveBlockChangedEvent>
     {

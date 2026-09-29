@@ -22,7 +22,9 @@ namespace Moirai.Atropos.Save
     /// <summary>
     /// 无代码保存组件：挂载到 GameObject，Inspector 勾选目标组件的 <see cref="SaveFieldAttribute"/> 字段，运行期经生成捕获器零反射捕获/恢复。
     /// </summary>
-    /// <remarks>Awake 注册 <see cref="SaveComponentRegistry"/>、OnDestroy 注销；存取经 <see cref="SaveService.SaveComponentsAsync"/> / <see cref="SaveService.LoadComponentsAsync"/> 触发（时机由游戏层决定）。</remarks>
+    /// <remarks>Awake 注册 <see cref="SaveComponentRegistry"/>、OnDestroy 注销； <br />
+    /// 存取经 <see cref="SaveService.SaveComponentsAsync"/> / <see cref="SaveService.LoadComponentsAsync"/> 触发（时机由游戏层决定）。 <br />
+    /// </remarks>
     [AddComponentMenu("Moirai/Save Component")]
     [DisallowMultipleComponent]
     public sealed class SaveComponent : MonoBehaviour

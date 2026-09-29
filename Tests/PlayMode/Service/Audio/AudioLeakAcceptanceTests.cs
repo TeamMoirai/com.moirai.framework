@@ -178,7 +178,9 @@ namespace Service.Audio
         /// 空地址必须直接判负且不产生条目与租约。
         /// </summary>
         /// <remarks>
-        /// 「冷却 / force 重置」不在这里验：那四格在 <c>AudioClipCacheTests</c>（<c>FailedLoad_</c> / <c>FailureCooldown_Expires</c> / <c>FailureCooldown_Zero</c> / <c>ClearCacheForce_</c>）；
+        /// 「冷却 / force 重置」不在这里验： 那四格在 <c>AudioClipCacheTests</c>（<c>FailedLoad_</c> / <c>FailureCooldown_Expires</c> / <br />
+        /// <c>FailureCooldown_Zero</c> / <br />
+        /// <c>ClearCacheForce_</c>）；
         /// 本夹具的 <c>TryAcquire</c> 从不失败，抄一份只会得到一格永不调用失败路径的假覆盖。
         /// </remarks>
         [Test]

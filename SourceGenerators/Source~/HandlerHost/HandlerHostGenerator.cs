@@ -6,12 +6,14 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
-    /// 为标记 <c>[HandlerHost(typeof(THandler))]</c> 的 partial class 生成 <c>s_Handler</c> 字段、<c>IsValid</c>/<c>Handler</c> 属性与 <c>RequireHandler</c> 方法。
+    /// 为标记 <c>[HandlerHost(typeof(THandler))]</c> 的 partial class 生成 <c>s_Handler</c> 字段、 <br />
+    /// <c>IsValid</c>/<c>Handler</c> 属性与 <c>RequireHandler</c> 方法。
     /// </summary>
     /// <remarks>
     /// 生成的成员均为 static，但类声明沿用源类的修饰符（static 或非 static）。
     /// 工厂契约三档：同时声明 <c>CreateDefaultHandler</c> 与可选的 <c>GetHandlerFromSettings</c> 时懒加载优先调用后者、返回 null 回退默认工厂；
-    /// 仅声明 <c>CreateDefaultHandler</c> 时直接调用工厂；仅声明 <c>GetHandlerFromSettings</c> 时要求返回非空值（HandlerHostAnalyzer MIRAI102 报告 Info）。
+    /// 仅声明 <c>CreateDefaultHandler</c> 时直接调用工厂； <br />
+    /// 仅声明 <c>GetHandlerFromSettings</c> 时要求返回非空值（HandlerHostAnalyzer MIRAI102 报告 Info）。
     /// 工厂链最终为 null 抛 <see cref="InvalidOperationException"/>；两者都缺失时 <c>Handler.get</c> 抛该异常并由 MIRAI101 报告警告。
     /// <c>RequireHandler</c> 读 <c>s_Handler</c> 且不触发懒加载，未就绪抛 <see cref="GameException"/>——写路径 fail-fast 入口。
     /// </remarks>

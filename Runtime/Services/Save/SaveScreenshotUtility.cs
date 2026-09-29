@@ -8,7 +8,8 @@ namespace Moirai.Atropos.Save
     /// 存档截图工具：屏幕捕获（运行态主线程）与缩略图 PNG 编码（纯函数核心，像素源可注入）。
     /// </summary>
     /// <remarks>
-    /// 生产管线：<see cref="ScreenCapture.CaptureScreenshotAsTexture()"/>（主线程，帧末捕获）→ GPU Blit 降采样到小尺寸 RenderTexture → 小图回读 → <see cref="ImageConversion.EncodeToPNG"/> 主线程一次编码（256² 量级）。
+    /// 生产管线：<see cref="ScreenCapture.CaptureScreenshotAsTexture()"/>（主线程， <br />
+    /// 帧末捕获）→ GPU Blit 降采样到小尺寸 RenderTexture → 小图回读 → <see cref="ImageConversion.EncodeToPNG"/> 主线程一次编码（256² 量级）。
     /// CPU 盒式降采样路径（<see cref="DownsampleBox"/>/<see cref="EncodeThumbnailPng"/>）保留为纯函数核心，EditMode 以注入像素源全链路覆盖。
     /// </remarks>
     internal static class SaveScreenshotUtility

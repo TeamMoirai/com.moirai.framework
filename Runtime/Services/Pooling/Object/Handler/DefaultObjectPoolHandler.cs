@@ -9,7 +9,8 @@ namespace Moirai.Atropos.ObjectPool
     /// 通用对象池默认处理器：分页槽位存储 + 按名复用链 + 引用计数 + 最小堆维护调度。
     /// </summary>
     /// <remarks>
-    /// <see cref="ObjectPoolServiceHandler"/> 的内置实现，池体为内嵌 <see cref="ObjectPool{T}"/>，可在 <see cref="ObjectPoolServiceSettings"/> 中替换。
+    /// <see cref="ObjectPoolServiceHandler"/> 的内置实现，池体为内嵌 <see cref="ObjectPool{T}"/>， <br />
+    /// 可在 <see cref="ObjectPoolServiceSettings"/> 中替换。
     /// </remarks>
     [Serializable]
     [UnityEngine.Scripting.Preserve]

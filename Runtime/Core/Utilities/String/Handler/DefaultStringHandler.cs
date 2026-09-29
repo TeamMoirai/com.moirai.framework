@@ -8,7 +8,8 @@ namespace Moirai.Atropos
     /// 默认字符串构建器工具实现。
     /// </summary>
     /// <remarks>
-    /// 取用优先级 <c>StringBuilderCache</c>（ThreadStatic 单槽缓存，单线程零分配）&gt; <c>StringBuilderPool</c>（栈式多槽池，多线程/高频下减少分配）&gt; <c>new StringBuilder</c>；
+    /// 取用优先级 <c>StringBuilderCache</c>（ThreadStatic 单槽缓存，单线程零分配）&gt; <c>StringBuilderPool</c>（栈式多槽池，多线程/高频下减少分配）&gt; <br />
+    /// <c>new StringBuilder</c>；
     /// 适配器实例由 <c>AdapterPool</c> 池化，避免堆分配。
     /// </remarks>
     [Serializable]

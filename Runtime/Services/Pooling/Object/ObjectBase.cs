@@ -5,7 +5,8 @@ namespace Moirai.Atropos.ObjectPool
     /// </summary>
     /// <remarks>
     /// 池化对象必须继承此类并实现 <see cref="Release(bool)"/>；对象经 <see cref="MemoryPool"/> 复用，重置逻辑写在 <see cref="Clear"/>。
-    /// 生命周期：外部构造并 <c>Initialize</c> → <c>Register</c> 入池 → <see cref="OnSpawn"/> / <see cref="OnDespawn"/> 往复 → <see cref="Release(bool)"/> 永久移除。
+    /// 生命周期： 外部构造并 <c>Initialize</c> → <c>Register</c> 入池 → <see cref="OnSpawn"/> / <see cref="OnDespawn"/> 往复 → <br />
+    /// <see cref="Release(bool)"/> 永久移除。
     /// </remarks>
     public abstract class ObjectBase : MemoryObject
     {

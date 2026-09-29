@@ -9,9 +9,14 @@ namespace Moirai.Atropos.Save
     /// 存档迁移管理器：迁移器注册表 + 文件级版本链解析与执行（迁移总线核心）。
     /// </summary>
     /// <remarks>
-    /// 版本模型：存档数据版本为 int 递增（0 = 版本化前的基线存档）；游戏层在启动期设置 <see cref="CurrentVersion"/>，并为每个历史版本跃迁注册 <see cref="ISaveMigrator"/>（SaveHost SourceGenerator 扫描实现类经模块初始化器自注册，AOT 安全）。
-    /// 链契约：加载/写入管线触达版本低于 <see cref="CurrentVersion"/> 的存档时，沿 <c>FromVersion == 当前步版本</c> 的迁移器逐段升级，同一边多个迁移器按 <see cref="ISaveMigrator.Priority"/> 升序执行；同起始版本多条不同目标版本的边、链缺失或执行异常均为 <see cref="SaveError.MigrationFailed"/> fail-fast，降级为 <see cref="SaveError.UnsupportedVersion"/>。
-    /// 启用版本化（<see cref="CurrentVersion"/> 从 0 调大）且存在旧档时，须注册自版本 0 起的迁移链（旧档无元数据块按版本 0 处理；形状未变可用空迁移器桥接 0→1）；每次迁移步向 <see cref="SaveMetadata.MigrationHistory"/> 追加 <c>"{起始}->{目标}|{迁移器类型全名}|{UTC ISO-8601}"</c>，迁移成功后由处理器按 <see cref="SaveServiceHandler.MigrationWriteBack"/> 惰性回写（默认开，同文件同会话重复迁移经会话级缓存短路）。
+    /// 版本模型：存档数据版本为 int 递增（0 = 版本化前的基线存档）；游戏层在启动期设置 <see cref="CurrentVersion"/>， <br />
+    /// 并为每个历史版本跃迁注册 <see cref="ISaveMigrator"/>（SaveHost SourceGenerator 扫描实现类经模块初始化器自注册，AOT 安全）。
+    /// 链契约：加载/写入管线触达版本低于 <see cref="CurrentVersion"/> 的存档时，沿 <c>FromVersion == 当前步版本</c> 的迁移器逐段升级， <br />
+    /// 同一边多个迁移器按 <see cref="ISaveMigrator.Priority"/> 升序执行；同起始版本多条不同目标版本的边、 <br />
+    /// 链缺失或执行异常均为 <see cref="SaveError.MigrationFailed"/> fail-fast，降级为 <see cref="SaveError.UnsupportedVersion"/>。
+    /// 启用版本化（<see cref="CurrentVersion"/> 从 0 调大）且存在旧档时，须注册自版本 0 起的迁移链（旧档无元数据块按版本 0 处理；形状未变可用空迁移器桥接 0→1）； <br />
+    /// 每次迁移步向 <see cref="SaveMetadata.MigrationHistory"/> 追加 <c>"{起始}->{目标}|{迁移器类型全名}|{UTC ISO-8601}"</c>， <br />
+    /// 迁移成功后由处理器按 <see cref="SaveServiceHandler.MigrationWriteBack"/> 惰性回写（默认开，同文件同会话重复迁移经会话级缓存短路）。
     /// 注册表在启动期（主线程）写入、管线期（工作线程）只读快照。
     /// </remarks>
     public static class SaveMigrationManager
@@ -208,7 +213,8 @@ namespace Moirai.Atropos.Save
         /// <param name="blockErrors">坏块清单（元数据块损坏时保守失败——版本不可信）。</param>
         /// <param name="migratedBlocks">迁移后的块集合（未迁移时为源列表）。</param>
         /// <param name="migrated">是否实际执行了迁移。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.UnsupportedVersion"/>（降级拒绝）或 <see cref="SaveError.MigrationFailed"/>。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、 <br />
+        /// <see cref="SaveError.UnsupportedVersion"/>（降级拒绝）或 <see cref="SaveError.MigrationFailed"/>。</returns>
         internal static SaveError TryMigrateBlocks(SaveServiceHandler.SavePaths paths, List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, out List<SaveBlockEntry> migratedBlocks, out bool migrated)
         {
             migratedBlocks = blocks;

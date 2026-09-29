@@ -14,10 +14,14 @@ namespace Moirai.Atropos
     /// 将操作/协程安全地调度到 Unity 主线程执行的线程安全调度器。
     /// </summary>
     /// <remarks>
-    /// 任务存于无锁队列、由主线程泵按序执行（播放模式 <see cref="Update"/>，编辑模式 <see cref="UnityEditor.EditorApplication.update"/>）；静态 <c>Post/Send</c>（含 <see cref="Post(IEnumerator)"/>，依赖 <c>StartCoroutine</c>、仅播放模式）可任意线程调用，入队不触碰 Unity API，任务在主线程串行执行、异常隔离记录；新代码一律使用静态 API。
-    /// 可等待 API（<c>PostAsync/SendAsync</c>）基于池化 <see cref="AutoResetUniTaskCompletionSource{T}"/>：稳态每次 2 次堆分配、主线程快速路径零分配；停机（<see cref="BeginShutdown"/>）统一取消挂起任务，等待方收到携带调用方令牌的 <see cref="OperationCanceledException"/>，不会永久挂起。
+    /// 任务存于无锁队列、由主线程泵按序执行（播放模式 <see cref="Update"/>，编辑模式 <see cref="UnityEditor.EditorApplication.update"/>）； <br />
+    /// 静态 <c>Post/Send</c>（含 <see cref="Post(IEnumerator)"/>，依赖 <c>StartCoroutine</c>、仅播放模式）可任意线程调用，入队不触碰 Unity API，任务在主线程串行执行、 <br />
+    /// 异常隔离记录；新代码一律使用静态 API。
+    /// 可等待 API（<c>PostAsync/SendAsync</c>）基于池化 <see cref="AutoResetUniTaskCompletionSource{T}"/>：稳态每次 2 次堆分配、主线程快速路径零分配； <br />
+    /// 停机（<see cref="BeginShutdown"/>）统一取消挂起任务，等待方收到携带调用方令牌的 <see cref="OperationCanceledException"/>，不会永久挂起。
     /// <c>CancellationToken</c> 取消的是「等待」：任务未执行则跳过、执行中则运行完毕并放弃结果，任务自身抛 OCE 亦按取消处理；泵每帧受 <see cref="MAX_TIME_BUDGET_MS"/> 预算约束。
-    /// 队列无上限、入队永不阻塞或拒绝（停机除外），积压超 <see cref="BACKLOG_WARN_THRESHOLD"/> 仅告警，调用方须自行限流；实例在 <c>BeforeSceneLoad</c> 于主线程物化，勿在此之前启动访问本类的后台线程。
+    /// 队列无上限、入队永不阻塞或拒绝（停机除外），积压超 <see cref="BACKLOG_WARN_THRESHOLD"/> 仅告警，调用方须自行限流；实例在 <c>BeforeSceneLoad</c> 于主线程物化， <br />
+    /// 勿在此之前启动访问本类的后台线程。
     /// </remarks>
     public class MainThreadDispatcher : SingletonMono_Persistent<MainThreadDispatcher>
     {

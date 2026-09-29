@@ -13,7 +13,8 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 全部入口均触碰场景对象，须在主线程调用。
-    /// 外观 <c>SaveService.Entity.cs</c> 经本核心实现；测试经可注入的模板加载器（<see cref="s_TemplateLoaderSync"/>/<see cref="s_TemplateLoaderAsync"/>）与 <see cref="ResetForTests"/> 隔离。
+    /// 外观 <c>SaveService.Entity.cs</c> 经本核心实现； <br />
+    /// 测试经可注入的模板加载器（<see cref="s_TemplateLoaderSync"/>/<see cref="s_TemplateLoaderAsync"/>）与 <see cref="ResetForTests"/> 隔离。
     /// 块布局：实体表为保留块 <c>__entities</c>（生成记录 + 预置对象销毁 ID）；实体数据为每实体一个 <c>entity:{EntityId}</c> 块（与模板基准差分后的稀疏 KVT，只写相对模板的变动字段）。
     /// CarryForward：保存仅 upsert 活跃实体，未访问场景/生成失败实体的块原样滞留；绕过 <c>DestroyPersistent</c> 直接销毁的实体记录与块同样滞留，须走显式销毁移除。
     /// </remarks>

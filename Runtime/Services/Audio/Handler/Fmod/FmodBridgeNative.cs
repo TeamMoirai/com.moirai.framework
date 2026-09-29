@@ -11,7 +11,9 @@ namespace Moirai.Atropos.Audio.Fmod
     /// </summary>
     /// <remarks>
     /// 能力接口：<see cref="IAudioMiddlewareBankControl"/>（Studio bank）与 <see cref="IAudioMiddlewareRtpcControl"/>（event parameter）。
-    /// 整文件受 <c>FMOD_INSTALLED</c> 编译保护，调用的标准 FMOD Unity API 为 <c>RuntimeManager.LoadBank</c> / <c>StudioSystem.loadBankFile</c> / <c>Bank.unload</c> / <c>setParameterByName</c>。
+    /// 整文件受 <c>FMOD_INSTALLED</c> 编译保护， <br />
+    /// 调用的标准 FMOD Unity API 为 <c>RuntimeManager.LoadBank</c> / <c>StudioSystem.loadBankFile</c> / <c>Bank.unload</c> / <br />
+    /// <c>setParameterByName</c>。
     /// </remarks>
     internal sealed class FmodBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {

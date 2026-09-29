@@ -142,7 +142,8 @@ namespace Moirai.Atropos.Resource.Editor
     }
 
     /// <summary>
-    /// 为 <see cref="YooAssetHandler.CollectorPackageDropdownAttribute"/> 提供 Odin 原生绘制，与 <see cref="ProviderDropdownDrawer"/> 同一套宿主约定。
+    /// 为 <see cref="YooAssetHandler.CollectorPackageDropdownAttribute"/> 提供 Odin 原生绘制， <br />
+    /// 与 <see cref="ProviderDropdownDrawer"/> 同一套宿主约定。
     /// </summary>
     /// <remarks>
     /// 必须接管：Odin 开启 UITK 集成时，其 <c>UnityPropertyAttributeDrawer</c> 检测到 Unity 绘制器重写了 <c>CreatePropertyGUI</c> 便改走内嵌 UITK 元素，

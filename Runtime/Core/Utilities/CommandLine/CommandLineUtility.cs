@@ -25,7 +25,8 @@ namespace Moirai.Atropos
         /// 返回在应用程序的初始化调用中传入的 argument
         /// </summary>
         /// <remarks>
-        /// WebGL 与 Android 读应用绝对 URL 并解析 URL 样式参数（<c>example.com?arg1=value1&amp;arg2&amp;arg3=77</c> → { arg1, value1, arg2, arg3, 77 }）；其余平台等同 <c>Environment.GetCommandLineArgs()</c>。
+        /// WebGL 与 Android 读应用绝对 URL 并解析 URL 样式参数（<c>example.com?arg1=value1&amp;arg2&amp; <br />
+        /// arg3=77</c> → { arg1, value1, arg2, arg3, 77 }）；其余平台等同 <c>Environment.GetCommandLineArgs()</c>。
         /// </remarks>
         /// <returns>返回一个字符串数组，其中第一个元素是可执行文件的路径，其余元素是传递给程序的命令行参数。</returns>
         public static string[] CommandLineArgs

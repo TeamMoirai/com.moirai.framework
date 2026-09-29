@@ -16,7 +16,8 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// REST 云端 KV 存储契约测试（内存假处理器经 <c>s_MessageHandlerFactoryForTests</c> 注入，不触真实网络）：读写往返（修订号/时间戳）、存在探测、幂等删除、前缀枚举下推与键剥离、认证头（静态值/动态提供方优先）、远端失败归一（500/超时）、ETag 修订号回退通道。
+    /// REST 云端 KV 存储契约测试（内存假处理器经 <c>s_MessageHandlerFactoryForTests</c> 注入，不触真实网络）：读写往返（修订号/时间戳）、存在探测、幂等删除、前缀枚举下推与键剥离、 <br />
+    /// 认证头（静态值/动态提供方优先）、远端失败归一（500/超时）、ETag 修订号回退通道。
     /// </summary>
     /// <remarks>
     /// 执行模型统一为 <c>[UnityTest]</c> + <c>WaitForTask</c> 协程；EditMode 无 SyncContext，

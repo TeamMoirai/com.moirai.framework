@@ -10,7 +10,9 @@ namespace Moirai.Atropos.Audio
     /// <see cref="AudioService"/> 的播放选项（服务语义层：音轨/音量/淡入/独奏/时间/缓存）。
     /// </summary>
     /// <remarks>
-    /// 冷路径配置对象：播放时由 <see cref="AudioAgent"/> 拆出热路径字段（ID / Track / Volume / Loop / Persistent / Priority / Location / Attach / FadeIn* / Solo*）缓存，不整份驻留热循环。
+    /// 冷路径配置对象： 播放时由 <see cref="AudioAgent"/> 拆出热路径字段（ID / Track / Volume / Loop / Persistent / Priority / Location / <br />
+    /// Attach / FadeIn* / <br />
+    /// Solo*）缓存，不整份驻留热循环。
     /// 空间整形（声像/3D 衰减/多普勒/旁通/曲线）经 <see cref="Spatial"/> 字段整体携带，与「往哪儿播」分离，见 <see cref="AudioSpatialOptions"/>。
     /// </remarks>
     [Serializable]

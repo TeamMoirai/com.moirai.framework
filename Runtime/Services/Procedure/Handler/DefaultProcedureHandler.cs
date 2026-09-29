@@ -83,7 +83,8 @@ namespace Moirai.Atropos.Procedure
         /// 处理器关闭，销毁全部流程状态。
         /// </summary>
         /// <remarks>
-        /// 关停是不可跳过的收尾路径，逐流程隔离异常：当前流程 <c>OnLeave(true)</c> 或任一 <c>OnDestroy</c> 抛出时记错误日志后继续，单个坏流程不得阻断其余流程的销毁回调；关停切换记录在 finally 中保证写入。
+        /// 关停是不可跳过的收尾路径，逐流程隔离异常：当前流程 <c>OnLeave(true)</c> 或任一 <c>OnDestroy</c> 抛出时记错误日志后继续，单个坏流程不得阻断其余流程的销毁回调； <br />
+        /// 关停切换记录在 finally 中保证写入。
         /// </remarks>
         protected override void OnShutdown()
         {
@@ -153,7 +154,8 @@ namespace Moirai.Atropos.Procedure
         /// 初始化流程管理器。
         /// </summary>
         /// <remarks>
-        /// 任一流程 <c>OnInit</c> 抛出即整体 fail-fast（异常上抛，<see cref="IsStateReady"/> 保持 false）；已完成 <c>OnInit</c> 的流程不做回收（保留现场供诊断），调用方应丢弃整批流程实例后重建传入。
+        /// 任一流程 <c>OnInit</c> 抛出即整体 fail-fast（异常上抛，<see cref="IsStateReady"/> 保持 false）；已完成 <c>OnInit</c> 的流程不做回收（保留现场供诊断）， <br />
+        /// 调用方应丢弃整批流程实例后重建传入。
         /// </remarks>
         /// <param name="procedures">流程管理器包含的流程。</param>
         public override void Initialize(params ProcedureBase[] procedures)
@@ -259,7 +261,8 @@ namespace Moirai.Atropos.Procedure
         /// 切换流程。
         /// </summary>
         /// <remarks>
-        /// 目标流程 <c>OnEnter</c> 抛出时异常上抛并回滚到切出流程（恢复其驻留时长，轮询安全），避免半进入流程继续被 <c>OnUpdate</c>；若 <c>OnEnter</c> 内已完成嵌套重定向，保留嵌套终态不回滚。<c>OnLeave</c> 抛出不影响当前流程（仍指向切出流程）。
+        /// 目标流程 <c>OnEnter</c> 抛出时异常上抛并回滚到切出流程（恢复其驻留时长，轮询安全），避免半进入流程继续被 <c>OnUpdate</c>；若 <c>OnEnter</c> 内已完成嵌套重定向，保留嵌套终态不回滚。 <br />
+        /// <c>OnLeave</c> 抛出不影响当前流程（仍指向切出流程）。
         /// </remarks>
         /// <param name="procedureType">要切换的状态类型。</param>
         public override void ChangeState(Type procedureType)
