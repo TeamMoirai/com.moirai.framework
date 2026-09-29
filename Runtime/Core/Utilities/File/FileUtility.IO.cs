@@ -259,11 +259,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 通过文件名删除文件夹下的文件。
-        /// 部分操作平台存在使用File.Delete()无法删除文件的情况，此方法能处理此问题。
+        /// 按文件名删除文件夹下的文件。
         /// </summary>
         /// <param name="directoryPath">文件夹地址</param>
         /// <param name="fileNames">文件名集合</param>
+        /// <remarks>逐文件调用 <see cref="FileInfo.Delete"/>，可处理部分平台上 <c>File.Delete</c> 删不掉的情况；目录不存在或文件名为 null 时直接返回。</remarks>
         public static void DeleteDirectoryFiles(string directoryPath, IEnumerable<string> fileNames)
         {
             if (!Directory.Exists(directoryPath))
@@ -282,12 +282,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 重命名文件；
-        /// 第一个参数需要：盘符+地址+文件名+后缀；
-        /// 第二个参数仅需文件名+后缀名；
+        /// 重命名文件，保持原目录不变。
         /// </summary>
         /// <param name="oldFileFullPath">旧文件的完整路径，需要带后缀名</param>
         /// <param name="newFileNamewithExtension">新的文件名，仅需文件名+后缀名</param>
+        /// <remarks>源文件不存在时先创建空文件再改名；目标同名文件已存在时先删除再移动。</remarks>
         public static void RenameFile(string oldFileFullPath, string newFileNamewithExtension)
         {
             if (!System.IO.File.Exists(oldFileFullPath))
@@ -317,17 +316,16 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 标准的UTF-8是不含BOM的；
-        /// 构造的UTF8Encoding，排除掉UTF8-BOM的影响；
+        /// 不含 BOM 的 UTF-8 编码，本类所有文本读写共用。
         /// </summary>
         private static readonly UTF8Encoding s_UTF8Encoding = new UTF8Encoding(false);
         
         /// <summary>
-        /// 不适用Text类型！；
-        /// 读取二进制文件，返回byte array；
+        /// 以二进制方式读取文件，返回原始字节，不做文本转换。
         /// </summary>
         /// <param name="fileFullPath">文件的完整路径</param>
         /// <returns>文件被读取的二进制</returns>
+        /// <exception cref="IOException">文件不存在。</exception>
         public static byte[] ReadBinaryFile(string fileFullPath)
         {
             if (!System.IO.File.Exists(fileFullPath))
@@ -376,14 +374,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用UTF8编码；
-        /// 追加写入文件信息；
-        /// 若文件为空，则自动创建；
-        /// 此方法为text类型文件写入；
+        /// 以 UTF-8 向 <paramref name="filePath"/>/<paramref name="fileName"/> 追加一行文本。
         /// </summary>
         /// <param name="filePath">文件路径</param>
         /// <param name="fileName">文件名</param>
         /// <param name="context">写入的信息</param>
+        /// <remarks>目录或文件不存在时自动创建；共享方式为 <c>FileShare.ReadWrite</c>。</remarks>
         public static void AppendWriteTextFile(string filePath, string fileName, string context)
         {
             if (!Directory.Exists(filePath))
@@ -401,13 +397,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用UTF8编码；
-        /// 追加写入文件信息；
-        /// 若文件为空，则自动创建；
-        /// 此方法为text类型文件写入
+        /// 以 UTF-8 向 <paramref name="fileFullPath"/> 追加一行文本。
         /// </summary>
         /// <param name="fileFullPath">文件完整路径</param>
         /// <param name="context">写入的信息</param>
+        /// <remarks>目录或文件不存在时自动创建；共享方式为 <c>FileShare.ReadWrite</c>。</remarks>
         public static void AppendWriteTextFile(string fileFullPath, string context)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -426,15 +420,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用UTF8编码；
-        /// 写入文件信息；
-        /// 若文件为空，则自动创建；
-        /// 此方法为text类型文件写入；
+        /// 以 UTF-8 写入文本：<paramref name="append"/> 为 true 时追加到末尾，否则从文件头写入。
         /// </summary>
         /// <param name="filePath">文件路径</param>
         /// <param name="fileName">文件名</param>
         /// <param name="context">写入的信息</param>
         /// <param name="append">是否追加</param>
+        /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void WriteTextFile(string filePath, string fileName, string context, bool append = false)
         {
             if (!Directory.Exists(filePath))
@@ -453,14 +445,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 使用UTF8编码；
-        /// 写入文件信息；
-        /// 若文件为空，则自动创建；
-        /// 此方法为text类型文件写入；
+        /// 以 UTF-8 写入文本：<paramref name="append"/> 为 true 时追加到末尾，否则从文件头写入。
         /// </summary>
         /// <param name="fileFullPath">文件完整路径</param>
         /// <param name="context">写入的信息</param>
         /// <param name="append">是否追加</param>
+        /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void WriteTextFile(string fileFullPath, string context, bool append = false)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -480,8 +470,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 不适用Text类型！；
-        /// 写入二进制类型文件；
+        /// 以二进制方式写入文件，原有内容会被清空，不做文本转换。
         /// </summary>
         /// <param name="context">文件内容</param>
         /// <param name="fileFullPath">文件完整路径，带后缀名</param>
@@ -498,11 +487,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 将byte数组写成文件；
-        /// 若写入时文件夹路径不存在，则创建文件夹；
+        /// 将字节数组写入文件，目录不存在时自动创建。
         /// </summary>
         /// <param name="context">需要写入的数据byte数组</param>
         /// <param name="fileFullPath">文件的完整路径，包括后缀名等</param>
+        /// <remarks>写入前不截断文件，新内容比原文件短时尾部会残留旧数据。</remarks>
         public static void WriteFile(byte[] context, string fileFullPath)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -515,9 +504,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 追加写入；
-        /// 将byte数组写成文件；
-        /// 若写入时文件夹路径不存在，则创建文件夹；
+        /// 从文件内的 <paramref name="startPosition"/> 位置写入字节数组，目录不存在时自动创建。
         /// </summary>
         /// <param name="context">需要写入的数据byte数组</param>
         /// <param name="fileFullPath">文件的完整路径，包括后缀名等</param>
@@ -559,12 +546,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 完全覆写；
-        ///  使用UTF8编码；
+        /// 以 UTF-8 完全覆写文本文件，先清空原内容。
         /// </summary>
         /// <param name="filePath">w文件路径</param>
         /// <param name="fileName">文件名</param>
         /// <param name="context">写入的信息</param>
+        /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void OverwriteTextFile(string filePath, string fileName, string context)
         {
             if (!Directory.Exists(filePath))
@@ -584,11 +571,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 完全覆写；
-        ///  使用UTF8编码；
+        /// 以 UTF-8 完全覆写文本文件，先清空原内容。
         /// </summary>
         /// <param name="fileFullPath">文件完整路径</param>
         /// <param name="context">写入的信息</param>
+        /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void OverwriteTextFile(string fileFullPath, string context)
         {
             var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
@@ -633,13 +620,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 写入二进制；
-        /// 传入的路径必为 ：{ Asset\Core\ } 格式
+        /// 用 <see cref="BinaryFormatter"/> 将对象序列化写入文件，<paramref name="filePath"/> 为文件夹路径。
         /// </summary>
         /// <param name="filePath">文件夹路径</param>
         /// <param name="fileName">带后缀的文件名</param>
         /// <param name="context">内容</param>
         /// <returns>是否写入成功</returns>
+        /// <remarks>已废弃：<see cref="BinaryFormatter"/> 存在反序列化攻击风险，请改用 JSON 序列化。</remarks>
         [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
         public static bool WriterFormattedBinary(string filePath, string fileName, object context)
         {
@@ -687,8 +674,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 获取文件大小；
-        /// 若文件存在，则返回正确的大小；若不存在，则返回0；
+        /// 获取文件大小：文件存在时返回其字节数，目录或文件不存在时返回 0。
         /// </summary>
         /// <param name="filePath">文件地址</param>
         /// <returns>文件long类型的长度</returns>

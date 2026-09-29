@@ -12,12 +12,12 @@ using UnityEngine;
 namespace Moirai.Atropos.Editor.Save
 {
     /// <summary>
-    /// 存档浏览器编辑器窗口（Odin 原生实现）：左侧菜单树（文件夹 → 槽位，健康状态图标），
-    /// 右侧由 Odin 属性树绘制选中节点详情（概览、元数据、操作按钮、数据块表、内容预览与截图缩略图）。
-    /// <para>浏览 <c>persistentDataPath/Data/</c> 下的存档，支持菜单搜索过滤、排序、仅问题过滤、
-    /// 自动刷新、备份/恢复/删除/复制槽位、导出块、JSON 美化 / KVT 结构化树 / 十六进制预览。</para>
-    /// <para>加密档/压缩档在缺管线配置时解析失败按提示展示（编辑器以明文处理器 + 设置的压缩提供方读取）。</para>
+    /// 存档浏览器编辑器窗口（Odin 原生实现）：左侧菜单树（文件夹 → 槽位，含健康状态图标），右侧由 Odin 属性树绘制选中节点详情。
     /// </summary>
+    /// <remarks>
+    /// 浏览 <c>persistentDataPath/Data/</c> 下的存档，支持搜索过滤、排序、仅问题过滤、自动刷新、备份 / 恢复 / 删除 / 复制槽位、导出块与 JSON / KVT / 十六进制预览。
+    /// 加密档 / 压缩档在缺管线配置时解析失败，编辑器以明文处理器加设置的压缩提供方读取并按提示展示。
+    /// </remarks>
     public sealed class SaveBrowserWindow : OdinMenuEditorWindow
     {
         #region 常量 [CONSTANTS]

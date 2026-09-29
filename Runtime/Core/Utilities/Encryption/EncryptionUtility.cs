@@ -125,15 +125,16 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 生成一个GUID
-        /// <para>"N" 32 位，例如 "33ee30121c43457eabb7e838a5e052e6"</para>
+        /// 生成一个新 <see cref="Guid"/> 并按指定格式说明符格式化为字符串。
+        /// </summary>
+        /// <param name="format">格式说明符：
+   		/// <para>"N" 32 位，例如 "33ee30121c43457eabb7e838a5e052e6"</para>
         /// <para>"D" 32 位, 由连字符分隔，例如 "33ee3012-1c43-457e-abb7-e838a5e052e6"</para>
         /// <para>"B" 32 位，用连字符分隔，用大括号括起来，例如 "{33ee3012-1c43-457e-abb7-e838a5e052e6}"</para>
         /// <para>"P" 32 位，用连字符分隔，括在括号中，例如 "(33ee3012-1c43-457e-abb7-e838a5e052e6)"</para>
         /// <para>"X" 32 位，四个十六进制值括在大括号中，其中第四个值是八个十六进制值的子集，这些值也括在大括号中，例如 "{0x33ee3012,0x1c43,0x457e,{0xab,0xb7,0xe8,0x38,0xa5,0xe0,0x52,0xe6}}"</para>
-        /// </summary>
-        /// <param name="format">格式化类型</param>
-        /// <returns>格式化后的GUID</returns>
+        /// </param>
+        /// <returns>格式化后的 GUID 字符串。</returns>
         public static string GenerateGuid(string format)
         {
             return Guid.NewGuid().ToString(format);
@@ -239,11 +240,11 @@ namespace Moirai.Atropos
         #region AES密钥 [AES KEY]
         
         /// <summary>
-        /// 生成8位密钥；
-        /// 注意：此工具类中提供的对称加密需要为16，24，32位密钥
+        /// 将字符串转为 8 字节密钥：不足右补零、超出截断，空串返回空数组。
         /// </summary>
-        /// <param name="key">原始密钥信息</param>
-        /// <returns>加密后的值</returns>
+        /// <remarks>本工具类的 AES 加密要求密钥为 16、24 或 32 字节，8 字节密钥不能用于 AES。</remarks>
+        /// <param name="key">原始密钥信息。</param>
+        /// <returns>8 字节密钥。</returns>
         public static byte[] Generate8BytesAESKey(string key)
         {
             if (string.IsNullOrEmpty(key))
@@ -475,12 +476,13 @@ namespace Moirai.Atropos
         #region AES [AES]
 
         /// <summary>
-        /// AES对称加密byte类型内容
-        /// <para>密钥的byte长度必须是16, 24, 32</para> 
+        /// AES 对称加密字节数组，返回 Base64 字符串（前置 16 字节随机 IV）。
         /// </summary>
-        /// <param name="context">需要解密的数组</param>
-        /// <param name="key">对称密码,</param>
-        /// <returns>加密后的内容</returns>
+        /// <remarks>密钥长度必须为 16、24 或 32 字节；CBC 模式、PKCS7 填充。</remarks>
+        /// <param name="context">待加密的字节数组。</param>
+        /// <param name="key">对称密钥。</param>
+        /// <returns>加密后的 Base64 字符串。</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> 或 <paramref name="key"/> 为 null。</exception>
         public static string AESEncryptByteToString(byte[] context, byte[] key)
         {
             if (context == null)
@@ -510,12 +512,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// AES对称解密byte类型内容
-        /// <para>密钥的byte长度必须是16, 24, 32</para> 
+        /// AES 对称解密字节数组（前 16 字节为 IV），返回明文的 Base64 字符串。
         /// </summary>
-        /// <param name="context">需要解密的数组</param>
-        /// <param name="key">对称密码,</param>
-        /// <returns>解密后的内容</returns>
+        /// <remarks>密钥长度必须为 16、24 或 32 字节；CBC 模式、PKCS7 填充，与 <see cref="AESEncryptByteToString"/> 配对。</remarks>
+        /// <param name="context">待解密的字节数组（含 IV 前缀）。</param>
+        /// <param name="key">对称密钥。</param>
+        /// <returns>明文的 Base64 字符串。</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> 或 <paramref name="key"/> 为 null。</exception>
         public static string AESDecryptByteToString(byte[] context, byte[] key)
         {
             if (context == null)
@@ -545,12 +548,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// AES对称加密byte类型内容
-        /// <para>密钥的byte长度必须是16, 24, 32</para> 
+        /// AES 对称加密字节数组，返回密文字节数组（前置 16 字节随机 IV）。
         /// </summary>
-        /// <param name="context">需要解密的数组</param>
-        /// <param name="key">对称密码</param>
-        /// <returns>加密后的内容</returns>
+        /// <remarks>密钥长度必须为 16、24 或 32 字节；CBC 模式、PKCS7 填充。</remarks>
+        /// <param name="context">待加密的字节数组。</param>
+        /// <param name="key">对称密钥。</param>
+        /// <returns>加密后的字节数组。</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> 或 <paramref name="key"/> 为 null。</exception>
         public static byte[] AESEncryptByteToByte(byte[] context, byte[] key)
         {
             if (context == null)
@@ -579,12 +583,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// AES对称解密byte类型内容
-        /// <para>密钥的byte长度必须是16, 24, 32</para> 
+        /// AES 对称解密字节数组（前 16 字节为 IV），返回明文字节数组。
         /// </summary>
-        /// <param name="context">需要解密的数组</param>
-        /// <param name="key">对称密码,</param>
-        /// <returns>解密后的内容</returns>
+        /// <remarks>密钥长度必须为 16、24 或 32 字节；CBC 模式、PKCS7 填充，与 <see cref="AESEncryptByteToByte"/> 配对。</remarks>
+        /// <param name="context">待解密的字节数组（含 IV 前缀）。</param>
+        /// <param name="key">对称密钥。</param>
+        /// <returns>解密后的字节数组。</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> 或 <paramref name="key"/> 为 null。</exception>
         public static byte[] AESDecryptByteToByte(byte[] context, byte[] key)
         {
             if (context == null)
@@ -613,12 +618,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// AES对称加密string类型内容
-        /// <para>密钥的byte长度必须是16, 24, 32</para> 
+        /// AES 对称加密字符串，返回 Base64 字符串（前置 16 字节 IV）。
         /// </summary>
-        /// <param name="context">需要加密的内容</param>
-        /// <param name="key">密钥</param>
-        /// <returns>加密后的内容</returns>
+        /// <remarks>密钥长度必须为 16、24 或 32 字节；CBC 模式、PKCS7 填充。</remarks>
+        /// <param name="context">待加密的字符串。</param>
+        /// <param name="key">对称密钥。</param>
+        /// <returns>加密后的 Base64 字符串。</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> 为空或 <paramref name="key"/> 为 null。</exception>
         public static string AESEncryptStringToString(string context, byte[] key)
         {
             if (string.IsNullOrEmpty(context))
@@ -647,12 +653,14 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// AES对称解密string类型内容
-        /// <para>密钥的byte长度必须是16, 24, 32</para> 
+        /// AES 对称解密字符串，输入为 Base64 字符串（前 16 字节 IV），返回明文。
         /// </summary>
-        /// <param name="context">需要解密的内容</param>
-        /// <param name="key">密钥</param>
-        /// <returns>解密后的内容</returns>
+        /// <remarks>密钥长度必须为 16、24 或 32 字节；CBC 模式、PKCS7 填充，与 <see cref="AESEncryptStringToString"/> 配对。</remarks>
+        /// <param name="context">待解密的 Base64 字符串。</param>
+        /// <param name="key">对称密钥。</param>
+        /// <returns>解密后的字符串。</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> 为空或 <paramref name="key"/> 为 null。</exception>
+        /// <exception cref="FormatException"><paramref name="context"/> 不是合法的 Base64。</exception>
         public static string AESDecryptStringToString(string context, byte[] key)
         {
             if (string.IsNullOrEmpty(context))
@@ -679,12 +687,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// AES对称加密string类型内容
-        /// <para>密钥的byte长度必须是16, 24, 32</para> 
+        /// AES 对称加密字符串，返回密文字节数组（前置 16 字节 IV）。
         /// </summary>
-        /// <param name="context">需要加密的内容</param>
-        /// <param name="key">密钥</param>
-        /// <returns>加密后的内容</returns>
+        /// <remarks>密钥长度必须为 16、24 或 32 字节；CBC 模式、PKCS7 填充。</remarks>
+        /// <param name="context">待加密的字符串。</param>
+        /// <param name="key">对称密钥。</param>
+        /// <returns>加密后的字节数组。</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> 为空或 <paramref name="key"/> 为 null。</exception>
         public static byte[] AESEncryptStringToByte(string context, byte[] key)
         {
             if (string.IsNullOrEmpty(context))
@@ -712,12 +721,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// AES对称解密string类型内容
-        /// <para>密钥的byte长度必须是16, 24, 32</para> 
+        /// AES 对称解密字符串（前 16 字节 IV，明文本身为 Base64），返回明文字节数组。
         /// </summary>
-        /// <param name="context">需要加密的内容</param>
-        /// <param name="key">密钥</param>
-        /// <returns>解密后的内容</returns>
+        /// <remarks>密钥长度必须为 16、24 或 32 字节；CBC 模式、PKCS7 填充，与 <see cref="AESEncryptStringToByte"/> 配对。</remarks>
+        /// <param name="context">待解密的 Base64 字符串。</param>
+        /// <param name="key">对称密钥。</param>
+        /// <returns>解密后的字节数组。</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> 为空或 <paramref name="key"/> 为 null。</exception>
         public static byte[] AESDecryptStringToByte(string context, byte[] key)
         {
             if (string.IsNullOrEmpty(context))

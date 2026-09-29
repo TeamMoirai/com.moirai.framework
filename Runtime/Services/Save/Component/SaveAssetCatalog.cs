@@ -7,11 +7,12 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档资产引用目录：登记可被存档字段引用的资产（Texture/SO/Material 等）及其 ResourceService 定位串。
-    /// <para>无代码保存的资产引用字段按「存定位串、读目录反查」持久化——捕获查 object → location，
-    /// 恢复查 location → object（同一份目录双向解析，不触发运行时加载，保持捕获器同步契约与零租约负担）。
-    /// 被引用资产须先登记入册，否则捕获写 Null 并记告警。</para>
-    /// <para>查找表延迟构建（首次查询时），编辑器期经 <see cref="OnValidate"/> 失效重建；主线程契约。</para>
     /// </summary>
+    /// <remarks>
+    /// 资产引用字段按「存定位串、读目录反查」持久化（捕获查 object → location，恢复查 location → object），不触发运行时加载。
+    /// 被引用资产须先登记入册，否则捕获写 <c>null</c> 并记告警。
+    /// 查找表首次查询时构建，编辑器期经 <see cref="OnValidate"/> 失效重建；主线程契约。
+    /// </remarks>
     [CreateAssetMenu(fileName = "SaveAssetCatalog", menuName = "Moirai/Save Asset Catalog", order = 0)]
     public sealed class SaveAssetCatalog : ScriptableObject
     {
@@ -95,9 +96,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 失效双向查找表（下次查询按 <see cref="m_Entries"/> 重建）。
-        /// <para>程序化修改 <see cref="m_Entries"/>（编辑器工具、导入器等）后必须调用——
-        /// 否则查找继续命中陈旧缓存，既看不到新条目也会放行重复登记。</para>
         /// </summary>
+        /// <remarks>程序化修改 <see cref="m_Entries"/>（编辑器工具、导入器等）后必须调用，否则查找会命中陈旧缓存——既看不到新条目也会放行重复登记。</remarks>
         public void InvalidateLookup()
         {
             _assetToLocation = null;

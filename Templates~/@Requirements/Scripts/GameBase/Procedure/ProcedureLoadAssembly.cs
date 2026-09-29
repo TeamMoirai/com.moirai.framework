@@ -220,8 +220,7 @@ namespace Moirai.Main
         }
 
         /// <summary>
-        /// 为Aot Assembly加载原始metadata， 这个代码放Aot或者热更新都行。
-        /// 一旦加载后，如果AOT泛型函数对应native实现不存在，则自动替换为解释模式执行。
+        /// 为 AOT Assembly 加载原始 metadata（放 Aot 或热更新均可）；加载后 AOT 泛型函数缺 native 实现时自动替换为解释模式执行。
         /// </summary>
         public void LoadMetadataForAOTAssembly()
         {

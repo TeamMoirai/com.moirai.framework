@@ -5,8 +5,7 @@ using YooAsset;
 using AlipaySdk;
 
 /// <summary>
-/// 支付宝小游戏平台实现
-/// 参考：https://opendocs.alipay.com/mini-game/
+/// 支付宝小游戏平台实现。参考 https://opendocs.alipay.com/mini-game/。
 /// </summary>
 internal class AlipayPlatform : IWebPlatformStrategy
 {

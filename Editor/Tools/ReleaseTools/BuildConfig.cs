@@ -11,9 +11,10 @@ namespace Moirai.Atropos.Editor
 {
     /// <summary>
     /// 打包配置（AssetBundle + Player）。
-    /// <para>Inspector 绘制由 Odin 特性驱动（见 <see cref="BuildConfigEditor"/>），
-    /// YooAsset/BuildTarget 枚举无本地化标签，各中文显示名集中在本文件维护。</para>
     /// </summary>
+    /// <remarks>
+    /// Inspector 绘制由 Odin 特性驱动（见 <see cref="BuildConfigEditor"/>）；YooAsset / BuildTarget 枚举无本地化标签，中文显示名集中在本文件维护。
+    /// </remarks>
     public class BuildConfig : ScriptableObject
     {
         #region 基础设置 [BASIC]

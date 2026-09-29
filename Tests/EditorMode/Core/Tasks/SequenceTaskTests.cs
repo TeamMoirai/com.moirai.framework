@@ -5,15 +5,13 @@ using NUnit.Framework;
 namespace Core.Tasks
 {
     /// <summary>
-    /// <see cref="SequenceTask"/> 编排骨架与池化引用的 EditMode 测试（不广播完成事件的那部分）。
-    /// <para>空队列那条曾在 <c>TryPeek</c> 失败后直接 <c>Start()</c> 空引用；<c>Reset</c> 那条以前只
-    /// <c>Clear()</c> 队列，把子任务欠 <c>Append</c> 的那次 <c>Acquire</c> 一起丢掉——子任务从此回不了池，
-    /// <c>DelayTask</c> 更是连 Timer 句柄都不取消；引用下穿（0 → -1）则让那只任务永远凑不齐归还。</para>
-    /// <para>要跑完子任务就得 <c>PostComplete</c> 广播，而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/>
-    /// 在编辑器态拿不到（其静态入口在非 play mode 直接返回 null）——按序执行那格因此住在
-    /// <c>Tests/PlayMode/Core/Tasks/</c>，这里只钉不需要广播的部分。</para>
-    /// <para>观测手法统一走池的 LIFO 复用：<c>GetPooled()</c> 取回同一只实例，即说明它确实被 Dispose 并归还了。</para>
+    /// <see cref="SequenceTask"/> 编排骨架与池化引用的 EditMode 测试（不含需要广播完成事件的部分）。
     /// </summary>
+    /// <remarks>
+    /// 覆盖缺陷形态：空队列越过 <c>TryPeek</c> 失败直接 <c>Start()</c> 的空引用；<c>Reset</c> 只 <c>Clear()</c> 队列而丢掉子任务欠 <c>Append</c> 的那次 <c>Acquire</c>（子任务回不了池、<c>DelayTask</c> 的 Timer 句柄不取消）；引用下穿（0 → -1）使任务永不凑齐归还。
+    /// 跑完子任务需要 <c>PostComplete</c> 广播，而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/> 在编辑器态拿不到（静态入口在非 play mode 返回 null），故按序执行那格住在 <c>Tests/PlayMode/Core/Tasks/</c>。
+    /// 观测手法统一走池的 LIFO 复用：<c>GetPooled()</c> 取回同一只实例即说明它确实被 Dispose 并归还。
+    /// </remarks>
     [TestFixture]
     public sealed class SequenceTaskTests
     {

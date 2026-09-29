@@ -7,8 +7,10 @@ namespace Moirai.Atropos.Editor.Save
 {
     /// <summary>
     /// KVT 结构化预览格式化器：把键值捕获字节解析为缩进树文本（存档浏览器预览面板用）。
-    /// <para>解析失败返回 <c>null</c>（调用方回退十六进制采样）；行数/深度上限截断防巨型块卡死 UI。</para>
     /// </summary>
+    /// <remarks>
+    /// 解析失败返回 <c>null</c>（调用方回退十六进制采样）；行数 / 深度上限截断，防巨型块卡死 UI。
+    /// </remarks>
     internal static class SaveKvPreviewFormatter
     {
         /// <summary>键名 UTF8 解码器（与 KVT 格式约定一致，无 BOM）。</summary>

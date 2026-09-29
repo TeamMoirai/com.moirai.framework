@@ -18,8 +18,7 @@ namespace Moirai.Atropos.UI
     public abstract class UIBase
     {
         /// <summary>
-        /// 依赖注入回调。外部可设置为接收一个 UIBase 实例的委托，
-        /// 在 UI 初始化或创建时由框架调用以注入所需的服务/依赖。
+        /// 依赖注入回调：框架在 UI 初始化或创建时调用，用于注入所需的服务 / 依赖。
         /// </summary>
 #pragma warning disable CS8632 // 只能在 "#nullable" 注释上下文内的代码中使用可为 null 的引用类型的注释。
         public static Action<UIBase>? Injector;
@@ -288,8 +287,7 @@ namespace Moirai.Atropos.UI
         #region UI 组件 [UI WIDGET]
 
         /// <summary>
-        /// 创建UIWidget通过父UI位置节点。
-        /// <remarks>因为资源实例已经存在父物体所以不需要异步。</remarks>
+        /// 通过父 UI 位置节点创建 <see cref="UIWidget"/>。
         /// </summary>
         /// <param name="goPath">父UI位置节点。</param>
         /// <param name="visible">是否可见。</param>
@@ -309,8 +307,7 @@ namespace Moirai.Atropos.UI
 
 
         /// <summary>
-        /// 创建UIWidget通过父UI位置节点。
-        /// <remarks>因为资源实例已经存在父物体所以不需要异步。</remarks>
+        /// 通过指定的父节点创建 <see cref="UIWidget"/>。
         /// </summary>
         /// <param name="parentTrans"></param>
         /// <param name="goPath">父UI位置节点。</param>
@@ -329,8 +326,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 创建UIWidget通过游戏物体。
-        /// <remarks>因为资源实例已经存在父物体所以不需要异步。</remarks>
+        /// 通过游戏物体创建 <see cref="UIWidget"/>。
         /// </summary>
         /// <param name="goRoot">游戏物体。</param>
         /// <param name="visible">是否可见。</param>

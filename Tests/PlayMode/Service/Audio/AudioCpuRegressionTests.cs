@@ -10,9 +10,11 @@ using UnityEngine.TestTools;
 namespace Service.Audio
 {
     /// <summary>
-    /// CPU 回归门禁：热路径在预算内完成。预算刻意放宽，避免 CI 抖动；
-    /// 真实回归（数量级劣化）仍会被拦下。实际耗时写入测试日志。
+    /// CPU 回归门禁：热路径在预算内完成，实际耗时写入测试日志。
     /// </summary>
+    /// <remarks>
+    /// 预算刻意放宽以避免 CI 抖动；数量级劣化的真实回归仍会被拦下。
+    /// </remarks>
     [TestFixture]
     [Category("Performance")]
     public sealed class AudioCpuRegressionTests

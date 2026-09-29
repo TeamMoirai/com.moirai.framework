@@ -5,10 +5,12 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 调试器 UI 样式工厂（静态工具，全模块唯一控件构建入口）。
-    /// <para>视觉样式统一由共享样式库「Debugger UI.uss」定义（经「Debugger UI Theme.tss」挂载到 PanelSettings）——本工厂只负责结构与 USS 类挂载；悬停/按下/选中三态由 USS 伪类（:hover/:active/:checked）驱动。</para>
-    /// <para>所有尺寸均为参考分辨率（1920×1080）面板坐标——实际渲染缩放由 <c>PanelSettings.scale</c> 统一处理，控件构建不感知缩放。</para>
+    /// 调试器 UI 样式工厂：全模块唯一的控件构建入口。
     /// </summary>
+    /// <remarks>
+    /// 视觉样式由共享样式库「Debugger UI.uss」定义（经「Debugger UI Theme.tss」挂载到 <c>PanelSettings</c>），本工厂只负责结构与 USS 类挂载；三态由 USS 伪类驱动。
+    /// 所有尺寸均为参考分辨率（1920×1080）面板坐标，实际缩放由 <c>PanelSettings.scale</c> 统一处理。
+    /// </remarks>
     public static class DebuggerUI
     {
         #region 变体枚举 [VARIANTS]
@@ -401,9 +403,11 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <summary>
-        /// 创建搜索框（占位符 + 聚焦闪烁光标：失焦无文本显示提示，聚焦无文本光标 500ms 方波闪烁，有文本隐藏占位符仅显示输入）。
-        /// <para>聚焦/失焦/文本变更**当帧立即**刷新占位符状态（事件驱动），500ms 定时仅驱动闪烁相位——无恢复延迟。</para>
+        /// 创建搜索框：占位符 + 聚焦闪烁光标。
         /// </summary>
+        /// <remarks>
+        /// 失焦无文本显示提示，聚焦无文本光标 500ms 方波闪烁，有文本隐藏占位符；聚焦 / 失焦 / 文本变更当帧立即刷新，500ms 定时仅驱动闪烁相位。
+        /// </remarks>
         /// <param name="placeholderText">占位符提示文本。</param>
         /// <param name="onValueChanged">文本变更回调（null 安全）。</param>
         /// <returns>搜索框根元素（含输入框与占位符叠加层；样式类由调用方按位置追加）。</returns>

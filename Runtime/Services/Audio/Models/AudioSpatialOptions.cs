@@ -6,14 +6,13 @@ using UnityEngine.Audio;
 namespace Moirai.Atropos.Audio
 {
     /// <summary>
-    /// AudioSource 空间整形选项（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线），
-    /// 对应 Unity AudioSource Inspector 的「空间设置 / 3D Sound Settings」面板。
-    /// <para>从 <see cref="AudioPlayOptions"/> 拆出：
-    /// 「往哪儿播」（Location/AttachToTransform）与「怎么响」（本类型）是两件事，
-    /// 前者留在播放选项里，后者收拢在这一个声学整形载体里。</para>
-    /// <para>经 <see cref="AudioPlayColdParams.Spatial"/> 进入冷路径，仅在 BeginPlayback 时写入 AudioSource，
-    /// 热循环不拷贝本类型；可用 <see cref="Default"/> 作为起点只覆盖需要的项。</para>
+    /// AudioSource 空间整形选项（2D 声像 / 3D 衰减、多普勒、混响与自定义曲线），对应 Unity AudioSource 的「空间设置 / 3D Sound Settings」面板。
     /// </summary>
+    /// <remarks>
+    /// 「往哪儿播」（Location/AttachToTransform）留在 <see cref="AudioPlayOptions"/>，「怎么响」收拢在本类型。
+    /// 经 <see cref="AudioPlayColdParams.Spatial"/> 进入冷路径，仅在 BeginPlayback 时写入 AudioSource，热循环不拷贝本类型。
+    /// 零值结构体等于「无多普勒、零衰减距离、无混响」，需要自定义时从 <see cref="Default"/> 起覆盖。
+    /// </remarks>
     [Serializable]
     public struct AudioSpatialOptions
     {
@@ -114,11 +113,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>自定义扩散曲线。</summary>
         public AnimationCurve SpreadCurve { get => m_SpreadCurve; internal set => m_SpreadCurve = value; }
 
-        /// <summary>
-        /// 声学默认值（对齐 Unity AudioSource 缺省：多普勒 1 / 最小 1 / 最大 500 / 混响 1 / 对数衰减）。
-        /// <para>播放选项的各工厂方法以此为空间起点；直接 <c>new</c> 出来的零值结构体会把声源整形成
-        /// 「无多普勒、零衰减距离、无混响」——需要自定义时也请从本默认值覆盖。</para>
-        /// </summary>
+        /// <summary>声学默认值（对齐 Unity AudioSource 缺省：多普勒 1 / 最小 1 / 最大 500 / 混响 1 / 对数衰减）。</summary>
         public static AudioSpatialOptions Default => new AudioSpatialOptions
         {
             m_PanStereo = 0f,

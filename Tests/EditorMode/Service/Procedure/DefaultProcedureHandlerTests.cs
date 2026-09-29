@@ -10,11 +10,9 @@ using UnityEngine.TestTools;
 namespace Service.Procedure
 {
     /// <summary>
-    /// 默认流程处理器（<see cref="DefaultProcedureHandler"/>）行为测试：
-    /// 生命周期时序、切换语义、重入深度防护、运行中重初始化防护、切换历史与广播、重启链路、外观未就绪诊断。
-    /// <para>处理器级用例直接构造（与 <c>DefaultTimerHandlerTests</c> 同约定）；
-    /// 外观级用例经 <c>ProcedureService.Handler</c> 属性注入真实链路（setter 同步 Internal_Init，无需拉起服务世界）。</para>
+    /// 默认流程处理器（<see cref="DefaultProcedureHandler"/>）行为测试：生命周期时序、切换语义、重入深度防护、运行中重初始化防护、切换历史与广播、重启链路、外观未就绪诊断。
     /// </summary>
+    /// <remarks>处理器级用例直接构造（与 <c>DefaultTimerHandlerTests</c> 同约定）；外观级用例经 <c>ProcedureService.Handler</c> 属性注入真实链路（setter 同步 Internal_Init，无需拉起服务世界）。</remarks>
     [TestFixture]
     public sealed class DefaultProcedureHandlerTests
     {

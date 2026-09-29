@@ -10,12 +10,11 @@ using Mp = Moirai.Atropos.MemoryPool;
 
 namespace Service.ObjectPool
 {
-    /// <summary>
-    /// 通用对象池性能基准（[Explicit] 手动运行，不进常规测试流程）。
-    /// <para>编辑器 Mono 基准噪声约 ±2x，数据仅作回归趋势参考，不作绝对性能结论；
-    /// 需要结论时以同一工具、同一数据做 before/after 对照实测。
-    /// 跑完经 <see cref="BenchmarkReport"/> 落统一文件夹 &lt;工程根&gt;/Benchmarks/genericobjectpool-benchmark.xml。</para>
-    /// </summary>
+    /// <summary>通用对象池性能基准（<c>[Explicit]</c> 手动运行，不进常规测试流程）。</summary>
+    /// <remarks>
+    /// 编辑器 Mono 基准噪声约 ±2x，数据仅作回归趋势参考，不作绝对性能结论；需要结论时以同一工具、同一数据做前后对照。
+    /// 跑完经 <see cref="BenchmarkReport"/> 落统一文件夹 &lt;工程根&gt;/Benchmarks/genericobjectpool-benchmark.xml。
+    /// </remarks>
     [Explicit]
     public sealed class GenericObjectPoolBenchmark
     {

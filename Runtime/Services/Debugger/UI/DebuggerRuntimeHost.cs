@@ -7,10 +7,12 @@ namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 调试器运行时宿主（MonoBehaviour）。
-    /// <para>由 <see cref="DefaultDebuggerHandler"/> 在首个 Tick 懒建（DontDestroyOnLoad）；运行时构建 <c>PanelSettings</c> / <c>UIDocument</c>（零资产依赖，任何构建管线无需收集调试器资产）。</para>
-    /// <para>承载：悬浮 FPS 入口（拖拽 + 边缘吸附 + 日志级别着色）、主窗口 chrome（侧边栏树 + 搜索过滤 + 内容区 + 拖动/缩放）、布局持久化与参考分辨率自适应缩放。</para>
-    /// <para>面板缩放策略：面板尺寸 = 屏幕尺寸 / (分辨率比例 × 用户缩放)——全部控件按 1920×1080 参考坐标编写，不感知缩放。</para>
     /// </summary>
+    /// <remarks>
+    /// 由 <see cref="DefaultDebuggerHandler"/> 在首个 Tick 懒建（<c>DontDestroyOnLoad</c>），运行时构建 <c>PanelSettings</c> / <c>UIDocument</c>，零资产依赖。
+    /// 承载悬浮 FPS 入口、主窗口 chrome（侧边栏树 + 搜索过滤 + 内容区 + 拖动 / 缩放）、布局持久化与参考分辨率自适应缩放。
+    /// 面板尺寸 = 屏幕尺寸 / (分辨率比例 × 用户缩放)，控件统一按 1920×1080 参考坐标编写。
+    /// </remarks>
     [AddComponentMenu("")]
     [DisallowMultipleComponent]
     public sealed class DebuggerRuntimeHost : MonoBehaviour
@@ -238,9 +240,11 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <summary>
-        /// 移除窗口的缓存视图（窗口注销后调用——防止已关停窗口的视图树被字典持有无法回收）。
-        /// <para>若被注销窗口正被选中，内容区由注册表版本号驱动的下一帧 <see cref="RefreshSelectionContent"/> 重建。</para>
+        /// 移除窗口的缓存视图，防止已关停窗口的视图树被字典持有无法回收。
         /// </summary>
+        /// <remarks>
+        /// 若被注销窗口正被选中，内容区由注册表版本号驱动的下一帧 <see cref="RefreshSelectionContent"/> 重建。
+        /// </remarks>
         /// <param name="window">已注销的调试器窗口。</param>
         internal void RemoveCachedView(IDebuggerWindow window)
         {

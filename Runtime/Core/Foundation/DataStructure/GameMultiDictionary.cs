@@ -6,9 +6,11 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 游戏框架多值字典类。
-    /// <para><b>终结哨兵契约</b>：每个主键区间以一个持有 <c>default(TValue)</c> 的结点收尾——区间边界判定一律用
-    /// 结点身份（<c>!= Terminal</c>）而非值相等，业务值等于 default 不影响边界判定；哨兵结点不参与区间取值。</para>
     /// </summary>
+    /// <remarks>
+    /// 每个主键区间以持有 <c>default(TValue)</c> 的终结哨兵结点收尾，边界判定用结点身份而非值相等，
+    /// 业务值等于 default 不影响判定；哨兵结点不参与取值。
+    /// </remarks>
     /// <typeparam name="TKey">指定多值字典的主键类型。</typeparam>
     /// <typeparam name="TValue">指定多值字典的值类型。</typeparam>
     public sealed class GameMultiDictionary<TKey, TValue> : IEnumerable<KeyValuePair<TKey, GameLinkedListRange<TValue>>>, IEnumerable

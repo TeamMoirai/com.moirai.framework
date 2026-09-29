@@ -12,9 +12,11 @@ using UnityEngine.TestTools;
 namespace Service.Audio
 {
     /// <summary>
-    /// 中间件后端初始化失败的降级面（上线门槛 G5「SDK 初始化失败」）：
-    /// 失败即整体禁用，不得再有任何一次调用打到未初始化的原生引擎。
+    /// 中间件后端初始化失败的降级面（上线门槛 G5「SDK 初始化失败」）：失败即整体禁用。
     /// </summary>
+    /// <remarks>
+    /// 失败后不得再有任何一次调用打到未初始化的原生引擎。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioMiddlewareBackendFailurePlayModeTests
     {
@@ -145,10 +147,11 @@ namespace Service.Audio
 
         /// <summary>
         /// 禁用态下的音量面：读作 0、写作无效、且不排总线过渡。
-        /// <para>补这一件是因为"引擎已死"与"音量是 80%"此前可以同时成立——设置面板照旧显示音量、
-        /// 照旧接受拖动，而玩家什么也听不见；这正是线上无法归因的那类症状。
-        /// 契约第 6 条（<c>IsBackendInert</c>）把它定成两后端共同的口径，Unity 侧一直就是这么做的。</para>
         /// </summary>
+        /// <remarks>
+        /// 后端失效时音量面必须一并失效——不得照旧显示音量、照旧接受拖动而玩家听不见。
+        /// 契约第 6 条（<c>IsBackendInert</c>）把它定成两后端共同的口径。
+        /// </remarks>
         [Test]
         public void Init_Failed_VolumeSurfaceReadsZeroAndIgnoresWrites()
         {

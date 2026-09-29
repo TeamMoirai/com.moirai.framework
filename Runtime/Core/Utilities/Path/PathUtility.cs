@@ -115,8 +115,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 标准 Windows 文件路径地址合并；
-        /// 返回结果示例：Resources\JsonData\
+        /// 标准 Windows 文件路径地址合并，返回结果示例：<c>Resources\JsonData\</c>。
         /// </summary>
         /// <param name="paths">路径params</param>
         /// <returns>合并的路径</returns>
@@ -129,11 +128,11 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 格式化UNC地址<br />
+        /// 格式化 UNC 地址。
         /// </summary>
         /// <param name="path">需要格式化的地址</param>
-        /// <returns>格式化后的UNC地址</returns>
-        /// <para>关于UNC的介绍：https://learn.microsoft.com/zh-cn/dotnet/standard/io/file-path-formats#unc-paths</para>
+        /// <returns>格式化后的 UNC 地址</returns>
+        /// <remarks>关于 UNC 的介绍：https://learn.microsoft.com/zh-cn/dotnet/standard/io/file-path-formats#unc-paths</remarks>
         /// <example>D:/Usr/Framework/ -> D:\Usr\Framework\</example>
         // ReSharper disable once InconsistentNaming
         private static string FormatUNCPath(string path)
@@ -165,9 +164,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 判断是否是路径；
-        /// 需要注意根目录下的文件可能不带/或\符号！
+        /// 判断是否是路径。
         /// </summary>
+        /// <remarks>根目录下的文件可能不带 <c>/</c> 或 <c>\</c> 符号。</remarks>
         /// <param name="path">路径str</param>
         /// <returns>是否是路径</returns>
         public static bool IsPath(string path)

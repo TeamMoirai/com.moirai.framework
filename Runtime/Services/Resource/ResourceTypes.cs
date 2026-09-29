@@ -303,9 +303,8 @@ namespace Moirai.Atropos.Resource
 
     /// <summary>
     /// 租约选项。
-    /// <para>公开是因为租约接缝（<c>IResourceLeaseSource</c> 与处理器的取用族）要在程序集外被后端实现；
-    /// 保持 internal 会让这些签名撞上「参数类型比方法可见性更低」。</para>
     /// </summary>
+    /// <remarks>公开是必需的：租约接缝（<c>IResourceLeaseSource</c> 与处理器取用族）要在程序集外被后端实现。</remarks>
     [Flags]
     public enum EResourceLeaseOption : byte
     {

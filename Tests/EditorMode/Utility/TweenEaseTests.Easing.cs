@@ -3,10 +3,11 @@
 namespace Utility
 {
     /// <summary>
-    /// 这里的公式基于罗伯特·彭纳（Robert Penner）的缓动方程
-    /// http://robertpenner.com/easing/
+    /// 缓动函数公式本体：取自 Robert Penner 的缓动方程（http://robertpenner.com/easing/）。
     /// </summary>
-    /// <remarks>未优化版本，仅作实现参考</remarks>
+    /// <remarks>
+    /// 未优化版本，仅作实现参考。
+    /// </remarks>
     public partial class TweenEaseTests
     {
         // Linear       ---------------------------------------------------------------------------------------------------------------------------

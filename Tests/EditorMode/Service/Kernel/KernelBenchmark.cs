@@ -6,12 +6,11 @@ using Moirai.Atropos.Debugger;
 
 namespace Service.Kernel
 {
-    /// <summary>
-    /// 内核性能基准（[Explicit]——不参与常规回归，发布前/优化对比时手动运行）。
-    /// <para>测量项：服务注册、跨作用域查找、Tick 分派（含 GC 采样）。</para>
-    /// <para>编辑器 Mono 基准噪声 ±2×——只做同轮内相对比较，不跨运行绝对比较。
-    /// 跑完经 <see cref="BenchmarkReport"/> 落统一文件夹 &lt;工程根&gt;/Benchmarks/kernelbenchmark-benchmark.xml。</para>
-    /// </summary>
+    /// <summary>内核性能基准（<c>[Explicit]</c>，不参与常规回归，优化对比时手动运行）。</summary>
+    /// <remarks>
+    /// 测量项：服务注册、跨作用域查找、Tick 分派（含 GC 采样）。
+    /// 编辑器 Mono 基准噪声 ±2×，只做同轮内相对比较；跑完经 <see cref="BenchmarkReport"/> 落统一文件夹 &lt;工程根&gt;/Benchmarks/kernelbenchmark-benchmark.xml。
+    /// </remarks>
     [Explicit]
     [TestFixture]
     public sealed class KernelBenchmark

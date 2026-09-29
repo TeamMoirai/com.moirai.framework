@@ -26,11 +26,9 @@ namespace Moirai.Atropos.Audio
     }
 
     /// <summary>
-    /// 播放热路径请求——固定 16 字节，按值拷贝零堆分配。
-    /// <para>布局：Id(4) + Volume(4) + Pitch(4) + Packed(4)。</para>
-    /// <para>Packed = Track:8 | Priority:8 | Flags:8 | pad:8。</para>
-    /// <para>位置/曲线/旁通等冷参数见 <see cref="AudioPlayColdParams"/>。</para>
+    /// 播放热路径请求——固定 16 字节，按值拷贝零堆分配；布局 Id(4) + Volume(4) + Pitch(4) + Packed(4)，Packed = Track:8 | Priority:8 | Flags:8 | pad:8。
     /// </summary>
+    /// <remarks>位置/曲线/旁通等冷参数见 <see cref="AudioPlayColdParams"/>。</remarks>
     public readonly struct AudioPlayRequest
     {
         /// <summary>用户定义 ID。</summary>

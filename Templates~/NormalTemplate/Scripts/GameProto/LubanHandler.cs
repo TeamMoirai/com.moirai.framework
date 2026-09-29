@@ -47,9 +47,11 @@ namespace Moirai.GameProto.Config
         
 
         /// <summary>
-        /// 自报本表提供的语言：顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
-        /// <para>框架据此校验列数并解析缺译回退链，不再依赖「向全局注册表注册语言」这一副作用。</para>
+        /// 自报本表提供的语言；顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
         /// </summary>
+        /// <remarks>
+        /// 框架据此校验列数并解析缺译回退链，不依赖「向全局注册表注册语言」这一副作用。
+        /// </remarks>
         public override IReadOnlyList<string> GetLocalizationLanguageCodes()
         {
             if (_localizationLanguageCodes == null)

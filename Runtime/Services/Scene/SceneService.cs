@@ -8,14 +8,14 @@ using UnityEngine.SceneManagement;
 namespace Moirai.Atropos.Scene
 {
     /// <summary>
-    /// 场景服务外观（Facade）。
-    /// <para>统一的静态场景访问入口，通过替换 <see cref="Handler"/> 即可在不同场景加载后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="SceneServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
-    /// <para>错误契约：加载失败抛出 <see cref="GameException"/>；卸载失败以 <c>false</c> 返回值报告；服务未注册时查询降级返回默认值、加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。</para>
-    /// <para>生命周期事件（<see cref="MainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。</para>
-    /// <para>场景短名须尽量全局唯一：短名碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。</para>
+    /// 场景服务外观（Facade），通过替换 <see cref="Handler"/> 即可在不同场景加载后端之间切换。
     /// </summary>
+    /// <remarks>
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="SceneServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。
+    /// 错误契约：加载失败抛出 <see cref="GameException"/>；卸载失败以 <c>false</c> 返回并保留登记；服务未注册时查询降级返回默认值、加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。
+    /// 生命周期事件（<see cref="MainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。
+    /// 场景短名须尽量全局唯一：碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。
+    /// </remarks>
     [AutoRegisterService]
     [HandlerHost(typeof(SceneServiceHandler))]
     [ServiceDependency(typeof(ResourceService))]
@@ -31,8 +31,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 从 <see cref="SceneServiceSettings"/> 解析场景处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>
+        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
+        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static SceneServiceHandler GetHandlerFromSettings()
         {
@@ -45,8 +47,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 初始化场景服务。由容器在构建期调用。
-        /// <para>确保 <c>SceneService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。</para>
         /// </summary>
+        /// <remarks>
+        /// 确保 <see cref="Handler"/> 已赋值（触发懒加载）。
+        /// </remarks>
         public override void OnInit()
         {
             _ = Handler;
@@ -71,8 +75,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 主场景切换完成（Single 模式加载并激活后触发，参数为归一化场景短名）。
-        /// <para>主线程同步触发；订阅者异常被隔离记录。</para>
         /// </summary>
+        /// <remarks>
+        /// 主线程同步触发；订阅者异常被隔离记录。
+        /// </remarks>
         public static event Action<string> MainSceneChanged;
 
         /// <summary>
@@ -131,9 +137,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 异步加载场景。加载失败抛出 <see cref="GameException"/>。
-        /// <para>挂起加载（<c>suspendLoad</c>）须经 <see cref="UnSuspend"/> 解除后才会完成——底层加载不可中止，
-        /// <paramref name="cancellationToken"/> 仅取消等待与进度回调，登记由处理器收尾。</para>
         /// </summary>
+        /// <remarks>
+        /// 挂起加载（<c>suspendLoad</c>）须经 <see cref="UnSuspend"/> 解除后才会完成——底层加载不可中止，<paramref name="cancellationToken"/> 仅取消等待与进度回调，登记由处理器收尾。
+        /// </remarks>
         /// <param name="location">场景资源定位地址。</param>
         /// <param name="sceneMode">场景加载模式。</param>
         /// <param name="suspendLoad">是否挂起加载。</param>
@@ -150,8 +157,10 @@ namespace Moirai.Atropos.Scene
 
         /// <summary>
         /// 同步发起场景加载（回调式）。
-        /// <para>回调契约：无论成败恰好回调一次；失败时以默认场景回调，调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>。</para>
         /// </summary>
+        /// <remarks>
+        /// 回调契约：无论成败恰好回调一次；失败时以默认场景回调，调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>。
+        /// </remarks>
         /// <param name="location">场景资源定位地址。</param>
         /// <param name="packageName">资源包名称。</param>
         /// <param name="sceneMode">场景加载模式。</param>
@@ -187,8 +196,7 @@ namespace Moirai.Atropos.Scene
         #region 场景卸载 [SCENE UNLOADING]
 
         /// <summary>
-        /// 异步卸载子场景。失败返回 <c>false</c> 并保留登记供重试；
-        /// 句柄已失效（适配器发起卸载后置空等）同样视为失败，不会误报成功。
+        /// 异步卸载子场景。失败返回 <c>false</c> 并保留登记供重试；句柄已失效（适配器发起卸载后置空等）同样视为失败，不会误报成功。
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
@@ -220,8 +228,7 @@ namespace Moirai.Atropos.Scene
         public static IReadOnlyCollection<string> LoadedSubSceneLocations => s_Handler?.LoadedSubSceneLocations ?? Array.Empty<string>();
 
         /// <summary>
-        /// 判断指定场景是否为当前主场景（身份判断，不含激活状态——激活状态请比较
-        /// <c>SceneManager.GetActiveScene().name</c> 与 <see cref="CurrentMainSceneName"/>）。
+        /// 判断指定场景是否为当前主场景（身份判断，不含激活状态——激活状态请比较 <c>SceneManager.GetActiveScene().name</c> 与 <see cref="CurrentMainSceneName"/>）。
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否为主场景。</returns>

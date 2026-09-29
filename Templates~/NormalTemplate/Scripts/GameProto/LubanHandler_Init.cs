@@ -34,8 +34,10 @@ namespace Moirai.GameProto.Config
 
 		/// <summary>
 		/// 加载配置。
-		/// <remarks>自动判断加载bin或json配置</remarks>
 		/// </summary>
+		/// <remarks>
+		/// 依生成表构造器所需缓冲类型自动选择 bin 或 json 配置源。
+		/// </remarks>
 		private Tables Load()
 		{
 			ConstructorInfo tablesCtor = typeof(Tables).GetConstructors()[0];

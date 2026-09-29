@@ -24,10 +24,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 词法原语接口：token 读取的编码差异（char / UTF8 字节、字符串物化、数值解析、键匹配）
-        /// 由各 Lexer 实现；解析结构逻辑（分派/容器/对象/深度守卫）统一在 <see cref="JsonReader{TLexer}"/>。
+        /// 词法原语接口：token 读取的编码差异（char / UTF8 字节、字符串物化、数值解析、键匹配）由各 Lexer 实现。
         /// </summary>
         /// <remarks>
+        /// <para>解析结构逻辑（分派/容器/对象/深度守卫）统一在 <see cref="JsonReader{TLexer}"/>。</para>
         /// <para><b>调用粒度契约</b>：接口按"每 token"分发（每个键/值/字面量一次调用），
         /// 而非每字符——接口开销由 token 内部工作量摊薄。</para>
         /// <para><b>Peek 契约</b>：返回当前字符/字节为 int（结构字符均为 ASCII，两路径统一可比）；
@@ -75,10 +75,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 高频容器专用热循环入口：泛型 Reader 无法静态特化（Mono 接口/委托分发在紧密循环中退化 ~4×），
-        /// 高频容器解析由 Lexer 具体类型直接实现（具体方法调用可内联），Reader 做能力探测与委托。
-        /// 覆盖基准测试中的高频类型（int/float/double/long/string）。
+        /// 高频容器解析的热循环入口：由 Lexer 具体类型直接实现，Reader 只做能力探测与委托。
         /// </summary>
+        /// <remarks>覆盖 int/float/double/long/string，绕过 Mono 上泛型 Reader 的接口/委托分发退化。</remarks>
         internal interface ITypedArrayParser
         {
             /// <summary>解析 int[] 专用热循环（最高频类型）。</summary>

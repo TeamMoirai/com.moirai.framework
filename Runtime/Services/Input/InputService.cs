@@ -5,13 +5,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Input
 {
     /// <summary>
-    /// 输入服务外观（Facade）。
-    /// <para>统一的静态输入访问入口，通过替换 <see cref="Handler"/> 即可在不同输入后端之间零成本切换。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="InputServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
-    /// <para>降级契约：全部外观 API 经 <c>s_Handler?.</c> 静默降级（未注册/未初始化时返回安全默认值），
-    /// 与 Audio/Resource 等服务一致。</para>
+    /// 输入服务外观（Facade）：统一的静态输入访问入口，替换 <see cref="Handler"/> 即可切换输入后端。
     /// </summary>
+    /// <remarks>
+    /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="InputServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>。
+    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
+    /// </remarks>
     // 依赖说明：经 EventManager 订阅 UIServiceEvent + 读 UIService.CurrentModal——事件驱动软依赖，
     // 不做 [ServiceDependency] 硬声明（UI 侧对 Input 是静态调用硬依赖，双向硬声明会构成拓扑环）。
     [AutoRegisterService]
@@ -37,8 +37,8 @@ namespace Moirai.Atropos.Input
 
         /// <summary>
         /// 从 <see cref="InputServiceSettings"/> 解析输入处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），使懒加载主路径首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static InputServiceHandler GetHandlerFromSettings()
         {
@@ -50,9 +50,7 @@ namespace Moirai.Atropos.Input
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
-        /// 初始化输入服务。由 <see cref="GameAppSettings.Initiation"/> 调用。
-        /// <para>确保 <c>InputService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载），
-        /// 然后订阅全局事件。</para>
+        /// 初始化输入服务：触发 <c>Handler</c> 懒加载并订阅全局事件。由 <see cref="GameAppSettings.Initiation"/> 调用。
         /// </summary>
         public override void OnInit()
         {
@@ -82,9 +80,11 @@ namespace Moirai.Atropos.Input
 
         /// <summary>
         /// 获取或设置是否启用输入（未就绪时读取为 false，写入静默忽略）。
-        /// <para>禁用 = 全局硬门控：动作类查询（按钮/轴/向量）一律返回默认值，无需消费者自查；
-        /// Input System 后端同时整体禁用全部上下文 Map。鼠标查询不参与门控。</para>
         /// </summary>
+        /// <remarks>
+        /// 禁用即全局硬门控：动作类查询（按钮/轴/向量）一律返回默认值，无需消费者自查。
+        /// Input System 后端同时整体禁用全部上下文 Map；鼠标查询不参与门控。
+        /// </remarks>
         public static bool Enabled
         {
             get => s_Handler?.Enabled ?? false;
@@ -97,9 +97,11 @@ namespace Moirai.Atropos.Input
 
         /// <summary>
         /// 获取或设置是否锁定玩家控制器（未就绪时读取为 false，写入静默忽略）。
-        /// <para>Input System 后端中心化强制：锁定（含 UI 模态联动）时玩家上下文 Map 整体禁用，
-        /// 玩家输入查询返回默认值而 UI Map 保持可用；旧版/移动端后端无 Map 概念，该状态仅供消费者协作自查。</para>
         /// </summary>
+        /// <remarks>
+        /// Input System 后端中心化强制：锁定（含 UI 模态联动）时玩家上下文 Map 整体禁用，玩家查询返回默认值而 UI Map 保持可用。
+        /// 旧版/移动端后端无 Map 概念，该状态仅供消费者协作自查。
+        /// </remarks>
         public static bool LockPlayerController
         {
             get => s_Handler?.LockPlayerController ?? false;
@@ -112,9 +114,8 @@ namespace Moirai.Atropos.Input
 
         /// <summary>
         /// 获取或设置是否禁止 UI 交互（未就绪时读取为 false，写入静默忽略）。
-        /// <para>Input System 后端中心化强制：禁止时 UI 上下文 Map 整体禁用；
-        /// UI 侧交互（UIServiceHelper/UIHotKey 等）亦会自查该状态，双保险。</para>
         /// </summary>
+        /// <remarks>Input System 后端中心化强制：禁止时 UI 上下文 Map 整体禁用；UI 侧交互（UIServiceHelper/UIHotKey 等）亦会自查该状态。</remarks>
         public static bool PreventInteractionUI
         {
             get => s_Handler?.PreventInteractionUI ?? false;

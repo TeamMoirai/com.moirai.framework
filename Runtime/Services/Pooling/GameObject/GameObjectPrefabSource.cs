@@ -7,8 +7,10 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// GameObject 池预制体来源：Location（经加载器）或 External（外部引用，池不拥有）。
-    /// <para>封装加载状态机与生命周期；主线程访问。</para>
     /// </summary>
+    /// <remarks>
+    /// 封装加载状态机与生命周期；仅主线程访问。
+    /// </remarks>
     internal sealed class GameObjectPrefabSource
     {
         #region 常量 [CONSTANTS]

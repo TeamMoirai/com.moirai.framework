@@ -10,11 +10,12 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// 资产引用目录测试：双向查找、类型不匹配未命中、重复条目首到先得、无效条目跳过、编辑器期查找表失效重建、
-    /// 程序化改条目后的 <see cref="SaveAssetCatalog.InvalidateLookup"/> 契约。
-    /// <para>告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
-    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。</para>
+    /// 资产引用目录契约测试：双向查找、类型不匹配未命中、重复条目首到先得、无效条目跳过、编辑器期查找表失效重建、程序化改条目后的 <see cref="SaveAssetCatalog.InvalidateLookup"/> 契约。
     /// </summary>
+    /// <remarks>
+    /// 告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）；
+    /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。
+    /// </remarks>
     public class SaveAssetCatalogTests
     {
         private SaveAssetCatalog _catalog;

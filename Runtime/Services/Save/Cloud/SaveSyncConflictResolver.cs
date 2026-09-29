@@ -3,10 +3,22 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 云存档冲突裁决器（<see cref="ESaveSyncPolicy.Custom"/> 时的逐键裁决插拔件；框架插拔件惯例：
-    /// [Serializable] 抽象基类，由 <see cref="CloudSaveStorageBackend"/> 以 [SerializeReference] + ProviderDropdown 持有）。
-    /// <para>实现须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。</para>
+    /// 云存档冲突裁决器：<see cref="ESaveSyncPolicy.Custom"/> 时的逐键裁决插拔件（[Serializable] 抽象基类，由 <see cref="CloudSaveStorageBackend"/> 以 [SerializeReference] 持有）。
     /// </summary>
+    /// <remarks>实现须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。</remarks>
+    /// <example>
+    /// <code lang="csharp">
+    /// private sealed class LatestWinsResolver : SaveSyncConflictResolver
+    /// {
+    ///     public override ESaveSyncDecision Resolve(string key, SaveSyncEntryInfo local, SaveSyncEntryInfo remote)
+    ///     {
+    ///         return remote.LastWriteTimeUtc &gt; local.LastWriteTimeUtc
+    ///             ? ESaveSyncDecision.UseRemote
+    ///             : ESaveSyncDecision.UseLocal;
+    ///     }
+    /// }
+    /// </code>
+    /// </example>
     [Serializable]
     public abstract class SaveSyncConflictResolver
     {

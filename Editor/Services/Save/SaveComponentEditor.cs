@@ -8,10 +8,11 @@ using UnityEngine;
 namespace Moirai.Atropos.Editor.Save
 {
     /// <summary>
-    /// SaveComponent 编辑器：为每个目标绑定展示其组件类型上全部 <see cref="SaveFieldAttribute"/> 标注字段（含私有），
-    /// 勾选结果写回绑定配置；运行期捕获器全字段生成、按勾选掩码过滤（编译期/编辑期正交）。
-    /// <para>字段清单经反射一次性缓存（编辑器专用路径）；未注册捕获器的组件类型给予告警提示。</para>
+    /// SaveComponent 编辑器：为每个目标绑定展示其组件类型上全部 <see cref="SaveFieldAttribute"/> 标注字段（含私有），勾选结果写回绑定配置。
     /// </summary>
+    /// <remarks>
+    /// 运行期捕获器全字段生成、按勾选掩码过滤（编译期 / 编辑期正交）；字段清单经反射一次性缓存；未注册捕获器的组件类型给予告警提示。
+    /// </remarks>
     [CustomEditor(typeof(SaveComponent))]
     public sealed class SaveComponentEditor : UnityEditor.Editor
     {
@@ -164,8 +165,10 @@ namespace Moirai.Atropos.Editor.Save
 
         /// <summary>
         /// 获取组件类型的可保存字段元信息（反射一次并缓存）。
-        /// <para>无 [SaveField] 字段的引擎组件回退到已注册捕获器的字段清单（Transform/Rigidbody/ParticleSystem 内置捕获器）。</para>
         /// </summary>
+        /// <remarks>
+        /// 无 <c>[SaveField]</c> 字段的引擎组件回退到已注册捕获器的字段清单（Transform / Rigidbody / ParticleSystem 内置捕获器）。
+        /// </remarks>
         /// <param name="componentType">组件类型。</param>
         /// <returns>字段元信息数组。</returns>
         private static SaveFieldMeta[] GetFieldMetas(Type componentType)

@@ -8,12 +8,12 @@ namespace Moirai.Atropos.Debugger
 {
     /// <summary>
     /// 内存池性能基准运行时驱动器：跑完整用例矩阵并产出统一的 <see cref="BenchmarkReport"/>。
-    /// <para>放运行程序集以便 <see cref="MemoryPoolInformationWindow"/> 直接触发（Debugger 是运行时窗口，
-    /// 够不到测试程序集里的 [Test]）。测量：每用例先跑一轮预热再计时 N 次取最小 ms，采 GC 分配增量；
-    /// 编辑器 Mono 噪声约 ±2×，数据用于同配置 before/after 趋势对照。</para>
-    /// <para>不变量校验降级为软校验：命中问题只累加 failures 计数并 LogWarning，不抛出——正确性回归由
-    /// MemoryPoolMaintenanceTests / MemoryPoolOwnershipTests 负责。</para>
     /// </summary>
+    /// <remarks>
+    /// 放在运行程序集以便 <see cref="MemoryPoolInformationWindow"/> 直接触发。
+    /// 每用例先预热再计时 N 次取最小 ms，采 GC 分配增量；编辑器 Mono 噪声约 ±2×，数据仅用于同配置 before / after 趋势对照。
+    /// 不变量校验降级为软校验：命中问题只累加 failures 与 LogWarning，不抛出；正确性回归由 MemoryPool 测试族负责。
+    /// </remarks>
     public static class MemoryPoolBenchmarkRunner
     {
         #region 配置 [CONFIGURATION]

@@ -5,9 +5,10 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// MessagePack 序列化后端（<c>MessagePack</c> NuGet 包 v3）。
-    /// <para>数据类型需 <c>[MessagePackObject]</c> 标注并依赖 MessagePack SourceGenerator 产出 AOT 安全 formatter；
-    /// 未标注类型在 IL2CPP 下不受支持（编辑器 Mono 动态解析仅可用于调试）。</para>
     /// </summary>
+    /// <remarks>
+    /// 数据类型需 <c>[MessagePackObject]</c> 标注，依赖 MessagePack SourceGenerator 产出 AOT 安全 formatter；未标注类型在 IL2CPP 下不受支持（编辑器 Mono 动态解析仅可用于调试）。
+    /// </remarks>
     public sealed class MessagePackSaveSerializer : ISaveSerializer
     {
         /// <summary>

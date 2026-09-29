@@ -7,9 +7,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// AES 加密存档处理器：容器字节经 <see cref="SaveEncryptor"/>（AES-256-CBC + HMAC，encrypt-then-MAC）变换后存储。
-    /// <para>密钥材料来源由处理器内嵌的 <see cref="SaveKeyProvider"/> 提供（空 = 回退 <see cref="StaticSaveKeyProvider.Default"/> 占位默认——
-    /// 上线前须在 Inspector 配置项目专属密钥提供方）。派生材料由提供方按参数缓存；提供方须为纯 .NET，工作线程调用安全。</para>
     /// </summary>
+    /// <remarks>
+    /// 密钥材料由处理器内嵌的 <see cref="SaveKeyProvider"/> 提供（空 = 回退 <see cref="StaticSaveKeyProvider.Default"/> 占位默认，上线前须在 Inspector 配置项目专属提供方）。
+    /// 派生材料由提供方按参数缓存；提供方须为纯 .NET，工作线程调用安全。
+    /// </remarks>
     [Serializable]
     // ReSharper disable once InconsistentNaming
     internal class AESEncryptedSaveHandler : SaveServiceHandler
@@ -40,10 +42,6 @@ namespace Moirai.Atropos.Save
         /// </summary>
         private SaveEncryptor Encryptor => _encryptor ??= new SaveEncryptor();
         
-        /// <summary>
-        /// 载荷变换：容器字节加密为存储载荷（区间直通 <see cref="SaveEncryptor"/>，无二次拷贝）。
-        /// </summary>
-        /// <param name="container">容器字节视图。</param>
         /// <summary>
         /// 载荷写流包装：叠加 AES-256-CBC + HMAC 加密链（明文经返回流写入即加密落存储目标流，关闭收尾末块与 MAC 尾）。
         /// </summary>

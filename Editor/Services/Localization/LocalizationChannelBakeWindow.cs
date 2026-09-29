@@ -5,10 +5,11 @@ using UnityEngine;
 namespace Moirai.Atropos.Localization.Editor
 {
     /// <summary>
-    /// 渠道默认语言烘焙窗口（Tools/Config/烘焙渠道默认语言）。
-    /// <para>下拉选内置语言一键烘焙到 <c>Assets/Resources/LocalizationBuildConfig.asset</c>；
-    /// 显示当前烘焙值并支持清除。CI 无人值守场景走 <c>localizationLanguage=xx</c> 参数（详见 <c>LocalizationChannelBuildHook</c>）。</para>
+    /// 渠道默认语言烘焙窗口（菜单：Tools/Config/烘焙渠道默认语言），下拉选内置语言一键烘焙到 <c>Assets/Resources/LocalizationBuildConfig.asset</c>。
     /// </summary>
+    /// <remarks>
+    /// 显示当前烘焙值并支持清除；CI 无人值守场景走 <c>localizationLanguage=xx</c> 参数（见 <see cref="LocalizationChannelBuildHook"/>）。
+    /// </remarks>
     public sealed class LocalizationChannelBakeWindow : EditorWindow
     {
         private static readonly string[] s_LanguageNames =

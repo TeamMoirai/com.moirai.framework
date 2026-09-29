@@ -6,9 +6,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 静态密钥提供方（默认）：固定口令 + 盐文经 PBKDF2-SHA256 派生密钥材料。
-    /// <para>SECURITY: 上线前必须替换占位口令与盐文（可在 Inspector 序列化配置，或运行期经 <see cref="SetDerivationParameters"/> 注入——如按平台账号派生）。</para>
-    /// <para>运行期注入只写 <see cref="NonSerialized"/> 覆盖字段——序列化配置保持为构建期基线，运行期覆盖不脏化设置资产（编辑器下不会被误序列化回写）。</para>
     /// </summary>
+    /// <remarks>
+    /// SECURITY: 上线前必须替换占位口令与盐文（可在 Inspector 序列化配置，或运行期经 <see cref="SetDerivationParameters"/> 注入，如按平台账号派生）。
+    /// 运行期注入只写 <c>NonSerialized</c> 覆盖字段——序列化配置保持为构建期基线，不脏化设置资产。
+    /// </remarks>
     [Serializable]
     public class StaticSaveKeyProvider : SaveKeyProvider
     {

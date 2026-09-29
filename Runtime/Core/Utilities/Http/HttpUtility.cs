@@ -8,8 +8,7 @@ using UnityEngine.Networking;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 提供HTTP相关操作的实用工具类。
-    /// <para>封装了常用的GET/POST请求、文件下载、多媒体资源获取等功能。</para>
+    /// 提供 HTTP 相关操作的实用工具类：封装常用的 GET/POST 请求、文件下载、多媒体资源获取等功能。
     /// </summary>
     public static partial class HttpUtility
     {

@@ -5,8 +5,7 @@ using Cysharp.Text;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// ZString 字符串构建器适配器。<br />
-    /// 包装 <see cref="Cysharp.Text.Utf16ValueStringBuilder"/>，提供零分配的字符串操作。
+    /// ZString 字符串构建器适配器：包装 <see cref="Cysharp.Text.Utf16ValueStringBuilder"/>，提供零分配的字符串操作。
     /// </summary>
     internal sealed class ZStringBuilder : IStringBuilder
     {

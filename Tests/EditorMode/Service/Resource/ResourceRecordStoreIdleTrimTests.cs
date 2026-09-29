@@ -6,13 +6,12 @@ using UnityEngine;
 namespace Service.Resource
 {
     /// <summary>
-    /// 记录内核的空闲容量淘汰特征化测试：钉住"受害者按空闲过期刻度从旧到新挑、每趟不超预算、
-    /// 预算用尽时把请求位留回下一帧"这三条现状。
-    /// <para>这是内核抽出来之后第一次能只带一面假 <see cref="IResourceRecordHost"/> 直接驱动它——
-    /// 之前这套账全在 <c>YooAssetHandler</c> 里，不初始化 YooAsset 就进不去。</para>
-    /// <para>刻意不测"怎么挑更快"：这几格是要把现状钉成基线，好让后面把线性最小值扫描换成
-    /// 轮盘取桶时，改变选择顺序会立刻显形，而不是悄悄换掉一批被淘汰的资源。</para>
+    /// 记录内核空闲容量淘汰的特征化契约：受害者按空闲过期刻度从旧到新挑、每趟不超预算、预算用尽时把请求位留回下一帧。
     /// </summary>
+    /// <remarks>
+    /// 只带一面假 <see cref="IResourceRecordHost"/> 即可直接驱动内核，无需初始化 YooAsset。
+    /// 这几格是基线：选择顺序一旦改变必须在此显形，而不是悄悄换掉一批被淘汰的资源。
+    /// </remarks>
     public sealed class ResourceRecordStoreIdleTrimTests
     {
         private const string PackageName = "DefaultPackage";

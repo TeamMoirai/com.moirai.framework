@@ -3,11 +3,8 @@ using NUnit.Framework;
 
 namespace Service.Audio
 {
-    /// <summary>
-    /// AudioHandleRegistry 单元测试：句柄绑定、代次防伪、用户 ID 链、BoundHandle 单点维护。
-    /// <para>句柄是打包值（高位代次 + 低位槽号），所以这里钉的不是"等于 1、2、3"这种实现细节，
-    /// 而是调用方真正依赖的四条：非零、不复用、槽位复用后旧句柄必须判假、以及遍历/解绑互不破坏。</para>
-    /// </summary>
+    /// <summary>AudioHandleRegistry 单元测试：句柄绑定、代次防伪、用户 ID 链、BoundHandle 单点维护。</summary>
+    /// <remarks>句柄是打包值（高位代次 + 低位槽号），用例钉的是调用方依赖的四条：非零、不复用、槽位复用后旧句柄判假、遍历与解绑互不破坏。</remarks>
     public sealed class AudioHandleRegistryTests
     {
         private sealed class TestVoice : IAudioVoiceRef

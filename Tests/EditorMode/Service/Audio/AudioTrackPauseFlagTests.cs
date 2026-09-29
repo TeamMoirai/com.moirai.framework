@@ -6,13 +6,12 @@ using UnityEngine;
 namespace Service.Audio
 {
     /// <summary>
-    /// 音轨暂停标记的契约级用例。标记数组与"取数组 + 判空 + 判界"此前在两后端各存一份，
-    /// 而契约第 1 条（暂停的音轨拦截新播放）正是压在这份状态上的——状态有两个所有者，规则就有两份实现。
-    /// <para>这里锁三件事：标记按音轨逐个生效不串味、**中间件侧**的"暂停拦播放"（这条此前只有 Unity
-    /// 的 <c>AudioPausePlayModeTests</c> 证过，而契约说的是两后端一致）、以及 Unity 侧"数组未分配即整段作废"
-    /// 这条被刻意保留的行为（分配点留在后端，见 <see cref="AudioServiceHandler._pausedTracks"/> 的 remarks；
-    /// 谁把它顺手改成基类懒分配，本用例当场红）。</para>
+    /// 音轨暂停标记的契约级用例：暂停的音轨拦截新播放，两后端行为一致。
     /// </summary>
+    /// <remarks>
+    /// 锁三件事：标记按音轨逐个生效不串味、中间件侧的暂停拦播放、以及 Unity 侧「数组未分配即整段作废」这条刻意保留的行为
+    /// （分配点留在后端，见 <see cref="AudioServiceHandler._pausedTracks"/> 的 remarks；改成基类懒分配即判失败）。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioTrackPauseFlagTests
     {

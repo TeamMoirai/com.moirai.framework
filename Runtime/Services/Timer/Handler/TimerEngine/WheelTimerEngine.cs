@@ -11,9 +11,10 @@ namespace Moirai.Atropos.Timer
 {
     /// <summary>
     /// 时间轮引擎（泳道 <see cref="TimerLaneKinds.Wheel"/>）：四级时间轮，缩放 / 非缩放各一轮。
-    /// <para>自持独立的分页槽位池、版本化句柄命名空间（句柄内嵌 Wheel 泳道号）、完成回调派发、进度回调列表
-    /// 与 Fixed/Late 阶段的延后触发列表；完全不知晓帧计时的存在，因此不存在任何跨引擎分支。</para>
     /// </summary>
+    /// <remarks>
+    /// 自持分页槽位池、版本化句柄命名空间、完成回调派发、进度回调列表与 Fixed/Late 延后触发列表，完全不感知帧计时。
+    /// </remarks>
     internal sealed class WheelTimerEngine : ITimerEngine
     {
         private const double TICKS_PER_SECOND = 1000d;
@@ -566,9 +567,11 @@ namespace Moirai.Atropos.Timer
         }
 
         /// <summary>
-        /// 回收执行标记：仅当标记仍属于本槽时才清。回调内嵌套触发时，内层不得抹掉外层的标记
-        /// （与 <c>FrameTimerEngine.InvokeComplete</c> 同形）。
+        /// 回收执行标记：仅当标记仍属于本槽时才清。
         /// </summary>
+        /// <remarks>
+        /// 回调内嵌套触发时，内层不得抹掉外层的标记。
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ClearExecutingMark(int slotIndex)
         {
@@ -1539,9 +1542,11 @@ namespace Moirai.Atropos.Timer
         }
 
         /// <summary>
-        /// 把 tick 数饱和到 [0, MAX_TICK]：直接强转溢出成的负数会把轮游标打到
-        /// long.MinValue，此后每帧最多追 64 tick 等于时间轮永久冻结。
+        /// 把 tick 数饱和到 [0, MAX_TICK]。
         /// </summary>
+        /// <remarks>
+        /// 直接强转溢出成负数会把轮游标打到 <c>long.MinValue</c>，时间轮将永久冻结。
+        /// </remarks>
         private static long ToTick(double ticks, bool ceiling)
         {
             if (!(ticks > 0d)) // 一并挡住 NaN 与负数
@@ -1578,9 +1583,11 @@ namespace Moirai.Atropos.Timer
         }
 
         /// <summary>
-        /// 校验时钟读数可用：NaN / ±∞ / 负值都会让触发时间与轮游标一起溢出。异常帧既不推进轮，
-        /// 也不刷新槽位的触发时间；注册路径上的非有限延时由 <see cref="IsSchedulableDelay"/> 拦在占用槽位之前。
+        /// 校验时钟读数可用（NaN / ±∞ / 负值均视为异常帧）。
         /// </summary>
+        /// <remarks>
+        /// 异常帧既不推进轮也不刷新槽位触发时间；注册路径上的非有限延时由 <see cref="IsSchedulableDelay"/> 在占用槽位前拦截。
+        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsUsableClockTime(double time)
         {

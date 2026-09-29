@@ -6,15 +6,14 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 服务作用域容器。管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
-    /// <para><b>所有权</b>：注册/注销由 <see cref="ServiceWorld"/> 驱动，外部代码不直接操作本类。</para>
-    /// <para>两阶段构建：<see cref="RegisterDeferred"/> 仅入注册表（不驱动生命周期、不加入轮询列表）；
-    /// 世界 <see cref="ServiceWorld.Initialize"/> 拓扑排序后逐服务 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit，
-    /// 同时记录激活完成序。</para>
-    /// <para>Dispose 时按逆激活序（= 逆初始化序，依赖方先关闭）关闭全部已初始化服务；
-    /// 未初始化服务归入兜底桶按逆注册序关闭。</para>
-    /// <para><b>线程契约</b>：所有方法仅限 Unity 主线程调用。</para>
+    /// 服务作用域容器，管理单个作用域内服务的注册表、轮询列表和迭代安全机制。
     /// </summary>
+    /// <remarks>
+    /// 所有权：注册/注销由 <see cref="ServiceWorld"/> 驱动，外部代码不直接操作本类。
+    /// 两阶段构建：<see cref="RegisterDeferred"/> 仅入注册表（不驱动生命周期、不加入轮询列表）；世界 <see cref="ServiceWorld.Initialize"/> 拓扑排序后逐服务 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit，同时记录激活完成序。
+    /// 关闭按逆激活序（= 逆初始化序，依赖方先关闭）执行；未初始化服务归入兜底桶按逆注册序关闭。
+    /// 线程契约：所有方法仅限 Unity 主线程调用。
+    /// </remarks>
     internal sealed class ServiceScope : IDisposable
     {
         #region 常量与字段 [CONSTANTS & FIELDS]
@@ -123,8 +122,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 两阶段第一阶段：仅入注册表（契约映射 + 条目 + 注册序），不驱动生命周期、不加入轮询列表。
-        /// 世界初始化时经 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit。
         /// </summary>
+        /// <remarks>
+        /// 世界初始化时经 <see cref="ActivateService"/> 补齐轮询列表并驱动 OnInit。
+        /// </remarks>
         internal void RegisterDeferred(Type contractType, IService service, EDeferMode deferMode = EDeferMode.Defer)
         {
             if (service == null) throw new ArgumentNullException(nameof(service));
@@ -142,12 +143,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 两阶段第二阶段（逐服务）：补齐轮询列表并驱动 OnInit。由世界按拓扑序调用。
-        /// <para>OnInit 成功完成后记录进激活序（<see cref="_activationOrder"/>）——
-        /// 作用域关闭按逆激活序执行；初始化抛异常的服务不进入激活序，销毁时归入未激活桶兜底关闭。</para>
-        /// <para><c>OnServiceRegistered</c> 在此按条目已挂载的<b>契约句柄</b>逐个发出（每契约一次）：
-        /// 服务侧只知道自己派生的实现类型，由它上报会让 Registering/Registered 两个事件的契约参数不成对。</para>
+        /// 两阶段第二阶段（逐服务）：补齐轮询列表并驱动 OnInit，由世界按拓扑序调用。
         /// </summary>
+        /// <remarks>
+        /// OnInit 成功完成后记录进激活序（<see cref="_activationOrder"/>）；初始化抛异常的服务不进入激活序，销毁时归入未激活桶兜底关闭。
+        /// <c>OnServiceRegistered</c> 在此按条目已挂载的<b>契约句柄</b>逐个发出（每契约一次），使 Registering/Registered 两个事件的契约参数成对。
+        /// </remarks>
         internal void ActivateService(IService service)
         {
             ActivateTickables(service);
@@ -189,8 +190,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 运行时注册（世界已初始化）：立即驱动服务生命周期（OnInit）。
-        /// <para>迭代中（Tick）调用时，默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。</para>
         /// </summary>
+        /// <remarks>
+        /// 迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。
+        /// </remarks>
         internal IService RegisterRuntime(Type contractType, IService service, EDeferMode deferMode = EDeferMode.Defer)
         {
             if (service == null) throw new ArgumentNullException(nameof(service));
@@ -320,10 +323,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 附加契约句柄到既有条目（立即路径与延迟 flush 共用）。
-        /// <para>新契约的 <c>OnServiceRegistered</c> 仅在服务已激活时立即发出；
-        /// 待初始化阶段的附加契约推迟到 <see cref="ActivateService"/> 按全部句柄统一发，
-        /// 以保持"Registered 时 OnInit 必已执行"的事件契约。</para>
         /// </summary>
+        /// <remarks>
+        /// 新契约的 <c>OnServiceRegistered</c> 仅在服务已激活时立即发出；待初始化阶段的附加契约推迟到 <see cref="ActivateService"/> 按全部句柄统一发，以保持"Registered 时 OnInit 必已执行"的事件契约。
+        /// </remarks>
         private void AttachContractCore(IService service, Type contractType)
         {
             var entry = _entriesByService[service];
@@ -645,8 +648,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 熔断：将服务从对应轮询类别移除（swap-remove O(1)）并汇总告警一次。
-        /// 服务条目保留——仍可解析、仍参与其它类别轮询；重新注册即完全重置。
         /// </summary>
+        /// <remarks>
+        /// 服务条目保留——仍可解析、仍参与其它类别轮询；重新注册即完全重置。
+        /// </remarks>
         private void TripFromPollList(IService service, ServiceEntry entry, PollCategory category, string methodName, int failures)
         {
             switch (category)
@@ -673,9 +678,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 对应类别成功一次即清零该类别的连续失败计数。仅在发生过失败后才有实际开销
-        /// （<see cref="_hasPollFailures"/> 常态为 false，健康服务热路径零字典访问）。
+        /// 对应类别成功一次即清零该类别的连续失败计数。
         /// </summary>
+        /// <remarks>
+        /// 仅在发生过失败后才有实际开销（<see cref="_hasPollFailures"/> 常态为 false，健康服务热路径零字典访问）。
+        /// </remarks>
         private void ResetPollFailuresIfAny(IService service, PollCategory category)
         {
             if (!_hasPollFailures) return;
@@ -809,11 +816,11 @@ namespace Moirai.Atropos
         private bool _isDisposing;
 
         /// <summary>
-        /// 关闭驱动的唯一入口：容器先发 <see cref="IServiceInterceptor.OnServiceShutdown"/>（横切归容器），
-        /// 再交 <see cref="IServiceLifecycle.Destroy"/> 走状态转换。
-        /// <para>前置状态判定只挡住常规重复调用；拦截器在回调里同步再关同一服务时事件会重发一次，
-        /// 但 <c>Destroy</c> 自身的幂等守卫保证 <c>OnShutdown</c> 仍只执行一次。</para>
+        /// 关闭驱动的唯一入口：容器先发 <see cref="IServiceInterceptor.OnServiceShutdown"/>（横切归容器），再交 <see cref="IServiceLifecycle.Destroy"/> 走状态转换。
         /// </summary>
+        /// <remarks>
+        /// 前置状态判定只挡住常规重复调用；拦截器在回调里同步再关同一服务时事件会重发一次，但 <c>Destroy</c> 自身的幂等守卫保证 <c>OnShutdown</c> 仍只执行一次。
+        /// </remarks>
         private void DestroyService(IService service)
         {
             if (GameServices.GetState(service) >= EServiceState.ShuttingDown) return;
@@ -823,8 +830,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 关闭单个服务：生命周期驱动统一走 <see cref="DestroyService"/>（状态机唯一路径，
-        /// 注册期已由 <see cref="ServiceWorld.Register"/> 保证），本方法仅负责注册表清理。
+        /// 关闭单个服务：生命周期驱动统一走 <see cref="DestroyService"/>，本方法仅负责注册表清理。
         /// </summary>
         private void ShutdownService(IService service)
         {
@@ -954,10 +960,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 异步销毁作用域。对实现 <see cref="IAsyncShutdownService"/> 的服务先调用 <c>OnShutdownAsync</c>，
-        /// 再调用同步 <c>OnShutdown</c>。按逆激活序（= 逆初始化序）执行；
-        /// 未激活服务归入兜底桶按逆注册序关闭（与 <see cref="DisposeInternal"/> 同语义）。
+        /// 异步销毁作用域：对实现 <see cref="IAsyncShutdownService"/> 的服务先调用 <c>OnShutdownAsync</c>，再调用同步 <c>OnShutdown</c>。
         /// </summary>
+        /// <remarks>
+        /// 按逆激活序（= 逆初始化序）执行；未激活服务归入兜底桶按逆注册序关闭（与 <see cref="DisposeInternal"/> 同语义）。
+        /// </remarks>
         internal async UniTask DisposeAsync()
         {
             if (IsDisposed) return;
@@ -1240,8 +1247,10 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 服务的注册元数据。struct 以消除堆分配；字典回写模式（<c>_entriesByService[svc] = e</c>）更新字段。
-        /// <para>轮询耗时统计字段仅编辑器/开发构建存在（编译期裁剪，Release 零内存成本）。</para>
         /// </summary>
+        /// <remarks>
+        /// 轮询耗时统计字段仅编辑器/开发构建存在（编译期裁剪，Release 零内存成本）。
+        /// </remarks>
         internal struct ServiceEntry
         {
             public RuntimeTypeHandle[] ContractHandles;

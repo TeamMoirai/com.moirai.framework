@@ -9,26 +9,14 @@ using Moirai.Atropos.UI;
 namespace Moirai.Atropos.Procedure
 {
     /// <summary>
-    /// 流程服务外观（Facade）。
-    /// <para>统一的静态流程访问入口，通过替换 <see cref="Handler"/> 即可切换流程状态机后端。</para>
-    /// <para>未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析；settings 未配置则回退 <see cref="CreateDefaultHandler"/>。</para>
-    /// <para>Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。</para>
+    /// 流程服务外观（Facade），通过替换 <see cref="Handler"/> 即可切换流程状态机后端。
     /// </summary>
     /// <remarks>
-    /// 组合根无序注册全部链上服务，世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序（依赖缺失/循环即 fail-fast）。
-    /// 调试器依赖经 <see cref="DebuggerService"/> 声明显式建模——OnInit 注册调试面板要求 Debugger 拓扑先行。
-    /// <para><b>依赖门槛意图</b>：<see cref="ResourceService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> /
-    /// <see cref="TimerService"/> 四个依赖并非本服务自身消费，而是启动链的时序门槛——游戏侧启动流程
-    /// （初始化资源包、闪屏 UI、多语言加载、计时驱动）要求这四者在流程 OnInit 前拓扑就绪，
-    /// 缺失即世界初始化 fail-fast。不含这些服务的极简项目应移除对应声明（耦合点仅此一处）。</para>
-    /// <para><b>未就绪契约</b>：查询类 API（<see cref="CurrentProcedure"/>、<see cref="HasProcedure"/> 等）
-    /// 在处理器缺失或状态机未 <see cref="Initialize"/> 时静默降级为安全默认值；变更类 API 中
-    /// <see cref="StartProcedure"/> / <see cref="ChangeState"/> 同样在未就绪时忽略并告警；
-    /// <see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位（二者是引导/重建入口，
-    /// 不依赖状态机已就绪）。后端直接调用仍会 fail-fast。</para>
-    /// <para><b>切换广播</b>：<see cref="onProcedureChanged"/> 在切换完成（新流程 OnEnter 返回）后同步触发，
-    /// 回调异常被逐订阅者隔离；回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>
-    /// （处理器在广播期置位，重入即抛 <see cref="GameException"/>；OnEnter/OnLeave 内的合法嵌套切换不受影响）。</para>
+    /// 组合根无序注册全部链上服务，世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序，依赖缺失/循环即 fail-fast；调试器依赖经 <see cref="DebuggerService"/> 声明显式建模——OnInit 注册调试面板要求 Debugger 拓扑先行。
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。
+    /// 依赖门槛：<see cref="ResourceService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> / <see cref="TimerService"/> 并非本服务自身消费，而是启动链的时序门槛——要求四者在流程 OnInit 前拓扑就绪，缺失即世界初始化 fail-fast；不含这些服务的极简项目应移除对应声明。
+    /// 未就绪契约：查询类 API（<see cref="CurrentProcedure"/>、<see cref="HasProcedure"/> 等）在处理器缺失或状态机未 <see cref="Initialize"/> 时静默降级为安全默认值，<see cref="StartProcedure"/> / <see cref="ChangeState"/> 忽略并告警，<see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位；后端直接调用 fail-fast。
+    /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成（新流程 OnEnter 返回）后同步触发，回调异常被逐订阅者隔离；回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（重入即抛 <see cref="GameException"/>；OnEnter/OnLeave 内的合法嵌套切换不受影响）。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
@@ -51,8 +39,10 @@ namespace Moirai.Atropos.Procedure
 
         /// <summary>
         /// 从 <see cref="ProcedureServiceSettings"/> 解析流程处理器。
-        /// <para>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。</para>
         /// </summary>
+        /// <remarks>
+        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
+        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ProcedureServiceHandler GetHandlerFromSettings()
         {
@@ -65,9 +55,10 @@ namespace Moirai.Atropos.Procedure
 
         /// <summary>
         /// 初始化流程服务。由容器在构建期调用。
-        /// <para>确保 <c>ProcedureService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载），
-        /// 并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>——外观未就绪时静默跳过）。</para>
         /// </summary>
+        /// <remarks>
+        /// 确保 <see cref="Handler"/> 已赋值（触发懒加载），并向游戏内调试器注册调试面板；依赖组合根先注册 <see cref="DebuggerService"/>，外观未就绪时静默跳过。
+        /// </remarks>
         public override void OnInit()
         {
             _ = Handler;
@@ -86,9 +77,10 @@ namespace Moirai.Atropos.Procedure
 
         /// <summary>
         /// 容器 Tick 驱动——转发到处理器轮询当前流程。
-        /// <para><c>s_Handler</c> 静态字段会被域重载（编辑器内脚本编译）清空而服务实例仍在轮询，
-        /// 此处经 <see cref="Handler"/> 属性懒加载重绑，避免流程状态机从此静默停摆。</para>
         /// </summary>
+        /// <remarks>
+        /// <c>s_Handler</c> 静态字段会被域重载（编辑器内脚本编译）清空而服务实例仍在轮询，此处经 <see cref="Handler"/> 属性懒加载重绑，避免流程状态机从此静默停摆。
+        /// </remarks>
         public void Tick(float elapseSeconds, float realElapseSeconds)
         {
             var handler = s_Handler;
@@ -110,9 +102,11 @@ namespace Moirai.Atropos.Procedure
         #region 属性 [PROPERTIES]
 
         /// <summary>
-        /// 状态机是否已就绪（处理器在位且已 <see cref="Initialize"/>）。直接调用处理器时须先经此守卫——
-        /// 外观查询/变更已内建降级，后端路径仍会 fail-fast。
+        /// 状态机是否已就绪（处理器在位且已 <see cref="Initialize"/>）。
         /// </summary>
+        /// <remarks>
+        /// 直接调用处理器时须先经此守卫——外观查询/变更已内建降级，后端路径仍会 fail-fast。
+        /// </remarks>
         public static bool IsStateReady => s_Handler?.IsStateReady ?? false;
 
         /// <summary>
@@ -139,10 +133,12 @@ namespace Moirai.Atropos.Procedure
             s_Handler?.TransitionHistory ?? s_EmptyTransitions;
 
         /// <summary>
-        /// 流程切换广播。在切换完成（新流程 OnEnter 返回）后同步触发；启动切换 From 为 null。
-        /// <para>关停切换不广播（仅记入 <see cref="TransitionHistory"/>）；回调异常被逐订阅者隔离，不会中断状态机。
-        /// 回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（会抛 <see cref="GameException"/>）。</para>
+        /// 流程切换广播：在切换完成（新流程 OnEnter 返回）后同步触发；启动切换 From 为 null。
         /// </summary>
+        /// <remarks>
+        /// 关停切换不广播（仅记入 <see cref="TransitionHistory"/>）；回调异常被逐订阅者隔离，不中断状态机。
+        /// 回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（会抛 <see cref="GameException"/>）。
+        /// </remarks>
         public static event Action<ProcedureTransitionRecord> onProcedureChanged;
 
         /// <summary>
@@ -267,8 +263,7 @@ namespace Moirai.Atropos.Procedure
             s_Handler != null && s_Handler.IsStateReady ? s_Handler.GetProcedure(procedureType) : null;
 
         /// <summary>
-        /// 重启流程。默认使用第一个流程作为启动流程（处理器缺失时忽略并告警；不要求状态机已就绪——
-        /// 重启即重建入口）。
+        /// 重启流程。默认使用第一个流程作为启动流程（处理器缺失时忽略并告警；不要求状态机已就绪）。
         /// </summary>
         /// <param name="procedures">新的流程。</param>
         /// <returns>是否重启成功。</returns>
@@ -304,8 +299,10 @@ namespace Moirai.Atropos.Procedure
 
         /// <summary>
         /// 获取已就绪的处理器（已 <see cref="Initialize"/>）；处理器缺失或状态机未初始化时告警并返回 false。
-        /// <para><see cref="Initialize"/> / <see cref="RestartProcedure"/> 不走本守卫——二者是引导/重建入口。</para>
         /// </summary>
+        /// <remarks>
+        /// <see cref="Initialize"/> / <see cref="RestartProcedure"/> 不走本守卫——二者是引导/重建入口。
+        /// </remarks>
         private static bool TryGetReadyHandler(string apiName, out ProcedureServiceHandler handler)
         {
             if (!TryGetHandler(apiName, out handler))

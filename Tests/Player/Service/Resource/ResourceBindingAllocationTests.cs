@@ -11,16 +11,14 @@ namespace Service.Resource
 {
     /// <summary>
     /// 绑定热路径的 0-GC 验收：稳态重绑、空闲轮转扫描、诊断读表三条路径每次调用都不得分配。
-    /// <para><b>真机计量</b>：字节口径的 GC 计数 API 在 Unity 内无实现（2026-09-28 实测恒 0/不存在），
-    /// 测量走 <c>GC.Alloc</c> 采样事件数（UTF 官方 AllocatingGCMemory 同机制）。这几格住在
-    /// <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>）：编辑器套件可见——采样可用的
-    /// 运行时真跑断言、探不到的运行时整组 Ignore；验收以 L3 玩家运行收到的采样为准。
-    /// 编辑器侧要判的是结构（版本号不变、租约同值、目标引用相等），不是事件数。</para>
-    /// <para>测量口径与计时台共用 <see cref="AllocationCapture"/>：先做一次必然分配探测计数器能力，
-    /// 探不到就整组 Ignore——"测不出分配"绝不写成"没有分配"。</para>
-    /// <para>后端用 <see cref="CountingLeaseSource"/> 而不是真后端：这几格量的是绑定层自己那三趟（打包键、
-    /// 索引表、槽位写入），掺进真后端的原生调用只会把噪声计进来。</para>
     /// </summary>
+    /// <remarks>
+    /// 分配观测走 <c>GC.Alloc</c> 采样事件数（<see cref="AllocationCapture"/>：先做一次必然分配探测计数器能力，探不到的运行时整组 <c>Assert.Ignore</c>——「测不出分配」绝不写成「没有分配」）。
+    /// Unity 内不存在字节口径的 GC 计数 API，事件口径是唯一通道。
+    /// 夹具住在 <c>Moirai.Atropos.Tests.Player</c>（<c>UNITY_INCLUDE_TESTS</c>），编辑器套件可见：采样可用的运行时真跑断言，验收以 L3 玩家运行收到的采样为准。
+    /// 编辑器侧判的是结构（版本号不变、租约同值、目标引用相等），不是事件数。
+    /// 后端用 <see cref="CountingLeaseSource"/> 而非真后端：量的是绑定层自己那三趟（打包键、索引表、槽位写入），掺进真后端的原生调用只会把噪声计进来。
+    /// </remarks>
     [TestFixture]
     [Category("Performance")]
     public sealed class ResourceBindingAllocationTests

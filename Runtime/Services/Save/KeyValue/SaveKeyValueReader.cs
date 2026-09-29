@@ -6,12 +6,13 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 键值捕获读取器（KVT 格式，ref struct，纯顺序游标）。
-    /// <para>与 <see cref="SaveKeyValueWriter"/> 对偶：每条记录自描述（[1B 类型][4B 载荷长][载荷]，对象级记录另带键），
-    /// 未知键经 <see cref="SkipRecordPayload"/> O(1) 跳过（字段废弃向后兼容的关键）；嵌套作用域由生成代码按
-    /// 字段数/元素数精确消费（捕获顺序与恢复顺序由同一生成代码决定，顺序天然一致）。</para>
-    /// <para>须在主线程调用（写回 MonoBehaviour 字段）。</para>
+    /// 键值捕获读取器（KVT 格式，<c>ref struct</c>，纯顺序游标）。
     /// </summary>
+    /// <remarks>
+    /// 与 <see cref="SaveKeyValueWriter"/> 对偶：每条记录自描述（<c>[1B 类型][4B 载荷长][载荷]</c>，对象级记录另带键），未知键经 <see cref="SkipRecordPayload"/> O(1) 跳过（字段废弃向后兼容的关键）。
+    /// 嵌套作用域由生成代码按字段数/元素数精确消费——捕获与恢复顺序由同一生成代码决定，天然一致。
+    /// 须在主线程调用（写回 <c>MonoBehaviour</c> 字段）。
+    /// </remarks>
     public ref struct SaveKeyValueReader
     {
         /// <summary>UTF-8 解码器（无 BOM）。</summary>
@@ -78,8 +79,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 读取嵌套作用域的子项数（对象字段数/序列元素数/映射对数）。
-        /// <para>消费 [4B 载荷长][4B 子项数]。</para>
         /// </summary>
+        /// <remarks>消费 <c>[4B 载荷长][4B 子项数]</c>。</remarks>
         public int ReadChildCount()
         {
             if (_data.Length < 8)

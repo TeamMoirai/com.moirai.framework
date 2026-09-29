@@ -2,17 +2,13 @@
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 游戏时间外观（Facade）。
-    /// <para>统一的静态时间访问入口，通过替换 <see cref="Handler"/> 即可在引擎时钟与虚拟时钟等时间源之间
-    /// 零成本切换，调用方代码无需任何改动。Handler 属性由 <c>HandlerHostGenerator</c> 源生成器自动生成
-    /// （线程安全懒加载，未显式设置时使用 <see cref="DefaultGameTimeHandler"/>）。</para>
-    /// <para>虚拟时钟接缝：测试注入自定义 <see cref="GameTimeHandler"/>（覆写
-    /// <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/>），
-    /// Timer 等时间服务即获得与 Unity 主循环无关的确定性推进；生产代码使用缺省引擎时钟即可。</para>
-    /// <para>帧内高频读取走每帧由 <see cref="StartFrame"/> 采样的静态字段（零虚调用开销）；
-    /// 对精度敏感的服务（计时器等）经 <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/>
-    /// 实时直读双精度时钟。</para>
+    /// 游戏时间外观：统一的静态时间访问入口，时间源由 <see cref="Handler"/> 替换。
     /// </summary>
+    /// <remarks>
+    /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载），未显式设置时使用 <see cref="DefaultGameTimeHandler"/>。
+    /// 帧内高频读取走 <see cref="StartFrame"/> 每帧采样的静态字段（零虚调用开销）；对精度敏感的服务经 <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/> 实时直读双精度时钟。
+    /// 测试注入自定义 <see cref="GameTimeHandler"/> 即可让依赖时间的服务获得与 Unity 主循环无关的确定性推进，调用方代码无需改动。
+    /// </remarks>
     [HandlerHost(typeof(GameTimeHandler))]
     public static partial class GameTime
     {
@@ -54,8 +50,7 @@ namespace Moirai.Atropos
         public static float unscaledDeltaTime { get; private set; }
 
         /// <summary>
-        /// 执行物理和其他固定帧速率更新的时间间隔（以秒为单位）。
-        /// <para>如 MonoBehaviour.FixedUpdate 所使用的步长。</para>
+        /// 执行物理和其他固定帧速率更新的时间间隔（秒），即 <c>MonoBehaviour.FixedUpdate</c> 使用的步长。
         /// </summary>
         public static float fixedDeltaTime { get; private set; }
 
@@ -63,8 +58,7 @@ namespace Moirai.Atropos
         /// 自游戏开始以来的总帧数。
         /// </summary>
         /// <remarks>
-        /// 类型为 <see cref="int"/> 而非旧声明的 <c>float</c>：float 尾数只有 24 位，
-        /// 超过 16,777,216 帧后无法精确表示计数（120fps 下约 39 小时连续运行）。
+        /// 计数为整数，全程精确；超过 <c>int.MaxValue</c> 帧后回绕。
         /// </remarks>
         public static int frameCount { get; private set; }
 
@@ -74,8 +68,7 @@ namespace Moirai.Atropos
         public static float unscaledTime { get; private set; }
 
         /// <summary>
-        /// 采样一帧的时间。每帧由 <see cref="PlayerLoopDriver"/> 在各 Drive 阶段入口调用，
-        /// 从当前 <see cref="Handler"/> 拉取本帧时间快照填充上方静态属性。
+        /// 采样一帧时间并填充上方静态属性，每帧由 <see cref="PlayerLoopDriver"/> 在各 Drive 阶段入口调用。
         /// </summary>
         public static void StartFrame()
         {

@@ -6,10 +6,12 @@ using UnityEngine.UIElements;
 namespace Moirai.Atropos.Debugger
 {
     /// <summary>
-    /// 流式构建的调试面板（<see cref="IDebuggerWindow"/> 实现，由 <see cref="DebugPanelBuilder"/> 声明控件）。
-    /// <para>经 <see cref="DebuggerService.RegisterPanel"/> 一行注册——滑条/开关/按钮/折叠组等控件由 Getter/Setter 闭包声明，
-    /// 构建期一次性分配，运行时由 <c>schedule</c> 节流轮询刷新（默认 200ms；元素脱离面板时调度自动暂停，无需手动退订）。</para>
+    /// 流式构建的调试面板（<see cref="IDebuggerWindow"/> 实现，控件由 <see cref="DebugPanelBuilder"/> 声明）。
     /// </summary>
+    /// <remarks>
+    /// 经 <see cref="DebuggerService.RegisterPanel"/> 一行注册；控件由 Getter / Setter 闭包声明、构建期一次性分配，
+    /// 运行时由 <c>schedule</c> 节流轮询刷新（默认 200ms，元素脱离面板时调度自动暂停）。
+    /// </remarks>
     public sealed class DebugPanel : IDebuggerWindow
     {
         #region 字段 [FIELDS]

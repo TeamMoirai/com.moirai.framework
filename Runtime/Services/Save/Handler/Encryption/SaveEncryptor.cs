@@ -7,10 +7,11 @@ namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档加密器：AES-256-CBC + 随机 IV + HMAC-SHA256（encrypt-then-MAC）+ PBKDF2（SHA-256）密钥派生。
-    /// <para>密文布局：<c>[16B 随机 IV][密文][32B HMAC-SHA256(IV‖密文)]</c>；
-    /// 加密密钥与 MAC 密钥由同一次 PBKDF2 派生的 64 字节拆分（前 32B 加密、后 32B 认证）。</para>
-    /// <para>防篡改依赖 HMAC（先验证 MAC 后解密，常数时间比较）；防意外存储损坏由文件头 CRC32 承担。</para>
     /// </summary>
+    /// <remarks>
+    /// 密文布局：<c>[16B 随机 IV][密文][32B HMAC-SHA256(IV‖密文)]</c>；加密密钥与 MAC 密钥由同一次 PBKDF2 派生的 64 字节拆分（前 32B 加密、后 32B 认证）。
+    /// 防篡改依赖 HMAC（先验证 MAC 后解密，常数时间比较）；防意外存储损坏由文件头 CRC32 承担。
+    /// </remarks>
     public class SaveEncryptor
     {
         /// <summary>
@@ -38,14 +39,14 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 保存和加载文件的密钥。
-        /// <para>SECURITY: 上线前必须替换为项目专属密钥（默认占位值用于标记「未配置」）。</para>
         /// </summary>
+        /// <remarks>SECURITY: 上线前必须替换为项目专属密钥（默认占位值用于标记「未配置」）。</remarks>
         public virtual string Key { get; set; } = DEFAULT_PASSPHRASE;
 
         /// <summary>
         /// 加密盐文（UTF-8 编码后参与 PBKDF2 密钥派生）。
-        /// <para>SECURITY: 上线前必须替换为项目专属盐文。</para>
         /// </summary>
+        /// <remarks>SECURITY: 上线前必须替换为项目专属盐文。</remarks>
         public virtual string Salt { get; set; } = DEFAULT_SALT;
 
         /// <summary>
@@ -309,11 +310,11 @@ namespace Moirai.Atropos.Save
         #region 流式写链 [STREAMING WRITE PIPELINE]
 
         /// <summary>
-        /// 打开加密写流（密钥材料直给）：明文经返回流写入即 AES-256-CBC 加密并落底层流，关闭返回流收尾
-        /// （FlushFinalBlock 补齐末块密文并追加 HMAC-SHA256 摘要尾）。
-        /// <para>输出布局与 <see cref="TryEncryptWithMaterial(byte[], byte[], byte[], out byte[])"/> 完全一致：
-        /// <c>[16B 随机 IV][密文][32B HMAC(IV‖密文)]</c>——流式写全程无整档明文/密文驻留（流式容器管线核心）。</para>
+        /// 打开加密写流（密钥材料直给）：明文经返回流写入即加密并落底层流，关闭返回流补齐末块密文并追加 HMAC 摘要尾。
         /// </summary>
+        /// <remarks>
+        /// 输出布局与 <see cref="TryEncryptWithMaterial(byte[], byte[], byte[], out byte[])"/> 一致：<c>[16B 随机 IV][密文][32B HMAC(IV‖密文)]</c>——流式写全程无整档明文/密文驻留。
+        /// </remarks>
         /// <param name="target">密文落点流（生命周期由调用方管理；关闭返回流不关闭该流）。</param>
         /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
         /// <param name="macKey">MAC 密钥（<see cref="MAC_SIZE"/> 字节）。</param>
@@ -551,11 +552,12 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 打开解密读流（密钥材料直给）：源流读取 <c>[16B IV][密文][32B HMAC]</c> 布局的存储载荷——
-        /// <para>两遍流式（encrypt-then-MAC 语义完整）：第一遍流式 HMAC 预验（64KB 池化循环喂入 [IV‖密文]，比对尾部摘要，
-        /// 不符抛 <see cref="SaveDecryptStreamException"/>（<see cref="SaveError.IntegrityCheckFailed"/>）——先验证后解密，杜绝填充 oracle；
-        /// 预验通过后冻结载荷 CRC 包装层并 rewind 回载荷起点，第二遍限长 [IV‖密文] 解密链（HMAC 尾留在限长段外——任意时刻关闭均安全）。</para>
+        /// 打开解密读流（密钥材料直给）：读取 <c>[16B IV][密文][32B HMAC]</c> 布局的存储载荷。
         /// </summary>
+        /// <remarks>
+        /// 两遍流式、先验证后解密：第一遍以 64KB 池化循环预验 [IV‖密文] 的 HMAC 并比对尾部摘要，不符抛 <see cref="SaveDecryptStreamException"/>（<see cref="SaveError.IntegrityCheckFailed"/>），杜绝填充 oracle。
+        /// 预验通过后冻结载荷 CRC 包装层并 rewind 回载荷起点，第二遍限长 [IV‖密文] 解密（HMAC 尾留在限长段外，任意时刻关闭均安全）；底层流须可寻址。
+        /// </remarks>
         /// <param name="source">存储载荷源流（<see cref="Crc32.Crc32ReadStream"/> 包装层——第一遍预验读取经此累计载荷 CRC；底层流须可寻址）。</param>
         /// <param name="payloadLength">存储载荷总字节数（文件头口径——含 IV/密文/HMAC 尾）。</param>
         /// <param name="encryptionKey">加密密钥（<see cref="ENCRYPTION_KEY_SIZE"/> 字节）。</param>
@@ -739,9 +741,10 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 解密读流组合体：读取面为 <see cref="CryptoStream"/>（HMAC 已预验——限长源流读尽即密文恰好耗尽）。
-        /// <para>关闭语义：Mono 读模式 <see cref="CryptoStream"/> 的 Dispose 会对剩余数据 FinalDecrypt——
-        /// 限长段内剩余恒为合法密文（HMAC 尾在段外），但提前关闭时末块不完整会抛填充异常，此处吞并（提前关闭语义，数据未消费不完整非错误）。</para>
         /// </summary>
+        /// <remarks>
+        /// 关闭语义：Mono 读模式 <see cref="CryptoStream"/> 的 Dispose 会对剩余数据 FinalDecrypt——提前关闭时末块不完整会抛填充异常，此处吞并（数据未消费而截断，非错误）。
+        /// </remarks>
         private sealed class DecryptReadStream : Stream
         {
             /// <summary>AES-CBC 解密流（读取面）。</summary>
@@ -880,9 +883,11 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// PBKDF2-SHA256 派生 64 字节密钥材料（前 32B 加密密钥、后 32B MAC 密钥）。
-        /// <para>同（口令, 盐文, 迭代次数）组合命中实例缓存时无锁复用；未命中时派生本体在锁外执行（10 万迭代级开销不阻塞并发线程），
-        /// 安装阶段才取锁二次判读——并发同参派生结果幂等，后到者覆盖安装等值结果。</para>
         /// </summary>
+        /// <remarks>
+        /// 同（口令, 盐文, 迭代次数）组合命中实例缓存时无锁复用；未命中时派生本体在锁外执行（10 万迭代级开销不阻塞并发线程），仅安装阶段取锁二次判读。
+        /// 并发同参派生结果幂等，后到者覆盖安装等值结果。
+        /// </remarks>
         /// <param name="sKey">口令。</param>
         /// <returns>密钥材料。</returns>
         private byte[] DeriveKeys(string sKey)

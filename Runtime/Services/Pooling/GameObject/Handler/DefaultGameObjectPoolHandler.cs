@@ -8,9 +8,11 @@ namespace Moirai.Atropos.ObjectPool
 {
     /// <summary>
     /// 基于 Unity 原生 Instantiate/Destroy 的默认 GameObject 池处理器。
-    /// <para><see cref="GameObjectPoolServiceHandler"/> 的内置实现：分页槽位存储 + 代系句柄校验 + 共享最小堆维护调度，PoolCatalog 数据驱动配置。</para>
-    /// <para>由 <see cref="GameObjectPoolServiceSettings"/> 序列化配置，可替换为自定义对象池后端。</para>
     /// </summary>
+    /// <remarks>
+    /// <see cref="GameObjectPoolServiceHandler"/> 的内置实现：分页槽位存储 + 代系句柄校验 + 共享最小堆维护调度，PoolCatalog 数据驱动配置；
+    /// 经 <see cref="GameObjectPoolServiceSettings"/> 序列化配置。
+    /// </remarks>
     [Serializable]
     [UnityEngine.Scripting.Preserve]
     public sealed class DefaultGameObjectPoolHandler : GameObjectPoolServiceHandler
@@ -504,8 +506,10 @@ namespace Moirai.Atropos.ObjectPool
 
         /// <summary>
         /// 取池地址的归一化：先按原样命中池表（与 <see cref="FindPool"/> 同一快路），未命中再走带备忘的归一化。
-        /// 已注册成原样键的池因此完全不碰字符串改写。
         /// </summary>
+        /// <remarks>
+        /// 已注册成原样键的池因此完全不碰字符串改写。
+        /// </remarks>
         internal string NormalizeLocationCached(string location)
         {
             if (location == null)

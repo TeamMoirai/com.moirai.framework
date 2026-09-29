@@ -5,11 +5,12 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// KVT 块载荷迁移变换器（纯函数）：对键值记录流做全量重写，命中规则的记录按键改名/装箱改型，未命中记录原始字节透传。
-    /// <para>规则作用于全部对象级记录键（含嵌套对象作用域内的字段键——嵌套 <see cref="SaveDataAttribute"/> 类的字段键同名时一并改名）；
-    /// 序列/映射作用域原样透传不下钻（集合元素无键，且当前写入侧不产生元素级嵌套对象）。</para>
-    /// <para>仅供迁移总线在加载/写入管线调用（每档一次，非热路径）；格式损坏抛 <see cref="SaveKvFormatException"/> 由调用方归一为迁移失败。</para>
+    /// KVT 块载荷迁移变换器（纯函数）：全量重写键值记录流，命中规则的记录按键改名/装箱改型，未命中记录原始字节透传。
     /// </summary>
+    /// <remarks>
+    /// 规则作用于全部对象级记录键，含嵌套对象作用域内的字段键；序列/映射作用域原样透传不下钻（集合元素无键，且当前写入侧不产生元素级嵌套对象）。
+    /// 仅供迁移总线在加载/写入管线调用（每档一次，非热路径）；格式损坏抛 <see cref="SaveKvFormatException"/>，由调用方归一为迁移失败。
+    /// </remarks>
     internal static class SaveKvTransformer
     {
         /// <summary>UTF-8 编解码器（无 BOM）。</summary>
@@ -39,8 +40,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将块载荷中名为 <paramref name="field"/> 的标量记录改型（装箱读出旧值 → 转换 → 按 <paramref name="newType"/> 写回；全作用域递归）。
-        /// <para>嵌套对象/序列/映射记录不支持改型（命中时抛 <see cref="SaveKvFormatException"/>）；Null 记录以 null 入转换器。</para>
         /// </summary>
+        /// <remarks>嵌套对象/序列/映射记录不支持改型（命中时抛 <see cref="SaveKvFormatException"/>）；Null 记录以 <c>null</c> 入转换器。</remarks>
         /// <param name="source">源块载荷。</param>
         /// <param name="field">目标字段键。</param>
         /// <param name="convert">值转换器（入参为旧类型装箱值或 null，返回新类型装箱值）。</param>
@@ -151,8 +152,8 @@ namespace Moirai.Atropos.Save
 
     /// <summary>
     /// KVT 标量载荷装箱桥接（迁移改型专用）：记录类型 ↔ CLR 装箱值读出/写回。
-    /// <para>装箱分配仅发生在迁移期（每档每字段一次），非热路径。</para>
     /// </summary>
+    /// <remarks>装箱分配仅发生在迁移期（每档每字段一次），非热路径。</remarks>
     internal static class SaveKvBoxed
     {
         /// <summary>

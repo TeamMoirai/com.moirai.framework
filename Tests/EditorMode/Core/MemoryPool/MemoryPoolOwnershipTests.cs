@@ -8,8 +8,7 @@ using Mp = Moirai.Atropos.MemoryPool;
 namespace Core.MemoryPool
 {
     /// <summary>
-    /// 归属与生命周期契约：谁借的谁还、还得掉的才还、坏回调不能改账，
-    /// 以及跨池 / 跨线程 / 突发溢出这些"账本不能被记乱"的边界。
+    /// 归属与生命周期契约：谁借的谁还、还得掉的才还、坏回调不能改账，以及跨池、跨线程与突发溢出这些账本边界。
     /// </summary>
     public sealed class MemoryPoolOwnershipTests : MemoryPoolFixture
     {

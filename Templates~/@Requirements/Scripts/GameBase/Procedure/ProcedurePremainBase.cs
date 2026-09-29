@@ -9,8 +9,7 @@ namespace Moirai.Main
     public abstract class ProcedurePremainBase : ProcedureBase
     {
         /// <summary>
-        /// 获取流程是否使用原生对话框
-        /// 在一些特殊的流程（如游戏逻辑对话框资源更新完成前的流程）中，可以考虑调用原生对话框进行消息提示行为
+        /// 获取流程是否使用原生对话框；特殊流程（如游戏逻辑对话框资源更新完成前）可据此用原生对话框提示。
         /// </summary>
         public abstract bool UseNativeDialog { get; }
     }

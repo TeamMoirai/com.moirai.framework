@@ -5,9 +5,9 @@ using System.IO.Compression;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// GZip 压缩提供方（<see cref="GZipStream"/>，零新依赖，默认压缩提供方）。
-    /// <para>无状态实现，任意线程并发调用安全；共享实例 <see cref="Shared"/> 由 <see cref="SaveCompressionRegistry"/> 内建注册。</para>
+    /// GZip 压缩提供方：默认压缩提供方，基于 <see cref="GZipStream"/>，零新依赖。
     /// </summary>
+    /// <remarks>无状态实现，任意线程并发调用安全；共享实例 <see cref="Shared"/> 由 <see cref="SaveCompressionRegistry"/> 内建注册。</remarks>
     [Serializable]
     public class GZipCompressionProvider : SaveCompressionProvider
     {

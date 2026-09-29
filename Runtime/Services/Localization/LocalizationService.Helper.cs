@@ -53,11 +53,12 @@ namespace Moirai.Atropos.Localization
         private static readonly Func<string, string> s_RuntimeResolver = ResolveForRuntime;
 
         /// <summary>
-        /// 返回一个本地化字符串，将 <b>{l10n:ID}</b>/<b>{i18n:ID}</b>/<b>{g11n:ID}</b> 替换为本地化条目。
-        /// <para>单遍扫描、无正则：无标记时零分配直返原串；有标记时经池化构建器一次拼装，
-        /// 替代旧实现「每次 MatchCollection + 逐标记整串 Replace」的分配链（UILabel 高频消费）。</para>
-        /// <para>未解析的标记（ID 不存在/解析失败）原样保留，与旧实现一致。</para>
+        /// 返回本地化后的字符串：把 <b>{l10n:ID}</b>/<b>{i18n:ID}</b>/<b>{g11n:ID}</b> 标记替换为本地化条目。
         /// </summary>
+        /// <remarks>
+        /// 单遍扫描、无正则：无标记时零分配直返原串，有标记时经池化构建器一次拼装。
+        /// 未解析的标记（ID 不存在或解析失败）原样保留。
+        /// </remarks>
         /// <param name="format">使用本地化的字符串</param>
         /// <returns></returns>
         /// <list type="tabel">
@@ -78,9 +79,9 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 标记替换：单遍扫描 <c>{l10n:…}</c>/<c>{i18n:…}</c>/<c>{g11n:…}</c>（前缀大小写不敏感），
-        /// 命中后由 <paramref name="resolver"/> 解析 ID（两端空白裁剪、大小写保留）。
+        /// 标记替换：单遍扫描 <c>{l10n:…}</c>/<c>{i18n:…}</c>/<c>{g11n:…}</c>（前缀大小写不敏感）。
         /// </summary>
+        /// <remarks>命中后由 <paramref name="resolver"/> 解析 ID（两端空白裁剪、大小写保留），返回 <c>null</c> 即未解析、标记原样保留。</remarks>
         /// <param name="format">原始字符串。</param>
         /// <param name="resolver">ID → 译文；返回 <c>null</c> 表示未解析，该标记原样保留（告警由解析方负责）。</param>
         /// <returns>无标记或全部标记未解析时返回原串（同一实例）；否则返回拼装结果。</returns>
@@ -138,9 +139,9 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 内联占位符前缀白名单（小写）。长度不必一致——冒号按命中前缀的实际长度定位。
-        /// <para>只认表内前缀：任意 <c>{foo:bar}</c> 不会被当成译文标记吃掉。</para>
+        /// 内联占位符前缀白名单（小写）；冒号按命中前缀的实际长度定位，各前缀长度不必一致。
         /// </summary>
+        /// <remarks>只认表内前缀，任意 <c>{foo:bar}</c> 不会被当成译文标记吃掉。</remarks>
         private static readonly string[] s_MarkerPrefixes = { "l10n", "i18n", "g11n" };
         
         /// <summary>
@@ -209,10 +210,11 @@ namespace Moirai.Atropos.Localization
 
         /// <summary>
         /// 把自报语言代码序列解析为语言序列，列序即输入序。
-        /// <para>内置语言按 Name/Code 命中；认不出的代码按自定义语言直通（<see cref="Language"/> 相等性按 Code，
-        /// 自定义实例与同 Code 的内置实例等价，项目自定义语言无需改框架即可随表发行）。</para>
-        /// <para>本方法是语言列序的<strong>唯一</strong>解析入口——运行期处理与编辑器预览共用，不存在第二份语言真相源。</para>
         /// </summary>
+        /// <remarks>
+        /// 内置语言按 Name/Code 命中；认不出的代码按自定义语言直通（<see cref="Language"/> 相等性按 Code）。
+        /// 本方法是语言列序的唯一解析入口，运行期处理与编辑器预览共用，不存在第二份语言真相源。
+        /// </remarks>
         internal static List<Language> ResolveLanguages(IReadOnlyList<string> codes)
         {
             var languages = new List<Language>(codes?.Count ?? 0);

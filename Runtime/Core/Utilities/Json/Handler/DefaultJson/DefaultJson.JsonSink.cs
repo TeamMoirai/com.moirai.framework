@@ -9,9 +9,9 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 写入原语接口：值的编码差异（char / UTF8 字节、转义、数字格式化、缩进）由各 Sink 实现。
-        /// 结构逻辑（分派/容器/守卫/反射成员遍历）统一在 <see cref="JsonWriter{TSink}"/> 中单一实现。
         /// </summary>
         /// <remarks>
+        /// <para>结构逻辑（分派/容器/守卫/反射成员遍历）统一在 <see cref="JsonWriter{TSink}"/> 中单一实现。</para>
         /// <para><b>调用粒度契约</b>：接口按"每值"分发（每个字段/元素一次调用），而非每字符——
         /// 接口开销被原语内部的工作量摊薄；Sink 为 struct 经 ref 传递，无装箱。</para>
         /// <para><b>WriteAscii 契约</b>：仅接收保证 ASCII 的内容（结构片段 / InvariantCulture 数值串）；

@@ -13,9 +13,10 @@ namespace Core.Singleton
 {
     /// <summary>
     /// <see cref="SingletonMono{T}"/> 的 EditMode 单元测试。
-    /// 编辑模式下 MonoBehaviour 回调不会自动触发，故以反射模拟 Awake/OnDestroy 生命周期，
-    /// 覆盖：实例物化、退出窗口、多实例消解与销毁清理。
     /// </summary>
+    /// <remarks>
+    /// 编辑模式下 MonoBehaviour 回调不自动触发，故以反射模拟 <c>Awake</c>/<c>OnDestroy</c> 生命周期；覆盖实例物化、退出窗口、多实例消解与销毁清理。
+    /// </remarks>
     [TestFixture]
     public class SingletonMonoTests
     {

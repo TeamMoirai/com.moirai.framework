@@ -34,8 +34,10 @@ namespace Moirai.GameProto.Config
 
 		/// <summary>
 		/// 加载配置。
-		/// <remarks>自动判断加载bin或json配置</remarks>
 		/// </summary>
+		/// <remarks>
+		/// 依生成表构造器所需缓冲类型自动选择 bin 或 json 配置源。
+		/// </remarks>
 		private Tables Load()
 		{
 			ConstructorInfo tablesCtor = typeof(Tables).GetConstructors()[0];
@@ -58,10 +60,11 @@ namespace Moirai.GameProto.Config
 		}
 
 		/// <summary>
-		/// 按当前生成路线装载一张独立表（不走 Tables）。
-		/// <remarks>路线写在转表配置里（bin 或 json），落到代码上就是生成表的构造器收 ByteBuf 还是 JSONNode；
-		/// 与 <see cref="Load"/> 同一个判据，所以换 --format=json 不需要改任何读取代码。</remarks>
+		/// 按当前生成路线装载一张独立表（不走 <c>Tables</c>）。
 		/// </summary>
+		/// <remarks>
+		/// 路线由转表配置决定（bin 或 json），判据同 <see cref="Load"/>：生成表构造器收 <c>ByteBuf</c> 还是 <c>JSONNode</c>，因此切换 <c>--format=json</c> 无需改动读取代码。
+		/// </remarks>
 		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
 		internal static T LoadTable<T>(string relativePath) where T : class
 		{
@@ -95,8 +98,7 @@ namespace Moirai.GameProto.Config
 		}
 		
 		/// <summary>
-		/// 从 CONFIG_PATH 下的相对路径加载 json 配置。与 <see cref="LoadByteBuf"/> 对称，
-		/// 供 <see cref="LoadTable{T}"/> 在 json 路线下按语言子目录取表。
+		/// 从 CONFIG_PATH 下的相对路径加载 json 配置，供 <see cref="LoadTable{T}"/> 在 json 路线下按语言子目录取表。
 		/// </summary>
 		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名</param>
 		/// <returns>JSONNode</returns>

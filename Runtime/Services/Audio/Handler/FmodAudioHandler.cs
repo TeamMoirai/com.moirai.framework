@@ -4,8 +4,7 @@ using Moirai.Atropos.Audio.Middleware;
 namespace Moirai.Atropos.Audio.Fmod
 {
     /// <summary>
-    /// FMOD 后端 Handler——薄封装，共享 <see cref="MiddlewareAudioHandler"/> 全部生命周期逻辑。
-    /// <para>未定义 <c>FMOD_INSTALLED</c> 时使用 <see cref="FmodBridgeStub"/>。</para>
+    /// FMOD 后端 Handler——薄封装，共享 <see cref="MiddlewareAudioHandler"/> 全部生命周期逻辑；未定义 <c>FMOD_INSTALLED</c> 时使用 <see cref="FmodBridgeStub"/>。
     /// </summary>
     [Serializable]
     internal sealed class FmodAudioHandler : MiddlewareAudioHandler

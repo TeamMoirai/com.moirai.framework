@@ -6,12 +6,13 @@ using Cysharp.Threading.Tasks;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档存储后端抽象基类（框架插拔件惯例：<see cref="SaveServiceSettings"/> 以 [SerializeReference] + ProviderDropdown 持有实例）。
-    /// <para>实现 <see cref="ISaveStorage"/>：同步原语为抽象契约（后端必须实现）；异步包装默认线程池卸载同步原语，
-    /// 真异步后端（如云存储）覆盖异步方法并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明——
-    /// 不支持同步 IO 的后端可在同步方法抛 <see cref="NotSupportedException"/>（同步裸名 API 随之不可用，调用方按能力降级）。</para>
-    /// <para>实现必须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。</para>
+    /// 存档存储后端抽象基类（<see cref="SaveServiceSettings"/> 以 [SerializeReference] + ProviderDropdown 持有实例）。
     /// </summary>
+    /// <remarks>
+    /// 实现 <see cref="ISaveStorage"/>：同步原语为抽象契约（后端必须实现）；异步包装默认线程池卸载同步原语，真异步后端（如云存储）覆盖异步方法并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。
+    /// 不支持同步 IO 的后端可在同步方法抛 <see cref="NotSupportedException"/>（同步裸名 API 随之不可用，调用方按能力降级）。
+    /// 实现必须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。
+    /// </remarks>
     [Serializable]
     public abstract class SaveStorageBackend : ISaveStorage
     {
@@ -62,8 +63,8 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 原子写入（两段式）：头部与载荷不经拼接拷贝直接分段落盘（语义与 <see cref="WriteAtomic(string, byte[], CancellationToken)"/> 一致）。
-        /// <para>默认实现拼接后走整段写入（保持正确性）；具备流式写能力的后端应覆写为真分段落盘以消灭拼接分配。</para>
         /// </summary>
+        /// <remarks>默认实现拼接后走整段写入（保持正确性）；具备流式写能力的后端应覆写为真分段落盘以消灭拼接分配。</remarks>
         /// <param name="filePath">目标文件完整路径（目录由实现确保存在）。</param>
         /// <param name="head">文件头部字节（先写入）。</param>
         /// <param name="payload">载荷字节（头部之后写入）。</param>
@@ -150,9 +151,9 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 恢复上次写入中断留下的中转文件，使主档位置重新可读（尽力而为，失败仅告警；
-        /// 无中断窗口的后端空实现）。须在 <see cref="CleanupOrphanTempFiles"/> 之前调用。
+        /// 恢复上次写入中断留下的中转文件，使主档位置重新可读（尽力而为，失败仅告警；无中断窗口的后端空实现）。
         /// </summary>
+        /// <remarks>须在 <see cref="CleanupOrphanTempFiles"/> 之前调用。</remarks>
         /// <param name="rootDirectory">存档数据根目录。</param>
         public virtual void RecoverInterruptedWrites(string rootDirectory)
         {

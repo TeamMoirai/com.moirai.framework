@@ -6,11 +6,11 @@ namespace Moirai.Atropos.Timer
 {
     /// <summary>
     /// 计时器处理器抽象基类（策略模式抽象策略）。
-    /// <para>默认实现为 <see cref="DefaultTimerHandler"/>（四级时间轮 + 帧计时 + 阶段触发）。</para>
-    /// <para>对外 API：<c>Delay</c> / <c>DelayUnsafe</c> / <c>WaitFrame</c> / <c>WaitFrameUnsafe</c> /
-    /// <c>Cancel</c> / <c>Pause</c> / <c>Resume</c> / <c>IsDone</c>。</para>
-    /// <para>可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。</para>
     /// </summary>
+    /// <remarks>
+    /// 默认实现为 <see cref="DefaultTimerHandler"/>（四级时间轮 + 帧计时 + 阶段触发）。
+    /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。
+    /// </remarks>
     [Serializable]
     public abstract class TimerServiceHandler : FrameworkHandler
     {
@@ -91,13 +91,12 @@ namespace Moirai.Atropos.Timer
         internal abstract void CancelAll();
 
         /// <summary>
-        /// 等待计时器完成。默认实现为每帧轮询 <see cref="IsDone"/>（供不支持完成信号的自定义处理器兜底）；
-        /// <see cref="DefaultTimerHandler"/> 覆写为按槽位完成信号驱动，避免每个 await 方的常驻轮询开销。
+        /// 等待计时器完成。
         /// </summary>
         /// <remarks>
-        /// 信号实现下，每个槽位仅挂一个完成信号：同一句柄的**首个** await 走信号唤醒，
-        /// **后续** await 自动退回轮询（成本回到旧行为）。完成/取消在引擎本阶段 Tick 末尾统一唤醒；
-        /// <c>Shutdown</c> 时同步排空，避免 await 方永久挂起。
+        /// 默认实现每帧轮询 <see cref="IsDone"/>；<see cref="DefaultTimerHandler"/> 覆写为按槽位完成信号驱动。
+        /// 信号实现下每槽仅挂一个完成信号：同一句柄的首个 await 走信号唤醒，后续 await 退回轮询。
+        /// 完成 / 取消在引擎本阶段 Tick 末尾统一唤醒；<c>Shutdown</c> 时同步排空，避免 await 方永久挂起。
         /// </remarks>
         internal virtual UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default)
         {

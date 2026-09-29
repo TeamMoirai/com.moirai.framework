@@ -606,9 +606,11 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 关闭动画等待。子类可 override 以播放关闭动画（淡出、缩放等）。
-        /// 窗口在动画期间保持可见，动画结束后自动隐藏。
+        /// 关闭动画等待：子类可 override 以播放关闭动画（淡出、缩放等）。
         /// </summary>
+        /// <remarks>
+        /// 窗口在动画期间保持可见，动画结束后自动隐藏。
+        /// </remarks>
         protected virtual async UniTask CloseAnimation()
         {
             await UniTask.WaitForSeconds(0.25f, true, cancellationToken: _cts.Token);

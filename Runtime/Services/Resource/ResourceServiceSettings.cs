@@ -17,10 +17,9 @@ namespace Moirai.Atropos.Resource
         private static bool s_OfflineFallbackReported;
 #endif
         /// <summary>
-        /// 资源运行模式。玩家构建里 <see cref="EResourcePlayMode.EditorSimulate"/> 只在本属性的
-        /// **读取结果**上归一为 <see cref="EResourcePlayMode.OfflinePlay"/>，资产里配置的原值保持不变
-        /// （要看配置原值，读检视面板或另存一份）；归一会在首次读取时打一次 Error。
+        /// 资源运行模式。玩家构建里 <see cref="EResourcePlayMode.EditorSimulate"/> 在读取结果上归一为 <see cref="EResourcePlayMode.OfflinePlay"/>。
         /// </summary>
+        /// <remarks>归一不回写资产原值（要看原值请读检视面板）；首次读取归一时打一次 Error。</remarks>
         public static EResourcePlayMode PlayMode
         {
             get

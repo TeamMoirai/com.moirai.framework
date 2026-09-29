@@ -38,10 +38,9 @@ namespace Moirai.Atropos.Tasks
         public TaskBase Task { get; private set; }
         
         /// <summary>
-        /// 对 subtask 的软引用，监听器可以在广播此事件之前被 disposition 处理。
-        /// 因此们检查 subtask 的 prerequisite 是否包含此事件，以确定其生命周期版本。
+        /// 该完成事件的监听任务列表（软引用）。
         /// </summary>
-        /// <returns></returns>
+        /// <remarks>监听器可能在广播前被释放；判定生命周期版本需检查其 prerequisite 是否仍含本事件。</remarks>
         [JsonIgnore]
         public readonly List<TaskBase> Listeners = new List<TaskBase>();
         
@@ -285,11 +284,11 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 取一只池化任务。<b>返回时引用计数为 0，即"无人持有"</b>：谁要把任务存下来，
-        /// 必须先 <see cref="Acquire"/> 再在交还时 <see cref="Dispose"/>（<see cref="TaskRunner.RegisterTask"/>
-        /// 与 <see cref="SequenceTask.Append"/> 就是这么配的）。这里刻意不自增，
-        /// 否则"取来就转手"的写法会凭空多出一辈子还不掉的引用。
+        /// 从池中取一只任务，返回时引用计数为 0。
         /// </summary>
+        /// <remarks>
+        /// 要长期持有需自行 <c>Acquire</c> 并在交还时 <c>Dispose</c>（见 <c>TaskRunner.RegisterTask</c>、<c>SequenceTask.Append</c>）。
+        /// </remarks>
         public static T GetPooled()
         {
             T t = s_Pool.Get();

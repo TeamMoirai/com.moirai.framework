@@ -14,13 +14,13 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// <para>基于 Unity Addressables 的资源处理器实现（实验性）。</para>
-    /// <para><see cref="ResourceServiceHandler"/> 的 Addressables 后端实现，与 <see cref="YooAssetHandler"/> 共用
-    /// <see cref="ResourceRecordStore"/> 记录内核：异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收都是对等实现。</para>
-    /// <para>Addressables 既没有同步加载 API，也没有两步式 Check→Update 的下载器对应面，因此同步取用族与下载族成员统一抛出
-    /// <see cref="GameException"/> fail-fast，禁止静默 no-op 掩盖误配置；只有异步版本可答的查询
-    /// （<c>IsNeedDownloadFromRemote</c> / <c>GetPackageVersion</c> / <c>GetAssetInfo</c> / 按标签的 <c>GetAssetInfos</c>）退化为恒定值。</para>
+    /// 基于 Unity Addressables 的资源处理器实现（实验性），与 <see cref="YooAssetHandler"/> 共用 <see cref="ResourceRecordStore"/> 记录内核。
     /// </summary>
+    /// <remarks>
+    /// 异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均为对等实现。
+    /// Addressables 没有同步加载 API 与两步式 Check→Update 下载器，故同步取用族与下载族统一抛 <see cref="GameException"/> fail-fast。
+    /// 只有异步可答的查询（<c>IsNeedDownloadFromRemote</c> / <c>GetPackageVersion</c> / <c>GetAssetInfo</c> / 按标签的 <c>GetAssetInfos</c>）退化为恒定值。
+    /// </remarks>
     [Serializable]
     internal sealed partial class AddressableHandler : ResourceServiceHandler
     {
@@ -253,12 +253,12 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
-        /// Addressables 场景句柄适配器。
-        /// <para>Addressables 挂起语义与引擎原生不同：activateOnLoad=false 时外层句柄在场景就绪（待激活）即完成，
-        /// 激活需显式调用 <see cref="SceneInstance.ActivateAsync"/>。为遵守 <see cref="ResourceSceneHandle"/> 契约
-        /// （挂起待激活期间 <c>IsDone</c> 保持 false、<c>SceneObject</c> 为默认值），二者均以 <see cref="Scene.isLoaded"/>
-        /// （激活完成标记）为准；未完成时 <c>Progress</c> 封顶于 0.99，避免回报 100%。</para>
+        /// Addressables 场景句柄适配器，把 Addressables 的挂起语义映射到 <see cref="ResourceSceneHandle"/> 契约。
         /// </summary>
+        /// <remarks>
+        /// activateOnLoad=false 时外层句柄在场景就绪（待激活）即完成，激活需显式调用 <see cref="SceneInstance.ActivateAsync"/>；
+        /// <c>IsDone</c> 与 <c>SceneObject</c> 均以 <see cref="Scene.isLoaded"/>（激活完成标记）为准，未完成时 <c>Progress</c> 封顶 0.99。
+        /// </remarks>
         private sealed class AddressableSceneHandleAdapter : ResourceSceneHandle
         {
             private AsyncOperationHandle<SceneInstance> _handle;

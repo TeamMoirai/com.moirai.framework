@@ -10,12 +10,12 @@ using UnityEngine;
 namespace Moirai.Atropos.Editor.Save
 {
     /// <summary>
-    /// 存档模式快照导出器（MIRAI400/401 分析器的数据源）：扫描全部 <see cref="SaveDataAttribute"/> 二进制后端类型
-    /// （MessagePack/MemoryPack/Protobuf），按分析器同款规则提取成员键序号，写出项目根目录 <c>.SaveSchemaSnapshot</c>。
-    /// <para>行格式：<c>类型全限定名|成员名:序号;成员名:序号…</c>（序号 -1 = MessagePack 字符串键模式）。
-    /// 快照纳入版本控制后，分析器即可在编译期比对键序重排（MIRAI400）与成员删除缺迁移钩子（MIRAI401）；
-    /// 二进制线格式变更前重新导出一次即可推进基线。</para>
+    /// 存档模式快照导出器：扫描全部 <see cref="SaveDataAttribute"/> 二进制后端类型，按分析器同款规则提取成员键序号，写出项目根目录 <c>.SaveSchemaSnapshot</c>。
     /// </summary>
+    /// <remarks>
+    /// 行格式：<c>类型全限定名|成员名:序号;成员名:序号…</c>（序号 -1 = MessagePack 字符串键模式）。
+    /// 快照纳入版本控制后供 MIRAI400/401 分析器在编译期比对；二进制线格式变更前重新导出即可推进基线。
+    /// </remarks>
     public static class SaveSchemaSnapshotExporter
     {
         /// <summary>快照文件名（分析器按文件名匹配附加文件）。</summary>

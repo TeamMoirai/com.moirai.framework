@@ -7,8 +7,7 @@ using NUnit.Framework;
 namespace Utility
 {
     /// <summary>
-    /// 锁住 <see cref="ShufflingExtension"/> 改接统一随机源后的采样契约：
-    /// 置换完整性、两条自适应采样路径都不重不漏、以及同种子可复现。
+    /// 锁住 <see cref="ShufflingExtension"/> 的采样契约：置换完整性、两条自适应采样路径都不重不漏、同种子可复现。
     /// </summary>
     public class ShufflingExtensionTests
     {

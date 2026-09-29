@@ -131,8 +131,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 使用键获取已注册的组件。
-        /// 同一 key 可注册多个不同类型的组件（一对多语义）。
         /// </summary>
+        /// <remarks>同一 key 可注册多个不同类型的组件（一对多语义）。</remarks>
         /// <param name="key">要查找的键</param>
         /// <param name="entityFallback">
         /// 未找到直接匹配时，尝试从键对应的 GameObject 上按类型查找子组件
@@ -221,8 +221,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 将组件添加到注册表。
-        /// 同一组件可使用不同 key 重复注册（key 可为 null）。
         /// </summary>
+        /// <remarks>同一组件可使用不同 key 重复注册（key 可为 null）。</remarks>
         /// <param name="component">要注册的组件</param>
         /// <param name="key">与组件关联的键（可为 null，null 表示仅按类型查找）</param>
         /// <param name="persistBetweenScenes">在场景之间保持注册</param>
@@ -374,8 +374,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// O(1) 移除：与末尾交换后移除。
-        /// 同时处理循环中多处调用时可能产生的"跳过"问题（交换过来的元素仍需检查）。
         /// </summary>
+        /// <remarks>交换过来的元素仍需检查，故循环中多处调用不会产生"跳过"。</remarks>
         private static void RemoveEntryAt(int index)
         {
             int last = s_Entries.Count - 1;
@@ -392,8 +392,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 当 Unity "fake null" 条目积累到阈值时，就地压缩列表。
-        /// 调用前必须持有 s_Entries 锁。
         /// </summary>
+        /// <remarks>调用前必须持有 <c>s_Entries</c> 锁。</remarks>
         private static void CompactIfNeeded()
         {
             if (s_NullCount < 32) return;

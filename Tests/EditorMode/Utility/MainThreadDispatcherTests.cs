@@ -14,8 +14,10 @@ namespace Utility
 {
     /// <summary>
     /// <see cref="MainThreadDispatcher"/> 静态核心的 EditMode 单元测试。
-    /// 通过内部 API（InternalsVisibleTo）直接驱动 Pump，不依赖实例生命周期。
     /// </summary>
+    /// <remarks>
+    /// 通过内部 API（<c>InternalsVisibleTo</c>）直接驱动 <c>Pump</c>，不依赖实例生命周期。
+    /// </remarks>
     [TestFixture]
     public class MainThreadDispatcherTests
     {

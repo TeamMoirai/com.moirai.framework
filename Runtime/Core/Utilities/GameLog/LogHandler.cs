@@ -7,15 +7,14 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 游戏框架日志处理器基类（策略模式抽象策略）。
-    /// <para>框架内置四种实现，可在 Unity Debug、Unity Logging Package、Serilog、ZLogger 等日志系统之间零成本切换：</para>
-    /// <list type="bullet">
-    /// <item><description><see cref="DefaultLogHandler"/>：UnityEngine.Debug，始终可用（默认）。</description></item>
-    /// <item><description><see cref="UnityLoggingHandler"/>：需安装 com.unity.logging（自动定义 UNITY_LOGGING_INSTALLED）。</description></item>
-    /// <item><description><see cref="ZLoggerHandler"/>：需安装 com.cysharp.zlogger（自动定义 ZLOGGER_INSTALLED）。</description></item>
-    /// <item><description><see cref="SerilogHandler"/>：需引入 Serilog 程序集并手动定义 SERILOG_INSTALLED。</description></item>
-    /// </list>
+    /// 游戏框架日志处理器基类（策略模式抽象策略），后端经 <see cref="LogUtility.Handler"/> 替换。
     /// </summary>
+    /// <remarks>
+    /// 内置四种实现及启用条件：<see cref="DefaultLogHandler"/>（<c>UnityEngine.Debug</c>，始终可用，默认）、
+    /// <see cref="UnityLoggingHandler"/>（需安装 com.unity.logging，自动定义 <c>UNITY_LOGGING_INSTALLED</c>）、
+    /// <see cref="ZLoggerHandler"/>（需安装 com.cysharp.zlogger，自动定义 <c>ZLOGGER_INSTALLED</c>）、
+    /// <see cref="SerilogHandler"/>（需引入 Serilog 程序集并手动定义 <c>SERILOG_INSTALLED</c>）。
+    /// </remarks>
     [Serializable]
     public abstract class LogHandler : FrameworkHandler
     {
@@ -43,13 +42,11 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 获取或设置是否在日志输出中包含时间戳。
-        /// <para>各实现通过后端自身的模板/格式化系统应用此配置：</para>
-        /// <list type="bullet">
-        /// <item><description><see cref="DefaultLogHandler"/>：在消息前缀中拼接 <c>[HH:mm:ss.fff]</c>。</description></item>
-        /// <item><description><see cref="ZLoggerHandler"/>：通过 <c>PrefixFormatter</c> 设置。</description></item>
-        /// <item><description><see cref="UnityLoggingHandler"/> / <see cref="SerilogHandler"/>：由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制。</description></item>
-        /// </list>
         /// </summary>
+        /// <remarks>
+        /// 各实现经后端自身的模板/格式化系统应用：<see cref="DefaultLogHandler"/> 在消息前缀拼接 <c>[HH:mm:ss.fff]</c>；
+        /// <see cref="ZLoggerHandler"/> 经 <c>PrefixFormatter</c>；<see cref="UnityLoggingHandler"/> 与 <see cref="SerilogHandler"/> 由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制。
+        /// </remarks>
         public bool TimestampEnabled
         {
             get => m_TimestampEnabled;

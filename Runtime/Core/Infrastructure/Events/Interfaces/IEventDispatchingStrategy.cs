@@ -8,15 +8,7 @@ namespace Moirai.Atropos.Events
     /// 事件的传播阶段。
     /// </summary>
     /// <remarks>
-    /// > 当元素收到事件时，该事件将从面板的根元素传播到目标元素。
-    ///
-    /// 在 TrickleDown 阶段，事件从面板的根元素发送到目标元素的父元素。
-    ///
-    /// 在 AtTarget 阶段，事件将发送到 target 元素。
-    ///
-    /// 在 BubbleUp 阶段，事件从目标元素的父元素发送回面板的根元素。
-    ///
-    /// 在最后一个阶段 DefaultAction 阶段，事件将重新发送到目标元素。
+    /// 派发顺序：TrickleDown（根 → 目标父级）→ AtTarget（目标）→ DefaultActionAtTarget（目标的 at-target 默认动作）→ BubbleUp（目标父级 → 根）→ DefaultAction（最终默认动作）。
     /// </remarks>
     public enum PropagationPhase
     {

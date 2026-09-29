@@ -16,11 +16,12 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// REST 云端 KV 存储测试（内存假处理器经 <c>s_MessageHandlerFactoryForTests</c> 注入——不触真实网络）：
-    /// 读写往返（修订号/时间戳）、存在探测、幂等删除、前缀枚举下推与键剥离、认证头（静态值/动态提供方优先）、
-    /// 远端失败归一（500/超时）、ETag 修订号回退通道。
-    /// <para>执行模型统一为 [UnityTest] + WaitForTask 协程（见 SaveEntityIncrementalTests 头注——禁止 async Task+AsTask）。</para>
+    /// REST 云端 KV 存储契约测试（内存假处理器经 <c>s_MessageHandlerFactoryForTests</c> 注入，不触真实网络）：读写往返（修订号/时间戳）、存在探测、幂等删除、前缀枚举下推与键剥离、认证头（静态值/动态提供方优先）、远端失败归一（500/超时）、ETag 修订号回退通道。
     /// </summary>
+    /// <remarks>
+    /// 执行模型统一为 <c>[UnityTest]</c> + <c>WaitForTask</c> 协程；EditMode 无 SyncContext，
+    /// 不得改用 <c>async Task</c> + <c>AsTask</c>（续体落线程池会触发 Unity API 主线程违例）。
+    /// </remarks>
     public class RestCloudSaveKvStoreTests
     {
         /// <summary>测试端点根地址（假处理器拦截——不解析不连接）。</summary>
