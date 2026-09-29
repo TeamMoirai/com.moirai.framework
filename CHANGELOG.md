@@ -44,6 +44,10 @@
 
 - `AudioMainThread.AssertMainThread` 断言消息插值挪进失败分支——播放入口主线程快路径零分配（此前每调用恒 1 次 GC 分配）。
 
+#### UI
+
+- `UGUIHandler.CurrentModal` 与末位窗口刷新改索引取用——模态查询热路径（`UIServiceHelper` 交互前置判断）每次读取零分配（此前 `LastOrDefault`/`Last` 装箱枚举器并每次新建判定委托）。
+
 #### 测试
 
 - `Tests/Player` 补 `UniTask` 引用与缺失 using；`PlayerTestBootstrap` 掐 `AutoBoot` 收进 `#if !UNITY_EDITOR`（编辑器 PlayMode 域依赖自动启动链，L2 门禁前提）。
