@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
+using Moirai.Atropos;
 using Moirai.Atropos.Audio;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
@@ -12,8 +16,8 @@ namespace Service.Audio
     public class AudioMixStateMachineTests
     {
         private AudioMixStateMachine _machine;
-        private readonly System.Collections.Generic.List<EMixSnapshot> _applied =
-            new System.Collections.Generic.List<EMixSnapshot>();
+        private readonly List<EMixSnapshot> _applied = new List<EMixSnapshot>();
+        private readonly List<string> _capturedMessages = new List<string>();
 
         [SetUp]
         public void SetUp()
@@ -26,7 +30,24 @@ namespace Service.Audio
             // 所以优先级/回落类用例必须挂上施加通道——这里复用生产就有的中间件回调接缝。
             _applied.Clear();
             _machine.SetMiddlewareTransitionHandler((state, _) => _applied.Add(state));
+
+            _capturedMessages.Clear();
+            AudioWarnOnce.Reset();
+            LogUtility.OnMessageLogged += OnMessageLogged;
         }
+
+        [TearDown]
+        public void TearDown()
+        {
+            LogUtility.OnMessageLogged -= OnMessageLogged;
+            AudioWarnOnce.Reset();
+        }
+
+        private void OnMessageLogged(ELogLevel level, string message, Exception exception)
+            => _capturedMessages.Add(message);
+
+        private bool Mentions(string fragment)
+            => _capturedMessages.Exists(m => m != null && m.Contains(fragment, StringComparison.Ordinal));
 
         private bool Request(EMixSnapshot target, bool force = false) => _machine.Request(target, 0.1f, force);
 
@@ -147,7 +168,7 @@ namespace Service.Audio
         #region 自动绑定 [AUTO BIND]
 
         // 名字匹配已交回 Unity 公开的 AudioMixer.FindSnapshot（本地既无 Snapshot 枚举接口，
-        // 也没有可注入的假 Mixer），故此处只保留空引用守卫这一格。
+        // 也没有可注入的假 Mixer）；告警口径用例直接打 WarnUnboundAfterAutoBind 接缝。
 
         [Test]
         public void TryBindSnapshotsByName_NullMixer_IsNoOp()
@@ -160,6 +181,62 @@ namespace Service.Audio
         public void FindMixerSnapshot_NullMixer_ReturnsNull()
         {
             Assert.IsNull(AudioMixStateMachine.FindMixerSnapshot(null, EMixSnapshot.Dialogue));
+        }
+
+        [Test]
+        public void WarnUnboundAfterAutoBind_NoConfig_DoesNotWarn()
+        {
+            _machine.WarnUnboundAfterAutoBind(null);
+            _machine.WarnUnboundAfterAutoBind(Array.Empty<AudioMixSnapshotEntry>());
+
+            Assert.IsEmpty(_capturedMessages, "没配置走默认，不得报 WarnUnboundAfterAutoBind");
+        }
+
+        [Test]
+        public void WarnUnboundAfterAutoBind_ConfiguredUnbound_Warns()
+        {
+            var configured = new[]
+            {
+                new AudioMixSnapshotEntry { State = EMixSnapshot.Dialogue, Snapshot = null },
+            };
+
+            UtfLogExpect.Warning();
+            _machine.WarnUnboundAfterAutoBind(configured);
+
+            Assert.IsTrue(Mentions("已配置状态 Dialogue"), "已配置且仍无 Snapshot 必须告警");
+            Assert.IsFalse(Mentions("Cinematic"), "未配置状态不得被顺带告警");
+        }
+
+        [Test]
+        public void WarnUnboundAfterAutoBind_UnconfiguredState_DoesNotWarn()
+        {
+            // 只登记 Dialogue；Cinematic 未配置，即便状态机里同样绑不上也不告警
+            var configured = new[]
+            {
+                new AudioMixSnapshotEntry { State = EMixSnapshot.Dialogue, Snapshot = null },
+            };
+
+            UtfLogExpect.Warning();
+            _machine.WarnUnboundAfterAutoBind(configured);
+
+            Assert.IsTrue(Mentions("Dialogue"));
+            Assert.IsFalse(Mentions("Cinematic"));
+            Assert.IsFalse(Mentions("Paused"));
+            Assert.IsFalse(Mentions("Muffled"));
+            Assert.IsFalse(Mentions("LowHealth"));
+        }
+
+        [Test]
+        public void WarnUnboundAfterAutoBind_DefaultUnbound_DoesNotWarn()
+        {
+            var configured = new[]
+            {
+                new AudioMixSnapshotEntry { State = EMixSnapshot.Default, Snapshot = null },
+            };
+
+            _machine.WarnUnboundAfterAutoBind(configured);
+
+            Assert.IsEmpty(_capturedMessages, "Default 回 Mixer 默认态属正常，例外不告警");
         }
 
         #endregion 自动绑定 [AUTO BIND]
