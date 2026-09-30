@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
@@ -14,7 +15,8 @@ namespace Moirai.GameProto.Config
     /// <summary>
     /// 游戏配置表助手。
     /// </summary>
-    public sealed partial class LubanHandler : ConfigTableServiceHandler
+    [Serializable]
+	public sealed partial class LubanHandler : ConfigTableServiceHandler
     {
         #region 初始化 [INITIALIZE]
 
@@ -30,120 +32,102 @@ namespace Moirai.GameProto.Config
 
         #region 处理多语言 [LOCALIZATION]
 
-        /// <summary>多语言表按语言分份导出后，各语言子目录下的同名数据文件名。</summary>
-        /// <remarks>
-        /// 子目录名即语言码，与 <see cref="L10nLanguages.Codes"/> 同源，由转表脚本决定。
-        /// </remarks>
-        private const string LOCALIZED_STRINGS_TABLE = "l10n_tblocalizedstrings";
-
-        /// <summary>词条按语言各存一份，走框架的按语言列模式：常驻与取值都只有语言头 + 当前语言列。</summary>
-        public override bool SupportsPerLanguageLocalizationLoad => true;
-
-        /// <summary>
-        /// 自报本表提供的语言；顺序即 <see cref="GetLocalizedStringsByLanguage"/> 各列在框架内的列序，也是 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
-        /// </summary>
-        /// <remarks>
-        /// 语言来自转表期生成的 <see cref="L10nLanguages"/> 登记，而非从 bean 字段名反推（多语言改走字段变体后 bean 只剩单个 text 字段）。
-        /// </remarks>
-        public override IReadOnlyList<string> GetLocalizationLanguageCodes() => L10nLanguages.Codes;
-
-        /// <summary>
-        /// 取一种语言的词条列：读该语言子目录下的那份数据。
-        /// </summary>
-        /// <param name="languageCode">必须是 <see cref="L10nLanguages.Codes"/> 里的语言码。</param>
-        /// <returns>未登记的语言返回 <c>null</c>（框架按「未就绪」保持重试）。</returns>
-        public override Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode)
-        {
-            if (string.IsNullOrEmpty(languageCode)) return null;
-            if (Array.IndexOf(L10nLanguages.Codes, languageCode) < 0) return null;
-
-            return ReadLanguageColumn(languageCode);
-        }
-
-        /// <summary>整批结果：逐语言各读一份再按 <see cref="L10nLanguages.Codes"/> 的顺序拼列。</summary>
-        /// <remarks>
-        /// 按语言列模式下运行期不会走到这里，仅供编辑器预览（预览需同时看到所有语言）。
-        /// </remarks>
         private Dictionary<string, List<string>> _allLocalizedStrings;
-
         public override Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
             if (_allLocalizedStrings == null)
             {
-                _allLocalizedStrings = BuildAllLocalizedStrings();
+                ResolveLocalization();
             }
 
             return _allLocalizedStrings;
         }
-
+        
+        private string[] _localizationLanguageCodes;
         /// <summary>
-        /// 逐语言装载并校验列对齐。
+        /// 自报本表提供的语言：顺序即 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
+        /// <para>框架据此校验列数并解析缺译回退链，不再依赖「向全局注册表注册语言」这一副作用。</para>
         /// </summary>
-        /// <remarks>
-        /// 任一语言导出失败会留下缺语言目录；缺列会让后续键整体错位，而框架侧只按「列数与语言数不符」整批拒收，故在此点名缺失的语言。
-        /// </remarks>
-        private Dictionary<string, List<string>> BuildAllLocalizedStrings()
+        public override IReadOnlyList<string> GetLocalizationLanguageCodes()
         {
-            var codes = L10nLanguages.Codes;
-            var localizedStrings = new Dictionary<string, List<string>>();
-
-            for (int i = 0; i < codes.Length; i++)
+            if (_localizationLanguageCodes == null)
             {
-                var column = ReadLanguageColumn(codes[i]);
-
-                foreach (var pair in column)
-                {
-                    if (localizedStrings.TryGetValue(pair.Key, out var columns))
-                    {
-                        columns.Add(pair.Value);
-                    }
-                    else
-                    {
-                        // 每种语言那份数据都含全部键（缺译是空串而不是省键），所以第 i 列的行数即已装载的语言数
-                        localizedStrings.Add(pair.Key, new List<string>(codes.Length) { pair.Value });
-                    }
-                }
-
-                // 每种语言那份数据都含全部键（缺译是空串而不是省键），所以第 i 趟之后每个键都该正好 i+1 列。
-                // 少一列说明这一语言漏了键，继续拼只会让后面的列整体错位，而框架侧只以「列数与语言数不符」整批拒收
-                foreach (var entry in localizedStrings)
-                {
-                    if (entry.Value.Count != i + 1)
-                    {
-                        throw new GameException(StringUtility.Format(
-                            "Localization data misaligned at language '{0}': key '{1}' has {2} column(s), expected {3}. " +
-                            "Re-run config generation so every language in L10N_LANGUAGES has its own '{4}.bytes'.",
-                            codes[i], entry.Key, entry.Value.Count, i + 1, LOCALIZED_STRINGS_TABLE));
-                    }
-                }
+                ResolveLocalization();
             }
 
-            return localizedStrings;
+            return _localizationLanguageCodes ?? Array.Empty<string>();
         }
 
         /// <summary>
-        /// 按语言子目录装载一份多语言表并压平成 key → 译文。
+        /// 初始化所有可用的多语言
         /// </summary>
-        private Dictionary<string, string> ReadLanguageColumn(string languageCode)
+        /// <returns></returns>
+        private void ResolveLocalization()
         {
-            LogUtility.Info("<color=yellow>▼▼▼ Start Load Localization Column[{0}] ▼▼▼</color>",
-                languageCode);
+            LogUtility.Info("<color=yellow>\u25bc\u25bc\u25bc\u25bc " +
+                     "Start Resolve LocalizationBean~" +
+                     " \u25bc\u25bc\u25bc\u25bc</color>");
+            
+            // 获取类型 -> 多语言Bean
+            Type type = typeof(LocalizationBean);
 
-            // Tables 里没有多语言表：它按语言分份，逐语言自建，不占启动期的整表展开。
-            // 走 LoadTable 而不是直接 new：bin 与 json 两条路线的构造器收的缓冲类型不同，
-            // 由生成代码自己决定，换路线不必改这里。
-            var table = LoadTable<TbLocalizedStrings>(languageCode + "/" + LOCALIZED_STRINGS_TABLE);
+            // 获取所有公共实例字段
+            FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
 
-            var column = new Dictionary<string, string>(table.DataList.Count);
-            foreach (var data in table.DataList)
+            // 语言列序与词条列序同源：同一过滤枚举产出语言自报与字符串列，任何一侧都不单独求序。
+            // 自报内容即字段名（内置语言 Name，框架内置/自定义语言均按列序直通）
+            var languageFields = new List<FieldInfo>(fields.Length);
+            foreach (var field in fields)
             {
-                column[data.Key] = data.FormattedStrings.Text;
+                if (field.IsInitOnly && field.FieldType == typeof(string)) languageFields.Add(field);
             }
 
-            LogUtility.Info("<color=yellow>▲▲▲ Localization Column[{0}] Loaded: {1} entries ▲▲▲</color>",
-                languageCode, column.Count);
+            _localizationLanguageCodes = new string[languageFields.Count];
+            for (int i = 0; i < languageFields.Count; i++)
+            {
+                _localizationLanguageCodes[i] = languageFields[i].Name;
+                LogUtility.Info("Register Lang - {0}", _localizationLanguageCodes[i]);
+            }
 
-            return column;
+            // 处理所有多语言数据
+            // 先构建到局部变量：读表失败（如资源未就绪）时不留下"已解析"的空字典，
+            // 否则 GetAllLocalizedStrings 永远返回空集合、且不再重试
+            var localizedStrings = new Dictionary<string, List<string>>();
+            foreach (var data in Tables.TbLocalizedStrings.DataList)
+            {
+                foreach (FieldInfo field in languageFields)
+                {
+                    // 获取多语言的 Key
+                    string key = data.Key;
+                    // 获取多语言的字段值
+                    string fieldValue = (string)field.GetValue(data.FormattedStrings);
+
+                    // 输出字段名称和值
+                    // Debug.Log($"[{key}] Field Name: {field.Name}, Value: {fieldValue}");
+
+                    if (localizedStrings.ContainsKey(key))
+                    {
+                        localizedStrings[key].Add(fieldValue);
+                    }
+                    else
+                    {
+                        localizedStrings.Add(key, new List<string> { fieldValue });
+                    }
+                }
+            }
+
+            _allLocalizedStrings = localizedStrings;
+
+            LogUtility.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 " +
+                            "Resolve LocalizationBean Done!" +
+                            " \u25b2\u25b2\u25b2\u25b2</color>");
+
+            // string str = "";
+            // foreach (var item in _allLocalizedStrings)
+            // {
+            //     str += $"{item.Key}[{item.Value.Count}]: {string.Join(",", item.Value)}\n";
+            // }
+            // LogUtility.Info("AllLocalizedStrings:\n{0}", str);
         }
 
         #endregion
@@ -166,9 +150,10 @@ namespace Moirai.GameProto.Config
         }
 
         /// <summary>
-        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas。
+        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas
         /// </summary>
-        /// <param name="id">UISprite - SpriteAtlas 配置表的 id。</param>
+        /// <param name="id">UISprite - SpriteAtlas 配置表的 id</param>
+        /// <param name="cancellationToken"></param>
 #pragma warning disable CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
         public override async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
 #pragma warning restore CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
