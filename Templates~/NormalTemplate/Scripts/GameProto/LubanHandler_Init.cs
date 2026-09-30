@@ -11,8 +11,7 @@ namespace Moirai.GameProto.Config
 	/// <summary>
 	/// 配置加载器。桥接 Luban 生成代码与资源系统。
 	/// </summary>
-	[Serializable]
-	public sealed partial class LubanHandler
+	partial class LubanHandler
 	{
 		private static LubanHandler s_Instance;
 		public static LubanHandler Instance => s_Instance ??= new LubanHandler();
@@ -20,23 +19,23 @@ namespace Moirai.GameProto.Config
 		private const string CONFIG_PATH = "Assets/AssetRaw/Default/Config/Table/";
 
 		private Tables _tables;
-		/// <summary>所有配置表。</summary>
+		/// <summary>
+		/// 所有配置表。
+		/// </summary>
 		public Tables Tables
 		{
 			get
 			{
-				_tables ??= Load();
+				_tables ??= LoadTables();
 				return _tables;
 			}
 		}
 
 		/// <summary>
 		/// 加载配置。
+		/// <remarks>自动判断加载bin或json配置</remarks>
 		/// </summary>
-		/// <remarks>
-		/// 依生成表构造器所需缓冲类型自动选择 bin 或 json 配置源。
-		/// </remarks>
-		private Tables Load()
+		private Tables LoadTables()
 		{
 			ConstructorInfo tablesCtor = typeof(Tables).GetConstructors()[0];
 			Type loaderReturnType = tablesCtor.GetParameters()[0].ParameterType.GetGenericArguments()[1];
@@ -58,14 +57,41 @@ namespace Moirai.GameProto.Config
 		}
 
 		/// <summary>
+		/// 按当前生成路线装载一张不在 <see cref="Tables"/> 里的独立表。
+		/// </summary>
+		/// <remarks>
+		/// 判据与 <see cref="LoadTables"/> 同一个：路线写在转表配置里（bin 或 json），落到代码上就是生成表的构造器收 ByteBuf 还是 JSONNode，所以换 <c>--format=json</c> 不必改读取代码。
+		/// </remarks>
+		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名（多语言按语言子目录传 <c>语言码/表名</c>）。</param>
+		internal static T LoadLanguageTable<T>(string relativePath) where T : class
+		{
+			ConstructorInfo tableCtor = typeof(T).GetConstructors()[0];
+			Type bufferType = tableCtor.GetParameters()[0].ParameterType;
+			object buffer = bufferType == typeof(ByteBuf)
+				? LoadByteBuf(relativePath)
+				: LoadJson(relativePath);
+
+			// 与 Tables 同理：建不出来只可能是反射对不上或构造器自己抛，失败不落状态
+			if (tableCtor.Invoke(new[] { buffer }) is not T table)
+			{
+				throw new GameException(StringUtility.Format(
+					"Failed to construct '{0}' via its constructor '{1}'.",
+					typeof(T).FullName, tableCtor));
+			}
+
+			return table;
+		}
+
+		/// <summary>
 		/// 加载二进制配置。
 		/// </summary>
-		/// <param name="file">FileName。</param>
-		/// <returns>ByteBuf。</returns>
+		/// <param name="file">FileName</param>
+		/// <returns>ByteBuf</returns>
 		private static ByteBuf LoadByteBuf(string file)
 		{
-			LogUtility.Info("Load bin config: {0}.bytes", file);
-			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + file + ".bytes");
+			string location = CONFIG_PATH + file + ".bytes";
+			LogUtility.Info("Load bin config: {0}", location);
+			TextAsset textAsset = LoadTextAsset(location);
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
 		}
@@ -73,10 +99,13 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 从文件中加载 json 配置。
 		/// </summary>
+		/// <param name="file"></param>
+		/// <returns></returns>
 		private static JSONNode LoadJson(string file)
 		{
-			LogUtility.Info("Load json config: {0}.json", file);
-			TextAsset textAsset = LoadTextAsset(CONFIG_PATH + file + ".json");
+			string location = CONFIG_PATH + file + ".json";
+			LogUtility.Info("[Config] Load json config: {0}", location);
+			TextAsset textAsset = LoadTextAsset(location);
 			string json = textAsset.text;
 			return JSON.Parse(json);
 		}
@@ -84,21 +113,23 @@ namespace Moirai.GameProto.Config
 		/// <summary>
 		/// 加载配置文本资源。
 		/// </summary>
+		/// <param name="location"></param>
+		/// <returns></returns>
 		private static TextAsset LoadTextAsset(string location)
 		{
 #if UNITY_EDITOR
 			if (!Application.isPlaying)
 			{
-				// 非播放态（编辑器预览、转表）经资源系统的编辑器入口取资产，地址到资产的换算留在后端那一侧。
-				// 取不到同样要点名：让 null 回到调用方就变成几行开外一句无来由的 NRE
-				var fromEditor = ResourceService.LoadAssetForEditor(location) as TextAsset;
-				if (fromEditor == null)
+				// 非播放态（编辑器预览、转表）不经资源系统，直读资产库；取不到同样要点名，
+				// 让 null 回到调用方就变成几行开外一句无来由的 NRE
+				var fromDatabase = UnityEditor.AssetDatabase.LoadAssetAtPath<TextAsset>(location);
+				if (fromDatabase == null)
 				{
 					throw new GameException(StringUtility.Format(
 						"Config asset is missing: '{0}'. Generate config first.", location));
 				}
 
-				return fromEditor;
+				return fromDatabase;
 			}
 #endif
 			// 因为配置是预加载（Asset tag 为 PRELOAD），所以无需异步加载

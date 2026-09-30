@@ -14,7 +14,8 @@ namespace Moirai.GameProto.Config
     /// <summary>
     /// 游戏配置表助手。
     /// </summary>
-    public sealed partial class LubanHandler : ConfigTableServiceHandler
+    [Serializable]
+	public sealed partial class LubanHandler : ConfigTableServiceHandler
     {
         #region 初始化 [INITIALIZE]
 
@@ -30,28 +31,28 @@ namespace Moirai.GameProto.Config
 
         #region 处理多语言 [LOCALIZATION]
 
-        /// <summary>多语言表按语言分份导出后，各语言子目录下的同名数据文件名。</summary>
-        /// <remarks>
-        /// 子目录名即语言码，与 <see cref="L10nLanguages.Codes"/> 同源，由转表脚本决定。
-        /// </remarks>
+        /// <summary>
+        /// 多语言表按语言分份导出后，各语言子目录下的那份词条数据文件名（相对配置根目录、不含扩展名）。
+        /// </summary>
         private const string LOCALIZED_STRINGS_TABLE = "l10n_tblocalizedstrings";
 
-        /// <summary>词条按语言各存一份，走框架的按语言列模式：常驻与取值都只有语言头 + 当前语言列。</summary>
+        /// <summary>
+        /// 词条按语言各存一份，走框架的按语言列模式：常驻与取值都只有语言头 + 当前语言列。
+        /// </summary>
         public override bool SupportsPerLanguageLocalizationLoad => true;
 
         /// <summary>
-        /// 自报本表提供的语言；顺序即 <see cref="GetLocalizedStringsByLanguage"/> 各列在框架内的列序，也是 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
+        /// 自报本表提供的语言：顺序即 <see cref="GetLocalizedStringsByLanguage"/> 各列在框架内的列序，也是 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
         /// </summary>
         /// <remarks>
-        /// 语言来自转表期生成的 <see cref="L10nLanguages"/> 登记，而非从 bean 字段名反推（多语言改走字段变体后 bean 只剩单个 text 字段）。
+        /// 语言取自转表期生成的 <see cref="L10nLanguages.Codes"/>，不从 bean 字段名反推：多语言改走字段变体后 bean 只剩一个 Text 字段，字段名与语言无关。
         /// </remarks>
         public override IReadOnlyList<string> GetLocalizationLanguageCodes() => L10nLanguages.Codes;
 
         /// <summary>
         /// 取一种语言的词条列：读该语言子目录下的那份数据。
         /// </summary>
-        /// <param name="languageCode">必须是 <see cref="L10nLanguages.Codes"/> 里的语言码。</param>
-        /// <returns>未登记的语言返回 <c>null</c>（框架按「未就绪」保持重试）。</returns>
+        /// <param name="languageCode"><see cref="GetLocalizationLanguageCodes"/> 自报过的语言码。未登记的返回 <c>null</c>，框架按「数据未就绪」保持重试。</param>
         public override Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode)
         {
             if (string.IsNullOrEmpty(languageCode)) return null;
@@ -60,16 +61,19 @@ namespace Moirai.GameProto.Config
             return ReadLanguageColumn(languageCode);
         }
 
-        /// <summary>整批结果：逐语言各读一份再按 <see cref="L10nLanguages.Codes"/> 的顺序拼列。</summary>
-        /// <remarks>
-        /// 按语言列模式下运行期不会走到这里，仅供编辑器预览（预览需同时看到所有语言）。
-        /// </remarks>
         private Dictionary<string, List<string>> _allLocalizedStrings;
 
+        /// <summary>
+        /// 整批结果：逐语言各读一份，再按 <see cref="GetLocalizationLanguageCodes"/> 的顺序拼成每键一行。
+        /// </summary>
+        /// <remarks>
+        /// 按语言列模式下运行期不再走到这里，留给编辑器预览——预览要同时看到所有语言。
+        /// </remarks>
         public override Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
             if (_allLocalizedStrings == null)
             {
+                // 逐语言全部装载成功才落状态：任一趟读表失败都不留下"已解析"的空批，下次访问照常重来
                 _allLocalizedStrings = BuildAllLocalizedStrings();
             }
 
@@ -80,7 +84,8 @@ namespace Moirai.GameProto.Config
         /// 逐语言装载并校验列对齐。
         /// </summary>
         /// <remarks>
-        /// 任一语言导出失败会留下缺语言目录；缺列会让后续键整体错位，而框架侧只按「列数与语言数不符」整批拒收，故在此点名缺失的语言。
+        /// 每种语言那份数据都含全部键（缺译是空串而不是省键），所以第 i 趟之后每个键都该正好 i+1 列。
+        /// 少一列会让后面的列整体错位，而框架侧只以「列数与语言数不符」整批拒收，故在这里点名缺的是哪一种语言。
         /// </remarks>
         private Dictionary<string, List<string>> BuildAllLocalizedStrings()
         {
@@ -89,9 +94,7 @@ namespace Moirai.GameProto.Config
 
             for (int i = 0; i < codes.Length; i++)
             {
-                var column = ReadLanguageColumn(codes[i]);
-
-                foreach (var pair in column)
+                foreach (var pair in ReadLanguageColumn(codes[i]))
                 {
                     if (localizedStrings.TryGetValue(pair.Key, out var columns))
                     {
@@ -99,13 +102,10 @@ namespace Moirai.GameProto.Config
                     }
                     else
                     {
-                        // 每种语言那份数据都含全部键（缺译是空串而不是省键），所以第 i 列的行数即已装载的语言数
                         localizedStrings.Add(pair.Key, new List<string>(codes.Length) { pair.Value });
                     }
                 }
 
-                // 每种语言那份数据都含全部键（缺译是空串而不是省键），所以第 i 趟之后每个键都该正好 i+1 列。
-                // 少一列说明这一语言漏了键，继续拼只会让后面的列整体错位，而框架侧只以「列数与语言数不符」整批拒收
                 foreach (var entry in localizedStrings)
                 {
                     if (entry.Value.Count != i + 1)
@@ -122,16 +122,14 @@ namespace Moirai.GameProto.Config
         }
 
         /// <summary>
-        /// 按语言子目录装载一份多语言表并压平成 key → 译文。
+        /// 按语言子目录装载一份多语言表，压平成 key → 译文。
         /// </summary>
-        private Dictionary<string, string> ReadLanguageColumn(string languageCode)
+        private static Dictionary<string, string> ReadLanguageColumn(string languageCode)
         {
-            LogUtility.Info("<color=yellow>▼▼▼ Start Load Localization Column[{0}] ▼▼▼</color>",
+            LogUtility.Info("<color=yellow>\u25bc\u25bc\u25bc\u25bc Start Load Localization Column[{0}] \u25bc\u25bc\u25bc\u25bc</color>",
                 languageCode);
 
-            // Tables 里没有多语言表：它按语言分份，逐语言自建，不占启动期的整表展开。
-            // 走 LoadTable 而不是直接 new：bin 与 json 两条路线的构造器收的缓冲类型不同，
-            // 由生成代码自己决定，换路线不必改这里。
+            // 多语言表不在 Tables 里：它按语言分份导出，逐语言自建，不占启动期的整表展开
             var table = LoadTable<TbLocalizedStrings>(languageCode + "/" + LOCALIZED_STRINGS_TABLE);
 
             var column = new Dictionary<string, string>(table.DataList.Count);
@@ -140,7 +138,7 @@ namespace Moirai.GameProto.Config
                 column[data.Key] = data.FormattedStrings.Text;
             }
 
-            LogUtility.Info("<color=yellow>▲▲▲ Localization Column[{0}] Loaded: {1} entries ▲▲▲</color>",
+            LogUtility.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 Localization Column[{0}] Loaded: {1} entries \u25b2\u25b2\u25b2\u25b2</color>",
                 languageCode, column.Count);
 
             return column;
@@ -166,9 +164,10 @@ namespace Moirai.GameProto.Config
         }
 
         /// <summary>
-        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas。
+        /// 根据图集名（配置表 id 必须为图集名）获取实际 SpriteAtlas
         /// </summary>
-        /// <param name="id">UISprite - SpriteAtlas 配置表的 id。</param>
+        /// <param name="id">UISprite - SpriteAtlas 配置表的 id</param>
+        /// <param name="cancellationToken"></param>
 #pragma warning disable CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
         public override async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
 #pragma warning restore CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行

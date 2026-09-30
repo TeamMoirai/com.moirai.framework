@@ -20,7 +20,8 @@
 | `Moirai.Atropos.ConfigTable.ConfigTableService` | 配置表静态外观（`[HandlerHost]`）：`GetAllLocalizedStrings`、`GetLocalizationLanguageCodes`、`SupportsPerLanguageLocalizationLoad`、`GetLocalizedStringsByLanguage`、`LoadSpriteByID`、`GetUIWindowLocation`；查询 API 经 `s_Handler?.` 转发（未就绪时静默降级为 null / 空集，按语言取列的开关降级为 `false`），处理器懒加载优先从 settings 取、再回退默认工厂，两者都取不到才抛异常 |
 | `Moirai.Atropos.ConfigTable.ConfigTableServiceHandler` | 配置表处理器抽象基类（继承 `FrameworkHandler`），定义后端契约；未安装自定义处理器时使用 `DefaultConfigTableHandler`（记录错误并返回空结果） |
 | `Moirai.GameProto.Config.LubanHandler` | 游戏侧处理器（继承 `ConfigTableServiceHandler`），编辑器脚本重载时经 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 安装，桥接 Luban 生成代码与框架外观 |
-| `Moirai.GameProto.Config.Tables` | Luban 生成的表集合（如 `TbLocalizedStrings`、`TbUIWindow`、`TbSprite`、`TbSpriteAtlas` 及业务表） |
+| `Moirai.GameProto.Config.Tables` | Luban 生成的表集合（`TbUIWindow`、`TbSprite`、`TbSpriteAtlas` 及业务表）。**不含多语言表**——那些按语言分份，见下一行 |
+| `Moirai.GameProto.Config.L10nTables` | 多语言表集合（`TbLocalizedStrings`、`TbLocalizedAudio`、`TbLocalizedImages`）。运行期不构造它，处理器按语言子目录逐张自建（`LubanHandler.LoadTable<T>`） |
 | `Moirai.Atropos.ConfigTable.LubanSettings` | 编辑器设置（`FrameworkSettings`，面板「[框架]Luban 配置」）：配置表根目录、数据/代码导出路径 |
 | `Moirai.Atropos.ConfigTable.Editor.LubanTools` | 转表菜单：`Tools/Config/Luban 转表 &X`、`Tools/Config/打开表格目录` |
 
