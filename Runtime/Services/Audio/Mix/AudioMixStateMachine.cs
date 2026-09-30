@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -11,21 +12,27 @@ namespace Moirai.Atropos.Audio
     public enum EMixSnapshot
     {
         /// <summary>默认混音。</summary>
+        [LabelText("Default (默认混音)")]
         Default = 0,
 
         /// <summary>游戏暂停（压低全部，保留 UI）。</summary>
+        [LabelText("Paused (游戏暂停，压低全部)")]
         Paused,
 
         /// <summary>对白优先（压低 Music/Sfx）。</summary>
+        [LabelText("Dialogue (对白优先，压低 Music/Sfx)")]
         Dialogue,
 
         /// <summary>过场/演出。</summary>
+        [LabelText("Cinematic (过场/演出)")]
         Cinematic,
 
         /// <summary>水下/隔墙等闷响。</summary>
+        [LabelText("Muffled (水下/隔墙等闷响)")]
         Muffled,
 
         /// <summary>低生命值紧张。</summary>
+        [LabelText("LowHealth (低生命值紧张)")]
         LowHealth,
     }
 
@@ -140,24 +147,29 @@ namespace Moirai.Atropos.Audio
                 bound++;
             }
 
-            WarnUnboundAfterAutoBind();
             return bound;
         }
 
         /// <summary>
-        /// 自动绑定后仍无 Snapshot 的状态告警一次（Default 例外：回 Mixer 默认态属正常）。
+        /// 对「已配置却在自动绑定后仍无 Snapshot」的状态告警一次。
         /// </summary>
-        private void WarnUnboundAfterAutoBind()
+        /// <param name="configuredEntries">Settings 混音快照配置；未列出的状态走内置默认，不告警。</param>
+        /// <remarks>Default 例外：回 Mixer 默认态属正常。</remarks>
+        internal void WarnUnboundAfterAutoBind(AudioMixSnapshotEntry[] configuredEntries)
         {
-            var states = (EMixSnapshot[])Enum.GetValues(typeof(EMixSnapshot));
-            for (int i = 0; i < states.Length; i++)
+            if (configuredEntries == null || configuredEntries.Length == 0) return;
+
+            for (int i = 0; i < configuredEntries.Length; i++)
             {
-                var state = states[i];
+                var entry = configuredEntries[i];
+                if (entry == null) continue;
+
+                var state = entry.State;
                 if (state == EMixSnapshot.Default) continue;
                 if (FindSnapshot(state) != null) continue;
 
                 AudioWarnOnce.Warning($"mix.auto-bind-missing:{state}",
-                    "[AudioMix] 自动绑定后状态 {0} 仍无 AudioMixerSnapshot（Mixer 内需有同名 Snapshot，或在 AudioServiceSettings.MixSnapshots 手工映射）。",
+                    "[AudioMix] 已配置状态 {0} 但自动绑定后仍无 AudioMixerSnapshot（Mixer 内需有同名 Snapshot，或在 AudioServiceSettings.MixSnapshots 手工映射）。",
                     state);
             }
         }
@@ -302,7 +314,8 @@ namespace Moirai.Atropos.Audio
         /// 初始化混音状态机（OnInit 时由 <c>AudioService</c> 调用，或游戏侧手动）。
         /// </summary>
         /// <remarks>
-        /// 绑定顺序：铺空条目 → Settings 手工映射优先写入 → 空缺按名自动绑定；已配置条目一律不被覆盖。
+        /// 绑定顺序：铺空条目 → Settings 手工映射优先写入 → 空缺按名自动绑定；已配置条目一律不被覆盖。<br />
+        /// 告警口径：仅已配置却绑不上 Snapshot 的状态报 WarnUnboundAfterAutoBind；未配置走默认，不告警。
         /// </remarks>
         public static void Initialize(AudioMixer mixer)
         {
@@ -324,6 +337,9 @@ namespace Moirai.Atropos.Audio
             // Settings 未覆盖的空条目按名自动绑定（含 Default：Mixer 里名为 Default 的快照会被绑上，
             // 那是"回落"唯一真正可施加的目标）。这里不得再无条件清空 Default——那会抹掉作者刚配好的行。
             s_StateMachine.TryBindSnapshotsByName(mixer);
+
+            // 仅已配置却仍无 Snapshot 的状态告警；未配置走默认，不刷 WarnUnboundAfterAutoBind
+            s_StateMachine.WarnUnboundAfterAutoBind(entries);
         }
 
         /// <summary>当前状态机（可为 null）。</summary>
