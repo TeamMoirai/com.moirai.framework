@@ -2,17 +2,21 @@
 #
 # 触发：仅 workflow_dispatch（手动），输入 tag + dry-run。
 #
-# 顺序：package.json 版本 → 从 CHANGELOG.md 切出 `[Unreleased]` 段当 Release notes →
-# 建 release → 把这份 notes 覆盖进 release 并 Publish → 开一个清空 `[Unreleased]` 段的 PR 等人工合并。
-# notes 取的是被打 tag 那个提交里的 CHANGELOG，所以 tag 树与 Release 页自洽；
-# master 上的清空要等 PR 合并才生效。dry-run 会切 notes 并打日志、调 create-release（dry），
-# 但不 Publish、不建清空 PR。
+# 顺序：从 CHANGELOG.md 切出 `[Unreleased]` 段当 Release notes →
+# 一笔 commit 同时写入 package.json 版本号并把 CHANGELOG 整份重置为空白模板 →
+# 用这笔 commit 打 tag 建 release → 把先前切好的 notes 覆盖进 release 并 Publish。
+# 该 commit 的 message 就是 Release note 标题（`v{版本}`，与 create-release 的
+# release-format: v{0} 同串）。package.json 与 CHANGELOG 同 commit，发版自动化只留一笔；
+# notes 在换模板之前切出，所以 tag 树里 CHANGELOG 已是空白模板，发出去的条目
+# 在 GitHub Releases 与该 commit 父提交的历史里。
+# dry-run 会切 notes 并打日志、把合并 commit 推到 test-release/{版本}、调 create-release（dry），
+# 但不 Publish。
 #
 # 两条硬约定（丢的是 CHANGELOG 内容，静默且难捞）：
-# 1. 合并本次清空 PR 之后才能打下一个 tag——否则 Unreleased 里上一版条目会被下一个
-#    Release 整段再发一次（空段闸门只挡「完全没写」，挡不住「重复发」）。
-# 2. 发版进行中不要往 master 的 `[Unreleased]` 写新条目——清空 PR 按自己 checkout 时
-#    的 tip 把整段删光，窗口期内新写的条目会一并消失且不进任何 Release。
+# 1. 发版进行中不要往 master 的 `[Unreleased]` 写新条目——合并 commit 整文件换模板，
+#    窗口期内新写的条目会一并消失且不进任何 Release。
+# 2. 重跑时若本 tag 的 Release commit 已落地，notes 从其父提交的 CHANGELOG 重新切出，
+#    不要手工往已换模板的 `[Unreleased]` 回填上一版条目。
 #
 # 为什么是事后改 body 而不是自己建 release：外部的 create-release 复用流硬编码
 # `gh release create --draft --generate-notes`，没有 notes 入口。
@@ -37,86 +41,179 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update-packagejson:
+  prepare-release:
+    name: Cut notes and commit package.json + CHANGELOG
     permissions:
       actions: read
       contents: write
-    uses: TeamMoirai/GitHubActions/.github/workflows/update-packagejson.yaml@master
-    with:
-      file-path: ./package.json
-      tag: ${{ inputs.tag }}
-      dry-run: ${{ inputs.dry-run }}
-
-  release-notes:
-    name: Cut release notes
-    needs: [update-packagejson]
-    permissions:
-      contents: read
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      version: ${{ steps.commit.outputs.version }}
     steps:
-      - name: Checkout the commit being released
-        uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
+      # 组织的复合 checkout 硬写 persist-credentials: false，这一步要推分支，直接用官方 action。
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ needs.update-packagejson.outputs.sha }}
+          ref: ${{ github.ref }}
           # 上一版的 tag 要沿祖先找（生成 compare 链接），所以要全历史 + tags
           fetch-depth: 0
           fetch-tags: "true"
 
-      - name: Cut the [Unreleased] section
+      - name: Cut notes and write the release commit
+        id: commit
         env:
           TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          BASE: ${{ github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          body="${RUNNER_TEMP}/unreleased.md"
+
+          # 与 TeamMoiraiActions validate-tag 同口径：去前缀 v，禁止空串。
+          VERSION="${TAG#v}"
+          if [ -z "${VERSION}" ]; then
+            echo "::error::tag 不能为空。"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+          # 禁止往回打更旧的 tag（有 release 时才比；解析不了就退回分段比较）。
+          latest="$(gh release list --exclude-drafts --exclude-pre-releases --json tagName,isLatest \
+            --jq '.[] | select(.isLatest == true) | .tagName' 2>/dev/null || true)"
+          latest="${latest#v}"
+          if [ -n "${latest}" ] && [ "${latest}" != "${VERSION}" ]; then
+            if ! python3 - "${VERSION}" "${latest}" <<'PY'
+          import sys
+          def key(s):
+              parts = s.replace('-', '.').split('.')
+              out = []
+              for p in parts:
+                  out.append((0, int(p)) if p.isdigit() else (1, p))
+              return out
+          sys.exit(0 if key(sys.argv[1]) >= key(sys.argv[2]) else 1)
+          PY
+            then
+              echo "::error::tag ${TAG} 早于最新 release ${latest}，拒绝回退版本。"
+              exit 1
+            fi
+          fi
+
+          # commit message = Release note 标题，与 create-release 的 release-format: v{0} 同串。
+          title="v${VERSION}"
+          branch="${BASE}"
+          if [ "${DRY_RUN}" = "true" ]; then
+            branch="test-release/${VERSION}"
+          fi
+
+          # 重跑：本 tag 的 Release commit 已在分支上 → 取回该 sha，从其父提交重切 notes，不重复提交。
+          # subject 全串相等匹配，不走 --grep 正则（`v1.0.0` 里的 `.` 会误配）。
+          existing_sha=""
+          while read -r sha subject; do
+            if [ "${subject}" = "${title}" ]; then
+              existing_sha="${sha}"
+              break
+            fi
+          done < <(git log "${BASE}" --format='%H %s')
+          if [ -n "${existing_sha}" ]; then
+            echo "::notice::\`${BASE}\` 上已有 commit message \`${title}\`（${existing_sha}），从其父提交重切 notes。"
+            git show "${existing_sha}^:CHANGELOG.md" > CHANGELOG.md
+            echo "sha=${existing_sha}" >> "${GITHUB_OUTPUT}"
+            already_committed=1
+          else
+            already_committed=0
+          fi
+
+          # ---- 切 notes（在换模板之前；重跑路径上 CHANGELOG 已是父提交内容）----
+          notes_body="${RUNNER_TEMP}/unreleased.md"
           notes="${RUNNER_TEMP}/release-notes.md"
 
           if ! grep -qE '^## \[Unreleased\][[:space:]]*$' CHANGELOG.md; then
             echo "::error::CHANGELOG.md 里找不到 ## [Unreleased] 标题。"
             exit 1
           fi
-          # 段界 = [Unreleased] 标题之后到下一个 ## 之前；去掉首尾空行与 CRLF。
           sed -e 's/\r$//' CHANGELOG.md | awk '
             /^## \[Unreleased\][[:space:]]*$/ { f = 1; next }
             f && /^## /                       { f = 0 }
             f
-          ' | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba' -e '}' > "${body}"
-          if [ ! -s "${body}" ]; then
+          ' | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba' -e '}' > "${notes_body}"
+          if [ ! -s "${notes_body}" ]; then
             echo "::error::[Unreleased] 段是空的，这一版没有可发行的内容。"
             exit 1
           fi
 
-          prev="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
+          prev="$(git describe --tags --abbrev=0 "${existing_sha:-HEAD}^" 2>/dev/null || true)"
           {
             if [ -n "${prev}" ]; then
               printf '> 相对 `%s` 的净结果；逐条对比见 [%s...%s](https://github.com/%s/compare/%s...%s)。\n>\n' \
                 "${prev}" "${prev}" "${TAG}" "${GH_REPO}" "${prev}" "${TAG}"
             fi
             printf '> 标记 ⚠ 的是破坏性变更。\n\n'
-            cat "${body}"
+            cat "${notes_body}"
           } > "${notes}"
 
           echo "release notes ↓↓↓"
           cat "${notes}"
+          mkdir -p "${RUNNER_TEMP}/artifact"
+          cp "${notes}" "${RUNNER_TEMP}/artifact/release-notes.md"
+
+          # 重跑已提交则不再改文件、不再推。
+          if [ "${already_committed}" = "1" ]; then
+            exit 0
+          fi
+
+          # ---- 一笔 commit：package.json 版本 + CHANGELOG 空白模板 ----
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" package.json
+          python3 -c 'import json,sys; assert json.load(open("package.json", encoding="utf-8"))["version"]==sys.argv[1]' "${VERSION}"
+
+          cat > CHANGELOG.md << 'EOF'
+          # Changelog
+
+          格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
+
+          本文件只留 `[Unreleased]` 一段，按**后覆盖**维护：只记尚未发行的净结果，发版时该段定名后移到 [GitHub Releases](https://github.com/TeamMoirai/com.moirai.framework/releases) 并清空。被后续变更推翻的中间态不留条目——同一件事被推翻时改掉或删掉原条目。排版：`###` 是变更类型，段内 `####` 按模块分组，一条只说一个事实、写成一行不折行；本段会原样作为 release note 发布——面向外部读者压缩精简，只写净结果与迁移口径，诊断与来龙去脉不进本文件。标记 ⚠ 的是破坏性变更。
+
+          ## [Unreleased]
+          EOF
+
+          git add package.json CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "::notice::工作树已是发版终态，无需提交。"
+            echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "${title}" \
+            -m "发版 \`${VERSION}\` 一笔收口：package.json 写入版本号，CHANGELOG 整份重置为空白模板。条目已切为 Release notes。"
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            git push origin "HEAD:refs/heads/${branch}"
+          else
+            git pull --rebase origin "${BASE}"
+            git push origin "HEAD:refs/heads/${BASE}"
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - uses: TeamMoirai/GitHubActions/.github/actions/upload-artifact@master
         with:
           name: release-notes
-          path: ${{ runner.temp }}/release-notes.md
+          path: ${{ runner.temp }}/artifact/release-notes.md
           retention-days: 1
 
 #  build-dotnet:
-#    needs: [update-packagejson]
+#    needs: [prepare-release]
 #    permissions:
 #      contents: read
 #    runs-on: ubuntu-24.04
 #    timeout-minutes: 10
 #    steps:
-#      - run: echo ${{ needs.update-packagejson.outputs.sha }}
+#      - run: echo ${{ needs.prepare-release.outputs.sha }}
 #      - uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
 #        with:
-#          ref: ${{ needs.update-packagejson.outputs.sha }}
+#          ref: ${{ needs.prepare-release.outputs.sha }}
 #      - uses: TeamMoirai/GitHubActions/.github/actions/setup-dotnet@master
 #      # build and pack nuget (.nupkg and .symbols.nupkg will be created)
 #      - run: dotnet build -c Release -p:Version=${{ inputs.tag }}
@@ -130,7 +227,7 @@ jobs:
 #          retention-days: 1
 #
 #  build-unity:
-#    needs: [update-packagejson]
+#    needs: [prepare-release]
 #    strategy:
 #      matrix:
 #        unity: ["2022.3.39f1"]
@@ -139,10 +236,10 @@ jobs:
 #    runs-on: ubuntu-24.04
 #    timeout-minutes: 15
 #    steps:
-#      - run: echo ${{ needs.update-packagejson.outputs.sha }}
+#      - run: echo ${{ needs.prepare-release.outputs.sha }}
 #      - uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
 #        with:
-#          ref: ${{ needs.update-packagejson.outputs.sha }}
+#          ref: ${{ needs.prepare-release.outputs.sha }}
 #      # Execute scripts: Export Package
 #      # /opt/Unity/Editor/Unity -quit -batchmode -nographics -silent-crashes -logFile -projectPath . -executeMethod PackageExporter.Export
 #      - name: Build Unity (.unitypacakge)
@@ -193,14 +290,14 @@ jobs:
 
   # release
   create-release:
-    needs: [update-packagejson, release-notes] # notes 切不出来就别落 tag
-#    needs: [update-packagejson, publish, release-notes]
+    needs: [prepare-release] # notes 切不出来就别落 tag
+#    needs: [prepare-release, publish]
     permissions:
       contents: write
       id-token: write # required for NuGet Trusted Publish
     uses: TeamMoirai/GitHubActions/.github/workflows/create-release.yaml@master
     with:
-      commit-id: ${{ needs.update-packagejson.outputs.sha }}
+      commit-id: ${{ needs.prepare-release.outputs.sha }}
       dry-run: ${{ inputs.dry-run }}
       tag: ${{ inputs.tag }}
       nuget-push: false
@@ -211,7 +308,7 @@ jobs:
 
   apply-release-notes:
     name: Publish with CHANGELOG notes
-    needs: [release-notes, create-release]
+    needs: [prepare-release, create-release]
     if: ${{ !inputs.dry-run }}
     permissions:
       contents: write # release edit 走 contents 权限
@@ -246,74 +343,13 @@ jobs:
             exit 1
           fi
 
-  clear-changelog:
-    name: Open CHANGELOG clear PR
-    needs: [apply-release-notes]
-    if: ${{ !inputs.dry-run }}
-    permissions:
-      contents: write
-      pull-requests: write
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      # 组织的复合 checkout 硬写 persist-credentials: false，这一步要推分支，直接用官方 action。
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.ref }}
-
-      - name: Empty the [Unreleased] section and open the PR
-        env:
-          TAG: ${{ inputs.tag }}
-          BASE: ${{ github.ref_name }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          branch="clear-changelog/${TAG}"
-          title="chore(automate): Clear CHANGELOG.md for ${TAG}"
-
-          if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
-            echo "::notice::分支 ${branch} 已存在（重跑？），不重复开 PR。"
-            exit 0
-          fi
-          if ! grep -qE '^## \[Unreleased\][[:space:]]*$' CHANGELOG.md; then
-            echo "::error::CHANGELOG.md 里找不到 ## [Unreleased] 标题。"
-            exit 1
-          fi
-          # 只留标题与前言，段整段删掉——发出去的净结果已经在 Release 页。
-          sed -e 's/\r$//' CHANGELOG.md | sed -n '1,/^## \[Unreleased\][[:space:]]*$/p' > CHANGELOG.md.tmp
-          mv CHANGELOG.md.tmp CHANGELOG.md
-          git add CHANGELOG.md
-          if git diff --cached --quiet; then
-            echo "::notice::[Unreleased] 段本来就是空的，无需清空。"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "${title}"
-          git push origin "HEAD:refs/heads/${branch}"
-
-          {
-            echo "发版 \`${TAG}\` 之后清空 CHANGELOG 的 \`[Unreleased]\` 段。"
-            echo ""
-            echo "这一段已作为 Release notes 发布：<https://github.com/${GH_REPO}/releases/tag/${TAG}>。"
-            echo "合并后 \`[Unreleased]\` 重新从零记。"
-            echo ""
-            echo "请在打下一个 tag 之前合并本 PR——否则上一版条目会被下一个 Release 整段再发一次。"
-            echo "若发版窗口里有人写了新条目，本 PR 会把它们一并清掉（整段删）；合并前请核对 diff。"
-            echo ""
-            echo "PR 由 GITHUB_TOKEN 开出，不触发 checks（本 PR 只动 CHANGELOG.md）。"
-          } > "${RUNNER_TEMP}/pr-body.md"
-          gh pr create --base "${BASE}" --head "${branch}" --title "${title}" --body-file "${RUNNER_TEMP}/pr-body.md"
-
   cleanup:
-    # always()：release-notes 有意失败（空段）时 create-release 会被 skip，
-    # 默认语义会连带跳过本步，update-packagejson 建的临时分支就泄在远端。
-    if: ${{ always() && needs.update-packagejson.result == 'success' && needs.update-packagejson.outputs.is-branch-created == 'true' }}
-    needs: [update-packagejson, create-release]
+    # always()：notes 有意失败（空段）时 create-release 会被 skip，
+    # 默认语义会连带跳过本步，dry-run 建的 test-release 分支就泄在远端。
+    if: ${{ always() && inputs.dry-run && needs.prepare-release.result == 'success' }}
+    needs: [prepare-release, create-release]
     permissions:
       contents: write
     uses: TeamMoirai/GitHubActions/.github/workflows/clean-packagejson-branch.yaml@master
     with:
-      branch: ${{ needs.update-packagejson.outputs.branch-name }}
+      branch: test-release/${{ needs.prepare-release.outputs.version }}
