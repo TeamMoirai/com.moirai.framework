@@ -42,6 +42,7 @@
 
 #### 音频
 
+- `WarnUnboundAfterAutoBind` 只对 `MixSnapshots` 已配置却绑不上 Snapshot 的状态告警；未配置走默认不再刷警告（Default 仍例外）。
 - `AudioMainThread.AssertMainThread` 断言消息插值挪进失败分支——播放入口主线程快路径零分配（此前每调用恒 1 次 GC 分配）。
 
 #### UI
