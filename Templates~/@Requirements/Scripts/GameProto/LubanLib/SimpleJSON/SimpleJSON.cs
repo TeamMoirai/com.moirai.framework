@@ -1,3 +1,23 @@
+// Copyright 2025 Code Philosophy
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 /* * * * *
  * A simple JSON Parser / builder
  * ------------------------------
@@ -12,7 +32,7 @@
  * 
  * The MIT License (MIT)
  * 
- * Copyright (c) 2012-2022 Markus Göbel (Bunny83)
+ * Copyright (c) 2012-2019 Markus Göbel (Bunny83)
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +60,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace SimpleJSON
+namespace Luban.SimpleJSON
 {
     public enum JSONNodeType
     {
@@ -58,8 +78,6 @@ namespace SimpleJSON
         Compact,
         Indent
     }
-
-    #region JSONNode
 
     public abstract partial class JSONNode
     {
@@ -317,13 +335,13 @@ namespace SimpleJSON
             get
             {
                 long val = 0;
-                if (long.TryParse(Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out val))
+                if (long.TryParse(Value, out val))
                     return val;
                 return 0L;
             }
             set
             {
-                Value = value.ToString(CultureInfo.InvariantCulture);
+                Value = value.ToString();
             }
         }
 
@@ -332,13 +350,13 @@ namespace SimpleJSON
             get
             {
                 ulong val = 0;
-                if (ulong.TryParse(Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out val))
+                if (ulong.TryParse(Value, out val))
                     return val;
                 return 0;
             }
             set
             {
-                Value = value.ToString(CultureInfo.InvariantCulture);
+                Value = value.ToString();
             }
         }
 
@@ -365,7 +383,7 @@ namespace SimpleJSON
 
         public static implicit operator JSONNode(string s)
         {
-            return (s == null) ? (JSONNode)JSONNull.CreateOrGet() : new JSONString(s);
+            return (s == null) ? (JSONNode) JSONNull.CreateOrGet() : new JSONString(s);
         }
         public static implicit operator string(JSONNode d)
         {
@@ -402,7 +420,7 @@ namespace SimpleJSON
         public static implicit operator JSONNode(long n)
         {
             if (longAsString)
-                return new JSONString(n.ToString(CultureInfo.InvariantCulture));
+                return new JSONString(n.ToString());
             return new JSONNumber(n);
         }
         public static implicit operator long(JSONNode d)
@@ -413,7 +431,7 @@ namespace SimpleJSON
         public static implicit operator JSONNode(ulong n)
         {
             if (longAsString)
-                return new JSONString(n.ToString(CultureInfo.InvariantCulture));
+                return new JSONString(n.ToString());
             return new JSONNumber(n);
         }
         public static implicit operator ulong(JSONNode d)
@@ -717,10 +735,7 @@ namespace SimpleJSON
         }
 
     }
-    
-    #endregion JSONNode
-
-    #region JSONArray
+    // End of JSONNode
 
     public partial class JSONArray : JSONNode
     {
@@ -802,7 +817,7 @@ namespace SimpleJSON
         {
             var node = new JSONArray();
             node.m_List.Capacity = m_List.Capacity;
-            foreach (var n in m_List)
+            foreach(var n in m_List)
             {
                 if (n != null)
                     node.Add(n.Clone());
@@ -839,15 +854,12 @@ namespace SimpleJSON
                     aSB.Append(' ', aIndent + aIndentInc);
                 m_List[i].WriteToStringBuilder(aSB, aIndent + aIndentInc, aIndentInc, aMode);
             }
-            if (count > 0 && aMode == JSONTextMode.Indent)
+            if (aMode == JSONTextMode.Indent)
                 aSB.AppendLine().Append(' ', aIndent);
             aSB.Append(']');
         }
     }
-    
-    #endregion JSONArray
-
-    #region JSONObject
+    // End of JSONArray
 
     public partial class JSONObject : JSONNode
     {
@@ -1014,19 +1026,16 @@ namespace SimpleJSON
                 if (aMode == JSONTextMode.Compact)
                     aSB.Append(':');
                 else
-                    aSB.Append(": ");
+                    aSB.Append(" : ");
                 k.Value.WriteToStringBuilder(aSB, aIndent + aIndentInc, aIndentInc, aMode);
             }
-            if (m_Dict.Count > 0 && aMode == JSONTextMode.Indent)
+            if (aMode == JSONTextMode.Indent)
                 aSB.AppendLine().Append(' ', aIndent);
             aSB.Append('}');
         }
 
     }
-    
-    #endregion JSONObject
-
-    #region JSONString
+    // End of JSONObject
 
     public partial class JSONString : JSONNode
     {
@@ -1081,11 +1090,8 @@ namespace SimpleJSON
             m_Data = "";
         }
     }
-    
-    #endregion JSONString
+    // End of JSONString
 
-    #region JSONNumber
-    
     public partial class JSONNumber : JSONNode
     {
         private double m_Data;
@@ -1138,7 +1144,7 @@ namespace SimpleJSON
 
         internal override void WriteToStringBuilder(StringBuilder aSB, int aIndent, int aIndentInc, JSONTextMode aMode)
         {
-            aSB.Append(Value.ToString(CultureInfo.InvariantCulture));
+            aSB.Append(Value);
         }
         private static bool IsNumeric(object value)
         {
@@ -1171,11 +1177,8 @@ namespace SimpleJSON
             m_Data = 0;
         }
     }
+    // End of JSONNumber
 
-    #endregion JSONNumber
-
-    #region JSONBool
-    
     public partial class JSONBool : JSONNode
     {
         private bool m_Data;
@@ -1236,11 +1239,8 @@ namespace SimpleJSON
             m_Data = false;
         }
     }
-    
-    #endregion JSONBool
+    // End of JSONBool
 
-    #region JSONNull
-    
     public partial class JSONNull : JSONNode
     {
         static JSONNull m_StaticInstance = new JSONNull();
@@ -1289,10 +1289,8 @@ namespace SimpleJSON
             aSB.Append("null");
         }
     }
-    #endregion JSONNull
+    // End of JSONNull
 
-    #region JSONLazyCreator
-    
     internal partial class JSONLazyCreator : JSONNode
     {
         private JSONNode m_Node = null;
@@ -1399,7 +1397,7 @@ namespace SimpleJSON
             set
             {
                 if (longAsString)
-                    Set(new JSONString(value.ToString(CultureInfo.InvariantCulture)));
+                    Set(new JSONString(value.ToString()));
                 else
                     Set(new JSONNumber(value));
             }
@@ -1418,7 +1416,7 @@ namespace SimpleJSON
             set
             {
                 if (longAsString)
-                    Set(new JSONString(value.ToString(CultureInfo.InvariantCulture)));
+                    Set(new JSONString(value.ToString()));
                 else
                     Set(new JSONNumber(value));
             }
@@ -1444,8 +1442,7 @@ namespace SimpleJSON
             aSB.Append("null");
         }
     }
-    
-    #endregion JSONLazyCreator
+    // End of JSONLazyCreator
 
     public static class JSON
     {
