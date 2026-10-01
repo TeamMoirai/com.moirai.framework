@@ -121,7 +121,7 @@ namespace Moirai.Atropos.Localization
 			if (policy == null) return tag + "（资源模式：注入器按该 location 取资源）";
 			if (Application.isPlaying) return tag + "（运行期按租约加载）";
 
-			var asset = ResourceService.LoadAssetForEditor(location);
+			ResourceService.TryLoadAsset(location, out UObject asset);
 			if (asset == null) return tag + " ✗ location 指向的资产取不到";
 
 			var described = $"{tag} → {asset.GetType().Name} '{asset.name}'";
