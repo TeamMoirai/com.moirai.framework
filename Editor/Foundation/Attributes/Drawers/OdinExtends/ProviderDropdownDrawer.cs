@@ -13,12 +13,10 @@ namespace Moirai.Atropos
     /// <see cref="ProviderDropdownAttribute"/> 的 Drawer：接管下拉行绘制与子属性展开，是 Odin 下该特性的唯一实现。
     /// </summary>
     /// <remarks>
-    /// 子属性优先交由 Odin PropertyTree 绘制，实现类字段上的 Odin 特性（<c>[ValueDropdown]</c>、<c>[LabelText]</c>、<c>[InfoBox]</c> 等）据此生效， <br />
-    /// 无需再手加 <c>[DrawWithUnity]</c>。 <br />
-    /// 优先级 super=1，确保优先于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)，始终接管绘制。 <br />
-    /// 优先走 Unity SerializedProperty 串行化路径； <br />
-    /// <c>UnityPropertyPath</c> 解析失败或纯 Odin 宿主（无 SerializedObject）时退化为 Odin 值条目路径（<see cref="DrawValueEntryFallback"/>）， <br />
-    /// 不回退 Odin 默认 managed-reference 绘制。 <br />
+    /// 子属性优先交由 Odin PropertyTree 绘制，实现类字段上的 Odin 特性（<c>[ValueDropdown]</c>、<c>[LabelText]</c>、<c>[InfoBox]</c> 等）据此生效，无需再手加 <c>[DrawWithUnity]</c>。<br />
+    /// 优先级 super=1，优先于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)，始终接管绘制。<br />
+    /// 优先走 Unity SerializedProperty 路径；<c>UnityPropertyPath</c> 解析失败或纯 Odin 宿主（无 SerializedObject）时退化为 Odin 值条目路径（<see cref="DrawValueEntryFallback"/>）。<br />
+    /// 不回退 Odin 默认 managed-reference 绘制。<br />
     /// Odin 未解析出子属性时（如未启用多态序列化后端），子属性区回退为 Unity 序列化绘制。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]

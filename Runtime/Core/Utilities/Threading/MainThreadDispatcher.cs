@@ -560,11 +560,8 @@ namespace Moirai.Atropos
 
             return coreTask.AsUniTask();
 
-            // 队列签名为 Action：薄包装转发到 async UniTaskVoid（UniTask 的 fire-and-forget 标准形态）。
-            // 未被捕获的异常经 UniTaskScheduler.PublishUnobservedTaskException 发布（集中可观测），
-            // 而非 async void 的同步上下文逃逸路径。try/catch/finally 仍不可省略——异常必须路由进完成源，
-            // PublishUnobservedTaskException 不会代劳；勿把任何逻辑移出 try 块。
-            // （两个局部函数共享同一闭包显示类，委托分配与 async void 版本相同。）
+            // 队列签名为 Action：薄包装经 UniTaskVoid.Forget() 转发，未捕获异常由 UniTaskScheduler 集中发布。
+            // try/catch/finally 不可省略——异常必须路由进完成源，PublishUnobservedTaskException 不会代劳，勿把逻辑移出 try 块。
             void WrappedAction() => RunInner().Forget();
 
             async UniTaskVoid RunInner()
@@ -621,11 +618,8 @@ namespace Moirai.Atropos
 
             return coreTask;
 
-            // 队列签名为 Action：薄包装转发到 async UniTaskVoid（UniTask 的 fire-and-forget 标准形态）。
-            // 未被捕获的异常经 UniTaskScheduler.PublishUnobservedTaskException 发布（集中可观测），
-            // 而非 async void 的同步上下文逃逸路径。try/catch/finally 仍不可省略——异常必须路由进完成源，
-            // PublishUnobservedTaskException 不会代劳；勿把任何逻辑移出 try 块。
-            // （两个局部函数共享同一闭包显示类，委托分配与 async void 版本相同。）
+            // 队列签名为 Action：薄包装经 UniTaskVoid.Forget() 转发，未捕获异常由 UniTaskScheduler 集中发布。
+            // try/catch/finally 不可省略——异常必须路由进完成源，PublishUnobservedTaskException 不会代劳，勿把逻辑移出 try 块。
             void WrappedAction() => RunInner().Forget();
 
             async UniTaskVoid RunInner()

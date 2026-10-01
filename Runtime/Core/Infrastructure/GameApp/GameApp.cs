@@ -53,12 +53,8 @@ namespace Moirai.Atropos
 
         #region 属性 [PROPERTIES]
 
-        // 运行态与配置态分离：GameAppSettings 的 m_* 字段只作开机默认值（由 Initiation 推给引擎一次），
-        // 运行期不再回写。往资产里写运行时值有两个后果：Resources 下的共享 ScriptableObject 在编辑器里
-        // 跨 Play 会话残留；且 IsGamePaused 这类判据读到的是配置意图而非引擎实况。
-        // 播种点取引擎当前值（见 Initialize 里的 SeedRuntimeFromEngine），因此本类运行期不再解引用配置资产。
-        // 这五个字段承载的是**引擎状态的门面**而非框架存活状态：IsShutdown 之后照样可读写、不抛，写入即刻
-        // 作用于引擎，并在下一次 Initialize 时被重新播种成基线——关闭后调它们不会丢，只是改的是实况本身。
+        // 引擎状态的门面而非框架存活状态：由 Initialize 从配置播种，运行期写入即刻作用于引擎；
+        // IsShutdown 之后仍可读写不抛，下次 Initialize 重新播种为配置基线。
         private static int s_FrameRate;
         private static float s_GameSpeed = 1f;
         private static bool s_RunInBackground;

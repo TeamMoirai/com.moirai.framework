@@ -73,19 +73,8 @@ namespace Moirai.Atropos.Collections
             if (count == 1) return new List<T>(1) { list[RandomUtility.NextInt(n)] };
             if (count >= n) return list.Shuffled();
 
-            // --- 自适应路径选择 ---
-            //
-            // 策略 A（HashSet 拒绝采样）:
-            //   适合 count << n 的场景。
-            //   内存 O(count)，时间期望 O(count)，无需分配 O(n) 数组。
-            //   注意：Mono 的 HashSet 遍历顺序 ≠ 插入顺序，
-            //         因此必须按插入顺序写入 result，不能遍历 HashSet。
-            //
-            // 策略 B（部分 Fisher-Yates）:
-            //   适合 count 接近 n 的场景。
-            //   内存 O(n)，时间 O(count)，但需预分配索引数组。
-            //
-            // 分界线取 n / 3，经实验在两者之间取得较好平衡。
+            // count ≪ n 走拒绝采样（O(count) 时空，免 O(n) 索引数组）；接近 n 走部分 Fisher-Yates
+            // （O(count) 时间、O(n) 空间）。分界线取 n / 3。
 
             return count < n / 3
                 ? SampleByRejection(list, n, count)
@@ -110,6 +99,7 @@ namespace Moirai.Atropos.Collections
                     idx = RandomUtility.NextInt(n);
                 } while (!selected.Add(idx));
 
+                // 按采样顺序写入：Mono 的 HashSet 遍历顺序 ≠ 插入顺序，不得遍历 selected 取结果
                 result.Add(list[idx]);
             }
 

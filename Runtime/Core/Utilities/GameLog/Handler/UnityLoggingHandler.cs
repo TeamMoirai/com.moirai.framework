@@ -37,16 +37,12 @@ namespace Moirai.Atropos
 
             message ??= string.Empty;
 
-            // 日志类型前缀：默认 Editor 控制台 sink 的 outputTemplate 仅为 "{Message}"（不含 {Level} 占位符），
-            // 与其他实现类的输出对齐（ZLoggerHandler 的 {LogLevel:short}、SerilogHandler 默认模板的 [{Level:u3}]）；
+            // 手动拼 [级别] 前缀对齐其他 Handler 的输出（默认 sink 的 outputTemplate 不含 {Level} 占位符）；
             // 时间戳仍由后端 outputTemplate 的 {Timestamp} 占位符控制（见类注释）。
             string formatted = StringUtility.GetString(sb => sb.Append('[').Append(GetLevelTag(logLevel)).Append("] ").Append(message));
 
-            // 警示：com.unity.logging 的 Log.Info/Fatal 重载由源生成器按调用点生成，且按接收者文本前缀
-            // （"Log." / "Unity.Logging.Log." / 命名空间别名 + ".Log."）识别调用点。本类自身有同名方法 Log，
-            // 短名 Log.Info 会绑定到方法组（CS0119），且指向类型的 using 别名（如 using X = Unity.Logging.Log）
-            // 不会被生成器识别——两种写法都会让调用点静默落到兜底重载 Info(in FixedString32Bytes)，
-            // 超过 32 字节的消息在调用点的隐式转换处抛 Truncation 异常。故此处必须写全名。
+            // 必须写全名：源生成器按调用点文本识别 Log.* 重载，短名会绑定到本类同名方法组（CS0119）、
+            // using 别名不被识别——两者都会静默落到 32 字节兜底重载，超长消息在调用点抛 Truncation 异常。
             switch (logLevel)
             {
                 case ELogLevel.Verbose:

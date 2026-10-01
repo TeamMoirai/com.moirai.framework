@@ -12,7 +12,7 @@ namespace Service.UI
     /// <remarks>
     /// 「跳过写入」本身落在 uGUI 内部脏标记上，编辑器侧无法直接观测，故此处锁的是它的两个可见后果： <br />
     /// 内容未变时适配前后布局逐字段一致、外部改动仍被纠正到目标位；跳过判据的等价性由 <br />
-    /// <c>SetInsetAndSizeFromParentEdge</c> / <c>SetSizeWithCurrentAnchors</c> 的实测后置条件保证。
+    /// <c>SetInsetAndSizeFromParentEdge</c> / <c>SetSizeWithCurrentAnchors</c> 的后置条件保证。
     /// </remarks>
     [TestFixture]
     public sealed class UILayoutAdapterTests

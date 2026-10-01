@@ -39,7 +39,7 @@ namespace Moirai.Atropos.Audio
         /// <remarks>对外契约对 Unity 与中间件后端一致为线性 <c>0..1</c>；需要工程侧提升余量请改 Mixer 分组的暴露参数或 <c>m_MixerValuesMultiplier</c>。</remarks>
         public const float MAXIMAL_VOLUME = 1f;
 
-        /// <summary>扩展硬上限的缺省值——保持与历史上写死的 32 一致。</summary>
+        /// <summary>扩展硬上限的缺省值（32）。</summary>
         public const int HARD_CHANNEL_CEILING_DEFAULT = 32;
 
         /// <summary>扩展硬上限的绝对天花板：配置再大也不越过它（要更多声部应改 <see cref="MaxChannel"/>，而非拆掉保险）。</summary>

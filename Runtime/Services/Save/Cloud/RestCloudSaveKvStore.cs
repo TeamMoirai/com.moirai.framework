@@ -15,14 +15,13 @@ namespace Moirai.Atropos.Save
     /// REST 通用云端 KV 存储：按框架极简 REST 契约读写远端条目（HttpClient 纯 .NET 传输，任意线程可调用）。
     /// </summary>
     /// <remarks>
-    /// 契约（路径段逐段 URL 转义，<c>/</c> 为分隔符）：读 <c>GET {baseUrl}/{keyPrefix}{key}</c> 返回 200 与载荷字节， <br />
-    /// 响应头 <c>X-Save-Revision</c>（long 修订号）/ <c>ETag</c>（回退通道，引号包裹的 long）/ <c>Last-Modified</c>（远端权威时间戳），404 = 缺档； <br />
-    /// 写 <c>PUT</c>（application/octet-stream）、删 <c>DELETE</c>（2xx/404 均成功）、存在 <c>HEAD</c>（200/404）。 <br />
-    /// 枚举 <c>GET {baseUrl}?prefix={keyPrefix}{prefix}</c> 由服务端前缀过滤下推， <br />
-    /// 返回 JSON 数组 <c>[{"key","size","modified","revision"}]</c>（modified/revision 可缺省）；返回键须含 keyPrefix（本端剥离后交还调用方），前缀外键防御性跳过。 <br />
-    /// 超时/非约定状态码/网络失败一律抛异常，由 <see cref="CloudSaveStorageBackend"/> 归一为离线降级；用户取消抛 <see cref="OperationCanceledException"/>， <br />
-    /// 不计为远端失败。 <br />
-    /// 依赖 raw socket，WebGL 不可用（WebGL 项目改用 UGS 后端或 UnityWebRequest 自定义实现）。
+    /// 路径段逐段 URL 转义（<c>/</c> 为分隔符）：读 <c>GET {baseUrl}/{keyPrefix}{key}</c> 返回 200 与载荷字节，404 = 缺档。<br />
+    /// 响应头 <c>X-Save-Revision</c>（long 修订号）/ <c>ETag</c>（回退通道，引号包裹的 long）/ <c>Last-Modified</c>（远端权威时间戳）。<br />
+    /// 写 <c>PUT</c>（application/octet-stream）、删 <c>DELETE</c>（2xx/404 均成功）、存在 <c>HEAD</c>（200/404）。<br />
+    /// 枚举 <c>GET {baseUrl}?prefix={keyPrefix}{prefix}</c> 由服务端过滤下推，返回 JSON 数组 <c>[{"key","size","modified","revision"}]</c>。<br />
+    /// 数组元素的 modified/revision 可缺省；返回键须含 keyPrefix（本端剥离后交还调用方），前缀外键防御性跳过。<br />
+    /// 超时/非约定状态码/网络失败一律抛异常，由 <see cref="CloudSaveStorageBackend"/> 归一为离线降级；用户取消抛 <see cref="OperationCanceledException"/>，不计为远端失败。<br />
+    /// 依赖 raw socket，WebGL 不可用（改用 UGS 后端或 UnityWebRequest 自定义实现）。
     /// </remarks>
     [Serializable]
     public class RestCloudSaveKvStore : CloudSaveKvStore
