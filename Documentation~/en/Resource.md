@@ -61,7 +61,23 @@ Namespace: `Moirai.Atropos.Resource`
 
 ## Quick Start
 
-### Lease API (recommended)
+### Try-load family (`TryLoadAsset`) — when you do not want to own a lease
+
+Use these when you only want the object: internally the API takes a lease, reads the asset and releases it immediately, keeping it alive for `IdleAssetExpireTime` (60 s by default) on release. Once the service is initialized it goes through the lease path; uninitialized (editor, not playing) it reads `AssetDatabase` directly, so call sites no longer need their own `#if UNITY_EDITOR` branch.
+
+```csharp
+if (ResourceService.TryLoadAsset("Assets/AssetRaw/UI/icon.png", out Sprite icon))
+{
+    // Use it inside the keep-alive window; for long-lived display re-read through this API instead of storing icon
+}
+
+Texture2D tex = await ResourceService.TryLoadAssetAsync<Texture2D>("Assets/AssetRaw/UI/atlas.png", ct);
+// The async form signals failure with null: async methods cannot take out parameters
+```
+
+When you need to control the ref-count lifetime yourself, use the Lease API below.
+
+### Lease API (use when you own the lifetime)
 
 The Lease API provides explicit ownership with automatic release via `IDisposable`:
 
@@ -235,6 +251,8 @@ public readonly struct ResourceKey
 | `ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")` | Synchronously load and return a typed lease by location. |
 | `UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken)` | Asynchronously load and return a typed lease. |
 | `UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken, string packageName)` | Asynchronously load and return a typed lease by location. |
+| `bool TryLoadAsset<T>(string location, out T asset, string packageName = "")` | Load-and-hand-off family: takes a lease internally, reads the asset and releases it immediately (keeping it alive for `IdleAssetExpireTime` seconds on release); no lease reaches the caller. When the service is not initialized it reads `AssetDatabase` in the editor. |
+| `UniTask<T> TryLoadAssetAsync<T>(string location, CancellationToken, string packageName)` | Async counterpart. Async methods cannot take `out` parameters, so failure is signalled by `null`. |
 | `bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset)` | Read the Unity asset from a lease handle. |
 | `IResourceBindingService BindingService { get; }` | Access the binding service. |
 

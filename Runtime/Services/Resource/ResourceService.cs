@@ -396,6 +396,65 @@ namespace Moirai.Atropos.Resource
             RequireHandler().LoadLeaseAsync<T>(location, cancellationToken, packageName);
 
         /// <summary>
+        /// 按定位地址取资产，不把租约交给调用方：运行期取租约、读出对象后即刻归还，编辑态（服务未初始化）直读 <c>AssetDatabase</c>。
+        /// </summary>
+        /// <remarks>
+        /// 归还时带 <see cref="EResourceLeaseOption.KeepAliveOnRelease"/>，取到的对象在 <see cref="IdleAssetExpireTime"/> 窗口内不会被卸载；
+        /// 窗口过后资产可能已被卸载，此时调用方长期存着的裸引用会变成已销毁对象 —— 需要每帧回读本入口取值，不要把结果跨长周期保存。
+        /// </remarks>
+        /// <param name="location">资源定位地址。</param>
+        /// <param name="asset">取到的资产，失败为 <c>null</c>。</param>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <returns>地址为空或取不到时为 <c>false</c>。不支持同步取的后端（如 Addressables）在其契约下仍会抛错。</returns>
+        public static bool TryLoadAsset<T>(string location, out T asset, string packageName = "") where T : UObject
+        {
+            asset = null;
+            if (string.IsNullOrEmpty(location))
+            {
+                return false;
+            }
+
+            if (IsInitialized)
+            {
+                using var lease = RequireHandler().LoadLease<T>(location, packageName);
+                RequireHandler().SetLeaseOptions(lease.Handle, EResourceLeaseOption.KeepAliveOnRelease);
+                asset = lease.Asset;
+                return asset != null;
+            }
+#if UNITY_EDITOR
+            asset = UnityEditor.AssetDatabase.LoadAssetAtPath<T>(location);
+            return asset != null;
+#else
+            return false;
+#endif
+        }
+
+        /// <summary>
+        /// <see cref="TryLoadAsset{T}"/> 的异步版。异步方法不能带 <c>out</c> 参数，故以 <c>null</c> 表失败。
+        /// </summary>
+        /// <remarks>保活窗口与长期持有约束同 <see cref="TryLoadAsset{T}"/>。</remarks>
+        public static async UniTask<T> TryLoadAssetAsync<T>(string location,
+            CancellationToken cancellationToken = default, string packageName = "") where T : UObject
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                return null;
+            }
+
+            if (IsInitialized)
+            {
+                using var lease = await RequireHandler().LoadLeaseAsync<T>(location, cancellationToken, packageName);
+                RequireHandler().SetLeaseOptions(lease.Handle, EResourceLeaseOption.KeepAliveOnRelease);
+                return lease.Asset;
+            }
+#if UNITY_EDITOR
+            return UnityEditor.AssetDatabase.LoadAssetAtPath<T>(location);
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>
         /// 尝试从资源租约中读取 Unity 资源对象。
         /// </summary>
         public static bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
