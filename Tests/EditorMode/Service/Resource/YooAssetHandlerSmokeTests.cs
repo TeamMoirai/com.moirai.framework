@@ -65,12 +65,9 @@ namespace Service.Resource
         [Test]
         public void RuntimeArrayFields_AreNonSerialized()
         {
-            // [SerializeReference] 反序列化会把未标注的数组字段还原为非 null 空数组（Length=0），
-            // 使判空守卫失效（曾导致过期轮询 IOOR 错误风暴）。修复为运行时数组全部 [NonSerialized]
-            // + 使用点长度校验懒重建，NormalizeDeserializedArrays 已随之移除——本用例锁定该序列化边界契约。
-            //
-            // 记账字段已整体搬进 ResourceRecordStore，所以这条契约现在有两处要钉：数组本身，
-            // 以及挂住整棵子树的那个引用——_store 一旦被序列化，它下面每一条数组就都回来了。
+            // [SerializeReference] 反序列化会把未标注的数组字段还原为非 null 空数组（Length=0），使判空守卫失效。
+            // 本用例锁定该序列化边界契约：运行时数组全部 [NonSerialized] + 使用点长度校验懒重建。
+            // 两处要钉——数组本身，以及挂住整棵子树的 _store（它一旦被序列化，下面每条数组都会回来）。
             AssertNonSerialized(typeof(YooAssetHandler), "_store");
             AssertNonSerialized(typeof(ResourceRecordStore), "_idleBuckets");
             AssertNonSerialized(typeof(ResourceRecordStore), "_keepAliveBuckets");

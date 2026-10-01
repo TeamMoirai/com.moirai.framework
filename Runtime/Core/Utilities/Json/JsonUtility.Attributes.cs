@@ -5,19 +5,12 @@ using UnityEngine.Events;
 
 namespace Moirai.Atropos
 {
-    // =====================================================================
-    // 本文件是全部 JsonHandler 的【通用属性标识契约】：
-    //
-    // • DefaultJsonHandler（DefaultJson）   — 完整支持：序列化/反序列化名称解析
-    //   （JsonSerializeAs 重命名、FormerlySerializedAs 旧名兼容）、Include/Exclude、
-    //   序列化前/反序列化后回调，语义见 DefaultJson.ReflectionCache。
-    // • NewtonsoftJsonHandler              — 经 CustomContractResolver 支持
-    //   JsonPropertyAttribute（重命名/读写开关）；回调特性不生效（Newtonsoft 有自己的
-    //   OnSerializing/OnDeserialized 回调机制）。
-    //
-    // 各 handler 共享 <see cref="JsonUtility.TypeIsForbidden"/> 的类型排除契约
-    // （UnityEngine.Object 派生与 UnityEvent 一律不序列化）。
-    // =====================================================================
+    // 本文件是全部 JsonHandler 的通用属性标识契约：
+    // • DefaultJsonHandler 完整支持：名称解析（JsonSerializeAs 重命名、FormerlySerializedAs 旧名兼容）、
+    //   Include/Exclude、序列化前/反序列化后回调，语义见 DefaultJson.ReflectionCache。
+    // • NewtonsoftJsonHandler 仅经 CustomContractResolver 支持 JsonPropertyAttribute（重命名/读写开关）；
+    //   回调特性不生效（走 Newtonsoft 自带的 OnSerializing/OnDeserialized）。
+    // 各 handler 共享 <see cref="JsonUtility.TypeIsForbidden"/> 类型排除契约（UnityEngine.Object 派生与 UnityEvent 不序列化）。
 
     /// <summary>
     /// 标记要序列化的属性或字段，即使它是私有的。

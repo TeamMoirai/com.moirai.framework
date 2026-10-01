@@ -79,8 +79,8 @@ namespace Moirai.Atropos.UI.Adapter
         /// 顶端贴边目标是否已就位。
         /// </summary>
         /// <remarks>
-        /// 判据取自本版本 <c>SetInsetAndSizeFromParentEdge(Edge.Top, …)</c> 的实测后置条件： <c>anchorMin/Max.y = 1</c>、 <br />
-        /// <c>sizeDelta.y = size</c>、<c>offsetMax.y = -inset</c>（<c>offsetMax</c> 相对父级顶边，与 pivot 无关）。 <br />
+        /// 即 <c>SetInsetAndSizeFromParentEdge(Edge.Top, …)</c> 的后置条件：<c>anchorMin/Max.y = 1</c>、<c>sizeDelta.y = size</c>、<br />
+        /// <c>offsetMax.y = -inset</c>（相对父级顶边，与 pivot 无关）。<br />
         /// 命中即当前可见状态已等于目标，跳过与写入等价；被外部挪动时 <c>offsetMax</c> 不等，照旧写回。
         /// </remarks>
         private static bool IsAlreadyApplied(RectTransform child, float inset)

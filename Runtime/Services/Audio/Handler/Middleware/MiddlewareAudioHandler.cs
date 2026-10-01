@@ -356,17 +356,13 @@ namespace Moirai.Atropos.Audio.Middleware
                 return;
             }
 
-            // 上线门槛 G5 的回退决策：原生引擎没起来就整体禁用，不留「半初始化」状态。
-            // 留着引用等于让 Tick 的 Update/IsPlaying/StopInstance 与总线音量、Bank 写入继续打到未初始化的
-            // 原生层——那是无 SDK 机器上跑不出来、线上无法归因的崩溃面。丢引用后各处的判空分支自动退化成
-            // 静默 no-op（Play 返回 0、Bank/RTPC 空操作、Shutdown 不再触达），既不刷屏也不卡主线程。
-            // 恢复只在重启进程时发生：本方法不做重试，Restart 也不重开引擎，避免健康后端被二次 Init。
+            // 初始化失败即整体禁用并丢弃引用，不留「半初始化」状态：各判空分支退化为静默 no-op
+            // （Play 返回 0、Bank/RTPC 空操作、Shutdown 不再触达）。不重试，恢复只在重启进程时发生。
             LogUtility.Error(
                 "[MiddlewareAudio] 桥接初始化失败，本次运行音频已禁用（Play 返回 0、Bank/RTPC 空操作）。" +
                 "请检查 SDK 插件是否导入、*_INSTALLED 宏与 Handler 选择是否成对配置。");
             _bridge = null;
-            // 音量面随之转 inert：getter 报 0、写入无效。不立这个位，面板就会在引擎已死时
-            // 继续显示"音乐 80%"——而玩家什么也听不见，且这条症状线上无法归因。
+            // 音量面随之转 inert：getter 报 0、写入无效，避免面板在引擎已死时仍显示有效音量。
             _engineUnavailable = true;
         }
 

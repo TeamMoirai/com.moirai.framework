@@ -155,7 +155,7 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
         /// <returns>与 <paramref name="methodParams"/> 顺序对应的参数值数组；未匹配到值的可选参数使用其默认值。</returns>
         public static object[] MethodParamsFill(IReadOnlyList<ParameterInfo> methodParams, IEnumerable<object> toFillValues)
         {
-            // 第一步：先为各参数标记默认值与空值
+            // 先为各参数标记可选性与默认值
             MethodParamFiller[] filledValues = methodParams
                 .Select(param => param.IsOptional
                     ? new MethodParamFiller
@@ -169,11 +169,7 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
                         Name = param.Name,
                     })
                 .ToArray();
-            // 第二步：逐一检查每个参数：
-            // 1. 若存在必填参数，则为其填充值
-            // 2. 接着，若仍有剩余待填充的值且类型能匹配可选参数，则继续填充
-            // 3. 确保所有必填参数均已填充
-            // 4. 返回结果。
+            // 按必填 → 可选顺序填充，剩余值匹配不上即丢弃
 
             Queue<object> toFillQueue = new Queue<object>(toFillValues);
             Queue<object> leftOverQueue = new Queue<object>();
@@ -185,7 +181,6 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
             {
                 if (!methodParams[index].IsOptional)
                 {
-                    // Debug.Log($"checking {index}={methodParams[index].Name}");
                     Debug.Assert(toFillQueue.Count > 0, $"Nothing to fill required parameter {methodParams[index].Name}");
                     while(toFillQueue.Count > 0)
                     {

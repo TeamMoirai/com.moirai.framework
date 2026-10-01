@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Editor.Testing
         private const int DEFAULT_HEARTBEAT_SECONDS = 60 * 10;
         private const int MIN_HEARTBEAT_SECONDS = 10;
 
-        /// <summary>窗口默认打开尺寸（宽×高）——按 UITK 布局实测（四卡内容高约 470px、全宽无滚动）定为该值。</summary>
+        /// <summary>窗口默认打开尺寸（宽×高），四卡内容无滚动容纳。</summary>
         private static readonly Vector2 DEFAULT_WINDOW_SIZE = new Vector2(720f, 640f);
 
         /// <summary>窗口最小尺寸：再小四个分区会挤成标题条（内容有 ScrollView 兜底）。</summary>
