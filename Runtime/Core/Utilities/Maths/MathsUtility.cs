@@ -31,9 +31,8 @@ namespace Moirai.Atropos
 
         /// <summary>
         /// 根据频率与阻尼计算保证数值稳定的子步长（使 ω·h 不超过稳定裕度）。
-        /// ζ≤1 时 ω·h≤0.75 即稳定；ζ>1（过阻尼）时稳定界随 ζ 收缩，按 0.9/ζ 进一步缩小步长。
-        /// 频率非正或过低时回退基础子步长。
         /// </summary>
+        /// <remarks>ζ≤1 时 ω·h≤0.75 即稳定；ζ>1（过阻尼）按 0.9/ζ 收缩步长；频率非正或过低回退基础子步长。</remarks>
         private static float SpringStableStep(float damping, float frequency)
         {
 	        float omega = frequency * 2f * Mathf.PI;

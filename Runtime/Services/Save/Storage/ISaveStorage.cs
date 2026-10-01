@@ -9,12 +9,10 @@ namespace Moirai.Atropos.Save
     /// 存档存储层契约（字节搬运抽象）：存档编排层 <see cref="SaveServiceHandler"/> 的所有持久化 IO 均经此接口下沉。
     /// </summary>
     /// <remarks>
-    /// 存储后端（本地文件 / 云 KV / 平台存储）与格式管线两轴正交可插拔；同步原语为契约核心——<see cref="SaveService"/> 同步裸名 API 在调用线程直接消费， <br />
-    /// 异步包装默认由 <see cref="SaveStorageBackend"/> 以线程池卸载实现， <br />
-    /// 真异步后端（如云）覆盖并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。 <br />
-    /// 错误语义：读取经 <see cref="TryReadAllBytes"/> 分型返回（缺档 <see cref="SaveError.FileNotFound"/> 不记日志， <br />
-    /// IO 失败 <see cref="SaveError.IoFailed"/> 由实现记录详细日志）；写入失败 fail-fast 抛 <c>GameException</c>（含路径上下文，实现负责清理临时残留）； <br />
-    /// 删除幂等——目标不存在视为删除成功。 <br />
+    /// 存储后端（本地文件 / 云 KV / 平台存储）与格式管线两轴正交可插拔。<br />
+    /// 同步原语为契约核心：<see cref="SaveService"/> 同步裸名 API 在调用线程直接消费；异步包装默认由 <see cref="SaveStorageBackend"/> 线程池卸载，真异步后端（如云）覆盖并以 <see cref="SaveStorageCapabilities.SupportsTrueAsyncIO"/> 声明。<br />
+    /// 读取经 <see cref="TryReadAllBytes"/> 分型返回：缺档 <see cref="SaveError.FileNotFound"/> 不记日志，IO 失败 <see cref="SaveError.IoFailed"/> 由实现记录详细日志。<br />
+    /// 写入失败 fail-fast 抛 <c>GameException</c>（含路径上下文，实现负责清理临时残留）；删除幂等——目标不存在视为成功。<br />
     /// 实现必须为纯 .NET 逻辑（可在任意线程调用），禁止触达 Unity 主线程 API。
     /// </remarks>
     public interface ISaveStorage

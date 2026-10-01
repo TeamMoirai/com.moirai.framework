@@ -209,12 +209,6 @@ namespace Moirai.Atropos.Attributes.Editor.Utils
         public static (T[] attributes, object parent) GetAttributesAndDirectParent<T>(SerializedProperty property) where T : class
         {
             (FieldOrProp fieldOrProp, object sourceObj) = GetFieldInfoAndDirectParent(property);
-            // Debug.Log(fieldOrProp.IsField);
-            // Debug.Log(fieldOrProp.PropertyInfo);
-            // Debug.Log(fieldOrProp.PropertyInfo.GetCustomAttributes());
-            // 此方式不适用于接口类型
-            // Debug.Log(fieldOrProp.FieldInfo.GetCustomAttributes(typeof(ISaintsAttribute)));
-            // Debug.Log(fieldOrProp.FieldInfo.GetCustomAttributes());
             T[] attributes = fieldOrProp.IsField
                 ? fieldOrProp.FieldInfo.GetCustomAttributes()
                     .OfType<T>()
