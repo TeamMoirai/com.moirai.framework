@@ -61,7 +61,23 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 
 ## 快速上手
 
-### Lease API（推荐）
+### 取用族 TryLoadAsset（不想管租约时用）
+
+只想要对象、不接管所有权时用这一族：内部取租约 → 读出对象 → 即刻归还，归还时按 `IdleAssetExpireTime`（默认 60 秒）保活。服务已初始化走租约，未初始化（编辑器非播放态）直读 `AssetDatabase`，调用方不必再写 `#if UNITY_EDITOR` 分支。
+
+```csharp
+if (ResourceService.TryLoadAsset("Assets/AssetRaw/UI/icon.png", out Sprite icon))
+{
+    // 在保活窗口内使用；要长期显示就每帧回本入口取，别把 icon 存起来跨过窗口
+}
+
+Texture2D tex = await ResourceService.TryLoadAssetAsync<Texture2D>("Assets/AssetRaw/UI/atlas.png", ct);
+// 异步形以 null 表失败：异步方法不能带 out 参数
+```
+
+需要自己掌握引用计数生命周期时，改用下面的 Lease API。
+
+### Lease API（自持所有权时用）
 
 Lease API 通过 `IDisposable` 提供显式所有权与自动释放：
 
@@ -235,6 +251,8 @@ public readonly struct ResourceKey
 | `ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")` | 按地址同步加载并返回类型化租约。 |
 | `UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken)` | 异步加载并返回类型化租约。 |
 | `UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken, string packageName)` | 按地址异步加载并返回类型化租约。 |
+| `bool TryLoadAsset<T>(string location, out T asset, string packageName = "")` | 取用族：内部取租约、读出对象后即刻归还（归还时保活 `IdleAssetExpireTime` 秒），不向调用方交租约；服务未初始化时在编辑器下直读 `AssetDatabase`。 |
+| `UniTask<T> TryLoadAssetAsync<T>(string location, CancellationToken, string packageName)` | 上条的异步版。异步方法不能带 `out` 参数，以 `null` 表失败。 |
 | `bool TryGetLeaseAsset(ResourceLeaseHandle handle, out Object asset)` | 从租约句柄读取 Unity 资产对象。 |
 | `IResourceBindingService BindingService { get; }` | 访问绑定服务。 |
 

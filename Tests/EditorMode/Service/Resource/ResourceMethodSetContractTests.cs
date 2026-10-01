@@ -22,14 +22,16 @@ namespace Service.Resource
         #region 租约 API 与已删成员 [LEASE API AND REMOVED MEMBERS]
 
         /// <summary>
-        /// 租约一族必须都在，且不带 [Obsolete]——它们是遗留加载族的唯一替代。
+        /// 取用族必须都在，且不带 [Obsolete]——它们是遗留加载族的唯一替代。
+        /// 其中 <c>TryLoadAsset*</c> 在内部取放租约，不把租约交给调用方。
         /// </summary>
         [Test]
         public void LeaseApi_Families_PresentAndNotObsolete()
         {
             string[] families = {
                 "LoadLease", "LoadLeaseAsync", "AcquireDirect", "AcquireDirectAsync",
-                "Release", "TryGetLeaseAsset", "LoadGameObject", "LoadGameObjectAsync",
+                "Release", "TryGetLeaseAsset", "TryLoadAsset", "TryLoadAssetAsync",
+                "LoadGameObject", "LoadGameObjectAsync",
             };
             MethodInfo[] methods = typeof(ResourceService).GetMethods(StaticPublic);
 
