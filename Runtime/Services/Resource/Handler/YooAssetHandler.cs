@@ -119,8 +119,9 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
+        
         /// <inheritdoc />
-        public override bool IsInitialized => base.IsInitialized && YooAssets.IsInitialized;
+        public override bool IsInitialized => base.IsInitialized && DefaultPackage?.InitializeStatus == EOperationStatus.Succeeded;
 
         private ResourceBindingService _bindingService;
 
