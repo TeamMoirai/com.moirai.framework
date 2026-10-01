@@ -179,6 +179,23 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
+        /// 将 JSON 字符串的内容覆盖到现有对象上。
+        /// </summary>
+        /// <param name="json">要读取的 JSON 字符串。</param>
+        /// <param name="objectToOverwrite">被覆盖的目标对象。</param>
+        public static void FromJsonOverwrite(string json, object objectToOverwrite)
+        {
+            try
+            {
+                Handler.FromJsonOverwrite(json, objectToOverwrite);
+            }
+            catch (Exception exception)
+            {
+                throw new GameException(StringUtility.Format("Can not overwrite from JSON with exception '{0}'.", exception), exception);
+            }
+        }
+
+        /// <summary>
         /// 格式化 Json 字符串。
         /// </summary>
         public static string FormatJson(string json)
