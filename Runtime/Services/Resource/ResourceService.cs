@@ -396,10 +396,10 @@ namespace Moirai.Atropos.Resource
             RequireHandler().LoadLeaseAsync<T>(location, cancellationToken, packageName);
 
         /// <summary>
-        /// 按定位地址取资产，不把租约交给调用方：运行期取租约、读出对象后即刻归还，编辑态（服务未初始化）直读 <c>AssetDatabase</c>。
+        /// 按定位地址取资产，不把租约交给调用方：运行期取租约、读出对象后即刻归还；服务未初始化时（编辑器的预览与工具面）直读 <c>AssetDatabase</c>，不建记录也不取租约。
         /// </summary>
         /// <remarks>
-        /// 归还时带 <see cref="EResourceLeaseOption.KeepAliveOnRelease"/>，取到的对象在 <see cref="IdleAssetExpireTime"/> 窗口内不会被卸载；
+        /// 运行期归还时带 <see cref="EResourceLeaseOption.KeepAliveOnRelease"/>，取到的对象在 <see cref="IdleAssetExpireTime"/> 窗口内不会被卸载；
         /// 窗口过后资产可能已被卸载，此时调用方长期存着的裸引用会变成已销毁对象 —— 需要每帧回读本入口取值，不要把结果跨长周期保存。
         /// </remarks>
         /// <param name="location">资源定位地址。</param>
@@ -654,30 +654,6 @@ namespace Moirai.Atropos.Resource
             s_Handler?.ClearAllBundleFiles(customPackageName);
 
         #endregion
-
-#if UNITY_EDITOR
-        #region 编辑器预览 [EDITOR PREVIEW]
-
-        /// <summary>
-        /// 编辑器（非播放态）按定位地址取资产，直读 <c>AssetDatabase</c>，是预览与工具面的统一入口。
-        /// </summary>
-        /// <remarks>
-        /// 播放态恒返回 <c>null</c>（真在跑时应读运行期已注入的那份）。 <br />
-        /// 不建记录、不返租约（Inspector 每次重绘都会调用）；取不到一律返回 <c>null</c> 而不抛，避免打死组件面板。
-        /// </remarks>
-        /// <param name="location">资源定位地址（本项目约定即 <c>Assets/...</c> 资产路径）。</param>
-        /// <returns>地址为空、播放态、settings 未配处理器或资产不存在时为 <c>null</c>。</returns>
-        public static UObject LoadAssetForEditor(string location)
-        {
-            if (Application.isPlaying) return null;
-
-            // 编辑态服务世界没起来、运行期处理器为空，直读 settings 里配置的那份实例（未 Internal_Init，
-            // 因此实现侧不得依赖后端运行时状态）。
-            return ResourceServiceSettings.ResourceServiceHandler?.LoadAssetForEditor(location);
-        }
-
-        #endregion
-#endif
 
         #region 调度决策（纯函数，供回归测试）[SCHEDULING DECISIONS]
 
