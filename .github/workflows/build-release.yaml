@@ -5,8 +5,9 @@
 # 顺序：从 CHANGELOG.md 切出 `[Unreleased]` 段当 Release notes →
 # 一笔 commit 同时写入 package.json 版本号并把 CHANGELOG 整份重置为空白模板 →
 # 用这笔 commit 打 tag 建 release → 把先前切好的 notes 覆盖进 release 并 Publish。
-# 该 commit 的 message 就是 Release note 标题（`v{版本}`，与 create-release 的
-# release-format: v{0} 同串）。package.json 与 CHANGELOG 同 commit，发版自动化只留一笔；
+# 该 commit 的 subject 是 `chore(automate): Bump version to v{版本}`，body 取 Release notes
+# 里 `>` 之后、`<details>` 之前那截摘要（=`[Unreleased]` 中第一个 `###` 之前的段落）。
+# package.json 与 CHANGELOG 同 commit，发版自动化只留一笔；
 # notes 在换模板之前切出，所以 tag 树里 CHANGELOG 已是空白模板，发出去的条目
 # 在 GitHub Releases 与该 commit 父提交的历史里。
 # dry-run 会切 notes 并打日志、把合并 commit 推到 test-release/{版本}、调 create-release（dry），
@@ -100,8 +101,9 @@ jobs:
             fi
           fi
 
-          # commit message = Release note 标题，与 create-release 的 release-format: v{0} 同串。
-          title="v${VERSION}"
+          # subject 固定 chore(automate) 前缀；body = Release notes 里 `>` 之后、
+          # `<details>` 之前那截摘要（CHANGELOG `[Unreleased]` 里第一个 `###` 之前）。
+          title="chore(automate): Bump version to v${VERSION}"
           branch="${BASE}"
           if [ "${DRY_RUN}" = "true" ]; then
             branch="test-release/${VERSION}"
@@ -143,14 +145,28 @@ jobs:
             exit 1
           fi
 
+          # 摘要 = 第一个 `###` 之前；详细日志 = 其后。均无则整段当摘要。
+          if grep -qE '^### ' "${notes_body}"; then
+            summary="$(awk '/^### /{exit} {print}' "${notes_body}" | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
+            detail="$(sed -n '/^### /,$p' "${notes_body}")"
+          else
+            summary="$(cat "${notes_body}")"
+            detail=""
+          fi
+
           prev="$(git describe --tags --abbrev=0 "${existing_sha:-HEAD}^" 2>/dev/null || true)"
           {
             if [ -n "${prev}" ]; then
               printf '> 相对 `%s` 的净结果；逐条对比见 [%s...%s](https://github.com/%s/compare/%s...%s)。\n>\n' \
                 "${prev}" "${prev}" "${TAG}" "${GH_REPO}" "${prev}" "${TAG}"
             fi
-            printf '> 标记 ⚠ 的是破坏性变更。\n\n'
-            cat "${notes_body}"
+            printf '> 标记 ⚠ 的是破坏性变更。\n'
+            if [ -n "${summary}" ]; then
+              printf '\n%s\n' "${summary}"
+            fi
+            if [ -n "${detail}" ]; then
+              printf '\n<details>\n  <summary>点击展开详细更新日志</summary>\n\n%s\n\n</details>\n' "${detail}"
+            fi
           } > "${notes}"
 
           echo "release notes ↓↓↓"
@@ -172,7 +188,7 @@ jobs:
 
           格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
-          本文件只留 `[Unreleased]` 一段，按**后覆盖**维护：只记尚未发行的净结果，发版时该段定名后移到 [GitHub Releases](https://github.com/TeamMoirai/com.moirai.framework/releases) 并清空。被后续变更推翻的中间态不留条目——同一件事被推翻时改掉或删掉原条目。排版：`###` 是变更类型，段内 `####` 按模块分组，一条只说一个事实、写成一行不折行；本段会原样作为 release note 发布——面向外部读者压缩精简，只写净结果与迁移口径，诊断与来龙去脉不进本文件。标记 ⚠ 的是破坏性变更。
+          本文件只留 `[Unreleased]` 一段，按**后覆盖**维护：只记尚未发行的净结果，发版时该段定名后移到 [GitHub Releases](https://github.com/TeamMoirai/com.moirai.framework/releases) 并清空。被后续变更推翻的中间态不留条目——同一件事被推翻时改掉或删掉原条目。排版：段首可写一段摘要（第一个 `###` 之前，发版时进 Release notes 的 `>` 引言之后、也是 release commit 的 body）；`###` 是变更类型，段内 `####` 按模块分组，一条只说一个事实、写成一行不折行，发版时整段进 `<details>` 详细日志。面向外部读者压缩精简，只写净结果与迁移口径，诊断与来龙去脉不进本文件。标记 ⚠ 的是破坏性变更。
 
           ## [Unreleased]
           EOF
@@ -186,8 +202,11 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "${title}" \
-            -m "发版 \`${VERSION}\` 一笔收口：package.json 写入版本号，CHANGELOG 整份重置为空白模板。条目已切为 Release notes。"
+          if [ -n "${summary}" ]; then
+            git commit -m "${title}" -m "${summary}"
+          else
+            git commit -m "${title}"
+          fi
 
           if [ "${DRY_RUN}" = "true" ]; then
             git push origin "HEAD:refs/heads/${branch}"
