@@ -338,27 +338,6 @@ namespace Moirai.Atropos.Resource
 
         #endregion
 
-#if UNITY_EDITOR
-        #region 编辑器预览 [EDITOR PREVIEW]
-        
-        /// <summary>
-        /// 编辑器预览用：把一个定位地址解析成资产，<b>不得依赖播放态与后端运行时</b>。
-        /// </summary>
-        /// <remarks>
-        /// 地址不是资产路径的后端（如按文件名寻址、地址只在包清单里）覆写本方法补上换算表；预览只要求同一地址指向同一份资产，不要求同一条加载路径。 <br />
-        /// 实现侧不要建租约、不要进记录表（预览取完即弃，进计数等于每次重绘租一次）。 <br />
-        /// 编辑态拿到的是 settings 里那份实例、从未走过 <c>Internal_Init</c>，覆写里只准做地址到资产的换算，别碰包与句柄等运行期状态。
-        /// </remarks>
-        public virtual UObject LoadAssetForEditor(string location)
-        {
-            if (string.IsNullOrEmpty(location)) return null;
-
-            return UnityEditor.AssetDatabase.LoadAssetAtPath<UObject>(location);
-        }
-
-        #endregion
-#endif
-
         #region 公共 Lease API [PUBLIC LEASE API]
 
         /// <summary>
