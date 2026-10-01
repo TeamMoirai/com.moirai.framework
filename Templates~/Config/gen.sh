@@ -237,7 +237,7 @@ run_client() {
         -x code.lineEnding=crlf \
         "${optional_args[@]}" \
         -x "outputCodeDir=${CFG[CODE_OUTPUT_PATH_CLIENT]}" \
-        -x outputSaver.cs-bin.cleanUpOutputDir=0 \
+        -x "outputSaver.${CODE_TARGET}.cleanUpOutputDir=0" \
         || fail "多语言代码趟失败"
 
     # 一次进程只解析一版变体，所以有几种语言就跑几趟；且必须排在常规趟之后

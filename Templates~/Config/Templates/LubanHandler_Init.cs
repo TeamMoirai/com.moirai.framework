@@ -1,8 +1,8 @@
 using System;
 using System.Reflection;
 using Luban;
+using Luban.SimpleJSON;
 using Moirai.Atropos;
-using SimpleJSON;
 using UnityEngine;
 using Moirai.Atropos.Resource;
 
@@ -13,29 +13,31 @@ namespace Moirai.GameProto.Config
 	/// </summary>
 	partial class LubanHandler
 	{
-		private static LubanHandler s_Instance;
-		public static LubanHandler Instance => s_Instance ??= new LubanHandler();
-
 		private const string CONFIG_PATH = "Assets/AssetRaw/Default/Config/Table/";
 
-		private Tables _tables;
+		private static Tables s_Tables;
 		/// <summary>
 		/// 所有配置表。
 		/// </summary>
-		public Tables Tables
+		public static Tables Tables
 		{
 			get
 			{
-				_tables ??= Load();
-				return _tables;
+				s_Tables ??= LoadTables();
+				return s_Tables;
 			}
+		}
+		
+		protected override void OnShutdown()
+		{
+			s_Tables = null;
 		}
 
 		/// <summary>
 		/// 加载配置。
 		/// <remarks>自动判断加载bin或json配置</remarks>
 		/// </summary>
-		private Tables Load()
+		private static Tables LoadTables()
 		{
 			ConstructorInfo tablesCtor = typeof(Tables).GetConstructors()[0];
 			Type loaderReturnType = tablesCtor.GetParameters()[0].ParameterType.GetGenericArguments()[1];
@@ -60,15 +62,15 @@ namespace Moirai.GameProto.Config
 		/// 按当前生成路线装载一张不在 <see cref="Tables"/> 里的独立表。
 		/// </summary>
 		/// <remarks>
-		/// 判据与 <see cref="Load"/> 同一个：路线写在转表配置里（bin 或 json），落到代码上就是生成表的构造器收 ByteBuf 还是 JSONNode，所以换 <c>--format=json</c> 不必改读取代码。
+		/// 判据与 <see cref="LoadTables"/> 同一个：路线写在转表配置里（bin 或 json），落到代码上就是生成表的构造器收 ByteBuf 还是 JSONNode，所以换 <c>--format=json</c> 不必改读取代码。
 		/// </remarks>
 		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名（多语言按语言子目录传 <c>语言码/表名</c>）。</param>
-		internal static T LoadTable<T>(string relativePath) where T : class
+		private static T LoadLanguageTable<T>(string relativePath) where T : class
 		{
 			ConstructorInfo tableCtor = typeof(T).GetConstructors()[0];
 			Type bufferType = tableCtor.GetParameters()[0].ParameterType;
 			object buffer = bufferType == typeof(ByteBuf)
-				? (object)LoadByteBuf(relativePath)
+				? LoadByteBuf(relativePath)
 				: LoadJson(relativePath);
 
 			// 与 Tables 同理：建不出来只可能是反射对不上或构造器自己抛，失败不落状态
@@ -90,7 +92,7 @@ namespace Moirai.GameProto.Config
 		private static ByteBuf LoadByteBuf(string file)
 		{
 			string location = CONFIG_PATH + file + ".bytes";
-			LogUtility.Info("Load bin config: {0}", location);
+			LogUtility.Info("[Config] Load bin config: {0}", location);
 			TextAsset textAsset = LoadTextAsset(location);
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
