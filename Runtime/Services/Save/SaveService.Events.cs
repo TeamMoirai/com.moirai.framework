@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Save
     /// 订阅生命周期自负盈亏：<see cref="OnShutdown"/> 不清理订阅者，长时间存活的订阅方须自行退订防泄漏；调试可用 <see cref="UnsubscribeAll"/> 一键清空全部静态事件订阅。 <br />
     /// 事件参数均为只读值类型（≤32B）；缺档（<see cref="SaveError.FileNotFound"/>）等正常业务流不产生失败事件。
     /// </remarks>
-    public partial class SaveService
+    partial class SaveService
     {
         /// <summary>进度回报批次大小（组件存取每处理满该数回报一次，最终一批必报）。</summary>
         internal const int ProgressBatchSize = 8;
