@@ -847,13 +847,22 @@ namespace Moirai.Atropos.Editor.Save
         }
 
         /// <summary>
-        /// Odin 4 契约：空树经 delayCall 防抖重建。
+        /// Odin 4 契约：空树经 delayCall 防抖重建；数据源亦为空（无任何存档文件夹）时树合法为空，不再重试。
         /// </summary>
         private void EnsureTreePopulated()
         {
-            if (MenuTree != null && MenuTree.MenuItems.Count > 0)
+            if (MenuTree != null)
             {
-                return;
+                if (MenuTree.MenuItems.Count > 0)
+                {
+                    return;
+                }
+
+                // 默认文件夹不再无条件占位：全部文件夹不存在时树合法为空，停止重试避免无限重建；数据出现由刷新/自动刷新驱动
+                if (_folders.Count == 0)
+                {
+                    return;
+                }
             }
 
             QueueTreeRebuild();
@@ -1043,19 +1052,26 @@ namespace Moirai.Atropos.Editor.Save
             }
 
             _folders.Clear();
-            AddFolderData(SaveServiceHandler.DEFAULT_FOLDER_NAME, previous);
 
             string rootDirectory = SafeDetermineSavePath(string.Empty);
-            if (!string.IsNullOrEmpty(rootDirectory) && Directory.Exists(rootDirectory))
+            if (string.IsNullOrEmpty(rootDirectory) || !Directory.Exists(rootDirectory))
             {
-                string[] directories = Directory.GetDirectories(rootDirectory);
-                for (int i = 0; i < directories.Length; i++)
+                return;
+            }
+
+            // 默认文件夹与其他文件夹同口径：磁盘上不存在即不展示，避免左侧出现指向不存在路径的空节点
+            if (Directory.Exists(SafeDetermineSavePath(SaveServiceHandler.DEFAULT_FOLDER_NAME)))
+            {
+                AddFolderData(SaveServiceHandler.DEFAULT_FOLDER_NAME, previous);
+            }
+
+            string[] directories = Directory.GetDirectories(rootDirectory);
+            for (int i = 0; i < directories.Length; i++)
+            {
+                string folderName = Path.GetFileName(directories[i]);
+                if (!string.IsNullOrEmpty(folderName) && folderName != SaveServiceHandler.DEFAULT_FOLDER_NAME)
                 {
-                    string folderName = Path.GetFileName(directories[i]);
-                    if (!string.IsNullOrEmpty(folderName) && folderName != SaveServiceHandler.DEFAULT_FOLDER_NAME)
-                    {
-                        AddFolderData(folderName, previous);
-                    }
+                    AddFolderData(folderName, previous);
                 }
             }
 
