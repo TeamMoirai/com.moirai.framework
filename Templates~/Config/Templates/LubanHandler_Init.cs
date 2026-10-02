@@ -93,7 +93,7 @@ namespace Moirai.GameProto.Config
 		{
 			string location = CONFIG_PATH + file + ".bytes";
 			LogUtility.Info("[Config] Load bin config: {0}", location);
-			TextAsset textAsset = LoadTextAsset(location);
+			ResourceService.TryLoadAsset<TextAsset>(location, out TextAsset textAsset);
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
 		}
@@ -107,46 +107,9 @@ namespace Moirai.GameProto.Config
 		{
 			string location = CONFIG_PATH + file + ".json";
 			LogUtility.Info("[Config] Load json config: {0}", location);
-			TextAsset textAsset = LoadTextAsset(location);
+			ResourceService.TryLoadAsset<TextAsset>(location, out TextAsset textAsset);
 			string json = textAsset.text;
 			return JSON.Parse(json);
-		}
-
-		/// <summary>
-		/// 加载配置文本资源。
-		/// </summary>
-		/// <param name="location"></param>
-		/// <returns></returns>
-		private static TextAsset LoadTextAsset(string location)
-		{
-#if UNITY_EDITOR
-			if (!Application.isPlaying)
-			{
-				// 非播放态（编辑器预览、转表）不经资源系统，直读资产库；取不到同样要点名，
-				// 让 null 回到调用方就变成几行开外一句无来由的 NRE
-				var fromDatabase = UnityEditor.AssetDatabase.LoadAssetAtPath<TextAsset>(location);
-				if (fromDatabase == null)
-				{
-					throw new GameException(StringUtility.Format(
-						"Config asset is missing: '{0}'. Generate config first.", location));
-				}
-
-				return fromDatabase;
-			}
-#endif
-			// 因为配置是预加载（Asset tag 为 PRELOAD），所以无需异步加载
-			using var lease = ResourceService.LoadLease<TextAsset>(location);
-			if (lease.Asset == null)
-			{
-				// 预加载完成前同步取不到（如启动早期读表）：显式报错而非让 null 穿透成 NRE。
-				// 表数据未落成状态，下一次读表照常重试
-				throw new GameException(StringUtility.Format(
-					"Config asset is not loadable yet: '{0}'. Config tables are PRELOAD-tagged; " +
-					"make sure the resource preload has finished before reading tables.",
-					location));
-			}
-
-			return lease.Asset;
 		}
 	}
 }
