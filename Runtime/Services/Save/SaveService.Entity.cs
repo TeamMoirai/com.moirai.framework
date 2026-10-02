@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Save
     /// 实体数据块与预制体模板基准差分后仅写变动字段（恢复 = 实例化模板默认值 + 应用差分）。 <br />
     /// 实体块（<c>entity:</c> 前缀）由本分部独占管理，组件存取 API（<c>SaveComponentsAsync</c>/<c>LoadComponentsAsync</c>）跳过。
     /// </remarks>
-    public partial class SaveService
+    partial class SaveService
     {
         #region 实体生成与销毁 [ENTITY SPAWN / DESTROY]
 

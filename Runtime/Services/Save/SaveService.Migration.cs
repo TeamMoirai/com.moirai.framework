@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Save
     /// 降级契约：处理器未就绪时 <see cref="MigrateSave"/>/<see cref="MigrateSaveAsync"/> 返回 <see cref="SaveError.HandlerNotReady"/>； <br />
     /// 注册与版本设置不依赖处理器（静态管理器直挂）。
     /// </remarks>
-    public partial class SaveService
+    partial class SaveService
     {
         #region 版本迁移 [MIGRATION]
 

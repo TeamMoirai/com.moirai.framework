@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Save
     /// 联动开关：<see cref="SaveServiceSettings.CaptureScreenshotOnSave"/> 开启时， <br />
     /// 块保存（<see cref="SaveBlockAsync{T}"/>）与组件保存（<see cref="SaveComponentsAsync"/>）成功后自动捕获——保留块（<c>__</c> 前缀，含元数据镜像回写）豁免联动。
     /// </remarks>
-    public partial class SaveService
+    partial class SaveService
     {
         #region 截图 [SCREENSHOT]
 
