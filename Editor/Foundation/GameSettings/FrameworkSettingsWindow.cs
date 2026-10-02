@@ -113,7 +113,7 @@ namespace Moirai.Atropos.Editor
                     normal = { textColor = new Color(0.55f, 0.55f, 0.55f) }
                 };
 
-                // 工具栏计数：槽内水平 + 垂直居中
+                // 工具栏计数：垂直居中（宽度随内容自适应，不占固定槽）
                 CountLabel = new GUIStyle(EditorStyles.miniLabel)
                 {
                     alignment = TextAnchor.MiddleCenter
@@ -332,7 +332,7 @@ namespace Moirai.Atropos.Editor
         #region 工具栏 [TOOLBAR]
 
         /// <summary>
-        /// 顶部工具栏：计数、刷新与当前选中条目的快捷操作。
+        /// 顶部工具栏：刷新、计数与当前选中条目的快捷操作。
         /// </summary>
         protected override void OnImGUI()
         {
@@ -351,12 +351,13 @@ namespace Moirai.Atropos.Editor
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                int loadedCount = _entries.Count(e => e.Exists);
-                GUILayout.Label($"{loadedCount}/{_entries.Count}",
-                    HeaderStyles.IsReady ? HeaderStyles.CountLabel : EditorStyles.miniLabel, GUILayout.Width(48));
-
+                // 刷新按钮钉在左上角：计数标签排其后、宽度随内容伸缩，设置数量再多也不改变按钮的绝对位置
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(64)))
                     QueueTreeRebuild();
+
+                int loadedCount = _entries.Count(e => e.Exists);
+                GUILayout.Label($"{loadedCount}/{_entries.Count}",
+                    HeaderStyles.IsReady ? HeaderStyles.CountLabel : EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
 
                 GUILayout.FlexibleSpace();
 
