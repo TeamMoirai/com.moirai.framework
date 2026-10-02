@@ -113,7 +113,7 @@ namespace Moirai.Atropos.Editor
                     normal = { textColor = new Color(0.55f, 0.55f, 0.55f) }
                 };
 
-                // 工具栏计数：垂直居中（宽度随内容自适应，不占固定槽）
+                // 工具栏计数：配合 ExpandHeight 铺满行高，垂直中心与按钮文字对齐
                 CountLabel = new GUIStyle(EditorStyles.miniLabel)
                 {
                     alignment = TextAnchor.MiddleCenter
@@ -357,7 +357,8 @@ namespace Moirai.Atropos.Editor
 
                 int loadedCount = _entries.Count(e => e.Exists);
                 GUILayout.Label($"{loadedCount}/{_entries.Count}",
-                    HeaderStyles.IsReady ? HeaderStyles.CountLabel : EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                    HeaderStyles.IsReady ? HeaderStyles.CountLabel : EditorStyles.miniLabel,
+                    GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(true));
 
                 GUILayout.FlexibleSpace();
 
