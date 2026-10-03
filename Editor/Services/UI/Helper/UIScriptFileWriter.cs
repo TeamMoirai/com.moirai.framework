@@ -6,6 +6,9 @@ using UnityEngine;
 
 namespace Moirai.Atropos.UI.Editor
 {
+    /// <summary>
+    /// 脚本文件写入器。
+    /// </summary>
     public interface IUIScriptFileWriter
     {
         void Write(GameObject targetObject, string className, string scriptContent, UIScriptGenerateData scriptGenerateData, string windowScriptContent);

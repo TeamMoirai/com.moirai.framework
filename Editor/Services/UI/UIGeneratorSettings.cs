@@ -42,23 +42,35 @@ namespace Moirai.Atropos.UI.Editor
         [TabGroup(GENERAL_GROUP)]
         [ProviderDropdown(typeof(IUIIdentifierFormatter), "Identifier Formatter")]
         [SerializeField] private string m_UIIdentifierFormatterTypeName = typeof(DefaultUIIdentifierFormatter).FullName;
-        public static string UIIdentifierFormatterTypeName => Instance.m_UIIdentifierFormatterTypeName;
+        private static IUIIdentifierFormatter s_IdentifierFormatter;
+        /// <summary>标识符格式化器。</summary>
+        public static IUIIdentifierFormatter IdentifierFormatter =>
+            ReflectionUtility.ResolveImplType(ref s_IdentifierFormatter, Instance.m_UIIdentifierFormatterTypeName, typeof(DefaultUIIdentifierFormatter));
 
         [TabGroup(GENERAL_GROUP)]
         [ProviderDropdown(typeof(IUIResourcePathResolver), "ResourcePath Resolver")]
         [SerializeField] private string m_UIResourcePathResolverTypeName = typeof(DefaultUIResourcePathResolver).FullName;
-        public static string UIResourcePathResolverTypeName => Instance.m_UIResourcePathResolverTypeName;
-
+        private static IUIResourcePathResolver s_ResourcePathResolver;
+        /// <summary>资源路径解析器。</summary>
+        public static IUIResourcePathResolver ResourcePathResolver =>
+            ReflectionUtility.ResolveImplType(ref s_ResourcePathResolver, Instance.m_UIResourcePathResolverTypeName, typeof(DefaultUIResourcePathResolver));
+        
         [TabGroup(GENERAL_GROUP)]
         [ProviderDropdown(typeof(IUIScriptCodeEmitter), "ScriptCode Emitter")]
         [SerializeField] private string m_UIScriptCodeEmitterTypeName = typeof(DefaultUIScriptCodeEmitter).FullName;
-        public static string UIScriptCodeEmitterTypeName => Instance.m_UIScriptCodeEmitterTypeName;
-
+        private static IUIScriptCodeEmitter s_ScriptCodeEmitter;
+        /// <summary>脚本代码生成器。</summary>
+        public static IUIScriptCodeEmitter ScriptCodeEmitter =>
+            ReflectionUtility.ResolveImplType(ref s_ScriptCodeEmitter, Instance.m_UIScriptCodeEmitterTypeName, typeof(DefaultUIScriptCodeEmitter));
+        
         [TabGroup(GENERAL_GROUP)]
         [ProviderDropdown(typeof(IUIScriptFileWriter), "ScriptFile Writer")]
         [SerializeField] private string m_UIScriptFileWriterTypeName = typeof(DefaultUIScriptFileWriter).FullName;
-        public static string UIScriptFileWriterTypeName => Instance.m_UIScriptFileWriterTypeName;
-
+        private static IUIScriptFileWriter s_ScriptFileWriter;
+        /// <summary>脚本文件写入器。</summary>
+        public static IUIScriptFileWriter ScriptFileWriter =>
+            ReflectionUtility.ResolveImplType(ref s_ScriptFileWriter, Instance.m_UIScriptFileWriterTypeName, typeof(DefaultUIScriptFileWriter));
+        
         /// <!-- 脚本生成 -->
         private const string SCRIPT_GENERATION_GROUP = "Script Generation";
 
@@ -140,7 +152,7 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("TmpDropdown", "TMPro.TMP_Dropdown"),
 #endif
 
-                // 框架组件 - Gameplay
+                // ----- 框架组件 - Gameplay -----
                 new UIElementRegexData("Label", "Moirai.Clotho.UI.UILabel"),
                 // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("SuperBtn", "Moirai.Clotho.UI.ButtonSuper"),
@@ -157,7 +169,7 @@ namespace Moirai.Atropos.UI.Editor
                 new UIElementRegexData("SlideTog","Moirai.Clotho.UIPro.SlideToggle"),
 #endif
 
-                // 框架组件 - Juice
+                // ----- 框架组件 - Juice -----
                 // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("AnimPbar", "Moirai.Lachesis.UI.AnimateProgressBar"),
 
