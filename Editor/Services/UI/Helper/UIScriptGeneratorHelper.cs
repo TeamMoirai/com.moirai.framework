@@ -19,49 +19,20 @@ namespace Moirai.Atropos.UI.Editor
         private const string GENERATE_INSTANCE_ID_KEY = "Moirai.Atropos.UI.Generate.InstanceId";
         private const string GENERATE_ASSET_PATH_KEY = "Moirai.Atropos.UI.Generate.AssetPath";
         private const string GENERATE_HIERARCHY_PATH_KEY = "Moirai.Atropos.UI.Generate.HierarchyPath";
-        private static IUIIdentifierFormatter s_IdentifierFormatter;
-        private static IUIResourcePathResolver s_ResourcePathResolver;
-        private static IUIScriptCodeEmitter s_ScriptCodeEmitter;
-        private static IUIScriptFileWriter s_ScriptFileWriter;
         private static readonly List<UIBindData> s_UIBindData = new List<UIBindData>();
-
-        /// <summary>标识符格式化器。</summary>
-        internal static IUIIdentifierFormatter IdentifierFormatter =>
-            ReflectionUtility.ResolveImplType(
-                ref s_IdentifierFormatter,
-                UIGeneratorSettings.UIIdentifierFormatterTypeName,
-                typeof(DefaultUIIdentifierFormatter));
-
-        private static IUIResourcePathResolver ResourcePathResolver =>
-            ReflectionUtility.ResolveImplType(
-                ref s_ResourcePathResolver,
-                UIGeneratorSettings.UIResourcePathResolverTypeName,
-                typeof(DefaultUIResourcePathResolver));
-
-        private static IUIScriptCodeEmitter ScriptCodeEmitter =>
-            ReflectionUtility.ResolveImplType(
-                ref s_ScriptCodeEmitter,
-                UIGeneratorSettings.UIScriptCodeEmitterTypeName,
-                typeof(DefaultUIScriptCodeEmitter));
-
-        private static IUIScriptFileWriter ScriptFileWriter =>
-            ReflectionUtility.ResolveImplType(
-                ref s_ScriptFileWriter,
-                UIGeneratorSettings.UIScriptFileWriterTypeName,
-                typeof(DefaultUIScriptFileWriter));
-
+        
         private static bool EnsureGenerationStrategyReady()
         {
-            return IdentifierFormatter != null &&
-                   ResourcePathResolver != null &&
-                   ScriptCodeEmitter != null &&
-                   ScriptFileWriter != null;
+            return UIGeneratorSettings.IdentifierFormatter != null &&
+                   UIGeneratorSettings.ResourcePathResolver != null &&
+                   UIGeneratorSettings.ScriptCodeEmitter != null &&
+                   UIGeneratorSettings.ScriptFileWriter != null;
         }
 
         private static bool EnsureVariableGenerationStrategyReady()
         {
-            return IdentifierFormatter != null &&
-                   ScriptCodeEmitter != null;
+            return UIGeneratorSettings.IdentifierFormatter != null &&
+                   UIGeneratorSettings.ScriptCodeEmitter != null;
         }
 
         private static void CollectBindData(Transform root)
@@ -71,12 +42,12 @@ namespace Moirai.Atropos.UI.Editor
 
         private static string GetPrivateComponentName(string regexName, string componentName, EBindType bindType)
         {
-            return IdentifierFormatter.GetPrivateComponentName(regexName, componentName, bindType);
+            return UIGeneratorSettings.IdentifierFormatter.GetPrivateComponentName(regexName, componentName, bindType);
         }
 
         private static string GetPublicComponentName(string variableName)
         {
-            return IdentifierFormatter.GetPublicComponentName(variableName);
+            return UIGeneratorSettings.IdentifierFormatter.GetPublicComponentName(variableName);
         }
 
         private static void ResetCollectedBindData()
@@ -141,7 +112,7 @@ namespace Moirai.Atropos.UI.Editor
             {
                 ResetCollectedBindData();
                 CollectBindData(targetObject.transform);
-                variableContent = ScriptCodeEmitter.GetVariableContent(s_UIBindData, GetPublicComponentName);
+                variableContent = UIGeneratorSettings.ScriptCodeEmitter.GetVariableContent(s_UIBindData, GetPublicComponentName);
             }
             finally
             {
@@ -234,37 +205,37 @@ namespace #ClassNameSpace#
                 .Replace("#ClassNameSpace#", context.ScriptGenerateData.NameSpace)
                 .Replace("#ClassName#", context.ClassName)
                 .Replace("#Variable#", GetVariableContent(context))
-                .Replace("#Controller#", ScriptCodeEmitter.GetControllerContent(context.ClassName, context.BindData, GetPublicComponentName));
+                .Replace("#Controller#", UIGeneratorSettings.ScriptCodeEmitter.GetControllerContent(context.ClassName, context.BindData, GetPublicComponentName));
         }
 
         private static string GetClassGenerateName(GameObject targetObject, UIScriptGenerateData scriptGenerateData)
         {
-            return IdentifierFormatter.GetClassName(targetObject);
+            return UIGeneratorSettings.IdentifierFormatter.GetClassName(targetObject);
         }
 
         private static bool CheckCanGenerate(UIGenerationContext context)
         {
-            return ResourcePathResolver.CanGenerate(context.TargetObject, context.ScriptGenerateData);
+            return UIGeneratorSettings.ResourcePathResolver.CanGenerate(context.TargetObject, context.ScriptGenerateData);
         }
 
         private static string GetResourceSavePath(UIGenerationContext context)
         {
-            return ResourcePathResolver.GetResourcePath(context.TargetObject, context.ScriptGenerateData);
+            return UIGeneratorSettings.ResourcePathResolver.GetResourcePath(context.TargetObject, context.ScriptGenerateData);
         }
 
         private static string GetReferenceNamespace(UIGenerationContext context)
         {
-            return ScriptCodeEmitter.GetReferenceNamespaces(s_UIBindData);
+            return UIGeneratorSettings.ScriptCodeEmitter.GetReferenceNamespaces(s_UIBindData);
         }
 
         private static string GetVariableContent(UIGenerationContext context)
         {
-            return ScriptCodeEmitter.GetVariableContent(s_UIBindData, GetPublicComponentName);
+            return UIGeneratorSettings.ScriptCodeEmitter.GetVariableContent(s_UIBindData, GetPublicComponentName);
         }
 
         private static void WriteScriptContent(UIGenerationContext context, string scriptContent)
         {
-            var windowContent = ScriptCodeEmitter.GetWindowContent(
+            var windowContent = UIGeneratorSettings.ScriptCodeEmitter.GetWindowContent(
                 context.ClassName,
                 context.ScriptGenerateData.NameSpace,
                 context.BindData,
@@ -274,10 +245,10 @@ namespace #ClassNameSpace#
             if (File.Exists(windowFilePath))
             {
                 var existingContent = File.ReadAllText(windowFilePath);
-                windowContent = ScriptCodeEmitter.PatchWindowContent(existingContent, windowContent);
+                windowContent = UIGeneratorSettings.ScriptCodeEmitter.PatchWindowContent(existingContent, windowContent);
             }
 
-            ScriptFileWriter.Write(context.TargetObject, context.ClassName, scriptContent, context.ScriptGenerateData, windowContent);
+            UIGeneratorSettings.ScriptFileWriter.Write(context.TargetObject, context.ClassName, scriptContent, context.ScriptGenerateData, windowContent);
         }
 
         [DidReloadScripts]
