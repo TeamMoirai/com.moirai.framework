@@ -39,8 +39,8 @@
 - `SaveServiceSettings` 的默认序列化后端按类型名配置（`m_DefaultSerializerTypeName`，ProviderDropdown 类型名模式，与 `UIGeneratorSettings` 同款）：首次读取时解析成实例并按名缓存，并确保该 ID 在 `SaveSerializerRegistry` 里有主，写读落进同一实现；无状态的内置序列化器不再为引用序列化而带 `[Serializable]`。设置资产没配这一项时按内置 Json 走，已在 Inspector 配过默认后端的需在改版后重选一次。
 - 注册表把"0..255 框架保留"从文档约定变成门禁：`SaveSerializerRegistry.Register` 拒绝保留区内任何非内建标识（此前只挡 `KEY_VALUE`），内建扩号不会再与项目已注册的后端静默相撞；类型名解析不到实现时按内置 JSON 回退，且同一份错配置只报一次 Fatal（此前每存一块都重报一次并新建实例）；构建期由 `SaveSettingsBuildValidator` 与占位密钥一并报出，开严同样挡包。
 - `SaveSerializerRegistry` 不再硬编码内置后端：注册按 ID→类型挂账，首次查询到该后端才实例化那一个（实现均无状态）；新增 `Register(ushort, Type)` 与 `Register<T>()` 两个登记入口，`Unregister(ushort)` 连 ID→类型记录一起摘除（只删实例会被下一次查询复活），换后端为「先 `Unregister` 再 `Register`」；重号判据同查两张表，同标识实现不再静默盖掉已登记那份。
-
 - 存档源生成器工程 `SaveHost` 更名 `SaveServiceCodegen`（文件夹 / csproj / 入库 dll 三名同步，命名空间不变），并按功能拆成四个生成器类：`SaveFieldCapturerGenerator`（`[SaveField]` 捕获器）、`SaveMigratorRegistrationGenerator`（迁移器自注册）、`SaveSerializerRegistrationGenerator`（`[RegisterSerializer]` 后端自注册）、`SaveModuleInitializerShimGenerator`（`ModuleInitializerAttribute` 缺失副本的唯一归属方），三者各占一个模块初始化器类；诊断描述符同时从 `SaveFieldModel.cs` 独立成 `Diagnostics.cs`（Category 由 `SaveHost` 改 `Save`）。生成的捕获器与注册内容不变。
+- 存档模式分析器 `SaveSchemaAnalyzer`（MIRAI400/401）从 `ServiceDependency.dll` 归到 `SaveServiceCodegen.dll`：诊断 ID、判据与快照格式不变，只是 Save 的判据与 Save 的生成器同装配；生成器内部另把 `SaveFieldModel.cs` 按类型拆出 `SaveValueClassifier.cs` 与 `DiagnosticInfo.cs`。
 
 ### Removed
 
