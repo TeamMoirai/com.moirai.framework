@@ -154,6 +154,12 @@ namespace Moirai.Atropos
                             return list;
                         }
 
+                        // 以数组承载的其余集合（HashSet/SortedSet/Queue/Stack/LinkedList 与集合接口形态）
+                        if (type.IsGenericType && JsonTypeSupport.IsArrayBackedDefinition(type.GetGenericTypeDefinition()))
+                        {
+                            return ParseArrayBackedCollection(lexer, type, depth);
+                        }
+
                         lexer.Throw(StringUtility.Format("Cannot parse a JSON array into '{0}'.", type.Name));
                         return null;
 
@@ -324,6 +330,59 @@ namespace Moirai.Atropos
             #endregion
 
             #region 集合 [COLLECTIONS]
+
+            /// <summary>
+            /// 按 JSON 数组重建以数组承载的集合（与写出侧的枚举序对应）。
+            /// </summary>
+            /// <remarks>
+            /// 先落到 <c>List&lt;T&gt;</c> 缓冲再转交目标容器：<c>Stack&lt;T&gt;</c> 没有接受 <c>IEnumerable&lt;T&gt;</c> 的构造函数，
+            /// 且其枚举序是自顶向下，故逆序压栈才与写出侧同构；集合接口形态（<c>IList&lt;T&gt;</c>/<c>IReadOnlyList&lt;T&gt;</c> 等）
+            /// 直接落到 <c>List&lt;T&gt;</c> 实例。
+            /// </remarks>
+            private static object ParseArrayBackedCollection(TLexer lexer, Type type, int depth)
+            {
+                Type definition = type.GetGenericTypeDefinition();
+                Type elementType = type.GetGenericArguments()[0];
+
+                Type bufferType = typeof(List<>).MakeGenericType(elementType);
+                IList buffer = (IList)Activator.CreateInstance(bufferType);
+                ParseList(lexer, bufferType, buffer, depth);
+
+                if (definition == typeof(Stack<>))
+                {
+                    object stack = Activator.CreateInstance(type);
+                    MethodInfo push = type.GetMethod("Push");
+                    for (int i = buffer.Count - 1; i >= 0; i--)
+                    {
+                        push.Invoke(stack, new[] { buffer[i] });
+                    }
+
+                    return stack;
+                }
+
+                if (definition == typeof(ISet<>))
+                {
+                    // 接口形态没有构造函数可用，落到 HashSet<T> 具体实例
+                    Type setType = typeof(HashSet<>).MakeGenericType(elementType);
+                    return setType.GetConstructor(new[] { typeof(IEnumerable<>).MakeGenericType(elementType) })
+                               .Invoke(new object[] { buffer });
+                }
+
+                if (definition == typeof(HashSet<>) || definition == typeof(SortedSet<>) ||
+                    definition == typeof(Queue<>) || definition == typeof(LinkedList<>))
+                {
+                    ConstructorInfo constructor = type.GetConstructor(new[] { typeof(IEnumerable<>).MakeGenericType(elementType) });
+                    if (constructor == null)
+                    {
+                        lexer.Throw(StringUtility.Format("Cannot construct '{0}' from a JSON array.", type.FullName));
+                    }
+
+                    return constructor.Invoke(new object[] { buffer });
+                }
+
+                // 集合接口形态：落到 List<T> 具体实例
+                return buffer;
+            }
 
             private static void ParseList(TLexer lexer, Type type, IList list, int depth)
             {

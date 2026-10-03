@@ -10,7 +10,7 @@
 - Fast byte path: `IBufferJsonHandler` interface, skips UTF16/UTF8 transcoding in IO/network scenarios
 - Attribute control: `[JsonSerialize]` / `[JsonDoNotSerialize]` / `[JsonSerializeAs("name")]` to control field serialization
 - Lifecycle callbacks: `[JsonBeforeSerialization]` / `[JsonAfterDeserialization]` method attributes
-- Type exclusion: `UnityEngine.Object` derived types and `UnityEvent` are automatically skipped
+- Member selection is an allow-list: only types that can be written and read back enter the payload; non-data families (`UnityEngine.Object` derived, delegates, `UnityEventBase` derived) and non-round-trippable shapes (non-collection interface/abstract members, multi-dimensional arrays, BCL internal types) are skipped
 - Formatted output: `FormatJson(string)` with indentation and line breaks (pooled StringBuilder)
 
 ## Core Types
@@ -91,7 +91,9 @@ JsonUtility.Handler = new DefaultJsonHandler();
 ## Notes
 
 - Setting `Handler` to null throws `ArgumentNullException`; assigning a new value automatically calls `Internal_Shutdown()` on the old handler and `Internal_Init()` on the new handler
-- By default, types derived from `UnityEngine.Object` (GameObject/Component/Sprite/Texture/Material, etc.) and `UnityEvent` are not serialized; reflection-based serialization would reach native-side objects
+- Whether a member enters the payload is decided by `JsonTypeSupport.IsSupportedMemberType` (an allow-list): scalars/enums/`decimal`/`DateTime` and other BCL value types, engine and project structs (`Vector3`/`Color`/`Quaternion`…), one-dimensional arrays, `List`/`Dictionary`, array-backed collections (`HashSet`/`SortedSet`/`ISet`/`Queue`/`Stack`/`LinkedList` plus `IList`/`ICollection`/`IEnumerable`/`IReadOnlyList`/`IReadOnlyCollection`, round-tripped in enumeration order) and project POCOs qualify; `UnityEngine.Object` derived types, delegates (C# events, `Action`/`Func`), `UnityEventBase` derived types (including generic `UnityEvent<T>`), non-collection interface and abstract members, multi-dimensional arrays and remaining concrete BCL types (`StringBuilder`/`Tuple`/`Type`…) do not
+- An excluded member simply does not appear in the JSON on the write side and is treated as an unknown field on the read side, so both sides stay symmetric; neither `[SerializeField]` nor `[JsonSerialize]` overrides the predicate (Unity itself silently skips unsupported field types as well)
+- A type with no serializable member at all still throws `GameException`: the allow-list only removes members, it never lets a data class silently serialize as `{}`
 - By default, properties must have both getter and setter (a round-trip symmetry contract); get-only computed properties are automatically excluded
 - `JsonHandler.FromJsonOverwrite` deserializes JSON data onto an existing object, overwriting its current data
 
