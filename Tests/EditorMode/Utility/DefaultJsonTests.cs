@@ -1684,7 +1684,7 @@ namespace Utility
             Assert.AreEqual(3f, r.pos.z, "引擎结构体须照常入档");
             Assert.AreEqual(2, r.list.Count);
             Assert.AreEqual(7, r.dict["a"]);
-            Assert.AreEqual(8f, r.listVec[0].y, "引擎结构体集合须照常入档");
+            Assert.AreEqual(new UnityEngine.Vector3(6, 7, 8), r.listVec[0], "引擎结构体集合须照常入档");
         }
 
         [System.Serializable]
