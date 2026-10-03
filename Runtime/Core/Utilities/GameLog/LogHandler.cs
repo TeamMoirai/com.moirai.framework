@@ -70,6 +70,16 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 带异常对象的 Error 条目是否经 Unity 的 LogException 通道呈现（UTF 因此把它当作 <c>LogType.Exception</c> 而非 <c>LogType.Error</c>）。
+        /// </summary>
+        /// <remarks>
+        /// 基类默认 <c>false</c>，与 <see cref="DefaultLogHandler"/> 一致：Error 落 <c>LogType.Error</c>，只有 Fatal 带异常时才走 LogException。 <br />
+        /// 后端只要「条目自带异常就升级成 Exception」即覆盖为 <c>true</c>（ZLogger 的旁路 processor 属此）。 <br />
+        /// 这条判据存在的理由：日志级别随处理器变，而测试装配看不到各后端的 <c>*_INSTALLED</c> 宏，把级别写死在用例里换一次处理器就假红。
+        /// </remarks>
+        public virtual bool ErrorWithExceptionUsesExceptionChannel => false;
+
+        /// <summary>
         /// 记录一条已格式化的日志。
         /// </summary>
         /// <param name="logLevel">游戏框架日志等级。</param>

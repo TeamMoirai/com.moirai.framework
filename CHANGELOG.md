@@ -18,6 +18,10 @@
 
 - 集合形态补齐往返：`HashSet<T>`/`SortedSet<T>`/`ISet<T>`/`Queue<T>`/`Stack<T>`/`LinkedList<T>` 与 `IList<T>`/`ICollection<T>`/`IEnumerable<T>`/`IReadOnlyList<T>`/`IReadOnlyCollection<T>` 按枚举序写成 JSON 数组、读侧按序回填（`Stack<T>` 逆序压栈以保持栈顶与写出前一致，`ISet<T>` 落到 `HashSet<T>`，集合接口落到 `List<T>`）；读侧原先只认 `List<T>`/`Dictionary<K,V>`，接口形态会抛 "Cannot parse a JSON array into"。
 
+#### 日志
+
+- `LogHandler` 新增自述能力 `ErrorWithExceptionUsesExceptionChannel`（基类默认 `false`，ZLogger 旁路为 `true`）：带异常的 Error 条目在 `UnityEngine.Debug` 通道上究竟落 `LogType.Error` 还是 `LogType.Exception` 由处理器决定，测试装配拿不到后端的 `*_INSTALLED` 宏，级别只能按此判定，写死任一级别换处理器就假红。
+
 ### Changed
 
 #### JSON
