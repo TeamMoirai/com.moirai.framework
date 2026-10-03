@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Moirai.Atropos;
 using NUnit.Framework;
 
@@ -1548,6 +1549,204 @@ namespace Utility
             var s = new CustomPoint { X = 3, Y = 4, Label = "pt" };
             string json = DefaultJson.ToJson(s);
             Assert.IsFalse(json.Contains("Length"), "自定义结构体的只读计算属性不得序列化: " + json);
+        }
+
+        #endregion
+
+        #region 成员类型允许列表测试 [MEMBER TYPE ALLOW-LIST]
+
+        private delegate void TestSimpleEvent();
+
+        private interface IShapeLike
+        {
+            int Value { get; set; }
+        }
+
+        private sealed class ShapeLike : IShapeLike
+        {
+            public int Value { get; set; }
+        }
+
+        private abstract class AbsLike
+        {
+            public int a;
+        }
+
+        private sealed class AbsChild : AbsLike
+        {
+            public int b;
+        }
+
+        private struct UserPoint
+        {
+            public int x;
+            public int y;
+        }
+
+        [System.Serializable]
+        private class AllowListClass
+        {
+            public int marker;
+            public TestSimpleEvent onDel;
+            public System.Action onAct;
+            public UnityEngine.Events.UnityEvent<int> onUnityGeneric;
+            public IShapeLike iface;
+            public AbsLike abs;
+            public System.Text.StringBuilder sb;
+            public System.Collections.Generic.LinkedList<string> linked;
+            public System.Type typeRef;
+        }
+
+        [System.Serializable]
+        private class AllowListControls
+        {
+            public int marker;
+            public UserPoint point;
+            public UnityEngine.Vector3 pos;
+            public System.Collections.Generic.List<int> list;
+            public System.Collections.Generic.Dictionary<string, int> dict;
+            public System.Collections.Generic.List<UnityEngine.Vector3> listVec;
+        }
+
+        [System.Serializable]
+        private class MemberlessClass
+        {
+        }
+
+        [Test]
+        public void Delegate_NonNull_SkippedWithoutThrow()
+        {
+            var obj = new AllowListClass { marker = 7, onDel = () => { }, onAct = () => { } };
+            string json = DefaultJson.ToJson(obj);
+            Assert.IsFalse(json.Contains("onDel"), "委托成员不得写入 JSON: " + json);
+            Assert.IsFalse(json.Contains("onAct"), "委托成员不得写入 JSON: " + json);
+            Assert.IsTrue(json.Contains("marker"), "同级数据字段必须照常序列化: " + json);
+        }
+
+        [Test]
+        public void UnityEventGeneric_Skipped()
+        {
+            var obj = new AllowListClass { marker = 1, onUnityGeneric = new UnityEngine.Events.UnityEvent<int>() };
+            string json = DefaultJson.ToJson(obj);
+            Assert.IsFalse(json.Contains("onUnityGeneric"), "泛型 UnityEvent 不是数据，不得写入: " + json);
+            Assert.IsFalse(json.Contains("m_PersistentCalls"), "引擎事件载体不得被反射兜底: " + json);
+        }
+
+        [Test]
+        public void InterfaceAndAbstractMembers_Skipped()
+        {
+            var obj = new AllowListClass { marker = 1, iface = new ShapeLike { Value = 9 }, abs = new AbsChild { a = 1, b = 2 } };
+            string json = DefaultJson.ToJson(obj);
+            Assert.IsFalse(json.Contains("iface"), "接口成员无类型名，读回构造不出实例，不得写入: " + json);
+            Assert.IsFalse(json.Contains("abs"), "抽象成员同上: " + json);
+        }
+
+        [Test]
+        public void BclInternalTypes_Skipped()
+        {
+            var obj = new AllowListClass
+            {
+                marker = 1,
+                sb = new System.Text.StringBuilder("buf"),
+                linked = new System.Collections.Generic.LinkedList<string>(new[] { "z" }),
+                typeRef = typeof(AllowListClass),
+            };
+            string json = DefaultJson.ToJson(obj);
+            Assert.IsFalse(json.Contains("m_ChunkChars"), "不得写出 BCL 类型的私有结构: " + json);
+            Assert.IsFalse(json.Contains("m_head"), "不得写出 LinkedList 的节点链: " + json);
+            Assert.IsFalse(json.Contains("typeRef"), "Type 引用不是数据: " + json);
+        }
+
+        [Test]
+        public void AllowList_SkippedMembers_RoundTripKeepsData()
+        {
+            var obj = new AllowListClass { marker = 42, onDel = () => { }, sb = new System.Text.StringBuilder("x") };
+            var result = DefaultJson.FromJson<AllowListClass>(DefaultJson.ToJson(obj));
+            Assert.AreEqual(42, result.marker, "被排除的成员不得影响其余数据的往返");
+            Assert.IsNull(result.onDel, "委托不入库，还原后应为空");
+        }
+
+        [Test]
+        public void SupportedKinds_RoundTrip()
+        {
+            var obj = new AllowListControls
+            {
+                marker = 1,
+                point = new UserPoint { x = 4, y = 5 },
+                pos = new UnityEngine.Vector3(1, 2, 3),
+                list = new System.Collections.Generic.List<int> { 1, 2 },
+                dict = new System.Collections.Generic.Dictionary<string, int> { { "a", 7 } },
+                listVec = new System.Collections.Generic.List<UnityEngine.Vector3> { new UnityEngine.Vector3(6, 7, 8) },
+            };
+            var r = DefaultJson.FromJson<AllowListControls>(DefaultJson.ToJson(obj));
+            Assert.AreEqual(1, r.marker);
+            Assert.AreEqual(4, r.point.x, "项目结构体须照常入档");
+            Assert.AreEqual(3f, r.pos.z, "引擎结构体须照常入档");
+            Assert.AreEqual(2, r.list.Count);
+            Assert.AreEqual(7, r.dict["a"]);
+            Assert.AreEqual(8f, r.listVec[0].y, "引擎结构体集合须照常入档");
+        }
+
+        [System.Serializable]
+        private class CollectionHolder
+        {
+            public int marker;
+            public HashSet<int> set;
+            public Queue<string> queue;
+            public Stack<int> stack;
+            public LinkedList<string> linked;
+            public ISet<int> ifaceSet;
+            public IList<int> ifaceList;
+            public IReadOnlyCollection<int> readOnlyView;
+        }
+
+        [System.Serializable]
+        private class MultiDimensionalHolder
+        {
+            public int marker;
+            public int[,] matrix;
+        }
+
+        [Test]
+        public void ArrayBackedCollections_RoundTrip()
+        {
+            var obj = new CollectionHolder
+            {
+                marker = 1,
+                set = new HashSet<int> { 1, 2, 3 },
+                queue = new Queue<string>(new[] { "a", "b" }),
+                stack = new Stack<int>(new[] { 1, 2, 3 }),
+                linked = new LinkedList<string>(new[] { "x", "y" }),
+                ifaceSet = new HashSet<int> { 9, 10 },
+                ifaceList = new List<int> { 5, 6 },
+                readOnlyView = new List<int> { 7, 8 },
+            };
+
+            var r = DefaultJson.FromJson<CollectionHolder>(DefaultJson.ToJson(obj));
+
+            Assert.AreEqual(new[] { 1, 2, 3 }, r.set.OrderBy(_ => _).ToArray());
+            Assert.AreEqual(new[] { "a", "b" }, r.queue.ToArray(), "队列须保持入队序");
+            Assert.AreEqual(3, r.stack.Peek(), "栈顶须与写出前一致（写出是顶→底，读回逆序压栈）");
+            Assert.AreEqual(new[] { 1, 2, 3 }, r.stack.Reverse().ToArray(), "栈内层序须完整还原");
+            Assert.AreEqual(new[] { "x", "y" }, r.linked.ToArray(), "链表须保持链接序");
+            Assert.IsInstanceOf<HashSet<int>>(r.ifaceSet, "ISet<T> 须落到具体实例");
+            Assert.AreEqual(2, r.ifaceSet.Count);
+            Assert.AreEqual(new[] { 5, 6 }, r.ifaceList.ToArray());
+            Assert.AreEqual(2, r.readOnlyView.Count);
+        }
+
+        [Test]
+        public void MultiDimensionalArray_SkippedWithoutThrow()
+        {
+            var obj = new MultiDimensionalHolder { marker = 1, matrix = new int[2, 2] };
+            string json = DefaultJson.ToJson(obj);
+            Assert.IsFalse(json.Contains("matrix"), "多维数组两侧未对接，不入选且不得抛错: " + json);
+        }
+
+        [Test]
+        public void MemberlessType_StillThrows()
+        {
+            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.ToJson(new MemberlessClass()));
         }
 
         #endregion

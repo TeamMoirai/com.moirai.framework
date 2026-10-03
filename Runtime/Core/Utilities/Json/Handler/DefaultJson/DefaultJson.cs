@@ -274,7 +274,7 @@ namespace Moirai.Atropos
                 foreach (FieldInfo field in fields)
                 {
                     bool forceExclude = field.Name[0] == '<' ||
-                                        JsonUtility.TypeIsForbidden(field.FieldType) ||
+                                        !JsonTypeSupport.IsSupportedMemberType(field.FieldType) ||
                                         field.GetCustomAttribute<JsonDoNotSerializeAttribute>() != null;
                     if (forceExclude) continue;
 
@@ -306,8 +306,8 @@ namespace Moirai.Atropos
                 {
                     if (field.Name[0] == '<') continue;
 
-                    // 与序列化侧对齐：禁止类型（UnityEngine.Object 派生等）不参与反序列化，对应 key 按未知字段忽略
-                    if (JsonUtility.TypeIsForbidden(field.FieldType)) continue;
+                    // 与序列化侧对齐：不入选允许列表的成员类型不参与反序列化，对应 key 按未知字段忽略
+                    if (!JsonTypeSupport.IsSupportedMemberType(field.FieldType)) continue;
 
                     bool forceInclude = field.GetCustomAttribute<SerializeField>() != null ||
                                         field.GetCustomAttribute<JsonSerializeAttribute>() != null ||
@@ -347,7 +347,7 @@ namespace Moirai.Atropos
                 foreach (PropertyInfo property in properties)
                 {
                     bool forceExclude = property.Name[0] == '<' ||
-                                        JsonUtility.TypeIsForbidden(property.PropertyType) ||
+                                        !JsonTypeSupport.IsSupportedMemberType(property.PropertyType) ||
                                         property.GetCustomAttribute<JsonDoNotSerializeAttribute>() != null ||
                                         property.GetIndexParameters().Length > 0;
                     if (forceExclude) continue;
@@ -385,8 +385,8 @@ namespace Moirai.Atropos
                     if (property.GetCustomAttribute<JsonDoNotSerializeAttribute>() != null) continue;
                     if (property.GetIndexParameters().Length > 0) continue;
 
-                    // 与序列化侧对齐：禁止类型不参与反序列化
-                    if (JsonUtility.TypeIsForbidden(property.PropertyType)) continue;
+                    // 与序列化侧对齐：不入选允许列表的成员类型不参与反序列化
+                    if (!JsonTypeSupport.IsSupportedMemberType(property.PropertyType)) continue;
 
                     try
                     {
