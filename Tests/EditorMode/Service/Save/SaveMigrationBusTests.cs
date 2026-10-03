@@ -378,7 +378,7 @@ namespace Service.Save
         private void WriteSlotAtVersion(string fileName, ProfileData data, int fileVersion)
         {
             SaveMigrationManager.CurrentVersion = fileVersion;
-            _handler.SaveBlockCore(Paths(fileName), "profile", data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(Paths(fileName), "profile", data, SaveBackendIds.JSON, 1, CancellationToken.None);
         }
 
         /// <summary>
@@ -718,7 +718,7 @@ namespace Service.Save
         public void Context_RenameFieldByType_ResolvesDeclaredKey()
         {
             SaveMigrationManager.CurrentVersion = 1;
-            _handler.SaveBlockCore(Paths("slot"), "hero", new HeroData { Level = 9 }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(Paths("slot"), "hero", new HeroData { Level = 9 }, SaveBackendIds.JSON, 1, CancellationToken.None);
             SaveMigrationManager.Register(new RenameByTypeMigrator());
             SaveMigrationManager.CurrentVersion = 2;
 
@@ -777,7 +777,7 @@ namespace Service.Save
         public void Stamp_FreshSave_WritesCurrentVersionIntoMeta()
         {
             SaveMigrationManager.CurrentVersion = 4;
-            _handler.SaveBlockCore(Paths("slot"), "profile", new ProfileData { Gold = 1 }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(Paths("slot"), "profile", new ProfileData { Gold = 1 }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveMetadata metadata = ReadMeta("slot");
             Assert.AreEqual(4, metadata.SaveVersion, "版本化激活时写入应自动盖章当前版本");
@@ -792,7 +792,7 @@ namespace Service.Save
             SaveMigrationManager.Register(new RenameGoldMigrator());
             SaveMigrationManager.CurrentVersion = 2;
 
-            _handler.SaveBlockCore(Paths("slot"), "other", new HeroData { Level = 5 }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(Paths("slot"), "other", new HeroData { Level = 5 }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveMetadata metadata = ReadMeta("slot");
             Assert.AreEqual(2, metadata.SaveVersion, "写入自愈后落盘版本应为当前版本");
@@ -831,7 +831,7 @@ namespace Service.Save
         public void MigrateSave_InactiveBus_IsNoOp()
         {
             // 迁移总线未激活（CurrentVersion = 0）：显式调用无操作且不创建元数据块
-            _handler.SaveBlockCore(Paths("slot"), "profile", new ProfileData { Gold = 1 }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(Paths("slot"), "profile", new ProfileData { Gold = 1 }, SaveBackendIds.JSON, 1, CancellationToken.None);
             SaveError error = _handler.MigrateSave("slot", TestFolder);
             Assert.AreEqual(SaveError.None, error);
             SaveError metaError = _handler.TryLoadBlockCore<SaveMetadata>(Paths("slot"), SaveServiceHandler.META_BLOCK_KEY, out _);

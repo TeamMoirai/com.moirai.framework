@@ -114,7 +114,7 @@ namespace Service.Save
             var paths = Paths("slot");
             var data = new SaveData { Gold = 4321, PlayerName = "Moirai" };
 
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
@@ -126,7 +126,7 @@ namespace Service.Save
         public void LoadBlockCore_FailedError_ReturnsDefault()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             Assert.IsTrue(_handler.FileExists("slot", TestFolder));
 
             SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
@@ -139,7 +139,7 @@ namespace Service.Save
         {
             // LoadBlockCore（Load 外观的核心）在损坏时记录错误日志并返回默认值——既有「损坏兜底」契约
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             fileBytes[^1] ^= 0xFF;
@@ -158,8 +158,8 @@ namespace Service.Save
         {
             var paths = Paths("slot");
 
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "first" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 2, PlayerName = "second" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "first" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 2, PlayerName = "second" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
@@ -171,8 +171,8 @@ namespace Service.Save
         {
             var paths = Paths("slot");
 
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 2, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 2, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             string[] tempFiles = Directory.GetFiles(TestFolderDirectory(), "*.tmp-*", SearchOption.AllDirectories);
             Assert.IsEmpty(tempFiles, "成功写入后不应残留临时文件");
@@ -182,7 +182,7 @@ namespace Service.Save
         public void Save_FileHasVersionedHeader()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             Assert.GreaterOrEqual(fileBytes.Length, SaveFileHeader.Size, "文件应包含文件头");
@@ -307,7 +307,7 @@ namespace Service.Save
         public void TryLoad_CrcMismatch_ReturnsCorrupted()
         {
             var paths = Paths("crc");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             fileBytes[^1] ^= 0xFF; // 翻转载荷末字节（CRC 校验必失败）
@@ -326,7 +326,7 @@ namespace Service.Save
         public void TryLoad_PayloadLengthMismatch_ReturnsCorrupted()
         {
             var paths = Paths("length");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             using (var stream = new FileStream(paths.SaveFilePath, FileMode.Open, FileAccess.Write))
@@ -367,7 +367,7 @@ namespace Service.Save
         public void TryLoad_MissingBlock_ReturnsFileNotFound()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             // 档存在但目标块不存在——块读取语义仍判别为 FileNotFound（无该块）
             SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, "inventory", out SaveData loaded);
@@ -384,8 +384,8 @@ namespace Service.Save
         public void SaveBlock_MultipleKeys_CoexistInOneFile()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "stats" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "inventory" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "stats" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "inventory" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveError statsError = _handler.TryLoadBlockCore<SaveData>(paths, "stats", out SaveData stats);
             SaveError inventoryError = _handler.TryLoadBlockCore<SaveData>(paths, "inventory", out SaveData inventory);
@@ -400,9 +400,9 @@ namespace Service.Save
         public void SaveBlock_UpsertReplacesByKey_KeepsOthers()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "v1" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "inv" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 3, PlayerName = "v2" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "v1" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "inv" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 3, PlayerName = "v2" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, "stats", out SaveData stats);
             SaveError inventoryError = _handler.TryLoadBlockCore<SaveData>(paths, "inventory", out SaveData inventory);
@@ -417,15 +417,15 @@ namespace Service.Save
         public void GetBlockInfos_EnumeratesAllBlocks()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "stats" }, ESaveBackend.Json, 3, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "inv" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "stats" }, SaveBackendIds.JSON, 3, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "inv" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveBlockInfo[] infos = _handler.GetBlockInfos("slot", TestFolder);
 
             Assert.AreEqual(2, infos.Length, "应枚举出全部数据块");
             Assert.AreEqual("stats", infos[0].Key, "块应按插入顺序枚举");
             Assert.AreEqual(3, infos[0].DataVersion, "块元信息应携带模式版本");
-            Assert.AreEqual(ESaveBackend.Json, infos[0].Backend, "块元信息应携带后端标识");
+            Assert.AreEqual(SaveBackendIds.JSON, infos[0].Backend, "块元信息应携带后端标识");
             Assert.Greater(infos[0].SizeBytes, 0, "块元信息应携带载荷大小");
             Assert.AreEqual("inventory", infos[1].Key);
         }
@@ -441,8 +441,8 @@ namespace Service.Save
         public void DeleteBlock_RemovesTargetBlock_KeepsOthers()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "stats" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "inv" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "stats" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "inv" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             _handler.DeleteBlock("slot", "stats", TestFolder);
 
@@ -456,7 +456,7 @@ namespace Service.Save
         public void DeleteBlock_LastBlockRemovesFile()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "solo" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "solo" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             _handler.DeleteBlock("slot", "stats", TestFolder);
 
@@ -473,7 +473,7 @@ namespace Service.Save
                 Custom = new System.Collections.Generic.Dictionary<string, string> { ["LevelName"] = "Sunken Temple" }
             };
 
-            _handler.SaveBlockCore(paths, SaveServiceHandler.META_BLOCK_KEY, metadata, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.META_BLOCK_KEY, metadata, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<SaveMetadata>(paths, SaveServiceHandler.META_BLOCK_KEY, out SaveMetadata loaded);
             Assert.AreEqual(SaveError.None, error);
@@ -758,7 +758,7 @@ namespace Service.Save
         public void DeleteSave_RemovesFile()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             Assert.IsTrue(File.Exists(paths.SaveFilePath));
 
             _handler.DeleteSave("slot", TestFolder);
@@ -769,7 +769,7 @@ namespace Service.Save
         public void DeleteSaveFolder_RemovesDirectoryTree()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             // 文件夹内嵌套子目录（验证递归删除）
             string nestedDirectory = Path.Combine(paths.DirectoryPath, "nested-" + Guid.NewGuid().ToString("N"));
@@ -785,7 +785,7 @@ namespace Service.Save
         public void TryDeleteSave_Existing_ReturnsTrue_AndRemovesFile()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             bool existed = _handler.TryDeleteSave("slot", TestFolder);
 
@@ -805,7 +805,7 @@ namespace Service.Save
         public async Task TryDeleteSaveAsync_ReflectsExistence()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             bool existed = await _handler.TryDeleteSaveAsync("slot", TestFolder).AsTask();
             bool missing = await _handler.TryDeleteSaveAsync("slot", TestFolder).AsTask();
@@ -821,7 +821,7 @@ namespace Service.Save
             Assert.IsFalse(_handler.TryDeleteSaveFolder(TestFolder), "缺目录删除应返回 false");
 
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             bool existed = _handler.TryDeleteSaveFolder(TestFolder);
 
@@ -841,7 +841,7 @@ namespace Service.Save
             Assert.IsFalse(_handler.TryDeleteAllSaveFiles(), "数据根目录尚未创建时应返回 false");
 
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             bool existed = _handler.TryDeleteAllSaveFiles();
 
@@ -855,7 +855,7 @@ namespace Service.Save
             var paths = Paths("slot");
             Assert.IsFalse(_handler.FileExists("slot", TestFolder));
 
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             Assert.IsTrue(_handler.FileExists("slot", TestFolder));
 
             _handler.DeleteSave("slot", TestFolder);
@@ -867,8 +867,8 @@ namespace Service.Save
         {
             var oldPath = Paths("slot_old");
             var newPath = Paths("slot_new");
-            _handler.SaveBlockCore(oldPath, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "old" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(newPath, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 2, PlayerName = "new" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(oldPath, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "old" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(newPath, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 2, PlayerName = "new" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             // 控制时间戳使顺序确定（SaveCore 间隔过短时文件系统时间精度不足）
             File.SetLastWriteTimeUtc(oldPath.SaveFilePath, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
@@ -894,7 +894,7 @@ namespace Service.Save
         {
             // Windows GetFiles 的 8.3 通配符怪癖：*.sav 会命中 *.saveall——必须按扩展名精确过滤
             var realPath = Paths("real");
-            _handler.SaveBlockCore(realPath, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(realPath, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             File.WriteAllText(realPath.SaveFilePath + "all", "decoy");
 
             SaveFileInfo[] files = _handler.GetSaveFiles(TestFolder);
@@ -906,13 +906,13 @@ namespace Service.Save
         public void CreateBackup_ThenRestoreBackup_RoundTrips()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "backup-me" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "backup-me" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             _handler.CreateBackup("slot", TestFolder);
             Assert.IsTrue(File.Exists(paths.SaveFilePath + ".bak"), "备份应落盘");
 
             // 覆盖为新数据后从备份恢复
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 999, PlayerName = "overwritten" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 999, PlayerName = "overwritten" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _handler.RestoreBackup("slot", TestFolder);
 
             SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData restored);
@@ -941,8 +941,8 @@ namespace Service.Save
         public void ReadRawBlocks_RoundTrip_ReturnsAllHealthyBlocks()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 7, PlayerName = "main" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 99, PlayerName = "stats" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 7, PlayerName = "main" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 99, PlayerName = "stats" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             Dictionary<string, byte[]> blocks = _handler.ReadRawBlocks(paths);
             Assert.AreEqual(2, blocks.Count);
@@ -950,7 +950,7 @@ namespace Service.Save
             Assert.IsTrue(blocks.ContainsKey("stats"));
 
             // 与类型化读取同一载荷来源——反序列化内容一致
-            SaveData stats = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Deserialize<SaveData>(blocks["stats"]);
+            SaveData stats = SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON).Deserialize<SaveData>(blocks["stats"]);
             Assert.AreEqual(99, stats.Gold);
             Assert.AreEqual("stats", stats.PlayerName);
         }

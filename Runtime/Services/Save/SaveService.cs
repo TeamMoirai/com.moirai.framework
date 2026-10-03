@@ -124,7 +124,7 @@ namespace Moirai.Atropos.Save
         public static async UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             SaveServiceHandler handler = RequireHandler();
-            ESaveBackend backend = ResolveBackend<T>();
+            ushort backend = ResolveBackend<T>();
             await handler.SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
             await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, key);
         }
@@ -475,7 +475,7 @@ namespace Moirai.Atropos.Save
                     {
                         var writer = new SaveKeyValueWriter(256);
                         component.Capture(ref writer);
-                        entries.Add(new SaveBlockEntry(blockKey, 1, ESaveBackend.KeyValue, writer.ToArray()));
+                        entries.Add(new SaveBlockEntry(blockKey, 1, SaveBackendIds.KEY_VALUE, writer.ToArray()));
                     }
                 }
 
@@ -505,7 +505,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
         public static UniTask SaveMetadataAsync(SaveMetadata metadata, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            RequireHandler().SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1, cancellationToken);
+            RequireHandler().SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1, cancellationToken);
 
         /// <summary>
         /// 从存档文件异步读取槽位元数据（保留块 <c>__meta</c>）。
@@ -528,7 +528,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         public static void SaveMetadata(SaveMetadata metadata, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            RequireHandler().SaveBlock(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1);
+            RequireHandler().SaveBlock(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1);
 
         /// <summary>
         /// 从存档文件读取槽位元数据（在调用线程执行，阻塞直至完成）。
@@ -713,7 +713,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <returns>序列化后端标识。</returns>
-        private static ESaveBackend ResolveBackend<T>()
+        private static ushort ResolveBackend<T>()
         {
             if (SaveBlockDescriptor<T>.HasAttribute)
             {

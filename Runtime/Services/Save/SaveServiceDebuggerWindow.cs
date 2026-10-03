@@ -51,7 +51,7 @@ namespace Moirai.Atropos.Save
             AddRow(pipelineCard, "Handler", handler != null ? handler.GetType().Name : "null");
             AddRow(pipelineCard, "Storage", handler != null ? handler.StorageBackend.GetType().Name : "null");
             AddRow(pipelineCard, "Compression", handler != null && handler.CompressionProvider != null ? handler.CompressionProvider.GetType().Name : "None");
-            AddRow(pipelineCard, "Default Backend", SaveServiceSettings.DefaultBackend.ToString());
+            AddRow(pipelineCard, "Default Backend", SaveBackendIds.DisplayName(SaveServiceSettings.DefaultBackend));
             AddRow(pipelineCard, "Screenshot On Save", SaveServiceSettings.CaptureScreenshotOnSave.ToString());
 
             VisualElement controlCard = AddSection(root, "SELECTION");
@@ -234,8 +234,10 @@ namespace Moirai.Atropos.Save
                 {
                     // 坏块可视化：键不可读时以序号占位；结构性坏块元信息为零值仅报错误码
                     string title = block.Key ?? StringUtility.Format("<Corrupt block #{0}>", i);
+                    string meta = StringUtility.Format("{0} | v{1} | {2} B",
+                        SaveBackendIds.DisplayName(block.Backend), block.DataVersion, block.SizeBytes);
                     string content = block.HasMetadata
-                        ? StringUtility.Format("{0} | v{1} | {2} B | {3}", block.Backend, block.DataVersion, block.SizeBytes, block.Error)
+                        ? meta + " | " + block.Error
                         : StringUtility.Format("Structure unreadable | {0}", block.Error);
                     VisualElement row = DebuggerUI.CreateRow(title, content, BLOCK_TITLE_RATIO);
                     row.AddToClassList("dbg-text--danger");
@@ -243,7 +245,9 @@ namespace Moirai.Atropos.Save
                     continue;
                 }
 
-                AddRow(_dataRoot, block.Key, StringUtility.Format("{0} | v{1} | {2} B", block.Backend, block.DataVersion, block.SizeBytes), BLOCK_TITLE_RATIO);
+                string rowContent = StringUtility.Format("{0} | v{1} | {2} B",
+                    SaveBackendIds.DisplayName(block.Backend), block.DataVersion, block.SizeBytes);
+                AddRow(_dataRoot, block.Key, rowContent, BLOCK_TITLE_RATIO);
             }
         }
 

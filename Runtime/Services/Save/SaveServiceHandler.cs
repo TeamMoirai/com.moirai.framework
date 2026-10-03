@@ -132,7 +132,7 @@ namespace Moirai.Atropos.Save
         /// <param name="dataVersion">数据块模式版本。</param>
         /// <param name="cancellationToken">取消令牌（协作式：在序列化前后与替换前检查）。</param>
         /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>（含路径上下文）。</returns>
-        public UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = DEFAULT_FOLDER_NAME, ESaveBackend backend = ESaveBackend.Json, int dataVersion = 1, CancellationToken cancellationToken = default)
+        public UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = DEFAULT_FOLDER_NAME, ushort backend = SaveBackendIds.JSON, int dataVersion = 1, CancellationToken cancellationToken = default)
         {
             ValidateBlockData(data);
             ValidateBlockKey(key);
@@ -144,7 +144,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 持串行门执行块写入（先排队后进线程池；取消发生在排队期时不持门）。
         /// </summary>
-        private async UniTask SaveBlockWithGateAsync<T>(SavePaths paths, string key, T data, ESaveBackend backend, int dataVersion, GateScope scope, CancellationToken cancellationToken)
+        private async UniTask SaveBlockWithGateAsync<T>(SavePaths paths, string key, T data, ushort backend, int dataVersion, GateScope scope, CancellationToken cancellationToken)
         {
             try
             {
@@ -244,7 +244,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="dataVersion">数据块模式版本。</param>
-        public void SaveBlock<T>(T data, string fileName, string key, string folderName = DEFAULT_FOLDER_NAME, ESaveBackend backend = ESaveBackend.Json, int dataVersion = 1)
+        public void SaveBlock<T>(T data, string fileName, string key, string folderName = DEFAULT_FOLDER_NAME, ushort backend = SaveBackendIds.JSON, int dataVersion = 1)
         {
             ValidateBlockData(data);
             ValidateBlockKey(key);
@@ -323,7 +323,7 @@ namespace Moirai.Atropos.Save
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="dataVersion">数据块模式版本。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        internal void SaveBlockCore<T>(SavePaths paths, string key, T data, ESaveBackend backend, int dataVersion, CancellationToken cancellationToken)
+        internal void SaveBlockCore<T>(SavePaths paths, string key, T data, ushort backend, int dataVersion, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -1079,7 +1079,7 @@ namespace Moirai.Atropos.Save
         /// 将组件捕获条目批量合并写入存档文件（主线程完成捕获，此处仅合并与原子写回），IO 在工作线程执行。
         /// </summary>
         /// <param name="paths">已解析的路径集合。</param>
-        /// <param name="additions">组件捕获条目（键 = 块键，载荷 = KVT 字节，后端 = <see cref="ESaveBackend.KeyValue"/>）。</param>
+        /// <param name="additions">组件捕获条目（键 = 块键，载荷 = KVT 字节，后端 = <see cref="SaveBackendIds.KEY_VALUE"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
         internal UniTask UpsertRawBlocksAsync(SavePaths paths, List<SaveBlockEntry> additions, CancellationToken cancellationToken)
@@ -1608,7 +1608,7 @@ namespace Moirai.Atropos.Save
             {
                 try
                 {
-                    metadata = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Deserialize<SaveMetadata>(metaEntry.Bytes);
+                    metadata = SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON).Deserialize<SaveMetadata>(metaEntry.Bytes);
                 }
                 catch (Exception)
                 {
@@ -1623,8 +1623,8 @@ namespace Moirai.Atropos.Save
 
             metadata ??= new SaveMetadata();
             metadata.SaveVersion = currentVersion;
-            byte[] metaBytes = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Serialize(metadata);
-            return SaveBlockComposer.Upsert(blocks, new SaveBlockEntry(META_BLOCK_KEY, 1, ESaveBackend.Json, metaBytes));
+            byte[] metaBytes = SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON).Serialize(metadata);
+            return SaveBlockComposer.Upsert(blocks, new SaveBlockEntry(META_BLOCK_KEY, 1, SaveBackendIds.JSON, metaBytes));
         }
 
         #endregion

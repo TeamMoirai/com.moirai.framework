@@ -18,9 +18,9 @@ namespace Service.Save
         {
             return new List<SaveBlockEntry>
             {
-                new SaveBlockEntry("stats", 3, ESaveBackend.Json, Encoding.UTF8.GetBytes("{\"Gold\":1}")),
-                new SaveBlockEntry("inventory", 1, ESaveBackend.MessagePack, new byte[] { 0x93, 0x01, 0x02, 0x03 }),
-                new SaveBlockEntry("unicode-键名⑵", 2, ESaveBackend.KeyValue, new byte[] { 0xAA, 0xBB }),
+                new SaveBlockEntry("stats", 3, SaveBackendIds.JSON, Encoding.UTF8.GetBytes("{\"Gold\":1}")),
+                new SaveBlockEntry("inventory", 1, SaveBackendIds.MESSAGE_PACK, new byte[] { 0x93, 0x01, 0x02, 0x03 }),
+                new SaveBlockEntry("unicode-键名⑵", 2, SaveBackendIds.KEY_VALUE, new byte[] { 0xAA, 0xBB }),
             };
         }
 
@@ -46,10 +46,10 @@ namespace Service.Save
             Assert.AreEqual(3, parsed.Count);
             Assert.AreEqual("stats", parsed[0].Key);
             Assert.AreEqual(3, parsed[0].DataVersion);
-            Assert.AreEqual(ESaveBackend.Json, parsed[0].Backend);
+            Assert.AreEqual(SaveBackendIds.JSON, parsed[0].Backend);
             CollectionAssert.AreEqual(Encoding.UTF8.GetBytes("{\"Gold\":1}"), parsed[0].Bytes);
             Assert.AreEqual("inventory", parsed[1].Key);
-            Assert.AreEqual(ESaveBackend.MessagePack, parsed[1].Backend);
+            Assert.AreEqual(SaveBackendIds.MESSAGE_PACK, parsed[1].Backend);
             Assert.AreEqual("unicode-键名⑵", parsed[2].Key, "块键应支持非 ASCII");
             CollectionAssert.AreEqual(new byte[] { 0xAA, 0xBB }, parsed[2].Bytes);
         }
@@ -164,7 +164,7 @@ namespace Service.Save
             Assert.AreEqual(SaveError.Corrupted, blockErrors[0].Error);
             Assert.IsTrue(blockErrors[0].HasMetadata, "CRC 坏块框架完好，元数据应可信");
             Assert.AreEqual(1, blockErrors[0].DataVersion);
-            Assert.AreEqual(ESaveBackend.MessagePack, blockErrors[0].Backend);
+            Assert.AreEqual(SaveBackendIds.MESSAGE_PACK, blockErrors[0].Backend);
             Assert.AreEqual(4, blockErrors[0].SizeBytes);
         }
 
