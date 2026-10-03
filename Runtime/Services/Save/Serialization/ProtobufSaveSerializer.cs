@@ -12,6 +12,7 @@ namespace Moirai.Atropos.Save
     /// 数据类型需 <c>[ProtoContract]</c>/<c>[ProtoMember(n)]</c> 标注， <br />
     /// 依赖 protobuf-net BuildTools SourceGenerator 预生成 AOT 安全序列化器（<c>RuntimeTypeModel</c> 反射发射路径在 IL2CPP 下不可用，禁止依赖）。
     /// </remarks>
+    [RegisterSerializer]
     public sealed class ProtobufSaveSerializer : ISaveSerializer
     {
         /// <summary>后端标识（恒为 <see cref="SaveBackendIds.PROTOBUF"/>）。</summary>

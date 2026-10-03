@@ -19,11 +19,12 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 │     密钥：ISaveKeyProvider + SaveKeyProvider（内嵌于 AES 处理器；Static 静态口令默认 / Passphrase 运行期注入 / HkdfPerUser 按用户派生）
 ├── 序列化后端（SaveBackendIds + ISaveSerializer + SaveSerializerRegistry）
 │     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件捕获格式保留标识）
-│     开放注册：Register(ISaveSerializer)/Unregister(ushort)（重复后端 fail-fast，KEY_VALUE=254 不可占用；自定义后端 ID 从 1000 起分配）
+│     注册表不硬编码任何后端：框架内置四个实现与项目实现一律标 [RegisterSerializer]，由 SaveServiceCodegen 登记成 ID→类型记录，首次查询到该后端才实例化；Unregister(ushort) 连类型记录一起摘除
+│     代码式注册：Register(ISaveSerializer)/Register(ushort, Type)/Register<T>()（重复后端与保留区占号 fail-fast，KEY_VALUE=254 不可占用；自定义后端 ID 从 1000 起分配）
 ├── 多块容器（SaveFileContainer，手写二进制，块级 key/version/backend/bytes）
 ├── 数据模型（[SaveData] + SaveDataBlock.OnMigrate 版本迁移）
 ├── 迁移总线（SaveMigrationManager + ISaveMigrator：文件级版本链，加载/写入管线前置）
-└── 无代码保存（[SaveField] + SaveComponent + SaveHost SourceGenerator 生成捕获器，[SaveComponentSchema] 模式版本）
+└── 无代码保存（[SaveField] + SaveComponent + SaveServiceCodegen 生成器 生成捕获器，[SaveComponentSchema] 模式版本）
 ```
 
 ## 文件格式
@@ -55,7 +56,7 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 ## 手动存档数据脚本（含版本升级）
 
 ```csharp
-[SaveData("PlayerStats", version = 3, Backend = SaveBackendIds.MESSAGE_PACK)]
+[SaveData("PlayerStats", version = 3, Backend = 1)] // 1 = MessagePack；线标识：0 Json / 1 MessagePack / 2 MemoryPack / 3 Protobuf（254 组件捕获格式保留，0-255 为框架占号，自定义从 1000 起）
 public sealed class PlayerStatsData : SaveDataBlock
 {
     public int Level;
@@ -107,7 +108,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 }
 ```
 
-- 注册：实现类由 SaveHost SourceGenerator 扫描经模块初始化器自注册（AOT 安全；要求具体非抽象类、非私有嵌套、可访问无参构造，否则报 MIRAI302）；也可 `SaveService.RegisterMigrator(...)` 手动注册。非法版本边（`To <= From`）注册期抛 `ArgumentException`——仅允许升级方向，天然防环
+- 注册：实现类由 SaveServiceCodegen 生成器 扫描经模块初始化器自注册（AOT 安全；要求具体非抽象类、非私有嵌套、可访问无参构造，否则报 MIRAI302）；也可 `SaveService.RegisterMigrator(...)` 手动注册。非法版本边（`To <= From`）注册期抛 `ArgumentException`——仅允许升级方向，天然防环
 - 执行约束：迁移在加载/写入管线内**同步执行**（串行门持有期，可能在主线程）——`Migrate` 必须同步完成，禁止切线程或返回未完成任务（fail-fast `MigrationFailed`）；禁止触达 Unity 主线程 API
 - 目标块/字段不存在时操作为无操作（返回 `false`，兼容从未写过该块的旧档）；反序列化失败等真异常中止整条链
 - 字段级操作（`RenameField`/`RetypeField`）支持 JSON（需 Newtonsoft.Json）与 KeyValue 块；**二进制后端不支持字段级操作**（记告警并跳过——用 `TransformBlock<T>` 保留旧类型整对象迁移，键序纪律见下方分析器）
@@ -163,7 +164,7 @@ public partial class Player : MonoBehaviour
 
 ### 生成器诊断
 
-MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器无法自注册；MIRAI303 所在类型及其嵌套外层链须均为 partial class；MIRAI304 需实例字段；MIRAI305 场景引用需 SaveObjectIdentity 指引（Info）；MIRAI306 引用类型声明为 UnityEngine.Object 基类（Warning，字段跳过）；MIRAI307 嵌套数据类型无效；MIRAI308 集合元素/映射键值类型不支持。修改生成器源码（`SourceGenerators/Source~/SaveHost/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveHost.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
+MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器无法自注册；MIRAI303 所在类型及其嵌套外层链须均为 partial class；MIRAI304 需实例字段；MIRAI305 场景引用需 SaveObjectIdentity 指引（Info）；MIRAI306 引用类型声明为 UnityEngine.Object 基类（Warning，字段跳过）；MIRAI307 嵌套数据类型无效；MIRAI308 集合元素/映射键值类型不支持。修改生成器源码（`SourceGenerators/Source~/SaveServiceCodegen/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveServiceCodegen.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
 
 ### 内置捕获器（引擎组件）
 
@@ -341,6 +342,15 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 缺 DLL 时对应后端在 `SaveSerializerRegistry.GetRequired` fail-fast——`[SaveData(Backend = …)]` 显式声明后端仍走这条路，依赖存在与否由代码侧负责；`SaveServiceSettings` 的默认后端下拉只列已编译入包的序列化器，配不出未接入的后端。
 
+注册表**不硬编码任何后端**：框架内置的四个实现（`JsonSaveSerializer` / `MessagePackSaveSerializer` / `MemoryPackSaveSerializer` / `ProtobufSaveSerializer`）与项目实现一律靠类上的 `[RegisterSerializer]` 标注，在模块初始化期登记成 ID→类型记录，真正被查询到才实例化那一个（实现均无状态），因此装了依赖但没用的后端不常驻对象；依赖未接入时类型本身不编译，登记也就不存在，查询照旧 fail-fast。
+
+项目自定义后端有两条接法：
+
+- **声明式（内置与项目同形的唯一入口）**：实现类标 `[RegisterSerializer]`，SaveServiceCodegen 生成器把 `SaveSerializerRegistry.Register(<编号>, typeof(Xxx))` 写进各自程序集的模块初始化器，引导代码为零。特性**不带编号**——唯一真源是实现自述的 `BackendId`，且须是编译期常量表达式（`=> 1000`；框架内部也可写 `=> SaveBackendIds.XXX`，但 `SaveBackendIds` 是 internal，工程侧只能写数字）；生成器据此静态判重，形状非法（未实现接口/抽象/泛型/无可访问无参构造）、编号非常量、编号落在框架保留区 0-255、同编译单元内撞号分别报 **MIRAI309/310/311/312** 且一律 Error——注册跑在模块初始化期，放过去就是程序集加载即抛。跨程序集撞号生成器看不见，运行期由 `Register(ushort, Type)` 记一次 Fatal 并保留先到那份——这条路径刻意不抛：注册跑在模块初始化期，在那里抛出实测会让 Unity 在源生成扫描阶段原生崩溃。
+- **代码式**（测试注入、运行期换实现时用）：`SaveSerializerRegistry.Register<MyBackend>()`、`Register(new MyBackend())`，或同样延迟到首次查询才实例化的 `Register(1000, typeof(MyBackend))`。
+
+换掉某个已占用的后端要先 `Unregister(id)` 再 `Register(...)`——`Unregister` 会连 ID→类型记录一并摘除，所以注销不会被下一次查询悄悄"复活"；被摘掉的内置实现要显式重新登记（如 `Register(0, typeof(JsonSaveSerializer))`）才回得来。
+
 ## 测试
 
 目录：`Tests/EditorMode/Service/Save/`
@@ -359,7 +369,8 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveMigrationAndBackendTests` | 四后端往返、块级版本迁移级联 |
 | `SaveMigrationBusTests` | 版本链、改名改型、整块变换、回写开关、审计、写入自愈、显式迁移 |
 | `SaveCapturerTests` / `SaveCapturerV2Tests` | 组件捕获器：字段增删、集合/嵌套/场景引用/资产引用矩阵 |
-| `SaveSerializerRegistryTests` | 注册校验、重复 fail-fast、保留标识、注销 |
+| `SaveSerializerRegistryTests` | 注册校验、重复 fail-fast、保留标识、泛型注册、注销不复活与热替换、内置按需实例化复用同一实例 |
+| `SaveSerializerSelfRegistrationTests` | `[RegisterSerializer]` 实现经生成器自注册（夹具内无 Register 调用）、不顶掉内置标识 |
 | `SaveKeyValueElementTests` | KVT 元素级：序列/映射/嵌套、null、类型不符、缓冲区边界 |
 | `SaveObjectIdentityTests` | 注册/注销、空 ID、重复 ID 首到先得、销毁失效、Resolve |
 | `SaveAssetCatalogTests` | 资产目录双向查找、类型不符、重复首到先得、缓存失效、InvalidateLookup 程序化契约 |

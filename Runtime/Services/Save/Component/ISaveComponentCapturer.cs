@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档组件捕获器契约（由 SaveHost SourceGenerator 逐组件类型生成强类型实现）。
+    /// 存档组件捕获器契约（由 SaveServiceCodegen 生成器 逐组件类型生成强类型实现）。
     /// </summary>
     /// <remarks>捕获写入「键 = 组件类型全名」的嵌套作用域（载荷 = 启用字段记录集）；恢复由调用方（<see cref="SaveComponent"/>）读出作用域头后按记录数精确消费，绑定间顺序解耦。</remarks>
     public interface ISaveComponentCapturer

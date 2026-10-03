@@ -224,7 +224,7 @@ com.moirai.framework/
 ├── Editor/               # 编辑器工具集
 ├── Plugins/              # 第三方库
 ├── Samples~/             # 示例
-├── SourceGenerators/     # 预编译源生成器（HandlerHost / SaveHost / ServiceDependency）
+├── SourceGenerators/     # 预编译源生成器（HandlerHost / SaveServiceCodegen / ServiceDependency）
 ├── Templates~/           # 项目初始模板
 ├── Documentation~/zh/    # 服务文档（每个服务一份 README）
 └── Tests/                # 单元测试

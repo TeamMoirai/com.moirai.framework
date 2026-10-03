@@ -8,7 +8,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 版本模型：int 递增（0 = 版本化前基线）； <br />
-    /// 游戏层启动期设置 <see cref="CurrentSaveVersion"/> 并注册 <see cref="ISaveMigrator"/>（实现类由 SaveHost SourceGenerator 扫描自注册，AOT 安全）。 <br />
+    /// 游戏层启动期设置 <see cref="CurrentSaveVersion"/> 并注册 <see cref="ISaveMigrator"/>（实现类由 SaveServiceCodegen 生成器 扫描自注册，AOT 安全）。 <br />
     /// 加载/写入管线自动前置迁移链，本分部提供显式整档迁移入口。 <br />
     /// 降级契约：处理器未就绪时 <see cref="MigrateSave"/>/<see cref="MigrateSaveAsync"/> 返回 <see cref="SaveError.HandlerNotReady"/>； <br />
     /// 注册与版本设置不依赖处理器（静态管理器直挂）。

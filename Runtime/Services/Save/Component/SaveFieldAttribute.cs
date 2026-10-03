@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 无代码保存字段标记：标注于 MonoBehaviour 字段上，由 SaveHost SourceGenerator 编译期生成强类型捕获器。
+    /// 无代码保存字段标记：标注于 MonoBehaviour 字段上，由 SaveServiceCodegen 生成器 编译期生成强类型捕获器。
     /// </summary>
     /// <remarks>
     /// 运行期按 <see cref="SaveComponent"/> 的勾选配置过滤捕获字段（编译期生成全字段捕获代码，勾选只是运行时掩码）。 <br />

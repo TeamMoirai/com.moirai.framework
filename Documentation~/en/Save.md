@@ -19,11 +19,12 @@ SaveService (static facade, write paths throw GameException when handler is null
 │     Keys: ISaveKeyProvider + SaveKeyProvider (nested on the AES handler; Static passphrase default / Passphrase runtime-injected / HkdfPerUser per-user HKDF)
 ├── Serialization backends (SaveBackendIds + ISaveSerializer + SaveSerializerRegistry)
 │     Json (built-in, default) / MessagePack / MemoryPack / Protobuf / KeyValue (reserved for the component capture format)
-│     open registration: Register(ISaveSerializer)/Unregister(ushort) (duplicate backends fail fast; KEY_VALUE=254 cannot be claimed; custom backend ids start at 1000)
+│     the registry hard-codes no backend: the four built-in implementations and project ones alike carry [RegisterSerializer], which the SaveServiceCodegen generator records as ID→type; the single instance is created the first time that backend is queried; Unregister(ushort) drops the type record too
+│     code-side registration: Register(ISaveSerializer)/Register(ushort, Type)/Register<T>() (duplicates and framework-reserved ids fail fast; KEY_VALUE=254 cannot be claimed; custom backend ids start at 1000)
 ├── Multi-block container (SaveFileContainer, hand-rolled binary: key/version/backend/bytes per block)
 ├── Data model ([SaveData] + SaveDataBlock.OnMigrate version migration)
 ├── Migration bus (SaveMigrationManager + ISaveMigrator: file-level version chain, pre-positioned on load/write pipelines)
-└── No-code saving ([SaveField] + SaveComponent + SaveHost Source Generator capturers, [SaveComponentSchema] schema versions)
+└── No-code saving ([SaveField] + SaveComponent + SaveServiceCodegen source generator capturers, [SaveComponentSchema] schema versions)
 ```
 
 ## File Format
@@ -55,7 +56,7 @@ Container: [4B magic "MRSB"][4B container version=2][4B block count]
 ## Manual Save Data Scripts (with version migration)
 
 ```csharp
-[SaveData("PlayerStats", version = 3, Backend = SaveBackendIds.MESSAGE_PACK)]
+[SaveData("PlayerStats", version = 3, Backend = 1)] // 1 = MessagePack; wire ids: 0 Json / 1 MessagePack / 2 MemoryPack / 3 Protobuf (254 is reserved for the component capture format, 0-255 are framework-owned, custom backends start at 1000)
 public sealed class PlayerStatsData : SaveDataBlock
 {
     public int Level;
@@ -107,7 +108,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 }
 ```
 
-- Registration: implementations are scanned by the SaveHost Source Generator and self-register via a module initializer (AOT-safe; requires a concrete, non-abstract, non-privately-nested class with an accessible parameterless constructor — MIRAI302 otherwise); manual registration via `SaveService.RegisterMigrator(...)`. Invalid edges (`To <= From`) throw `ArgumentException` at registration — upgrade direction only, cycles impossible by construction
+- Registration: implementations are scanned by the SaveServiceCodegen source generator and self-register via a module initializer (AOT-safe; requires a concrete, non-abstract, non-privately-nested class with an accessible parameterless constructor — MIRAI302 otherwise); manual registration via `SaveService.RegisterMigrator(...)`. Invalid edges (`To <= From`) throw `ArgumentException` at registration — upgrade direction only, cycles impossible by construction
 - Execution constraints: migrations run **synchronously** inside the load/write pipeline (gate held, possibly on the main thread) — `Migrate` must complete synchronously; returning an incomplete task fails fast with `MigrationFailed`; Unity main-thread APIs are forbidden
 - Operations on absent blocks/fields are no-ops (return `false`, tolerating saves that never wrote that block); real exceptions (e.g. deserialize failures) abort the whole chain
 - Field-level ops (`RenameField`/`RetypeField`) support JSON (requires Newtonsoft.Json) and KeyValue blocks; **binary backends do not support field-level ops** (warned and skipped — use `TransformBlock<T>` with the legacy type kept around; key-order discipline is guarded by the analyzer below)
@@ -163,7 +164,7 @@ public partial class Player : MonoBehaviour
 
 ### Generator diagnostics
 
-MIRAI300 unsupported field type; MIRAI301 duplicate key; MIRAI302 migrator not registrable; MIRAI303 the containing type and every level of its nesting chain must be partial classes; MIRAI304 instance field required; MIRAI305 scene-reference needs SaveObjectIdentity guidance (Info); MIRAI306 reference declared as the UnityEngine.Object base type (Warning, field skipped); MIRAI307 invalid nested data type; MIRAI308 unsupported collection-element/map-key/value type. After editing generator sources (`SourceGenerators/Source~/SaveHost/`) rebuild `SourceGenerators/SaveHost.dll` with `dotnet build -c Release -t:Rebuild` (an incremental build can skip compilation and emit a broken skeleton DLL).
+MIRAI300 unsupported field type; MIRAI301 duplicate key; MIRAI302 migrator not registrable; MIRAI303 the containing type and every level of its nesting chain must be partial classes; MIRAI304 instance field required; MIRAI305 scene-reference needs SaveObjectIdentity guidance (Info); MIRAI306 reference declared as the UnityEngine.Object base type (Warning, field skipped); MIRAI307 invalid nested data type; MIRAI308 unsupported collection-element/map-key/value type. After editing generator sources (`SourceGenerators/Source~/SaveServiceCodegen/`) rebuild `SourceGenerators/SaveServiceCodegen.dll` with `dotnet build -c Release -t:Rebuild` (an incremental build can skip compilation and emit a broken skeleton DLL).
 
 ### Built-in capturers (engine components)
 
@@ -341,6 +342,15 @@ When the configured default-backend type name resolves to no implementation (typ
 
 Missing DLLs fail fast in `SaveSerializerRegistry.GetRequired` — `[SaveData(Backend = …)]` still takes that path, so the code owns the dependency; the `SaveServiceSettings` default backend dropdown lists only compiled-in serializers, so an unavailable backend can't be configured there.
 
+The registry **hard-codes no backend**: the four built-in implementations (`JsonSaveSerializer` / `MessagePackSaveSerializer` / `MemoryPackSaveSerializer` / `ProtobufSaveSerializer`) and project ones alike rely on the `[RegisterSerializer]` annotation, get recorded as ID→type entries in the module initializer, and only get instantiated the first time that backend is queried (every implementation is stateless) — so installing a dependency you never save with costs no standing objects. When the dependency is missing the type itself isn't compiled, no record exists, and lookups still fail fast.
+
+A project plugs its own backend in one of two ways:
+
+- **Declarative (the single route for built-in and project backends alike)**: annotate the implementation with `[RegisterSerializer]` and the SaveServiceCodegen source generator emits `SaveSerializerRegistry.Register(<id>, typeof(Xxx))` into each assembly's module initializer — no bootstrap code. The attribute carries **no id**: the single source of truth is the implementation's own `BackendId`, which must be a compile-time constant expression (`=> 1000`; inside the framework `=> SaveBackendIds.XXX` also works, but `SaveBackendIds` is internal, so project code writes the number). The generator uses that static value to detect problems and reports **MIRAI309/310/311/312** as errors for an illegal shape (doesn't implement the interface / abstract / generic / no accessible parameterless constructor), a non-constant id, an id inside the framework reserved range 0-255, or a duplicate inside the same compilation — the registration runs in the module initializer, so letting it through would mean an exception at assembly load. Duplicates across assemblies are invisible to the generator; at runtime `Register(ushort, Type)` logs a Fatal and keeps the incumbent instead of throwing — this route deliberately does not throw, because an exception inside a module initializer was observed to crash the Unity editor during its source-generated script scan.
+- **Code** (for test injection or swapping an implementation at runtime): `SaveSerializerRegistry.Register<MyBackend>()`, `Register(new MyBackend())`, or `Register(1000, typeof(MyBackend))`, which is also deferred to the first query.
+
+Replacing a backend that already holds an id goes through `Unregister(id)` first, then `Register(...)` — `Unregister` also drops the ID→type record, so an unregistered backend cannot silently "resurrect" on the next query; bringing a removed built-in back takes an explicit registration (e.g. `Register(0, typeof(JsonSaveSerializer))`).
+
 ## Tests
 
 Directory: `Tests/EditorMode/Service/Save/`
@@ -359,7 +369,8 @@ Directory: `Tests/EditorMode/Service/Save/`
 | `SaveMigrationAndBackendTests` | Four-backend round-trips, block-level migration cascades |
 | `SaveMigrationBusTests` | Version chains, rename/retype, whole-block transform, write-back toggle, audit, write-time healing, explicit migration |
 | `SaveCapturerTests` / `SaveCapturerV2Tests` | Component capturers: field add/remove, collection/nested/scene/asset reference matrices |
-| `SaveSerializerRegistryTests` | Registration validation, duplicate fail-fast, reserved backend, unregister |
+| `SaveSerializerRegistryTests` | Registration validation, duplicate fail-fast, reserved backend, generic overload registration, unregister that does not resurrect plus hot swap, on-demand built-in instantiation reusing one instance |
+| `SaveSerializerSelfRegistrationTests` | `[RegisterSerializer]` implementations self-registered by the generator (the fixture contains no Register call), built-in ids left intact |
 | `SaveKeyValueElementTests` | KVT elements: sequence/map/nested, null, type-mismatch, buffer bounds |
 | `SaveObjectIdentityTests` | Register/unregister, empty ID, duplicate-ID first-wins, destroy-invalidation, Resolve |
 | `SaveAssetCatalogTests` | Two-way lookup, type mismatch, duplicate first-wins, cache invalidation, InvalidateLookup programmatic contract |
