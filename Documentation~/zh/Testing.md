@@ -382,7 +382,7 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 
 **教训账本**（踩过即入规）：
 
-- 「孤儿 partial」判定必须先排除**源生成器喂养的类**——SaveHostGenerator 编译期注入第二分部，grep 不可见（2026-09-27 审计 A-18 假阳性，执行 8 处后当场撤销）。
+- 「孤儿 partial」判定必须先排除**源生成器喂养的类**——SaveFieldCapturerGenerator 编译期注入第二分部，grep 不可见（2026-09-27 审计 A-18 假阳性，执行 8 处后当场撤销）。
 - `GetAllTimers(null)` 按契约返回 0——不是计数通道，活跃数走 `GetStatistics`。
 - C# 9 不缓存方法组转换：基准与热路径的回调必须缓存为静态字段。
 - 跨程序集测试支撑不可共享（asmdef 拓扑），复制属可接受形态（如 Player 版 AudioCacheTestSupport）。

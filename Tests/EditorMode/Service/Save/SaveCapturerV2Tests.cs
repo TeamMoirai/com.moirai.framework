@@ -10,11 +10,11 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// SaveHost SG v2 捕获器测试：集合（List/Dictionary/Stack/数组）、嵌套 <c>[SaveData]</c> 数据类、 <br />
+    /// SaveServiceCodegen v2 捕获器测试：集合（List/Dictionary/Stack/数组）、嵌套 <c>[SaveData]</c> 数据类、 <br />
     /// 场景对象引用（<see cref="SaveObjectIdentity"/> 稳定 ID）、资产引用（<see cref="SaveAssetCatalog"/> 定位串）的捕获/恢复往返。
     /// </summary>
     /// <remarks>
-    /// 测试组件依赖 SaveHost SG 生成捕获器；<see cref="Capturer_IsRegistered"/> 失败即生成链路回归信号。
+    /// 测试组件依赖 SaveServiceCodegen 生成捕获器；<see cref="Capturer_IsRegistered"/> 失败即生成链路回归信号。
     /// </remarks>
     public partial class SaveCapturerV2Tests
     {
@@ -124,7 +124,7 @@ namespace Service.Save
         public void Capturer_IsRegistered()
         {
             Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(V2Component), out ISaveComponentCapturer capturer),
-                "SaveHost SG 应为测试程序集生成捕获器（失败 = 生成链路回归）");
+                "SaveServiceCodegen 应为测试程序集生成捕获器（失败 = 生成链路回归）");
             Assert.AreEqual(8, capturer.FieldNames.Length);
         }
 

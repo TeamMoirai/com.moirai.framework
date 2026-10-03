@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Save
     /// 拒绝其余（<see cref="KEY_VALUE"/> 为组件捕获格式专用），项目自定义后端从 1000 起分配。 <br />
     /// 成员写成 <c>const ushort</c> 而非枚举：特性参数只接受编译期常量，枚举成员会把可扩展的 ID 集合封死。
     /// </remarks>
-    public static class SaveBackendIds
+    internal static class SaveBackendIds
     {
         /// <summary>框架内置 JSON 序列化（零分配字节通路，未配置时的回退后端）。</summary>
         public const ushort JSON = 0;

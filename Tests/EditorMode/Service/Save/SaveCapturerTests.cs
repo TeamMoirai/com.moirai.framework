@@ -11,7 +11,7 @@ namespace Service.Save
     /// 生成捕获器行为测试：注册表自注册、全字段捕获/恢复往返、掩码过滤、未知键跳过与缺失键保留当前值。
     /// </summary>
     /// <remarks>
-    /// 测试组件声明在本程序集（partial + internal，捕获器经 <c>SaveHostGenerator</c> 生成并模块初始化器注册）。
+    /// 测试组件声明在本程序集（partial + internal，捕获器经 <c>SaveFieldCapturerGenerator</c> 生成并模块初始化器注册）。
     /// </remarks>
     public partial class SaveCapturerTests
     {
@@ -68,7 +68,7 @@ namespace Service.Save
         [SetUp]
         public void SetUp()
         {
-            // 防御性自注册：SaveHost SG 对嵌套 internal 测试组件的生成在某些 Unity 域状态下不稳定（Source~/SaveHost 生成链问题，另行排障），
+            // 防御性自注册：SaveServiceCodegen 对嵌套 internal 测试组件的生成在某些 Unity 域状态下不稳定（Source~/SaveServiceCodegen 生成链问题，另行排障），
             // 测试目标与 SG 正交（KVT 捕获/恢复行为），用框架内置 DefaultCapturer 兜底以保证套件离线可跑。
             if (!SaveCapturerRegistry.TryGet(typeof(KvTestComponent), out _))
             {
@@ -227,7 +227,7 @@ namespace Service.Save
                 }
 
                 /// <summary>
-                /// 测试兜底捕获器（SaveHost SG 对嵌套测试组件生成缺失时的手写等价物，行为对齐 SG 生成模式）。
+                /// 测试兜底捕获器（SaveServiceCodegen 对嵌套测试组件生成缺失时的手写等价物，行为对齐 SG 生成模式）。
                 /// </summary>
                 /// <remarks>
                 /// 字段序 = KvTestComponent 声明序（Hp/player_name/Speed/Position/Rotation/Mode/Active/Coins）。

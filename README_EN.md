@@ -217,7 +217,7 @@ com.moirai.framework/
 ├── Editor/               # Editor toolset
 ├── Plugins/              # Third-party libraries
 ├── Samples~/             # Examples
-├── SourceGenerators/     # Precompiled source generators (HandlerHost / SaveHost / ServiceDependency)
+├── SourceGenerators/     # Precompiled source generators (HandlerHost / SaveServiceCodegen / ServiceDependency)
 ├── Templates~/           # Project initial templates
 ├── Documentation~/en/    # Service documentation (README per service)
 └── Tests/                # Unit tests
