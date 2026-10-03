@@ -130,7 +130,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 
 ### Binary-backend key-order freeze (analyzers MIRAI400/401)
 
-- `ServiceDependency.dll` ships `SaveSchemaAnalyzer`: member key ordinals (`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`) of `[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` types are compared against a snapshot — MIRAI400 warns on key reordering, MIRAI401 warns on deleted members without an `OnMigrate` override (both Warning)
+- `SaveServiceCodegen.dll` ships `SaveSchemaAnalyzer`: member key ordinals (`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`) of `[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` types are compared against a snapshot — MIRAI400 warns on key reordering, MIRAI401 warns on deleted members without an `OnMigrate` override (both Warning)
 - The snapshot is an additional file `.SaveSchemaSnapshot` (line format `TypeFullName|member:number;…`, number -1 = MessagePack string-key mode), checked into version control and updated as the schema evolves; the analyzer stays silent while no snapshot exists
 - **Snapshot generation**: menu `Tools/Moirai/Save/Export Schema Snapshot` scans all binary-backend `[SaveData]` types and writes `.SaveSchemaSnapshot` to the project root (extraction rules mirror the analyzer exactly; members sorted by name for stable diffs) — re-export to advance the baseline before changing the binary wire format
 - Unity has no AdditionalFiles UI — wire it via `/additionalfile:` in `csc.rsp` or via CI `dotnet build`

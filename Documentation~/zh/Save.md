@@ -130,7 +130,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 
 ### 二进制后端键序冻结（分析器 MIRAI400/401）
 
-- `ServiceDependency.dll` 内置 `SaveSchemaAnalyzer`：`[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` 类型的成员键序号（`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`）与快照比对——MIRAI400 键序重排告警、MIRAI401 成员删除且未重写 `OnMigrate` 告警（均 Warning）
+- `SaveServiceCodegen.dll` 内置 `SaveSchemaAnalyzer`：`[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` 类型的成员键序号（`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`）与快照比对——MIRAI400 键序重排告警、MIRAI401 成员删除且未重写 `OnMigrate` 告警（均 Warning）
 - 快照为附加文件 `.SaveSchemaSnapshot`（行格式 `类型全限定名|成员名:序号;…`，序号 -1 = MessagePack 字符串键模式），纳入版本控制随模式演进更新；快照缺失时分析器静默
 - **快照生成**：菜单 `Tools/Moirai/Save/Export Schema Snapshot` 一键扫描全部二进制后端 [SaveData] 类型并写出项目根目录 `.SaveSchemaSnapshot`（提取规则与分析器逐条对齐，成员按名排序保证 diff 稳定）；二进制线格式变更前重新导出即推进基线
 - Unity 编辑器无 AdditionalFiles 界面，经 `csc.rsp` 的 `/additionalfile:` 或 CI `dotnet build` 接线
