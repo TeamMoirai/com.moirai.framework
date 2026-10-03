@@ -17,9 +17,9 @@ SaveService (static facade, write paths throw GameException when handler is null
 ├── Transform chain (fixed order: Serialize → Compress? → Encrypt? → CRC)
 │     Compression: ICompressionProvider + SaveCompressionRegistry (GZip built-in, ID=1; unknown IDs rejected on read)
 │     Keys: ISaveKeyProvider + SaveKeyProvider (nested on the AES handler; Static passphrase default / Passphrase runtime-injected / HkdfPerUser per-user HKDF)
-├── Serialization backends (ESaveBackend + ISaveSerializer + SaveSerializerRegistry)
+├── Serialization backends (SaveBackendIds + ISaveSerializer + SaveSerializerRegistry)
 │     Json (built-in, default) / MessagePack / MemoryPack / Protobuf / KeyValue (reserved for the component capture format)
-│     open registration: Register(ISaveSerializer)/Unregister(ESaveBackend) (duplicate backends fail fast; KeyValue cannot be claimed)
+│     open registration: Register(ISaveSerializer)/Unregister(ushort) (duplicate backends fail fast; KEY_VALUE=254 cannot be claimed; custom backend ids start at 1000)
 ├── Multi-block container (SaveFileContainer, hand-rolled binary: key/version/backend/bytes per block)
 ├── Data model ([SaveData] + SaveDataBlock.OnMigrate version migration)
 ├── Migration bus (SaveMigrationManager + ISaveMigrator: file-level version chain, pre-positioned on load/write pipelines)
@@ -55,7 +55,7 @@ Container: [4B magic "MRSB"][4B container version=2][4B block count]
 ## Manual Save Data Scripts (with version migration)
 
 ```csharp
-[SaveData("PlayerStats", version = 3, Backend = ESaveBackend.MessagePack)]
+[SaveData("PlayerStats", version = 3, Backend = SaveBackendIds.MESSAGE_PACK)]
 public sealed class PlayerStatsData : SaveDataBlock
 {
     public int Level;
@@ -303,7 +303,7 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 | Field | Description |
 |---|---|
 | `m_SaveServiceHandler` | Storage pipeline handler (PlainSaveHandler / AESEncryptedSaveHandler; storage backend / compression provider / migration write-back and the key provider are all configured on the handler — see the table below) |
-| `m_DefaultBackend` | Default serialization backend (blocks without `[SaveData]`) |
+| `m_DefaultSerializerTypeName` | Default serialization backend (blocks without `[SaveData]`): ProviderDropdown type-name mode, stores the full name of an `ISaveSerializer` implementation — candidates list only types actually compiled into the project (backends missing their NuGet package never appear); the name resolves once into an instance on first read (and again whenever the configured name changes) and is then cached by name — an unresolvable name is cached too, so a bad configuration costs one Fatal rather than a re-resolve per block and that id is guaranteed an owner in `SaveSerializerRegistry`, the container records its 2-byte `BackendId` per block, empty or unresolvable falls back to built-in Json |
 | `m_SaveFileExtension` | Save file extension (default `.sav`) |
 | `m_AssetCatalog` | Asset reference catalog (SaveAssetCatalog SO): no-code asset reference fields resolve locations two-way through the catalog; empty = asset reference fields always capture Null |
 | `m_PrefabRegistry` | Prefab registry (SavePrefabRegistry SO): persistable dynamic entities (stable key → ResourceService location); empty = `InstantiatePersistent` unavailable and saved spawn records skip as unregistered |
@@ -321,11 +321,13 @@ Storage-pipeline configuration is cohesive with the handler instance (replaced t
 | `m_MigrationWriteBack` | Migration write-back (default on): lazily persists load-triggered migrations; when off, migration applies to in-memory data of that load only |
 | `m_KeyProvider` (AES handler) | Key provider (empty falls back to `StaticSaveKeyProvider.Default` placeholders; alternatives: StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider) |
 
-### Configuration self-check (keys)
+### Configuration self-check (keys and default backend)
 
 All three built-in key providers ship with placeholder material (`CHANGE_ME_BEFORE_SHIPPING` / `CHANGE_ME_SALT`); publishing it unchanged makes the encryption worthless. One rule decides it: `SaveKeyProvider.UsesPlaceholderCredentials` inspects the **effective** values (runtime override takes precedence over the serialized configuration) for placeholder or empty — `StaticSaveKeyProvider` checks passphrase and salt, `HKDFPerUserSaveKeyProvider` checks the master secret, `PassphraseSaveKeyProvider` checks the salt (the passphrase is runtime-injected and empty at rest, which is not a placeholder). The Inspector surfaces it as an error box on the handler, and at build time `SaveSettingsBuildValidator` re-runs **the exact same rule** (`SaveServiceSettings.UsesPlaceholderSaveKey`), warning only by default — set `MOIRAI_SAVE_SETTINGS_STRICT=1` to fail the build (this package is consumed by others, so stopping somebody else's build over one setting is a ticket, not a reminder).
 
 Runtime deliberately **does not block**: existing saves may have been written with the placeholder key, and turning a configuration gap into unreadable saves would be worse.
+
+When the configured default-backend type name resolves to no implementation (typo, renamed class, dependency removed) runtime likewise **does not block**: it falls back to built-in JSON, which stays self-consistent — it just means the file is no longer the format the operator configured. A bad configuration costs one Fatal (the outcome is cached by name, failures included); `SaveSettingsBuildValidator` re-checks it at build time via `SaveServiceSettings.DefaultBackendResolves`, and the Inspector shows an unrecognized name verbatim as `Xxx (unrecognized)` instead of masquerading as the first candidate.
 
 ## Dependencies
 
@@ -337,7 +339,7 @@ Runtime deliberately **does not block**: existing saves may have been written wi
 | Unity Cloud Save | optional | Installing `com.unity.services.cloudsave` activates `UnityCloudSaveKvStore` via the versionDefine (`UNITY_CLOUD_SAVE_INSTALLED`) |
 | LZ4 (K4os.Compression.LZ4) | reserved | versionDefine slot `LZ4_INSTALLED` reserved (activates on installing `org.nuget.k4os.compression.lz4`); the compression provider implementation comes later |
 
-Missing DLLs fail fast in `SaveSerializerRegistry.GetRequired`.
+Missing DLLs fail fast in `SaveSerializerRegistry.GetRequired` — `[SaveData(Backend = …)]` still takes that path, so the code owns the dependency; the `SaveServiceSettings` default backend dropdown lists only compiled-in serializers, so an unavailable backend can't be configured there.
 
 ## Tests
 

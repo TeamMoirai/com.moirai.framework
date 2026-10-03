@@ -25,6 +25,12 @@
 - 成员是否入档改为允许列表（`JsonTypeSupport.IsSupportedMemberType`）：此前除黑名单类型外一律反射兜底，接口/抽象成员被写成不带类型名的对象、`StringBuilder`/`Type`/`Tuple` 被写成私有内部结构、`UnityEvent<T>` 被写成 `m_PersistentCalls`，读回时构造不出实例却静默成档；现在这些形态连同委托、多维数组、BCL 具体类型一起不入选，写侧不出现在 JSON、读侧按未知字段忽略，两侧对称。
 - ⚠ 泛型 `UnityEvent<T>`、`ISet`/集合接口以外的接口与抽象成员、`Type`/`IntPtr`/`MarshalByRefObject` 派生成员从"写出歪数据"变为不入选；类型自身无可序列化成员仍抛 `GameException`，`[SerializeField]`/`[JsonSerialize]` 均不覆盖该判据。
 
+#### 存档
+
+- ⚠ 删 `ESaveBackend` 枚举，块后端标识改为 `ushort` 常量表 `SaveBackendIds`（`Json=0`/`MessagePack=1`/`MemoryPack=2`/`Protobuf=3`/`KeyValue=254` 数值逐一沿用）：契约成员是 `ISaveSerializer.BackendId`，`[SaveData(Backend = SaveBackendIds.MESSAGE_PACK)]`，注册表按 ID 建表——项目自定义后端直接登记自己的 ID（0..255 框架保留，从 1000 起分配），不再借道 `(ESaveBackend)999` 这类魔法数。存档线格式零变化：块头那 2 字节的偏移与数值都未动，容器与文件头版本保持 2，存量存档原样读回。
+- `SaveServiceSettings` 的默认序列化后端按类型名配置（`m_DefaultSerializerTypeName`，ProviderDropdown 类型名模式，与 `UIGeneratorSettings` 同款）：首次读取时解析成实例并按名缓存，并确保该 ID 在 `SaveSerializerRegistry` 里有主，写读落进同一实现；无状态的内置序列化器不再为引用序列化而带 `[Serializable]`。设置资产没配这一项时按内置 Json 走，已在 Inspector 配过默认后端的需在改版后重选一次。
+- 注册表把"0..255 框架保留"从文档约定变成门禁：`SaveSerializerRegistry.Register` 拒绝保留区内任何非内建标识（此前只挡 `KEY_VALUE`），内建扩号不会再与项目已注册的后端静默相撞；类型名解析不到实现时按内置 JSON 回退，且同一份错配置只报一次 Fatal（此前每存一块都重报一次并新建实例）；构建期由 `SaveSettingsBuildValidator` 与占位密钥一并报出，开严同样挡包。
+
 ### Removed
 
 #### 资源
