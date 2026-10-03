@@ -10,7 +10,7 @@
 - 字节快速通路：`IBufferJsonHandler` 接口，IO/网络场景跳过 UTF16/UTF8 转码
 - 属性控制：`[JsonSerialize]` / `[JsonDoNotSerialize]` / `[JsonSerializeAs("name")]` 控制字段序列化
 - 生命周期回调：`[JsonBeforeSerialization]` / `[JsonAfterDeserialization]` 方法特性
-- 类型排除：`UnityEngine.Object` 派生与 `UnityEvent` 自动跳过
+- 成员筛选走允许列表：只有能写出也能读回的类型入档；非数据家族（`UnityEngine.Object` 派生、委托、`UnityEventBase` 派生）与不可往返的形态（非集合接口/抽象成员、多维数组、BCL 内部类型）自动跳过
 - 格式化输出：`FormatJson(string)` 带缩进和换行的格式化方法（池化 StringBuilder）
 
 ## 核心类型
@@ -91,7 +91,9 @@ JsonUtility.Handler = new DefaultJsonHandler();
 ## 注意事项
 
 - `Handler` 赋 null 抛出 `ArgumentNullException`；赋新值时自动调用旧 handler 的 `Internal_Shutdown()` 和新 handler 的 `Internal_Init()`
-- 默认不序列化 `UnityEngine.Object` 派生类型（GameObject/Component/Sprite/Texture/Material 等）和 `UnityEvent`，反射式序列化会触达原生侧对象
+- 成员是否入档由 `JsonTypeSupport.IsSupportedMemberType` 判定（允许列表）：标量/枚举/`decimal`/`DateTime` 等 BCL 值类型、引擎与项目结构体（`Vector3`/`Color`/`Quaternion`…）、一维数组、`List`/`Dictionary`、以数组承载的集合（`HashSet`/`SortedSet`/`ISet`/`Queue`/`Stack`/`LinkedList` 与 `IList`/`ICollection`/`IEnumerable`/`IReadOnlyList`/`IReadOnlyCollection`，按枚举序往返）及项目 POCO 入选；`UnityEngine.Object` 派生、委托（含 C# 事件与 `Action`/`Func`）、`UnityEventBase` 派生（含泛型 `UnityEvent<T>`）、非集合的接口与抽象成员、多维数组、其余 BCL 具体类型（`StringBuilder`/`Tuple`/`Type`…）不入选
+- 被排除的成员写侧不出现在 JSON、读侧按未知字段忽略，两侧对称；`[SerializeField]` 与 `[JsonSerialize]` 都不覆盖该判据（Unity 侧同样静默跳过不支持的字段类型）
+- 类型自身没有任何可序列化成员仍然抛 `GameException`：允许列表只排除成员，不会让一个"看起来存了其实是 `{}`"的数据类静默通过
 - 默认要求属性同时具备 get/set（读写兼备的往返对称契约），get-only 计算属性自动排除
 - `JsonHandler.FromJsonOverwrite` 将 JSON 数据反序列化到现有对象上并覆盖现有数据
 

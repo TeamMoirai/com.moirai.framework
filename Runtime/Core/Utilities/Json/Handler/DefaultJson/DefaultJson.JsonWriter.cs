@@ -98,7 +98,40 @@ namespace Moirai.Atropos
                     return;
                 }
 
+                // 以数组承载的集合（HashSet/SortedSet/Queue/Stack/LinkedList 及各集合接口形态）：按枚举序展开。
+                // 按运行时类型判定而非声明类型——声明成 ISet<T> 的成员同样落到这里。
+                if (type.IsGenericType && JsonTypeSupport.IsArrayBackedDefinition(type.GetGenericTypeDefinition()))
+                {
+                    WriteEnumerable(ref sink, (System.Collections.IEnumerable)value, removeNulls, readable, depth, depthLimit);
+                    return;
+                }
+
                 WriteObject(ref sink, value, type, meta, removeNulls, readable, depth, depthLimit);
+            }
+
+            /// <summary>
+            /// 以 JSON 数组写出任意可枚举集合（枚举序即数组序）。
+            /// </summary>
+            private static void WriteEnumerable(ref TSink sink, System.Collections.IEnumerable items, bool removeNulls, bool readable,
+                int depth, int depthLimit)
+            {
+                sink.WriteAscii('[');
+                LoopGuard.PushReference(items);
+
+                bool first = true;
+                foreach (object item in items)
+                {
+                    if (LoopGuard.IsSerializingReference(item)) continue;
+                    if (LoopGuard.WouldExceedDepth(item, depth, depthLimit)) continue;
+
+                    if (!first) sink.WriteAscii(readable ? ", " : ",");
+                    first = false;
+
+                    WriteValue(ref sink, item, removeNulls, readable, depth + 1, depthLimit);
+                }
+
+                LoopGuard.PopReference();
+                sink.WriteAscii(']');
             }
 
             /// <summary>

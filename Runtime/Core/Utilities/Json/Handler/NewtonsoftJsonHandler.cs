@@ -74,7 +74,7 @@ namespace Moirai.Atropos
             JsonProperty property = base.CreateProperty(member, memberSerialization);
             
             // 检查属性类型是否属于不支持序列化的命名空间
-            if (JsonUtility.TypeIsForbidden(property.PropertyType))
+            if (JsonTypeSupport.IsNotDataType(property.PropertyType))
             {
                 property.Ignored = true;
                 // Debug.Log($"Excluding property {property.PropertyName} because it belongs to UnityEngine namespace.");
