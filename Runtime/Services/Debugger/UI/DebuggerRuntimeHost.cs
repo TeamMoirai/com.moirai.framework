@@ -28,7 +28,6 @@ namespace Moirai.Atropos.Debugger
         private const float MAX_WINDOW_SCALE = 2f;
         private const float MIN_WINDOW_WIDTH = 640f;
         private const float MIN_WINDOW_HEIGHT = 400f;
-        private const float PANEL_SORTING_ORDER = 16000f;
         private const string PANEL_SETTINGS_RESOURCE_PATH = "DebuggerPanelSettings";
         private const string THEME_RESOURCE_PATH = "Debugger UI Theme";
         private const float TOGGLE_CLICK_MOVE_THRESHOLD = 8f;
@@ -336,7 +335,6 @@ namespace Moirai.Atropos.Debugger
 
             _uiDocument = gameObject.AddComponent<UIDocument>();
             _uiDocument.panelSettings = _panelSettings;
-            _uiDocument.sortingOrder = PANEL_SORTING_ORDER;
 
             BuildRootVisualTree();
         }
