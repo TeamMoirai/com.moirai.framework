@@ -309,7 +309,7 @@ namespace Moirai.Atropos.UI.Editor
 
         private static string GetPrivateComponentName(string regexName, string componentName, EBindType bindType)
         {
-            var formatter = UIScriptGeneratorHelper.IdentifierFormatter;
+            var formatter = UIGeneratorSettings.IdentifierFormatter;
             return formatter?.GetPrivateComponentName(regexName, componentName, bindType) ?? componentName;
         }
 
