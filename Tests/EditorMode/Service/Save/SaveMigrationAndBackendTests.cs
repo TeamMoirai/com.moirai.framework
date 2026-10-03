@@ -173,7 +173,7 @@ namespace Service.Save
             // 加载时 OnMigrate(1) 级联执行并就地回填
             var paths = Paths("slot");
             var oldShape = new MigratingData { Score = 42 };
-            _handler.SaveBlockCore(paths, "migrating", oldShape, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "migrating", oldShape, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<MigratingData>(paths, "migrating", out MigratingData loaded);
 
@@ -188,7 +188,7 @@ namespace Service.Save
         public void Migration_CurrentVersion_SkipsOnMigrate()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "migrating", new MigratingData { Score = 7 }, ESaveBackend.Json, 3, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "migrating", new MigratingData { Score = 7 }, SaveBackendIds.JSON, 3, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<MigratingData>(paths, "migrating", out MigratingData loaded);
 
@@ -200,7 +200,7 @@ namespace Service.Save
         public void Migration_FutureVersion_ReturnsUnsupportedVersion()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "migrating", new MigratingData { Score = 7 }, ESaveBackend.Json, 99, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "migrating", new MigratingData { Score = 7 }, SaveBackendIds.JSON, 99, CancellationToken.None);
 
             ExpectErrorLogForUtf();
 
@@ -215,7 +215,7 @@ namespace Service.Save
         public void Migration_MissingAttribute_ReturnsSerializationFailed()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "bare", new AttributeLessData { X = 1 }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "bare", new AttributeLessData { X = 1 }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             ExpectErrorLogForUtf();
 
@@ -231,7 +231,7 @@ namespace Service.Save
         {
             // 非 SaveDataBlock 类型不参与迁移语义：任意版本号均可加载（JSON 字段级兼容）
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "plain", new PlainBox { X = 5 }, ESaveBackend.Json, 42, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "plain", new PlainBox { X = 5 }, SaveBackendIds.JSON, 42, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<PlainBox>(paths, "plain", out PlainBox loaded);
 
@@ -250,7 +250,7 @@ namespace Service.Save
             var paths = Paths("slot");
             var data = new MpData { Hp = 88, Name = "Moirai" };
 
-            _handler.SaveBlockCore(paths, "mp", data, ESaveBackend.MessagePack, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "mp", data, SaveBackendIds.MESSAGE_PACK, 1, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<MpData>(paths, "mp", out MpData loaded);
             Assert.AreEqual(SaveError.None, error);
@@ -266,7 +266,7 @@ namespace Service.Save
             var paths = Paths("slot");
             var data = new MpkData { Hp = 77, Name = "MemoryPack⑵" };
 
-            _handler.SaveBlockCore(paths, "mpk", data, ESaveBackend.MemoryPack, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "mpk", data, SaveBackendIds.MEMORY_PACK, 1, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<MpkData>(paths, "mpk", out MpkData loaded);
             Assert.AreEqual(SaveError.None, error);
@@ -282,7 +282,7 @@ namespace Service.Save
             var paths = Paths("slot");
             var data = new PbData { Hp = 66, Name = "Proto" };
 
-            _handler.SaveBlockCore(paths, "pb", data, ESaveBackend.Protobuf, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "pb", data, SaveBackendIds.PROTOBUF, 1, CancellationToken.None);
 
             SaveError error = _handler.TryLoadBlockCore<PbData>(paths, "pb", out PbData loaded);
             Assert.AreEqual(SaveError.None, error);
@@ -294,15 +294,15 @@ namespace Service.Save
         [Test]
         public void Registry_ProvidesAllBinaryBackends()
         {
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.Json, out _));
+            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.JSON, out _));
 #if MESSAGEPACK_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.MessagePack, out _));
+            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.MESSAGE_PACK, out _));
 #endif
 #if MEMORYPACK_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.MemoryPack, out _));
+            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.MEMORY_PACK, out _));
 #endif
 #if PROTOBUF_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(ESaveBackend.Protobuf, out _));
+            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.PROTOBUF, out _));
 #endif
         }
 
@@ -310,22 +310,22 @@ namespace Service.Save
         public void Registry_UnknownBackend_GetRequired_FailFast()
         {
             // 未注册后端（如未接入的 KeyValue）必须 fail-fast 而非静默降级
-            Assert.Throws<GameException>(() => SaveSerializerRegistry.GetRequired((ESaveBackend)999));
+            Assert.Throws<GameException>(() => SaveSerializerRegistry.GetRequired(999));
         }
 
         [Test]
         public void Backends_MixedInOneFile_Coexist()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "json-block", new PlainBox { X = 1 }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "json-block", new PlainBox { X = 1 }, SaveBackendIds.JSON, 1, CancellationToken.None);
 #if MESSAGEPACK_INSTALLED
-            _handler.SaveBlockCore(paths, "mp-block", new MpData { Hp = 2, Name = "x" }, ESaveBackend.MessagePack, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "mp-block", new MpData { Hp = 2, Name = "x" }, SaveBackendIds.MESSAGE_PACK, 1, CancellationToken.None);
 #endif
 #if MEMORYPACK_INSTALLED
-            _handler.SaveBlockCore(paths, "mpk-block", new MpkData { Hp = 3, Name = "y" }, ESaveBackend.MemoryPack, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "mpk-block", new MpkData { Hp = 3, Name = "y" }, SaveBackendIds.MEMORY_PACK, 1, CancellationToken.None);
 #endif
 #if PROTOBUF_INSTALLED
-            _handler.SaveBlockCore(paths, "pb-block", new PbData { Hp = 4, Name = "z" }, ESaveBackend.Protobuf, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "pb-block", new PbData { Hp = 4, Name = "z" }, SaveBackendIds.PROTOBUF, 1, CancellationToken.None);
 #endif
 
             Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<PlainBox>(paths, "json-block", out PlainBox a));
@@ -362,7 +362,7 @@ namespace Service.Save
             {
                 SaveService.SaveBlock(new MigratingData { Score = 9 }, "slot", "desc", "Slots");
                 SaveBlockInfo[] infos = SaveService.GetBlockInfos("slot", "Slots");
-                Assert.AreEqual(ESaveBackend.Json, infos[0].Backend, "MigratingData 声明 Backend=Json，应覆盖设置默认值");
+                Assert.AreEqual(SaveBackendIds.JSON, infos[0].Backend, "MigratingData 声明 Backend=Json，应覆盖设置默认值");
             }
             finally
             {

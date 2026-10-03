@@ -15,8 +15,8 @@ namespace Moirai.Atropos.Save
         /// <summary>序列化选项（默认 Standard 组合）。</summary>
         private static readonly MessagePackSerializerOptions s_Options = MessagePackSerializerOptions.Standard;
 
-        /// <summary>后端标识（恒为 <see cref="ESaveBackend.MessagePack"/>）。</summary>
-        public ESaveBackend Backend => ESaveBackend.MessagePack;
+        /// <summary>后端标识（恒为 <see cref="SaveBackendIds.MESSAGE_PACK"/>）。</summary>
+        public ushort BackendId => SaveBackendIds.MESSAGE_PACK;
 
         /// <summary>
         /// 将数据对象序列化为 MessagePack 字节。

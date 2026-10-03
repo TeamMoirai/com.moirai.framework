@@ -102,7 +102,7 @@ namespace Moirai.Atropos.Save
 
             try
             {
-                await s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, ESaveBackend.Json, 1, cancellationToken);
+                await s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1, cancellationToken);
             }
             catch (OperationCanceledException)
             {

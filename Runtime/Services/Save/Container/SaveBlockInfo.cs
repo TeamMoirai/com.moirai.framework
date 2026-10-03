@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Save
         public int DataVersion { get; }
 
         /// <summary>序列化后端标识。</summary>
-        public ESaveBackend Backend { get; }
+        public ushort Backend { get; }
 
         /// <summary>块载荷字节数。</summary>
         public int SizeBytes { get; }
@@ -35,7 +35,7 @@ namespace Moirai.Atropos.Save
         /// <param name="dataVersion">数据块模式版本。</param>
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="sizeBytes">块载荷字节数。</param>
-        public SaveBlockInfo(string key, int dataVersion, ESaveBackend backend, int sizeBytes)
+        public SaveBlockInfo(string key, int dataVersion, ushort backend, int sizeBytes)
             : this(key, dataVersion, backend, sizeBytes, SaveError.None, true)
         {
         }
@@ -49,7 +49,7 @@ namespace Moirai.Atropos.Save
         /// <param name="sizeBytes">块载荷字节数。</param>
         /// <param name="error">逐块错误码。</param>
         /// <param name="hasMetadata">块框架是否完整可读。</param>
-        public SaveBlockInfo(string key, int dataVersion, ESaveBackend backend, int sizeBytes, SaveError error, bool hasMetadata)
+        public SaveBlockInfo(string key, int dataVersion, ushort backend, int sizeBytes, SaveError error, bool hasMetadata)
         {
             Key = key;
             DataVersion = dataVersion;

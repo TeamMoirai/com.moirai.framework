@@ -205,6 +205,18 @@ namespace Moirai.Atropos
                     : cache.IndexOfType(property.managedReferenceValue.GetType());
 
         /// <summary>
+        /// 类型名模式下，配置值不在候选列表内（手输错、类改名、依赖被摘）时给出原样显示的文字。
+        /// </summary>
+        /// <remarks>
+        /// 未知名解析成索引 0，而 <c>ShowNone=false</c> 时 0 会被映射到本地首项——不覆写就会把配错显示成"已选中第一个实现"。 <br />
+        /// 只改显示，不改选中：点开后仍是原候选，重写一次即修正。
+        /// </remarks>
+        private static GUIContent UnknownNameLabel(TypeMenuCache cache, string configuredName) =>
+            !string.IsNullOrEmpty(configuredName) && cache.IndexOfName(configuredName) == 0
+                ? new GUIContent($"{configuredName}（未识别）")
+                : null;
+
+        /// <summary>
         /// foldout 键：对象实例 ID + 属性路径，避免不同对象的相同属性路径互相干扰。
         /// </summary>
         private static string FoldoutKey(SerializedProperty property) =>
@@ -261,14 +273,17 @@ namespace Moirai.Atropos
         /// </summary>
         /// <returns>foldout 展开状态（string 模式恒为 true）。</returns>
         /// <remarks>
-        /// <paramref name="applySelection"/> 收到的是缓存索引（<c>0</c>=None，<c>1..n</c>=类型）。
+        /// <paramref name="applySelection"/> 收到的是缓存索引（<c>0</c>=None，<c>1..n</c>=类型）。 <br />
+        /// <paramref name="currentOverride"/> 只用于覆盖按钮上的显示文字，选中逻辑仍走本地索引。
         /// </remarks>
         private static bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
-            ProviderOptions options, bool reserveFoldout, Action<SerializedProperty, int> applySelection)
+            ProviderOptions options, bool reserveFoldout, Action<SerializedProperty, int> applySelection,
+            GUIContent currentOverride = null)
         {
             int cacheIndex = FindCurrentIndex(options.Cache, property);
             return DrawRowCore(position, label, options, reserveFoldout, FoldoutKey(property),
-                options.CacheToLocal(cacheIndex), i => applySelection(property, options.LocalToCache(i)));
+                options.CacheToLocal(cacheIndex), i => applySelection(property, options.LocalToCache(i)),
+                currentOverride);
         }
 
         /// <summary>
@@ -278,7 +293,7 @@ namespace Moirai.Atropos
         /// <paramref name="currentLocalIndex"/> 与 <paramref name="onSelectedLocal"/> 均为本地索引。
         /// </remarks>
         private static bool DrawRowCore(Rect position, GUIContent label, ProviderOptions options, bool reserveFoldout,
-            string foldKey, int currentLocalIndex, Action<int> onSelectedLocal)
+            string foldKey, int currentLocalIndex, Action<int> onSelectedLocal, GUIContent currentOverride = null)
         {
             float lineH = EditorGUIUtility.singleLineHeight;
             Rect fieldRect = EditorGUI.PrefixLabel(new Rect(position.x, position.y, position.width, lineH), label);
@@ -288,8 +303,9 @@ namespace Moirai.Atropos
                 ? new Rect(fieldRect.x, fieldRect.y, fieldRect.width - FOLDOUT_W, lineH)
                 : fieldRect;
 
-            GUIContent current = currentLocalIndex < options.NameOptions.Length
-                ? options.NameOptions[currentLocalIndex] : GUIContent.none;
+            GUIContent current = currentOverride
+                ?? (currentLocalIndex < options.NameOptions.Length
+                    ? options.NameOptions[currentLocalIndex] : GUIContent.none);
             if (EditorGUI.DropdownButton(popupRect, current, FocusType.Keyboard, EditorStyles.popup))
                 ShowDropdown(popupRect, options, currentLocalIndex, onSelectedLocal);
 
@@ -378,7 +394,8 @@ namespace Moirai.Atropos
                     {
                         ApplySelectionWithUndo(p, i, opts.Cache);
                         GUI.changed = true;
-                    });
+                    },
+                    UnknownNameLabel(opts.Cache, prop.stringValue));
                 return;
             }
 
@@ -441,7 +458,8 @@ namespace Moirai.Atropos
                     true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
                 int currentLocal = opts.CacheToLocal(cache.IndexOfName(valueEntry.WeakSmartValue as string));
                 DrawRowCore(rowRect, rowLabel, opts, false, foldKey,
-                    currentLocal, i => ApplyValue(opts, opts.LocalToCache(i)));
+                    currentLocal, i => ApplyValue(opts, opts.LocalToCache(i)),
+                    UnknownNameLabel(cache, valueEntry.WeakSmartValue as string));
                 return;
             }
 

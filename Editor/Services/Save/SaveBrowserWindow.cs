@@ -1387,7 +1387,7 @@ namespace Moirai.Atropos.Editor.Save
             }
 
             SaveBlockInfo? block = FindBlock(model.View, blockKey);
-            string extension = block is { Backend: ESaveBackend.Json } ? "json" : "bin";
+            string extension = block is { Backend: SaveBackendIds.JSON } ? "json" : "bin";
             string path = EditorUtility.SaveFilePanel("导出数据块", string.Empty, SanitizeFileName(blockKey), extension);
             if (string.IsNullOrEmpty(path))
             {
@@ -1518,7 +1518,7 @@ namespace Moirai.Atropos.Editor.Save
                 return "无法读取块载荷。";
             }
 
-            bool isBinaryBackend = block.Value.Backend != ESaveBackend.Json && block.Value.Backend != ESaveBackend.KeyValue;
+            bool isBinaryBackend = block.Value.Backend != SaveBackendIds.JSON && block.Value.Backend != SaveBackendIds.KEY_VALUE;
             string text;
             switch (mode)
             {
@@ -1529,11 +1529,11 @@ namespace Moirai.Atropos.Editor.Save
                     text = BuildHexDump(bytes);
                     break;
                 default:
-                    if (block.Value.Backend == ESaveBackend.Json)
+                    if (block.Value.Backend == SaveBackendIds.JSON)
                     {
                         text = FormatJson(Encoding.UTF8.GetString(bytes), prettyJson);
                     }
-                    else if (block.Value.Backend == ESaveBackend.KeyValue)
+                    else if (block.Value.Backend == SaveBackendIds.KEY_VALUE)
                     {
                         // KVT 结构化树预览（解析失败回退十六进制采样）
                         text = SaveKvPreviewFormatter.Format(bytes) ?? BuildHexDump(bytes, HEX_PREVIEW_MAX_BYTES);
@@ -1548,7 +1548,8 @@ namespace Moirai.Atropos.Editor.Save
 
             if (string.IsNullOrEmpty(text))
             {
-                return $"二进制后端（{block.Value.Backend}）载荷 {FormatBytes(bytes.Length)}，不提供文本预览。请切换到十六进制模式。";
+                string backendTag = ShortBackendName(block.Value.Backend);
+                return $"二进制后端（{backendTag}）载荷 {FormatBytes(bytes.Length)}，不提供文本预览。请切换到十六进制模式。";
             }
 
             return text;
@@ -1647,7 +1648,7 @@ namespace Moirai.Atropos.Editor.Save
             SaveServiceHandler handler = SaveServiceSettings.SaveServiceHandler;
             string handlerName = handler?.GetType().Name ?? "PlainSaveHandler";
             string compression = handler != null && handler.CompressionProvider != null ? handler.CompressionProvider.GetType().Name : "不压缩";
-            string backend = SaveServiceSettings.DefaultBackend.ToString();
+            string backend = ShortBackendName(SaveServiceSettings.DefaultBackend);
             string extension = SaveServiceSettings.SaveFileExtension;
             string root = SafeDetermineSavePath(string.Empty);
             string rootHint = string.IsNullOrEmpty(root) ? "(未解析)" : root;
@@ -1770,15 +1771,15 @@ namespace Moirai.Atropos.Editor.Save
             return builder.ToString();
         }
 
-        private static string ShortBackendName(ESaveBackend backend)
+        private static string ShortBackendName(ushort backend)
         {
             return backend switch
             {
-                ESaveBackend.Json => "JSON",
-                ESaveBackend.KeyValue => "KVT",
-                ESaveBackend.MessagePack => "MsgPack",
-                ESaveBackend.MemoryPack => "MemPack",
-                ESaveBackend.Protobuf => "Proto",
+                SaveBackendIds.JSON => "JSON",
+                SaveBackendIds.KEY_VALUE => "KVT",
+                SaveBackendIds.MESSAGE_PACK => "MsgPack",
+                SaveBackendIds.MEMORY_PACK => "MemPack",
+                SaveBackendIds.PROTOBUF => "Proto",
                 _ => backend.ToString(),
             };
         }

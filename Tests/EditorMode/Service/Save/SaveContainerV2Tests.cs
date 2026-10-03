@@ -116,8 +116,8 @@ namespace Service.Save
         private SaveServiceHandler.SavePaths WriteTwoBlockSave(string fileName)
         {
             var paths = Paths(fileName);
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 100, PlayerName = "stats" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 200, PlayerName = "inventory" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 100, PlayerName = "stats" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 200, PlayerName = "inventory" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             return paths;
         }
 
@@ -266,7 +266,7 @@ namespace Service.Save
             FlipBlockPayloadByte(paths.SaveFilePath, 0);
 
             ExpectWarningLogForUtf();
-            _handler.SaveBlockCore(paths, "settings", new SaveData { Gold = 300, PlayerName = "settings" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "settings", new SaveData { Gold = 300, PlayerName = "settings" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             SaveError statsError = _handler.TryLoadBlockCore<SaveData>(paths, "stats", out _);
             Assert.AreEqual(SaveError.FileNotFound, statsError, "坏块在写回时已剔除（数据本不可读），不再报损坏");

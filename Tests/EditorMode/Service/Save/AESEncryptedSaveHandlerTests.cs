@@ -99,7 +99,7 @@ namespace Service.Save
         {
             var data = new SaveData { Gold = 1234, PlayerName = "Moirai" };
 
-            _handler.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             Assert.IsTrue(File.Exists(_paths.SaveFilePath), "序列化后应落盘");
             Assert.Greater(new FileInfo(_paths.SaveFilePath).Length, SaveFileHeader.Size + 16 + 32, "文件应包含文件头与完整密文");
@@ -118,7 +118,7 @@ namespace Service.Save
             var writer = CreateHandler("key-for-write");
             var reader = CreateHandler("key-for-read");
 
-            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 99, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 99, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             ExpectErrorLogForUtf();
 
@@ -133,7 +133,7 @@ namespace Service.Save
         [Test]
         public void TamperedFile_FailsAtIntegrityCheck()
         {
-            _handler.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             // 攻击者模型：翻转密文字节后同步修正文件头 CRC，使存储校验通过——HMAC 层仍必须拦截
             byte[] fileBytes = File.ReadAllBytes(_paths.SaveFilePath);
@@ -162,8 +162,8 @@ namespace Service.Save
             var secondPath = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "second.sav"));
             var data = new SaveData { Gold = 7, PlayerName = "Moirai" };
 
-            _handler.SaveBlockCore(firstPath, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(secondPath, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(firstPath, SaveServiceHandler.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(secondPath, SaveServiceHandler.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             byte[] first = File.ReadAllBytes(firstPath.SaveFilePath);
             byte[] second = File.ReadAllBytes(secondPath.SaveFilePath);

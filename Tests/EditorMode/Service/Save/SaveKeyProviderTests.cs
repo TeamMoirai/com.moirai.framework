@@ -172,7 +172,7 @@ namespace Service.Save
             var writerProvider = new PassphraseSaveKeyProvider();
             writerProvider.SetPassphrase("player-password");
             var writer = new AESEncryptedSaveHandler { KeyProvider = writerProvider };
-            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 66, PlayerName = "locked" }, ESaveBackend.Json, 1, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 66, PlayerName = "locked" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             var readerProvider = new PassphraseSaveKeyProvider();
             readerProvider.SetPassphrase("player-password");
@@ -187,7 +187,7 @@ namespace Service.Save
         public void Passphrase_HandlerLoad_Unset_ReturnsInvalidArgument()
         {
             var writer = CreateHandler("any");
-            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             var reader = new AESEncryptedSaveHandler { KeyProvider = new PassphraseSaveKeyProvider() };
 
@@ -204,7 +204,7 @@ namespace Service.Save
             // 写路径 fail-fast 契约：密钥材料不可得 = 写入失败抛 GameException
             var writer = new AESEncryptedSaveHandler { KeyProvider = new PassphraseSaveKeyProvider() };
             Assert.Throws<GameException>(() =>
-                writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None));
+                writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, SaveBackendIds.JSON, 1, CancellationToken.None));
         }
 
         #endregion
@@ -254,7 +254,7 @@ namespace Service.Save
             {
                 KeyProvider = new HKDFPerUserSaveKeyProvider { UserId = "user-a" }
             };
-            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "user-a-data" }, ESaveBackend.Json, 1, CancellationToken.None);
+            writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "user-a-data" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             var wrongUser = new AESEncryptedSaveHandler
             {

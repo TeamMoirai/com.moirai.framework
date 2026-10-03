@@ -130,14 +130,14 @@ namespace Service.Save
         public void SaveBlockCore_FiresBlockSaved_AndSlotSaved()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 5, PlayerName = "Moirai" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 5, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             Assert.AreEqual(1, _blockSavedEvents.Count, "块保存事件应恰好触发一次");
             SaveBlockChangedArgs blockArgs = _blockSavedEvents[0];
             Assert.AreEqual("slot", blockArgs.FileName);
             Assert.AreEqual(TestFolder, blockArgs.FolderName);
             Assert.AreEqual("stats", blockArgs.Key);
-            Assert.AreEqual(ESaveBackend.Json, blockArgs.Backend);
+            Assert.AreEqual(SaveBackendIds.JSON, blockArgs.Backend);
             Assert.Greater(blockArgs.SizeBytes, 0);
 
             Assert.AreEqual(1, _slotEvents.Count, "槽位写入事件应恰好触发一次");
@@ -150,8 +150,8 @@ namespace Service.Save
         public void DeleteBlockCore_ExistingKey_FiresBlockDeleted()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "b" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "b" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _blockSavedEvents.Clear();
             _slotEvents.Clear();
 
@@ -160,7 +160,7 @@ namespace Service.Save
             Assert.AreEqual(1, _blockDeletedEvents.Count);
             Assert.AreEqual("stats", _blockDeletedEvents[0].Key);
             Assert.AreEqual("slot", _blockDeletedEvents[0].FileName);
-            Assert.AreEqual(ESaveBackend.Json, _blockDeletedEvents[0].Backend);
+            Assert.AreEqual(SaveBackendIds.JSON, _blockDeletedEvents[0].Backend);
             Assert.AreEqual(0, _slotEvents.Count, "残余块仍在——槽位不应报删除");
         }
 
@@ -168,7 +168,7 @@ namespace Service.Save
         public void DeleteBlockCore_MissingKey_FiresNothing()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _blockSavedEvents.Clear();
             _slotEvents.Clear();
 
@@ -182,7 +182,7 @@ namespace Service.Save
         public void DeleteBlockCore_LastKey_FiresBlockDeleted_AndSlotDeleted()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _blockSavedEvents.Clear();
             _slotEvents.Clear();
 
@@ -198,7 +198,7 @@ namespace Service.Save
         public void DeleteSave_ExistingFile_FiresSlotDeleted()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _slotEvents.Clear();
 
             _handler.DeleteSave("slot", TestFolder);
@@ -219,7 +219,7 @@ namespace Service.Save
         public void BackupRoundTrip_FiresBackupCreated_AndBackupRestored()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _slotEvents.Clear();
 
             _handler.CreateBackup("slot", TestFolder);
@@ -241,7 +241,7 @@ namespace Service.Save
             var paths = Paths("slot");
 
             Assert.Throws<GameException>(() =>
-                _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, (ESaveBackend)99, 1, CancellationToken.None));
+                _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, 99, 1, CancellationToken.None));
 
             Assert.AreEqual(1, _saveFailedEvents.Count);
             SaveFailedArgs args = _saveFailedEvents[0];
@@ -255,7 +255,7 @@ namespace Service.Save
         public void TryLoadBlockCore_CorruptedFile_FiresLoadFailed_HeaderValidation()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _slotEvents.Clear();
             _blockSavedEvents.Clear();
 
@@ -277,8 +277,8 @@ namespace Service.Save
         public void TryLoadBlockCore_CorruptedBlockKey_FiresLoadFailed_ContainerParse()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, ESaveBackend.Json, 1, CancellationToken.None);
-            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "b" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "inventory", new SaveData { Gold = 2, PlayerName = "b" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _slotEvents.Clear();
             _blockSavedEvents.Clear();
 
@@ -308,7 +308,7 @@ namespace Service.Save
         public void TryLoadBlockCore_MissingKey_FiresNothing()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, SaveBackendIds.JSON, 1, CancellationToken.None);
             _slotEvents.Clear();
             _blockSavedEvents.Clear();
 
@@ -336,7 +336,7 @@ namespace Service.Save
             byte[] garbagePayload = Encoding.UTF8.GetBytes("{\"Gold\":\"not-a-number\"}");
             var blocks = new List<SaveBlockEntry>
             {
-                new SaveBlockEntry("stats", 1, ESaveBackend.Json, garbagePayload),
+                new SaveBlockEntry("stats", 1, SaveBackendIds.JSON, garbagePayload),
             };
             byte[] container = new byte[SaveFileContainer.GetSize(blocks)];
             SaveFileContainer.Write(container, blocks);
@@ -369,7 +369,7 @@ namespace Service.Save
             try
             {
                 // 后台线程触发：事件不内联（入队等待主线程泵）
-                Task raiseTask = Task.Run(() => SaveService.RaiseBlockSaved("slot", TestFolder, "stats", ESaveBackend.Json, 8));
+                Task raiseTask = Task.Run(() => SaveService.RaiseBlockSaved("slot", TestFolder, "stats", SaveBackendIds.JSON, 8));
                 raiseTask.Wait(TimeSpan.FromSeconds(10));
                 Assert.AreEqual(-1, eventThreadId, "后台线程触发时应入队而非内联");
 

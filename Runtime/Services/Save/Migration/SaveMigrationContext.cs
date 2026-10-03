@@ -158,7 +158,8 @@ namespace Moirai.Atropos.Save
 
             if (!SaveSerializerRegistry.TryGet(entry.Backend, out ISaveSerializer serializer))
             {
-                RecordError(StringUtility.Format("TransformBlock backend '{0}' of block '{1}' is not registered.", entry.Backend, key));
+                RecordError(StringUtility.Format("TransformBlock backend '{0}' of block '{1}' is not registered.",
+                    SaveBackendIds.DisplayName(entry.Backend), key));
                 return false;
             }
 
@@ -193,7 +194,7 @@ namespace Moirai.Atropos.Save
         public bool RenameField(string key, string oldField, string newField)
         {
             return ApplyFieldOp(key, oldField, (SaveBlockEntry entry, out byte[] result) =>
-                entry.Backend == ESaveBackend.KeyValue
+                entry.Backend == SaveBackendIds.KEY_VALUE
                     ? SaveKvTransformer.RenameField(entry.Bytes, oldField, newField, out result)
                     : RenameJsonField(entry.Bytes, oldField, newField, out result));
         }
@@ -237,7 +238,7 @@ namespace Moirai.Atropos.Save
         {
             return ApplyFieldOp(key, field, (SaveBlockEntry entry, out byte[] result) =>
             {
-                if (entry.Backend == ESaveBackend.KeyValue)
+                if (entry.Backend == SaveBackendIds.KEY_VALUE)
                 {
                     if (!SaveKvBoxed.TryGetKvType(typeof(TNew), out ESaveKvType newType))
                     {
@@ -293,14 +294,16 @@ namespace Moirai.Atropos.Save
                 return false;
             }
 
-            if (entry.Backend != ESaveBackend.Json && entry.Backend != ESaveBackend.KeyValue)
+            if (entry.Backend != SaveBackendIds.JSON && entry.Backend != SaveBackendIds.KEY_VALUE)
             {
                 // 二进制后端的字段级操作不受支持（字节布局由键序契约冻结；走 TransformBlock 整对象迁移）
-                LogUtility.Warning("[SaveService] Migration field op on binary block '{0}' (backend: {1}) is not supported, use TransformBlock instead.", key, entry.Backend);
+                LogUtility.Warning("[SaveService] Field op on binary block '{0}' (backend: {1}) is not supported;" +
+                        " use TransformBlock instead.",
+                    key, SaveBackendIds.DisplayName(entry.Backend));
                 return false;
             }
 
-            if (entry.Backend == ESaveBackend.Json && !JsonFieldOpsAvailable)
+            if (entry.Backend == SaveBackendIds.JSON && !JsonFieldOpsAvailable)
             {
                 RecordError(StringUtility.Format("Field op on JSON block '{0}' requires Newtonsoft.Json (com.unity.nuget.newtonsoft-json).", key));
                 return false;

@@ -6,8 +6,8 @@ namespace Moirai.Atropos.Save
     /// <remarks>无类型标注要求，任意可序列化 POCO 开箱即用；字节始终为紧凑 UTF8 JSON（容器本身为二进制，块内不再缩进美化）。</remarks>
     public sealed class JsonSaveSerializer : ISaveSerializer
     {
-        /// <summary>后端标识（恒为 <see cref="ESaveBackend.Json"/>）。</summary>
-        public ESaveBackend Backend => ESaveBackend.Json;
+        /// <summary>后端标识（恒为 <see cref="SaveBackendIds.JSON"/>）。</summary>
+        public ushort BackendId => SaveBackendIds.JSON;
 
         /// <summary>
         /// 将数据对象序列化为紧凑 UTF8 JSON 字节。

@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Save
         public string Key { get; }
 
         /// <summary>序列化后端标识。</summary>
-        public ESaveBackend Backend { get; }
+        public ushort Backend { get; }
 
         /// <summary>块载荷字节数。</summary>
         public int SizeBytes { get; }
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="sizeBytes">块载荷字节数。</param>
-        public SaveBlockChangedArgs(string fileName, string folderName, string key, ESaveBackend backend, int sizeBytes)
+        public SaveBlockChangedArgs(string fileName, string folderName, string key, ushort backend, int sizeBytes)
         {
             FileName = fileName;
             FolderName = folderName;
