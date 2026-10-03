@@ -11,7 +11,7 @@ namespace Service.Save
     {
         private static SaveBlockEntry Entry(string key, int gold)
         {
-            return new SaveBlockEntry(key, 1, ESaveBackend.Json, new[] { (byte)gold });
+            return new SaveBlockEntry(key, 1, SaveBackendIds.JSON, new[] { (byte)gold });
         }
 
         [Test]

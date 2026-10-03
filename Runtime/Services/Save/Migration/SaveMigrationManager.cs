@@ -327,7 +327,7 @@ namespace Moirai.Atropos.Save
             {
                 try
                 {
-                    metadata = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Deserialize<SaveMetadata>(metaEntry.Bytes);
+                    metadata = SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON).Deserialize<SaveMetadata>(metaEntry.Bytes);
                 }
                 catch (Exception)
                 {
@@ -470,8 +470,8 @@ namespace Moirai.Atropos.Save
         /// <returns>含最新元数据块的块集合。</returns>
         private static List<SaveBlockEntry> UpsertMetaBlock(List<SaveBlockEntry> migratedBlocks, SaveMetadata metadata)
         {
-            byte[] metaBytes = SaveSerializerRegistry.GetRequired(ESaveBackend.Json).Serialize(metadata);
-            var newMetaEntry = new SaveBlockEntry(SaveServiceHandler.META_BLOCK_KEY, 1, ESaveBackend.Json, metaBytes);
+            byte[] metaBytes = SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON).Serialize(metadata);
+            var newMetaEntry = new SaveBlockEntry(SaveServiceHandler.META_BLOCK_KEY, 1, SaveBackendIds.JSON, metaBytes);
             return SaveBlockComposer.Upsert(migratedBlocks, newMetaEntry);
         }
 

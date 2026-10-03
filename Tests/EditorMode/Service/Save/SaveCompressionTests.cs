@@ -210,7 +210,7 @@ namespace Service.Save
             var paths = Paths("slot");
             var data = new SaveData { Gold = 1234, PlayerName = new string('M', 512) };
 
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             SaveError headerError = SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
@@ -231,9 +231,9 @@ namespace Service.Save
             var plainPaths = Paths("plain");
             var compressedPaths = Paths("compressed");
 
-            _handler.SaveBlockCore(plainPaths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(plainPaths, SaveServiceHandler.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);
             _handler.CompressionProvider = GZipCompressionProvider.Shared;
-            _handler.SaveBlockCore(compressedPaths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(compressedPaths, SaveServiceHandler.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             long plainSize = new FileInfo(plainPaths.SaveFilePath).Length;
             long compressedSize = new FileInfo(compressedPaths.SaveFilePath).Length;
@@ -245,7 +245,7 @@ namespace Service.Save
         {
             // 无压缩位旧档（P2 之前写出）在开启压缩的运行时下必须原样透传读取——魔数/flags sniff 幂等
             var paths = Paths("legacy");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "plain" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 42, PlayerName = "plain" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
@@ -267,7 +267,7 @@ namespace Service.Save
             var paths = Paths("combo");
             var data = new SaveData { Gold = 7, PlayerName = new string('E', 256) };
 
-            handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, ESaveBackend.Json, 1, CancellationToken.None);
+            handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
             SaveFileHeader.Read(fileBytes, out SaveFileHeader header);
@@ -302,7 +302,7 @@ namespace Service.Save
         {
             _handler.CompressionProvider = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             // 模拟未来运行时写出的未知压缩提供方
             PatchCompressionProviderId(paths.SaveFilePath, 200);
@@ -319,7 +319,7 @@ namespace Service.Save
         {
             _handler.CompressionProvider = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             PatchCompressionProviderId(paths.SaveFilePath, 0);
 
@@ -333,7 +333,7 @@ namespace Service.Save
         public void TryLoad_IdSetButFlagClear_ReturnsCorrupted()
         {
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             PatchCompressionProviderId(paths.SaveFilePath, 1);
 
@@ -348,7 +348,7 @@ namespace Service.Save
         {
             _handler.CompressionProvider = GZipCompressionProvider.Shared;
             var paths = Paths("slot");
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, ESaveBackend.Json, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             // 破坏压缩载荷首字节（GZip 魔数）并同步重算 CRC——CRC 自洽但解压失败
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);

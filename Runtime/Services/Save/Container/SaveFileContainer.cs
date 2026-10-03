@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Save
         public readonly int DataVersion;
 
         /// <summary>序列化后端标识。</summary>
-        public readonly ESaveBackend Backend;
+        public readonly ushort Backend;
 
         /// <summary>序列化后的块载荷字节。</summary>
         public readonly byte[] Bytes;
@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Save
         /// <param name="dataVersion">数据块模式版本。</param>
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="bytes">序列化后的块载荷字节。</param>
-        public SaveBlockEntry(string key, int dataVersion, ESaveBackend backend, byte[] bytes)
+        public SaveBlockEntry(string key, int dataVersion, ushort backend, byte[] bytes)
         {
             Key = key;
             DataVersion = dataVersion;
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Save
         public readonly int DataVersion;
 
         /// <summary>序列化后端标识（仅 <see cref="HasMetadata"/> 为 <c>true</c> 时有效）。</summary>
-        public readonly ESaveBackend Backend;
+        public readonly ushort Backend;
 
         /// <summary>块载荷字节数（仅 <see cref="HasMetadata"/> 为 <c>true</c> 时有效）。</summary>
         public readonly int SizeBytes;
@@ -86,7 +86,7 @@ namespace Moirai.Atropos.Save
         /// <param name="dataVersion">数据块模式版本。</param>
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="sizeBytes">块载荷字节数。</param>
-        public SaveBlockError(string key, int dataVersion, ESaveBackend backend, int sizeBytes)
+        public SaveBlockError(string key, int dataVersion, ushort backend, int sizeBytes)
         {
             Key = key;
             Error = SaveError.Corrupted;
@@ -179,7 +179,7 @@ namespace Moirai.Atropos.Save
                 offset += Encoding.UTF8.GetBytes(entry.Key, destination.Slice(offset));
                 BinaryPrimitives.WriteInt32LittleEndian(destination.Slice(offset), entry.DataVersion);
                 offset += 4;
-                BinaryPrimitives.WriteUInt16LittleEndian(destination.Slice(offset), (ushort)entry.Backend);
+                BinaryPrimitives.WriteUInt16LittleEndian(destination.Slice(offset), entry.Backend);
                 offset += 2;
                 BinaryPrimitives.WriteInt32LittleEndian(destination.Slice(offset), entry.Bytes.Length);
                 offset += 4;
@@ -227,7 +227,7 @@ namespace Moirai.Atropos.Save
                 }
 
                 BinaryPrimitives.WriteInt32LittleEndian(fixedFields, entry.DataVersion);
-                BinaryPrimitives.WriteUInt16LittleEndian(fixedFields.Slice(4), (ushort)entry.Backend);
+                BinaryPrimitives.WriteUInt16LittleEndian(fixedFields.Slice(4), entry.Backend);
                 BinaryPrimitives.WriteInt32LittleEndian(fixedFields.Slice(6), entry.Bytes.Length);
                 BinaryPrimitives.WriteUInt32LittleEndian(fixedFields.Slice(10), Crc32.Compute(entry.Bytes));
                 target.Write(fixedFields);
@@ -327,7 +327,7 @@ namespace Moirai.Atropos.Save
 
             int dataVersion = BinaryPrimitives.ReadInt32LittleEndian(source.Slice(offset));
             offset += 4;
-            var backend = (ESaveBackend)BinaryPrimitives.ReadUInt16LittleEndian(source.Slice(offset));
+            var backend = BinaryPrimitives.ReadUInt16LittleEndian(source.Slice(offset));
             offset += 2;
             int byteCount = BinaryPrimitives.ReadInt32LittleEndian(source.Slice(offset));
             offset += 4;
@@ -482,7 +482,7 @@ namespace Moirai.Atropos.Save
             reader.TryReadLittleEndian(out short backendValue);
             reader.TryReadLittleEndian(out int byteCount);
             reader.TryReadLittleEndian(out int crcValue);
-            var backend = (ESaveBackend)(ushort)backendValue;
+            var backend = (ushort)backendValue;
             uint expectedCrc = (uint)crcValue;
             if (byteCount < 0 || reader.Remaining < byteCount)
             {

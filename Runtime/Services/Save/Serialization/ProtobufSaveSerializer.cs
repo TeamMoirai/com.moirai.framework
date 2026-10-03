@@ -14,8 +14,8 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public sealed class ProtobufSaveSerializer : ISaveSerializer
     {
-        /// <summary>后端标识（恒为 <see cref="ESaveBackend.Protobuf"/>）。</summary>
-        public ESaveBackend Backend => ESaveBackend.Protobuf;
+        /// <summary>后端标识（恒为 <see cref="SaveBackendIds.PROTOBUF"/>）。</summary>
+        public ushort BackendId => SaveBackendIds.PROTOBUF;
 
         /// <summary>
         /// 将数据对象序列化为 Proto 字节。

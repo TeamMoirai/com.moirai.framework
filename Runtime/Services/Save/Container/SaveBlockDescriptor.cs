@@ -18,8 +18,8 @@ namespace Moirai.Atropos.Save
         /// <summary>声明的当前数据模式版本（未声明时为 1）。</summary>
         internal static readonly int Version;
 
-        /// <summary>声明的序列化后端（未声明时为 <see cref="ESaveBackend.Json"/>）。</summary>
-        internal static readonly ESaveBackend Backend;
+        /// <summary>声明的序列化后端（未声明时为 <see cref="SaveBackendIds.JSON"/>）。</summary>
+        internal static readonly ushort Backend;
 
         /// <summary>类型是否为 <see cref="SaveDataBlock"/> 子类（决定加载期版本迁移与版本保护是否生效）。</summary>
         internal static readonly bool IsMigrationAware;
@@ -37,7 +37,7 @@ namespace Moirai.Atropos.Save
             else
             {
                 Version = 1;
-                Backend = ESaveBackend.Json;
+                Backend = SaveBackendIds.JSON;
             }
 
             IsMigrationAware = typeof(SaveDataBlock).IsAssignableFrom(typeof(T));

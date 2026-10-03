@@ -471,7 +471,7 @@ namespace Moirai.Atropos.Save
                         byte[] full = writer.ToArray();
                         byte[] baseline = GetBaseline(record.PrefabKey);
                         byte[] payload = SaveKvDiffer.Diff(baseline, full);
-                        entries.Add(new SaveBlockEntry(BuildEntityBlockKey(record.EntityId), 1, ESaveBackend.KeyValue, payload));
+                        entries.Add(new SaveBlockEntry(BuildEntityBlockKey(record.EntityId), 1, SaveBackendIds.KEY_VALUE, payload));
                     }
                 }
 
@@ -482,7 +482,7 @@ namespace Moirai.Atropos.Save
                 }
             }
 
-            entries.Add(new SaveBlockEntry(ENTITY_TABLE_BLOCK_KEY, 1, ESaveBackend.KeyValue, SaveEntityTable.Write(s_Spawns, s_DestroyedIds)));
+            entries.Add(new SaveBlockEntry(ENTITY_TABLE_BLOCK_KEY, 1, SaveBackendIds.KEY_VALUE, SaveEntityTable.Write(s_Spawns, s_DestroyedIds)));
             return entries;
         }
 

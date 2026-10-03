@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>序列化后端（缺省 JSON，无需类型标注）。</summary>
         /// <remarks>二进制后端要求类型带各自 AOT 标注（<c>MessagePackObject</c>/<c>MemoryPackable</c>/<c>ProtoContract</c>）。</remarks>
-        public ESaveBackend Backend { get; set; }
+        public ushort Backend { get; set; }
 
         /// <summary>
         /// 创建存档数据块声明。
@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Save
         {
             Key = key;
             Version = version;
-            Backend = ESaveBackend.Json;
+            Backend = SaveBackendIds.JSON;
         }
     }
 }

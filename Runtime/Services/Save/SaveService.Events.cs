@@ -103,7 +103,7 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="sizeBytes">块载荷字节数。</param>
-        internal static void RaiseBlockSaved(string fileName, string folderName, string key, ESaveBackend backend, int sizeBytes)
+        internal static void RaiseBlockSaved(string fileName, string folderName, string key, ushort backend, int sizeBytes)
         {
             var args = new SaveBlockChangedArgs(fileName, folderName, key, backend, sizeBytes);
             if (MainThreadDispatcher.IsMainThread)
@@ -124,7 +124,7 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="sizeBytes">块载荷字节数。</param>
-        internal static void RaiseBlockDeleted(string fileName, string folderName, string key, ESaveBackend backend, int sizeBytes)
+        internal static void RaiseBlockDeleted(string fileName, string folderName, string key, ushort backend, int sizeBytes)
         {
             var args = new SaveBlockChangedArgs(fileName, folderName, key, backend, sizeBytes);
             if (MainThreadDispatcher.IsMainThread)

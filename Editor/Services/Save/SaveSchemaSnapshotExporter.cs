@@ -57,8 +57,8 @@ namespace Moirai.Atropos.Editor.Save
                     continue;
                 }
 
-                ESaveBackend backend = ResolveBackend(type);
-                if (backend < ESaveBackend.MessagePack || backend > ESaveBackend.Protobuf)
+                ushort backend = ResolveBackend(type);
+                if (backend < SaveBackendIds.MESSAGE_PACK || backend > SaveBackendIds.PROTOBUF)
                 {
                     continue; // 仅二进制后端受键序契约约束（与分析器一致）
                 }
@@ -96,7 +96,7 @@ namespace Moirai.Atropos.Editor.Save
         /// </summary>
         /// <param name="type">目标类型。</param>
         /// <returns>序列化后端标识。</returns>
-        private static ESaveBackend ResolveBackend(Type type)
+        private static ushort ResolveBackend(Type type)
         {
             foreach (CustomAttributeData attribute in CustomAttributeData.GetCustomAttributes(type))
             {
@@ -107,14 +107,14 @@ namespace Moirai.Atropos.Editor.Save
 
                 foreach (CustomAttributeNamedArgument namedArgument in attribute.NamedArguments)
                 {
-                    if (namedArgument.MemberName == nameof(SaveDataAttribute.Backend) && namedArgument.TypedValue.Value is int backendValue)
+                    if (namedArgument.MemberName == nameof(SaveDataAttribute.Backend) && namedArgument.TypedValue.Value is ushort backendValue)
                     {
-                        return (ESaveBackend)backendValue;
+                        return backendValue;
                     }
                 }
             }
 
-            return ESaveBackend.Json;
+            return SaveBackendIds.JSON;
         }
 
         /// <summary>
@@ -123,11 +123,11 @@ namespace Moirai.Atropos.Editor.Save
         /// <param name="type">目标类型。</param>
         /// <param name="backend">序列化后端。</param>
         /// <returns>成员键映射。</returns>
-        private static Dictionary<string, int> ExtractMemberKeys(Type type, ESaveBackend backend)
+        private static Dictionary<string, int> ExtractMemberKeys(Type type, ushort backend)
         {
             var members = new Dictionary<string, int>(StringComparer.Ordinal);
 
-            if (backend == ESaveBackend.MessagePack && IsMessagePackStringKeyed(type))
+            if (backend == SaveBackendIds.MESSAGE_PACK && IsMessagePackStringKeyed(type))
             {
                 foreach (MemberInfo member in EnumerateDataMembers(type, null))
                 {
@@ -140,10 +140,10 @@ namespace Moirai.Atropos.Editor.Save
             string keyAttributeName;
             switch (backend)
             {
-                case ESaveBackend.MessagePack:
+                case SaveBackendIds.MESSAGE_PACK:
                     keyAttributeName = KEY_ATTRIBUTE_NAME;
                     break;
-                case ESaveBackend.MemoryPack:
+                case SaveBackendIds.MEMORY_PACK:
                     keyAttributeName = MEMORY_PACK_ORDER_ATTRIBUTE_NAME;
                     break;
                 default:
@@ -152,14 +152,14 @@ namespace Moirai.Atropos.Editor.Save
             }
 
             int implicitIndex = 0;
-            foreach (MemberInfo member in EnumerateDataMembers(type, backend == ESaveBackend.MemoryPack ? MEMORY_PACK_IGNORE_ATTRIBUTE_NAME : null))
+            foreach (MemberInfo member in EnumerateDataMembers(type, backend == SaveBackendIds.MEMORY_PACK ? MEMORY_PACK_IGNORE_ATTRIBUTE_NAME : null))
             {
                 int? number = TryGetAttributeIntArgument(member, keyAttributeName);
                 if (number.HasValue)
                 {
                     members[member.Name] = number.Value;
                 }
-                else if (backend == ESaveBackend.MemoryPack)
+                else if (backend == SaveBackendIds.MEMORY_PACK)
                 {
                     // MemoryPack 未显式标注 Order 时按声明序（MetadataToken 序）隐式编号
                     members[member.Name] = implicitIndex;
