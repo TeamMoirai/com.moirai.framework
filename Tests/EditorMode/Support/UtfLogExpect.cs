@@ -47,5 +47,29 @@ namespace Moirai.Atropos.Tests.EditorMode
 #endif
             LogAssert.Expect(LogType.Warning, new Regex(".*"));
         }
+
+        /// <summary>
+        /// 为随后一条「带异常对象的 Error 日志」声明 UTF 预期，级别判定同样收在这唯一一处。
+        /// </summary>
+        /// <remarks>
+        /// LogUtility 的 Error(Exception) 重载在不同处理器下落成不同级别：<c>ZLoggerHandler</c> 的旁路只要条目带异常就转 <c>LogType.Exception</c> <br />
+        /// （见 <c>ZLoggerBypassUnityDebugLoggerProvider</c> 的 AsUnityLogType 分支），而 <c>DefaultLogHandler</c> 的 Error 分支仍是 <c>LogType.Error</c>。 <br />
+        /// 级别由处理器自述（<c>LogHandler.ErrorWithExceptionUsesExceptionChannel</c>）：本装配拿不到后端的 <c>*_INSTALLED</c> 宏， <br />
+        /// 按类型名判定的写法会被预处理裁掉而恒走 Error 分支——实测假红过一次。
+        /// </remarks>
+        /// <param name="fragment">日志正文需匹配的片段（正则）。</param>
+        public static void ErrorWithException(string fragment)
+        {
+#if UNITY_LOGGING_INSTALLED
+            if (LogUtility.Handler is UnityLoggingHandler)
+            {
+                return;
+            }
+#endif
+            LogType type = LogUtility.Handler != null && LogUtility.Handler.ErrorWithExceptionUsesExceptionChannel
+                ? LogType.Exception
+                : LogType.Error;
+            LogAssert.Expect(type, new Regex(fragment));
+        }
     }
 }
