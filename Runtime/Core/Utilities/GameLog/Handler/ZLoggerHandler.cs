@@ -18,6 +18,10 @@ namespace Moirai.Atropos
         [NonSerialized] private ILogger _logger;
 
         /// <inheritdoc/>
+        /// <remarks>旁路 processor 只要条目带异常就调 Logger.LogException，级别随之升成 <c>LogType.Exception</c>。</remarks>
+        public override bool ErrorWithExceptionUsesExceptionChannel => true;
+
+        /// <inheritdoc/>
         protected override void OnInit()
         {
             base.OnInit();

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Moirai.Atropos.Localization;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -355,7 +356,7 @@ namespace Service.Localization
                 _handler.AddLocalizer(healthy);
                 var eventFired = false;
                 _handler.OnLanguageChanged += _ => eventFired = true;
-                LogAssert.Expect(LogType.Error, new Regex("probe localizer failed"));
+                UtfLogExpect.ErrorWithException("probe localizer failed");
 
                 _handler.ChangeLanguage(target);
 
@@ -677,7 +678,7 @@ namespace Service.Localization
             LoadStrings("ui.title", "Title", "标题");
             var target = OtherLoadedLanguage();   // 先走完首启那一轮，否则一次派发会算成两次
             var second = new List<string>();
-            LogAssert.Expect(LogType.Error, new Regex("probe subscriber failed"));
+            UtfLogExpect.ErrorWithException("probe subscriber failed");
 
             _handler.SubscribeLanguageChanged(_ => throw new InvalidOperationException("probe subscriber failed"));
             _handler.SubscribeLanguageChanged(language => second.Add(language.Name));
