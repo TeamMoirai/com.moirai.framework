@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档组件捕获器注册表：组件类型 → 生成捕获器（SaveHost SourceGenerator 经模块初始化器自注册，零反射）。
+    /// 存档组件捕获器注册表：组件类型 → 生成捕获器（SaveServiceCodegen 生成器 经模块初始化器自注册，零反射）。
     /// </summary>
     /// <remarks>未注册类型（未标 <see cref="SaveFieldAttribute"/> 字段或生成器未覆盖）在 <see cref="SaveComponent"/> 捕获期记录告警并跳过。</remarks>
     public static class SaveCapturerRegistry

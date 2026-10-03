@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Save
     /// 存档迁移管理器：迁移器注册表 + 文件级版本链解析与执行（迁移总线核心）。
     /// </summary>
     /// <remarks>
-    /// 版本模型：存档数据版本为 int 递增（0 = 版本化前的基线存档）；游戏层启动期设置 <see cref="CurrentVersion"/>，并为每个跃迁注册 <see cref="ISaveMigrator"/>（SaveHost SourceGenerator 扫描自注册，AOT 安全）。<br />
+    /// 版本模型：存档数据版本为 int 递增（0 = 版本化前的基线存档）；游戏层启动期设置 <see cref="CurrentVersion"/>，并为每个跃迁注册 <see cref="ISaveMigrator"/>（SaveServiceCodegen 生成器 扫描自注册，AOT 安全）。<br />
     /// 链契约：触达低于 <see cref="CurrentVersion"/> 的存档沿 <c>FromVersion == 当前步版本</c> 逐段升级，同一边多个迁移器按 <see cref="ISaveMigrator.Priority"/> 升序执行。<br />
     /// 同起始版本多条不同目标版本的边、链缺失或执行异常均为 <see cref="SaveError.MigrationFailed"/> fail-fast（降级为 <see cref="SaveError.UnsupportedVersion"/>）。<br />
     /// 启用版本化且存在旧档时，须注册自版本 0 起的迁移链（旧档无元数据块按版本 0 处理；形状未变可用空迁移器桥接 0→1）。<br />

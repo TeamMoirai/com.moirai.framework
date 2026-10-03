@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Save
     /// <remarks>
     /// 记录布局：对象级 <c>[2B 键长][键 UTF8][1B 类型][4B 载荷长][载荷]</c>；集合元素级 <c>[1B 类型][4B 载荷长][载荷]</c>。 <br />
     /// 每个节点都带显式载荷长度——读取侧可 O(1) 跳过未知键（字段废弃向后兼容的关键）。 <br />
-    /// 嵌套对象/序列/映射经 Begin/End 对写入（End 回填载荷长度）；由 SaveHost SourceGenerator 生成的捕获器驱动，须在主线程调用（读取 <c>MonoBehaviour</c> 字段）。
+    /// 嵌套对象/序列/映射经 Begin/End 对写入（End 回填载荷长度）；由 SaveServiceCodegen 生成器 生成的捕获器驱动，须在主线程调用（读取 <c>MonoBehaviour</c> 字段）。
     /// </remarks>
     public ref struct SaveKeyValueWriter
     {

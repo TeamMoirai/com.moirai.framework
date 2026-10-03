@@ -384,7 +384,7 @@ Rules that live only in a document stop nothing the next time someone "just quic
 
 **Lessons ledger** (each stumble becomes a rule):
 
-- An "orphan partial" verdict must first exclude **source-generator-fed classes** — SaveHostGenerator injects the second partial at compile time, invisible to grep (2026-09-27 audit A-18 false positive; executed 8 removals, then reverted on the spot).
+- An "orphan partial" verdict must first exclude **source-generator-fed classes** — SaveFieldCapturerGenerator injects the second partial at compile time, invisible to grep (2026-09-27 audit A-18 false positive; executed 8 removals, then reverted on the spot).
 - `GetAllTimers(null)` returns 0 by contract — it is not a counting channel; active counts go through `GetStatistics`.
 - C# 9 does not cache method-group conversions: callbacks in benchmarks and hot paths must be cached as static fields.
 - Cross-assembly test support cannot be shared (asmdef topology); duplication is acceptable (e.g. the Player-side AudioCacheTestSupport).

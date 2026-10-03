@@ -59,7 +59,7 @@ namespace Service.Save
             SaveBuiltInCapturers.RegisterBuiltIns();
 
             Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(SaveEntityPersistenceTests.EntityTestComponent), out _),
-                "测试组件捕获器应已由 SaveHost SG 生成并注册");
+                "测试组件捕获器应已由 SaveServiceCodegen 生成并注册");
 
             // 模板源：未激活（Awake 不跑——克隆捕获与生成均不染指注册表）
             _prefabSource = new GameObject("entity-src-enemy");
