@@ -145,16 +145,20 @@ namespace Moirai.Atropos.Editor.Save
 
             public string FolderName => _data.Name;
 
-            [ShowInInspector, LabelText("文件夹"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("文件夹")]
             private string Name => _data.Name;
 
-            [ShowInInspector, LabelText("路径"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("路径")]
             private string FullPath => _owner.SafeDetermineSavePath(_data.Name);
 
-            [ShowInInspector, LabelText("槽位数"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("槽位数")]
             private int SlotCount => _data.Slots.Count;
 
-            [ShowInInspector, LabelText("总大小"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("总大小")]
             private string TotalSize
             {
                 get
@@ -169,7 +173,10 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [Button("定位"), ButtonGroup("文件夹操作"), GUIColor(0.40f, 0.70f, 0.95f)]
+            /// <!-- 文件夹操作 -->
+            private const string FOLDER_OPERATIONS_GROUP = "文件夹操作";
+            
+            [Button("定位"), ButtonGroup(FOLDER_OPERATIONS_GROUP), GUIColor(0.40f, 0.70f, 0.95f)]
             private void Reveal()
             {
                 string path = _owner.SafeDetermineSavePath(_data.Name);
@@ -179,7 +186,7 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [Button("删除文件夹"), ButtonGroup("文件夹操作"), GUIColor(0.90f, 0.35f, 0.35f)]
+            [Button("删除文件夹"), ButtonGroup(FOLDER_OPERATIONS_GROUP), GUIColor(0.90f, 0.35f, 0.35f)]
             private void Delete() => _owner.DeleteFolderDialog(_data.Name);
         }
 
@@ -196,6 +203,11 @@ namespace Moirai.Atropos.Editor.Save
             private string _blockFilter = string.Empty;
             private string _previewBlockKey = string.Empty;
             private PreviewMode _previewMode = PreviewMode.Auto;
+            
+            private const string PREVIEW_GROUP = "预览";
+            
+            [FoldoutGroup(PREVIEW_GROUP, true, 40f), PropertySpace(6f, 0f), PropertyOrder(999)]
+            [ShowInInspector, HideLabel, TextArea(4, 10)]
             private string _previewText = string.Empty;
 
             public SlotDetailModel(SaveBrowserWindow owner, SlotView view, string folder)
@@ -274,69 +286,96 @@ namespace Moirai.Atropos.Editor.Save
 
             #region 概览 [OVERVIEW]
 
-            [ShowInInspector, LabelText("文件"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("文件")]
             private string FileName => _view.Info.FileName + SaveServiceSettings.SaveFileExtension;
 
-            [ShowInInspector, LabelText("大小"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("大小")]
             private string Size => FormatBytes(_view.Info.SizeBytes);
 
-            [ShowInInspector, LabelText("最后写入"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("最后写入")]
             private string LastWrite => _view.Info.LastWriteTimeUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 
-            [ShowInInspector, LabelText("路径"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("路径")]
             private string PathText => TruncatePath(_owner.SafeGetSlotFullPath(_view.Info.FileName, _folder), 80);
 
-            [ShowInInspector, LabelText("数据块"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("数据块")]
             private string Health => BuildHealthSummary(_view);
 
-            [ShowInInspector, LabelText("截图"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("截图")]
             private string Screenshot => _view.HasScreenshot ? "有" : "无";
 
-            [ShowInInspector, LabelText("备份"), ReadOnly]
+            [ShowInInspector, ReadOnly]
+            [LabelText("备份")]
             private string BackupText => _view.HasBackup ? "有 (.bak)" : "无";
 
             #endregion
 
             #region 操作 [ACTIONS]
 
-            [Button("备份"), ButtonGroup("操作行1", 9f), GUIColor(0.40f, 0.70f, 0.95f)]
+            /// <!-- 操作行1 -->
+            private const string OPERATION1_GROUP = "操作行1";
+
+            [Button("备份"), ButtonGroup(OPERATION1_GROUP, 9f), GUIColor(0.40f, 0.70f, 0.95f)]
             private void Backup() => _owner.RunBackupForActive();
 
-            [Button("恢复备份"), ButtonGroup("操作行1", 9f), GUIColor(0.92f, 0.72f, 0.25f)]
+            [Button("恢复备份"), ButtonGroup(OPERATION1_GROUP), GUIColor(0.92f, 0.72f, 0.25f)]
             private void RestoreBackup() => _owner.RestoreBackupForActive();
 
-            [Button("复制槽位"), ButtonGroup("操作行1", 9f)]
+            [Button("复制槽位"), ButtonGroup(OPERATION1_GROUP)]
             private void Duplicate() => _owner.DuplicateSelectedSlot();
 
-            [Button("定位文件"), ButtonGroup("操作行2", 12f), GUIColor(0.40f, 0.70f, 0.95f)]
+            /// <!-- 操作行2 -->
+            private const string OPERATION2_GROUP = "操作行2";
+            
+            [Button("定位文件"), ButtonGroup(OPERATION2_GROUP, 12f), GUIColor(0.40f, 0.70f, 0.95f)]
             private void Reveal() => _owner.RevealSelectedFile();
 
-            [Button("复制路径"), ButtonGroup("操作行2", 12f), GUIColor(0.40f, 0.70f, 0.95f)]
+            [Button("复制路径"), ButtonGroup(OPERATION2_GROUP), GUIColor(0.40f, 0.70f, 0.95f)]
             private void CopyPath() => _owner.CopySelectedPath();
 
-            [Button("导出块"), ButtonGroup("操作行2", 12f)]
+            [Button("导出块"), ButtonGroup(OPERATION2_GROUP)]
             private void Export() => _owner.ExportSelectedBlock(this);
 
-            [Button("删除存档"), ButtonGroup("操作行2", 12f), GUIColor(0.90f, 0.35f, 0.35f)]
+            [Button("删除存档"), ButtonGroup(OPERATION2_GROUP), GUIColor(0.90f, 0.35f, 0.35f)]
             private void Delete() => _owner.DeleteSelectedSlotDialog();
 
             #endregion
 
             #region 元数据 [METADATA]
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("游戏版本"), ReadOnly, InfoBox("无法解析元数据。当前项目可能使用加密处理器，或档文件已损坏。", InfoMessageType.Warning, "IsMetadataMissing")]
+            /// <!-- 元数据 -->
+            private const string METADATA_GROUP = "元数据";               
+            
+            [InfoBox("无法解析元数据。当前项目可能使用加密处理器，或档文件已损坏。", InfoMessageType.Warning, nameof(IsMetadataMissing))]
+            [FoldoutGroup(METADATA_GROUP, true, 20f)]
+            [ShowInInspector, ReadOnly]
+            [LabelText("游戏版本")]
             private string GameVersion => _view.Metadata != null && !string.IsNullOrEmpty(_view.Metadata.GameVersion) ? _view.Metadata.GameVersion : "-";
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("存档版本"), ReadOnly]
+            [FoldoutGroup(METADATA_GROUP)]
+            [ShowInInspector, ReadOnly]
+            [LabelText("存档版本")]
             private string SaveVersionText => _view.Metadata != null ? _view.Metadata.SaveVersion.ToString() : "-";
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("场景"), ReadOnly]
+            [FoldoutGroup(METADATA_GROUP)]
+            [ShowInInspector, ReadOnly]
+            [LabelText("场景")]
             private string Scene => _view.Metadata != null && !string.IsNullOrEmpty(_view.Metadata.SceneName) ? _view.Metadata.SceneName : "-";
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("游玩时长"), ReadOnly]
+            [FoldoutGroup(METADATA_GROUP)]
+            [ShowInInspector, ReadOnly]
+            [LabelText("游玩时长")]
             private string PlayTime => _view.Metadata != null && _view.Metadata.PlayTimeTicks > 0L ? FormatTimeSpan(new TimeSpan(_view.Metadata.PlayTimeTicks)) : "-";
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("迁移历史"), ReadOnly]
+            [FoldoutGroup(METADATA_GROUP)]
+            [ShowInInspector, ReadOnly]
+            [LabelText("迁移历史")]
             private string MigrationCount
             {
                 get
@@ -346,7 +385,9 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("迁移明细"), ReadOnly, HideIf("HasNoMigrations")]
+            [FoldoutGroup(METADATA_GROUP)]
+            [ShowInInspector, ReadOnly, HideIf(nameof(HasNoMigrations))]
+            [LabelText("迁移明细")]
             private string MigrationText
             {
                 get
@@ -361,7 +402,9 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("元数据", true, 20f), LabelText("自定义"), ReadOnly, HideIf("HasNoCustom")]
+            [FoldoutGroup(METADATA_GROUP)]
+            [ShowInInspector, ReadOnly, HideIf(nameof(HasNoCustom))]
+            [LabelText("自定义")]
             private string CustomText
             {
                 get
@@ -392,7 +435,12 @@ namespace Moirai.Atropos.Editor.Save
 
             #region 数据块 [BLOCKS]
 
-            [ShowInInspector, FoldoutGroup("数据块", true, 30f), LabelText("过滤块键")]
+            /// <!-- 数据块 -->
+            private const string BLOCKS_GROUP = "数据块";
+            
+            [FoldoutGroup(BLOCKS_GROUP, true, 30f)]
+            [ShowInInspector]
+            [LabelText("过滤块键")]
             private string BlockFilter
             {
                 get => _blockFilter;
@@ -403,14 +451,18 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("数据块", true, 30f), TableList, ListDrawerSettings(DraggableItems = false)]
+            [FoldoutGroup(BLOCKS_GROUP)]
+            [ShowInInspector, TableList, ListDrawerSettings(DraggableItems = false)]
             private List<BlockRow> BlockRows => _blockRows;
 
             #endregion
 
             #region 预览 [PREVIEW]
 
-            [ShowInInspector, FoldoutGroup("预览", true, 40f), LabelText("预览块"), ValueDropdown("GetBlockKeyChoices")]
+            /// <!-- 预览 -->
+            [FoldoutGroup(PREVIEW_GROUP)]
+            [ShowInInspector, ValueDropdown(nameof(GetBlockKeyChoices))]
+            [LabelText("预览块")]
             private string PreviewBlockKey
             {
                 get => _previewBlockKey;
@@ -421,7 +473,9 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("预览", true, 40f), EnumToggleButtons, LabelText("模式")]
+            [FoldoutGroup(PREVIEW_GROUP)]
+            [ShowInInspector, EnumToggleButtons]
+            [LabelText("模式")]
             private PreviewMode Mode
             {
                 get => _previewMode;
@@ -432,7 +486,9 @@ namespace Moirai.Atropos.Editor.Save
                 }
             }
 
-            [ShowInInspector, FoldoutGroup("预览", true, 40f), LabelText("JSON 美化")]
+            [FoldoutGroup(PREVIEW_GROUP)]
+            [ShowInInspector]
+            [LabelText("JSON 美化")]
             private bool PrettyJson
             {
                 get => _owner._prettyJson;
@@ -442,15 +498,14 @@ namespace Moirai.Atropos.Editor.Save
                     RebuildPreview();
                 }
             }
-
-            [ShowInInspector, FoldoutGroup("预览", true, 40f), HideLabel, PropertySpace(6f, 0f)]
-            [TextAreaAdaptive(12, 28)]
-            private string PreviewText => _previewText;
-
-            [Button("复制"), ButtonGroup("预览操作", 45f), GUIColor(0.40f, 0.70f, 0.95f)]
+            
+            /// <!-- 预览操作 -->
+            private const string PREVIEW_OPERATIONS_GROUP = "预览操作";
+            
+            [Button("复制"), ButtonGroup(PREVIEW_OPERATIONS_GROUP, 45f), GUIColor(0.40f, 0.70f, 0.95f)]
             private void CopyPreview() => _owner.CopyPreviewToClipboard(this);
 
-            [Button("导出块"), ButtonGroup("预览操作", 45f)]
+            [Button("导出块"), ButtonGroup(PREVIEW_OPERATIONS_GROUP)]
             private void ExportPreview() => _owner.ExportSelectedBlock(this);
 
             private IEnumerable<ValueDropdownItem<string>> GetBlockKeyChoices()
