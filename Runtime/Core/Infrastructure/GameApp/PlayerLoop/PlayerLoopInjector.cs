@@ -15,19 +15,19 @@ namespace Moirai.Atropos
     internal static class PlayerLoopInjector
     {
         /// <summary>
-        /// Moirai Update 注入点标记类型。
+        /// Update 注入点标记类型。
         /// </summary>
-        public sealed class MoiraiUpdate { }
+        public sealed class UpdateLoop { }
 
         /// <summary>
-        /// Moirai FixedUpdate 注入点标记类型。
+        /// FixedUpdate 注入点标记类型。
         /// </summary>
-        public sealed class MoiraiFixedUpdate { }
+        public sealed class FixedUpdateLoop { }
 
         /// <summary>
-        /// Moirai LateUpdate 注入点标记类型。
+        /// LateUpdate 注入点标记类型。
         /// </summary>
-        public sealed class MoiraiLateUpdate { }
+        public sealed class LateUpdateLoop { }
 
         private static PlayerLoopSystem.UpdateFunction s_UpdateDelegate;
         private static PlayerLoopSystem.UpdateFunction s_FixedUpdateDelegate;
@@ -35,13 +35,13 @@ namespace Moirai.Atropos
 
         private static bool s_Injected;
 
-        /// <summary>是否已注入 Moirai PlayerLoop 系统。</summary>
+        /// <summary>是否已注入 PlayerLoop 系统。</summary>
         public static bool IsInjected => s_Injected;
 
         /// <summary>
         /// 在域注册阶段复位注入标志（禁用域重载时上一局 Play 的值会残留），并缓存 Drive 委托（避免注入时分配）。
         /// </summary>
-        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetInjectionState()
         {
             s_Injected = false;
@@ -69,14 +69,14 @@ namespace Moirai.Atropos
             changed |= InsertSystem(
                 ref loop,
                 typeof(global::UnityEngine.PlayerLoop.Update),
-                typeof(MoiraiUpdate),
+                typeof(UpdateLoop),
                 s_UpdateDelegate,
                 insertAtStart: true);
 
             changed |= InsertSystem(
                 ref loop,
                 typeof(global::UnityEngine.PlayerLoop.FixedUpdate),
-                typeof(MoiraiFixedUpdate),
+                typeof(FixedUpdateLoop),
                 s_FixedUpdateDelegate,
                 insertAtStart: true);
 
@@ -84,7 +84,7 @@ namespace Moirai.Atropos
             changed |= InsertSystem(
                 ref loop,
                 typeof(global::UnityEngine.PlayerLoop.PreLateUpdate),
-                typeof(MoiraiLateUpdate),
+                typeof(LateUpdateLoop),
                 s_LateUpdateDelegate,
                 insertAtStart: false);
 
@@ -139,9 +139,9 @@ namespace Moirai.Atropos
         public static void RestoreDefault()
         {
             PlayerLoopSystem loop = UnityPlayerLoop.GetCurrentPlayerLoop();
-            bool changed = RemoveSystem(ref loop, typeof(MoiraiUpdate));
-            changed |= RemoveSystem(ref loop, typeof(MoiraiFixedUpdate));
-            changed |= RemoveSystem(ref loop, typeof(MoiraiLateUpdate));
+            bool changed = RemoveSystem(ref loop, typeof(UpdateLoop));
+            changed |= RemoveSystem(ref loop, typeof(FixedUpdateLoop));
+            changed |= RemoveSystem(ref loop, typeof(LateUpdateLoop));
             if (changed)
             {
                 UnityPlayerLoop.SetPlayerLoop(loop);
@@ -264,9 +264,9 @@ namespace Moirai.Atropos
         /// </summary>
         private static bool AllMarkersPresent(PlayerLoopSystem loop)
         {
-            return HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.Update), typeof(MoiraiUpdate))
-                && HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.FixedUpdate), typeof(MoiraiFixedUpdate))
-                && HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.PreLateUpdate), typeof(MoiraiLateUpdate));
+            return HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.Update), typeof(UpdateLoop))
+                && HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.FixedUpdate), typeof(FixedUpdateLoop))
+                && HasPhaseMarker(loop, typeof(global::UnityEngine.PlayerLoop.PreLateUpdate), typeof(LateUpdateLoop));
         }
 
         private static bool HasPhaseMarker(PlayerLoopSystem root, Type phaseType, Type markerType)
