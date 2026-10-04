@@ -299,9 +299,9 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
             _totalSystems++;
 
             string name = system.type != null ? system.type.FullName ?? system.type.Name : "(null)";
-            bool isMoirai = system.type == typeof(PlayerLoopInjector.MoiraiUpdate)
-                            || system.type == typeof(PlayerLoopInjector.MoiraiFixedUpdate)
-                            || system.type == typeof(PlayerLoopInjector.MoiraiLateUpdate);
+            bool isMoirai = system.type == typeof(PlayerLoopInjector.UpdateLoop)
+                            || system.type == typeof(PlayerLoopInjector.FixedUpdateLoop)
+                            || system.type == typeof(PlayerLoopInjector.LateUpdateLoop);
             bool hasDelegate = system.updateDelegate != null;
 
             if (hasDelegate && !isMoirai) _pumpCount++;
@@ -324,8 +324,8 @@ namespace Moirai.Atropos.Editor.PlayerLoopDebug
 
             if (isMoirai)
             {
-                if (system.type == typeof(PlayerLoopInjector.MoiraiUpdate)) _updateMarker = node;
-                else if (system.type == typeof(PlayerLoopInjector.MoiraiFixedUpdate)) _fixedMarker = node;
+                if (system.type == typeof(PlayerLoopInjector.UpdateLoop)) _updateMarker = node;
+                else if (system.type == typeof(PlayerLoopInjector.FixedUpdateLoop)) _fixedMarker = node;
                 else _lateMarker = node;
             }
 
