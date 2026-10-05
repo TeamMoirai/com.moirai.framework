@@ -26,6 +26,8 @@ Namespace: `Moirai.Atropos.Resource`
 
 | Struct/Interface | Description |
 |---------|------|
+| `AssetReference` | Serializable weak-reference base class (mirrors Addressables' `AssetReferenceT` and YooAsset's official `AssetReference` extension): the serialized surface is just two strings, `m_GUID` and `m_PackageName`; the asset itself never enters the serialized snapshot. `TryGetLocation` resolves a location from the GUID, `RuntimeKeyIsValid` checks the runtime key. Assets are picked in the Inspector by GUID and loaded on demand asynchronously at runtime — no strong references |
+| `AssetReference<T>` | Typed weak reference: `LoadAssetAsync(ct)` loads with a self-held lease (idempotent replay when already loaded, concurrent callers join the same in-flight load, failure/cancellation returns `null` and allows retry), `ReleaseAsset()` releases (no-op when not loaded), `Asset`/`IsLoaded` read the cache; editor-only `EditorAsset` reads `AssetDatabase` directly for previews |
 | `ResourceLeaseHandle` | Generation-validated slot handle (`readonly struct`) for safe resource references. Fields: `Index`, `Generation`. Static `Invalid` represents an invalid handle. `IsValid` checks validity. |
 | `ResourceAssetLease<T>` | Typed lease (`struct`, implements `IDisposable`) that holds a resource object and auto-releases on `Dispose`. Supports `using` statements. Fields: `Asset`, `Handle`, `IsValid`. |
 | `ResourceKey` | `readonly struct` describing resource location, package, type, and kind. Factory method `ResourceKey.Asset<T>(location, packageName)` creates a typed key. `HasResolvedIds` checks internal ID resolution. |
@@ -49,7 +51,7 @@ Namespace: `Moirai.Atropos.Resource`
 | `IResourceBindingService` | Declarative resource-component binding service interface, accessed via `ResourceService.BindingService` |
 | `ResourceOwner` | MonoBehaviour component (`[DisallowMultipleComponent]`), auto-releases all bindings on `OnDestroy`. Provides `ReleaseBindings()` and `EnsureFor(target, bindingService)`. A single binding owner throwing is recorded without truncating the rest, rethrown aggregated at the end. |
 | `ResourceBindingExtension` | Static extension class: `Image/SpriteRenderer.SetSprite`, `Image/SpriteRenderer.SetSubSprite`, `Image/SpriteRenderer/MeshRenderer.SetMaterial`, `MeshRenderer.SetSharedMaterial` |
-| `ResourceBindingService` | Binding-related enums and interfaces: `EResourceBindStatus`, `EResourceBindingOptions`, `EResourceBindingSlotType` |
+| `ResourceBindingTypes` | Binding-related enums and interfaces: `EResourceBindStatus`, `EResourceBindingOption`, `EResourceBindingSlotType` |
 | `EResourceHasAssetResult` | Asset existence check result (three-value semantics): `NotExist` (not found) / `AssetOnline` (exists but needs remote download) / `AssetOnDisk` (exists and available on disk) |
 | `YooAssetEncryptorHandler` | 加密配置的抽象基类（`[SerializeReference]` 挂在 `YooAssetHandler` 上）：`CreateEncryptor()` 供打包侧、`CreateDecryptor()` 供运行侧；内置 `FileOffset*` 与 `FileStream*` 两套实现，打包侧与运行侧必须选同一套 |
 | `FileStreamEncryptor` / `FileOffsetEncryptor` | Build-side encryption services (implement YooAsset `IEncryptionServices`) |
@@ -76,6 +78,24 @@ Texture2D tex = await ResourceService.TryLoadAssetAsync<Texture2D>("Assets/Asset
 ```
 
 When you need to control the ref-count lifetime yourself, use the Lease API below.
+
+### Weak reference `AssetReference` — pick assets in the Inspector by GUID
+
+Serializable weak reference mirroring Addressables' `AssetReferenceT` and YooAsset's official `AssetReference` extension: the serialized surface is just `m_GUID` and `m_PackageName`, producing no serialized strong reference. At runtime the location is resolved from the GUID through the backend manifest and the asset is loaded on demand asynchronously (the YooAsset collector must enable **IncludeAssetGUID** and regenerate the manifest); when the service is not ready (editor previews and tooling) it falls back to `AssetDatabase`.
+
+```csharp
+[SerializeField] private AssetReference<AudioClip> m_Bgm;
+
+// Resolve the location only and hand it to location-based APIs
+if (m_Bgm.TryGetLocation(out string location)) AudioService.Play(location, options);
+
+// Lease-owning load (Addressables semantics): idempotent replay when loaded, in-flight calls join the same load
+AudioClip clip = await m_Bgm.LoadAssetAsync(this.GetCancellationTokenOnDestroy());
+m_Bgm.ReleaseAsset(); // Release at lifecycle points such as OnDestroy; no-op when not loaded
+```
+
+The Inspector draws it via `AssetReferenceDrawer`: the package-name line is a dropdown whose options come live from the backend through the editor-only bridge `ResourcePackageBridge.GetPackageNames(handler)` (no Runtime seam; YooAsset reads the collector settings, with a leading "(Default Package)" entry, and the current value is pinned on top when it is no longer listed); with no options it falls back to a free text field, and empty means the default package; Addressables' single implicit catalog consumes no package name, so the line is hidden. The object field writes the GUID back on pick, plus path and packing-hint info. The resolution seam `ResourceServiceHandler.TryGetLocationByGuid` is abstract, implemented explicitly per backend: YooAsset resolves through the manifest GUID map, Addressable through the catalog's GUID keys (the resolved location is the GUID itself).
+
 
 ### Lease API (use when you own the lifetime)
 
@@ -306,7 +326,7 @@ public sealed class ResourceOwner : MonoBehaviour
 
 Enum values: `Success / InvalidKey / MissingOwner / MissingTarget / StaleOwner / Cancelled / LoadFailed / ApplyFailed / ServiceShutdown`
 
-### EResourceBindingOptions
+### EResourceBindingOption
 
 Flags enum: `None / KeepAliveOnRelease / SetNativeSize`
 
@@ -378,7 +398,7 @@ Batch query for asset record states. Returns the number of entries written. Each
 
 ### Play Mode and Encryption
 
-Configured on the Handler (`YooAssetHandler`) serialized fields of the `ResourceServiceSettings` asset in the editor (can also be switched via the menu `YooAsset/Editor PlayMode`; editor settings take precedence over serialized values; on device, `EditorSimulateMode` automatically falls back to `OfflinePlayMode`):
+Configured on the `PlayMode` field of the `ResourceServiceSettings` asset in the editor (`Tools/Framework Settings` > `[服务]资源设置`; on device, `EditorSimulate` automatically falls back to `OfflinePlay` with an error log):
 
 - `PlayMode`: Four play modes, determines whether `InitializePackageAsync` uses simulated build, built-in file system, cache file system, or web file system
 - Encryption is decided by the `[SerializeReference]` `YooAssetHandler.EncryptorHandler` setting (no encryption when unset); the runtime creates the matching decryptor from it. The build-side and runtime-side handlers must be the same pair.

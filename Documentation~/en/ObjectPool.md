@@ -22,7 +22,7 @@ Runtime/Services/Pooling/
 │   ├── PoolMaintenanceScheduler # Shared min-heap maintenance scheduler (1ms frame budget)
 │   ├── OpenHashMap<K> / ReferenceOpenHashMap / StringOpenHashMap  # Open-addressing zero-alloc hashes
 │   └── SlotArrayPool<T>        # Bucketed array pool by length
-├── ObjectPool/             # Generic pool
+├── Object/                 # Generic pool
 │   ├── ObjectPoolService.cs    # Generic pool static facade ([HandlerHost])
 │   ├── ObjectBase.cs           # Pooled object base (OnSpawn/OnDespawn/Release contract)
 │   └── IObjectPool.cs          # Generic pool contract
@@ -75,7 +75,7 @@ Namespace: `Moirai.Atropos.ObjectPool`
 | Class/Interface | Description |
 |-----------------|-------------|
 | `GameObjectPoolSummarySnapshot` / `GameObjectPoolSnapshot` | GO pool statistics snapshots (spawn/despawn/hit/miss/expand/destroy/peak + instance list) |
-| `GetAllObjectPools(bool sort, ObjectPoolBase[])` / `GetAllObjectInfos(ObjectInfo[])` | Generic pool debug export |
+| `GetAllObjectPools(bool sort, ObjectPoolBase[])` | Generic pool debug export (`GetAllObjectInfos` is internal, debugger windows only) |
 | Debugger windows | `Profiler/Object Pool` (generic), `Profiler/GameObject Pool` (GO pool) |
 
 ## Quick Start

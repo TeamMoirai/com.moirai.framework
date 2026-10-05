@@ -22,7 +22,7 @@ Runtime/Services/Pooling/
 │   ├── PoolMaintenanceScheduler # 共享最小堆维护调度（1ms 帧预算）
 │   ├── OpenHashMap<K> / ReferenceOpenHashMap / StringOpenHashMap  # 开放寻址零分配哈希
 │   └── SlotArrayPool<T>        # 按长度分桶的数组池
-├── ObjectPool/             # 通用池
+├── Object/                 # 通用池
 │   ├── ObjectPoolService.cs    # 通用池静态外观（[HandlerHost]）
 │   ├── ObjectBase.cs           # 池化对象基类（OnSpawn/OnDespawn/Release 契约）
 │   └── IObjectPool.cs          # 通用池契约
@@ -75,7 +75,7 @@ Runtime/Services/Pooling/
 | 类/接口 | 说明 |
 |---------|------|
 | `GameObjectPoolSummarySnapshot` / `GameObjectPoolSnapshot` | GO 池统计快照（spawn/despawn/hit/miss/expand/destroy/peak + 实例列表） |
-| `GetAllObjectPools(bool sort, ObjectPoolBase[])` / `GetAllObjectInfos(ObjectInfo[])` | 通用池调试导出 |
+| `GetAllObjectPools(bool sort, ObjectPoolBase[])` | 通用池调试导出（`GetAllObjectInfos` 为 internal，仅供 Debugger 窗口） |
 | Debugger 窗口 | `Profiler/Object Pool`（通用池）、`Profiler/GameObject Pool`（GO 池） |
 
 ## 快速开始

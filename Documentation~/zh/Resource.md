@@ -26,6 +26,8 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 
 | 结构体/接口 | 说明 |
 |---------|------|
+| `AssetReference` | 可序列化资源弱引用基类（对齐 Addressables 的 `AssetReferenceT` 与 YooAsset 官方 `AssetReference` 扩展）：序列化面只有 `m_GUID` 与 `m_PackageName` 两个字符串，资源本体不进序列化快照；`TryGetLocation` 按 GUID 解析定位地址，`RuntimeKeyIsValid` 检查引用键。检视器经 GUID 引用资源，运行时按需异步加载，不产生强引用 |
+| `AssetReference<T>` | 类型化弱引用：`LoadAssetAsync(ct)` 自持租约加载（已加载幂等回放、在途并发并入同一次加载、失败/取消回 `null` 可重试）、`ReleaseAsset()` 释放（未加载时空操作）、`Asset`/`IsLoaded` 读缓存；编辑器另有 `EditorAsset` 直读 `AssetDatabase` 预览 |
 | `ResourceLeaseHandle` | generation 校验的槽位句柄（`readonly struct`），用于安全引用资源记录。字段：`Index`、`Generation`。静态 `Invalid` 表示无效句柄。`IsValid` 检查有效性。 |
 | `ResourceAssetLease<T>` | 类型化租约（`struct`，实现 `IDisposable`），持有资源对象并在 `Dispose` 时自动释放。支持 `using` 语句。字段：`Asset`、`Handle`、`IsValid`。 |
 | `ResourceKey` | `readonly struct`，描述资源位置、包名、类型和种类。工厂方法 `ResourceKey.Asset<T>(location, packageName)` 创建类型化键。`HasResolvedIds` 检查内部 ID 解析状态。 |
@@ -49,7 +51,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | `IResourceBindingService` | 声明式资源-组件绑定服务接口，经 `ResourceService.BindingService` 访问 |
 | `ResourceOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`EnsureFor(target, bindingService)`。单个所有者抛出只记账不截断其余绑定，末尾汇总重抛。 |
 | `ResourceBindingExtension` | 静态扩展类：`Image/SpriteRenderer.SetSprite`、`Image/SpriteRenderer.SetSubSprite`、`Image/SpriteRenderer/MeshRenderer.SetMaterial`、`MeshRenderer.SetSharedMaterial` |
-| `ResourceBindingService` | 绑定相关枚举与接口：`EResourceBindStatus`、`EResourceBindingOptions`、`EResourceBindingSlotType` |
+| `ResourceBindingTypes` | 绑定相关枚举与接口：`EResourceBindStatus`、`EResourceBindingOption`、`EResourceBindingSlotType` |
 | `EResourceHasAssetResult` | 资源存在性检查结果（三值语义）：`NotExist`（不存在）/ `AssetOnline`（存在但需从远端下载）/ `AssetOnDisk`（存在且已在磁盘） |
 | `YooAssetEncryptorHandler` | 加密配置的抽象基类（`[SerializeReference]` 挂在 `YooAssetHandler` 上）：`CreateEncryptor()` 供打包侧、`CreateDecryptor()` 供运行侧；内置 `FileOffset*` 与 `FileStream*` 两套实现，打包侧与运行侧必须选同一套 |
 | `FileStreamEncryptor` / `FileOffsetEncryptor` | 打包侧加密服务（实现 YooAsset `IEncryptionServices`） |
@@ -76,6 +78,24 @@ Texture2D tex = await ResourceService.TryLoadAssetAsync<Texture2D>("Assets/Asset
 ```
 
 需要自己掌握引用计数生命周期时，改用下面的 Lease API。
+
+### 弱引用 AssetReference（Inspector 经 GUID 引资源）
+
+可序列化弱引用：对齐 Addressables 的 `AssetReferenceT` 与 YooAsset 官方 `AssetReference` 扩展，序列化面只有 `m_GUID` 与 `m_PackageName` 两个字符串，不产生序列化强引用。运行时经后端清单按 GUID 解析定位地址后按需异步加载（YooAsset 收集器须勾选 **IncludeAssetGUID** 并重新生成清单）；服务未就绪时（编辑器预览与工具面）回退 `AssetDatabase`。
+
+```csharp
+[SerializeField] private AssetReference<AudioClip> m_Bgm;
+
+// 只解析定位地址，交给按 location 加载的 API
+if (m_Bgm.TryGetLocation(out string location)) AudioService.Play(location, options);
+
+// 自持租约加载（Addressables 语义）：已加载幂等回放，在途并发并入同一次加载
+AudioClip clip = await m_Bgm.LoadAssetAsync(this.GetCancellationTokenOnDestroy());
+m_Bgm.ReleaseAsset(); // OnDestroy 等生命周期点释放；未加载时为空操作
+```
+
+检视器由 `AssetReferenceDrawer` 绘制：包名行走下拉，选项经编辑器桥 `ResourcePackageBridge.GetPackageNames(handler)` 实时取自后端（仅编辑器可用，不落 Runtime 接缝；YooAsset 读收集器设置，首项为默认资源包，当前值不在清单中时置顶），无清单退回自由文本，留空使用默认资源包；Addressables 单隐式目录不消费包名，不绘制包名行。对象字段选中即写回 GUID，并显示路径与打包归属提示。解析接缝 `ResourceServiceHandler.TryGetLocationByGuid` 为 abstract，由各后端显式实现：YooAsset 走清单 GUID 映射，Addressable 走目录 GUID key（定位地址即 GUID 本身）。
+
 
 ### Lease API（自持所有权时用）
 
@@ -306,7 +326,7 @@ public sealed class ResourceOwner : MonoBehaviour
 
 枚举值：`Success / InvalidKey / MissingOwner / MissingTarget / StaleOwner / Cancelled / LoadFailed / ApplyFailed / ServiceShutdown`
 
-### EResourceBindingOptions
+### EResourceBindingOption
 
 标志枚举：`None / KeepAliveOnRelease / SetNativeSize`
 
@@ -378,7 +398,7 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 
 ### 播放模式与加密
 
-编辑器中在 `ResourceServiceSettings` 资产的 Handler（YooAssetHandler）序列化字段上配置，也可用菜单 `YooAsset/Editor PlayMode` 切换（编辑器设置优先于序列化值；真机下 `EditorSimulateMode` 自动降级为 `OfflinePlayMode`）：
+编辑器中在 `ResourceServiceSettings` 资产的 `PlayMode` 字段上配置（`Tools/Framework Settings` → `[服务]资源设置`；真机下 `EditorSimulate` 自动降级为 `OfflinePlay` 并打一条 Error）：
 
 - `PlayMode`：四种播放模式，决定 `InitializePackageAsync` 走模拟构建、内置文件系统、缓存文件系统还是 Web 文件系统
 - 加密方式由 `YooAssetHandler.EncryptorHandler` 这个 `[SerializeReference]` 配置决定（不配即为无加密），运行时据此创建对应解密服务

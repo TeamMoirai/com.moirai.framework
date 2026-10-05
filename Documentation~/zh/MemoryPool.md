@@ -160,10 +160,9 @@ MemoryPool.SetCapacity<DamageEvent>(softCapacity: 128, hardCapacity: 512);
 - `Application.lowMemory` → 切换到 `LowMemory` 阶段，调用 `CompactAll()`，恢复原阶段
 - `Application.focusChanged` → 失焦时切换到 `Background` 阶段，获焦时恢复
 
-Procedure 流程链在每个阶段设置 Phase：
-- `ProcedureLaunch` / `ProcedureSplash` → `Boot`
-- `ProcedureInitPackage` 到 `ProcedurePreload` → `Loading`
-- `ProcedurePrepare4Entrance` → `Gameplay`
+阶段切换点（框架内置两处，其余由项目按需经 `MemoryPoolRegistry.Phase` 自行设置）：
+- `MemoryPoolSetting.OnInit` → `Boot`（启动默认阶段）
+- `ProcedurePrepare4Entrance`（模板启动链入口预备）→ `Gameplay`
 
 ## 统计与调试
 
