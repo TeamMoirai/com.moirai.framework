@@ -160,10 +160,9 @@ The `MemoryPoolSetting` framework setting (a `ScriptableObject`) drives `MemoryP
 - `Application.lowMemory` → switches to `LowMemory` phase, calls `CompactAll()`, restores previous phase
 - `Application.focusChanged` → switches to `Background` phase when unfocused, restores when refocused
 
-The Procedure flow chain sets the phase at each stage:
-- `ProcedureLaunch` / `ProcedureSplash` → `Boot`
-- `ProcedureInitPackage` through `ProcedurePreload` → `Loading`
-- `ProcedurePrepare4Entrance` → `Gameplay`
+Phase switch points (two built into the framework; the rest are set by the project via `MemoryPoolRegistry.Phase` as needed):
+- `MemoryPoolSetting.OnInit` → `Boot` (default startup phase)
+- `ProcedurePrepare4Entrance` (template startup chain, entrance preparation) → `Gameplay`
 
 ## Statistics and Debugging
 

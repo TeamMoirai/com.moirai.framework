@@ -31,6 +31,7 @@ Runtime/Services/Audio/
 │          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
 └── Support/ BackgroundMusic / AudioSettingsWidget / BgmPlaylist / AudioEmitter
            AudioMainThread / AudioFault / AudioWarnOnce      # 主线程断言、退避式异常上报、按 key 去重告警
+           AudioBlockingLoadGate / ShuffleIndexBag           # 阻塞加载闸门、不重复随机袋
 ```
 
 ## 架构（HandlerHost + 策略）
@@ -107,7 +108,7 @@ Runtime/Services/Audio/
 | `AudioMixStateMachine` / `EMixSnapshot` | 混音快照状态机 |
 | `AudioOcclusionHrtf` | 遮挡 + HRTF 组件 |
 | `AudioAgentHostPool` | 宿主内部栈池（OnInit 按配置预热；闲置宿主在 `[Warmup]` 节点下） |
-| `BackgroundMusic` | 分层 BGM 组件（同 ID 替换，异 ID 共存） |
+| `BackgroundMusic` | 分层 BGM 组件（同 ID 替换，异 ID 共存）；直接引用 `AudioClip` 播放 |
 
 ## 快速上手
 
@@ -263,7 +264,8 @@ AudioService.ResetMixSnapshot(0.25f);
 - `AudioPlayOptionsSO` 的「时间」参数（`PlaybackTime` / `PlaybackDuration`，含随机区间）随每次 `Play` 实际生效；`MaximumConcurrentInstances` / `DoNotPlayIfClipAlreadyPlaying` 作用于**本次候选 clip**（随机曲集下不是上一曲）  
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
 - 游戏内调试器 `Profiler/Audio` 除音量/音轨控制外，还显示 Clip 缓存条目/容量、在途、常驻、失败冷却、当前混音快照与 Ducking 占用，并提供清空缓存按钮——排查"音效没出来"先看这里  
-- 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`
+- 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`  
+- ⚠ `BackgroundMusic` 收敛为仅直接引用 `AudioClip`（`m_AudioClip`），移除「直接强引用 / `AudioClipInfo` 路径引用」双轨；`AudioClipInfo` 弃用：直接引用的存量数据按原字段名自动保留，原路径引用（`m_SoundClip`）的存量场景需在 Inspector 重新指定音频；需要弱引用加载的场景改用 `AssetReference<TObject>`  
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [Resource](Resource.md) · [UI](UI.md)

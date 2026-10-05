@@ -16,7 +16,7 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 - **Operations**：GameObject 池冲刷、资源卸载 / GC、Time Scale 滑条、框架关停（None / Restart / Quit）
 - **流式面板构建器**：`RegisterPanel` 一行注册自定义调试面板（滑条 / 开关 / 按钮 / 折叠组 / 只读字段 / 进度条，Getter/Setter 闭包绑定 + 200ms 轮询刷新）
 - **线程安全日志捕获**：`logMessageReceivedThreaded` 任意线程入队、主线程排空的池化环形缓冲
-- **可配置激活策略**：总是打开 / 仅开发构建 / 仅编辑器 / 总是关闭，命令行 `-showdebugger` 强制开启
+- **可配置激活策略**：总是打开 / 仅开发构建 / 仅编辑器 / 总是关闭，命令行 `-show-debugger` 强制开启
 - **布局持久化**：悬浮入口与窗口的位置、尺寸、缩放经 `SettingUtility` 记忆；分辨率自适应（参考 1920×1080）
 
 ## 核心类型
@@ -39,7 +39,7 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 | `ScrollableDebuggerWindowBase` | 可滚动窗口基类（UI Toolkit）；`PollingDebuggerWindowBase` 节流轮询重建基类 |
 | `DebuggerActiveWindowType` | 激活策略枚举：`AlwaysOpen` / `OnlyOpenWhenDevelopment` / `OnlyOpenInEditor` / `AlwaysClose` |
 | `Constant.Debug` | 布局与控制台筛选的设置键常量 |
-| `CommandLineUtility` | 静态工具类：`GetShowDebugger()` 读取 `-showdebugger` 强制开启参数 |
+| `CommandLineUtility` | 静态工具类：`GetShowDebugger()` 读取 `-show-debugger` 强制开启参数 |
 | `ServiceDebugView` | IMGUI 调试视图抽象基类（实现 `IDebuggerWindow`）：`Title` / `IsReady` / `OnDrawContent()`（GUILayout）+ 默认 `CreateView()`（`IMGUIContainer` 嵌入 UI Toolkit 面板）——游戏侧快速 IMGUI 视图的兼容扩展路径（框架内置面板均为原生 UI Toolkit） |
 | `Windows/*` | 内置窗口实现：`ConsoleWindow`、`*InformationWindow`、`RuntimeMemorySummaryWindow`、`RuntimeMemoryInformationWindow<T>`、`MemoryPoolInformationWindow`、`ServiceKernelDebuggerWindow`、`OperationsWindow`、`SettingsWindow` 等 |
 
@@ -184,7 +184,7 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
   - `OnlyOpenWhenDevelopment`：`Debug.isDebugBuild` 时打开（默认）
   - `OnlyOpenInEditor`：`Application.isEditor` 时打开
   - `AlwaysClose`：默认关闭
-  - 非 `AlwaysOpen` 策略均可用启动参数 `-showdebugger` 强制开启
+  - 非 `AlwaysOpen` 策略均可用启动参数 `-show-debugger` 强制开启
 - **后端序列化字段**（`DefaultDebuggerHandler`）：`ConsoleCapacity` / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity`
 - **扩展信息窗口**：继承 `PollingDebuggerWindowBase`（节流重建）或 `ScrollableDebuggerWindowBase`，注册到 `"Information/..."` 路径
 - **自定义后端**：继承 `DebuggerServiceHandler`（以 `[SerializeField]` 字段承载配置），在设置资产中替换

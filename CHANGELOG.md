@@ -10,6 +10,8 @@
 
 #### 资源
 
+- 新增可序列化资源弱引用 `AssetReference` / `AssetReference<TObject>`（对齐 Addressables 的 AssetReferenceT 与 YooAsset 官方 AssetReference 扩展）：序列化面只有 `m_GUID` 与 `m_PackageName` 两个字符串，检视器经 GUID 引用资源（新 `AssetReferenceDrawer`：对象字段选中即写回 GUID 并显示打包归属提示；包名行走下拉——选项经编辑器桥 `ResourcePackageBridge` 实时取自后端，YooAsset 读收集器设置且首项为默认资源包，当前值不在清单中时置顶，无清单退回自由文本，Addressables 单隐式目录不消费包名、不绘制包名行），运行时经后端清单按 GUID 解析定位地址后按需异步加载，避免序列化强引用带来的内存占用；`LoadAssetAsync` 自持租约（已加载幂等回放、在途并发并入、失败/取消回 `null` 可重试），`ReleaseAsset` 释放。
+- 新增 `ResourceService.TryGetLocationFromGuid(guid, out location, packageName)`（服务未就绪时编辑器回退 `AssetDatabase`）与后端接缝 `ResourceServiceHandler.TryGetLocationByGuid`（abstract，每个后端必须显式实现；YooAsset 经清单 `GetAssetInfoByGuid` 映射，Addressable 经目录 GUID key 定位、解析结果即 GUID 本身）：YooAsset 收集器设置须勾选 IncludeAssetGUID 并重新生成清单后才生效。包名清单的编辑器口径由 `ResourcePackageBridge.GetPackageNames(handler)` 提供（传 Handler 返回包名数组：null 为不消费包名、空数组为清单未就绪；仅编辑器可用，不落 Runtime 接缝）。
 - 新增取用族 `ResourceService.TryLoadAsset<T>(location, out asset, packageName)` 与 `TryLoadAssetAsync<T>(location, cancellationToken, packageName)`：内部取租约、读出对象后立即归还，归还时按 `IdleAssetExpireTime`（默认 60 秒）保活，不把租约交给调用方。
 - 取用族在服务未初始化时（编辑器非播放态）直读 `AssetDatabase`，不建记录也不取租约：可序列化资源引用类与编辑器预览因此共用同一个入口，不再各写 `#if UNITY_EDITOR` 分支；异步形以 `null` 表失败（异步方法不能带 `out` 参数）。
 - 迁移口径：取到的对象只在保活窗口内稳定，需要长期持有或跨长周期保存引用的场景改用 Lease API 自持租约，长期显示的用法应定期回读本族。
@@ -28,6 +30,10 @@
 
 ### Changed
 
+#### 资源
+
+- ⚠ `BackgroundMusic` 收敛为仅直接引用 `AudioClip`（`m_AudioClip`），移除「直接强引用 / AudioClipInfo 路径引用」双轨；`AudioClipInfo` 弃用（仅为旧资产反序列化保留，其 Drawer 删除）。直接引用的存量数据按原字段名自动保留，原路径引用（`m_SoundClip`）的存量场景需在 Inspector 重新指定音频；需要弱引用加载的场景改用 `AssetReference<TObject>`。
+
 #### JSON
 
 - 成员是否入档改为允许列表（`JsonTypeSupport.IsSupportedMemberType`）：此前除黑名单类型外一律反射兜底，接口/抽象成员被写成不带类型名的对象、`StringBuilder`/`Type`/`Tuple` 被写成私有内部结构、`UnityEvent<T>` 被写成 `m_PersistentCalls`，读回时构造不出实例却静默成档；现在这些形态连同委托、多维数组、BCL 具体类型一起不入选，写侧不出现在 JSON、读侧按未知字段忽略，两侧对称。
@@ -41,6 +47,11 @@
 - `SaveSerializerRegistry` 不再硬编码内置后端：注册按 ID→类型挂账，首次查询到该后端才实例化那一个（实现均无状态）；新增 `Register(ushort, Type)` 与 `Register<T>()` 两个登记入口，`Unregister(ushort)` 连 ID→类型记录一起摘除（只删实例会被下一次查询复活），换后端为「先 `Unregister` 再 `Register`」；重号判据同查两张表，同标识实现不再静默盖掉已登记那份。
 - 存档源生成器工程 `SaveHost` 更名 `SaveServiceCodegen`（文件夹 / csproj / 入库 dll 三名同步，命名空间不变），并按功能拆成四个生成器类：`SaveFieldCapturerGenerator`（`[SaveField]` 捕获器）、`SaveMigratorRegistrationGenerator`（迁移器自注册）、`SaveSerializerRegistrationGenerator`（`[RegisterSerializer]` 后端自注册）、`SaveModuleInitializerShimGenerator`（`ModuleInitializerAttribute` 缺失副本的唯一归属方），三者各占一个模块初始化器类；诊断描述符同时从 `SaveFieldModel.cs` 独立成 `Diagnostics.cs`（Category 由 `SaveHost` 改 `Save`）。生成的捕获器与注册内容不变。
 - 存档模式分析器 `SaveSchemaAnalyzer`（MIRAI400/401）从 `ServiceDependency.dll` 归到 `SaveServiceCodegen.dll`：诊断 ID、判据与快照格式不变，只是 Save 的判据与 Save 的生成器同装配；生成器内部另把 `SaveFieldModel.cs` 按类型拆出 `SaveValueClassifier.cs` 与 `DiagnosticInfo.cs`。
+
+#### 文档
+
+- README 双语重写为标准仓库结构（特性/安装/快速开始/架构/文档索引/编辑器工具/贡献），架构树按重构后的 Core 三分（Foundation/Infrastructure/Utilities）与 Pooling 更名改口径，启动链归属改指模板目录，失效的编辑器工具条目（JSON Benchmark）剔除并补 PlayerLoop Debugger 等实存菜单；README 里的订阅/派发异常分级与测试约定两节内迁到新增的 CONTRIBUTING.md，异常分级声明点更新为五处 RETHROW 常量（补 TaskRunner / MemoryPoolRegistry）。
+- 双语文档按代码全量核校，修正与实现漂移的陈述：UI 快速上手与核心类型改按轨继承（业务窗口继承 `UGUIWindow`，`UIWindow` 是后端无关对象模型，绑定代码生成器同口径）；调试器启动参数更正为 `-show-debugger`；存档浏览器菜单更正为 `Tools/Moirai/Save/Save Browser`；Resource 绑定枚举更名 `EResourceBindingOption`、类型表行更正 `ResourceBindingTypes`；Scene 处理器空配置的口径改为回退 `DefaultSceneHandler`；移除两处不存在的 `YooAsset/Editor PlayMode` 菜单引用；MemoryPool 阶段切换点更正（Boot 由 `MemoryPoolSetting.OnInit` 设定，模板启动链只在 `ProcedurePrepare4Entrance` 切 Gameplay）；ObjectPool 目录树更正 `Object/` 子目录；Testing 测试桥路径更正为工程相对 `Temp/` 并刷新分布快照；Audio 更正 `BackgroundMusic` 直接引用口径与迁移说明；CodeComments 补齐尾部导航。
 
 ### Removed
 

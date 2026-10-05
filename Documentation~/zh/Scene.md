@@ -22,7 +22,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.Scene.SceneService` | 场景服务静态外观（`[HandlerHost]`）。未注册时外观调用静默降级（查询返回默认值、加载返回无效场景）；`Handler` 属性懒加载从 `SceneServiceSettings` 创建处理器，处理器配置为空时抛 `InvalidOperationException` |
+| `Moirai.Atropos.Scene.SceneService` | 场景服务静态外观（`[HandlerHost]`）。未注册时外观调用静默降级（查询返回默认值、加载返回无效场景）；`Handler` 属性懒加载从 `SceneServiceSettings` 创建处理器，配置为空时回退默认实现 `DefaultSceneHandler` |
 | `Moirai.Atropos.Scene.SceneServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `DefaultSceneHandler` 经 `ResourceService` 加载并管理主/子场景 |
 | `Moirai.Atropos.Resource.ResourceSceneHandle` | 资源系统场景句柄抽象，由资源后端（YooAsset / Addressable）适配实现，承载加载进度、激活、解除挂起与卸载 |
 
@@ -114,7 +114,7 @@ catch (OperationCanceledException)
 
 ## 注意事项
 
-- 场景资源需纳入资源后端收集构建（YooAsset 收集器 / Addressables 组）；编辑器下使用 YooAsset 后端时请先通过 `YooAsset/Editor PlayMode` 选择模拟模式
+- 场景资源需纳入资源后端收集构建（YooAsset 收集器 / Addressables 组）；编辑器下使用 YooAsset 后端时请先将 `ResourceServiceSettings` 的 `PlayMode` 设为 `EditorSimulate`
 - 加载失败一律抛出 `GameException`：重复加载在途中的同地址场景、重复加载已登记的子场景、主场景加载互斥（另一主场景在途）、跨模式同址（已登记为子场景又以 Single 加载，或反之）、资源服务未就绪、后端加载错误
 - 回调式 `LoadScene` 不抛异常：无论成败恰好回调一次，失败时以默认场景回调，调用方须检查 `Scene.IsValid()`
 - 卸载失败（后端卸载错误、句柄失效）返回 `false` / 回调 `false` 并保留登记，可安全重试；无效地址或存在在途操作时卸载不发起（告警日志）
