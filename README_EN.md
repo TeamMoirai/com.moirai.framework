@@ -6,7 +6,7 @@ Moirai Framework
 [![Issues](https://img.shields.io/github/issues/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
 [![Top Language](https://img.shields.io/github/languages/top/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
-[![README](https://img.shields.io/badge/README-中文-FFA500)](https://github.com/TeamMoirai/com.moirai.framework/blob/main/README.md)
+[![README](https://img.shields.io/badge/README-%E4%B8%AD%E6%96%87-FFA500)](https://github.com/TeamMoirai/com.moirai.framework/blob/main/README.md)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TeamMoirai/com.moirai.framework)
 
 ---
@@ -77,45 +77,45 @@ Moirai Framework
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Requirements
 
-- **Unity Version**: 2022.3.x (recommended) or higher
-- **Development Environment**: .NET 4.x
-- **Dependencies**: [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
-- **Supported Platforms**: Windows, OSX, Android, iOS, WebGL
+- **Unity**: 2022.3.x (recommended) or newer
+- **Environment**: .NET 4.x
+- **Dependency**: [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
+- **Platforms**: Windows, OSX, Android, iOS, WebGL, WeChat Mini Games
 
-### Getting Started
+### Installation
 
-#### Installation
+#### Option 1: One-Click Installer (Recommended)
 
-##### Option 1: One-Click Install (Recommended)
-
-1. Install **Framework Installer** via either method:
+1. Install the **Framework Installer** via either method:
 
    - In **Window/Package Manager**, install via Git URL:
 
-      ```bash
-      https://github.com/TeamMoirai/com.moirai.framework.git#installer
-      ```
-      <img src="Documentation~\.src\quick-start-1.png" alt="quick-start-scoped-registries" />
+     ```bash
+     https://github.com/TeamMoirai/com.moirai.framework.git#installer
+     ```
 
-   - Clone the `installer` branch to your project directory (Assets/...):
+     ![Package Manager install](Documentation~/.src/quick-start-1.png)
 
-      ```bash
-      git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
-      ```
+   - Or clone the `installer` branch into your project (Assets/...):
 
-2. Return to Unity and manually run menu `Tools/Install Framework`
+     ```bash
+     git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
+     ```
 
-3. After installation completes, you can safely delete the installer script
+2. Back in Unity, run the menu `Tools/Install Framework`.
 
-##### Option 2: UPM Install
+3. The installer script can be safely deleted afterwards.
 
-1. In **Project Settings/Unity Package Manager**, manually add **Scoped Registry**:
+#### Option 2: UPM
+
+1. In **Project Settings/Package Manager**, add a **Scoped Registry** manually:
 
    ```text
+   // Enter the following (international registry)
    Name: Open UPM
    URL: https://package.openupm.com
    Scope(s): com.cysharp
@@ -123,104 +123,94 @@ Moirai Framework
              com.moirai
    ```
 
-   <img src="Documentation~\.src\quick-start-2-scoped-registries.png" alt="quick-start-scoped-registries" />
+   ![Scoped registries](Documentation~/.src/quick-start-2-scoped-registries.png)
 
 2. In **Window/Package Manager**, select **Moirai Framework** and click **Install**:
 
-    <img src="Documentation~\.src\quick-start-2-package-detail.png" alt="quick-start-package-detail" />
+   ![Package detail](Documentation~/.src/quick-start-2-package-detail.png)
 
-3. <a id="manual-import"></a>Manually copy all contents from the **@Requirements** folder under `ProjectRoot/Library/PackageCache/com.moirai.framework@xxx/Templates~/` to the **ProjectRoot/Assets** directory.
+3. <a id="manual-import"></a>Manually copy everything under the **@Requirements** folder of `ProjectRoot/Library/PackageCache/com.moirai.framework@xxx/Templates~/` into **ProjectRoot/Assets**.
 
-    (Optional) Copy an appropriate template from the same directory into the project as needed; generally, choose **NormalTemplate**.
+   (Optional) Pick a suitable template from the same folder as needed; **NormalTemplate** is the usual choice.
 
-##### Option 3: Manual Install
+#### Option 3: Manual
 
-1. Download the **Source Code** archive from the latest release on the Releases page, or install via Git URL in **Window/Package Manager**:
+1. Obtain the framework via either method:
 
-   ```
-   https://github.com/TeamMoirai/com.moirai.framework.git
-   ```
+   - In **Window/Package Manager**, install via Git URL:
 
-2. Refer to **[Quick Start - Getting Started - Installation - Option 2: UPM Install - 3](#manual-import)**.
+     ```bash
+     https://github.com/TeamMoirai/com.moirai.framework.git
+     ```
 
----
+   - Or download the latest **Source Code** archive from Releases.
 
-#### Initial Setup
+2. Follow **[step 3 of Option 2](#manual-import)** to copy `Templates~/@Requirements` into your project.
 
-##### Scene Building
+### Initial Setup
 
-Add `Scenes/main.unity` to the build:
+#### Scene In Build
+
+Add `Scenes/main.unity` (copied from the template) to the build:
 
 - Unity 6.0+: `File -> Build Profiles -> Scene List`
-- Unity 6.0-: `File -> Build Settings -> Scene In Build`
+- Unity 6.0-: `File -> Build Settings -> Scenes In Build`
 
-##### Config Table Service
+#### Config Table Service
 
-- In `Tools/Framework Settings`, open `[框架]Luban 配置` and click `生成 Config 到指定目录`
-- When generating for the first time, before exporting, first run the **build-luban** compilation or manually import Luban to the config table root directory
-- If the config table directory is moved, you need to manually update it in `Tools/Framework Settings` — `[框架]Luban 配置` → `重定向 Config 目录`
+- In the `Tools/Framework Settings` window, select `[框架]Luban 配置` and click `生成 Config 到指定目录` (menu labels are in Chinese).
+- On first generation, run **build-luban** before exporting (the script lives in the template `Config/` folder), or import Luban into your config table root yourself.
+- If you move the config table folder, update `[框架]Luban 配置` in `Tools/Framework Settings` — `重定向 Config 目录` (redirect Config directory).
+
+### Running
+
+#### Editor Play
+
+In `Tools/Framework Settings` → `[服务]资源设置`, set `PlayMode` to `EditorSimulate` (editor simulate mode, the default), then press `Play`.
+
+#### Build & Run (Hot Update Workflow)
+
+1. Run `HybridCLR/Install...` to install HybridCLR (menu provided by the HybridCLR package)
+2. Run `HybridCLR/Define Symbols/Enable HybridCLR` to enable hot update
+3. Run `HybridCLR/Generate/All` for required generation (menu provided by the HybridCLR package)
+4. Run `HybridCLR/Build/BuildAssets And CopyTo AssemblyTextAssetPath` to build the hot update DLLs
+5. Run `YooAsset/Bundle Builder` to build AssetBundles (menu provided by the YooAsset package)
+6. Open Build Settings and click `Build And Run`
+
+> 💡 **Tip**: For troubleshooting, see [HybridCLR common errors](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors)
 
 ---
 
-#### Quick Tips
-
-1. **Editor Play Mode**
-   - In `Tools/Framework Settings` → `[服务]资源设置`, set `PlayMode` to `EditorSimulate` (editor simulation mode, the default)
-   - Click `Play` to start running
-
-2. **Build & Run** (Hot Update Workflow)
-   - Run menu `HybridCLR/Install...` to install HybridCLR
-   - Run menu `HybridCLR/Define Symbols/Enable HybridCLR` to enable hot updates
-   - Run menu `HybridCLR/Generate/All` for necessary code generation
-   - Run menu `HybridCLR/Build/BuildAssets And CopyTo AssemblyTextAssetPath` to build the hot update DLL
-   - Run menu `YooAsset/Bundle Builder` to build AssetBundles
-   - Open Build Settings and click Build And Run
-
-> **Tip**: For issues, see [HybridCLR Common Errors](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors)
-
----
-
-## Architecture
+## 🏗️ Architecture
 
 ```
 com.moirai.framework/
-├── Runtime/              # Core Framework Assembly (Moirai.Atropos)
-│   ├── Core/             # Base utilities and data structures
-│   │   ├── Attributes/   # Custom attributes (~20 + Odin extensions)
-│   │   ├── Constant/     # Constants (RuntimeId, etc.)
-│   │   ├── DataStructure/# Data structures (IoC container, priority queue, sparse array, etc.)
-│   │   ├── Events/       # Event system (pooled, bubbling propagation)
-│   │   ├── Extensions/   # Extension methods (R3 reactive, UGUI, etc.)
-│   │   ├── GameException/# Game exception system
-│   │   ├── GameProfiler/ # Performance profiler
-│   │   ├── MemoryPool/   # Memory pool
-│   │   ├── Models/       # Data models
-│   │   ├── Obfuz/        # Code obfuscation initialization
-│   │   ├── Pool/         # Object pool (generic/UniTask/GameObject)
-│   │   ├── Singleton/    # Singleton system (pure C# / MonoBehaviour)
-│   │   ├── Tasks/        # Task/sequence system
-│   │   └── Utilities/    # Utilities (logging, settings, time, encryption, HTTP, reflection, tween, etc.)
-│   └── Services/         # Functional services
-│       ├── Kernel/       # Service system base (Contracts / GameApp / Interception / World)
-│       ├── Audio/        # Audio system (categories/agents/fade)
-│       ├── ConfigTable/  # Config table management
-│       ├── Debugger/     # Runtime debugger
-│       ├── Input/        # Input system (keyboard/mouse/gamepad/mobile)
-│       ├── Localization/ # Localization (text/image/audio/Google Translate)
-│       ├── ObjectPool/   # Object pool service
-│       ├── Procedure/    # Procedure management
-│       ├── Resource/     # YooAsset asset management
-│       ├── Save/         # Save system (multi-block container/multi-backend serialization/encryption/migration/cloud sync)
-│       ├── Scene/        # Scene management
-│       ├── Timer/        # Timer
-│       ├── UI/           # UI framework (windows/widgets/layers)
-├── Editor/               # Editor toolset
-├── Plugins/              # Third-party libraries
-├── Samples~/             # Examples
-├── SourceGenerators/     # Precompiled source generators (HandlerHost / SaveServiceCodegen / ServiceDependency)
-├── Templates~/           # Project initial templates
-├── Documentation~/en/    # Service documentation (README per service)
-└── Tests/                # Unit tests
+├── Runtime/                    # Core framework assembly (Moirai.Atropos)
+│   ├── Core/                   # Gameplay-agnostic foundations
+│   │   ├── Foundation/         # Building blocks: attributes, constants, data structures, extensions, exceptions, models
+│   │   ├── Infrastructure/     # Infrastructure: events, GameApp, profiler, memory pool, obfuscation, pool, singletons, tasks
+│   │   └── Utilities/          # Utility set: logging, settings, time, encryption, HTTP, reflection, tween, 30+ more
+│   └── Services/               # Functional services (one doc per service, see Documentation~)
+│       ├── Kernel/             # Service system base (Contracts / Interception / World)
+│       ├── Audio/              # Audio system (categories/agents/mixer/fade)
+│       ├── ConfigTable/        # Config table management
+│       ├── Debugger/           # Runtime debugger
+│       ├── Input/              # Input system (keyboard/mouse/gamepad/mobile)
+│       ├── Localization/       # Localization (text/image/audio/Timeline)
+│       ├── Pooling/            # Object pool service (generic/GameObject pools)
+│       ├── Procedure/          # Procedure management
+│       ├── Resource/           # YooAsset asset management
+│       ├── Save/               # Save system (multi-block container/multi-backend serialization/encryption/migration/cloud sync)
+│       ├── Scene/              # Scene management
+│       ├── Timer/              # Timer (time wheel + frame-tick dual engine)
+│       └── UI/                 # UI framework (windows/widgets/layers)
+├── Editor/                     # Editor toolset (Foundation / Services / Tools / Utilities)
+├── Plugins/                    # Third-party libraries
+├── Samples~/                   # Examples
+├── SourceGenerators/           # Precompiled source generators (HandlerHost / SaveServiceCodegen / ServiceDependency)
+├── Templates~/                 # Project initial templates (@Requirements / Config / HybridTemplate / NormalTemplate)
+├── Documentation~/             # Bilingual service docs (zh / en)
+└── Tests/                      # Unit tests (EditorMode / PlayMode / Player / Coverage)
 ```
 
 ### Service System
@@ -246,39 +236,9 @@ var my = GameServices.GetRequiredService<MyService>();
 
 > See **[Core Service System documentation](Documentation~/en/Core.md)** for details (custom services, scope shadowing, cross-service dependencies)
 
-### Subscriber/Dispatch Exception Tiering
+### Startup Chain
 
-Hot-path **subscriber / callback / dispatch** failures use one tiering policy (three `const` declarations that must stay in sync; assembly boundaries prevent cross-referencing):
-
-| Build | Behavior |
-|-------|----------|
-| `UNITY_EDITOR` / `DEVELOPMENT_BUILD` | `LogUtility.Fatal` then **rethrow** (fail-fast) |
-| Release | `Fatal` then **isolate and continue** (one subscriber/callback/event does not abort the rest of the round) |
-
-Declaration sites:
-
-| Constant | File | Scope |
-|----------|------|-------|
-| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Core/GameApp/PlayerLoop/PlayerLoopDriver.cs` | Frame handlers / core-hook path |
-| `ServiceScope.RETHROW_TICK_EXCEPTIONS` | `Runtime/Services/Kernel/World/ServiceScope.cs` | Service ticks / interceptors (except veto channel `OnServiceRegistering`: throwing rejects registration and is never isolated) |
-| `EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Core/Events/Models/EventDispatcher.cs` | Event callbacks, `ProcessEvent`, coordinator drain |
-
-**Hygiene independent of the tier (always in `finally`):**
-
-- `PlayerLoopDriver.s_IsDriving`, event registry `m_IsInvoking` — leaked flags must not survive exceptions or registration/dispatch silently dies
-- Queue `Acquire`/`Dispose` pairing and pool return — leftovers after an aborted drain must each `Dispose` then empty the queue before pool release
-- `ServiceScope._isIterating` and pending-change flush
-
-**Explicit exceptions (always isolate; not RETHROW-tiered):**
-
-- `PlayerLoopDriver.InvokeAllQuarantined`: low-frequency lifecycle broadcasts (`ApplicationQuit` / `Destroy` / Focus / Pause) — truncation skips later release/save work
-- `ProcessEventQueue` leftover `Dispose`: post-failure resource hygiene, not business-exception policy
-
-When changing any of the three constants, update **all three sites + this section + CHANGELOG** together.
-
-### Startup Flow
-
-`Scripts/GameBase/Procedure/` defines the complete startup chain:
+The full startup chain is provided by the project template and lives at `Assets/Scripts/GameBase/Procedure/` after installation:
 
 ```
 ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitResources
@@ -288,314 +248,138 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 Each stage is an independent `ProcedureBase` state, customizable via `ProcedureServiceSettings` (ScriptableObject).
 
-> See **[Procedure service documentation](Documentation~/en/Procedure.md)** for details
+> See the **[Procedure service documentation](Documentation~/en/Procedure.md)** for details.
 
 ---
 
-## Core Services
+## 📚 Documentation
 
-Each service has its own documentation (located in `Documentation~/en/`), covering core features, core types, quick start and advanced usage. Full documentation catalog: **[Documentation Index](Documentation~/en/Index.md)** (Chinese: [文档索引](Documentation~/zh/Index.md)):
+Each service doc covers key features, core types, quick start and advanced usage, in both Chinese and English:
 
-| Service | Description | Documentation |
-|--------|-------------|---------------|
-| **Kernel** | Service system base (@Service): `ServiceWorld` service world, `GameServices` registration/lookup/scopes, `[ServiceDependency]` dependency topological init | [Core.md](Documentation~/en/Core.md) |
-| **Resource** | YooAsset-based asset management: sync/async loading, reference counting, encryption, sub-sprites | [Resource.md](Documentation~/en/Resource.md) |
-| **UI** | Production-grade UI framework: stack windows, 5 layers, Widget sub-controls, binding code generation | [UI.md](Documentation~/en/UI.md) |
-| **Audio** | Audio system: category management, AudioAgent playback, mixer, fade, handle control | [Audio.md](Documentation~/en/Audio.md) |
-| **Localization** | Localization: text/image/audio/Timeline multi-type injection, Google Translate integration | [Localization.md](Documentation~/en/Localization.md) |
-| **ConfigTable** | Luban config table integration: table loading, lazy access, export toolchain | [ConfigTable.md](Documentation~/en/ConfigTable.md) |
+- English docs index: **[Documentation~/en/Index.md](Documentation~/en/Index.md)**
+- 中文文档索引: **[Documentation~/zh/Index.md](Documentation~/zh/Index.md)**
+
+### Services
+
+| Service | Description | Doc |
+|---------|-------------|-----|
+| **Kernel** | Service system base: `ServiceWorld` service world, `GameServices` registration/lookup/scoping, `[ServiceDependency]` topological init | [Core.md](Documentation~/en/Core.md) |
+| **Resource** | YooAsset-based asset management: sync/async loading, ref counting, encryption, sub-sprites | [Resource.md](Documentation~/en/Resource.md) |
+| **UI** | Production-grade UI framework: window stack, five layers, widget sub-controls, binding codegen | [UI.md](Documentation~/en/UI.md) |
+| **Audio** | Audio system: category management, AudioAgent playback, mixer, fade in/out, handle control | [Audio.md](Documentation~/en/Audio.md) |
+| **Localization** | Localization: text/image/audio/Timeline injection, Google Translate integration | [Localization.md](Documentation~/en/Localization.md) |
+| **ConfigTable** | Luban config table integration: table loading with lazy access, table conversion toolchain | [ConfigTable.md](Documentation~/en/ConfigTable.md) |
 | **Procedure** | Game flow management: startup chain, configurable procedures, self-contained state machine | [Procedure.md](Documentation~/en/Procedure.md) |
-| **Input** | Multi-platform input abstraction: Input System / Legacy Input / Mobile UI touch, button prompts | [Input.md](Documentation~/en/Input.md) |
-| **Save** | Pluggable save system: single-file multi-block container, JSON/MessagePack/MemoryPack/Protobuf serialization backends, AES encryption & GZip compression, file-level version migration bus, codeless component saving (SourceGenerator), cloud sync | [Save.md](Documentation~/en/Save.md) |
-| **Scene** | Scene management: async load/activate/unload based on YooAsset SceneHandle | [Scene.md](Documentation~/en/Scene.md) |
-| **Timer** | 4-level time wheel timer: versioned handles, prewarming, statistics | [Timer.md](Documentation~/en/Timer.md) |
-| **ObjectPool** | Service-level object pool: single/multi-spawn pools, GameObject pool | [ObjectPool.md](Documentation~/en/ObjectPool.md) |
-| **Debugger** | Runtime debugger: registerable debug windows, log replay | [Debugger.md](Documentation~/en/Debugger.md) |
+| **Input** | Cross-platform input abstraction: Input System / legacy input / mobile UI touch, key prompts | [Input.md](Documentation~/en/Input.md) |
+| **Save** | Pluggable save system: single-file multi-block container, JSON/MessagePack/MemoryPack/Protobuf backends, AES encryption + GZip compression, file-level version migration bus, codeless save components (SourceGenerator), cloud sync | [Save.md](Documentation~/en/Save.md) |
+| **Scene** | Scene management: async load/activate/unload via YooAsset SceneHandle | [Scene.md](Documentation~/en/Scene.md) |
+| **Timer** | Dual-engine timer: four-level time wheel (seconds) + frame ticking (frames), versioned handles, preheat, statistics | [Timer.md](Documentation~/en/Timer.md) |
+| **ObjectPool** | Service-level object pools: single/multi-spawn pools, GameObject pools | [ObjectPool.md](Documentation~/en/ObjectPool.md) |
+| **Debugger** | Runtime debugger: registrable debug windows, log replay | [Debugger.md](Documentation~/en/Debugger.md) |
 
----
+### Core Tools
 
-## Core Tools
+| Tool | Description | Doc |
+|------|-------------|-----|
+| **Attributes** | ~20 custom property drawers + Odin extensions (conditional display, inspector buttons, Layer/Tag/asset-path pickers, ProviderDropdown, etc.) | — |
+| **Events** | Pooled bubbling event system ported from UIElements: zero-GC, TrickleDown → BubbleUp, `StopPropagation()` / `PreventDefault()`, visual debugger | — |
+| **Singleton** | Singleton family: pure C# (volatile double-check) / MonoBehaviour (main-thread materialization) / register-style, thread rules fail fast | [Singleton.md](Documentation~/en/Singleton.md) |
+| **MemoryPool** | Zero-GC page-based memory pool: unmanaged metadata, EWMA adaptive watermarks, phase budgets | [MemoryPool.md](Documentation~/en/MemoryPool.md) |
+| **GameApp** | Unity lifecycle proxy: coroutine hosting, frame update injection, engine event injection, game speed/pause control | [GameApp.md](Documentation~/en/GameApp.md) |
+| **PlayerLoopDriver** | Mono-free PlayerLoop logic driver: zero-allocation handlers, inject/restore, editor visualization | [PlayerLoopDriver.md](Documentation~/en/PlayerLoopDriver.md) |
+| **GameLog** | Logging: runtime level filtering, pluggable backends (Default / Serilog / ZLogger / Unity Logging), T4-generated format overloads, intercepts Unity `Debug.Log` | — |
+| **GameTime** | Lightweight time accessor, sampled once per frame, avoids frequent `Time.deltaTime` calls | — |
+| **GameProfiler** | Conditional-compilation profiling (`PROFILER_ENABLE` macro), zero overhead when off | — |
+| **GameSettings** | Framework / graphics / update settings (menu `Tools/Framework Settings`) | — |
+| **GameException** | Custom game exceptions: error codes + context | — |
+| **ToolRegistry** | High-performance component registry: O(1) lookup, scene-aware cleanup, zero-GC batch queries, thread-safe | — |
+| **Obfuz** | [Obfuz](https://github.com/focus-creative-games/obfuz) obfuscation integration: encryption VM auto-initialized after assembly load | — |
+| **DataStructure** | `IOCContainer` / `PriorityQueue<T>` / `SparseArray<T>` / `SerializableDictionary<K,V>` / `ShuffleBag<T>` and 7 more | — |
+| **Extensions/R3** | R3 reactive extensions + UGUI binding: `OnClickAsObservable()`, `ReactiveProperty` two-way binding | — |
+| **StringUtility** | String formatting & building: pluggable handlers, pooled StringBuilder, three usage modes | [StringUtility.md](Documentation~/en/StringUtility.md) |
+| **JsonUtility** | JSON serialization: pluggable handlers, byte fast path, allow-list member filtering | [JsonUtility.md](Documentation~/en/JsonUtility.md) |
+| **ObjectUtility** | Object instantiate/destroy: pluggable handlers (standalone / Photon Fusion network-aware) | [ObjectUtility.md](Documentation~/en/ObjectUtility.md) |
+| **TweenUtility** | Tween system: pluggable engines (in-house / PrimeTween / LitMotion), Bezier paths, unified tween parameters | [TweenUtility.md](Documentation~/en/TweenUtility.md) |
 
-### Attributes — Custom Attributes
-
-~20 custom property drawers + Odin Inspector extensions for enhanced editor UX.
-
-| Attribute | Description |
-|-----------|-------------|
-| `BooleanButton` | Boolean button drawing |
-| `BreakVector2/3` | Vector split drawing |
-| `ConditionAttribute` | Conditional display control |
-| `DisableAttribute` | Disabled field drawing |
-| `EnumConditionAttribute` | Enum condition control |
-| `ExpandAttribute` | Expandable property |
-| `InspectorButton` | Inspector button |
-| `InspectorButtonBar` | Button bar |
-| `LayerAttribute` | Layer selector |
-| `TagAttribute` | Tag selector |
-| `ResourcePathAttribute` | Resource path selector |
-| `ProviderDropdownAttribute` | Reference/type dropdown (supports [SerializeReference] fields and string type-name fields) |
-| `OdinExtends/*` | Odin extensions (condition groups, help info, inline buttons, etc.) |
-
-### Events — Event System
-
-Pooled bubbling event system ported from Unity UIElements. Callback/dispatch exceptions follow **[Subscriber/Dispatch Exception Tiering](#subscriberdispatch-exception-tiering)** under Architecture (Fatal + rethrow in development builds; isolate in release; `m_IsInvoking` and refcounts always restored in `finally`).
-
-```csharp
-// Register event
-EventManager.RegisterCallback<GameStartEvent>(OnGameStart);
-
-// Send event (supports bubbling/capture propagation)
-EventManager.SendEvent(new GameStartEvent());
-
-// Unregister
-EventManager.UnregisterCallback<GameStartEvent>(OnGameStart);
-```
-
-- **Zero GC Allocation** — Independent object pool per event type
-- **Propagation** — TrickleDown (capture) → BubbleUp (bubble)
-- **Propagation Control** — `StopPropagation()`, `StopImmediatePropagation()`, `PreventDefault()`
-- **Editor Debug** — Visual event dispatch debug window
-
-### MemoryPool — Memory Pool
-
-Zero-GC paged memory pool (unmanaged metadata + EWMA adaptive watermarks), ideal for high-frequency pure C# objects such as events, params, and buffers. See [Documentation~/en/MemoryPool.md](Documentation~/en/MemoryPool.md).
-
-### Singleton — Singleton System
-
-| Type | Description |
-|------|-------------|
-| `Singleton<T>` | Pure C# singleton: volatile double-checked locking, thread-safe, idempotent `Dispose()` (implements `IDisposable`) |
-| `SingletonMono<T>` | MonoBehaviour singleton: scene lookup + main-thread materialization, persistence/replacement policies and shutdown window |
-| `SingletonMono_Persistent<T>` | MonoBehaviour singleton forced to survive scene changes |
-| `SingletonRegister<T>` | Register-based pure C# singleton, no inheritance required |
-| `SingletonRegisterMono<T>` | Register-based Mono singleton, inheritance-free, main-thread materialization |
-| `ReferencedScriptableObject` | Weak-reference registry base class for ScriptableObjects |
-
-Pure C# singletons are safe to access from any thread (a single volatile read on the fast path once materialized); MonoBehaviour singleton materialization (lookup/creation) is main-thread only — off-thread access throws `GameException` (fail-fast), and edit mode performs lookup only without creating. See [Documentation~/en/Singleton.md](Documentation~/en/Singleton.md).
-
-### GameLog — Logging System
-
-```csharp
-LogUtility.Info("Player logged in: {0}", playerName);
-LogUtility.Warning("Asset load failed: {0}", path);
-LogUtility.Error("Critical error!");
-```
-
-- Runtime level filtering: `LogHandler.MinimumLevel` (`ELogLevel`: Verbose / Debug / Info / Warning / Error / Fatal)
-- Pluggable output backends: Default / Serilog / ZLogger / UnityLogging (com.unity.logging)
-- T4-template generated formatting overloads (`LogUtility.LogMethods.tt`), with structured context and message-event callbacks
-- Intercepts native Unity `Debug.Log` and routes it through the framework logging pipeline
-
-### GameTime — Game Time
-
-Lightweight time accessor, sampled once per frame to avoid frequent `Time.deltaTime` calls.
-
-```csharp
-float dt = GameTime.deltaTime;       // Frame interval
-float time = GameTime.time;          // Current time
-float unscaledDt = GameTime.unscaledDeltaTime; // Unscaled frame interval
-```
-
-### GameProfiler — Profiler
-
-Conditional compilation performance sampling tool, active only when `PROFILER_ENABLE` macro is enabled.
-
-```csharp
-GameProfiler.BeginSample("MyOperation");
-// ... code to profile
-GameProfiler.EndSample();
-```
-
-- Supports level-based sampling (`SetProfileLevel`) to control sampling depth
-- Zero overhead: completely removed when macro is off
-
-### GameSettings — Game Settings
-
-Framework and game settings (`Core/Utilities/GameSetting`): framework settings (`FrameworkSettings`), graphics settings (Graphics: resolution, fullscreen, VSync, window mode, etc.) and update settings (`UpdateSettings`), editor menu `Tools/Framework Settings`.
-
-### GameException — Exception System
-
-Custom game exception type with error code and context information.
-
-### ToolRegistry — Component Registry
-
-High-performance component registration/lookup system, replacing `FindObject` with O(1)-level lookups.
-
-```csharp
-// Register
-ToolRegistry.RegisterComponent(myService, "GameService");
-
-// Lookup
-var service = ToolRegistry.GetComponent<IMyService>("GameService");
-
-// Type-based lookup
-var player = ToolRegistry.GetComponent<PlayerController>();
-```
-
-- Scene-aware: auto-cleans non-persistent registrations on scene unload
-- Zero-GC batch queries: `GetComponents<T>(List<T>)`
-- Thread-safe design
-
-### Obfuz — Code Obfuscation
-
-Integrated with the [Obfuz](https://github.com/nicenightcc/Obfuz) code obfuscation framework, auto-initializes encryption virtual machine after assembly load.
-
-- Conditional compilation: requires both `OBFUZ_INSTALLED` and `ENABLE_OBFUZ` macros
-- Supports static key encryption (`DefaultStaticEncryptionScope`)
-- Auto-loads key resource (`Resources/Obfuz/defaultStaticSecretKey`)
-
-### DataStructure — Data Structures
-
-| Data Structure | Description |
-|----------------|-------------|
-| `IOCContainer` | Inversion of Control container |
-| `PriorityQueue<T>` | Priority queue |
-| `RandomList<T>` | Random list |
-| `SerializableDictionary<K,V>` | Serializable dictionary |
-| `SparseArray<T>` | Sparse array |
-| `ShuffleBag<T>` | Shuffle bag (non-repeating random) |
-| `GameDictionary<K,V>` | Game dictionary (with traversal support) |
-| `GameLinkedList<T>` | Game linked list |
-| `GameMultiDictionary<K,V>` | Multi-value dictionary |
-| `TypeNamePair` | Type-name pair (for type-based registration) |
-| `ArrayUtils` | Array utility methods |
-| `GameSerializer` | Game serialization utilities |
-
-### Extensions/R3 — Reactive Extensions
-
-Reactive programming support based on R3 (Reactive Extensions), with UGUI bindings.
-
-```csharp
-// Observable extensions
-myButton.OnClickAsObservable()
-    .Subscribe(_ => Debug.Log("Button clicked"));
-
-// ReactiveProperty ↔ UGUI two-way binding
-var hp = new ReactiveProperty<int>(100);
-hpSlider.BindProperty(hp, unRegister);  // Slider auto-syncs
-```
-
-### Utility — Utilities
+<details>
+<summary>Utility — full utility class list</summary>
 
 | Utility | Description |
 |---------|-------------|
-| `AlgorithmUtility` | Algorithm utilities |
-| `AssemblyUtility` | Assembly utilities |
-| `ColorsUtility` | Color utilities |
+| `AlgorithmUtility` | Algorithms |
+| `AssemblyUtility` | Assembly tools |
+| `ColorsUtility` | Color tools |
 | `CommandLineUtility` | Command-line parsing |
 | `ConverterUtility` | Type conversion |
-| `CoroutineUtility` | Coroutine utilities |
+| `CoroutineUtility` | Coroutine tools |
 | `DebugDrawUtility` | Debug drawing |
-| `DiagnosticsUtility` | Diagnostics utilities |
-| `EncryptionUtility` | Encryption utilities |
+| `DiagnosticsUtility` | Diagnostics |
+| `EncryptionUtility` | Encryption |
 | `FileUtility` | File operations |
-| `HttpUtility` | HTTP requests (with UniTask support) |
-| `JsonUtility` | JSON serialization/deserialization, pluggable Handler, [docs](Documentation~/en/JsonUtility.md) |
-| `MainThreadDispatcher` | Main thread dispatching |
+| `HttpUtility` | HTTP requests (UniTask support) |
+| `JsonUtility` | JSON serialization, [doc](Documentation~/en/JsonUtility.md) |
+| `MainThreadDispatcher` | Main-thread dispatching |
 | `MarshalUtility` | Unmanaged memory operations |
-| `MaterialUtility` | Material utilities |
-| `MathsUtility` | Math utilities (with Unity.Mathematics integration) |
-| `ObjectUtility` | Object instantiation/destruction, networked-aware, [docs](Documentation~/en/ObjectUtility.md) |
-| `PathUtility` | Path utilities |
-| `ReflectionUtility` | Reflection utilities |
-| `StringUtility` | String formatting and building, three usage modes, [docs](Documentation~/en/StringUtility.md) |
+| `MaterialUtility` | Material tools |
+| `MathsUtility` | Math tools (Unity.Mathematics integration) |
+| `ObjectUtility` | Object instantiate/destroy, [doc](Documentation~/en/ObjectUtility.md) |
+| `PathUtility` | Path tools |
+| `ReflectionUtility` | Reflection tools |
+| `StringUtility` | String formatting & building, [doc](Documentation~/en/StringUtility.md) |
 | `ToolRegistry` | Component registry |
-| `TweenUtility` | Tween system (with Bezier paths), pluggable engine, [docs](Documentation~/en/TweenUtility.md) |
-| `UniParallel` | UniTask parallel task collector (await all) |
-| `UnityUtility` | Unity common utilities |
+| `TweenUtility` | Tween system (Bezier paths), [doc](Documentation~/en/TweenUtility.md) |
+| `UniParallel` | UniTask parallel task collector (wait for all) |
+| `UnityUtility` | General Unity tools |
+
+</details>
 
 ---
 
-## Editor Tools
+## 🛠️ Editor Tools
 
 | Tool | Purpose |
 |------|---------|
-| Atlas Maker | Atlas creation, reference analysis, auto regeneration of changes, config panel (`Tools/图集工具`) |
-| Benchmark | JSON serialization performance benchmark (`Window/Moirai/JSON Benchmark`) |
+| Atlas Maker | Atlas creation, reference analysis, auto-regeneration on change (`Tools/图集工具`) |
 | Custom Attributes | ~20 custom property drawers + Odin extensions |
-| Define Symbols | Debug/Log/Profiler/HybridCLR/Obfuz macro definition management |
-| Editor Design | Editor icon resources, GUIStyle viewer |
-| Event Debugger | Visual event dispatch debug window (`Window/Event Debugger`) |
-| Game Settings | Audio group, procedure settings, update settings editor (`Tools/Framework Settings`) |
-| HybridCLR | Hot update DLL build commands |
-| Inspector | Asset/Core component custom inspectors |
-| Luban Tools | Luban config table generation (`Tools/Config/Luban 转表`) |
-| Maintenance | Clean empty folders, find missing scripts, prefab finder, group selection, lock Inspector |
+| Define Symbols | Debug / Log / Profiler / HybridCLR / Obfuz define symbol management |
+| Editor Design | Editor icon assets, GUIStyle viewer |
+| Event Debugger | Visual event dispatch debugger (`Window/Event Debugger`) |
+| Framework Settings | Framework settings window: audio groups, Luban, procedures, update settings (`Tools/Framework Settings`) |
+| HybridCLR | Hot update define symbols & hot update DLL build commands (`HybridCLR/Define Symbols`, `HybridCLR/Build`) |
+| Inspector | Custom inspectors for Asset / Core components |
+| Luban Tools | Luban config table generation, open table directory (`Tools/Config`) |
+| Maintenance | Clean empty folders, find missing scripts, prefab finder, group selection, lock inspector |
+| PlayerLoop Debugger | PlayerLoop injection state visualization (`Window/PlayerLoop Debugger`) |
 | Reference Finder | Asset dependency/reference tree view (`Tools/资产相关/查找资产引用`) |
-| Release Tools | Build pipeline window, one-click build Android/iOS/Window/AssetBundle (`Tools/Build`) |
+| Release Tools | Build pipeline window, one-click build for Android / iOS / Windows / AssetBundle (`Tools/Build`) |
+| Save Service | Save browser (`Tools/Moirai/Save/Save Browser`), schema snapshot export, codeless save component editor |
 | Tasks Editor | Task runner editor |
-| Tween | Easing property drawer |
-| UI Service | UI binding code auto-generation (`GameObject/ScriptGenerator/生成绑定代码`), component Inspector |
-| Input Service | Input action config editor, button icon collection editor |
-| Save Service | Save browser (`Tools/Moirai/Save/Save Browser`), codeless save component editor |
-| Utility | Command-line reader, Shell helper, etc. |
-| YooAsset | Build cache cleanup, builtin catalog/patch package tools, custom build pipeline, Shader variant collection |
+| Tween | Tween property drawers |
+| UI Service | UI binding code generation (`GameObject/ScriptGenerator`), component inspector |
+| Input Service | Input action config editor, key icon collection editor |
+| Utility | Command-line reading, shell invocation, etc. |
+| YooAsset | Build cache cleanup, built-in directory/patch tools, custom build pipeline, shader variant collection |
 
 ---
 
-## 🧪 Testing Conventions
+## 🤝 Contributing & Support
 
-**Reach internal state through `internal`, not reflection.** When a test needs to read or write an object's internal state, do not fetch the member by reflection — change its accessibility from `private` to `internal` instead. `Runtime/AssemblyInfo.cs` already declares `InternalsVisibleTo` for `Moirai.Atropos.Editor` and for all three test assemblies (`.Tests.EditorMode` / `.Tests.PlayMode` / `.Tests.Player`), so `internal` members are visible to tests without any reflection.
+Issues and PRs are welcome. Please read the **[contributing guide](CONTRIBUTING.md)** first — it covers the workflow, testing requirements, and repo-wide code conventions such as the subscriber/dispatch exception tiering.
 
-```csharp
-// ✗ Reflecting into a private serialized field: renaming the field raises no compile error,
-//    the test only blows up at run time when GetField returns null
-typeof(AudioGroupConfig)
-    .GetField("m_MaxChannelCeiling", BindingFlags.Instance | BindingFlags.NonPublic)
-    .SetValue(config, 4096);
-
-// ✓ Widen the member by one level and let the test assign it plainly
-[SerializeField, Min(1)] internal int m_MaxChannelCeiling = HARD_CHANNEL_CEILING_DEFAULT;
-// ...
-config.m_MaxChannelCeiling = 4096;
-```
-
-- **Serialized fields included**: `internal` does not affect Unity serialization (`[SerializeField]` does not require `private`), and the naming prefix still follows the private family — `m_` / `s_` / `_`.
-- **Do not widen a field that already has a narrow seam**: swapping a service handler goes through the generated `XxxService.Internal_PeekHandler()` / `Internal_UseHandler(next)` from `HandlerHostGenerator` (see `Tests/PlayMode/Service/Audio/AudioServiceTestHost.cs` in action); `s_Handler` stays `private`.
-- **Reflection keeps two legitimate jobs**: walking the API shape and asserting member annotations for contract guards (`ResourceSeamShapeGuardTests`, `ResourceMethodSetContractTests`, `YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`), and invoking Unity lifecycle callbacks (`Awake` / `OnEnable` / `OnInit`). Neither reads or writes one specific private member.
-
----
-
-## Recommended Project Structure
-
-```
-Project Name/
-├── Client/                        # Unity client project
-│   └── Assets/
-│       ├── AssetArt/              # Art resources directory
-│       │   └── Atlas/             # Auto-generated atlas directory
-│       ├── AssetRaw/              # Hot-update resource directory
-│       │   ├── Audio/             # Audio resources
-│       │   ├── Config/            # Config and localization resources
-│       │   ├── DLL/               # Hot-update assembly resources
-│       │   ├── Scene/             # Resource scenes
-│       │   └── UI/                # UI prefabs
-│       ├── Editor/                # Project editor scripts
-│       ├── HybridCLRData/         # HybridCLR generated content
-│       ├── Scenes/                # Startup scenes
-│       ├── Scripts/
-│       │   ├── GameBase/          # Main program assembly (launcher & procedures)
-│       │   ├── GameLib/           # Third-party library assembly [Dll]
-│       │   ├── GameLogic/         # Game business logic assembly [Dll]
-│       │   ├── HotfixEntry.cs     # Hot update entry point
-│       │   └── GameProto/         # Game config protocol assembly [Dll]
-│       └── YooAsset/              # YooAsset configuration
-└── Config/                        # Config table project
-```
-
----
-
-## Contributing & Support
-
-### Ecosystem Dependencies
+### 🌟 Ecosystem
 
 | Project | Description |
 |---------|-------------|
-| **[UniTask](https://github.com/Cysharp/UniTask)**            | Provides an efficient allocation free async/await integration for Unity. |
-| **[YooAsset](https://github.com/tuyoogame/YooAsset)** | Production-grade asset management system verified with millions of DAU games |
-| **[HybridCLR](https://github.com/focus-creative-games/hybridclr)** | Feature-complete, zero-cost, high-performance, low-memory near-perfect Unity full-platform native C# hot update solution |
-| **[Luban](https://github.com/focus-creative-games/luban)** | Best game configuration solution |
+| **[UniTask](https://github.com/Cysharp/UniTask)** | Efficient, allocation-free async/await integration for Unity. |
+| **[YooAsset](https://github.com/tuyoogame/YooAsset)** | Production asset management system proven by games with millions of DAU. |
+| **[HybridCLR](https://github.com/focus-creative-games/hybridclr)** | Feature-complete, zero-cost, high-performance native C# hot update solution for all Unity platforms. |
+| **[Luban](https://github.com/focus-creative-games/luban)** | The best game configuration solution. |
+| **[Obfuz](https://github.com/focus-creative-games/obfuz)** | Deeply integrated Unity code obfuscation & hardening, hot-update compatible. |
 
-### Contributors
+### 👥 Contributors
 
 [![Contributors](https://contrib.rocks/image?repo=TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework/graphs/contributors)
+
+## 📄 License
+
+[MIT License](LICENSE.txt)

@@ -155,3 +155,6 @@
 - 是否残留日期、提交号、`CHANGELOG` 引用或「实测/教训/评审」叙事？
 - 是否有能一眼看懂的用法示例需要补 `example`？
 - `param` / `returns` / `exception` 是否各一行、不复述类型？
+
+---
+[« 返回文档索引](Index.md) · [主 README](../../README.md) · [Testing](Testing.md)

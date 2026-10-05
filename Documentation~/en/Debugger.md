@@ -16,7 +16,7 @@ The Debugger service exposes window registration and polling through the static 
 - **Operations**: GameObject pool flush, asset unloading / GC, Time Scale slider, framework shutdown (None / Restart / Quit)
 - **Fluent panel builder**: `RegisterPanel` registers a custom debug panel in one line (sliders / toggles / buttons / foldouts / read-only fields / progress bars, bound via Getter/Setter closures with 200ms polling refresh)
 - **Thread-safe log capture**: `logMessageReceivedThreaded` enqueues from any thread; a pooled ring buffer drains on the main thread
-- **Configurable activation policy**: always open / development builds only / editor only / always closed; the `-showdebugger` command line forces it on
+- **Configurable activation policy**: always open / development builds only / editor only / always closed; the `-show-debugger` command line forces it on
 - **Persistent layout**: entry & window position, size and scale remembered via `SettingUtility`; resolution-adaptive (1920×1080 reference)
 
 ## Core Types
@@ -39,7 +39,7 @@ Namespace: `Moirai.Atropos.Debugger`
 | `ScrollableDebuggerWindowBase` | Scrollable window base (UI Toolkit); `PollingDebuggerWindowBase` throttled-rebuild base |
 | `DebuggerActiveWindowType` | Activation policy enum: `AlwaysOpen` / `OnlyOpenWhenDevelopment` / `OnlyOpenInEditor` / `AlwaysClose` |
 | `Constant.Debug` | Setting key constants for layout and console filters |
-| `CommandLineUtility` | Static utility: `GetShowDebugger()` reads the `-showdebugger` force-on argument |
+| `CommandLineUtility` | Static utility: `GetShowDebugger()` reads the `-show-debugger` force-on argument |
 | `ServiceDebugView` | IMGUI debug view abstract base (implements `IDebuggerWindow`): `Title` / `IsReady` / `OnDrawContent()` (GUILayout) + default `CreateView()` (wraps the content in an `IMGUIContainer`) — a compat extension path for quick game-side IMGUI views (all framework built-in panels are native UI Toolkit) |
 | `Windows/*` | Built-in windows: `ConsoleWindow`, `*InformationWindow`, `RuntimeMemorySummaryWindow`, `RuntimeMemoryInformationWindow<T>`, `MemoryPoolInformationWindow`, `ServiceKernelDebuggerWindow`, `OperationsWindow`, `SettingsWindow`, etc. |
 
@@ -184,7 +184,7 @@ Custom popups and any OnGUI context can also call `view.OnDraw()` directly.
   - `OnlyOpenWhenDevelopment`: visible when `Debug.isDebugBuild` (default)
   - `OnlyOpenInEditor`: visible when `Application.isEditor`
   - `AlwaysClose`: hidden by default
-  - Any policy other than `AlwaysOpen` can be forced on with the `-showdebugger` launch argument
+  - Any policy other than `AlwaysOpen` can be forced on with the `-show-debugger` launch argument
 - **Backend serialized fields** (`DefaultDebuggerHandler`): `ConsoleCapacity` / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity`
 - **Extending info windows**: inherit `PollingDebuggerWindowBase` (throttled rebuild) or `ScrollableDebuggerWindowBase` and register under an `"Information/..."` path
 - **Custom backend**: inherit `DebuggerServiceHandler` (carry configuration via `[SerializeField]` fields), then swap it in the settings asset

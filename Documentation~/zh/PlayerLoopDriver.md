@@ -73,7 +73,7 @@ GameApp.RemoveUpdateListener(OnUpdate);
 
 ## 异常处置
 
-订户异常按**编译期分级**处置，与内核 `ServiceScope` 同一约定（`RETHROW_TICK_EXCEPTIONS`）：
+订户异常按**编译期分级**处置，与内核 `ServiceScope` 同一约定（驱动侧常量为 `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS`，内核侧为 `RETHROW_TICK_EXCEPTIONS`，两处独立声明、需同步修改）：
 
 | 构建 | 行为 |
 |------|------|

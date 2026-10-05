@@ -22,7 +22,7 @@ The scene service's (`Moirai.Atropos.Scene`) default backend `DefaultSceneHandle
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Scene.SceneService` | Scene service static facade (`[HandlerHost]`). When unregistered, facade calls silently degrade (queries return defaults, loads return an invalid scene); the `Handler` property lazily creates the handler from `SceneServiceSettings` and throws `InvalidOperationException` if the configured handler is null |
+| `Moirai.Atropos.Scene.SceneService` | Scene service static facade (`[HandlerHost]`). When unregistered, facade calls silently degrade (queries return defaults, loads return an invalid scene); the `Handler` property lazily creates the handler from `SceneServiceSettings`, falling back to the default `DefaultSceneHandler` when the configuration is empty |
 | `Moirai.Atropos.Scene.SceneServiceHandler` | Handler abstract base class defining the backend contract; the default implementation `DefaultSceneHandler` loads and manages main/sub scenes via `ResourceService` |
 | `Moirai.Atropos.Resource.ResourceSceneHandle` | Resource system scene handle abstraction, implemented per resource backend (YooAsset / Addressables), carrying load progress, activation, unsuspend, and unload |
 
@@ -115,7 +115,7 @@ catch (OperationCanceledException)
 
 ## Notes
 
-- Scene assets must be collected and built by the resource backend (YooAsset collector / Addressables group); in the editor with the YooAsset backend, first select a simulation mode via `YooAsset/Editor PlayMode`
+- Scene assets must be collected and built by the resource backend (YooAsset collector / Addressables group); in the editor with the YooAsset backend, first set `PlayMode` on `ResourceServiceSettings` to `EditorSimulate`
 - Load failures always throw `GameException`: re-loading an address with an in-flight operation, re-loading an already registered sub-scene, main-scene mutex (another main scene is loading), cross-mode duplicates (a location registered as sub-scene being loaded as Single, or vice versa), resource service not ready, and backend load errors
 - The callback-based `LoadScene` never throws: it invokes the callback exactly once regardless of outcome, with the default scene on failure — callers must check `Scene.IsValid()`
 - Unload failures (backend unload errors, invalid handles) return `false` / callback `false` and keep the registration, so retrying is safe; unload requests with an unknown address or an in-flight operation are not started (warning logged)

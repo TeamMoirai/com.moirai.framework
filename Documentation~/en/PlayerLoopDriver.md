@@ -75,7 +75,7 @@ GameApp.RemoveUpdateListener(OnUpdate);
 
 ## Exception Handling
 
-Subscriber exceptions are graded at **compile time**, following the same contract as the kernel's `ServiceScope.RETHROW_TICK_EXCEPTIONS`:
+Subscriber exceptions are graded at **compile time**, following the same contract as the kernel's `ServiceScope` (driver-side constant `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS`, kernel-side `RETHROW_TICK_EXCEPTIONS`; the two are declared independently and must be kept in sync):
 
 | Build | Behavior |
 |------|------|

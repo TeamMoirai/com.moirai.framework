@@ -30,13 +30,13 @@ Four layers. **Pick the layer from this table before writing a case** — pickin
 - The conclusion depends on **managed allocation metering** → L3 (byte-denominated GC counters do not exist in Unity; metering uses `GC.Alloc` sampling, which also works in the editor — see "Zero-GC acceptance"; the release exit gate still requires the player-side report).
 - You merely "want to know how fast it is right now" → L4, and it must be `[Explicit]`.
 
-### Current distribution (updated 2026-09-27)
+### Current distribution (updated 2026-10-05, test-method counts)
 
 | Layer | Files | Cases |
 |---|---|---|
-| L1 | 134+ | ~1925 |
-| L2 | 15 (Audio x11 + Kernel + Tasks + Timer benchmark) | ~47 |
-| L3 | 6 | ~23 (incl. new Timer and audio allocation cases) |
+| L1 | 160 (incl. support files) | ~2048 |
+| L2 | 19 (15 tests: Audio x11 + Kernel + Tasks + Timer + Scene; rest are support/host) | ~73 |
+| L3 | 6 | ~23 |
 
 ## Coverage targets
 
@@ -324,7 +324,7 @@ A release must be **green on all five gates** — none optional:
 
 ### Channel 1: test bridge (preferred, EditMode / PlayMode)
 
-`Tests/EditorMode/TestRequestRunner.cs` is a debug bridge inside the test assembly. It polls `Client/Temp/MoriaiTestRequest.json` over a one-way file protocol; the caller only polls:
+`Tests/EditorMode/TestRequestRunner.cs` is a debug bridge inside the test assembly. It polls `Temp/MoiraiTestRequest.json` under the project root (project-relative, not inside the package) over a one-way file protocol; the caller only polls:
 
 ```json
 {"id":"<unique>","mode":"EditMode","output":"<absolute path>/report.txt","timeoutSeconds":180,
@@ -345,7 +345,7 @@ Discipline:
 - **A request with both `assemblies` and `tests` empty is rejected outright** — an empty filter makes Test Runner re-run "whatever was last selected in the window", which looks like success but tests the wrong set.
 - The prerequisite is that the assembly has compiled at least once and the editor has had an `update`. While compiling, importing, changing play mode, or while any run is active (including one started manually from the window) it accepts no new request — **the request file stays and is consumed automatically once idle**.
 - `timeoutSeconds` is a wall-clock limit (compile, import and domain-reload waiting all count); on timeout the run is closed out as ABORTED and the report carries the `collected passed/failed/skipped` so far. **Cells already finished in an ABORTED report are not wasted** and can be used for attribution.
-- **Cancelling an in-flight run**: write the request `id` to `Client/Temp/MoriaiTestRequest.cancel.json`. After a UTF cancellation `RunFinished` is never delivered; the driver closes out on acceptance.
+- **Cancelling an in-flight run**: write the request `id` to `Temp/MoriaiTestRequest.cancel.json` under the project root. After a UTF cancellation `RunFinished` is never delivered; the driver closes out on acceptance.
 
 ### Channel 2: running `TestRunnerApi` directly (fallback when the bridge is unavailable)
 
@@ -357,7 +357,7 @@ Inside an editor script, use `ScriptableObject.CreateInstance<TestRunnerApi>()` 
 
 ### Channel 3: editor state bridge (liveness and refresh)
 
-`Tests/EditorMode/EditorStateBridge.cs` rewrites editor state to `Client/Temp/MoriaiEditorState.json` roughly every second. Uses:
+`Tests/EditorMode/EditorStateBridge.cs` rewrites editor state to `Temp/MoriaiEditorState.json` under the project root roughly every second. Uses:
 
 - **Liveness**: a `now - unix` gap of several seconds means the main thread is not running `update` (importing, domain reloading, blocked by a native modal).
 - **New domain**: an incrementing `domainSeq` proves a domain reload really happened.

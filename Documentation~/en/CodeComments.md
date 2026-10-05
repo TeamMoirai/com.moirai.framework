@@ -155,3 +155,6 @@ Narrative in Chinese, consistent with the existing codebase; type names, member 
 - Any leftover date, commit hash, `CHANGELOG` reference, or process narrative?
 - Is a short usage sample worth adding via `example`?
 - Are `param` / `returns` / `exception` one line each, without restating types?
+
+---
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Testing](Testing.md)

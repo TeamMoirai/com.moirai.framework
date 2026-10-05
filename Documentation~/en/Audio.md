@@ -31,6 +31,7 @@ Runtime/Services/Audio/
 │          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
 └── Support/ BackgroundMusic / AudioSettingsWidget / BgmPlaylist / AudioEmitter
            AudioMainThread / AudioFault / AudioWarnOnce   # main-thread assert, backed-off fault reporting, deduped warnings
+           AudioBlockingLoadGate / ShuffleIndexBag        # blocking-load gate, no-repeat shuffle bag
 ```
 
 ## Architecture (HandlerHost + Strategy)
@@ -106,7 +107,7 @@ Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middl
 | `AudioMixStateMachine` / `EMixSnapshot` | Mix snapshot state machine |
 | `AudioOcclusionHrtf` | Occlusion + HRTF component |
 | `AudioAgentHostPool` | Internal host stack pool (warmed up from settings in OnInit; idle hosts under `[Warmup]`) |
-| `BackgroundMusic` | Layered BGM (same ID replaces, other IDs persist) |
+| `BackgroundMusic` | Layered BGM component (same ID replaces, other IDs persist); plays a directly referenced `AudioClip` |
 
 ## Quick Start
 
@@ -128,6 +129,8 @@ AudioService.Play(bgm, musicOptions); // ID = 10001
 AudioService.RequestMixSnapshot(EMixSnapshot.Dialogue, 0.3f);
 AudioService.ResetMixSnapshot(0.5f);
 ```
+
+## Advanced Usage
 
 ### Middleware backends
 
@@ -237,7 +240,8 @@ Editor Mono reports `GC.GetAllocatedBytesForCurrentThread()` and `ProfilerRecord
 - The "Time" parameters of `AudioPlayOptionsSO` (`PlaybackTime` / `PlaybackDuration`, including random ranges) take effect on every `Play`; `MaximumConcurrentInstances` / `DoNotPlayIfClipAlreadyPlaying` evaluate the **candidate clip of this play** (not the previous one under a random set)  
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
 - The in-game debugger's `Profiler/Audio` panel now also shows clip cache entries/capacity, in-flight loads, pinned count, failure cooldowns, the current mix snapshot and ducking ownership, plus cache-clear buttons — check it first when "a sound didn't play"  
-- Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`
+- Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`  
+- ⚠ `BackgroundMusic` now uses only a directly referenced `AudioClip` (`m_AudioClip`); the old dual track of direct strong references / `AudioClipInfo` path references is removed and `AudioClipInfo` is deprecated: direct-reference data survives by field name, scenes that used the path reference (`m_SoundClip`) must re-assign the clip in the Inspector; use `AssetReference<TObject>` for weak-reference loading
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Resource](Resource.md) · [UI](UI.md)
