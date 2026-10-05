@@ -9,7 +9,7 @@ using UnityEditor;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 在生成 C# 工程文件时注入 YooAsset 版本宏定义。
+    /// 在生成 C# 工程文件时注入 YooAsset 版本宏定义
     /// </summary>
     [InitializeOnLoad]
     public class MacroProcessor : AssetPostprocessor
@@ -44,7 +44,7 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 处理工程文件中的宏定义。
+        /// 处理工程文件中的宏定义
         /// </summary>
         private static bool ProcessDefineConstants(XmlElement element)
         {
@@ -79,7 +79,7 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 检查工程是否引用了 YooAsset。
+        /// 检查工程是否引用了 YooAsset
         /// </summary>
         private static bool IsCSProjectReferenced(XmlElement element)
         {

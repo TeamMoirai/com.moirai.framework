@@ -7,7 +7,7 @@ using UnityEditor;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 提供补丁包差异比对工具窗口。
+    /// 提供补丁包差异比对工具窗口
     /// </summary>
     public class PackageComparatorWindow : EditorWindow
     {

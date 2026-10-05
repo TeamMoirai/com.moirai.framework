@@ -4,14 +4,14 @@ using UnityEngine;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 扩展的 IMGUI 绘制辅助方法集合。
+    /// 扩展的 IMGUI 绘制辅助方法集合
     /// </summary>
     internal static class BundleCollectorGUIDraw
     {
         /// <summary>
-        /// 绘制区块标题。
+        /// 绘制区块标题
         /// </summary>
-        /// <param name="title">标题文本。</param>
+        /// <param name="title">标题文本</param>
         public static void DrawSectionTitle(string title)
         {
             EditorGUILayout.LabelField(title, BundleCollectorGUIStyle.TitleStyle);
@@ -19,11 +19,11 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 绘制一个带字段名的只读文本字段。
+        /// 绘制一个带字段名的只读文本字段
         /// </summary>
-        /// <param name="label">字段名。</param>
-        /// <param name="value">字段值。</param>
-        /// <param name="disabled">是否置灰整行。</param>
+        /// <param name="label">字段名</param>
+        /// <param name="value">字段值</param>
+        /// <param name="disabled">是否置灰整行</param>
         public static void DrawLabelField(string label, string value, bool disabled = false)
         {
             using (new EditorGUI.DisabledScope(disabled))
@@ -37,11 +37,11 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 绘制一个带字段名的延迟文本输入框。
+        /// 绘制一个带字段名的延迟文本输入框
         /// </summary>
-        /// <param name="label">字段名。</param>
-        /// <param name="value">当前文本值。</param>
-        /// <returns>新的文本值。</returns>
+        /// <param name="label">字段名</param>
+        /// <param name="value">当前文本值</param>
+        /// <returns>新的文本值</returns>
         public static string DrawTextField(string label, string value)
         {
             using (new EditorGUILayout.HorizontalScope())
@@ -52,12 +52,12 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 绘制一个带字段名的下拉框。
+        /// 绘制一个带字段名的下拉框
         /// </summary>
-        /// <param name="label">字段名。</param>
-        /// <param name="index">当前选项索引。</param>
-        /// <param name="displayedOptions">下拉选项。</param>
-        /// <returns>新的选项索引。</returns>
+        /// <param name="label">字段名</param>
+        /// <param name="index">当前选项索引</param>
+        /// <param name="displayedOptions">下拉选项</param>
+        /// <returns>新的选项索引</returns>
         public static int DrawPopupField(string label, int index, string[] displayedOptions)
         {
             using (new EditorGUILayout.HorizontalScope())
@@ -68,13 +68,13 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
-        /// 绘制规则选择行。
+        /// 绘制规则选择行
         /// </summary>
-        /// <param name="label">字段标签。</param>
-        /// <param name="displayNames">显示名称列表。</param>
-        /// <param name="currentIndex">当前选中索引。</param>
-        /// <param name="newIndex">新选中的索引。</param>
-        /// <returns>规则索引发生变化返回 true。</returns>
+        /// <param name="label">字段标签</param>
+        /// <param name="displayNames">显示名称列表</param>
+        /// <param name="currentIndex">当前选中索引</param>
+        /// <param name="newIndex">新选中的索引</param>
+        /// <returns>规则索引发生变化返回 true</returns>
         public static bool TryDrawRuleSelection(string label, string[] displayNames, int currentIndex, out int newIndex)
         {
             newIndex = -1;

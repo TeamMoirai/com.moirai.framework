@@ -5,7 +5,7 @@ using UnityEditor;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 提供补丁包导入工具窗口。
+    /// 提供补丁包导入工具窗口
     /// </summary>
     public class PackageImporterWindow : EditorWindow
     {
