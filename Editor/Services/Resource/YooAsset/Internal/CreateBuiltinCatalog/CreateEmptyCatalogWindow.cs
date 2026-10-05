@@ -7,7 +7,7 @@ using UnityEditor;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 提供空资源清单生成工具窗口。
+    /// 提供空资源清单生成工具窗口
     /// </summary>
     public class CreateEmptyCatalogWindow : EditorWindow
     {

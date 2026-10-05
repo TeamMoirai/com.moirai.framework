@@ -4,7 +4,7 @@ using UnityEngine;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 扩展的 IMGUI 样式集合。
+    /// 扩展的 IMGUI 样式集合
     /// </summary>
     internal static class BundleCollectorGUIStyle
     {
@@ -13,7 +13,9 @@ namespace YooAsset.Editor
         private static GUIStyle _fieldLabelStyle;
         private static GUIStyle _sectionStyle;
 
-        /// <summary>区块标题样式：保持正文字号，仅通过加粗和间距与内容区分。</summary>
+        /// <summary>
+        /// 区块标题样式：保持正文字号，仅通过加粗和间距与内容区分。
+        /// </summary>
         public static GUIStyle TitleStyle
         {
             get
@@ -30,7 +32,9 @@ namespace YooAsset.Editor
             }
         }
 
-        /// <summary>字段名样式：保持正文字号。</summary>
+        /// <summary>
+        /// 字段名样式：保持正文字号。
+        /// </summary>
         public static GUIStyle FieldLabelStyle
         {
             get
@@ -46,7 +50,9 @@ namespace YooAsset.Editor
             }
         }
 
-        /// <summary>分组卡片样式：基于 helpBox 增加内边距，让内容不贴边。</summary>
+        /// <summary>
+        /// 分组卡片样式：基于 helpBox 增加内边距，让内容不贴边。
+        /// </summary>
         public static GUIStyle SectionStyle
         {
             get
