@@ -34,8 +34,8 @@ namespace Moirai.Atropos.Resource
 
         // 卸载世代与销毁标记：判"这条记录、这次在途加载还作不作数"的依据。语义上归内核，
         // 写它的仍是 handler 的生命周期（初始化、强卸载、关停）。
-        internal bool IsDestroying;
-        internal uint UnloadGeneration = 1;
+        internal bool _isDestroying;
+        internal uint _unloadGeneration = 1;
 
         // 在途加载去重：一座 arena + 一张 packed key -> 槽号的开地址表。
         // [NonSerialized] 逐字段保留（与 handler 侧运行时数组同一口径）：托管引用序列化对私有

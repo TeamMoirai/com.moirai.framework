@@ -455,6 +455,43 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <summary>
+        /// 按资源 GUID 解析定位地址：运行期由后端清单解析（须收录资源 GUID）；服务未就绪时（编辑器的预览与工具面）直读 <c>AssetDatabase</c>。
+        /// </summary>
+        /// <remarks>
+        /// 是可序列化弱引用 <see cref="AssetReference"/> 的后端解析入口；YooAsset 后端要求收集器设置勾选 IncludeAssetGUID。
+        /// </remarks>
+        /// <param name="guid">资源 GUID。</param>
+        /// <param name="location">解析出的定位地址；失败为 <c>null</c>。</param>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <returns>解析成功为 <c>true</c>。</returns>
+        public static bool TryGetLocationFromGuid(string guid, out string location, string packageName = "")
+        {
+            location = null;
+            if (string.IsNullOrEmpty(guid))
+            {
+                return false;
+            }
+
+            if (IsInitialized)
+            {
+                return RequireHandler().TryGetLocationByGuid(guid, out location, packageName);
+            }
+
+#if UNITY_EDITOR
+            string assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            location = assetPath;
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        /// <summary>
         /// 尝试从资源租约中读取 Unity 资源对象。
         /// </summary>
         public static bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)

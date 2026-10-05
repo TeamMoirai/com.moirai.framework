@@ -55,6 +55,27 @@ namespace Service.Resource
         }
 
         /// <summary>
+        /// GUID 解析族必须都在且不带 [Obsolete]：可序列化弱引用 <see cref="AssetReference"/> 的后端解析入口。
+        /// </summary>
+        /// <remarks>
+        /// Handler 侧钉成 abstract：GUID 解析是接缝义务，每个后端必须显式表态（YooAsset 走清单 GUID 映射，
+        /// Addressable 走目录 GUID key），不得悄悄回落到共享默认实现。
+        /// </remarks>
+        [Test]
+        public void GuidFamily_PresentAndNotObsolete()
+        {
+            MethodInfo facade = typeof(ResourceService).GetMethod("TryGetLocationFromGuid", StaticPublic);
+            Assert.IsNotNull(facade, "Facade TryGetLocationFromGuid 缺失。");
+            Assert.IsNull(facade.GetCustomAttribute<ObsoleteAttribute>(),
+                "TryGetLocationFromGuid 是现行 API，不得挂 [Obsolete]。");
+            Assert.AreEqual(typeof(bool), facade.ReturnType);
+
+            MethodInfo handler = typeof(ResourceServiceHandler).GetMethod("TryGetLocationByGuid");
+            Assert.IsNotNull(handler, "Handler TryGetLocationByGuid 缺失。");
+            Assert.IsTrue(handler.IsAbstract, "GUID 解析是接缝义务（abstract），不得降回带默认实现的虚方法。");
+        }
+
+        /// <summary>
         /// 遗留加载族已删除，缺席本身要被钉住——否则一次误加回来就再没人知道它是死的。
         /// </summary>
         [Test]

@@ -11,12 +11,11 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// Addressables 后端的取用面：记录内核的持有者，也是内核看向本后端的唯一一面。
+    /// Addressables 后端的取用面：租约 API 的公开接缝、租约取用核心与记录内核的接线。
     /// </summary>
     /// <remarks>
-    /// 记账（记录槽、租约、去重、时间轮）全在 <see cref="ResourceRecordStore"/>，与 YooAsset 后端共用同一份。 <br />
-    /// 本文件把异步加载接成内核的赢家路径、把 <c>AsyncOperationHandle&lt;T&gt;</c> 包成引用型句柄、并把三个配置读数交给内核。 <br />
-    /// Addressables 无同步取资产 API，故同步族与图集族按 <see cref="CreateNotSupported"/> 快速失败，不静默返回 Invalid。
+    /// 记账（记录槽、租约、去重、时间轮）全在 <see cref="ResourceRecordStore"/>，与 YooAsset 后端共用同一份； <br />
+    /// 异步加载与去重核心见 Loading 分部。Addressables 无同步取资产 API，故同步族按 <see cref="CreateNotSupported"/> 快速失败，不静默返回 Invalid。
     /// </remarks>
     partial class AddressableHandler : IResourceRecordHost
     {
@@ -59,7 +58,7 @@ namespace Moirai.Atropos.Resource
         // 隐式即满足接口的 get 要求，多写一层只会让两处读数各说各话。
 
         #endregion
-        
+
         #region 句柄包装 [HANDLE WRAPPER]
 
         /// <summary>
@@ -119,144 +118,8 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
-        
-        #region 异步加载 [ASYNC LOAD]
 
-        private UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
-            EResourceAssetKind assetKind, string packageName, CancellationToken cancellationToken)
-        {
-            string normalizedPackageName = Store.NormalizePackageName(packageName);
-            assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
-            assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
-            ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, assetType, assetKind);
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return UniTask.FromResult<UObject>(null);
-            }
-
-            if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
-                    EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
-            {
-                return UniTask.FromResult(cachedAsset);
-            }
-
-            return GetOrLoadAssetPendingAsync(location, assetType, assetKind, normalizedPackageName, loadingKey,
-                cancellationToken);
-        }
-
-        private async UniTask<UObject> GetOrLoadAssetPendingAsync(string location, Type assetType,
-            EResourceAssetKind assetKind, string normalizedPackageName, ulong loadingKey,
-            CancellationToken cancellationToken)
-        {
-            while (true)
-            {
-                if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
-                {
-                    return null;
-                }
-
-                if (Store.TryGetCachedAssetRecord(normalizedPackageName, location, assetType, assetKind,
-                        EResourceHandleKind.AssetHandle, out _, out UObject cachedAsset))
-                {
-                    return cachedAsset;
-                }
-
-                if (!Store.TryBeginLoading(loadingKey))
-                {
-                    if (!await Store.WaitForLoadingAsync(loadingKey, cancellationToken))
-                    {
-                        return null;
-                    }
-
-                    continue;
-                }
-
-                int loadGeneration = unchecked((int)Store.UnloadGeneration);
-                IAddressableHandleRef handleRef = null;
-                try
-                {
-                    if (!Store.IsLoadingStateCurrent(loadGeneration))
-                    {
-                        Store.FailLoading(loadingKey, null);
-                        return null;
-                    }
-
-                    var handle = Addressables.LoadAssetAsync<UObject>(location);
-                    handleRef = new AddressableHandleRef<UObject>(handle);
-                    if (!handle.IsValid())
-                    {
-                        handleRef.Release();
-                        Store.FailLoading(loadingKey, NewLoadingFailure(location, normalizedPackageName),
-                            ELogLevel.Warning);
-                        return null;
-                    }
-
-                    bool callerCancellationRequested = false;
-                    if (!handle.IsDone)
-                    {
-                        await handle.ToUniTask(cancellationToken: cancellationToken);
-                    }
-
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        callerCancellationRequested = true;
-                    }
-
-                    if (!Store.IsLoadingStateCurrent(loadGeneration))
-                    {
-                        // 强卸载/关停已发生：句柄原样放掉，绝不写进已作废的记录表
-                        handleRef.Release();
-                        Store.FailLoading(loadingKey, null);
-                        return null;
-                    }
-
-                    bool abortedByCallerCancellation = Store.ShouldAbortLoadingAfterCallerCancellation(loadingKey,
-                        cancellationToken, ref callerCancellationRequested);
-                    bool loadFailed = handle.Status != AsyncOperationStatus.Succeeded;
-                    if (abortedByCallerCancellation || loadFailed)
-                    {
-                        Exception failure = !abortedByCallerCancellation && loadFailed
-                            ? NewLoadingFailure(location, normalizedPackageName, handle.OperationException)
-                            : null;
-                        handleRef.Release();
-                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
-                        return null;
-                    }
-
-                    UObject asset = handle.Result;
-                    if (asset == null)
-                    {
-                        handleRef.Release();
-                        Store.FailLoading(loadingKey, NewLoadingFailure(location, normalizedPackageName),
-                            ELogLevel.Warning);
-                        return null;
-                    }
-
-                    Store.GetOrCreateAssetRecord(normalizedPackageName, location, assetType,
-                        assetKind, EResourceHandleKind.AssetHandle, asset, handleRef);
-                    handleRef = null; // 所有权已移交记录，异常兜底不得再释放
-                    Store.CompleteLoading(loadingKey);
-                    return callerCancellationRequested ? null : asset;
-                }
-                catch (OperationCanceledException)
-                {
-                    // 取消是本 API 的正常出口（契约返回 null，不抛出），但已预留的去重槽必须闭环失败，
-                    // 否则同地址的后续并发取用会在 WaitForLoadingAsync 里空转到各自超时/关停。
-                    handleRef?.Release();
-                    Store.FailLoading(loadingKey, null);
-                    return null;
-                }
-                catch (Exception ex)
-                {
-                    handleRef?.Release();
-                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
-                        "Resource Asset load threw. Location:{0} Package:{1} Type:{2}", location, normalizedPackageName,
-                        assetType), ex));
-                    return null;
-                }
-            }
-        }
+        #region 租约取用 [LEASE ACQUIRE]
 
         /// <summary>
         /// 取用一条资源并挂上租约，只服务异步成员（Addressables 侧唯一可行的形态是异步）。
@@ -284,163 +147,141 @@ namespace Moirai.Atropos.Resource
             return Store.AcquireLease(assetId, leaseKind, options);
         }
 
-        #region 图集取用 [SUB-ASSET ACQUIRE]
+        #endregion
 
-        /// <summary>
-        /// 按图集地址取子精灵的租约：一条地址加载 <see cref="SpriteAtlas"/>，按名取用留给记录句柄。
-        /// </summary>
-        /// <remarks>Addressables 没有"一个地址拿全部子资产"的公开 API（<c>LoadAllAssetsAsync</c> 只在 AssetBundle 层），故对齐 YooAsset 的形态。</remarks>
-        private UniTask<ResourceLeaseHandle> AcquireSubAssetsAsync(string location, string packageName,
-            EResourceLeaseOption options, CancellationToken cancellationToken)
+        #region 公共 Lease API [PUBLIC LEASE API]
+
+        /// <inheritdoc />
+        /// <remarks>Addressables 没有同步取资产的公开 API，同步族保持 fail-fast——
+        /// 用 <c>Task.Wait()</c> 硬等会把主线程挂在驱动上，比抛错更糟。</remarks>
+        public override ResourceLeaseHandle AcquireDirect(ResourceKey key)
         {
-            if (string.IsNullOrEmpty(location))
-            {
-                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
-            }
-
-            string normalizedPackageName = Store.NormalizePackageName(packageName);
-            // 入口打包两次、全程复用：loadingKey（去重）≠ recordKey（SubAssetsHandle 口径，handleKind 位域不同）。
-            ulong loadingKey = Store.GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
-                EResourceAssetKind.SubAssets);
-            ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, location, typeof(Sprite),
-                EResourceAssetKind.SubAssets, EResourceHandleKind.SubAssetsHandle);
-
-            if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
-            {
-                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
-            }
-
-            if (Store.TryGetCachedSubAssetsRecordByKey(recordKey, out int cachedAssetId))
-            {
-                return UniTask.FromResult(Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options));
-            }
-
-            return AcquireSubAssetsPendingAsync(location, normalizedPackageName, loadingKey, recordKey, options,
-                cancellationToken);
+            throw CreateNotSupported();
         }
 
-        private async UniTask<ResourceLeaseHandle> AcquireSubAssetsPendingAsync(string location,
-            string normalizedPackageName, ulong loadingKey, ulong recordKey, EResourceLeaseOption options,
-            CancellationToken cancellationToken)
+        /// <inheritdoc />
+        public override UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default)
         {
-            while (true)
+            return AcquireLeaseAsync(key, EResourceLeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override void Release(ResourceLeaseHandle handle)
+        {
+            Store.Release(handle);
+        }
+
+        /// <inheritdoc />
+        public override ResourceAssetLease<T> LoadLease<T>(ResourceKey key)
+        {
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        public override ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")
+        {
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        public override async UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default)
+        {
+            ResourceLeaseHandle handle = await AcquireLeaseAsync(key, EResourceLeaseKind.Direct,
+                EResourceLeaseOption.None, cancellationToken);
+            if (!handle.IsValid)
             {
-                if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
-                {
-                    return ResourceLeaseHandle.Invalid;
-                }
-
-                if (Store.TryGetCachedSubAssetsRecordByKey(recordKey, out int cachedAssetId))
-                {
-                    return Store.AcquireLease(cachedAssetId, EResourceLeaseKind.Binding, options);
-                }
-
-                if (!Store.TryBeginLoading(loadingKey))
-                {
-                    // 同一图集并发绑定：并入赢家的加载，不再各自发起一次请求
-                    if (!await Store.WaitForLoadingAsync(loadingKey, cancellationToken))
-                    {
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    continue;
-                }
-
-                int loadGeneration = unchecked((int)Store.UnloadGeneration);
-                IAddressableHandleRef handleRef = null;
-                try
-                {
-                    if (!Store.IsLoadingStateCurrent(loadGeneration))
-                    {
-                        Store.FailLoading(loadingKey, null);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    var handle = Addressables.LoadAssetAsync<SpriteAtlas>(location);
-                    handleRef = new AddressableHandleRef<SpriteAtlas>(handle);
-                    if (!handle.IsValid())
-                    {
-                        handleRef.Release();
-                        Store.FailLoading(loadingKey, NewLoadingFailure(location, normalizedPackageName),
-                            ELogLevel.Warning);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    bool callerCancellationRequested = false;
-                    if (!handle.IsDone)
-                    {
-                        await handle.ToUniTask(cancellationToken: cancellationToken);
-                    }
-
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        callerCancellationRequested = true;
-                    }
-
-                    if (!Store.IsLoadingStateCurrent(loadGeneration))
-                    {
-                        handleRef.Release();
-                        Store.FailLoading(loadingKey, null);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    bool abortedByCallerCancellation = Store.ShouldAbortLoadingAfterCallerCancellation(loadingKey,
-                        cancellationToken, ref callerCancellationRequested);
-                    bool loadFailed = handle.Status != AsyncOperationStatus.Succeeded;
-                    if (abortedByCallerCancellation || loadFailed)
-                    {
-                        Exception failure = !abortedByCallerCancellation && loadFailed
-                            ? NewLoadingFailure(location, normalizedPackageName, handle.OperationException)
-                            : null;
-                        handleRef.Release();
-                        Store.FailLoading(loadingKey, failure, ELogLevel.Warning);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    if (handle.Result == null)
-                    {
-                        handleRef.Release();
-                        Store.FailLoading(loadingKey, NewLoadingFailure(location, normalizedPackageName),
-                            ELogLevel.Warning);
-                        return ResourceLeaseHandle.Invalid;
-                    }
-
-                    int assetId = Store.GetOrCreateSubAssetsRecordByKey(recordKey, handleRef);
-                    handleRef = null; // 所有权已移交记录，异常兜底不得再释放
-                    Store.CompleteLoading(loadingKey);
-                    return callerCancellationRequested
-                        ? ResourceLeaseHandle.Invalid
-                        : Store.AcquireLease(assetId, EResourceLeaseKind.Binding, options);
-                }
-                catch (OperationCanceledException)
-                {
-                    handleRef?.Release();
-                    Store.FailLoading(loadingKey, null);
-                    return ResourceLeaseHandle.Invalid;
-                }
-                catch (Exception ex)
-                {
-                    handleRef?.Release();
-                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
-                        "Resource SubAssets load threw. Location:{0} Package:{1}", location, normalizedPackageName), ex));
-                    return ResourceLeaseHandle.Invalid;
-                }
+                return default;
             }
+
+            if (!Store.TryGetLeaseAsset(handle, out UObject asset) || asset is not T typedAsset)
+            {
+                Store.Release(handle);
+                return default;
+            }
+
+            return new ResourceAssetLease<T>(this, handle, typedAsset);
+        }
+
+        /// <inheritdoc />
+        public override UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
+        {
+            return LoadLeaseAsync<T>(new ResourceKey(location, packageName, typeof(T),
+                ResourceKeyCodec.InferAssetKind(typeof(T))), cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
+        {
+            return Store.TryGetLeaseAsset(handle, out asset);
         }
 
         #endregion
 
-        private static GameException NewLoadingFailure(string location, string packageName)
+        #region 内部 Lease 方法 [INTERNAL LEASE METHODS]
+
+        /// <inheritdoc />
+        public override ResourceLeaseHandle AcquireBinding(ResourceKey key)
         {
-            return new GameException(StringUtility.Format(
-                "Resource Asset load failed. Location:{0} Package:{1}", location, packageName));
+            throw CreateNotSupported();
         }
 
-        private static GameException NewLoadingFailure(string location, string packageName, Exception error)
+        public override bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle)
         {
-            return new GameException(StringUtility.Format(
-                "Resource Asset load failed. Location:{0} Package:{1} Error:{2}", location, packageName,
-                error != null ? error.Message : string.Empty));
+            // Addressables 无同步加载；cache-only 只读已落地记录，未命中直接 false。
+            handle = ResourceLeaseHandle.Invalid;
+            EResourceAssetKind assetKind = ResourceKeyCodec.NormalizeAssetKind(key.AssetType, key.AssetKind);
+            if (!Store.TryGetCachedAssetRecord(Store.NormalizePackageName(key.PackageName), key.Location,
+                    key.AssetType ?? typeof(UObject), assetKind,
+                    EResourceHandleKind.AssetHandle, out int assetId, out _))
+            {
+                return false;
+            }
+
+            handle = Store.AcquireLease(assetId, EResourceLeaseKind.Binding, EResourceLeaseOption.None);
+            return handle.IsValid;
+        }
+
+        /// <inheritdoc />
+        public override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken)
+        {
+            return AcquireLeaseAsync(key, EResourceLeaseKind.Binding, EResourceLeaseOption.None, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
+        {
+            return AcquireSubAssetsAsync(location, packageName, options, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
+        {
+            return Store.TryGetSubSpriteAsset(handle, spriteName, out sprite);
+        }
+
+        /// <inheritdoc />
+        public override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
+        {
+            return Store.TryGetLeaseAssetId(handle, out assetId);
+        }
+
+        /// <inheritdoc />
+        public override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
+        {
+            Store.SetLeaseOptions(handle, options);
+        }
+
+        /// <inheritdoc />
+        public override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
+        {
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        public override UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken)
+        {
+            return AcquireLeaseAsync(new ResourceKey(location, packageName, typeof(GameObject), EResourceAssetKind.Prefab),
+                EResourceLeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
         }
 
         #endregion

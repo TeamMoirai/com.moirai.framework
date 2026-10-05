@@ -297,6 +297,117 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
+        /// 根据 guid 的值获取弱引用属性的高度（只有 GUID、无缓存路径字段的 <c>AssetReference</c> 形）。
+        /// </summary>
+        /// <param name="guid">资源 GUID。</param>
+        /// <param name="initialLines">初始属性个数。</param>
+        public static float GetGuidAssetInfoHeight<T>(string guid, int initialLines = 1)
+            where T : UObject
+        {
+            int lines = initialLines;
+
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+
+            float textWidth = EditorGUIUtility.currentViewWidth - 60; // unity 启用 wordWrap 时，默认整个单词自动换行的边距，用于计算行数
+            float pathTextHeight = 0;
+            float resultCodeTextHeight = 0f;
+
+            if (
+#if UNITY_6000_0_OR_NEWER
+                AssetDatabase.AssetPathExists(path)
+#else
+                AssetDatabase.LoadAssetAtPath<UObject>(path) != null
+#endif
+               )
+            {
+                pathTextHeight = CustomStyles.InfoTextStyle.CalcHeight(new GUIContent(path), textWidth);
+
+                var resultCode = CheckAssetGuidAndPath<T>(guid, path);
+                if (resultCode == AssetCheckResult.Pass)
+                {
+                    resultCodeTextHeight = CustomStyles.InfoTextStyle.CalcHeight(new GUIContent(GetResultCodeInfo(resultCode)), textWidth);
+                }
+            }
+            else if (!string.IsNullOrEmpty(guid))
+            {
+                // GUID 还挂着但资源已不存在：保留一行报错空间
+                resultCodeTextHeight = CustomStyles.InfoTextStyle.CalcHeight(
+                    new GUIContent(GetResultCodeInfo(AssetCheckResult.FailAssetNotExist)), textWidth);
+            }
+
+            return (EditorGUIUtility.singleLineHeight + 2) * lines + pathTextHeight + resultCodeTextHeight;
+        }
+
+        /// <summary>
+        /// 绘制弱引用的对象字段行（选中即写回 GUID）。
+        /// </summary>
+        /// <returns>选中的资源对象；未选中为 <c>null</c>。</returns>
+        public static T DrawGuidAssetField<T>(ref Rect position, SerializedProperty property, string guidProperty)
+            where T : UObject
+        {
+            position.height = EditorGUIUtility.singleLineHeight;
+
+            EditorGUI.BeginProperty(position, new GUIContent($"{typeof(T).Name} Reference"), property);
+
+            string path = AssetDatabase.GUIDToAssetPath(property.FindPropertyRelative(guidProperty).stringValue);
+
+            // 根据保存的 GUID 加载资源
+            EditorGUI.BeginChangeCheck();
+            T target = EditorGUI.ObjectField(position, $"{property.displayName}",
+                AssetDatabase.LoadAssetAtPath<T>(path), typeof(T), false) as T;
+
+            if (EditorGUI.EndChangeCheck())
+            {
+                property.FindPropertyRelative(guidProperty).stringValue =
+                    AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(target));
+            }
+
+            position.y += EditorGUIUtility.singleLineHeight + 2;
+
+            EditorGUI.EndProperty();
+            return target;
+        }
+
+        /// <summary>
+        /// 绘制弱引用字段行之后的附加信息：路径与打包归属提示，GUID 悬空（资产已不存在）时报错。
+        /// </summary>
+        public static void DrawGuidAssetHints<T>(ref Rect position, UObject target, string guid)
+            where T : UObject
+        {
+            if (target != null)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var checkAsset = CheckAssetGuidAndPath<T>(guid, path);
+
+                if (!string.IsNullOrEmpty(path))
+                {
+                    string resultCodeInfo = GetResultCodeInfo(checkAsset);
+                    string pathInfo = checkAsset > AssetCheckResult.Pass
+                        ? $"{resultCodeInfo}：{path}"
+                        : $"Path：{path}";
+
+                    float pathTextHeight = CustomStyles.InfoTextStyle.CalcHeight(new GUIContent(pathInfo), position.width);
+                    GUI.Label(new Rect(position.x, position.y, position.width, pathTextHeight), pathInfo, CustomStyles.InfoTextStyle);
+                    position.y += pathTextHeight + 2;
+
+                    if (checkAsset == AssetCheckResult.Pass)
+                    {
+                        float resultCodeTextHeight = CustomStyles.InfoTextStyle.CalcHeight(new GUIContent(resultCodeInfo), position.width);
+                        GUI.Label(new Rect(position.x, position.y, position.width, resultCodeTextHeight), resultCodeInfo, CustomStyles.ErrorTextStyle);
+                        position.y += resultCodeTextHeight + 2;
+                    }
+                }
+            }
+            else if (!string.IsNullOrEmpty(guid))
+            {
+                string errorInfo = GetResultCodeInfo(AssetCheckResult.FailAssetNotExist);
+                float errorTextHeight = CustomStyles.InfoTextStyle.CalcHeight(new GUIContent(errorInfo), position.width);
+                GUI.Label(new Rect(position.x, position.y, position.width, errorTextHeight), errorInfo, CustomStyles.ErrorTextStyle);
+                position.y += errorTextHeight + 2;
+            }
+        }
+
+        /// <summary>
         /// 绘制资源信息。
         /// </summary>
         public static void DrawBaseAssetInfo<T>(SerializedProperty property, string guidProperty, string pathProperty, string title = "")
