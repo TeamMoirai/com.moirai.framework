@@ -6,7 +6,7 @@ using UnityEngine;
 namespace YooAsset.Editor
 {
     /// <summary>
-    /// 提供构建缓存清理菜单入口。
+    /// 提供构建缓存清理菜单入口
     /// </summary>
     internal class ClearBuildCacheWindow
     {
