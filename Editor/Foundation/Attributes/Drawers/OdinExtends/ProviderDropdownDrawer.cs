@@ -364,13 +364,40 @@ namespace Moirai.Atropos
             padding = new RectOffset((int)PAD, (int)PAD, (int)PAD, (int)PAD)
         };
 
+        /// <summary>
+        /// 取本属性的 Unity 序列化属性：Odin 给 managed reference 子属性拼出的路径带前导点 <br />
+        /// （实测 <c>.m_ResourceServiceHandler.m_EncryptorHandler</c>），<c>FindProperty</c> 认不出这种路径， <br />
+        /// 于是整行退到值条目路径——那里 null 写不进 Unity 序列化，选中项下一帧就被读回原值。
+        /// </summary>
+        private SerializedProperty TryResolveUnityProperty()
+        {
+            string path = Property.UnityPropertyPath;
+            SerializedProperty prop = FindUnityProperty(path);
+            if (prop != null) return prop;
+
+            string trimmed = path != null && path.StartsWith(".", StringComparison.Ordinal)
+                ? path.Substring(1)
+                : path;
+            return trimmed == path ? null : FindUnityProperty(trimmed);
+        }
+
+        private SerializedProperty FindUnityProperty(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            try
+            {
+                return Property.Tree.GetUnityPropertyForPath(path)
+                    ?? Property.Tree.UnitySerializedObject?.FindProperty(path);
+            }
+            catch { return null; }
+        }
+
         protected override void DrawPropertyLayout(GUIContent label)
         {
-            // 4.0.x 下 managed reference 的 UnityPropertyPath 解析可能失败（返回 null 或抛异常）。
-            // 此时不再回退到 Odin 默认绘制（其 managed-reference 子内容易渲染失效），而是走值条目驱动路径。
-            SerializedProperty prop;
-            try { prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath); }
-            catch { prop = null; }
+            // 路径归一化后才可能拿到 Unity 属性；仍拿不到（纯 Odin 宿主 / 无 SerializedObject）才走值条目驱动路径，
+            // 不回退 Odin 默认绘制（其 managed-reference 子内容易渲染失效）。
+            SerializedProperty prop = TryResolveUnityProperty();
 
             if (prop == null)
             {
