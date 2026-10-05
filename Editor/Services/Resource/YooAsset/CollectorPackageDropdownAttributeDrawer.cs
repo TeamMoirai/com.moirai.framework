@@ -3,7 +3,6 @@ using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
-using YooAsset.Editor;
 
 namespace Moirai.Atropos.Resource.Editor
 {
@@ -111,7 +110,8 @@ namespace Moirai.Atropos.Resource.Editor
         #endregion
 
         /// <summary>
-        /// 实时读取收集器包裹名构建选项并解析当前值索引；当前值已不在选项中（包裹被改名 / 删除）时临时置顶显示，IMGUI / UITK / Odin 共用。
+        /// 实时读取收集器包裹名构建选项并解析当前值索引；当前值已不在选项中（包裹被改名 / 删除）时临时置顶显示，IMGUI / UITK / Odin 共用。 <br />
+        /// 包名清单统一经 <see cref="ResourcePackageBridge"/> 读取（与 <see cref="AssetReferenceDrawer"/> 的包名下拉同源）。
         /// </summary>
         private static List<string> CollectOptions(SerializedProperty property, out int index)
             => CollectOptions(property.stringValue, out index);
@@ -121,14 +121,7 @@ namespace Moirai.Atropos.Resource.Editor
         /// </summary>
         internal static List<string> CollectOptions(string current, out int index)
         {
-            var options = new List<string>();
-            if (BundleCollectorSettingData.HasSettingAsset())
-            {
-                foreach (BundleCollectorPackage package in BundleCollectorSettingData.Setting.Packages)
-                {
-                    if (!string.IsNullOrEmpty(package.PackageName)) options.Add(package.PackageName);
-                }
-            }
+            List<string> options = new List<string>(ResourcePackageBridge.CollectYooAssetPackages());
 
             index = options.IndexOf(current);
             if (index < 0 && !string.IsNullOrEmpty(current))
@@ -157,12 +150,13 @@ namespace Moirai.Atropos.Resource.Editor
     {
         protected override void DrawPropertyLayout(GUIContent label)
         {
-            // 4.0.x 下 SerializeReference 子字段的 UnityPropertyPath 可能解析失败。
-            // 此时不能 CallNextDrawer（会退化成普通字符串输入框，包裹下拉“失效”），
-            // 改走 ValueEntry 驱动的 popup，与 ProviderDropdownOdinDrawer 同一套回退约定。
-            SerializedProperty prop;
-            try { prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath); }
-            catch { prop = null; }
+            // Odin 给 managed reference 子字段拼出的路径带前导点（实测 ".m_ResourceServiceHandler.m_PackageName"），
+            // FindProperty 认不出这种路径；先剥掉前导点再试一次，否则整行退到值条目路径，选中的包名下一帧被读回原值。
+            // 仍解析不出（纯 Odin 宿主 / 无 SerializedObject）时不能 CallNextDrawer（会退化成普通字符串输入框，包裹下拉“失效”），
+            // 改走 ValueEntry 驱动的 popup，与 ProviderDropdownDrawer 同一套回退约定。
+            SerializedProperty prop = FindUnityProperty(Property.UnityPropertyPath);
+            if (prop == null)
+                prop = FindUnityProperty(NormalizeUnityPath(Property.UnityPropertyPath));
 
             GUIContent rowLabel = label ?? GUIContent.none;
             if (prop != null)
@@ -176,6 +170,25 @@ namespace Moirai.Atropos.Resource.Editor
             if (!DrawValueEntryFallback(rowLabel))
                 CallNextDrawer(label);
         }
+
+        /// <summary>
+        /// 按 Unity 路径取属性：Odin 的入口取不到时，再直接从树的 <c>SerializedObject</c> 找一次。
+        /// </summary>
+        private SerializedProperty FindUnityProperty(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            try
+            {
+                return Property.Tree.GetUnityPropertyForPath(path)
+                    ?? Property.Tree.UnitySerializedObject?.FindProperty(path);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>剥掉 managed reference 子属性路径的前导点；没有前导点时原样返回。</summary>
+        private static string NormalizeUnityPath(string path) =>
+            path != null && path.StartsWith(".") ? path.Substring(1) : path;
 
         /// <summary>
         /// 无 SerializedProperty 时：用 Odin ValueEntry 读写包裹名，仍从收集器设置实时取选项。

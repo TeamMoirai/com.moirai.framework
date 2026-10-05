@@ -22,7 +22,9 @@ namespace Service.Resource
         // 2026-09-24 复核 +1：绑定 cache-only 落地，新增 TryAcquireBindingCached → 19/48=67
         // （commit bbe7dcc3「绑定 cache-only；包管理 API 名实一致」；同一提交把 InitializePackageAsync
         //  由 UniTask<bool> 改为 UniTask<ResourcePackageInitResult>，见 ResourceMethodSetContractTests）。
-        private const int BaselineAbstractMembers = 67;
+        // 2026-10-05 复核 +1：AssetReference 弱引用落地的 GUID 解析接缝升为 abstract（TryGetLocationByGuid，
+        //  由虚接缝转正），YooAsset 经清单 GUID 映射实现，Addressable 经目录 GUID key 实现。
+        private const int BaselineAbstractMembers = 68;
         private const int BaselineInternalAbstractMembers = 0;
         private const int BaselineObsoleteMembers = 0;
 

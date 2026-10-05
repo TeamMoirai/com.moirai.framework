@@ -1,22 +1,36 @@
 #if ADDRESSABLES_INSTALLED
-using System;
-using System.Collections.Generic;
-using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.AddressableAssets.ResourceLocators;
 using UnityEngine.ResourceManagement.AsyncOperations;
-using UnityEngine.ResourceManagement.ResourceLocations;
-using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// Addressables 后端的初始化、定位与实例化面：一个隐式目录、按 key 定位、只能异步实例化。
+    /// Addressables 后端的初始化与包生命周期面：一个隐式目录、单包初始化、包版本与缓存清理。
     /// </summary>
+    /// <remarks>Addressables 没有多包与两步式 Check→Update 下载器，包管理族里不可答的成员统一 fail-fast。</remarks>
     partial class AddressableHandler
     {
+        #region 生命周期 [LIFECYCLE]
+
+        /// <inheritdoc />
+        public override void Initialize()
+        {
+            _bindingService = new ResourceBindingService(this);
+            WarmupBindingRecords();
+        }
+
+        /// <inheritdoc />
+        protected override void OnShutdown()
+        {
+            _bindingService?.Shutdown();
+            ForceReleaseAllAssetRecords();
+        }
+
+        #endregion
+
         #region 初始化 [INITIALIZATION]
 
         /// <inheritdoc />
@@ -67,116 +81,61 @@ namespace Moirai.Atropos.Resource
         }
 
         #endregion
-        
-        #region 定位 [LOCATE]
 
-        /// <summary>
-        /// 按 key 同步定位，是 Addressables 唯一的同步查询面。
-        /// </summary>
-        /// <remarks>地址在初始化后常驻；类型维度传 <c>null</c> 表示任意类型，传具体类型会把同一地址的其它导入项判成不存在。</remarks>
-        private static bool TryLocate(string location, out IList<IResourceLocation> locations)
+        #region 包管理 [PACKAGE MANAGEMENT]
+
+        /// <inheritdoc />
+        public override string GetPackageVersion(string customPackageName = "")
         {
-            locations = null;
-            if (string.IsNullOrEmpty(location) || Addressables.ResourceLocators == null)
-            {
-                return false;
-            }
-
-            foreach (IResourceLocator locator in Addressables.ResourceLocators)
-            {
-                if (locator.Locate(location, null, out IList<IResourceLocation> found) && found != null &&
-                    found.Count > 0)
-                {
-                    locations = found;
-                    return true;
-                }
-            }
-
-            return false;
+            return string.Empty;
         }
 
         /// <inheritdoc />
-        public override bool IsLocationValid(string location, string packageName = "")
+        public override ResourcePackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
         {
-            return TryLocate(location, out _);
+            throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        /// <remarks>只能答"有没有这条地址"：OnDisk / Online 的分别要 <c>GetDownloadSizeAsync</c>，
-        /// 那是异步的，同步问不出来。命中一律回 AssetOnDisk，不当"已在本地"的保证用。 <br />
-        /// 要精确判断请走 <c>IsNeedDownloadFromRemote</c> / <c>GetDownloadSize</c>（本后端保持 fail-fast）。</remarks>
-        public override EResourceHasAssetResult HasAsset(string location, string packageName = "")
+        public override void SetRemoteServicesUrl(string defaultHostServer, string fallbackHostServer)
         {
-            return TryLocate(location, out _)
-                ? EResourceHasAssetResult.AssetOnDisk
-                : EResourceHasAssetResult.NotExist;
+            HostServerURL = defaultHostServer;
+            FallbackHostServerURL = fallbackHostServer;
         }
 
-        #endregion
-        
-        #region 实例化 [INSTANTIATE]
+        /// <inheritdoc />
+        public override IResourceOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "")
+        {
+            throw CreateNotSupported();
+        }
 
         /// <inheritdoc />
-        public override async UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null,
-            CancellationToken cancellationToken = default, string packageName = "")
+        public override IResourceDownloader CreateResourceDownloader(string customPackageName = "")
         {
-            if (string.IsNullOrEmpty(location))
+            throw CreateNotSupported();
+        }
+
+        /// <inheritdoc />
+        public override ResourceClearCacheResult StartClearCache(EResourceClearMode clearMode, string customPackageName = "")
+        {
+            Addressables.ClearResourceLocators();
+            if (clearMode == EResourceClearMode.ClearAllBundleFiles)
             {
-                throw new GameException("Asset name is invalid.");
+                Caching.ClearCache();
             }
 
-            if (!TryLocate(location, out _))
+            return new ResourceClearCacheResult
             {
-                LogUtility.Error("Could not found location [{0}].", location);
-                return null;
-            }
+                Operation = null,
+                ClearedCount = 0,
+            };
+        }
 
-            ResourceLeaseHandle prefabLease = await AcquireLeaseAsync(
-                new ResourceKey(location, packageName, typeof(GameObject), EResourceAssetKind.Prefab),
-                EResourceLeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
-            if (!prefabLease.IsValid)
-            {
-                return null;
-            }
-
-            if (cancellationToken.IsCancellationRequested)
-            {
-                Store.Release(prefabLease);
-                return null;
-            }
-
-            if (!Store.TryGetLeaseAsset(prefabLease, out UObject prefabObject) ||
-                prefabObject is not GameObject prefab)
-            {
-                Store.Release(prefabLease);
-                return null;
-            }
-
-            uint unloadGeneration = Store.UnloadGeneration;
-            GameObject instance = UObject.Instantiate(prefab, parent);
-
-            // 与 YooAsset 侧同一组守卫：实例化期间可能已发生回收/关停，父节点也可能是 fake null。
-            if (instance == null || Store.IsDestroying || unloadGeneration != Store.UnloadGeneration)
-            {
-                if (instance != null)
-                {
-                    UObject.Destroy(instance);
-                }
-
-                Store.Release(prefabLease);
-                return null;
-            }
-
-            ResourceOwner owner = EnsureResourceOwner(instance);
-            EResourceBindStatus bindStatus = _bindingService.RegisterPrefabSource(owner, prefabLease, prefab);
-            if (bindStatus != EResourceBindStatus.Success)
-            {
-                UObject.Destroy(instance);
-                Store.Release(prefabLease);
-                return null;
-            }
-
-            return instance;
+        /// <inheritdoc />
+        public override void ClearAllBundleFiles(string customPackageName = "")
+        {
+            Addressables.ClearResourceLocators();
+            Caching.ClearCache();
         }
 
         #endregion
