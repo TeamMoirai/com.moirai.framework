@@ -10,14 +10,8 @@ namespace Moirai.Atropos.Audio
     /// <remarks>分层设计：不同 <see cref="m_ID"/> 的 Music 可同时播放；同 ID 再次 Play 仅淡出/停止本 ID，不影响其它分层。</remarks>
     public class BackgroundMusic : MonoBehaviour
     {
-        [Tooltip("直接引用？")]
-        [SerializeField] private bool m_DirectReference = true;
         [Tooltip("需要播放的背景音乐")]
-        [ShowIf(nameof(m_DirectReference))]
         [SerializeField] private AudioClip m_AudioClip;
-        [Tooltip("需要播放的背景音乐")]
-        [HideIf(nameof(m_DirectReference))]
-        [SerializeField] private AudioClipInfo m_SoundClip;
         [Tooltip("分层 ID：不同 ID 可同时播放；同 ID 再次 Play 会替换本层")]
         [SerializeField] private int m_ID = 10001;
 
@@ -53,39 +47,22 @@ namespace Moirai.Atropos.Audio
             Play();
         }
 
+        /// <summary>
+        /// 播放本层背景音乐（同 ID 替换，不同 ID 分层共存）。
+        /// </summary>
         [Button]
         protected virtual void Play()
         {
             // 仅替换同 ID 分层；其它 ID 的 Music 保持播放
             AudioService.StopByID(m_ID, m_Fade ? m_FadeDuration : 0f);
 
-            AudioPlayOptions options = AudioPlayOptions.Default;
-            options.ID = m_ID;
-            options.Volume = m_Volume;
-            options.Pitch = m_Pitch;
-            options.Loop = m_Loop;
-            options.Persistent = m_Persistent;
-            options.AudioTrack = EAudioTrack.Music;
-            options.FadeInOnPlay = m_Fade;
-            options.FadeInInitialVolume = m_FadeInitialVolume;
-            options.FadeInDuration = m_FadeDuration;
-            options.FadeInTweenEase = m_FadeTweenEase;
-            options.SoloSingleTrack = m_SoloSingleTrack;
-            options.SoloAllTracks = m_SoloAllTracks;
-            options.AutoUnSoloOnEnd = m_AutoUnSoloOnEnd;
+            if (m_AudioClip == null)
+            {
+                LogUtility.Warning("Audio Resource is null");
+                return;
+            }
 
-            if (m_DirectReference)
-            {
-                if (m_AudioClip != null) AudioService.Play(m_AudioClip, options);
-                else
-                {
-                    LogUtility.Warning("Audio Resource is null");
-                }
-            }
-            else
-            {
-                AudioService.Play(m_SoundClip.Path, options, true, false);
-            }
+            AudioService.Play(m_AudioClip, BuildOptions());
         }
 
         [Button]
@@ -105,6 +82,28 @@ namespace Moirai.Atropos.Audio
             {
                 AudioService.StopByID(m_ID, 0f);
             }
+        }
+
+        /// <summary>
+        /// 由组件序列化字段装配播放选项。
+        /// </summary>
+        private AudioPlayOptions BuildOptions()
+        {
+            AudioPlayOptions options = AudioPlayOptions.Default;
+            options.ID = m_ID;
+            options.Volume = m_Volume;
+            options.Pitch = m_Pitch;
+            options.Loop = m_Loop;
+            options.Persistent = m_Persistent;
+            options.AudioTrack = EAudioTrack.Music;
+            options.FadeInOnPlay = m_Fade;
+            options.FadeInInitialVolume = m_FadeInitialVolume;
+            options.FadeInDuration = m_FadeDuration;
+            options.FadeInTweenEase = m_FadeTweenEase;
+            options.SoloSingleTrack = m_SoloSingleTrack;
+            options.SoloAllTracks = m_SoloAllTracks;
+            options.AutoUnSoloOnEnd = m_AutoUnSoloOnEnd;
+            return options;
         }
     }
 }
