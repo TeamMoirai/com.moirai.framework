@@ -1,4 +1,6 @@
 using System;
+using UnityEngine;
+using YooAsset;
 
 namespace Moirai.Atropos.Resource
 {
@@ -31,5 +33,35 @@ namespace Moirai.Atropos.Resource
 
         /// <inheritdoc />
         public override void ForceReleaseAllAssetRecords() => Store.ForceReleaseAllAssetRecords();
+
+        #region 内核句柄接缝 [KERNEL HANDLE SEAM]
+
+        private bool IsHandleValid(object handle)
+        {
+            return handle is HandleBase { IsValid: true };
+        }
+
+        private void DisposeHandle(object handle)
+        {
+            if (handle is HandleBase { IsValid: true } valid)
+            {
+                valid.Dispose();
+            }
+        }
+
+        private Sprite GetSubSprite(object handle, string spriteName)
+        {
+            return (handle as SubAssetsHandle)?.GetSubAssetObject<Sprite>(spriteName);
+        }
+
+        // 接口成员要 public 才能隐式实现；这三个算子是 handler 的内部件，故显式接线。
+        bool IResourceRecordHost.IsHandleValid(object handle) => IsHandleValid(handle);
+
+        void IResourceRecordHost.DisposeHandle(object handle) => DisposeHandle(handle);
+
+        Sprite IResourceRecordHost.GetSubSprite(object handle, string spriteName) =>
+            GetSubSprite(handle, spriteName);
+
+        #endregion
     }
 }

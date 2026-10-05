@@ -16,12 +16,12 @@ MonoBehaviour:
   ShowEditorAlias: 1
   UniqueBundleName: 1
   Packages:
-  - PackageName: DefaultPackage
+  - PackageName: Default
     PackageDesc: "\u9ED8\u8BA4\u8D44\u6E90\u5305"
     EnableAddressable: 0
     SupportExtensionless: 1
     LocationToLower: 0
-    IncludeAssetGUID: 0
+    IncludeAssetGUID: 1
     AutoCollectShaders: 1
     IgnoreRuleName: CustomNormalIgnoreRule
     Groups:
@@ -166,21 +166,21 @@ MonoBehaviour:
         FilterRuleName: CollectAll
         AssetTags: 
         UserData: 
-  - PackageName: DLC1Package
+  - PackageName: DLC1
     PackageDesc: 
     EnableAddressable: 0
     SupportExtensionless: 1
     LocationToLower: 0
-    IncludeAssetGUID: 0
+    IncludeAssetGUID: 1
     AutoCollectShaders: 1
-    IgnoreRuleName: NormalIgnoreRule
+    IgnoreRuleName: CustomNormalIgnoreRule
     Groups: []
-  - PackageName: DLC2Package
+  - PackageName: DLC2
     PackageDesc: 
     EnableAddressable: 0
     SupportExtensionless: 1
     LocationToLower: 0
-    IncludeAssetGUID: 0
+    IncludeAssetGUID: 1
     AutoCollectShaders: 1
-    IgnoreRuleName: NormalIgnoreRule
+    IgnoreRuleName: CustomNormalIgnoreRule
     Groups: []

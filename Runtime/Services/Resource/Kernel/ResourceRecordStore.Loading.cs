@@ -154,7 +154,7 @@ namespace Moirai.Atropos.Resource
         }
         internal bool IsLoadingStateCurrent(int loadGeneration)
         {
-            return !IsDestroying && loadGeneration == unchecked((int)UnloadGeneration);
+            return !_isDestroying && loadGeneration == unchecked((int)_unloadGeneration);
         }
         internal bool ShouldAbortLoadingAfterCallerCancellation(ulong assetObjectKey,
             CancellationToken cancellationToken, ref bool callerCancellationRequested)

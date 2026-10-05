@@ -276,6 +276,15 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public abstract bool IsLocationValid(string location, string packageName = "");
 
+        /// <summary>
+        /// 按资源 GUID 解析定位地址（可序列化弱引用 <see cref="AssetReference"/> 的后端接缝）。
+        /// </summary>
+        /// <param name="guid">资源 GUID。</param>
+        /// <param name="location">解析出的定位地址；失败为 <c>null</c>。</param>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <returns>解析成功为 <c>true</c>。</returns>
+        public abstract bool TryGetLocationByGuid(string guid, out string location, string packageName = "");
+        
         #endregion
 
         #region 资源加载 [ASSET LOADING]

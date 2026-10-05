@@ -21,7 +21,7 @@ namespace Moirai.Atropos.Resource
 
             while (true)
             {
-                if (Store.IsDestroying)
+                if (Store._isDestroying)
                 {
                     return null;
                 }
@@ -49,7 +49,7 @@ namespace Moirai.Atropos.Resource
                     return null;
                 }
 
-                int loadGeneration = unchecked((int)Store.UnloadGeneration);
+                int loadGeneration = unchecked((int)Store._unloadGeneration);
                 AssetHandle handle = null;
                 try
                 {
@@ -99,7 +99,7 @@ namespace Moirai.Atropos.Resource
             assetKind = ResourceKeyCodec.NormalizeAssetKind(assetType, assetKind);
             assetType = ResourceKeyCodec.NormalizeAssetType(assetType, assetKind);
 
-            if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+            if (cancellationToken.IsCancellationRequested || Store._isDestroying)
             {
                 return UniTask.FromResult<UObject>(null);
             }
@@ -124,7 +124,7 @@ namespace Moirai.Atropos.Resource
                     return null;
                 }
 
-                if (Store.IsDestroying)
+                if (Store._isDestroying)
                 {
                     return null;
                 }
@@ -144,7 +144,7 @@ namespace Moirai.Atropos.Resource
                     continue;
                 }
 
-                int loadGeneration = unchecked((int)Store.UnloadGeneration);
+                int loadGeneration = unchecked((int)Store._unloadGeneration);
                 AssetHandle handle = null;
                 try
                 {
@@ -200,7 +200,7 @@ namespace Moirai.Atropos.Resource
                         return null;
                     }
 
-                    if (Store.IsDestroying)
+                    if (Store._isDestroying)
                     {
                         DisposeHandle(handle);
                         handle = null;
@@ -257,7 +257,7 @@ namespace Moirai.Atropos.Resource
             ulong recordKey = Store.GetAssetRecordKey(normalizedPackageName, location, typeof(Sprite),
                 EResourceAssetKind.SubAssets, EResourceHandleKind.SubAssetsHandle);
 
-            if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+            if (cancellationToken.IsCancellationRequested || Store._isDestroying)
             {
                 return UniTask.FromResult(ResourceLeaseHandle.Invalid);
             }
@@ -277,7 +277,7 @@ namespace Moirai.Atropos.Resource
         {
             while (true)
             {
-                if (cancellationToken.IsCancellationRequested || Store.IsDestroying)
+                if (cancellationToken.IsCancellationRequested || Store._isDestroying)
                 {
                     return ResourceLeaseHandle.Invalid;
                 }
@@ -298,7 +298,7 @@ namespace Moirai.Atropos.Resource
                     continue;
                 }
 
-                int loadGeneration = unchecked((int)Store.UnloadGeneration);
+                int loadGeneration = unchecked((int)Store._unloadGeneration);
                 SubAssetsHandle subHandle = null;
                 try
                 {
@@ -411,6 +411,17 @@ namespace Moirai.Atropos.Resource
         private SubAssetsHandle GetSubAssetsHandleAsync(string location, string packageName)
         {
             return GetPackageOrThrow(packageName).LoadSubAssetsAsync<Sprite>(location);
+        }
+
+        private AssetHandle GetHandleSync(string location, Type assetType, string packageName = "")
+        {
+            return GetPackageOrThrow(packageName).LoadAssetSync(location, assetType);
+        }
+
+        private AssetHandle GetHandleAsync(string location, Type assetType, string packageName = "",
+            uint priority = 0)
+        {
+            return GetPackageOrThrow(packageName).LoadAssetAsync(location, assetType, priority);
         }
 
         #endregion
