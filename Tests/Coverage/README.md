@@ -102,18 +102,21 @@ powershell -ExecutionPolicy Bypass -File "Packages\com.moirai.framework\Tests\Co
 | Timer | 其余 | — | — | — |
 | Editor / SourceGenerators | 工具 | — | — | — |
 
-## 已知覆盖空洞（2026-09-24 静态盘点）
+## 已知覆盖空洞（2026-10-06 复盘，取代 2026-09-24 静态盘点）
 
 （2026-09-27 记录：覆盖率基线文件 `baseline-<date>.md` 尚未生成——第五出口门"不低于上一版基线"暂无基线可比对，首份基线的生成与提交归 CI 侧动作。）
 
-基线未出，先按"有没有用例"列一份结构性空洞——这些是首次覆盖率报告里最可能出现大面积红的区域：
+基线未出，按"有没有用例"维护结构性空洞清单：
 
 | 区域 | 现状 |
 |---|---|
-| `Core/Tasks`、`Core/Attributes`、`Core/Extensions`、`Core/GameProfiler`、`Core/Models`、`Core/Pool` | 零用例 |
-| `Core/Utilities` 的 `FileUtility` / `PathUtility` / `HttpUtility` / `EncryptionUtility` / `AssemblyUtility` / `ReflectionUtility` / `MarshalUtility` / `GameVersion` / `GameTime` / `SettingSave` | 无直接用例 |
+| `Core/Attributes`、`Core/Extensions`、`Core/GameProfiler`、`Core/Models`、`Core/Pool` | 零用例（Attributes 多为编辑器抽屉元数据，价值按用例判据另行评估） |
+| `Core/Tasks` | 已有 `SequenceTaskTests`（L1）+ `TaskRunnerPlayModeTests`（L2）——2026-09-24 盘点口径过期 |
+| `Core/Utilities`：`EncryptionUtility` / `PathUtility` | **已补**（`EncryptionUtilityTests` / `PathUtilityTests`，2026-10-06） |
+| `Core/Utilities`：`FileUtility` / `HttpUtility` / `AssemblyUtility` / `ReflectionUtility` / `MarshalUtility` / `CommandLineUtility` / `VersionUtility` / `GameVersion` / `GameTime` / `SettingSave` | 无直接用例（按 Testing.md 缺口账本滚动补齐） |
+| `PathUtility.CommonPath` / `TruncatePath` | 运行时零调用方且 CommonPath 对更短路径会越界——死 API 不锁用例，复活前先修实现 |
 | `Editor` 程序集（ReleaseTools / HybridCLR / AtlasMaker …） | 零用例 |
-| PlayMode 层（Resource / Save / UI / Scene / Input / Localization / Procedure） | 仅 Audio 有集成用例 |
-| `Debugger`（42 文件 / 39 用例）、`UI`（20 文件 / 8 用例） | 偏薄 |
+| PlayMode 层（Resource / Save / UI / Input / Localization / Procedure） | 已有 Kernel/Tasks/Timer/Scene 集成用例，其余模块仍缺 L2 |
+| `Debugger`、`UI` | 偏薄（UI 相关待 UI 双轨重构批次收口后补） |
 
 补齐优先级与顺序由 `Documentation~/zh/Testing.md` 的《覆盖目标》与各阶段提交记录决定。

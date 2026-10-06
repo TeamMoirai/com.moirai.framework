@@ -194,7 +194,7 @@ com.moirai.framework/
 
 - 内容断言一律走 `LogUtility.OnMessageLogged`（Handler 无关，唯一稳定通道）。
 - `LogAssert.Expect` 的正则一律 `".*"`，只承担消除未处理日志的职责，不耦合 Handler 的渲染前缀。
-- **消除未处理日志一律经 `UtfLogExpect.Error()` / `UtfLogExpect.Warning()`**（`Tests/EditorMode/Support/UtfLogExpect.cs`）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。不要在用例里自写 `LogAssert.Expect` + 处理器判定（未装 com.unity.logging 的工程里 `UnityLoggingHandler` 不存在，会逼出每处一个 `#if`）。
+- **消除未处理日志一律经 `UtfLogExpect`**（`Tests/EditorMode/Support/UtfLogExpect.cs`，PlayMode 侧有同名本地副本）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。API 面：`Error()`/`Warning()`/`Exception()`（正则固定 `.*`）、`ErrorWithException(fragment)`（带异常对象的 Error 重载按处理器自述判级别）、`ScopedIgnore()`（`ignoreFailingMessages` 的 using 快照窗口，仅供错误集不可枚举的故障注入夹具，是唯一允许触碰该全局开关的入口）。不要在用例里自写 `LogAssert.Expect` + 处理器判定（未装 com.unity.logging 的工程里 `UnityLoggingHandler` 不存在，会逼出每处一个 `#if`）。**例外**：被测走 `Debug.Log*` 直发、不经 LogUtility 时（如 `DebuggerLogCaptureTests`），LogAssert 是唯一正确通道——该场景登记进 `TestLogChannelPolicyGuardTests.LogAssertAllowlist`。
 
 ### 基准
 
@@ -227,7 +227,7 @@ com.moirai.framework/
 
 ### 可执行守卫与基准归一（2026-09-27）
 
-- 反射白名单钉成可执行守卫 `ReflectionPolicyGuardTests`（双向断言：未登记不得出现、已登记必须仍命中）；测试日志通道同构落 `TestLogChannelPolicyGuardTests`——测试日志发射统一 `Debug.Log*`，禁 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`，白名单=被测本体/替身复刻生产发射，断言通道（OnMessageLogged/UtfLogExpect）不受限；守卫按原文扫描，注释写「LogUtility 的 Error」规避字面命中。
+- 反射白名单钉成可执行守卫 `ReflectionPolicyGuardTests`（双向断言：未登记不得出现、已登记必须仍命中）；测试日志通道同构落 `TestLogChannelPolicyGuardTests`——测试日志发射统一 `Debug.Log*`，禁 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`，白名单=被测本体/替身复刻生产发射，断言通道（OnMessageLogged/UtfLogExpect）不受限；同一守卫另钉 **LogAssert 通道**：用例侧禁直用 `LogAssert.Expect`/`ignoreFailingMessages`/`NoUnexpectedReceived`（一律经 UtfLogExpect，后者只经 `ScopedIgnore()`），白名单=两份 UtfLogExpect 副本+Debug 直发场景，双向断言防名单腐烂；守卫按原文扫描，注释写「LogUtility 的 Error」规避字面命中。
 - 所有基准住 `Tests/`（`[Explicit]`，KernelBenchmark 范式），跑完经 `BenchmarkReport` 落 XML 至统一文件夹 `<工程根>/Benchmarks/`（`MOIRAI_BENCH_XML` 可覆盖）。需 Debugger 窗口跑的基准走双通道：矩阵核心 `XxxBenchmarkRunner`（运行程序集，public static）+ 窗口基准区 + Tests `[Explicit]` 薄壳，两入口同一份矩阵；帧依赖 fire 用例住 PlayMode `[UnityTest]`。
 - 反膨胀三原则（存量不追改增量强制 / 夹具基座触发条件 / 用例价值映射）与教训账本见 `Documentation~/zh/Testing.md`《可执行政策守卫与治理原则》。
 
