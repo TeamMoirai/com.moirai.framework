@@ -17,6 +17,18 @@ namespace Service.Audio
     [TestFixture]
     public sealed class AudioVoiceDuckingE2ETests
     {
+        /// <summary>探测能力：Voice 轨可播（Play 返回非 0）。恢复条件：AudioServiceSettings.AudioGroupConfigs 配置可用 Voice 轨与声部。</summary>
+        private const string VOICE_PLAY_RETURNED_ZERO =
+            "Voice 轨未配置或无可用声部（Play 返回 0）；恢复条件：AudioServiceSettings 配置可用的 Voice 轨与声部";
+
+        /// <summary>探测能力：AutoDuckingOnVoice 开关可写。恢复条件：测试环境存在可写的 AudioServiceSettings 资产实例。</summary>
+        private const string AUTODUCKING_FLAG_UNSET =
+            "AutoDuckingOnVoice 未开启（测试环境 Settings 不可写）；恢复条件：存在可写的 AudioServiceSettings 资产实例";
+
+        /// <summary>探测能力：Cinematic 快照可施加。恢复条件：AudioServiceSettings.MixSnapshots 登记 Cinematic 或 Mixer 按名自动绑定。</summary>
+        private const string CINEMATIC_NOT_APPLIABLE =
+            "Cinematic 快照未注册（状态机拒绝施加）；恢复条件：AudioServiceSettings.MixSnapshots 登记 Cinematic 或按名自动绑定";
+
         private GameObject _root;
         private UnityAudioHandler _handler;
         private AudioClip _voiceClip;
@@ -105,7 +117,7 @@ namespace Service.Audio
             ulong handle = _handler.Play(_voiceClip, options);
             if (handle == 0UL)
             {
-                Assert.Ignore("Voice 轨未配置或无可用声部");
+                Assert.Ignore(VOICE_PLAY_RETURNED_ZERO);
                 yield break;
             }
 
@@ -114,7 +126,7 @@ namespace Service.Audio
             if (!AudioServiceSettings.AutoDuckingOnVoice)
             {
                 _handler.Stop(handle, 0f);
-                Assert.Ignore("AutoDuckingOnVoice 未开启（测试环境 Settings 可能不可写）");
+                Assert.Ignore(AUTODUCKING_FLAG_UNSET);
                 yield break;
             }
 
@@ -141,7 +153,7 @@ namespace Service.Audio
             bool switched = AudioMixService.Request(EMixSnapshot.Cinematic, 0f, force: true);
             if (!switched)
             {
-                Assert.Ignore("Cinematic 快照未注册");
+                Assert.Ignore(CINEMATIC_NOT_APPLIABLE);
                 yield break;
             }
 
@@ -153,7 +165,7 @@ namespace Service.Audio
             ulong handle = _handler.Play(_voiceClip, options);
             if (handle == 0UL)
             {
-                Assert.Ignore("Voice 轨不可用");
+                Assert.Ignore(VOICE_PLAY_RETURNED_ZERO);
                 yield break;
             }
 
@@ -184,7 +196,7 @@ namespace Service.Audio
             ulong handle = _handler.Play(_voiceClip, options);
             if (handle == 0UL)
             {
-                Assert.Ignore("Voice 轨不可用");
+                Assert.Ignore(VOICE_PLAY_RETURNED_ZERO);
                 yield break;
             }
 
