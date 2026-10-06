@@ -51,6 +51,9 @@
 | Debugger OnlyOpenWhenDevelopment×非调试构建注册分支 | 延后——`ResolveActivation` 直读 `Debug.isDebugBuild`（编辑器恒 true、无注入接缝），与 GameApp 发布分支同类环境不可达 | 注入接缝或 L3 |
 | Save 维护门互锁 / 日志等级过滤 / 跨线程契约 | **已覆盖**（审计证实，勿重建） | — |
 | Timer 0-GC | **已补** TimerHotPathAllocationTests | L3 |
+| 加密与路径工具契约（AES 往返/防篡改、XOR 自逆、路径规范化/远程前缀） | **已补** EncryptionUtilityTests / PathUtilityTests（2026-10-06） | L1 |
+| `CommandLineUtility` / `VersionUtility` / `FileUtility` 等其余无直接用例的工具 | 待补（按用例价值判据滚动，不追数字） | L1 |
+| `PathUtility.CommonPath` / `TruncatePath` | 运行时零调用方且 CommonPath 对更短路径会越界——死 API，不锁用例；复活前先修实现 | — |
 
 ## 目录结构
 
@@ -178,7 +181,8 @@ public abstract class XxxFixture
 
 **一个 flaky 用例比十个没写的用例更糟**——它让人开始忽略红色。
 
-- **禁止真实墙钟等待**（`Thread.Sleep`、`await Task.Delay` 做时序断言、`DateTime.Now` 做判据）。时间必须**注入**：计时器用例自带帧号游标与 `Advance(delta)`。
+- **禁止真实墙钟等待**（`Thread.Sleep`、`await Task.Delay` 做时序断言、`DateTime.Now` 做判据）。时间必须**注入**：计时器用例自带帧号游标与 `Advance(delta)`。 <br />
+  边界：**给替身注入延迟**（fake HTTP handler 的 `Task.Delay` 模拟网络延迟、工作负载里 `Thread.Sleep(3)` 压超预算）不属此列——延迟是被注入的输入而非等待判据；跨线程**阻塞门探测**允许有界等待，但等待方向必须是「期望未完成」（超时只导致弱化信号，不会假红——范例：Save 文件级门的并发删除用例）。
 - **随机必须定种**。`RandomSource` / `RandomUtility` 的用例固定种子；禁止依赖默认随机。
 - **禁止跨用例共享可变静态**。需要共享的只读数据用 `static readonly`。
 - **禁止依赖用例执行顺序**。整套跑绿 ≠ 单跑绿；两者都必须绿。
@@ -207,8 +211,12 @@ public abstract class XxxFixture
 
 - **内容断言一律走内部事件** `LogUtility.OnMessageLogged`——它与 Handler 无关，是唯一稳定的断言通道。
 - **`LogAssert.Expect` 只承担"消除未处理日志"的职责，正则一律用 `".*"`**，不要在正则里耦合 Handler 的渲染前缀（`[ERR]`/`[FAT]` 三字符前缀与文档里的 `[ERROR]`/`FATAL` 不一致，会成批假红）。
-- **消除未处理日志一律经 `UtfLogExpect.Error()` / `UtfLogExpect.Warning()`**（`Tests/EditorMode/Support/UtfLogExpect.cs`）：处理器可见性的判定收在那一处，用例侧不写 `#if`、不提处理器类型。**不要**在用例里自己写 `LogAssert.Expect` 加处理器判定——那会把「未装 com.unity.logging 的工程里 `UnityLoggingHandler` 根本不存在」扩散成每处一个 `#if`。
+- **消除未处理日志一律经 `UtfLogExpect`**（`Tests/EditorMode/Support/UtfLogExpect.cs`；PlayMode 侧有同名本地副本）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。**不要**在用例里自己写 `LogAssert.Expect` 加处理器判定——那会把「未装 com.unity.logging 的工程里 `UnityLoggingHandler` 根本不存在」扩散成每处一个 `#if`。API 面：
+  - `Error()` / `Warning()` / `Exception()`：三条基础级别各一枚声明，正则固定 `.*`；
+  - `ErrorWithException(fragment)`：带异常对象的 Error 重载——级别随处理器自述（`ErrorWithExceptionUsesExceptionChannel`），ZLogger 下转 Exception 通道、DefaultLogHandler 下仍是 Error；
+  - `ScopedIgnore()`：`ignoreFailingMessages` 的 using 形态窗口（构造快照、Dispose 还原），供**错误集不可枚举的故障注入夹具**使用。取舍：窗口内所有未处理日志（含真缺陷的）都不判红，相当于放弃「意外错误也要红」这层信号——只在夹具确实不需要该信号时选用；错误集可枚举的用例逐条声明。它是唯一允许触碰该全局开关的入口。
   - 测试程序集因此保留 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 的 `versionDefines`：全仓只有 `UtfLogExpect` 一处需要该宏，别在别处再依赖它。
+- **被测走 `Debug.Log*` 直发、不经 LogUtility 的场景，`LogAssert` 是唯一正确通道**——该链路对 UTF 恒可见，声明预期不涉及处理器判定，用 `UtfLogExpect` 反而会在 UnityLoggingHandler 下漏声明而假红（范例：`DebuggerLogCaptureTests` 测的就是 Unity 控制台捕获器）。这类文件登记进 `TestLogChannelPolicyGuardTests.LogAssertAllowlist` 并写明归类；除此之外的直用一律按上一条走 `UtfLogExpect`。
 
 ## 0-GC 验收（L3）
 
@@ -371,7 +379,8 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 规范若只写在文档里，下一次"顺手一下"没人拦得住——以下政策已钉成可执行守卫（编辑器套件自动跑）：
 
 - `ReflectionPolicyGuardTests`：非公开反射白名单双向断言（未登记不得出现、已登记必须仍命中）。
-- `TestLogChannelPolicyGuardTests`：测试日志输出发射统一 `Debug.Log*`，禁止 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`——白名单两类：被测本体（LogUtilityTests）、替身复刻生产发射（Save fake loader）；断言通道（`OnMessageLogged` 捕获、`UtfLogExpect` 消噪）不受限。守卫按原文扫描，注释里写「LogUtility.Error(」字面也会命中——措辞用「LogUtility 的 Error」规避。
+- `TestLogChannelPolicyGuardTests`：测试日志输出发射统一 `Debug.Log*`，禁止 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`——白名单两类：被测本体（LogUtilityTests）、替身复刻生产发射（Save fake loader）；断言通道（`OnMessageLogged` 捕获、`UtfLogExpect` 消噪）不受限。守卫按原文扫描，注释里写「LogUtility.Error(」字面也会命中——措辞用「LogUtility 的 Error」规避。 <br />
+  同一守卫还钉住 **LogAssert 通道**：用例侧禁止直用 `LogAssert.Expect` / `LogAssert.ignoreFailingMessages` / `LogAssert.NoUnexpectedReceived`（一律经 `UtfLogExpect`，`ignoreFailingMessages` 只经 `ScopedIgnore()`）——白名单为两份 `UtfLogExpect` 支撑副本与「被测走 `Debug.Log` 直发」的场景（DebuggerLogCaptureTests），双向断言防名单腐烂。
 
 **反膨胀原则**（存量不追改、增量强制）：
 

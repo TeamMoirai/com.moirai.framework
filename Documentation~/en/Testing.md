@@ -51,6 +51,9 @@ Fill gaps by the "case value criterion" (would the bug silently come back if thi
 | Debugger OnlyOpenWhenDevelopment x non-debug-build registration branch | Deferred — `ResolveActivation` reads `Debug.isDebugBuild` directly (always true in the editor, no injection seam), environment-unreachable like the GameApp release branch | Injection seam or L3 |
 | Save maintenance gate interlock / log level filtering / cross-thread contracts | **Covered** (audit-verified — do not rebuild) | — |
 | Timer 0-GC | **Added** — TimerHotPathAllocationTests | L3 |
+| Encryption and path utility contracts (AES roundtrip/tamper, XOR self-inverse, path normalization/remote prefix) | **Added** — EncryptionUtilityTests / PathUtilityTests (2026-10-06) | L1 |
+| Remaining utilities without direct cases (`CommandLineUtility` / `VersionUtility` / `FileUtility` etc.) | To add — rolling by the case-value criterion, not chasing numbers | L1 |
+| `PathUtility.CommonPath` / `TruncatePath` | Zero runtime callers, and CommonPath over-indexes on shorter sibling paths — dead API, no cases locked; fix the implementation before revival | — |
 
 ## Directory layout
 
@@ -178,7 +181,8 @@ Three hard constraints follow:
 
 **One flaky case is worse than ten unwritten cases** — it teaches people to ignore red.
 
-- **No real wall-clock waits** (`Thread.Sleep`, `await Task.Delay` for timing assertions, `DateTime.Now` as a criterion). Time must be **injected**: timer cases carry their own frame cursor and `Advance(delta)`.
+- **No real wall-clock waits** (`Thread.Sleep`, `await Task.Delay` for timing assertions, `DateTime.Now` as a criterion). Time must be **injected**: timer cases carry their own frame cursor and `Advance(delta)`. <br />
+  Boundary: **injecting a delay into a double** (a fake HTTP handler's `Task.Delay` simulating network latency, or `Thread.Sleep(3)` inside a workload to blow a budget) is not in scope — the delay is an injected input, not a wait used as a criterion; cross-thread **blocking-gate probes** may wait bounded, but the wait direction must be "expect not completed" (a timeout only weakens the signal, it cannot false-red — exemplar: the Save file-gate concurrent-delete cases).
 - **Randomness must be seeded.** `RandomSource` / `RandomUtility` cases fix the seed; never rely on the default.
 - **No shared mutable statics across cases.** Shared read-only data uses `static readonly`.
 - **No dependence on case execution order.** Green in the suite and green alone must both hold.
@@ -207,8 +211,12 @@ Therefore:
 
 - **Assert content through the internal event** `LogUtility.OnMessageLogged` — it is Handler-independent and the only stable assertion channel.
 - **`LogAssert.Expect` only serves to silence unhandled logs; always use the regex `".*"`** and never couple the regex to a Handler's rendering prefix (`[ERR]`/`[FAT]` three-character prefixes differ from the `[ERROR]`/`FATAL` in docs and cause bulk false reds).
-- **Always silence unhandled logs through `UtfLogExpect.Error()` / `UtfLogExpect.Warning()`** (`Tests/EditorMode/Support/UtfLogExpect.cs`): the handler-visibility judgement lives there, so a case carries no `#if` and never names a handler type. Do **not** hand-roll `LogAssert.Expect` plus a handler check inside a case — that spreads "`UnityLoggingHandler` does not exist at all without com.unity.logging" into one `#if` per site.
+- **Always silence unhandled logs through `UtfLogExpect`** (`Tests/EditorMode/Support/UtfLogExpect.cs`; the PlayMode assembly carries a same-named local copy): the handler-visibility judgement lives there, so a case carries no `#if` and never names a handler type. Do **not** hand-roll `LogAssert.Expect` plus a handler check inside a case — that spreads "`UnityLoggingHandler` does not exist at all without com.unity.logging" into one `#if` per site. API surface:
+  - `Error()` / `Warning()` / `Exception()` — one declaration per basic level, regex fixed to `.*`;
+  - `ErrorWithException(fragment)` — for the Error overload that carries an exception object; the level follows the handler's self-report (`ErrorWithExceptionUsesExceptionChannel`): ZLogger routes it to the Exception channel, DefaultLogHandler keeps Error;
+  - `ScopedIgnore()` — a `using`-shaped window over `ignoreFailingMessages` (snapshots on construction, restores on Dispose) for **fault-injection fixtures whose error set is not enumerable**. Trade-off: every unhandled log inside the window (including real defects') stops failing, i.e. the fixture gives up the "unexpected errors must be red" signal — choose it only when the fixture truly does not need that signal; enumerable error sets declare one expectation per log. It is the only entry point allowed to touch that global switch.
   - The test assembly therefore keeps its `com.unity.logging` → `UNITY_LOGGING_INSTALLED` `versionDefines` entry: `UtfLogExpect` is the only place in the repository that needs that macro — do not rely on it anywhere else.
+- **When the code under test emits straight through `Debug.Log*` (not via LogUtility), `LogAssert` is the only correct channel** — that path is always visible to UTF, declaring an expectation involves no handler judgement, and going through `UtfLogExpect` would under-declare under `UnityLoggingHandler` and false-red (exemplar: `DebuggerLogCaptureTests` tests Unity's console capture itself). Register such files in `TestLogChannelPolicyGuardTests.LogAssertAllowlist` with the category stated; every other direct use follows the previous bullet through `UtfLogExpect`.
 
 ## Zero-GC acceptance (L3)
 
@@ -373,7 +381,8 @@ Inside an editor script, use `ScriptableObject.CreateInstance<TestRunnerApi>()` 
 Rules that live only in a document stop nothing the next time someone "just quickly" violates them — the following policies are pinned as executable guards (run automatically in the editor suite):
 
 - `ReflectionPolicyGuardTests`: non-public reflection allowlist with bidirectional assertions (unregistered files must not appear; registered files must still match).
-- `TestLogChannelPolicyGuardTests`: test log emissions go through `Debug.Log*` uniformly; `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(` are forbidden. Allowlist categories: subject-under-test (LogUtilityTests) and doubles reproducing production emissions (Save fake loaders); assertion channels (`OnMessageLogged` capture, `UtfLogExpect` noise suppression) are unrestricted. The guard scans raw text — the literal `LogUtility.Error(` inside a comment also matches; phrase it as "LogUtility's Error" to avoid it.
+- `TestLogChannelPolicyGuardTests`: test log emissions go through `Debug.Log*` uniformly; `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(` are forbidden. Allowlist categories: subject-under-test (LogUtilityTests) and doubles reproducing production emissions (Save fake loaders); assertion channels (`OnMessageLogged` capture, `UtfLogExpect` noise suppression) are unrestricted. The guard scans raw text — the literal `LogUtility.Error(` inside a comment also matches; phrase it as "LogUtility's Error" to avoid it. <br />
+  The same guard also pins the **LogAssert channel**: direct use of `LogAssert.Expect` / `LogAssert.ignoreFailingMessages` / `LogAssert.NoUnexpectedReceived` in cases is forbidden (always through `UtfLogExpect`; `ignoreFailingMessages` only through `ScopedIgnore()`) — the allowlist holds the two `UtfLogExpect` support copies and the "subject emits via `Debug.Log` directly" scenario (DebuggerLogCaptureTests), with bidirectional assertions against list rot.
 
 **Anti-bloat principles** (legacy is not retroactively changed; new code is strictly held):
 
