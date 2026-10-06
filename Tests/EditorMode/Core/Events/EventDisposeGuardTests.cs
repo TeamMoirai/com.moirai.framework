@@ -17,12 +17,12 @@ namespace Core.Events
         /// <summary>
         /// 仅用于测试的最小事件类型。
         /// </summary>
-        public sealed class ProbeEvent : EventBase<ProbeEvent>
+        internal sealed class ProbeEvent : EventBase<ProbeEvent>
         {
             /// <summary>
             /// 从事件池取出一个实例。
             /// </summary>
-            public static ProbeEvent Take() => GetPooled();
+            internal static ProbeEvent Take() => GetPooled();
         }
 
         #endregion
