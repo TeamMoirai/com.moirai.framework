@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Moirai.Atropos;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using App = Moirai.Atropos.GameApp;
 
 namespace Core.GameApp
@@ -15,7 +14,7 @@ namespace Core.GameApp
     /// </summary>
     /// <remarks>
     /// 经 <see cref="GameTime.Handler"/> 注入虚拟时钟，手动调用 <c>Drive*</c> 推进；不走 <see cref="PlayerLoopDriver.Initialize"/>， <br />
-    /// 以免改写编辑器全局 PlayerLoop。
+    /// 以免改写编辑器全局 PlayerLoop。异常隔离路径的 UTF 消噪经 <c>UtfLogExpect</c> 统一声明——声明位置即熔断告警的计时断言。
     /// </remarks>
     public class PlayerLoopDriverTests
     {
@@ -313,7 +312,7 @@ namespace Core.GameApp
             // 回归：缺少 finally 时 s_IsDriving 永久为 true，之后的注册全滞留缓冲且当帧不提交
             var bomb = new Probe("bomb") { ThrowOnUpdate = new InvalidOperationException("boom") };
             PlayerLoopDriver.Register(bomb);
-            LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+            UtfLogExpect.Error();
             Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
 
             var after = new Probe("after");
@@ -340,9 +339,9 @@ namespace Core.GameApp
 
             for (int frame = 1; frame <= 3; frame++)
             {
-                // 开发构建按分级策略记录后上抛；第 3 次失败先熔断摘除再抛
-                LogAssert.Expect(LogType.Error, new Regex("handler threw"));
-                if (frame == 3) LogAssert.Expect(LogType.Warning, new Regex("was removed after"));
+                // 开发构建按分级策略记录后上抛；第 3 次失败先熔断摘除再抛（Warning 声明位置即摘除帧的计时断言）
+                UtfLogExpect.Error();
+                if (frame == 3) UtfLogExpect.Warning();
                 Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
             }
 
@@ -364,8 +363,8 @@ namespace Core.GameApp
 
             for (int frame = 1; frame <= 2; frame++)
             {
-                LogAssert.Expect(LogType.Error, new Regex("callback threw"));
-                if (frame == 2) LogAssert.Expect(LogType.Warning, new Regex("was removed after"));
+                UtfLogExpect.Error();
+                if (frame == 2) UtfLogExpect.Warning();
                 Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
             }
 
@@ -385,7 +384,7 @@ namespace Core.GameApp
 
             for (int frame = 1; frame <= 2; frame++)
             {
-                LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+                UtfLogExpect.Error();
                 Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
             }
 
@@ -395,7 +394,7 @@ namespace Core.GameApp
             bomb.ThrowOnUpdate = new InvalidOperationException("boom");
             for (int frame = 1; frame <= 2; frame++)
             {
-                LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+                UtfLogExpect.Error();
                 Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
             }
 
@@ -429,7 +428,7 @@ namespace Core.GameApp
 
             for (int frame = 1; frame <= 5; frame++)
             {
-                LogAssert.Expect(LogType.Error, new Regex("core hook threw"));
+                UtfLogExpect.Error();
                 Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
             }
 
@@ -440,7 +439,7 @@ namespace Core.GameApp
         public void ApplicationQuitBroadcast_WhenOneThrows_OthersStillRun()
         {
             // 关闭广播的职责就是清理，截断等于静默漏掉后续每一项的释放动作，故开发期也不上抛
-            LogAssert.Expect(LogType.Error, new Regex("ApplicationQuit callback threw"));
+            UtfLogExpect.Error();
 
             var order = new List<string>();
             PlayerLoopDriver.AddApplicationQuitCallback(() =>
@@ -459,7 +458,7 @@ namespace Core.GameApp
         public void ApplicationPauseBroadcast_WhenOneThrows_OthersStillRun()
         {
             // 回归：Pause 多播曾直发不隔离，前序订户抛异常会静默截断后续订户（切后台存档链）
-            LogAssert.Expect(LogType.Error, new Regex("ApplicationPause callback threw"));
+            UtfLogExpect.Error();
 
             var order = new List<string>();
             PlayerLoopDriver.AddApplicationPauseCallback(_ =>
@@ -483,13 +482,13 @@ namespace Core.GameApp
             var bomb = new Probe("bomb") { ThrowOnUpdate = new InvalidOperationException("boom") };
             PlayerLoopDriver.Register(bomb);
 
-            LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+            UtfLogExpect.Error();
             Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
 
             PlayerLoopDriver.Unregister(bomb);
             PlayerLoopDriver.Register(bomb);
 
-            LogAssert.Expect(LogType.Error, new Regex("handler threw"));
+            UtfLogExpect.Error();
             Assert.Throws<InvalidOperationException>(() => PlayerLoopDriver.DriveUpdate());
 
             Assert.AreEqual(1, PlayerLoopDriver.UpdateHandlerCount, "重注册后计数从 0 计起，首次失败不应熔断");

@@ -1,10 +1,13 @@
-﻿using System.Threading;
-using System.Text.RegularExpressions;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos;
 using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 using Mp = Moirai.Atropos.MemoryPool;
 
 namespace Service.GameObjectPool
@@ -13,6 +16,7 @@ namespace Service.GameObjectPool
     /// GameObject 池回归测试：注入 fake <c>IPrefabLoader</c> 直测 <c>RuntimeGameObjectPool</c> 的 Spawn/Despawn 往返、句柄代系校验、容量约束、 <br />
     /// Flush 裁剪与策略规划器。
     /// </summary>
+    /// <remarks>故障注入路径的日志数量不可枚举，消噪窗口经 <c>UtfLogExpect.ScopedIgnore()</c> 打开；框架故障的身份日志经 <see cref="LogUtility.OnMessageLogged"/> 捕获断内容。</remarks>
     public sealed class GameObjectPoolTests
     {
         #region 测试桩 [TEST FAKE]
@@ -103,6 +107,8 @@ namespace Service.GameObjectPool
         private RuntimeGameObjectPool _pool;
         private PoolCompiledRule _lastRule;
         private PooledInstanceRegistry _registry;
+        private List<(ELogLevel Level, string Message)> _logs;
+        private Action<ELogLevel, string, Exception> _logCallback;
 
         [SetUp]
         public void SetUp()
@@ -111,11 +117,17 @@ namespace Service.GameObjectPool
             _loader = new FakePrefabLoader();
             _root = new GameObject("PoolRoot").transform;
             _registry = new PooledInstanceRegistry(16);
+
+            _logs = new List<(ELogLevel, string)>();
+            _logCallback = (level, message, _) => _logs.Add((level, message));
+            LogUtility.OnMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
+            LogUtility.OnMessageLogged -= _logCallback;
+
             if (_pool != null)
             {
                 _pool.Shutdown();
@@ -168,6 +180,20 @@ namespace Service.GameObjectPool
             Assert.IsTrue(_registry.TryResolve(instance, out RuntimeGameObjectPool owner, out int slotIndex));
             Assert.AreSame(pool, owner);
             Assert.AreEqual(EPoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
+        }
+
+        /// <summary>断言捕获到正文含指定片段的某级别日志（内容断言通道，与处理器无关）。</summary>
+        private void AssertLogCaptured(ELogLevel level, string fragment)
+        {
+            for (int i = 0; i < _logs.Count; i++)
+            {
+                if (_logs[i].Level == level && _logs[i].Message.Contains(fragment, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            Assert.Fail($"未捕获到包含「{fragment}」的 {level} 日志（本用例共捕获 {_logs.Count} 条）");
         }
 
         #endregion
@@ -1123,14 +1149,9 @@ namespace Service.GameObjectPool
             Assert.AreEqual(2, poolables.Length, "前置条件：同一实例挂两个池件");
             poolables[0].ThrowOnPooledDestroy = true;
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 Assert.DoesNotThrow(() => pool.ExecuteMaintenance(Time.time, true));
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
                 poolables[0].ThrowOnPooledDestroy = false;
             }
 
@@ -1155,14 +1176,9 @@ namespace Service.GameObjectPool
             DespawnOne(pool, first);
             DespawnOne(pool, second);
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 Assert.DoesNotThrow(() => pool.ExecuteMaintenance(Time.time, true));
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
                 firstPoolable.ThrowOnPooledDestroy = false;
                 secondPoolable.ThrowOnPooledDestroy = false;
             }
@@ -1186,10 +1202,12 @@ namespace Service.GameObjectPool
 
             // 用户回调已在循环里逐项隔离，能逃到维护边界的只剩框架自身缺陷：
             // 必须带池身份显式报出来（此前只有调度器一层裸 Fatal，指不出是哪个池在退化）。
-            LogAssert.Expect(LogType.Error, new Regex("Maintenance faulted"));
+            // 该日志走 LogUtility.Fatal（框架层 Fatal；ZLogger 把无异常对象的 Critical 渲染进 Error 通道）
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => pool.ExecuteMaintenance(Time.time, true));
 
             Assert.AreEqual(1, _loader.UnloadCount);
+            AssertLogCaptured(ELogLevel.Fatal, "Maintenance faulted");
             _loader.UnloadException = null;
         }
 
@@ -1205,14 +1223,9 @@ namespace Service.GameObjectPool
             FaultyPoolable otherPoolable = other.GetComponent<FaultyPoolable>();
             poisonedPoolable.ThrowOnPooledDestroy = true;
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 pool.Shutdown();
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
                 _pool = null; // 已拆除，别让 TearDown 再关一次
             }
 
@@ -1254,14 +1267,9 @@ namespace Service.GameObjectPool
             poolable.ThrowOnPooledDestroy = true;
             DespawnOne(pool, instance);
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 _scheduler.ProcessDue(Time.time);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
                 poolable.ThrowOnPooledDestroy = false;
             }
 

@@ -1,10 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Utility
 {
@@ -13,13 +14,16 @@ namespace Utility
     /// </summary>
     /// <remarks>
     /// 经 dt 注入版 <c>Update(float, float)</c> 直接驱动，不依赖引擎时间与帧监听；覆盖 ID 版本防别名、槽位回收复用、完成/停止语义、重入安全、 <br />
-    /// 循环模式（Restart/Yoyo/Incremental/Rewind）、延迟、销毁目标与参数校验。
+    /// 循环模式（Restart/Yoyo/Incremental/Rewind）、延迟、销毁目标与参数校验。 <br />
+    /// 销毁警告的内容断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public class TweenTaskTests
     {
         private GameObject _go;
         private Transform _transform;
+        private List<(ELogLevel Level, string Message)> _logs;
+        private Action<ELogLevel, string, Exception> _logCallback;
 
         [SetUp]
         public void SetUp()
@@ -28,13 +32,42 @@ namespace Utility
             _go = new GameObject("TweenTaskTests");
             _transform = _go.transform;
             _transform.position = Vector3.zero;
+
+            _logs = new List<(ELogLevel, string)>();
+            _logCallback = (level, message, _) => _logs.Add((level, message));
+            LogUtility.OnMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
+            LogUtility.OnMessageLogged -= _logCallback;
             DefaultTweenHandler.TweenTask.ResetStatics();
             UnityEngine.Object.DestroyImmediate(_go);
+        }
+
+        private void AssertLogCaptured(ELogLevel level, string fragment)
+        {
+            for (int i = 0; i < _logs.Count; i++)
+            {
+                if (_logs[i].Level == level && _logs[i].Message.Contains(fragment, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            Assert.Fail($"未捕获到包含「{fragment}」的 {level} 日志（本用例共捕获 {_logs.Count} 条）");
+        }
+
+        private void AssertNoLogCaptured(ELogLevel level, string fragment)
+        {
+            for (int i = 0; i < _logs.Count; i++)
+            {
+                if (_logs[i].Level == level && _logs[i].Message.Contains(fragment, StringComparison.Ordinal))
+                {
+                    Assert.Fail($"不应出现包含「{fragment}」的 {level} 日志（本用例共捕获 {_logs.Count} 条）");
+                }
+            }
         }
 
         #region 创建与 ID [CREATE & ID]
@@ -177,7 +210,7 @@ namespace Utility
         [Test]
         public void OnComplete_Exception_DoesNotBreakUpdateLoop()
         {
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Tween callback threw"));
+            UtfLogExpect.Error();
             long badId = CreatePositionTween(Vector3.zero, new Vector3(5f, 0f, 0f), 1f,
                 onComplete: () => throw new InvalidOperationException("boom"));
             int good = 0;
@@ -466,7 +499,7 @@ namespace Utility
         [Test]
         public void DestroyedDelayTarget_Warns_WhenWarnIfTargetDestroyed()
         {
-            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("Tween target destroyed"));
+            UtfLogExpect.Warning();
             int callbacks = 0;
             var state = new DefaultTweenHandler.TweenState
             {
@@ -486,6 +519,7 @@ namespace Utility
 
             Assert.AreEqual(0, callbacks);
             Assert.IsFalse(DefaultTweenHandler.TweenTask.IsAlive(id));
+            AssertLogCaptured(ELogLevel.Warning, "Tween target destroyed");
 
             _go = null;
             _transform = null;
@@ -513,6 +547,7 @@ namespace Utility
 
             Assert.AreEqual(0, callbacks);
             Assert.IsFalse(DefaultTweenHandler.TweenTask.IsAlive(id));
+            AssertNoLogCaptured(ELogLevel.Warning, "Tween target destroyed");
 
             _go = null;
             _transform = null;

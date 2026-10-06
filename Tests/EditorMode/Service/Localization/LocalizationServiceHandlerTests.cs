@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using Moirai.Atropos;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Service.Localization
 {
@@ -15,7 +14,8 @@ namespace Service.Localization
     /// <remarks>
     /// 处理器级用例直接构造桩数据源（与 <c>DefaultProcedureHandlerTests</c> 同约定），不碰 <see cref="LocalizationService"/> 的静态 Handler——那是跨用例状态， <br />
     /// 写脏会让 <c>ServiceContractTests</c> 的降级断言按执行顺序随机失败。 <br />
-    /// 首启语言取自检测链（命令行 → 编辑器设置 → 存档 → 系统语言），机器相关，因此需要「确实发生切换」的用例一律经 <see cref="OtherLoadedLanguage"/> 取目标语言，不硬编码。
+    /// 首启语言取自检测链（命令行 → 编辑器设置 → 存档 → 系统语言），机器相关，因此需要「确实发生切换」的用例一律经 <see cref="OtherLoadedLanguage"/> 取目标语言，不硬编码。 <br />
+    /// 失败路径的日志内容断言经 <see cref="Moirai.Atropos.LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public sealed class LocalizationServiceHandlerTests
@@ -25,19 +25,40 @@ namespace Service.Localization
         private static readonly Language Japanese = Language.Japanese;
 
         private L10nProbeHandler _handler;
+        private List<(ELogLevel, string)> _logs;
+        private Action<ELogLevel, string, Exception> _logCallback;
 
         [SetUp]
         public void SetUp()
         {
             _handler = new L10nProbeHandler();
             _handler.Internal_Init();
+
+            _logs = new List<(ELogLevel, string)>();
+            _logCallback = (level, message, _) => _logs.Add((level, message));
+            LogUtility.OnMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
+            LogUtility.OnMessageLogged -= _logCallback;
             _handler?.Internal_Shutdown();
             _handler = null;
+        }
+
+        /// <summary>断言捕获到正文含指定片段的某级别日志（内容断言通道，与处理器无关）。</summary>
+        private void AssertLogCaptured(ELogLevel level, string fragment)
+        {
+            for (int i = 0; i < _logs.Count; i++)
+            {
+                if (_logs[i].Item1 == level && _logs[i].Item2.Contains(fragment, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            Assert.Fail($"未捕获到包含「{fragment}」的 {level} 日志（本用例共捕获 {_logs.Count} 条）");
         }
 
         /// <summary>
@@ -161,8 +182,8 @@ namespace Service.Localization
             var intent = detected == English ? Chinese : English;
 
             // 桩数据源保持全空（无任何语言自报）→ 未就绪语义
-            LogAssert.Expect(LogType.Error, new Regex("generate config first"));
-            LogAssert.Expect(LogType.Error, new Regex("No language available"));
+            UtfLogExpect.Error();
+            UtfLogExpect.Error();
             _handler.ChangeLanguage(intent);
 
             _handler.Languages = new List<Language> { English, Chinese };
@@ -173,6 +194,8 @@ namespace Service.Localization
             _ = _handler.EntryCount; // 触发加载
 
             Assert.AreEqual(intent, _handler.CurrentLanguage);
+            AssertLogCaptured(ELogLevel.Error, "generate config first");
+            AssertLogCaptured(ELogLevel.Error, "No language available");
         }
 
         [Test]
@@ -183,12 +206,13 @@ namespace Service.Localization
             LoadStrings("ui.title", "Title", "标题");
             _ = _handler.EntryCount; // 先完成加载，后续不再走首启解析
             var before = _handler.CurrentLanguage;
-            LogAssert.Expect(LogType.Warning, new Regex("Japanese is not available"));
+            UtfLogExpect.Warning();
 
             _handler.ChangeLanguage("ja");
             _handler.ChangeLanguage("ja");
 
             Assert.AreEqual(before, _handler.CurrentLanguage);
+            AssertLogCaptured(ELogLevel.Warning, "Japanese is not available");
         }
 
         #endregion
@@ -327,12 +351,13 @@ namespace Service.Localization
                 };
                 var eventCount = 0;
                 _handler.OnLanguageChanged += _ => eventCount++;
-                LogAssert.Expect(LogType.Error, new Regex("another language switch is already in progress"));
+                UtfLogExpect.Error();
 
                 _handler.ChangeLanguage(OtherLoadedLanguage());
 
                 Assert.AreEqual(1, localizer.LocalizeCount, "嵌套切换不得引发第二次重注入");
                 Assert.AreEqual(1, eventCount);
+                AssertLogCaptured(ELogLevel.Error, "another language switch is already in progress");
             }
             finally
             {
@@ -404,9 +429,10 @@ namespace Service.Localization
             // 一条文案写坏占位符，不该把整块界面的查询抛出去
             LoadStrings("ui.price", "Price: {0} and {1}", null);
             _handler.ChangeLanguage(English);
-            LogAssert.Expect(LogType.Error, new Regex("invalid placeholders for 1 argument"));
+            UtfLogExpect.Error();
 
             Assert.AreEqual("Price: {0} and {1}", _handler.GetTextFromId("ui.price", 10));
+            AssertLogCaptured(ELogLevel.Error, "invalid placeholders for 1 argument");
         }
 
         [Test]
@@ -431,14 +457,15 @@ namespace Service.Localization
         [Test]
         public void DataNotReady_ReturnsKeyWithoutFailing()
         {
-            // 未转表要报一次 Error 让用户知道为什么全是 key；"只打一次"由这条 Expect 锁住
-            LogAssert.Expect(LogType.Error, new Regex("generate config first"));
+            // 未转表要报一次 Error 让用户知道为什么全是 key；"只打一次"由这一条声明锁住
+            UtfLogExpect.Error();
 
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.AreEqual(0, _handler.EntryCount);
             Assert.AreEqual(-1, _handler.CurrentLanguageIndex);
             Assert.GreaterOrEqual(_handler.LoadCallCount, 1);
+            AssertLogCaptured(ELogLevel.Error, "generate config first");
         }
 
         [Test]
@@ -446,13 +473,15 @@ namespace Service.Localization
         {
             // 读表抛异常≠没生成配置：兜底语会把排查方向整个带偏
             _handler.ThrowOnLoad = new InvalidOperationException("table read failed");
-            // Expect 只配一条：既锁住真因可见，也锁住"不随每次查询重播异常"——多落一条按意外日志判负
-            LogAssert.Expect(LogType.Error, new Regex("table read failed"));
+            // 只声明一条：既锁住真因可见，也锁住"不随每次查询重播异常"——多落一条按意外日志判负。
+            // 异常在该日志里是格式参数（非专用异常参），任何处理器下都落 Error 通道，声明 Error 即可
+            UtfLogExpect.Error();
 
             var attempts = _handler.LoadCallCount;
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.GreaterOrEqual(_handler.LoadCallCount - attempts, 2, "取数失败不置已加载标记，每次查询继续重试");
+            AssertLogCaptured(ELogLevel.Error, "table read failed");
         }
 
         [Test]
@@ -464,11 +493,12 @@ namespace Service.Localization
             {
                 ["ui.title"] = new List<string> { "Title" },
             };
-            LogAssert.Expect(LogType.Error, new Regex("column count that mismatches the 2 declared languages"));
+            UtfLogExpect.Error();
 
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.AreEqual(0, _handler.LanguageCount);
             Assert.AreEqual(0, _handler.ResidentChars, "半损坏数据不得留下可读的规模统计");
+            AssertLogCaptured(ELogLevel.Error, "column count that mismatches the 2 declared languages");
         }
 
         [Test]
@@ -481,11 +511,12 @@ namespace Service.Localization
             // 懒加载会重新向数据源取数，只有数据源同时空掉才观察得到运行时状态是否被复位
             _handler.Languages = new List<Language>();
             _handler.Strings = new Dictionary<string, List<string>>();
-            LogAssert.Expect(LogType.Error, new Regex("generate config first"));
+            UtfLogExpect.Error();
 
             Assert.AreEqual(0, _handler.EntryCount);
             Assert.AreEqual(-1, _handler.CurrentLanguageIndex);
             Assert.AreEqual(0, _handler.ResidentChars);
+            AssertLogCaptured(ELogLevel.Error, "generate config first");
         }
 
         [Test]
@@ -617,10 +648,11 @@ namespace Service.Localization
         {
             LoadStrings("fmt.a", "A:{0} and {1}", null);
             _handler.ChangeLanguage(English);
-            LogAssert.Expect(LogType.Error, new Regex("invalid placeholders for 1 argument"));
+            UtfLogExpect.Error();
 
             Assert.AreEqual("A:{0} and {1}", _handler.GetTextFromId("fmt.a", 1));
             Assert.AreEqual("nope", _handler.GetTextFromId<int>("nope", 1));
+            AssertLogCaptured(ELogLevel.Error, "invalid placeholders for 1 argument");
         }
 
         [Test]
@@ -751,12 +783,13 @@ namespace Service.Localization
 
             try
             {
-                LogAssert.Expect(LogType.Error, new Regex("generate config first"));
+                UtfLogExpect.Error();
 
                 Assert.AreEqual("ui.title", handler.GetTextFromId("ui.title"));
                 Assert.AreEqual("ui.title", handler.GetTextFromId("ui.title"), "拒载后必须保持重试语义而非哑死");
                 Assert.AreEqual(0, handler.EntryCount);
                 Assert.AreEqual(0, handler.LoadedLanguages.Count);
+                AssertLogCaptured(ELogLevel.Error, "generate config first");
             }
             finally
             {
@@ -784,26 +817,29 @@ namespace Service.Localization
         public void LoadThrowing_LogsOnlyOnceAcrossQueries()
         {
             // 数据源抛异常必须与空批同待遇：表未就绪期间每个 localizer/查询都在重试，无闸门即异常堆栈风暴
-            // 注：LogUtility 的 Error(ex) 重载经 DefaultLogHandler 以 LogType.Error 渲染（异常文本内嵌）
+            // 注：异常作为格式参数嵌入消息（ApplyLoadedBatch），任何处理器下都落 Error 通道，不涉 Exception 通道判定
             _handler.ThrowOnLoad = new InvalidOperationException("probe tables not ready");
-            LogAssert.Expect(LogType.Error, new Regex("probe tables not ready"));
+            UtfLogExpect.Error();
 
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.AreEqual("ui.title", _handler.GetTextFromId("ui.title"));
             Assert.GreaterOrEqual(_handler.LoadCallCount, 1, "未就绪时应保持重试语义");
+            AssertLogCaptured(ELogLevel.Error, "probe tables not ready");
         }
 
         [Test]
         public void NoLanguage_LogsOnlyOnceAcrossSwitchAttempts()
         {
-            LogAssert.Expect(LogType.Error, new Regex("generate config first"));
-            LogAssert.Expect(LogType.Error, new Regex("No language available"));
+            UtfLogExpect.Error();
+            UtfLogExpect.Error();
 
             _handler.ChangeLanguage(English);
             _handler.ChangeLanguage(Chinese);
             Assert.IsNull(_handler.ActivateNextLanguage());
             Assert.IsNull(_handler.ActivatePreviousLanguage());
+            AssertLogCaptured(ELogLevel.Error, "generate config first");
+            AssertLogCaptured(ELogLevel.Error, "No language available");
         }
 
         #endregion
@@ -831,11 +867,13 @@ namespace Service.Localization
             _handler.ChangeLanguage(English);
 
             _handler.ThrowOnLoad = new InvalidOperationException("probe hotfix corrupted");
-            LogAssert.Expect(LogType.Error, new Regex("probe hotfix corrupted"));
+            // 同 ApplyLoadedBatch 的格式参数路径：Error 通道
+            UtfLogExpect.Error();
             _handler.ReloadTexts();
 
             Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"), "重载失败必须保留上一份可用快照");
             Assert.AreEqual(English, _handler.CurrentLanguage);
+            AssertLogCaptured(ELogLevel.Error, "probe hotfix corrupted");
         }
 
         [Test]

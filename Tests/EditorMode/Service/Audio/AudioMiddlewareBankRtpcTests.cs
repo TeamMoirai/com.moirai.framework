@@ -1,12 +1,11 @@
 using System;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
 using Moirai.Atropos.Audio.Wwise;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 
 namespace Service.Audio
 {
@@ -311,12 +310,12 @@ namespace Service.Audio
             var handler = new FmodAudioHandler();
             handler.SetBridge(bridge);
 
-            LogAssert.Expect(UnityEngine.LogType.Warning, new Regex("声音库 .*Bank_Boss 加载失败"));
+            UtfLogExpect.Warning();
             Assert.IsFalse(handler.LoadBank("Bank_Boss"), "失败必须返回 false");
             Assert.IsFalse(handler.LoadBank("Bank_Boss"));
             Assert.IsFalse(handler.LoadBank("Bank_Boss"));
 
-            // 三条断言只配了一次 LogAssert.Expect：再多落一条 Warning 就会以「意外日志」失败
+            // 只声明了一条 Warning 预期：再多落一条告警就会以「意外日志」失败——这正是 WarnsOnce 的计数守卫
             Assert.AreEqual(3, bridge.LoadCalls, "告警去重不得顺手把重试也拦掉——桥仍要被问到");
         }
 

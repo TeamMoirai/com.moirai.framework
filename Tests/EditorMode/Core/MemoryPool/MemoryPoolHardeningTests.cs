@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Moirai.Atropos;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using Mp = Moirai.Atropos.MemoryPool;
 
 namespace Core.MemoryPool
@@ -11,7 +11,8 @@ namespace Core.MemoryPool
     /// 上线加固面回归：存活上限（漏还可见性）、在外高水位、结构自检、批量异常采集上限与维护边界上报。
     /// </summary>
     /// <remarks>
-    /// 这些判据属于「发布包里不会当场报错、几周后才以 OOM 或随机崩溃回来」的一类，配套的是可发现的边界与只读自检，而不是新的运行时约束。
+    /// 这些判据属于「发布包里不会当场报错、几周后才以 OOM 或随机崩溃回来」的一类，配套的是可发现的边界与只读自检，而不是新的运行时约束。 <br />
+    /// 故障路径的日志数量依分级策略（报后抛 / 隔离）而变、不可枚举——消噪窗口经 <c>UtfLogExpect.ScopedIgnore()</c> 打开。
     /// </remarks>
     public sealed class MemoryPoolHardeningTests : MemoryPoolFixture
     {
@@ -29,16 +30,11 @@ namespace Core.MemoryPool
             Assert.AreEqual(limit, Info<PoolItem>().UsingCount);
             Assert.AreEqual(limit, Info<PoolItem>().LiveLimit);
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 // 开发期先报后抛：漏还要在第一现场被人看见，而不是等正式包 OOM。
                 Assert.Throws<InvalidOperationException>(() => MemoryPool<PoolItem>.Acquire(), "越过后没有拦下超额取用");
                 Assert.AreEqual(limit, Info<PoolItem>().UsingCount, "被拒绝的取用仍占了一个槽");
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             // 归还一格后又能取：上限拦的是"在外数量"，不是"取用总量"。
@@ -211,17 +207,12 @@ namespace Core.MemoryPool
             MemoryPool<PoolItem>.Release(first);
             MemoryPoolRegistry.Phase = EMemoryPoolPhase.LowMemory;
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 // 开发期：边界先合并报一条带身份的 Fatal，再按分级上抛。
                 // 只有一个池失败时上抛的是那条原始异常本身（聚合只在多失败时合成），断类型要按这个来。
                 Exception fault = Assert.Throws<InvalidOperationException>(() => Tick(), "TickAll 没有把池的维护故障上抛");
                 StringAssert.Contains("OnEvict() failed", fault.Message);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             Assert.AreEqual(0, Info<PoolItem>().UnusedCount, "边界收口把该剪的没剪完");

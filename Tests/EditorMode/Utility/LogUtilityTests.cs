@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using Moirai.Atropos;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Utility
 {
@@ -13,7 +12,7 @@ namespace Utility
     /// </summary>
     /// <remarks>
     /// 不创建 <c>LogHandler</c> 子类（避免 <c>[SerializeReference]</c> Inspector 下拉污染）， <br />
-    /// 用 <c>DefaultLogHandler</c> + <see cref="LogUtility.OnMessageLogged"/> 事件捕获日志条目。
+    /// 用 <c>DefaultLogHandler</c> + <see cref="LogUtility.OnMessageLogged"/> 事件捕获日志条目；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     public class LogUtilityTests
     {
@@ -74,8 +73,8 @@ namespace Utility
             LogUtility.Debug("d");
             LogUtility.Info("i");
             LogUtility.Warning("w");
-            // LogAssert 仅承担 UTF 错误日志消除职责，不耦合 Handler 渲染前缀；内容断言走 OnMessageLogged
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
+            // UTF 消噪经 UtfLogExpect 统一声明（处理器可见性判定收在那一处）；内容断言走 OnMessageLogged
+            UtfLogExpect.Error();
             LogUtility.Error("e");
 
             Assert.AreEqual(5, _entries.Count);
@@ -132,7 +131,7 @@ namespace Utility
         public void Log_ErrorWithException_PassesException()
         {
             var exception = new InvalidOperationException("boom");
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
+            UtfLogExpect.Error();
 
             LogUtility.Error(exception);
 
@@ -146,7 +145,7 @@ namespace Utility
         {
             var exception = new InvalidOperationException("fatal");
             // Fatal + 异常走 Debug.LogException（LogType.Exception）通道
-            LogAssert.Expect(LogType.Exception, new Regex(".*fatal.*"));
+            UtfLogExpect.Exception();
 
             LogUtility.Fatal(exception);
 
@@ -157,9 +156,9 @@ namespace Utility
         [Test]
         public void DefaultLogHandler_Fatal_DoesNotThrow()
         {
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => LogUtility.Fatal("unrecoverable"));
-            LogAssert.Expect(LogType.Exception, new Regex(".*boom.*"));
+            UtfLogExpect.Exception();
             Assert.DoesNotThrow(() => LogUtility.Fatal(new InvalidOperationException("boom")));
         }
 
@@ -195,7 +194,7 @@ namespace Utility
         public void MessageLogged_FiresAfterLog()
         {
             LogUtility.Info("hello");
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
+            UtfLogExpect.Error();
             LogUtility.Error("oops");
 
             Assert.AreEqual(2, _entries.Count);
@@ -220,7 +219,7 @@ namespace Utility
         public void MessageLogged_ExceptionOverload_FiresWithException()
         {
             var ex = new InvalidOperationException("err");
-            LogAssert.Expect(LogType.Error, new Regex(".*"));
+            UtfLogExpect.Error();
 
             LogUtility.Error(ex);
 

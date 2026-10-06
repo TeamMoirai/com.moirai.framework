@@ -4,7 +4,6 @@ using Moirai.Atropos;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 
 namespace Service.Audio
 {
@@ -58,19 +57,12 @@ namespace Service.Audio
             var bare = new AudioMixStateMachine();
             bare.BindFromMixer(null);
 
-            LogAssert.ignoreFailingMessages = true;
-            bool accepted;
-            try
-            {
-                accepted = bare.Request(EMixSnapshot.Dialogue, 0.1f);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
-            }
+            UtfLogExpect.Warning();
+            bool accepted = bare.Request(EMixSnapshot.Dialogue, 0.1f);
 
             Assert.IsFalse(accepted, "什么都施加不了时不得算成功");
             Assert.AreEqual(EMixSnapshot.Default, bare.Current, "未施加的切换不该推进状态记账");
+            Assert.IsTrue(Mentions("无法施加"), "拒绝时须告警（经 AudioWarnOnce 按状态去重，SetUp 已 Reset 保证逐用例可复现）");
         }
 
         [Test]
