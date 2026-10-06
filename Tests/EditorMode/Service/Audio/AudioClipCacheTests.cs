@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
+using Moirai.Atropos.Tests.EditorMode;
 using Testing;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 
 namespace Service.Audio
 {
     /// <summary>
     /// <see cref="AudioClipCache"/> 语义回归：单飞加载、引用计数、LRU/TTL/Pin 驱逐、容量上界、lowMemory 回收、迟到回调作废、关停后租约归还。
     /// </summary>
-    /// <remarks>TTL 与失败冷却的时间判据经 <see cref="GameTime"/> 注入虚拟时钟确定性推进（<see cref="AdvanceRealtime"/>），不依赖真实墙钟等待。</remarks>
+    /// <remarks>TTL 与失败冷却的时间判据经 <see cref="GameTime"/> 注入虚拟时钟确定性推进（<see cref="AdvanceRealtime"/>），不依赖真实墙钟等待；超额归还的举报日志经 <c>UtfLogExpect</c> 声明（恰好一条 Error）。</remarks>
     [TestFixture]
     public class AudioClipCacheTests
     {
@@ -237,15 +237,9 @@ namespace Service.Audio
             _fixture.Cache.Retain(entry);
             _fixture.Cache.Release(entry);
 
-            LogAssert.ignoreFailingMessages = true;
-            try
-            {
-                _fixture.Cache.Release(entry);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
-            }
+            // 超额归还会举报（LogUtility.Error 一条：Release() on an unretained entry），计数不打负数
+            UtfLogExpect.Error();
+            _fixture.Cache.Release(entry);
 
             Assert.AreEqual(0, entry.RefCount, "重复归还不得把引用计数打成负数");
             Assert.IsTrue(_fixture.Cache.TryGetEntry(A, out _));

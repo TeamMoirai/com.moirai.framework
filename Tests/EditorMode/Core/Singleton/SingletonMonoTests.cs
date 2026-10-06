@@ -2,12 +2,10 @@ using System;
 using Moirai.Atropos.Tests.EditorMode;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Moirai.Atropos;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Core.Singleton
 {

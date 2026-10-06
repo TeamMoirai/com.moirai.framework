@@ -8,16 +8,17 @@ using UnityEditor.PackageManager;
 namespace Policy
 {
     /// <summary>
-    /// 测试日志通道策略守卫：测试代码自身的日志发射一律走 <c>UnityEngine.Debug.Log*</c>， <br />
-    /// 不得经 <c>LogUtility</c> 的发射方法（Verbose/Debug/Info/Warning/Error/Fatal/Assert）。
+    /// 测试日志通道策略守卫：测试代码自身的日志发射一律走 <c>UnityEngine.Debug.Log*</c>（不得经 <c>LogUtility</c> 的发射方法）， <br />
+    /// UTF 日志预期的声明/开关/计数 API 不得在用例侧直用（一律经 <c>UtfLogExpect</c>，Debug 直发场景白名单豁免）。
     /// </summary>
     /// <remarks>
     /// <c>LogUtility</c> 是带分类过滤与 Handler 管道的运行时基础设施，测试诊断走它会让「这条日志算不算失败」取决于测试域恰好激活的 Handler 配置； <br />
-    /// <c>Debug.Log*</c> 对 UTF 的可见性则是确定的。
-    /// 断言通道不受此守卫约束：<see cref="LogUtility.OnMessageLogged"/> 订阅是捕获运行时日志的唯一稳定通道， <br />
-    /// <see cref="UtfLogExpect"/> 是消除未处理日志的统一入口（读 Handler 状态做可见性判定，不是发射）。
-    /// 白名单两类正当用途：① 被测本体（LogUtility 自身的语义回归必须发射 LogUtility）；② 替身复刻（fake loader 复现生产侧错误发射，错误路径断言依赖该可观察行为）。 <br />
-    /// 白名单双向断言：未登记的不得出现发射模式，已登记的必须仍存在且仍命中，否则名单腐烂。结构与 <see cref="ReflectionPolicyGuardTests"/> 同构。
+    /// <c>Debug.Log*</c> 对 UTF 的可见性则是确定的。 <br />
+    /// 断言通道不受此守卫约束：<see cref="Moirai.Atropos.LogUtility.OnMessageLogged"/> 订阅是捕获运行时日志的唯一稳定通道， <br />
+    /// <c>UtfLogExpect</c> 是消除未处理日志的统一入口（读 Handler 状态做可见性判定，不是发射）。 <br />
+    /// LogAssert 直用禁令的两条豁免：两份 <c>UtfLogExpect</c> 支撑副本（实现处本身），与「被测走 Debug 直发、不经 LogUtility」的场景（该链路不涉处理器判定，LogAssert 是唯一通道）。 <br />
+    /// 发射禁令白名单两类正当用途：① 被测本体（LogUtility 自身的语义回归必须发射 LogUtility）；② 替身复刻（fake loader 复现生产侧错误发射，错误路径断言依赖该可观察行为）。 <br />
+    /// 两条名单都双向断言：未登记的不得出现该模式，已登记的必须仍存在且仍命中，否则名单腐烂。结构与 <see cref="ReflectionPolicyGuardTests"/> 同构。
     /// </remarks>
     [TestFixture]
     public sealed class TestLogChannelPolicyGuardTests
@@ -47,6 +48,25 @@ namespace Policy
             // ── ② 替身复刻：fake loader 复现生产错误发射，错误路径断言依赖该可观察行为 ──
             ["EditorMode/Service/Save/SaveEntityPersistenceTests.cs"] = "替身复刻：fake loader 复现「Prefab key 未注册」的生产错误发射",
             ["EditorMode/Service/Save/SaveEntityIncrementalTests.cs"] = "替身复刻：fake loader 复现「Prefab key 未注册」的生产错误发射",
+        };
+
+        /// <summary>被禁止在用例侧直用的 UTF 日志预期 API 字面（守卫自身除外）。</summary>
+        /// <remarks>声明/开关/计数判负三种形态都在内——它们把处理器可见性判定散落进用例，正是 UtfLogExpect 要收拢的。</remarks>
+        private static readonly string[] ForbiddenLogAssertApis =
+        {
+            "LogAssert.Expect(",
+            "LogAssert.ignoreFailingMessages",
+            "LogAssert.NoUnexpectedReceived(",
+        };
+
+        /// <summary>允许直用 LogAssert 的文件（相对 <c>Tests/</c>）及其归类。</summary>
+        /// <remarks>白名单两类：UtfLogExpect 的两份程序集本地副本（统一入口的实现处）； <br />
+        /// 以及「被测走 <c>Debug.Log*</c> 直发、不经 LogUtility」的场景——那条链路 UTF 恒可见，声明预期不涉及处理器判定，LogAssert 是唯一正确通道。</remarks>
+        private static readonly Dictionary<string, string> LogAssertAllowlist = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["EditorMode/Support/UtfLogExpect.cs"] = "统一入口：处理器可见性判定、ScopedIgnore 窗口与 ErrorWithException 级别判定的唯一实现处",
+            ["PlayMode/Support/UtfLogExpect.cs"] = "统一入口：PlayMode 程序集本地副本（asmdef 拓扑不可跨程序集共享）",
+            ["EditorMode/Service/Debugger/DebuggerLogCaptureTests.cs"] = "被测是 Unity 控制台日志捕获器，用例自发射 Debug.LogError 直发、不经 LogUtility——LogAssert 是唯一正确通道",
         };
 
         /// <summary>
@@ -110,11 +130,86 @@ namespace Policy
                 string.Join("\n  ", stale));
         }
 
+        /// <summary>
+        /// 未登记的文件不得在用例侧直用 LogAssert 的声明/开关/计数 API。
+        /// </summary>
+        [Test]
+        public void LogAssertDirectUsage_OnlyInAllowlistedFiles()
+        {
+            string testsRoot = ResolveTestsRoot();
+            List<string> offenders = new List<string>();
+
+            foreach (string file in EnumerateTestSources(testsRoot))
+            {
+                string relative = ToRelative(testsRoot, file);
+                if (LogAssertAllowlist.ContainsKey(relative))
+                {
+                    continue;
+                }
+
+                if (ContainsAnyForbiddenLogAssertApi(File.ReadAllText(file)))
+                {
+                    offenders.Add(relative);
+                }
+            }
+
+            Assert.IsEmpty(offenders,
+                "以下测试文件直用了 LogAssert，但《测试规范》要求经 UtfLogExpect 统一声明：\n" +
+                "· LogUtility 发射的日志 → UtfLogExpect.Error()/Warning()/Exception()（处理器可见性判定收在那一处，正则固定 .*）；\n" +
+                "· 带异常对象的 Error → UtfLogExpect.ErrorWithException(fragment)（级别判定同收）；\n" +
+                "· 错误集不可枚举的故障注入 → using (UtfLogExpect.ScopedIgnore())（快照还原由 using 保证）；\n" +
+                "· 内容断言 → LogUtility.OnMessageLogged 捕获（与处理器无关）；\n" +
+                "· 被测走 Debug.Log 直发、不经 LogUtility → LogAssert 是唯一正确通道，登记 LogAssertAllowlist 并写明归类。\n" +
+                "命中文件：\n  " + string.Join("\n  ", offenders));
+        }
+
+        /// <summary>
+        /// LogAssert 白名单不得腐烂：每一项都必须存在且仍然直用。
+        /// </summary>
+        [Test]
+        public void LogAssertAllowlist_EntriesStillExistAndStillUse()
+        {
+            string testsRoot = ResolveTestsRoot();
+            List<string> stale = new List<string>();
+
+            foreach (KeyValuePair<string, string> entry in LogAssertAllowlist)
+            {
+                string full = Path.Combine(testsRoot, entry.Key.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(full))
+                {
+                    stale.Add(entry.Key + "（文件不存在——改名或删除后要同步名单）");
+                    continue;
+                }
+
+                if (!ContainsAnyForbiddenLogAssertApi(File.ReadAllText(full)))
+                {
+                    stale.Add(entry.Key + "（已不再直用 LogAssert——请从名单移除，别留着占位）");
+                }
+            }
+
+            Assert.IsEmpty(stale,
+                "LogAssert 白名单有腐烂条目，请同步 TestLogChannelPolicyGuardTests.LogAssertAllowlist：\n  " +
+                string.Join("\n  ", stale));
+        }
+
         private static bool ContainsAnyEmission(string source)
         {
             for (int i = 0; i < FORBIDDEN_EMISSIONS.Length; i++)
             {
                 if (source.Contains(FORBIDDEN_EMISSIONS[i], StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsAnyForbiddenLogAssertApi(string source)
+        {
+            for (int i = 0; i < ForbiddenLogAssertApis.Length; i++)
+            {
+                if (source.Contains(ForbiddenLogAssertApis[i], StringComparison.Ordinal))
                 {
                     return true;
                 }

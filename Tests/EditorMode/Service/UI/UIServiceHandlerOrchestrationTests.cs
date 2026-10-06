@@ -621,7 +621,8 @@ namespace Service.UI
                 () => UIService.ShowUIAsync<ProbeUGUIWindow>("DisabledTrackAsync"), "异步腿走的也是同一道守卫");
             Assert.Throws<GameException>(
                 () => UIService.ShowUI(typeof(ProbeUGUIWindow), "DisabledTrackByType"), "Type 形入口的 uGUI 档同判据");
-            Assert.ThrowsAsync<GameException>(async () => await UIService.ShowUIAsyncAwait<ProbeUGUIWindow>("DisabledTrackAwait"),
+            Assert.Throws<GameException>(
+                () => UIService.ShowUIAsyncAwait<ProbeUGUIWindow>("DisabledTrackAwait").GetAwaiter().GetResult(),
                 "等待腿把异常收进交回的那一份 UniTask");
 
             Assert.AreEqual(0, Stack.Count, "抬错排在压栈之前：栈上一只窗都不多");

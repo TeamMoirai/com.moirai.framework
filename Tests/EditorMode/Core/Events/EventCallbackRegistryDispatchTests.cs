@@ -1,7 +1,7 @@
 using System;
 using Moirai.Atropos.Events;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 
 namespace Core.Events
 {
@@ -10,7 +10,8 @@ namespace Core.Events
     /// </summary>
     /// <remarks>
     /// 判据：<c>m_IsInvoking</c> 未在 finally 复位时，一次抛异常会让派发深度永久为正，此后注册/注销只写进 <c>m_TemporaryCallbacks</c> 而派发仍读 <c>m_Callbacks</c>， <br />
-    /// 事件系统整体静默失效；拷贝构造漏设阶段计数会让冒泡/下探路径静默丢祖先。
+    /// 事件系统整体静默失效；拷贝构造漏设阶段计数会让冒泡/下探路径静默丢祖先。 <br />
+    /// 故障注入的错误日志数量依构建策略（上抛/隔离）而变、不可枚举——消噪窗口经 <c>UtfLogExpect.ScopedIgnore()</c> 打开，还原由 using 保证。
     /// </remarks>
     public class EventCallbackRegistryDispatchTests
     {
@@ -19,13 +20,13 @@ namespace Core.Events
         /// <summary>
         /// 仅用于测试的最小事件类型。
         /// </summary>
-        public sealed class ProbeEvent : EventBase<ProbeEvent>
+        internal sealed class ProbeEvent : EventBase<ProbeEvent>
         {
             /// <summary>
             /// 从事件池取出一个实例。
             /// </summary>
             /// <returns>可用于派发的测试事件。</returns>
-            public static ProbeEvent Take() => GetPooled();
+            internal static ProbeEvent Take() => GetPooled();
         }
 
         #endregion
@@ -60,8 +61,7 @@ namespace Core.Events
             };
             registry.RegisterCallback(fault);
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 using var throwing = ProbeEvent.Take();
                 try
@@ -72,10 +72,6 @@ namespace Core.Events
                 {
                     // 开发构建：按分级策略上抛，此处按预期吞掉
                 }
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             Assert.AreEqual(1, faultHits, "前置条件：故障回调必须确实被派发过，否则下面的断言没有意义");

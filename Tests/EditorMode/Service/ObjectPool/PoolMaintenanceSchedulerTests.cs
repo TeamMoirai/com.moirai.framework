@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 
 namespace Service.ObjectPool
 {
     /// <summary>
     /// 共享池维护调度器回归测试：入堆/更新/移除/到期顺序/取消/清空。
     /// </summary>
+    /// <remarks>毒项隔离路径的日志数量不可枚举，消噪窗口经 <c>UtfLogExpect.ScopedIgnore()</c> 打开。</remarks>
     public sealed class PoolMaintenanceSchedulerTests
     {
         #region 测试桩 [TEST FAKES]
@@ -363,8 +364,7 @@ namespace Service.ObjectPool
             scheduler.Schedule(third, 30f);
             scheduler.Schedule(poison, 10f);
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 Assert.DoesNotThrow(() => scheduler.ProcessDue(100f));
                 Assert.AreEqual(1, poison.ExecutionCount, "抛出项当场出堆");
@@ -376,10 +376,6 @@ namespace Service.ObjectPool
                 {
                     scheduler.ProcessDue(100f);
                 }
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             Assert.AreEqual(0, scheduler.Count, "due queue must drain");
@@ -417,15 +413,10 @@ namespace Service.ObjectPool
             ThrowingItem poison = new ThrowingItem();
             scheduler.Schedule(poison, 10f);
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 scheduler.ProcessDue(100f);
                 scheduler.ProcessDue(100f);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             Assert.AreEqual(1, poison.ExecutionCount, "not re-scheduled → not retried");
@@ -440,14 +431,9 @@ namespace Service.ObjectPool
             ThrowingRescheduleItem item = new ThrowingRescheduleItem(scheduler, 10f);
             scheduler.Schedule(item, 10f);
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 scheduler.ProcessDue(10f);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             // 抛出 + 自行重排：调度权必须还在（真实池的维护边界就是这个形状），

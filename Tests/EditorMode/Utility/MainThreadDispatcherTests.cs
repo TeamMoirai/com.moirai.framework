@@ -1,14 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Utility
 {
@@ -16,22 +15,45 @@ namespace Utility
     /// <see cref="MainThreadDispatcher"/> 静态核心的 EditMode 单元测试。
     /// </summary>
     /// <remarks>
-    /// 通过内部 API（<c>InternalsVisibleTo</c>）直接驱动 <c>Pump</c>，不依赖实例生命周期。
+    /// 通过内部 API（<c>InternalsVisibleTo</c>）直接驱动 <c>Pump</c>，不依赖实例生命周期。 <br />
+    /// 告警内容断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public class MainThreadDispatcherTests
     {
+        private List<(ELogLevel Level, string Message)> _logs;
+        private Action<ELogLevel, string, Exception> _logCallback;
+
         [SetUp]
         public void SetUp()
         {
             MainThreadDispatcher.ResetStatics();
+
+            _logs = new List<(ELogLevel, string)>();
+            _logCallback = (level, message, _) => _logs.Add((level, message));
+            LogUtility.OnMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
+            LogUtility.OnMessageLogged -= _logCallback;
             // 恢复可用状态，避免 BeginShutdown 测试污染后续测试
             MainThreadDispatcher.ResetStatics();
+        }
+
+        private int CountLogCaptured(ELogLevel level, string fragment)
+        {
+            int count = 0;
+            for (int i = 0; i < _logs.Count; i++)
+            {
+                if (_logs[i].Level == level && _logs[i].Message.Contains(fragment, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         #region 基础执行 [Basic Execution]
@@ -140,7 +162,7 @@ namespace Utility
         public void Pump_ExceptionInAction_IsolatedAndSubsequentActionsStillRun()
         {
             // Pump 异常路径经 LogUtility 的 Fatal(ex) → Debug.LogException（LogType.Exception）
-            LogAssert.Expect(LogType.Exception, new Regex(".*boom.*"));
+            UtfLogExpect.Exception();
 
             int afterCount = 0;
             MainThreadDispatcher.Post(() => throw new InvalidOperationException("boom"));
@@ -165,7 +187,8 @@ namespace Utility
 
             MainThreadDispatcher.Pump();
 
-            Assert.ThrowsAsync<DivideByZeroException>(async () => await task);
+            // 经 async lambda 断言会被 Task 基础设施包装，同步 GetResult 暴露原始异常类型
+            Assert.Throws<DivideByZeroException>(() => task.GetAwaiter().GetResult());
         }
 
         [Test]
@@ -208,7 +231,7 @@ namespace Utility
             UniTask task = MainThreadDispatcher.SendAsync(() => throw new ArithmeticException());
 
             Assert.AreEqual(UniTaskStatus.Faulted, task.Status);
-            Assert.ThrowsAsync<ArithmeticException>(async () => await task);
+            Assert.Throws<ArithmeticException>(() => task.GetAwaiter().GetResult());
         }
 
         [Test]
@@ -293,7 +316,7 @@ namespace Utility
         [Test]
         public void BeginShutdown_DropsPendingAndLogsCount()
         {
-            LogAssert.Expect(LogType.Warning, new Regex(@"2 pending action\(s\) dropped"));
+            UtfLogExpect.Warning();
 
             int executed = 0;
             MainThreadDispatcher.Post(() => executed++);
@@ -303,6 +326,8 @@ namespace Utility
 
             Assert.AreEqual(0, executed, "积压任务应被丢弃而非执行");
             Assert.AreEqual(0, MainThreadDispatcher.PendingCount);
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "2 pending action(s) dropped"),
+                "丢弃计数告警应恰好出现一次（MainThreadDispatcher shutdown: 2 pending action(s) dropped）");
         }
 
         [Test]
@@ -311,12 +336,13 @@ namespace Utility
             MainThreadDispatcher.BeginShutdown(); // 空队列关闭：静默，不告警
             Assert.AreEqual(0, MainThreadDispatcher.PendingCount);
 
-            LogAssert.Expect(LogType.Warning, new Regex("rejected"));
+            UtfLogExpect.Warning();
             int executed = 0;
             MainThreadDispatcher.Post(() => executed++);
 
             MainThreadDispatcher.Pump();
             Assert.AreEqual(0, executed, "关闭后的入队应被拒绝");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "rejected"), "拒绝入队应告警一次");
         }
 
         [Test]
@@ -335,7 +361,7 @@ namespace Utility
         [Test]
         public void Send_CoroutineDuringShutdownWindow_DropsWithWarningInsteadOfNRE()
         {
-            LogAssert.Expect(LogType.Warning, new Regex("coroutine dropped"));
+            UtfLogExpect.Warning();
 
             // 置位基类退出标记，模拟应用退出窗口（s_ShuttingDown=true → Instance getter 返回 null）
             SingletonMono<MainThreadDispatcher>.s_ShuttingDown = true;
@@ -349,6 +375,7 @@ namespace Utility
 
             Assert.DoesNotThrow(() => MainThreadDispatcher.Send(DummyRoutine()), "退出窗口的协程 Send 应丢弃并告警，而非 NRE");
             Assert.AreEqual(0, started, "协程不应被启动");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "coroutine dropped"), "丢弃协程应告警一次");
         }
 
         [Test]
@@ -523,7 +550,7 @@ namespace Utility
             MainThreadDispatcher.Pump();
 
             Assert.AreEqual(UniTaskStatus.Faulted, task.Status, "同步抛出的异常必须写入完成源，任务不得永久 Pending");
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await task);
+            Assert.Throws<InvalidOperationException>(() => task.GetAwaiter().GetResult());
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount, "finally 应清理注册表");
         }
 
@@ -536,7 +563,7 @@ namespace Utility
             MainThreadDispatcher.Pump();
 
             Assert.AreEqual(UniTaskStatus.Faulted, task.Status, "同步抛出的异常必须写入完成源，任务不得永久 Pending");
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await task);
+            Assert.Throws<InvalidOperationException>(() => task.GetAwaiter().GetResult());
             Assert.AreEqual(0, MainThreadDispatcher.PendingAwaiterCount, "finally 应清理注册表");
         }
 
@@ -575,7 +602,7 @@ namespace Utility
         [Test]
         public void Post_BacklogExceedsThreshold_WarnsOnlyOnce()
         {
-            LogAssert.Expect(LogType.Warning, new Regex("backlog exceeds"));
+            UtfLogExpect.Warning();
 
             int threshold = MainThreadDispatcher.BACKLOG_WARN_THRESHOLD;
             // 告警在采样点（每 256 次入队）触发；继续入队验证滞回只告警一次
@@ -584,7 +611,8 @@ namespace Utility
                 MainThreadDispatcher.Post(() => { });
             }
 
-            LogAssert.NoUnexpectedReceived();
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "backlog exceeds"),
+                "背压告警应受滞回约束只出现一次（OnMessageLogged 计数，与处理器无关）");
         }
 
         #endregion

@@ -1,18 +1,19 @@
 using System;
-using System.Text.RegularExpressions;
+using System.Collections.Generic;
 using Moirai.Atropos;
 using Moirai.Atropos.Timer;
+using Moirai.Atropos.Tests.EditorMode;
 using Testing;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Service.Timer
 {
     /// <summary>
     /// 时间轮面对被污染时间输入（NaN / 无穷 / 溢出）时的自愈性测试。
     /// </summary>
-    /// <remarks>tick 换算饱和化后，单帧 NaN 时钟不得把轮游标打到 <c>long.MinValue</c>（那等于时间轮此后每帧只追 64 tick，实际永久冻结）；非有限延时必须在占用槽位前被拒绝。</remarks>
+    /// <remarks>tick 换算饱和化后，单帧 NaN 时钟不得把轮游标打到 <c>long.MinValue</c>（那等于时间轮此后每帧只追 64 tick，实际永久冻结）；非有限延时必须在占用槽位前被拒绝。<br />
+    /// 拒绝警告的内容断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。</remarks>
     public class WheelTimerClockPoisonTests
     {
         private const double START_SCALED = 100.0;
@@ -23,6 +24,8 @@ namespace Service.Timer
         private double _now;
         private double _unscaledNow;
         private int _fired;
+        private List<(ELogLevel Level, string Message)> _logs;
+        private Action<ELogLevel, string, Exception> _logCallback;
 
         [SetUp]
         public void SetUp()
@@ -34,6 +37,10 @@ namespace Service.Timer
             GameTime.Handler = new VirtualClockHandler(() => _now, () => _unscaledNow);
             _handler = new DefaultTimerHandler();
             _handler.Internal_Init();
+
+            _logs = new List<(ELogLevel, string)>();
+            _logCallback = (level, message, _) => _logs.Add((level, message));
+            LogUtility.OnMessageLogged += _logCallback;
         }
 
         [TearDown]
@@ -48,7 +55,21 @@ namespace Service.Timer
             {
                 _handler = null;
                 GameTime.Handler = _originalGameTimeHandler;
+                LogUtility.OnMessageLogged -= _logCallback;
             }
+        }
+
+        private void AssertLogCaptured(ELogLevel level, string fragment)
+        {
+            for (int i = 0; i < _logs.Count; i++)
+            {
+                if (_logs[i].Level == level && _logs[i].Message.Contains(fragment, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            Assert.Fail($"未捕获到包含「{fragment}」的 {level} 日志（本用例共捕获 {_logs.Count} 条）");
         }
 
         private void Fire() => _fired++;
@@ -67,11 +88,12 @@ namespace Service.Timer
         [Test]
         public void InfinityDelay_IsRejectedAndNeverFires()
         {
-            LogAssert.Expect(LogType.Warning, new Regex("Schedule failed"));
+            UtfLogExpect.Warning();
 
             var handle = _handler.Delay(float.PositiveInfinity, Fire);
 
             Assert.AreEqual(0UL, handle, "正无穷延时不是有效排期，应返回 0 句柄");
+            AssertLogCaptured(ELogLevel.Warning, "Schedule failed");
             Advance(5.0);
             Assert.AreEqual(0, _fired, "被拒绝的排期不得触发");
         }
@@ -79,11 +101,12 @@ namespace Service.Timer
         [Test]
         public void NaNDelay_IsRejectedAndNeverFires()
         {
-            LogAssert.Expect(LogType.Warning, new Regex("Schedule failed"));
+            UtfLogExpect.Warning();
 
             var handle = _handler.Delay(float.NaN, Fire);
 
             Assert.AreEqual(0UL, handle, "NaN 延时应被拒绝");
+            AssertLogCaptured(ELogLevel.Warning, "Schedule failed");
             Advance(5.0);
             Assert.AreEqual(0, _fired, "被拒绝的排期不得触发");
         }
