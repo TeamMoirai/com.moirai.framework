@@ -1,13 +1,14 @@
 using Moirai.Atropos.ObjectPool;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Service.ObjectPool
 {
     /// <summary>
     /// 通用对象池回归测试：注册/取用/归还、引用计数复用、锁定保护、容量裁剪、过期释放、销毁池。
     /// </summary>
+    /// <remarks>注册失败与故障释放路径的日志消噪经 <c>UtfLogExpect</c> 统一声明（后者数量不可枚举，走 ScopedIgnore 窗口）。</remarks>
     public sealed class GenericObjectPoolTests
     {
         #region 测试桩 [TEST FAKES]
@@ -227,7 +228,7 @@ namespace Service.ObjectPool
             IObjectPool<TestObject> pool = handler.GetOrCreatePool<TestObject>(default);
             TestObject obj = new TestObject(new object());
             obj._target = null;
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(".*"));
+            UtfLogExpect.Error();
 
             bool registered = pool.Register(obj, false);
 
@@ -243,7 +244,7 @@ namespace Service.ObjectPool
             TestObject first = new TestObject(target);
             TestObject second = new TestObject(target);
             Assert.IsTrue(pool.Register(first, false));
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(".*"));
+            UtfLogExpect.Error();
 
             Assert.IsFalse(pool.Register(second, false));
         }
@@ -697,14 +698,9 @@ namespace Service.ObjectPool
             pool.Register(other, false);
             poison.ThrowOnRelease = true;
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 Assert.DoesNotThrow(() => pool.ReleaseAllUnused());
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             Assert.IsTrue(poison.Released);
@@ -722,14 +718,9 @@ namespace Service.ObjectPool
             pool.Register(poison, false);
             poison.ThrowOnRelease = true;
 
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 pool.ReleaseAllUnused();
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             // 回归：ReleaseSlot 曾停在「已摘链、_targetMap 已删、未归还自由栈」的半释放状态。
@@ -749,15 +740,10 @@ namespace Service.ObjectPool
             pool.Register(other, false);
             poison.ThrowOnRelease = true;
 
-            LogAssert.ignoreFailingMessages = true;
             bool destroyed;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 destroyed = handler.DestroyObjectPool<FaultyReleaseObject>("");
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             Assert.IsTrue(destroyed);

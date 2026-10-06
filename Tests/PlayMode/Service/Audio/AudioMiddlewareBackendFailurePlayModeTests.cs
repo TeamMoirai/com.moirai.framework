@@ -6,6 +6,7 @@ using Moirai.Atropos.Audio;
 using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
 using NUnit.Framework;
+using Testing;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -15,7 +16,7 @@ namespace Service.Audio
     /// 中间件后端初始化失败的降级面（上线门槛 G5「SDK 初始化失败」）：失败即整体禁用。
     /// </summary>
     /// <remarks>
-    /// 失败后不得再有任何一次调用打到未初始化的原生引擎。
+    /// 失败后不得再有任何一次调用打到未初始化的原生引擎；禁用告警的 UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public sealed class AudioMiddlewareBackendFailurePlayModeTests
@@ -100,7 +101,7 @@ namespace Service.Audio
             var handler = new FmodAudioHandler();
             handler.SetBridge(dead);
 
-            LogAssert.Expect(UnityEngine.LogType.Error, new System.Text.RegularExpressions.Regex("桥接初始化失败"));
+            UtfLogExpect.Error();
             Invoke(handler, "OnInit");
             Transform root = handler.InstanceRoot;
 
@@ -132,7 +133,7 @@ namespace Service.Audio
             var handler = new FmodAudioHandler();
             handler.SetBridge(dead);
 
-            LogAssert.Expect(UnityEngine.LogType.Error, new System.Text.RegularExpressions.Regex("桥接初始化失败"));
+            UtfLogExpect.Error();
             Invoke(handler, "OnInit");
 
             Transform root = handler.InstanceRoot;
@@ -161,7 +162,7 @@ namespace Service.Audio
             var handler = new FmodAudioHandler();
             handler.SetBridge(dead);
 
-            LogAssert.Expect(UnityEngine.LogType.Error, new System.Text.RegularExpressions.Regex("桥接初始化失败"));
+            UtfLogExpect.Error();
             Invoke(handler, "OnInit");
             Transform root = handler.InstanceRoot;
 

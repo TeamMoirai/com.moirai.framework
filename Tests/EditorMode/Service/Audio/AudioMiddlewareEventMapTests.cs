@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Service.Audio
 {
@@ -97,12 +96,12 @@ namespace Service.Audio
         [Test]
         public void Play_UnmappedClip_DerivesAndWarnsOnce()
         {
-            LogAssert.Expect(UnityEngine.LogType.Warning, new Regex("事件路径由 clip.name 推导"));
+            UtfLogExpect.Warning();
 
             Assert.AreNotEqual(0UL, PlayClip());
             Assert.AreEqual("event:/Derived/BossIdle", _bridge.PlayedPaths[0]);
 
-            // 第二次不再有 Expect：再落一条 Warning 会以「意外日志」判负
+            // 第二次不再声明预期：再落一条 Warning 会以「意外日志」判负
             Assert.AreNotEqual(0UL, PlayClip());
             Assert.AreEqual(2, _bridge.PlayedPaths.Count);
         }
@@ -120,7 +119,7 @@ namespace Service.Audio
         [Test]
         public void SetEventMappings_AfterPlay_ResolvesAgainstTheNewTable()
         {
-            LogAssert.Expect(UnityEngine.LogType.Warning, new Regex("事件路径由 clip.name 推导"));
+            UtfLogExpect.Warning();
             Assert.AreNotEqual(0UL, PlayClip());
 
             MapClipTo("event:/Authoring/Boss/Idle");
@@ -136,7 +135,7 @@ namespace Service.Audio
         {
             _bridge.FailingPaths.Add("event:/Sfx/Hit");
 
-            LogAssert.Expect(UnityEngine.LogType.Warning, new Regex("事件 event:/Sfx/Hit 播放失败"));
+            UtfLogExpect.Warning();
 
             var request = new AudioPlayRequest(7, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.None);
             Assert.AreEqual(0UL, _handler.Play("event:/Sfx/Hit", request, null));

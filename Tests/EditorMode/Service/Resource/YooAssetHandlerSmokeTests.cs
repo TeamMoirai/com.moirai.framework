@@ -1,9 +1,9 @@
 using System.Reflection;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Service.Resource
 {
@@ -11,7 +11,7 @@ namespace Service.Resource
     /// <see cref="YooAssetHandler"/> 空态冒烟测试：未初始化后端时句柄查询与记录维护 API 的行为。
     /// </summary>
     /// <remarks>
-    /// 全部用例仅触达纯槽位查找路径，不触碰 YooAssets 静态初始化，保证确定性。
+    /// 全部用例仅触达纯槽位查找路径，不触碰 YooAssets 静态初始化，保证确定性；失败路径的预期错误日志经 <c>UtfLogExpect.ScopedIgnore()</c> 放行。
     /// </remarks>
     public sealed class YooAssetHandlerSmokeTests
     {
@@ -112,16 +112,10 @@ namespace Service.Resource
             // FailLoading 会把真实异常经 LogUtility.Error 打出来；本用例不关心日志内容，屏蔽预期错误。
             // 任务必须由工厂在这里创建：async 方法在首个 await 之前同步跑完整条失败路径，
             // 写成实参就会在置位前打出 [Error]，被 Unity 记成本轮意外日志。
-            bool previous = LogAssert.ignoreFailingMessages;
-            LogAssert.ignoreFailingMessages = true;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 // 未初始化后端下整条赢家路径在任何 await 之前同步抛出并被 catch，任务同步完成，无需 PlayerLoop。
                 return start().GetAwaiter().GetResult();
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = previous;
             }
         }
 

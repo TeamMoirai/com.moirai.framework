@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Moirai.Atropos;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
-using UnityEngine.TestTools;
 using Mp = Moirai.Atropos.MemoryPool;
 
 namespace Core.MemoryPool
@@ -411,15 +411,10 @@ namespace Core.MemoryPool
 
             // TickAll 边界收口后会先打一条 Fatal 再按分级上抛，EditMode 下那条日志要放行，
             // 否则"异常确实被隔离并上报"这件事会被判成"用例产生了意外错误日志"。
-            LogAssert.ignoreFailingMessages = true;
             AggregateException error;
-            try
+            using (UtfLogExpect.ScopedIgnore())
             {
                 error = Assert.Throws<AggregateException>(() => Tick());
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = false;
             }
 
             Assert.AreEqual(0, Info<ColdItem<MemoryPoolMaintenanceTests>>().UnusedCount, "别的池抛出后本轮不再维护");

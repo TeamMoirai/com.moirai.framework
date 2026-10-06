@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 
 namespace Service.Kernel
 {
@@ -13,6 +12,7 @@ namespace Service.Kernel
     /// 内核（ServiceWorld / GameServices）测试。
     /// </summary>
     /// <remarks>两阶段语义：RegisterService 仅入图（世界未初始化时不驱动 OnInit），<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑统一驱动——初始化顺序与注册顺序无关。 <br />
+    /// 观察器/异常路径的日志内容断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public class GameServicesTests
@@ -26,6 +26,11 @@ namespace Service.Kernel
         // --- 顺序记录（静态，SetUp 清空） ---
 
         private static readonly List<string> s_OrderLog = new List<string>();
+
+        // --- 日志内容捕获（SetUp 订阅 / TearDown 退订，内容断言与处理器无关） ---
+
+        private List<(ELogLevel, string)> _logs;
+        private Action<ELogLevel, string, Exception> _logCallback;
 
         // --- 测试用服务基类 ---
 
@@ -129,14 +134,34 @@ namespace Service.Kernel
             s_OrderLog.Clear();
             GameServices.Shutdown();
             _originalPolicy = GameServices.DuplicateContractPolicy;
+
+            _logs = new List<(ELogLevel, string)>();
+            _logCallback = (level, message, _) => _logs.Add((level, message));
+            LogUtility.OnMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
+            LogUtility.OnMessageLogged -= _logCallback;
             GameServices.DuplicateContractPolicy = _originalPolicy;
 
             GameServices.Shutdown();
+        }
+
+        /// <summary>统计捕获到的、正文含指定片段的某级别日志条数（内容断言通道，与处理器无关）。</summary>
+        private int CountLogCaptured(ELogLevel level, string fragment)
+        {
+            int count = 0;
+            for (int i = 0; i < _logs.Count; i++)
+            {
+                if (_logs[i].Item1 == level && _logs[i].Item2.Contains(fragment, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         // --- 辅助 ---
@@ -337,11 +362,12 @@ namespace Service.Kernel
             Register(instance);
 
             // 重复注册——应幂等返回既有实例，不重复 OnInit（开发默认策略下伴随冲突告警）
-            LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
+            UtfLogExpect.Warning();
             var returned = GameServices.RegisterService(EServiceScopeKind.App, new AlphaService());
 
             Assert.AreSame(instance, returned, "重复注册应返回既有实例");
             Assert.AreEqual(1, instance.InitCount, "重复注册不应再调用 OnInit");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "already bound"), "默认策略下重复注册应告警一次");
         }
 
         // ═══════════════════════════════════════════════════════
@@ -796,19 +822,23 @@ namespace Service.Kernel
             GameServices.AddInterceptor(witness);
 
             var alpha = new AlphaService();
-            LogAssert.Expect(LogType.Error, new Regex(".*threw in OnServiceRegistered.*"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => Register(alpha));
             Assert.IsTrue(witness.Events.Contains("Registered:AlphaService"), "抛者之后的拦截器仍应被调用");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Error, "threw in OnServiceRegistered"));
 
-            LogAssert.Expect(LogType.Error, new Regex(".*threw in OnBeforeScopeTick.*"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => GameServices.Tick(0.1f, 0.1f));
             Assert.AreEqual(1, alpha.TickCount, "拦截器异常不得影响被观察的服务");
             CollectionAssert.Contains(witness.Events, "AfterTick:App", "帧边界应成对收尾");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Error, "threw in OnBeforeScopeTick"));
 
-            LogAssert.Expect(LogType.Error, new Regex(".*threw in OnServiceShutdown.*"));
-            LogAssert.Expect(LogType.Error, new Regex(".*threw in OnServiceUnregistered.*"));
+            UtfLogExpect.Error();
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => GameServices.ShutdownContainer(EServiceScopeKind.App));
             Assert.AreEqual(1, alpha.ShutdownCount, "关闭流程应完整走完");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Error, "threw in OnServiceShutdown"));
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Error, "threw in OnServiceUnregistered"));
         }
 
         private sealed class VetoInterceptor : IServiceInterceptor
@@ -867,11 +897,12 @@ namespace Service.Kernel
             GameServices.RegisterService(EServiceScopeKind.App, first as IAlphaService);
             Init();
 
-            LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
+            UtfLogExpect.Warning();
             var another = new AlphaService();
             var returned = GameServices.RegisterService(EServiceScopeKind.App, another as IAlphaService);
 
             Assert.AreSame(first, returned, "重复注册应幂等返回既有实例");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "already bound"), "重复契约应告警一次");
             Assert.AreEqual(1, first.InitCount, "重复注册不应再次驱动 OnInit");
         }
 
@@ -1100,9 +1131,11 @@ namespace Service.Kernel
             GameServices.RegisterService(EServiceScopeKind.App, new ThrowRegisterOnTickService() as IAlphaService);
             Init();
 
-            // 开发环境下先记录日志再上抛（fail-fast 分级策略）
-            LogAssert.Expect(LogType.Error, new Regex(".*EDeferMode\\.Throw.*"));
+            // 开发环境下先记录日志再上抛（fail-fast 分级策略）；轮询失败经 LogTickFailure 落在 Fatal 级
+            UtfLogExpect.Error();
             Assert.Throws<GameException>(() => GameServices.Tick(0f, 0f));
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Fatal, "EDeferMode.Throw"),
+                "Throw 模式应先记录带模式名的 Fatal 日志（ZLogger 把无异常对象的 Critical 渲染进 Error 通道）");
         }
 
         private sealed class UnregisterOnTickService : TestServiceBase, IAlphaService
@@ -1202,10 +1235,11 @@ namespace Service.Kernel
             GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), first);
             Init();
 
-            LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
+            UtfLogExpect.Warning();
             var returned = GameServices.RegisterService(EServiceScopeKind.App, typeof(IAlphaService), new AlphaService());
 
             Assert.AreSame(first, returned, "重复注册应返回既有实例");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "already bound"), "重复契约应告警一次");
             Assert.AreEqual(1, first.InitCount);
         }
 
@@ -1536,9 +1570,11 @@ namespace Service.Kernel
             GameServices.RegisterService(EServiceScopeKind.App, new ThrowingTickService() as IAlphaService);
             Init();
 
-            LogAssert.Expect(LogType.Error, new Regex(".*threw in Tick.*"));
+            UtfLogExpect.Error();
             Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0f, 0f),
                 "开发环境（编辑器/开发构建）下 Tick 异常应记录后上抛（fail-fast）");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Fatal, "threw in Tick"),
+                "上抛前应记录带 Tick 语境的 Fatal 日志（LogTickFailure；ZLogger 渲染进 Error 通道）");
         }
 
         // ═══════════════════════════════════════════════════════
@@ -1552,10 +1588,11 @@ namespace Service.Kernel
             var first = new AlphaService();
             Register(first);
 
-            LogAssert.Expect(LogType.Warning, new Regex(".*already bound.*"));
+            UtfLogExpect.Warning();
             var returned = GameServices.RegisterService(EServiceScopeKind.App, new AlphaService());
 
             Assert.AreSame(first, returned, "Warn 策略应幂等返回既有实例");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "already bound"), "Warn 策略应告警一次");
             Assert.AreEqual(1, first.InitCount, "Warn 策略不应驱动新实例 OnInit");
         }
 
@@ -1631,9 +1668,9 @@ namespace Service.Kernel
             // 前 3 帧异常上抛（开发环境 fail-fast）；第 3 次失败触发熔断摘除。
             for (int frame = 1; frame <= 3; frame++)
             {
-                LogAssert.Expect(LogType.Error, new Regex(".*threw in Tick.*"));
+                UtfLogExpect.Error();
                 if (frame == 3)
-                    LogAssert.Expect(LogType.Warning, new Regex(".*removed from.*"));
+                    UtfLogExpect.Warning();
                 Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0.1f, 0.1f));
             }
 
