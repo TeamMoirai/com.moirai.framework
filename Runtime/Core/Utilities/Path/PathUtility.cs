@@ -132,6 +132,12 @@ namespace Moirai.Atropos
         // ReSharper disable once InconsistentNaming
         private static string FormatUNCPath(string path)
         {
+            // 与 GetRegularPath 对称：null 原样返回而非抛出（FormatToUnityPath(null) 已是 null 直通）
+            if (path == null)
+            {
+                return null;
+            }
+
             var fmtPath = path.Replace("/", "\\");
             return fmtPath;
         }

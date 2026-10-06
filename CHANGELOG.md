@@ -72,3 +72,9 @@
 #### 资源
 
 - ⚠ 移除 `ResourceService.LoadAssetForEditor` 与后端接缝 `ResourceServiceHandler.LoadAssetForEditor`（`virtual` 的地址换算钩子，移除时零覆写），非播放态取资产改用 `TryLoadAsset<Object>`；接入按文件名或包清单寻址的后端时，换算需并进取用族的编辑分支本身。
+
+### Fixed
+
+#### 工具
+
+- `PathUtility.FormatToSysFilePath(null)` 从抛 `NullReferenceException` 改为返回 `null`，与 `FormatToUnityPath(null)` 的既有行为对称（UNC 格式化漏了同款 null 守卫）。
