@@ -11,12 +11,11 @@ namespace Moirai.Atropos.UI
     /// 窗口对象模型：身份、生命周期与显隐/深度/交互的<b>意图位</b>，不含任何渲染后端类型。
     /// </summary>
     /// <remarks>
-    /// 面板本体住在各后端自己的派生基类里（uGUI 轨见 <see cref="UGUIWindow"/>），本类经七枚 <c>protected internal virtual</c> 面板钩子与之交接： <br />
-    /// <c>LoadPanel</c> / <c>LoadPanelAsync</c> 装载并装配面板，<c>ApplyVisible</c> / <c>ApplyDepth</c> / <c>ApplyInteractable</c> 把意图落到面板上， <br />
-    /// <c>ParkPanel</c> / <c>DestroyPanel</c> 收走面板。默认实现「什么都不做、什么也加载不了」，未挂后端基类的窗口不会崩，但也开不出来。 <br />
-    /// 三语义以意图为准（<c>Visible</c> 的 getter 读调用方要的值，不再回读后端事实），同值二次赋值不重复落钩子； <br />
-    /// 排序刷新（<see cref="UIBase._OnSortDepth"/> 与 <see cref="UIBase._isSortingOrderDirty"/>）的决策留在本类，差分细节留给后端。 <br />
-    /// 自关默认立即结算，覆写 <see cref="DeferCloseUntilInteractable"/> 可延后到可交互再过 <see cref="CanClose"/> 门（<see cref="TryClose"/>）。 <br />
+    /// 面板本体住在各后端的派生基类里（uGUI 轨见 <see cref="UGUIWindow"/>），本类经七枚 <c>virtual</c> 钩子交接：<br />
+    /// 装载走 <c>LoadPanel(Async)</c>，落意图走三枚 <c>Apply*</c>，收面板走 <c>ParkPanel</c> / <c>DestroyPanel</c>。<br />
+    /// 默认实现什么都不做：未挂后端基类的窗口不崩，但也开不出来。<br />
+    /// 显隐/深度/交互以意图位为准，同值二次赋值不重复落钩子。<br />
+    /// 自关（<see cref="Close"/>）一律等可交互之后过 <see cref="CanClose"/> 门再结算。<br />
     /// 线程契约：仅主线程。
     /// </remarks>
     public abstract partial class UIWindow : UIBase
@@ -60,8 +59,8 @@ namespace Moirai.Atropos.UI
 
         /// <summary>窗口深度值（意图）。</summary>
         /// <remarks>
-        /// 落到面板由 <see cref="ApplyDepth"/> 负责；子级排序偏移的差分是后端内部事实，本类不知道也不该知道。 <br />
-        /// 旧实现的同值判据读 <c>canvas.sortingOrder</c>，现改读意图位：值相同即不再落钩子、不再刷排序。
+        /// 同值二次赋值不落钩子、不刷排序；落地由 <see cref="ApplyDepth"/> 负责，子级偏移的差分属后端内部事实。<br />
+        /// 回读给的是意图值，不是面板上的实际排序值——后端会按自己的序空间截断或归整。
         /// </remarks>
         public int Depth
         {
@@ -95,7 +94,7 @@ namespace Moirai.Atropos.UI
 
         /// <summary>窗口可见性（意图）。</summary>
         /// <remarks>
-        /// getter 回调用方要的值，不再回读面板所在的 Unity layer（改判 R1 ①：外部改层是副产品，不作为契约）。 <br />
+        /// getter 回调用方要的值，不回读面板所在的 Unity layer（外部改层不算契约）。<br />
         /// 切 layer 由 <see cref="ApplyVisible"/> 落地；<see cref="UIBase.OnSetVisible"/> 与排序脏位的结算仍归本类。
         /// </remarks>
         public bool Visible
@@ -211,8 +210,7 @@ namespace Moirai.Atropos.UI
         /// 面板装载完成：置加载位、撤掉已销毁窗口的面板，然后把三份意图落到刚出现的面板上并通知准备回调。
         /// </summary>
         /// <remarks>
-        /// 意图必须在 <c>IsPrepare</c> 之前落地：开窗前 <c>UGUIHandler</c> 已可能压入栈并被别的窗口调过 <c>Depth</c>/<c>Visible</c>， <br />
-        /// 旧实现把这些写在 <c>_canvas != null</c> 之外的调用直接丢掉，现在攒在意图位上、绑定当场结算。
+        /// 三份意图必须在 <c>IsPrepare</c> 之前落地：开窗前窗口已被压进栈、并被别的窗口调过 <c>Depth</c>/<c>Visible</c>，这些调用攒在意图位上、装载当场结算。
         /// </remarks>
         private void PanelLoaded()
         {
@@ -539,24 +537,21 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        #region 延后关闭 [DEFERRED CLOSE]
+        #region 关闭策略 [CLOSE POLICY]
 
-        /// <summary>本窗自关是否延后到可交互再结算：默认立即结算，弹窗类窗口按需覆写为真。</summary>
-        /// <remarks>等待与门都由 <see cref="TryClose"/> 承载；策略住在对象模型上，两轨窗口同形覆写、不必每轨复制中间基类。</remarks>
-        protected virtual bool DeferCloseUntilInteractable => false;
-
-        /// <summary>延后关闭的门：<see cref="TryClose"/> 等到可交互后过这一道，回真才真关。</summary>
+        /// <summary>关闭的门：<see cref="TryClose"/> 等到可交互后过这一道，回真才真关。</summary>
         protected virtual bool CanClose => true;
 
         /// <summary>试图关闭但关不了时调用（<see cref="CanClose"/> 为假的那一轮）。</summary>
         protected virtual void OnCloseFail() { }
 
         /// <summary>
-        /// 延后到可交互再尝试关闭：已可交互时当场过门，否则等交互位让位、本窗被接管或销毁为止。
+        /// 关闭本窗：已可交互就当场过门，否则等交互位让位、本窗被接管或销毁为止。
         /// </summary>
         /// <remarks>
-        /// 等待被动观察、不接管交互锁：被重开/销毁接管后本轮静默终止，锁由接管方交还。 <br />
-        /// 已销毁或代次已换时不再过门——等待中的取消同样终止本轮，不会对着已销毁的窗空转。
+        /// 等待是被动观察、不接管交互锁：被重开/销毁接管的那一轮静默终止，锁由接管方交还。<br />
+        /// 已销毁、代次已换或令牌取消都终止本轮，不对已销毁的窗空转轮询。<br />
+        /// 需要绕开门与等待的覆写者走 <see cref="ForceClose"/>。
         /// </remarks>
         public virtual async UniTaskVoid TryClose()
         {
@@ -582,7 +577,7 @@ namespace Moirai.Atropos.UI
 
             if (CanClose)
             {
-                RequestLedgerClose();
+                ForceClose();
             }
             else
             {
@@ -593,12 +588,11 @@ namespace Moirai.Atropos.UI
         #endregion
 
         /// <summary>
-        /// 把本窗交进那条共享栈去隐：门面还有驱动者在位才结算，各轨的窗走的是同一道。
+        /// 隐藏当前弹窗：交进那条共享栈，门面还有驱动者在位才结算。
         /// </summary>
         /// <remarks>
-        /// 落点不是「哪一枚协调者是主」——R8 之后没有那一份单点，回叫直接叫共享持有者； <br />
-        /// 守卫在 <see cref="UIService.IsValid"/> 上：关停把各轨引用都摘掉之后，这一道与 <c>Close</c> 那半都静默落空 <br />
-        /// （隐藏转关闭的那条计时器在生产侧是可达的，<c>isShutDown</c> 那一档刻意不注销它）。
+        /// 回叫直呼共享持有者、不分轨，各轨的窗走的是同一道。<br />
+        /// 关停把各轨引用摘掉之后 <see cref="UIService.IsValid"/> 回假，这一道与 <see cref="Close"/> 都静默落空。
         /// </remarks>
         protected internal virtual void Hide()
         {
@@ -609,25 +603,19 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 把本窗交进那条共享栈去关：默认立即结算；<see cref="DeferCloseUntilInteractable"/> 为真的窗口改道 <see cref="TryClose"/>，等可交互再过门。
+        /// 关闭当前弹窗：走 <see cref="TryClose"/>，等可交互后过 <see cref="CanClose"/> 门。
         /// </summary>
-        /// <remarks>
-        /// 与 <c>Hide</c> 同一道守卫（门面还有驱动者在位才结算）；延后档的真关也收口在同一个私有落点上。
-        /// </remarks>
+        /// <remarks>与 <see cref="Hide"/> 同一道守卫：门面还有驱动者在位才结算。</remarks>
         protected internal virtual void Close()
         {
-            if (DeferCloseUntilInteractable)
-            {
-                TryClose().Forget();
-            }
-            else
-            {
-                RequestLedgerClose();
-            }
+            TryClose().Forget();
         }
 
-        /// <summary>把本窗的关闭请求交进那条共享栈：门面还有驱动者在位才结算，立即档与延后档共用这一处落点。</summary>
-        private void RequestLedgerClose()
+        /// <summary>
+        /// 立即关闭当前弹窗：跳过 <see cref="TryClose"/> 的等待与 <see cref="CanClose"/> 门。
+        /// </summary>
+        /// <remarks>与 <see cref="Hide"/> 同一道守卫。</remarks>
+        protected void ForceClose()
         {
             if (UIService.IsValid)
             {

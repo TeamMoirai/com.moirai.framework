@@ -161,16 +161,14 @@ protected override async UniTask OpenAnimation()
 }
 ```
 
-### 延后关闭（弹窗自关策略）
+### 窗口自关（等待与门）
 
-窗口自关默认立即结算；弹窗类窗口可覆写 `DeferCloseUntilInteractable => true` 把自关延后到可交互（开窗动画结束、上方模态解除）再过 `CanClose` 门：
+窗口自己关自己（`Close()`）一律先等可交互——开窗动画结束、或压住它的上层模态解除——再过 `CanClose` 门；门为假时窗口留在栈上并收到 `OnCloseFail`：
 
 ```csharp
 [Window(UILayer.Popup)]
 public class RenameWindow : UGUIWindow
 {
-    protected override bool DeferCloseUntilInteractable => true;   // 等可交互再关
-
     protected override bool CanClose => _input.text.Length > 0;   // 过不了门就落 OnCloseFail
 
     protected override void OnCloseFail() { /* 提示非法输入，窗口留在栈上 */ }
@@ -179,7 +177,8 @@ public class RenameWindow : UGUIWindow
 
 - 策略住在 `UIWindow`（后端无关对象模型）上：uGUI / UI Toolkit 两轨窗口同形覆写，各轨不必复制中间基类
 - 等待是被动观察：窗口在等待期被重开/销毁接管时本轮静默终止，锁的交还由接管方收口；已销毁的窗不会空转轮询
-- 门通过后的真关与立即档收口在同一条结算路径上（`CloseUI` / 共享栈），不落在两套结算里
+- `ForceClose()` 跳过等待与门当场结算，是覆写者按需立即关窗的旁路
+- 只有窗口自关走这一道：外部经 `UIService.CloseUI` / `CloseAll` 的关闭直接进共享栈，不受等待与门的影响
 
 ### 安全区域与 UIAdapter
 
