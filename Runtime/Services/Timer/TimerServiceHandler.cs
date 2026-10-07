@@ -151,7 +151,9 @@ namespace Moirai.Atropos.Timer
                 return UniTask.CompletedTask;
             }
 
-            return UniTask.WaitUntil(() => IsDone(timerHandle), cancellationToken: cancellationToken);
+            // 状态经元组传入 + 静态谓词：轮询在整个 await 期间每帧求值，不留闭包分配。
+            return UniTask.WaitUntil((engine: this, handle: timerHandle), static s => s.engine.IsDone(s.handle),
+                cancellationToken: cancellationToken);
         }
 
         /// <summary>
