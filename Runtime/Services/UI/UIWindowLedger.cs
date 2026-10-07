@@ -7,11 +7,11 @@ using UnityEngine;
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// 窗口栈、停放表与交互租约的共享持有者：承载开栈与关·隐·查询的编排本体，各轨处理器把这一份存储经门缝取用。
+    /// 窗口栈、停放表与交互租约的共享持有者：承载开栈与关·隐·查询的编排本体，各轨处理器经门缝取用这一份存储。
     /// </summary>
     /// <remarks>
-    /// 堆栈里放的是后端中立的 <see cref="UIWindow"/>，一支后端的窗口与另一支的并存在同一份栈上，关·隐·查询因此不分轨。 <br />
-    /// 本类型只承载栈序与编排本身，不接管任何后端资源：UI 根、摄像机与面板装载仍住在各轨处理器里。 <br />
+    /// 栈里放的是后端中立的 <see cref="UIWindow"/>，两支后端的窗并存于同一份栈，关·隐·查询因此不分轨。<br />
+    /// 本类型只承载栈序与编排本身，不接管后端资源：UI 根、摄像机与面板装载仍住在各轨处理器里。<br />
     /// 线程契约：仅主线程。
     /// </remarks>
     internal sealed class UIWindowLedger
@@ -30,8 +30,7 @@ namespace Moirai.Atropos.UI
         {
             get
             {
-                // 反向手写循环：LastOrDefault(IsModal) 会装箱 List 枚举器、并每次新建判定委托——
-                // 本属性是交互前置判断（UIServiceHelper）的高频查询入口，保持零分配取末位命中。
+                // 高频查询入口（交互前置判断），手写倒序循环取末位命中，保持零分配。
                 for (int i = _uiStack.Count - 1; i >= 0; i--)
                 {
                     var window = _uiStack[i];
@@ -50,8 +49,12 @@ namespace Moirai.Atropos.UI
                                                    window.WindowLayer == (int)UILayer.System;
 
         /// <summary>
-        /// 把栈与停放表归零：只有门面的那一道归零事务叫它（<see cref="UIService.Internal_ResetSharedLedger"/>，初始化与关停各一次），交互租约的复位由那道事务在同批接办。
+        /// 把栈与停放表归零。
         /// </summary>
+        /// <remarks>
+        /// 只由门面的那道归零事务叫（<see cref="UIService.Internal_ResetSharedLedger"/>，初始化与关停各一次）。<br />
+        /// 不含交互租约：复位由那道事务在同一次调用里接办。
+        /// </remarks>
         internal void ResetStorage()
         {
             _uiStack.Clear();
@@ -225,11 +228,9 @@ namespace Moirai.Atropos.UI
         /// 开栈编排的同步腿：认名→复用栈上那一只 / 取回停放的那一只 / 造一只新的，然后压栈并发起装载。
         /// </summary>
         /// <remarks>
-        /// 这一份只落共享栈、不认轨：门面上每一轨自己的开窗实现（<c>UIService.&lt;轨&gt;.cs</c>）都经它把窗口送进同一份栈， <br />
-        /// 两轨交给它的差别只在实参取值。 <br />
-        /// <paramref name="onInstanceCreated"/> 是<b>本轨自己</b>那一段配置的交接处：只在造出新实例那一档、<c>Push</c> 与 <c>InternalLoad</c> 之前叫一次， <br />
-        /// 形参表只写中性的 <see cref="UIWindow"/>，后端类型因此落不进这条链路的签名；交回 null 时一次都不叫。 <br />
-        /// 复用与停放重取那两条支路不叫它：那两只窗的面板早已装好，与 <paramref name="assetLocation"/>、<paramref name="fromResources"/> 一样不再吃。
+        /// 这一份只落共享栈、不认轨：每轨自己的开窗实现都经它把窗口送进同一份栈，两轨的差别只在实参取值。<br />
+        /// <paramref name="onInstanceCreated"/> 只在造出新实例那一档叫一次，交在 <c>Push</c> 与 <c>InternalLoad</c> 之前，为 null 时不叫。<br />
+        /// 复用栈上窗与停放重取那两条支路不叫它：那两只窗的面板早已装好，<paramref name="assetLocation"/> 与 <paramref name="fromResources"/> 也不再吃。
         /// </remarks>
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
@@ -282,7 +283,8 @@ namespace Moirai.Atropos.UI
         /// 开栈编排的等待腿：与同步腿同一份栈、同一次压入，另把「面板就绪」等出来再交回窗口。
         /// </summary>
         /// <remarks>
-        /// 压栈那一段与 <see cref="ShowUIImp"/> 同一份判据，含 <paramref name="onInstanceCreated"/> 的交接时机与不吃的那两条支路。
+        /// 压栈那一段与 <see cref="ShowUIImp"/> 同一份判据，含 <paramref name="onInstanceCreated"/> 的交接时机与不吃它的那两条支路。<br />
+        /// 等面板就绪最长 <see cref="LOAD_WAIT_TIMEOUT_SECONDS"/> 秒；超时只发一条 Warning，不抛异常，仍交回那只窗口。
         /// </remarks>
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
@@ -317,7 +319,7 @@ namespace Moirai.Atropos.UI
                 window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync, userData).Forget();
             }
 
-            // 使用 WaitUntil 替代手动轮询，避免每帧 unscaledDeltaTime 累加；CTS 提供超时保护
+            // 等面板就绪，超时由 CTS 兜底，超时后照常交回窗口
             using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS)))
             {
                 try
@@ -370,7 +372,7 @@ namespace Moirai.Atropos.UI
         /// 异步获取窗口：栈上没有这一名、或那一只是别的类型时交回 null，否则把面板就绪等出来。
         /// </summary>
         /// <remarks>
-        /// 这一枚问的是那条共享栈，两支后端的窗都在它的射程里：等待的那一半住在这里，各轨处理器只是转发口。
+        /// 问的是那条共享栈，两支后端的窗都在射程里，各轨处理器只是转发口。
         /// </remarks>
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <returns>窗口实例。</returns>
@@ -395,7 +397,7 @@ namespace Moirai.Atropos.UI
                 return ret;
             }
 
-            // 使用 WaitUntil 替代手动轮询；CTS 提供超时保护
+            // 等面板就绪，超时由 CTS 兜底，超时后照常交回窗口
             using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS)))
             {
                 try
@@ -541,8 +543,8 @@ namespace Moirai.Atropos.UI
         /// 关闭栈上被这一轨认得的那些窗口，其余连位置都不动：一支 handler 关停时只交自己那一轨的窗进来。
         /// </summary>
         /// <remarks>
-        /// 与 <see cref="CloseAll"/> 同一次序（自下而上）、同一分档（缓存窗交进停放表、非缓存窗直接销毁）， <br />
-        /// 只是不抹整条栈——判据没认得的窗口留在原来的栈位上，由它自己那一轨去收。
+        /// 与 <see cref="CloseAll"/> 同一次序（自下而上）、同一分档（缓存窗交进停放表、非缓存窗直接销毁）。<br />
+        /// 判据没认得的窗口留在原来的栈位上，由它自己那一轨去收。
         /// </remarks>
         /// <param name="isShutDown">关停轮：连缓存窗也一并销毁，不进停放表。</param>
         /// <param name="onTrack">返回真时这一只属于调用方那一轨。</param>
@@ -684,15 +686,15 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 把窗口压入堆栈：按所属层级定位插入点，模态窗口压掉下层窗口的可交互位，末尾发一次打开回执。
         /// </summary>
+        /// <exception cref="GameException">同名窗口已在栈上。</exception>
         internal void Push(UIWindow window)
         {
-            // 如果已经存在
             if (IsContains(window.WindowName))
             {
                 throw new GameException($"Window {window.WindowName} is exist.");
             }
 
-            // 获取插入到所属层级的位置
+            // 插入点取所属层级末位之后；该层无窗时退到较低层级末位之后，仍无则落栈底
             int insertIndex = -1;
             for (int i = 0; i < _uiStack.Count; i++)
             {
@@ -702,7 +704,6 @@ namespace Moirai.Atropos.UI
                 }
             }
 
-            // 如果没有所属层级，找到相邻层级
             if (insertIndex == -1)
             {
                 for (int i = 0; i < _uiStack.Count; i++)
@@ -714,16 +715,13 @@ namespace Moirai.Atropos.UI
                 }
             }
 
-            // 如果是空栈或没有找到插入位置
             if (insertIndex == -1)
             {
                 insertIndex = 0;
             }
 
-            // 模态窗口会屏蔽下层的可交互
             if (insertIndex > 0 && IsModal(window)) _uiStack[insertIndex - 1].Interactable = false;
 
-            // 最后插入到堆栈
             _uiStack.Insert(insertIndex, window);
             UIServiceEvent.Shown(window);
         }
@@ -733,7 +731,6 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void Pop(UIWindow window)
         {
-            // 从堆栈里移除
             _uiStack.Remove(window);
             UIServiceEvent.Closed(window);
         }
@@ -743,7 +740,7 @@ namespace Moirai.Atropos.UI
         #region 测试接缝 [TEST SEAMS]
 
         /// <summary>
-        /// 栈上窗口的只读视图：栈本体住在持有者里、保持 private，这一道门只给读、不给写。
+        /// 栈上窗口的只读视图：栈本体仍为 private，这一道门只给读、不给写。
         /// </summary>
         internal IReadOnlyList<UIWindow> PeekStack() => _uiStack;
 

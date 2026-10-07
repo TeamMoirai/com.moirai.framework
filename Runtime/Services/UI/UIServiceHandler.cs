@@ -6,23 +6,18 @@ using UnityEngine;
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// UI 协调者：两支后端各自的驱动者的公共基类，承载本轨的面板职责，把窗口栈、停放表与交互租约落在同一份共享存储上。
+    /// UI 协调者：两支后端驱动者的公共基类，把窗口栈、停放表与交互租约落在同一份共享存储上。
     /// </summary>
     /// <remarks>
-    /// 堆栈本体、编排与查询都住在持有者里，各轨处理器只是它的转发口——两支后端因此并存于同一份栈上，关·隐·查询不分轨。 <br />
-    /// 面板本体（根节点、摄像机、装载与拾取）住在各后端的派生处理器里，本类经 <see cref="UIRoot"/>、<see cref="UICamera"/> 两枚抽象属性向它取用。 <br />
-    /// 本类的具体类型由 <see cref="UIServiceSettings"/> 的启用清单序列化保存，<c>UIService.OnInit</c> 逐条叫 <see cref="Internal_Register"/> 把它认领进门面那一轨；再加一支后端是加一枚派生实现类、一条认领门与一枚 <c>UIService.&lt;轨&gt;.cs</c> partial 文件。
+    /// 栈本体、编排与查询住在 <see cref="UIWindowLedger"/>，各轨处理器只是转发口，两支后端因此并存于同一份栈。<br />
+    /// 面板本体（根节点、摄像机、装载与拾取）住在各后端的派生处理器里，本类经 <see cref="UIRoot"/>、<see cref="UICamera"/> 取用。<br />
+    /// 具体类型记在 <see cref="UIServiceSettings"/> 的启用清单里，由 <c>OnInit</c> 逐条叫 <see cref="Internal_Register"/> 认领。<br />
+    /// 新增一支后端：一枚派生实现类、一条认领门、一枚 <c>UIService.&lt;轨&gt;.cs</c> partial 文件。
     /// </remarks>
     [Serializable]
     public abstract class UIServiceHandler : FrameworkHandler
     {
-        /// <summary>
-        /// 两支共用的那一份窗口栈与停放表：每次取用现读门面那一位，不在构造期定格。
-        /// </summary>
-        /// <remarks>
-        /// 定格在构造期只在「门面自己 new 处理器」那一版成立；<c>SerializeReference</c> 的条目由资产反序列化器在任意时刻造出来，
-        /// 那一刻门面的持有者未必已归位，定格就把处理器钉在上一份存储上——写进那一份、查询走这一份。
-        /// </remarks>
+        /// <summary>两支共用的那一份窗口栈与停放表：每次取用现读门面那一位，不得缓存引用。</summary>
         private UIWindowLedger Ledger => UIService.SharedLedger;
 
         /// <summary>UI根节点。</summary>
@@ -45,12 +40,12 @@ namespace Moirai.Atropos.UI
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 本轨专有的每帧职责：整条共享栈的结算由门面每帧叫一次（<see cref="UIService.Tick"/>），本方法不叫它。
+        /// 本轨专有的每帧职责。
         /// </summary>
         /// <remarks>
-        /// 两支各自覆写自己那半边的帧职责，uGUI 那一轨交出的是 UI 根的续等；UI Toolkit 那一轨目前还没有帧职责，将来加就覆写这一枚。 <br />
-        /// 在这里再叫一次持有者的 <c>Tick</c> 就是「两支各驱一次」那一档：门面两支都叫，整条栈每帧被跑两遍。 <br />
-        /// 形参留给需要按帧时长行事的轨：本轨专有那段没有帧时长可吃时不必用它。
+        /// 整条共享栈的结算由门面每帧叫一次（<see cref="UIService.Tick"/>）；覆写里再叫一次持有者的 <c>Tick</c> 就是每帧跑两遍。<br />
+        /// uGUI 那一轨交出的是 UI 根的续等，UI Toolkit 那一轨当前没有帧职责。<br />
+        /// 形参供需要按帧时长行事的轨使用，本轨没有帧时长可吃时不必用它。
         /// </remarks>
         /// <param name="elapseSeconds">逻辑经过的秒数。</param>
         /// <param name="realElapseSeconds">真实经过的秒数。</param>
@@ -63,17 +58,17 @@ namespace Moirai.Atropos.UI
         #region 设置安全区域 [SET SAFE AREA]
 
         /// <summary>
-        /// 设置屏幕安全区域（异形屏支持）。
+        /// 设置屏幕安全区域（异形屏支持）：把安全区落到本轨的面板上。
         /// </summary>
         /// <remarks>
-        /// 把安全区落到面板上是各轨自己的事：换算要吃的东西（uGUI 那一轨是 <c>CanvasScaler</c> 的参考分辨率与锚框偏移）在两支里形状不同。 <br />
+        /// 把安全区落到面板上是各轨自己的事，两支的换算形状不同。<br />
         /// 安全区矩形本身的换算由 <see cref="ComputeIPhoneXNotchSafeRect"/> 这一份共享实现给出，各轨不必复制第二份。
         /// </remarks>
         /// <param name="safeRect">安全区域。</param>
         public abstract void ApplyScreenSafeRect(Rect safeRect);
 
         /// <summary>
-        /// 模拟IPhoneX异形屏：取那份共享的刘海安全区，交回本轨的 <see cref="ApplyScreenSafeRect"/> 落到面板上。
+        /// 模拟 IPhoneX 异形屏：取共享的刘海安全区，交回本轨的 <see cref="ApplyScreenSafeRect"/> 落到面板上。
         /// </summary>
         public virtual void SimulateIPhoneXNotchScreen()
         {
@@ -81,7 +76,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 模拟异形屏的安全区矩形（绝对像素，原点为左下角）：按屏幕取向取那一档刘海尺寸，两支后端与协调者共用这一份换算。
+        /// 计算模拟异形屏的安全区矩形（绝对像素，原点为左下角），两支后端与协调者共用这一份换算。
         /// </summary>
         /// <param name="screenWidth">屏幕宽度（像素）。</param>
         /// <param name="screenHeight">屏幕高度（像素）。</param>
@@ -178,8 +173,8 @@ namespace Moirai.Atropos.UI
         /// 开栈编排的同步腿：认名→复用栈上那一只 / 取回停放的那一只 / 造一只新的，然后压栈并发起装载。
         /// </summary>
         /// <remarks>
-        /// 编排本体住在 <see cref="UIWindowLedger"/>；本类只把这一道转发接上，形参含义（含 <paramref name="onInstanceCreated"/> 的交接时机）与 <see cref="UIWindowLedger"/> 上的同名实现一致。 <br />
-        /// 这一道签名只认中性的 <see cref="UIWindow"/>：本轨专有的那枚配置由开窗腿包成钩子交进来，后端类型不落进共享编排。
+        /// 编排本体住在 <see cref="UIWindowLedger"/>，本类只接转发：形参含义与交接时机以它为准。<br />
+        /// 本轨专有的配置由开窗腿包成钩子交进来，后端类型不落进共享编排的签名。
         /// </remarks>
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
@@ -250,8 +245,8 @@ namespace Moirai.Atropos.UI
         /// 本轨认窗判据：一次关停里只有被本轨认得的窗才交进共享栈的关闭流程，另一轨的窗留在栈上由它自己那一轨去收。
         /// </summary>
         /// <remarks>
-        /// 没有默认值：栈是两支共用的，一枚忘了写判据的派生者会把**另一轨**的窗一并清空，而这正是本批要拆掉的那个形状。 <br />
-        /// 两支内建处理器各自认自己的窗口基类，判据就是开窗腿那两枚 <c>IsOn*_track</c> 的同一条。
+        /// 抽象且无默认实现：栈是两支共用的，缺判据的派生者会把另一轨的窗一并清空。<br />
+        /// 两支内建处理器各自认自己的窗口基类。
         /// </remarks>
         /// <param name="window">栈上待判的那一只。</param>
         /// <returns>属于本轨时为真。</returns>
@@ -267,11 +262,12 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 把这一枚驱动者注册进它自己那一轨的门面槽：归属由实现类自述，门面入口既不认轨也不 new。
+        /// 把这一枚驱动者注册进它自己那一轨的门面槽：归属由实现类自述。
         /// </summary>
         /// <remarks>
-        /// 由 <see cref="UIService.OnInit"/> 按 <see cref="UIServiceSettings.EnabledHandlers"/> 逐支调用；同一轨的第二条注入抬错，
-        /// 既不静默换掉在位的那一枚，也不静默留着新来的这一枚。
+        /// 由 <see cref="UIService.OnInit"/> 按 <see cref="UIServiceSettings.EnabledHandlers"/> 逐支调用。<br />
+        /// 同一轨再来第二枚不同实例时抬错，不静默换掉在位的那一枚。<br />
+        /// 同一枚实例重复注册是空操作（<c>OnInit</c> 可重入）。
         /// </remarks>
         /// <exception cref="GameException">本轨已经有驱动者在位。</exception>
         internal abstract void Internal_Register();
@@ -358,13 +354,13 @@ namespace Moirai.Atropos.UI
         #region 内部门缝 [INTERNAL SEAMS]
 
         /// <summary>
-        /// 本枚处理器此刻用的那份共享持有者：它就是一次现读，因此交回的永远是门面<b>当前</b>那一份，不是处理器出生那一份。
+        /// 现读本枚处理器此刻用的那份共享持有者。
         /// </summary>
         /// <returns>门面当前那一份 <see cref="UIWindowLedger"/>。</returns>
         internal UIWindowLedger Internal_PeekLedger() => Ledger;
 
         /// <summary>
-        /// 栈上窗口的只读视图：栈本体住在持有者里、门缝本身只给读、不给写。
+        /// 栈上窗口的只读视图：栈本体住在持有者里，这一道门只给读、不给写。
         /// </summary>
         /// <returns>当前栈序的那一份真值（不是拷贝）。</returns>
         internal IReadOnlyList<UIWindow> Internal_PeekStack() => Ledger.PeekStack();
