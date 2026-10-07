@@ -17,6 +17,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Verbose(object message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+            
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -28,6 +30,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Verbose(string message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+            
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -40,6 +44,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1>(string format, T1 arg1, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -52,6 +58,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2>(string format, T1 arg1, T2 arg2, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -64,6 +72,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -76,6 +86,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -88,6 +100,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -100,6 +114,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -112,6 +128,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -124,6 +142,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -136,6 +156,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -148,6 +170,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -160,6 +184,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -172,6 +198,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -184,6 +212,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -196,6 +226,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -208,6 +240,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -220,6 +254,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Verbose<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Verbose)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16);
             Handler.Log(ELogLevel.Verbose, msg, null, context);
             RaiseMessageLogged(ELogLevel.Verbose, msg, null);
@@ -231,6 +267,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Debug(object message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+            
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -242,6 +280,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Debug(string message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+            
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -254,6 +294,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1>(string format, T1 arg1, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -266,6 +308,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2>(string format, T1 arg1, T2 arg2, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -278,6 +322,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -290,6 +336,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -302,6 +350,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -314,6 +364,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -326,6 +378,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -338,6 +392,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -350,6 +406,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -362,6 +420,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -374,6 +434,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -386,6 +448,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -398,6 +462,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -410,6 +476,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -422,6 +490,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -434,6 +504,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Debug<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Debug)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16);
             Handler.Log(ELogLevel.Debug, msg, null, context);
             RaiseMessageLogged(ELogLevel.Debug, msg, null);
@@ -445,6 +517,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Info(object message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+            
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -456,6 +530,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Info(string message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+            
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -468,6 +544,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1>(string format, T1 arg1, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -480,6 +558,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2>(string format, T1 arg1, T2 arg2, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -492,6 +572,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -504,6 +586,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -516,6 +600,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -528,6 +614,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -540,6 +628,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -552,6 +642,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -564,6 +656,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -576,6 +670,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -588,6 +684,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -600,6 +698,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -612,6 +712,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -624,6 +726,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -636,6 +740,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -648,6 +754,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Info<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Info)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16);
             Handler.Log(ELogLevel.Info, msg, null, context);
             RaiseMessageLogged(ELogLevel.Info, msg, null);
@@ -659,6 +767,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Warning(object message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+            
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -670,6 +780,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Warning(string message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+            
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -682,6 +794,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1>(string format, T1 arg1, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -694,6 +808,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2>(string format, T1 arg1, T2 arg2, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -706,6 +822,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -718,6 +836,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -730,6 +850,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -742,6 +864,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -754,6 +878,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -766,6 +892,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -778,6 +906,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -790,6 +920,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -802,6 +934,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -814,6 +948,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -826,6 +962,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -838,6 +976,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -850,6 +990,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -862,6 +1004,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Warning<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Warning)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16);
             Handler.Log(ELogLevel.Warning, msg, null, context);
             RaiseMessageLogged(ELogLevel.Warning, msg, null);
@@ -873,6 +1017,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Error(object message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+            
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -884,6 +1030,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Error(string message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+            
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -896,6 +1044,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1>(string format, T1 arg1, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -908,6 +1058,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2>(string format, T1 arg1, T2 arg2, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -920,6 +1072,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -932,6 +1086,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -944,6 +1100,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -956,6 +1114,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -968,6 +1128,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -980,6 +1142,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -992,6 +1156,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -1004,6 +1170,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -1016,6 +1184,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -1028,6 +1198,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -1040,6 +1212,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -1052,6 +1226,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -1064,6 +1240,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -1076,6 +1254,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Error<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16);
             Handler.Log(ELogLevel.Error, msg, null, context);
             RaiseMessageLogged(ELogLevel.Error, msg, null);
@@ -1087,6 +1267,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Fatal(object message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+            
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1098,6 +1280,8 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Fatal(string message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+            
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1110,6 +1294,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1>(string format, T1 arg1, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1122,6 +1308,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2>(string format, T1 arg1, T2 arg2, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1134,6 +1322,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3>(string format, T1 arg1, T2 arg2, T3 arg3, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1146,6 +1336,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1158,6 +1350,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1170,6 +1364,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1182,6 +1378,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1194,6 +1392,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1206,6 +1406,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1218,6 +1420,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1230,6 +1434,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1242,6 +1448,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1254,6 +1462,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1266,6 +1476,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1278,6 +1490,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);
@@ -1290,6 +1504,8 @@ namespace Moirai.Atropos
         [StringFormatMethod("format")]
         public static void Fatal<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(string format, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, Object context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
+
             var msg = StringUtility.Format(format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16);
             Handler.Log(ELogLevel.Fatal, msg, null, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, null);

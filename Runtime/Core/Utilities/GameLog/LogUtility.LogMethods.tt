@@ -30,19 +30,27 @@ namespace Moirai.Atropos
     foreach (var lv in levels)
     {
 #>
-        /// <summary>打印<#= lv.Doc #>级别日志。</summary>
+        /// <summary>
+        /// 打印<#= lv.Doc #>级别日志。
+        /// </summary>
         [HideInCallstack]
         public static void <#= lv.Name #>(object message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
+            
             var msg = message?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
         }
 
-        /// <summary>打印<#= lv.Doc #>级别日志。</summary>
+        /// <summary>
+        /// 打印<#= lv.Doc #>级别日志。
+        /// </summary>
         [HideInCallstack]
         public static void <#= lv.Name #>(string message, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
+            
             var msg = message ?? string.Empty;
             Handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
@@ -54,11 +62,15 @@ namespace Moirai.Atropos
             string fp = "string format, " + string.Join(", ", Enumerable.Range(1, n).Select(i => "T" + i + " arg" + i)) + ", Object context = null";
             string fa = "format, " + string.Join(", ", Enumerable.Range(1, n).Select(i => "arg" + i));
 #>
-        /// <summary>打印<#= lv.Doc #>级别日志。</summary>
+        /// <summary>
+        /// 打印<#= lv.Doc #>级别日志。
+        /// </summary>
         [HideInCallstack]
         [StringFormatMethod("format")]
         public static void <#= lv.Name #><#= tp #>(<#= fp #>)
         {
+            if (!IsEnabled(ELogLevel.<#= lv.Enum #>)) return;
+
             var msg = StringUtility.Format(<#= fa #>);
             Handler.Log(ELogLevel.<#= lv.Enum #>, msg, null, context);
             RaiseMessageLogged(ELogLevel.<#= lv.Enum #>, msg, null);
