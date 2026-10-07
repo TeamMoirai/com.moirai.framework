@@ -203,6 +203,101 @@ namespace Moirai.Atropos.UI
             }
         }
 
+        /// <summary>子级驱动的性能采样名：默认空串，控件用自己的名字进采样。</summary>
+        internal virtual string ProfilerSampleName => string.Empty;
+
+        /// <summary>
+        /// 每帧驱动一次：待驱动子级经双缓冲清单过滤，本体 OnUpdate 的覆写探测同帧结算。
+        /// </summary>
+        /// <remarks>
+        /// 返回「是否还要被驱动」：OnUpdate 有覆写或存在待驱动子级时为真。 <br />
+        /// 双缓冲清单只在脏位时重建，稳态零分配；采样经 <c>[Conditional]</c> 门控，发布包连实参求值一并裁除。
+        /// </remarks>
+        internal bool DriveUpdateCore()
+        {
+            List<UIWidget> listNextUpdateChild = null;
+            if (ChildList != null && ChildList.Count > 0)
+            {
+                listNextUpdateChild = _updateChildList;
+                var updateListValid = _updateListValid;
+                List<UIWidget> childList;
+                if (!updateListValid)
+                {
+                    if (listNextUpdateChild == null)
+                    {
+                        listNextUpdateChild = new List<UIWidget>();
+                        _updateChildList = listNextUpdateChild;
+                    }
+                    else
+                    {
+                        listNextUpdateChild.Clear();
+                    }
+
+                    childList = ChildList;
+                }
+                else
+                {
+                    childList = listNextUpdateChild;
+                }
+
+                for (int i = 0; i < childList.Count; i++)
+                {
+                    var uiWidget = childList[i];
+                    if (uiWidget == null)
+                    {
+                        continue;
+                    }
+
+                    GameProfiler.BeginSample(uiWidget.ProfilerSampleName);
+                    var needValid = uiWidget.InternalUpdate();
+                    GameProfiler.EndSample();
+
+                    if (!updateListValid && needValid)
+                    {
+                        listNextUpdateChild.Add(uiWidget);
+                    }
+                }
+
+                if (!updateListValid)
+                {
+                    _updateListValid = true;
+                }
+            }
+
+            GameProfiler.BeginSample("OnUpdate");
+
+            bool needUpdate;
+            if (listNextUpdateChild == null || listNextUpdateChild.Count <= 0)
+            {
+                _hasOverrideUpdate = true;
+                OnUpdate();
+                needUpdate = _hasOverrideUpdate;
+            }
+            else
+            {
+                OnUpdate();
+                needUpdate = true;
+            }
+
+            GameProfiler.EndSample();
+
+            return needUpdate;
+        }
+
+        /// <summary>
+        /// 每帧驱动的默认门：只看就绪位；可见性门由窗口一侧加严。
+        /// </summary>
+        /// <returns>还要被驱动时为真。</returns>
+        internal virtual bool InternalUpdate()
+        {
+            if (!IsPrepare)
+            {
+                return false;
+            }
+
+            return DriveUpdateCore();
+        }
+
         #region 查找子物体组件 [FIND CHILD COMPONENT]
 
         public Transform FindChild(string path)
