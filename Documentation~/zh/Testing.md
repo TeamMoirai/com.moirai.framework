@@ -351,7 +351,7 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 - **`assemblies` 与 `tests` 均为空的请求会被直接拒绝**——空过滤器会让 Test Runner 重跑"上一次在窗口里选择"的用例集，看似成功实则文不对题。
 - 前提是该程序集已编译过一次且编辑器有过一次 `update`。正在编译、正在导入、正在切 PlayMode、或编辑器里有任意 run 在跑（含窗口手动发起）时不接新单——**请求文件留着，空闲后自动消费**。
 - `timeoutSeconds` 是墙钟上限（编译、导入、域重载的等待都计入）；超时按 ABORTED 收口，报告附带已收集的 `collected passed/failed/skipped`。**ABORTED 报告里已跑完的格子不白跑**，可用于归因。
-- **取消在途单**：往工程根目录下的 `Temp/MoriaiTestRequest.cancel.json` 写要取消的请求 `id`。UTF 取消后不再送达 `RunFinished`，受理即由驱动收口。
+- **取消在途单**：往工程根目录下的 `Temp/MoiraiTestRequest.cancel.json` 写要取消的请求 `id`。UTF 取消后不再送达 `RunFinished`，受理即由驱动收口。
 
 ### 通道二：`TestRunnerApi` 直跑（桥不可用时的备选）
 
@@ -363,7 +363,7 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 
 ### 通道三：编辑器状态桥（判活与刷新）
 
-`Tests/EditorMode/EditorStateBridge.cs` 把编辑器状态每 ~1s 覆写到工程根目录下的 `Temp/MoriaiEditorState.json`。用途：
+`Tests/EditorMode/EditorStateBridge.cs` 把编辑器状态每 ~1s 覆写到工程根目录下的 `Temp/MoiraiEditorState.json`。用途：
 
 - **判活**：`now - unix` 大到几秒即主线程没在跑 `update`（导入中、域重载中、被原生模态框挡住）。
 - **判新域**：`domainSeq` 递增即域重载真发生过。
