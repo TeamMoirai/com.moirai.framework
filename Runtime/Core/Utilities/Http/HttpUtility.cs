@@ -21,10 +21,18 @@ namespace Moirai.Atropos
         public static async UniTask<string> Get(string url, float timeout = 5f)
         {
             var cts = new CancellationTokenSource();
-            cts.CancelAfterSlim(TimeSpan.FromSeconds(timeout));
+            try
+            {
+                cts.CancelAfterSlim(TimeSpan.FromSeconds(timeout));
 
-            using UnityWebRequest unityWebRequest = UnityWebRequest.Get(url);
-            return await SendWebRequest(unityWebRequest, cts);
+                using UnityWebRequest unityWebRequest = UnityWebRequest.Get(url);
+                return await SendWebRequest(unityWebRequest, cts);
+            }
+            finally
+            {
+                // Dispose 归还 CancelAfterSlim 注册的 PlayerLoop 计时器，避免滞留到终结器
+                cts.Dispose();
+            }
         }
 
         /// <summary>
@@ -37,14 +45,21 @@ namespace Moirai.Atropos
         public static async UniTask<string> Post(string url, string postData, float timeout = 5f)
         {
             var cts = new CancellationTokenSource();
-            cts.CancelAfterSlim(TimeSpan.FromSeconds(timeout));
+            try
+            {
+                cts.CancelAfterSlim(TimeSpan.FromSeconds(timeout));
 
 #if UNITY_2022_2_OR_NEWER
-            using UnityWebRequest unityWebRequest = UnityWebRequest.PostWwwForm(url, postData);
+                using UnityWebRequest unityWebRequest = UnityWebRequest.PostWwwForm(url, postData);
 #else
-            using UnityWebRequest unityWebRequest = UnityWebRequest.Post(url, postData);
+                using UnityWebRequest unityWebRequest = UnityWebRequest.Post(url, postData);
 #endif
-            return await SendWebRequest(unityWebRequest, cts);
+                return await SendWebRequest(unityWebRequest, cts);
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
 
         /// <summary>
@@ -57,10 +72,17 @@ namespace Moirai.Atropos
         public static async UniTask<string> Post(string url, Dictionary<string, string> formFields, float timeout = 5f)
         {
             var cts = new CancellationTokenSource();
-            cts.CancelAfterSlim(TimeSpan.FromSeconds(timeout));
+            try
+            {
+                cts.CancelAfterSlim(TimeSpan.FromSeconds(timeout));
 
-            using UnityWebRequest unityWebRequest = UnityWebRequest.Post(url, formFields);
-            return await SendWebRequest(unityWebRequest, cts);
+                using UnityWebRequest unityWebRequest = UnityWebRequest.Post(url, formFields);
+                return await SendWebRequest(unityWebRequest, cts);
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
 
         /// <summary>
@@ -73,10 +95,17 @@ namespace Moirai.Atropos
         public static async UniTask<string> Post(string url, WWWForm formData, float timeout = 5f)
         {
             var cts = new CancellationTokenSource();
-            cts.CancelAfterSlim(TimeSpan.FromSeconds(timeout));
+            try
+            {
+                cts.CancelAfterSlim(TimeSpan.FromSeconds(timeout));
 
-            using UnityWebRequest unityWebRequest = UnityWebRequest.Post(url, formData);
-            return await SendWebRequest(unityWebRequest, cts);
+                using UnityWebRequest unityWebRequest = UnityWebRequest.Post(url, formData);
+                return await SendWebRequest(unityWebRequest, cts);
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
 
         /// <summary>
