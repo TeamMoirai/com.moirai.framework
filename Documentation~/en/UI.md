@@ -24,7 +24,8 @@ Shutdown order is expressed by each track's self-declared tier: the track hostin
 - Multi-backend coexistence: the two built-in tracks (uGUI, UI Toolkit) can coexist in one session sharing a single window stack; adding a backend only requires its own partial file — zero changes to the main entry
 - Stack-based window management: Insert sorting by `UILayer` level, with auto-incrementing depth for windows on the same layer (`LAYER_DEEP = 2000`, `WINDOW_DEEP = 100`)
 - Five-tier layers: `Bottom` / `UI` / `Popup` / `Tips` / `System`, where `UI`, `Popup`, and `System` are modal layers
-- Full lifecycle: `OnCreate` -> `OnRefresh` -> `OnUpdate` -> `OnClose` -> `OnDestroy`, with overridable open/close animations
+- Full lifecycle: `OnCreate` -> `OnRefresh` -> `OnUpdate` -> `OnClose` -> `OnDestroy`; open/close transitions go through `IUITransition` (override `UIWindow.Transition` to return an implementation; absent means instant — open by default has no delay or input lock, closing parks immediately)
+- Window registration: every window class must carry `[Window]`; the `UIWindowCodegen` source generator resolves it at compile time into `UIWindowRegistry` (descriptor + compile-time factory) — a class without the attribute cannot open
 - Modal blocking: When a modal window is pushed onto the stack, interaction with underlying windows is automatically disabled (`Interactable`); `IsBlockedByModal` can be used to query blocking status
 - Full-screen window optimization: Windows beneath a full-screen window are automatically hidden, reducing rendering and update overhead
 - Window caching: When `cacheInstance` is enabled, the window instance is not destroyed on close, and subsequent opens reuse the same instance
@@ -44,11 +45,11 @@ Shutdown order is expressed by each track's self-declared tier: the track hostin
 | `Moirai.Atropos.UI.UIServiceSettings` | Framework settings: the `EnabledHandlers` enablement list (`[SerializeReference]`) decides which backends get initialized at init; multiple entries coexist |
 | `Moirai.Atropos.UI.UIRootBinding` | UI root binding component: put it on the scene object acting as the UI root; `SingletonMono` first-wins registers it, and the uGUI track's `UGUIHandler` reads it via `TryGetInstance()` (never auto-creates; lookup by name is gone) |
 | `Moirai.Atropos.UI.UIBase` | UI base class, defines lifecycle virtual methods and Widget creation API |
-| `Moirai.Atropos.UI.UIWindow` | Backend-agnostic window object model (inherits `UIBase`): the three panel intents — visibility / depth / interactability — plus lifecycle and open/close animations; panel loading is implemented by track base classes, and a window directly inheriting it cannot open a panel |
+| `Moirai.Atropos.UI.UIWindow` | Backend-agnostic window object model (inherits `UIBase`): the three panel intents — visibility / depth / interactability — plus lifecycle and open/close transitions (`Transition`); panel loading is implemented by track base classes, and a window directly inheriting it cannot open a panel |
 | `Moirai.Atropos.UI.UGUIWindow` | uGUI-track window base class (`Handler/UGUI/`): applies the three intents to a GameObject / Canvas / GraphicRaycaster panel — **uGUI business windows always inherit this class** |
 | `Moirai.Atropos.UI.UITKWindow` | UI Toolkit track window base class (`Handler/UITK/`): `UIDocument` shell and content-root assembly, window-level `PanelSettings` override (the extra parameter the open-window family has over the uGUI legs); UI Toolkit business windows inherit this class |
 | `Moirai.Atropos.UI.UIWidget` | Window embedded control base class, inherits `UIBase` |
-| `Moirai.Atropos.UI.WindowAttribute` | Window attribute, declares layer, resource address, full-screen, caching, and other configuration |
+| `Moirai.Atropos.UI.WindowAttribute` | Window attribute (required), declares layer, resource address, full-screen, caching, and other configuration; resolved at compile time by the `UIWindowCodegen` source generator into `UIWindowRegistry` |
 | `Moirai.Atropos.UI.UILayer` | UI layer enum: `Bottom=0`, `UI=1`, `Popup=2`, `Tips=3`, `System=4` |
 | `Moirai.Atropos.UI.UIServiceEvent` | Window open/close events (`Shown` / `Closed`), dispatched via `EventManager` |
 | `Moirai.Atropos.UI.UIServiceHelper` | Interaction helper: `IsInteractionBlockedByModal`, `IsUIObjectInteractable` |
@@ -150,14 +151,25 @@ item3.CreateByPrefab(this, goPrefab, parentTrans);
 item.Destroy();
 ```
 
-### Open/Close Animation and Interaction Lock
+### Open/Close Transitions and Interaction Lock
 
-Windows have a built-in default 0.5-second open / 0.25-second close wait time, which can be overridden with custom animations. During animation, the window automatically locks interaction, and modal windows also coordinate with the input service (`InputService.PreventInteractionUI`). The hand-back happens in the *current* transition: the global suppression flag is cleared only by its recorded owner (`UIInteractionLease`), and an animation continuation superseded by a reopen/destroy neither unlocks nor hides the window, so an overridden animation does not need to detect being taken over itself:
+Windows have no built-in open/close animation by default — opening and closing settle instantly, with no input lock and no interaction-suppression window. Provide a transition by overriding `UIWindow.Transition` to return an `IUITransition` (`Play(open, ct)` for the animated pass, `Snap(open)` for skip paths); while a transition plays, the window locks interaction, and modal windows also coordinate with the input service (`InputService.PreventInteractionUI`). The hand-back happens in the *current* transition: the global suppression flag is cleared only by its recorded owner (`UIInteractionLease`), and a transition continuation superseded by a reopen/destroy neither unlocks nor hides the window, so a transition implementation does not need to detect being taken over itself:
 
 ```csharp
-protected override async UniTask OpenAnimation()
+protected internal override IUITransition Transition => new FadeTransition(panel);
+
+private sealed class FadeTransition : IUITransition
 {
-    await panel.DOFade(1f, 0.3f);  // Play custom animation
+    private readonly GameObject _panel;
+
+    public FadeTransition(GameObject panel) => _panel = panel;
+
+    public async UniTask Play(bool open, CancellationToken ct)
+    {
+        await _panel.GetComponent<CanvasGroup>().DOFade(open ? 1f : 0f, 0.3f).WithCancellation(ct);
+    }
+
+    public void Snap(bool open) { /* jump to the end state on skip paths */ }
 }
 ```
 

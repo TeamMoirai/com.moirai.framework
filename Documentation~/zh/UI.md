@@ -24,7 +24,8 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 - 多后端共存：uGUI 与 UI Toolkit 两支内建轨可在同一会话并存，共享同一条窗口栈；新增后端只需添加自己那一轨的 partial 文件，主入口零改动
 - 窗口栈式管理：按 `UILayer` 层级插入排序，同层窗口深度自动递增（`LAYER_DEEP = 2000`、`WINDOW_DEEP = 100`）
 - 五级层级：`Bottom` / `UI` / `Popup` / `Tips` / `System`，其中 `UI`、`Popup`、`System` 为模态层级
-- 完整生命周期：`OnCreate` → `OnRefresh` → `OnUpdate` → `OnClose` → `OnDestroy`，可重写打开/关闭动画
+- 完整生命周期：`OnCreate` → `OnRefresh` → `OnUpdate` → `OnClose` → `OnDestroy`；开/关过渡经 `IUITransition`（覆写 `UIWindow.Transition` 交回实现，缺位即瞬时——默认开窗无延迟、无输入锁，关闭即时停放）
+- 窗口注册：窗口类必标 `[Window]`，由源生成器 `UIWindowCodegen` 在编译期登记进 `UIWindowRegistry`（描述符 + 编译期工厂），未标注的窗口类不可开
 - 模态遮挡：模态窗口压栈后自动禁用下层窗口交互（`Interactable`），`IsBlockedByModal` 可查询遮挡
 - 全屏窗口优化：全屏窗口之下的窗口自动隐藏，减少渲染与更新开销
 - 窗口缓存：`cacheInstance` 关闭时不销毁，再次打开直接复用实例
@@ -44,11 +45,11 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 | `Moirai.Atropos.UI.UIServiceSettings` | 框架设置：`EnabledHandlers` 启用清单（`[SerializeReference]`）决定初始化哪几支后端，可同时多支 |
 | `Moirai.Atropos.UI.UIRootBinding` | UI 根绑定组件：挂在充当 UI 根的场景物体上，`SingletonMono` 先到先得登记，供 uGUI 轨 `UGUIHandler` 经 `TryGetInstance()` 取用（不自动创建；取代按名字查找） |
 | `Moirai.Atropos.UI.UIBase` | UI 基类，定义生命周期虚方法与 Widget 创建 API |
-| `Moirai.Atropos.UI.UIWindow` | 窗口对象模型基类（继承 `UIBase`）：可见性 / 深度 / 交互三份面板意图、生命周期与开关动画；面板装载由轨基类实现，直接继承它开不出面板 |
+| `Moirai.Atropos.UI.UIWindow` | 窗口对象模型基类（继承 `UIBase`）：可见性 / 深度 / 交互三份面板意图、生命周期与开/关过渡（`Transition`）；面板装载由轨基类实现，直接继承它开不出面板 |
 | `Moirai.Atropos.UI.UGUIWindow` | uGUI 轨窗口基类（`Handler/UGUI/`）：把三份意图落到 GameObject / Canvas / GraphicRaycaster 面板上，**uGUI 业务窗口一律继承此类** |
 | `Moirai.Atropos.UI.UITKWindow` | UI Toolkit 轨窗口基类（`Handler/UITK/`）：`UIDocument` 壳与内容根装配、窗口级 `PanelSettings` 覆盖（开窗族比 uGUI 腿多出的那枚形参），UI Toolkit 业务窗口继承此类 |
 | `Moirai.Atropos.UI.UIWidget` | 窗口内嵌控件基类，继承 `UIBase` |
-| `Moirai.Atropos.UI.WindowAttribute` | 窗口特性，声明层级、资源地址、全屏、缓存等配置 |
+| `Moirai.Atropos.UI.WindowAttribute` | 窗口特性（必标），声明层级、资源地址、全屏、缓存等配置；由源生成器 `UIWindowCodegen` 编译期解析并登记进 `UIWindowRegistry` |
 | `Moirai.Atropos.UI.UILayer` | UI 层级枚举：`Bottom=0`、`UI=1`、`Popup=2`、`Tips=3`、`System=4` |
 | `Moirai.Atropos.UI.UIServiceEvent` | 窗口打开/关闭事件（`Shown` / `Closed`），经 `EventManager` 派发 |
 | `Moirai.Atropos.UI.UIServiceHelper` | 交互辅助：`IsInteractionBlockedByModal`、`IsUIObjectInteractable` |
@@ -150,14 +151,25 @@ item3.CreateByPrefab(this, goPrefab, parentTrans);
 item.Destroy();
 ```
 
-### 开关动画与交互锁
+### 开关过渡与交互锁
 
-窗口默认内置 0.5 秒打开 / 0.25 秒关闭的等待，可重写替换为动画播放；动画期间窗口自动锁定交互，模态窗口还会联动输入服务（`InputService.PreventInteractionUI`）。交还只发生在**当轮**转移：全局压制位按归属仲裁（`UIInteractionLease`）仅由最后持有者清除，被重开/销毁接管的旧动画续体不再解锁也不再隐藏，因此重写的动画无需自行判断是否已被接管：
+窗口默认**无内置开/关过渡**——开与关都当场结算，无延迟、无输入锁、无交互压制窗口。提供过渡：覆写 `UIWindow.Transition` 交回一枚 `IUITransition` 实现（`Play(open, ct)` 为动画过程，`Snap(open)` 供跳过路径就近拨终态）；过渡播放期间窗口锁交互，模态窗口联动输入服务（`InputService.PreventInteractionUI`）。交还只发生在**当轮**转移：全局压制位按归属仲裁（`UIInteractionLease`）仅由最后持有者清除，被重开/销毁接管的旧过渡续体不再解锁也不再隐藏，过渡实现无需自行判断是否已被接管：
 
 ```csharp
-protected override async UniTask OpenAnimation()
+protected internal override IUITransition Transition => new FadeTransition(panel);
+
+private sealed class FadeTransition : IUITransition
 {
-    await panel.DOFade(1f, 0.3f);  // 播放自定义动画
+    private readonly GameObject _panel;
+
+    public FadeTransition(GameObject panel) => _panel = panel;
+
+    public async UniTask Play(bool open, CancellationToken ct)
+    {
+        await _panel.GetComponent<CanvasGroup>().DOFade(open ? 1f : 0f, 0.3f).WithCancellation(ct);
+    }
+
+    public void Snap(bool open) { /* 跳过路径上直接拨到终态 */ }
 }
 ```
 
