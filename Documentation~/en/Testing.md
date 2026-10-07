@@ -353,7 +353,7 @@ Discipline:
 - **A request with both `assemblies` and `tests` empty is rejected outright** — an empty filter makes Test Runner re-run "whatever was last selected in the window", which looks like success but tests the wrong set.
 - The prerequisite is that the assembly has compiled at least once and the editor has had an `update`. While compiling, importing, changing play mode, or while any run is active (including one started manually from the window) it accepts no new request — **the request file stays and is consumed automatically once idle**.
 - `timeoutSeconds` is a wall-clock limit (compile, import and domain-reload waiting all count); on timeout the run is closed out as ABORTED and the report carries the `collected passed/failed/skipped` so far. **Cells already finished in an ABORTED report are not wasted** and can be used for attribution.
-- **Cancelling an in-flight run**: write the request `id` to `Temp/MoriaiTestRequest.cancel.json` under the project root. After a UTF cancellation `RunFinished` is never delivered; the driver closes out on acceptance.
+- **Cancelling an in-flight run**: write the request `id` to `Temp/MoiraiTestRequest.cancel.json` under the project root. After a UTF cancellation `RunFinished` is never delivered; the driver closes out on acceptance.
 
 ### Channel 2: running `TestRunnerApi` directly (fallback when the bridge is unavailable)
 
@@ -365,7 +365,7 @@ Inside an editor script, use `ScriptableObject.CreateInstance<TestRunnerApi>()` 
 
 ### Channel 3: editor state bridge (liveness and refresh)
 
-`Tests/EditorMode/EditorStateBridge.cs` rewrites editor state to `Temp/MoriaiEditorState.json` under the project root roughly every second. Uses:
+`Tests/EditorMode/EditorStateBridge.cs` rewrites editor state to `Temp/MoiraiEditorState.json` under the project root roughly every second. Uses:
 
 - **Liveness**: a `now - unix` gap of several seconds means the main thread is not running `update` (importing, domain reloading, blocked by a native modal).
 - **New domain**: an incrementing `domainSeq` proves a domain reload really happened.
