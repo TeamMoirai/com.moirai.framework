@@ -1021,11 +1021,14 @@ namespace Service.UI
             var ugui = Prepared("CallbackUGUI", (int)UILayer.Bottom);
             var kit = PreparedKit("CallbackKit", (int)UILayer.UI);
 
+            // 这一格判的是回叫路由：先把交互位拨到「已过等待」那一档，自关才会当场结算（等待段挂在 PlayerLoop，EditMode 不驱动）
+            ugui.Interactable = true;
             ugui.Close();
 
             Assert.IsNull(UIService.SharedLedger.GetWindow<ProbeUGUIWindow>("CallbackUGUI"), "uGUI 轨那一只的关闭回叫结算进了栈");
             Assert.IsNotNull(UIService.SharedLedger.GetWindow<ProbeUITKWindow>("CallbackKit"), "同一时刻另一轨那一只不受影响");
 
+            kit.Interactable = true;
             kit.Close();
 
             Assert.IsNull(UIService.SharedLedger.GetWindow<ProbeUITKWindow>("CallbackKit"), "UI Toolkit 轨那一只走的也是那条栈");
@@ -1048,6 +1051,7 @@ namespace Service.UI
 
             Assert.IsTrue(UIService.IsValid, "量具前提坏了：只剩 UI Toolkit 那一枚时门面就该算有效");
 
+            window.Interactable = true;
             window.Close();
 
             Assert.IsNull(UIService.SharedLedger.GetWindow<ProbeUGUIWindow>("KitOnlyClose"), "另一轨的驱动者不在位不是回叫落空的理由");
