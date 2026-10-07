@@ -88,7 +88,7 @@ namespace Service.UI
         /// <summary>
         /// 归属仲裁只做引用相等判定，不触碰窗口成员——空实例即可作为身份键。
         /// </summary>
-        private sealed class LeaseTestWindow : UIWindow
+        private sealed class LeaseTestWindow : UGUIWindow
         {
         }
     }

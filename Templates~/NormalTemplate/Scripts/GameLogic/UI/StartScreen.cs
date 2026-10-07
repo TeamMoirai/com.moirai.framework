@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.GameLogic.UI
 {
 	[Window(UILayer.UI)]
-	public partial class StartScreen : UIWindow
+	public partial class StartScreen : UGUIWindow
 	{
 		protected override void OnRefresh()
 		{

@@ -3,49 +3,34 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Input;
-using Moirai.Atropos.Resource;
 using Moirai.Atropos.Timer;
-using UnityEngine;
-using UnityEngine.UI;
-using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.UI
 {
+    /// <summary>
+    /// 窗口对象模型：身份、生命周期与显隐/深度/交互的<b>意图位</b>，不含任何渲染后端类型。
+    /// </summary>
+    /// <remarks>
+    /// 面板本体住在各后端自己的派生基类里（uGUI 轨见 <see cref="UGUIWindow"/>），本类经七枚 <c>protected internal virtual</c> 面板钩子与之交接： <br />
+    /// <c>LoadPanel</c> / <c>LoadPanelAsync</c> 装载并装配面板，<c>ApplyVisible</c> / <c>ApplyDepth</c> / <c>ApplyInteractable</c> 把意图落到面板上， <br />
+    /// <c>ParkPanel</c> / <c>DestroyPanel</c> 收走面板。默认实现「什么都不做、什么也加载不了」，未挂后端基类的窗口不会崩，但也开不出来。 <br />
+    /// 三语义以意图为准（<c>Visible</c> 的 getter 读调用方要的值，不再回读后端事实），同值二次赋值不重复落钩子； <br />
+    /// 排序刷新（<see cref="UIBase._OnSortDepth"/> 与 <see cref="UIBase._isSortingOrderDirty"/>）的决策留在本类，差分细节留给后端。 <br />
+    /// 自关默认立即结算，覆写 <see cref="DeferCloseUntilInteractable"/> 可延后到可交互再过 <see cref="CanClose"/> 门（<see cref="TryClose"/>）。 <br />
+    /// 线程契约：仅主线程。
+    /// </remarks>
     public abstract partial class UIWindow : UIBase
     {
         #region 属性 [PROPERTIES]
 
-        private GameObject _panel;
-
-        private Canvas _canvas;
-        protected Canvas Canvas => _canvas;
-
-        private GraphicRaycaster _raycaster;
-        protected GraphicRaycaster GraphicRaycaster => _raycaster;
-
         private bool _isCreate = false;
-        private Canvas[] _childCanvas;
-        private GraphicRaycaster[] _childRaycaster;
         private Action<UIWindow> _prepareCallback;
-        private SetUISafeFitHelper _setUISafeFitHelper;
         // 交互/可见性交接代次：每次状态转移（打开/关闭/重开/销毁）递增，只有最新一轮的续体可以交还交互锁与隐藏窗口
         private uint _interactionLifetime;
 
         protected CancellationTokenSource _cts;
 
         public override UIType Type => UIType.Window;
-
-        /// <summary>窗口位置组件。</summary>
-        /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
-        public override Transform transform => _panel.transform;
-        
-        /// <summary>窗口矩阵位置组件。</summary>
-        /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
-        public override RectTransform rectTransform => _panel.transform as RectTransform;
-
-        /// <summary>窗口的实例资源对象。</summary>
-        /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
-        public override GameObject gameObject => _panel;
 
         /// <summary>窗口名称。</summary>
         public string WindowName { get; private set; }
@@ -70,110 +55,84 @@ namespace Moirai.Atropos.UI
         
         /// <summary>缓存实例，关闭时不销毁。</summary>
         public bool CacheInstance { get; set; }
-        
-        /// <summary>窗口深度值。</summary>
+
+        private int _depth;
+
+        /// <summary>窗口深度值（意图）。</summary>
+        /// <remarks>
+        /// 落到面板由 <see cref="ApplyDepth"/> 负责；子级排序偏移的差分是后端内部事实，本类不知道也不该知道。 <br />
+        /// 旧实现的同值判据读 <c>canvas.sortingOrder</c>，现改读意图位：值相同即不再落钩子、不再刷排序。
+        /// </remarks>
         public int Depth
         {
-            get
-            {
-                if (_canvas != null)
-                {
-                    return _canvas.sortingOrder;
-                }
-                else
-                {
-                    return 0;
-                }
-            }
+            get => _depth;
 
             set
             {
-                if (_canvas != null)
+                if (_depth == value)
                 {
-                    if (_canvas.sortingOrder == value)
-                    {
-                        return;
-                    }
+                    return;
+                }
 
-                    var oldOrder = _canvas.sortingOrder;
-                    // 设置父类
-                    _canvas.sortingOrder = value;
+                _depth = value;
 
-                    // 设置子类
-                    // int depth = value;
-                    for (int i = 0; i < _childCanvas.Length; i++)
-                    {
-                        var canvas = _childCanvas[i];
-                        if (canvas != _canvas)
-                        {
-                            // depth += 5; // 注意递增值
-                            // canvas.sortingOrder = depth;
-                            canvas.sortingOrder = value + (canvas.sortingOrder - oldOrder);
-                        }
-                    }
+                // 面板落地（后端自己的事：父级取绝对值、子级按各自偏移一同平移）
+                ApplyDepth(value);
 
-                    // 虚函数
-                    if (Visible)
-                    {
-                        _OnSortDepth();
-                    }
-                    else
-                    {
-                        _isSortingOrderDirty = true;
-                    }
+                // 虚函数
+                if (Visible)
+                {
+                    _OnSortDepth();
+                }
+                else
+                {
+                    _isSortingOrderDirty = true;
                 }
             }
         }
 
-        /// <summary>窗口可见性。</summary>
+        private bool _visible;
+
+        /// <summary>窗口可见性（意图）。</summary>
+        /// <remarks>
+        /// getter 回调用方要的值，不再回读面板所在的 Unity layer（改判 R1 ①：外部改层是副产品，不作为契约）。 <br />
+        /// 切 layer 由 <see cref="ApplyVisible"/> 落地；<see cref="UIBase.OnSetVisible"/> 与排序脏位的结算仍归本类。
+        /// </remarks>
         public bool Visible
         {
-            get
-            {
-                if (_canvas != null)
-                {
-                    return _canvas.gameObject.layer == UIService.WINDOW_SHOW_LAYER;
-                }
-                else
-                {
-                    return false;
-                }
-            }
+            get => _visible;
 
             set
             {
-                if (_canvas != null)
+                if (_visible == value)
                 {
-                    int setLayer = value ? UIService.WINDOW_SHOW_LAYER : UIService.WINDOW_HIDE_LAYER;
+                    return;
+                }
 
-                    if (_canvas.gameObject.layer == setLayer) return;
+                _visible = value;
 
-                    // 显示设置
-                    _canvas.gameObject.layer = setLayer;
-                    for (int i = 0; i < _childCanvas.Length; i++)
-                    {
-                        _childCanvas[i].gameObject.layer = setLayer;
-                    }
+                // 面板落地
+                ApplyVisible(value);
 
-                    if (value && _isCreate)
-                    {
-                        _isSortingOrderDirty = false;
-                        _OnSortDepth();
-                    }
+                if (value && _isCreate)
+                {
+                    _isSortingOrderDirty = false;
+                    _OnSortDepth();
+                }
 
-                    // LogUtility.Info("[UI] Set '{0}' Visible {1}", WindowName, value);
+                // LogUtility.Info("[UI] Set '{0}' Visible {1}", WindowName, value);
 
-                    // 虚函数
-                    if (_isCreate)
-                    {
-                        OnSetVisible(value);
-                    }
+                // 虚函数
+                if (_isCreate)
+                {
+                    OnSetVisible(value);
                 }
             }
         }
 
         private bool _interactable;
-        /// <summary>窗口交互性。</summary>
+        /// <summary>窗口交互性（意图）。</summary>
+        /// <remarks>同值不重复落钩子；把 <c>enabled</c> 推给面板拾取器的动作在 <see cref="ApplyInteractable"/>。</remarks>
         public bool Interactable
         {
             get => _interactable;
@@ -183,16 +142,8 @@ namespace Moirai.Atropos.UI
                 if (_interactable == value) return;
 
                 // LogUtility.Info("{0}'s Interactable: {1}", WindowName, value);
-                if (_raycaster != null)
-                {
-                    _raycaster.enabled = value;
-                    for (int i = 0; i < _childRaycaster.Length; i++)
-                    {
-                        _childRaycaster[i].enabled = value;
-                    }
-                }
-
                 _interactable = value;
+                ApplyInteractable(value);
             }
         }
 
@@ -207,68 +158,16 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        public void Init(string name, int layer, bool fullScreen, string assetName, bool fromResources, int hideTimeToClose, bool cacheInstance)
+        public void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance)
         {
             WindowName = name;
             WindowLayer = layer;
             FullScreen = fullScreen;
-            AssetName = assetName;
+            AssetName = assetLocation;
             FromResources = fromResources;
             HideTimeToClose = hideTimeToClose;
             CacheInstance = cacheInstance;
         }
-
-        #region 刘海屏适配 [NOTCH ADAPTATION]
-
-        /// <summary>
-        /// 移动设备屏幕适配。
-        /// </summary>
-        /// <param name="fitRect">适配的RectTransform对象。</param>
-        /// <param name="liuHaiFit">是否开启刘海屏顶部适配。</param>
-        /// <param name="topSpacing">刘海屏顶部适配偏移高度。</param>
-        /// <param name="bottomFit">是否开启刘海屏底部适配。</param>
-        /// <param name="bottomSpacing">刘海屏底部适配偏移高度。</param>
-        public void SetUIFit(RectTransform fitRect, bool liuHaiFit = true, float topSpacing = 0, bool bottomFit = true, float bottomSpacing = 0)
-        {
-            if (_setUISafeFitHelper == null)
-            {
-                _setUISafeFitHelper = new SetUISafeFitHelper(fitRect, liuHaiFit, topSpacing, bottomFit, bottomSpacing);
-            }
-            _setUISafeFitHelper?.SetUIFit();
-        }
-
-        /// <summary>
-        /// 设置 <see cref="rect"/> 不受当前适配影响。
-        /// </summary>
-        public void SetUINotFit(RectTransform rect)
-        {
-            if (rect == null)
-            {
-                return;
-            }
-
-            _setUISafeFitHelper?.SetUINotFit(rect);
-        }
-
-        /// <summary>
-        /// 设置某一个节点不受指定 <see cref="refRect"/> 的影响。
-        /// </summary>
-        /// <param name="rect">设置的RectTransform。</param>
-        /// <param name="refRect">依赖的RectTransform。</param>
-        public void SetUINotFit(RectTransform rect, RectTransform refRect)
-        {
-            if (rect == null || refRect == null)
-            {
-                return;
-            }
-            if (_setUISafeFitHelper == null)
-            {
-                _setUISafeFitHelper = new SetUISafeFitHelper();
-            }
-            _setUISafeFitHelper?.SetUINotFit(rect, refRect);
-        }
-
-        #endregion
 
         internal void TryInvoke(Action<UIWindow> prepareCallback, System.Object[] @params)
         {
@@ -288,24 +187,51 @@ namespace Moirai.Atropos.UI
         {
             _prepareCallback = prepareCallback;
             _params = @params;
-            if (!FromResources)
+
+            // 装载面板是后端的活：本类只认「装上没有」，装上之后统一把三份意图落到新面板上
+            if (isAsync)
             {
-                if (isAsync)
+                if (!await LoadPanelAsync(location, FromResources, CancellationToken.None))
                 {
-                    var uiInstance = await ResourceService.LoadGameObjectAsync(location, parent: UIService.UIRoot);
-                    Handle_Completed(uiInstance);
-                }
-                else
-                {
-                    var uiInstance = ResourceService.LoadGameObject(location, parent: UIService.UIRoot);
-                    Handle_Completed(uiInstance);
+                    return;
                 }
             }
             else
             {
-                GameObject panel = UObject.Instantiate(Resources.Load<GameObject>(location), UIService.UIRoot);
-                Handle_Completed(panel);
+                if (!LoadPanel(location, FromResources))
+                {
+                    return;
+                }
             }
+
+            PanelLoaded();
+        }
+
+        /// <summary>
+        /// 面板装载完成：置加载位、撤掉已销毁窗口的面板，然后把三份意图落到刚出现的面板上并通知准备回调。
+        /// </summary>
+        /// <remarks>
+        /// 意图必须在 <c>IsPrepare</c> 之前落地：开窗前 <c>UGUIHandler</c> 已可能压入栈并被别的窗口调过 <c>Depth</c>/<c>Visible</c>， <br />
+        /// 旧实现把这些写在 <c>_canvas != null</c> 之外的调用直接丢掉，现在攒在意图位上、绑定当场结算。
+        /// </remarks>
+        private void PanelLoaded()
+        {
+            IsLoadDone = true;
+
+            if (IsDestroyed)
+            {
+                // 装载完成前窗口已被关闭：面板留着也没人认，直接收走且不进准备态
+                DestroyPanel();
+                return;
+            }
+
+            ApplyVisible(_visible);
+            ApplyDepth(_depth);
+            ApplyInteractable(_interactable);
+
+            // 通知UI管理器
+            IsPrepare = true;
+            _prepareCallback?.Invoke(this);
         }
 
         /// <summary>
@@ -444,7 +370,7 @@ namespace Moirai.Atropos.UI
             UnlockInteraction();
 
             CancelCts();
-            gameObject.SetActive(false);
+            ParkPanel();
         }
 
         protected internal void InternalDestroy(bool isShutDown = false)
@@ -473,15 +399,11 @@ namespace Moirai.Atropos.UI
             // 销毁面板对象
             if (!isShutDown && CacheInstance)
             {
-                _panel.gameObject.SetActive(false);
+                ParkPanel();
             }
             else
             {
-                if (_panel != null)
-                {
-                    UObject.Destroy(_panel);
-                    _panel = null;
-                }
+                DestroyPanel();
             }
 
             IsDestroyed = true;
@@ -492,46 +414,44 @@ namespace Moirai.Atropos.UI
             }
         }
 
+        #region 面板钩子 [PANEL HOOKS]
+
         /// <summary>
-        /// 处理资源加载完成回调。
+        /// 装载并装配面板（同步路径）。
         /// </summary>
-        /// <param name="panel">面板资源实例。</param>
-        private void Handle_Completed(GameObject panel)
-        {
-            if (panel == null) return;
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">是否为内置资源（不走资源包加载）。</param>
+        /// <returns>面板装上返回 true；回 false 时窗口停在未就绪态，不置 <see cref="IsLoadDone"/>、不发准备回调。</returns>
+        /// <remarks>后端专有语义（uGUI 轨要带排序画布的面板物体，UI Toolkit 轨要挂文档组件）不住在本类，默认实现什么都加载不了。</remarks>
+        protected internal virtual bool LoadPanel(string assetLocation, bool fromResources) => false;
 
-            IsLoadDone = true;
-            
-            if (IsDestroyed)
-            {
-                UnityEngine.Object.Destroy(panel);
-                return;
-            }
-            
-            panel.name = GetType().Name;
-            _panel = panel;
-            _panel.transform.localPosition = Vector3.zero;
+        /// <summary>
+        /// 装载并装配面板（异步路径）。
+        /// </summary>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">是否为内置资源（不走资源包加载）。</param>
+        /// <param name="ct">装载取消令牌。</param>
+        /// <returns>面板装上返回 true。</returns>
+        /// <remarks>同步走完要把已完成的任务交回去：调用方在装载之后还有置位与落意图的活要办。</remarks>
+        protected internal virtual UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources, CancellationToken ct) =>
+            UniTask.FromResult(false);
 
-            // 获取组件
-            _canvas = _panel.GetComponent<Canvas>();
-            if (_canvas == null)
-            {
-                throw new Exception($"Not found {nameof(Canvas)} in panel {WindowName}");
-            }
+        /// <summary>把 <see cref="Visible"/> 意图落到面板上。</summary>
+        protected internal virtual void ApplyVisible(bool value) { }
 
-            _canvas.overrideSorting = true;
-            _canvas.sortingOrder = 0;
-            _canvas.sortingLayerName = "Default"; // 使用默认层级程序化 sortingOrder 排序，避免繁复的设置
+        /// <summary>把 <see cref="Depth"/> 意图落到面板上。</summary>
+        protected internal virtual void ApplyDepth(int value) { }
 
-            // 获取组件
-            _raycaster = _panel.GetComponent<GraphicRaycaster>();
-            _childCanvas = _panel.GetComponentsInChildren<Canvas>(true);
-            _childRaycaster = _panel.GetComponentsInChildren<GraphicRaycaster>(true);
+        /// <summary>把 <see cref="Interactable"/> 意图落到面板上。</summary>
+        protected internal virtual void ApplyInteractable(bool value) { }
 
-            // 通知UI管理器
-            IsPrepare = true;
-            _prepareCallback?.Invoke(this);
-        }
+        /// <summary>停放面板：物体留着但不激活（缓存实例的关闭态与关闭动画结束后的隐藏）。</summary>
+        protected internal virtual void ParkPanel() { }
+
+        /// <summary>收走面板：销毁面板物体并断开后端引用。</summary>
+        protected internal virtual void DestroyPanel() { }
+
+        #endregion
 
         #region 交互相关 [INTERACTION]
 
@@ -619,14 +539,100 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        protected internal virtual void Hide()
+        #region 延后关闭 [DEFERRED CLOSE]
+
+        /// <summary>本窗自关是否延后到可交互再结算：默认立即结算，弹窗类窗口按需覆写为真。</summary>
+        /// <remarks>等待与门都由 <see cref="TryClose"/> 承载；策略住在对象模型上，两轨窗口同形覆写、不必每轨复制中间基类。</remarks>
+        protected virtual bool DeferCloseUntilInteractable => false;
+
+        /// <summary>延后关闭的门：<see cref="TryClose"/> 等到可交互后过这一道，回真才真关。</summary>
+        protected virtual bool CanClose => true;
+
+        /// <summary>试图关闭但关不了时调用（<see cref="CanClose"/> 为假的那一轮）。</summary>
+        protected virtual void OnCloseFail() { }
+
+        /// <summary>
+        /// 延后到可交互再尝试关闭：已可交互时当场过门，否则等交互位让位、本窗被接管或销毁为止。
+        /// </summary>
+        /// <remarks>
+        /// 等待被动观察、不接管交互锁：被重开/销毁接管后本轮静默终止，锁由接管方交还。 <br />
+        /// 已销毁或代次已换时不再过门——等待中的取消同样终止本轮，不会对着已销毁的窗空转。
+        /// </remarks>
+        public virtual async UniTaskVoid TryClose()
         {
-            UIService.HideUI(GetType(), WindowName);
+            try
+            {
+                if (!Interactable)
+                {
+                    var lifetime = _interactionLifetime;
+                    await UniTask.WaitUntil(
+                        () => Interactable || IsDestroyed || lifetime != _interactionLifetime,
+                        cancellationToken: _cts != null ? _cts.Token : CancellationToken.None);
+
+                    if (IsDestroyed || lifetime != _interactionLifetime)
+                    {
+                        return;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            if (CanClose)
+            {
+                RequestLedgerClose();
+            }
+            else
+            {
+                OnCloseFail();
+            }
         }
 
+        #endregion
+
+        /// <summary>
+        /// 把本窗交进那条共享栈去隐：门面还有驱动者在位才结算，各轨的窗走的是同一道。
+        /// </summary>
+        /// <remarks>
+        /// 落点不是「哪一枚协调者是主」——R8 之后没有那一份单点，回叫直接叫共享持有者； <br />
+        /// 守卫在 <see cref="UIService.IsValid"/> 上：关停把各轨引用都摘掉之后，这一道与 <c>Close</c> 那半都静默落空 <br />
+        /// （隐藏转关闭的那条计时器在生产侧是可达的，<c>isShutDown</c> 那一档刻意不注销它）。
+        /// </remarks>
+        protected internal virtual void Hide()
+        {
+            if (UIService.IsValid)
+            {
+                UIService.SharedLedger.HideUI(GetType(), WindowName);
+            }
+        }
+
+        /// <summary>
+        /// 把本窗交进那条共享栈去关：默认立即结算；<see cref="DeferCloseUntilInteractable"/> 为真的窗口改道 <see cref="TryClose"/>，等可交互再过门。
+        /// </summary>
+        /// <remarks>
+        /// 与 <c>Hide</c> 同一道守卫（门面还有驱动者在位才结算）；延后档的真关也收口在同一个私有落点上。
+        /// </remarks>
         protected internal virtual void Close()
         {
-            UIService.CloseUI(GetType(), WindowName);
+            if (DeferCloseUntilInteractable)
+            {
+                TryClose().Forget();
+            }
+            else
+            {
+                RequestLedgerClose();
+            }
+        }
+
+        /// <summary>把本窗的关闭请求交进那条共享栈：门面还有驱动者在位才结算，立即档与延后档共用这一处落点。</summary>
+        private void RequestLedgerClose()
+        {
+            if (UIService.IsValid)
+            {
+                UIService.SharedLedger.CloseUI(GetType(), WindowName);
+            }
         }
 
         internal void CancelHideToCloseTimer()
@@ -636,18 +642,6 @@ namespace Moirai.Atropos.UI
             {
                 TimerService.Cancel(HideTimerId);
                 HideTimerId = 0UL;
-            }
-        }
-
-        /// <summary>
-        /// 手动强制刷新所有子对象的布局。
-        /// </summary>
-        /// <remarks>用于解决动态更新布局后不会自动刷新的问题</remarks>
-        protected virtual void ForceRebuildLayoutImmediate()
-        {
-            foreach (var layout in transform.GetComponentsInChildren<LayoutGroup>())
-            {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(layout.GetComponent<RectTransform>());
             }
         }
     }
