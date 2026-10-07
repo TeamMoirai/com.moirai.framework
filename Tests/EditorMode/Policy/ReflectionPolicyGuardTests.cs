@@ -84,7 +84,7 @@ namespace Policy
             Assert.IsEmpty(offenders,
                 "以下测试文件新增了非公开反射，但《测试规范》禁止测试用反射读写字段。\n" +
                 "正确做法：把需要触达的成员从 private 放宽到 internal（Runtime/AssemblyInfo.cs 已对三个测试程序集开 InternalsVisibleTo），\n" +
-                "已有窄接缝的成员走生成的 Internal_PeekHandler()/Internal_UseHandler(next) 或新增 Internal_* 接缝。\n" +
+                "已有窄接缝的成员走生成的 Internal_PeekHandler()/Internal_UseHandler(next)（UI 门面除外：它没有换入接缝），或新增 Internal_* 接缝。\n" +
                 "若确属白名单三类（契约形状守卫 / 生命周期唤起 / 产码字段探针），把它登记进 ReflectionPolicyGuardTests.Allowlist 并写明归类。\n" +
                 "命中文件：\n  " + string.Join("\n  ", offenders));
         }
