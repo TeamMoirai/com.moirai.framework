@@ -55,80 +55,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        internal bool InternalUpdate()
-        {
-            if (!IsPrepare)
-            {
-                return false;
-            }
-
-            List<UIWidget> listNextUpdateChild = null;
-            if (ChildList != null && ChildList.Count > 0)
-            {
-                listNextUpdateChild = _updateChildList;
-                var updateListValid = _updateListValid;
-                List<UIWidget> childList = null;
-                if (!updateListValid)
-                {
-                    if (listNextUpdateChild == null)
-                    {
-                        listNextUpdateChild = new List<UIWidget>();
-                        _updateChildList = listNextUpdateChild;
-                    }
-                    else
-                    {
-                        listNextUpdateChild.Clear();
-                    }
-
-                    childList = ChildList;
-                }
-                else
-                {
-                    childList = listNextUpdateChild;
-                }
-
-                for (int i = 0; i < childList.Count; i++)
-                {
-                    var uiWidget = childList[i];
-                    
-                    if (uiWidget == null)
-                    {
-                        continue;
-                    }
-
-                    GameProfiler.BeginSample(uiWidget.WidgetName);
-                    var needValid = uiWidget.InternalUpdate();
-                    GameProfiler.EndSample();
-
-                    if (!updateListValid && needValid)
-                    {
-                        listNextUpdateChild.Add(uiWidget);
-                    }
-                }
-
-                if (!updateListValid)
-                {
-                    _updateListValid = true;
-                }
-            }
-
-            GameProfiler.BeginSample("OnUpdate");
-            bool needUpdate = false;
-            if (listNextUpdateChild is not { Count: > 0 })
-            {
-                _hasOverrideUpdate = true;
-                OnUpdate();
-                needUpdate = _hasOverrideUpdate;
-            }
-            else
-            {
-                OnUpdate();
-                needUpdate = true;
-            }
-            GameProfiler.EndSample();
-
-            return needUpdate;
-        }
+        /// <summary>每帧驱动的门与子级结算全在基类：本类只补采样名与控件语义。</summary>
+        /// <remarks>驱动门只看就绪位（控件不问可见性），与 <see cref="UIWindow"/> 的可见性加严门相对。</remarks>
+        internal override string ProfilerSampleName => WidgetName;
 
         #region 创建 [CREATE]
 

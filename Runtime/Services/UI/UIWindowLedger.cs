@@ -333,18 +333,23 @@ namespace Moirai.Atropos.UI
                 return window;
             }
 
-            // 等面板就绪，超时由 CTS 兜底，超时后照常交回窗口
-            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS)))
+            // 等面板就绪：先过一帧再入轮询（对齐旧 WaitUntil 的次帧首查语义），实例方法等待零闭包；
+            // 超时经池租的取消源兜底，超时后照常交回窗口
+            var waitCts = UICtsPool.Rent();
+            waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+            try
             {
-                try
-                {
-                    await UniTask.WaitUntil(() => window.IsLoadDone || window.IsLoadFailed || window.IsDestroyed,
-                        cancellationToken: cts.Token);
-                }
-                catch (System.OperationCanceledException)
-                {
-                    LogUtility.Warning("ShowUIAsyncAwait timed out waiting for window load: {0}", windowName);
-                }
+                await UniTask.Yield();
+                await window.WaitPanelReadyAsync(waitCts.Token);
+            }
+            catch (System.OperationCanceledException)
+            {
+                LogUtility.Warning("ShowUIAsyncAwait timed out waiting for window load: {0}", windowName);
+            }
+            finally
+            {
+                waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                UICtsPool.Return(waitCts);
             }
 
             if (window.IsLoadFailed || (window.IsDestroyed && !window.IsLoadDone))
@@ -475,18 +480,22 @@ namespace Moirai.Atropos.UI
                 return ret;
             }
 
-            // 等面板就绪，超时由 CTS 兜底，超时后照常交回窗口
-            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS)))
+            // 等面板就绪：先过一帧再入轮询（次帧首查语义），实例方法等待零闭包；超时经池租的取消源兜底
+            var waitCts = UICtsPool.Rent();
+            waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+            try
             {
-                try
-                {
-                    await UniTask.WaitUntil(() => ret.IsLoadDone || ret.IsLoadFailed || ret.IsDestroyed,
-                        cancellationToken: cts.Token);
-                }
-                catch (System.OperationCanceledException)
-                {
-                    LogUtility.Warning("GetUIAsyncAwait timed out waiting for window load: {0}", typeof(T).FullName);
-                }
+                await UniTask.Yield();
+                await ret.WaitPanelReadyAsync(waitCts.Token);
+            }
+            catch (System.OperationCanceledException)
+            {
+                LogUtility.Warning("GetUIAsyncAwait timed out waiting for window load: {0}", typeof(T).FullName);
+            }
+            finally
+            {
+                waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                UICtsPool.Return(waitCts);
             }
 
             if (ret.IsLoadFailed || (ret.IsDestroyed && !ret.IsLoadDone))
@@ -519,17 +528,22 @@ namespace Moirai.Atropos.UI
 
             async UniTaskVoid GetUIAsyncImp(Action<T> ctx)
             {
-                using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS)))
+                var waitCts = UICtsPool.Rent();
+                waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+                try
                 {
-                    try
-                    {
-                        await UniTask.WaitUntil(() => ret.IsLoadDone || ret.IsLoadFailed || ret.IsDestroyed,
-                            cancellationToken: cts.Token);
-                    }
-                    catch (System.OperationCanceledException)
-                    {
-                        LogUtility.Warning("GetUIAsync timed out waiting for window load: {0}", typeof(T).FullName);
-                    }
+                    // 先过一帧再入轮询（次帧首查语义），实例方法等待零闭包
+                    await UniTask.Yield();
+                    await ret.WaitPanelReadyAsync(waitCts.Token);
+                }
+                catch (System.OperationCanceledException)
+                {
+                    LogUtility.Warning("GetUIAsync timed out waiting for window load: {0}", typeof(T).FullName);
+                }
+                finally
+                {
+                    waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                    UICtsPool.Return(waitCts);
                 }
 
                 if (ret.IsLoadFailed || (ret.IsDestroyed && !ret.IsLoadDone))
@@ -586,22 +600,30 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 等窗口装载终态：就绪/失败/销毁按实际终态回，超时（<paramref name="timeoutSeconds"/> 秒）回假。
         /// </summary>
-        /// <remarks>超时与就绪竞速时以就绪为准：取消异常落定后回读一次就绪位。</remarks>
+        /// <remarks>
+        /// 取消源从 <see cref="UICtsPool"/> 租还：超时计时还池前先解除，取消过的源由池内废弃。 <br />
+        /// 超时与就绪竞速时以就绪为准：取消异常落定后回读一次就绪位。
+        /// </remarks>
         /// <param name="window">等终态的那一只。</param>
         /// <param name="timeoutSeconds">等待上限（秒）。</param>
         /// <returns>面板就绪时为真。</returns>
         internal static async UniTask<bool> WaitForPanelReady(UIWindow window, float timeoutSeconds)
         {
-            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(timeoutSeconds)))
+            var cts = UICtsPool.Rent();
+            cts.CancelAfter(System.TimeSpan.FromSeconds(timeoutSeconds));
+            try
             {
-                try
-                {
-                    return await window.WaitPanelReadyAsync(cts.Token);
-                }
-                catch (System.OperationCanceledException)
-                {
-                    return window.IsLoadDone;
-                }
+                return await window.WaitPanelReadyAsync(cts.Token);
+            }
+            catch (System.OperationCanceledException)
+            {
+                return window.IsLoadDone;
+            }
+            finally
+            {
+                // 解除超时计时后再还池：活着的计时器会把池里别的租户打取消
+                cts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                UICtsPool.Return(cts);
             }
         }
 
@@ -667,7 +689,7 @@ namespace Moirai.Atropos.UI
             window.CancelHideToCloseTimer();
             window.Visible = false;
             window.IsHide = true;
-            window.HideTimerId = TimerService.Delay(window.HideTimeToClose, window.Close);
+            window.HideTimerId = TimerService.Delay(window.HideTimeToClose, window.CloseDelegate);
 
             if (window.FullScreen)
             {
