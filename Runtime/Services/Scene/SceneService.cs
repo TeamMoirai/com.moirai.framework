@@ -143,14 +143,13 @@ namespace Moirai.Atropos.Scene
         /// <param name="sceneMode">场景加载模式。</param>
         /// <param name="suspendLoad">是否挂起加载。</param>
         /// <param name="priority">加载优先级。</param>
-        /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <param name="packageName">资源包名称（空串使用默认包）。</param>
         /// <param name="cancellationToken">取消令牌——放弃等待语义，不中止底层加载。</param>
         /// <returns>加载完成的场景。</returns>
         public static UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode = LoadSceneMode.Single, bool suspendLoad = false, uint priority = 100,
-            bool gcCollect = true, Action<float> progressCallBack = null, string packageName = "", CancellationToken cancellationToken = default) =>
-            s_Handler?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, gcCollect, progressCallBack, packageName, cancellationToken)
+            Action<float> progressCallBack = null, string packageName = "", CancellationToken cancellationToken = default) =>
+            s_Handler?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, progressCallBack, packageName, cancellationToken)
             ?? UniTask.FromResult(default(UnityEngine.SceneManagement.Scene));
 
         /// <summary>
@@ -164,12 +163,11 @@ namespace Moirai.Atropos.Scene
         /// <param name="sceneMode">场景加载模式。</param>
         /// <param name="suspendLoad">是否挂起加载。</param>
         /// <param name="priority">加载优先级。</param>
-        /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="callBack">加载完成回调。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         public static void LoadScene(string location, string packageName = "", LoadSceneMode sceneMode = LoadSceneMode.Single,
-            bool suspendLoad = false, uint priority = 100, bool gcCollect = true, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null) =>
-            s_Handler?.LoadScene(location, packageName, sceneMode, suspendLoad, priority, gcCollect, callBack, progressCallBack);
+            bool suspendLoad = false, uint priority = 100, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null) =>
+            s_Handler?.LoadScene(location, packageName, sceneMode, suspendLoad, priority, callBack, progressCallBack);
 
         #endregion
 
