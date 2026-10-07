@@ -48,12 +48,13 @@ namespace Moirai.Atropos.UI
         public bool FromResources { get; private set; }
         
         /// <summary>隐藏窗口关闭时间。</summary>
-        public int HideTimeToClose { get; set; }
-        
-        public ulong HideTimerId { get; set; }
-        
+        public int HideTimeToClose { get; internal set; }
+
+        /// <summary>隐藏转关闭的定时器标识。</summary>
+        public ulong HideTimerId { get; internal set; }
+
         /// <summary>缓存实例，关闭时不销毁。</summary>
-        public bool CacheInstance { get; set; }
+        public bool CacheInstance { get; internal set; }
 
         private int _depth;
 
@@ -147,13 +148,15 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>是否加载完毕。</summary>
-        internal bool IsLoadDone = false;
-        
+        /// <remarks>装载路径私有写：装载完成置位，回滚不回落（失败窗走 <see cref="IsLoadFailed"/> + <see cref="IsDestroyed"/>）。</remarks>
+        internal bool IsLoadDone { get; private set; }
+
         /// <summary>是否被销毁。</summary>
-        internal bool IsDestroyed = false;
-                
+        /// <remarks>销毁路径私有写：显式关闭与装载失败作废两个来路。</remarks>
+        internal bool IsDestroyed { get; private set; }
+
         /// <summary>UI是否隐藏标志位。</summary>
-        public bool IsHide { internal set; get; } = false;
+        public bool IsHide { get; internal set; }
 
         #endregion
 
