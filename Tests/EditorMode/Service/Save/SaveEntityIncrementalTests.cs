@@ -41,9 +41,9 @@ namespace Service.Save
             _capturedLogs = new List<(ELogLevel, string)>();
             _blockSavedEvents = new List<SaveBlockChangedArgs>();
             _slotChangedEvents = new List<SaveSlotChangedArgs>();
-            LogUtility.OnMessageLogged += CaptureLog;
-            SaveService.BlockSaved += OnBlockSaved;
-            SaveService.SlotChanged += OnSlotChanged;
+            LogUtility.onMessageLogged += CaptureLog;
+            SaveService.onBlockSaved += OnBlockSaved;
+            SaveService.onSlotChanged += OnSlotChanged;
             SaveEntityRegistry.ResetTables();
             SaveEntityPersistence.ResetForTests();
             SaveBuiltInCapturers.RegisterBuiltIns();
@@ -82,9 +82,9 @@ namespace Service.Save
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
-            SaveService.BlockSaved -= OnBlockSaved;
-            SaveService.SlotChanged -= OnSlotChanged;
+            LogUtility.onMessageLogged -= CaptureLog;
+            SaveService.onBlockSaved -= OnBlockSaved;
+            SaveService.onSlotChanged -= OnSlotChanged;
             foreach (GameObject gameObject in _objects)
             {
                 if (gameObject != null)
@@ -175,7 +175,7 @@ namespace Service.Save
                 yield return null;
             }
 
-            // 再等一帧：merge/恢复的工作线程事件（BlockSaved/SlotChanged/Error 日志）入队后在主线程下一帧派发——确保落入本用例窗口
+            // 再等一帧：merge/恢复的工作线程事件（onBlockSaved/onSlotChanged/Error 日志）入队后在主线程下一帧派发——确保落入本用例窗口
             yield return null;
 
             if (task.IsFaulted && task.Exception != null)
@@ -201,8 +201,8 @@ namespace Service.Save
             yield return WaitForTask(SaveService.SaveEntitiesAsync("slot-incr", "Save").AsTask());
 
             Assert.AreEqual(firstWriteTime, File.GetLastWriteTimeUtc(paths.SaveFilePath), "零变化保存应零 IO 跳过（档写入时间不变）");
-            Assert.AreEqual(0, _blockSavedEvents.Count, "跳过保存不触发 BlockSaved");
-            Assert.AreEqual(0, _slotChangedEvents.Count, "跳过保存不触发 SlotChanged");
+            Assert.AreEqual(0, _blockSavedEvents.Count, "跳过保存不触发 onBlockSaved");
+            Assert.AreEqual(0, _slotChangedEvents.Count, "跳过保存不触发 onSlotChanged");
         }
 
         [UnityTest]
@@ -219,7 +219,7 @@ namespace Service.Save
             entity.GetComponent<SaveEntityPersistenceTests.EntityTestComponent>().Hp = 42;
             yield return WaitForTask(SaveService.SaveEntitiesAsync("slot-incr", "Save").AsTask());
 
-            Assert.AreEqual(1, _blockSavedEvents.Count, "仅变化块触发 BlockSaved（实体表未变）");
+            Assert.AreEqual(1, _blockSavedEvents.Count, "仅变化块触发 onBlockSaved（实体表未变）");
             Assert.AreEqual(SaveEntityPersistence.BuildEntityBlockKey(entityId), _blockSavedEvents[0].Key);
 
             // 恢复链路验证增量写回的内容正确（差分更新 Hp=42）

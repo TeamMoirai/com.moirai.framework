@@ -1,7 +1,7 @@
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档数据块变动事件参数（<see cref="SaveService.BlockSaved"/> / <see cref="SaveService.BlockDeleted"/>）。
+    /// 存档数据块变动事件参数（<see cref="SaveService.onBlockSaved"/> / <see cref="SaveService.onBlockDeleted"/>）。
     /// </summary>
     public readonly struct SaveBlockChangedArgs
     {

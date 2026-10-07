@@ -13,7 +13,7 @@ namespace Service.Save
     /// 场景对象身份与实体注册表测试：注册/注销/反查、空 ID 拒注册、重复 ID 首到先得、销毁后反查失效、<c>Resolve</c> 解析。
     /// </summary>
     /// <remarks>
-    /// 告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
+    /// 告警断言经 <see cref="LogUtility.onMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。
     /// </remarks>
     public class SaveObjectIdentityTests
@@ -25,13 +25,13 @@ namespace Service.Save
         public void SetUp()
         {
             _capturedLogs = new List<(ELogLevel, string)>();
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
+            LogUtility.onMessageLogged -= CaptureLog;
             foreach (GameObject gameObject in _objects)
             {
                 if (gameObject != null)

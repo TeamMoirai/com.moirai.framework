@@ -16,7 +16,7 @@ namespace Service.Save
     /// </summary>
     /// <remarks>
     /// 压缩注入经 internal 属性 <c>CompressionProvider</c>（测试程序集在 <c>InternalsVisibleTo</c> 白名单内），不触达全局配置。 <br />
-    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
+    /// 错误日志断言经 <see cref="LogUtility.onMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。
     /// </remarks>
     public class SaveCompressionTests
@@ -75,13 +75,13 @@ namespace Service.Save
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
 
             _capturedLogs = new List<(ELogLevel, string)>();
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
+            LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             try
             {

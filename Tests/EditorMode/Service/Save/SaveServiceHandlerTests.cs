@@ -19,7 +19,7 @@ namespace Service.Save
     /// </summary>
     /// <remarks>
     /// 经 <c>s_OverrideBasePath</c> 将存档根指向临时目录（<c>InternalsVisibleTo</c> 暴露 internal 管线入口），全流程真实文件 IO。 <br />
-    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
+    /// 错误日志断言经 <see cref="LogUtility.onMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。
     /// </remarks>
     public class SaveServiceHandlerTests
@@ -47,13 +47,13 @@ namespace Service.Save
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
 
             _capturedLogs = new List<(ELogLevel, string)>();
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
+            LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             try
             {

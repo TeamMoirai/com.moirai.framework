@@ -12,7 +12,7 @@ namespace Service.Kernel
     /// 内核（ServiceWorld / GameServices）测试。
     /// </summary>
     /// <remarks>两阶段语义：RegisterService 仅入图（世界未初始化时不驱动 OnInit），<see cref="ServiceWorld.Initialize"/> 按依赖图拓扑统一驱动——初始化顺序与注册顺序无关。 <br />
-    /// 观察器/异常路径的日志内容断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
+    /// 观察器/异常路径的日志内容断言经 <see cref="LogUtility.onMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public class GameServicesTests
@@ -137,13 +137,13 @@ namespace Service.Kernel
 
             _logs = new List<(ELogLevel, string)>();
             _logCallback = (level, message, _) => _logs.Add((level, message));
-            LogUtility.OnMessageLogged += _logCallback;
+            LogUtility.onMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= _logCallback;
+            LogUtility.onMessageLogged -= _logCallback;
             GameServices.DuplicateContractPolicy = _originalPolicy;
 
             GameServices.Shutdown();

@@ -26,7 +26,7 @@ typeof(AudioGroupConfig)
 config.m_MaxChannelCeiling = 4096;
 ```
 
-- **事件命名走 `onInit`／`onShutdown` 这类形状。
+- **事件命名走 `onMainSceneChanged`／`onProcedureChanged` 这类形状**（`on` + PascalCase，与 `Client.sln.DotSettings` 的 Events 规则同口径）。生命周期覆写点是另一档：`protected virtual On*`（`OnInit`/`OnShutdown`），别混用。
 - **序列化字段同样适用**：`internal` 不影响 Unity 序列化（`[SerializeField]` 不要求 `private`），命名前缀仍按 `m_` / `s_` / `_` 的私有家族口径走。
 - **已有窄接缝的不放开字段**：换入/换出服务处理器一律走 `HandlerHostGenerator` 生成的 `XxxService.Internal_PeekHandler()` / `Internal_UseHandler(next)`（用法见 `Tests/PlayMode/Service/Audio/AudioServiceTestHost.cs`），`s_Handler` 保持 `private`。
 - **`UIService` 没有换入接缝**：两支后端各一枚具体类型的处理器槽（`s_UGUIHandler`/`s_UITKHandler`，`private`），只读走 `Internal_PeekUGUIHandler()`/`Internal_PeekUITKHandler()`；后端实现固定，测试不往槽里注入替身，回到干净域状态用 `Internal_ResetHandlerSlots()`。

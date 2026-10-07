@@ -104,7 +104,7 @@ namespace Moirai.Atropos.Save
         /// CarryForward 语义：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留。 <br />
         /// 增量语义：会话级脏跟踪 + 档写入时间守卫——实体表、差分载荷与档均未变化时零 IO 跳过（无事件）； <br />
         /// 有变化时经 <see cref="SaveServiceHandler.MergeRawBlocksAsync"/> 单趟合并（读档 → 迁移 → 删陈旧 → upsert → 写回）， <br />
-        /// 仅变化块触发 <c>BlockSaved</c> 事件；基准失效（首次保存/恢复后/档被外部改写）自动走全量合并（孤儿清理读档判定）。
+        /// 仅变化块触发 <c>onBlockSaved</c> 事件；基准失效（首次保存/恢复后/档被外部改写）自动走全量合并（孤儿清理读档判定）。
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -142,7 +142,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 管线：DestroyUnwanted（会话实体整体替换 + 销毁表预置对象）→ SpawnMissing（原 ID 恢复 + 场景落位）→ 父子接线（第二轮）→ RestoreAll（差分块未激活写回， <br />
-        /// Awake 即见恢复后状态）→ 激活并逐只触发 <see cref="EntityRestored"/>；生成失败的实体保留档案记录（原块滞留，不因本次保存丢失）。 <br />
+        /// Awake 即见恢复后状态）→ 激活并逐只触发 <see cref="onEntityRestored"/>；生成失败的实体保留档案记录（原块滞留，不因本次保存丢失）。 <br />
         /// 场景预置对象的字段恢复由 <c>LoadComponentsAsync</c> 承担——完整世界恢复 = <see cref="RestoreEntitiesAsync"/> + <c>LoadComponentsAsync</c>； <br />
         /// 处理器未就绪时静默降级为空任务。
         /// </remarks>

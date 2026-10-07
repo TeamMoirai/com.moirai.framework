@@ -115,7 +115,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 
 ### Chain semantics and error typing
 
-- Equal versions short-circuit; `file version > current version` → `UnsupportedVersion` (downgrade rejected); missing/ambiguous chain (multiple edges from one version to different targets)/migrator exceptions → `MigrationFailed` (observable via the `LoadFailed` event at stage `Migrate`)
+- Equal versions short-circuit; `file version > current version` → `UnsupportedVersion` (downgrade rejected); missing/ambiguous chain (multiple edges from one version to different targets)/migrator exceptions → `MigrationFailed` (observable via the `onLoadFailed` event at stage `Migrate`)
 - **Write-time healing**: any read-modify-write (block save/component upsert/block delete write-back) reaching an old-version file migrates it before merging — every file on disk is always at the current version, so new-shape blocks can never land in an old file and get re-transformed by the chain
 - **Write-back policy**: after a load-triggered migration, the result is lazily written back per the handler's `m_MigrationWriteBack` (default on — avoids re-running the chain on every load); when off, migration applies to memory only, a session-level cache prevents re-running for the same file in the session, and the file stays at its old version
 - **Audit**: every migration step appends `"{from}->{to}|{migrator type full name}|{UTC ISO-8601}"` to `SaveMetadata.MigrationHistory` (persisted with write-back)
@@ -189,7 +189,7 @@ Objects spawned from prefabs at runtime (monsters/drops/temporary structures) pe
 GameObject goblin = SaveService.InstantiatePersistent("goblin", pos, rot);
 // Destroy (dynamic entities leave the spawn table → their blocks are cleaned on next save; scene-preset objects join the destroyed table → destroyed on restore)
 SaveService.DestroyPersistent(goblin);
-// Save/restore (restore = DestroyUnwanted → SpawnMissing → parent wiring → RestoreAll → activate + EntityRestored event)
+// Save/restore (restore = DestroyUnwanted → SpawnMissing → parent wiring → RestoreAll → activate + onEntityRestored event)
 await SaveService.SaveEntitiesAsync("slot1");
 await SaveService.RestoreEntitiesAsync("slot1");
 ```
@@ -197,10 +197,10 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **Template diffing**: entity capture is compared field-by-field against the prefab template baseline (one baseline KVT cached per stable key per session) and **only fields changed relative to the template are written** (nested objects diff recursively; any collection change carries the whole record — element-level diffing is v2 scope); restore = instantiate (natural template defaults) + apply the diff, minimizing save growth. When the baseline is unavailable (prefab unregistered / no root SaveComponent) capture degrades to full writes.
 - **Block layout**: entity table = reserved `__entities` block (spawn records EntityId/PrefabKey/SceneName/ParentId + destroyed preset IDs); entity data = one `entity:{EntityId}` block per entity (the pipeline rewrites the entity component's block key before activation). **Component save/load APIs skip `entity:`-prefixed blocks** — full world save = `SaveEntitiesAsync` + `SaveComponentsAsync`, restore = `RestoreEntitiesAsync` + `LoadComponentsAsync` (entities first).
 - **CarryForward semantics**: saving only upserts active entities; blocks of unvisited scenes and failed spawns stay untouched; entities destroyed by bypassing `DestroyPersistent` (plain `Object.Destroy`) also keep their records and blocks (explicit destroy is required for removal). After a restore, the session spawn/destroy tables are replaced wholesale with the file state.
-- **Incremental saves**: session-level dirty tracking (a per-file baseline = entity-table bytes + per-entity diff payloads + the file's write time) — when nothing changed the save is skipped with zero IO and no events; with changes, a single-pass merge (read → self-healing migration → stale removal → upsert → atomic write-back) writes only dirty blocks (only changed blocks fire `BlockSaved`); when the baseline is invalidated (first save / after a restore / the file was overwritten externally — the write-time guard uses `FileInfo.Refresh`-fresh metadata to defeat NTFS cache lag) the save conservatively falls back to a full merge (orphans resolved after reading the file).
+- **Incremental saves**: session-level dirty tracking (a per-file baseline = entity-table bytes + per-entity diff payloads + the file's write time) — when nothing changed the save is skipped with zero IO and no events; with changes, a single-pass merge (read → self-healing migration → stale removal → upsert → atomic write-back) writes only dirty blocks (only changed blocks fire `onBlockSaved`); when the baseline is invalidated (first save / after a restore / the file was overwritten externally — the write-time guard uses `FileInfo.Refresh`-fresh metadata to defeat NTFS cache lag) the save conservatively falls back to a full merge (orphans resolved after reading the file).
 - **Thread ownership**: entity/component facade async APIs run IO on worker threads; after the read continuation returns, the facade switches back to the main thread before scene operations and field write-backs (Unity APIs always run on the main thread).
 - **Parenting and scene placement**: a spawn record's ParentId (the parent must carry a SaveObjectIdentity, otherwise the link is not persisted and a warning is logged) is wired in a dedicated second pass; when the recorded SceneName is loaded the entity lands there, otherwise it lands in the active scene with a warning — **fallback placement never rewrites scene attribution** (the spawn table keeps the recorded SceneName, so the entity returns to its original scene in a later session once that scene loads — no drift). Stable-ID lookup goes through `SaveEntityRegistry` — two tables: scene scope (swept on scene unload) and global scope (DontDestroyOnLoad residents).
-- **Restore timing**: spawned entities stay inactive until their diff blocks have been written back — Awake/OnEnable see the final parent and restored field values (listen to `EntityRestored` or run logic after Start when post-restore state is required). An entity whose diff block is corrupted logs an error and restores to template defaults without blocking others.
+- **Restore timing**: spawned entities stay inactive until their diff blocks have been written back — Awake/OnEnable see the final parent and restored field values (listen to `onEntityRestored` or run logic after Start when post-restore state is required). An entity whose diff block is corrupted logs an error and restores to template defaults without blocking others.
 - **Degradation contract**: `InstantiatePersistent`/`DestroyPersistent` do not depend on the save handler (registry + resource service suffice); unregistered keys or load failures log an error and return `null`. `SaveEntitiesAsync` throws `GameException` when the handler is not ready; `RestoreEntitiesAsync` silently degrades to a completed task.
 - **No ID baking on prefab assets**: `SaveObjectIdentity.OnValidate` skips the prefab asset itself (an ID on the asset would be shared by every instance and inevitably collide); scene instances still bake individually, and dynamic entities receive a per-instance unique ID injected by the spawn pipeline before activation.
 
@@ -210,7 +210,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | Async spawn (`null` on cancellation/failure) |
 | `DestroyPersistent(target)` | Destroy with persistence semantics (dynamic entity removed from table / preset object marked destroyed / plain object just destroyed) |
 | `SaveEntitiesAsync(fileName, folderName, ct)` | Write the entity table and all active entity diff blocks (baseline warm-up → diff capture → incremental decision → single-pass merge; zero-change saves skip all IO; `GameException` on failure) |
-| `RestoreEntitiesAsync(fileName, folderName, ct)` | Rebuild all dynamic entities from the file state (DestroyUnwanted→SpawnMissing→RestoreAll; `EntityRestored` per entity) |
+| `RestoreEntitiesAsync(fileName, folderName, ct)` | Rebuild all dynamic entities from the file state (DestroyUnwanted→SpawnMissing→RestoreAll; `onEntityRestored` per entity) |
 
 ## Screenshot & Metadata Mirroring
 
@@ -219,7 +219,7 @@ Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture
 - **Metadata mirroring**: on capture success the reserved `__meta` block is mirrored — `ThumbnailFileName` (sidecar file name) and `SceneName` (active scene) are filled by the pipeline; `PlayTimeTicks` (`TimeSpan` ticks) is written by the game layer under its own accounting. Corrupted existing metadata is never overwritten (a warning is logged and mirroring is skipped, preserving salvage options).
 - **Save linkage**: with `m_CaptureScreenshotOnSave` on, `SaveBlockAsync` / `SaveComponentsAsync` capture automatically after success (reserved `__`-prefixed blocks are exempt — the metadata mirror write-back never recurses); linkage failures never propagate to the save result, and linkage cancellation never leaks into the caller's token.
 - **Lifecycle cascade**: `DeleteSave` / `DeleteSaveAsync` cascade-delete the sidecar (stale thumbnails cannot resurrect for a same-named new slot); folder-level deletes cover it naturally.
-- **Degradation contract**: `HandlerNotReady` when the handler is not ready; `NotSupported` outside play mode / in batch mode (with a warning); sidecar write failures return `IoFailed` and log an error (never thrown). A successful capture fires the `ScreenshotCaptured` event.
+- **Degradation contract**: `HandlerNotReady` when the handler is not ready; `NotSupported` outside play mode / in batch mode (with a warning); sidecar write failures return `IoFailed` and log an error (never thrown). A successful capture fires the `onScreenshotCaptured` event.
 
 | API (screenshot track) | Description |
 |---|---|
@@ -292,12 +292,12 @@ Static events (default zero-overhead channel) + `EventManager` bridge events (`S
 
 | Static event | Bridge event | When |
 |---|---|---|
-| `SlotChanged` | `SaveSlotChangedEvent` | Slot write (`Saved` merges create/update)/delete/backup create/backup restore; `FileName` is null for folder-level bulk deletes |
-| `BlockSaved` / `BlockDeleted` | `SaveBlockChangedEvent` | Block save/delete completed (fileName+key+backend+size); idempotent no-op deletes never fire |
-| `SaveProgress` / `LoadProgress` | `SaveProgressEvent` | Component capture/restore reported in batches (every 8 + always the final one; `ShouldReportProgress`) |
-| `SaveFailed` / `LoadFailed` | `SaveFailedEvent` | Failures (`ESaveFailureStage` stage + `SaveError`); write failures also fail-fast with `GameException`; missing file/block (`FileNotFound`) never fires |
-| `EntityRestored` | `SaveEntityRestoredEvent` | Fired per entity by the `RestoreEntitiesAsync` pipeline (after activation; args = entity ID + prefab key + instance) |
-| `ScreenshotCaptured` | `SaveScreenshotEvent` | Screenshot pipeline completed (fileName + sidecar name + thumbnail size) |
+| `onSlotChanged` | `SaveSlotChangedEvent` | Slot write (`Saved` merges create/update)/delete/backup create/backup restore; `FileName` is null for folder-level bulk deletes |
+| `onBlockSaved` / `onBlockDeleted` | `SaveBlockChangedEvent` | Block save/delete completed (fileName+key+backend+size); idempotent no-op deletes never fire |
+| `onSaveProgress` / `onLoadProgress` | `SaveProgressEvent` | Component capture/restore reported in batches (every 8 + always the final one; `ShouldReportProgress`) |
+| `onSaveFailed` / `onLoadFailed` | `SaveFailedEvent` | Failures (`ESaveFailureStage` stage + `SaveError`); write failures also fail-fast with `GameException`; missing file/block (`FileNotFound`) never fires |
+| `onEntityRestored` | `SaveEntityRestoredEvent` | Fired per entity by the `RestoreEntitiesAsync` pipeline (after activation; args = entity ID + prefab key + instance) |
+| `onScreenshotCaptured` | `SaveScreenshotEvent` | Screenshot pipeline completed (fileName + sidecar name + thumbnail size) |
 
 ## Configuration (SaveServiceSettings)
 
@@ -376,7 +376,7 @@ Directory: `Tests/EditorMode/Service/Save/`
 | `SaveAssetCatalogTests` | Two-way lookup, type mismatch, duplicate first-wins, cache invalidation, InvalidateLookup programmatic contract |
 | `SaveKvDifferTests` | Template diff: scalar/nested/collection/add/type-drift/size-shrink/corrupt |
 | `SaveEntityTableTests` | Entity table round-trip, empty table, nullable fields, unknown-record tolerance |
-| `SaveEntityPersistenceTests` | Dynamic entity loop, diff, destroy marks, parent wiring, EntityRestored |
+| `SaveEntityPersistenceTests` | Dynamic entity loop, diff, destroy marks, parent wiring, onEntityRestored |
 | `SaveEntityIncrementalTests` | Incremental entity save loop: zero-change skip, dirty-block-only writes, destroy cleanup, external-overwrite/after-restore full merges |
 | `RestCloudSaveKvStoreTests` | REST backend: read/write round-trips (revision/timestamp), existence probes, idempotent deletes, prefix enumeration, auth-header precedence, remote-failure/timeout normalization, ETag fallback |
 | `SaveBuiltInCapturerTests` | Transform / Rigidbody / ParticleSystem built-in capturers |

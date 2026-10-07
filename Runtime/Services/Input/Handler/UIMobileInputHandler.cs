@@ -52,12 +52,12 @@ namespace Moirai.Atropos.Input
 
         protected override void OnInit()
         {
-            _state.ResetRequested += ResetAllInputStates;
+            _state.onResetRequested += ResetAllInputStates;
         }
 
         protected override void OnShutdown()
         {
-            _state.ResetRequested -= ResetAllInputStates;
+            _state.onResetRequested -= ResetAllInputStates;
             _resolvedButtons.Clear();
             _resolvedAxes.Clear();
             _unresolvedButtons.Clear();

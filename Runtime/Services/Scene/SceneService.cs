@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Scene
     /// 未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。 <br />
     /// 错误契约：加载失败抛出 <see cref="GameException"/>；卸载失败以 <c>false</c> 返回并保留登记；服务未注册时查询降级返回默认值、 <br />
     /// 加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。 <br />
-    /// 生命周期事件（<see cref="MainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。 <br />
+    /// 生命周期事件（<see cref="onMainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。 <br />
     /// 场景短名须尽量全局唯一：碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。
     /// </remarks>
     [AutoRegisterService]
@@ -66,9 +66,9 @@ namespace Moirai.Atropos.Scene
         {
             var handler = s_Handler;
             s_Handler = null;
-            MainSceneChanged = null;
-            SubSceneLoaded = null;
-            SubSceneUnloaded = null;
+            onMainSceneChanged = null;
+            onSubSceneLoaded = null;
+            onSubSceneUnloaded = null;
             handler?.Internal_Shutdown();
         }
 
@@ -80,28 +80,28 @@ namespace Moirai.Atropos.Scene
         /// <remarks>
         /// 主线程同步触发；订阅者异常被隔离记录。
         /// </remarks>
-        public static event Action<string> MainSceneChanged;
+        public static event Action<string> onMainSceneChanged;
 
         /// <summary>子场景加载完成（Additive 模式登记为已加载后触发，参数为归一化场景短名）。</summary>
-        public static event Action<string> SubSceneLoaded;
+        public static event Action<string> onSubSceneLoaded;
 
         /// <summary>子场景卸载完成（参数为归一化场景短名）。</summary>
-        public static event Action<string> SubSceneUnloaded;
+        public static event Action<string> onSubSceneUnloaded;
 
         /// <summary>
         /// 触发主场景切换事件（由处理器在加载收尾时调用）。
         /// </summary>
-        internal static void InvokeMainSceneChangedEvent(string sceneName) => RaiseEvent(MainSceneChanged, sceneName);
+        internal static void InvokeMainSceneChangedEvent(string sceneName) => RaiseEvent(onMainSceneChanged, sceneName);
 
         /// <summary>
         /// 触发子场景加载完成事件（由处理器在加载收尾时调用）。
         /// </summary>
-        internal static void InvokeSubSceneLoadedEvent(string sceneName) => RaiseEvent(SubSceneLoaded, sceneName);
+        internal static void InvokeSubSceneLoadedEvent(string sceneName) => RaiseEvent(onSubSceneLoaded, sceneName);
 
         /// <summary>
         /// 触发子场景卸载完成事件（由处理器在卸载收尾时调用）。
         /// </summary>
-        internal static void InvokeSubSceneUnloadedEvent(string sceneName) => RaiseEvent(SubSceneUnloaded, sceneName);
+        internal static void InvokeSubSceneUnloadedEvent(string sceneName) => RaiseEvent(onSubSceneUnloaded, sceneName);
 
         /// <summary>
         /// 逐订阅者隔离派发事件——单个订阅者异常仅记录日志，不中断其余订阅者。

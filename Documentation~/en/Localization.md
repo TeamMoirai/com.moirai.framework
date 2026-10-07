@@ -2,7 +2,7 @@
 
 > Multilingual service based on Luban configuration tables, supporting automatic injection and inline parsing of text, images, audio, and Timeline.
 
-The `Localization` service is accessed via the `LocalizationService` static facade. It lazily loads all localized strings from the Luban configuration table (via `ConfigTableService` from [ConfigTable](ConfigTable.md)) and takes the available languages from the table's own self-report on the first access to any multilingual API. The language is determined by priority: "command-line argument -> editor setting -> saved setting -> system language". When switching languages, it re-injects all registered `LocalizerBase` components and only then raises `OnLanguageChanged`. In addition to retrieving text by ID, `LocalizationService.Localize` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
+The `Localization` service is accessed via the `LocalizationService` static facade. It lazily loads all localized strings from the Luban configuration table (via `ConfigTableService` from [ConfigTable](ConfigTable.md)) and takes the available languages from the table's own self-report on the first access to any multilingual API. The language is determined by priority: "command-line argument -> editor setting -> saved setting -> system language". When switching languages, it re-injects all registered `LocalizerBase` components and only then raises `onLanguageChanged`. In addition to retrieving text by ID, `LocalizationService.Localize` supports inline parsing of `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` placeholders in any string.
 
 ## Core Features
 
@@ -21,7 +21,7 @@ Namespace: `Moirai.Atropos.Localization`
 
 | Class/Interface | Description |
 |----------------|-------------|
-| `LocalizationService` | Static facade (`[HandlerHost]`) responsible for loading config table text, language switching, and Localizer management; the `OnLanguageChanged` event is exposed directly on the facade; `ToLanguage` / `Localize` / `ResolveLanguages` and the editor-preview API live in the same class's partial implementation (`LocalizationService.Helper`) |
+| `LocalizationService` | Static facade (`[HandlerHost]`) responsible for loading config table text, language switching, and Localizer management; the `onLanguageChanged` event is exposed directly on the facade; `ToLanguage` / `Localize` / `ResolveLanguages` and the editor-preview API live in the same class's partial implementation (`LocalizationService.Helper`) |
 | `Language` | Language class (`IEquatable<Language>`, compared by `Code`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage`; built-in entries are shared read-only instances |
 | `LocalizationServiceHandler` | Abstract handler base class: per-language text resolution, language switching, localizer registration |
 | `LocalizerBase` | Abstract base class for localizers (MonoBehaviour): `Prepare` gets the target component reference, `Localize` performs injection |
@@ -93,7 +93,7 @@ The stance is "the table must be complete, and a missing translation must be vis
 ### Subscribing to Language Switching
 
 ```csharp
-LocalizationService.OnLanguageChanged += language =>
+LocalizationService.onLanguageChanged += language =>
 {
     Debug.Log($"Language switched: {language.DisplayName}");
     // Raised after every LocalizerBase has been re-injected and the current language is updated,
@@ -252,7 +252,7 @@ private void OnEnable() => _subscription = LocalizationService.SubscribeLanguage
 private void OnDisable() => _subscription?.Dispose();
 ```
 
-Dispatched in the same pass as the static `OnLanguageChanged` (same ordering contract: after every Localizer has been re-injected), but `Dispose` removes it immediately and **a service shutdown invalidates every handle** — the static event path has no such cleanup, so a forgotten `-=` keeps firing across shutdowns and sessions.
+Dispatched in the same pass as the static `onLanguageChanged` (same ordering contract: after every Localizer has been re-injected), but `Dispose` removes it immediately and **a service shutdown invalidates every handle** — the static event path has no such cleanup, so a forgotten `-=` keeps firing across shutdowns and sessions.
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [ConfigTable](ConfigTable.md)

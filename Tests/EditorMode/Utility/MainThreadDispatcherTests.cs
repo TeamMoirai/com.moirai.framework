@@ -16,7 +16,7 @@ namespace Utility
     /// </summary>
     /// <remarks>
     /// 通过内部 API（<c>InternalsVisibleTo</c>）直接驱动 <c>Pump</c>，不依赖实例生命周期。 <br />
-    /// 告警内容断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
+    /// 告警内容断言经 <see cref="LogUtility.onMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public class MainThreadDispatcherTests
@@ -31,13 +31,13 @@ namespace Utility
 
             _logs = new List<(ELogLevel, string)>();
             _logCallback = (level, message, _) => _logs.Add((level, message));
-            LogUtility.OnMessageLogged += _logCallback;
+            LogUtility.onMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= _logCallback;
+            LogUtility.onMessageLogged -= _logCallback;
             // 恢复可用状态，避免 BeginShutdown 测试污染后续测试
             MainThreadDispatcher.ResetStatics();
         }
@@ -612,7 +612,7 @@ namespace Utility
             }
 
             Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "backlog exceeds"),
-                "背压告警应受滞回约束只出现一次（OnMessageLogged 计数，与处理器无关）");
+                "背压告警应受滞回约束只出现一次（onMessageLogged 计数，与处理器无关）");
         }
 
         #endregion

@@ -407,7 +407,7 @@ namespace Moirai.Atropos.Save
         /// 在主线程将块字节恢复到组件字段。
         /// </summary>
         /// <remarks>
-        /// 非 async 方法（<c>SaveKeyValueReader</c> 为 ref struct）；按批触发 <see cref="LoadProgress"/> 事件。
+        /// 非 async 方法（<c>SaveKeyValueReader</c> 为 ref struct）；按批触发 <see cref="onLoadProgress"/> 事件。
         /// </remarks>
         /// <param name="components">活跃组件快照。</param>
         /// <param name="blocks">块键 → 载荷字节。</param>
@@ -442,7 +442,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 捕获全部活跃组件为块条目（主线程；重复块键记录告警并跳过；按批触发 <see cref="SaveProgress"/> 事件）。
+        /// 捕获全部活跃组件为块条目（主线程；重复块键记录告警并跳过；按批触发 <see cref="onSaveProgress"/> 事件）。
         /// </summary>
         /// <param name="fileName">存档文件名（进度事件参数）。</param>
         /// <param name="folderName">存档文件夹名称（进度事件参数）。</param>

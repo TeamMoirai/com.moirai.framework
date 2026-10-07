@@ -10,7 +10,7 @@ The scene service's (`Moirai.Atropos.Scene`) default backend `DefaultSceneHandle
 - Suspend loading: When `suspendLoad` is enabled, the scene does not auto-activate after loading; call `UnSuspend` to manually activate. Suitable for unified timing control of load completion
 - Progress callback: `progressCallBack` reports the scene handle's loading progress (0 to 1) only when the value changes, finishing with exactly one 1.0 report on success (no fake completion on failure); callback exceptions are isolated and logged without interrupting the load
 - Error contract: load failures (duplicate loads, in-flight conflicts, backend errors, etc.) throw `GameException` (fail-fast); unload failures return `false` and keep the registration for retry
-- Lifecycle events: `MainSceneChanged` / `SubSceneLoaded` / `SubSceneUnloaded` fire synchronously on the main thread; subscriber exceptions are isolated and logged
+- Lifecycle events: `onMainSceneChanged` / `onSubSceneLoaded` / `onSubSceneUnloaded` fire synchronously on the main thread; subscriber exceptions are isolated and logged
 - Re-entry protection: Duplicate requests for the same scene during loading/unloading are rejected (load throws `GameException`, unload warns and returns `false`)
 - Dual-identity queries: query/activate/unload APIs accept both resource location and scene short name (on short-name collision the later registration wins with a warning)
 - Cancellation semantics: the `CancellationToken` of `LoadSceneAsync` only abandons waiting (the underlying load cannot be aborted); registration and events are finalized by the handler when the load actually completes
@@ -90,14 +90,14 @@ The `priority` parameter is passed through to the resource backend to adjust the
 Events fire when main/sub-scene loads and unloads complete, carrying the normalized scene short name. They fire synchronously on the main thread; a throwing subscriber is only logged and does not affect the others. Static events are cleared when the service shuts down.
 
 ```csharp
-SceneService.MainSceneChanged += name => Debug.Log($"Main scene changed: {name}");
-SceneService.SubSceneLoaded += name => Debug.Log($"Sub scene loaded: {name}");
-SceneService.SubSceneUnloaded += name => Debug.Log($"Sub scene unloaded: {name}");
+SceneService.onMainSceneChanged += name => Debug.Log($"Main scene changed: {name}");
+SceneService.onSubSceneLoaded += name => Debug.Log($"Sub scene loaded: {name}");
+SceneService.onSubSceneUnloaded += name => Debug.Log($"Sub scene unloaded: {name}");
 ```
 
 ### Abandoning the Wait
 
-A scene load, once started, cannot be aborted (neither the engine nor resource backends support cancellation). The `CancellationToken` of `LoadSceneAsync` only cancels the wait and progress callbacks (abandon-wait semantics) — the awaiting caller receives an `OperationCanceledException`, while the load itself continues; registration and the `SubSceneLoaded` / `MainSceneChanged` events are finalized by the handler when the load actually completes:
+A scene load, once started, cannot be aborted (neither the engine nor resource backends support cancellation). The `CancellationToken` of `LoadSceneAsync` only cancels the wait and progress callbacks (abandon-wait semantics) — the awaiting caller receives an `OperationCanceledException`, while the load itself continues; registration and the `onSubSceneLoaded` / `onMainSceneChanged` events are finalized by the handler when the load actually completes:
 
 ```csharp
 try
