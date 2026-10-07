@@ -38,6 +38,21 @@ namespace Moirai.Atropos
 
         private static LogHandler GetHandlerFromSettings() => GameAppSettings.LogHandler;
 
+        /// <summary>
+        /// 判定指定日志等级当前是否会被实际记录（含 <see cref="OnMessageLogged"/> 事件）。
+        /// </summary>
+        /// <remarks>
+        /// T4 生成的日志入口以它做前置短路——被 <see cref="LogHandler.MinimumLevel"/> 过滤的调用在字符串构造前即返回， <br />
+        /// 消除"日志已过滤、参数仍格式化"的分配；判定与 <see cref="RaiseMessageLogged"/> 同源，不改变事件契约。 <br />
+        /// 业务侧亦可用它守护昂贵参数求值或高频调试输出。
+        /// </remarks>
+        /// <param name="logLevel">日志等级。</param>
+        /// <returns>等级未被过滤时返回 <see langword="true"/>。</returns>
+        internal static bool IsEnabled(ELogLevel logLevel)
+        {
+            return Handler.MinimumLevel <= logLevel;
+        }
+
         #endregion
 
         #region 事件回调 [EVENTS]
@@ -102,6 +117,7 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Error(Exception exception, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Error)) return;
             var msg = exception?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Error, msg, exception, context);
             RaiseMessageLogged(ELogLevel.Error, msg, exception);
@@ -115,6 +131,7 @@ namespace Moirai.Atropos
         [HideInCallstack]
         public static void Fatal(Exception exception, UObject context = null)
         {
+            if (!IsEnabled(ELogLevel.Fatal)) return;
             var msg = exception?.ToString() ?? string.Empty;
             Handler.Log(ELogLevel.Fatal, msg, exception, context);
             RaiseMessageLogged(ELogLevel.Fatal, msg, exception);
