@@ -323,7 +323,7 @@ namespace Moirai.Atropos.UI.Editor
             content.AppendLine($"namespace {nameSpace}");
             content.AppendLine("{");
             content.AppendLine("\t[Window(UILayer.UI)]");
-            content.AppendLine($"\tpublic partial class {className} : UIWindow");
+            content.AppendLine($"\tpublic partial class {className} : UGUIWindow");
             content.AppendLine("\t{");
 
             if (!string.IsNullOrEmpty(eventHandlers))
