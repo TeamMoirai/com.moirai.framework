@@ -33,8 +33,17 @@
 #### 日志
 
 - `LogHandler` 新增自述能力 `ErrorWithExceptionUsesExceptionChannel`（基类默认 `false`，ZLogger 旁路为 `true`）：带异常的 Error 条目在 `UnityEngine.Debug` 通道上究竟落 `LogType.Error` 还是 `LogType.Exception` 由处理器决定，测试装配拿不到后端的 `*_INSTALLED` 宏，级别只能按此判定，写死任一级别换处理器就假红。
+- 新增 `LogUtility.IsEnabled(ELogLevel)`（internal）：全部日志入口在字符串格式化前先经它按 `MinimumLevel` 短路，T4 模板与生成文件同步该结构。
+
+#### 本地化
+
+- 新增 `GetTextFromId(string id)` 与 `GetTextFromIdLanguage(string id, Language language)` 无参重载（`LocalizationService` 门面与处理器同形）：零参查询不再固定绑定 `params object[]` 签名、在调用点构造参数数组，语义与原零参分支一致。
 
 ### Changed
+
+#### 日志
+
+- 全部 `LogUtility` 入口在字符串格式化前按 `LogHandler.MinimumLevel` 前置短路：被过滤的日志此前仍会完成格式化并分配结果字符串，现在直接返回；输出与 `OnMessageLogged` 事件契约不变（事件本就只在通过过滤后触发），被过滤的调用不再产生 GC 分配。
 
 #### 资源
 
