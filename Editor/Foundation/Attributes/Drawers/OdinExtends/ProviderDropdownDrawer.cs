@@ -17,7 +17,8 @@ namespace Moirai.Atropos
     /// 优先级 super=1，优先于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)，始终接管绘制。<br />
     /// 优先走 Unity SerializedProperty 路径；<c>UnityPropertyPath</c> 解析失败或纯 Odin 宿主（无 SerializedObject）时退化为 Odin 值条目路径（<see cref="DrawValueEntryFallback"/>）。<br />
     /// 不回退 Odin 默认 managed-reference 绘制。<br />
-    /// Odin 未解析出子属性时（如未启用多态序列化后端），子属性区回退为 Unity 序列化绘制。
+    /// Odin 未解析出子属性时（如未启用多态序列化后端），子属性区回退为 Unity 序列化绘制。<br />
+    /// 数组 / <c>List&lt;T&gt;</c> 字段由 <see cref="CanDrawAttributeProperty"/> 放行给 Odin 原生列表 UI，元素经特性透传仍由本类逐个绘制。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]
     internal sealed class ProviderDropdownDrawer : OdinAttributeDrawer<ProviderDropdownAttribute>
@@ -355,6 +356,15 @@ namespace Moirai.Atropos
         #endregion
 
         #region Odin 绘制 [ODIN DRAWING]
+
+        /// <summary>
+        /// 集合根（数组 / <c>List&lt;T&gt;</c> 字段）不接管：Odin 集合 resolver（<c>StrongListPropertyResolver</c> / <c>WeakListPropertyResolver</c>）会把本特性透传给每个元素，元素各自走单元素模式绘制；根集合交回 Odin 原生 CollectionDrawer，增删 / 重排 / 抽象元素多态追加全套自带。
+        /// </summary>
+        /// <remarks>
+        /// 此门缺席时集合根会被当作单个 managed reference 处理——读数组属性的 <c>managedReferenceValue</c> 直接抛异常，且候选基类取到集合类型导致下拉恒空。
+        /// </remarks>
+        protected override bool CanDrawAttributeProperty(InspectorProperty property) =>
+            !property.ChildResolver.IsCollection;
 
         /// <summary>子属性容器样式：unity-box 背景 + PAD 内边距。</summary>
         private static GUIStyle s_ChildrenBoxStyle;

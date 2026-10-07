@@ -39,6 +39,10 @@
 
 - 新增 `GetTextFromId(string id)` 与 `GetTextFromIdLanguage(string id, Language language)` 无参重载（`LocalizationService` 门面与处理器同形）：零参查询不再固定绑定 `params object[]` 签名、在调用点构造参数数组，语义与原零参分支一致。
 
+#### 编辑器
+
+- 新增 `[ProviderDropdown]` 对数组 / `List<T>` 字段的支持：特性放在集合字段上时每个元素各自获得实现类下拉与子属性展开（元素经 Odin 集合特性透传逐个走单字段绘制），集合的增删与重排由 Inspector 默认列表 UI 承担；此前该特性放在集合字段上会按单引用处理直接报错。
+
 ### Changed
 
 #### 场景
