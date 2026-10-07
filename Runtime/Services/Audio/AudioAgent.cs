@@ -54,6 +54,7 @@ namespace Moirai.Atropos.Audio
 
         private float _playDuration;
         private ulong _autoUnSoloOnEnd;
+        private UnSoloTimerState _unSoloTimerState;
 
         // ===== 热路径播放状态（从 AudioPlayRequest 解出，Update 高频读）=====
         private AudioPlayRequest _hot;
@@ -515,8 +516,13 @@ namespace Moirai.Atropos.Audio
                 source.mute = false;
                 if (_autoUnSoloOnEndFlag)
                 {
-                    EAudioTrack track = _soloTrack;
-                    _autoUnSoloOnEnd = TimerService.Delay(_playDuration, () => MuteAudiosOnTrack(track, false));
+                    // 复用状态对象 + static 回调走 Delay<T>（T:class 约束）——免闭包分配；
+                    // 播放与停止路径均先 Cancel 旧句柄再注册，状态字段的覆写不会击穿在途回调的捕获语义
+                    UnSoloTimerState state = _unSoloTimerState ??= new UnSoloTimerState();
+                    state.Agent = this;
+                    state.AllTracks = false;
+                    state.Track = _soloTrack;
+                    _autoUnSoloOnEnd = TimerService.Delay(_playDuration, static s => s.Agent.UnSoloFromTimer(s), state);
                 }
             }
             else if (_soloAllTracks)
@@ -525,7 +531,11 @@ namespace Moirai.Atropos.Audio
                 source.mute = false;
                 if (_autoUnSoloOnEndFlag)
                 {
-                    _autoUnSoloOnEnd = TimerService.Delay(_playDuration, () => MuteAllAudios(false));
+                    // 同上：复用状态对象 + static 回调，免闭包分配
+                    UnSoloTimerState state = _unSoloTimerState ??= new UnSoloTimerState();
+                    state.Agent = this;
+                    state.AllTracks = true;
+                    _autoUnSoloOnEnd = TimerService.Delay(_playDuration, static s => s.Agent.UnSoloFromTimer(s), state);
                 }
             }
         }
@@ -815,6 +825,28 @@ namespace Moirai.Atropos.Audio
                     }
                 }
             }
+        }
+
+        private void UnSoloFromTimer(UnSoloTimerState state)
+        {
+            if (state.AllTracks)
+            {
+                MuteAllAudios(false);
+            }
+            else
+            {
+                MuteAudiosOnTrack(state.Track, false);
+            }
+        }
+
+        /// <summary>
+        /// 自动解除独奏的定时器状态对象（每 Agent 复用一次实例，消除每次 Solo 起播的闭包分配）。
+        /// </summary>
+        private sealed class UnSoloTimerState
+        {
+            public AudioAgent Agent;
+            public bool AllTracks;
+            public EAudioTrack Track;
         }
 
         #endregion 独奏 [SOLO]
