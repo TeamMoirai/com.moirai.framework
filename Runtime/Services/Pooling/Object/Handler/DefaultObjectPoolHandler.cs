@@ -12,6 +12,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <see cref="ObjectPoolServiceHandler"/> 的内置实现，池体为内嵌 <see cref="ObjectPool{T}"/>， <br />
     /// 可在 <see cref="ObjectPoolServiceSettings"/> 中替换。
     /// </remarks>
+    [ProviderDisplay(title: "默认对象池", description: "分页槽位 + 按名复用链 + 引用计数，内嵌 ObjectPool<T>")]
     [Serializable]
     [UnityEngine.Scripting.Preserve]
     internal sealed class DefaultObjectPoolHandler : ObjectPoolServiceHandler

@@ -15,6 +15,7 @@ namespace Moirai.Atropos.Save
     /// 删除带退避重试（应对云同步/杀毒软件短时锁文件）；备份为单档 <c>.bak</c> 副本（项目侧手动备份位，与写入用的 <c>.journal</c> 互不占用），恢复经临时文件原子替换回源路径。 <br />
     /// 提供孤儿临时文件清扫与中断恢复；无状态纯 .NET 实现，可在任意线程调用；共享实例 <see cref="s_Default"/> 供未配置后端时回退。
     /// </remarks>
+    [ProviderDisplay(title: "本地文件", description: "默认：磁盘目录树存档，临时文件原子替换 + 中断恢复，任意线程安全")]
     [Serializable]
     public class FileSaveStorageBackend : SaveStorageBackend
     {

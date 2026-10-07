@@ -16,6 +16,7 @@ namespace Moirai.Atropos.UI
     /// 那些横 call 的接收者是非虚的共享持有者，覆写虚槽会让门面与账本内部答出两套结果。<br />
     /// 线程契约：仅主线程。
     /// </remarks>
+    [ProviderDisplay(title: "UI Toolkit 轨", description: "UIDocument 壳 + 窗口级 PanelSettings，与 uGUI 轨同栈并存")]
     [Serializable]
     // ReSharper disable once InconsistentNaming
     internal sealed class UITKHandler : UIServiceHandler

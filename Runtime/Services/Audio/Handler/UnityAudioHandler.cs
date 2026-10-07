@@ -18,6 +18,7 @@ namespace Moirai.Atropos.Audio
     /// 句柄注册与音量过渡复用 <see cref="AudioHandleRegistry{TVoice}"/> / <see cref="AudioFadeScheduler"/>， <br />
     /// 与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。
     /// </remarks>
+    [ProviderDisplay(title: "Unity 音频", description: "默认：AudioSource/AudioMixer 直驱，无中间件依赖")]
     [Serializable]
     internal sealed class UnityAudioHandler : AudioServiceHandler, IAudioFadeTarget
     {

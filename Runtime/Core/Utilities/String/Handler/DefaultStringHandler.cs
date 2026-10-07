@@ -12,6 +12,7 @@ namespace Moirai.Atropos
     /// <c>new StringBuilder</c>；
     /// 适配器实例由 <c>AdapterPool</c> 池化，避免堆分配。
     /// </remarks>
+    [ProviderDisplay(title: "默认构建器", description: "StringBuilderCache/池化适配器近零分配，无第三方依赖")]
     [Serializable]
     internal sealed class DefaultStringHandler : StringHandler
     {

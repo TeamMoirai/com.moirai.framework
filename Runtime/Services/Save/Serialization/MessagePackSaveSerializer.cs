@@ -10,6 +10,7 @@ namespace Moirai.Atropos.Save
     /// 数据类型需 <c>[MessagePackObject]</c> 标注，依赖 MessagePack SourceGenerator 产出 AOT 安全 formatter； <br />
     /// 未标注类型在 IL2CPP 下不受支持（编辑器 Mono 动态解析仅可用于调试）。
     /// </remarks>
+    [ProviderDisplay(title: "MessagePack", description: "二进制紧凑格式（v3）；类型需 [MessagePackObject]，未标注在 IL2CPP 不受支持")]
     [RegisterSerializer]
     public sealed class MessagePackSaveSerializer : ISaveSerializer
     {

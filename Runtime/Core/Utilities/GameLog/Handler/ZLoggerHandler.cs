@@ -11,6 +11,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 基于 ZLogger（com.cysharp.zlogger）的日志辅助器，由 <c>ZLOGGER_INSTALLED</c> 自动启用，默认创建输出到 Unity Console 的 logger 工厂。
     /// </summary>
+    [ProviderDisplay(title: "ZLogger", description: "Cysharp ZLogger 零分配结构化日志；需 ZLOGGER_INSTALLED 宏")]
     [Serializable]
     internal sealed class ZLoggerHandler : LogHandler
     {

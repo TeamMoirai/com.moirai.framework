@@ -17,6 +17,7 @@ namespace Moirai.Atropos.Save
     /// 镜像脏由镜像与 sidecar 的本地 mtime 失配判定；无版本号时回退时间戳比较（下载已转写远端戳）。 <br />
     /// 同步 API 只作用于本地镜像，远端内容须经异步 API 族获取；单槽备份 <c>.bak</c> 为本地概念，不随云同步。
     /// </remarks>
+    [ProviderDisplay(title: "云存档", description: "本地镜像 + 远端 KV 双写，按同步策略逐键裁决；远端不可达自动离线降级")]
     [Serializable]
     public class CloudSaveStorageBackend : SaveStorageBackend
     {

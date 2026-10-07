@@ -15,6 +15,7 @@ namespace Moirai.Atropos
     /// 目标先于补间销毁时中断（kill）且不触发 OnComplete，是否告警由 <c>warnIfTargetDestroyed</c> 控制。 <br />
     /// 单例状态机：所有实例共享 <see cref="TweenTask"/> 静态状态，运行期仅应存在一个活跃实例。
     /// </remarks>
+    [ProviderDisplay(title: "内置补间", description: "结构体数组 + 版本号 ID，稳态 0 GC，无第三方依赖")]
     [Serializable]
     internal sealed partial class DefaultTweenHandler : TweenHandler
     {

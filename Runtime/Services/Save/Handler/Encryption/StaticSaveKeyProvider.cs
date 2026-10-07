@@ -11,6 +11,7 @@ namespace Moirai.Atropos.Save
     /// SECURITY: 上线前必须替换占位口令与盐文（可在 Inspector 序列化配置，或运行期经 <see cref="SetDerivationParameters"/> 注入，如按平台账号派生）。 <br />
     /// 运行期注入只写 <c>NonSerialized</c> 覆盖字段——序列化配置保持为构建期基线，不脏化设置资产。
     /// </remarks>
+    [ProviderDisplay(title: "静态密钥", description: "默认：固定口令+盐经 PBKDF2 派生；发布前必须替换占位口令与盐文")]
     [Serializable]
     public class StaticSaveKeyProvider : SaveKeyProvider
     {

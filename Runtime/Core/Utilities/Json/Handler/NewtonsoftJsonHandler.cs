@@ -10,6 +10,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// Newtonsoft Json 函数集处理器。
     /// </summary>
+    [ProviderDisplay(title: "Newtonsoft", description: "Json.NET 全功能序列化（ContractResolver 等）；需 Newtonsoft 包")]
     [Serializable]
     internal sealed class NewtonsoftJsonHandler : JsonHandler
     {

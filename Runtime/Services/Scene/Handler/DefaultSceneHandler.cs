@@ -19,6 +19,7 @@ namespace Moirai.Atropos.Scene
     /// 挂起加载契约：底层加载不可中止，挂起场景必须最终 <see cref="UnSuspend"/>；等待方取消（<see cref="CancellationToken"/>）只放弃等待，登记与事件由后台续体在加载真正结束时收尾。 <br />
     /// 由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。
     /// </remarks>
+    [ProviderDisplay(title: "默认场景（资源管线）", description: "主/子场景走资源系统管线（共享包管理与引用计数），挂起加载须最终 UnSuspend")]
     [Serializable]
     internal sealed class DefaultSceneHandler : SceneServiceHandler
     {

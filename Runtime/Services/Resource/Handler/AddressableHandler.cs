@@ -14,6 +14,7 @@ namespace Moirai.Atropos.Resource
     /// 只有异步可答的查询（<c>IsNeedDownloadFromRemote</c> / <c>GetPackageVersion</c> / <c>GetAssetInfo</c> / 按标签的 <br />
     /// <c>GetAssetInfos</c>）退化为恒定值。
     /// </remarks>
+    [ProviderDisplay(title: "Addressables", description: "Unity Addressables 后端（实验性）：无同步加载族，下载族 fail-fast")]
     [Serializable]
     internal sealed partial class AddressableHandler : ResourceServiceHandler
     {
