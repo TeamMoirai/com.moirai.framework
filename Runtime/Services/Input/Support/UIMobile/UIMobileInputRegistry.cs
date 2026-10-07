@@ -15,12 +15,19 @@ namespace Moirai.Atropos.Input
     {
         private static readonly Dictionary<string, InputButton> s_Buttons = new Dictionary<string, InputButton>();
         private static readonly Dictionary<string, InputAxes> s_Axes = new Dictionary<string, InputAxes>();
+        private static int s_Version;
 
         /// <summary>当前注册的全部虚拟按钮（只读视图，元素顺序不保证）。</summary>
         public static IReadOnlyCollection<InputButton> Buttons => s_Buttons.Values;
 
         /// <summary>当前注册的全部虚拟摇杆（只读视图，元素顺序不保证）。</summary>
         public static IReadOnlyCollection<InputAxes> Axes => s_Axes.Values;
+
+        /// <summary>
+        /// 注册表变更版本号：每次注册（含同名覆盖）自增。
+        /// </summary>
+        /// <remarks>供解析方做可失效的负缓存——版本一致时未命中的动作名可直接短路，任何新注册都会令负缓存失效。</remarks>
+        public static int Version => s_Version;
 
         /// <summary>
         /// 按动作名查询虚拟按钮；命中的组件若已被销毁则惰性清除并返回 false。
@@ -70,6 +77,7 @@ namespace Moirai.Atropos.Input
             }
 
             s_Buttons[button.ActionName] = button;
+            s_Version++;
         }
 
         internal static void Unregister(InputButton button)
@@ -99,6 +107,7 @@ namespace Moirai.Atropos.Input
             }
 
             s_Axes[axes.ActionName] = axes;
+            s_Version++;
         }
 
         internal static void Unregister(InputAxes axes)
@@ -117,6 +126,7 @@ namespace Moirai.Atropos.Input
         {
             s_Buttons.Clear();
             s_Axes.Clear();
+            s_Version = 0;
         }
 #endif
     }
