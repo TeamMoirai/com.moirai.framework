@@ -182,28 +182,124 @@ namespace Moirai.Atropos.UI
             }
         }
 
+        /// <summary>装载期的取消源：装载在途时窗口被关闭（<see cref="InternalDestroy"/>）即掐断资源装载。</summary>
+        private CancellationTokenSource _loadCts;
+
+        /// <summary>装载失败位：面板装载回 false 或抛出后置位，等待腿据此判 <see cref="EUIOpenStatus.Failed"/>。</summary>
+        internal bool IsLoadFailed { get; private set; }
+
         internal async UniTaskVoid InternalLoad(string location, Action<UIWindow> prepareCallback, bool isAsync, System.Object[] @params)
         {
             _prepareCallback = prepareCallback;
             _params = @params;
 
+            var loadCts = new CancellationTokenSource();
+            _loadCts = loadCts;
+
             // 装载面板是后端的活：本类只认「装上没有」，装上之后统一把三份意图落到新面板上
-            if (isAsync)
+            try
             {
-                if (!await LoadPanelAsync(location, FromResources, CancellationToken.None))
+                bool loaded;
+                try
                 {
+                    loaded = isAsync
+                        ? await LoadPanelAsync(location, FromResources, loadCts.Token)
+                        : LoadPanel(location, FromResources);
+                }
+                catch (OperationCanceledException)
+                {
+                    // 装载被取消：装载期显式关闭或关停掐断了取消源，不算错误，静默收口
+                    RollbackFailedLoad();
                     return;
                 }
+                catch (Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 装载面板 {1} 抛出异常：{2}", WindowName, location, ex);
+                    RollbackFailedLoad();
+                    return;
+                }
+
+                if (!loaded)
+                {
+                    if (!loadCts.IsCancellationRequested)
+                    {
+                        LogUtility.Error("UI 窗口 '{0}' 装载面板 {1} 失败：已从栈上回滚", WindowName, location);
+                    }
+                    RollbackFailedLoad();
+                    return;
+                }
+
+                PanelLoaded();
+            }
+            finally
+            {
+                if (ReferenceEquals(_loadCts, loadCts))
+                {
+                    _loadCts = null;
+                }
+                loadCts.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// 装载失败的收口：门面还有驱动者在位时把窗口交回共享栈回滚（摘栈、补深度与显隐、发关闭回执），否则只作废本窗。
+        /// </summary>
+        /// <remarks>
+        /// 回叫侧守卫与 <see cref="Hide"/>/<see cref="Close"/> 同一道：关停摘干净各轨之后不再动那条栈。<br />
+        /// 失败收口不触发 <see cref="OnDestroy"/>：本窗从未到过 <see cref="OnCreate"/>，不得凭空补一次销毁回执。
+        /// </remarks>
+        private void RollbackFailedLoad()
+        {
+            if (UIService.IsValid)
+            {
+                UIService.SharedLedger.RollbackFailedLoad(this);
             }
             else
             {
-                if (!LoadPanel(location, FromResources))
+                AbortFailedLoad();
+            }
+        }
+
+        /// <summary>
+        /// 作废装载失败的窗口：置失败位与销毁位、撤准备回调、防御性收走可能半绑定的面板。
+        /// </summary>
+        internal void AbortFailedLoad()
+        {
+            IsLoadFailed = true;
+            IsDestroyed = true;
+            _prepareCallback = null;
+            DestroyPanel();
+        }
+
+        /// <summary>掐断装载期取消源：装载在途的窗口被关闭时，资源装载随之取消。</summary>
+        private void CancelLoadCts()
+        {
+            _loadCts?.Cancel();
+        }
+
+        /// <summary>
+        /// 等面板装载到终态：就绪回真；装载失败或窗口已被销毁回假。
+        /// </summary>
+        /// <remarks>
+        /// 实例方法轮询、无闭包分配；终态先于首帧检查，已就绪/已失败的窗口同帧落定。<br />
+        /// 超时落在 <see cref="OperationCanceledException"/>，由调用方归为超时档。
+        /// </remarks>
+        /// <param name="ct">等待方的超时令牌。</param>
+        /// <returns>面板就绪时为真。</returns>
+        internal async UniTask<bool> WaitPanelReadyAsync(CancellationToken ct)
+        {
+            while (!IsLoadDone)
+            {
+                if (IsLoadFailed || IsDestroyed)
                 {
-                    return;
+                    return false;
                 }
+
+                ct.ThrowIfCancellationRequested();
+                await UniTask.Yield();
             }
 
-            PanelLoaded();
+            return true;
         }
 
         /// <summary>
@@ -392,6 +488,7 @@ namespace Moirai.Atropos.UI
             // 清理交互状态：代次先行作废，在途的打开/关闭续体不得再交还锁或隐藏
             _interactionLifetime++;
             CancelCts();
+            CancelLoadCts();
             UnlockInteraction();
 
             // 销毁面板对象

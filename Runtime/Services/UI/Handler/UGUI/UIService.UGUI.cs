@@ -169,6 +169,24 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
+        /// 异步打开窗口并等待装载终态（uGUI 腿）：就绪/失败/超时按 <see cref="UIOpenResult"/> 交回。
+        /// </summary>
+        /// <remarks>
+        /// 装载当场失败或装载中被关闭的窗口同帧落定为 <see cref="EUIOpenStatus.Failed"/>；跨帧装载按实际就绪帧落定。
+        /// </remarks>
+        /// <typeparam name="T">窗口类。</typeparam>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <returns>开窗结果。</returns>
+        public static UniTask<UIOpenResult> ShowUIAwaitResult<T>(string windowName = null, string assetLocation = null, bool fromResources = false, params object[] userData)
+            where T : UGUIWindow, new()
+        {
+            return UGUIHandler.ShowUIAwaitResultImp(typeof(T), true, windowName, assetLocation, fromResources, null, userData);
+        }
+
+        /// <summary>
         /// uGUI 轨的开窗实现：窗口经协调者那一份共享栈压栈。
         /// </summary>
         /// <remarks>

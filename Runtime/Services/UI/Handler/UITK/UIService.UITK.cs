@@ -186,6 +186,27 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
+        /// 异步打开窗口并等待装载终态（UI Toolkit 腿）：就绪/失败/超时按 <see cref="UIOpenResult"/> 交回。
+        /// </summary>
+        /// <remarks>
+        /// 与等待腿同形：<paramref name="panelSettings"/> 经交接钩子排在装载之前；装载当场失败的窗口同帧落定为
+        /// <see cref="EUIOpenStatus.Failed"/>。
+        /// </remarks>
+        /// <typeparam name="T">窗口类。</typeparam>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <returns>开窗结果。</returns>
+        public static UniTask<UIOpenResult> ShowUIAwaitResult<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
+            PanelSettings panelSettings = null, params object[] userData)
+            where T : UITKWindow, new()
+        {
+            return UITKHandler.ShowUIAwaitResultImp(typeof(T), true, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), userData);
+        }
+
+        /// <summary>
         /// Type 形入口落到本轨的开窗实现：走各轨共用的那张中性形参表，因此不带窗口级 <c>PanelSettings</c>。
         /// </summary>
         /// <remarks>

@@ -206,6 +206,24 @@ namespace Moirai.Atropos.UI
             return await Ledger.ShowUIAwaitImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
         }
 
+        /// <summary>
+        /// 开栈编排的结果腿：与等待腿同一份栈、同一次压入，把「就绪/失败/超时」等成结果交回。
+        /// </summary>
+        /// <remarks>编排本体住在 <see cref="UIWindowLedger"/>，本类只接转发：形参含义与状态语义以它为准。</remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <returns>开窗结果。</returns>
+        internal UniTask<UIOpenResult> ShowUIAwaitResultImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, params object[] userData)
+        {
+            return Ledger.ShowUIAwaitResultImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
+        }
+
         #endregion
 
         #region 关闭窗口 [CLOSE WINDOW]

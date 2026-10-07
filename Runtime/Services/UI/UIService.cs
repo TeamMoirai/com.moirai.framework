@@ -623,6 +623,14 @@ namespace Moirai.Atropos.UI
         public static void GetUIAsync<T>(Action<T> callback) where T : UIWindow =>
             SharedLedger.GetUIAsync(callback);
 
+        /// <summary>
+        /// 异步获取窗口并等装载终态：就绪/失败/缺失/超时按 <see cref="UIOpenResult"/> 交回。
+        /// </summary>
+        /// <typeparam name="T">窗口类型。</typeparam>
+        /// <returns>取窗结果。</returns>
+        public static UniTask<UIOpenResult> GetUIAwaitResult<T>() where T : UIWindow =>
+            SharedLedger.GetUIAwaitResultImp<T>();
+
         #endregion
     }
 }
