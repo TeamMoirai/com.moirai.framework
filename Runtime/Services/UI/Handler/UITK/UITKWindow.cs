@@ -186,7 +186,7 @@ namespace Moirai.Atropos.UI
         /// <param name="tree">面板模板资产；null 表示内容由代码构建，只建空内容根。</param>
         /// <returns>装配成功返回 true。</returns>
         /// <remarks>
-        /// 校验先于写入：缺 <see cref="UIDocument"/> 时抛异常并沿用 uGUI 轨的文案格式，此时一个字段都不动，调用方不得拿到半个可用面板。 <br />
+        /// 校验先于写入：缺 <see cref="UIDocument"/> 时抛 <see cref="GameException"/>，此时一个字段都不动，调用方不得拿到半个可用面板。 <br />
         /// 内容根一律由本类 new 出来：三份意图与 inset 都写在它身上，与文档有没有把根元素建起来无关—— <br />
         /// <c>UIDocument.rootVisualElement</c> 由组件自身的启用流程创建，拿不到宿主时不做 attach，也不报错。
         /// </remarks>
@@ -197,7 +197,8 @@ namespace Moirai.Atropos.UI
             var document = shell.GetComponent<UIDocument>();
             if (document == null)
             {
-                throw new Exception($"Not found {nameof(UIDocument)} in panel {WindowName}");
+                throw new GameException(StringUtility.Format(
+                    "面板壳 {0}（窗口 {1}）上找不到 {2}：UI Toolkit 窗口的壳必须自带文档组件", shell.name, WindowName, nameof(UIDocument)));
             }
 
             _shell = shell;

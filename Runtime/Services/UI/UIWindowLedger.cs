@@ -244,23 +244,50 @@ namespace Moirai.Atropos.UI
         {
             if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
 
-            if (!TryGetWindow(windowName, out UIWindow window, userData))
+            ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out _);
+        }
+
+        /// <summary>
+        /// 开栈编排的公共前置：认名→复用栈上那一只 / 取回停放的那一只 / 造一只新的压栈并发起装载。
+        /// </summary>
+        /// <remarks>
+        /// 这一份只落共享栈、不认轨：每轨自己的开窗实现都经它把窗口送进同一份栈，两轨的差别只在实参取值。<br />
+        /// <paramref name="onInstanceCreated"/> 只在造出新实例那一档叫一次，交在 <c>Push</c> 与装载之前，为 null 时不叫。<br />
+        /// 复用栈上窗与停放重取那两条支路不叫它：那两只窗的面板早已装好，寻址两档也不再吃。
+        /// </remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
+        /// <param name="windowName">窗口名称（已给全）。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="window">进栈的那一只窗口（可能仍在装载）。</param>
+        /// <returns>走的是栈上复用支路时为真：等待腿对这一档不必再等。</returns>
+        private bool ResolveOrStartLoad(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, object[] userData, out UIWindow window)
+        {
+            if (TryGetWindow(windowName, out window, userData))
             {
-                if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
-                {
-                    window.gameObject.SetActive(true);
-                    _cache.Remove(windowName);
-                    Push(window); // 首次压入
-                    window.TryInvoke(OnWindowPrepare, userData);
-                }
-                else
-                {
-                    window = CreateInstance(type, windowName, assetLocation, fromResources);
-                    onInstanceCreated?.Invoke(window); // 交在压栈与装载之前：晚一步面板就按没覆盖的那一份装上了
-                    Push(window); // 首次压入
-                    window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync, userData).Forget();
-                }
+                return true;
             }
+
+            if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
+            {
+                window.gameObject.SetActive(true);
+                _cache.Remove(windowName);
+                Push(window); // 首次压入
+                window.TryInvoke(OnWindowPrepare, userData);
+            }
+            else
+            {
+                window = CreateInstance(type, windowName, assetLocation, fromResources);
+                onInstanceCreated?.Invoke(window); // 交在压栈与装载之前：晚一步面板就按没覆盖的那一份装上了
+                Push(window); // 首次压入
+                window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync, userData).Forget();
+            }
+
+            return false;
         }
 
         /// <summary>栈上已有同名窗口时把它挪到栈顶并发准备回执。</summary>
@@ -284,7 +311,8 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 压栈那一段与 <see cref="ShowUIImp"/> 同一份判据，含 <paramref name="onInstanceCreated"/> 的交接时机与不吃它的那两条支路。<br />
-        /// 等面板就绪最长 <see cref="LOAD_WAIT_TIMEOUT_SECONDS"/> 秒；超时只发一条 Warning，不抛异常，仍交回那只窗口。
+        /// 等面板就绪最长 <see cref="LOAD_WAIT_TIMEOUT_SECONDS"/> 秒；超时只发一条 Warning，仍交回那只窗口。<br />
+        /// 装载失败或装载中被关闭的窗不再当结果交回：失败那一刻即交回 null，不再等到超时。
         /// </remarks>
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
@@ -293,30 +321,16 @@ namespace Moirai.Atropos.UI
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
         /// <param name="userData">用户自定义数据。</param>
-        /// <returns>栈上那一只窗口（面板就绪或等待超时之后交回）。</returns>
+        /// <returns>栈上那一只窗口（面板就绪或等待超时之后交回；装载失败交回 null）。</returns>
         internal async UniTask<UIWindow> ShowUIAwaitImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
             Action<UIWindow> onInstanceCreated, params object[] userData)
         {
             if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
 
-            if (TryGetWindow(windowName, out UIWindow window, userData))
+            // 栈上复用支路：同帧交回那一只（可能仍在装载），不进等待
+            if (ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out var window))
             {
                 return window;
-            }
-
-            if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
-            {
-                window.gameObject.SetActive(true);
-                _cache.Remove(windowName);
-                Push(window); // 首次压入
-                window.TryInvoke(OnWindowPrepare, userData);
-            }
-            else
-            {
-                window = CreateInstance(type, windowName, assetLocation, fromResources);
-                onInstanceCreated?.Invoke(window); // 同上：交在压栈与装载之前，等出来的面板才带着这一枚覆盖
-                Push(window); // 首次压入
-                window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync, userData).Forget();
             }
 
             // 等面板就绪，超时由 CTS 兜底，超时后照常交回窗口
@@ -324,7 +338,8 @@ namespace Moirai.Atropos.UI
             {
                 try
                 {
-                    await UniTask.WaitUntil(() => window.IsLoadDone, cancellationToken: cts.Token);
+                    await UniTask.WaitUntil(() => window.IsLoadDone || window.IsLoadFailed || window.IsDestroyed,
+                        cancellationToken: cts.Token);
                 }
                 catch (System.OperationCanceledException)
                 {
@@ -332,7 +347,64 @@ namespace Moirai.Atropos.UI
                 }
             }
 
+            if (window.IsLoadFailed || (window.IsDestroyed && !window.IsLoadDone))
+            {
+                return null;
+            }
+
             return window;
+        }
+
+        /// <summary>
+        /// 开栈编排的结果腿：与等待腿同一份栈、同一次压入，把「就绪/失败/超时」等成 <see cref="UIOpenResult"/> 交回。
+        /// </summary>
+        /// <remarks>
+        /// 等待经窗口实例方法轮询、无闭包分配；终态先于首帧检查，同步装载与装载当场失败的窗口同帧落定。<br />
+        /// 状态语义以 <see cref="UIOpenResult"/> 为准：就绪交回可用窗、失败交回已作废那只、超时交回仍在装载的那只。
+        /// </remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <returns>开窗结果。</returns>
+        internal async UniTask<UIOpenResult> ShowUIAwaitResultImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, params object[] userData)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+
+            // 栈上复用且已就绪的那一只同帧交回 Opened；仍在装载的复用窗照常等终态
+            if (ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out var window)
+                && window.IsLoadDone)
+            {
+                return new UIOpenResult(EUIOpenStatus.Opened, window);
+            }
+
+            return await WaitWindowResultAsync(window, windowName, LOAD_WAIT_TIMEOUT_SECONDS);
+        }
+
+        /// <summary>
+        /// 装载失败的回滚：把窗口摘出栈、补深度与显隐回执、刷新新栈顶，再把窗口作废。
+        /// </summary>
+        /// <remarks>
+        /// 窗口已被显式关闭收口时（<see cref="UIWindow.IsDestroyed"/> 已置位）不再补第二次关闭回执。<br />
+        /// 关停守卫不在这一层：窗口侧按 <see cref="UIService.IsValid"/> 决定走不走这一道。
+        /// </remarks>
+        /// <param name="window">装载失败的那一只。</param>
+        internal void RollbackFailedLoad(UIWindow window)
+        {
+            if (window.IsDestroyed)
+            {
+                return;
+            }
+
+            Pop(window);
+            OnSortWindowDepth(window.WindowLayer);
+            OnSetWindowVisible();
+            if (_uiStack.Count > 0) _uiStack[_uiStack.Count - 1].InternalRefresh(false);
+            window.AbortFailedLoad();
         }
 
         private UIWindow CreateInstance(Type type, string windowName, string assetLocation = null, bool fromResources = false)
@@ -372,23 +444,17 @@ namespace Moirai.Atropos.UI
         /// 异步获取窗口：栈上没有这一名、或那一只是别的类型时交回 null，否则把面板就绪等出来。
         /// </summary>
         /// <remarks>
-        /// 问的是那条共享栈，两支后端的窗都在射程里，各轨处理器只是转发口。
+        /// 问的是那条共享栈，两支后端的窗都在射程里，各轨处理器只是转发口。<br />
+        /// 找不到时只发一条 Warning；装载失败或装载中被关闭的窗不再等超时交回，直接交回 null。
         /// </remarks>
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <returns>窗口实例。</returns>
         internal async UniTask<T> GetUIAsyncAwait<T>() where T : UIWindow
         {
-            string windowName = typeof(T).FullName;
-            var window = GetWindow(windowName);
-            if (window == null)
-            {
-                return null;
-            }
-
-            var ret = window as T;
-
+            var ret = GetWindow(typeof(T).FullName) as T;
             if (ret == null)
             {
+                LogUtility.Warning("GetUIAsyncAwait 栈上没有 '{0}' 类型的窗口：交回 null", typeof(T).FullName);
                 return null;
             }
 
@@ -402,34 +468,38 @@ namespace Moirai.Atropos.UI
             {
                 try
                 {
-                    await UniTask.WaitUntil(() => ret.IsLoadDone, cancellationToken: cts.Token);
+                    await UniTask.WaitUntil(() => ret.IsLoadDone || ret.IsLoadFailed || ret.IsDestroyed,
+                        cancellationToken: cts.Token);
                 }
                 catch (System.OperationCanceledException)
                 {
                     LogUtility.Warning("GetUIAsyncAwait timed out waiting for window load: {0}", typeof(T).FullName);
                 }
             }
+
+            if (ret.IsLoadFailed || (ret.IsDestroyed && !ret.IsLoadDone))
+            {
+                return null;
+            }
+
             return ret;
         }
 
         /// <summary>
         /// 异步获取窗口：与等待腿同一份栈、同一条判据，另把结果交回回调。
         /// </summary>
+        /// <remarks>
+        /// 找不到或类型不符时只发一条 Warning，回调不被调用。<br />
+        /// 装载失败的窗不再把未就绪的那只交回回调。
+        /// </remarks>
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <param name="callback">回调。</param>
         internal void GetUIAsync<T>(Action<T> callback) where T : UIWindow
         {
-            string windowName = typeof(T).FullName;
-            var window = GetWindow(windowName);
-            if (window == null)
-            {
-                return;
-            }
-
-            var ret = window as T;
-
+            var ret = GetWindow(typeof(T).FullName) as T;
             if (ret == null)
             {
+                LogUtility.Warning("GetUIAsync 栈上没有 '{0}' 类型的窗口：回调不会被调用", typeof(T).FullName);
                 return;
             }
 
@@ -441,14 +511,85 @@ namespace Moirai.Atropos.UI
                 {
                     try
                     {
-                        await UniTask.WaitUntil(() => ret.IsLoadDone, cancellationToken: cts.Token);
+                        await UniTask.WaitUntil(() => ret.IsLoadDone || ret.IsLoadFailed || ret.IsDestroyed,
+                            cancellationToken: cts.Token);
                     }
                     catch (System.OperationCanceledException)
                     {
                         LogUtility.Warning("GetUIAsync timed out waiting for window load: {0}", typeof(T).FullName);
                     }
                 }
+
+                if (ret.IsLoadFailed || (ret.IsDestroyed && !ret.IsLoadDone))
+                {
+                    return;
+                }
+
                 ctx?.Invoke(ret);
+            }
+        }
+
+        /// <summary>
+        /// 结果腿的取窗等待：栈上没有这一名或那一只是别的类型时交 <see cref="EUIOpenStatus.Missing"/>，否则等面板到终态。
+        /// </summary>
+        /// <typeparam name="T">窗口类型。</typeparam>
+        /// <returns>取窗结果。</returns>
+        internal async UniTask<UIOpenResult> GetUIAwaitResultImp<T>() where T : UIWindow
+        {
+            var ret = GetWindow(typeof(T).FullName) as T;
+            if (ret == null)
+            {
+                return new UIOpenResult(EUIOpenStatus.Missing, null);
+            }
+
+            return await WaitWindowResultAsync(ret, typeof(T).FullName, LOAD_WAIT_TIMEOUT_SECONDS);
+        }
+
+        /// <summary>
+        /// 把窗口的装载终态等成 <see cref="UIOpenResult"/>：就绪/失败按实际终态落档，超时交回仍在装载的那一只。
+        /// </summary>
+        /// <remarks>
+        /// 失败与超时的区分读终态位：失败位或「销毁而未就绪」即 Failed，其余未就绪档为 Timeout。
+        /// </remarks>
+        /// <param name="window">等终态的那一只。</param>
+        /// <param name="windowName">窗口名称，只进超时文案。</param>
+        /// <param name="timeoutSeconds">等待上限（秒）。</param>
+        /// <returns>开窗结果。</returns>
+        internal static async UniTask<UIOpenResult> WaitWindowResultAsync(UIWindow window, string windowName, float timeoutSeconds)
+        {
+            if (!await WaitForPanelReady(window, timeoutSeconds) && !window.IsLoadDone)
+            {
+                if (window.IsLoadFailed || window.IsDestroyed)
+                {
+                    return new UIOpenResult(EUIOpenStatus.Failed, window);
+                }
+
+                LogUtility.Warning("UI 窗口 '{0}' 等待面板就绪超时（{1} 秒）", windowName, timeoutSeconds);
+                return new UIOpenResult(EUIOpenStatus.Timeout, window);
+            }
+
+            return new UIOpenResult(EUIOpenStatus.Opened, window);
+        }
+
+        /// <summary>
+        /// 等窗口装载终态：就绪/失败/销毁按实际终态回，超时（<paramref name="timeoutSeconds"/> 秒）回假。
+        /// </summary>
+        /// <remarks>超时与就绪竞速时以就绪为准：取消异常落定后回读一次就绪位。</remarks>
+        /// <param name="window">等终态的那一只。</param>
+        /// <param name="timeoutSeconds">等待上限（秒）。</param>
+        /// <returns>面板就绪时为真。</returns>
+        internal static async UniTask<bool> WaitForPanelReady(UIWindow window, float timeoutSeconds)
+        {
+            using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(timeoutSeconds)))
+            {
+                try
+                {
+                    return await window.WaitPanelReadyAsync(cts.Token);
+                }
+                catch (System.OperationCanceledException)
+                {
+                    return window.IsLoadDone;
+                }
             }
         }
 
@@ -469,7 +610,11 @@ namespace Moirai.Atropos.UI
             if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
             UIWindow window = GetWindow(windowName);
 
-            if (window == null) return;
+            if (window == null)
+            {
+                LogUtility.Debug("要关闭的窗口 '{0}' 不在栈上：本次关闭是空操作", windowName);
+                return;
+            }
 
             if (window.CacheInstance)
             {
@@ -497,6 +642,7 @@ namespace Moirai.Atropos.UI
             UIWindow window = GetWindow(windowName);
             if (window == null)
             {
+                LogUtility.Debug("要隐藏的窗口 '{0}' 不在栈上：本次隐藏是空操作", windowName);
                 return;
             }
 
