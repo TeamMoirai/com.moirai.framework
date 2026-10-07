@@ -1,6 +1,6 @@
 # 创建新 UI
 
-在 Moirai Framework 的 UI 服务中新建一个窗口（`UIWindow`）或控件（`UIWidget`）。
+在 Moirai Framework 的 UI 服务中新建一个窗口（uGUI 轨派生 `UGUIWindow`，对象模型基类是 `UIWindow`）或控件（`UIWidget`）。
 
 ## 参数
 - $UI_NAME: UI 名称（如 `MainMenu`、`SettingsPanel`、`BattleHUD`）
@@ -11,7 +11,7 @@ UI 脚本住在游戏侧程序集，不在框架包内：
 
 ```
 <游戏程序集>/UI/
-├── Windows/<UI_NAME>.cs          # 派生 UIWindow
+├── Windows/<UI_NAME>.cs          # 派生 UGUIWindow（uGUI 轨窗口基类）
 └── Widgets/<Name>Widget.cs       # 派生 UIWidget（按需）
 Assets/.../UI/Prefabs/<UI_NAME>.prefab
 ```
@@ -22,7 +22,7 @@ Assets/.../UI/Prefabs/<UI_NAME>.prefab
 using Moirai.Atropos.UI;
 
 [Window(UILayer.UI, "UI/<UI_NAME>")]             // 层级 + 资源地址；fromResources: true 时走 Resources
-public class <UI_NAME> : UIWindow
+public class <UI_NAME> : UGUIWindow
 {
     protected override void OnCreate() { }               // 实例化后一次
     protected override void BindMemberProperty() { }     // 接收绑定生成器写回的字段
