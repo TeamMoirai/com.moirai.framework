@@ -118,9 +118,9 @@ namespace Moirai.Atropos.UI
                 return false;
             }
 
-            RestChildCanvas(parentUI);
+            ResetChildCanvas(parentUI);
             _parent = parentUI;
-            Parent.ChildList.Add(this);
+            Parent.ChildListWritable.Add(this);
             Parent.SetUpdateDirty();
             Inject();
             ScriptGenerator();
@@ -160,7 +160,7 @@ namespace Moirai.Atropos.UI
             return true;
         }
 
-        protected void RestChildCanvas(UIBase parentUI)
+        protected void ResetChildCanvas(UIBase parentUI)
         {
             if (parentUI == null || parentUI.gameObject == null)
             {
@@ -217,7 +217,7 @@ namespace Moirai.Atropos.UI
         {
             if (_parent != null)
             {
-                _parent.ChildList.Remove(this);
+                _parent.ChildListWritable.Remove(this);
                 OnDestroy();
                 OnDestroyWidget();
             }
