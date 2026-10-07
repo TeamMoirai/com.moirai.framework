@@ -20,9 +20,12 @@ namespace Moirai.Atropos.Input
         private readonly InputStateMachine _state = new InputStateMachine();
 
         // 解析缓存（值类型组合键，查询热路径零分配；命中已销毁引用时惰性失效并重解析。
-        // 不缓存负结果——延迟实例化的虚拟组件注册后必须能命中）
+        // 负结果按注册表版本缓存：版本未变时未命中的动作名直接短路（省去全名拼接与两次注册表查找），
+        // 任何新注册都会令版本自增、负缓存失效——延迟实例化的虚拟组件注册后仍能命中）
         private readonly Dictionary<InputActionKey, InputButton> _resolvedButtons = new Dictionary<InputActionKey, InputButton>();
         private readonly Dictionary<InputActionKey, InputAxes> _resolvedAxes = new Dictionary<InputActionKey, InputAxes>();
+        private readonly Dictionary<InputActionKey, int> _unresolvedButtons = new Dictionary<InputActionKey, int>();
+        private readonly Dictionary<InputActionKey, int> _unresolvedAxes = new Dictionary<InputActionKey, int>();
 
         public override bool Enabled
         {
@@ -57,6 +60,8 @@ namespace Moirai.Atropos.Input
             _state.ResetRequested -= ResetAllInputStates;
             _resolvedButtons.Clear();
             _resolvedAxes.Clear();
+            _unresolvedButtons.Clear();
+            _unresolvedAxes.Clear();
         }
 
         public override bool GetButtonDown(string actionName, string actionGroup= "")
@@ -131,7 +136,7 @@ namespace Moirai.Atropos.Input
         /// <summary>
         /// 解析虚拟按钮：优先按 <c>Group/Name</c>，未命中回退组件上平铺的 <c>ActionName</c>。
         /// </summary>
-        /// <remarks>解析结果缓存；负结果不缓存，晚注册组件仍可命中。</remarks>
+        /// <remarks>解析结果缓存；负结果按 <see cref="UIMobileInputRegistry.Version"/> 缓存，任何新注册自动失效。</remarks>
         private bool TryResolveButton(string actionName, string actionGroup, out InputButton button)
         {
             var key = new InputActionKey(actionGroup, actionName);
@@ -142,13 +147,24 @@ namespace Moirai.Atropos.Input
                 _resolvedButtons.Remove(key);
             }
 
+            // 负缓存命中：注册表自上次未命中以来没有新注册，直接短路
+            int version = UIMobileInputRegistry.Version;
+            if (_unresolvedButtons.TryGetValue(key, out int missVersion) && missVersion == version)
+            {
+                button = null;
+                return false;
+            }
+
             if ((key.HasGroup && UIMobileInputRegistry.TryGetButton(key.ToFullName(), out button)) ||
                 UIMobileInputRegistry.TryGetButton(actionName, out button))
             {
+                _unresolvedButtons.Remove(key);
                 _resolvedButtons.Add(key, button);
                 return true;
             }
 
+            _unresolvedButtons[key] = version;
+            button = null;
             return false;
         }
 
@@ -164,13 +180,24 @@ namespace Moirai.Atropos.Input
                 _resolvedAxes.Remove(key);
             }
 
+            // 负缓存命中：注册表自上次未命中以来没有新注册，直接短路
+            int version = UIMobileInputRegistry.Version;
+            if (_unresolvedAxes.TryGetValue(key, out int missVersion) && missVersion == version)
+            {
+                axes = null;
+                return false;
+            }
+
             if ((key.HasGroup && UIMobileInputRegistry.TryGetAxes(key.ToFullName(), out axes)) ||
                 UIMobileInputRegistry.TryGetAxes(actionName, out axes))
             {
+                _unresolvedAxes.Remove(key);
                 _resolvedAxes.Add(key, axes);
                 return true;
             }
 
+            _unresolvedAxes[key] = version;
+            axes = null;
             return false;
         }
     }
