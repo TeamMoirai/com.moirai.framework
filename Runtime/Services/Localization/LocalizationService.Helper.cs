@@ -185,10 +185,7 @@ namespace Moirai.Atropos.Localization
             try
             {
                 // 单趟解析：命中即取译文；此前 Has + GetTextFromId 两趟查询
-                if (TryGetTextFromId(id, out var text)) return text;
-
-                LogUtility.Warning("Text ID: {0} not available.", id);
-                return null;
+                return TryGetTextFromId(id, out var text) ? text : null;
             }
             catch (Exception ex)
             {
