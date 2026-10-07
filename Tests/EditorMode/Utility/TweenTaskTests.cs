@@ -15,7 +15,7 @@ namespace Utility
     /// <remarks>
     /// 经 dt 注入版 <c>Update(float, float)</c> 直接驱动，不依赖引擎时间与帧监听；覆盖 ID 版本防别名、槽位回收复用、完成/停止语义、重入安全、 <br />
     /// 循环模式（Restart/Yoyo/Incremental/Rewind）、延迟、销毁目标与参数校验。 <br />
-    /// 销毁警告的内容断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
+    /// 销毁警告的内容断言经 <see cref="LogUtility.onMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public class TweenTaskTests
@@ -35,13 +35,13 @@ namespace Utility
 
             _logs = new List<(ELogLevel, string)>();
             _logCallback = (level, message, _) => _logs.Add((level, message));
-            LogUtility.OnMessageLogged += _logCallback;
+            LogUtility.onMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= _logCallback;
+            LogUtility.onMessageLogged -= _logCallback;
             DefaultTweenHandler.TweenTask.ResetStatics();
             UnityEngine.Object.DestroyImmediate(_go);
         }

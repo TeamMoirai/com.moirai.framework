@@ -11,7 +11,7 @@ namespace Moirai.Atropos
         private bool? _lastKnownFullScreen = null;
         private int _lastSetFullScreenFrame = 0;
 
-        public static event Action<bool> OnFullScreenChanged;
+        public static event Action<bool> onFullScreenChanged;
 
         public static bool GetFullScreen()
         {
@@ -44,7 +44,7 @@ namespace Moirai.Atropos
             Instance._lastSetFullScreenFrame = Time.frameCount;
             Instance._lastKnownFullScreen = fullScreen;
 
-            OnFullScreenChanged?.Invoke(fullScreen);
+            onFullScreenChanged?.Invoke(fullScreen);
         }
     }
 }

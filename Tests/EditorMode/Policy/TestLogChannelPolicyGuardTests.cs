@@ -14,7 +14,7 @@ namespace Policy
     /// <remarks>
     /// <c>LogUtility</c> 是带分类过滤与 Handler 管道的运行时基础设施，测试诊断走它会让「这条日志算不算失败」取决于测试域恰好激活的 Handler 配置； <br />
     /// <c>Debug.Log*</c> 对 UTF 的可见性则是确定的。 <br />
-    /// 断言通道不受此守卫约束：<see cref="Moirai.Atropos.LogUtility.OnMessageLogged"/> 订阅是捕获运行时日志的唯一稳定通道， <br />
+    /// 断言通道不受此守卫约束：<see cref="Moirai.Atropos.LogUtility.onMessageLogged"/> 订阅是捕获运行时日志的唯一稳定通道， <br />
     /// <c>UtfLogExpect</c> 是消除未处理日志的统一入口（读 Handler 状态做可见性判定，不是发射）。 <br />
     /// LogAssert 直用禁令的两条豁免：两份 <c>UtfLogExpect</c> 支撑副本（实现处本身），与「被测走 Debug 直发、不经 LogUtility」的场景（该链路不涉处理器判定，LogAssert 是唯一通道）。 <br />
     /// 发射禁令白名单两类正当用途：① 被测本体（LogUtility 自身的语义回归必须发射 LogUtility）；② 替身复刻（fake loader 复现生产侧错误发射，错误路径断言依赖该可观察行为）。 <br />
@@ -95,7 +95,7 @@ namespace Policy
             Assert.IsEmpty(offenders,
                 "以下测试文件经 LogUtility 发射日志，但《测试规范》要求测试自身的日志输出统一走 Debug.Log*：\n" +
                 "· 测试诊断输出 → Debug.Log / LogWarning / LogError（对 UTF 的可见性是确定的）；\n" +
-                "· 断言运行时日志内容 → LogUtility.OnMessageLogged 事件捕获；\n" +
+                "· 断言运行时日志内容 → LogUtility.onMessageLogged 事件捕获；\n" +
                 "· 消除未处理日志 → UtfLogExpect.Error()/Warning()；\n" +
                 "· 替身复刻生产侧发射（断言依赖该可观察行为）→ 登记进本守卫 Allowlist 并写明归类。\n" +
                 "命中文件：\n  " + string.Join("\n  ", offenders));
@@ -158,7 +158,7 @@ namespace Policy
                 "· LogUtility 发射的日志 → UtfLogExpect.Error()/Warning()/Exception()（处理器可见性判定收在那一处，正则固定 .*）；\n" +
                 "· 带异常对象的 Error → UtfLogExpect.ErrorWithException(fragment)（级别判定同收）；\n" +
                 "· 错误集不可枚举的故障注入 → using (UtfLogExpect.ScopedIgnore())（快照还原由 using 保证）；\n" +
-                "· 内容断言 → LogUtility.OnMessageLogged 捕获（与处理器无关）；\n" +
+                "· 内容断言 → LogUtility.onMessageLogged 捕获（与处理器无关）；\n" +
                 "· 被测走 Debug.Log 直发、不经 LogUtility → LogAssert 是唯一正确通道，登记 LogAssertAllowlist 并写明归类。\n" +
                 "命中文件：\n  " + string.Join("\n  ", offenders));
         }

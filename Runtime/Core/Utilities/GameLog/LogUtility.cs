@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 等级过滤在各 <see cref="LogHandler"/> 的 <see cref="LogHandler.Log"/> 入口按 <see cref="LogHandler.MinimumLevel"/> <br />
     /// 执行（含全局拦截器转发的三方日志）；
-    /// <see cref="OnMessageLogged"/> 仅在日志通过过滤后触发。
+    /// <see cref="onMessageLogged"/> 仅在日志通过过滤后触发。
     /// 未显式设置处理器时按编译期可用的最优后端自动选择（优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。 <br />
     /// 日志方法由 T4 模板生成，见 <c>LogUtility.LogMethods.tt</c>。
     /// </remarks>
@@ -39,7 +39,7 @@ namespace Moirai.Atropos
         private static LogHandler GetHandlerFromSettings() => GameAppSettings.LogHandler;
 
         /// <summary>
-        /// 判定指定日志等级当前是否会被实际记录（含 <see cref="OnMessageLogged"/> 事件）。
+        /// 判定指定日志等级当前是否会被实际记录（含 <see cref="onMessageLogged"/> 事件）。
         /// </summary>
         /// <remarks>
         /// T4 生成的日志入口以它做前置短路——被 <see cref="LogHandler.MinimumLevel"/> 过滤的调用在字符串构造前即返回， <br />
@@ -62,7 +62,7 @@ namespace Moirai.Atropos
         /// 仅在日志通过 <see cref="LogHandler.MinimumLevel"/> 过滤后触发，被过滤的日志不触发。 <br />
         /// 可用于调试器内嵌控制台、崩溃上报、测试断言等场景。
         /// </remarks>
-        internal static event Action<ELogLevel, string, Exception> OnMessageLogged;
+        internal static event Action<ELogLevel, string, Exception> onMessageLogged;
 
         /// <summary>
         /// 触发日志事件回调。由 T4 生成的方法在记录日志后调用。
@@ -75,7 +75,7 @@ namespace Moirai.Atropos
             // 事件契约：与各 Handler 内部过滤同判定——低于 MinimumLevel 的日志不触发事件
             if (Handler.MinimumLevel > logLevel) return;
 
-            OnMessageLogged?.Invoke(logLevel, message, exception);
+            onMessageLogged?.Invoke(logLevel, message, exception);
         }
 
         #endregion
@@ -147,7 +147,7 @@ namespace Moirai.Atropos
         public static void ResetStatics()
         {
             DisableGlobalInterception();
-            OnMessageLogged = null;
+            onMessageLogged = null;
         }
 
         #endregion

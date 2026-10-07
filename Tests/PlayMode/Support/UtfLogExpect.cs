@@ -15,7 +15,7 @@ namespace Testing
     /// 通路、UTF 可见；<c>UnityLoggingHandler</c> 直写控制台窗口、绕开该通路，不可见。
     /// <see cref="LogAssert"/> 是双向契约：可见时漏声明会因「未处理的错误日志」判红，不可见时声明会反报 "Expected log did not appear"。
     /// 只承担「消除未处理日志」——正则固定 <c>.*</c>，不耦合处理器渲染前缀。 <br />
-    /// 断言日志内容请走 <see cref="LogUtility.OnMessageLogged"/>，那条通道与处理器无关。
+    /// 断言日志内容请走 <see cref="LogUtility.onMessageLogged"/>，那条通道与处理器无关。
     /// </remarks>
     internal static class UtfLogExpect
     {

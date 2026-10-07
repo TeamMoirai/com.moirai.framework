@@ -15,7 +15,7 @@ namespace Service.Localization
     /// 处理器级用例直接构造桩数据源（与 <c>DefaultProcedureHandlerTests</c> 同约定），不碰 <see cref="LocalizationService"/> 的静态 Handler——那是跨用例状态， <br />
     /// 写脏会让 <c>ServiceContractTests</c> 的降级断言按执行顺序随机失败。 <br />
     /// 首启语言取自检测链（命令行 → 编辑器设置 → 存档 → 系统语言），机器相关，因此需要「确实发生切换」的用例一律经 <see cref="OtherLoadedLanguage"/> 取目标语言，不硬编码。 <br />
-    /// 失败路径的日志内容断言经 <see cref="Moirai.Atropos.LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
+    /// 失败路径的日志内容断言经 <see cref="Moirai.Atropos.LogUtility.onMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     [TestFixture]
     public sealed class LocalizationServiceHandlerTests
@@ -36,13 +36,13 @@ namespace Service.Localization
 
             _logs = new List<(ELogLevel, string)>();
             _logCallback = (level, message, _) => _logs.Add((level, message));
-            LogUtility.OnMessageLogged += _logCallback;
+            LogUtility.onMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= _logCallback;
+            LogUtility.onMessageLogged -= _logCallback;
             _handler?.Internal_Shutdown();
             _handler = null;
         }
@@ -316,7 +316,7 @@ namespace Service.Localization
                 var order = new List<string>();
                 localizer.OnLocalized = () => order.Add($"Localize:{_handler.GetTextFromId("ui.title")}");
                 _handler.AddLocalizer(localizer);
-                _handler.OnLanguageChanged += language => order.Add($"Event:{_handler.GetTextFromId("ui.title")}");
+                _handler.onLanguageChanged += language => order.Add($"Event:{_handler.GetTextFromId("ui.title")}");
 
                 _handler.ChangeLanguage(target);
 
@@ -350,7 +350,7 @@ namespace Service.Localization
                     _handler.ChangeLanguage(from);
                 };
                 var eventCount = 0;
-                _handler.OnLanguageChanged += _ => eventCount++;
+                _handler.onLanguageChanged += _ => eventCount++;
                 UtfLogExpect.Error();
 
                 _handler.ChangeLanguage(OtherLoadedLanguage());
@@ -380,7 +380,7 @@ namespace Service.Localization
                 _handler.AddLocalizer(broken);
                 _handler.AddLocalizer(healthy);
                 var eventFired = false;
-                _handler.OnLanguageChanged += _ => eventFired = true;
+                _handler.onLanguageChanged += _ => eventFired = true;
                 UtfLogExpect.ErrorWithException("probe localizer failed");
 
                 _handler.ChangeLanguage(target);
@@ -679,7 +679,7 @@ namespace Service.Localization
             var target = OtherLoadedLanguage();   // 先把首启那一轮切换走完再挂订阅，否则派发计数里混着首启那次
             var order = new List<string>();
             var handle = _handler.SubscribeLanguageChanged(language => order.Add("Handle"));
-            _handler.OnLanguageChanged += language => order.Add("Event");
+            _handler.onLanguageChanged += language => order.Add("Event");
 
             _handler.ChangeLanguage(target);
             CollectionAssert.AreEquivalent(new[] { "Event", "Handle" }, order, "静态事件与句柄订阅应在同一次派发里各命中一次");
@@ -889,7 +889,7 @@ namespace Service.Localization
             {
                 _handler.AddLocalizer(localizer);
                 var eventCount = 0;
-                _handler.OnLanguageChanged += _ => eventCount++;
+                _handler.onLanguageChanged += _ => eventCount++;
                 var localizeBefore = localizer.LocalizeCount;
 
                 _handler.ReloadTexts();

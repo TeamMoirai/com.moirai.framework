@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Save
     }
 
     /// <summary>
-    /// 存取进度的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.SaveProgress"/>/<see cref="SaveService.LoadProgress"/> <br />
+    /// 存取进度的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.onSaveProgress"/>/<see cref="SaveService.onLoadProgress"/> <br />
     /// 二选一订阅）。
     /// </summary>
     public class SaveProgressEvent : EventBase<SaveProgressEvent>

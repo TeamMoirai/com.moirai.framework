@@ -2,7 +2,7 @@
 
 > 基于 Luban 配置表的多语言服务，支持文本、图片、音频与 Timeline 的自动注入和内联解析。
 
-`Localization` 服务通过 `LocalizationService` 静态外观访问，首次访问多语言 API 时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigTableService`）懒式加载全部本地化字符串，可用语言随表自报。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会重新注入所有已注册的 `LocalizerBase` 组件，随后触发 `OnLanguageChanged`。除按 ID 取文本外，`LocalizationService.Localize` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
+`Localization` 服务通过 `LocalizationService` 静态外观访问，首次访问多语言 API 时从 Luban 配置表（经 [ConfigTable](ConfigTable.md) 的 `ConfigTableService`）懒式加载全部本地化字符串，可用语言随表自报。语言按「命令行参数 → 编辑器设置 → 本地存档 → 系统语言」的优先级决定，切换语言时会重新注入所有已注册的 `LocalizerBase` 组件，随后触发 `onLanguageChanged`。除按 ID 取文本外，`LocalizationService.Localize` 还支持在任意字符串中内联解析 `{l10n:ID}` / `{i18n:ID}` / `{g11n:ID}` 占位符。
 
 ## 核心特性
 
@@ -21,7 +21,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `LocalizationService` | 静态外观（`[HandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`OnLanguageChanged` 事件由外观直接暴露；`ToLanguage` / `Localize` / `ResolveLanguages` 与编辑器预览 API 住在同一类的分部实现（`LocalizationService.Helper`）中 |
+| `LocalizationService` | 静态外观（`[HandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`onLanguageChanged` 事件由外观直接暴露；`ToLanguage` / `Localize` / `ResolveLanguages` 与编辑器预览 API 住在同一类的分部实现（`LocalizationService.Helper`）中 |
 | `Language` | 语言类（`IEquatable<Language>`，按 `Code` 比较）：`Name`、`Code`、`DisplayName`、`BuiltinLanguages`，支持与 `SystemLanguage` 互转；内置条目为共享只读实例 |
 | `LocalizationServiceHandler` | 处理器抽象基类：按语言取值解析、语言切换、本地化器注册 |
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
@@ -90,7 +90,7 @@ string hint = LocalizationService.Localize("按 {l10n:btn_confirm} 继续");
 ### 订阅语言切换
 
 ```csharp
-LocalizationService.OnLanguageChanged += language =>
+LocalizationService.onLanguageChanged += language =>
 {
     Debug.Log($"语言已切换: {language.DisplayName}");
     // 事件在所有 LocalizerBase 重注入完成、且当前语言已更新之后触发，
@@ -249,7 +249,7 @@ private void OnEnable() => _subscription = LocalizationService.SubscribeLanguage
 private void OnDisable() => _subscription?.Dispose();
 ```
 
-与静态 `OnLanguageChanged` 在同一次派发里触发（时序契约一致：全部 Localizer 重注入之后），区别是句柄 `Dispose` 即摘除、且**服务关闭时框架统一作废**——静态事件那条路上忘了注销的订阅者会跨关服、跨会话继续被调用。
+与静态 `onLanguageChanged` 在同一次派发里触发（时序契约一致：全部 Localizer 重注入之后），区别是句柄 `Dispose` 即摘除、且**服务关闭时框架统一作废**——静态事件那条路上忘了注销的订阅者会跨关服、跨会话继续被调用。
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [ConfigTable](ConfigTable.md)

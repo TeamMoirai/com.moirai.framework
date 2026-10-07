@@ -159,7 +159,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>当语言改变时调用。</summary>
         /// <remarks>在全部本地化器重注入<em>之后</em>触发，回调内查询文本即已是新语言。
         /// 需要「关服自动摘除」的订阅请用 <see cref="SubscribeLanguageChanged"/>。</remarks>
-        public event Action<Language> OnLanguageChanged;
+        public event Action<Language> onLanguageChanged;
 
         /// <summary>存储与解析引擎。延迟创建：处理器会被 Settings 以 SerializeReference 还原，构造器不一定跑。</summary>
         private LocalizationStore Store => _store ??= new LocalizationStore();
@@ -716,7 +716,7 @@ namespace Moirai.Atropos.Localization
         /// 重注入全部本地化器，然后抛出语言变更事件。
         /// </summary>
         /// <remarks>
-        /// 先重注入再抛事件：订阅者在 OnLanguageChanged 回调里取文本必须已拿到新语言。 <br />
+        /// 先重注入再抛事件：订阅者在 onLanguageChanged 回调里取文本必须已拿到新语言。 <br />
         /// 以 <see cref="ArrayPool{T}"/> 租用快照遍历并逐项异常隔离，单个本地化器失败不影响其余，也不受注入期间集合变更影响。
         /// </remarks>
         private void ReinjectLocalizers()
@@ -760,7 +760,7 @@ namespace Moirai.Atropos.Localization
 
         private void RaiseLanguageChanged(Language language)
         {
-            OnLanguageChanged?.Invoke(language);
+            onLanguageChanged?.Invoke(language);
 
             var count = _subscriptions.Count;
             if (count == 0) return;
@@ -893,7 +893,7 @@ namespace Moirai.Atropos.Localization
         /// 以句柄订阅语言变更，<c>Dispose</c> 即摘除订阅。
         /// </summary>
         /// <remarks>
-        /// 与 <see cref="OnLanguageChanged"/> 在同一次派发里触发、时序契约一致（重注入之后）。 <br />
+        /// 与 <see cref="onLanguageChanged"/> 在同一次派发里触发、时序契约一致（重注入之后）。 <br />
         /// 关服时框架统一作废全部句柄订阅。
         /// </remarks>
         public IDisposable SubscribeLanguageChanged(Action<Language> callback)

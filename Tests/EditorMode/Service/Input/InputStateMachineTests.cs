@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace Service.Input
 {
     /// <summary>
-    /// 输入状态机（<see cref="InputStateMachine"/>）组合语义单元测试：四个压制态的边沿触发、强制派生语义、进入压制态时 <c>ResetRequested</c> 的副作用收敛。
+    /// 输入状态机（<see cref="InputStateMachine"/>）组合语义单元测试：四个压制态的边沿触发、强制派生语义、进入压制态时 <c>onResetRequested</c> 的副作用收敛。
     /// </summary>
     /// <remarks>四个压制态为 Enabled / LockPlayerController / PreventInteractionUI / UIModal；幂等赋值不重复触发，未启用或模态时 Lock 强制为 true。纯逻辑测试， <br />
     /// 不依赖 Unity 场景与输入后端。</remarks>
@@ -19,7 +19,7 @@ namespace Service.Input
         {
             _state = new InputStateMachine();
             _resetCount = 0;
-            _state.ResetRequested += () => _resetCount++;
+            _state.onResetRequested += () => _resetCount++;
         }
 
         #region Enabled [启用]
@@ -216,7 +216,7 @@ namespace Service.Input
         public void SuppressionChanged_FiresOnEveryEffectiveFlip()
         {
             int count = 0;
-            _state.SuppressionChanged += () => count++;
+            _state.onSuppressionChanged += () => count++;
 
             _state.LockPlayerController = true;    // 玩家压制 false→true
             _state.LockPlayerController = false;   // 恢复 true→false
@@ -232,7 +232,7 @@ namespace Service.Input
         public void SuppressionChanged_IdempotentSets_DoNotFire()
         {
             int count = 0;
-            _state.SuppressionChanged += () => count++;
+            _state.onSuppressionChanged += () => count++;
 
             _state.Enabled = true;
             _state.LockPlayerController = false;
@@ -249,7 +249,7 @@ namespace Service.Input
             int count = 0;
             _state.LockPlayerController = true;
             _state.SetUIModal(true);
-            _state.SuppressionChanged += () => count++;
+            _state.onSuppressionChanged += () => count++;
 
             _state.LockPlayerController = false;
             Assert.AreEqual(0, count);

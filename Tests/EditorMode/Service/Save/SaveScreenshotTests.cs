@@ -41,17 +41,17 @@ namespace Service.Save
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
 
             _capturedLogs = new List<(ELogLevel, string)>();
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
 
             _screenshotEvents = new List<SaveScreenshotArgs>();
-            SaveService.ScreenshotCaptured += OnScreenshotCaptured;
+            SaveService.onScreenshotCaptured += OnScreenshotCaptured;
         }
 
         [TearDown]
         public void TearDown()
         {
-            SaveService.ScreenshotCaptured -= OnScreenshotCaptured;
-            LogUtility.OnMessageLogged -= CaptureLog;
+            SaveService.onScreenshotCaptured -= OnScreenshotCaptured;
+            LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             SetFacadeHandler(null);
             try

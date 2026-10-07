@@ -40,7 +40,7 @@ namespace Moirai.Atropos.Save
     }
 
     /// <summary>
-    /// 存档失败事件参数（<see cref="SaveService.SaveFailed"/> / <see cref="SaveService.LoadFailed"/>）。
+    /// 存档失败事件参数（<see cref="SaveService.onSaveFailed"/> / <see cref="SaveService.onLoadFailed"/>）。
     /// </summary>
     /// <remarks>写路径失败同时以 <see cref="GameException"/> fail-fast 上抛（事件不替代异常）；读路径缺档（<see cref="SaveError.FileNotFound"/>）属正常业务流， <br />
     /// 不产生失败事件。</remarks>

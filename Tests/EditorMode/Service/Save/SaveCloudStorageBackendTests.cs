@@ -177,13 +177,13 @@ namespace Service.Save
             };
 
             _capturedLogs = new List<(ELogLevel, string)>();
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
+            LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             try
             {

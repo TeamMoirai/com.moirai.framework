@@ -12,7 +12,7 @@ namespace Utility
     /// </summary>
     /// <remarks>
     /// 不创建 <c>LogHandler</c> 子类（避免 <c>[SerializeReference]</c> Inspector 下拉污染）， <br />
-    /// 用 <c>DefaultLogHandler</c> + <see cref="LogUtility.OnMessageLogged"/> 事件捕获日志条目；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
+    /// 用 <c>DefaultLogHandler</c> + <see cref="LogUtility.onMessageLogged"/> 事件捕获日志条目；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。
     /// </remarks>
     public class LogUtilityTests
     {
@@ -28,13 +28,13 @@ namespace Utility
             LogUtility.Handler = _handler;
 
             _callback = (level, msg, ex) => _entries.Add((level, msg, ex));
-            LogUtility.OnMessageLogged += _callback;
+            LogUtility.onMessageLogged += _callback;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= _callback;
+            LogUtility.onMessageLogged -= _callback;
             LogUtility.ResetStatics();
             LogUtility.Handler = new DefaultLogHandler();
         }
@@ -73,7 +73,7 @@ namespace Utility
             LogUtility.Debug("d");
             LogUtility.Info("i");
             LogUtility.Warning("w");
-            // UTF 消噪经 UtfLogExpect 统一声明（处理器可见性判定收在那一处）；内容断言走 OnMessageLogged
+            // UTF 消噪经 UtfLogExpect 统一声明（处理器可见性判定收在那一处）；内容断言走 onMessageLogged
             UtfLogExpect.Error();
             LogUtility.Error("e");
 

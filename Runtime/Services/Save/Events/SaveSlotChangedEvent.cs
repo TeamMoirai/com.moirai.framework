@@ -3,7 +3,7 @@ using Moirai.Atropos.Events;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 槽位变动的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.SlotChanged"/> 二选一订阅）。
+    /// 槽位变动的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.onSlotChanged"/> 二选一订阅）。
     /// </summary>
     public class SaveSlotChangedEvent : EventBase<SaveSlotChangedEvent>
     {
@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 获取池化事件并广播（订阅侧亦可改用静态事件 <see cref="SaveService.SlotChanged"/>）。
+        /// 获取池化事件并广播（订阅侧亦可改用静态事件 <see cref="SaveService.onSlotChanged"/>）。
         /// </summary>
         /// <param name="args">事件参数。</param>
         public static void Trigger(SaveSlotChangedArgs args)

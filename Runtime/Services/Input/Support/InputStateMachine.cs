@@ -27,16 +27,16 @@ namespace Moirai.Atropos.Input
         private bool _hasUIModal;
         private bool _enabled = true;
 
-        // 上一次对外广播时的有效压制态——仅在实际变化时触发 SuppressionChanged
+        // 上一次对外广播时的有效压制态——仅在实际变化时触发 onSuppressionChanged
         private bool _lastPlayerSuppressed;
         private bool _lastUISuppressed;
 
         /// <summary>进入压制态（禁用/锁定/禁 UI）时触发——由持有方接线到后端的输入重置。</summary>
-        public event Action ResetRequested;
+        public event Action onResetRequested;
 
         /// <summary>有效压制态（<see cref="IsPlayerInputSuppressed"/> 或 <see cref="IsUIInteractionSuppressed"/>）实际变化时触发。</summary>
         /// <remarks>由持有方接线到后端的上下文切换（如 Input System 的 Action Map 启用/禁用）。</remarks>
-        public event Action SuppressionChanged;
+        public event Action onSuppressionChanged;
 
         /// <summary>有效玩家输入压制（未启用、锁定玩家控制器或 UI 模态的并集）。</summary>
         /// <remarks>与 <see cref="LockPlayerController"/> 读取同值，是压制语义的唯一权威出口。</remarks>
@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Input
             {
                 if (_enabled == value) return;
                 _enabled = value;
-                if (!_enabled) ResetRequested?.Invoke();
+                if (!_enabled) onResetRequested?.Invoke();
                 NotifySuppressionChanged();
             }
         }
@@ -70,7 +70,7 @@ namespace Moirai.Atropos.Input
                 if (value)
                 {
                     _stateFlags |= EInputStateFlags.LockPlayerController;
-                    ResetRequested?.Invoke();
+                    onResetRequested?.Invoke();
                 }
                 else
                 {
@@ -92,7 +92,7 @@ namespace Moirai.Atropos.Input
                 if (value)
                 {
                     _stateFlags |= EInputStateFlags.PreventInteractionUI;
-                    ResetRequested?.Invoke();
+                    onResetRequested?.Invoke();
                 }
                 else
                 {
@@ -114,7 +114,7 @@ namespace Moirai.Atropos.Input
             if (_hasUIModal == hasModal) return;
 
             _hasUIModal = hasModal;
-            if (hasModal) ResetRequested?.Invoke();
+            if (hasModal) onResetRequested?.Invoke();
             NotifySuppressionChanged();
         }
 
@@ -130,7 +130,7 @@ namespace Moirai.Atropos.Input
 
             _lastPlayerSuppressed = playerSuppressed;
             _lastUISuppressed = uiSuppressed;
-            SuppressionChanged?.Invoke();
+            onSuppressionChanged?.Invoke();
         }
     }
 }

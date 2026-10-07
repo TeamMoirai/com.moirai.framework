@@ -11,7 +11,7 @@ namespace Service.Save
     /// </summary>
     /// <remarks>
     /// 配置字段走 <c>internal</c> 接缝读写，不用反射（本仓测试可见性口径）。 <br />
-    /// 日志判据走 <see cref="LogUtility.OnMessageLogged"/>（Handler 无关），未处理日志由 <see cref="UtfLogExpect"/> 消除。 <br />
+    /// 日志判据走 <see cref="LogUtility.onMessageLogged"/>（Handler 无关），未处理日志由 <see cref="UtfLogExpect"/> 消除。 <br />
     /// <see cref="TearDown"/> 还原配置名并注销测试 ID；解析缓存按配置名失效，故残留实例不会带给后续用例。
     /// </remarks>
     public class SaveServiceSettingsDefaultSerializerTests
@@ -45,13 +45,13 @@ namespace Service.Save
         {
             _previousTypeName = SaveServiceSettings.Instance.m_DefaultSerializerTypeName;
             _fatalCount = 0;
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
+            LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceSettings.Instance.m_DefaultSerializerTypeName = _previousTypeName;
             SaveSerializerRegistry.Unregister(TestBackend);
         }

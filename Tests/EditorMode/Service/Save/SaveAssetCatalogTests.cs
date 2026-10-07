@@ -13,7 +13,7 @@ namespace Service.Save
     /// 资产引用目录契约测试：双向查找、类型不匹配未命中、重复条目首到先得、无效条目跳过、编辑器期查找表失效重建、程序化改条目后的 <see cref="SaveAssetCatalog.InvalidateLookup"/> 契约。
     /// </summary>
     /// <remarks>
-    /// 告警断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
+    /// 告警断言经 <see cref="LogUtility.onMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。
     /// </remarks>
     public class SaveAssetCatalogTests
@@ -27,13 +27,13 @@ namespace Service.Save
         {
             _catalog = ScriptableObject.CreateInstance<SaveAssetCatalog>();
             _capturedLogs = new List<(ELogLevel, string)>();
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
+            LogUtility.onMessageLogged -= CaptureLog;
             foreach (UnityEngine.Object asset in _assets)
             {
                 if (asset != null)

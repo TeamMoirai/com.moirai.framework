@@ -101,7 +101,7 @@ Tests/
 
 ### 测试专用类型的三条禁令
 
-1. **不得创建 `[Serializable]` 框架基类的自定义子类**——`LogHandler`、`JsonHandler`、`TweenHandler`、各 `XxxServiceHandler` 等基类都以 `[SerializeReference]` 字段使用，Unity 会扫描**所有程序集**查找派生类并填入 Inspector 下拉框，测试里的假实现会污染生产资产的下拉列表。要捕获日志用框架内置实现 + 事件回调（`LogUtility.OnMessageLogged`）。确需派生框架基类的行为替身（Handler 探针、云存档假件）：派生类**不带 `[Serializable]`** 且一律 `internal`——`[Serializable]` 不被继承，SerializeReference 的 Inspector 下拉只收录带该特性的派生，替身因此不进生产资产（Save / Localization 两侧同口径）。
+1. **不得创建 `[Serializable]` 框架基类的自定义子类**——`LogHandler`、`JsonHandler`、`TweenHandler`、各 `XxxServiceHandler` 等基类都以 `[SerializeReference]` 字段使用，Unity 会扫描**所有程序集**查找派生类并填入 Inspector 下拉框，测试里的假实现会污染生产资产的下拉列表。要捕获日志用框架内置实现 + 事件回调（`LogUtility.onMessageLogged`）。确需派生框架基类的行为替身（Handler 探针、云存档假件）：派生类**不带 `[Serializable]`** 且一律 `internal`——`[Serializable]` 不被继承，SerializeReference 的 Inspector 下拉只收录带该特性的派生，替身因此不进生产资产（Save / Localization 两侧同口径）。
 2. **测试专用类型一律 `internal`**，且只放在测试程序集内。
 3. **`Test` / `Editor` / 非运行时脚本中的日志一律用 `Debug.LogXX`**，不用 `LogUtility`（`LogUtility` 是带分类过滤与 Handler 管道的运行时基础设施，测试不需要，且会让"这条日志算不算测试失败"变得不可控）。
 
@@ -209,7 +209,7 @@ public abstract class XxxFixture
 
 因此：
 
-- **内容断言一律走内部事件** `LogUtility.OnMessageLogged`——它与 Handler 无关，是唯一稳定的断言通道。
+- **内容断言一律走内部事件** `LogUtility.onMessageLogged`——它与 Handler 无关，是唯一稳定的断言通道。
 - **`LogAssert.Expect` 只承担"消除未处理日志"的职责，正则一律用 `".*"`**，不要在正则里耦合 Handler 的渲染前缀（`[ERR]`/`[FAT]` 三字符前缀与文档里的 `[ERROR]`/`FATAL` 不一致，会成批假红）。
 - **消除未处理日志一律经 `UtfLogExpect`**（`Tests/EditorMode/Support/UtfLogExpect.cs`；PlayMode 侧有同名本地副本）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。**不要**在用例里自己写 `LogAssert.Expect` 加处理器判定——那会把「未装 com.unity.logging 的工程里 `UnityLoggingHandler` 根本不存在」扩散成每处一个 `#if`。API 面：
   - `Error()` / `Warning()` / `Exception()`：三条基础级别各一枚声明，正则固定 `.*`；
@@ -379,7 +379,7 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 规范若只写在文档里，下一次"顺手一下"没人拦得住——以下政策已钉成可执行守卫（编辑器套件自动跑）：
 
 - `ReflectionPolicyGuardTests`：非公开反射白名单双向断言（未登记不得出现、已登记必须仍命中）。
-- `TestLogChannelPolicyGuardTests`：测试日志输出发射统一 `Debug.Log*`，禁止 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`——白名单两类：被测本体（LogUtilityTests）、替身复刻生产发射（Save fake loader）；断言通道（`OnMessageLogged` 捕获、`UtfLogExpect` 消噪）不受限。守卫按原文扫描，注释里写「LogUtility.Error(」字面也会命中——措辞用「LogUtility 的 Error」规避。 <br />
+- `TestLogChannelPolicyGuardTests`：测试日志输出发射统一 `Debug.Log*`，禁止 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`——白名单两类：被测本体（LogUtilityTests）、替身复刻生产发射（Save fake loader）；断言通道（`onMessageLogged` 捕获、`UtfLogExpect` 消噪）不受限。守卫按原文扫描，注释里写「LogUtility.Error(」字面也会命中——措辞用「LogUtility 的 Error」规避。 <br />
   同一守卫还钉住 **LogAssert 通道**：用例侧禁止直用 `LogAssert.Expect` / `LogAssert.ignoreFailingMessages` / `LogAssert.NoUnexpectedReceived`（一律经 `UtfLogExpect`，`ignoreFailingMessages` 只经 `ScopedIgnore()`）——白名单为两份 `UtfLogExpect` 支撑副本与「被测走 `Debug.Log` 直发」的场景（DebuggerLogCaptureTests），双向断言防名单腐烂。
 
 **反膨胀原则**（存量不追改、增量强制）：

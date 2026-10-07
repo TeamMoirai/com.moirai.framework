@@ -12,7 +12,7 @@ namespace Core.Singleton
     /// <summary>
     /// <see cref="Singleton{T}"/> 纯 C# 单例的 EditMode 单元测试：惰性创建、初始化契约、线程安全、Dispose 幂等性与编辑器构造守卫。
     /// </summary>
-    /// <remarks>守卫路径的日志内容断言经 <see cref="LogUtility.OnMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。</remarks>
+    /// <remarks>守卫路径的日志内容断言经 <see cref="LogUtility.onMessageLogged"/> 捕获（与处理器无关）；UTF 消噪经 <c>UtfLogExpect</c> 统一声明。</remarks>
     [TestFixture]
     public class SingletonTests
     {
@@ -56,13 +56,13 @@ namespace Core.Singleton
 
             _logs = new List<(ELogLevel, string)>();
             _logCallback = (level, message, _) => _logs.Add((level, message));
-            LogUtility.OnMessageLogged += _logCallback;
+            LogUtility.onMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= _logCallback;
+            LogUtility.onMessageLogged -= _logCallback;
             ResetStaticState();
         }
 
@@ -221,7 +221,7 @@ namespace Core.Singleton
         {
             _ = PlainSingleton.Instance;
 
-            // 无日志即通过（守卫不应误报合法的 Instance 物化）；OnMessageLogged 与处理器无关，比 UTF 计数更稳
+            // 无日志即通过（守卫不应误报合法的 Instance 物化）；onMessageLogged 与处理器无关，比 UTF 计数更稳
             Assert.IsEmpty(_logs, "合法的 Instance 物化不应产生任何 LogUtility 日志");
         }
 

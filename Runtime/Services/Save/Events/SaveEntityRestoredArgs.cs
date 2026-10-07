@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 持久化实体恢复事件参数（<see cref="SaveService.EntityRestored"/>）。
+    /// 持久化实体恢复事件参数（<see cref="SaveService.onEntityRestored"/>）。
     /// </summary>
     /// <remarks>生产点由动态实体持久化管线接线，当前尚无生产方。</remarks>
     public readonly struct SaveEntityRestoredArgs

@@ -116,13 +116,13 @@ namespace Service.Save
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
 
             _capturedLogs = new System.Collections.Generic.List<(ELogLevel, string)>();
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
+            LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             try
             {
