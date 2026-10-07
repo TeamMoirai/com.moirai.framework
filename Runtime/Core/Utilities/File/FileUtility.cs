@@ -38,7 +38,10 @@ namespace Moirai.Atropos
                     }
                 }
 
-                System.IO.File.Create(filePath);
+                // File.Create 返回的 FileStream 必须释放——弃置返回值会把句柄滞留到 GC 终结
+                using (System.IO.File.Create(filePath))
+                {
+                }
             }
 
             return true;
