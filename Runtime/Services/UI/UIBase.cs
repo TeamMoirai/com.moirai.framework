@@ -88,8 +88,13 @@ namespace Moirai.Atropos.UI
         /// <summary>资源是否准备完毕。</summary>
         public bool IsPrepare { get; protected set; }
 
-        /// <summary>UI子组件列表。</summary>
-        public List<UIWidget> ChildList = new List<UIWidget>();
+        /// <summary>UI子组件列表（只读公共面）：增删走 <see cref="ChildListWritable"/>，由控件的创建/销毁流程接办。</summary>
+        public IReadOnlyList<UIWidget> ChildList => _childList;
+
+        /// <summary>子组件列表的可写内部门缝：仅供控件创建/销毁流程增删，不对包外开放。</summary>
+        internal List<UIWidget> ChildListWritable => _childList;
+
+        private readonly List<UIWidget> _childList = new List<UIWidget>();
 
         /// <summary>存在Update更新的UI子组件列表。</summary>
         protected List<UIWidget> _updateChildList = null;
@@ -220,7 +225,7 @@ namespace Moirai.Atropos.UI
             {
                 listNextUpdateChild = _updateChildList;
                 var updateListValid = _updateListValid;
-                List<UIWidget> childList;
+                IReadOnlyList<UIWidget> childList;
                 if (!updateListValid)
                 {
                     if (listNextUpdateChild == null)
