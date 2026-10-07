@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Sirenix.OdinInspector.Editor;
 using Sirenix.Utilities.Editor;
 using UnityEditor;
@@ -57,8 +58,11 @@ namespace Moirai.Atropos
             /// <summary>候选实现类型（按名称排序），不含 (None) 项。</summary>
             internal readonly Type[] Types;
 
-            /// <summary>选项内容（含 "(None)" 前缀项）。</summary>
+            /// <summary>选项内容（含 "(None)" 前缀项；<see cref="ProviderDisplayAttribute.Title"/> 非空时行名替换为 title）。</summary>
             internal readonly GUIContent[] Names;
+
+            /// <summary>每候选类型的 <see cref="ProviderDisplayAttribute.Description"/>（未标注为 null），与 <see cref="Types"/> 对齐。</summary>
+            internal readonly string[] Descriptions;
 
             private readonly Dictionary<string, int> _nameToIndex;
             private readonly Dictionary<Type, int> _typeToIndex;
@@ -75,6 +79,7 @@ namespace Moirai.Atropos
 
                 int n = Types.Length;
                 Names = new GUIContent[n + 1];
+                Descriptions = new string[n];
                 Names[0] = new GUIContent("(None)");
 
                 _nameToIndex = new Dictionary<string, int>(n * 2);
@@ -84,7 +89,9 @@ namespace Moirai.Atropos
                 {
                     Type t = Types[i];
                     int choice = i + 1;
-                    Names[choice] = new GUIContent(t.Name);
+                    var display = t.GetCustomAttribute<ProviderDisplayAttribute>();
+                    Descriptions[i] = display?.Description;
+                    Names[choice] = new GUIContent(display?.Title ?? t.Name);
                     _typeToIndex[t] = choice;
                     _nameToIndex[t.FullName] = choice; // 全名：唯一键，不同命名空间的同名类型不冲突
                     if (!_nameToIndex.ContainsKey(t.Name))
@@ -695,6 +702,11 @@ namespace Moirai.Atropos
                 Type type = _options.Cache.Types[cacheIndex - 1];
                 float y = infoRect.y + INFO_PAD;
 
+                // 描述优先：置顶显示，其余 meta 随后；无描述时面板只有 Type / Base / Assembly
+                string desc = _options.Cache.Descriptions[cacheIndex - 1];
+                if (!string.IsNullOrEmpty(desc))
+                    DrawDescriptionLine(infoRect, ref y, desc);
+
                 DrawInfoLine(infoRect, ref y, "Type", type.FullName);
                 DrawInfoLine(infoRect, ref y, "Base", _options.Cache.BaseType.FullName);
                 DrawInfoLine(infoRect, ref y, "Assembly", type.Assembly.GetName().Name);
@@ -706,6 +718,42 @@ namespace Moirai.Atropos
                     editorWindow.Close();
                     GUIUtility.ExitGUI();
                 }
+            }
+
+            /// <summary>
+            /// 描述行：置顶绘制 <see cref="ProviderDisplayAttribute.Description"/>，按内容折行、高度随文本伸缩。
+            /// </summary>
+            private void DrawDescriptionLine(Rect infoRect, ref float y, string desc)
+            {
+                float valueW = infoRect.width - INFO_PAD * 2 - INFO_LABEL_W;
+                float descH = DescriptionHeight(desc);
+
+                var prevColor = GUI.color;
+                GUI.color = new Color(0.6f, 0.6f, 0.6f);
+                EditorGUI.LabelField(
+                    new Rect(infoRect.x + INFO_PAD, y, INFO_LABEL_W, LINE_H),
+                    "Description", EditorStyles.miniLabel);
+                GUI.color = prevColor;
+
+                EditorGUI.LabelField(
+                    new Rect(infoRect.x + INFO_PAD + INFO_LABEL_W, y, valueW, descH),
+                    desc, EditorStyles.wordWrappedMiniLabel);
+                y += descH + 2f;
+            }
+
+            private static float DescriptionHeight(string desc) =>
+                EditorStyles.wordWrappedMiniLabel.CalcHeight(new GUIContent(desc), MIN_WIDTH - INFO_PAD * 2 - INFO_LABEL_W) + 2f;
+
+            private float GetInfoHeight() =>
+                INFO_PAD * 2 + LINE_H * 3 + 4 + (HoverDescription() is string desc ? DescriptionHeight(desc) : 0f);
+
+            /// <summary>当前悬停项的描述（(None) 档与未标注项为 null）。</summary>
+            private string HoverDescription()
+            {
+                int cacheIndex = _options.LocalToCache(_hoverIndex);
+                return cacheIndex >= 1 && cacheIndex <= _options.Cache.Types.Length
+                    ? _options.Cache.Descriptions[cacheIndex - 1]
+                    : null;
             }
 
             private void DrawInfoLine(Rect infoRect, ref float y, string label, string value)
@@ -722,8 +770,6 @@ namespace Moirai.Atropos
                 EditorGUI.LabelField(valueRect, value, EditorStyles.miniLabel);
                 y += LINE_H;
             }
-
-            private float GetInfoHeight() => INFO_PAD * 2 + LINE_H * 3 + 4;
         }
 
         #endregion
