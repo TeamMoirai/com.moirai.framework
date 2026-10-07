@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.UI
 {
     [Window(UILayer.System, fromResources:true)]
-    class LogUI : UIWindow
+    class LogUI : UGUIWindow
     {
         private Stack<string> _errorTextString = new Stack<string>();
         
