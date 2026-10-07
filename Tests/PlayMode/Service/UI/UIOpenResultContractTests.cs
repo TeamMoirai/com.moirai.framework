@@ -127,7 +127,7 @@ namespace Service.UI
 
         /// <summary>异步装载两帧后失败的探针窗：失败跨帧才落定，回滚链在真驱动者下走全。</summary>
         [Window(UILayer.Tips)]
-        private sealed class DelayFailProbeWindow : UGUIWindow
+        internal sealed class DelayFailProbeWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => false;
 
@@ -140,7 +140,7 @@ namespace Service.UI
 
         /// <summary>异步装载两帧后就绪的探针窗：就绪档按实际就绪帧落定。</summary>
         [Window(UILayer.Tips)]
-        private sealed class DelayReadyProbeWindow : UGUIWindow
+        internal sealed class DelayReadyProbeWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => true;
 
@@ -152,7 +152,7 @@ namespace Service.UI
         }
 
         /// <summary>异步装载永不落定的探针窗：不进栈、不走门面，只服务超时档。</summary>
-        private sealed class NeverLoadProbeWindow : UGUIWindow
+        internal sealed class NeverLoadProbeWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => false;
 

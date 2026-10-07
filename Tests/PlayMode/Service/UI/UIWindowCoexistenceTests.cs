@@ -573,7 +573,7 @@ namespace Service.UI
 
         /// <summary>uGUI 轨探针窗（<see cref="UILayer.UI"/>）：同步与异步装载都当场交出代码面板。</summary>
         [Window(UILayer.UI, false)]
-        private sealed class ProbeUGUIWindowOnUiLayer : UGUIWindow
+        internal sealed class ProbeUGUIWindowOnUiLayer : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 BindPanel(NewCodeUGUIPanel(GetType().Name));
@@ -586,7 +586,7 @@ namespace Service.UI
 
         /// <summary>uGUI 轨探针窗（<see cref="UILayer.Tips"/>）：与另一轨同层时判序位表用。</summary>
         [Window(UILayer.Tips, false)]
-        private sealed class ProbeUGUIWindowOnTipsLayer : UGUIWindow
+        internal sealed class ProbeUGUIWindowOnTipsLayer : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 BindPanel(NewCodeUGUIPanel(GetType().Name));
@@ -597,7 +597,7 @@ namespace Service.UI
 
         /// <summary>UI Toolkit 轨探针窗（<see cref="UILayer.Tips"/>）：代码建树，内容根不带模板克隆。</summary>
         [Window(UILayer.Tips, false)]
-        private sealed class ProbeUITKWindowOnTipsLayer : UITKWindow
+        internal sealed class ProbeUITKWindowOnTipsLayer : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 BindPanel(NewCodeUITKShell(), null);
@@ -610,7 +610,7 @@ namespace Service.UI
 
         /// <summary>uGUI 轨延迟装载探针窗（<see cref="UILayer.UI"/>）：面板在若干帧之后才绑上，等待腿要等的就是这一段。</summary>
         [Window(UILayer.UI, false)]
-        private sealed class ProbeDelayedUGUIWindow : UGUIWindow
+        internal sealed class ProbeDelayedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 BindPanel(NewCodeUGUIPanel(GetType().Name));
@@ -624,7 +624,7 @@ namespace Service.UI
 
         /// <summary>UI Toolkit 轨延迟装载探针窗（<see cref="UILayer.Tips"/>）：同上一条腿，另一轨各量一次。</summary>
         [Window(UILayer.Tips, false)]
-        private sealed class ProbeDelayedUITKWindow : UITKWindow
+        internal sealed class ProbeDelayedUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 BindPanel(NewCodeUITKShell(), null);
@@ -638,7 +638,7 @@ namespace Service.UI
 
         /// <summary>uGUI 轨缓存实例探针窗（<see cref="UILayer.UI"/>）：关闭后停放，重开交回同一只。</summary>
         [Window(UILayer.UI, false, cacheInstance: true)]
-        private sealed class ProbeCachedUGUIWindow : UGUIWindow
+        internal sealed class ProbeCachedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 BindPanel(NewCodeUGUIPanel(GetType().Name));
@@ -649,7 +649,7 @@ namespace Service.UI
 
         /// <summary>UI Toolkit 轨真装载探针窗（<see cref="UILayer.Tips"/>）：模板取内置资源、缓存实例，装载路径不覆写。</summary>
         [Window(UILayer.Tips, true, TemplateResourceName, cacheInstance: true)]
-        private sealed class ProbeCachedResourcesKitWindow : UITKWindow
+        internal sealed class ProbeCachedResourcesKitWindow : UITKWindow
         {
         }
 

@@ -304,7 +304,7 @@ namespace Service.UI
 
         /// <summary>UI Toolkit 轨探针窗（<see cref="UILayer.Tips"/>）：代码建树、壳点亮，面板真有屏幕矩形可命中。</summary>
         [Window(UILayer.Tips, false)]
-        private sealed class ProbeLiveUITKWindow : UITKWindow
+        internal sealed class ProbeLiveUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 BindPanel(NewLiveDocumentShell(), null);

@@ -407,31 +407,43 @@ namespace Moirai.Atropos.UI
             window.AbortFailedLoad();
         }
 
-        private UIWindow CreateInstance(Type type, string windowName, string assetLocation = null, bool fromResources = false)
+        /// <summary>
+        /// 造一只新窗口：查注册表拿编译期工厂与注册期描述符，不再走反射。
+        /// </summary>
+        /// <remarks>
+        /// 寻址优先级与既有链路一致：调用方给的面板地址与取法赢过特性，特性缺的档按描述符回落。 <br />
+        /// 类型未登记当场抬错：窗口类必须标 <c>[Window]</c> 才进注册表，不再静默兜默认层级与地址。
+        /// </remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="windowName">窗口名称（空串按描述符全名兜底）。</param>
+        /// <param name="assetLocation">调用方给的面板地址。</param>
+        /// <param name="fromResources">调用方给的内置资源档。</param>
+        /// <returns>已按描述符初始化好的新窗口。</returns>
+        /// <exception cref="GameException">窗口类未登记（没标 <c>[Window]</c>）。</exception>
+        private UIWindow CreateInstance(Type type, string windowName, string assetLocation, bool fromResources)
         {
-            UIWindow window = Activator.CreateInstance(type) as UIWindow;
-            WindowAttribute attribute = Attribute.GetCustomAttribute(type, typeof(WindowAttribute)) as WindowAttribute;
-
-            if (window == null)
+            if (!UIWindowRegistry.TryGet(type, out var entry))
             {
-                throw new GameException($"Window {type.FullName} create instance failed.");
+                throw new GameException(StringUtility.Format(
+                    "UI 窗口 '{0}' 未注册：窗口类必须标 [Window] 才能经注册表开出（由 UIWindowCodegen 在编译期登记）",
+                    type.FullName));
             }
 
-            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+            var window = entry.Factory();
+            var descriptor = entry.Descriptor;
 
-            if (attribute != null)
+            if (string.IsNullOrEmpty(windowName))
             {
-                if (string.IsNullOrEmpty(assetLocation))
-                {
-                    assetLocation = string.IsNullOrEmpty(attribute.location) ? type.Name : attribute.location;
-                }
-                fromResources = fromResources || attribute.fromResources;
-                window.Init(windowName, attribute.windowLayer, attribute.fullScreen, assetLocation, fromResources, attribute.hideTimeToClose, attribute.cacheInstance);
+                windowName = descriptor.FullName;
             }
-            else
+
+            if (string.IsNullOrEmpty(assetLocation))
             {
-                window.Init(windowName, (int)UILayer.UI, fullScreen: window.FullScreen, assetLocation: assetLocation ?? type.Name, fromResources: false, hideTimeToClose: 10, cacheInstance: false);
+                assetLocation = descriptor.Location;
             }
+
+            window.Init(windowName, descriptor.WindowLayer, descriptor.FullScreen, assetLocation,
+                fromResources || descriptor.FromResources, descriptor.HideTimeToClose, descriptor.CacheInstance);
 
             return window;
         }
