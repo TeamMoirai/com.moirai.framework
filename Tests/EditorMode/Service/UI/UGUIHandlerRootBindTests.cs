@@ -18,6 +18,13 @@ namespace Service.UI
         private UGUIHandler _handler;
         private GameObject _root;
 
+        /// <summary>进门把共享栈归零：本夹具每格造的每一枚 <see cref="UGUIHandler"/> 拿的都是那一份共用持有者，不再自带新存储。</summary>
+        [SetUp]
+        public void SetUp()
+        {
+            UIService.Internal_ResetSharedLedger();
+        }
+
         [TearDown]
         public void TearDown()
         {
@@ -26,6 +33,9 @@ namespace Service.UI
                 _handler.Internal_Shutdown();
                 _handler = null;
             }
+
+            // 出门同样归零：处理器的关停只交回自己那份后端资源，共享栈上留了什么得由这一处收口
+            UIService.Internal_ResetSharedLedger();
 
             if (_root != null)
             {

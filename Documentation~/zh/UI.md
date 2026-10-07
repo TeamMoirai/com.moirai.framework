@@ -1,21 +1,27 @@
 # UI 服务
 
-> 基于 UGUI 的栈式窗口管理框架，提供窗口生命周期、层级深度排序、模态遮挡、Widget 子控件与多分辨率适配能力。
+> 多后端栈式窗口管理框架（uGUI / UI Toolkit / 自定义后端），提供窗口生命周期、层级深度排序、模态遮挡、Widget 子控件与多分辨率适配能力。
 
-UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类的 `UIWindow` / `UIWidget`，由 `UIServiceHandler` 统一管理窗口栈、层级深度与可见性，`UIService` 作为静态外观对外暴露全部 API。窗口面板通过资源服务（YooAsset）或 `Resources` 加载实例化，窗口类本身不挂 MonoBehaviour。通过 `UIService.Xxx()` 静态方法即可完成打开、关闭、隐藏、查询等全部操作。
+UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类：`UIWindow` 是后端无关的窗口对象模型（持有显隐 / 深度 / 交互三份面板意图与生命周期），各渲染后端（「轨」）提供自己的窗口基类——uGUI 轨的业务窗口继承 `UGUIWindow`、UI Toolkit 轨继承 `UITKWindow`；`UIWidget` 为窗口内嵌控件。多支后端可在同一会话并存，共享同一条窗口栈：栈序、层级深度、可见性与模态遮挡不分轨。`UIService` 作为静态外观对外暴露全部 API。窗口面板通过资源服务（YooAsset）或 `Resources` 加载实例化，窗口类本身不挂 MonoBehaviour。通过 `UIService.Xxx()` 静态方法即可完成打开、关闭、隐藏、查询等全部操作。
 
-## 架构（HandlerHost 模式）
+## 架构（多后端轨道）
 
-UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
+UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，主入口不认识任何具体后端。
 
-- **`UIService`**：静态外观（`[AutoRegisterService]` + `[HandlerHost(typeof(UIServiceHandler))]` + `[ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]`），全部公共成员为静态方法/属性，经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级；源生成器生成线程安全懒加载属性）
-- **`UIServiceHandler`**：可序列化抽象基类（继承 `FrameworkHandler`），定义外观调用的后端契约
-- **`UGUIHandler`**：默认实现（位于 `Handler/` 目录），承载窗口栈管理、层级排序、资源加载等核心逻辑；替换自定义后端无需改动调用方
-- **`UIServiceSettings`**：框架设置（菜单「UI设置」），通过 `[ProviderDropdown]` + `[SerializeReference]` 选择 UI 后端实现
+- **`UIService`**：静态外观（`[AutoRegisterService]` + `[ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]`），承载通用 API——Type 形开窗分派、关闭/隐藏/查询、模态交互租约、安全区广播与生命周期；全部公共成员为静态方法/属性
+- **后端轨道**（每支一组 partial + 驱动者 + 窗口基类）：
+  - `Handler/UGUI/`：`UIService.UGUI.cs`（槽位、认领门、开窗腿与轨道自登记）+ `UGUIHandler`（UI 根绑定、摄像机、错误日志、CanvasScaler 安全区落点）+ `UGUIWindow`（uGUI 面板意图落地）
+  - `Handler/UITK/`：`UIService.UITK.cs` + `UITKHandler` + `UITKWindow`（`UIDocument` 壳 + 窗口级 `PanelSettings`）；本轨文档壳挂在 uGUI 轨那枚 UI 根下
+- **`UIWindowLedger`**：共享窗口栈、停放表与交互租约的持有者——各轨窗口并进同一条栈，关·隐·查询不分轨
+- **`UITrack`**：轨道自述（认窗判据、有效性探针、Type 形开窗实现、关停档位）。各轨在自己的 partial 里静态自登记进门面目录，主文件只枚举目录做认轨分派、`IsValid` 聚合与按档位升序的关停收口——**加一轨 = 加一枚 partial 自登记，主文件零改动**
+- **`UIServiceSettings`**：框架设置（菜单「UI设置」），`[SerializeReference]` 启用清单 `EnabledHandlers` 列哪几支就启用哪几支（可同时多支）；清单为空初始化当场报错，没有「没配就自动造一支」的退路
 - 服务标记 `[AutoRegisterService]`，由组合根经生成的内置服务清单自动注册（App 作用域，`[ServiceDependency]` 拓扑序保证初始化先后），也可手动 `GameServices.RegisterService(EServiceScopeKind.App, new UIService())`
+
+关停次序由各轨自报的档位表述：持有别轨面板挂靠的宿主根那一轨（uGUI）取 `UITrack.SHUTDOWN_ORDER_HOST` 最后收，其余取 `SHUTDOWN_ORDER_DEFAULT` 先收。
 
 ## 核心特性
 
+- 多后端共存：uGUI 与 UI Toolkit 两支内建轨可在同一会话并存，共享同一条窗口栈；新增后端只需添加自己那一轨的 partial 文件，主入口零改动
 - 窗口栈式管理：按 `UILayer` 层级插入排序，同层窗口深度自动递增（`LAYER_DEEP = 2000`、`WINDOW_DEEP = 100`）
 - 五级层级：`Bottom` / `UI` / `Popup` / `Tips` / `System`，其中 `UI`、`Popup`、`System` 为模态层级
 - 完整生命周期：`OnCreate` → `OnRefresh` → `OnUpdate` → `OnClose` → `OnDestroy`，可重写打开/关闭动画
@@ -30,13 +36,17 @@ UI 服务采用与框架其他服务一致的 HandlerHost 零反射架构：
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.UI.UIService` | UI 服务静态外观（`[HandlerHost]`），打开/关闭/隐藏/查询等全部静态 API；静态属性 `UIRoot`、`UICamera`、`CurrentModal` |
-| `Moirai.Atropos.UI.UIServiceHandler` | UI 后端处理器抽象基类（继承 `FrameworkHandler`），定义外观调用的完整后端契约 |
-| `Moirai.Atropos.UI.UGUIHandler` | 默认 UI 后端实现（位于 `Handler/` 目录），窗口栈管理、深度排序、可见性控制核心逻辑 |
-| `Moirai.Atropos.UI.UIServiceSettings` | 框架设置，`[ProviderDropdown]` 选择 UI 后端实现 |
-| `Moirai.Atropos.UI.UIRootBinding` | UI 根绑定组件：挂在充当 UI 根的场景物体上，`SingletonMono` 先到先得登记，供 `UGUIHandler` 经 `TryGetInstance()` 取用（不自动创建；取代按名字查找） |
+| `Moirai.Atropos.UI.UIService` | UI 服务静态外观，通用 API 全在此：Type 形打开、关闭/隐藏/查询、模态租约、安全区广播；静态属性 `IsValid`（任一轨驱动者就位即真）、`CurrentModal`，轨专有查询 `UIRoot` / `UICamera`（只由 uGUI 轨回答，未启用答 `null`） |
+| `Moirai.Atropos.UI.UIServiceHandler` | 后端驱动者抽象基类（继承 `FrameworkHandler`）：`UGUIHandler` / `UITKHandler` 的公共契约，含本轨认窗判据 `IsWindowOnOwnTrack` 与自述注册 `Internal_Register` |
+| `Moirai.Atropos.UI.UGUIHandler` | uGUI 轨驱动者（`Handler/UGUI/`）：UI 根绑定、UI 摄像机、错误日志、CanvasScaler 安全区换算落点 |
+| `Moirai.Atropos.UI.UITKHandler` | UI Toolkit 轨驱动者（`Handler/UITK/`）：本轨窗关停收口；面板本体在 `UITKWindow` 上 |
+| `Moirai.Atropos.UI.UITrack` | 轨道自述：认窗判据、有效性探针、Type 形开窗实现、关停档位；各轨 partial 静态自登记进门面目录 |
+| `Moirai.Atropos.UI.UIServiceSettings` | 框架设置：`EnabledHandlers` 启用清单（`[SerializeReference]`）决定初始化哪几支后端，可同时多支 |
+| `Moirai.Atropos.UI.UIRootBinding` | UI 根绑定组件：挂在充当 UI 根的场景物体上，`SingletonMono` 先到先得登记，供 uGUI 轨 `UGUIHandler` 经 `TryGetInstance()` 取用（不自动创建；取代按名字查找） |
 | `Moirai.Atropos.UI.UIBase` | UI 基类，定义生命周期虚方法与 Widget 创建 API |
-| `Moirai.Atropos.UI.UIWindow` | 窗口抽象基类，继承 `UIBase`，含 Canvas 深度、可见性、交互性、开关动画 |
+| `Moirai.Atropos.UI.UIWindow` | 窗口对象模型基类（继承 `UIBase`）：可见性 / 深度 / 交互三份面板意图、生命周期与开关动画；面板装载由轨基类实现，直接继承它开不出面板 |
+| `Moirai.Atropos.UI.UGUIWindow` | uGUI 轨窗口基类（`Handler/UGUI/`）：把三份意图落到 GameObject / Canvas / GraphicRaycaster 面板上，**uGUI 业务窗口一律继承此类** |
+| `Moirai.Atropos.UI.UITKWindow` | UI Toolkit 轨窗口基类（`Handler/UITK/`）：`UIDocument` 壳与内容根装配、窗口级 `PanelSettings` 覆盖（开窗族比 uGUI 腿多出的那枚形参），UI Toolkit 业务窗口继承此类 |
 | `Moirai.Atropos.UI.UIWidget` | 窗口内嵌控件基类，继承 `UIBase` |
 | `Moirai.Atropos.UI.WindowAttribute` | 窗口特性，声明层级、资源地址、全屏、缓存等配置 |
 | `Moirai.Atropos.UI.UILayer` | UI 层级枚举：`Bottom=0`、`UI=1`、`Popup=2`、`Tips=3`、`System=4` |
@@ -55,7 +65,7 @@ using Moirai.Atropos.UI;
 
 // 层级 Popup、非全屏、关闭后缓存实例
 [Window(UILayer.Popup, location: "MainWindow", fullScreen: false, cacheInstance: true)]
-public class MainWindow : UIWindow
+public class MainWindow : UGUIWindow
 {
     protected override void ScriptGenerator() { }   // 生成的绑定代码在此重写
 
@@ -94,6 +104,19 @@ UIWindow top = UIService.GetTopWindow();
 
 ## 进阶用法
 
+### 多后端与第三轨扩展
+
+各后端 = 一条「轨道」，由三件套构成：`UIService.<轨>.cs` partial（槽位、认领门、开窗腿与 `UITrack` 自登记）、`<轨>Handler`（驱动者）、`<轨>Window`（窗口基类）。主入口 `UIService.cs` 只做通用逻辑——Type 形认轨分派、共享栈编排、`IsValid` 聚合、按档位升序的关停收口——不登记任何具体后端。
+
+加一支新后端（如 FairyGUI）的完整清单：
+
+1. `Handler/FairyGUI/FairyGUIWindow.cs`：窗口基类，继承 `UIWindow` 并覆写七枚面板钩子（`LoadPanel` / `LoadPanelAsync` / `ApplyVisible` / `ApplyDepth` / `ApplyInteractable` / `ParkPanel` / `DestroyPanel`）
+2. `Handler/FairyGUI/FairyGUIHandler.cs`：驱动者，继承 `UIServiceHandler`；自述本轨认窗判据（`IsWindowOnOwnTrack`）与注册门（`Internal_Register` → 本轨 partial 的认领门）
+3. `Handler/FairyGUI/UIService.FairyGUI.cs`：本轨 partial——驱动者槽 + 认领门（compare-exchange 占位、挂关停回调）、三条广播订阅（帧职责 / 安全区 / 刘海屏）、开窗腿（`ShowUI<T>` 族泛型腿收在 `FairyGUIWindow` 约束上）、`UITrack` 静态自登记（轨道名、窗口基类、关停档位）
+4. `UIServiceSettings` 的启用清单加上该轨驱动者一项（Inspector 托管引用列表）
+
+关停档位按面板挂靠关系选：面板挂在本轨自有根下取 `UITrack.SHUTDOWN_ORDER_DEFAULT`；挂靠别轨的宿主根（如 UI Toolkit 壳挂 uGUI 根）取 `UITrack.SHUTDOWN_ORDER_HOST`，最后收。此后认轨分派、`IsValid`、关停收口都按目录枚举自动覆盖新轨，主文件零改动。
+
 ### 窗口层级与深度
 
 窗口栈按 `WindowLayer` 插入排序，`OnSortWindowDepth` 以 `layer * LAYER_DEEP` 为起点、同层每个窗口递增 `WINDOW_DEEP` 写入 Canvas `sortingOrder`。模态层级（`UI`/`Popup`/`System`）窗口入栈时，会自动把紧邻下层窗口置为不可交互：
@@ -108,21 +131,23 @@ bool blocked = UIService.IsBlockedByModal(gameObject);
 
 ### Widget 子控件
 
-Widget 复用窗口的生命周期方法，由所属窗口驱动更新。在窗口/Widget 内通过 `UIBase` 提供的工厂方法创建：
+Widget 复用窗口的生命周期方法，由所属窗口驱动更新。在窗口/Widget 内通过 `UIWidget` 的工厂方法创建：
 
 ```csharp
-// 从窗口内已有节点路径创建
-HeroItemWidget item = CreateWidget<HeroItemWidget>("m_list/m_heroItem");
+// 在窗口内已有节点上创建
+var item = new HeroItemWidget();
+item.Create(this, widgetRootGo);
 
-// 按资源定位地址同步/异步实例化创建
-HeroItemWidget item2 = CreateWidgetByPath<HeroItemWidget>(parentTrans, "HeroItem");
-HeroItemWidget item3 = await CreateWidgetByPathAsync<HeroItemWidget>(parentTrans, "HeroItem");
+// 按资源定位地址实例化创建
+var item2 = new HeroItemWidget();
+item2.CreateByPath("HeroItem", this, parentTrans);
 
 // 按 prefab 副本创建（列表项常用）
-HeroItemWidget item4 = CreateWidgetByPrefab<HeroItemWidget>(prefab, parentTrans);
+var item3 = new HeroItemWidget();
+item3.CreateByPrefab(this, goPrefab, parentTrans);
 
-// 批量调整列表图标数量（含异步分帧版本 AsyncAdjustIconNum）
-AdjustIconNum<HeroItemWidget>(_items, count, parentTrans, prefab);
+// 销毁交还
+item.Destroy();
 ```
 
 ### 开关动画与交互锁
@@ -135,6 +160,26 @@ protected override async UniTask OpenAnimation()
     await panel.DOFade(1f, 0.3f);  // 播放自定义动画
 }
 ```
+
+### 延后关闭（弹窗自关策略）
+
+窗口自关默认立即结算；弹窗类窗口可覆写 `DeferCloseUntilInteractable => true` 把自关延后到可交互（开窗动画结束、上方模态解除）再过 `CanClose` 门：
+
+```csharp
+[Window(UILayer.Popup)]
+public class RenameWindow : UGUIWindow
+{
+    protected override bool DeferCloseUntilInteractable => true;   // 等可交互再关
+
+    protected override bool CanClose => _input.text.Length > 0;   // 过不了门就落 OnCloseFail
+
+    protected override void OnCloseFail() { /* 提示非法输入，窗口留在栈上 */ }
+}
+```
+
+- 策略住在 `UIWindow`（后端无关对象模型）上：uGUI / UI Toolkit 两轨窗口同形覆写，各轨不必复制中间基类
+- 等待是被动观察：窗口在等待期被重开/销毁接管时本轮静默终止，锁的交还由接管方收口；已销毁的窗不会空转轮询
+- 门通过后的真关与立即档收口在同一条结算路径上（`CloseUI` / 共享栈），不落在两套结算里
 
 ### 安全区域与 UIAdapter
 
@@ -150,12 +195,12 @@ protected override async UniTask OpenAnimation()
 
 选中 UI 预制体根节点，使用菜单：
 
-- `GameObject/ScriptGenerator/生成绑定代码`：生成 `partial class XXX : UIWindow` 脚本及 `XXXBinder : UIBindComponent` 绑定组件
+- `GameObject/ScriptGenerator/生成绑定代码`：生成 `partial class XXX : UGUIWindow` 窗口脚本及 `XXXBinder : UIBindComponent` 绑定组件
 - `GameObject/ScriptGenerator/复制绑定属性`：复制成员变量代码到剪贴板
 
 ## 注意事项
 
-- UI 根由场景物体上的 `UIRootBinding` 组件登记（其下需含 `Canvas`）：`SingletonMono` 先到先得，后到者整物体销毁；取用走 `TryGetInstance()`，只回读、不自动创建。后端在首个 Update tick 取用，缺绑定报一条 Error、缺 Canvas 报一条 Fatal，之后都每帧续等（后加入的场景、运行期实例化的根、事后补上的 Canvas 都补得上）。登记到位后 UI 根自动 `DontDestroyOnLoad`（仅播放态）。**已不再按物体名字查找**——改名不报编译错、多场景/热更下同名还可能命中错的根。
+- uGUI 轨的 UI 根由场景物体上的 `UIRootBinding` 组件登记（其下需含 `Canvas`）：`SingletonMono` 先到先得，后到者整物体销毁；取用走 `TryGetInstance()`，只回读、不自动创建。后端在首个 Update tick 取用，缺绑定报一条 Error、缺 Canvas 报一条 Fatal，之后都每帧续等（后加入的场景、运行期实例化的根、事后补上的 Canvas 都补得上）。登记到位后 UI 根自动 `DontDestroyOnLoad`（仅播放态）。**已不再按物体名字查找**——改名不报编译错、多场景/热更下同名还可能命中错的根。UI Toolkit 轨的文档壳也挂在这枚根下，关停时它先于根销毁被收走。
 - `ShowUI` 同步加载依赖资源服务的同步加载能力，WebGL 下自动退化为异步；建议优先使用 `ShowUIAsync`
 - `HideUI` 仅当窗口 `HideTimeToClose > 0` 时生效，否则等同直接 `CloseUI`
 - `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` 只等待"已打开"窗口的加载完成，窗口不存在时返回 null / 不回调
