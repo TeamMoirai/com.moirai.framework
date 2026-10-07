@@ -13,6 +13,11 @@ namespace Moirai.Atropos.Audio
         private const string POOL_ROOT_NAME = "[Warmup]";
 
         private static readonly Stack<AudioSource> s_Stack = new Stack<AudioSource>(16);
+
+        // 曾挂载过低通滤镜的宿主引用缓存（AudioOcclusionHrtf 动态挂载、不随播放结束移除）：
+        // 命中即免每次取用宿主的 GetComponent 查找；未挂载过的宿主仍走一次查找（负结果不稳定，不缓存）
+        private static readonly Dictionary<AudioSource, AudioLowPassFilter> s_LowPassFilters = new Dictionary<AudioSource, AudioLowPassFilter>();
+
         /// <summary>当前栈池缓存数量（诊断用）。</summary>
         public static int StackCount => s_Stack.Count;
         
@@ -64,8 +69,18 @@ namespace Moirai.Atropos.Audio
             pooled.mute = false;
 
             // 复位遮挡低通：AudioOcclusionHrtf 挂载的滤镜不会随播放结束移除，
-            // 不复位会让复用宿主继承上一次的截止频率（起播瞬间的闷声毛刺）
-            var lowPass = pooled.GetComponent<AudioLowPassFilter>();
+            // 不复位会让复用宿主继承上一次的截止频率（起播瞬间的闷声毛刺）。
+            // 挂载过的宿主经缓存直取引用；缓存引用被外部销毁时回源重建
+            if (!s_LowPassFilters.TryGetValue(pooled, out AudioLowPassFilter lowPass) || lowPass == null)
+            {
+                s_LowPassFilters.Remove(pooled);
+                lowPass = pooled.GetComponent<AudioLowPassFilter>();
+                if (lowPass != null)
+                {
+                    s_LowPassFilters[pooled] = lowPass;
+                }
+            }
+
             if (lowPass != null)
             {
                 lowPass.enabled = false;
@@ -117,6 +132,8 @@ namespace Moirai.Atropos.Audio
                 Object.Destroy(s_PoolRoot.gameObject);
                 s_PoolRoot = null;
             }
+
+            s_LowPassFilters.Clear();
         }
 
         private static void EnsurePoolRoot(Transform parent)
