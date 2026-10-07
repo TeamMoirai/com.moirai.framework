@@ -967,6 +967,16 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
+        /// 根据文本 ID 获取当前语言的本地化字符串（无格式化参数：零分配，不经 params 数组）。
+        /// </summary>
+        /// <remarks>零参调用固定绑定本重载，规避调用点为 <see cref="GetTextFromId(string,object[])"/> 构造参数数组的隐患；语义与其零参分支一致。</remarks>
+        /// <param name="id">文本 ID。</param>
+        public string GetTextFromId(string id)
+        {
+            return GetTextFromId(id, Array.Empty<object>());
+        }
+
+        /// <summary>
         /// 根据文本 ID 获取当前语言的本地化字符串。
         /// </summary>
         /// <remarks>格式化文化跟随当前游戏语言（<see cref="FormatCulture"/>），不随设备系统文化漂移——
@@ -1107,6 +1117,17 @@ namespace Moirai.Atropos.Localization
                 LogFormatError(id, text, p.Length);
                 return text;
             }
+        }
+
+        /// <summary>
+        /// 根据文本 ID 和指定语言获取本地化字符串（无格式化参数：零分配，不经 params 数组）。
+        /// </summary>
+        /// <remarks>零参调用固定绑定本重载，规避调用点为 <see cref="GetTextFromIdLanguage(string,Language,object[])"/> 构造参数数组的隐患；语义与其零参分支一致。</remarks>
+        /// <param name="id">文本 ID。</param>
+        /// <param name="language">要获取的语言；<c>null</c> 表示当前语言。</param>
+        public string GetTextFromIdLanguage(string id, Language language)
+        {
+            return GetTextFromIdLanguage(id, language, Array.Empty<object>());
         }
 
         /// <summary>

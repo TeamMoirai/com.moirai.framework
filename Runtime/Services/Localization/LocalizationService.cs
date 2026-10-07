@@ -280,6 +280,13 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
+        /// 根据文本 ID 获取本地化字符串（无格式化参数路径：不经 params 数组，零分配）。
+        /// </summary>
+        /// <param name="id">文本 ID。</param>
+        public static string GetTextFromId(string id) =>
+            s_Handler?.GetTextFromId(id) ?? id;
+
+        /// <summary>
         /// 根据文本 ID 获取本地化字符串（未就绪时返回 id 原文——保证 UI 可见键名而非空白）。
         /// </summary>
         /// <param name="id">文本 ID。</param>
@@ -310,6 +317,14 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         public static string GetTextFromId<T1, T2, T3, T4>(string id, T1 arg1, T2 arg2, T3 arg3, T4 arg4) =>
             s_Handler?.GetTextFromId(id, arg1, arg2, arg3, arg4) ?? id;
+
+        /// <summary>
+        /// 根据文本 ID 和指定语言获取本地化字符串（无格式化参数路径：不经 params 数组，零分配）。
+        /// </summary>
+        /// <param name="id">文本 ID。</param>
+        /// <param name="language">要获取的语言。</param>
+        public static string GetTextFromIdLanguage(string id, Language language) =>
+            s_Handler?.GetTextFromIdLanguage(id, language) ?? id;
 
         /// <summary>
         /// 根据文本 ID 和指定语言获取本地化字符串（未就绪时返回 id 原文）。
