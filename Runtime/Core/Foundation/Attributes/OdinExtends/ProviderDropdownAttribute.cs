@@ -9,7 +9,8 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 引用模式（推荐）：配合 <see cref="SerializeReference"/>，字段为抽象类，选中后直接存实例并展开编辑子字段。 <br />
-    /// 类型名模式：字段为 <c>string</c>，存类型全名，运行时经 <c>ReflectionUtility.ResolveImplType&lt;T&gt;</c> 创建实例，适用于接口类型。
+    /// 类型名模式：字段为 <c>string</c>，存类型全名，运行时经 <c>ReflectionUtility.ResolveImplType&lt;T&gt;</c> 创建实例，适用于接口类型。 <br />
+    /// 数组 / <c>List&lt;T&gt;</c> 字段同样适用：每个元素各自获得下拉与子属性展开，集合的增删 / 重排由 Inspector 默认列表 UI 承担；<c>Label</c> 会随特性一并列上下传到每个元素行。
     /// </remarks>
     /// <example>
     /// 引用模式：
@@ -21,6 +22,11 @@ namespace Moirai.Atropos
     /// <code>
     /// [ProviderDropdown(typeof(ICustomHelper), "Custom Helper")]
     /// [SerializeField] private string m_CustomHelperTypeName;
+    /// </code>
+    /// 集合模式（数组与 <c>List&lt;T&gt;</c> 同理）：
+    /// <code>
+    /// [ProviderDropdown]
+    /// [SerializeReference] private CustomHandler[] m_CustomHandlers = { new DefaultCustomHandler() };
     /// </code>
     /// </example>
     [Conditional("UNITY_EDITOR")]
