@@ -87,16 +87,15 @@ namespace Moirai.Atropos.Scene
         /// <param name="sceneMode">场景加载模式。</param>
         /// <param name="suspendLoad">是否挂起加载。</param>
         /// <param name="priority">加载优先级。</param>
-        /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <param name="packageName">资源包名称（空串使用默认包）。</param>
         /// <param name="cancellationToken">取消令牌——放弃等待语义，不中止底层加载。</param>
         /// <returns>加载完成的场景。</returns>
         public override UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority,
-            bool gcCollect, Action<float> progressCallBack, string packageName, CancellationToken cancellationToken)
+            Action<float> progressCallBack, string packageName, CancellationToken cancellationToken)
         {
             // 直通返回内部任务，避免外层 async 多分配一个状态机
-            return LoadSceneInternal(location, packageName ?? string.Empty, sceneMode, suspendLoad, priority, gcCollect, progressCallBack, cancellationToken);
+            return LoadSceneInternal(location, packageName ?? string.Empty, sceneMode, suspendLoad, priority, progressCallBack, cancellationToken);
         }
 
         /// <summary>
@@ -110,25 +109,24 @@ namespace Moirai.Atropos.Scene
         /// <param name="sceneMode">场景加载模式。</param>
         /// <param name="suspendLoad">是否挂起加载。</param>
         /// <param name="priority">加载优先级。</param>
-        /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="callBack">加载完成回调。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         public override void LoadScene(string location, string packageName, LoadSceneMode sceneMode,
-            bool suspendLoad, uint priority, bool gcCollect, Action<UnityEngine.SceneManagement.Scene> callBack, Action<float> progressCallBack)
+            bool suspendLoad, uint priority, Action<UnityEngine.SceneManagement.Scene> callBack, Action<float> progressCallBack)
         {
-            LoadSceneCallbackInternal(location, packageName ?? string.Empty, sceneMode, suspendLoad, priority, gcCollect, callBack, progressCallBack).Forget();
+            LoadSceneCallbackInternal(location, packageName ?? string.Empty, sceneMode, suspendLoad, priority, callBack, progressCallBack).Forget();
         }
 
         /// <summary>
         /// 回调式加载包装——复用核心加载流程，无论成败恰好回调一次（回调自身异常被隔离记录）。
         /// </summary>
         private async UniTaskVoid LoadSceneCallbackInternal(string location, string packageName, LoadSceneMode sceneMode,
-            bool suspendLoad, uint priority, bool gcCollect, Action<UnityEngine.SceneManagement.Scene> callBack, Action<float> progressCallBack)
+            bool suspendLoad, uint priority, Action<UnityEngine.SceneManagement.Scene> callBack, Action<float> progressCallBack)
         {
             var scene = default(UnityEngine.SceneManagement.Scene);
             try
             {
-                scene = await LoadSceneInternal(location, packageName, sceneMode, suspendLoad, priority, gcCollect, progressCallBack, CancellationToken.None);
+                scene = await LoadSceneInternal(location, packageName, sceneMode, suspendLoad, priority, progressCallBack, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -158,7 +156,7 @@ namespace Moirai.Atropos.Scene
         /// 等待方取消时由 <see cref="FinalizeLoadDetached"/> 后台收尾后重抛 <see cref="OperationCanceledException"/>。
         /// </remarks>
         private async UniTask<UnityEngine.SceneManagement.Scene> LoadSceneInternal(string location, string packageName, LoadSceneMode sceneMode,
-            bool suspendLoad, uint priority, bool gcCollect, Action<float> progressCallBack, CancellationToken cancellationToken)
+            bool suspendLoad, uint priority, Action<float> progressCallBack, CancellationToken cancellationToken)
         {
             // —— 入参校验 ——
             if (string.IsNullOrEmpty(location))
@@ -212,7 +210,7 @@ namespace Moirai.Atropos.Scene
             catch (OperationCanceledException)
             {
                 // 放弃等待：底层加载不可中止，登记与事件由后台续体在加载真正结束时收尾
-                FinalizeLoadDetached(location, handle, sceneMode, gcCollect).Forget();
+                FinalizeLoadDetached(location, handle, sceneMode).Forget();
                 throw;
             }
             catch (Exception)
@@ -224,7 +222,7 @@ namespace Moirai.Atropos.Scene
                 throw;
             }
 
-            return FinalizeSceneLoad(location, handle, sceneMode, gcCollect);
+            return FinalizeSceneLoad(location, handle, sceneMode);
         }
 
         /// <summary>
@@ -303,7 +301,7 @@ namespace Moirai.Atropos.Scene
         /// <remarks>
         /// 加载失败时清理全部登记、释放句柄并抛出 <see cref="GameException"/>。
         /// </remarks>
-        private UnityEngine.SceneManagement.Scene FinalizeSceneLoad(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode, bool gcCollect)
+        private UnityEngine.SceneManagement.Scene FinalizeSceneLoad(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode)
         {
             _registry.UnmarkOperation(location);
 
@@ -351,8 +349,6 @@ namespace Moirai.Atropos.Scene
 
             SceneService.InvokeMainSceneChangedEvent(sceneName);
 
-            ResourceService.ForceUnloadUnusedAssets(gcCollect);
-
             return scene;
         }
 
@@ -362,7 +358,7 @@ namespace Moirai.Atropos.Scene
         /// <remarks>
         /// 处理器已关闭（<see cref="OnShutdown"/> 已排空登记簿）或登记被清理时直接返回，放弃过期收尾。
         /// </remarks>
-        private async UniTaskVoid FinalizeLoadDetached(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode, bool gcCollect)
+        private async UniTaskVoid FinalizeLoadDetached(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode)
         {
             while (!handle.IsDone)
             {
@@ -382,7 +378,7 @@ namespace Moirai.Atropos.Scene
 
             try
             {
-                FinalizeSceneLoad(location, handle, sceneMode, gcCollect);
+                FinalizeSceneLoad(location, handle, sceneMode);
             }
             catch (Exception ex)
             {

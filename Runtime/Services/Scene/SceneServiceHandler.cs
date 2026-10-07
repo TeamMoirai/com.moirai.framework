@@ -36,13 +36,12 @@ namespace Moirai.Atropos.Scene
         /// <param name="sceneMode">场景加载模式。</param>
         /// <param name="suspendLoad">是否挂起加载。</param>
         /// <param name="priority">加载优先级。</param>
-        /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <param name="packageName">资源包名称（空串使用默认包）。</param>
         /// <param name="cancellationToken">取消令牌——仅取消等待与进度回调，不中止底层加载；加载最终完成后仍会完成登记并触发事件。</param>
         /// <returns>加载完成的场景。</returns>
         public abstract UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode = LoadSceneMode.Single, bool suspendLoad = false, uint priority = 100,
-            bool gcCollect = true, Action<float> progressCallBack = null, string packageName = "", CancellationToken cancellationToken = default);
+            Action<float> progressCallBack = null, string packageName = "", CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 同步发起场景加载（回调式）。
@@ -55,11 +54,10 @@ namespace Moirai.Atropos.Scene
         /// <param name="sceneMode">场景加载模式。</param>
         /// <param name="suspendLoad">是否挂起加载。</param>
         /// <param name="priority">加载优先级。</param>
-        /// <param name="gcCollect">主场景加载后是否执行 GC 回收。</param>
         /// <param name="callBack">加载完成回调。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         public abstract void LoadScene(string location, string packageName = "", LoadSceneMode sceneMode = LoadSceneMode.Single,
-            bool suspendLoad = false, uint priority = 100, bool gcCollect = true, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null);
+            bool suspendLoad = false, uint priority = 100, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null);
 
         #endregion
 

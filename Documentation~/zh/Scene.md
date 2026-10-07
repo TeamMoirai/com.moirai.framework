@@ -14,7 +14,6 @@
 - 防重入保护：同一场景加载/卸载过程中重复请求会被拒绝（加载抛 `GameException`，卸载告警并返回 `false`）
 - 双标识查询：查询/激活/卸载接口同时接受资源地址与场景短名（短名碰撞时后注册者覆盖并告警）
 - 取消语义：`LoadSceneAsync` 的 `CancellationToken` 仅放弃等待（底层加载不可中止），登记与事件由处理器在加载真正结束时收尾
-- 垃圾回收：主场景加载完成后按 `gcCollect` 参数执行 `ForceUnloadUnusedAssets`
 - 多资源包支持：回调式 `LoadScene` 可指定 `packageName` 从指定资源包加载
 - 资源后端自适应：场景加载经 `ResourceService` 管线，切换 YooAsset / Addressable 后端无需修改场景代码
 
@@ -120,7 +119,6 @@ catch (OperationCanceledException)
 - 卸载失败（后端卸载错误、句柄失效）返回 `false` / 回调 `false` 并保留登记，可安全重试；无效地址或存在在途操作时卸载不发起（告警日志）
 - `Unload` / `UnloadAsync` 仅针对 Additive 子场景，主场景通过加载新的 Single 场景替换，请勿对主场景调用卸载
 - 查询/激活/卸载接口同时接受资源地址与场景短名；场景短名应全局唯一——碰撞时后注册者覆盖反向索引并打 Warning，按名操作可能解析到错误对象
-- 主场景加载完成后默认触发 `ForceUnloadUnusedAssets(gcCollect)`，加载期间如有暂存资源引用需注意（可将 `gcCollect` 置为 false 关闭）
 - `progressCallBack` 在句柄完成或失效前只在进度变化时回调（同一进度值不重复回报），回调内勿执行耗时操作；成功完成时以 1.0 收尾一次，失败不伪报完成进度
 - 本服务发起的挂起加载（`suspendLoad`）必须最终 `UnSuspend`——底层加载无中止能力，挂起不解除则加载永不完成
 
