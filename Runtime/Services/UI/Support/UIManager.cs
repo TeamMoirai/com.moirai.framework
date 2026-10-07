@@ -15,7 +15,7 @@ namespace Moirai.Atropos.UI
         
         [Tooltip("UI置于 Resources 文件夹下的父文件夹")]
         [HideIf(nameof(m_LoadByConfig))]
-        [FolderPath()]
+	    [FolderPath(ParentFolder = "Assets/Resources")]
         [SerializeField] private string m_UIFolder = "UI";
         
         /// <summary>
@@ -36,7 +36,22 @@ namespace Moirai.Atropos.UI
         }
         
         #endregion
+        
+        #region 公共方法 [PUBLIC METHODS]
 
+        /// <summary>
+        /// 根据 id 加载弹窗。
+        /// </summary>
+        /// <param name="configKey">LoadByConfig: 配置表id；Resources下的预制体名称。</param>
+        public virtual void LoadUGUI<T>(string configKey) where T : UGUIWindow, new()
+        {
+            UIService.ShowUIAsync<T>(configKey, GetWindowLocation(configKey), FromResources);
+        }
+
+        #endregion
+        
+        #region 私有方法 [PRIVATE METHODS]
+        
         /// <summary>
         /// 获取弹窗资产的位置
         /// </summary>
@@ -45,16 +60,12 @@ namespace Moirai.Atropos.UI
         protected virtual string GetWindowLocation(string id)
         {
             // LogUtility.Info("Load UI: {0}", id);
-
-            if (m_LoadByConfig)
-            {
-                return ConfigTableService.GetUIWindowLocation(id);
-            }
-            else
-            {
-                return StringUtility.Concat(m_UIFolder, "/", id);
-            }
+            return m_LoadByConfig ?
+                ConfigTableService.GetUIWindowLocation(id) :
+                StringUtility.Concat(m_UIFolder, "/", id);
         }
+        
+        #endregion
         
         #region 事件 [EVENTS]
 
