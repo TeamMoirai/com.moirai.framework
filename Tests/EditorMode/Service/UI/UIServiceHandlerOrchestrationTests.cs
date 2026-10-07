@@ -1600,7 +1600,8 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨的编排探针窗：面板钩子只记账，不建 Canvas、不取资产。</summary>
-        private sealed class ProbeUGUIWindow : UGUIWindow
+        [Window(UILayer.Tips)]
+        internal sealed class ProbeUGUIWindow : UGUIWindow
         {
             /// <summary>本窗被 <c>Tick</c> 驱动的次数。</summary>
             internal int Updates;
@@ -1645,7 +1646,7 @@ namespace Service.UI
         /// 默认构造必须显式写成 public——开窗族那侧用 <c>Activator.CreateInstance</c> 实例化窗口类型。
         /// </remarks>
         [Window(UILayer.UI, cacheInstance: true)]
-        private sealed class HandlerProbeWindow : UGUIWindow
+        internal sealed class HandlerProbeWindow : UGUIWindow
         {
             private GameObject _panel;
 
@@ -1678,7 +1679,7 @@ namespace Service.UI
         /// 把面板物体交回真实 <see cref="GameObject"/> 的探针窗：遮挡判据要吃 <c>gameObject</c>，这一只专门供它。
         /// </summary>
         /// <remarks>面板钩子一律只记账：没有 Canvas 也没有 UI Document，只有 <c>Root</c> 这一枚物体参与包含判断。</remarks>
-        private sealed class ProbeOwnedWindow : UGUIWindow
+        internal sealed class ProbeOwnedWindow : UGUIWindow
         {
             /// <summary>用例挂给本窗的「面板」物体。</summary>
             internal GameObject Root;
@@ -1699,7 +1700,8 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨的编排探针窗：与 uGUI 探针同形，只证「同一份栈两支窗」这一档。</summary>
-        private sealed class ProbeUITKWindow : UITKWindow
+        [Window(UILayer.Tips)]
+        internal sealed class ProbeUITKWindow : UITKWindow
         {
             /// <summary>本窗被 <c>Tick</c> 驱动的次数。</summary>
             internal int Updates;
@@ -1735,7 +1737,7 @@ namespace Service.UI
         /// 读数排在面板销毁那一步里，因此判的是门面的关停次序而不是用例的先后：次序对了，这一步走到时根还在位。 <br />
         /// 面板钩子一律只记账：不建壳、不点 <c>UIDocument</c>，也不接管任何后端资源。
         /// </remarks>
-        private sealed class OrderProbeUITKWindow : UITKWindow
+        internal sealed class OrderProbeUITKWindow : UITKWindow
         {
             /// <summary>销毁本窗面板那一刻要问的那枚物体（生产侧是 UI 根登记那一枚）。</summary>
             internal GameObject RootToObserve;
