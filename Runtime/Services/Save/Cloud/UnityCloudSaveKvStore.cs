@@ -21,6 +21,7 @@ namespace Moirai.Atropos.Save
     /// 裁决回退时间戳比较（<c>FileItem.Modified</c> 为远端权威时钟）。 <br />
     /// 取消语义：UGS SDK 不接收取消令牌，仅调用前协作式检查，已发出的请求无法中止。
     /// </remarks>
+    [ProviderDisplay(title: "Unity Cloud Save", description: "UGS Player Files 承载（单档 1GB/玩家 200 文件）；需登录 UGS")]
     [Serializable]
     public class UnityCloudSaveKvStore : CloudSaveKvStore
     {

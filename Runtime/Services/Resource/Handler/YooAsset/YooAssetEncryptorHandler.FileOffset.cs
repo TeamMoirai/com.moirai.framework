@@ -7,6 +7,7 @@ namespace Moirai.Atropos.Resource
     /// <summary>
     /// 文件偏移加密处理器。
     /// </summary>
+    [ProviderDisplay(title: "文件偏移加密", description: "包头偏移 32 字节，构建轻量、防直读级")]
     [Serializable]
     public sealed class FileOffsetEncryptorHandler : YooAssetEncryptorHandler
     {

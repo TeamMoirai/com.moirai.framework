@@ -9,6 +9,7 @@ namespace Moirai.Atropos
     /// 基于 ZString 的零分配字符串构建器工具实现。
     /// </summary>
     /// <remarks>使用 <see cref="Cysharp.Text.ZString"/> 提供完全零分配的字符串操作；适配器池化实现 0 GC。</remarks>
+    [ProviderDisplay(title: "ZString", description: "ZString 全链零 GC；需安装 ZString 包")]
     [Serializable]
     internal sealed class ZStringHandler : StringHandler
     {

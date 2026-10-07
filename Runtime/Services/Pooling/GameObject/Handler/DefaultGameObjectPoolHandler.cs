@@ -13,6 +13,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <see cref="GameObjectPoolServiceHandler"/> 的内置实现：分页槽位存储 + 代系句柄校验 + 共享最小堆维护调度，PoolCatalog 数据驱动配置；
     /// 经 <see cref="GameObjectPoolServiceSettings"/> 序列化配置。
     /// </remarks>
+    [ProviderDisplay(title: "默认 GameObject 池", description: "分页槽位 + 代系句柄校验 + 最小堆维护调度，PoolCatalog 数据驱动")]
     [Serializable]
     [UnityEngine.Scripting.Preserve]
     public sealed class DefaultGameObjectPoolHandler : GameObjectPoolServiceHandler

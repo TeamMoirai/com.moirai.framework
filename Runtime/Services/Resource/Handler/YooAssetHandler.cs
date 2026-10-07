@@ -12,6 +12,7 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     /// <remarks>由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。</remarks>
     // ReSharper disable once ClassNeverInstantiated.Global
+    [ProviderDisplay(title: "YooAsset", description: "默认：YooAsset 资源管线（加载/缓存/租约/绑定/远程包下载）")]
     [Serializable]
     internal sealed partial class YooAssetHandler : ResourceServiceHandler, IResourceRecordHost
     {

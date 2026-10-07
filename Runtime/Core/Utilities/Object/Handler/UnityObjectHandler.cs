@@ -8,6 +8,7 @@ namespace Moirai.Atropos
     /// 单机默认的对象管理器。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
+    [ProviderDisplay(title: "Unity 原生", description: "默认：单机项目直用 Object.Instantiate/Destroy")]
     [Serializable]
     internal sealed class UnityObjectHandler : ObjectHandler
     {

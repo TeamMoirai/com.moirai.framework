@@ -8,6 +8,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 默认游戏配置处理器。
     /// </summary>
+    [ProviderDisplay(title: "默认配置（文件）", description: "persistentDataPath 下单文件整档存取（Setting.dat）")]
     [Serializable]
     public sealed partial class DefaultSettingHandler : SettingHandler
     {

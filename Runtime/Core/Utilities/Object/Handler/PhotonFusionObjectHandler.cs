@@ -11,6 +11,7 @@ namespace Moirai.Atropos
     /// 用来在联网项目中代替常规的 Instantiate 和 Destroy 方法。
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
+    [ProviderDisplay(title: "Photon Fusion", description: "联网对象走 Fusion 网络生成/销毁；需 FUSION2 宏")]
     [Serializable]
     internal sealed class PhotonFusionObjectHandler : ObjectHandler
     {

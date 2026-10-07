@@ -16,6 +16,7 @@ namespace Moirai.Atropos
     /// 需经 NuGetForUnity 等方式引入 Serilog 程序集，并手动定义 <c>SERILOG_INSTALLED</c> 脚本宏。 <br />
     /// sink 由本类初始化时自建，写入绕过全局拦截器的 Unity 控制台。
     /// </remarks>
+    [ProviderDisplay(title: "Serilog", description: "Serilog sink 管道；需引入 Serilog 并定义 SERILOG_INSTALLED 宏")]
     [Serializable]
     internal sealed class SerilogHandler : LogHandler
     {

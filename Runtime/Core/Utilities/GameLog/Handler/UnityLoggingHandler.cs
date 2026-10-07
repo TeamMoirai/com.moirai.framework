@@ -15,6 +15,7 @@ namespace Moirai.Atropos
     /// <see cref="LogHandler.TimestampEnabled"/> / <see cref="LogHandler.TimestampFormat"/> 仅作配置记录， <br />
     /// 实际生效需在 <c>LogSettings</c> 中设置。
     /// </remarks>
+    [ProviderDisplay(title: "Unity Logging", description: "官方 com.unity.logging 包接管 sink 与输出模板")]
     [Serializable]
     internal sealed class UnityLoggingHandler : LogHandler
     {

@@ -7,6 +7,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 默认版本号处理器。
     /// </summary>
+    [ProviderDisplay(title: "默认版本号", description: "游戏版本读 Application.version，资源版本读资源服务清单")]
     [Serializable]
     internal sealed class DefaultVersionHandler : VersionHandler
     {

@@ -14,6 +14,7 @@ namespace Moirai.Atropos
     /// LitMotion 动画处理器实现（零 GC）。
     /// </summary>
     /// <remarks>用 Dictionary 管理所有活跃的 MotionHandle；每个方法内联构建器链，以 state-based Bind 避免闭包分配。</remarks>
+    [ProviderDisplay(title: "LitMotion", description: "零 GC 补间库；需 LITMOTION_INSTALLED 宏")]
     [Serializable]
     internal sealed class LitMotionHandler : TweenHandler
     {

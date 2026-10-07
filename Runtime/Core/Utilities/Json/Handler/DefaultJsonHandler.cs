@@ -6,6 +6,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 提供 JSON 序列化和反序列化。
     /// </summary>
+    [ProviderDisplay(title: "内置 JSON", description: "框架自带 DefaultJson（IBuffer 字节通路）；深度/空值可在下方配置")]
     [Serializable]
     internal sealed class DefaultJsonHandler : JsonHandler, IBufferJsonHandler
     {

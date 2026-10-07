@@ -14,6 +14,7 @@ namespace Moirai.Atropos.UI
     public sealed class UIServiceSettings : FrameworkSettings<UIServiceSettings>
     {
         [InfoBox("启用哪几支后端就列哪几支：UIService 初始化时按这份清单逐支实例化。清单为空则初始化当场报错。", InfoMessageType.None)]
+        [ProviderDropdown]
         [SerializeReference] private UIServiceHandler[] m_EnabledHandlers = new UIServiceHandler[] { new UGUIHandler() };
 
         /// <summary>启用中的后端驱动者清单（按配置填槽的唯一来路）。</summary>

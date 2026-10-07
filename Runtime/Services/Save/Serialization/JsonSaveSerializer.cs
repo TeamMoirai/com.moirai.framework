@@ -4,6 +4,7 @@ namespace Moirai.Atropos.Save
     /// JSON 序列化后端（框架内置 <see cref="JsonUtility"/> 零分配字节通路，默认后端）。
     /// </summary>
     /// <remarks>无类型标注要求，任意可序列化 POCO 开箱即用；字节始终为紧凑 UTF8 JSON（容器本身为二进制，块内不再缩进美化）。</remarks>
+    [ProviderDisplay(title: "JSON（内置）", description: "默认后端：框架内置 JSON 字节通路，POCO 零标注开箱即用")]
     [RegisterSerializer]
     public sealed class JsonSaveSerializer : ISaveSerializer
     {

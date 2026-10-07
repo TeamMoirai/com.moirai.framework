@@ -16,6 +16,7 @@ namespace Moirai.Atropos.Input
     /// 模态打开时玩家 Map 断开而 UI Map 保持可用，模态自身热键不受影响；未列入两类 Map 的动作不受上下文压制。 <br />
     /// 鼠标查询不参与门控。
     /// </remarks>
+    [ProviderDisplay(title: "Input System（新版）", description: "Input System 包，支持玩家/UI 上下文 Map 压制与模态门控")]
     [Serializable]
     internal sealed class UnityInputSystemHandler : InputServiceHandler
     {
