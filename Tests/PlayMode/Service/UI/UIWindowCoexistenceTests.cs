@@ -47,9 +47,6 @@ namespace Service.UI
         /// <summary>异步装载探针窗的面板延迟（秒，不受时间缩放）：等待腿要等的就是这一段时间。</summary>
         private const float PANEL_DELAY_SECONDS = 0.2f;
 
-        /// <summary>关闭动画的真实时长上界（秒）：<see cref="UIWindow.CloseAnimation"/> 排的是 0.25 秒真实时间。</summary>
-        private const float CLOSE_ANIMATION_SECONDS = 0.25f;
-
         /// <summary>帧推进的等待上界（秒）：超过即把现场交回用例判红，不写无限等。</summary>
         private const float PUMP_TIMEOUT_SECONDS = 5f;
 
@@ -455,14 +452,14 @@ namespace Service.UI
         #region 停放与未绑定 [PARK]
 
         /// <summary>
-        /// 缓存实例的停放与重开（uGUI 轨）：关闭动画走完之后面板留着但不激活，重开时同一只实例回到栈上并重新激活。
+        /// 缓存实例的停放与重开（uGUI 轨）：关闭按瞬时档当场停放（面板留在但不再激活），重开时同一只实例回到栈上并重新激活。
         /// </summary>
         /// <remarks>
-        /// 关闭动画是真实时间：<see cref="UIWindow.CloseAnimation"/> 排 0.25 秒，停放只在那一段之后发生——这一半在
-        /// 不推帧的量具里量不到。停放表与栈的归属判据走协调者那两枚 internal 门缝，面板激活位取的是物体事实。
+        /// 关闭默认无过渡（<see cref="UIWindow.Transition"/> 缺位即瞬时）：停放与出栈同帧发生，不推帧也量得到。 <br />
+        /// 停放表与栈的归属判据走协调者那两枚 internal 门缝，面板激活位取的是物体事实。
         /// </remarks>
         [UnityTest]
-        public IEnumerator ParkPanel_CachedUGUIWindowAfterCloseAnimation_StaysParkedUntilReopened()
+        public IEnumerator ParkPanel_CachedUGUIWindowAfterInstantClose_StaysParkedUntilReopened()
         {
             UIService.ShowUI<ProbeCachedUGUIWindow>("ParkUGUI");
             var ugui = UIService.GetWindow<ProbeCachedUGUIWindow>("ParkUGUI");
@@ -475,11 +472,7 @@ namespace Service.UI
             UIService.CloseUI<ProbeCachedUGUIWindow>("ParkUGUI");
 
             Assert.IsNull(UIService.GetWindow<ProbeCachedUGUIWindow>("ParkUGUI"), "关掉的窗已不在栈上");
-            Assert.IsTrue(panel.activeSelf, "量具前提坏了：关闭动画走完之前面板照旧在场");
-
-            yield return PumpUntil(() => !panel.activeSelf, PUMP_TIMEOUT_SECONDS);
-
-            Assert.IsFalse(panel.activeSelf, "关闭动画走完后停放：物体留着但不激活");
+            Assert.IsFalse(panel.activeSelf, "瞬时关闭当场停放：物体留着但不激活");
             Assert.IsTrue(_coordinator.Internal_IsParked("ParkUGUI"), "缓存实例进协调者那一份停放表");
             Assert.IsNull(_coordinator.GetTopWindow(), "栈上空");
 
