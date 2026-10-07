@@ -721,28 +721,20 @@ namespace Moirai.Atropos
             }
 
             /// <summary>
-            /// 描述行：置顶绘制 <see cref="ProviderDisplayAttribute.Description"/>，按内容折行、高度随文本伸缩。
+            /// 描述行：置顶整行绘制 <see cref="ProviderDisplayAttribute.Description"/>（不带前缀标签），按内容折行、高度随文本伸缩。
             /// </summary>
             private void DrawDescriptionLine(Rect infoRect, ref float y, string desc)
             {
-                float valueW = infoRect.width - INFO_PAD * 2 - INFO_LABEL_W;
                 float descH = DescriptionHeight(desc);
 
-                var prevColor = GUI.color;
-                GUI.color = new Color(0.6f, 0.6f, 0.6f);
                 EditorGUI.LabelField(
-                    new Rect(infoRect.x + INFO_PAD, y, INFO_LABEL_W, LINE_H),
-                    "Description", EditorStyles.miniLabel);
-                GUI.color = prevColor;
-
-                EditorGUI.LabelField(
-                    new Rect(infoRect.x + INFO_PAD + INFO_LABEL_W, y, valueW, descH),
+                    new Rect(infoRect.x + INFO_PAD, y, infoRect.width - INFO_PAD * 2, descH),
                     desc, EditorStyles.wordWrappedMiniLabel);
                 y += descH + 2f;
             }
 
             private static float DescriptionHeight(string desc) =>
-                EditorStyles.wordWrappedMiniLabel.CalcHeight(new GUIContent(desc), MIN_WIDTH - INFO_PAD * 2 - INFO_LABEL_W) + 2f;
+                EditorStyles.wordWrappedMiniLabel.CalcHeight(new GUIContent(desc), MIN_WIDTH - INFO_PAD * 2) + 2f;
 
             private float GetInfoHeight() =>
                 INFO_PAD * 2 + LINE_H * 3 + 4 + (HoverDescription() is string desc ? DescriptionHeight(desc) : 0f);

@@ -12,6 +12,7 @@ namespace Moirai.Atropos.Save
     /// 未注入时 <see cref="TryGetKeyMaterial"/> 返回 <see cref="SaveError.InvalidArgument"/>——写路径随之 fail-fast（<c>GameException</c>）， <br />
     /// 读路径判别为参数错误。
     /// </remarks>
+    [ProviderDisplay(title: "玩家口令", description: "运行期注入口令 PBKDF2 派生（密码锁存档）；口令仅内存不落盘")]
     [Serializable]
     public class PassphraseSaveKeyProvider : SaveKeyProvider
     {

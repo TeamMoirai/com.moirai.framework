@@ -12,6 +12,7 @@ namespace Moirai.Atropos.Save
     /// 不同用户产出完全独立的密钥材料——多账号存档互相不可读；未设用户 ID 时以空盐派生（等价单用户默认档）。 <br />
     /// 主密钥序列化于设置资产（SECURITY: 上线前必须替换占位值）；用户 ID 仅内存（运行期注入）。
     /// </remarks>
+    [ProviderDisplay(title: "按用户派生（HKDF）", description: "主密钥+用户 ID 经 HKDF 派生：多账号存档互相不可读")]
     [Serializable]
     // ReSharper disable once InconsistentNaming
     public class HKDFPerUserSaveKeyProvider : SaveKeyProvider

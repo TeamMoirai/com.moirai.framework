@@ -16,6 +16,7 @@ namespace Moirai.Atropos.Input
     /// 一律降级返回默认值）；玩家/UI 上下文压制（Action Map 切换）为 Input System 后端专属能力，
     /// 需要上下文隔离的项目请使用 Input System 后端。</para>。
     /// </remarks>
+    [ProviderDisplay(title: "Input Manager（旧版）", description: "映射 Project Settings 轴/键名；无动作分组，仅全局门控")]
     [Serializable]
     internal sealed class UnityInputManagerHandler : InputServiceHandler
     {

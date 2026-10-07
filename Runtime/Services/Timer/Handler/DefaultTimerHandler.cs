@@ -15,6 +15,8 @@ namespace Moirai.Atropos.Timer
     /// 句柄操作按 <see cref="TimerHandleLayout.LaneOf"/> 内嵌泳道号路由，阶段推进与统计调试跨引擎扇出 / 聚合。 <br />
     /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。
     /// </remarks>
+    /// </remarks>
+    [ProviderDisplay(title: "默认计时器", description: "时间轮（按秒）+ 帧计时（按帧）双泳道，槽位容量可配")]
     [Serializable]
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]

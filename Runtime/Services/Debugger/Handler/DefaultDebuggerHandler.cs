@@ -12,6 +12,7 @@ namespace Moirai.Atropos.Debugger
     /// <see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性， <br />
     /// 并在首个 Tick 懒建运行时宿主 <see cref="DebuggerRuntimeHost"/>（无资产依赖）。
     /// </remarks>
+    [ProviderDisplay(title: "内置调试器", description: "UI Toolkit 运行时调试台（FPS/Console/窗口注册），无资产依赖")]
     [Serializable]
     internal sealed class DefaultDebuggerHandler : DebuggerServiceHandler
     {

@@ -8,6 +8,7 @@ namespace Moirai.Atropos.UI
     /// <summary>
     /// UI 处理器（后端）：承载 UI 根的取用与常驻、面板装载与窗口实例创建。
     /// </summary>
+    [ProviderDisplay(title: "uGUI 轨", description: "默认：Canvas 根 + UGUI 面板，UITK 壳也挂在这枚 UI 根下")]
     [Serializable]
     internal sealed class UGUIHandler : UIServiceHandler
     {

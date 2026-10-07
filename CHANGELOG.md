@@ -42,7 +42,7 @@
 #### 编辑器
 
 - 新增 `[ProviderDropdown]` 对数组 / `List<T>` 字段的支持：特性放在集合字段上时每个元素各自获得实现类下拉与子属性展开（元素经 Odin 集合特性透传逐个走单字段绘制），集合的增删与重排由 Inspector 默认列表 UI 承担；此前该特性放在集合字段上会按单引用处理直接报错。
-- 新增 `[ProviderDisplay]` 类型级显示元数据（标注在候选实现类上，配合 `[ProviderDropdown]`）：`Title` 非空时替换下拉行与选中态的类型名显示，`Description` 非空时在下拉详情面板置顶优先显示（折行、高度随内容伸缩），无描述时面板回退显示 Type / Base / Assembly。
+- 新增 `[ProviderDisplay]` 类型级显示元数据（标注在候选实现类上，配合 `[ProviderDropdown]`）：`Title` 非空时替换下拉行与选中态的类型名显示，`Description` 非空时在下拉详情面板置顶优先显示（折行、高度随内容伸缩），无描述时面板回退显示 Type / Base / Assembly；两者全空等价于不标注。框架内置候选实现类（工具 Handler / 各服务后端 / 存档处理器与序列化器 / 密钥与加密提供方 / UI 双轨驱动者）已全部标注。
 
 ### Changed
 

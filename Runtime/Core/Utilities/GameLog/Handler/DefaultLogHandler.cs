@@ -8,6 +8,7 @@ namespace Moirai.Atropos
     /// 默认游戏框架日志辅助器，基于 <see cref="UnityEngine.Debug"/> 输出到 Unity 控制台。
     /// </summary>
     /// <remarks>日志仅记录、不抛异常：Fatal 等级以错误形式输出，流程是否中断由调用方自行决定。</remarks>
+    [ProviderDisplay(title: "Unity Console", description: "默认：直出 UnityEngine.Debug 到 Unity 控制台")]
     [Serializable]
     internal sealed class DefaultLogHandler : LogHandler
     {

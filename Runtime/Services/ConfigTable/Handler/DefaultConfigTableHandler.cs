@@ -9,6 +9,7 @@ namespace Moirai.Atropos.ConfigTable
     /// <summary>
     /// 默认配置表处理器。未安装游戏侧生成代码时的兜底实现（记录错误并返回空结果）。
     /// </summary>
+    [ProviderDisplay(title: "默认（兜底）", description: "未生成游戏侧配置代码时的占位：查表报错并返回空结果")]
     [Serializable]
     internal sealed class DefaultConfigTableHandler : ConfigTableServiceHandler
     {

@@ -12,6 +12,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 基于 PrimeTween 实现的补间动画处理器。
     /// </summary>
+    [ProviderDisplay(title: "PrimeTween", description: "高性能补间库，容量可配；需 PRIMETWEEN_INSTALLED 宏")]
     [Serializable]
     internal sealed partial class PrimeTweenHandler : TweenHandler
     {

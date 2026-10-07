@@ -23,6 +23,7 @@ namespace Moirai.Atropos.Save
     /// 超时/非约定状态码/网络失败一律抛异常，由 <see cref="CloudSaveStorageBackend"/> 归一为离线降级；用户取消抛 <see cref="OperationCanceledException"/>，不计为远端失败。<br />
     /// 依赖 raw socket，WebGL 不可用（改用 UGS 后端或 UnityWebRequest 自定义实现）。
     /// </remarks>
+    [ProviderDisplay(title: "REST 自建云端", description: "极简 REST 契约读写自建服务端；WebGL 不可用（raw socket）")]
     [Serializable]
     public class RestCloudSaveKvStore : CloudSaveKvStore
     {

@@ -7,6 +7,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// PlayerPrefs 游戏配置处理器。
     /// </summary>
+    [ProviderDisplay(title: "PlayerPrefs", description: "Unity 原生键值存储；不支持枚举全部键，适合少量零散配置")]
     [Serializable]
     public sealed class PlayerPrefsSettingHandler : SettingHandler
     {
