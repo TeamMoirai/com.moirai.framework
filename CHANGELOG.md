@@ -41,6 +41,9 @@
 
 ### Changed
 
+#### 场景
+
+- ⚠ 删除场景加载的 `gcCollect` 参数。如果需要，在合适时机自行调 `ResourceService.ForceUnloadUnusedAssets(true)`。
 #### 日志
 
 - 全部 `LogUtility` 入口在字符串格式化前按 `LogHandler.MinimumLevel` 前置短路：被过滤的日志此前仍会完成格式化并分配结果字符串，现在直接返回；输出与 `OnMessageLogged` 事件契约不变（事件本就只在通过过滤后触发），被过滤的调用不再产生 GC 分配。

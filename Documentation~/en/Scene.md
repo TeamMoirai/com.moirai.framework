@@ -14,7 +14,6 @@ The scene service's (`Moirai.Atropos.Scene`) default backend `DefaultSceneHandle
 - Re-entry protection: Duplicate requests for the same scene during loading/unloading are rejected (load throws `GameException`, unload warns and returns `false`)
 - Dual-identity queries: query/activate/unload APIs accept both resource location and scene short name (on short-name collision the later registration wins with a warning)
 - Cancellation semantics: the `CancellationToken` of `LoadSceneAsync` only abandons waiting (the underlying load cannot be aborted); registration and events are finalized by the handler when the load actually completes
-- Garbage collection: After the main scene finishes loading, `ForceUnloadUnusedAssets` is executed according to the `gcCollect` parameter
 - Multi-package support: The callback-based `LoadScene` can specify a `packageName` to load from a specific resource package
 - Backend adaptation: Scene loading goes through the `ResourceService` pipeline — switching between YooAsset / Addressables backends requires no scene code changes
 
@@ -121,7 +120,6 @@ catch (OperationCanceledException)
 - Unload failures (backend unload errors, invalid handles) return `false` / callback `false` and keep the registration, so retrying is safe; unload requests with an unknown address or an in-flight operation are not started (warning logged)
 - `Unload` / `UnloadAsync` only apply to Additive sub-scenes; the main scene is replaced by loading a new Single scene — do not call unload on the main scene
 - Query/activate/unload APIs accept both resource location and scene short name; scene short names should be globally unique — on collision the later registration overwrites the reverse index with a warning, and name-based operations may resolve to the wrong scene
-- After the main scene finishes loading, `ForceUnloadUnusedAssets(gcCollect)` is triggered by default; pay attention to any temporary asset references during loading (set `gcCollect` to false to disable)
 - `progressCallBack` fires only when progress changes (a repeated value is not reported again) until the handle completes or becomes invalid; do not perform expensive operations inside the callback; it finishes with exactly one 1.0 report on success and never fakes completion on failure
 - A suspended load (`suspendLoad`) started by this service must eventually be `UnSuspend`ed — the underlying load cannot be aborted and never completes while suspended
 
