@@ -29,6 +29,9 @@
 - 新增 UI Toolkit 轨：`UITKWindow`（`UIDocument` 壳与内容根装配、窗口级 `PanelSettings` 覆盖——缺省回共享那一份）与 `UITKHandler` 驱动者；开窗族多出 `where T : UITKWindow` 的同名腿（比 uGUI 腿多一枚 `panelSettings` 形参，同名重载按窗口基类约束分辨），寻址两档（AB / 内置资源）与 uGUI 轨同形同序。
 - 新增多后端并存能力：各轨窗口并进同一条共享窗口栈（`UIWindowLedger`），关·隐·查询、层级深度、模态遮挡与交互租约不分轨；`UITrack` 轨道自述（认窗判据、有效性探针、Type 形分派、关停档位）由各轨 partial 静态自登记进门面目录，主入口只枚举目录——加一支后端＝三件套（窗口基类 / 驱动者 / partial）＋自登记＋启用清单加一项，`UIService.cs` 零改动。
 - 新增窗口自关策略（`UIWindow` 上 `TryClose` / `CanClose` / `OnCloseFail` / `ForceClose`）：自关先等可交互再过 `CanClose` 门，门为假落 `OnCloseFail` 且窗口留在栈上；`ForceClose` 是跳过等待与门的即时旁路，外部经 `CloseUI` 的关闭不经过这一道。策略在后端无关对象模型上，两轨窗口同形覆写；等待经既有代次与销毁守卫，被重开/销毁接管的续体静默终止、已销毁的窗不空转轮询。
+- 新增开窗结果契约 `UIOpenResult` / `EUIOpenStatus`（Opened / Failed / Missing / Timeout）与门面腿 `ShowUIAwaitResult<T>`（uGUI 腿同形、UI Toolkit 腿多一枚 `panelSettings`）与 `GetUIAwaitResult<T>()`：就绪、失败、缺失、超时各按状态档交回，装载当场失败或已被关闭的窗口同帧落定，跨帧装载按实际就绪帧落定——等待不再以 null 与超时混言成败。
+- 新增装载失败回滚：`UIWindow.InternalLoad` 装载回 false 或抛出时，窗口从共享栈摘出（补对称 `Closed` 回执、刷新新栈顶与显隐深度）并置失败 / 作废位，不再永占栈位、不再让 `IsAnyLoading` 永真；真装载失败报一条 Error，装载被取消不报错。
+- 新增装载取消贯通：窗口自持装载期取消源，装载在途被关闭即掐断；uGUI 轨 `LoadPanelAsync` 把令牌转发给 `ResourceService.LoadGameObjectAsync`（UI Toolkit 轨此前已转发）。
 
 #### 日志
 
@@ -93,6 +96,9 @@
 - ⚠ 启用清单类型改为 `UIServiceHandler[]` 且序列化字段更名 `m_enabledHandlers` → `m_EnabledHandlers`，并带代码默认值（uGUI 一支）。迁移：存量设置资产的旧键名脱钩后清单回落到代码默认（仅启用 uGUI 一支），已在 Inspector 配过的工程需在新字段下重新列出要启用的后端。
 - 主入口不再持有任何后端单点：`UIService.Handler` 懒加载属性随 `[HandlerHost]` 一并退役，取用一律走静态门面；未启用那一轨的开窗按轨道名当场报错并点名去哪一处启用，轨专有查询（`UIRoot` / `UICamera`）未启用时答 `null` 不抬错。
 - 关停次序由各轨自报档位表述：持有别轨面板挂靠宿主根的 uGUI 轨取 `UITrack.SHUTDOWN_ORDER_HOST` 最后收，其余取默认档先收；模态动画期间的全局交互压制改由共享租约 `UIInteractionLease` 按归属仲裁，被重开/销毁接管的旧动画续体不再解锁也不再隐藏。
+- ⚠ 装载失败的窗口不再留在共享栈上：当场回滚出栈且不进停放表，`IsAnyLoading` 不再被失败窗永真。迁移：依赖「开窗失败后窗口仍在栈上」的存量用法（含测试夹具的拒开探针）改走装载成功或 `UIOpenResult` 结果契约。
+- ⚠ `ShowUIAsyncAwait` / `GetUIAsyncAwait` / `GetUIAsync` 在装载失败或装载中被关闭时不再交回 / 回调未就绪窗口（改交 null、不调回调并各报一条 Warning）；等待超时档维持原行为照常交回。取窗找不到目标时从全静默改为报一条 Warning。
+- `UGUIWindow.BindPanel` / `UITKWindow.BindPanel` 缺组件从裸 `Exception` 改抛 `GameException`；`CloseUI` / `HideUI` 对不在栈上的窗口从全静默改为补一条 Debug 级开发日志。
 
 #### 文档
 

@@ -60,7 +60,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>装载面板（异步）：AB 路径 await，内置资源路径与旧实现一样仍走同步 <c>Resources.Load</c>。</summary>
-        /// <remarks><paramref name="ct"/> 暂不下给资源层：旧调用点没传令牌，异步开关只决定取资源的方式。</remarks>
+        /// <remarks>取消令牌下给资源层：装载在途时窗口被关闭，资源装载随之取消。</remarks>
         protected internal override async UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources, CancellationToken ct)
         {
             if (fromResources)
@@ -68,7 +68,7 @@ namespace Moirai.Atropos.UI
                 return LoadPanel(assetLocation, true);
             }
 
-            var uiInstance = await ResourceService.LoadGameObjectAsync(assetLocation, parent: UIService.UIRoot);
+            var uiInstance = await ResourceService.LoadGameObjectAsync(assetLocation, parent: UIService.UIRoot, cancellationToken: ct);
             return BindPanel(uiInstance);
         }
 
@@ -157,7 +157,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <param name="panel">面板物体；null 时直接判装载失败。</param>
         /// <returns>装配成功返回 true。</returns>
-        /// <remarks>缺 <see cref="Canvas"/> 时抛异常并沿用旧文案——调用方不得拿到半个可用面板。</remarks>
+        /// <remarks>缺 <see cref="Canvas"/> 时抛 <see cref="GameException"/>——调用方不得拿到半个可用面板。</remarks>
         internal bool BindPanel(GameObject panel)
         {
             if (panel == null) return false;
@@ -170,7 +170,8 @@ namespace Moirai.Atropos.UI
             _canvas = _panel.GetComponent<Canvas>();
             if (_canvas == null)
             {
-                throw new Exception($"Not found {nameof(Canvas)} in panel {WindowName}");
+                throw new GameException(StringUtility.Format(
+                    "面板 {0}（窗口 {1}）上找不到 {2}：uGUI 窗口的面板必须自带排序画布", panel.name, WindowName, nameof(Canvas)));
             }
 
             _canvas.overrideSorting = true;

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading;
+using Moirai.Atropos.Tests.EditorMode;
 using Moirai.Atropos.UI;
 using NUnit.Framework;
 
@@ -63,7 +64,7 @@ namespace Service.UI
             }, window.Calls, "绑定前积下的意图不得在装载时被默认值顶掉");
         }
 
-        /// <summary>基类默认钩子是「加载不了面板」：装载停在未就绪态，不得抛、不得置位、不得回调。</summary>
+        /// <summary>基类默认钩子是「加载不了面板」：装载停在未就绪态并报失败收口，不得抛、不得置位、不得回调。</summary>
         [Test]
         public void Load_WithoutBackendOverride_StaysUnloaded()
         {
@@ -72,6 +73,8 @@ namespace Service.UI
             window.Init(nameof(BareWindow), 1, false, "Panel", false, 10, false);
             var called = false;
 
+            // 装载失败收口的那一条 Error（失败必须报出来，不许静默）
+            UtfLogExpect.Error();
             window.InternalLoad("Panel", _ => called = true, false, null);
 
             Assert.IsFalse(window.IsLoadDone, "默认钩子加载失败时不得置 IsLoadDone");
