@@ -638,7 +638,9 @@ namespace Moirai.Atropos.Timer
             if (GetWaitSignal(slotIndex) != null)
             {
                 // 同一句柄已有等待者：额外等待者退回轮询，避免覆盖首信号使其永不唤醒。
-                return UniTask.WaitUntil(() => IsDone(handle), cancellationToken: cancellationToken);
+                // 状态经元组传入 + 静态谓词：轮询在整个 await 期间每帧求值，不留闭包分配。
+                return UniTask.WaitUntil((engine: this, handle: handle), static s => s.engine.IsDone(s.handle),
+                    cancellationToken: cancellationToken);
             }
 
             UniTaskCompletionSource source = new UniTaskCompletionSource();
