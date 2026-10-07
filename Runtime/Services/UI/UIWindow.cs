@@ -42,7 +42,7 @@ namespace Moirai.Atropos.UI
 
         /// <summary>是否为全屏窗口。</summary>
         /// <remarks>将全屏下层的UI设为隐藏</remarks>
-        public virtual bool FullScreen { get; private set; } = false;
+        public bool FullScreen { get; private set; }
 
         /// <summary>是内部资源无需AB加载。</summary>
         public bool FromResources { get; private set; }
@@ -57,7 +57,6 @@ namespace Moirai.Atropos.UI
         public bool CacheInstance { get; internal set; }
 
         private int _depth;
-
         /// <summary>窗口深度值（意图）。</summary>
         /// <remarks>
         /// 同值二次赋值不落钩子、不刷排序；落地由 <see cref="ApplyDepth"/> 负责，子级偏移的差分属后端内部事实。<br />
@@ -82,7 +81,7 @@ namespace Moirai.Atropos.UI
                 // 虚函数
                 if (Visible)
                 {
-                    _OnSortDepth();
+                    Internal_OnSortDepth();
                 }
                 else
                 {
@@ -92,7 +91,6 @@ namespace Moirai.Atropos.UI
         }
 
         private bool _visible;
-
         /// <summary>窗口可见性（意图）。</summary>
         /// <remarks>
         /// getter 回调用方要的值，不回读面板所在的 Unity layer（外部改层不算契约）。<br />
@@ -117,7 +115,7 @@ namespace Moirai.Atropos.UI
                 if (value && _isCreate)
                 {
                     _isSortingOrderDirty = false;
-                    _OnSortDepth();
+                    Internal_OnSortDepth();
                 }
 
                 // LogUtility.Info("[UI] Set '{0}' Visible {1}", WindowName, value);
@@ -160,7 +158,18 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        public void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance)
+        /// <summary>
+        /// 按描述符各档初始化窗口身份与配置。
+        /// </summary>
+        /// <remarks>internal：开窗调用方（注册表链路）与测试接缝专用，游戏代码经门面开窗不直接初始化。</remarks>
+        /// <param name="name">窗口名称。</param>
+        /// <param name="layer">窗口层级。</param>
+        /// <param name="fullScreen">是否为全屏窗口。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">是内部资源无需AB加载。</param>
+        /// <param name="hideTimeToClose">隐藏后转关闭的秒数。</param>
+        /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
+        internal void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance)
         {
             WindowName = name;
             WindowLayer = layer;
@@ -369,14 +378,14 @@ namespace Moirai.Atropos.UI
         /// 每帧驱动：窗口一侧在就绪门之上再加可见性门，子级与 OnUpdate 的结算共用基类核心。
         /// </summary>
         /// <returns>还要被栈继续驱动时为真。</returns>
-        internal override bool InternalUpdate()
+        internal override bool Internal_Update()
         {
             if (!IsPrepare || !Visible)
             {
                 return false;
             }
 
-            return DriveUpdateCore();
+            return UpdateCore();
         }
 
         protected internal virtual void InternalClose()
