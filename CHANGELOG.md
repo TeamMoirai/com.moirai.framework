@@ -24,6 +24,12 @@
 
 - 序列化后端改为声明式登记：实现类标 `[RegisterSerializer]`（空标记，不带编号），SaveServiceCodegen 生成器静态取出实现 `BackendId` 的常量值后发 `SaveSerializerRegistry.Register(<编号>, typeof(Xxx))`，写进各自程序集的模块初始化器，引导代码为零。框架内置四个实现与项目实现同形登记；形状非法 / 编号非常量 / 编号落在框架保留区 0-255 / 同编译单元撞号分别报 MIRAI309/310/311/312 且一律 Error（注册跑在模块初始化期，抛出等于把编辑器整崩）。跨程序集撞号生成器不可见，运行期由 `Register(ushort, Type)` 记一次 Fatal 并保留先到那份——声明式登记路径刻意不抛：注册跑在模块初始化期，抛出实测会让 Unity 在源生成脚本扫描阶段原生崩溃。
 
+#### UI
+
+- 新增 UI Toolkit 轨：`UITKWindow`（`UIDocument` 壳与内容根装配、窗口级 `PanelSettings` 覆盖——缺省回共享那一份）与 `UITKHandler` 驱动者；开窗族多出 `where T : UITKWindow` 的同名腿（比 uGUI 腿多一枚 `panelSettings` 形参，同名重载按窗口基类约束分辨），寻址两档（AB / 内置资源）与 uGUI 轨同形同序。
+- 新增多后端并存能力：各轨窗口并进同一条共享窗口栈（`UIWindowLedger`），关·隐·查询、层级深度、模态遮挡与交互租约不分轨；`UITrack` 轨道自述（认窗判据、有效性探针、Type 形分派、关停档位）由各轨 partial 静态自登记进门面目录，主入口只枚举目录——加一支后端＝三件套（窗口基类 / 驱动者 / partial）＋自登记＋启用清单加一项，`UIService.cs` 零改动。
+- 新增窗口自关延后策略（`UIWindow` 上 `DeferCloseUntilInteractable` / `CanClose` / `TryClose` / `OnCloseFail`，默认立即结算、按需覆写为延后到可交互再过门）：策略在后端无关对象模型上，两轨窗口同形覆写；等待经既有代次与销毁守卫，被重开/销毁接管的续体静默终止、已销毁的窗不空转轮询。
+
 #### 日志
 
 - `LogHandler` 新增自述能力 `ErrorWithExceptionUsesExceptionChannel`（基类默认 `false`，ZLogger 旁路为 `true`）：带异常的 Error 条目在 `UnityEngine.Debug` 通道上究竟落 `LogType.Error` 还是 `LogType.Exception` 由处理器决定，测试装配拿不到后端的 `*_INSTALLED` 宏，级别只能按此判定，写死任一级别换处理器就假红。
@@ -47,6 +53,14 @@
 - `SaveSerializerRegistry` 不再硬编码内置后端：注册按 ID→类型挂账，首次查询到该后端才实例化那一个（实现均无状态）；新增 `Register(ushort, Type)` 与 `Register<T>()` 两个登记入口，`Unregister(ushort)` 连 ID→类型记录一起摘除（只删实例会被下一次查询复活），换后端为「先 `Unregister` 再 `Register`」；重号判据同查两张表，同标识实现不再静默盖掉已登记那份。
 - 存档源生成器工程 `SaveHost` 更名 `SaveServiceCodegen`（文件夹 / csproj / 入库 dll 三名同步，命名空间不变），并按功能拆成四个生成器类：`SaveFieldCapturerGenerator`（`[SaveField]` 捕获器）、`SaveMigratorRegistrationGenerator`（迁移器自注册）、`SaveSerializerRegistrationGenerator`（`[RegisterSerializer]` 后端自注册）、`SaveModuleInitializerShimGenerator`（`ModuleInitializerAttribute` 缺失副本的唯一归属方），三者各占一个模块初始化器类；诊断描述符同时从 `SaveFieldModel.cs` 独立成 `Diagnostics.cs`（Category 由 `SaveHost` 改 `Save`）。生成的捕获器与注册内容不变。
 - 存档模式分析器 `SaveSchemaAnalyzer`（MIRAI400/401）从 `ServiceDependency.dll` 归到 `SaveServiceCodegen.dll`：诊断 ID、判据与快照格式不变，只是 Save 的判据与 Save 的生成器同装配；生成器内部另把 `SaveFieldModel.cs` 按类型拆出 `SaveValueClassifier.cs` 与 `DiagnosticInfo.cs`。
+
+#### UI
+
+- ⚠ UI 服务拆为后端无关窗口模型 + 各轨窗口基类：面板实现自 `UIWindow` 下沉至 `UGUIWindow`（uGUI 轨）；开窗腿泛型约束由 `where T : UIWindow` 改为按轨收在 `UGUIWindow` / `UITKWindow` 上，`Type` 形入口按目录认轨分派、认不出轨当场报错。迁移：业务窗口类从 `: UIWindow` 改继承 `UGUIWindow`（UI Toolkit 界面继承 `UITKWindow`）；开窗族的面板地址形参 `assetName` 更名 `assetLocation`。
+- ⚠ 后端启用改由 `UIServiceSettings.EnabledHandlers` 清单驱动（`[SerializeReference]` 托管引用数组，可同时列多支；清单为空初始化当场报错；原 `[ProviderDropdown]` 单选后端退役）。迁移：UI 设置资产须在启用清单显式列出 `UGUIHandler`，需要并存的再列 `UITKHandler`。
+- ⚠ 启用清单类型改为 `UIServiceHandler[]` 且序列化字段更名 `m_enabledHandlers` → `m_EnabledHandlers`，并带代码默认值（uGUI 一支）。迁移：存量设置资产的旧键名脱钩后清单回落到代码默认（仅启用 uGUI 一支），已在 Inspector 配过的工程需在新字段下重新列出要启用的后端。
+- 主入口不再持有任何后端单点：`UIService.Handler` 懒加载属性随 `[HandlerHost]` 一并退役，取用一律走静态门面；未启用那一轨的开窗按轨道名当场报错并点名去哪一处启用，轨专有查询（`UIRoot` / `UICamera`）未启用时答 `null` 不抬错。
+- 关停次序由各轨自报档位表述：持有别轨面板挂靠宿主根的 uGUI 轨取 `UITrack.SHUTDOWN_ORDER_HOST` 最后收，其余取默认档先收；模态动画期间的全局交互压制改由共享租约 `UIInteractionLease` 按归属仲裁，被重开/销毁接管的旧动画续体不再解锁也不再隐藏。
 
 #### 文档
 
