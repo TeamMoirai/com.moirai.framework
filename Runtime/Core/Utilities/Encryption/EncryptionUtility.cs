@@ -141,7 +141,13 @@ namespace Moirai.Atropos
             return Guid.NewGuid().ToString(format);
         }
         
-        static StringBuilder stringBuilderCache = new StringBuilder(1024);
+        // ThreadStatic：并发哈希/验证码互不串写；懒建，未用到的线程零分配
+        [ThreadStatic] private static StringBuilder s_BuilderCache;
+        private static StringBuilder BuilderCache => s_BuilderCache ??= new StringBuilder(1024);
+
+        // 十六进制查表：替代逐字节 ToString("x2"/"X2") 的每字节小字符串分配
+        private static readonly char[] s_HexUpper = "0123456789ABCDEF".ToCharArray();
+        private static readonly char[] s_HexLower = "0123456789abcdef".ToCharArray();
         
         #region MD5 [MD5]
         
@@ -159,10 +165,10 @@ namespace Moirai.Atropos
 #endif
             {
                 byte[] data = hash.ComputeHash(context);
-                var sBuilder = new StringBuilder();
+                var sBuilder = new StringBuilder(data.Length * 2);
                 for (int i = 0; i < data.Length; i++)
                 {
-                    sBuilder.Append(data[i].ToString("x2"));
+                    sBuilder.Append(s_HexLower[data[i] >> 4]).Append(s_HexLower[data[i] & 0xF]);
                 }
 
                 return sBuilder.ToString();
@@ -179,15 +185,16 @@ namespace Moirai.Atropos
         public static string MD5Encrypt16(string context)
         {
             byte[] md5Bytes = Encoding.UTF8.GetBytes(context);
-            MD5 md5 = new MD5CryptoServiceProvider();
+            using MD5 md5 = new MD5CryptoServiceProvider();
             byte[] cryptString = md5.ComputeHash(md5Bytes);
-            stringBuilderCache.Clear();
+            var sBuilder = BuilderCache;
+            sBuilder.Clear();
             for (int i = 4; i < 12; i++)
             {
-                stringBuilderCache.Append(cryptString[i].ToString("X2"));
+                sBuilder.Append(s_HexUpper[cryptString[i] >> 4]).Append(s_HexUpper[cryptString[i] & 0xF]);
             }
 
-            return stringBuilderCache.ToString();
+            return sBuilder.ToString();
         }
 
         /// <summary>
@@ -200,17 +207,18 @@ namespace Moirai.Atropos
         public static string MD5Encrypt32(string context)
         {
             byte[] md5Bytes = Encoding.UTF8.GetBytes(context);
-            MD5 md5 = new MD5CryptoServiceProvider();
+            using MD5 md5 = new MD5CryptoServiceProvider();
             byte[] cryptString = md5.ComputeHash(md5Bytes);
-            stringBuilderCache.Clear();
+            var sBuilder = BuilderCache;
+            sBuilder.Clear();
             int length = cryptString.Length;
             for (int i = 0; i < length; i++)
             {
                 //X大写的16进制，x小写
-                stringBuilderCache.Append(cryptString[i].ToString("X2"));
+                sBuilder.Append(s_HexUpper[cryptString[i] >> 4]).Append(s_HexUpper[cryptString[i] & 0xF]);
             }
 
-            return stringBuilderCache.ToString();
+            return sBuilder.ToString();
         }
 
         /// <summary>
@@ -223,17 +231,18 @@ namespace Moirai.Atropos
         public static string MD5Encrypt(string context)
         {
             byte[] md5Bytes = Encoding.UTF8.GetBytes(context);
-            MD5 md5 = MD5.Create();
+            using MD5 md5 = MD5.Create();
             byte[] cryptBytes = md5.ComputeHash(md5Bytes);
             int length = cryptBytes.Length;
-            stringBuilderCache.Clear();
+            var sBuilder = BuilderCache;
+            sBuilder.Clear();
             for (int i = 0; i < length; i++)
             {
                 //X大写的16进制，x小写
-                stringBuilderCache.Append(cryptBytes[i].ToString("X2"));
+                sBuilder.Append(s_HexUpper[cryptBytes[i] >> 4]).Append(s_HexUpper[cryptBytes[i] & 0xF]);
             }
 
-            return stringBuilderCache.ToString();
+            return sBuilder.ToString();
         }
 
         #endregion
@@ -260,10 +269,8 @@ namespace Moirai.Atropos
             }
             else
             {
-                var diffLen = dstLen - srcLen;
-                var diffBytes = new byte[diffLen];
+                // dstBytes 本身零初始化，尾部无需再拷贝全零块
                 Array.Copy(srcBytes, 0, dstBytes, 0, srcLen);
-                Array.Copy(diffBytes, 0, dstBytes, srcLen, diffLen);
             }
 
             return dstBytes;
@@ -288,10 +295,8 @@ namespace Moirai.Atropos
             }
             else
             {
-                var diffLen = dstLen - srcLen;
-                var diffBytes = new byte[diffLen];
+                // dstBytes 本身零初始化，尾部无需再拷贝全零块
                 Array.Copy(srcBytes, 0, dstBytes, 0, srcLen);
-                Array.Copy(diffBytes, 0, dstBytes, srcLen, diffLen);
             }
 
             return dstBytes;
@@ -316,10 +321,8 @@ namespace Moirai.Atropos
             }
             else
             {
-                var diffLen = dstLen - srcLen;
-                var diffBytes = new byte[diffLen];
+                // dstBytes 本身零初始化，尾部无需再拷贝全零块
                 Array.Copy(srcBytes, 0, dstBytes, 0, srcLen);
-                Array.Copy(diffBytes, 0, dstBytes, srcLen, diffLen);
             }
 
             return dstBytes;
@@ -344,10 +347,8 @@ namespace Moirai.Atropos
             }
             else
             {
-                var diffLen = dstLen - srcLen;
-                var diffBytes = new byte[diffLen];
+                // dstBytes 本身零初始化，尾部无需再拷贝全零块
                 Array.Copy(srcBytes, 0, dstBytes, 0, srcLen);
-                Array.Copy(diffBytes, 0, dstBytes, srcLen, diffLen);
             }
 
             return dstBytes;
@@ -403,13 +404,14 @@ namespace Moirai.Atropos
             {
                 byte[] hashBytes = mac.ComputeHash(Encoding.UTF8.GetBytes(context));
                 int length = hashBytes.Length;
-                stringBuilderCache.Clear();
+                var sBuilder = BuilderCache;
+                sBuilder.Clear();
                 for (int i = 0; i < length; i++)
                 {
-                    stringBuilderCache.Append(hashBytes[i].ToString("X2"));
+                    sBuilder.Append(s_HexUpper[hashBytes[i] >> 4]).Append(s_HexUpper[hashBytes[i] & 0xF]);
                 }
 
-                encrpytedResult = stringBuilderCache.ToString();
+                encrpytedResult = sBuilder.ToString();
             }
 
             return encrpytedResult;
@@ -460,13 +462,14 @@ namespace Moirai.Atropos
             {
                 byte[] hashBytes = mac.ComputeHash(Encoding.UTF8.GetBytes(context));
                 int length = hashBytes.Length;
-                stringBuilderCache.Clear();
+                var sBuilder = BuilderCache;
+                sBuilder.Clear();
                 for (int i = 0; i < length; i++)
                 {
-                    stringBuilderCache.Append(hashBytes[i].ToString("X2"));
+                    sBuilder.Append(s_HexUpper[hashBytes[i] >> 4]).Append(s_HexUpper[hashBytes[i] & 0xF]);
                 }
 
-                encrpytedResult = stringBuilderCache.ToString();
+                encrpytedResult = sBuilder.ToString();
             }
 
             return encrpytedResult;
@@ -770,13 +773,14 @@ namespace Moirai.Atropos
             {
                 cpt.GetBytes(bytes);
                 var r = new Random(BitConverter.ToInt32(bytes, 0));
-                stringBuilderCache.Clear();
+                var sBuilder = BuilderCache;
+                sBuilder.Clear();
                 for (int i = 0; i < length; i++)
                 {
-                    stringBuilderCache.Append(ch[r.Next(ch.Length)]);
+                    sBuilder.Append(ch[r.Next(ch.Length)]);
                 }
 
-                return stringBuilderCache.ToString();
+                return sBuilder.ToString();
             }
         }
 

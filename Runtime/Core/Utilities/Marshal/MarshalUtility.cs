@@ -9,6 +9,10 @@ namespace Moirai.Atropos
     public static class MarshalUtility
     {
         private const int BLOCK_SIZE = 1024 * 4;
+
+        // 缓冲区的分配/释放/取用全程持锁：EnsureCachedHGlobalSize 的"释放-重分配"窗口内，
+        // 其他线程取用旧指针会踩已释放内存。Marshal 转换非帧热路径，锁开销可接受（Monitor 可重入）。
+        private static readonly object s_HGlobalLock = new object();
         private static IntPtr s_CachedHGlobalPtr = IntPtr.Zero;
         private static int s_CachedHGlobalSize = 0;
 
@@ -26,12 +30,15 @@ namespace Moirai.Atropos
                 throw new GameException("Ensure size is invalid.");
             }
 
-            if (s_CachedHGlobalPtr == IntPtr.Zero || s_CachedHGlobalSize < ensureSize)
+            lock (s_HGlobalLock)
             {
-                FreeCachedHGlobal();
-                int size = (ensureSize - 1 + BLOCK_SIZE) / BLOCK_SIZE * BLOCK_SIZE;
-                s_CachedHGlobalPtr = System.Runtime.InteropServices.Marshal.AllocHGlobal(size);
-                s_CachedHGlobalSize = size;
+                if (s_CachedHGlobalPtr == IntPtr.Zero || s_CachedHGlobalSize < ensureSize)
+                {
+                    FreeCachedHGlobal();
+                    int size = (ensureSize - 1 + BLOCK_SIZE) / BLOCK_SIZE * BLOCK_SIZE;
+                    s_CachedHGlobalPtr = System.Runtime.InteropServices.Marshal.AllocHGlobal(size);
+                    s_CachedHGlobalSize = size;
+                }
             }
         }
 
@@ -40,11 +47,14 @@ namespace Moirai.Atropos
         /// </summary>
         public static void FreeCachedHGlobal()
         {
-            if (s_CachedHGlobalPtr != IntPtr.Zero)
+            lock (s_HGlobalLock)
             {
-                System.Runtime.InteropServices.Marshal.FreeHGlobal(s_CachedHGlobalPtr);
-                s_CachedHGlobalPtr = IntPtr.Zero;
-                s_CachedHGlobalSize = 0;
+                if (s_CachedHGlobalPtr != IntPtr.Zero)
+                {
+                    System.Runtime.InteropServices.Marshal.FreeHGlobal(s_CachedHGlobalPtr);
+                    s_CachedHGlobalPtr = IntPtr.Zero;
+                    s_CachedHGlobalSize = 0;
+                }
             }
         }
 
@@ -73,10 +83,8 @@ namespace Moirai.Atropos
                 throw new GameException("Structure size is invalid.");
             }
 
-            EnsureCachedHGlobalSize(structureSize);
-            System.Runtime.InteropServices.Marshal.StructureToPtr(structure, s_CachedHGlobalPtr, true);
             byte[] result = new byte[structureSize];
-            System.Runtime.InteropServices.Marshal.Copy(s_CachedHGlobalPtr, result, 0, structureSize);
+            StructureToBytes(structure, structureSize, result, 0);
             return result;
         }
 
@@ -145,9 +153,12 @@ namespace Moirai.Atropos
                 throw new GameException("Result length is not enough.");
             }
 
-            EnsureCachedHGlobalSize(structureSize);
-            System.Runtime.InteropServices.Marshal.StructureToPtr(structure, s_CachedHGlobalPtr, true);
-            System.Runtime.InteropServices.Marshal.Copy(s_CachedHGlobalPtr, result, startIndex, structureSize);
+            lock (s_HGlobalLock)
+            {
+                EnsureCachedHGlobalSize(structureSize);
+                System.Runtime.InteropServices.Marshal.StructureToPtr(structure, s_CachedHGlobalPtr, true);
+                System.Runtime.InteropServices.Marshal.Copy(s_CachedHGlobalPtr, result, startIndex, structureSize);
+            }
         }
 
         /// <summary>
@@ -215,9 +226,12 @@ namespace Moirai.Atropos
                 throw new GameException("Buffer length is not enough.");
             }
 
-            EnsureCachedHGlobalSize(structureSize);
-            System.Runtime.InteropServices.Marshal.Copy(buffer, startIndex, s_CachedHGlobalPtr, structureSize);
-            return (T)System.Runtime.InteropServices.Marshal.PtrToStructure(s_CachedHGlobalPtr, typeof(T));
+            lock (s_HGlobalLock)
+            {
+                EnsureCachedHGlobalSize(structureSize);
+                System.Runtime.InteropServices.Marshal.Copy(buffer, startIndex, s_CachedHGlobalPtr, structureSize);
+                return (T)System.Runtime.InteropServices.Marshal.PtrToStructure(s_CachedHGlobalPtr, typeof(T));
+            }
         }
     }
 }
