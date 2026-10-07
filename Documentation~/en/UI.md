@@ -161,16 +161,14 @@ protected override async UniTask OpenAnimation()
 }
 ```
 
-### Deferred Close (Popup Self-Close Policy)
+### Window Self-Close (Wait and Gate)
 
-Window self-close settles immediately by default; popup-style windows can override `DeferCloseUntilInteractable => true` to defer the close until interactable (open animation finished, modal above released), then pass the `CanClose` gate:
+A window closing itself (`Close()`) always waits until it is interactable — the open animation finished, or the modal above it released it — then passes the `CanClose` gate; when the gate is false the window stays on the stack and receives `OnCloseFail`:
 
 ```csharp
 [Window(UILayer.Popup)]
 public class RenameWindow : UGUIWindow
 {
-    protected override bool DeferCloseUntilInteractable => true;   // wait until interactable
-
     protected override bool CanClose => _input.text.Length > 0;   // failing the gate lands in OnCloseFail
 
     protected override void OnCloseFail() { /* notify invalid input; the window stays on the stack */ }
@@ -179,7 +177,8 @@ public class RenameWindow : UGUIWindow
 
 - The policy lives on `UIWindow` (the backend-agnostic object model): windows on both the uGUI and UI Toolkit tracks override it the same way, with no per-track intermediate base class
 - The wait passively observes: if the window is taken over by a reopen/destroy while waiting, that round terminates silently and the takeover side handles the hand-back; a destroyed window never polls in vain
-- The real close after the gate passes shares the same settlement path as the immediate mode (`CloseUI` / the shared stack) — there are not two settlement systems
+- `ForceClose()` settles on the spot, skipping both the wait and the gate — the escape hatch for a window that must close immediately
+- Only self-close goes through this path: closing from outside via `UIService.CloseUI` / `CloseAll` goes straight to the shared stack and is not affected by the wait or the gate
 
 ### Safe Area and UIAdapter
 

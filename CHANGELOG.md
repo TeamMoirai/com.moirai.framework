@@ -28,7 +28,7 @@
 
 - 新增 UI Toolkit 轨：`UITKWindow`（`UIDocument` 壳与内容根装配、窗口级 `PanelSettings` 覆盖——缺省回共享那一份）与 `UITKHandler` 驱动者；开窗族多出 `where T : UITKWindow` 的同名腿（比 uGUI 腿多一枚 `panelSettings` 形参，同名重载按窗口基类约束分辨），寻址两档（AB / 内置资源）与 uGUI 轨同形同序。
 - 新增多后端并存能力：各轨窗口并进同一条共享窗口栈（`UIWindowLedger`），关·隐·查询、层级深度、模态遮挡与交互租约不分轨；`UITrack` 轨道自述（认窗判据、有效性探针、Type 形分派、关停档位）由各轨 partial 静态自登记进门面目录，主入口只枚举目录——加一支后端＝三件套（窗口基类 / 驱动者 / partial）＋自登记＋启用清单加一项，`UIService.cs` 零改动。
-- 新增窗口自关延后策略（`UIWindow` 上 `DeferCloseUntilInteractable` / `CanClose` / `TryClose` / `OnCloseFail`，默认立即结算、按需覆写为延后到可交互再过门）：策略在后端无关对象模型上，两轨窗口同形覆写；等待经既有代次与销毁守卫，被重开/销毁接管的续体静默终止、已销毁的窗不空转轮询。
+- 新增窗口自关策略（`UIWindow` 上 `TryClose` / `CanClose` / `OnCloseFail` / `ForceClose`）：自关先等可交互再过 `CanClose` 门，门为假落 `OnCloseFail` 且窗口留在栈上；`ForceClose` 是跳过等待与门的即时旁路，外部经 `CloseUI` 的关闭不经过这一道。策略在后端无关对象模型上，两轨窗口同形覆写；等待经既有代次与销毁守卫，被重开/销毁接管的续体静默终止、已销毁的窗不空转轮询。
 
 #### 日志
 
