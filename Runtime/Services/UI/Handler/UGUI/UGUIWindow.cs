@@ -42,7 +42,7 @@ namespace Moirai.Atropos.UI
 
         /// <summary>面板根上那枚被 <see cref="BindPanel"/> 初始化并被 <see cref="ApplyDepth"/> 写序的 <see cref="Canvas"/>。</summary>
         /// <remarks>未绑定面板时为 <c>null</c>；与 <see cref="UITKWindow.Document"/> 同档——面板事实的唯一真值来源，取口只在这一处。</remarks>
-        internal Canvas PanelCanvas => _canvas;
+        protected internal Canvas PanelCanvas => _canvas;
 
         #endregion
 

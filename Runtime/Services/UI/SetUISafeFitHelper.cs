@@ -157,7 +157,7 @@ namespace Moirai.Atropos.UI
 
             // 计算需要补偿的偏移量
             // offsetMax.y 通常是负值（顶部被裁切），所以需要加上这个值来补偿
-            // offsetMin.y 通常是正值（底部被裁切），所以需要减去这个值来补偿(实测不减去这个值会更接近)
+            // offsetMin.y 通常是正值（底部被裁切），所以需要减去这个值来补偿(不减去这个值反而更接近)
             float compensationY = -refRect.offsetMax.y; // - _curFitRect.offsetMin.y;
 
             // 应用补偿

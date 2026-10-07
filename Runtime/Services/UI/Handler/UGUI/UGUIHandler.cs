@@ -31,8 +31,7 @@ namespace Moirai.Atropos.UI
         /// 处理器初始化。
         /// </summary>
         /// <remarks>
-        /// 共享栈与全局压制位的归零不在这里：那一份存储两支共用，归零收在门面的 <see cref="UIService.OnInit"/> 与 <see cref="UIService.OnShutdown"/> 那两处， <br />
-        /// 本轨这一枚只复位自己持有的两个根位标志。 <br />
+        /// 共享栈与压制位的归零归门面（<see cref="UIService.OnInit"/>、<see cref="UIService.OnShutdown"/>），本枚只复位两个根位标志。<br />
         /// 此阶段（BeforeSceneLoad）场景尚未加载，根绑定与错误日志判据延迟到首个 Update tick 取用。
         /// </remarks>
         protected override void OnInit()
@@ -116,7 +115,7 @@ namespace Moirai.Atropos.UI
             => ShouldEnableErrorLog(DebuggerService.ActiveWindowType, Debug.isDebugBuild, Application.isEditor);
 
         /// <summary>
-        /// 错误日志记录器的启用判据（纯函数：入参已取出环境位，便于在不依赖 UI 后端与场景的前提下锁住判据方向）。
+        /// 错误日志记录器的启用判据（环境位由入参给出，不读后端与场景）。
         /// </summary>
         /// <param name="activeWindowType">调试器窗口激活策略。</param>
         /// <param name="isDebugBuild">是否为开发（debug）构建。</param>
@@ -154,9 +153,9 @@ namespace Moirai.Atropos.UI
         /// 处理器关闭：清理错误日志系统、关掉本轨那半边的窗，再销毁 UI 根节点。
         /// </summary>
         /// <remarks>
-        /// 只交自己那一轨的窗进共享栈的关闭流程（<see cref="UIServiceHandler.CloseOwnTrackWindows"/>），另一轨的窗留在栈上。 <br />
-        /// UI Toolkit 那一轨的壳挂在本轨这枚 UI 根下：销毁根之前那些壳必须由门面先关停收掉， <br />
-        /// 这一次序归门面的 <see cref="UIService.OnShutdown"/>（它先叫 UI Toolkit 那一枚、再叫这一枚）。
+        /// 只交自己那一轨的窗进共享栈的关闭流程（<see cref="UIServiceHandler.CloseOwnTrackWindows"/>），另一轨的窗留在栈上。<br />
+        /// UI Toolkit 轨的壳挂在本轨这枚 UI 根下：销毁根之前那些壳必须已被门面收掉，<br />
+        /// 该次序归门面的 <see cref="UIService.OnShutdown"/>（先叫 UI Toolkit 那一枚、再叫这一枚）。
         /// </remarks>
         protected override void OnShutdown()
         {
@@ -187,11 +186,11 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 本轨的每帧职责：UI 根还没绑上时续等绑定——整条共享栈的结算不归这一轨驱动，门面每帧叫一次。
+        /// 本轨的每帧职责：UI 根还没绑上时续等绑定。
         /// </summary>
         /// <remarks>
-        /// UI 根晚到（加加载入的场景、运行期实例化）时这一枚保持续等，绑上之后就静默：本轨没有别的帧职责。 <br />
-        /// 根没绑好不影响另一轨的窗：栈上窗口的内部更新由门面交给共享持有者结算，与这一枚的根位无关。
+        /// UI 根晚到（后加载入的场景、运行期实例化）时保持续等，绑上之后即静默，本轨没有别的帧职责。<br />
+        /// 根没绑好不影响另一轨的窗：栈上窗口的内部更新由门面交给共享持有者结算，与本枚的根位无关。
         /// </remarks>
         /// <param name="elapseSeconds">逻辑经过的秒数（本轨不吃）。</param>
         /// <param name="realElapseSeconds">真实经过的秒数（本轨不吃）。</param>
