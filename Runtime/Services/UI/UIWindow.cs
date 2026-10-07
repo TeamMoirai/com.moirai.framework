@@ -384,18 +384,26 @@ namespace Moirai.Atropos.UI
 
         private async UniTaskVoid InternalCloseAsync(uint lifetime)
         {
+            var transition = Transition;
+            if (transition == null)
+            {
+                // 瞬时关闭：不过渡、不锁交互，面板当场停放
+                ParkPanel();
+                return;
+            }
+
             CancelCts();
-            _cts = new CancellationTokenSource();
+            _cts = UICtsPool.Rent();
 
             LockInteraction();
 
-            try { await CloseAnimation(); }
+            try { await transition.Play(false, _cts.Token); }
             catch (OperationCanceledException) { return; }
 
             if (IsDestroyed) return;
 
-            // 交还锁与隐藏都是本轮转移的特权：代次被重开/销毁/新一轮动画接管后，
-            // 子类动画若没观察 token 走到这里，继续执行会拆掉别人持有的锁、把刚重开的窗口重新隐藏。
+            // 交还锁与停放都是本轮转移的特权：代次被重开/销毁/新一轮过渡接管后，
+            // 子类过渡若没观察 token 走到这里，继续执行会拆掉别人持有的锁、把刚重开的窗口重新隐藏。
             // 被取消的那一轮其锁已由接管方（InternalCreate/InternalDestroy）交还。
             if (lifetime != _interactionLifetime) return;
 
@@ -512,53 +520,43 @@ namespace Moirai.Atropos.UI
             if (_cts != null)
             {
                 _cts.Cancel();
-                _cts.Dispose();
+                // 取消过的源由池内废弃，干净的由池回收
+                UICtsPool.Return(_cts);
                 _cts = null;
             }
         }
 
         /// <summary>
-        /// 打开动画等待。子类可 override 以播放打开动画（淡入、缩放等）。
-        /// </summary>
-        protected virtual async UniTask OpenAnimation()
-        {
-            await UniTask.WaitForSeconds(0.5f, true, cancellationToken: _cts.Token);
-        }
-
-        /// <summary>
-        /// 关闭动画等待：子类可 override 以播放关闭动画（淡出、缩放等）。
+        /// 本窗的开/关过渡；为 null 表示瞬时——不过渡、不锁交互、不占全局压制位。
         /// </summary>
         /// <remarks>
-        /// 窗口在动画期间保持可见，动画结束后自动隐藏。
+        /// 默认瞬时：开窗与关闭都当场结算，不再有内置的延迟与输入锁。 <br />
+        /// 覆写它交回 <see cref="IUITransition"/> 即启用过渡：过渡期间本窗锁交互（模态窗还占全局压制位）， <br />
+        /// 被重开/销毁/新一轮过渡接管时按取消令牌掐断，代次守卫由本类接办。
         /// </remarks>
-        protected virtual async UniTask CloseAnimation()
-        {
-            await UniTask.WaitForSeconds(0.25f, true, cancellationToken: _cts.Token);
-        }
-
-        /// <summary>
-        /// 上层窗口关闭后的交互延迟。子类可 override 以自定义延迟行为。
-        /// </summary>
-        protected virtual async UniTask TopRefreshWaiter()
-        {
-            await UniTask.WaitForSeconds(0.25f, true, cancellationToken: _cts.Token);
-        }
+        protected internal virtual IUITransition Transition => null;
 
         private async UniTaskVoid SetInteractWaiter(bool open)
         {
             if (UIService.GetTopWindow() != this) return;
 
-            // 与关闭续体共用同一套代次协议；非栈顶的早退排在递增之前，不会作废他人在跑的动画
+            var transition = Transition;
+            if (transition == null)
+            {
+                // 瞬时档：无过渡即无锁——非栈顶的早退与瞬时档共用这一道，不作废他人在跑的过渡
+                return;
+            }
+
+            // 与关闭续体共用同一套代次协议；非栈顶的早退排在递增之前，不会作废他人在跑的过渡
             var lifetime = ++_interactionLifetime;
             CancelCts();
-            _cts = new CancellationTokenSource();
+            _cts = UICtsPool.Rent();
 
             LockInteraction();
 
             try
             {
-                if (open) await OpenAnimation();
-                else await TopRefreshWaiter();
+                await transition.Play(open, _cts.Token);
             }
             catch (OperationCanceledException) { return; }
 
