@@ -103,8 +103,8 @@ namespace Moirai.Atropos
         // 这种情况通常发生在应用程序被移动到另一个显示器时。
         private Vector2Int _lastMonitorMaxResolution;
 
-        public static event Action OnMaxResolutionChanged;
-        public static event Action<int> OnResolutionChanged;
+        public static event Action onMaxResolutionChanged;
+        public static event Action<int> onResolutionChanged;
 
         /// <summary>是否处于窗口模式。</summary>
         private bool IsWindowed => Screen.fullScreenMode == FullScreenMode.Windowed;
@@ -330,7 +330,7 @@ namespace Moirai.Atropos
                 Instance._resolutionValues = null;
                 Instance._resolutionLabels = null;
 
-                OnMaxResolutionChanged?.Invoke();
+                onMaxResolutionChanged?.Invoke();
             }
 
             if (Instance._resolutionLabels == null || Instance._resolutionLabels.Count == 0 || !Instance.m_CacheResolutions)
@@ -490,7 +490,7 @@ namespace Moirai.Atropos
             Instance._lastSetResolutionFrame = Time.frameCount;
             Instance._lastKnownResolution = resolution;
 
-            OnResolutionChanged?.Invoke(index);
+            onResolutionChanged?.Invoke(index);
         }
     }
 }

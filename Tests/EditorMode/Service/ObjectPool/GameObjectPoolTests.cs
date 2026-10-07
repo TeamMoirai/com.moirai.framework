@@ -16,7 +16,7 @@ namespace Service.GameObjectPool
     /// GameObject 池回归测试：注入 fake <c>IPrefabLoader</c> 直测 <c>RuntimeGameObjectPool</c> 的 Spawn/Despawn 往返、句柄代系校验、容量约束、 <br />
     /// Flush 裁剪与策略规划器。
     /// </summary>
-    /// <remarks>故障注入路径的日志数量不可枚举，消噪窗口经 <c>UtfLogExpect.ScopedIgnore()</c> 打开；框架故障的身份日志经 <see cref="LogUtility.OnMessageLogged"/> 捕获断内容。</remarks>
+    /// <remarks>故障注入路径的日志数量不可枚举，消噪窗口经 <c>UtfLogExpect.ScopedIgnore()</c> 打开；框架故障的身份日志经 <see cref="LogUtility.onMessageLogged"/> 捕获断内容。</remarks>
     public sealed class GameObjectPoolTests
     {
         #region 测试桩 [TEST FAKE]
@@ -120,13 +120,13 @@ namespace Service.GameObjectPool
 
             _logs = new List<(ELogLevel, string)>();
             _logCallback = (level, message, _) => _logs.Add((level, message));
-            LogUtility.OnMessageLogged += _logCallback;
+            LogUtility.onMessageLogged += _logCallback;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= _logCallback;
+            LogUtility.onMessageLogged -= _logCallback;
 
             if (_pool != null)
             {

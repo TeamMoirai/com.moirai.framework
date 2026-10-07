@@ -19,46 +19,46 @@ namespace Moirai.Atropos.Save
         #region 存档事件 [SAVE EVENTS]
 
         /// <summary>槽位变动事件（写入/删除/备份创建/备份恢复；目录级批量删除时 <see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>）。</summary>
-        public static event Action<SaveSlotChangedArgs> SlotChanged;
+        public static event Action<SaveSlotChangedArgs> onSlotChanged;
 
         /// <summary>块保存完成事件（含保留块 <c>__main__</c>/<c>__meta</c> 与组件 KVT 块）。</summary>
-        public static event Action<SaveBlockChangedArgs> BlockSaved;
+        public static event Action<SaveBlockChangedArgs> onBlockSaved;
 
         /// <summary>块删除完成事件（仅目标块真实存在并移除时触发；幂等空删不触发）。</summary>
-        public static event Action<SaveBlockChangedArgs> BlockDeleted;
+        public static event Action<SaveBlockChangedArgs> onBlockDeleted;
 
         /// <summary>保存进度事件（组件捕获按批回报；仅 <see cref="SaveComponentsAsync"/> 管线产生）。</summary>
-        public static event Action<SaveProgressArgs> SaveProgress;
+        public static event Action<SaveProgressArgs> onSaveProgress;
 
         /// <summary>加载进度事件（组件恢复按批回报；仅 <see cref="LoadComponentsAsync"/> 管线产生）。</summary>
-        public static event Action<SaveProgressArgs> LoadProgress;
+        public static event Action<SaveProgressArgs> onLoadProgress;
 
         /// <summary>持久化实体恢复事件（先行定义；生产点由动态实体持久化接线）。</summary>
-        public static event Action<SaveEntityRestoredArgs> EntityRestored;
+        public static event Action<SaveEntityRestoredArgs> onEntityRestored;
 
         /// <summary>保存失败事件（写路径；失败同时以 <see cref="GameException"/> fail-fast 上抛，事件不替代异常）。</summary>
-        public static event Action<SaveFailedArgs> SaveFailed;
+        public static event Action<SaveFailedArgs> onSaveFailed;
 
         /// <summary>加载失败事件（读路径；错误判别经 <c>TryLoad*</c> 族 <see cref="SaveResult{T}"/> 返回，事件提供被动观测）。</summary>
-        public static event Action<SaveFailedArgs> LoadFailed;
+        public static event Action<SaveFailedArgs> onLoadFailed;
 
         /// <summary>存档截图完成事件（<see cref="CaptureScreenshotAsync"/> 管线成功完成后派发）。</summary>
-        public static event Action<SaveScreenshotArgs> ScreenshotCaptured;
+        public static event Action<SaveScreenshotArgs> onScreenshotCaptured;
 
         /// <summary>
         /// 清空全部静态存档事件订阅（调试/热重载入口；正常业务请在订阅方 OnDestroy 中逐项退订）。
         /// </summary>
         public static void UnsubscribeAll()
         {
-            SlotChanged = null;
-            BlockSaved = null;
-            BlockDeleted = null;
-            SaveProgress = null;
-            LoadProgress = null;
-            EntityRestored = null;
-            SaveFailed = null;
-            LoadFailed = null;
-            ScreenshotCaptured = null;
+            onSlotChanged = null;
+            onBlockSaved = null;
+            onBlockDeleted = null;
+            onSaveProgress = null;
+            onLoadProgress = null;
+            onEntityRestored = null;
+            onSaveFailed = null;
+            onLoadFailed = null;
+            onScreenshotCaptured = null;
         }
 
         #endregion
@@ -265,55 +265,55 @@ namespace Moirai.Atropos.Save
 
         private static void PublishSlotChanged(SaveSlotChangedArgs args)
         {
-            SlotChanged?.Invoke(args);
+            onSlotChanged?.Invoke(args);
             SaveSlotChangedEvent.Trigger(args);
         }
 
         private static void PublishBlockSaved(SaveBlockChangedArgs args)
         {
-            BlockSaved?.Invoke(args);
+            onBlockSaved?.Invoke(args);
             SaveBlockChangedEvent.Trigger(ESaveBlockChangeKind.Saved, args);
         }
 
         private static void PublishBlockDeleted(SaveBlockChangedArgs args)
         {
-            BlockDeleted?.Invoke(args);
+            onBlockDeleted?.Invoke(args);
             SaveBlockChangedEvent.Trigger(ESaveBlockChangeKind.Deleted, args);
         }
 
         private static void PublishSaveProgress(SaveProgressArgs args)
         {
-            SaveProgress?.Invoke(args);
+            onSaveProgress?.Invoke(args);
             SaveProgressEvent.Trigger(ESaveProgressKind.Save, args);
         }
 
         private static void PublishLoadProgress(SaveProgressArgs args)
         {
-            LoadProgress?.Invoke(args);
+            onLoadProgress?.Invoke(args);
             SaveProgressEvent.Trigger(ESaveProgressKind.Load, args);
         }
 
         private static void PublishEntityRestored(SaveEntityRestoredArgs args)
         {
-            EntityRestored?.Invoke(args);
+            onEntityRestored?.Invoke(args);
             SaveEntityRestoredEvent.Trigger(args);
         }
 
         private static void PublishSaveFailed(SaveFailedArgs args)
         {
-            SaveFailed?.Invoke(args);
+            onSaveFailed?.Invoke(args);
             SaveFailedEvent.Trigger(ESaveFailureOperation.Save, args);
         }
 
         private static void PublishLoadFailed(SaveFailedArgs args)
         {
-            LoadFailed?.Invoke(args);
+            onLoadFailed?.Invoke(args);
             SaveFailedEvent.Trigger(ESaveFailureOperation.Load, args);
         }
 
         private static void PublishScreenshotCaptured(SaveScreenshotArgs args)
         {
-            ScreenshotCaptured?.Invoke(args);
+            onScreenshotCaptured?.Invoke(args);
             SaveScreenshotEvent.Trigger(args);
         }
 

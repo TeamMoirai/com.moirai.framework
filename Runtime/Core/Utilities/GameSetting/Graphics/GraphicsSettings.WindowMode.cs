@@ -15,7 +15,7 @@ namespace Moirai.Atropos
         private FullScreenMode? _lastKnownWindowMode = null;
         private int _lastSetWindowModeFrame = 0;
 
-        public static event Action<int> OnWindowModeChanged;
+        public static event Action<int> onWindowModeChanged;
 
         public static List<string> GetWindowModeOptionLabels()
         {
@@ -108,7 +108,7 @@ namespace Moirai.Atropos
             Instance._lastSetWindowModeFrame = Time.frameCount;
             Instance._lastKnownWindowMode = mode;
 
-            OnWindowModeChanged?.Invoke(index);
+            onWindowModeChanged?.Invoke(index);
         }
     }
 }

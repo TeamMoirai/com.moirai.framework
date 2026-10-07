@@ -22,7 +22,7 @@ namespace Moirai.Atropos.Save
     }
 
     /// <summary>
-    /// 存档槽位变动事件参数（<see cref="SaveService.SlotChanged"/>）。
+    /// 存档槽位变动事件参数（<see cref="SaveService.onSlotChanged"/>）。
     /// </summary>
     public readonly struct SaveSlotChangedArgs
     {

@@ -115,7 +115,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 
 ### 链语义与错误分型
 
-- 版本相等短路；`文件版本 > 当前版本` → `UnsupportedVersion`（拒绝降级）；链缺失/歧义（同起始版本多条不同目标边）/迁移器异常 → `MigrationFailed`（经 `LoadFailed` 事件 `Migrate` 阶段观测）
+- 版本相等短路；`文件版本 > 当前版本` → `UnsupportedVersion`（拒绝降级）；链缺失/歧义（同起始版本多条不同目标边）/迁移器异常 → `MigrationFailed`（经 `onLoadFailed` 事件 `Migrate` 阶段观测）
 - **写入自愈**：任何读-改-写（块写入/组件块 upsert/块删除回写）触达旧版本档时先迁移再合并——任何落盘文件恒为当前版本，杜绝新形态块落入旧档后被迁移链误变换
 - **回写策略**：加载触发迁移成功后按处理器的 `m_MigrationWriteBack`（默认开）惰性回写（避免每次加载重跑迁移链）；关闭时迁移仅作用于内存，同文件同会话不重复迁移（会话级缓存），盘上保持旧版本
 - **审计**：每个迁移步向 `SaveMetadata.MigrationHistory` 追加 `"{from}->{to}|{迁移器类型全名}|{UTC ISO-8601}"`（随回写持久化）
@@ -189,7 +189,7 @@ MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器�
 GameObject goblin = SaveService.InstantiatePersistent("goblin", pos, rot);
 // 销毁（动态实体移出生成表→数据块下次保存时清理；场景预置对象记入销毁表→恢复时销毁）
 SaveService.DestroyPersistent(goblin);
-// 保存/恢复（恢复 = DestroyUnwanted → SpawnMissing → 父子接线 → RestoreAll → 激活 + EntityRestored 事件）
+// 保存/恢复（恢复 = DestroyUnwanted → SpawnMissing → 父子接线 → RestoreAll → 激活 + onEntityRestored 事件）
 await SaveService.SaveEntitiesAsync("slot1");
 await SaveService.RestoreEntitiesAsync("slot1");
 ```
@@ -197,10 +197,10 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **模板差分**：实体捕获与预制体模板基准（每稳定键会话级缓存一份基准 KVT）逐字段比对，**只写相对模板的变动字段**（嵌套对象递归差分；集合任一变动整条携带，元素级差分为 v2 范围）；恢复 = 实例化（天然模板默认值）+ 应用差分，存档增量最小化。基准不可用（预制体未登记/无根 SaveComponent）时退化为全量写入。
 - **块布局**：实体表 = 保留块 `__entities`（生成记录 EntityId/PrefabKey/SceneName/ParentId + 预置对象销毁 ID）；实体数据 = 每实体一个 `entity:{EntityId}` 块（实体组件块键由管线在激活前改写）。**组件存取 API 跳过 `entity:` 前缀块**——完整世界存取 = `SaveEntitiesAsync` + `SaveComponentsAsync`，恢复 = `RestoreEntitiesAsync` + `LoadComponentsAsync`（顺序：先实体后组件）。
 - **CarryForward 语义**：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留；绕过 `DestroyPersistent` 直接 `Object.Destroy` 的实体，其记录与块同样滞留（须走显式销毁移除）。恢复后会话生成/销毁表以档案状态整体替换。
-- **增量保存**：会话级脏跟踪（按档键控基准 = 实体表字节 + 逐实体差分载荷 + 档写入时间）——均未变化时零 IO 跳过（无事件）；有变化时单趟合并（读档 → 自愈迁移 → 删陈旧 → upsert → 原子写回）仅写脏块（仅变化块触发 `BlockSaved`）；基准失效（首次保存 / 恢复后 / 档被外部改写——写入时间守卫经 `FileInfo.Refresh` 新鲜元数据判定，防 NTFS 缓存滞后误判）保守走全量合并（孤儿清理由读档后解析）。
+- **增量保存**：会话级脏跟踪（按档键控基准 = 实体表字节 + 逐实体差分载荷 + 档写入时间）——均未变化时零 IO 跳过（无事件）；有变化时单趟合并（读档 → 自愈迁移 → 删陈旧 → upsert → 原子写回）仅写脏块（仅变化块触发 `onBlockSaved`）；基准失效（首次保存 / 恢复后 / 档被外部改写——写入时间守卫经 `FileInfo.Refresh` 新鲜元数据判定，防 NTFS 缓存滞后误判）保守走全量合并（孤儿清理由读档后解析）。
 - **线程归属**：实体/组件外观异步 API 的 IO 在工作线程，读档续体返回后先切回主线程再执行场景操作与字段写回（Unity API 恒主线程）。
 - **父子与场景落位**：生成记录的 ParentId（父级须挂 SaveObjectIdentity，否则父子关系不持久化并记告警）在恢复第二轮接线；SceneName 场景已加载则落位其中，否则落位活跃场景并记告警——**落位回落不改写场景归属**（生成表保持档案原 SceneName，下次会话场景加载时实体回到原场景，不漂移）。稳定 ID 查询走 `SaveEntityRegistry`——场景作用域表（场景卸载清扫）+ 全局作用域表（DontDestroyOnLoad 对象常驻）双表。
-- **恢复时序**：生成保持未激活直到差分块写回完成——Awake/OnEnable 即见最终父级与恢复后字段值（游戏逻辑须读档后状态时监听 `EntityRestored` 事件或在 Start 之后）。差分块损坏的实体记错误日志并按模板默认恢复（不阻断其它实体）。
+- **恢复时序**：生成保持未激活直到差分块写回完成——Awake/OnEnable 即见最终父级与恢复后字段值（游戏逻辑须读档后状态时监听 `onEntityRestored` 事件或在 Start 之后）。差分块损坏的实体记错误日志并按模板默认恢复（不阻断其它实体）。
 - **降级契约**：`InstantiatePersistent`/`DestroyPersistent` 不依赖存档处理器（注册表与资源服务可用即可），预制体键未登记/加载失败记错误日志返回 `null`；`SaveEntitiesAsync` 在处理器未就绪时抛 `GameException`；`RestoreEntitiesAsync` 静默降级为空任务。
 - **预制体资产不烘焙 ID**：`SaveObjectIdentity.OnValidate` 跳过预制体资产本体（资产上的 ID 会被全部实例共享而必然撞键）；场景内实例仍各自烘焙，动态实体由生成管线在激活前注入每实例唯一 ID。
 
@@ -210,7 +210,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | 异步生成（取消时返回 `null`） |
 | `DestroyPersistent(target)` | 销毁并登记语义（动态实体移表 / 预置对象记销毁表 / 无身份物体仅销毁） |
 | `SaveEntitiesAsync(fileName, folderName, ct)` | 写入实体表与全部活跃实体差分块（预热基准→差分捕获→增量判定→单趟合并；零变化零 IO 跳过；失败抛 `GameException`） |
-| `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐只触发 `EntityRestored`） |
+| `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐只触发 `onEntityRestored`） |
 
 ## 截图与元数据镜像
 
@@ -219,7 +219,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **元数据镜像**：截图成功后镜像保留块 `__meta`——`ThumbnailFileName`（sidecar 文件名）与 `SceneName`（活动场景名）由管线自动填充；`PlayTimeTicks`（`TimeSpan` ticks）由游戏层按自身累计口径写入。既有元数据损坏时不覆盖（记告警并跳过镜像，保留抢救空间）。
 - **保存联动**：`m_CaptureScreenshotOnSave` 开启后，`SaveBlockAsync` / `SaveComponentsAsync` 成功即自动捕获（保留块 `__` 前缀豁免——元数据镜像回写不递归）；联动失败不回传保存结果，联动取消不外溢到保存方令牌。
 - **生命周期级联**：`DeleteSave` / `DeleteSaveAsync` 删除存档时级联删除 sidecar（防止同名新档复活陈旧缩略图）；目录级删除天然覆盖。
-- **降级契约**：处理器未就绪返回 `HandlerNotReady`；非运行态/批处理模式返回 `NotSupported`（记告警）；sidecar 写入失败返回 `IoFailed` 并记错误日志（不上抛）。截图成功派发 `ScreenshotCaptured` 事件。
+- **降级契约**：处理器未就绪返回 `HandlerNotReady`；非运行态/批处理模式返回 `NotSupported`（记告警）；sidecar 写入失败返回 `IoFailed` 并记错误日志（不上抛）。截图成功派发 `onScreenshotCaptured` 事件。
 
 | API（截图分部） | 说明 |
 |---|---|
@@ -292,12 +292,12 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 | 静态事件 | 桥事件 | 时机 |
 |---|---|---|
-| `SlotChanged` | `SaveSlotChangedEvent` | 槽位写入（`Saved` 创建/更新合并语义）/删除/备份创建/备份恢复；目录级批量删除 `FileName` 为 null |
-| `BlockSaved` / `BlockDeleted` | `SaveBlockChangedEvent` | 块保存/删除完成（fileName+key+后端+字节数）；幂等空删不触发 |
-| `SaveProgress` / `LoadProgress` | `SaveProgressEvent` | 组件存取按批回报（每 8 个一批 + 最终必报；`ShouldReportProgress`） |
-| `SaveFailed` / `LoadFailed` | `SaveFailedEvent` | 失败（`ESaveFailureStage` 阶段 + `SaveError`）；写路径同时 fail-fast 上抛 `GameException`；缺档/无块（FileNotFound）不触发 |
-| `EntityRestored` | `SaveEntityRestoredEvent` | `RestoreEntitiesAsync` 恢复管线逐只实体触发（激活后；参数 = 实体 ID + 预制体键 + 实例） |
-| `ScreenshotCaptured` | `SaveScreenshotEvent` | 截图管线成功完成（fileName+sidecar 文件名+缩略图宽高） |
+| `onSlotChanged` | `SaveSlotChangedEvent` | 槽位写入（`Saved` 创建/更新合并语义）/删除/备份创建/备份恢复；目录级批量删除 `FileName` 为 null |
+| `onBlockSaved` / `onBlockDeleted` | `SaveBlockChangedEvent` | 块保存/删除完成（fileName+key+后端+字节数）；幂等空删不触发 |
+| `onSaveProgress` / `onLoadProgress` | `SaveProgressEvent` | 组件存取按批回报（每 8 个一批 + 最终必报；`ShouldReportProgress`） |
+| `onSaveFailed` / `onLoadFailed` | `SaveFailedEvent` | 失败（`ESaveFailureStage` 阶段 + `SaveError`）；写路径同时 fail-fast 上抛 `GameException`；缺档/无块（FileNotFound）不触发 |
+| `onEntityRestored` | `SaveEntityRestoredEvent` | `RestoreEntitiesAsync` 恢复管线逐只实体触发（激活后；参数 = 实体 ID + 预制体键 + 实例） |
+| `onScreenshotCaptured` | `SaveScreenshotEvent` | 截图管线成功完成（fileName+sidecar 文件名+缩略图宽高） |
 
 ## 配置（SaveServiceSettings）
 
@@ -376,7 +376,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveAssetCatalogTests` | 资产目录双向查找、类型不符、重复首到先得、缓存失效、InvalidateLookup 程序化契约 |
 | `SaveKvDifferTests` | 模板差分：标量/嵌套/集合/新增/类型漂移/体积收缩/坏档 |
 | `SaveEntityTableTests` | 实体表往返、空表、可空字段、未知记录容错 |
-| `SaveEntityPersistenceTests` | 动态实体闭环、差分、销毁标记、父子接线、EntityRestored |
+| `SaveEntityPersistenceTests` | 动态实体闭环、差分、销毁标记、父子接线、onEntityRestored |
 | `SaveEntityIncrementalTests` | 实体增量保存闭环：零变化跳过、仅脏块写回、销毁清陈旧、外部改写/恢复后走全量 |
 | `RestCloudSaveKvStoreTests` | REST 后端：读写往返（修订号/时间戳）、存在探测、幂等删除、前缀枚举、认证头优先级、远端失败/超时归一、ETag 回退 |
 | `SaveBuiltInCapturerTests` | Transform / Rigidbody / ParticleSystem 内置捕获器 |

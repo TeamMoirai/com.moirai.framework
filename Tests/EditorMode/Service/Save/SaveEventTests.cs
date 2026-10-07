@@ -19,7 +19,7 @@ namespace Service.Save
     /// <remarks>
     /// 全部经 internal 同步核心路径在主线程内联派发断言（EditMode 主线程 = <c>MainThreadDispatcher.IsMainThread</c>）； <br />
     /// 后台派发用 <c>Task.Run</c> + <c>MainThreadDispatcher.Pump()</c> 确定性验证入队路径。 <br />
-    /// 错误日志断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
+    /// 错误日志断言经 <see cref="LogUtility.onMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// DefaultLogHandler 同步链路下另补 <c>LogAssert.Expect</c> 消除 UTF 的未预期日志拦截。
     /// </remarks>
     public class SaveEventTests
@@ -52,29 +52,29 @@ namespace Service.Save
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
 
             _capturedLogs = new List<(ELogLevel, string)>();
-            LogUtility.OnMessageLogged += CaptureLog;
+            LogUtility.onMessageLogged += CaptureLog;
 
             _slotEvents = new List<SaveSlotChangedArgs>();
             _blockSavedEvents = new List<SaveBlockChangedArgs>();
             _blockDeletedEvents = new List<SaveBlockChangedArgs>();
             _saveFailedEvents = new List<SaveFailedArgs>();
             _loadFailedEvents = new List<SaveFailedArgs>();
-            SaveService.SlotChanged += OnSlotChanged;
-            SaveService.BlockSaved += OnBlockSaved;
-            SaveService.BlockDeleted += OnBlockDeleted;
-            SaveService.SaveFailed += OnSaveFailed;
-            SaveService.LoadFailed += OnLoadFailed;
+            SaveService.onSlotChanged += OnSlotChanged;
+            SaveService.onBlockSaved += OnBlockSaved;
+            SaveService.onBlockDeleted += OnBlockDeleted;
+            SaveService.onSaveFailed += OnSaveFailed;
+            SaveService.onLoadFailed += OnLoadFailed;
         }
 
         [TearDown]
         public void TearDown()
         {
-            SaveService.SlotChanged -= OnSlotChanged;
-            SaveService.BlockSaved -= OnBlockSaved;
-            SaveService.BlockDeleted -= OnBlockDeleted;
-            SaveService.SaveFailed -= OnSaveFailed;
-            SaveService.LoadFailed -= OnLoadFailed;
-            LogUtility.OnMessageLogged -= CaptureLog;
+            SaveService.onSlotChanged -= OnSlotChanged;
+            SaveService.onBlockSaved -= OnBlockSaved;
+            SaveService.onBlockDeleted -= OnBlockDeleted;
+            SaveService.onSaveFailed -= OnSaveFailed;
+            SaveService.onLoadFailed -= OnLoadFailed;
+            LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             try
             {
@@ -365,7 +365,7 @@ namespace Service.Save
             int mainThreadId = Thread.CurrentThread.ManagedThreadId;
             int eventThreadId = -1;
             void Handler(SaveBlockChangedArgs args) => eventThreadId = Thread.CurrentThread.ManagedThreadId;
-            SaveService.BlockSaved += Handler;
+            SaveService.onBlockSaved += Handler;
             try
             {
                 // 后台线程触发：事件不内联（入队等待主线程泵）
@@ -378,7 +378,7 @@ namespace Service.Save
             }
             finally
             {
-                SaveService.BlockSaved -= Handler;
+                SaveService.onBlockSaved -= Handler;
             }
         }
 
@@ -388,7 +388,7 @@ namespace Service.Save
             int mainThreadId = Thread.CurrentThread.ManagedThreadId;
             int eventThreadId = -1;
             void Handler(SaveSlotChangedArgs args) => eventThreadId = Thread.CurrentThread.ManagedThreadId;
-            SaveService.SlotChanged += Handler;
+            SaveService.onSlotChanged += Handler;
             try
             {
                 SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Saved, "slot", TestFolder);
@@ -396,7 +396,7 @@ namespace Service.Save
             }
             finally
             {
-                SaveService.SlotChanged -= Handler;
+                SaveService.onSlotChanged -= Handler;
             }
         }
 

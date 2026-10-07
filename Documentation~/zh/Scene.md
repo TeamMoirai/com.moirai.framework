@@ -10,7 +10,7 @@
 - 挂起加载：`suspendLoad` 加载完毕后不自动激活，调用 `UnSuspend` 手动激活，适合做加载完成的统一时机控制
 - 进度回调：`progressCallBack` 仅在场景句柄进度发生变化时回报（0~1），成功完成时以 1.0 收尾一次（失败不伪报完成进度），回调异常被隔离记录不中断加载
 - 错误契约：加载失败（重复加载、在途互斥、后端错误等）抛出 `GameException`（fail-fast）；卸载失败返回 `false` 并保留登记供重试
-- 生命周期事件：`MainSceneChanged` / `SubSceneLoaded` / `SubSceneUnloaded` 主线程同步触发，订阅者异常被隔离记录
+- 生命周期事件：`onMainSceneChanged` / `onSubSceneLoaded` / `onSubSceneUnloaded` 主线程同步触发，订阅者异常被隔离记录
 - 防重入保护：同一场景加载/卸载过程中重复请求会被拒绝（加载抛 `GameException`，卸载告警并返回 `false`）
 - 双标识查询：查询/激活/卸载接口同时接受资源地址与场景短名（短名碰撞时后注册者覆盖并告警）
 - 取消语义：`LoadSceneAsync` 的 `CancellationToken` 仅放弃等待（底层加载不可中止），登记与事件由处理器在加载真正结束时收尾
@@ -90,14 +90,14 @@ await SceneService.LoadSceneAsync("ChunkB", LoadSceneMode.Additive);
 主/子场景加载与卸载完成时派发事件，参数为归一化场景短名；事件在主线程同步触发，单个订阅者异常仅记录日志、不影响其余订阅者。服务关闭时静态事件被清空。
 
 ```csharp
-SceneService.MainSceneChanged += name => Debug.Log($"主场景已切换: {name}");
-SceneService.SubSceneLoaded += name => Debug.Log($"子场景已加载: {name}");
-SceneService.SubSceneUnloaded += name => Debug.Log($"子场景已卸载: {name}");
+SceneService.onMainSceneChanged += name => Debug.Log($"主场景已切换: {name}");
+SceneService.onSubSceneLoaded += name => Debug.Log($"子场景已加载: {name}");
+SceneService.onSubSceneUnloaded += name => Debug.Log($"子场景已卸载: {name}");
 ```
 
 ### 取消等待
 
-场景加载一经发起不可中止（引擎与资源后端均无中止能力）。`LoadSceneAsync` 的 `CancellationToken` 仅取消等待与进度回调（放弃等待语义）——await 方收到 `OperationCanceledException`，加载本身仍会继续，登记与 `SubSceneLoaded` / `MainSceneChanged` 事件由处理器在加载真正结束时收尾：
+场景加载一经发起不可中止（引擎与资源后端均无中止能力）。`LoadSceneAsync` 的 `CancellationToken` 仅取消等待与进度回调（放弃等待语义）——await 方收到 `OperationCanceledException`，加载本身仍会继续，登记与 `onSubSceneLoaded` / `onMainSceneChanged` 事件由处理器在加载真正结束时收尾：
 
 ```csharp
 try

@@ -8,7 +8,7 @@ namespace Moirai.Atropos
         /// <summary>垂直同步是否启用。</summary>
         public static bool VSyncEnabled => QualitySettings.vSyncCount != 0;
 
-        public static event Action<int> OnVSyncChanged;
+        public static event Action<int> onVSyncChanged;
 
         /// <summary>
         /// 设置垂直同步。
@@ -17,7 +17,7 @@ namespace Moirai.Atropos
         {
             int vSyncCount = enabled ? 1 : 0;
             QualitySettings.vSyncCount = vSyncCount;
-            OnVSyncChanged?.Invoke(vSyncCount);
+            onVSyncChanged?.Invoke(vSyncCount);
         }
 
         /// <summary>
@@ -27,7 +27,7 @@ namespace Moirai.Atropos
         private static void SetVSync(int vSyncCount)
         {
             QualitySettings.vSyncCount = vSyncCount;
-            OnVSyncChanged?.Invoke(vSyncCount);
+            onVSyncChanged?.Invoke(vSyncCount);
         }
     }
 }

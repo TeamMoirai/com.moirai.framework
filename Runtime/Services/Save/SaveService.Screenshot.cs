@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Save
     /// </summary>
     /// <remarks>
     /// 截图管线：帧末捕获屏幕 → GPU Blit 降采样 + 小图回读编码 PNG → 经存储层（<see cref="ISaveStorage"/>， <br />
-    /// 云后端天然跟随）原子写 sidecar <c>{存档基名}.screenshot.png</c> → 镜像元数据块（缩略图文件名 + 活动场景名）→ 派发 <see cref="ScreenshotCaptured"/> 事件。 <br />
+    /// 云后端天然跟随）原子写 sidecar <c>{存档基名}.screenshot.png</c> → 镜像元数据块（缩略图文件名 + 活动场景名）→ 派发 <see cref="onScreenshotCaptured"/> 事件。 <br />
     /// 截图仅限运行态主线程；存档删除时 sidecar 级联删除（防止同名新档复活陈旧缩略图）。 <br />
     /// 联动开关：<see cref="SaveServiceSettings.CaptureScreenshotOnSave"/> 开启时， <br />
     /// 块保存（<see cref="SaveBlockAsync{T}"/>）与组件保存（<see cref="SaveComponentsAsync"/>）成功后自动捕获——保留块（<c>__</c> 前缀，含元数据镜像回写）豁免联动。

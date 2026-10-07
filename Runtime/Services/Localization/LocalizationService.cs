@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Localization
         /// </remarks>
         public override void OnInit()
         {
-            Handler.OnLanguageChanged += OnLanguageChanged;
+            Handler.onLanguageChanged += onLanguageChanged;
             ReplayPendingLocalizers();
             DebuggerService.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
         }
@@ -66,8 +66,8 @@ namespace Moirai.Atropos.Localization
             s_Handler = null;
             handler?.Internal_Shutdown();
 
-            if (handler != null) handler.OnLanguageChanged -= OnLanguageChanged;
-            OnLanguageChanged = null;
+            if (handler != null) handler.onLanguageChanged -= onLanguageChanged;
+            onLanguageChanged = null;
             s_PendingLocalizers = null;
             ResetOneShotLogs();
         }
@@ -117,7 +117,7 @@ namespace Moirai.Atropos.Localization
         #region 事件 [EVENTS]
 
         /// <summary>当语言改变时调用。</summary>
-        public static event Action<Language> OnLanguageChanged;
+        public static event Action<Language> onLanguageChanged;
 
         #endregion
 
@@ -420,7 +420,7 @@ namespace Moirai.Atropos.Localization
         #region 订阅与运行时覆盖 [SUBSCRIPTION & OVERLAY]
 
         /// <summary>
-        /// 以句柄订阅语言变更（与 <see cref="OnLanguageChanged"/> 同一次派发，但 Dispose 即摘除、关服自动作废）。
+        /// 以句柄订阅语言变更（与 <see cref="onLanguageChanged"/> 同一次派发，但 Dispose 即摘除、关服自动作废）。
         /// </summary>
         /// <returns>订阅句柄；服务未就绪时返回一个立即可 Dispose 的空句柄。</returns>
         public static IDisposable SubscribeLanguageChanged(Action<Language> callback) =>

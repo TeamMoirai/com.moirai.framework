@@ -80,8 +80,8 @@ namespace Moirai.Atropos.Input
 
         protected override void OnInit()
         {
-            _state.ResetRequested += ResetAllInputStates;
-            _state.SuppressionChanged += ApplySuppressionState;
+            _state.onResetRequested += ResetAllInputStates;
+            _state.onSuppressionChanged += ApplySuppressionState;
             _actionCache.Clear();
             RebuildMapNameSets();
 
@@ -111,8 +111,8 @@ namespace Moirai.Atropos.Input
 
         protected override void OnShutdown()
         {
-            _state.ResetRequested -= ResetAllInputStates;
-            _state.SuppressionChanged -= ApplySuppressionState;
+            _state.onResetRequested -= ResetAllInputStates;
+            _state.onSuppressionChanged -= ApplySuppressionState;
             _actionCache.Clear();
 
             ReleaseAssetIfOwned();
@@ -307,7 +307,7 @@ namespace Moirai.Atropos.Input
         }
 
         /// <summary>
-        /// 按当前有效压制态启用或禁用上下文 Map（由 <see cref="InputStateMachine.SuppressionChanged"/> 驱动，OnInit 末尾对齐一次）。
+        /// 按当前有效压制态启用或禁用上下文 Map（由 <see cref="InputStateMachine.onSuppressionChanged"/> 驱动，OnInit 末尾对齐一次）。
         /// </summary>
         /// <remarks>未列入两类 Map 的动作不受影响；Map 禁用后其全部动作（含尚未缓存的）查询自然降级。</remarks>
         private void ApplySuppressionState()

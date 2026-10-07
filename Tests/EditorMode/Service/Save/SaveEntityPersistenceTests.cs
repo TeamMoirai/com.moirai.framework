@@ -15,11 +15,11 @@ using UObject = UnityEngine.Object;
 namespace Service.Save
 {
     /// <summary>
-    /// 动态实体持久化闭环测试：生成（注入 ID/块键/命名规整）→ 差分捕获（体积与内容）→ 销毁标记 → 恢复（原 ID/字段值/模板默认/父子接线/EntityRestored 事件）→ 陈旧块清理 → 加载失败降级。
+    /// 动态实体持久化闭环测试：生成（注入 ID/块键/命名规整）→ 差分捕获（体积与内容）→ 销毁标记 → 恢复（原 ID/字段值/模板默认/父子接线/onEntityRestored 事件）→ 陈旧块清理 → 加载失败降级。
     /// </summary>
     /// <remarks>
     /// 模板加载器注入假实现（绕开 ResourceService/EditMode 限制）；模板源保持未激活避免 Awake 注册污染。 <br />
-    /// 告警/错误断言经 <see cref="LogUtility.OnMessageLogged"/> 事件捕获（Handler 无关）； <br />
+    /// 告警/错误断言经 <see cref="LogUtility.onMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。
     /// </remarks>
     public partial class SaveEntityPersistenceTests
@@ -52,8 +52,8 @@ namespace Service.Save
         {
             _capturedLogs = new List<(ELogLevel, string)>();
             _restoredEvents = new List<SaveEntityRestoredArgs>();
-            LogUtility.OnMessageLogged += CaptureLog;
-            SaveService.EntityRestored += OnEntityRestored;
+            LogUtility.onMessageLogged += CaptureLog;
+            SaveService.onEntityRestored += OnEntityRestored;
             SaveEntityRegistry.ResetTables();
             SaveEntityPersistence.ResetForTests();
             SaveBuiltInCapturers.RegisterBuiltIns();
@@ -87,8 +87,8 @@ namespace Service.Save
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= CaptureLog;
-            SaveService.EntityRestored -= OnEntityRestored;
+            LogUtility.onMessageLogged -= CaptureLog;
+            SaveService.onEntityRestored -= OnEntityRestored;
             foreach (GameObject gameObject in _objects)
             {
                 if (gameObject != null)
@@ -278,7 +278,7 @@ namespace Service.Save
             Assert.AreEqual(new Vector3(5f, 1f, 0f), restored.transform.localPosition, "变换差分恢复");
             Assert.AreEqual(90f, restored.transform.localEulerAngles.y, 0.01f);
 
-            Assert.AreEqual(1, _restoredEvents.Count, "EntityRestored 事件应逐实体触发");
+            Assert.AreEqual(1, _restoredEvents.Count, "onEntityRestored 事件应逐实体触发");
             Assert.AreEqual(entityId, _restoredEvents[0].EntityId);
             Assert.AreEqual(ENEMY_KEY, _restoredEvents[0].PrefabKey);
             Assert.AreSame(restored.gameObject, _restoredEvents[0].Instance);

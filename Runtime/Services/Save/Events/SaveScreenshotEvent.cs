@@ -3,7 +3,7 @@ using Moirai.Atropos.Events;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档截图完成的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.ScreenshotCaptured"/> 二选一订阅）。
+    /// 存档截图完成的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.onScreenshotCaptured"/> 二选一订阅）。
     /// </summary>
     /// <remarks>生产点由截图管线接线，当前尚无生产方。</remarks>
     public class SaveScreenshotEvent : EventBase<SaveScreenshotEvent>

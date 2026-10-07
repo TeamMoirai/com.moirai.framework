@@ -700,7 +700,7 @@ namespace Moirai.Atropos.Save
         /// 删除整个存档文件夹（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 目录级批量删除恒触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，不保证目录先前存在）。 <br />
+        /// 目录级批量删除恒触发一次 <see cref="SaveService.onSlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，不保证目录先前存在）。 <br />
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFiles"/>）。</param>
@@ -713,7 +713,7 @@ namespace Moirai.Atropos.Save
         /// 删除整个存档文件夹并返回目录先前的存在性（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteSaveFolder"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；<c>true</c> = 存在并已删除， <br />
+        /// 事件行为同 <see cref="DeleteSaveFolder"/>（恒触发一次 <see cref="SaveService.onSlotChanged"/>）；<c>true</c> = 存在并已删除， <br />
         /// <c>false</c> = 本不存在。
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
@@ -754,7 +754,7 @@ namespace Moirai.Atropos.Save
         /// 删除存档数据根目录（<c>persistentDataPath/Data/</c>）及其下所有存档。
         /// </summary>
         /// <remarks>
-        /// 恒触发一次 <see cref="SaveService.SlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，文件夹为空串）。 <br />
+        /// 恒触发一次 <see cref="SaveService.onSlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，文件夹为空串）。 <br />
         /// 持分层门执行（根级），与所有存档的块级读写互斥。
         /// </remarks>
         public void DeleteAllSaveFiles()
@@ -766,7 +766,7 @@ namespace Moirai.Atropos.Save
         /// 删除存档数据根目录并返回目录先前的存在性（<c>persistentDataPath/Data/</c> 及其下所有存档）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteAllSaveFiles"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；<c>true</c> = 存在并已删除， <br />
+        /// 事件行为同 <see cref="DeleteAllSaveFiles"/>（恒触发一次 <see cref="SaveService.onSlotChanged"/>）；<c>true</c> = 存在并已删除， <br />
         /// <c>false</c> = 本不存在。
         /// 持分层门执行（根级），与所有存档的块级读写互斥。
         /// </remarks>
@@ -857,7 +857,7 @@ namespace Moirai.Atropos.Save
         /// 异步删除整个存档文件夹（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 目录级批量删除恒触发一次 <see cref="SaveService.SlotChanged"/>（不保证目录先前存在）。 <br />
+        /// 目录级批量删除恒触发一次 <see cref="SaveService.onSlotChanged"/>（不保证目录先前存在）。 <br />
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
@@ -872,7 +872,7 @@ namespace Moirai.Atropos.Save
         /// 异步删除整个存档文件夹并返回目录先前的存在性（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteSaveFolderAsync"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；持分层门执行（根 + 文件夹两级）， <br />
+        /// 事件行为同 <see cref="DeleteSaveFolderAsync"/>（恒触发一次 <see cref="SaveService.onSlotChanged"/>）；持分层门执行（根 + 文件夹两级）， <br />
         /// 存在性判定与删除在同一临界区内完成。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="TryDeleteAllSaveFilesAsync"/>）。</param>
@@ -931,7 +931,7 @@ namespace Moirai.Atropos.Save
         /// 异步删除存档数据根目录并返回目录先前的存在性（<c>persistentDataPath/Data/</c> 及其下所有存档）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteAllSaveFilesAsync"/>（恒触发一次 <see cref="SaveService.SlotChanged"/>）；持分层门执行（根级），存在性判定与删除在同一临界区内完成。
+        /// 事件行为同 <see cref="DeleteAllSaveFilesAsync"/>（恒触发一次 <see cref="SaveService.onSlotChanged"/>）；持分层门执行（根级），存在性判定与删除在同一临界区内完成。
         /// </remarks>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>目录先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
@@ -1527,7 +1527,7 @@ namespace Moirai.Atropos.Save
         /// 读路径迁移前置（加载管线统一入口）：按需执行迁移链并按 <see cref="MigrationWriteBack"/> 惰性回写。
         /// </summary>
         /// <remarks>
-        /// 回写失败不阻断本次加载（内存数据已迁移；失败经日志与 <see cref="SaveService.SaveFailed"/> 事件观测，下一会话重试）。
+        /// 回写失败不阻断本次加载（内存数据已迁移；失败经日志与 <see cref="SaveService.onSaveFailed"/> 事件观测，下一会话重试）。
         /// </remarks>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="blocks">健康数据块列表（迁移后替换）。</param>
@@ -2107,7 +2107,7 @@ namespace Moirai.Atropos.Save
 
             if (ioError != SaveError.None)
             {
-                // IO 失败的详细日志已由存储层记录；事件统一走 LoadFailed（写路径的合并读失败同样经此观测）
+                // IO 失败的详细日志已由存储层记录；事件统一走 onLoadFailed（写路径的合并读失败同样经此观测）
                 SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageRead, ioError);
                 return ioError;
             }
@@ -2132,7 +2132,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将存档流（头 + 载荷）经流式管线还原为容器块列表（头读取 → CRC 增量包装 → 解密链 → 解压包装流 → 段池拉取 → 整档 CRC 把关 → 容器跨段解析； <br />
-        /// 错误分型触发 <see cref="SaveService.LoadFailed"/> 事件）。
+        /// 错误分型触发 <see cref="SaveService.onLoadFailed"/> 事件）。
         /// </summary>
         /// <remarks>
         /// 读路径全程无整档文件/容器驻留：解密/解压链输出经 256KB 池化段拉取（归还于 finally），峰值与文件大小解耦。

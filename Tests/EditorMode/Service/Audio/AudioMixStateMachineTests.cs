@@ -32,13 +32,13 @@ namespace Service.Audio
 
             _capturedMessages.Clear();
             AudioWarnOnce.Reset();
-            LogUtility.OnMessageLogged += OnMessageLogged;
+            LogUtility.onMessageLogged += OnMessageLogged;
         }
 
         [TearDown]
         public void TearDown()
         {
-            LogUtility.OnMessageLogged -= OnMessageLogged;
+            LogUtility.onMessageLogged -= OnMessageLogged;
             AudioWarnOnce.Reset();
         }
 
