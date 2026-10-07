@@ -193,7 +193,7 @@ namespace Moirai.Atropos.UI
             _prepareCallback = prepareCallback;
             _params = @params;
 
-            var loadCts = new CancellationTokenSource();
+            var loadCts = UICtsPool.Rent();
             _loadCts = loadCts;
 
             // 装载面板是后端的活：本类只认「装上没有」，装上之后统一把三份意图落到新面板上
@@ -237,7 +237,8 @@ namespace Moirai.Atropos.UI
                 {
                     _loadCts = null;
                 }
-                loadCts.Dispose();
+                // 取消过的源由池内废弃，干净的回池复用
+                UICtsPool.Return(loadCts);
             }
         }
 
@@ -361,83 +362,20 @@ namespace Moirai.Atropos.UI
             OnRefresh();
         }
 
-        internal bool InternalUpdate()
+        /// <summary>
+        /// 每帧驱动：窗口一侧在就绪门之上再加可见性门，子级与 OnUpdate 的结算共用基类核心。
+        /// </summary>
+        /// <returns>还要被栈继续驱动时为真。</returns>
+        internal override bool InternalUpdate()
         {
             if (!IsPrepare || !Visible)
             {
                 return false;
             }
 
-            List<UIWidget> listNextUpdateChild = null;
-            if (ChildList != null && ChildList.Count > 0)
-            {
-                listNextUpdateChild = _updateChildList;
-                var updateListValid = _updateListValid;
-                List<UIWidget> childList = null;
-                if (!updateListValid)
-                {
-                    if (listNextUpdateChild == null)
-                    {
-                        listNextUpdateChild = new List<UIWidget>();
-                        _updateChildList = listNextUpdateChild;
-                    }
-                    else
-                    {
-                        listNextUpdateChild.Clear();
-                    }
-
-                    childList = ChildList;
-                }
-                else
-                {
-                    childList = listNextUpdateChild;
-                }
-
-                for (int i = 0; i < childList.Count; i++)
-                {
-                    var uiWidget = childList[i];
-
-                    if (uiWidget == null)
-                    {
-                        continue;
-                    }
-
-                    GameProfiler.BeginSample(uiWidget.WidgetName);
-                    var needValid = uiWidget.InternalUpdate();
-                    GameProfiler.EndSample();
-
-                    if (!updateListValid && needValid)
-                    {
-                        listNextUpdateChild.Add(uiWidget);
-                    }
-                }
-
-                if (!updateListValid)
-                {
-                    _updateListValid = true;
-                }
-            }
-
-            GameProfiler.BeginSample("OnUpdate");
-
-            bool needUpdate = false;
-            if (listNextUpdateChild == null || listNextUpdateChild.Count <= 0)
-            {
-                _hasOverrideUpdate = true;
-                OnUpdate();
-                needUpdate = _hasOverrideUpdate;
-            }
-            else
-            {
-                OnUpdate();
-                needUpdate = true;
-            }
-
-            GameProfiler.EndSample();
-
-            return needUpdate;
+            return DriveUpdateCore();
         }
-        
+
         protected internal virtual void InternalClose()
         {
             OnClose();
@@ -719,6 +657,11 @@ namespace Moirai.Atropos.UI
                 UIService.SharedLedger.CloseUI(GetType(), WindowName);
             }
         }
+
+        private Action _closeDelegate;
+
+        /// <summary>缓存的本窗关闭委托：隐藏转关闭的定时器复用同一枚，不在每次隐藏时分配。</summary>
+        internal Action CloseDelegate => _closeDelegate ??= Close;
 
         internal void CancelHideToCloseTimer()
         {
