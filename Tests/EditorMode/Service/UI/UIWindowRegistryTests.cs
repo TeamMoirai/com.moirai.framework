@@ -119,6 +119,11 @@ namespace Service.UI
             {
                 return UniTask.FromResult(LoadPanel(assetLocation, fromResources));
             }
+
+            protected internal override void ParkPanel()
+            {
+                // 缓存档探针不建面板：停放只记账，未绑定面板不得在即时关闭时抛 NRE
+            }
         }
 
         /// <summary>没标 [Window] 的窗口类：注册表按未登记处理，不得静默兜默认开出。</summary>
