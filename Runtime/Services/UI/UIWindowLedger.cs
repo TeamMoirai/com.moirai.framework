@@ -257,7 +257,7 @@ namespace Moirai.Atropos.UI
                     window = CreateInstance(type, windowName, assetLocation, fromResources);
                     onInstanceCreated?.Invoke(window); // 交在压栈与装载之前：晚一步面板就按没覆盖的那一份装上了
                     Push(window); // 首次压入
-                    window.InternalLoad(window.AssetName, OnWindowPrepare, isAsync, userData).Forget();
+                    window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync, userData).Forget();
                 }
             }
         }
@@ -314,7 +314,7 @@ namespace Moirai.Atropos.UI
                 window = CreateInstance(type, windowName, assetLocation, fromResources);
                 onInstanceCreated?.Invoke(window); // 同上：交在压栈与装载之前，等出来的面板才带着这一枚覆盖
                 Push(window); // 首次压入
-                window.InternalLoad(window.AssetName, OnWindowPrepare, isAsync, userData).Forget();
+                window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync, userData).Forget();
             }
 
             // 使用 WaitUntil 替代手动轮询，避免每帧 unscaledDeltaTime 累加；CTS 提供超时保护

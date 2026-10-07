@@ -39,7 +39,7 @@ namespace Moirai.Atropos.UI
         public int WindowLayer { get; private set; }
 
         /// <summary>资源定位地址。</summary>
-        public string AssetName { get; private set; }
+        public string AssetLocation { get; private set; }
 
         /// <summary>是否为全屏窗口。</summary>
         /// <remarks>将全屏下层的UI设为隐藏</remarks>
@@ -163,7 +163,7 @@ namespace Moirai.Atropos.UI
             WindowName = name;
             WindowLayer = layer;
             FullScreen = fullScreen;
-            AssetName = assetLocation;
+            AssetLocation = assetLocation;
             FromResources = fromResources;
             HideTimeToClose = hideTimeToClose;
             CacheInstance = cacheInstance;
