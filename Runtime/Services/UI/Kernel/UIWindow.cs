@@ -23,6 +23,7 @@ namespace Moirai.Atropos.UI
         #region 属性 [PROPERTIES]
 
         private bool _isCreate = false;
+        private bool _eventsRegistered;
         private Action<UIWindow> _prepareCallback;
         // 交互/可见性交接代次：每次状态转移（打开/关闭/重开/销毁）递增，只有最新一轮的续体可以交还交互锁与隐藏窗口
         private uint _interactionLifetime;
@@ -406,33 +407,40 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void InternalCreate()
         {
-            // 缓存实例重开时 _isCreate 仍为 true，上一轮的动画续体可能还挂在路上：
-            // 先作废其代次并掐掉动画，再交还交互锁定状态，交给本次打开流程重新决策。
             _interactionLifetime++;
             CancelCts();
             UnlockInteraction();
 
-            if (_isCreate == false)
+            bool firstCreate = !_isCreate;
+            try
             {
-                _isCreate = true;
-                try
+                if (firstCreate)
                 {
+                    _isCreate = true;
                     Inject();
                     ScriptGenerator();
                     BindMemberProperty();
+                }
+
+                if (!_eventsRegistered)
+                {
+                    _eventsRegistered = true;
                     RegisterEvent();
+                }
+
+                if (firstCreate)
+                {
                     OnCreate();
                 }
-                catch (System.Exception ex)
-                {
-                    LogUtility.Error("UI 窗口 '{0}' 创建链抛出异常，按装载失败回滚：{1}", WindowName, ex);
-                    RollbackFailedLoad();
-                    return;
-                }
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 创建链抛出异常，按装载失败回滚：{1}", WindowName, ex);
+                RollbackFailedLoad();
+                return;
             }
 
             InternalRefresh(true);
-            // LogUtility.Info("[UI] Open {0}", WindowName);
         }
 
         internal void InternalRefresh(bool open)
@@ -476,6 +484,19 @@ namespace Moirai.Atropos.UI
             }
 
             InternalCloseAsync(++_interactionLifetime).Forget();
+
+            if (_eventsRegistered)
+            {
+                _eventsRegistered = false;
+                try
+                {
+                    UnregisterEvent();
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 UnregisterEvent 抛出异常，关闭流程照常走完：{1}", WindowName, ex);
+                }
+            }
         }
 
         private async UniTaskVoid InternalCloseAsync(uint lifetime)
@@ -514,8 +535,19 @@ namespace Moirai.Atropos.UI
         {
             _isCreate = false;
 
-            UnregisterEvent();
-            
+            if (_eventsRegistered)
+            {
+                _eventsRegistered = false;
+                try
+                {
+                    UnregisterEvent();
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 UnregisterEvent 抛出异常，销毁流程照常走完：{1}", WindowName, ex);
+                }
+            }
+
             for (int i = 0; i < ChildList.Count; i++)
             {
                 var uiChild = ChildList[i];
