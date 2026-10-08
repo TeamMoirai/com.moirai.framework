@@ -95,9 +95,9 @@ namespace Service.UI
         [Test]
         public void Push_PerLayerAndCrossTrackWindows_LandInOneStackByLayerOrder()
         {
-            var bottom = Window<ProbeUGUIWindow>("Bottom1", (int)UILayer.Bottom);
-            var middle = Window<ProbeUGUIWindow>("Mid1", (int)UILayer.UI);
-            var lateBottom = Window<ProbeUITKWindow>("Bottom2", (int)UILayer.Bottom);
+            var bottom = Window<ProbeUGUIWindow>("Bottom1", (int)EUILayer.Bottom);
+            var middle = Window<ProbeUGUIWindow>("Mid1", (int)EUILayer.UI);
+            var lateBottom = Window<ProbeUITKWindow>("Bottom2", (int)EUILayer.Bottom);
 
             UIService.SharedLedger.Push(bottom);
             UIService.SharedLedger.Push(middle);
@@ -111,8 +111,8 @@ namespace Service.UI
         [Test]
         public void Push_DuplicateWindowName_FailsFastWithoutInserting()
         {
-            var first = Window<ProbeUGUIWindow>("Duplicated", (int)UILayer.Tips);
-            var second = Window<ProbeUGUIWindow>("Duplicated", (int)UILayer.Tips);
+            var first = Window<ProbeUGUIWindow>("Duplicated", (int)EUILayer.Tips);
+            var second = Window<ProbeUGUIWindow>("Duplicated", (int)EUILayer.Tips);
             UIService.SharedLedger.Push(first);
 
             Assert.Throws<GameException>(() => UIService.SharedLedger.Push(second), "同名窗口不得第二次压栈");
@@ -130,19 +130,19 @@ namespace Service.UI
         [Test]
         public void Push_ModalWindowAbove_SuppressesInteractableOfWindowBelow()
         {
-            var below = Window<ProbeUGUIWindow>("BelowModal", (int)UILayer.Bottom);
+            var below = Window<ProbeUGUIWindow>("BelowModal", (int)EUILayer.Bottom);
             below.Interactable = true;
             UIService.SharedLedger.Push(below);
 
-            UIService.SharedLedger.Push(Window<ProbeUGUIWindow>("ModalAbove", (int)UILayer.Popup));
+            UIService.SharedLedger.Push(Window<ProbeUGUIWindow>("ModalAbove", (int)EUILayer.Popup));
 
             Assert.IsFalse(below.Interactable, "模态窗口压在上方时要写掉下层的可交互位");
 
-            var belowTips = Window<ProbeUGUIWindow>("BelowTips", (int)UILayer.Bottom);
+            var belowTips = Window<ProbeUGUIWindow>("BelowTips", (int)EUILayer.Bottom);
             belowTips.Interactable = true;
             UIService.SharedLedger.Push(belowTips);
 
-            UIService.SharedLedger.Push(Window<ProbeUITKWindow>("TipsOnTop", (int)UILayer.Tips));
+            UIService.SharedLedger.Push(Window<ProbeUITKWindow>("TipsOnTop", (int)EUILayer.Tips));
 
             Assert.IsTrue(belowTips.Interactable, "非模态的顶级提示压上来时不写下层的可交互位");
         }
@@ -151,9 +151,9 @@ namespace Service.UI
         [Test]
         public void Pop_NamedWindow_RemovesItAndKeepsTheRestInOrder()
         {
-            var first = Window<ProbeUGUIWindow>("First", (int)UILayer.Bottom);
-            var second = Window<ProbeUITKWindow>("Second", (int)UILayer.UI);
-            var third = Window<ProbeUGUIWindow>("Third", (int)UILayer.Popup);
+            var first = Window<ProbeUGUIWindow>("First", (int)EUILayer.Bottom);
+            var second = Window<ProbeUITKWindow>("Second", (int)EUILayer.UI);
+            var third = Window<ProbeUGUIWindow>("Third", (int)EUILayer.Popup);
             UIService.SharedLedger.Push(first);
             UIService.SharedLedger.Push(second);
             UIService.SharedLedger.Push(third);
@@ -178,19 +178,19 @@ namespace Service.UI
         [Test]
         public void CurrentModal_MixedTrackStack_AnswersLastModalInStackOrder()
         {
-            var hud = Window<ProbeUGUIWindow>("Hud", (int)UILayer.Bottom);
+            var hud = Window<ProbeUGUIWindow>("Hud", (int)EUILayer.Bottom);
             UIService.SharedLedger.Push(hud);
             Assert.IsNull(UIService.SharedLedger.CurrentModal, "只有非模态层时没有遮挡者");
 
-            var firstModal = Window<ProbeUITKWindow>("Modal1", (int)UILayer.UI);
+            var firstModal = Window<ProbeUITKWindow>("Modal1", (int)EUILayer.UI);
             UIService.SharedLedger.Push(firstModal);
             Assert.AreSame(firstModal, UIService.SharedLedger.CurrentModal, "模态窗压上来后由它回答遮挡");
 
-            var secondModal = Window<ProbeUGUIWindow>("Modal2", (int)UILayer.Popup);
+            var secondModal = Window<ProbeUGUIWindow>("Modal2", (int)EUILayer.Popup);
             UIService.SharedLedger.Push(secondModal);
             Assert.AreSame(secondModal, UIService.SharedLedger.CurrentModal, "两枚模态并存时取栈序末位");
 
-            UIService.SharedLedger.Push(Window<ProbeUGUIWindow>("Tip", (int)UILayer.Tips));
+            UIService.SharedLedger.Push(Window<ProbeUGUIWindow>("Tip", (int)EUILayer.Tips));
             Assert.AreSame(secondModal, UIService.SharedLedger.CurrentModal, "末位的非模态提示不改变遮挡答案");
         }
 
@@ -208,20 +208,20 @@ namespace Service.UI
         [Test]
         public void GetTopWindow_PerLayerAndWholeStack_AnswerByStackOrderWithinLayer()
         {
-            var bottom = Window<ProbeUGUIWindow>("QBottom", (int)UILayer.Bottom);
-            var firstUi = Window<ProbeUITKWindow>("QFirstUi", (int)UILayer.UI);
-            var secondUi = Window<ProbeUGUIWindow>("QSecondUi", (int)UILayer.UI);
-            var popup = Window<ProbeUITKWindow>("QPopup", (int)UILayer.Popup);
+            var bottom = Window<ProbeUGUIWindow>("QBottom", (int)EUILayer.Bottom);
+            var firstUi = Window<ProbeUITKWindow>("QFirstUi", (int)EUILayer.UI);
+            var secondUi = Window<ProbeUGUIWindow>("QSecondUi", (int)EUILayer.UI);
+            var popup = Window<ProbeUITKWindow>("QPopup", (int)EUILayer.Popup);
             UIService.SharedLedger.Push(bottom);
             UIService.SharedLedger.Push(firstUi);
             UIService.SharedLedger.Push(secondUi);
             UIService.SharedLedger.Push(popup);
 
             Assert.AreSame(popup, UIService.SharedLedger.GetTopWindow(), "全栈档取栈末位");
-            Assert.AreSame(secondUi, UIService.SharedLedger.GetTopWindow((int)UILayer.UI), "单层档取该层栈序末位");
-            Assert.AreEqual("QSecondUi", UIService.SharedLedger.GetTopWindowName((int)UILayer.UI), "名称档跟着单层档走");
-            Assert.IsNull(UIService.SharedLedger.GetTopWindow((int)UILayer.System), "没压过窗的层级回 null");
-            Assert.AreEqual(string.Empty, UIService.SharedLedger.GetTopWindowName((int)UILayer.System),
+            Assert.AreSame(secondUi, UIService.SharedLedger.GetTopWindow((int)EUILayer.UI), "单层档取该层栈序末位");
+            Assert.AreEqual("QSecondUi", UIService.SharedLedger.GetTopWindowName((int)EUILayer.UI), "名称档跟着单层档走");
+            Assert.IsNull(UIService.SharedLedger.GetTopWindow((int)EUILayer.System), "没压过窗的层级回 null");
+            Assert.AreEqual(string.Empty, UIService.SharedLedger.GetTopWindowName((int)EUILayer.System),
                 "空层的名称档回空串");
         }
 
@@ -229,7 +229,7 @@ namespace Service.UI
         [Test]
         public void IsAnyLoading_BeforePanelLoaded_ReportsLoadingAndClearsAfterLoad()
         {
-            var loading = Window<ProbeUGUIWindow>("Loading", (int)UILayer.UI);
+            var loading = Window<ProbeUGUIWindow>("Loading", (int)EUILayer.UI);
             UIService.SharedLedger.Push(loading);
             Assert.IsTrue(UIService.SharedLedger.IsAnyLoading(), "面板没就绪的窗口在栈上时要报加载中");
 
@@ -248,7 +248,7 @@ namespace Service.UI
         [Test]
         public void HasWindow_TypeAndGenericEntry_FallBackToTypeFullNameWhenNameMissing()
         {
-            var namedByType = Window<ProbeUGUIWindow>(typeof(ProbeUGUIWindow).FullName, (int)UILayer.UI);
+            var namedByType = Window<ProbeUGUIWindow>(typeof(ProbeUGUIWindow).FullName, (int)EUILayer.UI);
             UIService.SharedLedger.Push(namedByType);
 
             Assert.IsTrue(UIService.SharedLedger.HasWindow<ProbeUGUIWindow>(null), "名字缺省时按类型全名命中");
@@ -263,8 +263,8 @@ namespace Service.UI
         [Test]
         public void GetWindowGeneric_TypeAndNameBothMustMatch_AcrossTracks()
         {
-            var uguiWindow = Window<ProbeUGUIWindow>("KitOrUGUI1", (int)UILayer.UI);
-            var kitWindow = Window<ProbeUITKWindow>("KitOrUGUI2", (int)UILayer.Popup);
+            var uguiWindow = Window<ProbeUGUIWindow>("KitOrUGUI1", (int)EUILayer.UI);
+            var kitWindow = Window<ProbeUITKWindow>("KitOrUGUI2", (int)EUILayer.Popup);
             UIService.SharedLedger.Push(uguiWindow);
             UIService.SharedLedger.Push(kitWindow);
 
@@ -289,7 +289,7 @@ namespace Service.UI
             Assert.IsFalse(UIService.SharedLedger.IsBlockedByModal(empty), "栈上没有模态时谁都不挡");
 
             var modal = new ProbeOwnedWindow();
-            modal.Init("OwnedModal", (int)UILayer.UI, false, "Panel", false, 10, false);
+            modal.Init("OwnedModal", (int)EUILayer.UI, false, "Panel", false, 10, false);
             var panel = Object("ModalPanel");
             modal.Root = panel;
             var child = Object("ModalChild");
@@ -301,7 +301,7 @@ namespace Service.UI
             Assert.IsFalse(UIService.SharedLedger.IsBlockedByModal(child), "模态面板的子物体不算被挡");
             Assert.IsTrue(UIService.SharedLedger.IsBlockedByModal(bystander), "别的面板被模态挡住");
 
-            var panelless = Window<ProbeUGUIWindow>("PanellessModal", (int)UILayer.Popup);
+            var panelless = Window<ProbeUGUIWindow>("PanellessModal", (int)EUILayer.Popup);
             UIService.SharedLedger.Push(panelless);
             Assert.IsFalse(UIService.SharedLedger.IsBlockedByModal(bystander),
                 "末位模态没有面板物体时按 curModal 取空早退，谁都不挡");
@@ -315,13 +315,13 @@ namespace Service.UI
         [Test]
         public void OnSortWindowDepth_TwoWindowsOnSameLayer_AssendDepthByStackOrder()
         {
-            var first = Prepared("Sort1", (int)UILayer.Tips);
-            var second = Prepared("Sort2", (int)UILayer.Tips);
+            var first = Prepared("Sort1", (int)EUILayer.Tips);
+            var second = Prepared("Sort2", (int)EUILayer.Tips);
 
-            UIService.SharedLedger.OnSortWindowDepth((int)UILayer.Tips);
+            UIService.SharedLedger.OnSortWindowDepth((int)EUILayer.Tips);
 
-            Assert.AreEqual((int)UILayer.Tips * UIService.LAYER_DEEP, first.Depth, "栈序第一枚拿到该层基址");
-            Assert.AreEqual((int)UILayer.Tips * UIService.LAYER_DEEP + UIService.WINDOW_DEEP, second.Depth,
+            Assert.AreEqual((int)EUILayer.Tips * UIService.LAYER_DEEP, first.Depth, "栈序第一枚拿到该层基址");
+            Assert.AreEqual((int)EUILayer.Tips * UIService.LAYER_DEEP + UIService.WINDOW_DEEP, second.Depth,
                 "同层后一枚比前一枚高一档");
         }
 
@@ -329,14 +329,14 @@ namespace Service.UI
         [Test]
         public void OnWindowPrepare_ReadyWindow_CreatesSortsAndShowsIt()
         {
-            var window = Window<ProbeUGUIWindow>("Prepare1", (int)UILayer.UI);
+            var window = Window<ProbeUGUIWindow>("Prepare1", (int)EUILayer.UI);
             UIService.SharedLedger.Push(window);
             window.InternalLoad("Panel", null, false, null);
 
             UIService.SharedLedger.OnWindowPrepare(window);
 
             Assert.AreEqual(1, window.CreateCalls, "就绪回执要补建一次");
-            Assert.AreEqual((int)UILayer.UI * UIService.LAYER_DEEP, window.Depth, "就绪回执要按层落一次深度");
+            Assert.AreEqual((int)EUILayer.UI * UIService.LAYER_DEEP, window.Depth, "就绪回执要按层落一次深度");
             Assert.IsTrue(window.Visible, "就绪回执要把栈顶窗口置为可见");
         }
 
@@ -350,8 +350,8 @@ namespace Service.UI
         [Test]
         public void OnSetWindowVisible_FullScreenPreparedOnTop_HidesWindowsBelow()
         {
-            var below = Prepared("HiddenBelow", (int)UILayer.Bottom);
-            var top = Prepared("FullScreenTop", (int)UILayer.UI, true);
+            var below = Prepared("HiddenBelow", (int)EUILayer.Bottom);
+            var top = Prepared("FullScreenTop", (int)EUILayer.UI, true);
             below.Visible = true;
 
             UIService.SharedLedger.OnSetWindowVisible();
@@ -364,10 +364,10 @@ namespace Service.UI
         [Test]
         public void OnSetWindowVisible_HiddenWindowBelow_IsSkippedByReceipt()
         {
-            var hidden = Prepared("HiddenFlag", (int)UILayer.Bottom);
+            var hidden = Prepared("HiddenFlag", (int)EUILayer.Bottom);
             hidden.IsHide = true;
             hidden.Visible = false;
-            var top = Prepared("TopAfterHidden", (int)UILayer.UI);
+            var top = Prepared("TopAfterHidden", (int)EUILayer.UI);
 
             UIService.SharedLedger.OnSetWindowVisible();
 
@@ -384,8 +384,8 @@ namespace Service.UI
         public void Tick_PreparedAndVisibleWindows_DrivesEveryWindowInStackOrder()
         {
             var order = new List<string>();
-            var first = Prepared("Tick1", (int)UILayer.Bottom);
-            var second = Prepared("Tick2", (int)UILayer.UI);
+            var first = Prepared("Tick1", (int)EUILayer.Bottom);
+            var second = Prepared("Tick2", (int)EUILayer.UI);
             first.UpdateSink = order;
             second.UpdateSink = order;
 
@@ -399,7 +399,7 @@ namespace Service.UI
         public void Tick_WindowNotPrepared_StaysUndriven()
         {
             var order = new List<string>();
-            var window = Window<ProbeUGUIWindow>("NotPrepared", (int)UILayer.Bottom);
+            var window = Window<ProbeUGUIWindow>("NotPrepared", (int)EUILayer.Bottom);
             window.UpdateSink = order;
             UIService.SharedLedger.Push(window);
 
@@ -418,9 +418,9 @@ namespace Service.UI
         [Test]
         public void Tick_StackChangedMidLoop_StopsThisRound()
         {
-            var first = Prepared("Mutator", (int)UILayer.Bottom);
-            var second = Prepared("Removed", (int)UILayer.UI);
-            var third = Prepared("Skipped", (int)UILayer.Popup);
+            var first = Prepared("Mutator", (int)EUILayer.Bottom);
+            var second = Prepared("Removed", (int)EUILayer.UI);
+            var third = Prepared("Skipped", (int)EUILayer.Popup);
             first.Updates = 0;
             second.Updates = 0;
             third.Updates = 0;
@@ -446,7 +446,7 @@ namespace Service.UI
             new UIService().OnInit();
             Assert.IsNotNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：按配置启用之后 uGUI 那一轨的驱动者没就位");
             Assert.IsNotNull(UIService.Internal_PeekUITKHandler(), "量具前提坏了：按配置启用之后 UI Toolkit 那一轨的驱动者没就位");
-            var window = Prepared("SettleOnce", (int)UILayer.Bottom);
+            var window = Prepared("SettleOnce", (int)EUILayer.Bottom);
             window.Updates = 0;
 
             new UIService().Tick(0f, 0f);
@@ -468,7 +468,7 @@ namespace Service.UI
             EnableOnlyUITKTrackAndInit();
             Assert.IsNotNull(UIService.Internal_PeekUITKHandler(), "量具前提坏了：配置只启用 UI Toolkit 那一支时它没就位");
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：这一格判的是只剩 UI Toolkit 那一枚的档");
-            var window = Prepared("KitOnlyFrame", (int)UILayer.Bottom);
+            var window = Prepared("KitOnlyFrame", (int)EUILayer.Bottom);
             window.Updates = 0;
 
             Assert.IsTrue(UIService.IsValid, "量具前提坏了：UI Toolkit 那一枚就位时门面就该算有效");
@@ -735,10 +735,10 @@ namespace Service.UI
         {
             var driver = new UITKHandler();
             driver.Internal_Init();
-            var leftover = Window<ProbeUGUIWindow>("Round1", (int)UILayer.UI);
+            var leftover = Window<ProbeUGUIWindow>("Round1", (int)EUILayer.UI);
             UIService.SharedLedger.Push(leftover);
             driver.Internal_Shutdown();
-            UIService.SharedLedger.Push(Window<ProbeUITKWindow>("Round2", (int)UILayer.UI));
+            UIService.SharedLedger.Push(Window<ProbeUITKWindow>("Round2", (int)EUILayer.UI));
 
             driver.Internal_Init();
 
@@ -756,7 +756,7 @@ namespace Service.UI
         {
             var first = new UGUIHandler();
             first.Internal_Init();
-            var mine = Window<ProbeUGUIWindow>("FirstDriverWindow", (int)UILayer.UI);
+            var mine = Window<ProbeUGUIWindow>("FirstDriverWindow", (int)EUILayer.UI);
             UIService.SharedLedger.Push(mine);
 
             var other = new UITKHandler();
@@ -777,7 +777,7 @@ namespace Service.UI
         {
             var driver = new UITKHandler();
             driver.Internal_Init();
-            var modal = Prepared("HeldModal", (int)UILayer.UI);
+            var modal = Prepared("HeldModal", (int)EUILayer.UI);
             Assert.IsTrue(HoldLease(modal), "量具前提坏了：模态窗口没占到压制权");
 
             driver.Internal_Shutdown();
@@ -795,7 +795,7 @@ namespace Service.UI
         [Test]
         public void FacadeReset_EmptiesTheSharedStackOnceAndReleasesGlobalSuppressionFlag()
         {
-            var modal = Prepared("FacadeHeldModal", (int)UILayer.UI);
+            var modal = Prepared("FacadeHeldModal", (int)EUILayer.UI);
             Assert.IsTrue(HoldLease(modal), "量具前提坏了：模态窗口没占到压制权");
             InputService.PreventInteractionUI = true;
 
@@ -845,7 +845,7 @@ namespace Service.UI
         public void SharedStack_HandlerBornBeforeStorageRenewal_ReadsTheCurrentStack()
         {
             var handler = new UGUIHandler();
-            var stale = Window<ProbeUITKWindow>("RenewalStale", (int)UILayer.UI);
+            var stale = Window<ProbeUITKWindow>("RenewalStale", (int)EUILayer.UI);
             UIService.SharedLedger.Push(stale);
             UIService.Internal_ResetHandlerSlots();
 
@@ -865,7 +865,7 @@ namespace Service.UI
         public void SharedStack_PushOnSharedLedger_ShowsUpInTheOtherDriversTopWindow()
         {
             var ugui = new UGUIHandler();
-            var pushed = Window<ProbeUITKWindow>("OtherDriverTop", (int)UILayer.UI);
+            var pushed = Window<ProbeUITKWindow>("OtherDriverTop", (int)EUILayer.UI);
             UIService.SharedLedger.Push(pushed);
 
             Assert.IsNotNull(ugui.GetTopWindow(), "另一支的栈顶查询要答出这一支压进去的那只窗");
@@ -953,7 +953,7 @@ namespace Service.UI
             EnableOnlyUITKTrackAndInit();
             Assert.IsNotNull(UIService.Internal_PeekUITKHandler(), "量具前提坏了：配置只启用 UI Toolkit 那一支时它没就位");
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：这一格判的是只剩 UI Toolkit 那一枚的档");
-            var window = Prepared("KitOnlyQuery", (int)UILayer.UI);
+            var window = Prepared("KitOnlyQuery", (int)EUILayer.UI);
 
             Assert.IsTrue(UIService.IsValid, "量具前提坏了：只剩 UI Toolkit 那一枚时门面就该算有效");
             Assert.AreSame(window, UIService.GetTopWindow(), "门面的栈顶查询答的是那条共享栈上的那只窗");
@@ -1018,14 +1018,17 @@ namespace Service.UI
         {
             EnableBothTracksAndInit();
             Assert.IsNotNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：回叫的守卫认的是门面有驱动者在位");
-            var ugui = Prepared("CallbackUGUI", (int)UILayer.Bottom);
-            var kit = PreparedKit("CallbackKit", (int)UILayer.UI);
+            var ugui = Prepared("CallbackUGUI", (int)EUILayer.Bottom);
+            var kit = PreparedKit("CallbackKit", (int)EUILayer.UI);
 
+            // 这一格判的是回叫路由：先把交互位拨到「已过等待」那一档，自关才会当场结算（等待段挂在 PlayerLoop，EditMode 不驱动）
+            ugui.Interactable = true;
             ugui.Close();
 
             Assert.IsNull(UIService.SharedLedger.GetWindow<ProbeUGUIWindow>("CallbackUGUI"), "uGUI 轨那一只的关闭回叫结算进了栈");
             Assert.IsNotNull(UIService.SharedLedger.GetWindow<ProbeUITKWindow>("CallbackKit"), "同一时刻另一轨那一只不受影响");
 
+            kit.Interactable = true;
             kit.Close();
 
             Assert.IsNull(UIService.SharedLedger.GetWindow<ProbeUITKWindow>("CallbackKit"), "UI Toolkit 轨那一只走的也是那条栈");
@@ -1044,10 +1047,11 @@ namespace Service.UI
             EnableOnlyUITKTrackAndInit();
             Assert.IsNotNull(UIService.Internal_PeekUITKHandler(), "量具前提坏了：配置只启用 UI Toolkit 那一支时它没就位");
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：这一格判的是只剩 UI Toolkit 那一枚的档");
-            var window = Prepared("KitOnlyClose", (int)UILayer.Bottom);
+            var window = Prepared("KitOnlyClose", (int)EUILayer.Bottom);
 
             Assert.IsTrue(UIService.IsValid, "量具前提坏了：只剩 UI Toolkit 那一枚时门面就该算有效");
 
+            window.Interactable = true;
             window.Close();
 
             Assert.IsNull(UIService.SharedLedger.GetWindow<ProbeUGUIWindow>("KitOnlyClose"), "另一轨的驱动者不在位不是回叫落空的理由");
@@ -1066,8 +1070,8 @@ namespace Service.UI
             EnableOnlyUITKTrackAndInit();
             Assert.IsNotNull(UIService.Internal_PeekUITKHandler(), "量具前提坏了：配置只启用 UI Toolkit 那一支时它没就位");
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：这一格判的是只剩 UI Toolkit 那一枚的档");
-            var covering = Prepared("KitOnlyHideCover", (int)UILayer.UI, true);
-            var below = Prepared("KitOnlyHideBelow", (int)UILayer.Bottom);
+            var covering = Prepared("KitOnlyHideCover", (int)EUILayer.UI, true);
+            var below = Prepared("KitOnlyHideBelow", (int)EUILayer.Bottom);
             Assert.IsFalse(below.Visible, "量具前提坏了：栈顶那枚全屏窗的就绪回执应已把下层压住");
 
             covering.Hide();
@@ -1089,10 +1093,10 @@ namespace Service.UI
             EnableOnlyUITKTrackAndInit();
             Assert.IsNotNull(UIService.Internal_PeekUITKHandler(), "量具前提坏了：配置只启用 UI Toolkit 那一支时它没就位");
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：这一格判的是只剩 UI Toolkit 那一枚的档");
-            var modal = Prepared("KitOnlyLease", (int)UILayer.UI);
+            var modal = Prepared("KitOnlyLease", (int)EUILayer.UI);
 
             Assert.IsTrue(UIService.IsValid, "量具前提坏了：只剩 UI Toolkit 那一枚时门面就该算有效");
-            var other = Prepared("KitOtherWindow", (int)UILayer.UI);
+            var other = Prepared("KitOtherWindow", (int)EUILayer.UI);
 
             Assert.IsTrue(UIService.AcquireModalInteraction(modal), "模态窗在另一轨上时压制照样要争得到");
             Assert.IsFalse(UIService.ReleaseModalInteraction(other), "不是持有者就交不回这枚压制");
@@ -1113,8 +1117,8 @@ namespace Service.UI
         [Test]
         public void CloseUI_CachedAndPlainWindows_RouteSeparatelyAndLeaveStack()
         {
-            var plain = Prepared("PlainClose", (int)UILayer.Bottom);
-            var cached = Window<ProbeUGUIWindow>("CachedClose", (int)UILayer.UI, false, true);
+            var plain = Prepared("PlainClose", (int)EUILayer.Bottom);
+            var cached = Window<ProbeUGUIWindow>("CachedClose", (int)EUILayer.UI, false, true);
             UIService.SharedLedger.Push(cached);
             cached.InternalLoad("Panel", null, false, null);
             UIService.SharedLedger.OnWindowPrepare(cached);
@@ -1137,7 +1141,7 @@ namespace Service.UI
         [Test]
         public void CloseUI_WithoutName_ResolvesByTypeFullName()
         {
-            var window = Window<ProbeUGUIWindow>(typeof(ProbeUGUIWindow).FullName, (int)UILayer.Bottom);
+            var window = Window<ProbeUGUIWindow>(typeof(ProbeUGUIWindow).FullName, (int)EUILayer.Bottom);
             UIService.SharedLedger.Push(window);
 
             UIService.SharedLedger.CloseUI(typeof(ProbeUGUIWindow), null);
@@ -1149,8 +1153,8 @@ namespace Service.UI
         [Test]
         public void HideUI_ZeroHideTime_ClosesWindowInsteadOfHiding()
         {
-            var window = Window<ProbeUGUIWindow>("InstantClose", (int)UILayer.Bottom);
-            window.Init("InstantClose", (int)UILayer.Bottom, false, "Panel", false, 0, false);
+            var window = Window<ProbeUGUIWindow>("InstantClose", (int)EUILayer.Bottom);
+            window.Init("InstantClose", (int)EUILayer.Bottom, false, "Panel", false, 0, false);
             UIService.SharedLedger.Push(window);
             window.InternalLoad("Panel", null, false, null);
             UIService.SharedLedger.OnWindowPrepare(window);
@@ -1174,8 +1178,8 @@ namespace Service.UI
         [Test]
         public void HideUI_FullScreenWindow_HidesItAndRepublishesVisibilityReceipt()
         {
-            var below = Prepared("BelowFullScreen", (int)UILayer.Bottom);
-            var fullScreen = Prepared("FullScreenHide", (int)UILayer.UI, true);
+            var below = Prepared("BelowFullScreen", (int)EUILayer.Bottom);
+            var fullScreen = Prepared("FullScreenHide", (int)EUILayer.UI, true);
             Assert.IsFalse(below.Visible, "量具前提坏了：全屏窗压在栈顶时下层应被压住");
 
             UIService.SharedLedger.HideUI(typeof(ProbeUGUIWindow), "FullScreenHide");
@@ -1190,8 +1194,8 @@ namespace Service.UI
         [Test]
         public void CloseAll_PerShutdownFlag_CachesOnNormalRoundAndDestroysOnShutdownRound()
         {
-            var cached = Window<ProbeUGUIWindow>("AllCached", (int)UILayer.Bottom, false, true);
-            var plain = Window<ProbeUGUIWindow>("AllPlain", (int)UILayer.UI);
+            var cached = Window<ProbeUGUIWindow>("AllCached", (int)EUILayer.Bottom, false, true);
+            var plain = Window<ProbeUGUIWindow>("AllPlain", (int)EUILayer.UI);
             UIService.SharedLedger.Push(cached);
             UIService.SharedLedger.Push(plain);
 
@@ -1201,7 +1205,7 @@ namespace Service.UI
             Assert.IsTrue(UIService.SharedLedger.IsParked("AllCached"), "非关停轮缓存窗进停放表");
             Assert.IsTrue(plain.IsDestroyed, "非缓存窗一律销毁");
 
-            var shutdownCached = Window<ProbeUGUIWindow>("AllCached2", (int)UILayer.Bottom, false, true);
+            var shutdownCached = Window<ProbeUGUIWindow>("AllCached2", (int)EUILayer.Bottom, false, true);
             UIService.SharedLedger.Push(shutdownCached);
 
             UIService.SharedLedger.CloseAll(true);
@@ -1220,9 +1224,9 @@ namespace Service.UI
         [Test]
         public void CloseAllWithOut_InstanceTypeAndLayer_PreserveExactlyTheirOwnWindows()
         {
-            var keepInstance = Window<ProbeUGUIWindow>("KeepInstance", (int)UILayer.Bottom);
+            var keepInstance = Window<ProbeUGUIWindow>("KeepInstance", (int)EUILayer.Bottom);
             UIService.SharedLedger.Push(keepInstance);
-            UIService.SharedLedger.Push(Window<ProbeUITKWindow>("GoUITK", (int)UILayer.UI));
+            UIService.SharedLedger.Push(Window<ProbeUITKWindow>("GoUITK", (int)EUILayer.UI));
 
             UIService.SharedLedger.CloseAllWithOut(keepInstance);
 
@@ -1231,9 +1235,9 @@ namespace Service.UI
 
             // 三档共用的就是那一份存储：换档之间要把共享栈与压制位归零，否则下一档读到的仍是上一档留下的栈序
             UIService.Internal_ResetSharedLedger();
-            var keepKit = Window<ProbeUITKWindow>("KeepKit", (int)UILayer.Bottom);
+            var keepKit = Window<ProbeUITKWindow>("KeepKit", (int)EUILayer.Bottom);
             UIService.SharedLedger.Push(keepKit);
-            UIService.SharedLedger.Push(Window<ProbeUGUIWindow>("GoUGUI", (int)UILayer.UI));
+            UIService.SharedLedger.Push(Window<ProbeUGUIWindow>("GoUGUI", (int)EUILayer.UI));
 
             UIService.SharedLedger.CloseAllWithOut<ProbeUITKWindow>();
 
@@ -1241,11 +1245,11 @@ namespace Service.UI
                 "按类型留人留下的是 UI Toolkit 轨那一类");
 
             UIService.Internal_ResetSharedLedger();
-            var keepTips = Window<ProbeUGUIWindow>("KeepTips", (int)UILayer.Tips);
+            var keepTips = Window<ProbeUGUIWindow>("KeepTips", (int)EUILayer.Tips);
             UIService.SharedLedger.Push(keepTips);
-            UIService.SharedLedger.Push(Window<ProbeUGUIWindow>("GoPopup", (int)UILayer.Popup));
+            UIService.SharedLedger.Push(Window<ProbeUGUIWindow>("GoPopup", (int)EUILayer.Popup));
 
-            UIService.SharedLedger.CloseAllWithOut(UILayer.Tips);
+            UIService.SharedLedger.CloseAllWithOut(EUILayer.Tips);
 
             CollectionAssert.AreEqual(new UIWindow[] { keepTips }, Stack,
                 "按层级留人只留 Tips 层");
@@ -1264,8 +1268,8 @@ namespace Service.UI
         {
             var uguiDriver = new UGUIHandler();
             uguiDriver.Internal_Init();
-            var uguiWindow = Prepared("ShutUGUI", (int)UILayer.Bottom);
-            var kitWindow = Window<ProbeUITKWindow>("ShutKit", (int)UILayer.Bottom);
+            var uguiWindow = Prepared("ShutUGUI", (int)EUILayer.Bottom);
+            var kitWindow = Window<ProbeUITKWindow>("ShutKit", (int)EUILayer.Bottom);
             UIService.SharedLedger.Push(kitWindow);
             kitWindow.InternalLoad("Panel", null, false, null);
             UIService.SharedLedger.OnWindowPrepare(kitWindow);
@@ -1296,7 +1300,7 @@ namespace Service.UI
             Assert.IsTrue(_uiRootGo != null && uguiDriver.UIRoot != null, "量具前提坏了：UI 根没绑上，销毁那一步判不到");
 
             var kitWindow = new OrderProbeUITKWindow();
-            kitWindow.Init("OrderKit", (int)UILayer.Bottom, false, "Panel", false, 10, false);
+            kitWindow.Init("OrderKit", (int)EUILayer.Bottom, false, "Panel", false, 10, false);
             kitWindow.RootToObserve = _uiRootGo;
             var ledger = UIService.SharedLedger;
             ledger.Push(kitWindow);
@@ -1325,21 +1329,21 @@ namespace Service.UI
         [Test]
         public void PushPop_KeepGetTopWindowOnTheStackTail()
         {
-            var bottom = Window<ProbeUGUIWindow>("SyncBottom", (int)UILayer.Bottom);
-            var popup = Window<ProbeUITKWindow>("SyncPopup", (int)UILayer.Popup);
+            var bottom = Window<ProbeUGUIWindow>("SyncBottom", (int)EUILayer.Bottom);
+            var popup = Window<ProbeUITKWindow>("SyncPopup", (int)EUILayer.Popup);
 
             UIService.SharedLedger.Push(bottom);
             Assert.AreSame(bottom, UIService.SharedLedger.GetTopWindow(), "刚压上来的那一只就是栈顶");
 
             UIService.SharedLedger.Push(popup);
             Assert.AreSame(popup, UIService.SharedLedger.GetTopWindow(), "更高层级压上来后栈顶换人");
-            Assert.AreSame(popup, UIService.SharedLedger.GetTopWindow((int)UILayer.Popup), "单层档答的是同一只");
-            Assert.AreEqual("SyncPopup", UIService.SharedLedger.GetTopWindowName((int)UILayer.Popup), "名称档随单层档");
+            Assert.AreSame(popup, UIService.SharedLedger.GetTopWindow((int)EUILayer.Popup), "单层档答的是同一只");
+            Assert.AreEqual("SyncPopup", UIService.SharedLedger.GetTopWindowName((int)EUILayer.Popup), "名称档随单层档");
 
             UIService.SharedLedger.Pop(popup);
             Assert.AreSame(bottom, UIService.SharedLedger.GetTopWindow(), "移出栈顶那一只后回到下一只");
-            Assert.IsNull(UIService.SharedLedger.GetTopWindow((int)UILayer.Popup), "该层已经没人");
-            Assert.AreEqual(string.Empty, UIService.SharedLedger.GetTopWindowName((int)UILayer.Popup), "空层的名称档回空串");
+            Assert.IsNull(UIService.SharedLedger.GetTopWindow((int)EUILayer.Popup), "该层已经没人");
+            Assert.AreEqual(string.Empty, UIService.SharedLedger.GetTopWindowName((int)EUILayer.Popup), "空层的名称档回空串");
 
             UIService.SharedLedger.Pop(bottom);
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "空栈的栈顶回 null");
@@ -1356,11 +1360,11 @@ namespace Service.UI
         [Test]
         public void CloseAllWithOut_LeavesReceiptsUnsettled_WhileCloseUIRepublishesThem()
         {
-            var earlier = Prepared("SameLayerEarlier", (int)UILayer.UI);
-            var kept = Prepared("SameLayerKept", (int)UILayer.UI);
-            var fullScreenTop = Prepared("FullScreenTop", (int)UILayer.Popup, true);
+            var earlier = Prepared("SameLayerEarlier", (int)EUILayer.UI);
+            var kept = Prepared("SameLayerKept", (int)EUILayer.UI);
+            var fullScreenTop = Prepared("FullScreenTop", (int)EUILayer.Popup, true);
             Assert.IsFalse(kept.Visible, "量具前提坏了：上层全屏窗的就绪回执应已把下层压住");
-            Assert.AreEqual((int)UILayer.UI * UIService.LAYER_DEEP + UIService.WINDOW_DEEP, kept.Depth,
+            Assert.AreEqual((int)EUILayer.UI * UIService.LAYER_DEEP + UIService.WINDOW_DEEP, kept.Depth,
                 "量具前提坏了：同层后到者按栈序拿到第二档深度");
 
             UIService.SharedLedger.CloseAllWithOut(kept);
@@ -1368,14 +1372,14 @@ namespace Service.UI
             CollectionAssert.AreEqual(new UIWindow[] { kept }, Stack, "全关留人只留下那一只");
             Assert.IsTrue(earlier.IsDestroyed && fullScreenTop.IsDestroyed, "其余两只走销毁");
             Assert.IsFalse(kept.Visible, "既有分歧：全关留人不重发显隐回执，下层窗停在被压住的假位上");
-            Assert.AreEqual((int)UILayer.UI * UIService.LAYER_DEEP + UIService.WINDOW_DEEP, kept.Depth,
+            Assert.AreEqual((int)EUILayer.UI * UIService.LAYER_DEEP + UIService.WINDOW_DEEP, kept.Depth,
                 "既有分歧：同层只剩它一只时深度也不重排，沿用上一轮的第二档");
 
             // 两档各归零一次那一份共享栈：上一档留下的栈序与停放表不得串进这一档的判据里
             UIService.Internal_ResetSharedLedger();
-            var earlierShown = Prepared("CloseEarlier", (int)UILayer.UI);
-            var survivor = Prepared("CloseSurvivor", (int)UILayer.UI);
-            var top = Prepared("CloseTop", (int)UILayer.Popup, true);
+            var earlierShown = Prepared("CloseEarlier", (int)EUILayer.UI);
+            var survivor = Prepared("CloseSurvivor", (int)EUILayer.UI);
+            var top = Prepared("CloseTop", (int)EUILayer.Popup, true);
             Assert.IsFalse(survivor.Visible, "量具前提坏了：单关闭这一侧同样先被全屏窗压住");
 
             UIService.SharedLedger.CloseUI(typeof(ProbeUGUIWindow), top.WindowName);
@@ -1384,7 +1388,7 @@ namespace Service.UI
 
             UIService.SharedLedger.CloseUI(typeof(ProbeUGUIWindow), earlierShown.WindowName);
 
-            Assert.AreEqual((int)UILayer.UI * UIService.LAYER_DEEP, survivor.Depth,
+            Assert.AreEqual((int)EUILayer.UI * UIService.LAYER_DEEP, survivor.Depth,
                 "单关闭按被关窗口的层级重排深度：同层只剩一只时落回该层基址");
             Assert.IsTrue(earlierShown.IsDestroyed, "被单关闭的那只走销毁");
         }
@@ -1400,8 +1404,8 @@ namespace Service.UI
         [Test]
         public void CloseUI_CachedWindowParksItWithoutWritingTheVisibleIntent()
         {
-            var below = Prepared("ParkBelow", (int)UILayer.Bottom);
-            var cached = Window<ProbeUGUIWindow>("ParkFullScreen", (int)UILayer.UI, true, true);
+            var below = Prepared("ParkBelow", (int)EUILayer.Bottom);
+            var cached = Window<ProbeUGUIWindow>("ParkFullScreen", (int)EUILayer.UI, true, true);
             UIService.SharedLedger.Push(cached);
             cached.InternalLoad("Panel", null, false, null);
             UIService.SharedLedger.OnWindowPrepare(cached);
@@ -1416,10 +1420,10 @@ namespace Service.UI
             Assert.IsTrue(below.Visible, "同一次关闭里下层窗接到了重发的显隐回执");
 
             UIService.SharedLedger.OnSetWindowVisible();
-            UIService.SharedLedger.OnSortWindowDepth((int)UILayer.UI);
+            UIService.SharedLedger.OnSortWindowDepth((int)EUILayer.UI);
 
             Assert.IsTrue(cached.Visible, "出栈之后显隐回执答不到它：可见意图停在停放时那一位");
-            Assert.AreEqual((int)UILayer.UI * UIService.LAYER_DEEP, cached.Depth, "深度回执同样答不到它");
+            Assert.AreEqual((int)EUILayer.UI * UIService.LAYER_DEEP, cached.Depth, "深度回执同样答不到它");
         }
 
         #endregion
@@ -1596,7 +1600,8 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨的编排探针窗：面板钩子只记账，不建 Canvas、不取资产。</summary>
-        private sealed class ProbeUGUIWindow : UGUIWindow
+        [Window(EUILayer.Tips)]
+        internal sealed class ProbeUGUIWindow : UGUIWindow
         {
             /// <summary>本窗被 <c>Tick</c> 驱动的次数。</summary>
             internal int Updates;
@@ -1640,8 +1645,8 @@ namespace Service.UI
         /// 面板钩子一律只记账：没有 Canvas 也没有 UI Document，只有装载时自建的那枚物体。 <br />
         /// 默认构造必须显式写成 public——开窗族那侧用 <c>Activator.CreateInstance</c> 实例化窗口类型。
         /// </remarks>
-        [Window(UILayer.UI, cacheInstance: true)]
-        private sealed class HandlerProbeWindow : UGUIWindow
+        [Window(EUILayer.UI, cacheInstance: true)]
+        internal sealed class HandlerProbeWindow : UGUIWindow
         {
             private GameObject _panel;
 
@@ -1674,7 +1679,7 @@ namespace Service.UI
         /// 把面板物体交回真实 <see cref="GameObject"/> 的探针窗：遮挡判据要吃 <c>gameObject</c>，这一只专门供它。
         /// </summary>
         /// <remarks>面板钩子一律只记账：没有 Canvas 也没有 UI Document，只有 <c>Root</c> 这一枚物体参与包含判断。</remarks>
-        private sealed class ProbeOwnedWindow : UGUIWindow
+        internal sealed class ProbeOwnedWindow : UGUIWindow
         {
             /// <summary>用例挂给本窗的「面板」物体。</summary>
             internal GameObject Root;
@@ -1695,7 +1700,8 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨的编排探针窗：与 uGUI 探针同形，只证「同一份栈两支窗」这一档。</summary>
-        private sealed class ProbeUITKWindow : UITKWindow
+        [Window(EUILayer.Tips)]
+        internal sealed class ProbeUITKWindow : UITKWindow
         {
             /// <summary>本窗被 <c>Tick</c> 驱动的次数。</summary>
             internal int Updates;
@@ -1731,7 +1737,7 @@ namespace Service.UI
         /// 读数排在面板销毁那一步里，因此判的是门面的关停次序而不是用例的先后：次序对了，这一步走到时根还在位。 <br />
         /// 面板钩子一律只记账：不建壳、不点 <c>UIDocument</c>，也不接管任何后端资源。
         /// </remarks>
-        private sealed class OrderProbeUITKWindow : UITKWindow
+        internal sealed class OrderProbeUITKWindow : UITKWindow
         {
             /// <summary>销毁本窗面板那一刻要问的那枚物体（生产侧是 UI 根登记那一枚）。</summary>
             internal GameObject RootToObserve;

@@ -21,7 +21,7 @@ Assets/.../UI/Prefabs/<UI_NAME>.prefab
 ```csharp
 using Moirai.Atropos.UI;
 
-[Window(UILayer.UI, "UI/<UI_NAME>")]             // 层级 + 资源地址；fromResources: true 时走 Resources
+[Window(EUILayer.UI, "UI/<UI_NAME>")]             // 层级 + 资源地址；fromResources: true 时走 Resources
 public class <UI_NAME> : UGUIWindow
 {
     protected override void OnCreate() { }               // 实例化后一次
@@ -34,7 +34,7 @@ public class <UI_NAME> : UGUIWindow
 }
 ```
 
-生命周期方法名以 `Runtime/Services/UI/UIBase.cs` 与 `UIWindow.cs` 为准——框架里没有 `UIForm` / `UIFormLogic` 这一族，也没有 `[UIForm]` 特性。
+生命周期方法名以 `Runtime/Services/UI/Kernel/UIBase.cs` 与 `Kernel/UIWindow.cs` 为准——框架里没有 `UIForm` / `UIFormLogic` 这一族，也没有 `[UIForm]` 特性。
 
 ## 打开与关闭
 

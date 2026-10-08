@@ -21,7 +21,7 @@ namespace Service.UI
     /// 进门只经 <see cref="UIService.Internal_ResetHandlerSlots"/> 把两支槽与那份共享持有者归回干净域状态，出门同样归位。<br />
     /// 栈上的取用一律叫那一份共享持有者 <see cref="UIService.SharedLedger"/>（栈本就只有一条，两支驱动者手里拿的是同一份），<br />
     /// 门面上的查询与关隐叫门面自己那一批入口——它们走的也是这一份。<br />
-    /// 探针窗的 <c>LoadPanel</c> 钩子只记录入参并回 false（拒开），因此不需要真资产、也不建 <c>UIDocument</c> 壳；<br />
+    /// 探针窗的 <c>LoadPanel</c> 钩子只记录入参并按「装载成功、面板留空」交回，因此不需要真资产、也不建 <c>UIDocument</c> 壳；<br />
     /// 对象模型的回叫落点与「生产入口之后两轨都开得起来」那一格都由 <see cref="UIService.OnInit"/> 那一句接上，因此走生产入口而不是另开接缝。<br />
     /// 异步那一格吃<b>真装载</b>（<c>DebuggerPanelSettings</c> + 包内实存的 <c>EventsDebugger.uxml</c>，与 <c>UITKWindowTests</c> 同套夹具），
     /// 判的是这一腿开出的窗落回哪一轨的窗口基类；面板就绪与壳/内容根那一半住在 <c>UITKWindowTests</c>，uGUI 那一枚探针窗自己造物体当面板。<br />
@@ -77,6 +77,11 @@ namespace Service.UI
             "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIWindow> ShowUIAsyncAwait<T>(" +
             "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings,System.Object[])" +
             "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
+            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<T>(" +
+            "System.String,System.String,System.Boolean,System.Object[])<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
+            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<T>(" +
+            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings,System.Object[])" +
+            "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
             "System.Void CloseUI<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
             "System.Void CloseUI(System.Type,System.String)",
             "System.Void HideUI<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
@@ -84,9 +89,10 @@ namespace Service.UI
             "System.Void CloseAll(System.Boolean)",
             "System.Void CloseAllWithOut(Moirai.Atropos.UI.UIWindow)",
             "System.Void CloseAllWithOut<T>()<T:Moirai.Atropos.UI.UIWindow>",
-            "System.Void CloseAllWithOut(Moirai.Atropos.UI.UILayer)",
+            "System.Void CloseAllWithOut(Moirai.Atropos.UI.EUILayer)",
             "Cysharp.Threading.Tasks.UniTask<T> GetUIAsyncAwait<T>()<T:Moirai.Atropos.UI.UIWindow>",
             "System.Void GetUIAsync<T>(System.Action<T>)<T:Moirai.Atropos.UI.UIWindow>",
+            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> GetUIAwaitResult<T>()<T:Moirai.Atropos.UI.UIWindow>",
         };
 
         private PanelSettings _savedPanelSettings;
@@ -345,7 +351,7 @@ namespace Service.UI
         /// 这一格判的是<b>生产那两支驱动者</b>那一侧：门面上没有换入接缝，两支腿叫的都是各自认领进槽的生产处理器，桩不参与。 <br />
         /// 两支腿这一档都不给地址（实参里那两枚留缺省），于是落到 <c>CreateInstance</c> 那条既有链路上—— <br />
         /// 特性有 <c>location</c> 用 <c>location</c>、没有则用 <c>type.Name</c>，<c>fromResources</c> 按特性 <c>||=</c>；调用方给了地址时这一档让位，见 <see cref="ShowUI_SecondArgumentSlot_PerTrackLegsKeepTheirOwnParameterShape"/>。 <br />
-        /// 三只探针窗的 <c>LoadPanel</c> 钩子只记入参并回 false（拒开），装载当场停在未就绪态：不取资产、不建壳，也就点不亮 <c>UIDocument</c>； <br />
+        /// 三只探针窗的 <c>LoadPanel</c> 钩子只记入参并按「装载成功、面板留空」交回：不取资产、不建壳，也就点不亮 <c>UIDocument</c>； <br />
         /// 层级一律取非模态的 <c>Tips</c>，压栈时不会去动下层窗口的可交互位；三只窗各用各的窗口名，那一条共享栈上不会撞「Window is exist」。 <br />
         /// 每档调用前把记录位拨成相反值，断到的必须是这一次写进去的。
         /// </remarks>
@@ -505,7 +511,7 @@ namespace Service.UI
         /// <remarks>
         /// 等待腿在 EditMode 只能观测这一半——压栈与「已落定」都排在第一个 await 之前，<c>GetResult()</c> 当场答得出； <br />
         /// 等面板就绪的那一半（<c>UniTask.WaitUntil</c>）不同步落定，<c>GetResult()</c> 抛 Not yet completed， <br />
-        /// 那一档的端到端本文件无格，交 Task 9 的 PlayMode。探针窗拒开面板，因此不需要资产也不建壳。
+        /// 那一档的端到端本文件无格，交 Task 9 的 PlayMode。探针窗按「装载成功、面板留空」交回，因此不需要资产也不建壳。
         /// </remarks>
         [Test]
         public void ShowUIAsyncAwait_PerTrackLegsOnStackedWindow_ReturnItWithoutWaiting()
@@ -643,7 +649,7 @@ namespace Service.UI
         /// </summary>
         /// <remarks>
         /// 这一格吃的是<b>生产用的驱动者</b>（<see cref="UGUIHandler"/>）：它由门面的启用清单认领进来并初始化，本夹具不进槽位。 <br />
-        /// 探针窗的 <c>LoadPanel</c> 只记录入参并回 false（拒开），因此不需要资产也不建面板物体，用例出门也没有要销毁的本体。 <br />
+        /// 探针窗的 <c>LoadPanel</c> 只记录入参并按「装载成功、面板留空」交回，因此不需要资产也不建面板物体，用例出门也没有要销毁的本体。 <br />
         /// 层级取非模态的 <c>Tips</c>：压栈时不去动下层窗口的可交互位，本格的判据只有「这一只窗在不在栈上」。
         /// </remarks>
         [Test]
@@ -670,7 +676,7 @@ namespace Service.UI
         /// </summary>
         /// <remarks>
         /// 登记排在用例的断言之前：装载中途抛错时壳已经挂到场景里，先断言再登记等于把一枚面板留给下一轮用例串味。 <br />
-        /// 壳为空（拒开那一档）时只把窗口交回，断言侧自己会红在「窗没开出来」上。
+        /// 壳为空（面板留空那一档）时只把窗口交回，断言侧自己会红在「窗没开出来」上。
         /// </remarks>
         /// <typeparam name="T">探针窗类型。</typeparam>
         /// <param name="window">共享栈上那一窗；没开出来时为 <c>null</c>。</param>
@@ -759,7 +765,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨的身份探针：只证这一类窗口落回 uGUI 那一轨的窗口基类，不碰面板。</summary>
-        private sealed class ProbeUGUIWindow : UGUIWindow
+        internal sealed class ProbeUGUIWindow : UGUIWindow
         {
         }
 
@@ -778,78 +784,82 @@ namespace Service.UI
             internal static string Hook;
         }
 
-        /// <summary>装载钩子的公共记法：记下这一轨被叫到时拿到的三件事，然后一律拒开（不取资产、不建壳）。</summary>
-        private static bool RecordAndRefuse(string hook, string assetLocation, bool fromResources)
+        /// <summary>装载钩子的公共记法：记下这一轨被叫到时拿到的三件事，然后按「装载成功、面板留空」交回。</summary>
+        /// <remarks>
+        /// 回 true 只代表装载档成功：不取资产、不建壳、不绑面板，后续意图钩子全部走各基类的空操作——装载失败回滚语义另有
+        /// <see cref="UIWindowLoadFailureTests"/> 专项钉住，本文件的探针不再用「永卡栈」当夹具。
+        /// </remarks>
+        private static bool RecordAndAccept(string hook, string assetLocation, bool fromResources)
         {
             PanelProbe.Address = assetLocation;
             PanelProbe.FromResources = fromResources;
             PanelProbe.Hook = hook;
-            return false;
+            return true;
         }
 
-        /// <summary>带 <c>[Window(location)]</c> 的 UI Toolkit 探针窗：钩子只记录交来的地址与取法，回 false 拒开。</summary>
-        [Window(UILayer.Tips, true, LocatedAddress)]
-        private sealed class ProbeLocatedUITKWindow : UITKWindow
+        /// <summary>带 <c>[Window(location)]</c> 的 UI Toolkit 探针窗：钩子只记录交来的地址与取法，按装载成功交回。</summary>
+        [Window(EUILayer.Tips, true, LocatedAddress)]
+        internal sealed class ProbeLocatedUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
-                RecordAndRefuse("LoadPanel", assetLocation, fromResources);
+                RecordAndAccept("LoadPanel", assetLocation, fromResources);
 
             protected internal override UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources,
                 System.Threading.CancellationToken ct) =>
-                UniTask.FromResult(RecordAndRefuse("LoadPanelAsync", assetLocation, fromResources));
+                UniTask.FromResult(RecordAndAccept("LoadPanelAsync", assetLocation, fromResources));
         }
 
         /// <summary>带 <c>[Window]</c> 但没写 <c>location</c> 的 UI Toolkit 探针窗：解析链因此回落到类型名。</summary>
-        [Window(UILayer.Tips)]
-        private sealed class ProbeNameFallbackUITKWindow : UITKWindow
+        [Window(EUILayer.Tips)]
+        internal sealed class ProbeNameFallbackUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
-                RecordAndRefuse("LoadPanel", assetLocation, fromResources);
+                RecordAndAccept("LoadPanel", assetLocation, fromResources);
 
             protected internal override UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources,
                 System.Threading.CancellationToken ct) =>
-                UniTask.FromResult(RecordAndRefuse("LoadPanelAsync", assetLocation, fromResources));
+                UniTask.FromResult(RecordAndAccept("LoadPanelAsync", assetLocation, fromResources));
         }
 
-        /// <summary>带 <c>[Window(location)]</c> 的 uGUI 探针窗：同一条解析链在 uGUI 侧的样本，同样回 false 拒开。</summary>
-        [Window(UILayer.Tips, false, LocatedAddress)]
-        private sealed class ProbeLocatedUGUIWindow : UGUIWindow
+        /// <summary>带 <c>[Window(location)]</c> 的 uGUI 探针窗：同一条解析链在 uGUI 侧的样本，同样按装载成功交回。</summary>
+        [Window(EUILayer.Tips, false, LocatedAddress)]
+        internal sealed class ProbeLocatedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
-                RecordAndRefuse("LoadPanel", assetLocation, fromResources);
+                RecordAndAccept("LoadPanel", assetLocation, fromResources);
 
             protected internal override UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources,
                 System.Threading.CancellationToken ct) =>
-                UniTask.FromResult(RecordAndRefuse("LoadPanelAsync", assetLocation, fromResources));
+                UniTask.FromResult(RecordAndAccept("LoadPanelAsync", assetLocation, fromResources));
         }
 
         /// <summary>带特性但没有 <c>location</c> 的 uGUI 探针窗：调用方给的地址在这一轨赢过类型名回落。</summary>
-        [Window(UILayer.Tips)]
-        private sealed class ProbeAddressUGUIWindow : UGUIWindow
+        [Window(EUILayer.Tips)]
+        internal sealed class ProbeAddressUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
-                RecordAndRefuse("LoadPanel", assetLocation, fromResources);
+                RecordAndAccept("LoadPanel", assetLocation, fromResources);
 
             protected internal override UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources,
                 System.Threading.CancellationToken ct) =>
-                UniTask.FromResult(RecordAndRefuse("LoadPanelAsync", assetLocation, fromResources));
+                UniTask.FromResult(RecordAndAccept("LoadPanelAsync", assetLocation, fromResources));
         }
 
         /// <summary>带特性但没有 <c>location</c> 的 UI Toolkit 探针窗：与 uGUI 那一枚同形，用来比两轨的地址来源。</summary>
-        [Window(UILayer.Tips)]
-        private sealed class ProbeAddressUITKWindow : UITKWindow
+        [Window(EUILayer.Tips)]
+        internal sealed class ProbeAddressUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
-                RecordAndRefuse("LoadPanel", assetLocation, fromResources);
+                RecordAndAccept("LoadPanel", assetLocation, fromResources);
 
             protected internal override UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources,
                 System.Threading.CancellationToken ct) =>
-                UniTask.FromResult(RecordAndRefuse("LoadPanelAsync", assetLocation, fromResources));
+                UniTask.FromResult(RecordAndAccept("LoadPanelAsync", assetLocation, fromResources));
         }
 
         /// <summary>自己造一枚真实物体当面板的 uGUI 探针窗：等待腿那一格要靠它把就绪等出来，不吃 prefab 资产。</summary>
-        [Window(UILayer.Tips)]
-        private sealed class ProbeBoundUGUIWindow : UGUIWindow
+        [Window(EUILayer.Tips)]
+        internal sealed class ProbeBoundUGUIWindow : UGUIWindow
         {
             private GameObject _panel;
 
@@ -868,21 +878,21 @@ namespace Service.UI
         }
 
         /// <summary>不带 <c>location</c> 的真装载 UI Toolkit 探针窗：地址与取法只能由腿交进来，装载路径不覆写。</summary>
-        [Window(UILayer.Tips)]
-        private sealed class ProbeRealLoadUITKWindow : UITKWindow
+        [Window(EUILayer.Tips)]
+        internal sealed class ProbeRealLoadUITKWindow : UITKWindow
         {
         }
 
         /// <summary>真装载的 UI Toolkit 探针窗：面板地址写死在 <c>[Window(location)]</c> 上，装载路径不覆写。</summary>
-        [Window(UILayer.Tips, false, TemplateAssetPath)]
-        private sealed class ProbeLoadedUITKWindow : UITKWindow
+        [Window(EUILayer.Tips, false, TemplateAssetPath)]
+        internal sealed class ProbeLoadedUITKWindow : UITKWindow
         {
         }
 
         /// <summary>
         /// 没挂任何一枚内建窗口基类的裸窗口：内建两轨都不认它，既作认轨守卫的无主样本，也作两轨照旧各开各窗时的对照组。
         /// </summary>
-        private sealed class ProbeBareWindow : UIWindow
+        internal sealed class ProbeBareWindow : UIWindow
         {
         }
 
