@@ -113,7 +113,7 @@ namespace Service.UI
         #region 探针 [PROBES]
 
         /// <summary>瞬时档探针窗：无过渡、面板钩子只记账；闸门探针窗从它派生。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal class InstantProbeWindow : UGUIWindow
         {
             /// <summary>停放钩子被叫到的次数。</summary>
@@ -134,7 +134,7 @@ namespace Service.UI
         }
 
         /// <summary>闸门过渡探针窗：每只实例一枚自己的探针过渡，闸门与播放记录都在它身上。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class GatedProbeWindow : InstantProbeWindow
         {
             /// <summary>本窗的探针过渡：走完时机由用例的 <c>TrySetResult</c> 决定。</summary>
@@ -158,7 +158,7 @@ namespace Service.UI
             /// <summary>Snap 的最近方向记录。</summary>
             internal int Snaps;
 
-            public UniTask Play(bool open, CancellationToken cancellationToken)
+            public UniTask Play(bool open, CancellationToken ct)
             {
                 Plays++;
                 LastOpen = open;

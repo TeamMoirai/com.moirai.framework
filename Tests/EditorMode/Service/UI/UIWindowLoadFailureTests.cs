@@ -144,7 +144,7 @@ namespace Service.UI
         #region 探针 [PROBES]
 
         /// <summary>同步装载失败的探针窗：记录实例与装载地址，装载钩子一律回 false。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class FailingLoadUGUIWindow : UGUIWindow
         {
             internal static FailingLoadUGUIWindow Last;
@@ -169,7 +169,7 @@ namespace Service.UI
         }
 
         /// <summary>装载永不落定的探针窗：记录装载收到的取消令牌，异步装载永不完成。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class NeverLoadUGUIWindow : UGUIWindow
         {
             internal static System.Threading.CancellationToken LastToken;
@@ -186,7 +186,7 @@ namespace Service.UI
         }
 
         /// <summary>装载成功的探针窗：装载钩子一律回 true，不建面板物体。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class AcceptLoadUGUIWindow : UGUIWindow
         {
             internal static AcceptLoadUGUIWindow Last;

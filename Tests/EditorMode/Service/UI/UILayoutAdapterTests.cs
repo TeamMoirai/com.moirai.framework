@@ -49,7 +49,7 @@ namespace Service.UI
         {
             var parent = NewRect("parent", new Vector2(500f, 400f));
             var adapter = parent.gameObject.AddComponent<VerticalAdapter>();
-            adapter.Gap = 10f;
+            adapter.m_Gap = 10f;
 
             var first = NewRect("first", new Vector2(100f, 30f));
             first.SetParent(parent, false);
@@ -82,9 +82,9 @@ namespace Service.UI
         {
             var parent = NewRect("parent", new Vector2(300f, 300f));
             var adapter = parent.gameObject.AddComponent<AngleAdapter>();
-            adapter.Distance = 100f;
-            adapter.Gap = 30f;
-            adapter.Clockwise = true;
+            adapter.m_Distance = 100f;
+            adapter.m_Gap = 30f;
+            adapter.m_Clockwise = true;
 
             var items = new RectTransform[3];
             for (var i = 0; i < items.Length; i++)

@@ -89,7 +89,7 @@ namespace Service.UI
             "System.Void CloseAll(System.Boolean)",
             "System.Void CloseAllWithOut(Moirai.Atropos.UI.UIWindow)",
             "System.Void CloseAllWithOut<T>()<T:Moirai.Atropos.UI.UIWindow>",
-            "System.Void CloseAllWithOut(Moirai.Atropos.UI.UILayer)",
+            "System.Void CloseAllWithOut(Moirai.Atropos.UI.EUILayer)",
             "Cysharp.Threading.Tasks.UniTask<T> GetUIAsyncAwait<T>()<T:Moirai.Atropos.UI.UIWindow>",
             "System.Void GetUIAsync<T>(System.Action<T>)<T:Moirai.Atropos.UI.UIWindow>",
             "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> GetUIAwaitResult<T>()<T:Moirai.Atropos.UI.UIWindow>",
@@ -798,7 +798,7 @@ namespace Service.UI
         }
 
         /// <summary>带 <c>[Window(location)]</c> 的 UI Toolkit 探针窗：钩子只记录交来的地址与取法，按装载成功交回。</summary>
-        [Window(UILayer.Tips, true, LocatedAddress)]
+        [Window(EUILayer.Tips, true, LocatedAddress)]
         internal sealed class ProbeLocatedUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -810,7 +810,7 @@ namespace Service.UI
         }
 
         /// <summary>带 <c>[Window]</c> 但没写 <c>location</c> 的 UI Toolkit 探针窗：解析链因此回落到类型名。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeNameFallbackUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -822,7 +822,7 @@ namespace Service.UI
         }
 
         /// <summary>带 <c>[Window(location)]</c> 的 uGUI 探针窗：同一条解析链在 uGUI 侧的样本，同样按装载成功交回。</summary>
-        [Window(UILayer.Tips, false, LocatedAddress)]
+        [Window(EUILayer.Tips, false, LocatedAddress)]
         internal sealed class ProbeLocatedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -834,7 +834,7 @@ namespace Service.UI
         }
 
         /// <summary>带特性但没有 <c>location</c> 的 uGUI 探针窗：调用方给的地址在这一轨赢过类型名回落。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeAddressUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -846,7 +846,7 @@ namespace Service.UI
         }
 
         /// <summary>带特性但没有 <c>location</c> 的 UI Toolkit 探针窗：与 uGUI 那一枚同形，用来比两轨的地址来源。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeAddressUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -858,7 +858,7 @@ namespace Service.UI
         }
 
         /// <summary>自己造一枚真实物体当面板的 uGUI 探针窗：等待腿那一格要靠它把就绪等出来，不吃 prefab 资产。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeBoundUGUIWindow : UGUIWindow
         {
             private GameObject _panel;
@@ -878,13 +878,13 @@ namespace Service.UI
         }
 
         /// <summary>不带 <c>location</c> 的真装载 UI Toolkit 探针窗：地址与取法只能由腿交进来，装载路径不覆写。</summary>
-        [Window(UILayer.Tips)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeRealLoadUITKWindow : UITKWindow
         {
         }
 
         /// <summary>真装载的 UI Toolkit 探针窗：面板地址写死在 <c>[Window(location)]</c> 上，装载路径不覆写。</summary>
-        [Window(UILayer.Tips, false, TemplateAssetPath)]
+        [Window(EUILayer.Tips, false, TemplateAssetPath)]
         internal sealed class ProbeLoadedUITKWindow : UITKWindow
         {
         }

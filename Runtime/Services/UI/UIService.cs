@@ -600,7 +600,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 关闭所有窗口除了指定层级的窗口。
         /// </summary>
-        public static void CloseAllWithOut(UILayer withOut) =>
+        public static void CloseAllWithOut(EUILayer withOut) =>
             SharedLedger.CloseAllWithOut(withOut);
 
         #endregion

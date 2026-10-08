@@ -309,7 +309,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 关闭所有窗口除了指定层级的窗口。
         /// </summary>
-        public virtual void CloseAllWithOut(UILayer withOut)
+        public virtual void CloseAllWithOut(EUILayer withOut)
         {
             Ledger.CloseAllWithOut(withOut);
         }

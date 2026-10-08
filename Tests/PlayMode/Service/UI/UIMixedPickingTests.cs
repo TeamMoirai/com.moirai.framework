@@ -43,8 +43,8 @@ namespace Service.UI
         /// <summary>等版式落定的上界（秒，真实时间）：超过即把现场读数交回用例判红，不写无限等。</summary>
         private const float LAYOUT_TIMEOUT_SECONDS = 5f;
 
-        /// <summary><see cref="UILayer.Tips"/> 那一层的序空间基址。</summary>
-        private const int TIPS_LAYER_BASE = (int)UILayer.Tips * UIService.LAYER_DEEP;
+        /// <summary><see cref="EUILayer.Tips"/> 那一层的序空间基址。</summary>
+        private const int TIPS_LAYER_BASE = (int)EUILayer.Tips * UIService.LAYER_DEEP;
 
         private UGUIHandler _coordinator;
         private PanelSettings _enteredSharedPanelSettings;
@@ -302,8 +302,8 @@ namespace Service.UI
             return shell;
         }
 
-        /// <summary>UI Toolkit 轨探针窗（<see cref="UILayer.Tips"/>）：代码建树、壳点亮，面板真有屏幕矩形可命中。</summary>
-        [Window(UILayer.Tips, false)]
+        /// <summary>UI Toolkit 轨探针窗（<see cref="EUILayer.Tips"/>）：代码建树、壳点亮，面板真有屏幕矩形可命中。</summary>
+        [Window(EUILayer.Tips, false)]
         internal sealed class ProbeLiveUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>

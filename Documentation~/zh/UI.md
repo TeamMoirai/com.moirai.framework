@@ -22,11 +22,13 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 ## 核心特性
 
 - 多后端共存：uGUI 与 UI Toolkit 两支内建轨可在同一会话并存，共享同一条窗口栈；新增后端只需添加自己那一轨的 partial 文件，主入口零改动
-- 窗口栈式管理：按 `UILayer` 层级插入排序，同层窗口深度自动递增（`LAYER_DEEP = 2000`、`WINDOW_DEEP = 100`）
+- 窗口栈式管理：按 `EUILayer` 层级插入排序，同层窗口深度自动递增（`LAYER_DEEP = 2000`、`WINDOW_DEEP = 100`）
 - 五级层级：`Bottom` / `UI` / `Popup` / `Tips` / `System`，其中 `UI`、`Popup`、`System` 为模态层级
+- 模态档三态：`[Window(modal:)]` 取 `EUIModal`——`Inherit`（缺省，按层级结算）/ `Modal`（非模态层级强制模态）/ `NonModal`（模态层级强制非模态）；压栈压下层交互位、过渡占全局压制位、`CurrentModal` 查询三处判据都读窗口初始化时结算好的那一枚
 - 完整生命周期：`OnCreate` → `OnRefresh` → `OnUpdate` → `OnClose` → `OnDestroy`；开/关过渡经 `IUITransition`（覆写 `UIWindow.Transition` 交回实现，缺位即瞬时——默认开窗无延迟、无输入锁，关闭即时停放）
 - 窗口注册：窗口类必标 `[Window]`，由源生成器 `UIWindowCodegen` 在编译期登记进 `UIWindowRegistry`（描述符 + 编译期工厂），未标注的窗口类不可开
 - 模态遮挡：模态窗口压栈后自动禁用下层窗口交互（`Interactable`），`IsBlockedByModal` 可查询遮挡
+- 开窗结果契约：`ShowUIAwaitResult<T>` / `GetUIAwaitResult<T>` 交回 `UIOpenResult`，按 `EUIOpenStatus` 四档（`Opened` / `Failed` / `Missing` / `Timeout`）分明成败——装载失败的窗口当场回滚出栈，等待不再以 null 与超时混言成败
 - 全屏窗口优化：全屏窗口之下的窗口自动隐藏，减少渲染与更新开销
 - 窗口缓存：`cacheInstance` 关闭时不销毁，再次打开直接复用实例
 - Widget 子控件：窗口内嵌控件复用同一套生命周期，支持按节点 / 资源路径 / prefab 创建
@@ -50,7 +52,12 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 | `Moirai.Atropos.UI.UITKWindow` | UI Toolkit 轨窗口基类（`Handler/UITK/`）：`UIDocument` 壳与内容根装配、窗口级 `PanelSettings` 覆盖（开窗族比 uGUI 腿多出的那枚形参），UI Toolkit 业务窗口继承此类 |
 | `Moirai.Atropos.UI.UIWidget` | 窗口内嵌控件基类，继承 `UIBase` |
 | `Moirai.Atropos.UI.WindowAttribute` | 窗口特性（必标），声明层级、资源地址、全屏、缓存等配置；由源生成器 `UIWindowCodegen` 编译期解析并登记进 `UIWindowRegistry` |
-| `Moirai.Atropos.UI.UILayer` | UI 层级枚举：`Bottom=0`、`UI=1`、`Popup=2`、`Tips=3`、`System=4` |
+| `Moirai.Atropos.UI.EUILayer` | UI 层级枚举：`Bottom=0`、`UI=1`、`Popup=2`、`Tips=3`、`System=4` |
+| `Moirai.Atropos.UI.EUIModal` | 模态档枚举：`Inherit=0`（按层级结算）、`Modal=1`、`NonModal=2`；`[Window(modal:)]` 的形参与 `WindowAttribute.Modal` 的存储档 |
+| `Moirai.Atropos.UI.UIWindowRegistry` | 窗口注册表（`public static`）：类型句柄 → 描述符 + 编译期工厂，由各程序集生成的模块初始化器登记，之后只读；`TryGet` 为 `internal` |
+| `Moirai.Atropos.UI.UIWindowDescriptor` | 窗口元数据描述符（`readonly struct`）：注册期一次解析好的 `[Window]` 全量取值，开窗时零反射直取 |
+| `Moirai.Atropos.UI.IUITransition` | 开/关过渡契约：`Play(open, ct)` 播放并等走完、`Snap(open)` 把面板当场拨到终态；经 `UIWindow.Transition` 覆写交回，缺位即瞬时 |
+| `Moirai.Atropos.UI.UIOpenResult` / `EUIOpenStatus` | 开窗/取窗终态（`readonly struct` + `byte` 枚举四档）：`Window` 与 `Status` 成对交回，`Success` 与隐式布尔只答「就绪」一档 |
 | `Moirai.Atropos.UI.UIServiceEvent` | 窗口打开/关闭事件（`Shown` / `Closed`），经 `EventManager` 派发 |
 | `Moirai.Atropos.UI.UIServiceHelper` | 交互辅助：`IsInteractionBlockedByModal`、`IsUIObjectInteractable` |
 | `Moirai.Atropos.UI.UIBindComponent` | Window/Widget 组件绑定 MonoBehaviour 基类 |
@@ -65,7 +72,7 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 using Moirai.Atropos.UI;
 
 // 层级 Popup、非全屏、关闭后缓存实例
-[Window(UILayer.Popup, location: "MainWindow", fullScreen: false, cacheInstance: true)]
+[Window(EUILayer.Popup, location: "MainWindow", fullScreen: false, cacheInstance: true)]
 public class MainWindow : UGUIWindow
 {
     protected override void ScriptGenerator() { }   // 生成的绑定代码在此重写
@@ -93,6 +100,10 @@ UIService.ShowUIAsync<MainWindow>(userData: new object[] { 1001 });
 
 // 异步打开并等待加载完成（超时 60 秒）
 UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>();
+
+// 异步打开并等终态：就绪 / 失败 / 缺失 / 超时分明（失败窗已回滚出栈，不得复用）
+UIOpenResult result = await UIService.ShowUIAwaitResult<MainWindow>();
+if (result.Status == EUIOpenStatus.Opened) { /* result.Window 可用 */ }
 
 // 关闭 / 隐藏（HideTimeToClose 秒后自动关闭）
 UIService.CloseUI<MainWindow>();
@@ -124,7 +135,7 @@ UIWindow top = UIService.GetTopWindow();
 
 ```csharp
 // 关闭除 System 层外的所有窗口
-UIService.CloseAllWithOut(UILayer.System);
+UIService.CloseAllWithOut(EUILayer.System);
 
 // 判断某 UI 对象是否被模态窗口遮挡
 bool blocked = UIService.IsBlockedByModal(gameObject);
@@ -156,20 +167,23 @@ item.Destroy();
 窗口默认**无内置开/关过渡**——开与关都当场结算，无延迟、无输入锁、无交互压制窗口。提供过渡：覆写 `UIWindow.Transition` 交回一枚 `IUITransition` 实现（`Play(open, ct)` 为动画过程，`Snap(open)` 供跳过路径就近拨终态）；过渡播放期间窗口锁交互，模态窗口联动输入服务（`InputService.PreventInteractionUI`）。交还只发生在**当轮**转移：全局压制位按归属仲裁（`UIInteractionLease`）仅由最后持有者清除，被重开/销毁接管的旧过渡续体不再解锁也不再隐藏，过渡实现无需自行判断是否已被接管：
 
 ```csharp
-protected internal override IUITransition Transition => new FadeTransition(panel);
+private CanvasGroup _canvasGroup;   // OnCreate 里 GetComponent 缓存一次
+private IUITransition _transition;
+
+// 缓存复用：过渡属性每轮开关各取用一次，写成新建会把分配带回开窗与关闭路径
+protected internal override IUITransition Transition => _transition ??= new FadeTransition(this);
 
 private sealed class FadeTransition : IUITransition
 {
-    private readonly GameObject _panel;
+    private readonly MainWindow _window;
 
-    public FadeTransition(GameObject panel) => _panel = panel;
+    public FadeTransition(MainWindow window) => _window = window;
 
     public async UniTask Play(bool open, CancellationToken ct)
-    {
-        await _panel.GetComponent<CanvasGroup>().DOFade(open ? 1f : 0f, 0.3f).WithCancellation(ct);
-    }
+        => await _window._canvasGroup.DOFade(open ? 1f : 0f, 0.3f).WithCancellation(ct);
 
-    public void Snap(bool open) { /* 跳过路径上直接拨到终态 */ }
+    // 跳过等待的路径（被接管、关停、即时收口）由框架调用，当场把面板拨到那一档终态
+    public void Snap(bool open) => _window._canvasGroup.alpha = open ? 1f : 0f;
 }
 ```
 
@@ -178,7 +192,7 @@ private sealed class FadeTransition : IUITransition
 窗口自己关自己（`Close()`）一律先等可交互——开窗动画结束、或压住它的上层模态解除——再过 `CanClose` 门；门为假时窗口留在栈上并收到 `OnCloseFail`：
 
 ```csharp
-[Window(UILayer.Popup)]
+[Window(EUILayer.Popup)]
 public class RenameWindow : UGUIWindow
 {
     protected override bool CanClose => _input.text.Length > 0;   // 过不了门就落 OnCloseFail
@@ -200,7 +214,7 @@ public class RenameWindow : UGUIWindow
 
 ### 运行时错误窗口
 
-当调试器配置（`DebuggerService.ActiveWindowType`）判定**启用**错误日志时，服务才注册 `ErrorLogger` 捕获 `LogType.Exception`，自动弹出内置 `LogUI` 窗口（`[Window(UILayer.System, fromResources:true)]`，预制体位于服务 `Resources/LogUI.prefab`）逐条查看异常堆栈。启用判据：`AlwaysOpen` 恒启用；`OnlyOpenWhenDevelopment` 随开发构建；`OnlyOpenInEditor` 随编辑器；`AlwaysClose` 与非开发构建下的 `OnlyOpenWhenDevelopment`（即发布包默认形态）都不启用，异常不弹窗。
+当调试器配置（`DebuggerService.ActiveWindowType`）判定**启用**错误日志时，服务才注册 `ErrorLogger` 捕获 `LogType.Exception`，自动弹出内置 `LogUI` 窗口（`[Window(EUILayer.System, fromResources:true)]`，预制体位于服务 `Resources/LogUI.prefab`）逐条查看异常堆栈。启用判据：`AlwaysOpen` 恒启用；`OnlyOpenWhenDevelopment` 随开发构建；`OnlyOpenInEditor` 随编辑器；`AlwaysClose` 与非开发构建下的 `OnlyOpenWhenDevelopment`（即发布包默认形态）都不启用，异常不弹窗。
 
 ### 编辑器绑定代码生成
 

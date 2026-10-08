@@ -41,7 +41,7 @@ namespace Service.UI
         public void Close_AlreadyInteractableAndGateOpen_SettlesThroughTheGate()
         {
             EnableBothTracksAndInit();
-            var window = Prepared("GateOpen", (int)UILayer.UI, interactable: true);
+            var window = Prepared("GateOpen", (int)EUILayer.UI, interactable: true);
 
             window.Close();
 
@@ -58,7 +58,7 @@ namespace Service.UI
         public void Close_AlreadyInteractableAndGateClosed_CallsOnCloseFailAndKeepsWindow()
         {
             EnableBothTracksAndInit();
-            var window = Prepared("GateClosed", (int)UILayer.UI, interactable: true, canClose: false);
+            var window = Prepared("GateClosed", (int)EUILayer.UI, interactable: true, canClose: false);
 
             window.Close();
 
@@ -75,7 +75,7 @@ namespace Service.UI
         public void Close_NotYetInteractable_WaitsInsteadOfSettling()
         {
             EnableBothTracksAndInit();
-            var window = Prepared("Locked", (int)UILayer.UI, interactable: false);
+            var window = Prepared("Locked", (int)EUILayer.UI, interactable: false);
             Assert.IsFalse(window.Interactable, "量具前提坏了：这一格判的就是锁着（交互位为假）的那一档");
 
             window.Close();
@@ -97,7 +97,7 @@ namespace Service.UI
         public void ForceClose_NotYetInteractable_SettlesImmediatelyBypassingWaitAndGate()
         {
             EnableBothTracksAndInit();
-            var window = Prepared("Forced", (int)UILayer.UI, interactable: false);
+            var window = Prepared("Forced", (int)EUILayer.UI, interactable: false);
             Assert.IsFalse(window.Interactable, "量具前提坏了：这一格判的就是绕过等待与门的那一档");
 
             window.CloseNow();

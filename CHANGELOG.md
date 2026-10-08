@@ -99,11 +99,12 @@
 - 主入口不再持有任何后端单点：`UIService.Handler` 懒加载属性随 `[HandlerHost]` 一并退役，取用一律走静态门面；未启用那一轨的开窗按轨道名当场报错并点名去哪一处启用，轨专有查询（`UIRoot` / `UICamera`）未启用时答 `null` 不抬错。
 - 关停次序由各轨自报档位表述：持有别轨面板挂靠宿主根的 uGUI 轨取 `UITrack.SHUTDOWN_ORDER_HOST` 最后收，其余取默认档先收；模态动画期间的全局交互压制改由共享租约 `UIInteractionLease` 按归属仲裁，被重开/销毁接管的旧动画续体不再解锁也不再隐藏。
 - ⚠ 装载失败的窗口不再留在共享栈上：当场回滚出栈且不进停放表，`IsAnyLoading` 不再被失败窗永真。迁移：依赖「开窗失败后窗口仍在栈上」的存量用法（含测试夹具的拒开探针）改走装载成功或 `UIOpenResult` 结果契约。
-- ⚠ 未标 `[Window]` 的窗口类不再可开：`CreateInstance` 查不到注册当场 `GameException` 点名补特性，不再静默兜 `UILayer.UI` + 10 秒隐藏关闭 + 类型名地址。迁移：存量无特性窗口补 `[Window(…)]`（层级、地址、缓存等取值显式声明）。
+- ⚠ 未标 `[Window]` 的窗口类不再可开：`CreateInstance` 查不到注册当场 `GameException` 点名补特性，不再静默兜 `EUILayer.UI` + 10 秒隐藏关闭 + 类型名地址。迁移：存量无特性窗口补 `[Window(…)]`（层级、地址、缓存等取值显式声明）。
 - ⚠ 开窗与关闭默认改瞬时：新增 `IUITransition`（`Play(open, ct)` / `Snap(open)`）与 `UIWindow.Transition` 虚属性（缺位即瞬时）——默认开窗不再有 0.5 秒延迟与半秒输入锁，模态窗不再默认占全局交互压制位；关闭即时停放（缓存窗 `SetActive(false)` 与出栈同帧）。移除 `OpenAnimation` / `CloseAnimation` / `TopRefreshWaiter` 三枚硬编码延迟虚方法。迁移：依赖默认延迟或默认输入锁的窗口改覆写 `Transition` 提供过渡实现；覆写三枚虚方法的存量窗口改实现 `IUITransition`（过渡期间锁交互、接管按取消令牌掐断的语义由窗口代次守卫接办）。
 - ⚠ 窗口状态位封装：`IsLoadDone` / `IsDestroyed` 内部字段收成属性（私有写），`IsHide` / `HideTimerId` / `CacheInstance` / `HideTimeToClose` 的写口收成 internal（读面不变）。迁移：外部直写这些位的用法改为经 `Init`（由注册表描述符接办）或窗口自身流程。
 - ⚠ `UIBase.ChildList` 公共面收成 `IReadOnlyList<UIWidget>`：子级增删由控件创建/销毁流程经内部门缝接办，外部直改列表不再可写。`UIWidget.RestChildCanvas` 更名 `ResetChildCanvas`（拼写修正）。
-- ⚠ `WindowAttribute` 构造器收敛为单一形状 `(UILayer windowLayer, bool fromResources = false, string location = null, bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit)`：移除整数层级形、`(UILayer, string location)` 位置形等三个旧重载；特性字段改 PascalCase（`windowLayer`→`WindowLayer` 等，运行期消费方只剩源生成器）。迁移：`[Window(1, "path")]` 的整数层级改枚举或 `(UILayer)1`；`[Window(UILayer.UI, "path")]` 的位置地址改 `location:` 命名实参。
+- ⚠ `WindowAttribute` 构造器收敛为单一形状 `(EUILayer windowLayer, bool fromResources = false, string location = null, bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit)`：移除整数层级形、`(EUILayer, string location)` 位置形等三个旧重载；特性字段改 PascalCase（`windowLayer`→`WindowLayer` 等，运行期消费方只剩源生成器）。迁移：`[Window(1, "path")]` 的整数层级改枚举或 `(EUILayer)1`；`[Window(EUILayer.UI, "path")]` 的位置地址改 `location:` 命名实参。
+- ⚠ 层级枚举更名 `EUILayer`（原 `UILayer`）：与 `EUIModal` / `EUIOpenStatus` 同按命名表的「新代码口径：枚举一律 `E` 前缀」收口；底层类型保持 `int`（它是 `WindowAttribute.WindowLayer` 与深度算术的操作数，不属"运行期状态枚举显式 `: byte`"那一档）。迁移：`[Window(UILayer.UI)]` 改 `[Window(EUILayer.UI)]`，成员名与取值一字未动，除枚举名外没有任何签名形状改变。
 - 模态解耦：新增 `EUIModal` 三态与 `[Window(modal: EUIModal.Modal | NonModal)]` 显式档（继承档缺省按层级结算）；压栈压下层交互位、租约占全局压制位、门面模态查询三处判据统一改读窗口结算的模态位——非模态层可强制模态、模态层可强制非模态（attribute 实参禁 nullable，三态由此枚举表达）。
 - `UIWindow.Init` 收 internal：窗口初始化只经注册表链路与测试接缝，游戏代码经门面开窗不直接初始化。
 - ⚠ `ShowUIAsyncAwait` / `GetUIAsyncAwait` / `GetUIAsync` 在装载失败或装载中被关闭时不再交回 / 回调未就绪窗口（改交 null、不调回调并各报一条 Warning）；等待超时档维持原行为照常交回。取窗找不到目标时从全静默改为报一条 Warning。

@@ -44,11 +44,11 @@ namespace Service.UI
         {
             Assert.IsTrue(UIWindowRegistry.TryGet(typeof(RegistryProbeWindow), out var entry), "带 [Window] 的探针窗要在注册表里");
 
-            Assert.AreEqual((int)UILayer.Popup, entry.Descriptor.WindowLayer, "层级按特性解析");
+            Assert.AreEqual((int)EUILayer.Popup, entry.Descriptor.WindowLayer, "层级按特性解析");
             Assert.AreEqual("Registry/AttrPanel", entry.Descriptor.Location, "特性写了 location 用它");
             Assert.IsFalse(entry.Descriptor.FromResources, "特性 fromResources=false 照实登记");
             Assert.IsTrue(entry.Descriptor.CacheInstance, "命名实参 cacheInstance:true 照实登记");
-            Assert.AreEqual((int)UILayer.Popup, entry.Descriptor.WindowLayer, "层级取值稳定");
+            Assert.AreEqual((int)EUILayer.Popup, entry.Descriptor.WindowLayer, "层级取值稳定");
             var window = entry.Factory();
             Assert.IsInstanceOf<RegistryProbeWindow>(window, "工厂交回的就是登记的那一型");
         }
@@ -61,7 +61,7 @@ namespace Service.UI
 
             var window = UIService.SharedLedger.GetWindow<RegistryProbeWindow>("RegAttr");
             Assert.IsNotNull(window, "注册过的窗口正常开出");
-            Assert.AreEqual((int)UILayer.Popup, window.WindowLayer, "层级来自描述符");
+            Assert.AreEqual((int)EUILayer.Popup, window.WindowLayer, "层级来自描述符");
             Assert.AreEqual("Registry/AttrPanel", RegistryProbeWindow.LastLocation, "面板地址来自描述符");
             Assert.IsTrue(window.CacheInstance, "缓存档来自描述符");
 
@@ -101,7 +101,7 @@ namespace Service.UI
         #region 探针 [PROBES]
 
         /// <summary>带全档特性的注册表探针窗：装载钩子记录入参并按装载成功交回。</summary>
-        [Window(UILayer.Popup, false, "Registry/AttrPanel", cacheInstance: true)]
+        [Window(EUILayer.Popup, false, "Registry/AttrPanel", cacheInstance: true)]
         internal sealed class RegistryProbeWindow : UGUIWindow
         {
             internal static string LastLocation;
