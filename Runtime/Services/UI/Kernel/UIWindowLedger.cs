@@ -747,7 +747,7 @@ namespace Moirai.Atropos.UI
                     continue;
                 }
 
-                _uiStack.RemoveAt(i);
+                RemoveFromStack(window);
                 i--;
 
                 if (!isShutDown && window.CacheInstance)
@@ -809,7 +809,7 @@ namespace Moirai.Atropos.UI
                 {
                     window.InternalDestroy();
                 }
-                _uiStack.RemoveAt(i);
+                RemoveFromStack(window);
             }
             if (_uiStack.Count > 0) _uiStack[_uiStack.Count - 1].InternalRefresh(false);
         }
@@ -920,8 +920,32 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void Pop(UIWindow window)
         {
-            _uiStack.Remove(window);
+            RemoveFromStack(window);
             UIServiceEvent.Closed(window);
+        }
+
+        /// <summary>
+        /// 把窗口摘出堆栈：摘掉的是模态窗时重算紧邻下层的可交互位，它的新上方邻居仍是模态窗就继续压着。
+        /// </summary>
+        /// <remarks>摘掉非模态窗时一格都不写：它没压过下层，写回去会抢掉下层自己那轮过渡持有的锁。</remarks>
+        /// <param name="window">要摘出的窗口；不在栈上时不动栈。</param>
+        private void RemoveFromStack(UIWindow window)
+        {
+            int index = _uiStack.IndexOf(window);
+            if (index < 0)
+            {
+                return;
+            }
+
+            UIWindow below = index > 0 ? _uiStack[index - 1] : null;
+            UIWindow above = index + 1 < _uiStack.Count ? _uiStack[index + 1] : null;
+
+            _uiStack.RemoveAt(index);
+
+            if (below != null && IsModal(window))
+            {
+                below.Interactable = above == null || !IsModal(above);
+            }
         }
 
         #endregion
