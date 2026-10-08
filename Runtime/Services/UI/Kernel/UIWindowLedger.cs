@@ -85,7 +85,14 @@ namespace Moirai.Atropos.UI
                 }
 
                 var window = _uiStack[i];
-                window.Internal_Update();
+                try
+                {
+                    window.Internal_Update();
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 OnUpdate 抛出异常，本帧其余窗口照常结算：{1}", window.WindowName, ex);
+                }
             }
         }
 
