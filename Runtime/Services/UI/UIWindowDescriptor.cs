@@ -25,6 +25,9 @@ namespace Moirai.Atropos.UI
         /// <summary>是否为全屏窗口。</summary>
         public readonly bool FullScreen;
 
+        /// <summary>模态档（<see cref="EUIModal"/> 三态原值，继承档由窗口按自身层级结算）。</summary>
+        public readonly byte Modal;
+
         /// <summary>隐藏后转关闭的秒数。</summary>
         public readonly int HideTimeToClose;
 
@@ -39,16 +42,18 @@ namespace Moirai.Atropos.UI
         /// <param name="windowLayer">窗口层级。</param>
         /// <param name="fromResources">是否为内置资源。</param>
         /// <param name="fullScreen">是否为全屏窗口。</param>
+        /// <param name="modal">模态档三态原值。</param>
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数。</param>
         /// <param name="cacheInstance">是否缓存实例。</param>
         public UIWindowDescriptor(string fullName, string location, int windowLayer, bool fromResources,
-            bool fullScreen, int hideTimeToClose, bool cacheInstance)
+            bool fullScreen, byte modal, int hideTimeToClose, bool cacheInstance)
         {
             FullName = fullName;
             Location = location;
             WindowLayer = windowLayer;
             FromResources = fromResources;
             FullScreen = fullScreen;
+            Modal = modal;
             HideTimeToClose = hideTimeToClose;
             CacheInstance = cacheInstance;
         }

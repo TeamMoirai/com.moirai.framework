@@ -15,6 +15,24 @@ namespace Moirai.Atropos.UI
     }
 
     /// <summary>
+    /// 窗口模态三态：显式声明模态档，缺省按层级继承。
+    /// </summary>
+    /// <remarks>
+    /// attribute 实参禁 nullable（CS0655），三态由此枚举表达。
+    /// </remarks>
+    public enum EUIModal : byte
+    {
+        /// <summary>按层级继承：模态层级（UI/Popup/System）即模态。</summary>
+        Inherit = 0,
+
+        /// <summary>强制模态（非模态层级也可压下层交互位、占全局压制位）。</summary>
+        Modal = 1,
+
+        /// <summary>强制非模态（模态层级也可只显示不压制）。</summary>
+        NonModal = 2,
+    }
+
+    /// <summary>
     /// 窗口特性：声明层级、面板地址、全屏、缓存与隐转关延迟；窗口类必标。
     /// </summary>
     /// <remarks>
@@ -43,6 +61,9 @@ namespace Moirai.Atropos.UI
         /// <summary>缓存实例，关闭时不销毁。</summary>
         public readonly bool CacheInstance;
 
+        /// <summary>模态档：缺省 <see cref="EUIModal.Inherit"/> 按层级继承。</summary>
+        public readonly byte Modal;
+
         /// <summary>
         /// 构造窗口特性。
         /// </summary>
@@ -52,8 +73,9 @@ namespace Moirai.Atropos.UI
         /// <param name="fullScreen">全屏窗口标记。</param>
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数；≤0 表示隐藏即关。</param>
         /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
+        /// <param name="modal">模态档；缺省按层级继承（模态层级 UI/Popup/System 即模态）。</param>
         public WindowAttribute(UILayer windowLayer, bool fromResources = false, string location = null,
-            bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false)
+            bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit)
         {
             WindowLayer = (int)windowLayer;
             FromResources = fromResources;
@@ -61,6 +83,7 @@ namespace Moirai.Atropos.UI
             FullScreen = fullScreen;
             HideTimeToClose = hideTimeToClose;
             CacheInstance = cacheInstance;
+            Modal = (byte)modal;
         }
     }
 }
