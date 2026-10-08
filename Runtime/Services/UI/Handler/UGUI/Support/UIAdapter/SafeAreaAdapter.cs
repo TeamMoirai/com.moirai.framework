@@ -9,14 +9,14 @@ namespace Moirai.Atropos.UI.Adapter
     public class SafeAreaAdapter : AdapterBase
     {
         [Header("是否每帧都计算")]
-        public bool CalculateEveryFrame = false;
+        [SerializeField] private bool m_CalculateEveryFrame = false;
         
         private RectTransform _rect;
         private static CanvasScaler s_Scaler;
 
         public static void Init(CanvasScaler scaler)
         {
-            SafeAreaAdapter.s_Scaler = scaler;
+            s_Scaler = scaler;
         }
 
         private void Awake()
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.UI.Adapter
 
         private void Update()
         {
-            if (CalculateEveryFrame)
+            if (m_CalculateEveryFrame)
             {
                 Adapt();
             }

@@ -5,15 +5,16 @@ namespace Moirai.Atropos.UI.Adapter
     public class AngleAdapter : AdapterBase
     {
         [Header("间隙")]
-        public float Gap = 0;
+        [SerializeField] internal float m_Gap = 0;
         [Header("是否每帧都计算")]
-        public bool CalculateEveryFrame = true;
+        [SerializeField] private bool m_CalculateEveryFrame = true;
         [Header("顺时针")]
-        public bool Clockwise = true;
+        [SerializeField] internal bool m_Clockwise = true;
         [Header("偏移")]
-        public float BiasAngle = 0;
+        [SerializeField] private float m_BiasAngle = 0;
         [Header("圆心距离")]
-        public float Distance;
+        [SerializeField] internal float m_Distance;
+        
         private RectTransform _selfRect;
         private RectTransform SelfRect
         {
@@ -29,7 +30,7 @@ namespace Moirai.Atropos.UI.Adapter
 
         private void Update()
         {
-            if (CalculateEveryFrame)
+            if (m_CalculateEveryFrame)
             {
                 Adapt();
             }
@@ -37,12 +38,12 @@ namespace Moirai.Atropos.UI.Adapter
 
         public override void Adapt()
         {
-            float sumGap = BiasAngle;
+            float sumGap = m_BiasAngle;
             for (int i = 0; i < SelfRect.childCount; i++)
             {
                 var item = SelfRect.GetChild(i) as RectTransform;
                 var rotation = Quaternion.Euler(0, 0, sumGap);
-                var position = new Vector2(Distance * Mathf.Cos((sumGap + 90) * Mathf.PI / 180f), Distance * Mathf.Sin((sumGap + 90) * Mathf.PI / 180f));
+                var position = new Vector2(m_Distance * Mathf.Cos((sumGap + 90) * Mathf.PI / 180f), m_Distance * Mathf.Sin((sumGap + 90) * Mathf.PI / 180f));
 
                 // 同值写入跳过：Transform 赋值不比较值，照写即每帧弄脏层级（内容没变也一样）。
                 // 命中即当前值已等于目标，跳过与写入等价；被外部转动/挪动时值不等，照旧写回。
@@ -56,13 +57,13 @@ namespace Moirai.Atropos.UI.Adapter
                     item.localPosition = position;
                 }
 
-                if (Clockwise)
+                if (m_Clockwise)
                 {
-                    sumGap -= Gap;
+                    sumGap -= m_Gap;
                 }
                 else
                 {
-                    sumGap += Gap;
+                    sumGap += m_Gap;
                 }
             }
         }

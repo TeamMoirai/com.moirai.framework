@@ -38,11 +38,11 @@ namespace Service.UI
         /// <summary>UI Toolkit 模板的内置资源地址：包内实存的调试器事件面板模板，只读消费，本文件不新增测试资产。</summary>
         private const string TemplateResourceName = "EventsDebugger";
 
-        /// <summary><see cref="UILayer.UI"/> 那一层的序空间基址。</summary>
-        private const int UI_LAYER_BASE = (int)UILayer.UI * UIService.LAYER_DEEP;
+        /// <summary><see cref="EUILayer.UI"/> 那一层的序空间基址。</summary>
+        private const int UI_LAYER_BASE = (int)EUILayer.UI * UIService.LAYER_DEEP;
 
-        /// <summary><see cref="UILayer.Tips"/> 那一层的序空间基址。</summary>
-        private const int TIPS_LAYER_BASE = (int)UILayer.Tips * UIService.LAYER_DEEP;
+        /// <summary><see cref="EUILayer.Tips"/> 那一层的序空间基址。</summary>
+        private const int TIPS_LAYER_BASE = (int)EUILayer.Tips * UIService.LAYER_DEEP;
 
         /// <summary>异步装载探针窗的面板延迟（秒，不受时间缩放）：等待腿要等的就是这一段时间。</summary>
         private const float PANEL_DELAY_SECONDS = 0.2f;
@@ -118,7 +118,7 @@ namespace Service.UI
         /// <remarks>
         /// 判据两侧都取面板事实而不是意图位：uGUI 那一侧是面板物体的 layer 与 <see cref="Canvas.sortingOrder"/>，
         /// UI Toolkit 那一侧是内容根的 <c>display</c>（<c>keyword</c> 离开 <see cref="StyleKeyword.Null"/> 才是真落过笔的凭据）
-        /// 与 <see cref="UIDocument.sortingOrder"/>。两只窗分处 <see cref="UILayer.UI"/> 与 <see cref="UILayer.Tips"/>，
+        /// 与 <see cref="UIDocument.sortingOrder"/>。两只窗分处 <see cref="EUILayer.UI"/> 与 <see cref="EUILayer.Tips"/>，
         /// 同一次层级排序喂给两支的却是各自的序空间。
         /// </remarks>
         [UnityTest]
@@ -215,7 +215,7 @@ namespace Service.UI
         /// 关掉一支不影响另一支：另一支的可见性、序位与面板物体都不动，被关那一支的窗口与面板当场收走。
         /// </summary>
         /// <remarks>
-        /// 被关的是 <see cref="UILayer.UI"/>、留下的是 <see cref="UILayer.Tips"/>：深度重排只重算被关那一支所属的层，
+        /// 被关的是 <see cref="EUILayer.UI"/>、留下的是 <see cref="EUILayer.Tips"/>：深度重排只重算被关那一支所属的层，
         /// 显隐回执从栈顶重发一次——两支因此各自答「没被动过」。
         /// </remarks>
         [UnityTest]
@@ -278,9 +278,9 @@ namespace Service.UI
             Assert.IsTrue(UIService.HasWindow<ProbeUGUIWindowOnUiLayer>("LedgerUGUI"), "uGUI 那支也在同一份栈上");
             Assert.IsFalse(UIService.HasWindow<ProbeUGUIWindowOnUiLayer>("NoSuchWindow"), "没开过的名字答假");
             Assert.AreSame(kitB, UIService.GetTopWindow(), "全栈栈顶是最后压上的那一只");
-            Assert.AreSame(ugui, UIService.GetTopWindow((int)UILayer.UI), "按层取顶答的是本层那一只 uGUI 窗");
-            Assert.AreSame(kitB, UIService.GetTopWindow((int)UILayer.Tips), "按层取顶在 UI Toolkit 那两只里取栈序末位");
-            Assert.AreEqual("LedgerKitB", UIService.GetTopWindowName((int)UILayer.Tips), "按层取顶名同判据");
+            Assert.AreSame(ugui, UIService.GetTopWindow((int)EUILayer.UI), "按层取顶答的是本层那一只 uGUI 窗");
+            Assert.AreSame(kitB, UIService.GetTopWindow((int)EUILayer.Tips), "按层取顶在 UI Toolkit 那两只里取栈序末位");
+            Assert.AreEqual("LedgerKitB", UIService.GetTopWindowName((int)EUILayer.Tips), "按层取顶名同判据");
             Assert.IsFalse(UIService.IsAnyLoading(), "三支的面板都装载完了");
 
             var kitAPanel = kitA.gameObject;
@@ -499,13 +499,13 @@ namespace Service.UI
         public void ParkPanel_WindowWithUnboundPanel_ThrowsNullReferenceOnBothTracks()
         {
             var kit = new ProbeUITKWindowOnTipsLayer();
-            kit.Init("UnboundKit", (int)UILayer.Tips, false, "Panel", false, 10, false);
+            kit.Init("UnboundKit", (int)EUILayer.Tips, false, "Panel", false, 10, false);
             Assert.IsNull(kit.gameObject, "量具前提坏了：未装载的窗口此刻没有面板本体");
             Assert.Throws<NullReferenceException>(() => kit.ParkForTest(),
                 "UI Toolkit 那一轨的停放不守卫绑定：未绑定时即抛");
 
             var ugui = new ProbeUGUIWindowOnUiLayer();
-            ugui.Init("UnboundUGUI", (int)UILayer.UI, false, "Panel", false, 10, false);
+            ugui.Init("UnboundUGUI", (int)EUILayer.UI, false, "Panel", false, 10, false);
             Assert.IsNull(ugui.gameObject, "量具前提坏了：未装载的窗口此刻没有面板本体");
             Assert.Throws<NullReferenceException>(() => ugui.ParkForTest(),
                 "uGUI 那一轨的停放同形：未绑定时即抛");
@@ -564,8 +564,8 @@ namespace Service.UI
             return shell;
         }
 
-        /// <summary>uGUI 轨探针窗（<see cref="UILayer.UI"/>）：同步与异步装载都当场交出代码面板。</summary>
-        [Window(UILayer.UI, false)]
+        /// <summary>uGUI 轨探针窗（<see cref="EUILayer.UI"/>）：同步与异步装载都当场交出代码面板。</summary>
+        [Window(EUILayer.UI, false)]
         internal sealed class ProbeUGUIWindowOnUiLayer : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -577,8 +577,8 @@ namespace Service.UI
             internal void ParkForTest() => ParkPanel();
         }
 
-        /// <summary>uGUI 轨探针窗（<see cref="UILayer.Tips"/>）：与另一轨同层时判序位表用。</summary>
-        [Window(UILayer.Tips, false)]
+        /// <summary>uGUI 轨探针窗（<see cref="EUILayer.Tips"/>）：与另一轨同层时判序位表用。</summary>
+        [Window(EUILayer.Tips, false)]
         internal sealed class ProbeUGUIWindowOnTipsLayer : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -588,8 +588,8 @@ namespace Service.UI
                 UniTask.FromResult(LoadPanel(assetLocation, fromResources));
         }
 
-        /// <summary>UI Toolkit 轨探针窗（<see cref="UILayer.Tips"/>）：代码建树，内容根不带模板克隆。</summary>
-        [Window(UILayer.Tips, false)]
+        /// <summary>UI Toolkit 轨探针窗（<see cref="EUILayer.Tips"/>）：代码建树，内容根不带模板克隆。</summary>
+        [Window(EUILayer.Tips, false)]
         internal sealed class ProbeUITKWindowOnTipsLayer : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -601,8 +601,8 @@ namespace Service.UI
             internal void ParkForTest() => ParkPanel();
         }
 
-        /// <summary>uGUI 轨延迟装载探针窗（<see cref="UILayer.UI"/>）：面板在若干帧之后才绑上，等待腿要等的就是这一段。</summary>
-        [Window(UILayer.UI, false)]
+        /// <summary>uGUI 轨延迟装载探针窗（<see cref="EUILayer.UI"/>）：面板在若干帧之后才绑上，等待腿要等的就是这一段。</summary>
+        [Window(EUILayer.UI, false)]
         internal sealed class ProbeDelayedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -615,8 +615,8 @@ namespace Service.UI
             }
         }
 
-        /// <summary>UI Toolkit 轨延迟装载探针窗（<see cref="UILayer.Tips"/>）：同上一条腿，另一轨各量一次。</summary>
-        [Window(UILayer.Tips, false)]
+        /// <summary>UI Toolkit 轨延迟装载探针窗（<see cref="EUILayer.Tips"/>）：同上一条腿，另一轨各量一次。</summary>
+        [Window(EUILayer.Tips, false)]
         internal sealed class ProbeDelayedUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -629,8 +629,8 @@ namespace Service.UI
             }
         }
 
-        /// <summary>uGUI 轨缓存实例探针窗（<see cref="UILayer.UI"/>）：关闭后停放，重开交回同一只。</summary>
-        [Window(UILayer.UI, false, cacheInstance: true)]
+        /// <summary>uGUI 轨缓存实例探针窗（<see cref="EUILayer.UI"/>）：关闭后停放，重开交回同一只。</summary>
+        [Window(EUILayer.UI, false, cacheInstance: true)]
         internal sealed class ProbeCachedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -640,8 +640,8 @@ namespace Service.UI
                 UniTask.FromResult(LoadPanel(assetLocation, fromResources));
         }
 
-        /// <summary>UI Toolkit 轨真装载探针窗（<see cref="UILayer.Tips"/>）：模板取内置资源、缓存实例，装载路径不覆写。</summary>
-        [Window(UILayer.Tips, true, TemplateResourceName, cacheInstance: true)]
+        /// <summary>UI Toolkit 轨真装载探针窗（<see cref="EUILayer.Tips"/>）：模板取内置资源、缓存实例，装载路径不覆写。</summary>
+        [Window(EUILayer.Tips, true, TemplateResourceName, cacheInstance: true)]
         internal sealed class ProbeCachedResourcesKitWindow : UITKWindow
         {
         }
