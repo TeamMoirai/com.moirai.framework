@@ -176,7 +176,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 当触发窗口的层级排序。
         /// </summary>
-        protected void _OnSortDepth()
+        protected void Internal_OnSortDepth()
         {
             if (ChildList != null)
             {
@@ -218,7 +218,7 @@ namespace Moirai.Atropos.UI
         /// 返回「是否还要被驱动」：OnUpdate 有覆写或存在待驱动子级时为真。 <br />
         /// 双缓冲清单只在脏位时重建，稳态零分配；采样经 <c>[Conditional]</c> 门控，发布包连实参求值一并裁除。
         /// </remarks>
-        internal bool DriveUpdateCore()
+        internal bool UpdateCore()
         {
             List<UIWidget> listNextUpdateChild = null;
             if (ChildList != null && ChildList.Count > 0)
@@ -254,7 +254,7 @@ namespace Moirai.Atropos.UI
                     }
 
                     GameProfiler.BeginSample(uiWidget.ProfilerSampleName);
-                    var needValid = uiWidget.InternalUpdate();
+                    var needValid = uiWidget.Internal_Update();
                     GameProfiler.EndSample();
 
                     if (!updateListValid && needValid)
@@ -293,14 +293,14 @@ namespace Moirai.Atropos.UI
         /// 每帧驱动的默认门：只看就绪位；可见性门由窗口一侧加严。
         /// </summary>
         /// <returns>还要被驱动时为真。</returns>
-        internal virtual bool InternalUpdate()
+        internal virtual bool Internal_Update()
         {
             if (!IsPrepare)
             {
                 return false;
             }
 
-            return DriveUpdateCore();
+            return UpdateCore();
         }
 
         #region 查找子物体组件 [FIND CHILD COMPONENT]

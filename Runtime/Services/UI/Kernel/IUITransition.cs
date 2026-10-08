@@ -17,9 +17,9 @@ namespace Moirai.Atropos.UI
         /// 播放一段开/关过渡并等它走完。
         /// </summary>
         /// <param name="open">开窗方向为真，关窗方向为假。</param>
-        /// <param name="cancellationToken">窗口代次取消令牌：接管或销毁时掐断在播过渡。</param>
+        /// <param name="ct">窗口代次取消令牌：接管或销毁时掐断在播过渡。</param>
         /// <returns>过渡走完。</returns>
-        UniTask Play(bool open, CancellationToken cancellationToken);
+        UniTask Play(bool open, CancellationToken ct);
 
         /// <summary>
         /// 把面板当场拨到开/关终态：跳过等待的路径用它。

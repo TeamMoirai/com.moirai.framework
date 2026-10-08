@@ -51,7 +51,7 @@ namespace Service.UI
         [Test]
         public void Modal_ExplicitModalOnNonModalLayer_SuppressesWindowBelow()
         {
-            var below = PlainWindow("BelowForced", (int)UILayer.Bottom);
+            var below = PlainWindow("BelowForced", (int)EUILayer.Bottom);
             below.Interactable = true;
             UIService.SharedLedger.Push(below);
 
@@ -65,7 +65,7 @@ namespace Service.UI
         [Test]
         public void Modal_ExplicitNonModalOnModalLayer_DoesNotSuppressAnything()
         {
-            var below = PlainWindow("BelowSpare", (int)UILayer.Bottom);
+            var below = PlainWindow("BelowSpare", (int)EUILayer.Bottom);
             below.Interactable = true;
             UIService.SharedLedger.Push(below);
 
@@ -98,7 +98,7 @@ namespace Service.UI
         #region 探针 [PROBES]
 
         /// <summary>POPUP 层继承档探针窗：模态档缺省，按层级结算。</summary>
-        [Window(UILayer.Popup)]
+        [Window(EUILayer.Popup)]
         internal sealed class InheritModalProbeWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => true;
@@ -113,7 +113,7 @@ namespace Service.UI
         }
 
         /// <summary>非模态层强制模态的探针窗：装载成功、面板钩子只记账。</summary>
-        [Window(UILayer.Tips, modal: EUIModal.Modal)]
+        [Window(EUILayer.Tips, modal: EUIModal.Modal)]
         internal sealed class ForcedModalProbeWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => true;
@@ -128,7 +128,7 @@ namespace Service.UI
         }
 
         /// <summary>模态层强制非模态的探针窗：同上记法。</summary>
-        [Window(UILayer.UI, modal: EUIModal.NonModal)]
+        [Window(EUILayer.UI, modal: EUIModal.NonModal)]
         internal sealed class ForcedNonModalProbeWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => true;

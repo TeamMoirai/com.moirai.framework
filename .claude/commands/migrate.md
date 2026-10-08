@@ -111,7 +111,7 @@ public class OldUI : MonoBehaviour
 }
 
 // 新代码
-[Window(UILayer.UI, "UI/NewUI")]
+[Window(EUILayer.UI, "UI/NewUI")]
 public class NewUI : UGUIWindow
 {
     protected override void OnCreate() { }      // 实例化后一次

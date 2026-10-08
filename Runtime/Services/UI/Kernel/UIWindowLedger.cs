@@ -52,9 +52,9 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>继承档的结算真源；显式模态档不走这一份。</remarks>
         internal static bool IsWindowLayerModal(int layer) =>
-            layer == (int)UILayer.UI ||
-            layer == (int)UILayer.Popup ||
-            layer == (int)UILayer.System;
+            layer == (int)EUILayer.UI ||
+            layer == (int)EUILayer.Popup ||
+            layer == (int)EUILayer.System;
 
         /// <summary>
         /// 把栈与停放表归零。
@@ -781,7 +781,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 关闭所有窗口除了指定层级的窗口。
         /// </summary>
-        internal void CloseAllWithOut(UILayer withOut)
+        internal void CloseAllWithOut(EUILayer withOut)
         {
             CloseAllWithOutInternal(window => window.WindowLayer == (int)withOut);
         }

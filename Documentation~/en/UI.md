@@ -22,11 +22,13 @@ Shutdown order is expressed by each track's self-declared tier: the track hostin
 ## Core Features
 
 - Multi-backend coexistence: the two built-in tracks (uGUI, UI Toolkit) can coexist in one session sharing a single window stack; adding a backend only requires its own partial file — zero changes to the main entry
-- Stack-based window management: Insert sorting by `UILayer` level, with auto-incrementing depth for windows on the same layer (`LAYER_DEEP = 2000`, `WINDOW_DEEP = 100`)
+- Stack-based window management: Insert sorting by `EUILayer` level, with auto-incrementing depth for windows on the same layer (`LAYER_DEEP = 2000`, `WINDOW_DEEP = 100`)
 - Five-tier layers: `Bottom` / `UI` / `Popup` / `Tips` / `System`, where `UI`, `Popup`, and `System` are modal layers
+- Three-state modal flag: `[Window(modal:)]` takes `EUIModal` — `Inherit` (default, resolved from the layer), `Modal` (forces modal on a non-modal layer), `NonModal` (forces non-modal on a modal layer); suppressing the layer below, holding the global suppression flag during a transition, and the `CurrentModal` query all read the single bit resolved at window init
 - Full lifecycle: `OnCreate` -> `OnRefresh` -> `OnUpdate` -> `OnClose` -> `OnDestroy`; open/close transitions go through `IUITransition` (override `UIWindow.Transition` to return an implementation; absent means instant — open by default has no delay or input lock, closing parks immediately)
 - Window registration: every window class must carry `[Window]`; the `UIWindowCodegen` source generator resolves it at compile time into `UIWindowRegistry` (descriptor + compile-time factory) — a class without the attribute cannot open
 - Modal blocking: When a modal window is pushed onto the stack, interaction with underlying windows is automatically disabled (`Interactable`); `IsBlockedByModal` can be used to query blocking status
+- Open-result contract: `ShowUIAwaitResult<T>` / `GetUIAwaitResult<T>` return a `UIOpenResult` whose `EUIOpenStatus` distinguishes four outcomes (`Opened` / `Failed` / `Missing` / `Timeout`) — a window whose load failed is rolled off the stack on the spot, so waiting no longer conflates null with timeout
 - Full-screen window optimization: Windows beneath a full-screen window are automatically hidden, reducing rendering and update overhead
 - Window caching: When `cacheInstance` is enabled, the window instance is not destroyed on close, and subsequent opens reuse the same instance
 - Widget sub-controls: Embedded controls within a window reuse the same lifecycle, supporting creation by node path, resource path, or prefab
@@ -50,7 +52,12 @@ Shutdown order is expressed by each track's self-declared tier: the track hostin
 | `Moirai.Atropos.UI.UITKWindow` | UI Toolkit track window base class (`Handler/UITK/`): `UIDocument` shell and content-root assembly, window-level `PanelSettings` override (the extra parameter the open-window family has over the uGUI legs); UI Toolkit business windows inherit this class |
 | `Moirai.Atropos.UI.UIWidget` | Window embedded control base class, inherits `UIBase` |
 | `Moirai.Atropos.UI.WindowAttribute` | Window attribute (required), declares layer, resource address, full-screen, caching, and other configuration; resolved at compile time by the `UIWindowCodegen` source generator into `UIWindowRegistry` |
-| `Moirai.Atropos.UI.UILayer` | UI layer enum: `Bottom=0`, `UI=1`, `Popup=2`, `Tips=3`, `System=4` |
+| `Moirai.Atropos.UI.EUILayer` | UI layer enum: `Bottom=0`, `UI=1`, `Popup=2`, `Tips=3`, `System=4` |
+| `Moirai.Atropos.UI.EUIModal` | Modal-state enum: `Inherit=0` (resolved from the layer), `Modal=1`, `NonModal=2`; the `[Window(modal:)]` parameter type and the storage shape of `WindowAttribute.Modal` |
+| `Moirai.Atropos.UI.UIWindowRegistry` | Window registry (`public static`): type handle → descriptor + compile-time factory, filled by each assembly's generated module initializer and read-only afterwards; `TryGet` is `internal` |
+| `Moirai.Atropos.UI.UIWindowDescriptor` | Window metadata descriptor (`readonly struct`): the full `[Window]` argument set resolved once at registration, read directly at open time with zero reflection |
+| `Moirai.Atropos.UI.IUITransition` | Open/close transition contract: `Play(open, ct)` plays and waits, `Snap(open)` drives the panel to its end state on the spot; returned from an overridden `UIWindow.Transition`, absent means instant |
+| `Moirai.Atropos.UI.UIOpenResult` / `EUIOpenStatus` | Open/fetch outcome (`readonly struct` + four-tier `byte` enum): `Window` and `Status` come back paired, `Success` and the implicit bool answer only the "ready" tier |
 | `Moirai.Atropos.UI.UIServiceEvent` | Window open/close events (`Shown` / `Closed`), dispatched via `EventManager` |
 | `Moirai.Atropos.UI.UIServiceHelper` | Interaction helper: `IsInteractionBlockedByModal`, `IsUIObjectInteractable` |
 | `Moirai.Atropos.UI.UIBindComponent` | Window/Widget component binding MonoBehaviour base class |
@@ -65,7 +72,7 @@ Define a window (window classes must have a parameterless constructor, i.e., `ne
 using Moirai.Atropos.UI;
 
 // Layer Popup, non-fullscreen, cache instance on close
-[Window(UILayer.Popup, location: "MainWindow", fullScreen: false, cacheInstance: true)]
+[Window(EUILayer.Popup, location: "MainWindow", fullScreen: false, cacheInstance: true)]
 public class MainWindow : UGUIWindow
 {
     protected override void ScriptGenerator() { }   // Generated binding code override
@@ -93,6 +100,11 @@ UIService.ShowUIAsync<MainWindow>(userData: new object[] { 1001 });
 
 // Asynchronous open and await completion (60-second timeout)
 UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>();
+
+// Asynchronous open that awaits the terminal state: opened / failed / missing / timeout are distinct
+// (a failed window has already been rolled off the stack and must not be reused)
+UIOpenResult result = await UIService.ShowUIAwaitResult<MainWindow>();
+if (result.Status == EUIOpenStatus.Opened) { /* result.Window is usable */ }
 
 // Close / Hide (auto-closes after HideTimeToClose seconds)
 UIService.CloseUI<MainWindow>();
@@ -124,7 +136,7 @@ The window stack is sorted by insertion order at the `WindowLayer` level. `OnSor
 
 ```csharp
 // Close all windows except the System layer
-UIService.CloseAllWithOut(UILayer.System);
+UIService.CloseAllWithOut(EUILayer.System);
 
 // Check if a UI object is blocked by a modal window
 bool blocked = UIService.IsBlockedByModal(gameObject);
@@ -156,20 +168,24 @@ item.Destroy();
 Windows have no built-in open/close animation by default — opening and closing settle instantly, with no input lock and no interaction-suppression window. Provide a transition by overriding `UIWindow.Transition` to return an `IUITransition` (`Play(open, ct)` for the animated pass, `Snap(open)` for skip paths); while a transition plays, the window locks interaction, and modal windows also coordinate with the input service (`InputService.PreventInteractionUI`). The hand-back happens in the *current* transition: the global suppression flag is cleared only by its recorded owner (`UIInteractionLease`), and a transition continuation superseded by a reopen/destroy neither unlocks nor hides the window, so a transition implementation does not need to detect being taken over itself:
 
 ```csharp
-protected internal override IUITransition Transition => new FadeTransition(panel);
+private CanvasGroup _canvasGroup;   // GetComponent once in OnCreate and keep the reference
+private IUITransition _transition;
+
+// Reuse the cached instance: the property is taken once per open and once per close, so allocating there
+// puts allocations back on the open/close path
+protected internal override IUITransition Transition => _transition ??= new FadeTransition(this);
 
 private sealed class FadeTransition : IUITransition
 {
-    private readonly GameObject _panel;
+    private readonly MainWindow _window;
 
-    public FadeTransition(GameObject panel) => _panel = panel;
+    public FadeTransition(MainWindow window) => _window = window;
 
     public async UniTask Play(bool open, CancellationToken ct)
-    {
-        await _panel.GetComponent<CanvasGroup>().DOFade(open ? 1f : 0f, 0.3f).WithCancellation(ct);
-    }
+        => await _window._canvasGroup.DOFade(open ? 1f : 0f, 0.3f).WithCancellation(ct);
 
-    public void Snap(bool open) { /* jump to the end state on skip paths */ }
+    // The framework calls this on skip paths (superseded, shutdown, immediate settle) to land the panel
+    public void Snap(bool open) => _window._canvasGroup.alpha = open ? 1f : 0f;
 }
 ```
 
@@ -178,7 +194,7 @@ private sealed class FadeTransition : IUITransition
 A window closing itself (`Close()`) always waits until it is interactable — the open animation finished, or the modal above it released it — then passes the `CanClose` gate; when the gate is false the window stays on the stack and receives `OnCloseFail`:
 
 ```csharp
-[Window(UILayer.Popup)]
+[Window(EUILayer.Popup)]
 public class RenameWindow : UGUIWindow
 {
     protected override bool CanClose => _input.text.Length > 0;   // failing the gate lands in OnCloseFail
@@ -200,7 +216,7 @@ public class RenameWindow : UGUIWindow
 
 ### Runtime Error Window
 
-The service registers `ErrorLogger` (capturing `LogType.Exception` and automatically showing the built-in `LogUI` window — `[Window(UILayer.System, fromResources:true)]`, prefab at the service's `Resources/LogUI.prefab`) only when the debugger configuration (`DebuggerService.ActiveWindowType`) says error logging **is** enabled. Enablement rule: `AlwaysOpen` always; `OnlyOpenWhenDevelopment` follows development builds; `OnlyOpenInEditor` follows the editor; `AlwaysClose` and `OnlyOpenWhenDevelopment` outside a development build (i.e. the default release shape) never enable it, so exceptions pop no window.
+The service registers `ErrorLogger` (capturing `LogType.Exception` and automatically showing the built-in `LogUI` window — `[Window(EUILayer.System, fromResources:true)]`, prefab at the service's `Resources/LogUI.prefab`) only when the debugger configuration (`DebuggerService.ActiveWindowType`) says error logging **is** enabled. Enablement rule: `AlwaysOpen` always; `OnlyOpenWhenDevelopment` follows development builds; `OnlyOpenInEditor` follows the editor; `AlwaysClose` and `OnlyOpenWhenDevelopment` outside a development build (i.e. the default release shape) never enable it, so exceptions pop no window.
 
 ### Editor Binding Code Generation
 
