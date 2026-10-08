@@ -27,7 +27,11 @@ namespace Moirai.Atropos.UI
         // 交互/可见性交接代次：每次状态转移（打开/关闭/重开/销毁）递增，只有最新一轮的续体可以交还交互锁与隐藏窗口
         private uint _interactionLifetime;
 
+        /// <summary>过渡取消源：经 <see cref="_ctsLease"/> 从内存池租入，本字段保持对子类可见的原始来源。</summary>
         protected CancellationTokenSource _cts;
+
+        /// <summary>过渡取消源的租约：池寿命归它管，<see cref="_cts"/> 只是它携带的那一枚源。</summary>
+        private UICtsLease _ctsLease;
 
         public override UIType Type => UIType.Window;
 
@@ -205,8 +209,8 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>装载期的取消源：装载在途时窗口被关闭（<see cref="InternalDestroy"/>）即掐断资源装载。</summary>
-        private CancellationTokenSource _loadCts;
+        /// <summary>装载期的取消源租约：装载在途时窗口被关闭（<see cref="InternalDestroy"/>）即掐断资源装载。</summary>
+        private UICtsLease _loadLease;
 
         /// <summary>装载失败位：面板装载回 false 或抛出后置位，等待腿据此判 <see cref="EUIOpenStatus.Failed"/>。</summary>
         internal bool IsLoadFailed { get; private set; }
@@ -216,8 +220,9 @@ namespace Moirai.Atropos.UI
             _prepareCallback = prepareCallback;
             _params = @params;
 
-            var loadCts = UICtsPool.Rent();
-            _loadCts = loadCts;
+            var loadLease = MemoryPool.Acquire<UICtsLease>();
+            var loadCts = loadLease.Source;
+            _loadLease = loadLease;
 
             // 装载面板是后端的活：本类只认「装上没有」，装上之后统一把三份意图落到新面板上
             try
@@ -256,12 +261,12 @@ namespace Moirai.Atropos.UI
             }
             finally
             {
-                if (ReferenceEquals(_loadCts, loadCts))
+                if (ReferenceEquals(_loadLease, loadLease))
                 {
-                    _loadCts = null;
+                    _loadLease = null;
                 }
-                // 取消过的源由池内废弃，干净的回池复用
-                UICtsPool.Return(loadCts);
+                // 取消过的源由租约废弃，干净的回池复用
+                MemoryPool.Release(loadLease);
             }
         }
 
@@ -298,7 +303,7 @@ namespace Moirai.Atropos.UI
         /// <summary>掐断装载期取消源：装载在途的窗口被关闭时，资源装载随之取消。</summary>
         private void CancelLoadCts()
         {
-            _loadCts?.Cancel();
+            _loadLease?.Source.Cancel();
         }
 
         /// <summary>
@@ -416,7 +421,8 @@ namespace Moirai.Atropos.UI
             }
 
             CancelCts();
-            _cts = UICtsPool.Rent();
+            _ctsLease = MemoryPool.Acquire<UICtsLease>();
+            _cts = _ctsLease.Source;
 
             LockInteraction();
 
@@ -543,8 +549,9 @@ namespace Moirai.Atropos.UI
             if (_cts != null)
             {
                 _cts.Cancel();
-                // 取消过的源由池内废弃，干净的由池回收
-                UICtsPool.Return(_cts);
+                // 取消过的源由租约废弃，干净的回池复用
+                MemoryPool.Release(_ctsLease);
+                _ctsLease = null;
                 _cts = null;
             }
         }
@@ -573,7 +580,8 @@ namespace Moirai.Atropos.UI
             // 与关闭续体共用同一套代次协议；非栈顶的早退排在递增之前，不会作废他人在跑的过渡
             var lifetime = ++_interactionLifetime;
             CancelCts();
-            _cts = UICtsPool.Rent();
+            _ctsLease = MemoryPool.Acquire<UICtsLease>();
+            _cts = _ctsLease.Source;
 
             LockInteraction();
 
