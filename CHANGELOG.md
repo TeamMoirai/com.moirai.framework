@@ -109,6 +109,7 @@
 - `UIWindow.Init` 收 internal：窗口初始化只经注册表链路与测试接缝，游戏代码经门面开窗不直接初始化。
 - ⚠ `ShowUIAsyncAwait` / `GetUIAsyncAwait` / `GetUIAsync` 在装载失败或装载中被关闭时不再交回 / 回调未就绪窗口（改交 null、不调回调并各报一条 Warning）；等待超时档维持原行为照常交回。取窗找不到目标时从全静默改为报一条 Warning。
 - `UGUIWindow.BindPanel` / `UITKWindow.BindPanel` 缺组件从裸 `Exception` 改抛 `GameException`；`CloseUI` / `HideUI` 对不在栈上的窗口从全静默改为补一条 Debug 级开发日志。
+- UI 模块目录归位（命名空间一律不变，只动文件位置）：`UIOpenResult`/`EUIOpenStatus`、`UIWindowDescriptor`、`WindowAttribute`/`EUILayer`/`EUIModal`、`UIInteractionLease` 进 `Runtime/Services/UI/Models/`，`IUITransition` 进 `Abstractions/`，`ErrorLogger`/`LogUI` 进 `Handler/UGUI/Support/`；对象模型 `UIBase`/`UIWindow`/`UIWidget` 与 `UIWindowLedger`/`UITrack`/`UIWindowRegistry` 留在 `Kernel/`。
 
 #### 文档
 
