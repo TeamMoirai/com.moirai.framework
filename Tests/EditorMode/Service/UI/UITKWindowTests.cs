@@ -135,6 +135,8 @@ namespace Service.UI
             var window = new ProbeWindow();
             window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
 
+            // 两条 Error：缺 PanelSettings 那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
+            UtfLogExpect.Error();
             UtfLogExpect.Error();
             window.InternalLoad("Panel", null, false, null);
 
@@ -166,6 +168,8 @@ namespace Service.UI
             var window = new ProbeWindow();
             window.Init(nameof(ProbeWindow), 1, false, missingPath, false, 10, false);
 
+            // 两条 Error：取不到模板那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
+            UtfLogExpect.Error();
             UtfLogExpect.Error();
             window.InternalLoad(missingPath, null, false, null);
 
@@ -283,10 +287,10 @@ namespace Service.UI
             Assert.IsNull(window.RootVisual, "失败后不得有内容根");
 
             var bareShell = NewShell("BareShell", false);
-            var error = Assert.Throws<System.Exception>(() => window.BindPanel(bareShell, null));
+            var error = Assert.Throws<Moirai.Atropos.GameException>(() => window.BindPanel(bareShell, null));
 
-            StringAssert.Contains("Not found UIDocument in panel ProbeWindow", error.Message,
-                "缺 UIDocument 的文案要带上窗口名，沿用 uGUI 轨缺 Canvas 的写法");
+            StringAssert.Contains(nameof(ProbeWindow), error.Message,
+                "缺 UIDocument 的文案要带上窗口名：拿到半个可用面板不如当场指认");
             Assert.IsNull(window.gameObject, "抛错后不得把半个面板占住引用");
         }
 
@@ -528,6 +532,8 @@ namespace Service.UI
             var window = new ProbeWindow();
             window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
 
+            // 两条 Error：缺 PanelSettings 那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
+            UtfLogExpect.Error();
             UtfLogExpect.Error();
             window.InternalLoad("Panel", null, false, null);
 

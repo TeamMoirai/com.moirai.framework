@@ -14,23 +14,12 @@ namespace Moirai.Atropos.UI
     /// UI 服务外观（Facade）：全框架统一的静态 UI 访问入口。
     /// </summary>
     /// <remarks>
-    /// 开窗入口按实现类平铺成同名两腿（uGUI 腿 <c>where T : UGUIWindow</c>、UI Toolkit 腿 <c>where T : UITKWindow</c>）， <br />
-    /// 两支的约束各自收在自己的窗口基类上：一支留中性 <c>UIWindow</c> 时 UI Toolkit 窗同时满足两支，一枚实参的同形调用当场判二义（CS0121）。 <br />
-    /// UI Toolkit 腿的形参表与 uGUI 腿同序收下寻址两档，末尾再多一枚 <c>panelSettings</c>：那既是两支同名重载的分辨处，也是窗口级面板配置的落点。 <br />
-    /// 两支共用同一条开栈编排：各腿叫自己那一轨 partial 里的实现，uGUI 腿经 <see cref="UGUIHandler"/>、UI Toolkit 腿经 <see cref="UITKHandler"/> 把窗口落进共享栈。 <br />
-    /// 两支的实现按轨分住在各自的 partial 文件里：uGUI 腿三支在 <c>UIService.UGUI.cs</c>、UI Toolkit 腿三支在 <c>UIService.UITK.cs</c>；本文件只留中性外壳。 <br />
-    /// 开窗腿没有「交给默认实现」那条通道：门面上不存在一个后端替全部后端开窗的路径，也没有拿 <c>?.</c> 静默落空的那一档。 <br />
-    /// 每支后端各一枚驱动者，槽位住在各自那一轨的 partial 里（uGUI 轨那枚在 <c>Handler/UGUI/UIService.UGUI.cs</c>、UI Toolkit 轨那枚在 <c>Handler/UITK/UIService.UITK.cs</c>）， <br />
-    /// 都由 <see cref="UIServiceSettings"/> 的启用清单在 <c>OnInit</c> 里认领进来，手里拿的都是同一份 <see cref="SharedLedger"/>——各轨各一份 handler，窗口栈只有一条。 <br />
-    /// 各轨经一枚 <see cref="UITrack"/> 自述登记进门面的轨道目录（认窗判据、有效性探针、Type 形入口分派与关停档位）， <br />
-    /// 主文件只枚举目录、不登记任何具体后端：加一轨＝加一枚 partial 自登记，本文件零改动。 <br />
-    /// 门面的取用分两档：跨轨的全局操作（查询、关隐、租约、每帧结算）直叫那一份共享持有者，与哪一轨在位无关； <br />
-    /// 本轨专有那一段（帧职责、安全区落点、刘海屏模拟）走门面私有的三条广播，各轨在认领进槽时各挂一次； <br />
-    /// 关停不走广播：按各轨在目录里自报的档位升序逐轨收口，持有别轨面板挂靠的宿主根那一轨（uGUI）自报宿主档、最后收。 <br />
-    /// 轨专有操作才认支——<see cref="UIRoot"/> 与 <see cref="UICamera"/> 只问 uGUI 那一枚（另一轨答不出这两个）， <br />
-    /// <see cref="ApplyScreenSafeRect"/> 与 <see cref="SimulateIPhoneXNotchScreen"/> 各轨各叫一次，让每轨把安全区落到自己的面板上。 <br />
-    /// <see cref="IsValid"/> 与归零门在本文件，认领门与取用属性随各轨的 partial 走： <br />
-    /// UI 门面不声明 <c>[HandlerHost]</c>，源生成器因此不为它产成员。
+    /// 开窗入口按窗口基类平铺成同名两腿（<c>UGUIWindow</c> / <c>UITKWindow</c>），各腿直呼本轨 partial 的实现，没有替全部后端开窗的默认通道。<br />
+    /// UI Toolkit 腿比 uGUI 腿多收一枚 <c>panelSettings</c>：同名重载靠形参表分辨，它也是窗口级面板配置的落点。<br />
+    /// 每轨一枚驱动者，由 <see cref="UIServiceSettings"/> 的启用清单认领进各自槽位，拿的都是同一份 <see cref="SharedLedger"/>：栈只有一条。<br />
+    /// 各轨以一枚 <see cref="UITrack"/> 自述登记进目录；本文件只枚举目录，加一轨就是加一枚自登记的 partial。<br />
+    /// 跨轨的全局操作（查询、关隐、租约、每帧结算）直叫共享持有者；轨专有的走门面私有广播，<see cref="UIRoot"/>、<see cref="UICamera"/> 只有 uGUI 轨答得出。<br />
+    /// 关停按自报档位升序逐轨收口，uGUI 最后收。线程契约：仅主线程；不声明 <c>[HandlerHost]</c>，<see cref="IsValid"/> 与归零门手写在本文件。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]
@@ -52,8 +41,8 @@ namespace Moirai.Atropos.UI
         /// <summary>各轨各自摘掉自己那枚处理器槽的广播：关停与归零门都先叫它一次，销毁链里迟到的回叫因此当场落空。</summary>
         private static event Action onDetachTrackSlots;
 
-        /// <summary>轨道目录：各轨 partial 的静态初始化器把自述登记进这一份，门面只枚举它、不登记任何具体后端。</summary>
-        /// <remarks>懒建＋compare-exchange 占位与 <see cref="s_Ledger"/> 同款：partial 各文件的静态字段初始化次序没有契约保证，目录不能靠主文件自己的初始化器先就位。</remarks>
+        /// <summary>轨道目录：各轨 partial 的静态初始化器把自述登记进这一份，门面只枚举它。</summary>
+        /// <remarks>懒建＋compare-exchange：partial 各文件静态字段的初始化次序没有契约保证，目录不能靠本文件自己的初始化器先就位。</remarks>
         private static volatile List<UITrack> s_Tracks;
 
         /// <summary>目录里任何一轨的驱动者就位即为真；一轨都没就位为假。</summary>
@@ -84,9 +73,9 @@ namespace Moirai.Atropos.UI
         /// 把一枚轨道登记进门面目录：各轨 partial 的静态初始化器在类型就绪时各叫一次。
         /// </summary>
         /// <remarks>
-        /// 目录按 <see cref="UITrack.ShutdownOrder"/> 升序插入、同档按登记序——门面关停只按目录序走一遍，持有别轨面板挂靠的宿主根那一轨因此落在最后一段。 <br />
-        /// 登记只发生在类型初始化里（外部任何取用都排在全部静态初始化器之后），插入本身不需要并发防护。 <br />
-        /// 没有重复登记的检查：内建轨各登记一次，测试的合成轨由 <see cref="Internal_UnregisterTrack"/> 摘回去。
+        /// 按 <see cref="UITrack.ShutdownOrder"/> 升序插入、同档按登记序，关停就按这一序逐轨走一遍。<br />
+        /// 登记只发生在类型初始化里（外部取用都排在静态初始化器之后），插入本身不需要并发防护。<br />
+        /// 不查重复登记：内建轨各登记一次，测试的合成轨由 <see cref="Internal_UnregisterTrack"/> 摘回去。
         /// </remarks>
         /// <param name="track">待登记的轨道自述。</param>
         /// <returns>原样交回登记进去的那一枚，供 partial 存成自己的字段。</returns>
@@ -125,8 +114,7 @@ namespace Moirai.Atropos.UI
         /// 各轨后端共用那一份窗口栈与停放表的持有者：懒建一枚，<see cref="Internal_ResetHandlerSlots"/> 归位时把它抹掉、下一读再建一枚。
         /// </summary>
         /// <remarks>
-        /// 处理器侧取用的是这一位的<b>现读</b>（<c>UIServiceHandler.Ledger</c>），不是构造期那一份快照：持有者会被归位门换掉， <br />
-        /// 而清单里的驱动者由资产反序列化器在任意时刻造出来——把持有者定格在构造期，「只有一条栈」就变成写进一份、查询走另一份。 <br />
+        /// 每读现取、不是构造期快照：共享持有者会被归位门换掉，而清单里的驱动者由资产反序列化器在任意时刻造出来。<br />
         /// 线程契约：仅主线程（开窗、关窗与每帧驱动都在主线程）。
         /// </remarks>
         internal static UIWindowLedger SharedLedger
@@ -146,9 +134,9 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 共享持有者的归零事务（门面侧唯一的一处归零门）：栈与停放表清空、交互租约交回、上一轮没还回来的全局压制位归零。
-        /// <para>各轨 handler 的初始化都不抹这份共用的存储；关停时各轨各关自己那一轨的窗（见 <see cref="UI.UGUIHandler"/> 与 <see cref="UI.UITKHandler"/>），这道门收的是剩下的停放表与租约。</para>
+        /// 共享持有者的归零事务（门面侧唯一的一处归零门）：栈与停放表清空、交互租约交回、未被归还的全局压制位归零。
         /// </summary>
+        /// <remarks>各轨 handler 的初始化与关停都只收本轨的窗，这份共用存储由这一道门收。</remarks>
         internal static void Internal_ResetSharedLedger()
         {
             var ledger = SharedLedger;
@@ -160,7 +148,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 免域重载复位：各轨处理器槽与那份共享持有者都是静态位，跨 Play 会话残留会把上一轮的栈漏给下一轮（房内先例 <see cref="UIBase"/> 的注入点位复位）。
+        /// 免域重载复位：处理器槽与共享持有者都是静态位，跨 Play 会话残留会把上一轮的栈漏给下一轮。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetHandlerSlotsOnDomainReload()
@@ -169,10 +157,12 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 归位门：叫各轨各自摘掉槽、摘干净挂在门面上的所有订阅与认领，再把那份共享持有者清回「干净域」那一份状态。
-        /// <para>只清不置：这一道不收任何实参，也没有把对象放进槽的路径——槽里从此只有 <c>OnInit</c> 按启用清单认领那一条来路。夹具按进门归位用它。</para>
-        /// <para>它不跑关停：被摘下的那一枚实例归谁关，是 <see cref="OnShutdown"/> 按目录档位收口的事。</para>
+        /// 归位门：叫各轨各自摘槽、摘掉挂在门面上的全部订阅与认领，再把共享持有者清回干净状态。
         /// </summary>
+        /// <remarks>
+        /// 只清不置：不收实参、也没有把对象放进槽的路径，槽里只剩 <see cref="OnInit"/> 按启用清单认领那一条来路。<br />
+        /// 不跑关停：被摘下的实例归 <see cref="OnShutdown"/> 按目录档位收口。夹具按进门归位用它。
+        /// </remarks>
         internal static void Internal_ResetHandlerSlots()
         {
             onDetachTrackSlots?.Invoke();
@@ -181,9 +171,9 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 摘掉各轨挂在门面上的全部订阅与认领：四道广播一起置空、目录里每一轨的关停回调一并摘掉，第二轮认领才各挂一次。
-        /// <para>订阅与认领挂在静态位上，槽清了而它们没清，下一轮仍会叫到上一轮那枚已退役的实例。</para>
+        /// 摘掉各轨挂在门面上的全部订阅与认领：四道广播置空、目录里每一轨的关停回调摘掉。
         /// </summary>
+        /// <remarks>订阅与认领住在静态位上：槽清了而它们没清，下一轮仍会叫到上一轮已退役的实例。</remarks>
         private static void Internal_ClearTrackSubscriptions()
         {
             onDetachTrackSlots = null;
@@ -215,10 +205,9 @@ namespace Moirai.Atropos.UI
         /// 初始化 UI 服务。由容器在构建期调用。
         /// </summary>
         /// <remarks>
-        /// 先走这一次归零：共享持有者归各轨后端共用，复用它的第二轮从门面这一处起步，不再由协调者的 <c>OnInit</c> 抹掉别轨留在栈上的窗口。 <br />
-        /// 再按 <see cref="UIServiceSettings"/> 的启用清单逐支造出驱动者——启用哪几支由配置答，不由「谁先碰到哪一支的取用」答。 <br />
-        /// 各轨自此并存于同一条栈上，各自驱动本轨那半边的编排；门面不再交「那一份协调者」出去，R8 之后回叫没有单点落点（窗口问的是那条共享栈，见 <see cref="UIWindow"/> 的 <c>Hide</c>/<c>Close</c>）。 <br />
-        /// 可重入：某一轨的驱动者已就位时这一道不再造第二枚，也不重复挂广播；第二轮的 <c>OnInit</c> 仍只归零那一份共享存储。
+        /// 先归零共享持有者，再按 <see cref="UIServiceSettings"/> 的启用清单逐支造出驱动者——启用哪几支由配置答，不由「谁先碰到哪一支的取用」答。<br />
+        /// 各轨自此并存于同一条栈上，各自驱动本轨那半边的编排；窗口回叫问的是那条共享栈，门面不再交单一协调者出去。<br />
+        /// 可重入：某一轨的驱动者已就位时不再造第二枚、不重复挂广播，但仍归零那一份共享存储。
         /// </remarks>
         public override void OnInit()
         {
@@ -230,10 +219,9 @@ namespace Moirai.Atropos.UI
         /// 按配置启用后端：逐条把 <see cref="UIServiceSettings.EnabledHandlers"/> 里的条目交回它自己那一轨去认领——填槽、挂广播、初始化。
         /// </summary>
         /// <remarks>
-        /// 归属由实现类自述：本文件只逐支叫 <see cref="UIServiceHandler.Internal_Register"/>，既不判类型也不写槽，加一轨是加一枚实现类与一条认领门、本文件一行都不多。 <br />
-        /// 本层的两档抬错是<b>清单为 <c>null</c> 或空</b>（资产缺这一枚键时读回来的就是 <c>null</c>，<c>SerializeReference</c> 不跑字段初始值）与<b>某一项是 <c>null</c></b>；<b>同一轨被注入两次</b>由那一轨自己的认领门抬错。 <br />
-        /// 「注入一枚不属于内建两支的驱动者」这一档在形状上已不存在：认领门的形参就是那一轨的具体类型，编译期就否掉了它。 <br />
-        /// 抬错之前可能已经注册好了前几项的驱动者——配置面坏了这本就是启动失败，已经就位的那几枚由 <see cref="OnShutdown"/> 或归位门收，门面不在抬错之后补一次半程关停。
+        /// 逐支叫 <see cref="UIServiceHandler.Internal_Register"/>，本文件既不判类型也不写槽。<br />
+        /// 本层抬错档：清单为 <c>null</c> 或空、清单里有 <c>null</c> 项；同一轨被注入两次由那一轨自己的认领门抬错。<br />
+        /// 抬错前可能已注册好前几项的驱动者——门面不补半程关停，已就位的由 <see cref="OnShutdown"/> 或归位门收。
         /// </remarks>
         /// <exception cref="GameException">没有任何后端被启用、清单里有 <c>null</c> 项，或同一轨被注入两次。</exception>
         private static void Internal_EnableHandlersFromSettings()
@@ -264,13 +252,10 @@ namespace Moirai.Atropos.UI
         /// 关闭 UI 服务。由容器在关闭期调用。
         /// </summary>
         /// <remarks>
-        /// 本文件只广播与按目录收口，不认识任何一轨：先叫 <c>onDetachTrackSlots</c>，再按各轨自报的关停档位升序逐轨收口，最后把订阅与认领整批摘掉。 <br />
-        /// 先摘干净各轨的槽再收口：<see cref="UIWindow"/> 的两枚回叫钩子认的是 <see cref="IsValid"/>，槽清了它们就静默落空，既不拿到半关的驱动者也不当场抬错、更不会在账本正被收的时候重进去。 <br />
-        /// 档位由各轨在描述符里自报：持有别轨面板挂靠的宿主根那一轨（uGUI）取宿主档最后收，其余取默认档先收——次序由自报档位表述，不由认领先后决定。 <br />
-        /// 收口叫的是认领时绑定的那一枚关停回调、不是重读槽位：摘槽广播已在前面跑过，此刻重读槽会静默跳过关停。 <br />
-        /// 全部收口之后走这一次归零：那才是关停侧收停放表与租约的一道门，此刻栈已由各轨各自关空。 <br />
-        /// 收口包在 <c>finally</c> 之外：销毁链抛了也不能把订阅与认领留在已空的槽上——下一轮认领走的是 compare-exchange 而不是同枚实例的早退，
-        /// 那会给同一实例挂出第二遍广播。
+        /// 顺序是契约：先广播摘槽，再按各轨自报的关停档位升序逐轨收口，最后整批摘掉订阅与认领。<br />
+        /// 摘槽排在收口之前：<see cref="UIWindow"/> 的回叫钩子认 <see cref="IsValid"/>，槽清了它们就静默落空，既不拿到半关的驱动者、也不在账本正被收的时候重进去。<br />
+        /// 收口叫认领时绑定的那一枚关停回调，不重读槽位（此刻重读会静默跳过关停）。<br />
+        /// 摘订阅与归零放在 <c>finally</c>：销毁链抛了也不能把订阅留在已空的槽上，否则下一轮认领会给同一实例挂出第二遍广播。
         /// </remarks>
         public override void OnShutdown()
         {
@@ -290,8 +275,7 @@ namespace Moirai.Atropos.UI
         /// 按档位升序逐轨收口：目录在登记时就排好升序，宿主轨（持有别轨面板挂靠的根）落在最后一段。
         /// </summary>
         /// <remarks>
-        /// 叫的是认领进槽时绑定的那一枚关停回调：某一轨没被启用（没认领）时它没有回调，目录序跳过它。 <br />
-        /// 同档的收口次序按登记序：同档各轨之间没有宿主依赖，先后不构成契约。
+        /// 叫的是认领进槽时绑定的那一枚关停回调：某一轨没被启用（没认领）时它没有回调，目录序跳过它。同档各轨按登记序，彼此没有宿主依赖。
         /// </remarks>
         private static void Internal_ShutDownTracksInOrder()
         {
@@ -311,9 +295,8 @@ namespace Moirai.Atropos.UI
         /// 容器 Tick 驱动：每帧把那条共享栈结算一次，再广播各轨 handler 本轨专有那段。
         /// </summary>
         /// <remarks>
-        /// 栈只有一条、结算因此每帧只有一次：整条栈的驱动归门面这一处，各轨的 <see cref="UIServiceHandler.Tick"/> 只剩本轨自己的帧职责（uGUI 那一轨交出去的是 UI 根的续等）。 <br />
-        /// 既不是各轨各叫一次（那等于每帧把整条栈跑几遍），也不是任挑一支当代驱动（只剩 UI Toolkit 那一枚在位时整条栈一帧都不结算，而 <see cref="IsValid"/> 回真——静默致命档）。 <br />
-        /// 这一族按支的帧职责是广播：<see cref="UI.UGUIHandler"/> 与 <see cref="UI.UITKHandler"/> 各自在认领进槽时挂一次，谁先就位就先驱谁，几轨都在位时同一条栈照旧只结算一次。
+        /// 整条栈的驱动归这一处、每帧只结算一次；各轨广播里那份只剩本轨自己的帧职责，认领进槽时各挂一次。<br />
+        /// 不得改成各轨各叫一次（整条栈每帧跑几遍），也不得任挑一支当代驱动（只剩另一轨在位时整条栈一帧都不结算，而 <see cref="IsValid"/> 回真）。
         /// </remarks>
         public void Tick(float elapseSeconds, float realElapseSeconds)
         {
@@ -375,8 +358,8 @@ namespace Moirai.Atropos.UI
 
         #region 窗口查询 [WINDOW QUERIES]
 
-        // 这一族的读数都来自那一条各轨共用的栈：门面直叫共享持有者，与哪一轨在位、哪一轨先就位无关。
-        // 形参表与返回形状是包外调用点的编译依据，一枚都不动（IsBlockedByModal 那枚 GameObject 形参照旧）。
+        // 这一族的读数都来自那条各轨共用的栈：门面直叫共享持有者，与哪一轨在位、哪一轨先就位无关。
+        // 形参表与返回形状是包外调用点的编译依据，一枚都不动。
 
         /// <summary>
         /// 获取所有层级下顶部的窗口。
@@ -445,7 +428,10 @@ namespace Moirai.Atropos.UI
         /// 申请模态动画期间的 UI 交互压制。
         /// </summary>
         /// <returns>调用方应当置位压制时返回 true；非模态窗口恒为 false。</returns>
-        /// <remarks>压制位本身是无归属的全局布尔，仲裁见 <see cref="UIInteractionLease"/>；租约住在共享持有者那一份上，各轨后端据此争同一枚压制位——任一轨在位都算门面有效，只剩 UI Toolkit 那一枚时压制照样要争。</remarks>
+        /// <remarks>
+        /// 压制位是无归属的全局布尔，仲裁见 <see cref="UIInteractionLease"/>。<br />
+        /// 租约住在共享持有者那一份上，各轨据此争同一枚压制位：任一轨在位都算门面有效，只剩一支时压制照样要争。
+        /// </remarks>
         internal static bool AcquireModalInteraction(UIWindow window) =>
             IsValid && SharedLedger.InteractionLease.Acquire(window, IsModal(window));
 
@@ -464,9 +450,8 @@ namespace Moirai.Atropos.UI
         /// 异步打开窗口。
         /// </summary>
         /// <remarks>
-        /// 寻址两档对各轨都有效：UI Toolkit 轨取面板模板那一条路同样分 AB 与内置资源，这一入口不再只喂 uGUI 那一轨。 <br />
-        /// 分派按目录找到拥有这一窗口类的轨、直呼那一轨自述的开窗实现：主文件不登记任何具体后端。 <br />
-        /// 窗口级 <c>PanelSettings</c> 不在这一张形参表上：那是 UI Toolkit 泛型腿比 uGUI 腿多出的那一枚，同名两支靠它过 <c>CS0111</c>。
+        /// 寻址两档对各轨都有效；落在哪一轨由 <see cref="RequireOwningTrack"/> 按目录先认，再直呼那一轨自述的开窗实现。<br />
+        /// 窗口级 <c>PanelSettings</c> 不在这一张形参表上：那是 UI Toolkit 泛型腿比 uGUI 腿多出的那一枚。
         /// </remarks>
         /// <param name="type">窗口类型。</param>
         /// <param name="windowName">窗口名称。</param>
@@ -482,8 +467,8 @@ namespace Moirai.Atropos.UI
         /// 同步打开窗口。
         /// </summary>
         /// <remarks>
-        /// 寻址两档与上一道同一判据：落在哪一轨由 <see cref="RequireOwningTrack"/> 按目录先认，各轨都吃这两档。 <br />
-        /// 同步档在 <c>UNITY_WEBGL</c> 上交给异步装载，那一档与 <paramref name="fromResources"/> 不相冲：内置资源那一路两条腿都不落 await。
+        /// 寻址两档与上一道同一判据：落在哪一轨由 <see cref="RequireOwningTrack"/> 按目录先认。<br />
+        /// 同步档在 <c>UNITY_WEBGL</c> 上交给异步装载；内置资源（<paramref name="fromResources"/>）那一路两支都不落 await。
         /// </remarks>
         /// <param name="type">窗口类型。</param>
         /// <param name="windowName">窗口名称。</param>
@@ -499,13 +484,10 @@ namespace Moirai.Atropos.UI
         /// 认轨守卫：<see cref="Type"/> 形入口按目录找到拥有这一窗口类的轨并交回它，认不出轨当场抬错。
         /// </summary>
         /// <remarks>
-        /// 判据是各轨描述符自述的窗口基类（uGUI 轨认 <see cref="UGUIWindow"/>、UI Toolkit 轨认 <see cref="UITKWindow"/>），主文件不登记任何具体后端： <br />
-        /// 加一轨＝加一枚 <c>UIService.&lt;轨&gt;.cs</c> partial 自登记，这里零改动、不新增接口、不登记任何对象。 <br />
-        /// 认不出轨的窗口类在这里被拒开，经 <see cref="Type"/> 形入口进不来；文案按目录枚举各轨的窗口基类，登记进来的轨都答得上。 <br />
-        /// 泛型腿的约束在编译期就把跨轨实参与没挂任何一枚窗口基类的窗口类一起挡死（各轨各自收在自己的窗口基类上）， <br />
-        /// 因此运行期这一判断得出错配的只有 <see cref="Type"/> 形入口。 <br />
-        /// 判在叫任何一轨的开窗实现之前：认不出轨的窗口会被推进栈、面板装载静默失败，留下一只开不出来的窗； <br />
-        /// 轨认出来了但那一轨没被启用时，交回的轨自己那枚开窗实现会抬「没有驱动者在位」（各轨自己的取用属性），与「认不出轨」是两档不同的错。
+        /// 判据是各轨描述符自述的窗口基类（<see cref="UGUIWindow"/>、<see cref="UITKWindow"/>），本文件不登记任何具体后端。<br />
+        /// 泛型腿的约束在编译期就挡死跨轨实参与没挂窗口基类的窗口类，运行期会判出错配的只有 <see cref="Type"/> 形入口。<br />
+        /// 判在叫任何一轨的开窗实现之前：否则窗口被推进栈、面板装载静默失败，留下一只开不出来的窗。<br />
+        /// 「认不出轨」与「轨认出来了但那一轨没被启用」是两档不同的错，后者由那一轨自己的开窗实现抬。
         /// </remarks>
         /// <param name="windowType">窗口类型；<c>null</c> 与认不出轨的类型同样当场抬错。</param>
         /// <returns>拥有这一窗口类的那一轨。</returns>
@@ -618,7 +600,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 关闭所有窗口除了指定层级的窗口。
         /// </summary>
-        public static void CloseAllWithOut(UILayer withOut) =>
+        public static void CloseAllWithOut(EUILayer withOut) =>
             SharedLedger.CloseAllWithOut(withOut);
 
         #endregion
@@ -640,6 +622,14 @@ namespace Moirai.Atropos.UI
         /// <param name="callback">回调。</param>
         public static void GetUIAsync<T>(Action<T> callback) where T : UIWindow =>
             SharedLedger.GetUIAsync(callback);
+
+        /// <summary>
+        /// 异步获取窗口并等装载终态：就绪/失败/缺失/超时按 <see cref="UIOpenResult"/> 交回。
+        /// </summary>
+        /// <typeparam name="T">窗口类型。</typeparam>
+        /// <returns>取窗结果。</returns>
+        public static UniTask<UIOpenResult> GetUIAwaitResult<T>() where T : UIWindow =>
+            SharedLedger.GetUIAwaitResultImp<T>();
 
         #endregion
     }

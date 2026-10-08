@@ -12,13 +12,11 @@ namespace Moirai.Atropos.UI
     /// UI Toolkit 轨窗口基类：面板实现（壳 GameObject/UIDocument/内容根）后端专有，对象模型不认这些类型。
     /// </summary>
     /// <remarks>
-    /// 覆写 <see cref="UIWindow"/> 的七枚面板钩子，把 <see cref="UIWindow.Visible"/> / <see cref="UIWindow.Depth"/> / <see cref="UIWindow.Interactable"/> <br />
-    /// 三份意图落到真实面板上：显隐切内容根的 <c>style.display</c>（Flex/None）、深度写文档组件的 <c>sortingOrder</c>（绝对值，UI Toolkit 没有子画布偏移那一层）、 <br />
-    /// 交互切内容根自身的 <c>pickingMode</c>（Position/Ignore；这是逐元素属性，不覆盖子树）。壳物体与 <see cref="UIDocument"/> 一窗一枚， <br />
-    /// <see cref="PanelSettings"/> 一窗一档：<see cref="PanelSettingsOverride"/> 在场时用它，缺位时回全后端共享的那一份 <see cref="SharedPanelSettings"/>。 <br />
-    /// 空引用口径与 uGUI 轨同形：未绑定时 <c>gameObject</c> 回 null，<c>transform</c> / <c>rectTransform</c> 抛 <see cref="NullReferenceException"/>（不补 <c>?.</c>）， <br />
-    /// <see cref="ParkPanel"/> 同样不守卫绑定；三份意图的写入与 <see cref="ApplySafeInsets"/> 则在未绑定时判为空操作。 <br />
-    /// 排序刷新与 <c>OnSetVisible</c> 的回执仍由 <see cref="UIWindow"/> 决策，本类不知道 <c>_isCreate</c>。线程契约：仅主线程。
+    /// 覆写 <see cref="UIWindow"/> 的七枚面板钩子，把显隐/深度/交互三份意图落进真实的 UI Toolkit 面板；<br />
+    /// 每一枚怎么落、边界在哪写在它自己的文档上（<see cref="ApplyVisible"/>、<see cref="ApplyDepth"/>、<see cref="ApplyInteractable"/>）。<br />
+    /// 壳物体与 <see cref="UIDocument"/> 一窗一枚；面板配置优先 <c>PanelSettingsOverride</c>，缺位回 <c>SharedPanelSettings</c>。<br />
+    /// 未绑定时的空引用口径与 uGUI 轨同形：读 <c>gameObject</c> 回 null，读 <c>transform</c> 抛 <see cref="NullReferenceException"/>，<br />
+    /// 三份意图的写入与 <see cref="ApplySafeInsets"/> 则是不落任何一笔的空操作。线程契约：仅主线程。
     /// </remarks>
     // ReSharper disable once InconsistentNaming
     public abstract class UITKWindow : UIWindow
@@ -94,7 +92,7 @@ namespace Moirai.Atropos.UI
             return BindPanel(NewDocumentShell(), tree);
         }
 
-        /// <summary>装载面板（异步）：AB 路径 await 模板，内置资源路径与旧实现一样仍走同步 <c>Resources.Load</c>。</summary>
+        /// <summary>装载面板（异步）：AB 路径 await 模板，内置资源那一路仍走同步 <c>Resources.Load</c>。</summary>
         /// <remarks>配置与模板的判据同同步路径：任一项缺位都只报一条 Error 并回 false，不建壳、不装配。</remarks>
         protected internal override async UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources, CancellationToken ct)
         {
@@ -120,10 +118,9 @@ namespace Moirai.Atropos.UI
 
         /// <summary>显隐落地：切内容根的 <c>style.display</c>；同值早退只认「这槽真被写过」，没写过的槽一律先落一笔。</summary>
         /// <remarks>
-        /// <c>DisplayStyle.Flex</c> 是枚举的 0 值（2022.3 与 6000.3 各编一次实测），所以从没写过 <c>display</c> 的内容根读回来的 <c>value</c> 就是 <c>Flex</c>， <br />
-        /// 只有 <c>keyword</c> 还停在 <c>StyleKeyword.Null</c> 才说明这一槽压根没被碰过。只比 <c>value</c> 时，「显示意图结算到刚建出的内容根上」这一组合 <br />
-        /// 正好被初值冒充成已到位：一次都不写，窗口的显隐意图从没在这棵树上留过痕迹，模板样式表按名字选择器把它置 <c>none</c> 也没有东西压回去。 <br />
-        /// uGUI 轨同一形状的判据是面板的真实 layer，它就在物体上；这一侧槽里的初值不是 ground truth，<c>keyword</c> 才是。
+        /// <c>DisplayStyle.Flex</c> 是 0 值：没写过 <c>display</c> 的内容根读回的 <c>value</c> 就是它，只比 <c>value</c> 会被初值冒充成已到位。<br />
+        /// 一次都不写，窗口显隐意图在这棵树上没留过痕迹，模板样式表按名字选择器置的 <c>none</c> 也没东西压回去。<br />
+        /// 存在性看 <c>keyword</c>：停在 <c>StyleKeyword.Null</c> 才是这一槽压根没被碰过。
         /// </remarks>
         protected internal override void ApplyVisible(bool value)
         {
@@ -148,9 +145,8 @@ namespace Moirai.Atropos.UI
 
         /// <summary>交互落地：只切内容根自身的 <c>pickingMode</c>。</summary>
         /// <remarks>
-        /// <c>pickingMode</c> 是逐元素属性，父元素置 <c>Ignore</c> 屏蔽不了子树：克隆进来的模板内容与代码追加的子元素各自保留自己的取值， <br />
-        /// 所以这一步只让内容根自己退出命中树，不等于整扇窗口点不动。要连子树一起掐得逐元素铺 <c>pickingMode</c>， <br />
-        /// 而解锁时分不清「本来就 <c>Ignore</c> 的装饰元素」与被锁元素，一刀切回 <c>Position</c> 会打穿按元素的意图；uGUI 轨无此负担，它切的是 <c>GraphicRaycaster.enabled</c>。
+        /// <c>pickingMode</c> 是逐元素属性：内容根置 <c>Ignore</c> 只让自己退出命中树，屏蔽不到克隆进来的模板内容与代码追加的子元素。<br />
+        /// 刻意不递归铺锁：解锁时分不出「本来就 <c>Ignore</c> 的装饰元素」与被锁元素，一刀切回 <c>Position</c> 会打穿按元素的意图。
         /// </remarks>
         protected internal override void ApplyInteractable(bool value)
         {
@@ -190,7 +186,7 @@ namespace Moirai.Atropos.UI
         /// <param name="tree">面板模板资产；null 表示内容由代码构建，只建空内容根。</param>
         /// <returns>装配成功返回 true。</returns>
         /// <remarks>
-        /// 校验先于写入：缺 <see cref="UIDocument"/> 时抛异常并沿用 uGUI 轨的文案格式，此时一个字段都不动，调用方不得拿到半个可用面板。 <br />
+        /// 校验先于写入：缺 <see cref="UIDocument"/> 时抛 <see cref="GameException"/>，此时一个字段都不动，调用方不得拿到半个可用面板。 <br />
         /// 内容根一律由本类 new 出来：三份意图与 inset 都写在它身上，与文档有没有把根元素建起来无关—— <br />
         /// <c>UIDocument.rootVisualElement</c> 由组件自身的启用流程创建，拿不到宿主时不做 attach，也不报错。
         /// </remarks>
@@ -201,7 +197,8 @@ namespace Moirai.Atropos.UI
             var document = shell.GetComponent<UIDocument>();
             if (document == null)
             {
-                throw new Exception($"Not found {nameof(UIDocument)} in panel {WindowName}");
+                throw new GameException(StringUtility.Format(
+                    "面板壳 {0}（窗口 {1}）上找不到 {2}：UI Toolkit 窗口的壳必须自带文档组件", shell.name, WindowName, nameof(UIDocument)));
             }
 
             _shell = shell;
