@@ -80,7 +80,14 @@ namespace Moirai.Atropos.UI
                 _depth = value;
 
                 // 面板落地（后端自己的事：父级取绝对值、子级按各自偏移一同平移）
-                ApplyDepth(value);
+                try
+                {
+                    ApplyDepth(value);
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 ApplyDepth 抛出异常，意图照常结算：{1}", WindowName, ex);
+                }
 
                 // 虚函数
                 if (Visible)
@@ -114,7 +121,14 @@ namespace Moirai.Atropos.UI
                 _visible = value;
 
                 // 面板落地
-                ApplyVisible(value);
+                try
+                {
+                    ApplyVisible(value);
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 ApplyVisible 抛出异常，意图照常结算：{1}", WindowName, ex);
+                }
 
                 if (value && _isCreate)
                 {
@@ -145,7 +159,14 @@ namespace Moirai.Atropos.UI
 
                 // LogUtility.Info("{0}'s Interactable: {1}", WindowName, value);
                 _interactable = value;
-                ApplyInteractable(value);
+                try
+                {
+                    ApplyInteractable(value);
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 ApplyInteractable 抛出异常，意图照常结算：{1}", WindowName, ex);
+                }
             }
         }
 
@@ -348,9 +369,32 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            ApplyVisible(_visible);
-            ApplyDepth(_depth);
-            ApplyInteractable(_interactable);
+            try
+            {
+                ApplyVisible(_visible);
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 ApplyVisible 抛出异常，落面板失败不挡流程：{1}", WindowName, ex);
+            }
+
+            try
+            {
+                ApplyDepth(_depth);
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 ApplyDepth 抛出异常，落面板失败不挡流程：{1}", WindowName, ex);
+            }
+
+            try
+            {
+                ApplyInteractable(_interactable);
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 ApplyInteractable 抛出异常，落面板失败不挡流程：{1}", WindowName, ex);
+            }
 
             // 通知UI管理器
             IsPrepare = true;
@@ -371,11 +415,20 @@ namespace Moirai.Atropos.UI
             if (_isCreate == false)
             {
                 _isCreate = true;
-                Inject();
-                ScriptGenerator();
-                BindMemberProperty();
-                RegisterEvent();
-                OnCreate();
+                try
+                {
+                    Inject();
+                    ScriptGenerator();
+                    BindMemberProperty();
+                    RegisterEvent();
+                    OnCreate();
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 创建链抛出异常，按装载失败回滚：{1}", WindowName, ex);
+                    RollbackFailedLoad();
+                    return;
+                }
             }
 
             InternalRefresh(true);
@@ -386,8 +439,15 @@ namespace Moirai.Atropos.UI
         {
             SetInteractWaiter(open).Forget();
 
-            // LogUtility.Info("[UI] Refresh {0}", WindowName);
-            OnRefresh();
+            try
+            {
+                // LogUtility.Info("[UI] Refresh {0}", WindowName);
+                OnRefresh();
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 OnRefresh 抛出异常，窗口照常入栈：{1}", WindowName, ex);
+            }
         }
 
         /// <summary>
@@ -406,7 +466,15 @@ namespace Moirai.Atropos.UI
 
         protected internal virtual void InternalClose()
         {
-            OnClose();
+            try
+            {
+                OnClose();
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 OnClose 抛出异常，关闭流程照常走完：{1}", WindowName, ex);
+            }
+
             InternalCloseAsync(++_interactionLifetime).Forget();
         }
 
@@ -458,7 +526,14 @@ namespace Moirai.Atropos.UI
             // 注销回调函数
             _prepareCallback = null;
 
-            OnDestroy();
+            try
+            {
+                OnDestroy();
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 OnDestroy 抛出异常，销毁流程照常走完：{1}", WindowName, ex);
+            }
 
             // 清理交互状态：代次先行作废，在途的打开/关闭续体不得再交还锁或隐藏
             _interactionLifetime++;
@@ -639,7 +714,18 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            if (CanClose)
+            bool canClose;
+            try
+            {
+                canClose = CanClose;
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 CanClose 抛出异常，按拒关计：{1}", WindowName, ex);
+                canClose = false;
+            }
+
+            if (canClose)
             {
                 ForceClose();
             }
