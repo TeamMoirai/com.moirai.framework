@@ -343,12 +343,12 @@ namespace Moirai.Atropos.UI
 
             // 等面板就绪：先过一帧再入轮询（对齐旧 WaitUntil 的次帧首查语义），实例方法等待零闭包；
             // 超时经池租的取消源兜底，超时后照常交回窗口
-            var waitCts = UICtsPool.Rent();
-            waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+            var waitLease = MemoryPool.Acquire<UICtsLease>();
+            waitLease.Source.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
             try
             {
                 await UniTask.Yield();
-                await window.WaitPanelReadyAsync(waitCts.Token);
+                await window.WaitPanelReadyAsync(waitLease.Source.Token);
             }
             catch (System.OperationCanceledException)
             {
@@ -356,8 +356,8 @@ namespace Moirai.Atropos.UI
             }
             finally
             {
-                waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
-                UICtsPool.Return(waitCts);
+                waitLease.Source.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                MemoryPool.Release(waitLease);
             }
 
             if (window.IsLoadFailed || (window.IsDestroyed && !window.IsLoadDone))
@@ -490,12 +490,12 @@ namespace Moirai.Atropos.UI
             }
 
             // 等面板就绪：先过一帧再入轮询（次帧首查语义），实例方法等待零闭包；超时经池租的取消源兜底
-            var waitCts = UICtsPool.Rent();
-            waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+            var waitLease = MemoryPool.Acquire<UICtsLease>();
+            waitLease.Source.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
             try
             {
                 await UniTask.Yield();
-                await ret.WaitPanelReadyAsync(waitCts.Token);
+                await ret.WaitPanelReadyAsync(waitLease.Source.Token);
             }
             catch (System.OperationCanceledException)
             {
@@ -503,8 +503,8 @@ namespace Moirai.Atropos.UI
             }
             finally
             {
-                waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
-                UICtsPool.Return(waitCts);
+                waitLease.Source.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                MemoryPool.Release(waitLease);
             }
 
             if (ret.IsLoadFailed || (ret.IsDestroyed && !ret.IsLoadDone))
@@ -537,13 +537,13 @@ namespace Moirai.Atropos.UI
 
             async UniTaskVoid GetUIAsyncImp(Action<T> ctx)
             {
-                var waitCts = UICtsPool.Rent();
-                waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+                var waitLease = MemoryPool.Acquire<UICtsLease>();
+                waitLease.Source.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
                 try
                 {
                     // 先过一帧再入轮询（次帧首查语义），实例方法等待零闭包
                     await UniTask.Yield();
-                    await ret.WaitPanelReadyAsync(waitCts.Token);
+                    await ret.WaitPanelReadyAsync(waitLease.Source.Token);
                 }
                 catch (System.OperationCanceledException)
                 {
@@ -551,8 +551,8 @@ namespace Moirai.Atropos.UI
                 }
                 finally
                 {
-                    waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
-                    UICtsPool.Return(waitCts);
+                    waitLease.Source.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                    MemoryPool.Release(waitLease);
                 }
 
                 if (ret.IsLoadFailed || (ret.IsDestroyed && !ret.IsLoadDone))
@@ -610,7 +610,7 @@ namespace Moirai.Atropos.UI
         /// 等窗口装载终态：就绪/失败/销毁按实际终态回，超时（<paramref name="timeoutSeconds"/> 秒）回假。
         /// </summary>
         /// <remarks>
-        /// 取消源从 <see cref="UICtsPool"/> 租还：超时计时还池前先解除，取消过的源由池内废弃。 <br />
+        /// 取消源经 <see cref="UICtsLease"/> 租约从 <see cref="MemoryPool"/> 取还：超时计时还池前先解除，取消过的源由租约废弃。 <br />
         /// 超时与就绪竞速时以就绪为准：取消异常落定后回读一次就绪位。
         /// </remarks>
         /// <param name="window">等终态的那一只。</param>
@@ -618,11 +618,11 @@ namespace Moirai.Atropos.UI
         /// <returns>面板就绪时为真。</returns>
         internal static async UniTask<bool> WaitForPanelReady(UIWindow window, float timeoutSeconds)
         {
-            var cts = UICtsPool.Rent();
-            cts.CancelAfter(System.TimeSpan.FromSeconds(timeoutSeconds));
+            var lease = MemoryPool.Acquire<UICtsLease>();
+            lease.Source.CancelAfter(System.TimeSpan.FromSeconds(timeoutSeconds));
             try
             {
-                return await window.WaitPanelReadyAsync(cts.Token);
+                return await window.WaitPanelReadyAsync(lease.Source.Token);
             }
             catch (System.OperationCanceledException)
             {
@@ -631,8 +631,8 @@ namespace Moirai.Atropos.UI
             finally
             {
                 // 解除超时计时后再还池：活着的计时器会把池里别的租户打取消
-                cts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
-                UICtsPool.Return(cts);
+                lease.Source.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                MemoryPool.Release(lease);
             }
         }
 
