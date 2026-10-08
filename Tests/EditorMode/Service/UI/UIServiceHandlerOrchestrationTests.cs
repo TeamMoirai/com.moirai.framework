@@ -1149,6 +1149,46 @@ namespace Service.UI
             Assert.AreEqual(0, Stack.Count, "按类型全名也要把这只窗关掉");
         }
 
+        /// <summary>模态窗摘栈时把紧邻下层的可交互位交还：与 <c>Push</c> 压掉下层那一笔成对。</summary>
+        /// <remarks>
+        /// 交还走意图位，落到面板那两枚 <c>GraphicRaycaster.enabled</c> 的链路由 <see cref="UGUIWindowTests"/> 与面板钩子契约各自钉住。 <br />
+        /// 下层窗走的是 <see cref="Prepared"/> 那一圈，就绪回执已把交互位置真，因此压栈写假是一次真转移、看得见。
+        /// </remarks>
+        [Test]
+        public void CloseUI_ModalWindowClosed_ReturnsInteractableToWindowBelow()
+        {
+            var below = Prepared("BelowModalClosed", (int)EUILayer.Bottom);
+            var modal = Prepared("ModalClosed", (int)EUILayer.Popup);
+
+            Assert.IsFalse(below.Interactable, "量具前提坏了：模态窗压栈时要写掉下层的交互位");
+
+            UIService.SharedLedger.CloseUI(typeof(ProbeUGUIWindow), modal.WindowName);
+
+            Assert.IsTrue(below.Interactable, "模态窗摘栈后必须把紧邻下层的交互位交还");
+        }
+
+        /// <summary>摘掉夹在两只模态窗之间的那一枚时，紧邻下层仍被新的上方模态压住——交还按上方邻居重算，不是无条件置真。</summary>
+        /// <remarks>
+        /// 栈序 Bottom(非模态) → UI(模态) → Popup(模态)；关掉中间那只后 Popup 那只直接压在下层头上， <br />
+        /// 无条件交还会把模态遮挡打出洞：下层窗口在上方仍有模态窗时可交互。
+        /// </remarks>
+        [Test]
+        public void CloseUI_MiddleModalClosed_KeepsBelowSuppressedByRemainingModalAbove()
+        {
+            var below = Prepared("BelowMiddleModal", (int)EUILayer.Bottom);
+            var middle = Prepared("MiddleModal", (int)EUILayer.UI);
+            var above = Prepared("AboveModal", (int)EUILayer.Popup);
+
+            CollectionAssert.AreEqual(new UIWindow[] { below, middle, above }, Stack,
+                "量具前提坏了：三只窗按层级升序就位");
+            Assert.IsFalse(below.Interactable, "量具前提坏了：中间那只模态窗压着最下层");
+
+            UIService.SharedLedger.CloseUI(typeof(ProbeUGUIWindow), middle.WindowName);
+
+            Assert.IsFalse(below.Interactable, "上方换成另一只模态窗时最下层必须保持不可交互");
+            Assert.IsTrue(above.Interactable, "摘栈不得碰被摘那只之外的窗口的交互位");
+        }
+
         /// <summary>隐藏时长为非正数时直接走关闭：不落隐藏标志、不挂计时器、物体销毁。</summary>
         [Test]
         public void HideUI_ZeroHideTime_ClosesWindowInsteadOfHiding()
