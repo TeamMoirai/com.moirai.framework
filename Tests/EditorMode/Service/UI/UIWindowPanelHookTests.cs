@@ -243,7 +243,7 @@ namespace Service.UI
         /// <summary>
         /// 同上再走一遍创建（<c>InternalCreate</c>），使 <c>_isCreate</c> 为真——<c>OnSetVisible</c> 与「转可见结算脏位」都以它为门槛。
         /// </summary>
-        /// <remarks>准备回调里直调 <c>InternalCreate</c>，与生产侧 <c>UIServiceHandler.OnWindowPrepare</c> 同形；不开动画、不入栈，故不碰 <c>UIService</c> 的处理器。</remarks>
+        /// <remarks>准备回调里直调 <c>InternalCreate</c>，与生产侧 <c>UIWindowLedger.OnWindowPrepare</c> 同形；不开动画、不入栈，故不碰 <c>UIService</c> 的处理器。</remarks>
         private static HookProbeWindow Created(bool cacheInstance = false)
         {
             var window = new HookProbeWindow();

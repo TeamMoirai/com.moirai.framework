@@ -763,7 +763,7 @@ namespace Service.UI
             other.Internal_Init();
 
             Assert.AreEqual(1, Stack.Count, "另一枚驱动者初始化后，共享栈上仍只有那一只");
-            Assert.AreSame(mine, other.GetTopWindow(), "另一枚读到的就是这一枚压进去的那只窗");
+            Assert.AreSame(mine, other.Internal_PeekStack()[0], "另一枚读到的就是这一枚压进去的那只窗");
         }
 
         /// <summary>关停一枚驱动者不再清空共享栈，也不再丢弃压制权的归属：那两件事都不再属于驱动者。</summary>
@@ -851,7 +851,7 @@ namespace Service.UI
 
             UIService.Internal_ClaimUGUITrack(handler);
 
-            Assert.IsNull(handler.GetTopWindow(), "归位门抹掉的那一份里的窗不该跟着处理器进新的存储");
+            Assert.IsNull(UIService.GetTopWindow(), "归位门抹掉的那一份里的窗不该跟着处理器进新的存储");
             Assert.AreSame(UIService.SharedLedger, handler.Internal_PeekLedger(),
                 "处理器读的必须是门面当前那一份持有者，不是它出生时那一份");
         }
@@ -868,8 +868,8 @@ namespace Service.UI
             var pushed = Window<ProbeUITKWindow>("OtherDriverTop", (int)EUILayer.UI);
             UIService.SharedLedger.Push(pushed);
 
-            Assert.IsNotNull(ugui.GetTopWindow(), "另一支的栈顶查询要答出这一支压进去的那只窗");
-            Assert.AreSame(pushed, ugui.GetTopWindow(), "答的就是同一只窗口实例，不是它的副本");
+            Assert.AreEqual(1, ugui.Internal_PeekStack().Count, "另一支的栈顶查询要答出这一支压进去的那只窗");
+            Assert.AreSame(pushed, ugui.Internal_PeekStack()[0], "答的就是同一只窗口实例，不是它的副本");
         }
 
         /// <summary>
@@ -897,11 +897,11 @@ namespace Service.UI
                     "两支生产 handler 手里必须是同一枚栈实例：R8 只有一条栈");
 
                 UIService.ShowUI<HandlerProbeWindow>("ProductionCrossProbe", "ProductionCrossProbe", false);
-                var opened = ugui.GetWindow<HandlerProbeWindow>("ProductionCrossProbe");
+                var opened = UIService.GetWindow<HandlerProbeWindow>("ProductionCrossProbe");
                 Assert.IsNotNull(opened, "量具前提坏了：uGUI 腿没把窗口开进那条栈");
                 _objects.Add(opened.gameObject);
 
-                Assert.AreSame(opened, uikit.GetTopWindow(), "另一轨的驱动者答出的栈顶就是这一轨开出的那只窗");
+                Assert.AreSame(opened, uikit.Internal_PeekStack()[uikit.Internal_PeekStack().Count - 1], "另一轨的驱动者答出的栈顶就是这一轨开出的那只窗");
             }
             finally
             {
@@ -1489,22 +1489,22 @@ namespace Service.UI
             // 开窗腿在门面上（协调者已无那条默认腿）：这一格判的是「经门面写入 → 处理器手里那一份栈答到」
             UIService.ShowUI<HandlerProbeWindow>("HandlerProbe", "HandlerProbe", false);
 
-            var opened = handler.GetWindow<HandlerProbeWindow>("HandlerProbe");
+            var opened = UIService.GetWindow<HandlerProbeWindow>("HandlerProbe");
             Assert.IsNotNull(opened, "处理器写入的窗口要能在协调者那一份栈上查到");
             // 登记排在一切断言之前：后面任何一档红都不给本轮漏下一只没人销毁的面板
             _objects.Add(opened.gameObject);
-            Assert.AreSame(opened, handler.GetTopWindow(), "栈顶查询答的是同一只窗口");
-            Assert.AreSame(opened, handler.CurrentModal, "UI 层是模态层，当前模态答的也是同一只");
-            Assert.IsTrue(handler.IsBlockedByModal(Object("HandlerProbeBystander")), "路人面板被处理器开的模态窗挡住");
+            Assert.AreSame(opened, UIService.GetTopWindow(), "栈顶查询答的是同一只窗口");
+            Assert.AreSame(opened, UIService.CurrentModal, "UI 层是模态层，当前模态答的也是同一只");
+            Assert.IsTrue(UIService.IsBlockedByModal(Object("HandlerProbeBystander")), "路人面板被处理器开的模态窗挡住");
 
-            handler.CloseAll(false);
+            UIService.CloseAll(false);
 
-            Assert.IsFalse(handler.HasWindow<HandlerProbeWindow>("HandlerProbe"), "全关清空的就是那一份栈");
+            Assert.IsFalse(UIService.HasWindow<HandlerProbeWindow>("HandlerProbe"), "全关清空的就是那一份栈");
 
             opened.gameObject.SetActive(false);
             UIService.ShowUI<HandlerProbeWindow>("HandlerProbe", "HandlerProbe", false);
 
-            Assert.AreSame(opened, handler.GetTopWindow(), "重开取回停放表里那一只，而不是第二份实例");
+            Assert.AreSame(opened, UIService.GetTopWindow(), "重开取回停放表里那一只，而不是第二份实例");
             Assert.IsTrue(opened.gameObject.activeSelf, "缓存复用支路真的走到把面板重新点亮");
         }
 
