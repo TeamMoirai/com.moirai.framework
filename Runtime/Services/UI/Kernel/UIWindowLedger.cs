@@ -21,6 +21,7 @@ namespace Moirai.Atropos.UI
 
         private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
         private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
+        private List<string> _sweepScratch;
 
         /// <summary>模态动画期间交互压制的归属仲裁。与窗口堆栈同生命周期。</summary>
         internal UIInteractionLease InteractionLease { get; } = new UIInteractionLease();
@@ -766,6 +767,27 @@ namespace Moirai.Atropos.UI
                 {
                     window.InternalDestroy(isShutDown);
                 }
+            }
+
+            if (isShutDown && _cache.Count > 0)
+            {
+                _sweepScratch ??= new List<string>(8);
+                foreach (var pair in _cache)
+                {
+                    if (onTrack(pair.Value))
+                    {
+                        _sweepScratch.Add(pair.Key);
+                    }
+                }
+
+                for (int i = 0; i < _sweepScratch.Count; i++)
+                {
+                    var parked = _cache[_sweepScratch[i]];
+                    _cache.Remove(_sweepScratch[i]);
+                    parked.InternalDestroy(isShutDown: true);
+                }
+
+                _sweepScratch.Clear();
             }
         }
 
