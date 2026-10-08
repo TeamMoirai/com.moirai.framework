@@ -10,8 +10,8 @@ namespace Moirai.Atropos.UI
     /// 与 uGUI 轨各持一份 handler，但只有一条栈：栈、停放表与交互租约都住在 <see cref="UIService.SharedLedger"/>，关·隐·查询不分轨。<br />
     /// 面板本体住在 <see cref="UITKWindow"/>：壳物体与 <c>UIDocument</c> 一窗一枚，<c>PanelSettings</c> 一窗一档。<br />
     /// 开窗腿给了 <see cref="UITKWindow.PanelSettingsOverride"/> 就用它，没带回 <see cref="UITKWindow.SharedPanelSettings"/>。<br />
-    /// 关·隐那一族横 call 与 <see cref="UIServiceHandler.IsModal"/>、<see cref="UIServiceHandler.CurrentModal"/> 一律不覆写，<br />
-    /// 那些 call 的接收者是非虚的共享持有者，覆写虚槽会让门面与账本各答一套结果。<br />
+    /// 关·隐那一族横 call 与 <see cref="UIWindowLedger.IsModal"/>、<see cref="UIService.CurrentModal"/> 都不在本轨的覆写面上，<br />
+    /// 那些 call 的接收者是非虚的共享持有者与门面静态，本类没有可 shadow 的转发槽。<br />
     /// 线程契约：仅主线程。
     /// </remarks>
     [ProviderDisplay(title: "UI Toolkit 轨", description: "UIDocument 壳 + 窗口级 PanelSettings，与 uGUI 轨同栈并存")]

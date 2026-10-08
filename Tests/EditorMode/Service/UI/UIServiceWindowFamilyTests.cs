@@ -661,9 +661,9 @@ namespace Service.UI
 
             UIService.ShowUI<ProbeLocatedUGUIWindow>("ProdStack");
 
-            var opened = handler.GetWindow<ProbeLocatedUGUIWindow>("ProdStack");
+            var opened = UIService.GetWindow<ProbeLocatedUGUIWindow>("ProdStack");
             Assert.IsNotNull(opened, "开窗写的是协调者那一份栈：查询当场答得出这只窗");
-            Assert.AreSame(opened, handler.GetTopWindow(), "栈顶查询答的是同一只窗口");
+            Assert.AreSame(opened, handler.Internal_PeekStack()[handler.Internal_PeekStack().Count - 1], "栈顶查询答的是同一只窗口");
             Assert.IsTrue(UIService.HasWindow<ProbeLocatedUGUIWindow>("ProdStack"), "门面的存在性查询从同一份栈答");
         }
 

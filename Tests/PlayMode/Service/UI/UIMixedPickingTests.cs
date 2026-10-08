@@ -86,7 +86,7 @@ namespace Service.UI
 
             _coordinator = UIService.Internal_PeekUGUIHandler();
             Assert.IsNotNull(_coordinator, "量具前提坏了：播放态框架没把那份协调者交出来");
-            Assert.IsNull(_coordinator.GetTopWindow(), "量具前提坏了：进门时共享栈上不干净");
+            Assert.IsNull(UIService.GetTopWindow(), "量具前提坏了：进门时共享栈上不干净");
         }
 
         /// <summary>出门收口：先关净栈上的窗、销毁面板本体，再把 InputSystem 交回夹具外的真实态。</summary>
