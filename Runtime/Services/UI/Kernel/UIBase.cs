@@ -254,7 +254,16 @@ namespace Moirai.Atropos.UI
                     }
 
                     GameProfiler.BeginSample(uiWidget.ProfilerSampleName);
-                    var needValid = uiWidget.Internal_Update();
+                    bool needValid;
+                    try
+                    {
+                        needValid = uiWidget.Internal_Update();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        LogUtility.Error("UI 控件抛出异常，本帧其余控件照常结算：{0}", ex);
+                        needValid = true; // 抛的那一枚留在驱动清单里（与窗口档同一口径：隔离并继续）
+                    }
                     GameProfiler.EndSample();
 
                     if (!updateListValid && needValid)
