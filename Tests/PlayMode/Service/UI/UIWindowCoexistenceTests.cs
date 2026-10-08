@@ -86,7 +86,7 @@ namespace Service.UI
         {
             _coordinator = UIService.Internal_PeekUGUIHandler();
             Assert.IsNotNull(_coordinator, "量具前提坏了：播放态框架没把那份协调者交出来，开窗腿拿不到共享栈");
-            Assert.IsNull(_coordinator.GetTopWindow(), "量具前提坏了：进门时共享栈上不干净");
+            Assert.IsNull(UIService.GetTopWindow(), "量具前提坏了：进门时共享栈上不干净");
         }
 
         /// <summary>出门收口：栈上的窗一律关净（两支的面板各自收走），清理表里的面板本体当场销毁，等待腿的交回物归零。</summary>
@@ -474,7 +474,7 @@ namespace Service.UI
             Assert.IsNull(UIService.GetWindow<ProbeCachedUGUIWindow>("ParkUGUI"), "关掉的窗已不在栈上");
             Assert.IsFalse(panel.activeSelf, "瞬时关闭当场停放：物体留着但不激活");
             Assert.IsTrue(_coordinator.Internal_IsParked("ParkUGUI"), "缓存实例进协调者那一份停放表");
-            Assert.IsNull(_coordinator.GetTopWindow(), "栈上空");
+            Assert.IsNull(UIService.GetTopWindow(), "栈上空");
 
             UIService.ShowUI<ProbeCachedUGUIWindow>("ParkUGUI");
 

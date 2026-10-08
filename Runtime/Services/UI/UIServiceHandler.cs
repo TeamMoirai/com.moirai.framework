@@ -26,16 +26,8 @@ namespace Moirai.Atropos.UI
         /// <summary>UI专用摄像机。</summary>
         public abstract Camera UICamera { get; }
 
-        /// <summary>当前模态遮挡窗口。</summary>
-        public virtual UIWindow CurrentModal => Ledger.CurrentModal;
-
-        /// <summary>
-        /// 判断窗口是否为模态窗口。
-        /// </summary>
-        public virtual bool IsModal(UIWindow window) => Ledger.IsModal(window);
-
         /// <summary>模态动画期间交互压制的归属仲裁。两支后端共用这一份，与窗口堆栈同生命周期。</summary>
-        internal UIInteractionLease InteractionLease => Ledger.InteractionLease;
+        internal UIInteractionLease InteractionLease => UIService.SharedLedger.InteractionLease;
 
         #region 生命周期 [LIFECYCLE]
 
@@ -104,70 +96,6 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        #region 窗口查询 [WINDOW QUERIES]
-
-        /// <summary>
-        /// 获取所有层级下顶部的窗口。
-        /// </summary>
-        public virtual UIWindow GetTopWindow() => Ledger.GetTopWindow();
-
-        /// <summary>
-        /// 获取指定层级下顶部的窗口名称。
-        /// </summary>
-        public virtual string GetTopWindowName(int layer) => Ledger.GetTopWindowName(layer);
-
-        /// <summary>
-        /// 获取指定层级下顶部的窗口。
-        /// </summary>
-        public virtual UIWindow GetTopWindow(int layer) => Ledger.GetTopWindow(layer);
-
-        /// <summary>
-        /// 是否有任意窗口正在加载。
-        /// </summary>
-        public virtual bool IsAnyLoading() => Ledger.IsAnyLoading();
-
-        /// <summary>
-        /// 查询窗口是否存在。
-        /// </summary>
-        /// <typeparam name="T">界面类型。</typeparam>
-        /// <param name="windowName">窗口名称。</param>
-        /// <returns>是否存在。</returns>
-        public virtual bool HasWindow<T>(string windowName = null) where T : UIWindow => Ledger.HasWindow<T>(windowName);
-
-        /// <summary>
-        /// 查询窗口是否存在。
-        /// </summary>
-        /// <param name="type">界面类型。</param>
-        /// <param name="windowName">窗口名称。</param>
-        /// <returns>是否存在。</returns>
-        public virtual bool HasWindow(Type type, string windowName = null) => Ledger.HasWindow(type, windowName);
-
-        /// <summary>
-        /// 获取指定类型和名称的窗口。
-        /// </summary>
-        public virtual T GetWindow<T>(string windowName) where T : UIWindow => Ledger.GetWindow<T>(windowName);
-
-        /// <summary>
-        /// 判断是否被模态窗口遮挡。
-        /// </summary>
-        public virtual bool IsBlockedByModal(GameObject obj) => Ledger.IsBlockedByModal(obj);
-
-        /// <summary>
-        /// 按窗口名取栈上的窗口：栈上没有同名窗口时回 null。
-        /// </summary>
-        /// <param name="windowName">窗口名称。</param>
-        /// <returns>栈上那一只同名窗口。</returns>
-        protected UIWindow GetWindow(string windowName) => Ledger.GetWindow(windowName);
-
-        /// <summary>
-        /// 查询窗口名称是否已在栈上（<c>windowName</c> 由调用方给全，未命名窗口取类型全名的规则在调用方一侧）。
-        /// </summary>
-        /// <param name="windowName">窗口名称。</param>
-        /// <returns>栈上有同名窗口时为真。</returns>
-        protected bool IsContains(string windowName) => Ledger.IsContains(windowName);
-
-        #endregion
-
         #region 显示窗口 [SHOW WINDOW]
         /// <summary>
         /// 开栈编排的同步腿：认名→复用栈上那一只 / 取回停放的那一只 / 造一只新的，然后压栈并发起装载。
@@ -186,7 +114,7 @@ namespace Moirai.Atropos.UI
         internal void ShowUIImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
             Action<UIWindow> onInstanceCreated, params object[] userData)
         {
-            Ledger.ShowUIImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
+            UIService.SharedLedger.ShowUIImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
         }
 
         /// <summary>
@@ -203,7 +131,7 @@ namespace Moirai.Atropos.UI
         internal async UniTask<UIWindow> ShowUIAwaitImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
             Action<UIWindow> onInstanceCreated, params object[] userData)
         {
-            return await Ledger.ShowUIAwaitImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
+            return await UIService.SharedLedger.ShowUIAwaitImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
         }
 
         /// <summary>
@@ -221,43 +149,12 @@ namespace Moirai.Atropos.UI
         internal UniTask<UIOpenResult> ShowUIAwaitResultImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
             Action<UIWindow> onInstanceCreated, params object[] userData)
         {
-            return Ledger.ShowUIAwaitResultImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
+            return UIService.SharedLedger.ShowUIAwaitResultImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
         }
 
         #endregion
 
         #region 关闭窗口 [CLOSE WINDOW]
-
-        /// <summary>
-        /// 关闭窗口。
-        /// </summary>
-        public virtual void CloseUI<T>(string windowName = null) where T : UIWindow
-        {
-            Ledger.CloseUI<T>(windowName);
-        }
-
-        public virtual void CloseUI(Type type, string windowName = null)
-        {
-            Ledger.CloseUI(type, windowName);
-        }
-
-        public virtual void HideUI<T>(string windowName = null) where T : UIWindow
-        {
-            Ledger.HideUI<T>(windowName);
-        }
-
-        public virtual void HideUI(Type type, string windowName = null)
-        {
-            Ledger.HideUI(type, windowName);
-        }
-
-        /// <summary>
-        /// 关闭所有窗口。
-        /// </summary>
-        public virtual void CloseAll(bool isShutDown = false)
-        {
-            Ledger.CloseAll(isShutDown);
-        }
 
         /// <summary>
         /// 本轨认窗判据：一次关停里只有被本轨认得的窗才交进共享栈的关闭流程，另一轨的窗留在栈上由它自己那一轨去收。
@@ -276,7 +173,7 @@ namespace Moirai.Atropos.UI
         /// <param name="isShutDown">关停轮：连缓存窗也一并销毁，不进停放表。</param>
         protected void CloseOwnTrackWindows(bool isShutDown)
         {
-            Ledger.CloseAllWhere(isShutDown, IsWindowOnOwnTrack);
+            UIService.SharedLedger.CloseAllWhere(isShutDown, IsWindowOnOwnTrack);
         }
 
         /// <summary>
@@ -289,83 +186,6 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <exception cref="GameException">本轨已经有驱动者在位。</exception>
         internal abstract void Internal_Register();
-
-        /// <summary>
-        /// 关闭所有窗口除了指定窗口。
-        /// </summary>
-        public virtual void CloseAllWithOut(UIWindow withOut)
-        {
-            Ledger.CloseAllWithOut(withOut);
-        }
-
-        /// <summary>
-        /// 关闭所有窗口除了指定类型的窗口。
-        /// </summary>
-        public virtual void CloseAllWithOut<T>() where T : UIWindow
-        {
-            Ledger.CloseAllWithOut<T>();
-        }
-
-        /// <summary>
-        /// 关闭所有窗口除了指定层级的窗口。
-        /// </summary>
-        public virtual void CloseAllWithOut(EUILayer withOut)
-        {
-            Ledger.CloseAllWithOut(withOut);
-        }
-
-        #endregion
-
-        #region 异步获取窗口 [GET WINDOW ASYNC]
-
-        /// <summary>
-        /// 异步获取窗口：本枚处理器只是转发口，等的是那条共享栈上的那一只。
-        /// </summary>
-        /// <returns>打开窗口操作句柄。</returns>
-        public virtual async UniTask<T> GetUIAsyncAwait<T>() where T : UIWindow
-        {
-            return await Ledger.GetUIAsyncAwait<T>();
-        }
-
-        /// <summary>
-        /// 异步获取窗口：同上，本枚处理器只是转发口。
-        /// </summary>
-        /// <param name="callback">回调。</param>
-        public virtual void GetUIAsync<T>(Action<T> callback) where T : UIWindow
-        {
-            Ledger.GetUIAsync(callback);
-        }
-
-        #endregion
-
-        #region 窗口堆栈 [WINDOW STACK]
-
-        /// <summary>
-        /// 窗口面板就绪：补建窗口、按层级重排深度、重发显隐回执。
-        /// </summary>
-        /// <param name="window">面板装载完成并进入准备态的窗口。</param>
-        protected void OnWindowPrepare(UIWindow window)
-        {
-            Ledger.OnWindowPrepare(window);
-        }
-
-        /// <summary>
-        /// 把窗口压入堆栈：按所属层级定位插入点，模态窗口压掉下层窗口的可交互位，末尾发一次打开回执。
-        /// </summary>
-        /// <param name="window">待压入的窗口。</param>
-        protected void Push(UIWindow window)
-        {
-            Ledger.Push(window);
-        }
-
-        /// <summary>
-        /// 把窗口移出堆栈并发一次关闭回执。
-        /// </summary>
-        /// <param name="window">待移出的窗口。</param>
-        protected void Pop(UIWindow window)
-        {
-            Ledger.Pop(window);
-        }
 
         #endregion
 

@@ -122,6 +122,10 @@
 
 - ⚠ 移除 `ResourceService.LoadAssetForEditor` 与后端接缝 `ResourceServiceHandler.LoadAssetForEditor`（`virtual` 的地址换算钩子，移除时零覆写），非播放态取资产改用 `TryLoadAsset<Object>`；接入按文件名或包清单寻址的后端时，换算需并进取用族的编辑分支本身。
 
+#### UI
+
+- ⚠ 移除 `UIServiceHandler` 上 25 枚纯转发 `UIWindowLedger` 的转发口：`public virtual` 二十枚（查询族 `GetTopWindow()`/`GetTopWindow(int)`/`GetTopWindowName(int)`/`IsAnyLoading`/`HasWindow`/`GetWindow<T>`/`IsBlockedByModal`/`IsModal` 与属性 `CurrentModal`、关隐族 `CloseUI`/`HideUI`/`CloseAll`/`CloseAllWithOut`、取窗族 `GetUIAsyncAwait`/`GetUIAsync`）与 `protected` 五枚（`GetWindow(string)`/`IsContains` 两道查询、`OnWindowPrepare`/`Push`/`Pop` 三枚栈钩子）。包内 Runtime/Editor/Samples~/Templates~ 与同宿主各包零调用方——各包对这些名字的引用全部走门面。迁移：`handler.X(…)` 改 `UIService.X(…)`，形参与语义一字未动；派生后端里自调栈钩子的改叫 `UIService.SharedLedger`（框架装配内可达）。
+
 ### Fixed
 
 #### 工具
