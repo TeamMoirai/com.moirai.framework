@@ -37,8 +37,8 @@ namespace Service.UI
         [Test]
         public void Ledger_PushSameLayer_AppendsEachLaterWindowToItsOwnLayerTail()
         {
-            var first = NewWindow("LedgerFirst", (int)UILayer.UI);
-            var second = NewWindow("LedgerSecond", (int)UILayer.UI);
+            var first = NewWindow("LedgerFirst", (int)EUILayer.UI);
+            var second = NewWindow("LedgerSecond", (int)EUILayer.UI);
 
             _ledger.Push(first);
             _ledger.Push(second);
@@ -54,8 +54,8 @@ namespace Service.UI
         [Test]
         public void Ledger_CloseAll_EmptiesStackAndOnlyKeepsCachedInstancesInParkingTable()
         {
-            var cached = NewWindow("LedgerCached", (int)UILayer.UI, cacheInstance: true);
-            var plain = NewWindow("LedgerPlain", (int)UILayer.UI);
+            var cached = NewWindow("LedgerCached", (int)EUILayer.UI, cacheInstance: true);
+            var plain = NewWindow("LedgerPlain", (int)EUILayer.UI);
 
             _ledger.Push(cached);
             _ledger.Push(plain);
@@ -73,7 +73,7 @@ namespace Service.UI
         [Test]
         public void Ledger_ResetStorage_ClearsStackAndParkingTableTogether()
         {
-            var cached = NewWindow("LedgerReset", (int)UILayer.UI, cacheInstance: true);
+            var cached = NewWindow("LedgerReset", (int)EUILayer.UI, cacheInstance: true);
             _ledger.Push(cached);
             _ledger.CloseUI(typeof(LedgerProbeWindow), "LedgerReset");
 

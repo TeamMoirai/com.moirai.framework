@@ -1,0 +1,943 @@
+using System;
+using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Timer;
+using UnityEngine;
+
+namespace Moirai.Atropos.UI
+{
+    /// <summary>
+    /// 窗口栈、停放表与交互租约的共享持有者：承载开栈与关·隐·查询的编排本体，各轨处理器经门缝取用这一份存储。
+    /// </summary>
+    /// <remarks>
+    /// 栈里放的是后端中立的 <see cref="UIWindow"/>，两支后端的窗并存于同一份栈，关·隐·查询因此不分轨。<br />
+    /// 本类型只承载栈序与编排本身，不接管后端资源：UI 根、摄像机与面板装载仍住在各轨处理器里。<br />
+    /// 线程契约：仅主线程。
+    /// </remarks>
+    internal sealed class UIWindowLedger
+    {
+        /// <summary>窗口加载等待超时（秒）——ShowUIAwaitImp 与门面侧的 GetUIAsyncAwait/GetUIAsync 同判据。</summary>
+        private const float LOAD_WAIT_TIMEOUT_SECONDS = 60f;
+
+        private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
+        private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
+
+        /// <summary>模态动画期间交互压制的归属仲裁。与窗口堆栈同生命周期。</summary>
+        internal UIInteractionLease InteractionLease { get; } = new UIInteractionLease();
+
+        /// <summary>当前模态遮挡窗口。</summary>
+        internal UIWindow CurrentModal
+        {
+            get
+            {
+                // 高频查询入口（交互前置判断），手写倒序循环取末位命中，保持零分配。
+                for (int i = _uiStack.Count - 1; i >= 0; i--)
+                {
+                    var window = _uiStack[i];
+                    if (IsModal(window)) return window;
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 判断窗口是否为模态窗口：读窗口初始化时结算的模态位。
+        /// </summary>
+        /// <remarks>显式档（<c>[Window(modal:…)]</c>）赢过层级档；继承档在窗口侧按 <see cref="IsWindowLayerModal"/> 结算。</remarks>
+        internal bool IsModal(UIWindow window) => window.IsModalWindow;
+
+        /// <summary>
+        /// 按层级判模态档：模态层级（UI/Popup/System）为模态，其余非模态。
+        /// </summary>
+        /// <remarks>继承档的结算真源；显式模态档不走这一份。</remarks>
+        internal static bool IsWindowLayerModal(int layer) =>
+            layer == (int)EUILayer.UI ||
+            layer == (int)EUILayer.Popup ||
+            layer == (int)EUILayer.System;
+
+        /// <summary>
+        /// 把栈与停放表归零。
+        /// </summary>
+        /// <remarks>
+        /// 只由门面的那道归零事务叫（<see cref="UIService.Internal_ResetSharedLedger"/>，初始化与关停各一次）。<br />
+        /// 不含交互租约：复位由那道事务在同一次调用里接办。
+        /// </remarks>
+        internal void ResetStorage()
+        {
+            _uiStack.Clear();
+            _cache.Clear();
+        }
+
+        /// <summary>
+        /// 每帧驱动栈上窗口的内部更新：栈序在遍历期间被窗口回叫改写时立刻收尾，避免半程索引读到错位窗口。
+        /// </summary>
+        internal void Tick()
+        {
+            if (_uiStack == null) return;
+
+            int count = _uiStack.Count;
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                if (_uiStack.Count != count)
+                {
+                    break;
+                }
+
+                var window = _uiStack[i];
+                window.Internal_Update();
+            }
+        }
+
+        #region 窗口查询 [WINDOW QUERIES]
+
+        /// <summary>
+        /// 获取所有层级下顶部的窗口。
+        /// </summary>
+        internal UIWindow GetTopWindow()
+        {
+            if (_uiStack.Count == 0)
+            {
+                return null;
+            }
+
+            UIWindow topWindow = _uiStack[^1];
+            return topWindow;
+        }
+
+        /// <summary>
+        /// 获取指定层级下顶部的窗口名称。
+        /// </summary>
+        internal string GetTopWindowName(int layer)
+        {
+            UIWindow lastOne = GetTopWindow(layer);
+
+            return lastOne == null ? string.Empty : lastOne.WindowName;
+        }
+
+        /// <summary>
+        /// 获取指定层级下顶部的窗口。
+        /// </summary>
+        internal UIWindow GetTopWindow(int layer)
+        {
+            UIWindow lastOne = null;
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                if (_uiStack[i].WindowLayer == layer)
+                    lastOne = _uiStack[i];
+            }
+
+            if (lastOne == null)
+                return null;
+
+            return lastOne;
+        }
+
+        /// <summary>
+        /// 是否有任意窗口正在加载。
+        /// </summary>
+        internal bool IsAnyLoading()
+        {
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                var window = _uiStack[i];
+                if (window.IsLoadDone == false)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 查询窗口是否存在。
+        /// </summary>
+        internal bool HasWindow<T>(string windowName = null) where T : UIWindow
+        {
+            return HasWindow(typeof(T), windowName);
+        }
+
+        /// <summary>
+        /// 查询窗口是否存在。
+        /// </summary>
+        internal bool HasWindow(Type type, string windowName = null)
+        {
+            return IsContains(windowName ?? type.FullName);
+        }
+
+        /// <summary>
+        /// 获取指定类型和名称的窗口。
+        /// </summary>
+        internal T GetWindow<T>(string windowName) where T : UIWindow
+        {
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                UIWindow window = _uiStack[i];
+                if (window is T uiWindow && window.WindowName == windowName)
+                {
+                    return uiWindow;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 判断是否被模态窗口遮挡。
+        /// </summary>
+        internal bool IsBlockedByModal(GameObject obj)
+        {
+            GameObject curModal = CurrentModal?.gameObject;
+
+            if (curModal == null) return false;
+            if (curModal == obj || obj.IsChildOf(curModal)) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 按窗口名取栈上的窗口：栈上没有同名窗口时回 null。
+        /// </summary>
+        internal UIWindow GetWindow(string windowName)
+        {
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                UIWindow window = _uiStack[i];
+                if (window.WindowName == windowName)
+                {
+                    return window;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 查询窗口名称是否已在栈上（<paramref name="windowName"/> 由调用方给全，未命名窗口取类型全名的规则在调用方一侧）。
+        /// </summary>
+        internal bool IsContains(string windowName)
+        {
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                UIWindow window = _uiStack[i];
+                if (window.WindowName == windowName)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        #endregion
+
+        #region 显示窗口 [SHOW WINDOW]
+
+        /// <summary>
+        /// 开栈编排的同步腿：认名→复用栈上那一只 / 取回停放的那一只 / 造一只新的，然后压栈并发起装载。
+        /// </summary>
+        /// <remarks>
+        /// 这一份只落共享栈、不认轨：每轨自己的开窗实现都经它把窗口送进同一份栈，两轨的差别只在实参取值。<br />
+        /// <paramref name="onInstanceCreated"/> 只在造出新实例那一档叫一次，交在 <c>Push</c> 与 <c>InternalLoad</c> 之前，为 null 时不叫。<br />
+        /// 复用栈上窗与停放重取那两条支路不叫它：那两只窗的面板早已装好，<paramref name="assetLocation"/> 与 <paramref name="fromResources"/> 也不再吃。
+        /// </remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        internal void ShowUIImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, params object[] userData)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+
+            ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out _);
+        }
+
+        /// <summary>
+        /// 开栈编排的公共前置：认名→复用栈上那一只 / 取回停放的那一只 / 造一只新的压栈并发起装载。
+        /// </summary>
+        /// <remarks>
+        /// 这一份只落共享栈、不认轨：每轨自己的开窗实现都经它把窗口送进同一份栈，两轨的差别只在实参取值。<br />
+        /// <paramref name="onInstanceCreated"/> 只在造出新实例那一档叫一次，交在 <c>Push</c> 与装载之前，为 null 时不叫。<br />
+        /// 复用栈上窗与停放重取那两条支路不叫它：那两只窗的面板早已装好，寻址两档也不再吃。
+        /// </remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
+        /// <param name="windowName">窗口名称（已给全）。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="window">进栈的那一只窗口（可能仍在装载）。</param>
+        /// <returns>走的是栈上复用支路时为真：等待腿对这一档不必再等。</returns>
+        private bool ResolveOrStartLoad(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, object[] userData, out UIWindow window)
+        {
+            if (TryGetWindow(windowName, out window, userData))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
+            {
+                window.gameObject.SetActive(true);
+                _cache.Remove(windowName);
+                Push(window); // 首次压入
+                window.TryInvoke(OnWindowPrepare, userData);
+            }
+            else
+            {
+                window = CreateInstance(type, windowName, assetLocation, fromResources);
+                onInstanceCreated?.Invoke(window); // 交在压栈与装载之前：晚一步面板就按没覆盖的那一份装上了
+                Push(window); // 首次压入
+                window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync, userData).Forget();
+            }
+
+            return false;
+        }
+
+        /// <summary>栈上已有同名窗口时把它挪到栈顶并发准备回执。</summary>
+        private bool TryGetWindow(string windowName, out UIWindow window, params object[] userData)
+        {
+            window = null;
+            if (IsContains(windowName))
+            {
+                window = GetWindow(windowName);
+                Pop(window); // 弹出窗口
+                Push(window); // 重新压入
+                window.TryInvoke(OnWindowPrepare, userData);
+
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 开栈编排的等待腿：与同步腿同一份栈、同一次压入，另把「面板就绪」等出来再交回窗口。
+        /// </summary>
+        /// <remarks>
+        /// 压栈那一段与 <see cref="ShowUIImp"/> 同一份判据，含 <paramref name="onInstanceCreated"/> 的交接时机与不吃它的那两条支路。<br />
+        /// 等面板就绪最长 <see cref="LOAD_WAIT_TIMEOUT_SECONDS"/> 秒；超时只发一条 Warning，仍交回那只窗口。<br />
+        /// 装载失败或装载中被关闭的窗不再当结果交回：失败那一刻即交回 null，不再等到超时。
+        /// </remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <returns>栈上那一只窗口（面板就绪或等待超时之后交回；装载失败交回 null）。</returns>
+        internal async UniTask<UIWindow> ShowUIAwaitImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, params object[] userData)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+
+            // 栈上复用支路：同帧交回那一只（可能仍在装载），不进等待
+            if (ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out var window))
+            {
+                return window;
+            }
+
+            // 等面板就绪：先过一帧再入轮询（对齐旧 WaitUntil 的次帧首查语义），实例方法等待零闭包；
+            // 超时经池租的取消源兜底，超时后照常交回窗口
+            var waitCts = UICtsPool.Rent();
+            waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+            try
+            {
+                await UniTask.Yield();
+                await window.WaitPanelReadyAsync(waitCts.Token);
+            }
+            catch (System.OperationCanceledException)
+            {
+                LogUtility.Warning("ShowUIAsyncAwait timed out waiting for window load: {0}", windowName);
+            }
+            finally
+            {
+                waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                UICtsPool.Return(waitCts);
+            }
+
+            if (window.IsLoadFailed || (window.IsDestroyed && !window.IsLoadDone))
+            {
+                return null;
+            }
+
+            return window;
+        }
+
+        /// <summary>
+        /// 开栈编排的结果腿：与等待腿同一份栈、同一次压入，把「就绪/失败/超时」等成 <see cref="UIOpenResult"/> 交回。
+        /// </summary>
+        /// <remarks>
+        /// 等待经窗口实例方法轮询、无闭包分配；终态先于首帧检查，同步装载与装载当场失败的窗口同帧落定。<br />
+        /// 状态语义以 <see cref="UIOpenResult"/> 为准：就绪交回可用窗、失败交回已作废那只、超时交回仍在装载的那只。
+        /// </remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
+        /// <param name="userData">用户自定义数据。</param>
+        /// <returns>开窗结果。</returns>
+        internal async UniTask<UIOpenResult> ShowUIAwaitResultImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, params object[] userData)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+
+            // 栈上复用且已就绪的那一只同帧交回 Opened；仍在装载的复用窗照常等终态
+            if (ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out var window)
+                && window.IsLoadDone)
+            {
+                return new UIOpenResult(EUIOpenStatus.Opened, window);
+            }
+
+            return await WaitWindowResultAsync(window, windowName, LOAD_WAIT_TIMEOUT_SECONDS);
+        }
+
+        /// <summary>
+        /// 装载失败的回滚：把窗口摘出栈、补深度与显隐回执、刷新新栈顶，再把窗口作废。
+        /// </summary>
+        /// <remarks>
+        /// 窗口已被显式关闭收口时（<see cref="UIWindow.IsDestroyed"/> 已置位）不再补第二次关闭回执。<br />
+        /// 关停守卫不在这一层：窗口侧按 <see cref="UIService.IsValid"/> 决定走不走这一道。
+        /// </remarks>
+        /// <param name="window">装载失败的那一只。</param>
+        internal void RollbackFailedLoad(UIWindow window)
+        {
+            if (window.IsDestroyed)
+            {
+                return;
+            }
+
+            Pop(window);
+            OnSortWindowDepth(window.WindowLayer);
+            OnSetWindowVisible();
+            if (_uiStack.Count > 0) _uiStack[_uiStack.Count - 1].InternalRefresh(false);
+            window.AbortFailedLoad();
+        }
+
+        /// <summary>
+        /// 造一只新窗口：查注册表拿编译期工厂与注册期描述符，不再走反射。
+        /// </summary>
+        /// <remarks>
+        /// 寻址优先级与既有链路一致：调用方给的面板地址与取法赢过特性，特性缺的档按描述符回落。 <br />
+        /// 类型未登记当场抬错：窗口类必须标 <c>[Window]</c> 才进注册表，不再静默兜默认层级与地址。
+        /// </remarks>
+        /// <param name="type">窗口类。</param>
+        /// <param name="windowName">窗口名称（空串按描述符全名兜底）。</param>
+        /// <param name="assetLocation">调用方给的面板地址。</param>
+        /// <param name="fromResources">调用方给的内置资源档。</param>
+        /// <returns>已按描述符初始化好的新窗口。</returns>
+        /// <exception cref="GameException">窗口类未登记（没标 <c>[Window]</c>）。</exception>
+        private UIWindow CreateInstance(Type type, string windowName, string assetLocation, bool fromResources)
+        {
+            if (!UIWindowRegistry.TryGet(type, out var entry))
+            {
+                throw new GameException(StringUtility.Format(
+                    "UI 窗口 '{0}' 未注册：窗口类必须标 [Window] 才能经注册表开出（由 UIWindowCodegen 在编译期登记）",
+                    type.FullName));
+            }
+
+            var window = entry.Factory();
+            var descriptor = entry.Descriptor;
+
+            if (string.IsNullOrEmpty(windowName))
+            {
+                windowName = descriptor.FullName;
+            }
+
+            if (string.IsNullOrEmpty(assetLocation))
+            {
+                assetLocation = descriptor.Location;
+            }
+
+            window.Init(windowName, descriptor.WindowLayer, descriptor.FullScreen, assetLocation,
+                fromResources || descriptor.FromResources, descriptor.HideTimeToClose, descriptor.CacheInstance,
+                (EUIModal)descriptor.Modal);
+
+            return window;
+        }
+
+        #endregion
+
+        #region 异步获取窗口 [GET WINDOW ASYNC]
+
+        /// <summary>
+        /// 异步获取窗口：栈上没有这一名、或那一只是别的类型时交回 null，否则把面板就绪等出来。
+        /// </summary>
+        /// <remarks>
+        /// 问的是那条共享栈，两支后端的窗都在射程里，各轨处理器只是转发口。<br />
+        /// 找不到时只发一条 Warning；装载失败或装载中被关闭的窗不再等超时交回，直接交回 null。
+        /// </remarks>
+        /// <typeparam name="T">窗口类型。</typeparam>
+        /// <returns>窗口实例。</returns>
+        internal async UniTask<T> GetUIAsyncAwait<T>() where T : UIWindow
+        {
+            var ret = GetWindow(typeof(T).FullName) as T;
+            if (ret == null)
+            {
+                LogUtility.Warning("GetUIAsyncAwait 栈上没有 '{0}' 类型的窗口：交回 null", typeof(T).FullName);
+                return null;
+            }
+
+            if (ret.IsLoadDone)
+            {
+                return ret;
+            }
+
+            // 等面板就绪：先过一帧再入轮询（次帧首查语义），实例方法等待零闭包；超时经池租的取消源兜底
+            var waitCts = UICtsPool.Rent();
+            waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+            try
+            {
+                await UniTask.Yield();
+                await ret.WaitPanelReadyAsync(waitCts.Token);
+            }
+            catch (System.OperationCanceledException)
+            {
+                LogUtility.Warning("GetUIAsyncAwait timed out waiting for window load: {0}", typeof(T).FullName);
+            }
+            finally
+            {
+                waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                UICtsPool.Return(waitCts);
+            }
+
+            if (ret.IsLoadFailed || (ret.IsDestroyed && !ret.IsLoadDone))
+            {
+                return null;
+            }
+
+            return ret;
+        }
+
+        /// <summary>
+        /// 异步获取窗口：与等待腿同一份栈、同一条判据，另把结果交回回调。
+        /// </summary>
+        /// <remarks>
+        /// 找不到或类型不符时只发一条 Warning，回调不被调用。<br />
+        /// 装载失败的窗不再把未就绪的那只交回回调。
+        /// </remarks>
+        /// <typeparam name="T">窗口类型。</typeparam>
+        /// <param name="callback">回调。</param>
+        internal void GetUIAsync<T>(Action<T> callback) where T : UIWindow
+        {
+            var ret = GetWindow(typeof(T).FullName) as T;
+            if (ret == null)
+            {
+                LogUtility.Warning("GetUIAsync 栈上没有 '{0}' 类型的窗口：回调不会被调用", typeof(T).FullName);
+                return;
+            }
+
+            GetUIAsyncImp(callback).Forget();
+
+            async UniTaskVoid GetUIAsyncImp(Action<T> ctx)
+            {
+                var waitCts = UICtsPool.Rent();
+                waitCts.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+                try
+                {
+                    // 先过一帧再入轮询（次帧首查语义），实例方法等待零闭包
+                    await UniTask.Yield();
+                    await ret.WaitPanelReadyAsync(waitCts.Token);
+                }
+                catch (System.OperationCanceledException)
+                {
+                    LogUtility.Warning("GetUIAsync timed out waiting for window load: {0}", typeof(T).FullName);
+                }
+                finally
+                {
+                    waitCts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                    UICtsPool.Return(waitCts);
+                }
+
+                if (ret.IsLoadFailed || (ret.IsDestroyed && !ret.IsLoadDone))
+                {
+                    return;
+                }
+
+                ctx?.Invoke(ret);
+            }
+        }
+
+        /// <summary>
+        /// 结果腿的取窗等待：栈上没有这一名或那一只是别的类型时交 <see cref="EUIOpenStatus.Missing"/>，否则等面板到终态。
+        /// </summary>
+        /// <typeparam name="T">窗口类型。</typeparam>
+        /// <returns>取窗结果。</returns>
+        internal async UniTask<UIOpenResult> GetUIAwaitResultImp<T>() where T : UIWindow
+        {
+            var ret = GetWindow(typeof(T).FullName) as T;
+            if (ret == null)
+            {
+                return new UIOpenResult(EUIOpenStatus.Missing, null);
+            }
+
+            return await WaitWindowResultAsync(ret, typeof(T).FullName, LOAD_WAIT_TIMEOUT_SECONDS);
+        }
+
+        /// <summary>
+        /// 把窗口的装载终态等成 <see cref="UIOpenResult"/>：就绪/失败按实际终态落档，超时交回仍在装载的那一只。
+        /// </summary>
+        /// <remarks>
+        /// 失败与超时的区分读终态位：失败位或「销毁而未就绪」即 Failed，其余未就绪档为 Timeout。
+        /// </remarks>
+        /// <param name="window">等终态的那一只。</param>
+        /// <param name="windowName">窗口名称，只进超时文案。</param>
+        /// <param name="timeoutSeconds">等待上限（秒）。</param>
+        /// <returns>开窗结果。</returns>
+        internal static async UniTask<UIOpenResult> WaitWindowResultAsync(UIWindow window, string windowName, float timeoutSeconds)
+        {
+            if (!await WaitForPanelReady(window, timeoutSeconds) && !window.IsLoadDone)
+            {
+                if (window.IsLoadFailed || window.IsDestroyed)
+                {
+                    return new UIOpenResult(EUIOpenStatus.Failed, window);
+                }
+
+                LogUtility.Warning("UI 窗口 '{0}' 等待面板就绪超时（{1} 秒）", windowName, timeoutSeconds);
+                return new UIOpenResult(EUIOpenStatus.Timeout, window);
+            }
+
+            return new UIOpenResult(EUIOpenStatus.Opened, window);
+        }
+
+        /// <summary>
+        /// 等窗口装载终态：就绪/失败/销毁按实际终态回，超时（<paramref name="timeoutSeconds"/> 秒）回假。
+        /// </summary>
+        /// <remarks>
+        /// 取消源从 <see cref="UICtsPool"/> 租还：超时计时还池前先解除，取消过的源由池内废弃。 <br />
+        /// 超时与就绪竞速时以就绪为准：取消异常落定后回读一次就绪位。
+        /// </remarks>
+        /// <param name="window">等终态的那一只。</param>
+        /// <param name="timeoutSeconds">等待上限（秒）。</param>
+        /// <returns>面板就绪时为真。</returns>
+        internal static async UniTask<bool> WaitForPanelReady(UIWindow window, float timeoutSeconds)
+        {
+            var cts = UICtsPool.Rent();
+            cts.CancelAfter(System.TimeSpan.FromSeconds(timeoutSeconds));
+            try
+            {
+                return await window.WaitPanelReadyAsync(cts.Token);
+            }
+            catch (System.OperationCanceledException)
+            {
+                return window.IsLoadDone;
+            }
+            finally
+            {
+                // 解除超时计时后再还池：活着的计时器会把池里别的租户打取消
+                cts.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                UICtsPool.Return(cts);
+            }
+        }
+
+        #endregion
+
+        #region 关闭窗口 [CLOSE WINDOW]
+
+        /// <summary>
+        /// 关闭窗口。
+        /// </summary>
+        internal void CloseUI<T>(string windowName = null) where T : UIWindow
+        {
+            CloseUI(typeof(T), windowName);
+        }
+
+        internal void CloseUI(Type type, string windowName = null)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+            UIWindow window = GetWindow(windowName);
+
+            if (window == null)
+            {
+                LogUtility.Debug("要关闭的窗口 '{0}' 不在栈上：本次关闭是空操作", windowName);
+                return;
+            }
+
+            if (window.CacheInstance)
+            {
+                _cache[windowName] = window;
+                window.InternalClose();
+            }
+            else
+            {
+                window.InternalDestroy();
+            }
+            Pop(window);
+            OnSortWindowDepth(window.WindowLayer);
+            OnSetWindowVisible();
+            if (_uiStack.Count > 0) _uiStack[_uiStack.Count - 1].InternalRefresh(false);
+        }
+
+        internal void HideUI<T>(string windowName = null) where T : UIWindow
+        {
+            HideUI(typeof(T), windowName);
+        }
+
+        internal void HideUI(Type type, string windowName = null)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+            UIWindow window = GetWindow(windowName);
+            if (window == null)
+            {
+                LogUtility.Debug("要隐藏的窗口 '{0}' 不在栈上：本次隐藏是空操作", windowName);
+                return;
+            }
+
+            if (window.HideTimeToClose <= 0)
+            {
+                CloseUI(type, windowName);
+                return;
+            }
+
+            window.CancelHideToCloseTimer();
+            window.Visible = false;
+            window.IsHide = true;
+            window.HideTimerId = TimerService.Delay(window.HideTimeToClose, window.CloseDelegate);
+
+            if (window.FullScreen)
+            {
+                OnSetWindowVisible();
+            }
+        }
+
+        /// <summary>
+        /// 关闭所有窗口。
+        /// </summary>
+        internal void CloseAll(bool isShutDown = false)
+        {
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                UIWindow window = _uiStack[i];
+                if (!isShutDown && window.CacheInstance)
+                {
+                    _cache[window.WindowName] = window;
+                    window.InternalClose();
+                }
+                else
+                {
+                    window.InternalDestroy(isShutDown);
+                }
+            }
+
+            _uiStack.Clear();
+        }
+
+        /// <summary>
+        /// 关闭栈上被这一轨认得的那些窗口，其余连位置都不动：一支 handler 关停时只交自己那一轨的窗进来。
+        /// </summary>
+        /// <remarks>
+        /// 与 <see cref="CloseAll"/> 同一次序（自下而上）、同一分档（缓存窗交进停放表、非缓存窗直接销毁）。<br />
+        /// 判据没认得的窗口留在原来的栈位上，由它自己那一轨去收。
+        /// </remarks>
+        /// <param name="isShutDown">关停轮：连缓存窗也一并销毁，不进停放表。</param>
+        /// <param name="onTrack">返回真时这一只属于调用方那一轨。</param>
+        internal void CloseAllWhere(bool isShutDown, Func<UIWindow, bool> onTrack)
+        {
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                UIWindow window = _uiStack[i];
+                if (!onTrack(window))
+                {
+                    continue;
+                }
+
+                _uiStack.RemoveAt(i);
+                i--;
+
+                if (!isShutDown && window.CacheInstance)
+                {
+                    _cache[window.WindowName] = window;
+                    window.InternalClose();
+                }
+                else
+                {
+                    window.InternalDestroy(isShutDown);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 关闭所有窗口除了指定窗口。
+        /// </summary>
+        internal void CloseAllWithOut(UIWindow withOut)
+        {
+            CloseAllWithOutInternal(window => window == withOut);
+        }
+
+        /// <summary>
+        /// 关闭所有窗口除了指定类型的窗口。
+        /// </summary>
+        internal void CloseAllWithOut<T>() where T : UIWindow
+        {
+            CloseAllWithOutInternal(window => window.GetType() == typeof(T));
+        }
+
+        /// <summary>
+        /// 关闭所有窗口除了指定层级的窗口。
+        /// </summary>
+        internal void CloseAllWithOut(EUILayer withOut)
+        {
+            CloseAllWithOutInternal(window => window.WindowLayer == (int)withOut);
+        }
+
+        /// <summary>
+        /// 关闭所有不匹配跳过条件的窗口（内部统一实现）。
+        /// </summary>
+        /// <param name="shouldSkip">返回 true 时跳过该窗口（保留不关闭）。</param>
+        private void CloseAllWithOutInternal(Func<UIWindow, bool> shouldSkip)
+        {
+            for (int i = _uiStack.Count - 1; i >= 0; i--)
+            {
+                UIWindow window = _uiStack[i];
+                if (shouldSkip(window))
+                {
+                    continue;
+                }
+
+                if (window.CacheInstance)
+                {
+                    _cache[window.WindowName] = window;
+                    window.InternalClose();
+                }
+                else
+                {
+                    window.InternalDestroy();
+                }
+                _uiStack.RemoveAt(i);
+            }
+            if (_uiStack.Count > 0) _uiStack[_uiStack.Count - 1].InternalRefresh(false);
+        }
+
+        #endregion
+
+        #region 窗口堆栈 [WINDOW STACK]
+
+        /// <summary>
+        /// 窗口面板就绪：补建窗口、按层级重排深度、重发显隐回执。
+        /// </summary>
+        internal void OnWindowPrepare(UIWindow window)
+        {
+            window.InternalCreate();
+            OnSortWindowDepth(window.WindowLayer);
+            OnSetWindowVisible();
+        }
+
+        /// <summary>
+        /// 重排指定层级内各窗口的深度：按栈序从该层基址起逐窗口加一档 <see cref="UIService.WINDOW_DEEP"/>。
+        /// </summary>
+        internal void OnSortWindowDepth(int layer)
+        {
+            int depth = layer * UIService.LAYER_DEEP;
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                if (_uiStack[i].WindowLayer == layer)
+                {
+                    _uiStack[i].Depth = depth;
+                    depth += UIService.WINDOW_DEEP;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 自栈顶向下发显隐回执：栈顶可见，遇到已准备的全屏窗口后其余一律置为不可见。
+        /// </summary>
+        internal void OnSetWindowVisible()
+        {
+            bool isHideNext = false;
+            for (int i = _uiStack.Count - 1; i >= 0; i--)
+            {
+                UIWindow window = _uiStack[i];
+                if (isHideNext == false)
+                {
+                    if (window.IsHide)
+                    {
+                        continue;
+                    }
+                    window.Visible = true;
+                    if (window.IsPrepare && window.FullScreen)
+                    {
+                        isHideNext = true;
+                    }
+                }
+                else
+                {
+                    window.Visible = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 把窗口压入堆栈：按所属层级定位插入点，模态窗口压掉下层窗口的可交互位，末尾发一次打开回执。
+        /// </summary>
+        /// <exception cref="GameException">同名窗口已在栈上。</exception>
+        internal void Push(UIWindow window)
+        {
+            if (IsContains(window.WindowName))
+            {
+                throw new GameException($"Window {window.WindowName} is exist.");
+            }
+
+            // 插入点取所属层级末位之后；该层无窗时退到较低层级末位之后，仍无则落栈底
+            int insertIndex = -1;
+            for (int i = 0; i < _uiStack.Count; i++)
+            {
+                if (window.WindowLayer == _uiStack[i].WindowLayer)
+                {
+                    insertIndex = i + 1;
+                }
+            }
+
+            if (insertIndex == -1)
+            {
+                for (int i = 0; i < _uiStack.Count; i++)
+                {
+                    if (window.WindowLayer > _uiStack[i].WindowLayer)
+                    {
+                        insertIndex = i + 1;
+                    }
+                }
+            }
+
+            if (insertIndex == -1)
+            {
+                insertIndex = 0;
+            }
+
+            if (insertIndex > 0 && IsModal(window)) _uiStack[insertIndex - 1].Interactable = false;
+
+            _uiStack.Insert(insertIndex, window);
+            UIServiceEvent.Shown(window);
+        }
+
+        /// <summary>
+        /// 把窗口移出堆栈并发一次关闭回执。
+        /// </summary>
+        internal void Pop(UIWindow window)
+        {
+            _uiStack.Remove(window);
+            UIServiceEvent.Closed(window);
+        }
+
+        #endregion
+
+        #region 测试接缝 [TEST SEAMS]
+
+        /// <summary>
+        /// 栈上窗口的只读视图：栈本体仍为 private，这一道门只给读、不给写。
+        /// </summary>
+        internal IReadOnlyList<UIWindow> PeekStack() => _uiStack;
+
+        /// <summary>
+        /// 停放表里是否有这个名字的窗：缓存实例关闭后落在这里，栈上已无。
+        /// </summary>
+        internal bool IsParked(string windowName) => _cache.ContainsKey(windowName);
+
+        #endregion
+    }
+}

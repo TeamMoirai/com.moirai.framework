@@ -28,7 +28,12 @@
 
 - 新增 UI Toolkit 轨：`UITKWindow`（`UIDocument` 壳与内容根装配、窗口级 `PanelSettings` 覆盖——缺省回共享那一份）与 `UITKHandler` 驱动者；开窗族多出 `where T : UITKWindow` 的同名腿（比 uGUI 腿多一枚 `panelSettings` 形参，同名重载按窗口基类约束分辨），寻址两档（AB / 内置资源）与 uGUI 轨同形同序。
 - 新增多后端并存能力：各轨窗口并进同一条共享窗口栈（`UIWindowLedger`），关·隐·查询、层级深度、模态遮挡与交互租约不分轨；`UITrack` 轨道自述（认窗判据、有效性探针、Type 形分派、关停档位）由各轨 partial 静态自登记进门面目录，主入口只枚举目录——加一支后端＝三件套（窗口基类 / 驱动者 / partial）＋自登记＋启用清单加一项，`UIService.cs` 零改动。
-- 新增窗口自关延后策略（`UIWindow` 上 `DeferCloseUntilInteractable` / `CanClose` / `TryClose` / `OnCloseFail`，默认立即结算、按需覆写为延后到可交互再过门）：策略在后端无关对象模型上，两轨窗口同形覆写；等待经既有代次与销毁守卫，被重开/销毁接管的续体静默终止、已销毁的窗不空转轮询。
+- 新增窗口自关策略（`UIWindow` 上 `TryClose` / `CanClose` / `OnCloseFail` / `ForceClose`）：自关先等可交互再过 `CanClose` 门，门为假落 `OnCloseFail` 且窗口留在栈上；`ForceClose` 是跳过等待与门的即时旁路，外部经 `CloseUI` 的关闭不经过这一道。策略在后端无关对象模型上，两轨窗口同形覆写；等待经既有代次与销毁守卫，被重开/销毁接管的续体静默终止、已销毁的窗不空转轮询。
+- 新增开窗结果契约 `UIOpenResult` / `EUIOpenStatus`（Opened / Failed / Missing / Timeout）与门面腿 `ShowUIAwaitResult<T>`（uGUI 腿同形、UI Toolkit 腿多一枚 `panelSettings`）与 `GetUIAwaitResult<T>()`：就绪、失败、缺失、超时各按状态档交回，装载当场失败或已被关闭的窗口同帧落定，跨帧装载按实际就绪帧落定——等待不再以 null 与超时混言成败。
+- 新增装载失败回滚：`UIWindow.InternalLoad` 装载回 false 或抛出时，窗口从共享栈摘出（补对称 `Closed` 回执、刷新新栈顶与显隐深度）并置失败 / 作废位，不再永占栈位、不再让 `IsAnyLoading` 永真；真装载失败报一条 Error，装载被取消不报错。
+- 新增装载取消贯通：窗口自持装载期取消源，装载在途被关闭即掐断；uGUI 轨 `LoadPanelAsync` 把令牌转发给 `ResourceService.LoadGameObjectAsync`（UI Toolkit 轨此前已转发）。
+- 新增窗口注册表 `UIWindowRegistry` 与元数据描述符 `UIWindowDescriptor`：新源生成器 `UIWindowCodegen` 在编译期解析 `[Window]` 实参（四个构造器重载与命名实参全解），把描述符与 `static () => new X()` 工厂写进模块初始化器 `UIWindowModuleInit` 逐类型登记；`UIWindowLedger.CreateInstance` 改为按类型句柄查表取工厂与元数据，开窗路径零 `Activator`、零特性反射（IL2CPP 同构）。形状非法报 MIRAI500~503（标在非窗口类 / 缺公共无参构造 / 抽象或泛型 / 嵌套在私有类型内），模块初始化期重复登记记 Fatal 保留先到。迁移：窗口类嵌套须 internal 或公开（生成的初始化器够不到 private 嵌套），测试探针窗已同步迁移。
+- 新增开/关过渡契约 `IUITransition` 与 `UIWindow.Transition` 虚属性：真过渡期间锁交互（模态窗占全局压制位）、被接管按取消令牌掐断；缺位即瞬时，瞬时档零锁零占用零取消源分配。
 
 #### 日志
 
@@ -93,6 +98,17 @@
 - ⚠ 启用清单类型改为 `UIServiceHandler[]` 且序列化字段更名 `m_enabledHandlers` → `m_EnabledHandlers`，并带代码默认值（uGUI 一支）。迁移：存量设置资产的旧键名脱钩后清单回落到代码默认（仅启用 uGUI 一支），已在 Inspector 配过的工程需在新字段下重新列出要启用的后端。
 - 主入口不再持有任何后端单点：`UIService.Handler` 懒加载属性随 `[HandlerHost]` 一并退役，取用一律走静态门面；未启用那一轨的开窗按轨道名当场报错并点名去哪一处启用，轨专有查询（`UIRoot` / `UICamera`）未启用时答 `null` 不抬错。
 - 关停次序由各轨自报档位表述：持有别轨面板挂靠宿主根的 uGUI 轨取 `UITrack.SHUTDOWN_ORDER_HOST` 最后收，其余取默认档先收；模态动画期间的全局交互压制改由共享租约 `UIInteractionLease` 按归属仲裁，被重开/销毁接管的旧动画续体不再解锁也不再隐藏。
+- ⚠ 装载失败的窗口不再留在共享栈上：当场回滚出栈且不进停放表，`IsAnyLoading` 不再被失败窗永真。迁移：依赖「开窗失败后窗口仍在栈上」的存量用法（含测试夹具的拒开探针）改走装载成功或 `UIOpenResult` 结果契约。
+- ⚠ 未标 `[Window]` 的窗口类不再可开：`CreateInstance` 查不到注册当场 `GameException` 点名补特性，不再静默兜 `EUILayer.UI` + 10 秒隐藏关闭 + 类型名地址。迁移：存量无特性窗口补 `[Window(…)]`（层级、地址、缓存等取值显式声明）。
+- ⚠ 开窗与关闭默认改瞬时：新增 `IUITransition`（`Play(open, ct)` / `Snap(open)`）与 `UIWindow.Transition` 虚属性（缺位即瞬时）——默认开窗不再有 0.5 秒延迟与半秒输入锁，模态窗不再默认占全局交互压制位；关闭即时停放（缓存窗 `SetActive(false)` 与出栈同帧）。移除 `OpenAnimation` / `CloseAnimation` / `TopRefreshWaiter` 三枚硬编码延迟虚方法。迁移：依赖默认延迟或默认输入锁的窗口改覆写 `Transition` 提供过渡实现；覆写三枚虚方法的存量窗口改实现 `IUITransition`（过渡期间锁交互、接管按取消令牌掐断的语义由窗口代次守卫接办）。
+- ⚠ 窗口状态位封装：`IsLoadDone` / `IsDestroyed` 内部字段收成属性（私有写），`IsHide` / `HideTimerId` / `CacheInstance` / `HideTimeToClose` 的写口收成 internal（读面不变）。迁移：外部直写这些位的用法改为经 `Init`（由注册表描述符接办）或窗口自身流程。
+- ⚠ `UIBase.ChildList` 公共面收成 `IReadOnlyList<UIWidget>`：子级增删由控件创建/销毁流程经内部门缝接办，外部直改列表不再可写。`UIWidget.RestChildCanvas` 更名 `ResetChildCanvas`（拼写修正）。
+- ⚠ `WindowAttribute` 构造器收敛为单一形状 `(EUILayer windowLayer, bool fromResources = false, string location = null, bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit)`：移除整数层级形、`(EUILayer, string location)` 位置形等三个旧重载；特性字段改 PascalCase（`windowLayer`→`WindowLayer` 等，运行期消费方只剩源生成器）。迁移：`[Window(1, "path")]` 的整数层级改枚举或 `(EUILayer)1`；`[Window(EUILayer.UI, "path")]` 的位置地址改 `location:` 命名实参。
+- ⚠ 层级枚举更名 `EUILayer`（原 `UILayer`）：与 `EUIModal` / `EUIOpenStatus` 同按命名表的「新代码口径：枚举一律 `E` 前缀」收口；底层类型保持 `int`（它是 `WindowAttribute.WindowLayer` 与深度算术的操作数，不属"运行期状态枚举显式 `: byte`"那一档）。迁移：`[Window(UILayer.UI)]` 改 `[Window(EUILayer.UI)]`，成员名与取值一字未动，除枚举名外没有任何签名形状改变。
+- 模态解耦：新增 `EUIModal` 三态与 `[Window(modal: EUIModal.Modal | NonModal)]` 显式档（继承档缺省按层级结算）；压栈压下层交互位、租约占全局压制位、门面模态查询三处判据统一改读窗口结算的模态位——非模态层可强制模态、模态层可强制非模态（attribute 实参禁 nullable，三态由此枚举表达）。
+- `UIWindow.Init` 收 internal：窗口初始化只经注册表链路与测试接缝，游戏代码经门面开窗不直接初始化。
+- ⚠ `ShowUIAsyncAwait` / `GetUIAsyncAwait` / `GetUIAsync` 在装载失败或装载中被关闭时不再交回 / 回调未就绪窗口（改交 null、不调回调并各报一条 Warning）；等待超时档维持原行为照常交回。取窗找不到目标时从全静默改为报一条 Warning。
+- `UGUIWindow.BindPanel` / `UITKWindow.BindPanel` 缺组件从裸 `Exception` 改抛 `GameException`；`CloseUI` / `HideUI` 对不在栈上的窗口从全静默改为补一条 Debug 级开发日志。
 
 #### 文档
 

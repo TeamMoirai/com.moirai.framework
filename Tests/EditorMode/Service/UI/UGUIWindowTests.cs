@@ -123,7 +123,7 @@ namespace Service.UI
             Assert.IsNull(window.gameObject, "失败后仍应保持未绑定");
         }
 
-        /// <summary>面板上没有 Canvas：按旧文案抛异常（沿用下沉前的判据，不静默退化成无排序面板）。</summary>
+        /// <summary>面板上没有 Canvas：抛 <see cref="Moirai.Atropos.GameException"/>（不静默退化成无排序面板）。</summary>
         [Test]
         public void BindPanel_MissingCanvas_ThrowsWithWindowName()
         {
@@ -131,10 +131,10 @@ namespace Service.UI
             var window = Unbound();
             window.Init("BattleWindow", 1, false, "NoCanvasPanel", false, 10, false);
 
-            var error = Assert.Throws<System.Exception>(() => window.BindPanel(panel));
+            var error = Assert.Throws<Moirai.Atropos.GameException>(() => window.BindPanel(panel));
 
-            StringAssert.Contains("Not found Canvas in panel BattleWindow", error.Message,
-                "缺 Canvas 的文案要带上窗口名，沿用下沉前 Handle_Completed 的写法");
+            StringAssert.Contains("BattleWindow", error.Message,
+                "缺 Canvas 的文案要带上窗口名：拿到半个可用面板不如当场指认");
         }
 
         /// <summary>装配即初始化程序化排序：overrideSorting、sortingOrder 归零、sortingLayerName 固定 Default。</summary>

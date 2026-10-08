@@ -98,7 +98,7 @@ com.moirai.framework/
 |---|---|---|---|
 | 类型 / 方法 / 属性 / 命名空间 | `PascalCase` | 一致 | 同 |
 | 接口 | `I` + `PascalCase` | 全部（`IAudioClipLeaseSource`、`IAudioMiddlewareBridge`） | 同 |
-| 枚举类型 | `PascalCase` | 主流 `E` 前缀（`EAudioTrack`、`EResourceAssetKind`）；历史无前缀（`UILayer`、`UIType`、`TaskStatus`、`TimerPhase`） | 一律 `E` 前缀；运行期状态枚举显式 `: byte` |
+| 枚举类型 | `PascalCase` | 主流 `E` 前缀（`EAudioTrack`、`EResourceAssetKind`）；历史无前缀（`UIType`、`TaskStatus`、`TimerPhase`） | 一律 `E` 前缀；运行期状态枚举显式 `: byte`；非运行期状态的配置档枚举（如 `EUILayer`，其整数值进特性与深度算术）保持原底层类型 |
 | 枚举成员 | `PascalCase` | 一致 | 同 |
 | 局部变量 / 参数 | `camelCase` | 一致 | 同 |
 | 实例字段（`private`/`protected`/`internal`，非序列化） | `_camelCase` | ~650 处 | 同 |
@@ -112,7 +112,7 @@ com.moirai.framework/
 
 前缀由**访问级别**决定，不看是否"真私有"：`internal` 走 `private` 口径（带 `m_`/`s_`/`_`）；`public`/`protected internal`/file-local 无前缀——序列化字段 `lowerCamelCase`，其余字段与静态成员 `PascalCase`。
 
-缩略词表里只登记了 `FSM` 与 `GOAP`（供 Rider 按整词切分，加前缀/自动重命名时不拆成 `F`+`S`+`M`）；`UI` 没登记而仓内一律写成 `UILayer`/`UIService`。要用新缩略词前先决定"登记"还是"照抄现状"，别两边各写一半。
+缩略词表里只登记了 `FSM` 与 `GOAP`（供 Rider 按整词切分，加前缀/自动重命名时不拆成 `F`+`S`+`M`）；`UI` 没登记而仓内一律写成 `EUILayer`/`UIService`。要用新缩略词前先决定"登记"还是"照抄现状"，别两边各写一半。
 
 下列是**仓库既定词汇**，DotSettings 管不到，但新模块照抄、不另造同义词：
 
