@@ -169,7 +169,8 @@ namespace Moirai.Atropos.UI
         /// <param name="fromResources">是内部资源无需AB加载。</param>
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数。</param>
         /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
-        internal void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance)
+        /// <param name="modal">模态档；缺省按层级继承（模态层级 UI/Popup/System 即模态）。</param>
+        internal void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance, EUIModal modal = EUIModal.Inherit)
         {
             WindowName = name;
             WindowLayer = layer;
@@ -178,7 +179,17 @@ namespace Moirai.Atropos.UI
             FromResources = fromResources;
             HideTimeToClose = hideTimeToClose;
             CacheInstance = cacheInstance;
+            IsModalWindow = modal switch
+            {
+                EUIModal.Modal => true,
+                EUIModal.NonModal => false,
+                _ => UIWindowLedger.IsWindowLayerModal(layer),
+            };
         }
+
+        /// <summary>本窗是否为模态窗口：初始化时按显式档或层级档结算，之后只读。</summary>
+        /// <remarks>压栈压下层交互位、开/关过渡占全局压制位的判据都以它为准。</remarks>
+        internal bool IsModalWindow { get; private set; }
 
         internal void TryInvoke(Action<UIWindow> prepareCallback, System.Object[] @params)
         {

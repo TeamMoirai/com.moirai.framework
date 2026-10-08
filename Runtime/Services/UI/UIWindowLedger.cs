@@ -42,11 +42,19 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 判断窗口是否为模态窗口。
+        /// 判断窗口是否为模态窗口：读窗口初始化时结算的模态位。
         /// </summary>
-        internal bool IsModal(UIWindow window) => window.WindowLayer == (int)UILayer.UI ||
-                                                   window.WindowLayer == (int)UILayer.Popup ||
-                                                   window.WindowLayer == (int)UILayer.System;
+        /// <remarks>显式档（<c>[Window(modal:…)]</c>）赢过层级档；继承档在窗口侧按 <see cref="IsWindowLayerModal"/> 结算。</remarks>
+        internal bool IsModal(UIWindow window) => window.IsModalWindow;
+
+        /// <summary>
+        /// 按层级判模态档：模态层级（UI/Popup/System）为模态，其余非模态。
+        /// </summary>
+        /// <remarks>继承档的结算真源；显式模态档不走这一份。</remarks>
+        internal static bool IsWindowLayerModal(int layer) =>
+            layer == (int)UILayer.UI ||
+            layer == (int)UILayer.Popup ||
+            layer == (int)UILayer.System;
 
         /// <summary>
         /// 把栈与停放表归零。
@@ -77,7 +85,7 @@ namespace Moirai.Atropos.UI
                 }
 
                 var window = _uiStack[i];
-                window.InternalUpdate();
+                window.Internal_Update();
             }
         }
 
@@ -448,7 +456,8 @@ namespace Moirai.Atropos.UI
             }
 
             window.Init(windowName, descriptor.WindowLayer, descriptor.FullScreen, assetLocation,
-                fromResources || descriptor.FromResources, descriptor.HideTimeToClose, descriptor.CacheInstance);
+                fromResources || descriptor.FromResources, descriptor.HideTimeToClose, descriptor.CacheInstance,
+                (EUIModal)descriptor.Modal);
 
             return window;
         }
