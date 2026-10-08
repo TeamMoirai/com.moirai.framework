@@ -20,6 +20,7 @@ namespace Moirai.Atropos.SourceGenerators
         public bool FromResources { get; private set; }
         public string Location { get; private set; }
         public bool FullScreen { get; private set; }
+        public byte Modal { get; private set; }
         public int HideTimeToClose { get; private set; }
         public bool CacheInstance { get; private set; }
 
@@ -37,6 +38,7 @@ namespace Moirai.Atropos.SourceGenerators
 
         private const int DefaultLayer = 1;          // UILayer.UI
         private const int DefaultHideTimeToClose = 10;
+        private const byte DefaultModal = 0;         // EUIModal.Inherit
 
         /// <summary>
         /// 从语法上下文提取模型：非 [Window] 类回 null；[Window] 窗口类回带取值或成因诊断的模型。
@@ -106,11 +108,11 @@ namespace Moirai.Atropos.SourceGenerators
         }
 
         /// <summary>
-        /// 解码 <c>[Window]</c> 特性实参：四个构造器重载按形参类型走位，命名实参随后覆盖。
+        /// 解码 <c>[Window]</c> 特性实参：构造器重载按形参类型走位，命名实参随后覆盖。
         /// </summary>
         /// <remarks>
         /// 位置实参形序（层级之后）：string ⇒ location；bool ⇒ fromResources（随后若跟 string 则为 location）；<br />
-        /// 尾段固定 fullScreen / hideTimeToClose / cacheInstance。命名实参按名覆盖，缺省沿用特性默认。
+        /// 尾段固定 fullScreen / hideTimeToClose / cacheInstance / modal（层级型枚举）。命名实参按名覆盖，缺省沿用特性默认。
         /// </remarks>
         private void Decode(AttributeData attribute)
         {
@@ -152,6 +154,12 @@ namespace Moirai.Atropos.SourceGenerators
             if (i < args.Length)
             {
                 CacheInstance = ToBool(args[i].Value);
+                i++;
+            }
+
+            if (i < args.Length)
+            {
+                Modal = ToByte(args[i].Value, DefaultModal);
             }
 
             foreach (KeyValuePair<string, TypedConstant> named in attribute.NamedArguments)
@@ -169,6 +177,9 @@ namespace Moirai.Atropos.SourceGenerators
                         break;
                     case "fullScreen":
                         FullScreen = ToBool(named.Value.Value);
+                        break;
+                    case "modal":
+                        Modal = ToByte(named.Value.Value, Modal);
                         break;
                     case "hideTimeToClose":
                         HideTimeToClose = ToInt32(named.Value.Value, HideTimeToClose);
@@ -206,6 +217,18 @@ namespace Moirai.Atropos.SourceGenerators
 
         private static bool ToBool(object? constant) => constant is bool value && value;
         private static string ToStringValue(object? constant, string fallback) => constant as string ?? fallback;
+
+        /// <summary>枚举实参折算 byte（三态模态等小型枚举；值越界回 fallback）。</summary>
+        private static byte ToByte(object? constant, byte fallback)
+        {
+            switch (constant)
+            {
+                case byte v: return v;
+                case sbyte v when v >= 0: return (byte)v;
+                case int v when v is >= 0 and <= byte.MaxValue: return (byte)v;
+                default: return fallback;
+            }
+        }
 
         /// <summary>反射全名：命名空间 + 嵌套链（<c>.</c> 与 <c>+</c> 按反射口径拼）。</summary>
         private static string BuildReflectionFullName(INamedTypeSymbol symbol)

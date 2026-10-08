@@ -140,6 +140,7 @@ namespace Moirai.Atropos.SourceGenerators
                 .Append(model.WindowLayer).Append(", ")
                 .Append(model.FromResources ? "true" : "false").Append(", ")
                 .Append(model.FullScreen ? "true" : "false").Append(", ")
+                .Append(model.Modal).Append(", ")
                 .Append(model.HideTimeToClose).Append(", ")
                 .Append(model.CacheInstance ? "true" : "false")
                 .Append("), static () => new ").Append(typeRef).Append("());")
