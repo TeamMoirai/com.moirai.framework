@@ -263,31 +263,30 @@ namespace Moirai.Atropos.UI
         /// <remarks>
         /// 这一份只落共享栈、不认轨：每轨自己的开窗实现都经它把窗口送进同一份栈，两轨的差别只在实参取值。<br />
         /// <paramref name="onInstanceCreated"/> 只在造出新实例那一档叫一次，交在 <c>Push</c> 与 <c>InternalLoad</c> 之前，为 null 时不叫。<br />
-        /// 复用栈上窗与停放重取那两条支路不叫它：两路命中的窗面板早已装好，<paramref name="windowId"/> 与 <paramref name="fromResources"/> 也不再吃。
+        /// 复用栈上窗与停放重取那两条支路不叫它：两路命中的窗面板早已装好，<paramref name="windowId"/> 也不再吃。
         /// </remarks>
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
         /// <param name="payload">动态腿擦除后的载荷；无载荷时传 <see cref="UIPayload.Empty"/>。</param>
         /// <param name="callerCt">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        internal void ShowUIImp(Type type, bool isAsync, string windowId, bool fromResources,
+        internal void ShowUIImp(Type type, bool isAsync, string windowId,
             Action<UIWindow> onInstanceCreated, UIPayload payload, CancellationToken callerCt = default)
         {
             RequireWindowId(type, windowId);
 
-            ResolveOrStartLoad(type, isAsync, windowId, fromResources, onInstanceCreated, payload, out var window);
+            ResolveOrStartLoad(type, isAsync, windowId, onInstanceCreated, payload, out var window);
             JoinInFlight(window, callerCt);
         }
 
         /// <summary>开栈编排的同步腿（泛型直塞形）：静态腿经此把载荷按 <typeparamref name="TArg"/> 零装箱落进窗口。</summary>
-        internal void ShowUIImp<TArg>(Type type, bool isAsync, string windowId, bool fromResources,
+        internal void ShowUIImp<TArg>(Type type, bool isAsync, string windowId,
             Action<UIWindow> onInstanceCreated, in TArg payload, CancellationToken callerCt = default)
         {
             RequireWindowId(type, windowId);
 
-            ResolveOrStartLoad<TArg>(type, isAsync, windowId, fromResources, onInstanceCreated, in payload, out var window);
+            ResolveOrStartLoad<TArg>(type, isAsync, windowId, onInstanceCreated, in payload, out var window);
             JoinInFlight(window, callerCt);
         }
 
@@ -331,11 +330,10 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="window">进栈的窗口（可能仍在装载）。</param>
-        private void ResolveOrStartLoad(Type type, bool isAsync, string windowId, bool fromResources,
+        private void ResolveOrStartLoad(Type type, bool isAsync, string windowId,
             Action<UIWindow> onInstanceCreated, UIPayload payload, out UIWindow window)
         {
             if (TryGetWindow(windowId, out window))
@@ -357,7 +355,7 @@ namespace Moirai.Atropos.UI
                 return; // 停放重取：装载早已完成，同步交回不再等待
             }
 
-            window = CreateInstance(type, windowId, fromResources);
+            window = CreateInstance(type, windowId);
             onInstanceCreated?.Invoke(window);
             if (!payload.IsEmpty) window.Internal_SetPayload(payload);
             Push(window);
@@ -365,7 +363,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>开栈编排的公共前置（泛型直塞形）：与 UIPayload 形同路，只把载荷经 <see cref="IUIPayloadSlot{TArg}"/> 强类型落位、不擦除。</summary>
-        private void ResolveOrStartLoad<TArg>(Type type, bool isAsync, string windowId, bool fromResources,
+        private void ResolveOrStartLoad<TArg>(Type type, bool isAsync, string windowId,
             Action<UIWindow> onInstanceCreated, in TArg payload, out UIWindow window)
         {
             if (TryGetWindow(windowId, out window))
@@ -387,7 +385,7 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            window = CreateInstance(type, windowId, fromResources);
+            window = CreateInstance(type, windowId);
             onInstanceCreated?.Invoke(window);
             SetPayloadChecked(window, in payload);
             Push(window);
@@ -433,17 +431,16 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="callerCt">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>，与超时分档。</param>
         /// <returns>栈上那个窗口（面板就绪或等待超时之后交回；装载失败交回 null）。</returns>
         internal async UniTask<UIWindow> ShowUIAwaitImp(Type type, bool isAsync, string windowId,
-            bool fromResources, Action<UIWindow> onInstanceCreated, UIPayload payload, CancellationToken callerCt = default)
+            Action<UIWindow> onInstanceCreated, UIPayload payload, CancellationToken callerCt = default)
         {
             RequireWindowId(type, windowId);
 
-            ResolveOrStartLoad(type, isAsync, windowId, fromResources, onInstanceCreated, payload, out var window);
+            ResolveOrStartLoad(type, isAsync, windowId, onInstanceCreated, payload, out var window);
             if (window.IsLoadDone)
             {
                 return window; // 复用/停放命中：同步完成
@@ -485,11 +482,11 @@ namespace Moirai.Atropos.UI
         /// <summary>开栈编排的等待腿（泛型直塞形）：与 UIPayload 形同路，仅把载荷换进泛型直塞通道。</summary>
         /// <remarks><paramref name="payload"/> 用普通形参而非 <c>in</c>：<c>async</c> 方法禁 <c>in</c> 形参（CS1988）；交给泛型直塞前置时按其 <c>in</c> 形参隐式按值传递。</remarks>
         internal async UniTask<UIWindow> ShowUIAwaitImp<TArg>(Type type, bool isAsync, string windowId,
-            bool fromResources, Action<UIWindow> onInstanceCreated, TArg payload, CancellationToken callerCt = default)
+            Action<UIWindow> onInstanceCreated, TArg payload, CancellationToken callerCt = default)
         {
             RequireWindowId(type, windowId);
 
-            ResolveOrStartLoad<TArg>(type, isAsync, windowId, fromResources, onInstanceCreated, payload, out var window);
+            ResolveOrStartLoad<TArg>(type, isAsync, windowId, onInstanceCreated, payload, out var window);
             if (window.IsLoadDone)
             {
                 return window;
@@ -538,17 +535,16 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="callerCt">调用方取消令牌；被它撤销即落 <see cref="EUIOpenStatus.Cancelled"/> 档。</param>
         /// <returns>开窗结果。</returns>
         internal async UniTask<UIOpenResult> ShowUIAwaitResultImp(Type type, bool isAsync, string windowId,
-            bool fromResources, Action<UIWindow> onInstanceCreated, UIPayload payload, CancellationToken callerCt = default)
+            Action<UIWindow> onInstanceCreated, UIPayload payload, CancellationToken callerCt = default)
         {
             RequireWindowId(type, windowId);
 
-            ResolveOrStartLoad(type, isAsync, windowId, fromResources, onInstanceCreated, payload, out var window);
+            ResolveOrStartLoad(type, isAsync, windowId, onInstanceCreated, payload, out var window);
             if (window.IsLoadDone)
             {
                 return new UIOpenResult(EUIOpenStatus.Opened, window);
@@ -561,11 +557,11 @@ namespace Moirai.Atropos.UI
         /// <summary>开栈编排的结果腿（泛型直塞形）：与 UIPayload 形同路，仅把载荷换进泛型直塞通道。</summary>
         /// <remarks><paramref name="payload"/> 用普通形参而非 <c>in</c>：<c>async</c> 方法禁 <c>in</c> 形参（CS1988）；交给泛型直塞前置时按其 <c>in</c> 形参隐式按值传递。</remarks>
         internal async UniTask<UIOpenResult> ShowUIAwaitResultImp<TArg>(Type type, bool isAsync, string windowId,
-            bool fromResources, Action<UIWindow> onInstanceCreated, TArg payload, CancellationToken callerCt = default)
+            Action<UIWindow> onInstanceCreated, TArg payload, CancellationToken callerCt = default)
         {
             RequireWindowId(type, windowId);
 
-            ResolveOrStartLoad<TArg>(type, isAsync, windowId, fromResources, onInstanceCreated, payload, out var window);
+            ResolveOrStartLoad<TArg>(type, isAsync, windowId, onInstanceCreated, payload, out var window);
             if (window.IsLoadDone)
             {
                 return new UIOpenResult(EUIOpenStatus.Opened, window);
@@ -602,15 +598,14 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 标识必填：面板地址只由 <see cref="UIService.ResolveWindowLocation"/> 从 <paramref name="windowId"/> 换算而来，特性不再声明地址。 <br />
-        /// 取法档是调用方与特性的并集（真 || 特性），特性缺的档不反被调用方否掉。 <br />
+        /// 取法档只由窗口类的 <c>[Window(fromResources:)]</c> 给：调用方不再逐次选档。 <br />
         /// 类型未登记当场抬错：窗口类必须标 <c>[Window]</c> 才进注册表，不再静默兜默认层级与地址。
         /// </remarks>
         /// <param name="type">窗口类。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 <c>Resources</c> 下的相对路径）。</param>
-        /// <param name="fromResources">调用方给的内置资源档。</param>
         /// <returns>已按描述符初始化好的新窗口。</returns>
         /// <exception cref="GameException">窗口类未登记（没标 <c>[Window]</c>），或开窗没带 <paramref name="windowId"/>。</exception>
-        private UIWindow CreateInstance(Type type, string windowId, bool fromResources)
+        private UIWindow CreateInstance(Type type, string windowId)
         {
             if (!UIWindowRegistry.TryGet(type, out var entry))
             {
@@ -622,7 +617,7 @@ namespace Moirai.Atropos.UI
             var window = entry.Factory();
             var descriptor = entry.Descriptor;
 
-            var useResources = fromResources || descriptor.FromResources;
+            var useResources = descriptor.FromResources;
 
             window.Init(windowId, descriptor.WindowLayer, descriptor.FullScreen,
                 UIService.ResolveWindowLocation(windowId, useResources),
@@ -1254,6 +1249,9 @@ namespace Moirai.Atropos.UI
         /// 停放表里是否有这个标识的窗：缓存实例关闭后落在这里，栈上已无。
         /// </summary>
         internal bool IsParked(string windowId) => _cache.ContainsKey(windowId);
+
+        /// <summary>停放表的只读视图（键集合）：调试面枚举缓存窗用它，不给写。</summary>
+        internal IReadOnlyCollection<string> PeekParkedIds() => _cache.Keys;
 
         #endregion
     }

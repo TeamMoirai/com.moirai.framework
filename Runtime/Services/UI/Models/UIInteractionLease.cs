@@ -50,5 +50,8 @@ namespace Moirai.Atropos.UI
             _holder = null;
             return hadHolder;
         }
+
+        /// <summary>当前压制持有者：调试面观察用，无归属时为 null。</summary>
+        internal UIWindow PeekHolder() => _holder;
     }
 }
