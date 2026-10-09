@@ -1,4 +1,3 @@
-using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using UnityEngine;
 
@@ -51,14 +50,14 @@ namespace Moirai.Atropos.Input
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
         /// <summary>
-        /// 初始化输入服务：触发 <c>Handler</c> 懒加载并订阅全局事件。由 <see cref="GameAppSettings.Initiation"/> 调用。
+        /// 初始化输入服务：触发 <c>Handler</c> 懒加载并订阅对焦与窗口开合广播。由 <see cref="GameAppSettings.Initiation"/> 调用。
         /// </summary>
         public override void OnInit()
         {
             // 确保 Handler 已初始化
             _ = Handler;
 
-            EventManager.RegisterCallback<GameAppMessageEvent>(ResetInput);
+            GameApp.onApplicationFocus += ResetInput;
             UIService.onWindowShown += RefreshUIModal;
             UIService.onWindowClosed += RefreshUIModal;
         }
@@ -72,7 +71,7 @@ namespace Moirai.Atropos.Input
             s_Handler = null;
             handler?.Internal_Shutdown();
 
-            EventManager.UnregisterCallback<GameAppMessageEvent>(ResetInput);
+            GameApp.onApplicationFocus -= ResetInput;
             UIService.onWindowShown -= RefreshUIModal;
             UIService.onWindowClosed -= RefreshUIModal;
         }
@@ -238,32 +237,21 @@ namespace Moirai.Atropos.Input
         // 失焦/回焦联动：重复焦点事件去重，避免连续失焦把记录值覆盖为 false 导致回焦后输入永久关闭
         private static readonly FocusInputGuard s_FocusGuard = new FocusInputGuard();
 
-        private static void ResetInput(GameAppMessageEvent evt)
+        /// <summary>
+        /// 对焦联动：把 <see cref="GameApp.onApplicationFocus"/> 的回执换算成输入总开关的目标值。
+        /// </summary>
+        /// <param name="hasFocus">本次对焦真值，<c>false</c> 为失焦。</param>
+        private static void ResetInput(bool hasFocus)
         {
             var handler = s_Handler;
             if (handler == null) return;
-
-            bool hasFocus;
-            switch (evt.EventType)
-            {
-                case GameAppMessageEvent.EEventType.NotApplicationFocus:
-                    hasFocus = false;
-                    break;
-
-                case GameAppMessageEvent.EEventType.ApplicationFocus:
-                    hasFocus = true;
-                    break;
-
-                default:
-                    return;
-            }
 
             bool? target = s_FocusGuard.Evaluate(hasFocus, handler.Enabled);
             if (target.HasValue) handler.Enabled = target.Value;
         }
 
-        /// <summary>窗口开合回执共用这一枚：模态位重算只看「栈上还有没有模态窗」，与是哪一只、开还是关无关。</summary>
-        /// <param name="window">刚入栈或刚出栈的那一只；本回执不取用。</param>
+        /// <summary>窗口开合回执共用这一个入口：模态位重算只看「栈上还有没有模态窗」，与是哪个窗口、开还是关无关。</summary>
+        /// <param name="window">刚入栈或刚出栈的窗口；本回执不取用。</param>
         private static void RefreshUIModal(UIWindow window)
         {
             if (s_Handler == null) return;

@@ -17,7 +17,7 @@ See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 
 - Coroutine hosting: `GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
 - Frame updates: `GameApp.AddUpdateListener` (Action) plus `GameApp.AddUpdateHandler` / `AddFrameHandler` (interface handlers, `IPlayerLoopPriority` aware) all write **synchronously** into the driver's registries
-- Unity events: `AddDestroyListener` (broadcast on Shutdown), `AddOnApplicationPauseListener`, Gizmos APIs
+- Unity events: `AddDestroyListener` (broadcast on Shutdown), `AddOnApplicationPauseListener`, Gizmos APIs; focus and quit are two public static events — `GameApp.onApplicationFocus` (`bool` parameter, `true` = regained focus) and `GameApp.onApplicationQuit` (payload-less, broadcast before the shutdown). `GameApp` subscribes `Application.focusChanged` / `Application.quitting` itself and forwards item by item with fault isolation
 - Runtime switches: `FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` carry live engine state (`GameAppSettings` is only the boot default); pausing is reference counted via `PauseGame` / `ResumeGame` — see [Pause And Speed Semantics](#pause-and-speed-semantics)
 - Clean shutdown: `GameApp.Shutdown` clears the Driver registry, removes this framework's PlayerLoop systems (UniTask and other third-party injections stay), unwinds any unmatched pause and releases the host (except on the application-quit path: the engine tears the host down with the scene, so the explicit Destroy is skipped)
 

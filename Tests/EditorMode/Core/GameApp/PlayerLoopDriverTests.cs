@@ -436,25 +436,6 @@ namespace Core.GameApp
         }
 
         [Test]
-        public void ApplicationQuitBroadcast_WhenOneThrows_OthersStillRun()
-        {
-            // 关闭广播的职责就是清理，截断等于静默漏掉后续每一项的释放动作，故开发期也不上抛
-            UtfLogExpect.Error();
-
-            var order = new List<string>();
-            PlayerLoopDriver.AddApplicationQuitCallback(() =>
-            {
-                order.Add("first");
-                throw new InvalidOperationException("boom");
-            });
-            PlayerLoopDriver.AddApplicationQuitCallback(() => order.Add("second"));
-
-            Assert.DoesNotThrow(() => PlayerLoopDriver.RaiseApplicationQuit());
-
-            Assert.AreEqual(new[] { "first", "second" }, order.ToArray());
-        }
-
-        [Test]
         public void ApplicationPauseBroadcast_WhenOneThrows_OthersStillRun()
         {
             // 回归：Pause 多播曾直发不隔离，前序订户抛异常会静默截断后续订户（切后台存档链）

@@ -77,12 +77,9 @@ namespace Moirai.Atropos
         private static Action s_DrawGizmosCallbacks;
         private static Action s_DrawGizmosSelectedCallbacks;
         private static Action<bool> s_ApplicationPauseCallbacks;
-        private static Action<bool> s_ApplicationFocusCallbacks;
-        private static Action s_ApplicationQuitCallbacks;
 
         private static bool s_IsDriving;
         private static bool s_IsShutdown = true;
-        private static bool s_LifecycleHooked;
 
         /// <summary>注册表的主线程 id；0 表示尚未捕获，此时不做主线程判定。</summary>
         internal static int s_MainThreadId;
@@ -128,13 +125,12 @@ namespace Moirai.Atropos
         #region 初始化 / 关闭 [INIT / SHUTDOWN]
 
         /// <summary>
-        /// 确保 PlayerLoop 已注入、生命周期事件已挂钩、驱动器处于活跃态（幂等）。
+        /// 确保 PlayerLoop 已注入、驱动器处于活跃态（幂等）。
         /// </summary>
         public static void Initialize()
         {
             if (s_MainThreadId == 0) s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             PlayerLoopInjector.EnsureInjected();
-            HookApplicationLifecycle();
             s_IsShutdown = false;
         }
 
@@ -153,7 +149,6 @@ namespace Moirai.Atropos
             InvokeAllQuarantined(destroy, "Destroy");
 
             ClearHandlers();
-            UnhookApplicationLifecycle();
 
             // 只摘本框架的三个标记，第三方注入原样保留：Shutdown 并不总意味着进程结束——GameApp.Shutdown
             // 之后可能还要 LoadScene 重启（调试器 OperationsWindow 的 Shutdown (Restart)），或正在退出流程中
@@ -182,14 +177,12 @@ namespace Moirai.Atropos
             s_DrawGizmosCallbacks = null;
             s_DrawGizmosSelectedCallbacks = null;
             s_ApplicationPauseCallbacks = null;
-            s_ApplicationFocusCallbacks = null;
-            s_ApplicationQuitCallbacks = null;
 
             s_IsDriving = false;
         }
 
         /// <summary>
-        /// 测试专用：复位注册表并设置活跃位，不触碰 PlayerLoop 注入与 Application 事件。
+        /// 测试专用：复位注册表并设置活跃位，不触碰 PlayerLoop 注入。
         /// </summary>
         /// <remarks>EditMode 测试不能走 <see cref="Initialize"/>（其 <c>SetPlayerLoop</c> 会把 Drive 挂进编辑器循环、污染用例）。</remarks>
         internal static void ResetForTests(bool active)
@@ -207,35 +200,6 @@ namespace Moirai.Atropos
         {
             s_IsShutdown = true;
             s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
-            // 禁用域重载时标志跨 Play 残留：上一局未经 Shutdown 的话此位仍真，
-            // 下一局 HookApplicationLifecycle 会被它挡住——生命周期钩子从此静默缺失。
-            s_LifecycleHooked = false;
-        }
-
-        private static void HookApplicationLifecycle()
-        {
-            if (s_LifecycleHooked) return;
-            s_LifecycleHooked = true;
-            Application.quitting += OnApplicationQuit;
-            Application.focusChanged += OnApplicationFocusChanged;
-        }
-
-        private static void UnhookApplicationLifecycle()
-        {
-            if (!s_LifecycleHooked) return;
-            s_LifecycleHooked = false;
-            Application.quitting -= OnApplicationQuit;
-            Application.focusChanged -= OnApplicationFocusChanged;
-        }
-
-        private static void OnApplicationQuit()
-        {
-            InvokeAllQuarantined(s_ApplicationQuitCallbacks, "ApplicationQuit");
-        }
-
-        private static void OnApplicationFocusChanged(bool hasFocus)
-        {
-            InvokeAllQuarantined(s_ApplicationFocusCallbacks, hasFocus, "ApplicationFocus");
         }
 
         #endregion
@@ -323,46 +287,6 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 注册 ApplicationFocus 回调。
-        /// </summary>
-        public static void AddApplicationFocusCallback(Action<bool> callback)
-        {
-            if (callback == null) return;
-            EnsureMainThread();
-            s_ApplicationFocusCallbacks += callback;
-        }
-
-        /// <summary>
-        /// 注销 ApplicationFocus 回调。
-        /// </summary>
-        public static void RemoveApplicationFocusCallback(Action<bool> callback)
-        {
-            if (callback == null) return;
-            EnsureMainThread();
-            s_ApplicationFocusCallbacks -= callback;
-        }
-
-        /// <summary>
-        /// 注册 ApplicationQuit 回调。
-        /// </summary>
-        public static void AddApplicationQuitCallback(Action callback)
-        {
-            if (callback == null) return;
-            EnsureMainThread();
-            s_ApplicationQuitCallbacks += callback;
-        }
-
-        /// <summary>
-        /// 注销 ApplicationQuit 回调。
-        /// </summary>
-        public static void RemoveApplicationQuitCallback(Action callback)
-        {
-            if (callback == null) return;
-            EnsureMainThread();
-            s_ApplicationQuitCallbacks -= callback;
-        }
-
-        /// <summary>
         /// 广播 OnDrawGizmos（由宿主转发，编辑器专用）。
         /// </summary>
         public static void RaiseDrawGizmos()
@@ -384,14 +308,6 @@ namespace Moirai.Atropos
         public static void RaiseApplicationPause(bool pauseStatus)
         {
             InvokeAllQuarantined(s_ApplicationPauseCallbacks, pauseStatus, "ApplicationPause");
-        }
-
-        /// <summary>
-        /// 广播 ApplicationQuit（生产路径由 <see cref="Application.quitting"/> 触发）。
-        /// </summary>
-        internal static void RaiseApplicationQuit()
-        {
-            OnApplicationQuit();
         }
 
         #endregion
