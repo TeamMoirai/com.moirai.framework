@@ -56,7 +56,7 @@ namespace Service.UI
         [Test]
         public void CacheParkViaDestroy_SnapsClosedExactlyOnceBeforePark()
         {
-            _ledger.ShowUIImp(typeof(SnapProbeWindow), false, "SnapA", "Panel", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(SnapProbeWindow), false, "SnapA", false, null, UIPayload.Empty);
             var window = (SnapProbeWindow)_ledger.GetWindow("SnapA");
             int snapsBefore = window.TransitionProbe.Snaps;
 
@@ -70,7 +70,7 @@ namespace Service.UI
         [Test]
         public void PlayThrowsOnClose_FallsBackToSnapAndStillParks()
         {
-            _ledger.ShowUIImp(typeof(SnapProbeWindow), false, "SnapB", "Panel", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(SnapProbeWindow), false, "SnapB", false, null, UIPayload.Empty);
             var window = (SnapProbeWindow)_ledger.GetWindow("SnapB");
             window.TransitionProbe.ThrowOnPlay = true;
             int snapsBefore = window.TransitionProbe.Snaps;
@@ -86,7 +86,7 @@ namespace Service.UI
         [Test]
         public void SnapAlsoThrowsOnClose_FlowStillCompletes()
         {
-            _ledger.ShowUIImp(typeof(SnapProbeWindow), false, "SnapC", "Panel", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(SnapProbeWindow), false, "SnapC", false, null, UIPayload.Empty);
             var window = (SnapProbeWindow)_ledger.GetWindow("SnapC");
             window.TransitionProbe.ThrowOnPlay = true;
             window.TransitionProbe.ThrowOnSnap = true;

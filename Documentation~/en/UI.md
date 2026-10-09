@@ -100,32 +100,32 @@ public class MainWindow : UGUIWindow
 Opening and closing windows:
 
 ```csharp
-// Synchronous open (automatically falls back to async on WebGL)
-UIService.ShowUI<MainWindow>();
+// Synchronous open (automatically falls back to async on WebGL): that id is both the stack key and the address ingredient
+UIService.ShowUI<MainWindow>("main");
 
 // Asynchronous open (payload-free leg)
-UIService.ShowUIAsync<MainWindow>();
+UIService.ShowUIAsync<MainWindow>("main");
 
 // A payload-carrying open swaps to the two-type-argument family, payload first (read inside the window as Payload)
-UIService.ShowUIAsync<DetailWindow, int>(1001);
+UIService.ShowUIAsync<DetailWindow, int>(1001, "detail");
 
-// Dynamic leg, when the window class is only known at runtime: payload erased into UIPayload, addressing via the public static resolvers
-UIService.ShowUIAsync(type, windowName, windowId,
+// Dynamic leg, when the window class is only known at runtime: payload erased into UIPayload, the id resolves per band
+UIService.ShowUIAsync(type, windowId,
     fromResources: false, payload: UIPayload.From(dto));
 
 // Every leg takes a CancellationToken (default costs nothing); it only means something while the load is in flight
-UIService.ShowUIAsync<MainWindow>(windowName: "Main", ct: cts.Token);
+UIService.ShowUIAsync<MainWindow>(windowId: "main", ct: cts.Token);
 
 // Asynchronous open and await completion (60-second timeout; a caller cancellation rethrows OperationCanceledException)
-UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>();
+UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>("main");
 
 // Asynchronous open that awaits the terminal state: opened / failed / missing / timeout / cancelled are distinct
 // (a failed window has already been rolled off the stack and must not be reused)
-UIOpenResult result = await UIService.ShowUIAwaitResult<MainWindow>();
+UIOpenResult result = await UIService.ShowUIAwaitResult<MainWindow>("main");
 if (result.Status == EUIOpenStatus.Opened) { /* result.Window is usable */ }
 
-// Close / Hide (auto-closes after HideTimeToClose seconds)
-UIService.CloseUI<MainWindow>();
+// Close / Hide: an id hits that one key, no id takes every window of that type
+UIService.CloseUI<MainWindow>("main");
 UIService.HideUI<MainWindow>();
 
 // Query
@@ -145,11 +145,11 @@ Eight legs per track = four payload-free + four payload-carrying; the two backen
 
 | Leg | Signature | Returns |
 |---|---|---|
-| Async, payload-free | `ShowUIAsync<T>(string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`, `T : UGUIWindow, new()` | `void` |
+| Async, payload-free | `ShowUIAsync<T>(string windowId = null, bool fromResources = false, CancellationToken ct = default)`, `T : UGUIWindow, new()` | `void` |
 | Sync, payload-free | `ShowUI<T>(…same shape…), T : UGUIWindow, new()` | `void` |
 | Await, payload-free | `ShowUIAsyncAwait<T>(…same shape…), T : UGUIWindow, new()` | `UniTask<UIWindow>` |
 | Result, payload-free | `ShowUIAwaitResult<T>(…same shape…), T : UGUIWindow, new()` | `UniTask<UIOpenResult>` |
-| Async, payload | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`, `TWindow : UGUIWindow<TArg>, new()` | `void` |
+| Async, payload | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowId = null, bool fromResources = false, CancellationToken ct = default)`, `TWindow : UGUIWindow<TArg>, new()` | `void` |
 | Sync, payload | `ShowUI<TWindow, TArg>(in TArg payload, …same shape…)` | `void` |
 | Await, payload | `ShowUIAsyncAwait<TWindow, TArg>(TArg payload, …same shape…)` | `UniTask<TWindow>` |
 | Result, payload | `ShowUIAwaitResult<TWindow, TArg>(in TArg payload, …same shape…)` | `UniTask<UIOpenResult>` |
@@ -162,7 +162,7 @@ Eight legs per track = four payload-free + four payload-carrying; the two backen
 
 | Leg | Signature | Returns |
 |---|---|---|
-| Async | `ShowUIAsync(Type type, string windowName = null, string windowId = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
+| Async | `ShowUIAsync(Type type, string windowId = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
 | Sync | `ShowUI(Type type, …same shape…)` | `void` |
 | Await | `ShowUIAsyncAwait(Type type, …same shape…)` | `UniTask<UIWindow>` |
 
@@ -174,9 +174,11 @@ Track ownership is decided by each track's self-described window base: an unclai
 |---|---|---|
 | Navigation depth | `NavigationDepth` (`int` property) | Length of the open-order history (the layer-sorted stack cannot answer "which window opened most recently") |
 | Close the top | `TryCloseTopWindow()` | Closes the most recently opened window through the existing `CanClose` policy; returns false when the history is empty, the window refuses, or it is mid-transition, and the history keeps it |
-| Fetch, await | `GetUIAsyncAwait<T>()` | Returns `null` when no such name is on the stack or that window is another type |
-| Fetch, callback | `GetUIAsync<T>(Action<T> callback)` | Logs one warning when not found; the callback is not invoked |
-| Fetch, result | `GetUIAwaitResult<T>()` | Returns `UIOpenResult`; the `Missing` tier means that window is not on the stack |
+| Fetch, await | `GetUIAsyncAwait<T>(string windowId = null)` | With an id it matches that key; without one it scans the stack by window type and takes the topmost. Returns `null` and logs one warning when nothing matches |
+| Fetch, callback | `GetUIAsync<T>(Action<T> callback, string windowId = null)` | Same rule; logs one warning when not found and never invokes the callback |
+| Fetch, result | `GetUIAwaitResult<T>(string windowId = null)` | Returns `UIOpenResult`; the `Missing` tier means that window is not on the stack |
+
+Close and hide take the same key rule: `CloseUI<T>(windowId)` / `HideUI<T>(windowId)` hit that one key, while a call without an id takes every window of that type (top of the stack down, each through the single-window path, so parking, destruction and the interaction hand-back stay unchanged).
 
 The three fetch legs ask the same shared stack and only wait out an already-open window's load, so they take no caller token (internally only the 60-second bound applies).
 
@@ -204,10 +206,10 @@ public class RenameWindow : UGUIWindow<RenameWindowPayload>   // carrying a payl
 }
 
 // Static leg: window class known at compile time -> generic push (no boxing, never touches UIPayload)
-UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto);
+UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto, "rename");
 
 // Dynamic leg: only a runtime Type -> erased into UIPayload (reference stays a reference, value types box once)
-UIService.ShowUIAsync(type, windowName, windowId,
+UIService.ShowUIAsync(type, windowId,
     fromResources: false, payload: UIPayload.From(dto));
 ```
 
@@ -215,7 +217,7 @@ UIService.ShowUIAsync(type, windowName, windowId,
 
 - Payload writes precede the prepare receipt and the push on the re-park and the new-open branches (both channels share the same rule), so `OnRefresh` always reads this open's payload; on the reuse branch the Pop->Push precedes the slot check (that window is already fully on the stack — a failed check still throws, but the receipt and the re-ordering have already happened)
 - A slotless window (directly inheriting `UGUIWindow` / `UITKWindow`) given a non-empty payload throws on the spot — fail-fast, never silently swallowed; an empty payload on a slotless window is the legal case every payload-free leg takes
-- A name hit whose slot type mismatches (`SetPayloadChecked` matching `IUIPayloadSlot<TArg>`), or a facade hit whose instance is not `TWindow`, throws `GameException` with both the expected and actual type names; "the throw precedes un-parking and pushing" describes the **re-park and new-open** branches, so it neither half-opens a window nor consumes the parked state (that instance is still retrievable from the parking table); on the reuse branch the Pop->Push precedes the slot check (see the bullet above), so the receipt and the re-ordering have already happened when it throws
+- An id hit whose slot type mismatches (`SetPayloadChecked` matching `IUIPayloadSlot<TArg>`), or a facade hit by id whose instance is not `TWindow`, throws `GameException` with both the expected and actual type names; "the throw precedes un-parking and pushing" describes the **re-park and new-open** branches, so it neither half-opens a window nor consumes the parked state (that instance is still retrievable from the parking table); on the reuse branch the Pop->Push precedes the slot check (see the bullet above), so the receipt and the re-ordering have already happened when it throws
 - `UIPayload` failure surfaces: `To<T>` throws `GameException` on a type mismatch or an empty payload against a value type (message names the expected type); `TryGet<T>` returns false without throwing; `From(null)` reduces to `Empty`
 - Allocation tiers: payload-free round-trips (the steady re-park path), static-leg struct/class payloads, and dynamic-leg class payloads all promise a zero delta; only a primitive/value-type payload on a dynamic leg may box once. The meter is `GC.GetAllocatedBytesForCurrentThread` (per-thread basis; the L3 `[Explicit]` benchmark `UIOpenAllocBenchmarkTests`, measured bytes exported to `Temp/ui-open-alloc-benchmark.txt` — under editor Mono that counter reads 0, so the real verdict comes from the player-side report)
 
@@ -368,14 +370,14 @@ Select the root node of a UI prefab and use the menu:
 - The uGUI track's UI root is registered by the `UIRootBinding` component on a scene object (which must have a `Canvas` under it): `SingletonMono` first-wins, a later duplicate's whole GameObject is destroyed; read it via `TryGetInstance()`, which only reads back and never auto-creates. The backend picks it up on the first Update tick, logs one Error when nothing is bound and one Fatal when the bound root has no Canvas, then keeps waiting each frame (late additive scenes, runtime-instantiated roots, and a Canvas added later all bind). Once bound, the UI root is automatically set to `DontDestroyOnLoad` (play mode only). **Lookup is not by object name** — renames are harmless, and a same-named object cannot be picked up as the root. The UI Toolkit track's document shells also parent under this root and are collected before the root is destroyed on shutdown.
 - `ShowUI` synchronous loading depends on the resource service's synchronous loading capability; on WebGL it automatically falls back to async; `ShowUIAsync` is recommended
 - `HideUI` only takes effect when `HideTimeToClose > 0`; otherwise it is equivalent to `CloseUI`
-- `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` only waits for the loading of an already-open window; returns null / no callback if the window does not exist
+- `GetUIAsyncAwait<T>(windowId)` / `GetUIAsync<T>(callback, windowId)` only wait for the loading of an already-open window: with an id they match that key, without one they scan the stack by window type and take the topmost; a miss returns null / skips the callback and logs one warning
 - Window updates (`OnUpdate`) are only triggered for visible windows; full-screen windows will block the visibility of windows beneath them
 - A payload-carrying window must inherit `UGUIWindow<TArg>` / `UITKWindow<TArg>`; a slotless base given a non-empty payload throws on the spot. Payloads are overwritten per open and never cleared on close (the value survives until the next open), so there is no read-once-and-clear semantics
 - The static leg's `in TArg` is the primary path for primitives and structs (generic push, zero boxing); `UIPayload` serves only the dynamic legs, where a value type boxes once — do not route hot-path structs through the dynamic leg
 - `default` costs nothing on every leg's `CancellationToken`, and the token is only consumed while the load is in flight: a ready reuse and a re-park do not consume `ct`; reusing a window that is still loading registers the caller token just the same, and cancelling it aborts that in-flight load (the same semantics as the in-flight merge)
 - Window open/close receipts are a static facade broadcast: `UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent` (parameter `UIWindow`) — exactly one per push and per pop, fired for both parking and destruction. Subscribers own their own un-pairing, and the facade's shutdown and reset gates detach the whole batch
 - Optional parking TTL: `[Window(cacheTimeToDestroy: …)]` — `0` means no caching (destroy on close, the default), a positive value parks the instance and destroys it that many seconds later, a negative value parks it forever; on expiry the ledger removes the parked instance from the parking table and destroys it for good, and re-taking it cancels the timer
-- Addressing lives in the facade: the third slot of every open leg is the window **id** — with `fromResources` it is joined onto the Resources parent folder held by `UIServiceSettings`, otherwise it is looked up through `ConfigTableService.GetUIWindowLocation`; the id is mandatory (an absent one throws `GameException` — there is no second route to an address), and `[Window]` no longer declares one. The old `UIManager` and its two public static resolvers are retired, and the conversion happens in exactly one place: the ledger's create-new-instance branch (a stack reuse and a re-parked window never hit the table)
+- Addressing lives in the facade: the window **id** an open leg carries (first slot on payload-free legs, the one right after the payload on payload legs, the one right after the `Type` on the dynamic entry) is both the stack key and the address ingredient — with `fromResources` it is joined onto the Resources parent folder held by `UIServiceSettings`, otherwise it is looked up through `ConfigTableService.GetUIWindowLocation`; the id is mandatory (an absent one throws `GameException` — there is no second route to an address), and `[Window]` no longer declares one. Re-opening an id that is already on the stack reuses that window (the window object's `WindowId` is this same value), and `CloseUI` / `HideUI` without an id take every window of that type. The old `UIManager` and its two public static resolvers are retired, and the conversion happens in exactly one place: the ledger's create-new-instance branch (a stack reuse and a re-parked window never hit the table)
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [UI Migration](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

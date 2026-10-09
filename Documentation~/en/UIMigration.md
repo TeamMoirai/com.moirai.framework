@@ -68,7 +68,7 @@ RenameWindow w = await UIService.ShowUIAsyncAwait<RenameWindow, RenameWindowPayl
 UIOpenResult r = await UIService.ShowUIAwaitResult<RenameWindow, RenameWindowPayload>(in dto);     // result leg
 ```
 
-Landed signature and position order: `(in TArg payload, string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`; the UI Toolkit legs take one extra `PanelSettings panelSettings = null` before `ct`, and the payload is still always the first slot.
+Landed signature and position order: `(in TArg payload, string windowId = null, bool fromResources = false, CancellationToken ct = default)`; the UI Toolkit legs take one extra `PanelSettings panelSettings = null` before `ct`, and the payload is still always the first slot.
 
 When you hand-write a `Show` helper, pass the id straight to the leg (the old shape computed the address first; the facade now resolves it per band):
 
@@ -78,11 +78,11 @@ public static void ShowRenameWindow(RenameWindowPayload dto)
     const string WindowId = "RenameWindow";
     UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(
         in dto,
-        WindowId, WindowId);
+        WindowId);
 }
 ```
 
-- The third slot is a window id, not an asset address: with `fromResources` it is joined onto the Resources parent folder from `UIServiceSettings`, otherwise the config table answers it; the conversion happens only when the ledger creates a new instance
+- The window id is not an asset address: with `fromResources` it is joined onto the Resources parent folder from `UIServiceSettings`, otherwise the config table answers it; the conversion happens only when the ledger creates a new instance
 - The fetch mode defaults to the union of the caller's `fromResources` and `[Window(fromResources:)]` (true || attribute); with the config-table service unready the lookup answers `null` and an unknown id answers an empty string — both land in the load-failure rollback rather than being papered over here
 
 ### Dynamic leg: only a runtime `Type` (type-substitution seams, registry-driven opens)
@@ -91,9 +91,9 @@ public static void ShowRenameWindow(RenameWindowPayload dto)
 
 ```csharp
 // The retired shape queued a positional argument array in the trailing slot; the new shape carries the payload in the single UIPayload carrier
-UIService.ShowUIAsync(type, windowName, location, false, UIPayload.From(dto), ct);
-UIService.ShowUI(type, windowName, location, false, UIPayload.From(dto), ct);        // sync tier, same shape
-UIWindow win = await UIService.ShowUIAsyncAwait(type, windowName, location, false, UIPayload.From(dto), ct);
+UIService.ShowUIAsync(type, windowId, false, UIPayload.From(dto), ct);
+UIService.ShowUI(type, windowId, false, UIPayload.From(dto), ct);        // sync tier, same shape
+UIWindow win = await UIService.ShowUIAsyncAwait(type, windowId, false, UIPayload.From(dto), ct);
 ```
 
 - The dynamic family has exactly three legs (async / sync / await) and `UIPayload payload` always sits right before `ct`; there is no `Type`-form result leg

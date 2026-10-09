@@ -52,9 +52,9 @@ namespace Service.UI
         [Test]
         public void NavigationDepth_ThreeOpens_CountsThree()
         {
-            UIService.ShowUI<NavBottomWindow>("NavA", "NavA");
-            UIService.ShowUI<NavTipsWindow>("NavB", "NavB");
-            UIService.ShowUI<NavBottomWindow>("NavC", "NavC");
+            UIService.ShowUI<NavBottomWindow>("NavA");
+            UIService.ShowUI<NavTipsWindow>("NavB");
+            UIService.ShowUI<NavBottomWindow>("NavC");
 
             Assert.AreEqual(3, UIService.NavigationDepth, "开启序历史按开窗次数计");
             Assert.AreEqual(3, _ledger.PeekStack().Count, "历史与栈同数：三只都落进了共享栈");
@@ -64,9 +64,9 @@ namespace Service.UI
         [Test]
         public void TryCloseTopWindow_LayerOrderDiffersFromOpenOrder_ClosesMostRecentWindow()
         {
-            UIService.ShowUI<NavBottomWindow>("NavA", "NavA");
-            UIService.ShowUI<NavTipsWindow>("NavB", "NavB");
-            UIService.ShowUI<NavBottomWindow>("NavC", "NavC");
+            UIService.ShowUI<NavBottomWindow>("NavA");
+            UIService.ShowUI<NavTipsWindow>("NavB");
+            UIService.ShowUI<NavBottomWindow>("NavC");
 
             Assert.AreSame(_ledger.GetWindow("NavB"), UIService.GetTopWindow(),
                 "量具前提坏了：栈顶按层级是那只 Tips 层的窗");
@@ -85,8 +85,8 @@ namespace Service.UI
         [Test]
         public void TryCloseTopWindow_RefusedByPolicy_ReturnsFalseAndKeepsDepth()
         {
-            UIService.ShowUI<NavBottomWindow>("NavRBelow", "NavRBelow");
-            UIService.ShowUI<NavRefuseWindow>("NavRefuse", "NavRefuse");
+            UIService.ShowUI<NavBottomWindow>("NavRBelow");
+            UIService.ShowUI<NavRefuseWindow>("NavRefuse");
             var depth = UIService.NavigationDepth;
 
             Assert.IsFalse(UIService.TryCloseTopWindow(), "政策拒关：回假且不代答成功");
@@ -102,8 +102,8 @@ namespace Service.UI
         [Test]
         public void TryCloseTopWindow_ModalOpenedLast_StaysNewestWithoutScramblingOpenOrder()
         {
-            UIService.ShowUI<NavTipsWindow>("NavKitHi", "NavKitHi");
-            UIService.ShowUI<NavModalWindow>("NavModalLast", "NavModalLast");
+            UIService.ShowUI<NavTipsWindow>("NavKitHi");
+            UIService.ShowUI<NavModalWindow>("NavModalLast");
 
             Assert.AreEqual(2, UIService.NavigationDepth, "模态窗后开：历史长度两格");
             Assert.AreSame(_ledger.GetWindow("NavKitHi"), UIService.GetTopWindow(),
@@ -118,11 +118,11 @@ namespace Service.UI
         [Test]
         public void TryCloseTopWindow_ReopenedWindow_IsNewestAgain()
         {
-            UIService.ShowUI<NavBottomWindow>("NavReA", "NavReA");
-            UIService.ShowUI<NavBottomWindow>("NavReB", "NavReB");
+            UIService.ShowUI<NavBottomWindow>("NavReA");
+            UIService.ShowUI<NavBottomWindow>("NavReB");
             Assert.AreEqual(2, UIService.NavigationDepth, "量具前提坏了：先开 A 再开 B");
 
-            UIService.ShowUI<NavBottomWindow>("NavReA", "NavReA");
+            UIService.ShowUI<NavBottomWindow>("NavReA");
 
             Assert.AreEqual(2, UIService.NavigationDepth, "复用支路走 Pop→Push：历史长度不变");
             Assert.AreEqual(2, _ledger.PeekStack().Count, "复用不压第二只");

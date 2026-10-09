@@ -13,9 +13,6 @@ namespace Moirai.Atropos.SourceGenerators
         /// <summary>窗口类符号。</summary>
         public INamedTypeSymbol Type { get; private set; }
 
-        /// <summary>类型反射全名（嵌套类带 <c>+</c>），作缺省窗口名。</summary>
-        public string ReflectionFullName { get; private set; }
-
         /// <summary>特性解析出的描述符取值（注册期即定，运行期零解析）。</summary>
         public int WindowLayer { get; private set; }
         public bool FromResources { get; private set; }
@@ -30,7 +27,6 @@ namespace Moirai.Atropos.SourceGenerators
         private WindowRegistryModel(INamedTypeSymbol type)
         {
             Type = type;
-            ReflectionFullName = BuildReflectionFullName(type);
             WindowLayer = DefaultLayer;
             HideTimeToClose = DefaultHideTimeToClose;
         }
@@ -193,22 +189,5 @@ namespace Moirai.Atropos.SourceGenerators
             }
         }
 
-        /// <summary>反射全名：命名空间 + 嵌套链（<c>.</c> 与 <c>+</c> 按反射口径拼）。</summary>
-        private static string BuildReflectionFullName(INamedTypeSymbol symbol)
-        {
-            var parts = new Stack<string>();
-            for (var current = symbol; current != null; current = current.ContainingType)
-            {
-                parts.Push(current.Name);
-            }
-
-            var ns = symbol.ContainingNamespace is { IsGlobalNamespace: false } nsSymbol
-                ? nsSymbol.ToDisplayString()
-                : string.Empty;
-
-            return ns.Length == 0
-                ? string.Join("+", parts)
-                : ns + "." + string.Join("+", parts);
-        }
     }
 }
