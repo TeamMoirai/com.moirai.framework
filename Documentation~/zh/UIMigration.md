@@ -1,6 +1,6 @@
 # UI 载荷迁移
 
-> 硬切一笔的迁移口径：`params object[]` 载荷形态从全部公开腿退役，改强类型 `Payload` 槽（静态腿）与 `UIPayload` 擦除载体（动态腿）。本页是外部业务工程（第五消费方）的一页改完清单：声明 DTO 并换基类 → 写点两种去向 → 行为变更三条。
+> 硬切一笔的迁移口径：`params object[]` 载荷形态从全部公开腿退役，改强类型 `Payload` 槽（静态腿）与 `UIPayload` 擦除载体（动态腿）；`UIWindowEvent` 与 `UIServiceEvent` 两枚事件一并退役。本页是外部业务工程（第五消费方）的一页改完清单：声明 DTO 并换基类 → 写点两种去向 → 行为变更四条。
 
 契约全貌与签名表见 [UI 服务](UI.md)。无载荷调用点（占绝对多数）不用动：`ShowUI<T>` / `ShowUIAsync<T>` / `ShowUIAsyncAwait<T>` / `ShowUIAwaitResult<T>` 只是尾参多了 `ct`，原有实参形状照常绑得上。
 
@@ -104,17 +104,18 @@ UIWindow win = await UIService.ShowUIAsyncAwait(type, windowName, location, fals
 - 取回按窗口类的 `TArg`：`To<T>()` 类型不符、或空载荷作用于值类型时抬 `GameException`（消息带期望类型名），不想抬错用 `TryGet<T>(out T)`
 - 带 `mgr.SomeWindowType` 那一类支路（运行期换窗口类）保持动态腿、直达支路换静态腿：同一个 DTO 形状两通道共用，不必为动态腿单开一枚载体
 
-## 三、行为变更三条
+## 三、行为变更四条
 
-1. **带载荷的 `UIWindowEvent.Show` 形态删除**：`Show<T>(string, params Object[])` 与 `Show(Type, string, params Object[])` 不再存在，`UIWindowEvent` 也不再有 `Params` 属性；无载荷的 `Show`（两形）与 `Close` / `Hide` / `CloseAll` 照旧可用。带载荷的开窗因此直调门面腿、调用点即时执行——「发事件 + 订阅者转手」那一段中转消失了。
-2. **在飞合并 last-wins**：同一只窗装载在途时再开（任意腿、任意通道）不重开发装载、不压第二只实例，载荷覆盖为最后一枚；`OnRefresh` 只在面板就绪那一次跑，见的是终载荷。旧写法「两次 Show 各刷一次」的假设不再成立——需要在途里换内容，请等结果腿交回或先关再开。
-3. **全腿收 `CancellationToken`**：每支腿尾参 `CancellationToken ct = default`，不传零开销；令牌只在装载在途那段被消费（已就绪的复用与停放重取同步交回、不消费 `ct`；复用一只仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载——与在飞合并同段语义）。撤销的落点按腿分档：void 腿静默回滚出栈（不报 Error），等待腿原样上抛 `OperationCanceledException`，结果腿落 `EUIOpenStatus.Cancelled`（新增档，与 `Timeout` 可分辨）。`Failed` 的窗口已回滚作废、不得复用；`Cancelled` 只说明本次等待以取消落定，装载是否续跑取决于其余等待者（无人在等则回滚）——两者都不得当就绪窗复用。
+1. **`UIWindowEvent` 整体退役**：这一枚事件类连同 `Show` / `Close` / `Hide` / `CloseAll` 的全部形态一并删除，开合窗不再有「发事件 + 订阅者转手」那一段中转，调用点直调门面腿即时执行——连不带载荷的 `Show` 也要换。旧→新对照：`Show<T>(id)` → `UIService.ShowUIAsync<T>(id)`（要同步交回换 `ShowUI<T>`）、`Show(type, id)` → `UIService.ShowUIAsync(type, id)`、`Close<T>(id)` → `UIService.CloseUI<T>(id)`、`Close(type, id)` → `UIService.CloseUI(type, id)`、`Hide<T>(id)` → `UIService.HideUI<T>(id)`、`Hide(type, id)` → `UIService.HideUI(type, id)`、`CloseAll()` → `UIService.CloseAll()`。带载荷的写点按第二节换。
+2. **开合窗回执改走门面静态事件**：`UIServiceEvent`（连同标记接口 `IUIEvent`）删除，不再经 `EventManager` 派发；订阅点换成 `UIService.onWindowShown` / `UIService.onWindowClosed`（`public static event Action<UIWindow>`，形参即那枚窗口）。入栈/出栈各恰一次、停放与销毁都发；退订由订阅者自己配对，门面关停与归零门会整批摘掉。
+3. **在飞合并 last-wins**：同一只窗装载在途时再开（任意腿、任意通道）不重开发装载、不压第二只实例，载荷覆盖为最后一枚；`OnRefresh` 只在面板就绪那一次跑，见的是终载荷。旧写法「两次 Show 各刷一次」的假设不再成立——需要在途里换内容，请等结果腿交回或先关再开。
+4. **全腿收 `CancellationToken`**：每支腿尾参 `CancellationToken ct = default`，不传零开销；令牌只在装载在途那段被消费（已就绪的复用与停放重取同步交回、不消费 `ct`；复用一只仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载——与在飞合并同段语义）。撤销的落点按腿分档：void 腿静默回滚出栈（不报 Error），等待腿原样上抛 `OperationCanceledException`，结果腿落 `EUIOpenStatus.Cancelled`（新增档，与 `Timeout` 可分辨）。`Failed` 的窗口已回滚作废、不得复用；`Cancelled` 只说明本次等待以取消落定，装载是否续跑取决于其余等待者（无人在等则回滚）——两者都不得当就绪窗复用。
 
 ## 收口自检
 
 - 全域不再出现 UI 载荷的 `userData` / `UserData` / `Params` / `_params` / `params object[]` 写法
 - 带载荷窗口基类一律带 `<TArg>`；同一枚 DTO 形状两通道共用
-- 事件里不再发带载荷 `Show`；寻址经 `ResolveWindowLocation` / `ResolveFromResources` 这一对
+- 全域不再出现 `UIWindowEvent` 与 `UIServiceEvent`；寻址经 `ResolveWindowLocation` / `ResolveFromResources` 这一对
 - 绑不上的三档都有明确指认：漏换基类 → 泛型约束绑不上（编译期）或被塞非空载荷时 `GameException`（运行期，文案带窗口类名）；槽型不符 → `GameException`（带期望与实际类型名）；把 `in` 实参写给等待腿 → 那一支本就是普通形参，按签名传即可
 
 ---

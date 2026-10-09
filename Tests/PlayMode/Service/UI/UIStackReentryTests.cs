@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using NUnit.Framework;
 using Testing;
@@ -21,7 +20,7 @@ namespace Service.UI
     /// 探针窗的面板是代码建出的 <see cref="Canvas"/> 物体（不新增资产），交 <c>BindPanel</c> 装配；壳登记进清理表，
     /// 出门按 <c>Object.DestroyImmediate</c> 收（帧末落账的 <c>Object.Destroy</c> 在 teardown 里来不及）。 <br />
     /// 在飞档的闸门用 <see cref="UniTaskCompletionSource{TResult}"/>：放闸让装载续体当场落定，取消则随装载令牌一起撤销。 <br />
-    /// 事件记账经 <see cref="EventManager"/> 的 <see cref="UIServiceEvent"/> 回调，模式与窗口名一起落在列表里；
+    /// 事件记账订的是门面的 <see cref="UIService.onWindowShown"/> / <see cref="UIService.onWindowClosed"/> 两枚静态广播，模式与窗口名一起落在列表里；
     /// 回叫（A 的 <c>OnClose</c>）里开的窗其 <c>Shown</c> 排在结算侧的 <c>Closed</c> 之前——这是账本 <c>CloseUI</c> 的现行次序
     /// （<c>InternalClose</c> 的回叫跑在 <c>Pop</c> 之前），本文件按现场次序钉「两枚各发一次、都不丢」这一半。 <br />
     /// <b>浮点超时档归本文件管</b>（fix round 2 的 R2-timeout 裁定）：<c>CancellationTokenSource.CancelAfter</c> 排的是线程池定时
@@ -54,6 +53,12 @@ namespace Service.UI
         /// <remarks>取正数而非 0：<c>CancelAfter(TimeSpan.Zero)</c> 是约 1 毫秒的线程池定时，量不到「当场撤销」那一档，写 0 只会让判据含糊。</remarks>
         private const float TIMEOUT_UNDER_TEST_SECONDS = 0.2f;
 
+        /// <summary>记账里入栈回执的模式前缀：与出栈那一枚合成「模式:窗口名」的键。</summary>
+        private const string ShownMode = "Shown";
+
+        /// <summary>记账里出栈回执的模式前缀。</summary>
+        private const string ClosedMode = "Closed";
+
         private readonly List<GameObject> _trackedShells = new List<GameObject>();
         private readonly List<string> _eventLog = new List<string>();
         private UIWindowLedger _ledger;
@@ -66,13 +71,15 @@ namespace Service.UI
             Assert.AreEqual(0, _ledger.PeekStack().Count, "量具前提坏了：进门时共享栈上不干净");
             ReentryAWindow.OpenedByCallback = false;
             _eventLog.Clear();
-            EventManager.RegisterCallback<UIServiceEvent>(OnServiceEvent);
+            UIService.onWindowShown += OnWindowShown;
+            UIService.onWindowClosed += OnWindowClosed;
         }
 
         [TearDown]
         public void TearDown()
         {
-            EventManager.UnregisterCallback<UIServiceEvent>(OnServiceEvent);
+            UIService.onWindowShown -= OnWindowShown;
+            UIService.onWindowClosed -= OnWindowClosed;
             UIService.CloseAll(true);
 
             for (var i = 0; i < _trackedShells.Count; i++)
@@ -125,10 +132,10 @@ namespace Service.UI
             Assert.AreSame(ReentryPayload, b.Payload, "载荷按引用直达 B 的槽：吃的是运行期现建的那一枚实例，intern 字面量蒙不过这一句");
             Assert.GreaterOrEqual(b.RefreshCount, 1, "B 至少回执过一次（A 摘栈后新栈顶还会再补一次，不数死次数）");
 
-            Assert.AreEqual(1, CountEvent(_eventLog, UIServiceEvent.EMode.Shown, "ReentryB"), "B 的 Shown 发过一次：事件不丢");
-            Assert.AreEqual(1, CountEvent(_eventLog, UIServiceEvent.EMode.Closed, "ReentryA"), "A 的 Closed 发过一次：事件不丢");
-            Assert.Greater(IndexOfEvent(_eventLog, UIServiceEvent.EMode.Closed, "ReentryA"),
-                IndexOfEvent(_eventLog, UIServiceEvent.EMode.Shown, "ReentryB"),
+            Assert.AreEqual(1, CountEvent(_eventLog, ShownMode, "ReentryB"), "B 的 Shown 发过一次：事件不丢");
+            Assert.AreEqual(1, CountEvent(_eventLog, ClosedMode, "ReentryA"), "A 的 Closed 发过一次：事件不丢");
+            Assert.Greater(IndexOfEvent(_eventLog, ClosedMode, "ReentryA"),
+                IndexOfEvent(_eventLog, ShownMode, "ReentryB"),
                 "现行为：回叫里的开窗（B 的 Shown）排在结算（A 的 Closed）之前");
             Assert.IsNull(UIService.GetWindow<ReentryAWindow>("ReentryA"), "A 已摘栈");
             Assert.IsTrue(_ledger.IsParked("ReentryA"), "A 是缓存窗：关闭后落进停放表");
@@ -313,7 +320,7 @@ namespace Service.UI
         }
 
         /// <summary>数某一枚「模式 + 窗口名」回执在记账里出现了几次：事件不丢与「恰好一次」都按这一份数。</summary>
-        private static int CountEvent(List<string> log, UIServiceEvent.EMode mode, string windowName)
+        private static int CountEvent(List<string> log, string mode, string windowName)
         {
             var key = mode + ":" + windowName;
             var count = 0;
@@ -326,15 +333,21 @@ namespace Service.UI
         }
 
         /// <summary>取某一枚「模式 + 窗口名」回执在记账里的序号；没发过时回 -1（两条序号比较即露馅）。</summary>
-        private static int IndexOfEvent(List<string> log, UIServiceEvent.EMode mode, string windowName)
+        private static int IndexOfEvent(List<string> log, string mode, string windowName)
         {
             return log.IndexOf(mode + ":" + windowName);
         }
 
-        /// <summary>回执记账：模式与窗口名一起落成一行，事件配对与次序都读这一份列表。</summary>
-        private void OnServiceEvent(UIServiceEvent evt)
+        /// <summary>入栈回执记账：与出栈那一枚合成同一份「模式:窗口名」列表，配对与次序都读它。</summary>
+        private void OnWindowShown(UIWindow window)
         {
-            _eventLog.Add(evt.Mode + ":" + (evt.Window == null ? "<null>" : evt.Window.WindowName));
+            _eventLog.Add(ShownMode + ":" + (window == null ? "<null>" : window.WindowName));
+        }
+
+        /// <summary>出栈回执记账：停放与销毁都走这一道，一次出栈恰一行。</summary>
+        private void OnWindowClosed(UIWindow window)
+        {
+            _eventLog.Add(ClosedMode + ":" + (window == null ? "<null>" : window.WindowName));
         }
 
         /// <summary>代码建出的 uGUI 面板：只带一枚 <see cref="Canvas"/>——它是 <c>UGUIWindow.BindPanel</c> 认的那一枚组件。</summary>
