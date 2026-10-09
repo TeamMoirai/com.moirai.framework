@@ -27,7 +27,7 @@ namespace Service.UI
         private readonly List<GameObject> _panels = new List<GameObject>();
 
         /// <summary>
-        /// 面板一律挂在一枚场景画布下：生产里窗口面板是 <c>Instantiate(prefab, UIService.UIRoot)</c> 的<b>嵌套</b>画布， <br />
+        /// 面板一律挂在一个场景画布下：生产里窗口面板是 <c>Instantiate(prefab, UIService.UIRoot)</c> 的<b>嵌套</b>画布， <br />
         /// 而 Unity 只在非根画布上认 <c>overrideSorting</c> 与 <c>sortingOrder</c>——拿场景根物体当面板会让这两项被静默吞掉。
         /// </summary>
         [SetUp]
@@ -97,7 +97,7 @@ namespace Service.UI
         public void PanelStateWrites_WhileUnbound_DoNotThrow()
         {
             var window = new ProbeWindow();
-            window.Init(nameof(UGUIWindowTests), 1, false, nameof(ProbeWindow), false, 10, false);
+            window.Init(nameof(UGUIWindowTests), 1, false, nameof(ProbeWindow), false, 10);
 
             Assert.DoesNotThrow(() =>
             {
@@ -125,16 +125,16 @@ namespace Service.UI
 
         /// <summary>面板上没有 Canvas：抛 <see cref="Moirai.Atropos.GameException"/>（不静默退化成无排序面板）。</summary>
         [Test]
-        public void BindPanel_MissingCanvas_ThrowsWithWindowName()
+        public void BindPanel_MissingCanvas_ThrowsWithWindowId()
         {
             var panel = NewGameObject("NoCanvasPanel");
             var window = Unbound();
-            window.Init("BattleWindow", 1, false, "NoCanvasPanel", false, 10, false);
+            window.Init("BattleWindow", 1, false, "NoCanvasPanel", false, 10);
 
             var error = Assert.Throws<Moirai.Atropos.GameException>(() => window.BindPanel(panel));
 
             StringAssert.Contains("BattleWindow", error.Message,
-                "缺 Canvas 的文案要带上窗口名：拿到半个可用面板不如当场指认");
+                "缺 Canvas 的文案要带上窗口标识：拿到半个可用面板不如当场指认");
         }
 
         /// <summary>装配即初始化程序化排序：overrideSorting、sortingOrder 归零、sortingLayerName 固定 Default。</summary>
@@ -160,11 +160,11 @@ namespace Service.UI
         {
             var panel = NewPanel(layer: UIService.WINDOW_SHOW_LAYER);
             var window = new ProbeWindow { Fixture = panel };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
             window.Visible = true;
             window.Depth = 500;
 
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
 
             Assert.IsTrue(window.IsLoadDone, "面板装配成功要置 IsLoadDone");
             Assert.IsTrue(window.IsPrepare, "面板装配成功要置 IsPrepare");
@@ -254,7 +254,7 @@ namespace Service.UI
         #region 序空间：意图位与画布事实 [ORDER SPACE]
 
         /// <summary>
-        /// 绑定好的窗口：深度意图经 <c>ApplyDepth</c> 落进面板根画布的序空间，而 <see cref="UGUIWindow.PanelCanvas"/> 交回的就是被写那一枚。
+        /// 绑定好的窗口：深度意图经 <c>ApplyDepth</c> 落进面板根画布的序空间，而 <see cref="UGUIWindow.PanelCanvas"/> 交回的就是被写那个。
         /// </summary>
         /// <remarks>
         /// 判据打在窗基类自己的钩子与它的画布取口上：意图位与画布实际序必须同源，否则「面板上到底是几」无从问起。 <br />
@@ -271,7 +271,7 @@ namespace Service.UI
             Assert.AreEqual(1200, window.Depth, "意图位跟着这次写入");
             Assert.AreEqual(1200, window.PanelCanvas.sortingOrder, "深度意图落进面板根画布的序空间");
             Assert.AreSame(panel.GetComponent<Canvas>(), window.PanelCanvas,
-                "画布取口交回的须是被写入的那一枚：换个口径读就不是面板事实");
+                "画布取口交回的须是被写入的那个：换个口径读就不是面板事实");
         }
 
         /// <summary>
@@ -337,7 +337,7 @@ namespace Service.UI
 
             Assert.DoesNotThrow(() => window.Depth = 900, "面板未绑定时写深度不得触碰不存在的画布");
             Assert.AreEqual(900, window.Depth, "写入攒在意图位上，面板不在场时它是唯一可信的深度");
-            Assert.IsNull(window.PanelCanvas, "未绑定即没有画布事实可读：取口不得伪造一枚");
+            Assert.IsNull(window.PanelCanvas, "未绑定即没有画布事实可读：取口不得伪造一个");
         }
 
         #endregion
@@ -421,7 +421,7 @@ namespace Service.UI
 
         #region 夹具 [FIXTURE]
 
-        /// <summary>带 Canvas + GraphicRaycaster 的面板根，其下挂一枚偏移 20 的子 Canvas 与子 Raycaster。</summary>
+        /// <summary>带 Canvas + GraphicRaycaster 的面板根，其下挂一个偏移 20 的子 Canvas 与子 Raycaster。</summary>
         private GameObject NewPanel(int layer = 0)
         {
             var panel = NewGameObject("Panel", layer);
@@ -452,8 +452,8 @@ namespace Service.UI
         private static ProbeWindow Loaded(GameObject fixture)
         {
             var window = new ProbeWindow { Fixture = fixture };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
-            window.InternalLoad("Panel", null, false, null);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
+            window.InternalLoad("Panel", null, false);
             return window;
         }
 
@@ -461,8 +461,8 @@ namespace Service.UI
         private static ProbeWindow Created(GameObject fixture)
         {
             var window = new ProbeWindow { Fixture = fixture };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
-            window.InternalLoad("Panel", w => w.InternalCreate(), false, null);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
+            window.InternalLoad("Panel", w => w.InternalCreate(), false);
             return window;
         }
 
@@ -470,7 +470,7 @@ namespace Service.UI
         private static ProbeWindow Unbound()
         {
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
             return window;
         }
 

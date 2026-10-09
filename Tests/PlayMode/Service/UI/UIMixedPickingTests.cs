@@ -86,7 +86,7 @@ namespace Service.UI
 
             _coordinator = UIService.Internal_PeekUGUIHandler();
             Assert.IsNotNull(_coordinator, "量具前提坏了：播放态框架没把那份协调者交出来");
-            Assert.IsNull(_coordinator.GetTopWindow(), "量具前提坏了：进门时共享栈上不干净");
+            Assert.IsNull(UIService.GetTopWindow(), "量具前提坏了：进门时共享栈上不干净");
         }
 
         /// <summary>出门收口：先关净栈上的窗、销毁面板本体，再把 InputSystem 交回夹具外的真实态。</summary>
@@ -208,10 +208,10 @@ namespace Service.UI
         #region 夹具 [FIXTURE]
 
         /// <summary>开一扇代码建树、壳已点亮的 UI Toolkit 窗，并把它的面板本体登记进出门清理表。</summary>
-        private ProbeLiveUITKWindow OpenUITKWindow(string windowName)
+        private ProbeLiveUITKWindow OpenUITKWindow(string windowId)
         {
-            UIService.ShowUI<ProbeLiveUITKWindow>(windowName);
-            var window = UIService.GetWindow<ProbeLiveUITKWindow>(windowName);
+            UIService.ShowUI<ProbeLiveUITKWindow>(windowId);
+            var window = UIService.GetWindow<ProbeLiveUITKWindow>(windowId);
             Assert.IsNotNull(window, "开栈失败：UI Toolkit 那一轨的窗没落到协调者那一份栈上");
             Assert.IsNotNull(window.RootVisual, "开栈失败：窗口的内容根没建出来");
             Assert.IsTrue(window.Visible, "开栈失败：窗口的可见意图没结算");
@@ -303,7 +303,7 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨探针窗（<see cref="EUILayer.Tips"/>）：代码建树、壳点亮，面板真有屏幕矩形可命中。</summary>
-        [Window(EUILayer.Tips, false)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeLiveUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>

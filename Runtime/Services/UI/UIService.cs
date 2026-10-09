@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Input;
 using Moirai.Atropos.Resource;
@@ -15,9 +16,9 @@ namespace Moirai.Atropos.UI
     /// </summary>
     /// <remarks>
     /// 开窗入口按窗口基类平铺成同名两腿（<c>UGUIWindow</c> / <c>UITKWindow</c>），各腿直呼本轨 partial 的实现，没有替全部后端开窗的默认通道。<br />
-    /// UI Toolkit 腿比 uGUI 腿多收一枚 <c>panelSettings</c>：同名重载靠形参表分辨，它也是窗口级面板配置的落点。<br />
-    /// 每轨一枚驱动者，由 <see cref="UIServiceSettings"/> 的启用清单认领进各自槽位，拿的都是同一份 <see cref="SharedLedger"/>：栈只有一条。<br />
-    /// 各轨以一枚 <see cref="UITrack"/> 自述登记进目录；本文件只枚举目录，加一轨就是加一枚自登记的 partial。<br />
+    /// UI Toolkit 腿比 uGUI 腿多收一个 <c>panelSettings</c>：同名重载靠形参表分辨，它也是窗口级面板配置的落点。<br />
+    /// 每轨一个驱动者，由 <see cref="UIServiceSettings"/> 的启用清单认领进各自槽位，拿的都是同一份 <see cref="SharedLedger"/>：栈只有一条。<br />
+    /// 各轨以一条 <see cref="UITrack"/> 自述登记进目录；本文件只枚举目录，加一轨就是加一个自登记的 partial。<br />
     /// 跨轨的全局操作（查询、关隐、租约、每帧结算）直叫共享持有者；轨专有的走门面私有广播，<see cref="UIRoot"/>、<see cref="UICamera"/> 只有 uGUI 轨答得出。<br />
     /// 关停按自报档位升序逐轨收口，uGUI 最后收。线程契约：仅主线程；不声明 <c>[HandlerHost]</c>，<see cref="IsValid"/> 与归零门手写在本文件。
     /// </remarks>
@@ -35,11 +36,18 @@ namespace Moirai.Atropos.UI
         /// <summary>安全区矩形落到各轨自己面板的那一条广播。</summary>
         private static event Action<Rect> onScreenSafeArea;
 
-        /// <summary>刘海屏模拟那一档的按支广播。</summary>
+        /// <summary>刘海屏模拟的逐轨广播。</summary>
         private static event Action onNotchSimulate;
 
-        /// <summary>各轨各自摘掉自己那枚处理器槽的广播：关停与归零门都先叫它一次，销毁链里迟到的回叫因此当场落空。</summary>
+        /// <summary>各轨各自摘掉本轨槽位的广播：关停与归零门都先叫它一次，销毁链里迟到的回叫因此当场落空。</summary>
         private static event Action onDetachTrackSlots;
+
+        /// <summary>窗口入栈后广播，形参是刚入栈的窗口；装载在途也照发（回执说的是栈序，不是面板就绪）。</summary>
+        /// <remarks>订阅者自持生命周期：门面的归零门会整批摘掉这两条广播（禁用域重载时上一轮订阅者不得跨会话残留），但一次 <c>+=</c> 配一次 <c>-=</c> 仍是对话方的责任。</remarks>
+        public static event Action<UIWindow> onWindowShown;
+
+        /// <summary>窗口出栈后广播，形参是刚出栈的窗口：停放与销毁都发，一次出栈恰一次。</summary>
+        public static event Action<UIWindow> onWindowClosed;
 
         /// <summary>轨道目录：各轨 partial 的静态初始化器把自述登记进这一份，门面只枚举它。</summary>
         /// <remarks>懒建＋compare-exchange：partial 各文件静态字段的初始化次序没有契约保证，目录不能靠本文件自己的初始化器先就位。</remarks>
@@ -70,7 +78,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 把一枚轨道登记进门面目录：各轨 partial 的静态初始化器在类型就绪时各叫一次。
+        /// 把一条轨道登记进门面目录：各轨 partial 的静态初始化器在类型就绪时各叫一次。
         /// </summary>
         /// <remarks>
         /// 按 <see cref="UITrack.ShutdownOrder"/> 升序插入、同档按登记序，关停就按这一序逐轨走一遍。<br />
@@ -78,7 +86,7 @@ namespace Moirai.Atropos.UI
         /// 不查重复登记：内建轨各登记一次，测试的合成轨由 <see cref="Internal_UnregisterTrack"/> 摘回去。
         /// </remarks>
         /// <param name="track">待登记的轨道自述。</param>
-        /// <returns>原样交回登记进去的那一枚，供 partial 存成自己的字段。</returns>
+        /// <returns>原样交回登记进去的轨道自述，供 partial 存成自己的字段。</returns>
         internal static UITrack Internal_RegisterTrack(UITrack track)
         {
             var tracks = s_Tracks;
@@ -98,8 +106,8 @@ namespace Moirai.Atropos.UI
             return track;
         }
 
-        /// <summary>摘掉一枚轨道登记：合成轨用它收回干净域，内建轨不摘。</summary>
-        /// <param name="track">要摘的那一枚。</param>
+        /// <summary>摘掉一条轨道登记：合成轨用它收回干净域，内建轨不摘。</summary>
+        /// <param name="track">要摘除的轨道。</param>
         /// <returns>目录里真有它并摘掉了为真。</returns>
         internal static bool Internal_UnregisterTrack(UITrack track)
         {
@@ -111,7 +119,7 @@ namespace Moirai.Atropos.UI
         internal static IReadOnlyList<UITrack> Internal_PeekTracks() => s_Tracks;
 
         /// <summary>
-        /// 各轨后端共用那一份窗口栈与停放表的持有者：懒建一枚，<see cref="Internal_ResetHandlerSlots"/> 归位时把它抹掉、下一读再建一枚。
+        /// 各轨后端共用的窗口栈与停放表持有者：懒建；<see cref="Internal_ResetHandlerSlots"/> 归位时抹掉，下次读取再建。
         /// </summary>
         /// <remarks>
         /// 每读现取、不是构造期快照：共享持有者会被归位门换掉，而清单里的驱动者由资产反序列化器在任意时刻造出来。<br />
@@ -180,6 +188,8 @@ namespace Moirai.Atropos.UI
             onTrackTick = null;
             onScreenSafeArea = null;
             onNotchSimulate = null;
+            onWindowShown = null;
+            onWindowClosed = null;
 
             var tracks = s_Tracks;
             if (tracks != null)
@@ -191,8 +201,20 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>帧广播当前的订阅条数：一支驱动者认领成功才加一条，第二轮认领同一枚实例不再加。</summary>
+        /// <summary>帧广播当前的订阅条数：一支驱动者认领成功才加一条，第二轮认领同一实例不再加。</summary>
         internal static int Internal_PeekTrackTickSubscriberCount() => onTrackTick?.GetInvocationList().Length ?? 0;
+
+        #region 窗口事件触发 [WINDOW EVENT RAISERS]
+
+        /// <summary>发一次入栈回执：`event` 只能在声明类内触发，共享持有者经这一道口转手。</summary>
+        /// <param name="window">刚入栈的窗口。</param>
+        internal static void Internal_RaiseWindowShown(UIWindow window) => onWindowShown?.Invoke(window);
+
+        /// <summary>发一次出栈回执：停放与销毁两条路都由 <see cref="UIWindowLedger.Pop"/> 叫到这一道。</summary>
+        /// <param name="window">刚出栈的窗口。</param>
+        internal static void Internal_RaiseWindowClosed(UIWindow window) => onWindowClosed?.Invoke(window);
+
+        #endregion
 
         #endregion
 
@@ -207,7 +229,7 @@ namespace Moirai.Atropos.UI
         /// <remarks>
         /// 先归零共享持有者，再按 <see cref="UIServiceSettings"/> 的启用清单逐支造出驱动者——启用哪几支由配置答，不由「谁先碰到哪一支的取用」答。<br />
         /// 各轨自此并存于同一条栈上，各自驱动本轨那半边的编排；窗口回叫问的是那条共享栈，门面不再交单一协调者出去。<br />
-        /// 可重入：某一轨的驱动者已就位时不再造第二枚、不重复挂广播，但仍归零那一份共享存储。
+        /// 可重入：某一轨的驱动者已就位时不再造第二个、不重复挂广播，但仍归零那一份共享存储。
         /// </remarks>
         public override void OnInit()
         {
@@ -254,7 +276,7 @@ namespace Moirai.Atropos.UI
         /// <remarks>
         /// 顺序是契约：先广播摘槽，再按各轨自报的关停档位升序逐轨收口，最后整批摘掉订阅与认领。<br />
         /// 摘槽排在收口之前：<see cref="UIWindow"/> 的回叫钩子认 <see cref="IsValid"/>，槽清了它们就静默落空，既不拿到半关的驱动者、也不在账本正被收的时候重进去。<br />
-        /// 收口叫认领时绑定的那一枚关停回调，不重读槽位（此刻重读会静默跳过关停）。<br />
+        /// 收口叫认领时绑定的那条关停回调，不重读槽位（此刻重读会静默跳过关停）。<br />
         /// 摘订阅与归零放在 <c>finally</c>：销毁链抛了也不能把订阅留在已空的槽上，否则下一轮认领会给同一实例挂出第二遍广播。
         /// </remarks>
         public override void OnShutdown()
@@ -275,7 +297,7 @@ namespace Moirai.Atropos.UI
         /// 按档位升序逐轨收口：目录在登记时就排好升序，宿主轨（持有别轨面板挂靠的根）落在最后一段。
         /// </summary>
         /// <remarks>
-        /// 叫的是认领进槽时绑定的那一枚关停回调：某一轨没被启用（没认领）时它没有回调，目录序跳过它。同档各轨按登记序，彼此没有宿主依赖。
+        /// 叫的是认领进槽时绑定的那条关停回调：某一轨没被启用（没认领）时它没有回调，目录序跳过它。同档各轨按登记序，彼此没有宿主依赖。
         /// </remarks>
         private static void Internal_ShutDownTracksInOrder()
         {
@@ -314,7 +336,7 @@ namespace Moirai.Atropos.UI
         public const int WINDOW_HIDE_LAYER = 2; // Ignore Raycast
         public const int WINDOW_SHOW_LAYER = 5; // UI
 
-        /// <summary>同步开窗档在 WebGL 上交给异步装载（那一档平台没有同步装载）：两轨的同步腿与 Type 形入口共用这一位。</summary>
+        /// <summary>同步开窗档在 WebGL 上交给异步装载（该平台没有同步装载）：两轨的同步腿与 Type 形入口共用这一位。</summary>
         private const bool SYNC_LOAD_USES_ASYNC = 
 #if UNITY_WEBGL
             true;
@@ -328,7 +350,7 @@ namespace Moirai.Atropos.UI
 
         /// <summary>当前模态遮挡窗口：读的是那条各轨共用的栈，与哪一轨在位无关。</summary>
         public static UIWindow CurrentModal => SharedLedger.CurrentModal;
-
+        
         #endregion
 
         #region 安全区域 [SAFE AREA]
@@ -338,7 +360,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 换算的输入在各轨里形状不同（uGUI 吃 <c>CanvasScaler</c> 的参考分辨率，UI Toolkit 那一路目前不吃），门面因此不替谁代答、也不任挑一支。 <br />
-        /// 刘海屏那一档的矩形换算各轨共用 <see cref="UIServiceHandler.ComputeIPhoneXNotchSafeRect"/> 那一份。
+        /// 刘海屏模拟那一档的矩形换算各轨共用 <see cref="UIServiceHandler.ComputeIPhoneXNotchSafeRect"/>。
         /// </remarks>
         /// <param name="safeRect">安全区域。</param>
         public static void ApplyScreenSafeRect(Rect safeRect)
@@ -356,10 +378,37 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
+        #region 寻址换算 [ADDRESS RESOLVER]
+
+        /// <summary>
+        /// 把开窗传入的 <paramref name="windowId"/> 换算成面板资产地址：内置资源档按 <see cref="UIServiceSettings"/> 的 Resources 父目录拼，否则查配置表。
+        /// </summary>
+        /// <remarks>
+        /// 只在账本造新实例那一格叫：复用栈上窗与停放重取两条支路不吃标识，配置表未就绪时停放窗照样能重开。 <br />
+        /// 父目录为空时标识<b>原样</b>当 Resources 相对路径用（不拼分隔符）——包内与项目根的内置资源都靠这一档。 <br />
+        /// 配置表档的降级口径归 <c>ConfigTableService</c>：服务未就绪回 <c>null</c>，查无此 id 回空串并记一条 Warning——两者都不再回落成字面地址，直接落进装载失败回滚。 <br />
+        /// 线程契约：仅主线程（开窗链路本身即主线程）。
+        /// </remarks>
+        /// <param name="windowId">窗口标识：配置表 configId，或 <c>Resources</c> 下的相对路径。</param>
+        /// <param name="fromResources">取哪一档：真走 <c>Resources</c>，假走配置表。</param>
+        /// <returns>交给面板装载的地址。</returns>
+        internal static string ResolveWindowLocation(string windowId, bool fromResources)
+        {
+            if (!fromResources)
+            {
+                return ConfigTableService.GetUIWindowLocation(windowId);
+            }
+
+            var folder = UIServiceSettings.ResourcesFolder;
+            return string.IsNullOrEmpty(folder) ? windowId : StringUtility.Concat(folder, "/", windowId);
+        }
+
+        #endregion
+
         #region 窗口查询 [WINDOW QUERIES]
 
         // 这一族的读数都来自那条各轨共用的栈：门面直叫共享持有者，与哪一轨在位、哪一轨先就位无关。
-        // 形参表与返回形状是包外调用点的编译依据，一枚都不动。
+        // 形参表与返回形状是包外调用点的编译依据，一个都不动。
 
         /// <summary>
         /// 获取所有层级下顶部的窗口。
@@ -374,10 +423,10 @@ namespace Moirai.Atropos.UI
             SharedLedger.GetTopWindow(layer);
 
         /// <summary>
-        /// 获取指定层级下顶部的窗口名称。
+        /// 获取指定层级下顶部窗口的标识。
         /// </summary>
-        public static string GetTopWindowName(int layer) =>
-            SharedLedger.GetTopWindowName(layer);
+        public static string GetTopWindowId(int layer) =>
+            SharedLedger.GetTopWindowId(layer);
 
         /// <summary>
         /// 是否有任意窗口正在加载。
@@ -389,28 +438,25 @@ namespace Moirai.Atropos.UI
         /// 查询窗口是否存在。
         /// </summary>
         /// <typeparam name="T">界面类型。</typeparam>
-        /// <param name="windowName">窗口名称。</param>
         /// <returns>是否存在。</returns>
-        public static bool HasWindow<T>(string windowName = null) where T : UIWindow =>
-            SharedLedger.HasWindow<T>(windowName);
+        public static bool HasWindow<T>(string windowId = null) where T : UIWindow =>
+            SharedLedger.HasWindow<T>(windowId);
 
         /// <summary>
         /// 查询窗口是否存在。
         /// </summary>
         /// <param name="type">界面类型。</param>
-        /// <param name="windowName">窗口名称。</param>
         /// <returns>是否存在。</returns>
-        public static bool HasWindow(Type type, string windowName = null) =>
-            SharedLedger.HasWindow(type, windowName);
+        public static bool HasWindow(Type type, string windowId = null) =>
+            SharedLedger.HasWindow(type, windowId);
 
         /// <summary>
         /// 获取指定类型和名称的窗口。
         /// </summary>
         /// <typeparam name="T">窗口类型。</typeparam>
-        /// <param name="windowName">窗口名称。</param>
         /// <returns>窗口实例。</returns>
-        public static T GetWindow<T>(string windowName) where T : UIWindow =>
-            SharedLedger.GetWindow<T>(windowName);
+        public static T GetWindow<T>(string windowId = null) where T : UIWindow =>
+            SharedLedger.GetWindow<T>(windowId);
 
         /// <summary>
         /// 判断指定 UI 对象是否被模态窗口遮挡。
@@ -430,7 +476,7 @@ namespace Moirai.Atropos.UI
         /// <returns>调用方应当置位压制时返回 true；非模态窗口恒为 false。</returns>
         /// <remarks>
         /// 压制位是无归属的全局布尔，仲裁见 <see cref="UIInteractionLease"/>。<br />
-        /// 租约住在共享持有者那一份上，各轨据此争同一枚压制位：任一轨在位都算门面有效，只剩一支时压制照样要争。
+        /// 租约住在共享持有者那一份上，各轨据此争同一个压制位：任一轨在位都算门面有效，只剩一支时压制照样要争。
         /// </remarks>
         internal static bool AcquireModalInteraction(UIWindow window) =>
             IsValid && SharedLedger.InteractionLease.Acquire(window, IsModal(window));
@@ -451,16 +497,17 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 寻址两档对各轨都有效；落在哪一轨由 <see cref="RequireOwningTrack"/> 按目录先认，再直呼那一轨自述的开窗实现。<br />
-        /// 窗口级 <c>PanelSettings</c> 不在这一张形参表上：那是 UI Toolkit 泛型腿比 uGUI 腿多出的那一枚。
+        /// 窗口级 <c>PanelSettings</c> 不在这一张形参表上：那是 UI Toolkit 泛型腿比 uGUI 腿多收的一个。
         /// </remarks>
         /// <param name="type">窗口类型。</param>
-        /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        public static void ShowUIAsync(Type type, string windowName = null, string assetLocation = null, bool fromResources = false, params object[] userData)
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
+        public static void ShowUIAsync(Type type, string windowId = null, bool fromResources = false,
+            UIPayload payload = default, CancellationToken ct = default)
         {
-            RequireOwningTrack(type).OpenWindow(type, true, windowName, assetLocation, fromResources, userData);
+            RequireOwningTrack(type).OpenWindow(type, true, windowId, fromResources, payload, ct);
         }
 
         /// <summary>
@@ -471,13 +518,41 @@ namespace Moirai.Atropos.UI
         /// 同步档在 <c>UNITY_WEBGL</c> 上交给异步装载；内置资源（<paramref name="fromResources"/>）那一路两支都不落 await。
         /// </remarks>
         /// <param name="type">窗口类型。</param>
-        /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        public static void ShowUI(Type type, string windowName = null, string assetLocation = null, bool fromResources = false, params object[] userData)
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
+        public static void ShowUI(Type type, string windowId = null, bool fromResources = false,
+            UIPayload payload = default, CancellationToken ct = default)
         {
-            RequireOwningTrack(type).OpenWindow(type, SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, userData);
+            RequireOwningTrack(type).OpenWindow(type, SYNC_LOAD_USES_ASYNC, windowId, fromResources, payload, ct);
+        }
+
+        /// <summary>
+        /// 异步打开窗口并等待面板就绪（Type 形入口）。
+        /// </summary>
+        /// <remarks>
+        /// 与两条 void 腿不同：等待腿不经各轨的 Type 形开窗实现（它只压栈、不等就绪），而是直叫共享账本的等待腿，故在此现读认轨结果与驱动者在位否。<br />
+        /// 认轨当场抬错；认出的轨没有驱动者就位也当场抬错——不把窗口推进栈再等装载静默失败。
+        /// </remarks>
+        /// <param name="type">窗口类型。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
+        /// <returns>栈上那个窗口（面板就绪后交回；装载失败交回 null）。</returns>
+        public static async UniTask<UIWindow> ShowUIAsyncAwait(Type type, string windowId = null, bool fromResources = false,
+            UIPayload payload = default, CancellationToken ct = default)
+        {
+            var track = RequireOwningTrack(type);
+            if (!track.IsDriverValid)
+            {
+                throw new GameException(StringUtility.Format(
+                    "UI backend track '{0}' has no driver in place: list it in {1} and let OnInit register it.",
+                    track.TrackName, nameof(UIServiceSettings)));
+            }
+
+            return await SharedLedger.ShowUIAwaitImp(type, true, windowId, fromResources, null, payload, ct);
         }
 
         /// <summary>
@@ -486,7 +561,7 @@ namespace Moirai.Atropos.UI
         /// <remarks>
         /// 判据是各轨描述符自述的窗口基类（<see cref="UGUIWindow"/>、<see cref="UITKWindow"/>），本文件不登记任何具体后端。<br />
         /// 泛型腿的约束在编译期就挡死跨轨实参与没挂窗口基类的窗口类，运行期会判出错配的只有 <see cref="Type"/> 形入口。<br />
-        /// 判在叫任何一轨的开窗实现之前：否则窗口被推进栈、面板装载静默失败，留下一只开不出来的窗。<br />
+        /// 判在叫任何一轨的开窗实现之前：否则窗口被推进栈、面板装载静默失败，留下一个开不出来的窗。<br />
         /// 「认不出轨」与「轨认出来了但那一轨没被启用」是两档不同的错，后者由那一轨自己的开窗实现抬。
         /// </remarks>
         /// <param name="windowType">窗口类型；<c>null</c> 与认不出轨的类型同样当场抬错。</param>
@@ -551,33 +626,29 @@ namespace Moirai.Atropos.UI
         /// 关闭窗口。
         /// </summary>
         /// <typeparam name="T">窗口类型。</typeparam>
-        /// <param name="windowName">窗口名称。</param>
-        public static void CloseUI<T>(string windowName = null) where T : UIWindow =>
-            SharedLedger.CloseUI<T>(windowName);
+        public static void CloseUI<T>(string windowId = null) where T : UIWindow =>
+            SharedLedger.CloseUI<T>(windowId);
 
         /// <summary>
         /// 关闭窗口。
         /// </summary>
         /// <param name="type">窗口类型。</param>
-        /// <param name="windowName">窗口名称。</param>
-        public static void CloseUI(Type type, string windowName = null) =>
-            SharedLedger.CloseUI(type, windowName);
+        public static void CloseUI(Type type, string windowId = null) =>
+            SharedLedger.CloseUI(type, windowId);
 
         /// <summary>
         /// 隐藏窗口。
         /// </summary>
         /// <typeparam name="T">窗口类型。</typeparam>
-        /// <param name="windowName">窗口名称。</param>
-        public static void HideUI<T>(string windowName = null) where T : UIWindow =>
-            SharedLedger.HideUI<T>(windowName);
+        public static void HideUI<T>(string windowId = null) where T : UIWindow =>
+            SharedLedger.HideUI<T>(windowId);
 
         /// <summary>
         /// 隐藏窗口。
         /// </summary>
         /// <param name="type">窗口类型。</param>
-        /// <param name="windowName">窗口名称。</param>
-        public static void HideUI(Type type, string windowName = null) =>
-            SharedLedger.HideUI(type, windowName);
+        public static void HideUI(Type type, string windowId = null) =>
+            SharedLedger.HideUI(type, windowId);
 
         /// <summary>
         /// 关闭所有窗口。
@@ -612,24 +683,34 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <returns>窗口实例。</returns>
-        public static UniTask<T> GetUIAsyncAwait<T>() where T : UIWindow =>
-            SharedLedger.GetUIAsyncAwait<T>();
+        public static UniTask<T> GetUIAsyncAwait<T>(string windowId = null) where T : UIWindow =>
+            SharedLedger.GetUIAsyncAwait<T>(windowId);
 
         /// <summary>
         /// 异步获取窗口。
         /// </summary>
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <param name="callback">回调。</param>
-        public static void GetUIAsync<T>(Action<T> callback) where T : UIWindow =>
-            SharedLedger.GetUIAsync(callback);
+        public static void GetUIAsync<T>(Action<T> callback, string windowId = null) where T : UIWindow =>
+            SharedLedger.GetUIAsync(callback, windowId);
 
         /// <summary>
         /// 异步获取窗口并等装载终态：就绪/失败/缺失/超时按 <see cref="UIOpenResult"/> 交回。
         /// </summary>
         /// <typeparam name="T">窗口类型。</typeparam>
         /// <returns>取窗结果。</returns>
-        public static UniTask<UIOpenResult> GetUIAwaitResult<T>() where T : UIWindow =>
-            SharedLedger.GetUIAwaitResultImp<T>();
+        public static UniTask<UIOpenResult> GetUIAwaitResult<T>(string windowId = null) where T : UIWindow =>
+            SharedLedger.GetUIAwaitResultImp<T>(windowId);
+
+        #endregion
+
+        #region 导航 [NAVIGATION]
+
+        /// <summary>导航深度：开启序历史的长度（栈按层级排序答不出「最近开的是谁」，历史按开启序答）。</summary>
+        public static int NavigationDepth => SharedLedger.NavigationDepth;
+
+        /// <summary>关闭最近打开的窗口：走既有 CanClose 政策，无历史/拒关/过渡中回假。</summary>
+        public static bool TryCloseTopWindow() => SharedLedger.TryCloseTopWindow();
 
         #endregion
     }

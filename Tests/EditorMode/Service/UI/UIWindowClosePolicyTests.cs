@@ -125,12 +125,12 @@ namespace Service.UI
         /// <summary>
         /// 造一只走完「压栈→面板就绪→就绪回执」的探针窗，并按用例需要拨好交互位与门位。
         /// </summary>
-        /// <param name="windowName">窗口名称。</param>
+        /// <param name="windowId">窗口标识（同时是栈上身份）。</param>
         /// <param name="layer">窗口层级。</param>
         /// <param name="interactable">要拨到的交互位；就绪回执后的窗口天然停在假位上。</param>
         /// <param name="canClose">门位。</param>
         /// <returns>已就绪的探针窗。</returns>
-        private static ProbeClosePolicyWindow Prepared(string windowName, int layer, bool interactable,
+        private static ProbeClosePolicyWindow Prepared(string windowId, int layer, bool interactable,
             bool canClose = true)
         {
             var ledger = UIService.SharedLedger;
@@ -138,9 +138,9 @@ namespace Service.UI
             {
                 CanCloseFlag = canClose,
             };
-            window.Init(windowName, layer, false, "Panel", false, 10, false);
+            window.Init(windowId, layer, false, "Panel", false, 10);
             ledger.Push(window);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
             ledger.OnWindowPrepare(window);
             window.Interactable = interactable;
             return window;

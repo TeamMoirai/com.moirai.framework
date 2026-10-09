@@ -58,7 +58,7 @@ Namespace: `Moirai.Atropos`
 ```csharp
 // 1. Business code accesses framework services via static facades
 TimerService.Delay(1f, () => Debug.Log("1s"));
-UIService.ShowUI<MainWindow>();
+UIService.ShowUI<MainWindow>("main");
 ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
 // 2. Define a custom service — dependencies declared via the [ServiceDependency] attribute
@@ -188,7 +188,7 @@ Handlers (`XxxHandler : FrameworkHandler`) support an async lifecycle: override 
 
 ### Service Events
 
-Service lifecycle notifications go through `IServiceInterceptor` (the event API has been removed):
+Service lifecycle notifications go through `IServiceInterceptor`:
 
 ```csharp
 public sealed class ServiceAuditInterceptor : IServiceInterceptor
@@ -322,7 +322,7 @@ GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
 
 ### Lazy Self Registration
 
-Service instances have no centralized factory table (`RegisterDefaultFactory` was removed along with the default factory table). Each HandlerHost service facade's default handler creation path
+Service instances have no centralized factory table. Each HandlerHost service facade's default handler creation path
 (`CreateDefaultHandler`) calls `GameServices.EnsureRegistered<T>()` first — when a service is accessed through its facade while unregistered,
 an instance is automatically created and registered into the App scope (idempotent):
 

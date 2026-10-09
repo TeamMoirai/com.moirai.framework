@@ -16,6 +16,7 @@ Welcome to Moirai Framework. This documentation set covers every functional serv
 | [Core](Core.md) | Service system foundation: `ServiceWorld`, `GameServices` registration/lookup/scopes, `[ServiceDependency]` topological init |
 | [Resource](Resource.md) | YooAsset-based asset management: sync/async loading, reference counting, encryption, sub-sprites |
 | [UI](UI.md) | Production-grade UI framework: stack windows, 5 layers, Widget sub-controls, binding code generation |
+| [UI Payload Migration](UIMigration.md) | Hard-cut migration: DTO + base-class swap, two destinations for write sites (static / dynamic `UIPayload` legs), three behavior changes |
 | [Audio](Audio.md) | Audio system: category management, AudioAgent playback, mixer, fade in/out, handle control |
 | [Localization](Localization.md) | Localization: text/image/audio/Timeline multi-type injection, Google Translate integration |
 | [ConfigTable](ConfigTable.md) | Luban config table integration: table loading, lazy access, export toolchain |

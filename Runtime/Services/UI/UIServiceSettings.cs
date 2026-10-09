@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Moirai.Atropos.UI
 {
     /// <summary>
-    /// UI 服务设置：承载「启用哪几支 UI 后端」这份配置。
+    /// UI 服务设置：承载「启用哪几支 UI 后端」与「内置资源窗的 Resources 父目录」这两份配置。
     /// </summary>
     /// <remarks>
     /// 清单每一项是一支后端驱动者的托管引用：两支异构，元素类型因此是共同基类 <see cref="UIServiceHandler"/>。 <br />
@@ -18,8 +18,15 @@ namespace Moirai.Atropos.UI
         [ProviderDropdown]
         [SerializeReference] private UIServiceHandler[] m_EnabledHandlers = new UIServiceHandler[] { new UGUIHandler() };
 
+        [Tooltip("内置资源窗（fromResources 档）在 Resources 下的父目录：开窗传的标识按它拼出地址；留空即把标识原样当 Resources 下的相对路径用。")]
+        [FolderPath(ParentFolder = "Assets/Resources")]
+        [SerializeField] private string m_UIFolder = string.Empty;
+
         /// <summary>启用中的后端驱动者清单（按配置填槽的唯一来路）。</summary>
         internal static UIServiceHandler[] EnabledHandlers => Instance.m_EnabledHandlers;
+
+        /// <summary>内置资源窗在 <c>Resources</c> 下的父目录（寻址换算的目录档；空串即不拼前缀）。</summary>
+        internal static string ResourcesFolder => Instance.m_UIFolder;
 
         /// <summary>
         /// 换掉启用清单：写的是配置而不是槽位，驱动者仍只由 <see cref="UIService.OnInit"/> 按这份清单造出来。
