@@ -517,6 +517,18 @@ namespace Moirai.Atropos.UI
 
             try { await transition.Play(false, _cts.Token); }
             catch (OperationCanceledException) { return; }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 过渡播放抛出异常，退 Snap 落终态：{1}", WindowName, ex);
+                try
+                {
+                    transition.Snap(false);
+                }
+                catch (System.Exception snapEx)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' Snap 也抛出异常，流程照常走完：{1}", WindowName, snapEx);
+                }
+            }
 
             if (IsDestroyed) return;
 
@@ -576,6 +588,20 @@ namespace Moirai.Atropos.UI
             // 销毁面板对象
             if (!isShutDown && CacheInstance)
             {
+                var transition = Transition;
+                if (transition != null)
+                {
+                    // 缓存停放前把面板拨到关窗终态：停放窗不得带半截过渡姿态，下次取用从定态起播
+                    try
+                    {
+                        transition.Snap(false);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        LogUtility.Error("UI 窗口 '{0}' 停放前 Snap 抛出异常，照常停放：{1}", WindowName, ex);
+                    }
+                }
+
                 ParkPanel();
             }
             else
@@ -697,6 +723,18 @@ namespace Moirai.Atropos.UI
                 await transition.Play(open, _cts.Token);
             }
             catch (OperationCanceledException) { return; }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 过渡播放抛出异常，退 Snap 落终态：{1}", WindowName, ex);
+                try
+                {
+                    transition.Snap(open);
+                }
+                catch (System.Exception snapEx)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' Snap 也抛出异常，流程照常走完：{1}", WindowName, snapEx);
+                }
+            }
 
             if (IsDestroyed) return;
 
