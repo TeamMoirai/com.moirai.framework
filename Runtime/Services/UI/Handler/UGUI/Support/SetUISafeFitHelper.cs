@@ -120,7 +120,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 设置 <see cref="rect"/> 不受当前适配影响。
+        /// 设置 <paramref name="rect"/> 不受当前适配影响。
         /// </summary>
         public void SetUINotFit(RectTransform rect)
         {
@@ -141,7 +141,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 设置某一个节点不受指定 <see cref="refRect"/> 的影响。
+        /// 设置某一个节点不受指定 <paramref name="refRect"/> 的影响。
         /// </summary>
         /// <param name="rect">设置的RectTransform。</param>
         /// <param name="refRect">依赖的RectTransform。</param>

@@ -305,7 +305,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 回叫侧守卫与 <see cref="Hide"/>/<see cref="Close"/> 同一道：关停摘干净各轨之后不再动那条栈。<br />
-        /// 失败收口不触发 <see cref="OnDestroy"/>：本窗从未到过 <see cref="OnCreate"/>，不得凭空补一次销毁回执。
+        /// 失败收口不触发 <see cref="UIBase.OnDestroy"/>：本窗从未到过 <see cref="UIBase.OnCreate"/>，不得凭空补一次销毁回执。
         /// </remarks>
         private void RollbackFailedLoad()
         {
