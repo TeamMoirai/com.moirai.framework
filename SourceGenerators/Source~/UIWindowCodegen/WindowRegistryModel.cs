@@ -19,7 +19,6 @@ namespace Moirai.Atropos.SourceGenerators
         /// <summary>特性解析出的描述符取值（注册期即定，运行期零解析）。</summary>
         public int WindowLayer { get; private set; }
         public bool FromResources { get; private set; }
-        public string Location { get; private set; }
         public bool FullScreen { get; private set; }
         public byte Modal { get; private set; }
         public int HideTimeToClose { get; private set; }
@@ -32,7 +31,6 @@ namespace Moirai.Atropos.SourceGenerators
         {
             Type = type;
             ReflectionFullName = BuildReflectionFullName(type);
-            Location = type.Name;
             WindowLayer = DefaultLayer;
             HideTimeToClose = DefaultHideTimeToClose;
         }
@@ -129,10 +127,6 @@ namespace Moirai.Atropos.SourceGenerators
                 Apply(named.Key, named.Value);
             }
 
-            if (string.IsNullOrEmpty(Location))
-            {
-                Location = Type.Name;
-            }
         }
 
         /// <summary>把一枚实参落进它自己名下那一档；名字对不上形参表时不动任何档。</summary>
@@ -144,9 +138,6 @@ namespace Moirai.Atropos.SourceGenerators
             {
                 case "windowlayer":
                     WindowLayer = ToInt32(value.Value, DefaultLayer);
-                    break;
-                case "location":
-                    Location = ToStringValue(value.Value, Type.Name);
                     break;
                 case "fromresources":
                     FromResources = ToBool(value.Value);
@@ -183,8 +174,6 @@ namespace Moirai.Atropos.SourceGenerators
         }
 
         private static bool ToBool(object? constant) => constant is bool value && value;
-        private static string ToStringValue(object? constant, string fallback) => constant as string ?? fallback;
-
         /// <remarks>NaN/±Infinity 是合法的编译期特性实参，但发射侧按 "R" 拼字面量会得到 <c>NaNf</c>/<c>Infinityf</c>（整工程编不过），故非有限值回 fallback。</remarks>
         private static float ToSingle(object? constant, float fallback)
         {

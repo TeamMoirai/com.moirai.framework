@@ -90,7 +90,7 @@ namespace Service.UI
         {
             var delta = Measure("Grid1_NoPayload", "无载荷腿（停放重取稳态）", () =>
             {
-                UIService.ShowUI<AllocPlainWindow>("AllocNoPayload");
+                UIService.ShowUI<AllocPlainWindow>("AllocNoPayload", "AllocNoPayload");
                 UIService.CloseUI<AllocPlainWindow>("AllocNoPayload");
             });
 
@@ -105,7 +105,7 @@ namespace Service.UI
             var dto = new AllocDto { Value = 7, Text = "seven" };
             var delta = Measure("Grid2_StaticLegStruct", "静态腿 struct DTO", () =>
             {
-                UIService.ShowUI<AllocStructWindow, AllocDto>(in dto, "AllocStruct");
+                UIService.ShowUI<AllocStructWindow, AllocDto>(in dto, "AllocStruct", "AllocStruct");
                 UIService.CloseUI<AllocStructWindow>("AllocStruct");
             });
 
@@ -121,7 +121,7 @@ namespace Service.UI
             var box = new AllocBox();
             var delta = Measure("Grid3_StaticLegClass", "静态腿 class DTO", () =>
             {
-                UIService.ShowUI<AllocClassWindow, AllocBox>(in box, "AllocStaticClass");
+                UIService.ShowUI<AllocClassWindow, AllocBox>(in box, "AllocStaticClass", "AllocStaticClass");
                 UIService.CloseUI<AllocClassWindow>("AllocStaticClass");
             });
 
@@ -137,7 +137,7 @@ namespace Service.UI
             var box = new AllocBox();
             var delta = Measure("Grid4_DynamicLegClass", "动态腿 class（UIPayload 擦除）", () =>
             {
-                UIService.ShowUI(typeof(AllocClassWindow), "AllocDynClass", null, false, UIPayload.From(box));
+                UIService.ShowUI(typeof(AllocClassWindow), "AllocDynClass", "AllocDynClass", false, UIPayload.From(box));
                 UIService.CloseUI<AllocClassWindow>("AllocDynClass");
             });
 
@@ -152,7 +152,7 @@ namespace Service.UI
         {
             var delta = Measure("Grid5_DynamicLegPrimitive", "动态腿基元 int（允许装箱一次）", () =>
             {
-                UIService.ShowUI(typeof(AllocIntWindow), "AllocDynInt", null, false, UIPayload.From(7));
+                UIService.ShowUI(typeof(AllocIntWindow), "AllocDynInt", "AllocDynInt", false, UIPayload.From(7));
                 UIService.CloseUI<AllocIntWindow>("AllocDynInt");
             });
 
@@ -168,7 +168,7 @@ namespace Service.UI
         {
             var delta = Measure("Grid6_DefaultToken", "default(ct) 全链（对照格）", () =>
             {
-                UIService.ShowUIAsync<AllocPlainWindow>("AllocNoCt", null, false, default);
+                UIService.ShowUIAsync<AllocPlainWindow>("AllocNoCt", "AllocNoCt", false, default);
                 UIService.CloseUI<AllocPlainWindow>("AllocNoCt");
             });
 
@@ -201,12 +201,12 @@ namespace Service.UI
         /// <summary>结构档：往返之后栈上必须仍是同一只实例（量具失效时的真判据，不抬阈值）。</summary>
         private T AssertIdentityAfterRound<T>(string windowName) where T : UGUIWindow, new()
         {
-            UIService.ShowUI<T>(windowName);
+            UIService.ShowUI<T>(windowName, windowName);
             var first = UIService.GetWindow<T>(windowName);
             Assert.IsNotNull(first, "量具前提坏了：{0} 这一名要开得起来", windowName);
             Track(first);
             UIService.CloseUI<T>(windowName);
-            UIService.ShowUI<T>(windowName);
+            UIService.ShowUI<T>(windowName, windowName);
             var second = UIService.GetWindow<T>(windowName);
             Assert.AreSame(first, second, "停放重取交回的必须是同一只实例");
             return second;

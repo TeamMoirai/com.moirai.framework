@@ -46,14 +46,14 @@ namespace Service.UI
         {
             UtfLogExpect.Error();
 
-            UIService.ShowUI<FailingLoadUGUIWindow>("FailSync");
+            UIService.ShowUI<FailingLoadUGUIWindow>("FailSync", "FailSync");
 
             Assert.AreEqual(0, UIService.SharedLedger.PeekStack().Count, "装载失败的窗口必须从栈上回滚，不得永占栈位");
             Assert.IsFalse(UIService.SharedLedger.IsParked("FailSync"), "装载失败的窗口不得进停放表");
             Assert.IsTrue(FailingLoadUGUIWindow.Last.IsLoadFailed, "失败位要置上：等待腿据此分档");
             Assert.IsTrue(FailingLoadUGUIWindow.Last.IsDestroyed, "作废位要置上：实例不再可复用");
-            Assert.AreEqual(nameof(FailingLoadUGUIWindow), FailingLoadUGUIWindow.LastLocation,
-                "装载钩子拿到的是按解析链回落到类型名的面板地址（特性没写 location、调用方也没给地址）");
+            Assert.IsNull(FailingLoadUGUIWindow.LastLocation,
+                "AB 档的地址只由配置表答：表未就绪交回 null，不回落成字面地址，装载当场失败并回滚");
         }
 
         /// <summary>异步装载失败（同步落定的失败值）：与同步档同一条回滚链，同帧收口。</summary>
@@ -62,7 +62,7 @@ namespace Service.UI
         {
             UtfLogExpect.Error();
 
-            UIService.ShowUIAsync<FailingLoadUGUIWindow>("FailAsync");
+            UIService.ShowUIAsync<FailingLoadUGUIWindow>("FailAsync", "FailAsync");
 
             Assert.AreEqual(0, UIService.SharedLedger.PeekStack().Count, "异步装载失败同样当场回滚出栈");
             Assert.IsFalse(UIService.SharedLedger.IsParked("FailAsync"), "失败窗不进停放表");
@@ -73,7 +73,7 @@ namespace Service.UI
         [Test]
         public void LoadCancel_CloseDuringInFlightLoad_CancelsTokenAndSkipsLateAbort()
         {
-            UIService.ShowUIAsync<NeverLoadUGUIWindow>("NeverFail");
+            UIService.ShowUIAsync<NeverLoadUGUIWindow>("NeverFail", "NeverFail");
 
             var window = UIService.SharedLedger.GetWindow<NeverLoadUGUIWindow>("NeverFail");
             Assert.IsNotNull(window, "装载在途的窗口在栈上");
@@ -96,7 +96,7 @@ namespace Service.UI
         {
             UtfLogExpect.Error();
 
-            var result = UIService.ShowUIAwaitResult<FailingLoadUGUIWindow>("FailResult").GetAwaiter().GetResult();
+            var result = UIService.ShowUIAwaitResult<FailingLoadUGUIWindow>("FailResult", "FailResult").GetAwaiter().GetResult();
 
             Assert.AreEqual(EUIOpenStatus.Failed, result.Status, "装载失败按 Failed 档交回");
             Assert.IsFalse(result.Success, "失败档不是就绪成功");
@@ -109,7 +109,7 @@ namespace Service.UI
         [Test]
         public void ShowUIAwaitResult_LoadedWindow_ReturnsOpenedStatus()
         {
-            var result = UIService.ShowUIAwaitResult<AcceptLoadUGUIWindow>("OkResult").GetAwaiter().GetResult();
+            var result = UIService.ShowUIAwaitResult<AcceptLoadUGUIWindow>("OkResult", "OkResult").GetAwaiter().GetResult();
 
             Assert.AreEqual(EUIOpenStatus.Opened, result.Status, "装载成功按 Opened 档交回");
             Assert.IsTrue(result, "隐式布尔在就绪档为真");
@@ -132,7 +132,7 @@ namespace Service.UI
         [Test]
         public void GetUIAwaitResult_OpenedWindow_ReturnsOpenedStatus()
         {
-            UIService.ShowUI<AcceptLoadUGUIWindow>();
+            UIService.ShowUI<AcceptLoadUGUIWindow>(null, "AcceptLoadPanel");
 
             var result = UIService.GetUIAwaitResult<AcceptLoadUGUIWindow>().GetAwaiter().GetResult();
 

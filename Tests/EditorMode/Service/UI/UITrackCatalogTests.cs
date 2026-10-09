@@ -144,14 +144,14 @@ namespace Service.UI
             var synth = RegisterSyntheticTrack("SYNTH-MSG", typeof(ProbeNeutralWindow), UITrack.SHUTDOWN_ORDER_DEFAULT,
                 DelegateSink.None, NeverValid);
 
-            var error = Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeUnclaimedWindow), "w"),
+            var error = Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeUnclaimedWindow), "w", "w"),
                 "不落任何一轨的窗口类照旧当场抬错");
             StringAssert.Contains("ProbeNeutralWindow", error.Message, "文案按目录枚举：合成轨的窗口基类也要答得出");
             StringAssert.Contains("UGUIWindow", error.Message, "内建轨的窗口基类照旧在列");
 
             Assert.IsTrue(UIService.Internal_UnregisterTrack(synth), "摘登记要真把合成轨从目录里拿掉");
             _syntheticTracks.Remove(synth);
-            Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeNeutralWindow), "w"),
+            Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeNeutralWindow), "w", "w"),
                 "摘掉登记后合成轨的窗口类回「认不出轨」那一档");
         }
 

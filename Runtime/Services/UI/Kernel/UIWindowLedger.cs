@@ -577,22 +577,29 @@ namespace Moirai.Atropos.UI
         /// 造一只新窗口：查注册表拿编译期工厂与注册期描述符，不再走反射。
         /// </summary>
         /// <remarks>
-        /// 寻址只在这一格发生：给了 <paramref name="windowId"/> 就按档换算（配置表 / Resources 父目录），没给才回落描述符的面板地址。 <br />
+        /// 标识必填：面板地址只由 <see cref="UIService.ResolveWindowLocation"/> 从 <paramref name="windowId"/> 换算而来，特性不再声明地址。 <br />
         /// 取法档是调用方与特性的并集（真 || 特性），特性缺的档不反被调用方否掉。 <br />
         /// 类型未登记当场抬错：窗口类必须标 <c>[Window]</c> 才进注册表，不再静默兜默认层级与地址。
         /// </remarks>
         /// <param name="type">窗口类。</param>
         /// <param name="windowName">窗口名称（空串按描述符全名兜底）。</param>
-        /// <param name="windowId">调用方给的窗口标识（空串回落描述符的面板地址，不做换算）。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 <c>Resources</c> 下的相对路径）。</param>
         /// <param name="fromResources">调用方给的内置资源档。</param>
         /// <returns>已按描述符初始化好的新窗口。</returns>
-        /// <exception cref="GameException">窗口类未登记（没标 <c>[Window]</c>）。</exception>
+        /// <exception cref="GameException">窗口类未登记（没标 <c>[Window]</c>），或开窗没带 <paramref name="windowId"/>。</exception>
         private UIWindow CreateInstance(Type type, string windowName, string windowId, bool fromResources)
         {
             if (!UIWindowRegistry.TryGet(type, out var entry))
             {
                 throw new GameException(StringUtility.Format(
                     "UI 窗口 '{0}' 未注册：窗口类必须标 [Window] 才能经注册表开出（由 UIWindowCodegen 在编译期登记）",
+                    type.FullName));
+            }
+
+            if (string.IsNullOrEmpty(windowId))
+            {
+                throw new GameException(StringUtility.Format(
+                    "UI 窗口 '{0}' 开窗没带 windowId：面板地址只由窗口标识换算而来（配置表 configId，或 Resources 下的相对路径）",
                     type.FullName));
             }
 
@@ -606,12 +613,8 @@ namespace Moirai.Atropos.UI
 
             var useResources = fromResources || descriptor.FromResources;
 
-            // 空标识走描述符原值：那条地址是作者直接给的面板地址，不该再被当作 configId 去查一遍表
-            var assetLocation = string.IsNullOrEmpty(windowId)
-                ? descriptor.Location
-                : UIService.ResolveWindowLocation(windowId, useResources);
-
-            window.Init(windowName, descriptor.WindowLayer, descriptor.FullScreen, assetLocation,
+            window.Init(windowName, descriptor.WindowLayer, descriptor.FullScreen,
+                UIService.ResolveWindowLocation(windowId, useResources),
                 useResources, descriptor.HideTimeToClose,
                 (EUIModal)descriptor.Modal, descriptor.CacheTimeToDestroy);
 

@@ -80,7 +80,7 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 using Moirai.Atropos.UI;
 
 // 层级 Popup、非全屏、关闭后停放（负数 = 永久停放；填正数即到期销毁）
-[Window(EUILayer.Popup, location: "MainWindow", fullScreen: false, cacheTimeToDestroy: -1f)]
+[Window(EUILayer.Popup, fullScreen: false, cacheTimeToDestroy: -1f)]
 public class MainWindow : UGUIWindow
 {
     protected override void ScriptGenerator() { }   // 生成的绑定代码在此重写
@@ -373,7 +373,7 @@ public class RenameWindow : UGUIWindow
 - 全腿的 `CancellationToken` 传 `default` 零开销，且只在装载在途那一段被消费：已就绪的复用与停放重取不消费 `ct`；复用一只仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载（与在飞合并同段语义）
 - 窗口开合回执走门面静态广播：`UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent`（形参 `UIWindow`），入栈/出栈各恰一次、停放与销毁都发；订阅者自己配对退订，门面关停与归零门会整批摘掉
 - 停放档一枚三态：`[Window(cacheTimeToDestroy: …)]`，`0` = 不缓存（关闭即销毁，缺省即此）、正数 = 停放并在这么多秒后转销毁、负数 = 停放永久；到期由账本移出停放表并终态销毁，重新取用即取消计时
-- 寻址归门面：开窗腿的第三枚是**窗口标识**——`fromResources` 为真时把它拼到 `UIServiceSettings` 的 Resources 父目录下，为假时按它查 `ConfigTableService.GetUIWindowLocation`；标识留空才回落 `[Window(location)]`（特性也没写时回类型名）。原 `UIManager` 与它的两枚公共静态定位口已退役，换算判据只此一份，且只在账本造新实例那一格发生（复用栈上窗与停放重取不查表）
+- 寻址归门面：开窗腿的第三枚是**窗口标识**——`fromResources` 为真时把它拼到 `UIServiceSettings` 的 Resources 父目录下，为假时按它查 `ConfigTableService.GetUIWindowLocation`；标识必填（没带即当场 `GameException`，地址没有第二条来路）；`[Window]` 不再声明地址。原 `UIManager` 与它的两枚公共静态定位口已退役，换算判据只此一份，且只在账本造新实例那一格发生（复用栈上窗与停放重取不查表）
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI 迁移](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)
