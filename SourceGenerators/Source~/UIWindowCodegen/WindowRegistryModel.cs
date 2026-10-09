@@ -23,6 +23,7 @@ namespace Moirai.Atropos.SourceGenerators
         public byte Modal { get; private set; }
         public int HideTimeToClose { get; private set; }
         public bool CacheInstance { get; private set; }
+        public float CacheTimeToDestroy { get; private set; }
 
         /// <summary>不可登记的成因诊断；可登记时为 null。</summary>
         public Diagnostic? InvalidReason { get; private set; }
@@ -112,7 +113,7 @@ namespace Moirai.Atropos.SourceGenerators
         /// </summary>
         /// <remarks>
         /// 位置实参形序（层级之后）：string ⇒ location；bool ⇒ fromResources（随后若跟 string 则为 location）；<br />
-        /// 尾段固定 fullScreen / hideTimeToClose / cacheInstance / modal（层级型枚举）。命名实参按名覆盖，缺省沿用特性默认。
+        /// 尾段固定 fullScreen / hideTimeToClose / cacheInstance / modal（层级型枚举）/ cacheTimeToDestroy。命名实参按名覆盖，缺省沿用特性默认。
         /// </remarks>
         private void Decode(AttributeData attribute)
         {
@@ -160,6 +161,12 @@ namespace Moirai.Atropos.SourceGenerators
             if (i < args.Length)
             {
                 Modal = ToByte(args[i].Value, DefaultModal);
+                i++;
+            }
+
+            if (i < args.Length)
+            {
+                CacheTimeToDestroy = ToSingle(args[i].Value, 0f);
             }
 
             foreach (KeyValuePair<string, TypedConstant> named in attribute.NamedArguments)
@@ -186,6 +193,9 @@ namespace Moirai.Atropos.SourceGenerators
                         break;
                     case "cacheInstance":
                         CacheInstance = ToBool(named.Value.Value);
+                        break;
+                    case "cacheTimeToDestroy":
+                        CacheTimeToDestroy = ToSingle(named.Value.Value, CacheTimeToDestroy);
                         break;
                 }
             }
@@ -217,6 +227,9 @@ namespace Moirai.Atropos.SourceGenerators
 
         private static bool ToBool(object? constant) => constant is bool value && value;
         private static string ToStringValue(object? constant, string fallback) => constant as string ?? fallback;
+
+        private static float ToSingle(object? constant, float fallback) =>
+            constant is float f ? f : constant is double d ? (float)d : constant is int n ? n : fallback;
 
         /// <summary>枚举实参折算 byte（三态模态等小型枚举；值越界回 fallback）。</summary>
         private static byte ToByte(object? constant, byte fallback)

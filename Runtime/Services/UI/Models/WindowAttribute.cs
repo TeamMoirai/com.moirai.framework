@@ -73,6 +73,9 @@ namespace Moirai.Atropos.UI
         /// <summary>模态档：缺省 <see cref="EUIModal.Inherit"/> 按层级继承。</summary>
         public readonly byte Modal;
 
+        /// <summary>缓存停放转销毁的秒数；0 = 永久（现行语义），只配合 <paramref name="cacheInstance"/> 生效。</summary>
+        public readonly float CacheTimeToDestroy;
+
         /// <summary>
         /// 构造窗口特性。
         /// </summary>
@@ -83,8 +86,10 @@ namespace Moirai.Atropos.UI
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数；≤0 表示隐藏即关。</param>
         /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
         /// <param name="modal">模态档；缺省按层级继承（模态层级 UI/Popup/System 即模态）。</param>
+        /// <param name="cacheTimeToDestroy">缓存停放转销毁的秒数；0 = 永久。</param>
         public WindowAttribute(EUILayer windowLayer, bool fromResources = false, string location = null,
-            bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit)
+            bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit,
+            float cacheTimeToDestroy = 0f)
         {
             WindowLayer = (int)windowLayer;
             FromResources = fromResources;
@@ -93,6 +98,7 @@ namespace Moirai.Atropos.UI
             HideTimeToClose = hideTimeToClose;
             CacheInstance = cacheInstance;
             Modal = (byte)modal;
+            CacheTimeToDestroy = cacheTimeToDestroy;
         }
     }
 }
