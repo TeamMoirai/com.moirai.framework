@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos
 {
@@ -47,6 +48,7 @@ namespace Moirai.Atropos
         /// <param name="capacity">初始容量（字符数）。</param>
         /// <returns>可复用的 <see cref="StringHandler.IStringBuilder"/>， <br />
         /// 使用后须调用 <see cref="IDisposable.Dispose"/> 或 <see cref="StringHandler.IStringBuilder.ToStringAndDispose"/> 归还池。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IStringBuilder CreateStringBuilder(int capacity = 256) => Handler.CreateStringBuilder(capacity);
 
         /// <summary>
