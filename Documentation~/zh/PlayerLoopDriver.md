@@ -4,8 +4,6 @@
 
 ## 背景
 
-旧版 `GameApp` 把 `Update`/`FixedUpdate`/`LateUpdate` 订阅挂在隐藏 Mono 宿主的**实例事件**上。该宿主在初始场景加载前可能被意外销毁，导致全部订阅丢失，服务 Tick 静默停摆。
-
 `Runtime/Services/Timer`（`TimerService`）是统一的计时子系统（四级时间轮 + 帧计时），提供 `Delay` / `WaitFrame` 等能力；它经 `IServiceTickable` 由 `GameServices.Tick` 推进，而 `GameServices.Tick` 本身装配在本驱动的 Update **核心钩子**上（先于全部用户订户，且不参与熔断）。`IUpdateHandler` 面向游戏侧系统与 DI 组合根，二者不要混用。
 
 ## 架构

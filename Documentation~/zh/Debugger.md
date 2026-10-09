@@ -11,7 +11,7 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 - **信息窗口**：System / Environment / Screen / Graphics / Input（Input System 设备与传感器）/ Scene / Time / Quality / Path
 - **Profiler 窗口**：Summary、Memory Summary、Memory 明细（All / Texture / Mesh / Material / Shader / AnimationClip / AudioClip / Font / TextAsset / ScriptableObject）、Object Pool / GameObject Pool / Memory Pool、Service Kernel（服务容器诊断）
 - **服务调试面板**：Timer / Resource / Audio / Procedure / Localization 各服务模块自带的调试视图，经服务 OnInit 自动注册（见「服务调试面板」章节）
-- **游戏应用设置**：目标帧率/游戏速度实时控制与本地设置键值清单（`Other/Game Settings`，原 GameAppEditor 整合）
+- **游戏应用设置**：目标帧率/游戏速度实时控制与本地设置键值清单（`Other/Game Settings`）
 - **常驻统计 HUD**：FPS / Tris / Batches / DrawCall / SetPass / Mono / Alloc / GfxDrv（`ProfilerRecorder` 按需启停 + 0.25s 节流）
 - **Operations**：GameObject 池冲刷、资源卸载 / GC、Time Scale 滑条、框架关停（None / Restart / Quit）
 - **流式面板构建器**：`RegisterPanel` 一行注册自定义调试面板（滑条 / 开关 / 按钮 / 折叠组 / 只读字段 / 进度条，Getter/Setter 闭包绑定 + 200ms 轮询刷新）
@@ -199,18 +199,6 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
 - 控制台筛选状态（分级 + 锁定滚动）同样持久化，键见 `Constant.Debug`
 - `GetRecentLogs` 返回的 `LogNode` 为池化对象，由捕获器持有——仅读取，勿长期保存（环形淘汰后结点被复用）
 - 服务为 opt-in 注册（组合根经 `[AutoRegisterService]` 生成清单注册 `DebuggerService`），未注册时外观调用静默降级（日志检索返回空、注册不生效）
-
-## 从旧版迁移（IMGUI DebuggerComp）
-
-- 场景 / 预制体中的 `DebuggerComp` 组件已移除（`GameEntry.prefab` 不再包含 Debugger 节点）——宿主由服务运行时自建
-- **`ServiceDebuggerComponent`（Inspector 宿主组件）已弃用移除**：派生组件（如 `TimerServiceDebugger`）与通用 Inspector 一并删除——各服务调试视图改为 OnInit 自动注册进游戏内调试器（原生 UI Toolkit，位于各模块目录）
-- **`GameAppEditor`（GameApp Inspector）已删除**：其调试信息（帧率/游戏速度/本地设置清单）整合进内置 `Other/Game Settings` 窗口（GameObject 池内容本就由 `Profiler/GameObject Pool` 承载）
-- `DebuggerComp.Instance.GetRecentLogs(...)` → `DebuggerService.GetRecentLogs(...)`
-- `DebuggerComp.LogNode` → `Moirai.Atropos.Debugger.LogNode`（顶级类型）
-- `IDebuggerWindow.OnDraw()`（IMGUI）→ `CreateView()`（UI Toolkit）；IMGUI 内容经 `RegisterDebugView` / `IMGUIDebuggerWindow` 适配接入
-- `IDebuggerWindowGroup` / `DebuggerWindowRoot`（窗口组嵌套工具栏）→ `DebuggerWindowRegistry`（路径树仅作导航数据）
-- 激活策略从 `DebuggerComp` Inspector 序列化字段迁移至 `DebuggerServiceSettings` 资产（`ActiveWindowType`）；`UGUIHandler` 的错误日志开关改读 `DebuggerService.ActiveWindowType`
-- 输入信息窗口由旧 `UnityEngine.Input` API（仅 Input System 构建下抛异常）重写为 Input System 设备模型读取
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [Core](Core.md)

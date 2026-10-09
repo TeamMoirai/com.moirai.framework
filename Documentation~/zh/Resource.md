@@ -42,7 +42,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | 类/接口 | 说明 |
 |---------|------|
 | `ResourceService` | 静态外观（`[HandlerHost]`），定义加载、租约、绑定、卸载、包操作全部 API；全部静态方法/属性经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）。配置注入在 `OnInit` 接线，每帧驱动（时间轮推进 / 卸载调度 / GC 节流 / 销毁态回收）在 `Tick` 推进 |
-| `YooAssetHandler` | 默认后端，`partial` 按职责拆分：主文件（基础属性、卸载调度、资产信息查询、预制体实例化、宿主接口接线）/ Leases（接缝上 Lease 取还的转发）/ Loading（向 YooAsset 要句柄、挂载与失败文案）/ Cache（设置注入与容量预热）/ Initialization（包与清单初始化）/ Scene（场景句柄）/ Attributes（检视器标注）。**记账已不在此**，见下面三件内核类型 |
+| `YooAssetHandler` | 默认后端，`partial` 按职责拆分：主文件（基础属性、卸载调度、资产信息查询、预制体实例化、宿主接口接线）/ Leases（接缝上 Lease 取还的转发）/ Loading（向 YooAsset 要句柄、挂载与失败文案）/ Cache（设置注入与容量预热）/ Initialization（包与清单初始化）/ Scene（场景句柄）/ Attributes（检视器标注）。**记账不在此**，见下面三件内核类型 |
 | `ResourceRecordStore` | 资源记录内核（`internal sealed partial`，在 `Runtime/Services/Resource/Kernel/`），由后端持有：带 generation 校验的资产槽与租约槽、两条 packed key 索引表、在途加载去重、两座过期时间轮与容量淘汰。它看向后端只有 `IResourceRecordHost`：三个原生句柄算子加三个配置读数 |
 | `ResourceKeyCodec` | packed key 的位域编解码与 `assetKind` / `assetType` 互推（纯静态、零状态） |
 | `ResourceNameRegistry<TValue>` | 单条名称轴的登记、引用计数与 ID 回收；package / location / type 三轴各持一份 |
@@ -278,7 +278,7 @@ public readonly struct ResourceKey
 
 ### 编辑器预览取资产（仅编辑器）
 
-编辑态没有可用的后端运行时（服务世界没起来、包没初始化），预览因此不走租约：一次 `LoadAssetAtPath` 拿到的对象取完即弃，进引用计数就等于 Inspector 每重绘一次白租一份。非播放态按地址取资产只有取用族 `TryLoadAsset` 这一条入口：本地化预览查「这条地址背后是什么资产」用 `TryLoadAsset<Object>`。原 `ResourceServiceHandler.LoadAssetForEditor`（`virtual` 的地址换算钩子）已随本次收敛删除，当前没有后端覆写它——若接入按文件名或包清单寻址的后端，换算得并进取用族的编辑分支本身。地址默认就是资产路径——本框架的发行配置里 `EnableAddressable` 关着，清单因此以 AssetPath 定位。
+编辑态没有可用的后端运行时（服务世界没起来、包没初始化），预览因此不走租约：一次 `LoadAssetAtPath` 拿到的对象取完即弃，进引用计数就等于 Inspector 每重绘一次白租一份。非播放态按地址取资产只有取用族 `TryLoadAsset` 这一条入口：本地化预览查「这条地址背后是什么资产」用 `TryLoadAsset<Object>`。地址默认就是资产路径——本框架的发行配置里 `EnableAddressable` 关着，清单因此以 AssetPath 定位。
 
 ## Binding API 参考
 
