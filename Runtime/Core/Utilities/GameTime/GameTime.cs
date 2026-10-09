@@ -1,4 +1,6 @@
 // ReSharper disable InconsistentNaming
+using System.Runtime.CompilerServices;
+
 namespace Moirai.Atropos
 {
     /// <summary>
@@ -36,25 +38,25 @@ namespace Moirai.Atropos
         // 调用方外观，改名会连带打破「换 Handler 即换时间源、调用方零改动」这一契约。
 
         /// <summary>此帧开始时的时间。</summary>
-        public static float time { get; private set; }
+        public static float time { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
         /// <summary>从上一帧到当前帧的间隔（秒）。</summary>
-        public static float deltaTime { get; private set; }
+        public static float deltaTime { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
         /// <summary>timeScale 从上一帧到当前帧的独立时间间隔（以秒为单位）。</summary>
-        public static float unscaledDeltaTime { get; private set; }
+        public static float unscaledDeltaTime { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
         /// <summary>执行物理和其他固定帧速率更新的时间间隔（秒），即 <c>MonoBehaviour.FixedUpdate</c> 使用的步长。</summary>
-        public static float fixedDeltaTime { get; private set; }
+        public static float fixedDeltaTime { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
         /// <summary>自游戏开始以来的总帧数。</summary>
         /// <remarks>
         /// 计数为整数，全程精确；超过 <c>int.MaxValue</c> 帧后回绕。
         /// </remarks>
-        public static int frameCount { get; private set; }
+        public static int frameCount { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
         /// <summary>timeScale 此帧的独立时间（以秒为单位），即自游戏开始以来的非缩放时间。</summary>
-        public static float unscaledTime { get; private set; }
+        public static float unscaledTime { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
         /// <summary>
         /// 采样一帧时间并填充上方静态属性，每帧由 <see cref="PlayerLoopDriver"/> 在各 Drive 阶段入口调用。
