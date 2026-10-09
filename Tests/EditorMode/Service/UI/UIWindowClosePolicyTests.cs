@@ -138,7 +138,7 @@ namespace Service.UI
             {
                 CanCloseFlag = canClose,
             };
-            window.Init(windowName, layer, false, "Panel", false, 10, false);
+            window.Init(windowName, layer, false, "Panel", false, 10);
             ledger.Push(window);
             window.InternalLoad("Panel", null, false);
             ledger.OnWindowPrepare(window);

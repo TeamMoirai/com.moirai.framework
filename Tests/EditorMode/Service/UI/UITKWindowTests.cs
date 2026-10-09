@@ -133,7 +133,7 @@ namespace Service.UI
         {
             UITKWindow.SharedPanelSettings = null;
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
 
             // 两条 Error：缺 PanelSettings 那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
             UtfLogExpect.Error();
@@ -166,7 +166,7 @@ namespace Service.UI
             UITKWindow.SharedPanelSettings = _panelSettings;
             const string missingPath = "Assets/Nope/Missing Panel.uxml";
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, missingPath, false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, missingPath, false, 10);
 
             // 两条 Error：取不到模板那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
             UtfLogExpect.Error();
@@ -192,7 +192,7 @@ namespace Service.UI
         {
             UITKWindow.SharedPanelSettings = _panelSettings;
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, TemplateAssetPath, false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, TemplateAssetPath, false, 10);
 
             GameObject shell;
             try
@@ -220,7 +220,7 @@ namespace Service.UI
         {
             UITKWindow.SharedPanelSettings = _panelSettings;
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, TemplateAssetPath, false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, TemplateAssetPath, false, 10);
 
             GameObject shell;
             try
@@ -251,7 +251,7 @@ namespace Service.UI
 
             UITKWindow.SharedPanelSettings = _panelSettings;
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, TemplateResourceName, true, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, TemplateResourceName, true, 10);
 
             GameObject shell;
             try
@@ -280,7 +280,7 @@ namespace Service.UI
         public void BindPanel_NullShellOrMissingDocument_ReportsFailure()
         {
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
 
             Assert.IsFalse(window.BindPanel(null, null), "null 壳必须判失败");
             Assert.IsNull(window.gameObject, "失败后仍应保持未绑定");
@@ -301,7 +301,7 @@ namespace Service.UI
             var shell = NewShell("Panel");
             var document = shell.GetComponent<UIDocument>();
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
 
             Assert.IsTrue(window.BindPanel(shell, null), "带 UIDocument 的壳应装配成功");
 
@@ -370,7 +370,7 @@ namespace Service.UI
 
             var shell = NewShell("Panel");
             var window = new ProbeWindow { Fixture = shell };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
             // 装载前把「显示」意图压进对象模型：PanelLoaded 结算它时内容根才刚被 new 出来，槽里只有初值
             window.Visible = true;
             window.InternalLoad("Panel", null, false);
@@ -510,7 +510,7 @@ namespace Service.UI
         public void DepthWrite_WhilePanelUnbound_HoldsIntentAndKeepsDocumentAbsent()
         {
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
 
             Assert.DoesNotThrow(() => window.Depth = 900, "面板未绑定时写深度不得触碰不存在的文档组件");
             Assert.AreEqual(900, window.Depth, "写入攒在意图位上，面板不在场时它是唯一可信的深度");
@@ -530,7 +530,7 @@ namespace Service.UI
         {
             UITKWindow.SharedPanelSettings = null;
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
 
             // 两条 Error：缺 PanelSettings 那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
             UtfLogExpect.Error();
@@ -558,7 +558,7 @@ namespace Service.UI
         {
             var shell = NewShell("Panel");
             var window = new ProbeWindow { Theme = "Assets/Nope/Missing Sheet.uss" };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
 
             UtfLogExpect.Error();
 
@@ -582,7 +582,7 @@ namespace Service.UI
 
             var shell = NewShell("Panel");
             var window = new ProbeWindow { Theme = ThemeAssetPath };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
 
             Assert.IsTrue(window.BindPanel(shell, null), "取到主题的装配照常成功");
 
@@ -623,7 +623,7 @@ namespace Service.UI
         private ProbeWindow Loaded(GameObject fixture)
         {
             var window = new ProbeWindow { Fixture = fixture };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
             window.InternalLoad("Panel", null, false);
             return window;
         }

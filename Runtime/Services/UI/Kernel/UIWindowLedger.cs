@@ -609,7 +609,7 @@ namespace Moirai.Atropos.UI
             }
 
             window.Init(windowName, descriptor.WindowLayer, descriptor.FullScreen, assetLocation,
-                fromResources || descriptor.FromResources, descriptor.HideTimeToClose, descriptor.CacheInstance,
+                fromResources || descriptor.FromResources, descriptor.HideTimeToClose,
                 (EUIModal)descriptor.Modal, descriptor.CacheTimeToDestroy);
 
             return window;
@@ -829,7 +829,7 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            if (window.CacheInstance)
+            if (window.ParksOnClose)
             {
                 _cache[windowName] = window;
                 window.InternalClose();
@@ -901,7 +901,7 @@ namespace Moirai.Atropos.UI
             for (int i = 0; i < _uiStack.Count; i++)
             {
                 UIWindow window = _uiStack[i];
-                if (!isShutDown && window.CacheInstance)
+                if (!isShutDown && window.ParksOnClose)
                 {
                     _cache[window.WindowName] = window;
                     window.InternalClose();
@@ -938,7 +938,7 @@ namespace Moirai.Atropos.UI
                 RemoveFromStack(window);
                 i--;
 
-                if (!isShutDown && window.CacheInstance)
+                if (!isShutDown && window.ParksOnClose)
                 {
                     _cache[window.WindowName] = window;
                     window.InternalClose();
@@ -1015,7 +1015,7 @@ namespace Moirai.Atropos.UI
                     continue;
                 }
 
-                if (window.CacheInstance)
+                if (window.ParksOnClose)
                 {
                     _cache[window.WindowName] = window;
                     window.InternalClose();

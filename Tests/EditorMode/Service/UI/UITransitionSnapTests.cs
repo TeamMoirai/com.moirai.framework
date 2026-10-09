@@ -30,7 +30,7 @@ namespace Service.UI
         }
     }
 
-    [Window(EUILayer.Tips, cacheInstance:true)]
+    [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
     internal class SnapProbeWindow : UGUIWindow
     {
         public readonly CountingTransition TransitionProbe = new CountingTransition();

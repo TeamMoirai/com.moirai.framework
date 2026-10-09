@@ -36,7 +36,7 @@
 - 新增开/关过渡契约 `IUITransition` 与 `UIWindow.Transition` 虚属性：真过渡期间锁交互（模态窗占全局压制位）、被接管按取消令牌掐断；缺位即瞬时，瞬时档零锁零占用零取消源分配。
 - 新增 `UIManager` 公共静态定位口 `ResolveWindowLocation(windowId)` / `ResolveFromResources`（新增，非破坏）：开窗腿的寻址接缝，配置表 / `Resources` 两档判据只此一份；按 `SingletonMono.Instance` 语义取实例——场景里没有时现场物化一枚（默认配置表档），应用退出/播放停止的关停窗口内取不到则 `GameException`，调用排在服务就绪守卫之后。
 - 新增最小导航两成员 `UIService.NavigationDepth`（开启序历史的长度——栈按层级排序答不出「最近开的是谁」）与 `UIService.TryCloseTopWindow()`（关上最近开的那只，走既有 `CanClose` 政策；无历史 / 拒关 / 过渡中回假且历史不出栈）；`Type` 形入口另补等待腿 `ShowUIAsyncAwait(Type, …, UIPayload, ct)` 交回 `UniTask<UIWindow>`。认不出轨与「认出来却没人认领驱动」两档都当场抬错，不把窗口推进栈再等装载静默失败。
-- 新增停放窗可选 TTL：`[Window(cacheInstance: true, cacheTimeToDestroy: 秒)]`，`0` = 永久（缺省即此，现行语义不变），只配合 `cacheInstance` 生效；到期由账本移出停放表并终态销毁，重新取用即取消计时。
+- 新增停放档 `[Window(cacheTimeToDestroy: …)]`：`0` = 不缓存（关闭即销毁，缺省即此）、正数 = 停放并在这么多秒后由账本移出停放表并终态销毁、负数 = 停放永久；重新取用即取消计时。
 - 新增窗口开合回执静态事件 `UIService.onWindowShown` / `UIService.onWindowClosed`（`public static event Action<UIWindow>`）：入栈、出栈各恰一次，停放与销毁都发；取代经 `EventManager` 派发的 `UIServiceEvent`，订阅者自持配对退订，门面关停与归零门整批摘订阅。
 - 新增双语文档：`Documentation~/zh|en/UIMigration.md`（外部业务工程一页迁移指南：DTO + 基类换形 / 写点两种去向 / 行为变更四条），`Documentation~/zh|en/UI.md` 补公开腿签名表（一轨 8 支 + 动态 3 支 + 导航 2 成员 + 取窗 3 支）、载荷双通道、在飞合并与取消分档、停放 TTL 与生命周期钩子隔离政策表。
 
@@ -106,9 +106,9 @@
 - ⚠ 装载失败的窗口不再留在共享栈上：当场回滚出栈且不进停放表，`IsAnyLoading` 不再被失败窗永真。迁移：依赖「开窗失败后窗口仍在栈上」的存量用法（含测试夹具的拒开探针）改走装载成功或 `UIOpenResult` 结果契约。
 - ⚠ 未标 `[Window]` 的窗口类不再可开：`CreateInstance` 查不到注册当场 `GameException` 点名补特性，不再静默兜 `EUILayer.UI` + 10 秒隐藏关闭 + 类型名地址。迁移：存量无特性窗口补 `[Window(…)]`（层级、地址、缓存等取值显式声明）。
 - ⚠ 开窗与关闭默认改瞬时：新增 `IUITransition`（`Play(open, ct)` / `Snap(open)`）与 `UIWindow.Transition` 虚属性（缺位即瞬时）——默认开窗不再有 0.5 秒延迟与半秒输入锁，模态窗不再默认占全局交互压制位；关闭即时停放（缓存窗 `SetActive(false)` 与出栈同帧）。移除 `OpenAnimation` / `CloseAnimation` / `TopRefreshWaiter` 三枚硬编码延迟虚方法。迁移：依赖默认延迟或默认输入锁的窗口改覆写 `Transition` 提供过渡实现；覆写三枚虚方法的存量窗口改实现 `IUITransition`（过渡期间锁交互、接管按取消令牌掐断的语义由窗口代次守卫接办）。
-- ⚠ 窗口状态位封装：`IsLoadDone` / `IsDestroyed` 内部字段收成属性（私有写），`IsHide` / `HideTimerId` / `CacheInstance` / `HideTimeToClose` 的写口收成 internal（读面不变）。迁移：外部直写这些位的用法改为经 `Init`（由注册表描述符接办）或窗口自身流程。
+- ⚠ 窗口状态位封装：`IsLoadDone` / `IsDestroyed` 内部字段收成属性（私有写），`IsHide` / `HideTimerId` / `HideTimeToClose` 的写口收成 internal（读面不变）。迁移：外部直写这些位的用法改为经 `Init`（由注册表描述符接办）或窗口自身流程。
 - ⚠ `UIBase.ChildList` 公共面收成 `IReadOnlyList<UIWidget>`：子级增删由控件创建/销毁流程经内部门缝接办，外部直改列表不再可写。`UIWidget.RestChildCanvas` 更名 `ResetChildCanvas`（拼写修正）。
-- ⚠ `WindowAttribute` 构造器收敛为单一形状 `(EUILayer windowLayer, bool fromResources = false, string location = null, bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit)`：移除整数层级形、`(EUILayer, string location)` 位置形等三个旧重载；特性字段改 PascalCase（`windowLayer`→`WindowLayer` 等，运行期消费方只剩源生成器）。迁移：`[Window(1, "path")]` 的整数层级改枚举或 `(EUILayer)1`；`[Window(EUILayer.UI, "path")]` 的位置地址改 `location:` 命名实参。
+- ⚠ `WindowAttribute` 构造器收敛为单一形状 `(EUILayer windowLayer, string location = null, bool fromResources = false, bool fullScreen = false, int hideTimeToClose = 10, EUIModal modal = EUIModal.Inherit, float cacheTimeToDestroy = 0f)`：移除整数层级形、`(EUILayer, string location)` 位置形等三个旧重载；特性字段改 PascalCase（`windowLayer`→`WindowLayer` 等，运行期消费方只剩源生成器）。迁移：`[Window(1, "path")]` 的整数层级改枚举或 `(EUILayer)1`；`[Window(EUILayer.UI, "path")]` 的位置地址改 `location:` 命名实参。
 - ⚠ 层级枚举更名 `EUILayer`（原 `UILayer`）：与 `EUIModal` / `EUIOpenStatus` 同按命名表的「新代码口径：枚举一律 `E` 前缀」收口；底层类型保持 `int`（它是 `WindowAttribute.WindowLayer` 与深度算术的操作数，不属"运行期状态枚举显式 `: byte`"那一档）。迁移：`[Window(UILayer.UI)]` 改 `[Window(EUILayer.UI)]`，成员名与取值一字未动，除枚举名外没有任何签名形状改变。
 - 模态解耦：新增 `EUIModal` 三态与 `[Window(modal: EUIModal.Modal | NonModal)]` 显式档（继承档缺省按层级结算）；压栈压下层交互位、租约占全局压制位、门面模态查询三处判据统一改读窗口结算的模态位——非模态层可强制模态、模态层可强制非模态（attribute 实参禁 nullable，三态由此枚举表达）。
 - `UIWindow.Init` 收 internal：窗口初始化只经注册表链路与测试接缝，游戏代码经门面开窗不直接初始化。
@@ -120,6 +120,7 @@
 - ⚠ 带载荷窗口基类换形：`class X : UGUIWindow` → `class X : UGUIWindow<MyDto>`（UI Toolkit 轨同形）。不带槽的窗口被塞非空载荷当场 `GameException`（文案带窗口类名，指认漏换基类的调用点），按名命中的窗槽型不符、或门面按名取回的实例不是 `TWindow` 同样抬错并带期望/实际双类型名；抬错排在压栈与卸停放之前说的是停放重取与新开两条支路——既不压半只窗，也不消费停放态（那只实例仍从停放表取得回）；复用支路的 Pop→Push 排在验槽之前（那只窗本就完整在栈，验槽不过抬错，回执与挪序已发生）。迁移口径见 `Documentation~/zh/UIMigration.md` / `Documentation~/en/UIMigration.md`。
 - ⚠ 动态腿（`Type` 形入口）载荷形参由 `params object[]` 改一枚 `UIPayload`（`default` 即空载荷，与 `null` 引用同判）：引用型只存引用（0 分配、到达后引用同一），值类型装箱一次，`To<T>` 失败面为 `GameException`、`TryGet<T>` 回假不抬错。同批 `EUIOpenStatus` 增 `Cancelled = 4`：调用方令牌撤销等待的结果档，与 `Timeout` 分档可辨（`Cancelled` 只说明本次等待以取消落定，装载是否续跑取决于其余等待者（无人在等则回滚），不得当就绪窗用）；撤销的落点按腿分档——void 腿静默回滚出栈不报 Error，等待腿原样上抛 `OperationCanceledException`，结果腿落 `Cancelled`。迁移：`userData: new object[] { dto }` 改 `UIPayload.From(dto)`；原先只判 `Timeout` 的结果消费点一并接住 `Cancelled`。
 - ⚠ 同一只窗装载在途时再开，由「静默覆盖 / 重开发装载」改为**合并在飞 + 载荷 last-wins**：不重开发装载、不压第二只实例，载荷覆盖为最后一枚，`OnRefresh` 只在面板就绪那一次跑并见终载荷。迁移：依赖「两次 Show 各刷一次」的用法改等结果腿交回，或先关再开。
+- ⚠ 缓存两档并成一枚：`[Window]` 的 `cacheInstance` 形参与 `WindowAttribute.CacheInstance` / `UIWindowDescriptor.CacheInstance` / `UIWindow.CacheInstance` 一并删除，停放与 TTL 全由 `cacheTimeToDestroy` 三态表达（`0` = 不缓存、正数 = 停放并到期销毁、负数 = 停放永久）。停放判据从此读那枚浮点的符号，`UIWindow.Init` 也随之少一枚形参（`modal` 前移一位，按位置传到尾参的调用点会当场编译报错）。迁移：`cacheInstance: true` 改 `cacheTimeToDestroy: -1f`；`cacheInstance: true, cacheTimeToDestroy: 秒` 只留那枚秒数；读 `window.CacheInstance` 的改读 `window.CacheTimeToDestroy` 符号或包内 `ParksOnClose`。
 
 #### 文档
 

@@ -54,7 +54,7 @@ namespace Service.UI
         private static TickProbeWindow NewWindow(string name)
         {
             var window = new TickProbeWindow();
-            window.Init(name, (int)EUILayer.UI, false, "Panel", true, 10, false);
+            window.Init(name, (int)EUILayer.UI, false, "Panel", true, 10);
             window.MarkReady();
             return window;
         }

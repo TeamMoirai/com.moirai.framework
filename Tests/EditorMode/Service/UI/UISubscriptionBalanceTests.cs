@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Service.UI
 {
-    [Window(EUILayer.Tips, cacheInstance:true)]
+    [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
     internal class EventProbeWindow : UGUIWindow
     {
         public int RegisterCount;

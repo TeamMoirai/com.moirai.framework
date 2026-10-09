@@ -97,7 +97,7 @@ namespace Service.UI
         public void PanelStateWrites_WhileUnbound_DoNotThrow()
         {
             var window = new ProbeWindow();
-            window.Init(nameof(UGUIWindowTests), 1, false, nameof(ProbeWindow), false, 10, false);
+            window.Init(nameof(UGUIWindowTests), 1, false, nameof(ProbeWindow), false, 10);
 
             Assert.DoesNotThrow(() =>
             {
@@ -129,7 +129,7 @@ namespace Service.UI
         {
             var panel = NewGameObject("NoCanvasPanel");
             var window = Unbound();
-            window.Init("BattleWindow", 1, false, "NoCanvasPanel", false, 10, false);
+            window.Init("BattleWindow", 1, false, "NoCanvasPanel", false, 10);
 
             var error = Assert.Throws<Moirai.Atropos.GameException>(() => window.BindPanel(panel));
 
@@ -160,7 +160,7 @@ namespace Service.UI
         {
             var panel = NewPanel(layer: UIService.WINDOW_SHOW_LAYER);
             var window = new ProbeWindow { Fixture = panel };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
             window.Visible = true;
             window.Depth = 500;
 
@@ -452,7 +452,7 @@ namespace Service.UI
         private static ProbeWindow Loaded(GameObject fixture)
         {
             var window = new ProbeWindow { Fixture = fixture };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
             window.InternalLoad("Panel", null, false);
             return window;
         }
@@ -461,7 +461,7 @@ namespace Service.UI
         private static ProbeWindow Created(GameObject fixture)
         {
             var window = new ProbeWindow { Fixture = fixture };
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
             window.InternalLoad("Panel", w => w.InternalCreate(), false);
             return window;
         }
@@ -470,7 +470,7 @@ namespace Service.UI
         private static ProbeWindow Unbound()
         {
             var window = new ProbeWindow();
-            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10);
             return window;
         }
 

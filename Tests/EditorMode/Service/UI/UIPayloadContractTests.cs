@@ -14,7 +14,7 @@ namespace Service.UI
     }
 
     /// <summary>带 struct 载荷槽的探针窗（缓存实例）：擦除落点计数，面板自带真实物体供停放/重取摸得到。</summary>
-    [Window(EUILayer.Tips, cacheInstance: true)]
+    [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
     internal sealed class SlotProbeWindow : UGUIWindow<ProbeDto>
     {
         /// <summary>擦除通道（<c>Internal_SetPayload(UIPayload)</c>）被叫到的次数：静态腿必须一次都不叫。</summary>
@@ -40,7 +40,7 @@ namespace Service.UI
     }
 
     /// <summary>带 class 载荷槽的探针窗（缓存实例）：与 struct 那一枚同形，判引用同一性。</summary>
-    [Window(EUILayer.Tips, cacheInstance: true)]
+    [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
     internal sealed class SlotRefProbeWindow : UGUIWindow<object>
     {
         /// <summary>擦除通道被叫到的次数。</summary>

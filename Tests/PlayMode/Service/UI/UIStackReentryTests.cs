@@ -361,7 +361,7 @@ namespace Service.UI
         }
 
         /// <summary>关闭回叫里开窗的探针窗（缓存实例）：<c>OnClose</c> 里经载荷腿开出 B，用来判回叫链上的事件与载荷。</summary>
-        [Window(EUILayer.Tips, cacheInstance: true)]
+        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
         internal sealed class ReentryAWindow : UGUIWindow
         {
             /// <summary>回叫是否真把 B 开出去了（用例出门前归零）。</summary>

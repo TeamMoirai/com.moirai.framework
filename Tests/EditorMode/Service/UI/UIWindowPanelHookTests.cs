@@ -26,7 +26,7 @@ namespace Service.UI
         public void Load_SyncPanel_DrivesPanelHooksInContractOrder()
         {
             var window = new HookProbeWindow();
-            window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10);
 
             window.InternalLoad("Panel", _ => window.Calls.Add("PrepareCallback"), false);
 
@@ -47,7 +47,7 @@ namespace Service.UI
         public void Load_AfterIntentWrites_AppliesCurrentIntentNotDefaults()
         {
             var window = new HookProbeWindow();
-            window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10);
             window.Visible = true;
             window.Depth = 2200;
             window.Interactable = false;
@@ -70,7 +70,7 @@ namespace Service.UI
         {
             // 直挂 UIWindow：UGUIWindow 的 LoadPanel 会真去要资源，这里要钉的是基类默认实现
             var window = new BareWindow();
-            window.Init(nameof(BareWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(BareWindow), 1, false, "Panel", false, 10);
             var called = false;
 
             // 装载失败收口的那一条 Error（失败必须报出来，不许静默）
@@ -206,7 +206,7 @@ namespace Service.UI
         [Test]
         public void Destroy_CachedInstance_RoutesToParkPanel()
         {
-            var window = Created(true);
+            var window = Created(-1f);
 
             window.InternalDestroy();
 
@@ -218,7 +218,7 @@ namespace Service.UI
         [Test]
         public void Destroy_NonCached_RoutesToDestroyPanel()
         {
-            var window = Created(false);
+            var window = Created(0f);
 
             window.InternalDestroy();
 
@@ -234,7 +234,7 @@ namespace Service.UI
         private static HookProbeWindow Loaded()
         {
             var window = new HookProbeWindow();
-            window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10, false);
+            window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10);
             window.InternalLoad("Panel", null, false);
             window.Calls.Clear();
             return window;
@@ -244,10 +244,10 @@ namespace Service.UI
         /// 同上再走一遍创建（<c>InternalCreate</c>），使 <c>_isCreate</c> 为真——<c>OnSetVisible</c> 与「转可见结算脏位」都以它为门槛。
         /// </summary>
         /// <remarks>准备回调里直调 <c>InternalCreate</c>，与生产侧 <c>UIWindowLedger.OnWindowPrepare</c> 同形；不开动画、不入栈，故不碰 <c>UIService</c> 的处理器。</remarks>
-        private static HookProbeWindow Created(bool cacheInstance = false)
+        private static HookProbeWindow Created(float cacheTimeToDestroy = 0f)
         {
             var window = new HookProbeWindow();
-            window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10, cacheInstance);
+            window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10, cacheTimeToDestroy: cacheTimeToDestroy);
             window.InternalLoad("Panel", w => w.InternalCreate(), false);
             window.Calls.Clear();
             return window;

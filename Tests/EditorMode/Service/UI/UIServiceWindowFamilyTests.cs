@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Reflection;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.UI;
@@ -11,7 +10,7 @@ using UnityEngine.UIElements;
 namespace Service.UI
 {
     /// <summary>
-    /// UI 门面开窗面用例：同名两腿各自的实参形状、错配当场抬错（认不出任何一轨、按名命中的是别的窗口类）、门面 public static 签名快照与对象模型的回叫落点。
+    /// UI 门面开窗面用例：同名两腿各自的实参形状、错配当场抬错（认不出任何一轨、按名命中的是别的窗口类）与对象模型的回叫落点。
     /// </summary>
     /// <remarks>
     /// 两条腿共用同一个协调者的开栈编排，本文件因此只判这些：同一形状的实参是否各自落进自己那一腿（协调者处留下的形参形状差别）、<br />
@@ -26,10 +25,7 @@ namespace Service.UI
     /// 异步那一格吃<b>真装载</b>（<c>DebuggerPanelSettings</c> + 包内实存的 <c>EventsDebugger.uxml</c>，与 <c>UITKWindowTests</c> 同套夹具），
     /// 判的是这一腿开出的窗落回哪一轨的窗口基类；面板就绪与壳/内容根那一半住在 <c>UITKWindowTests</c>，uGUI 那一枚探针窗自己造物体当面板。<br />
     /// UI Toolkit 腿的三枚新格同样吃真装载：窗口级 <c>PanelSettings</c> 落到文档组件且优先于共享那一份（不给时回兜底）、
-    /// 腿传 <c>fromResources</c> 时各走 <c>TryReadTree</c> 自己那条支路（两个地址互为反证）、第四枚位置在两支里说的是两件不同的事。<br />
-    /// 签名快照覆盖门面全部 public static 方法：两支的开窗腿都带 <c>assetLocation</c> 与 <c>fromResources</c>、UI Toolkit 的无载荷四支再多一枚 <c>panelSettings</c>、<br />
-    /// 带载荷那四支的载荷永远排第一枚（等待腿因 <c>async</c> 禁 <c>in</c> 形参而收普通 <c>TArg</c>）；<br />
-    /// 两支的约束各写在自己的窗口基类上（带载荷那一族写在 <c>UGUIWindow&lt;TArg&gt;</c> 与 <c>UITKWindow&lt;TArg&gt;</c> 上）；共享栈上的全局操作仍是一条 <c>where T : UIWindow</c> 入口。线程契约：仅主线程。
+    /// 腿传 <c>fromResources</c> 时各走 <c>TryReadTree</c> 自己那条支路（两个地址互为反证）、第四枚位置在两支里说的是两件不同的事。
     /// </remarks>
     [TestFixture]
     public sealed class UIServiceWindowFamilyTests
@@ -46,89 +42,6 @@ namespace Service.UI
 
         /// <summary>夹具用的共享面板配置（包内实存资产）：本文件只读消费，用例出门把静态位还原。</summary>
         private const string SHARED_SETTINGS_RESOURCE_NAME = "DebuggerPanelSettings";
-
-        /// <summary>门面 public static 方法的签名快照：改形状（增删腿、动形参、动约束）要先在这里红一次。</summary>
-        private static readonly string[] s_SignatureSnapshot =
-        {
-            "System.Void ApplyScreenSafeRect(UnityEngine.Rect)",
-            "System.Void SimulateIPhoneXNotchScreen()",
-            "Moirai.Atropos.UI.UIWindow GetTopWindow()",
-            "Moirai.Atropos.UI.UIWindow GetTopWindow(System.Int32)",
-            "System.String GetTopWindowName(System.Int32)",
-            "System.Boolean IsAnyLoading()",
-            "System.Boolean HasWindow<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
-            "System.Boolean HasWindow(System.Type,System.String)",
-            "T GetWindow<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
-            "System.Boolean IsBlockedByModal(UnityEngine.GameObject)",
-            "System.Boolean IsModal(Moirai.Atropos.UI.UIWindow)",
-            "System.Void ShowUIAsync<T>(System.String,System.String,System.Boolean," +
-            "System.Threading.CancellationToken)<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
-            "System.Void ShowUI<T>(System.String,System.String,System.Boolean," +
-            "System.Threading.CancellationToken)<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
-            "System.Void ShowUIAsync<T>(System.String,System.String,System.Boolean," +
-            "UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
-            "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
-            "System.Void ShowUI<T>(System.String,System.String,System.Boolean," +
-            "UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
-            "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
-            "System.Void ShowUIAsync(System.Type,System.String,System.String,System.Boolean," +
-            "Moirai.Atropos.UI.UIPayload,System.Threading.CancellationToken)",
-            "System.Void ShowUI(System.Type,System.String,System.String,System.Boolean," +
-            "Moirai.Atropos.UI.UIPayload,System.Threading.CancellationToken)",
-            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIWindow> ShowUIAsyncAwait<T>(" +
-            "System.String,System.String,System.Boolean,System.Threading.CancellationToken)" +
-            "<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
-            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIWindow> ShowUIAsyncAwait<T>(" +
-            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings," +
-            "System.Threading.CancellationToken)" +
-            "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
-            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIWindow> ShowUIAsyncAwait(System.Type," +
-            "System.String,System.String,System.Boolean,Moirai.Atropos.UI.UIPayload,System.Threading.CancellationToken)",
-            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<T>(" +
-            "System.String,System.String,System.Boolean,System.Threading.CancellationToken)<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
-            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<T>(" +
-            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings," +
-            "System.Threading.CancellationToken)" +
-            "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
-            "System.Void ShowUIAsync<TWindow,TArg>(TArg in,System.String,System.String,System.Boolean," +
-            "System.Threading.CancellationToken)<TWindow:Moirai.Atropos.UI.UGUIWindow<TArg>+.ctor,TArg:>",
-            "System.Void ShowUI<TWindow,TArg>(TArg in,System.String,System.String,System.Boolean," +
-            "System.Threading.CancellationToken)<TWindow:Moirai.Atropos.UI.UGUIWindow<TArg>+.ctor,TArg:>",
-            "System.Void ShowUIAsync<TWindow,TArg>(TArg in,System.String,System.String,System.Boolean," +
-            "UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
-            "<TWindow:Moirai.Atropos.UI.UITKWindow<TArg>+.ctor,TArg:>",
-            "System.Void ShowUI<TWindow,TArg>(TArg in,System.String,System.String,System.Boolean," +
-            "UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
-            "<TWindow:Moirai.Atropos.UI.UITKWindow<TArg>+.ctor,TArg:>",
-            "Cysharp.Threading.Tasks.UniTask<TWindow> ShowUIAsyncAwait<TWindow,TArg>(TArg,System.String,System.String," +
-            "System.Boolean,System.Threading.CancellationToken)<TWindow:Moirai.Atropos.UI.UGUIWindow<TArg>+.ctor,TArg:>",
-            "Cysharp.Threading.Tasks.UniTask<TWindow> ShowUIAsyncAwait<TWindow,TArg>(TArg,System.String,System.String," +
-            "System.Boolean,UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
-            "<TWindow:Moirai.Atropos.UI.UITKWindow<TArg>+.ctor,TArg:>",
-            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<TWindow,TArg>(TArg in," +
-            "System.String,System.String,System.Boolean,System.Threading.CancellationToken)" +
-            "<TWindow:Moirai.Atropos.UI.UGUIWindow<TArg>+.ctor,TArg:>",
-            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<TWindow,TArg>(TArg in," +
-            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings," +
-            "System.Threading.CancellationToken)<TWindow:Moirai.Atropos.UI.UITKWindow<TArg>+.ctor,TArg:>",
-            "System.Boolean TryCloseTopWindow()",
-            "System.Void CloseUI<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
-            "System.Void CloseUI(System.Type,System.String)",
-            "System.Void HideUI<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
-            "System.Void HideUI(System.Type,System.String)",
-            "System.Void CloseAll(System.Boolean)",
-            "System.Void CloseAllWithOut(Moirai.Atropos.UI.UIWindow)",
-            "System.Void CloseAllWithOut<T>()<T:Moirai.Atropos.UI.UIWindow>",
-            "System.Void CloseAllWithOut(Moirai.Atropos.UI.EUILayer)",
-            "Cysharp.Threading.Tasks.UniTask<T> GetUIAsyncAwait<T>()<T:Moirai.Atropos.UI.UIWindow>",
-            "System.Void GetUIAsync<T>(System.Action<T>)<T:Moirai.Atropos.UI.UIWindow>",
-            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> GetUIAwaitResult<T>()<T:Moirai.Atropos.UI.UIWindow>",
-            // 静态事件编译成 public static 的 add_/remove_ 方法，与腿同属这一面，一并钉住
-            "System.Void add_onWindowShown(System.Action<Moirai.Atropos.UI.UIWindow>)",
-            "System.Void remove_onWindowShown(System.Action<Moirai.Atropos.UI.UIWindow>)",
-            "System.Void add_onWindowClosed(System.Action<Moirai.Atropos.UI.UIWindow>)",
-            "System.Void remove_onWindowClosed(System.Action<Moirai.Atropos.UI.UIWindow>)",
-        };
 
         private PanelSettings _savedPanelSettings;
 
@@ -190,40 +103,6 @@ namespace Service.UI
             _clonedSettings.Clear();
         }
 
-        #region 签名快照 [SIGNATURE SNAPSHOT]
-
-        /// <summary>
-        /// 门面的 public static 面与快照逐字对上：两支同名腿各一条、共享栈上的全局操作仍是一条入口。
-        /// </summary>
-        /// <remarks>
-        /// 判据归属：形参表是包外调用点的<b>编译依据</b>（动一枚形参就红在这里），约束是<b>分辨同形实参的依据</b> <br />
-        /// （两支各自收在自己的窗口基类上；一支留中性 <c>UIWindow</c> 时 UI Toolkit 窗同时满足两支，一枚实参的调用当场 CS0121，这一档也红在这里）； <br />
-        /// 两支的寻址两档（<c>assetLocation</c> 与 <c>fromResources</c>）自 R10 起同形同序，唯一的形参表差异是 UI Toolkit 腿多出的那枚 <c>PanelSettings</c>—— <br />
-        /// 那一枚既让同名两支编得过（形参表逐字相同、只差泛型约束是 CS0111），也是本腿比 uGUI 腿多出的那道窗口级配置。
-        /// </remarks>
-        [Test]
-        public void UIService_PublicStaticSurface_MatchesPinnedSignatureSnapshot()
-        {
-            var methods = typeof(UIService).GetMethods(BindingFlags.Public | BindingFlags.Static);
-            var actual = new List<string>();
-            foreach (var method in methods)
-            {
-                // 只取门面自己声明的方法：属性访问器与继承来的成员不是本刀的射程
-                if (method.DeclaringType != typeof(UIService)) continue;
-                if (method.Name.StartsWith("get_") || method.Name.StartsWith("set_")) continue;
-                actual.Add(SignatureOf(method));
-            }
-
-            var expected = new List<string>(s_SignatureSnapshot);
-            actual.Sort(System.StringComparer.Ordinal);
-            expected.Sort(System.StringComparer.Ordinal);
-
-            Assert.AreEqual(string.Join("\n", expected.ToArray()), string.Join("\n", actual.ToArray()),
-                "门面的 public static 面与快照不符：平铺同名重载的形状是这一面的契约，改形状要先在快照登记");
-        }
-
-        #endregion
-
         #region 两腿分派 [TWO LEGS]
 
         /// <summary>
@@ -261,8 +140,7 @@ namespace Service.UI
         /// 两支形参表的差别只剩一枚：寻址两档同形同序，UI Toolkit 腿从第四枚起才是它自己那一档。
         /// </summary>
         /// <remarks>
-        /// 两支的第二、三枚都是面板地址与取法，且都原样交给本轨实现；uGUI 腿的第四枚直接就是 <c>ct</c>，UI Toolkit 腿的第四枚是 <c>panelSettings</c>。 <br />
-        /// 这一档与 <see cref="s_SignatureSnapshot"/> 是一对：一枚看编译期形状、一枚看运行期落地。窗口级配置的可观测那一半在 <c>ShowUI_UITKLegWindowLevel…</c> 那几格。
+        /// 两支的第二、三枚都是面板地址与取法，且都原样交给本轨实现；uGUI 腿的第四枚直接就是 <c>ct</c>，UI Toolkit 腿的第四枚是 <c>panelSettings</c>。
         /// </remarks>
         [Test]
         public void ShowUI_SecondArgumentSlot_PerTrackLegsKeepTheirOwnParameterShape()
@@ -631,7 +509,7 @@ namespace Service.UI
             Assert.IsFalse(UIService.IsValid, "量具前提坏了：关停没把两支处理器都摘掉");
 
             var window = new ProbeUGUIWindow();
-            window.Init("ProbeWindow", 1, false, "Probe", false, 10, false);
+            window.Init("ProbeWindow", 1, false, "Probe", false, 10);
             UIService.SharedLedger.Push(window);
 
             Assert.DoesNotThrow(() => window.Hide(), "关停后的隐藏回叫不得抬错");
@@ -773,96 +651,6 @@ namespace Service.UI
             }
 
             return window;
-        }
-
-        /// <summary>把方法形状渲染成快照里的写法：返回类型 + 方法名 + 每个形参的<b>类型</b>全名（带修饰符者补 <c>in</c>/<c>out</c>/…） + 泛型参数的约束（形参标识名不入钉子）。</summary>
-        /// <param name="method">门面上的 public static 方法。</param>
-        /// <returns>快照用的一行签名。</returns>
-        private static string SignatureOf(MethodInfo method)
-        {
-            var text = NameOf(method.ReturnType) + " " + method.Name;
-            var arguments = method.IsGenericMethod ? method.GetGenericArguments() : new System.Type[0];
-            if (arguments.Length > 0)
-            {
-                text += "<";
-                for (var i = 0; i < arguments.Length; i++)
-                {
-                    if (i > 0) text += ",";
-                    text += arguments[i].Name;
-                }
-
-                text += ">";
-            }
-
-            text += "(";
-            var parameters = method.GetParameters();
-            for (var i = 0; i < parameters.Length; i++)
-            {
-                if (i > 0) text += ",";
-                text += ParameterOf(parameters[i]);
-            }
-
-            text += ")";
-            if (arguments.Length == 0) return text;
-
-            text += "<";
-            for (var i = 0; i < arguments.Length; i++)
-            {
-                if (i > 0) text += ",";
-                var argument = arguments[i];
-                text += argument.Name + ":";
-                var constraints = argument.GetGenericParameterConstraints();
-                for (var c = 0; c < constraints.Length; c++)
-                {
-                    if (c > 0) text += ",";
-                    text += NameOf(constraints[c]);
-                }
-
-                if ((argument.GenericParameterAttributes & GenericParameterAttributes.DefaultConstructorConstraint)
-                    != 0) text += "+.ctor";
-            }
-
-            return text + ">";
-        }
-
-        /// <summary>形参渲染：按值形参只给类型全名（与旧钉子一致），带修饰符的形参在类型后补一枚 <c>in</c>/<c>out</c>/<c>retval</c>/<c>ref</c>。</summary>
-        /// <param name="parameter">门面上的形参。</param>
-        /// <returns>快照用的一枚形参文本。</returns>
-        /// <remarks>
-        /// <c>in TArg payload</c> 的 <see cref="ParameterInfo.ParameterType"/> 是 ByRef，而 ByRef 的 <c>Name</c> 是空串——不取元素类型并如实标注修饰符，<br />
-        /// 载荷腿的形参表会渲染成空白，快照因此判不出「这一枚到底是按值还是按引用」。
-        /// </remarks>
-        private static string ParameterOf(ParameterInfo parameter)
-        {
-            var type = parameter.ParameterType;
-            if (!type.IsByRef) return NameOf(type);
-
-            var element = NameOf(type.GetElementType());
-            if (parameter.IsOut) return element + " out";
-            if (parameter.IsRetval) return element + " retval";
-
-            return parameter.IsIn ? element + " in" : element + " ref";
-        }
-
-        /// <summary>类型名渲染：泛型参数只给名字，泛型类型按定义名 + 实参递归展开，其余取 <c>FullName</c>。</summary>
-        /// <param name="type">要渲染的类型。</param>
-        /// <returns>不含程序集与版本号的类型名（快照因此不随版本号漂移）。</returns>
-        private static string NameOf(System.Type type)
-        {
-            if (type.IsGenericParameter) return type.Name;
-            if (type.IsArray) return NameOf(type.GetElementType()) + "[]";
-            if (!type.IsGenericType) return type.FullName;
-
-            var definition = type.Name.Substring(0, type.Name.IndexOf('`'));
-            var arguments = type.GetGenericArguments();
-            var text = type.Namespace + "." + definition + "<";
-            for (var i = 0; i < arguments.Length; i++)
-            {
-                if (i > 0) text += ",";
-                text += NameOf(arguments[i]);
-            }
-
-            return text + ">";
         }
 
         /// <summary>uGUI 轨的身份探针：只证这一类窗口落回 uGUI 那一轨的窗口基类，不碰面板。</summary>

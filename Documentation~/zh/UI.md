@@ -35,7 +35,7 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 - 最小导航：`NavigationDepth` 与 `TryCloseTopWindow()` 按**开启序**回答「最近开的是谁」（栈按层级排序答不出这一问），关顶走既有 `CanClose` 政策
 - 生命周期钩子隔离：钩子抛出「隔离并继续」，全手工 try/catch 不包 lambda（每帧路径零分配），政策表见〈生命周期钩子隔离〉
 - 全屏窗口优化：全屏窗口之下的窗口自动隐藏，减少渲染与更新开销
-- 窗口缓存：`cacheInstance` 关闭时不销毁，再次打开直接复用实例；停放窗可选 TTL——`cacheTimeToDestroy` 秒到期由账本移出停放表并销毁，`0` = 永久（现行语义），重新取用即取消计时
+- 窗口缓存：`cacheTimeToDestroy` 一枚管三档——`0` = 不缓存（关闭即销毁，缺省即此）、正数 = 停放并在这么多秒后由账本移出停放表并销毁、负数 = 停放永久；停放窗再次打开直接复用实例，重新取用即取消计时
 - Widget 子控件：窗口内嵌控件复用同一套生命周期，支持按节点 / 资源路径 / prefab 创建
 - 多分辨率适配：安全区域（刘海屏）适配、`UIAdapter` 布局适配器（横向 / 纵向 / 环形 / 安全区）
 - 编辑器代码生成：`GameObject/ScriptGenerator` 菜单自动生成 UI 绑定代码
@@ -80,8 +80,8 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 ```csharp
 using Moirai.Atropos.UI;
 
-// 层级 Popup、非全屏、关闭后缓存实例
-[Window(EUILayer.Popup, location: "MainWindow", fullScreen: false, cacheInstance: true)]
+// 层级 Popup、非全屏、关闭后停放（负数 = 永久停放；填正数即到期销毁）
+[Window(EUILayer.Popup, location: "MainWindow", fullScreen: false, cacheTimeToDestroy: -1f)]
 public class MainWindow : UGUIWindow
 {
     protected override void ScriptGenerator() { }   // 生成的绑定代码在此重写
@@ -217,7 +217,6 @@ UIService.ShowUIAsync(type, windowName, UIManager.ResolveWindowLocation(windowNa
 - 不带槽的窗口（直继 `UGUIWindow` / `UITKWindow`）被塞非空载荷当场抬错——fail-fast，不静默吞；空载荷作用于无槽窗是合法档（无载荷腿一路走这一档）
 - 按名命中的窗槽型不符（`SetPayloadChecked` 认 `IUIPayloadSlot<TArg>`）、或门面按名取回的实例不是 `TWindow`，都抬 `GameException` 且消息带期望/实际类型名；「抬错排在卸停放与压栈之前」说的是**停放重取与新开**这两条支路，因此既不压半只窗、也不消费停放态（那只实例仍从停放表取得回）；复用支路的 Pop→Push 排在验槽之前（见上一条），抬错时回执与挪序都已发生
 - `UIPayload` 的失败面：`To<T>` 在类型不符、或空载荷作用于值类型时抬 `GameException`（消息带期望类型名）；`TryGet<T>` 回假不抬错；`From(null)` 归约为 `Empty`
-- `UIWindowEvent` 已整体退役：开窗不再有「发事件 + 订阅者转手」那一段，带载荷与否都直调门面腿，去向见 [UI 迁移指南](UIMigration.md)
 - 分配档位：无载荷往返（停放重取稳态）、静态腿 struct/class 载荷、动态腿 class 载荷都承诺增量 0；只有动态腿的基元/值类型载荷允许装箱一次。量具是 `GC.GetAllocatedBytesForCurrentThread`（本线程口径；L3 `[Explicit]` 基准格 `UIOpenAllocBenchmarkTests`，实测字节导出 `Temp/ui-open-alloc-benchmark.txt`——编辑器 Mono 下这一口径恒 0，真判据以玩家侧报告为准）
 
 ### 在飞合并与取消语义
@@ -365,7 +364,7 @@ public class RenameWindow : UGUIWindow
 
 ## 注意事项
 
-- uGUI 轨的 UI 根由场景物体上的 `UIRootBinding` 组件登记（其下需含 `Canvas`）：`SingletonMono` 先到先得，后到者整物体销毁；取用走 `TryGetInstance()`，只回读、不自动创建。后端在首个 Update tick 取用，缺绑定报一条 Error、缺 Canvas 报一条 Fatal，之后都每帧续等（后加入的场景、运行期实例化的根、事后补上的 Canvas 都补得上）。登记到位后 UI 根自动 `DontDestroyOnLoad`（仅播放态）。**已不再按物体名字查找**——改名不报编译错、多场景/热更下同名还可能命中错的根。UI Toolkit 轨的文档壳也挂在这枚根下，关停时它先于根销毁被收走。
+- uGUI 轨的 UI 根由场景物体上的 `UIRootBinding` 组件登记（其下需含 `Canvas`）：`SingletonMono` 先到先得，后到者整物体销毁；取用走 `TryGetInstance()`，只回读、不自动创建。后端在首个 Update tick 取用，缺绑定报一条 Error、缺 Canvas 报一条 Fatal，之后都每帧续等（后加入的场景、运行期实例化的根、事后补上的 Canvas 都补得上）。登记到位后 UI 根自动 `DontDestroyOnLoad`（仅播放态）。**查找不按物体名字**——改名不影响，多场景/热更下同名也不会错挂根。UI Toolkit 轨的文档壳也挂在这枚根下，关停时它先于根销毁被收走。
 - `ShowUI` 同步加载依赖资源服务的同步加载能力，WebGL 下自动退化为异步；建议优先使用 `ShowUIAsync`
 - `HideUI` 仅当窗口 `HideTimeToClose > 0` 时生效，否则等同直接 `CloseUI`
 - `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` 只等待"已打开"窗口的加载完成，窗口不存在时返回 null / 不回调
@@ -373,9 +372,9 @@ public class RenameWindow : UGUIWindow
 - 带载荷窗口必须继承 `UGUIWindow<TArg>` / `UITKWindow<TArg>`：直继无槽基类却被塞非空载荷当场抬错。载荷每次开窗覆盖、关闭不清（残留到下一次覆盖为止），无「读一次即清」的语义
 - 基元与 struct 的主路是静态腿 `in TArg`（泛型直塞、零装箱）；`UIPayload` 只服务运行期才知 `Type` 的动态腿，值类型经它装箱一次——热路径别把 struct 塞进动态腿
 - 全腿的 `CancellationToken` 传 `default` 零开销，且只在装载在途那一段被消费：已就绪的复用与停放重取不消费 `ct`；复用一只仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载（与在飞合并同段语义）
-- 窗口开合回执走门面静态广播：`UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent`（形参 `UIWindow`），入栈/出栈各恰一次、停放与销毁都发；不再经 `EventManager` 派发（`UIServiceEvent` 已删），订阅者自己配对退订，门面关停与归零门会整批摘掉
-- 停放窗可选 TTL：`[Window(cacheInstance: true, cacheTimeToDestroy: 秒)]`，`0` = 永久（现行语义），只配合 `cacheInstance` 生效；到期由账本移出停放表并终态销毁，重新取用即取消计时
-- `UIWindowEvent` 已整体退役：开合窗不再经事件转手，调用点直调门面腿即时执行；`UIManager` 只剩寻址职责，动态腿的寻址经公共静态定位口 `UIManager.ResolveWindowLocation` / `UIManager.ResolveFromResources`。定位口吃的是 `SingletonMono.Instance` 语义：场景里没有实例时现场物化一枚裸 `UIManager`（默认配置表档），应用退出/播放停止的关停窗口内取不到实例则抬 `GameException`——消费方应在服务就绪守卫之后再调
+- 窗口开合回执走门面静态广播：`UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent`（形参 `UIWindow`），入栈/出栈各恰一次、停放与销毁都发；订阅者自己配对退订，门面关停与归零门会整批摘掉
+- 停放档一枚三态：`[Window(cacheTimeToDestroy: …)]`，`0` = 不缓存（关闭即销毁，缺省即此）、正数 = 停放并在这么多秒后转销毁、负数 = 停放永久；到期由账本移出停放表并终态销毁，重新取用即取消计时
+- `UIManager` 承担寻址职责：动态腿的寻址经公共静态定位口 `UIManager.ResolveWindowLocation` / `UIManager.ResolveFromResources`。定位口吃的是 `SingletonMono.Instance` 语义：场景里没有实例时现场物化一枚裸 `UIManager`（默认配置表档），应用退出/播放停止的关停窗口内取不到实例则抬 `GameException`——消费方应在服务就绪守卫之后再调
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI 迁移](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)
