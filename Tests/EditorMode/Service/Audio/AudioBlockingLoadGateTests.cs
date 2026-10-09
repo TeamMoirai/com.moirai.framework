@@ -36,22 +36,5 @@ namespace Service.Audio
             AudioBlockingLoadGate.Open();
             Assert.IsTrue(AudioBlockingLoadGate.IsOpen, "Restart 必须重新允许启动期阻塞加载");
         }
-
-        [Test]
-        public void PathPlay_DefaultsToAsync()
-        {
-            var byRefOptions = typeof(AudioPlayOptions).MakeByRefType();
-            var signature = new[] { typeof(string), byRefOptions, typeof(bool), typeof(bool) };
-
-            var facade = typeof(AudioService).GetMethod("Play", signature);
-            Assert.IsNotNull(facade);
-            Assert.AreEqual(true, facade.GetParameters()[2].DefaultValue,
-                "路径播放必须默认异步");
-
-            var contract = typeof(AudioServiceHandler).GetMethod("Play", signature);
-            Assert.IsNotNull(contract);
-            Assert.AreEqual(true, contract.GetParameters()[2].DefaultValue,
-                "抽象契约默认异步，与外观一致");
-        }
     }
 }

@@ -12,7 +12,7 @@ namespace Policy
     /// </summary>
     /// <remarks>
     /// 《测试规范》规定测试不得用反射读写字段：反射把字段名变成测试依赖，改名不报编译错、只在运行期取字段得到 null 后 NRE；需要触达的成员应放宽为 <c>internal</c>（编译器把关）。 <br />
-    /// 白名单三类正当用途：① 契约形状守卫（遍历 API 形状 / 读标注，只能反射）；② 唤起 Unity 生命周期回调（<c>Awake</c>/<c>OnEnable</c>/<c>OnInit</c>/<c>OnValidate</c>， <br />
+    /// 白名单三类正当用途：① 行为契约守卫（断成员标注 / 触达条件编译成员，只能反射）；② 唤起 Unity 生命周期回调（<c>Awake</c>/<c>OnEnable</c>/<c>OnInit</c>/<c>OnValidate</c>， <br />
     /// EditMode 不自动跑）；③ 产码字段探针；另有两个基础设施桥需探 Unity/UTF 内部成员。 <br />
     /// 白名单双向断言：未登记的不得出现该模式，已登记的必须仍存在且仍命中，否则名单腐烂。结构与 <see cref="TestLogChannelPolicyGuardTests"/> 同构。
     /// </remarks>
@@ -33,12 +33,10 @@ namespace Policy
             ["EditorMode/TestRequestRunner.cs"] = "桥：探 TestRunnerApi.IsRunning / IsRunActive",
             ["EditorMode/TestPlayerRunnerWindow.cs"] = "测试工具窗：探 TestRunnerApi.IsRunning / IsRunActive（与测试桥同款探针）",
 
-            // ── ① 契约形状守卫 ──
-            ["EditorMode/Core/GameApp/PlayerLoopDriverTests.cs"] = "形状守卫：读私有静态入口的 [RuntimeInitializeOnLoadMethod] 属性",
-            ["EditorMode/Service/Resource/AddressableHandlerFailFastTests.cs"] = "形状守卫：遍历方法集断言 fail-fast 面",
-            ["EditorMode/Service/Resource/ResourceSeamShapeGuardTests.cs"] = "形状守卫：统计抽象成员 / internal abstract / [Obsolete]",
-            ["EditorMode/Service/Resource/ResourceMethodSetContractTests.cs"] = "形状守卫：连非公开成员一起遍历方法集，断言返回 IResourceOperation 的名单",
-            ["EditorMode/Service/Resource/YooAssetHandlerSmokeTests.cs"] = "形状守卫：断言运行期数组字段带 [NonSerialized]",
+            // ── ① 行为契约守卫 ──
+            ["EditorMode/Core/GameApp/PlayerLoopDriverTests.cs"] = "行为契约守卫：读私有静态入口的 [RuntimeInitializeOnLoadMethod] 属性",
+            ["EditorMode/Service/Resource/AddressableHandlerFailFastTests.cs"] = "行为契约守卫：遍历方法集断言 fail-fast 面",
+            ["EditorMode/Service/Resource/YooAssetHandlerSmokeTests.cs"] = "行为契约守卫：断言运行期数组字段带 [NonSerialized]",
 
             // ── ② 唤起 Unity 生命周期回调（EditMode 不自动执行） ──
             ["EditorMode/Core/Singleton/SingletonMonoTests.cs"] = "生命周期：Awake / OnDestroy",
@@ -85,7 +83,7 @@ namespace Policy
                 "以下测试文件新增了非公开反射，但《测试规范》禁止测试用反射读写字段。\n" +
                 "正确做法：把需要触达的成员从 private 放宽到 internal（Runtime/AssemblyInfo.cs 已对三个测试程序集开 InternalsVisibleTo），\n" +
                 "已有窄接缝的成员走生成的 Internal_PeekHandler()/Internal_UseHandler(next)（UI 门面除外：它没有换入接缝），或新增 Internal_* 接缝。\n" +
-                "若确属白名单三类（契约形状守卫 / 生命周期唤起 / 产码字段探针），把它登记进 ReflectionPolicyGuardTests.Allowlist 并写明归类。\n" +
+                "若确属白名单三类（行为契约守卫 / 生命周期唤起 / 产码字段探针），把它登记进 ReflectionPolicyGuardTests.Allowlist 并写明归类。\n" +
                 "命中文件：\n  " + string.Join("\n  ", offenders));
         }
 

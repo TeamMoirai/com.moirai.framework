@@ -23,10 +23,10 @@ namespace Service.UI
     /// hit-test 查询 API，只能派真事件再断「谁收到了」。 <br />
     /// 投递坐标：面板矩形以<b>左上</b>为原点，<see cref="Mouse.position"/> 以<b>左下</b>为原点，本文件按
     /// <see cref="PanelYOriginIsTopLeft"/> 换算一次；点击点一律取<b>版式之后量到的</b> <c>worldBound</c>，不假设屏幕尺寸。
-    /// 两枚盒子的相对位置让中心点在 Y 翻转下不动、且「只盖住下面那一枚」的点在两种口径下都落在同一侧，
+    /// 两个盒子的相对位置让中心点在 Y 翻转下不动、且「只盖住下面那个」的点在两种口径下都落在同一侧，
     /// 于是正对照的绿红不取决于原点约定，只取决于派发本身通不通。 <br />
     /// 版式前提：元素未 attach 就没有可命中的矩形，投点前一律 <see cref="PumpUntil"/> 等到 <c>worldBound</c> 有宽度为止；
-    /// 等不到就把现场读数（屏幕尺寸、<c>root.panel</c> 是否为空、两枚 <c>worldBound</c>）交回失败消息——
+    /// 等不到就把现场读数（屏幕尺寸、<c>root.panel</c> 是否为空、两个 <c>worldBound</c>）交回失败消息——
     /// 那些读数是「本环境能否机器证拾取」的唯一凭据。 <br />
     /// 运行前提与共存生命周期夹具同源：播放态框架已自动 Boot，开窗一律走门面 <see cref="UIService"/> 落到那一份生产
     /// 协调者（<see cref="UGUIHandler"/> 兼任），夹具不自建协调者、不经换入换出接缝。UI Toolkit 的共享
@@ -37,7 +37,7 @@ namespace Service.UI
     public sealed class UIMixedPickingTests : InputTestFixture
     {
         /// <summary>投递坐标的 Y 原点口径：<b>真</b> 表示面板按左上原点换算成 <c>Mouse.position</c>（左下原点）。</summary>
-        /// <remarks>第一次红只改这一枚口径（连同它下面的换算），不动任何断言；翻完仍红才归因到量具。</remarks>
+        /// <remarks>第一次红只改这个口径（连同它下面的换算），不动任何断言；翻完仍红才归因到量具。</remarks>
         private const bool PanelYOriginIsTopLeft = true;
 
         /// <summary>等版式落定的上界（秒，真实时间）：超过即把现场读数交回用例判红，不写无限等。</summary>
@@ -52,7 +52,7 @@ namespace Service.UI
         private Mouse _mouse;
         private readonly List<GameObject> _trackedPanels = new List<GameObject>();
 
-        /// <summary>进门把包内那枚带主题的夹具配置交 UI Toolkit 后端使用；取不到就红在前提上。</summary>
+        /// <summary>进门把包内那个带主题的夹具配置交 UI Toolkit 后端使用；取不到就红在前提上。</summary>
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -113,13 +113,13 @@ namespace Service.UI
         #region 量具正对照 [POSITIVE CONTROL]
 
         /// <summary>
-        /// 正对照：同一枚面板里叠两盒，后加入的那一枚盖在先加入的上面；真指针投在重叠区，断<b>后者吃到、前者没吃到</b>。
+        /// 正对照：同一个面板里叠两盒，后加入的那个盖在先加入的上面；真指针投在重叠区，断<b>后者吃到、前者没吃到</b>。
         /// </summary>
         /// <remarks>
-        /// 先投「只盖住下面那一枚」的点：那一格若也吃不到，说明本环境根本没把合成指针派发到 UIElements，
-        /// 失败消息带屏幕尺寸与两枚 <c>worldBound</c> 的现场读数——后面每一格的红绿都以这一格为凭。 <br />
-        /// 再投重叠区：只有真的走了 hit-test 才会答出上面那一枚，这是「量具不是恒绿」的证据（<c>SendEvent</c> 给不出这一笔）。 <br />
-        /// 两枚盒子的几何让重叠区中心落在屏幕上（近似中心），且「只盖住下面那一枚」那点按 Y 翻转前后都仍在同一侧，
+        /// 先投「只盖住下面那个」的点：那一格若也吃不到，说明本环境根本没把合成指针派发到 UIElements，
+        /// 失败消息带屏幕尺寸与两个 <c>worldBound</c> 的现场读数——后面每一格的红绿都以这一格为凭。 <br />
+        /// 再投重叠区：只有真的走了 hit-test 才会答出上面那个，这是「量具不是恒绿」的证据（<c>SendEvent</c> 给不出这一笔）。 <br />
+        /// 两个盒子的几何让重叠区中心落在屏幕上（近似中心），且「只盖住下面那个」那点按 Y 翻转前后都仍在同一侧，
         /// 因此这一格的红绿与原点约定无关。
         /// </remarks>
         /// <remarks>
@@ -132,10 +132,10 @@ namespace Service.UI
         /// <c>InputTestFixture</c> 的逐格复位与本夹具自己的 <c>EventSystem</c> 生灭而错乱（把模块改为全夹具常驻后，
         /// 六格一组直接炸出 <c>InputSystemProvider.OnPointerPerformed</c> 的 <c>NullReferenceException</c>）。
         /// ⇒ 遮挡语义与断言都不背这个锅；改投递坐标、改摆位、改建时机都翻不动它。
-        /// 【复现配方】不依赖任何未入库的用例也能复现：先造一枚"在自己这格里建 <c>EventSystem</c> +
+        /// 【复现配方】不依赖任何未入库的用例也能复现：先造一个"在自己这格里建 <c>EventSystem</c> +
         /// <c>InputSystemUIInputModule</c>、又在下一格之前把它拆掉"的前序格，把它的<b>全名</b>与本格的<b>全名</b>
         /// 放进同一次 PlayMode 投单连跑 ⇒ 本格红（<c>Expected: 1 But was: 2</c>，两遍是同一个事件实例；换一轮漂移成
-        /// <c>received=0</c>）；只投本格一枚 ⇒ 本格绿。再把前序那枚建 <c>EventSystem</c> 的那一步短路掉连跑 ⇒
+        /// <c>received=0</c>）；只投本格一个 ⇒ 本格绿。再把前序那个建 <c>EventSystem</c> 的那一步短路掉连跑 ⇒
         /// 本格在同一次连跑里转绿。红绿只由那一次"建了又拆"决定，与本格的投递坐标、摆位、断言都无关。
         /// </remarks>
         [Ignore("本环境不能机器证拾取（同域连跑时派发拓扑翻倍，见上方 remarks 的复现配方）；跨技术遮挡与拾取仅人工验收，工单见计划 N25")]
@@ -145,7 +145,7 @@ namespace Service.UI
             var window = OpenUITKWindow("PickPositiveKit");
             var root = window.RootVisual;
 
-            // 内容根铺满屏幕：两枚子盒的绝对坐标才有可命的屏幕矩形（根自己零高时子树会被裁出命中区）
+            // 内容根铺满屏幕：两个子盒的绝对坐标才有可命的屏幕矩形（根自己零高时子树会被裁出命中区）
             root.style.width = Screen.width;
             root.style.height = Screen.height;
 
@@ -173,33 +173,33 @@ namespace Service.UI
             Assert.IsNotNull(root.panel,
                 "量具没派发：内容根没有面板可依附，屏幕上根本没有可命中的矩形。{0}", Facts(root, bottom, top));
             Assert.Greater(bottom.worldBound.width, 0f,
-                "量具没派发：下面那一枚没有版式宽度，投点无从命中。{0}", Facts(root, bottom, top));
+                "量具没派发：下面那个没有版式宽度，投点无从命中。{0}", Facts(root, bottom, top));
             Assert.Greater(top.worldBound.width, 0f,
-                "量具没派发：上面那一枚没有版式宽度，投点无从命中。{0}", Facts(root, bottom, top));
+                "量具没派发：上面那个没有版式宽度，投点无从命中。{0}", Facts(root, bottom, top));
 
             var overlap = Intersection(bottom.worldBound, top.worldBound);
             var bottomOnly = new Vector2(bottom.worldBound.xMin + 10f, bottom.worldBound.yMin + 10f);
-            Assert.Greater(overlap.width, 0f, "量具前提坏了：两枚盒子在屏幕上没交叠。{0}", Facts(root, bottom, top));
+            Assert.Greater(overlap.width, 0f, "量具前提坏了：两个盒子在屏幕上没交叠。{0}", Facts(root, bottom, top));
             Assert.IsFalse(top.worldBound.Contains(bottomOnly),
-                "量具前提坏了：这个投点在两枚盒子里都落得住，判不出先后。{0}", Facts(root, bottom, top));
+                "量具前提坏了：这个投点在两个盒子里都落得住，判不出先后。{0}", Facts(root, bottom, top));
 
-            // 第一段：只盖住下面那一枚的点——派发链路本身通不通，就看这一笔
+            // 第一段：只盖住下面那个的点——派发链路本身通不通，就看这一笔
             yield return ClickPanelPoint(bottomOnly);
             Assert.Greater(bottomDown, 0,
-                "量具没派发：合成指针打在只属于下面那一枚的点上，UIElements 一侧一次 PointerDown 都没收到。{0}",
+                "量具没派发：合成指针打在只属于下面那个的点上，UIElements 一侧一次 PointerDown 都没收到。{0}",
                 Facts(root, bottom, top));
-            Assert.AreEqual(0, topDown, "量具前提坏了：投点落到了上面那一枚的矩形里。{0}", Facts(root, bottom, top));
+            Assert.AreEqual(0, topDown, "量具前提坏了：投点落到了上面那个的矩形里。{0}", Facts(root, bottom, top));
 
             bottomDown = topDown = bottomClick = topClick = 0;
 
-            // 第二段：重叠区——只有真走 hit-test 才会答出后加入的那一枚
+            // 第二段：重叠区——只有真走 hit-test 才会答出后加入的那个
             yield return ClickPanelPoint(overlap.center);
 
-            Assert.AreEqual(1, topDown, "重叠区里后加入的那一枚没吃到点击。{0}", Facts(root, bottom, top));
-            Assert.AreEqual(1, topClick, "重叠区里后加入的那一枚没结算出点击。{0}", Facts(root, bottom, top));
-            Assert.AreEqual(0, bottomDown, "重叠区里先加入的那一枚吃到了点击：面板内的层序没被 hit-test 认。{0}",
+            Assert.AreEqual(1, topDown, "重叠区里后加入的那个没吃到点击。{0}", Facts(root, bottom, top));
+            Assert.AreEqual(1, topClick, "重叠区里后加入的那个没结算出点击。{0}", Facts(root, bottom, top));
+            Assert.AreEqual(0, bottomDown, "重叠区里先加入的那个吃到了点击：面板内的层序没被 hit-test 认。{0}",
                 Facts(root, bottom, top));
-            Assert.AreEqual(0, bottomClick, "重叠区里先加入的那一枚吃到了点击：面板内的层序没被 hit-test 认。{0}",
+            Assert.AreEqual(0, bottomClick, "重叠区里先加入的那个吃到了点击：面板内的层序没被 hit-test 认。{0}",
                 Facts(root, bottom, top));
         }
 
@@ -244,7 +244,7 @@ namespace Service.UI
             return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
         }
 
-        /// <summary>现场读数：屏幕尺寸、面板依附位与两枚矩形的绝对位置——「能否机器证拾取」的唯一凭据。</summary>
+        /// <summary>现场读数：屏幕尺寸、面板依附位与两个矩形的绝对位置——「能否机器证拾取」的唯一凭据。</summary>
         private string Facts(VisualElement root, VisualElement bottom, VisualElement top)
         {
             return $"[screen={Screen.width}x{Screen.height}, mouse={(_mouse == null ? "<null>" : _mouse.position.ReadValue().ToString())}, " +

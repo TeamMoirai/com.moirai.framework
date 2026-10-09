@@ -179,7 +179,7 @@ namespace Core.MemoryPool
 
             MemoryPool<PoolItem>.Release(items[80]);
             Tick();
-            Assert.AreEqual(0, Info<PoolItem>().UnusedCount, "最后一只归还后又攒出了空闲储备");
+            Assert.AreEqual(0, Info<PoolItem>().UnusedCount, "最后一个归还后又攒出了空闲储备");
         }
 
         [Test]
@@ -238,7 +238,7 @@ namespace Core.MemoryPool
             Assert.AreEqual(32, Info<PoolItem>().PageCapacity, "只剩一页有租约时其它空页没被退役");
 
             MemoryPool<PoolItem>.Release(items[0]);
-            Assert.AreEqual(0, Info<PoolItem>().PageCapacity, "最后一只归还后页存储没被释放");
+            Assert.AreEqual(0, Info<PoolItem>().PageCapacity, "最后一个归还后页存储没被释放");
         }
 
         [Test]

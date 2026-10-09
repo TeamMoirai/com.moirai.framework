@@ -49,14 +49,14 @@ namespace Moirai.Atropos.Tests.EditorMode
         private const string DOMAIN_SEQ_KEY = "Moirai.EditorStateBridge.DomainSeq";
 
         /// <summary>本桥自己住在哪份程序集：它的 mtime 就是「当前这个域加载的是哪一版代码」的对照物。</summary>
-        private const string LoadedAssembly = "Moirai.Atropos.Tests.EditorMode";
+        private const string LOADED_ASSEMBLY = "Moirai.Atropos.Tests.EditorMode";
 
         /// <summary>调用方按「源树 → 归属程序集」比新鲜度，所以逐份给出，而不是只给一个最新值。</summary>
-        private static readonly string[] TrackedAssemblies =
+        private static readonly string[] s_TrackedAssemblies =
         {
             "Moirai.Atropos",
             "Moirai.Atropos.Editor",
-            LoadedAssembly,
+            LOADED_ASSEMBLY,
             "Moirai.Atropos.Tests.PlayMode",
         };
 
@@ -159,7 +159,7 @@ namespace Moirai.Atropos.Tests.EditorMode
         private static readonly int s_DomainSeq = NextDomainSeq();
 
         /// <summary>加载时刻取一次就够：这一版代码在整个域生命周期里不会变。</summary>
-        private static readonly long s_DomainDllUnix = AssemblyUnix(LoadedAssembly);
+        private static readonly long s_DomainDllUnix = AssemblyUnix(LOADED_ASSEMBLY);
         private static string s_LastSignature;
         private static double s_LastSampleAt = -1d;
         private static double s_LastWriteAt = -1d;
@@ -250,13 +250,13 @@ namespace Moirai.Atropos.Tests.EditorMode
 
         private static AssemblyStamp[] SampleAssemblies()
         {
-            AssemblyStamp[] stamps = new AssemblyStamp[TrackedAssemblies.Length];
+            AssemblyStamp[] stamps = new AssemblyStamp[s_TrackedAssemblies.Length];
             for (int i = 0; i < stamps.Length; i++)
             {
                 stamps[i] = new AssemblyStamp
                 {
-                    name = TrackedAssemblies[i],
-                    unix = AssemblyUnix(TrackedAssemblies[i]),
+                    name = s_TrackedAssemblies[i],
+                    unix = AssemblyUnix(s_TrackedAssemblies[i]),
                 };
             }
 
@@ -374,7 +374,7 @@ namespace Moirai.Atropos.Tests.EditorMode
                     // Refresh 自己会起编译（磁盘上有新增/改动的 .cs 时）。此时绝不再叠一次
                     // RequestScriptCompilation——那会重入编译管线、和 Bee 抢同一份在途构建。
                     AssetDatabase.Refresh();
-                    long dllNow = AssemblyUnix(LoadedAssembly);
+                    long dllNow = AssemblyUnix(LOADED_ASSEMBLY);
                     Reply(command, action, true, EditorApplication.isCompiling
                         ? "已执行 AssetDatabase.Refresh()（等价 Ctrl+R），编译已随之开始，等状态文件 isCompiling 归 false"
                         : dllNow != s_DomainDllUnix
@@ -543,7 +543,7 @@ namespace Moirai.Atropos.Tests.EditorMode
         /// 类型取 <c>typeof(EditorApplication).Assembly</c> 而不是按程序集名拼字符串——<c>LogEntries</c> 与 <c>EditorApplication</c> 同模块， <br />
         /// 而模块名在各版本间挪过。
         /// </remarks>
-        private static readonly Func<int[]> ConsoleCountsProbe = CreateConsoleProbe();
+        private static readonly Func<int[]> s_ConsoleCountsProbe = CreateConsoleProbe();
 
         private static Func<int[]> CreateConsoleProbe()
         {
@@ -571,11 +571,11 @@ namespace Moirai.Atropos.Tests.EditorMode
 
         private static int[] ReadConsoleCounts()
         {
-            if (ConsoleCountsProbe == null) return null;
+            if (s_ConsoleCountsProbe == null) return null;
 
             try
             {
-                return ConsoleCountsProbe();
+                return s_ConsoleCountsProbe();
             }
             catch (Exception)
             {
@@ -584,7 +584,7 @@ namespace Moirai.Atropos.Tests.EditorMode
         }
 
         /// <summary><c>TestRunnerApi.IsRunActive()</c> 反射探针（<c>internal static</c>，与测试桥接单门同源）：任意 run 在跑即真（含测试窗口手动发起）。</summary>
-        private static readonly Func<bool> RunActiveProbe = CreateRunActiveProbe();
+        private static readonly Func<bool> s_RunActiveProbe = CreateRunActiveProbe();
 
         private static Func<bool> CreateRunActiveProbe()
         {
@@ -602,11 +602,11 @@ namespace Moirai.Atropos.Tests.EditorMode
 
         private static int ProbeTestRunActive()
         {
-            if (RunActiveProbe == null) return -1;
+            if (s_RunActiveProbe == null) return -1;
 
             try
             {
-                return RunActiveProbe() ? 1 : 0;
+                return s_RunActiveProbe() ? 1 : 0;
             }
             catch (Exception)
             {

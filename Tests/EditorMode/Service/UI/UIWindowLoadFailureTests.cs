@@ -101,7 +101,7 @@ namespace Service.UI
             Assert.AreEqual(EUIOpenStatus.Failed, result.Status, "装载失败按 Failed 档交回");
             Assert.IsFalse(result.Success, "失败档不是就绪成功");
             Assert.IsFalse(result, "隐式布尔在失败档为假");
-            Assert.AreSame(FailingLoadUGUIWindow.Last, result.Window, "失败档交回那只已作废的窗供诊断");
+            Assert.AreSame(FailingLoadUGUIWindow.Last, result.Window, "失败档交回那个已作废的窗供诊断");
             Assert.AreEqual(0, UIService.SharedLedger.PeekStack().Count, "失败窗已回滚，不在栈上");
         }
 
@@ -113,7 +113,7 @@ namespace Service.UI
 
             Assert.AreEqual(EUIOpenStatus.Opened, result.Status, "装载成功按 Opened 档交回");
             Assert.IsTrue(result, "隐式布尔在就绪档为真");
-            Assert.AreSame(AcceptLoadUGUIWindow.Last, result.Window, "交回的就是等出来的那一只");
+            Assert.AreSame(AcceptLoadUGUIWindow.Last, result.Window, "交回的就是等出来的那个");
             Assert.IsNotNull(UIService.SharedLedger.GetWindow<AcceptLoadUGUIWindow>("OkResult"), "就绪窗留在栈上");
         }
 

@@ -12,7 +12,7 @@ namespace Service.Timer
     /// 定时器是每帧驱动的核心服务，一次几十字节的抖动在真机上就是 GC 峰值与掉帧。 <br />
     /// 分配观测走 <c>GC.Alloc</c> 采样事件数（见 <see cref="AllocationCapture"/>）；采样探不到的运行时整组 Ignore，验收以 L3 玩家运行收到的采样为准。 <br />
     /// 经 <c>DefaultTimerHandler</c> 直驱（绕过外观的懒加载链路）；延迟取 3600s 保证测量窗内不触发。 <br />
-    /// 回调为缓存的方法组字段——C# 9 不缓存方法组转换，裸写每次都会分配一只委托。
+    /// 回调为缓存的方法组字段——C# 9 不缓存方法组转换，裸写每次都会分配一个委托。
     /// </remarks>
     [TestFixture]
     [Category("Performance")]

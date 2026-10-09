@@ -100,7 +100,7 @@ namespace Service.UI
             Assert.AreEqual(1, window.ParkCalls, "过渡走完补停放");
         }
 
-        /// <summary>造一只压栈并就绪的探针窗（探针经注册表登记，开窗语义走生产链）。</summary>
+        /// <summary>造一个压栈并就绪的探针窗（探针经注册表登记，开窗语义走生产链）。</summary>
         private static T Prepared<T>(string windowId) where T : UIWindow, new()
         {
             var ledger = UIService.SharedLedger;
@@ -133,7 +133,7 @@ namespace Service.UI
             }
         }
 
-        /// <summary>闸门过渡探针窗：每只实例一枚自己的探针过渡，闸门与播放记录都在它身上。</summary>
+        /// <summary>闸门过渡探针窗：每个实例一个自己的探针过渡，闸门与播放记录都在它身上。</summary>
         [Window(EUILayer.Tips)]
         internal sealed class GatedProbeWindow : InstantProbeWindow
         {

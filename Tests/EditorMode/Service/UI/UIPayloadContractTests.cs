@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Service.UI
 {
-    /// <summary>载荷格用的强类型 DTO：struct 一枚，验静态腿按值直达且不经擦除。</summary>
+    /// <summary>载荷格用的强类型 DTO：struct 一个，验静态腿按值直达且不经擦除。</summary>
     internal struct ProbeDto
     {
         internal int Value;
@@ -39,7 +39,7 @@ namespace Service.UI
         }
     }
 
-    /// <summary>带 class 载荷槽的探针窗（缓存实例）：与 struct 那一枚同形，判引用同一性。</summary>
+    /// <summary>带 class 载荷槽的探针窗（缓存实例）：与 struct 那个同形，判引用同一性。</summary>
     [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
     internal sealed class SlotRefProbeWindow : UGUIWindow<object>
     {
@@ -77,11 +77,11 @@ namespace Service.UI
     /// </summary>
     /// <remarks>
     /// 两条通道各自的可观测判据：<see cref="IUIPayloadSlot{TArg}"/> 那一条按 <typeparamref name="TArg"/> 直塞（struct 不装箱、擦除计数为 0），
-    /// <see cref="UIPayload"/> 那一条经 <c>Internal_SetPayload</c> 落位（擦除计数 +1）——同一只窗两枚计数分开数，混用当场红。 <br />
+    /// <see cref="UIPayload"/> 那一条经 <c>Internal_SetPayload</c> 落位（擦除计数 +1）——同一个窗两个计数分开数，混用当场红。 <br />
     /// 判假的两档都在压栈与回执之前：<see cref="UIWindow.Internal_SetPayload"/>（无槽却给非空擦除载荷）与
-    /// <c>UIWindowLedger.SetPayloadChecked</c>（按标识命中的窗槽型不符）一律 <see cref="GameException"/>，不开半只窗、不静默退化。 <br />
+    /// <c>UIWindowLedger.SetPayloadChecked</c>（按标识命中的窗槽型不符）一律 <see cref="GameException"/>，不开半个窗、不静默退化。 <br />
     /// 直账本驱动（<c>new UIWindowLedger()</c>）：本文件的格子不碰关停回滚，也不需要驱动者在位。面板本体按 DestroyImmediate 收，不留给下一轮；
-    /// 登记进清理表排在<b>取到窗口的那一刻</b>，断言判红也不给下一轮用例留一枚活物体。 <br />
+    /// 登记进清理表排在<b>取到窗口的那一刻</b>，断言判红也不给下一轮用例留一个活物体。 <br />
     /// 停放支路的槽型校验按<b>意图次序</b>（先验槽、后卸停放）多钉一格：<c>GenericChannel_WrongSlotTypeOnParkedWindow_ParkedStateNotConsumedByThrow</c>
     /// 在 R2 的 Runtime 修复落地前判红，转绿即证悬空态已收（见那一格的 remarks）。 <br />
     /// 线程契约：仅主线程。
@@ -122,7 +122,7 @@ namespace Service.UI
             _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotStruct", false, null, in dto);
 
             var window = (SlotProbeWindow)_ledger.GetWindow("SlotStruct");
-            Assert.IsNotNull(window, "量具前提坏了：静态腿要开出那只带槽窗");
+            Assert.IsNotNull(window, "量具前提坏了：静态腿要开出那个带槽窗");
             _panels.Add(window.gameObject);
             Assert.AreEqual(7, window.Payload.Value, "struct 载荷按值直达字段");
             Assert.AreEqual("seven", window.Payload.Text, "struct 载荷按值直达字段");
@@ -149,7 +149,7 @@ namespace Service.UI
 
             var window = (SlotRefProbeWindow)_ledger.GetWindow("SlotDyn");
             _panels.Add(window.gameObject);
-            Assert.AreSame(payload, window.Payload, "动态腿擦除后按 TArg 取回同一枚引用");
+            Assert.AreSame(payload, window.Payload, "动态腿擦除后按 TArg 取回同一个引用");
             Assert.AreEqual(1, window.ErasedSetCount, "动态腿唯一的落点是擦除通道");
         }
 
@@ -172,7 +172,7 @@ namespace Service.UI
             var ex = Assert.Throws<GameException>(() => _ledger.ShowUIImp(typeof(SlotlessProbeWindow), false, "Slotless",
                 false, null, UIPayload.From("x")), "不带槽却给非空载荷必须当场抬错，不静默吞");
             StringAssert.Contains(nameof(SlotlessProbeWindow), ex.Message, "文案带窗口类，便于定位漏换基类的调用点");
-            Assert.IsNull(_ledger.GetWindow("Slotless"), "抬错排在压栈之前：不开半只窗");
+            Assert.IsNull(_ledger.GetWindow("Slotless"), "抬错排在压栈之前：不开半个窗");
 
             // 空载荷作用于无槽窗是合法档：不带载荷的腿本就一路走这一档
             Assert.DoesNotThrow(() => _ledger.ShowUIImp(typeof(SlotlessProbeWindow), false, "SlotlessEmpty",
@@ -213,14 +213,14 @@ namespace Service.UI
             Assert.AreEqual(dto.Value, window.Payload.Value, "抬错那一档不吃载荷：残留位仍是上一次那一份");
         }
 
-        /// <summary>停放支路的槽型校验排在<b>卸停放之前</b>：抬错那一档不消费停放态，那只实例仍从停放表取得回。</summary>
+        /// <summary>停放支路的槽型校验排在<b>卸停放之前</b>：抬错那一档不消费停放态，那个实例仍从停放表取得回。</summary>
         /// <remarks>
         /// 判据按<b>意图次序</b>（先验槽型、后卸停放）写：<b>R2 修复即转绿</b>，修复前这一格判红——它守的就是 R2 那一处悬空态
         /// （现行 <c>ResolveOrStartLoad&lt;TArg&gt;</c> 的停放支路先 <c>CancelCacheTimer → SetActive(true) → _cache.Remove</c>，
-        /// 再叫 <c>SetPayloadChecked</c> ⇒ 抬错时那只实例既离开停放表又没进栈，落在无人持有、再也取不到的悬空态）。 <br />
-        /// 与次序无关的那一半先钉住：当场抬错、且栈上没有半开的那一只（两句在两种次序里都成立）；
-        /// 转绿时才亮起来的是 <c>IsParked</c> 那一句与「按对得上的槽型再开、取回的还是同一只实例」那两句。 <br />
-        /// 那只窗的面板在本格开头就登记进清理表 <c>_panels</c>，判红也交 <see cref="TearDown"/> 收走，不留给下一轮。
+        /// 再叫 <c>SetPayloadChecked</c> ⇒ 抬错时那个实例既离开停放表又没进栈，落在无人持有、再也取不到的悬空态）。 <br />
+        /// 与次序无关的那一半先钉住：当场抬错、且栈上没有半开的那个（两句在两种次序里都成立）；
+        /// 转绿时才亮起来的是 <c>IsParked</c> 那一句与「按对得上的槽型再开、取回的还是同一个实例」那两句。 <br />
+        /// 那个窗的面板在本格开头就登记进清理表 <c>_panels</c>，判红也交 <see cref="TearDown"/> 收走，不留给下一轮。
         /// </remarks>
         [Test]
         public void GenericChannel_WrongSlotTypeOnParkedWindow_ParkedStateNotConsumedByThrow()
@@ -235,16 +235,16 @@ namespace Service.UI
             Assert.Throws<GameException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false, "ParkedSurvive",
                 false, null, "text"), "量具前提坏了：槽型不符仍按 R2 那一道抬错");
 
-            Assert.IsTrue(_ledger.IsParked("ParkedSurvive"), "R2 修复转绿：抬错不消费停放态，那只实例仍留在停放表里");
-            Assert.IsNull(_ledger.GetWindow("ParkedSurvive"), "抬错也不压栈：栈上没有半开的那一只");
+            Assert.IsTrue(_ledger.IsParked("ParkedSurvive"), "R2 修复转绿：抬错不消费停放态，那个实例仍留在停放表里");
+            Assert.IsNull(_ledger.GetWindow("ParkedSurvive"), "抬错也不压栈：栈上没有半开的那个");
 
             _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "ParkedSurvive", false, null, in dto);
             var reopened = _ledger.GetWindow<SlotProbeWindow>("ParkedSurvive");
-            Assert.IsNotNull(reopened, "量具前提坏了：抬错之后再按对得上的槽型开，栈上要有一只");
+            Assert.IsNotNull(reopened, "量具前提坏了：抬错之后再按对得上的槽型开，栈上要有一个");
             _panels.Add(reopened.gameObject);
             Assert.AreSame(window, reopened,
-                "R2 修复转绿：取回的还是那一只停放实例——悬空态已收，也没造第二只");
-            Assert.AreEqual(1, _ledger.PeekStack().Count, "R2 修复转绿：停放重取不压第二只");
+                "R2 修复转绿：取回的还是那个停放实例——悬空态已收，也没造第二个");
+            Assert.AreEqual(1, _ledger.PeekStack().Count, "R2 修复转绿：停放重取不压第二个");
         }
 
         [Test]
@@ -267,7 +267,7 @@ namespace Service.UI
 
             Assert.AreEqual(2, window.Payload.Value, "再开覆盖为 P2：载荷每次开窗覆盖");
             Assert.AreEqual("P2", window.Payload.Text, "再开覆盖为 P2：载荷每次开窗覆盖");
-            Assert.AreSame(window, _ledger.GetWindow("SlotResidual"), "残留判据吃的是同一只缓存实例");
+            Assert.AreSame(window, _ledger.GetWindow("SlotResidual"), "残留判据吃的是同一个缓存实例");
         }
 
         [Test]
@@ -281,7 +281,7 @@ namespace Service.UI
             var window = (SlotRefProbeWindow)_ledger.GetWindow("SlotLastWins");
             _panels.Add(window.gameObject);
             Assert.AreSame(p2, window.Payload, "同一次开窗的第二次调用覆盖为 P2（last-wins）");
-            Assert.AreEqual(1, _ledger.PeekStack().Count, "复用支路不压第二只");
+            Assert.AreEqual(1, _ledger.PeekStack().Count, "复用支路不压第二个");
         }
     }
 }

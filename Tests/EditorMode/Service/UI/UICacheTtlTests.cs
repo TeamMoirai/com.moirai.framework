@@ -10,7 +10,7 @@ namespace Service.UI
     {
         public int DestroyPanelCount;
 
-        // 复用支路的 SetActive 与停放钩子要摸真面板：自带一枚真实物体（同 EventProbeWindow 口径），面板钩子只记账
+        // 复用支路的 SetActive 与停放钩子要摸真面板：自带一个真实物体（同 EventProbeWindow 口径），面板钩子只记账
         private GameObject _panel;
 
         public override GameObject gameObject => _panel;

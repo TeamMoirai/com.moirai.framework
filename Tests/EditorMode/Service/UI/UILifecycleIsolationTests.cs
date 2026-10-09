@@ -9,7 +9,7 @@ namespace Service.UI
     [Window(EUILayer.Tips)]
     internal class CreateThrowProbeWindow : UGUIWindow
     {
-        // 回滚同帧摘栈，栈上再拿不到这只窗，实例位只能由探针自己留
+        // 回滚同帧摘栈，栈上再拿不到这个窗，实例位只能由探针自己留
         internal static CreateThrowProbeWindow LastInstance;
 
         public CreateThrowProbeWindow()
@@ -64,7 +64,7 @@ namespace Service.UI
 
         protected internal override void ApplyVisible(bool value)
         {
-            // 只抛首枚：PanelLoaded 与 Visible setter 同帧各到一次，一条 Expect 只收一条 Error
+            // 只抛首个：PanelLoaded 与 Visible setter 同帧各到一次，一条 Expect 只收一条 Error
             if (_applyVisibleCalls++ > 0) return;
             throw new System.InvalidOperationException("apply probe");
         }

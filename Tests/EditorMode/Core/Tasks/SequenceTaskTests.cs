@@ -11,7 +11,7 @@ namespace Core.Tasks
     /// 覆盖缺陷形态：空队列越过 <c>TryPeek</c> 失败直接 <c>Start()</c> 的空引用；<c>Reset</c> 只 <c>Clear()</c> 队列而丢掉子任务欠 <c>Append</c> 的那次 <c>Acquire</c><br />
     /// （子任务回不了池、<c>DelayTask</c> 的 Timer 句柄不取消）；引用下穿（0 → -1）使任务永不凑齐归还。<br />
     /// 跑完子任务需 <c>PostComplete</c> 广播，而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/> 的静态入口在非 play mode 返回 null，按序执行那格住在 <c>Tests/PlayMode/Core/Tasks/</c>。<br />
-    /// 观测手法统一走池的 LIFO 复用：<c>GetPooled()</c> 取回同一只实例即说明它确实被 Dispose 并归还。
+    /// 观测手法统一走池的 LIFO 复用：<c>GetPooled()</c> 取回同一个实例即说明它确实被 Dispose 并归还。
     /// </remarks>
     [TestFixture]
     public sealed class SequenceTaskTests
@@ -48,7 +48,7 @@ namespace Core.Tasks
             sequence.Tick();
 
             Assert.AreEqual(1, stuck.Ticks, "队列头被驱动过");
-            Assert.AreEqual(0, tail.Ticks, "它后面那只还没轮到（本用例要的就是「还挂在队列里」这个状态）");
+            Assert.AreEqual(0, tail.Ticks, "它后面那个还没轮到（本用例要的就是「还挂在队列里」这个状态）");
             Assert.AreEqual(TaskStatus.Running, sequence.GetStatus(), "子任务没跑完，序列不该结束");
 
             // 回收：交还序列自己的引用 → ReleasePooled → Reset
@@ -67,11 +67,11 @@ namespace Core.Tasks
             UtfLogExpect.Error();
             task.Dispose();
 
-            // 挡住下穿之后，正常的一借一还仍要把任务送回池里——旧写法在这里就再也取不回同一只了
+            // 挡住下穿之后，正常的一借一还仍要把任务送回池里——旧写法在这里就再也取不回同一个了
             task.Acquire();
             task.Dispose();
 
-            Assert.AreSame(task, StuckTask.GetPooled(), "多还一次不得让这只任务从此失踪");
+            Assert.AreSame(task, StuckTask.GetPooled(), "多还一次不得让这个任务从此失踪");
         }
 
         /// <summary>
