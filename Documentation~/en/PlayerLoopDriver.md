@@ -4,8 +4,6 @@
 
 ## Background
 
-The previous `GameApp` stored `Update`/`FixedUpdate`/`LateUpdate` listeners on **instance events** of a hidden Mono host. That host could be destroyed before the initial scene load, silently dropping all subscriptions.
-
 `Runtime/Services/Timer` (`TimerService`) is the unified timing subsystem (four-level timing wheel + frame timers), exposing `Delay` / `WaitFrame` and friends. It is advanced through `IServiceTickable` by `GameServices.Tick`, which itself is installed as this driver's Update **core hook** (runs ahead of every user subscriber and is never tripped out). `IUpdateHandler` targets game-side systems and DI composition roots — do not confuse the two paths.
 
 ## Architecture

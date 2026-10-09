@@ -164,14 +164,13 @@ int staleCount = TimerService.GetStaleOneShotTimers(staleResults);
 - 外观方法一律直接读取 `s_Handler` 静态字段（源生成器生成），不触发 `Handler` 属性的懒加载：服务未注册 / 未初始化 / `OnShutdown` 已回收处理器时，全部 API 静默降级为安全默认值——调度类（`Delay` / `WaitFrame` / `DelayUnsafe` / `WaitFrameUnsafe`）返回 `0UL`，查询类按语义返回（`IsRunning` / `IsPaused` → `false`，`IsDone` → `true`，`GetLeftTime` / `GetElapsed` / `GetDuration` → `0f`，统计类 → 全零 / 空），控制类（`Pause` / `Resume` / `Restart` / `Cancel` 等）为空操作。降级路径不产生任何日志。这一契约与全框架统一（UI / ObjectPool / Procedure / Debugger 等外观同样走 `s_Handler?.`）。
 - `Handler` 属性由 `OnInit` 触发一次装配（`GetHandlerFromSettings() ?? CreateDefaultHandler()`；两厂皆返回 null 时抛 `InvalidOperationException`——这是装配期 fail-fast，不影响外观降级契约）。调用方若需要"未就绪即失败"的写路径语义，请显式访问 `Handler`（触发懒加载）或先判 `TimerService.IsValid`；`OnShutdown` 后需重新注册并初始化服务才会再次装配。
 - `Delay` / `WaitFrame` 等返回 `0UL` 表示未登记成功：服务未就绪（见上，静默）、入参非法（回调为 null、`frames <= 0`、`delaySeconds` 为 `NaN` / `±∞`、Unsafe 绑定无效）或槽位耗尽（后两类由两引擎统一记录 `LogUtility.Warning`，仅编辑器输出——`[Conditional("UNITY_EDITOR")]` 使调用与实参求值在发布构建一并摘除）。有效句柄不会为 0。
-- **被污染的时间输入不会破坏轮结构**：tick 换算一律饱和到 `[0, MAX_TICK]`。有限但足以溢出 `double → long` 的延时代谢（如 `1e30f`）按"极远将来"处理——句柄有效、事实上不会触发，也不连累其它计时器；`GameTime.ScaledNow` / `UnscaledNow` 的读数为 `NaN` / `±∞` / 负值，或大到换算触顶时，该帧整体不推进（游标原地保持），下一帧恢复正常即刻续跑；`Resume` / `Restart` / 循环重排在同一判据下直接拒绝并保持计时器原状态（编辑器记 `LogUtility.Warning`）。时钟合法地把基准换小（换时钟后端、回放）时游标仍跟着落回：已入列计时器的绝对 `DueTicks` 本就无从修复，而把游标钉在原处会让队列永不排空、整轮连同新排的计时器一起报废。旧实现里 `NaN` 会把轮游标打到 `long.MinValue`、无穷打到饱和上限，在每帧 64 tick 的追赶预算下都等价于时间轮永久冻结。
+- **被污染的时间输入不会破坏轮结构**：tick 换算一律饱和到 `[0, MAX_TICK]`。有限但足以溢出 `double → long` 的延时代谢（如 `1e30f`）按"极远将来"处理——句柄有效、事实上不会触发，也不连累其它计时器；`GameTime.ScaledNow` / `UnscaledNow` 的读数为 `NaN` / `±∞` / 负值，或大到换算触顶时，该帧整体不推进（游标原地保持），下一帧恢复正常即刻续跑；`Resume` / `Restart` / 循环重排在同一判据下直接拒绝并保持计时器原状态（编辑器记 `LogUtility.Warning`）。时钟合法地把基准换小（换时钟后端、回放）时游标仍跟着落回：已入列计时器的绝对 `DueTicks` 本就无从修复，而把游标钉在原处会让队列永不排空、整轮连同新排的计时器一起报废。
 - 槽位复用带版本号：对已失效句柄调用 `Cancel` / `Pause` / `IsRunning` 等均为安全的空操作或返回默认值。
 - `Cancel` 与一次性的自然到期等价，均会回收槽位；循环计时器必须手动取消，否则持续触发。
 - 帧计时器的 `GetLeftTime` 恒返回 `0`（无秒语义）；剩余帧数用 `GetLeftFrames` 读取，或用 `GetElapsed` / `GetDuration`（单位为帧）。时间计时器的 `GetLeftFrames` 返回 `0`。
 - 回调在主线程（对应阶段的 `Tick`）中同步执行，不要在回调中做耗时阻塞操作。
 - 时间缩放只影响 `ignoreTimeScale: false` 的计时器；修改 `Time.timeScale` 前请按需选择形态。
 - 热路径注册计时器请使用 `DelayUnsafe` / `WaitFrameUnsafe`（函数指针）或缓存方法组，避免捕获 lambda / 闭包引入分配。
-- **旧 API 无兼容别名**：1.0.2 的公开面只有 `AddTimer` / `AddTimer<T>` / `Stop`（暂停语义）/ `RemoveTimer`，本轮改名为 `Delay` / `Delay<T>` / `Pause` / `Cancel`，代码中不存在任何 `[Obsolete]` 别名（`AddTimerUnsafe` 从未存在于代码，只出现在旧文档措辞里）。别名无法纯转发的根因是实参顺序相反：旧 `AddTimer(Action callback, float time)` ↔ 新 `Delay(float delaySeconds, Action onComplete)`。`Resume` / `Restart` / `IsRunning` / `GetLeftTime` 名称与语义不变；完整迁移映射与新增面见 `CHANGELOG.md`。
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [Core](Core.md) · [GameApp](GameApp.md)

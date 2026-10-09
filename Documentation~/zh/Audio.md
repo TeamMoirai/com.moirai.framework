@@ -265,7 +265,6 @@ AudioService.ResetMixSnapshot(0.25f);
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
 - 游戏内调试器 `Profiler/Audio` 除音量/音轨控制外，还显示 Clip 缓存条目/容量、在途、常驻、失败冷却、当前混音快照与 Ducking 占用，并提供清空缓存按钮——排查"音效没出来"先看这里  
 - 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`  
-- ⚠ `BackgroundMusic` 收敛为仅直接引用 `AudioClip`（`m_AudioClip`），移除「直接强引用 / `AudioClipInfo` 路径引用」双轨；`AudioClipInfo` 弃用：直接引用的存量数据按原字段名自动保留，原路径引用（`m_SoundClip`）的存量场景需在 Inspector 重新指定音频；需要弱引用加载的场景改用 `AssetReference<TObject>`  
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [Resource](Resource.md) · [UI](UI.md)

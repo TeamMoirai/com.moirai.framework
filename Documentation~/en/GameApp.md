@@ -2,22 +2,21 @@
 
 > Unity lifecycle proxy for non-MonoBehaviour code: coroutine hosting, frame update injection, and Unity event injection.
 
-## Architecture Change (Important)
+## Architecture
 
-Frame subscriptions moved from a MonoBehaviour host to **`PlayerLoopDriver`** (`Runtime/Core/Infrastructure/GameApp/PlayerLoop`, namespace `Moirai.Atropos`, type is `internal` — game code reaches it through the `GameApp` facade):
+Frame subscriptions live on **`PlayerLoopDriver`** (`Runtime/Core/Infrastructure/GameApp/PlayerLoop`, namespace `Moirai.Atropos`, type is `internal` — game code reaches it through the `GameApp` facade):
 
 - Subscriptions live in a **static registry**, not on any GameObject
 - Scene loads / unexpected host destruction **do not lose** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy`/`Gizmos`/`Pause` listeners
-- Prior bug: listeners lived on a hidden Mono host instance events, which could be destroyed before the initial scene load, dropping every subscription
 
-`GameApp` itself now holds **no MonoBehaviour at all** (no nested host, no GameObject field). The Unity messages that only dispatch on a MonoBehaviour — coroutines, `OnDrawGizmos(Selected)`, `OnApplicationPause` — are collected in a single `SingletonMono_Persistent` host, `GameAppHost` (`Runtime/Core/Infrastructure/GameApp/GameAppHost.cs`). It only **forwards**; the subscriptions stay in the Driver's static tables, so destroying or rebuilding the host loses nothing.
+`GameApp` itself holds **no MonoBehaviour at all** (no nested host, no GameObject field). The Unity messages that only dispatch on a MonoBehaviour — coroutines, `OnDrawGizmos(Selected)`, `OnApplicationPause` — are collected in a single `SingletonMono_Persistent` host, `GameAppHost` (`Runtime/Core/Infrastructure/GameApp/GameAppHost.cs`). It only **forwards**; the subscriptions stay in the Driver's static tables, so destroying or rebuilding the host loses nothing.
 
 See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 
 ## Core Features
 
 - Coroutine hosting: `GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
-- Frame updates: `GameApp.AddUpdateListener` (Action) plus `GameApp.AddUpdateHandler` / `AddFrameHandler` (interface handlers, `IPlayerLoopPriority` aware) all write **synchronously** into the driver's registries (no `UniTask.Yield` deferral)
+- Frame updates: `GameApp.AddUpdateListener` (Action) plus `GameApp.AddUpdateHandler` / `AddFrameHandler` (interface handlers, `IPlayerLoopPriority` aware) all write **synchronously** into the driver's registries
 - Unity events: `AddDestroyListener` (broadcast on Shutdown), `AddOnApplicationPauseListener`, Gizmos APIs
 - Runtime switches: `FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` carry live engine state (`GameAppSettings` is only the boot default); pausing is reference counted via `PauseGame` / `ResumeGame` — see [Pause And Speed Semantics](#pause-and-speed-semantics)
 - Clean shutdown: `GameApp.Shutdown` clears the Driver registry, removes this framework's PlayerLoop systems (UniTask and other third-party injections stay), unwinds any unmatched pause and releases the host (except on the application-quit path: the engine tears the host down with the scene, so the explicit Destroy is skipped)
@@ -34,7 +33,7 @@ See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 ## Quick Start
 
 ```csharp
-// Callback style (compatible API)
+// Callback style
 GameApp.AddUpdateListener(OnUpdate);
 GameApp.AddFixedUpdateListener(OnFixedUpdate);
 GameApp.AddLateUpdateListener(OnLateUpdate);
@@ -68,7 +67,7 @@ GameApp.AddDestroyListener(OnShutdown);
 2. `GameApp.Initialize` immediately reads the **live engine state** back (`SeedRuntimeFromEngine`) into `GameApp`'s own static fields
 3. From then on `FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` touch only those fields and the engine — `GameApp` never dereferences **or writes back** the config asset
 
-So `GameApp.FrameRate = 60` in the editor no longer leaves the shared ScriptableObject under `Resources/` dirty across Play sessions, and predicates read live state rather than configured intent.
+So `GameApp.FrameRate = 60` in the editor leaves the shared ScriptableObject under `Resources/` untouched across Play sessions, and predicates read live state rather than configured intent.
 
 ## Pause And Speed Semantics
 
@@ -83,7 +82,7 @@ So `GameApp.FrameRate = 60` in the editor no longer leaves the shared Scriptable
 
 A popup, a background switch and a cutscene may each `PauseGame`; each must `ResumeGame`, and only the last one restores speed.
 
-**Read what you actually mean** (in 1.0.2 `IsGamePaused` was `GameSpeed <= 0`; they are now decoupled):
+**Read what you actually mean**:
 
 | Question | Read |
 |----------|------|

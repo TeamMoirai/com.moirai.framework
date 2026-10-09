@@ -241,7 +241,6 @@ Editor Mono reports `GC.GetAllocatedBytesForCurrentThread()` and `ProfilerRecord
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
 - The in-game debugger's `Profiler/Audio` panel now also shows clip cache entries/capacity, in-flight loads, pinned count, failure cooldowns, the current mix snapshot and ducking ownership, plus cache-clear buttons — check it first when "a sound didn't play"  
 - Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`  
-- ⚠ `BackgroundMusic` now uses only a directly referenced `AudioClip` (`m_AudioClip`); the old dual track of direct strong references / `AudioClipInfo` path references is removed and `AudioClipInfo` is deprecated: direct-reference data survives by field name, scenes that used the path reference (`m_SoundClip`) must re-assign the clip in the Inspector; use `AssetReference<TObject>` for weak-reference loading
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Resource](Resource.md) · [UI](UI.md)

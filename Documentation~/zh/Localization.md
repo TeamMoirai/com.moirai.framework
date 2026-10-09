@@ -113,7 +113,7 @@ LocalizationService.onLanguageChanged += language =>
 
 - 本地化数据来自 Luban 配置表：必须先在 `Tools/Framework Settings` 的 `LubanSettings`（「[框架]Luban 配置」）中生成并转表，否则加载失败并提示 "Failed to load localized text, generate config first!"（该错误只打一次，未就绪期间每次查询都返回 ID 原文）
 - 本地化数据为懒式初始化：服务注册期（`OnInit`）不加载任何资源，首次访问多语言 API（查询/切换）时才从配置表加载——届时 `Resource` 服务必然已就绪
-- 可用语言由配表自报：多语言按语言分份导出后，语言不再从生成代码的 bean 字段名反推，而是取自转表期生成的 `L10nLanguages.Codes`，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给框架解析（`LocalizationService.ResolveLanguages`），不存在可回落的全局语言注册表。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
+- 可用语言由配表自报：多语言按语言分份导出后，语言取自转表期生成的 `L10nLanguages.Codes`，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给框架解析（`LocalizationService.ResolveLanguages`），不存在可回落的全局语言注册表。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
 - 词条的语言列数与自报语言数不一致会被判为数据损坏：**整批数据拒载**并报错（下标错位只会表现为「显示了别的语言」，不会报错，所以宁可不加载）
 - `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未收录进当前批的语言会回落到默认语言 English（`LocalizationService.DefaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（编辑态没有后端可取资产，写进组件还会把场景标脏）；要看效果用组件 Inspector 的预览行，`LocalizationService.Localize` 在非运行模式也走同一条预览直读，取不到时才原样返回
@@ -188,7 +188,7 @@ public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
 
 ## RTL 与按语言字体
 
-- `Language.IsRightToLeft` 按 Code 白名单识别阿拉伯语（ar）与希伯来语（he）两枚，不从语族或文字系统推断；外观 `LocalizationService.IsCurrentLanguageRightToLeft` 读取当前语言方向。`TextLocalizer` 在目标为 TMP 时自动把该值写入 `isRightToLeftText`
+- `Language.IsRightToLeft` 按 Code 白名单识别阿拉伯语（ar）与希伯来语（he）两个，不从语族或文字系统推断；外观 `LocalizationService.IsCurrentLanguageRightToLeft` 读取当前语言方向。`TextLocalizer` 在目标为 TMP 时自动把该值写入 `isRightToLeftText`
 - `TextLocalizer` 两个可选数组按「当前语言列下标」换字体：`m_TmpFontAssets`（TMP_FontAsset[]）与 `m_UguiFonts`（Font[]）——与 `ImageLocalizer`/`AudioLocalizer` 数组同一约定，越界或空元素保持原字体
 - UGUI Text 与 TextMesh 无 RTL 排版能力（只有 TMP 这条路）
 
