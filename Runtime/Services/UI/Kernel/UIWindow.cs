@@ -225,10 +225,20 @@ namespace Moirai.Atropos.UI
         /// <remarks>压栈压下层交互位、开/关过渡占全局压制位的判据都以它为准。</remarks>
         internal bool IsModalWindow { get; private set; }
 
-        internal void TryInvoke(Action<UIWindow> prepareCallback, System.Object[] @params)
+        /// <summary>动态腿载荷落点：不带载荷槽的窗被塞非空载荷当场抬错（fail-fast，不静默吞）。</summary>
+        internal virtual void Internal_SetPayload(UIPayload payload)
+        {
+            if (!payload.IsEmpty)
+            {
+                throw new GameException(StringUtility.Format(
+                    "UI 窗口 '{0}'（{1}）不带载荷槽，却被塞了非空载荷：带参窗口必须继承 UGUIWindow<TArg> / UITKWindow<TArg>。",
+                    WindowName, GetType().FullName));
+            }
+        }
+
+        internal void TryInvoke(Action<UIWindow> prepareCallback)
         {
             CancelHideToCloseTimer();
-            _params = @params;
             if (IsPrepare)
             {
                 prepareCallback?.Invoke(this);
@@ -245,10 +255,61 @@ namespace Moirai.Atropos.UI
         /// <summary>装载失败位：面板装载回 false 或抛出后置位，等待腿据此判 <see cref="EUIOpenStatus.Failed"/>。</summary>
         internal bool IsLoadFailed { get; private set; }
 
-        internal async UniTaskVoid InternalLoad(string location, Action<UIWindow> prepareCallback, bool isAsync, System.Object[] @params)
+        private int _openWaiters;
+        private List<CancellationTokenRegistration> _openCancelRegs;
+
+        private static readonly System.Action<object> s_OpenCancelCallback = state => ((UIWindow)state).Internal_LeaveOpenWaiter();
+
+        /// <summary>登记一名开窗等待者（在飞合并的计数来源）。</summary>
+        internal void Internal_JoinOpenWaiter() => _openWaiters++;
+
+        /// <summary>等待者离场（取消唯一来路）：归零即掐断在途装载，回滚按取消落定。</summary>
+        internal void Internal_LeaveOpenWaiter()
+        {
+            if (IsLoadDone || IsDestroyed)
+            {
+                return;
+            }
+
+            // 下溢地板：未登记等待者的离场（如遗留 CancellationToken.None 路径）不得把计数拖成负数误掐在途装载
+            if (_openWaiters <= 0)
+            {
+                return;
+            }
+
+            if (--_openWaiters > 0)
+            {
+                return;
+            }
+
+            CancelLoadCts();
+        }
+
+        /// <summary>void 腿的调用方取消登记：静态回调 + 引用形 state，无闭包；仅 CanBeCanceled 时才叫。</summary>
+        internal void Internal_RegisterOpenCancel(CancellationToken callerCt)
+        {
+            _openCancelRegs ??= new List<CancellationTokenRegistration>(2);
+            _openCancelRegs.Add(callerCt.Register(s_OpenCancelCallback, this));
+        }
+
+        /// <summary>装载落定（就绪/失败/作废/销毁）时清账：等待者归零、取消登记整批解除。</summary>
+        private void SettleOpenWaiters()
+        {
+            _openWaiters = 0;
+            if (_openCancelRegs != null)
+            {
+                for (int i = 0; i < _openCancelRegs.Count; i++)
+                {
+                    _openCancelRegs[i].Dispose();
+                }
+
+                _openCancelRegs.Clear();
+            }
+        }
+
+        internal async UniTaskVoid InternalLoad(string location, Action<UIWindow> prepareCallback, bool isAsync)
         {
             _prepareCallback = prepareCallback;
-            _params = @params;
 
             var loadLease = MemoryPool.Acquire<UICtsLease>();
             var loadCts = loadLease.Source;
@@ -324,6 +385,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void AbortFailedLoad()
         {
+            SettleOpenWaiters();
             IsLoadFailed = true;
             IsDestroyed = true;
             _prepareCallback = null;
@@ -341,11 +403,12 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 实例方法轮询、无闭包分配；终态先于首帧检查，已就绪/已失败的窗口同帧落定。<br />
-        /// 超时落在 <see cref="OperationCanceledException"/>，由调用方归为超时档。
+        /// 超时落在 <see cref="OperationCanceledException"/>，由调用方归为超时档；调用方取消另走一档（<paramref name="callerCt"/> 撤销时原样上抛）。
         /// </remarks>
-        /// <param name="ct">等待方的超时令牌。</param>
+        /// <param name="timeoutCt">等待方的超时令牌。</param>
+        /// <param name="callerCt">调用方取消令牌；被它撤销时原样上抛 <see cref="OperationCanceledException"/>，与超时分档。</param>
         /// <returns>面板就绪时为真。</returns>
-        internal async UniTask<bool> WaitPanelReadyAsync(CancellationToken ct)
+        internal async UniTask<bool> WaitPanelReadyAsync(CancellationToken timeoutCt, CancellationToken callerCt = default)
         {
             while (!IsLoadDone)
             {
@@ -354,7 +417,8 @@ namespace Moirai.Atropos.UI
                     return false;
                 }
 
-                ct.ThrowIfCancellationRequested();
+                timeoutCt.ThrowIfCancellationRequested();
+                callerCt.ThrowIfCancellationRequested();
                 await UniTask.Yield();
             }
 
@@ -370,6 +434,7 @@ namespace Moirai.Atropos.UI
         private void PanelLoaded()
         {
             IsLoadDone = true;
+            SettleOpenWaiters();
 
             if (IsDestroyed)
             {
@@ -593,6 +658,8 @@ namespace Moirai.Atropos.UI
             _interactionLifetime++;
             CancelCts();
             CancelLoadCts();
+            // 销毁即终态：解除仍挂在调用方令牌上的在途取消登记，否则销毁窗被注册表根住
+            SettleOpenWaiters();
             CancelCacheTimer();
             UnlockInteraction();
 
@@ -765,6 +832,25 @@ namespace Moirai.Atropos.UI
         /// <summary>试图关闭但关不了时调用（<see cref="CanClose"/> 为假的那一轮）。</summary>
         protected virtual void OnCloseFail() { }
 
+        /// <summary>关闭政策的同步初筛：可交互且未销毁才评 CanClose；CanClose 抛按拒关（fail-closed）。</summary>
+        internal bool Internal_EvaluateCanClose()
+        {
+            if (!Interactable || IsDestroyed)
+            {
+                return false;
+            }
+
+            try
+            {
+                return CanClose;
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 CanClose 抛出异常，按拒关计：{1}", WindowName, ex);
+                return false;
+            }
+        }
+
         /// <summary>
         /// 关闭本窗：已可交互就当场过门，否则等交互位让位、本窗被接管或销毁为止。
         /// </summary>
@@ -795,18 +881,7 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            bool canClose;
-            try
-            {
-                canClose = CanClose;
-            }
-            catch (System.Exception ex)
-            {
-                LogUtility.Error("UI 窗口 '{0}' 的 CanClose 抛出异常，按拒关计：{1}", WindowName, ex);
-                canClose = false;
-            }
-
-            if (canClose)
+            if (Internal_EvaluateCanClose())
             {
                 ForceClose();
             }

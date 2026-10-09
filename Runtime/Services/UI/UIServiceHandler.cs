@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI
@@ -92,64 +91,6 @@ namespace Moirai.Atropos.UI
             }
 
             return new Rect(screenWidth * rect.x, screenHeight * rect.y, screenWidth * rect.width, screenHeight * rect.height);
-        }
-
-        #endregion
-
-        #region 显示窗口 [SHOW WINDOW]
-        /// <summary>
-        /// 开栈编排的同步腿：认名→复用栈上那一只 / 取回停放的那一只 / 造一只新的，然后压栈并发起装载。
-        /// </summary>
-        /// <remarks>
-        /// 编排本体住在 <see cref="UIWindowLedger"/>，本类只接转发：形参含义与交接时机以它为准。<br />
-        /// 本轨专有的配置由开窗腿包成钩子交进来，后端类型不落进共享编排的签名。
-        /// </remarks>
-        /// <param name="type">窗口类。</param>
-        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
-        /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        internal void ShowUIImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            Action<UIWindow> onInstanceCreated, params object[] userData)
-        {
-            UIService.SharedLedger.ShowUIImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
-        }
-
-        /// <summary>
-        /// 开栈编排的等待腿：与同步腿同一份栈、同一次压入，另把「面板就绪」等出来再交回窗口。
-        /// </summary>
-        /// <param name="type">窗口类。</param>
-        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
-        /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <returns>栈上那一只窗口。</returns>
-        internal async UniTask<UIWindow> ShowUIAwaitImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            Action<UIWindow> onInstanceCreated, params object[] userData)
-        {
-            return await UIService.SharedLedger.ShowUIAwaitImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
-        }
-
-        /// <summary>
-        /// 开栈编排的结果腿：与等待腿同一份栈、同一次压入，把「就绪/失败/超时」等成结果交回。
-        /// </summary>
-        /// <remarks>编排本体住在 <see cref="UIWindowLedger"/>，本类只接转发：形参含义与状态语义以它为准。</remarks>
-        /// <param name="type">窗口类。</param>
-        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
-        /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <returns>开窗结果。</returns>
-        internal UniTask<UIOpenResult> ShowUIAwaitResultImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            Action<UIWindow> onInstanceCreated, params object[] userData)
-        {
-            return UIService.SharedLedger.ShowUIAwaitResultImp(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData);
         }
 
         #endregion

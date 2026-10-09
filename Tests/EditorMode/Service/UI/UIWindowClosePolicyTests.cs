@@ -140,7 +140,7 @@ namespace Service.UI
             };
             window.Init(windowName, layer, false, "Panel", false, 10, false);
             ledger.Push(window);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
             ledger.OnWindowPrepare(window);
             window.Interactable = interactable;
             return window;

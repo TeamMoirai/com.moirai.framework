@@ -347,4 +347,17 @@ namespace Moirai.Atropos.UI
 
         #endregion
     }
+
+    /// <summary>UI Toolkit 轨带载荷窗口基类：每次开窗最多一个强类型 DTO，静态腿泛型直塞（struct 不装箱）。</summary>
+    /// <remarks>载荷每次开窗覆盖、关闭不清；再开覆盖。动态腿经 <see cref="UIPayload"/> 擦除后从这里取回。</remarks>
+    // ReSharper disable once InconsistentNaming
+    public abstract class UITKWindow<TArg> : UITKWindow, IUIPayloadSlot<TArg>
+    {
+        /// <summary>本次开窗的载荷。</summary>
+        public TArg Payload { get; private set; }
+
+        void IUIPayloadSlot<TArg>.SetPayload(in TArg payload) => Payload = payload;
+
+        internal override void Internal_SetPayload(UIPayload payload) => Payload = payload.To<TArg>();
+    }
 }

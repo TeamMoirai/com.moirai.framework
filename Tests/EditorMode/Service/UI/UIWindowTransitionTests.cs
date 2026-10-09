@@ -104,7 +104,7 @@ namespace Service.UI
         private static T Prepared<T>(string windowName) where T : UIWindow, new()
         {
             var ledger = UIService.SharedLedger;
-            ledger.ShowUIImp(typeof(T), false, windowName, "Panel", false, null);
+            ledger.ShowUIImp(typeof(T), false, windowName, "Panel", false, null, UIPayload.Empty);
             var window = ledger.GetWindow(windowName);
             Assert.IsTrue(window.IsLoadDone, "量具前提坏了：探针窗要同步装载就绪");
             return (T)window;

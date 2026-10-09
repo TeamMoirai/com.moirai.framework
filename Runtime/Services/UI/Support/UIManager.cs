@@ -37,19 +37,6 @@ namespace Moirai.Atropos.UI
         
         #endregion
         
-        #region 公共方法 [PUBLIC METHODS]
-
-        /// <summary>
-        /// 根据 id 加载弹窗。
-        /// </summary>
-        /// <param name="configKey">LoadByConfig: 配置表id；Resources下的预制体名称。</param>
-        public virtual void LoadUGUI<T>(string configKey) where T : UGUIWindow, new()
-        {
-            UIService.ShowUIAsync<T>(configKey, GetWindowLocation(configKey), FromResources);
-        }
-
-        #endregion
-        
         #region 私有方法 [PRIVATE METHODS]
         
         /// <summary>
@@ -78,7 +65,7 @@ namespace Moirai.Atropos.UI
             switch (evt.Mode)
             {
                 case UIWindowEvent.EMode.Show:
-                    UIService.ShowUIAsync(evt.WindowType, evt.WindowId, GetWindowLocation(evt.WindowId), FromResources, evt.Params);
+                    UIService.ShowUIAsync(evt.WindowType, evt.WindowId, GetWindowLocation(evt.WindowId), FromResources);
                     // LogUtility.Info($"Show UI {evt.WindowId}");
                     break;
 
@@ -99,6 +86,40 @@ namespace Moirai.Atropos.UI
             }
         }
         
+        #endregion
+
+        #region 定位口 [LOCATION RESOLVERS]
+
+        /// <summary>解析窗口资产定位地址：直调腿（不经事件中转）的寻址接缝，与事件腿同一份判据。</summary>
+        /// <exception cref="GameException">场景里没有 UIManager 实例。</exception>
+        public static string ResolveWindowLocation(string windowId)
+        {
+            var instance = Instance;
+            if (instance == null)
+            {
+                throw new GameException(StringUtility.Format(
+                    "{0}.{1} requires a live {0} instance in scene.", nameof(UIManager), nameof(ResolveWindowLocation)));
+            }
+
+            return instance.GetWindowLocation(windowId);
+        }
+
+        /// <summary>本实例的面板取法（配置表/Resources）：与 <see cref="ResolveWindowLocation"/> 成对使用。</summary>
+        public static bool ResolveFromResources
+        {
+            get
+            {
+                var instance = Instance;
+                if (instance == null)
+                {
+                    throw new GameException(StringUtility.Format(
+                    "{0}.{1} requires a live {0} instance in scene.", nameof(UIManager), nameof(ResolveFromResources)));
+                }
+
+                return instance.FromResources;
+            }
+        }
+
         #endregion
         
     }

@@ -11,7 +11,7 @@ namespace Moirai.Atropos.UI
     /// <remarks>
     /// 中性外壳（生命周期、层级常量、属性、安全区、<see cref="System.Type"/> 形入口与共享栈上的关·隐·取）住在 <c>UIService.cs</c>。<br />
     /// 本文件管着 UI Toolkit 轨的槽位、认领门、取用属性、<see cref="IsUITKValid"/> 与轨道自述，自述登记进门面目录；uGUI 腿住在 <c>UIService.UGUI.cs</c>。
-    /// 三支各自叫 UI Toolkit 轨自己的开窗实现，经 <see cref="UITKHandler"/> 把窗口落进共享栈——与 uGUI 轨共用那一份栈，但不共用那条腿。
+    /// 三支各自直调 <see cref="SharedLedger"/> 把窗口落进共享栈，下面那一枚 <see cref="UITKHandler"/> 只作认领门探针——与 uGUI 轨共用那一份栈，但不共用那条腿。
     /// 形参表与 uGUI 腿同形，末尾多收一枚 <c>panelSettings</c>：同一形状的实参落进哪一支，依据是各自的泛型约束而不是形参个数。
     /// <c>panelSettings</c> 不进中性编排：由本文件包成一枚只认 <see cref="UIWindow"/> 的交接钩子，在装载之前落到 <see cref="UITKWindow"/> 的实例属性上。
     /// </remarks>
@@ -48,7 +48,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 槽位只有 <see cref="OnInit"/> 按 <see cref="UIServiceSettings"/> 启用清单认领那一条来路：没有换入接缝，也不替配置造驱动者。 <br />
-        /// UI Toolkit 腿的三支与 <see cref="System.Type"/> 入口的 UI Toolkit 档都经这一枚取用。
+        /// UI Toolkit 腿的三支与 <see cref="System.Type"/> 入口的 UI Toolkit 档都只取用这一枚作认领门探针。
         /// </remarks>
         /// <exception cref="GameException">UI Toolkit 轨没有被启用（槽位空着）。</exception>
         // ReSharper disable once InconsistentNaming
@@ -137,12 +137,13 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
         public static void ShowUIAsync<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
-            PanelSettings panelSettings = null, params object[] userData)
+            PanelSettings panelSettings = null, CancellationToken ct = default)
             where T : UITKWindow, new()
         {
-            OpenUITKWindow(typeof(T), true, windowName, assetLocation, fromResources, panelSettings, userData);
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            SharedLedger.ShowUIImp(typeof(T), true, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), UIPayload.Empty, ct);
         }
 
         /// <summary>
@@ -156,12 +157,13 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
         public static void ShowUI<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
-            PanelSettings panelSettings = null, params object[] userData)
+            PanelSettings panelSettings = null, CancellationToken ct = default)
             where T : UITKWindow, new()
         {
-            OpenUITKWindow(typeof(T), SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, panelSettings, userData);
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            SharedLedger.ShowUIImp(typeof(T), SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), UIPayload.Empty, ct);
         }
 
         /// <summary>
@@ -176,13 +178,14 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
         /// <returns>打开窗口操作句柄。</returns>
         public static async UniTask<UIWindow> ShowUIAsyncAwait<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
-            PanelSettings panelSettings = null, params object[] userData)
+            PanelSettings panelSettings = null, CancellationToken ct = default)
             where T : UITKWindow, new()
         {
-            return await OpenUITKWindowAwait(typeof(T), true, windowName, assetLocation, fromResources, panelSettings, userData);
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            return await SharedLedger.ShowUIAwaitImp(typeof(T), true, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), UIPayload.Empty, ct);
         }
 
         /// <summary>
@@ -197,72 +200,119 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="ct">调用方取消令牌；被它撤销即落 <see cref="EUIOpenStatus.Cancelled"/> 档。</param>
         /// <returns>开窗结果。</returns>
         public static UniTask<UIOpenResult> ShowUIAwaitResult<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
-            PanelSettings panelSettings = null, params object[] userData)
+            PanelSettings panelSettings = null, CancellationToken ct = default)
             where T : UITKWindow, new()
         {
-            return UITKHandler.ShowUIAwaitResultImp(typeof(T), true, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), userData);
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            return SharedLedger.ShowUIAwaitResultImp(typeof(T), true, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), UIPayload.Empty, ct);
+        }
+
+        /// <summary>
+        /// 异步打开带载荷窗口（UI Toolkit 腿）：泛型直塞，struct 不装箱。
+        /// </summary>
+        /// <typeparam name="TWindow">带载荷窗口类。</typeparam>
+        /// <typeparam name="TArg">载荷类型。</typeparam>
+        /// <param name="payload">本次开窗的载荷。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
+        /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
+        public static void ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null,
+            bool fromResources = false, PanelSettings panelSettings = null, CancellationToken ct = default) where TWindow : UITKWindow<TArg>, new()
+        {
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            SharedLedger.ShowUIImp<TArg>(typeof(TWindow), true, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), in payload, ct);
+        }
+
+        /// <summary>
+        /// 同步打开带载荷窗口（UI Toolkit 腿）：泛型直塞，struct 不装箱。
+        /// </summary>
+        /// <typeparam name="TWindow">带载荷窗口类。</typeparam>
+        /// <typeparam name="TArg">载荷类型。</typeparam>
+        /// <param name="payload">本次开窗的载荷。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
+        /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
+        public static void ShowUI<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null,
+            bool fromResources = false, PanelSettings panelSettings = null, CancellationToken ct = default) where TWindow : UITKWindow<TArg>, new()
+        {
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            SharedLedger.ShowUIImp<TArg>(typeof(TWindow), SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), in payload, ct);
+        }
+
+        /// <summary>
+        /// 异步打开带载荷窗口并等待加载完成（UI Toolkit 腿）。
+        /// </summary>
+        /// <remarks><paramref name="payload"/> 用普通形参而非 <c>in</c>：<c>async</c> 方法禁 <c>in</c> 形参（CS1988）。</remarks>
+        /// <typeparam name="TWindow">带载荷窗口类。</typeparam>
+        /// <typeparam name="TArg">载荷类型。</typeparam>
+        /// <param name="payload">本次开窗的载荷。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
+        /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
+        /// <returns>打开窗口操作句柄。</returns>
+        /// <exception cref="GameException">按名取回的实例不是 <typeparamref name="TWindow"/>（缓存命中类型不符，消息带期望/实际双类型名）。</exception>
+        public static async UniTask<TWindow> ShowUIAsyncAwait<TWindow, TArg>(TArg payload, string windowName = null, string assetLocation = null,
+            bool fromResources = false, PanelSettings panelSettings = null, CancellationToken ct = default) where TWindow : UITKWindow<TArg>, new()
+        {
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            var window = await SharedLedger.ShowUIAwaitImp<TArg>(typeof(TWindow), true, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), payload, ct);
+            return window switch
+            {
+                null => null,
+                TWindow typed => typed,
+                _ => throw new GameException(StringUtility.Format(
+                    "UI 窗口 '{0}' 按名命中的实例不是 {1}：实际是 {2}。",
+                    window.WindowName, typeof(TWindow).Name, window.GetType().Name))
+            };
+        }
+
+        /// <summary>
+        /// 异步打开带载荷窗口并等待装载终态（UI Toolkit 腿）：就绪/失败/超时按 <see cref="UIOpenResult"/> 交回。
+        /// </summary>
+        /// <typeparam name="TWindow">带载荷窗口类。</typeparam>
+        /// <typeparam name="TArg">载荷类型。</typeparam>
+        /// <param name="payload">本次开窗的载荷。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时回共享那一份。</param>
+        /// <param name="ct">调用方取消令牌；被它撤销即落 <see cref="EUIOpenStatus.Cancelled"/> 档。</param>
+        /// <returns>开窗结果。</returns>
+        public static UniTask<UIOpenResult> ShowUIAwaitResult<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null,
+            bool fromResources = false, PanelSettings panelSettings = null, CancellationToken ct = default) where TWindow : UITKWindow<TArg>, new()
+        {
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            return SharedLedger.ShowUIAwaitResultImp<TArg>(typeof(TWindow), true, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), payload, ct);
         }
 
         /// <summary>
         /// Type 形入口落到本轨的开窗实现：走各轨共用的那张中性形参表，因此不带窗口级 <c>PanelSettings</c>。
         /// </summary>
         /// <remarks>
-        /// 这一条路不给窗口级配置，装载回共享那一份 <see cref="UITKWindow.SharedPanelSettings"/>。
+        /// 这一条路不给窗口级配置（<c>panelSettings</c> 恒为 <c>null</c>），装载回共享那一份 <see cref="UITKWindow.SharedPanelSettings"/>。
         /// </remarks>
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
         /// <param name="windowName">窗口名称。</param>
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="ct">调用方取消令牌。</param>
         // ReSharper disable once InconsistentNaming
         private static void OpenUITKWindowForTypeEntry(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            object[] userData)
+            UIPayload payload, CancellationToken ct)
         {
-            OpenUITKWindow(type, isAsync, windowName, assetLocation, fromResources, null, userData);
-        }
-
-        /// <summary>
-        /// UI Toolkit 轨的开窗实现：窗口经协调者那一份共享栈压栈。
-        /// </summary>
-        /// <remarks>
-        /// <paramref name="panelSettings"/> 经 <see cref="HandoffPanelSettings"/> 包成本轨自己的交接钩子交下去。 <br />
-        /// 中性编排只认 <see cref="UIWindow"/>。
-        /// </remarks>
-        /// <param name="type">窗口类。</param>
-        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
-        /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时不交接。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        // ReSharper disable once InconsistentNaming
-        private static void OpenUITKWindow(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            PanelSettings panelSettings, object[] userData)
-        {
-            UITKHandler.ShowUIImp(type, isAsync, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), userData);
-        }
-
-        /// <summary>
-        /// UI Toolkit 轨的等待腿实现：与同步那一枚同一份共享栈，另把面板就绪等出来。
-        /// </summary>
-        /// <remarks>与 <c>OpenUITKWindow</c> 同一交法：交接钩子排在装载之前，等出来的那只窗带着本窗那一枚覆盖（为空时回共享那一份）。</remarks>
-        /// <param name="type">窗口类。</param>
-        /// <param name="isAsync">面板按异步装载还是同步装载。</param>
-        /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="panelSettings">本窗口自己的 <see cref="PanelSettings"/>；为空时不交接。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        /// <returns>打开窗口操作句柄。</returns>
-        // ReSharper disable once InconsistentNaming
-        private static UniTask<UIWindow> OpenUITKWindowAwait(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            PanelSettings panelSettings, object[] userData)
-        {
-            return UITKHandler.ShowUIAwaitImp(type, isAsync, windowName, assetLocation, fromResources, HandoffPanelSettings(panelSettings), userData);
+            _ = UITKHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
+            SharedLedger.ShowUIImp(type, isAsync, windowName, assetLocation, fromResources, null, payload, ct);
         }
 
         /// <summary>
@@ -270,7 +320,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 钩子里才认 <see cref="UITKWindow"/>：后端类型因此只住在这一轨的文件里。 <br />
-        /// 中性的 <see cref="UIWindowLedger"/> 与 <see cref="UIServiceHandler"/> 只收下这个形参。 <br />
+        /// 中性的 <see cref="UIWindowLedger"/> 一枚收下这个形参：门面腿直调账本，驱动者不再过手。 <br />
         /// 落进钩子的窗由认轨守卫与泛型约束保证在本轨之上，不在时那一次赋值当场抛而不静默落空。
         /// </remarks>
         /// <param name="panelSettings">这一次要交给新窗的那一枚配置。</param>

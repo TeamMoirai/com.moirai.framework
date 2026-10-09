@@ -86,7 +86,7 @@ namespace Service.UI
         public void OnRefreshThrows_WindowStillEntersStack()
         {
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("OnRefresh"));
-            _ledger.ShowUIImp(typeof(RefreshThrowProbeWindow), false, "RefreshThrow", "Panel", false, null);
+            _ledger.ShowUIImp(typeof(RefreshThrowProbeWindow), false, "RefreshThrow", "Panel", false, null, UIPayload.Empty);
 
             Assert.IsTrue(_ledger.IsContains("RefreshThrow"), "OnRefresh 抛照常入栈");
         }
@@ -94,7 +94,7 @@ namespace Service.UI
         [Test]
         public void OnCloseThrows_CloseFlowCompletes()
         {
-            _ledger.ShowUIImp(typeof(CloseThrowProbeWindow), false, "CloseThrow", "Panel", false, null);
+            _ledger.ShowUIImp(typeof(CloseThrowProbeWindow), false, "CloseThrow", "Panel", false, null, UIPayload.Empty);
             var window = (CloseThrowProbeWindow)_ledger.GetWindow("CloseThrow");
 
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("OnClose"));
@@ -107,7 +107,7 @@ namespace Service.UI
         [Test]
         public void OnDestroyThrows_DestroyFlowCompletes()
         {
-            _ledger.ShowUIImp(typeof(DestroyThrowProbeWindow), false, "DestroyThrow", "Panel", false, null);
+            _ledger.ShowUIImp(typeof(DestroyThrowProbeWindow), false, "DestroyThrow", "Panel", false, null, UIPayload.Empty);
             var window = (DestroyThrowProbeWindow)_ledger.GetWindow("DestroyThrow");
 
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("OnDestroy"));
@@ -119,7 +119,7 @@ namespace Service.UI
         [Test]
         public void CanCloseThrows_TreatedAsRefuseClose()
         {
-            _ledger.ShowUIImp(typeof(CanCloseThrowProbeWindow), false, "CanCloseThrow", "Panel", false, null);
+            _ledger.ShowUIImp(typeof(CanCloseThrowProbeWindow), false, "CanCloseThrow", "Panel", false, null, UIPayload.Empty);
             var window = (CanCloseThrowProbeWindow)_ledger.GetWindow("CanCloseThrow");
             window.Interactable = true;
 
@@ -135,7 +135,7 @@ namespace Service.UI
         {
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("ApplyVisible"));
             Assert.DoesNotThrow(() =>
-                _ledger.ShowUIImp(typeof(ApplyThrowProbeWindow), false, "ApplyThrow", "Panel", false, null));
+                _ledger.ShowUIImp(typeof(ApplyThrowProbeWindow), false, "ApplyThrow", "Panel", false, null, UIPayload.Empty));
 
             var window = _ledger.GetWindow("ApplyThrow");
             Assert.IsNotNull(window, "Apply* 抛不挡入栈");
@@ -174,7 +174,7 @@ namespace Service.UI
         {
             LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("创建链"));
             Assert.DoesNotThrow(() =>
-                UIService.SharedLedger.ShowUIImp(typeof(CreateThrowProbeWindow), false, "CreateThrow", "Panel", false, null),
+                UIService.SharedLedger.ShowUIImp(typeof(CreateThrowProbeWindow), false, "CreateThrow", "Panel", false, null, UIPayload.Empty),
                 "创建链抛不得透出开窗调用");
 
             Assert.IsNull(UIService.SharedLedger.GetWindow("CreateThrow"), "失败窗不得留在栈上");

@@ -14,43 +14,37 @@ namespace Moirai.Atropos.UI
         /// <summary>窗口类型</summary>
         public Type WindowType { get; private set; }
 
-        /// <summary>自定义数据集。</summary>
-        public Object[] Params { get; private set; }
-
         public enum EMode { Show, Close, Hide, CloseAll }
         public EMode Mode { get; private set; }
 
-        private static UIWindowEvent GetPooled(Type windowType, string windowId, EMode mode, params Object[] userData)
+        private static UIWindowEvent GetPooled(Type windowType, string windowId, EMode mode)
         {
             var evt = GetPooled();
             evt.WindowType = windowType;
             evt.WindowId = windowId;
-            evt.Params = userData;
             evt.Mode = mode;
             return evt;
         }
 
         /// <summary>
-        /// 打开指定弹窗
+        /// 打开指定弹窗（事件不带载荷）
         /// </summary>
         /// <param name="windowId"></param>
-        /// <param name="userData"></param>
         /// <typeparam name="T"></typeparam>
-        public static void Show<T>(string windowId, params Object[] userData) where T : UIWindow
+        public static void Show<T>(string windowId) where T : UIWindow
         {
-            using var evt = GetPooled(typeof(T), windowId, EMode.Show, userData);
+            using var evt = GetPooled(typeof(T), windowId, EMode.Show);
             EventManager.SendEvent(evt);
         }
 
         /// <summary>
-        /// 打开指定弹窗
+        /// 打开指定弹窗（事件不带载荷）
         /// </summary>
         /// <param name="windowType"></param>
         /// <param name="windowId"></param>
-        /// <param name="userData"></param>
-        public static void Show(Type windowType, string windowId, params Object[] userData)
+        public static void Show(Type windowType, string windowId)
         {
-            using var evt = GetPooled(windowType, windowId, EMode.Show, userData);
+            using var evt = GetPooled(windowType, windowId, EMode.Show);
             EventManager.SendEvent(evt);
         }
 

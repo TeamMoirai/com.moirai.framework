@@ -138,7 +138,7 @@ namespace Service.UI
             // 两条 Error：缺 PanelSettings 那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
             UtfLogExpect.Error();
             UtfLogExpect.Error();
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
 
             Assert.IsFalse(window.IsLoadDone, "缺 PanelSettings 不得进准备态");
             Assert.IsNull(window.gameObject, "拒开时不得留下壳物体");
@@ -171,7 +171,7 @@ namespace Service.UI
             // 两条 Error：取不到模板那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
             UtfLogExpect.Error();
             UtfLogExpect.Error();
-            window.InternalLoad(missingPath, null, false, null);
+            window.InternalLoad(missingPath, null, false);
 
             Assert.IsFalse(window.IsLoadDone, "取不到模板不得进准备态");
             Assert.IsNull(window.gameObject, "取不到模板时不得建出壳物体");
@@ -197,7 +197,7 @@ namespace Service.UI
             GameObject shell;
             try
             {
-                window.InternalLoad(TemplateAssetPath, null, false, null);
+                window.InternalLoad(TemplateAssetPath, null, false);
             }
             finally
             {
@@ -225,7 +225,7 @@ namespace Service.UI
             GameObject shell;
             try
             {
-                window.InternalLoad(TemplateAssetPath, null, true, null);
+                window.InternalLoad(TemplateAssetPath, null, true);
             }
             finally
             {
@@ -256,7 +256,7 @@ namespace Service.UI
             GameObject shell;
             try
             {
-                window.InternalLoad(TemplateResourceName, null, false, null);
+                window.InternalLoad(TemplateResourceName, null, false);
             }
             finally
             {
@@ -373,7 +373,7 @@ namespace Service.UI
             window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
             // 装载前把「显示」意图压进对象模型：PanelLoaded 结算它时内容根才刚被 new 出来，槽里只有初值
             window.Visible = true;
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
 
             Assert.AreEqual(DisplayStyle.Flex, window.RootVisual.style.display.value, "显示意图落 display");
             Assert.AreNotEqual(StyleKeyword.Null, window.RootVisual.style.display.keyword,
@@ -535,7 +535,7 @@ namespace Service.UI
             // 两条 Error：缺 PanelSettings 那一条（装载判据）+ 装载失败收口那一条（窗口回滚报账）
             UtfLogExpect.Error();
             UtfLogExpect.Error();
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
 
             Assert.IsNull(window.Document, "量具前提坏了：拒开不得留下文档组件，面板须在「不在场」这一侧");
             Assert.DoesNotThrow(() => window.Depth = 900, "拒开后的窗口写深度必须不抛");
@@ -624,7 +624,7 @@ namespace Service.UI
         {
             var window = new ProbeWindow { Fixture = fixture };
             window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
             return window;
         }
 
