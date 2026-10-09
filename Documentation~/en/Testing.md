@@ -171,7 +171,7 @@ Three hard constraints follow:
 
 **Reflection allowlist** (only these three legitimate uses, and each must state its reason in the file header):
 
-1. **Contract shape guards** — walking API shape and asserting member annotations (`ResourceSeamShapeGuardTests`, `ResourceMethodSetContractTests`, `YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`). These **can only** reflect; do not delete them as violations.
+1. **Behavior contract guards** — asserting member annotations, or reaching conditionally compiled members through reflection (`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`: the serialization boundary; `AddressableHandlerFailFastTests`: the fail-fast surface of a conditionally compiled backend). These **can only** reflect; do not delete them as violations.
 2. **Invoking Unity lifecycle callbacks** — `Awake` / `OnEnable` / `OnInit`.
 3. **Generated-field probes** — reading fields emitted by code generators (`MemoryPoolFixture.StaticField`).
 
@@ -243,12 +243,12 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 
 `Moirai.Atropos.Tests.Player` has `defineConstraints: ["UNITY_INCLUDE_TESTS"]` — it **compiles and is visible in the editor**; the 0-GC metering cases run or Ignore as a group based on the GC.Alloc sampling capability probe (visible is not dead; Ignore is not a false green). Empirical premises (2026-09-28, StandaloneOSX on both backends):
 
-1. **Player test inclusion requires editor visibility.** UTF player test runs (GUI and CLI share the same mechanism; the build carries `BuildOptions.IncludeTestAssemblies`) only include test assemblies visible to the editor — an assembly constrained by `!UNITY_EDITOR` never enters the player test package. The old doctrine's combination of "doesn't compile in the editor + Run all in Player" executes nowhere (the L3 gate had therefore never actually run the 0-GC cases).
+1. **Player test inclusion requires editor visibility.** UTF player test runs (GUI and CLI share the same mechanism; the build carries `BuildOptions.IncludeTestAssemblies`) only include test assemblies visible to the editor — an assembly constrained by `!UNITY_EDITOR` never enters the player test package. The "doesn't compile in the editor + Run all in Player" combination executes nowhere.
 2. **Three ways to start a run**: Test Runner window's PlayMode tab → `Run all in Player` (narrow the scope with the search box; the player-side report is authoritative); this package's `Window/General/Test Player Runner` window (one-click parameterized launch: target platform / filters / heartbeat timeout / report path + CLI-equivalent command copy, report written to disk automatically); or CLI `Unity -batchmode -projectPath <project> -runTests -testPlatform StandaloneOSX -testResults <xml> -logFile <log>` (exit codes: 0 = all pass / 2 = test failures / 3 = RunError / 4 = unknown platform; requires the GUI editor to be closed — the project lock is exclusive). All three channels go through the same `PlayerLauncher` mechanism.
 3. **Do not hand-build a test player with `BuildPipeline.BuildPlayer`.** The in-player test entry point is not the `-runTests` argument but a **bootstrap scene injected at build time** (`CreateBootstrapSceneTask` generates `Assets/InitTestScene<guid>.unity` hosting `PlaymodeTestsController`); a hand-built player lacks that scene and `-runTests` does nothing. The player also **does not write a result XML itself** — results travel back over PlayerConnection via `RemoteTestResultSender` and are written to disk by the editor (in CLI mode UTF writes `-testResults`).
 4. **`Tests/Player/PlayerTestBootstrap.cs` is a required prerequisite**: the player auto-starts the framework by default (`GameApp.AutoBoot` defaults to true), and a test player runs an empty scene, so the UI backend never sees a `UIRootBinding` registration, the boot chain halts at `UGUIHandler`'s "UI root not yet bound" error, and the test run never gets a turn. The bootstrap sets `AutoBoot` to false in `AfterAssembliesLoaded` — **player domain only (`#if !UNITY_EDITOR`)**: the editor PlayMode test domain depends on the auto-boot chain (the L2 gate premise) and must never be disabled there.
 5. **Real 0-GC metering uses GC.Alloc sampling.** `AllocationCapture` meters via `GC.Alloc` sample counts (the same mechanism and API family as UTF's official `AllocatingGCMemory` constraint); runtimes without the sample Ignore as a group. Byte-denominated GC counter APIs do not exist in Unity (`GetAllocatedBytesForCurrentThread` measured constantly 0 across editor Mono, Mono player, and IL2CPP player; `GetTotalAllocatedBytes` does not exist in Unity's profile). Pick the Standalone test-player backend per release target — the IL2CPP incremental cache is warm, and a single-assembly change rebuilds the test player in about 3.5 minutes.
-6. **Hooks and arguments**: `LocalizationChannelBuildHook` now early-returns "absent means untouched" when no `-CustomArgs:` prefix is present (fixed 2026-09-28 — previously the missing-argument LogError condemned every argument-less player build, GUI and CLI alike); CI release builds still pass `-CustomArgs:platform=X;localizationLanguage=Y` by convention, and a present prefix with a missing key still fails loudly.
+6. **Hooks and arguments**: `LocalizationChannelBuildHook` early-returns "absent means untouched" when no `-CustomArgs:` prefix is present; CI release builds still pass `-CustomArgs:platform=X;localizationLanguage=Y` by convention, and a present prefix with a missing key still fails loudly.
 
 ### IL2CPP player verification criteria
 
@@ -267,23 +267,12 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 - Always cache callbacks as static method-group fields (C# 9 does not cache method-group conversions; a bare conversion allocates a delegate per call and pollutes 0-GC benchmarks).
 - CI benchmark channel: see `Packages/GitHubActions~/README.BENCHMARK.md`.
 
-## Maintaining contract guards
+## Public API change policy
 
-A "contract guard" is a case that pins the **current API shape** into baseline constants (e.g. `ResourceSeamShapeGuardTests` records the abstract member count, the `internal abstract` count and the `[Obsolete]` count as constants). Its value is making "a member quietly disappeared" and "a reference silently stopped resolving" visible in the diff.
+Tests do not pin API shapes (signatures, member counts, name lists) into baseline constants — intentional changes to the public surface are not registered in test baselines; such guards force every change to first sync the tests, moving the bookkeeping duty for breaking changes into the test suite. The correct policy:
 
-**But it must be maintained, or it degrades into permanently red** — at which point it neither guards against regressions nor stops masking real defects. The 2026-09-24 baseline contains two such examples:
-
-| Case | Symptom | Cause |
-|---|---|---|
-| `ResourceSeamShapeGuardTests.Seam_AbstractMemberCount_MatchesRecordedBaseline` | Expected 66, actual 67 | One abstract member was added; the baseline was not updated |
-| `ResourceMethodSetContractTests.InitializePackageAsync_Signature` | Expected `UniTask<bool>`, actual `UniTask<ResourcePackageInitResult>` | The package-management API was intentionally renamed and retyped; the guard was not updated |
-
-Maintenance discipline:
-
-1. **When the API changes intentionally, update the baseline constant in the same commit** — do not defer it to "next time".
-2. **Record the provenance of each number in the baseline comment** (`2026-09-24 baseline: 19 abstract properties + 47 abstract methods; …`) so the next reader can see where the numbers came from.
-3. **State in `CHANGELOG.md` which members were removed.** The baseline constant is "the shape now"; the CHANGELOG is "why it became this".
-4. When a guard goes red you **must** decide: intentional change (update the baseline) or accidental convergence (fix the code). **Editing the constant just to make it green is not allowed.**
+1. **Breaking updates (adding/removing public members, changing signatures/constraints/enum numbering) record their migration notes in `CHANGELOG.md`**: what was removed and how callers migrate; UI payload/event changes additionally go to `UIMigration.md`.
+2. The reflection allowlist's "contract guards" cover only member-annotation and runtime-behavior assertions (e.g. the `[NonSerialized]` serialization boundary), never shape registration.
 
 ## Coverage and gates
 
