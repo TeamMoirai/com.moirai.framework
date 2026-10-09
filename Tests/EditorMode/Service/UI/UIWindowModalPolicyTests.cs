@@ -80,7 +80,7 @@ namespace Service.UI
         private static UIWindow PlainWindow(string windowName, int layer)
         {
             var window = new ForcedModalProbeWindow();
-            window.Init(windowName, layer, false, "Panel", false, 10, false);
+            window.Init(windowName, layer, false, "Panel", false, 10);
             return window;
         }
 

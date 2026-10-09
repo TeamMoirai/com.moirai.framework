@@ -289,7 +289,7 @@ namespace Service.UI
             Assert.IsFalse(UIService.SharedLedger.IsBlockedByModal(empty), "栈上没有模态时谁都不挡");
 
             var modal = new ProbeOwnedWindow();
-            modal.Init("OwnedModal", (int)EUILayer.UI, false, "Panel", false, 10, false);
+            modal.Init("OwnedModal", (int)EUILayer.UI, false, "Panel", false, 10);
             var panel = Object("ModalPanel");
             modal.Root = panel;
             var child = Object("ModalChild");
@@ -1118,7 +1118,7 @@ namespace Service.UI
         public void CloseUI_CachedAndPlainWindows_RouteSeparatelyAndLeaveStack()
         {
             var plain = Prepared("PlainClose", (int)EUILayer.Bottom);
-            var cached = Window<ProbeUGUIWindow>("CachedClose", (int)EUILayer.UI, false, true);
+            var cached = Window<ProbeUGUIWindow>("CachedClose", (int)EUILayer.UI, false, -1f);
             UIService.SharedLedger.Push(cached);
             cached.InternalLoad("Panel", null, false);
             UIService.SharedLedger.OnWindowPrepare(cached);
@@ -1194,7 +1194,7 @@ namespace Service.UI
         public void HideUI_ZeroHideTime_ClosesWindowInsteadOfHiding()
         {
             var window = Window<ProbeUGUIWindow>("InstantClose", (int)EUILayer.Bottom);
-            window.Init("InstantClose", (int)EUILayer.Bottom, false, "Panel", false, 0, false);
+            window.Init("InstantClose", (int)EUILayer.Bottom, false, "Panel", false, 0);
             UIService.SharedLedger.Push(window);
             window.InternalLoad("Panel", null, false);
             UIService.SharedLedger.OnWindowPrepare(window);
@@ -1234,7 +1234,7 @@ namespace Service.UI
         [Test]
         public void CloseAll_PerShutdownFlag_CachesOnNormalRoundAndDestroysOnShutdownRound()
         {
-            var cached = Window<ProbeUGUIWindow>("AllCached", (int)EUILayer.Bottom, false, true);
+            var cached = Window<ProbeUGUIWindow>("AllCached", (int)EUILayer.Bottom, false, -1f);
             var plain = Window<ProbeUGUIWindow>("AllPlain", (int)EUILayer.UI);
             UIService.SharedLedger.Push(cached);
             UIService.SharedLedger.Push(plain);
@@ -1245,7 +1245,7 @@ namespace Service.UI
             Assert.IsTrue(UIService.SharedLedger.IsParked("AllCached"), "非关停轮缓存窗进停放表");
             Assert.IsTrue(plain.IsDestroyed, "非缓存窗一律销毁");
 
-            var shutdownCached = Window<ProbeUGUIWindow>("AllCached2", (int)EUILayer.Bottom, false, true);
+            var shutdownCached = Window<ProbeUGUIWindow>("AllCached2", (int)EUILayer.Bottom, false, -1f);
             UIService.SharedLedger.Push(shutdownCached);
 
             UIService.SharedLedger.CloseAll(true);
@@ -1340,7 +1340,7 @@ namespace Service.UI
             Assert.IsTrue(_uiRootGo != null && uguiDriver.UIRoot != null, "量具前提坏了：UI 根没绑上，销毁那一步判不到");
 
             var kitWindow = new OrderProbeUITKWindow();
-            kitWindow.Init("OrderKit", (int)EUILayer.Bottom, false, "Panel", false, 10, false);
+            kitWindow.Init("OrderKit", (int)EUILayer.Bottom, false, "Panel", false, 10);
             kitWindow.RootToObserve = _uiRootGo;
             var ledger = UIService.SharedLedger;
             ledger.Push(kitWindow);
@@ -1445,7 +1445,7 @@ namespace Service.UI
         public void CloseUI_CachedWindowParksItWithoutWritingTheVisibleIntent()
         {
             var below = Prepared("ParkBelow", (int)EUILayer.Bottom);
-            var cached = Window<ProbeUGUIWindow>("ParkFullScreen", (int)EUILayer.UI, true, true);
+            var cached = Window<ProbeUGUIWindow>("ParkFullScreen", (int)EUILayer.UI, true, -1f);
             UIService.SharedLedger.Push(cached);
             cached.InternalLoad("Panel", null, false);
             UIService.SharedLedger.OnWindowPrepare(cached);
@@ -1526,13 +1526,13 @@ namespace Service.UI
         /// <param name="windowName">窗口名称。</param>
         /// <param name="layer">窗口层级。</param>
         /// <param name="fullScreen">是否全屏。</param>
-        /// <param name="cacheInstance">关闭时是否缓存实例。</param>
+        /// <param name="cacheTimeToDestroy">关闭时是否停放，以及停放后的 TTL 档。</param>
         /// <returns>未入栈的探针窗。</returns>
-        private static T Window<T>(string windowName, int layer, bool fullScreen = false, bool cacheInstance = false)
+        private static T Window<T>(string windowName, int layer, bool fullScreen = false, float cacheTimeToDestroy = 0f)
             where T : UIWindow, new()
         {
             var window = new T();
-            window.Init(windowName, layer, fullScreen, "Panel", false, 10, cacheInstance);
+            window.Init(windowName, layer, fullScreen, "Panel", false, 10, cacheTimeToDestroy: cacheTimeToDestroy);
             return window;
         }
 
@@ -1678,14 +1678,14 @@ namespace Service.UI
         }
 
         /// <summary>
-        /// 由 uGUI 轨的开窗入口实例化的探针窗：<c>cacheInstance</c> 为真才会被停放，面板是一枚真实物体，
+        /// 由 uGUI 轨的开窗入口实例化的探针窗：停放档非零才会被停放，面板是一枚真实物体，
         /// 供复用支路的 <c>SetActive</c> 被看见。
         /// </summary>
         /// <remarks>
         /// 面板钩子一律只记账：没有 Canvas 也没有 UI Document，只有装载时自建的那枚物体。 <br />
         /// 默认构造必须显式写成 public——开窗族那侧用 <c>Activator.CreateInstance</c> 实例化窗口类型。
         /// </remarks>
-        [Window(EUILayer.UI, cacheInstance: true)]
+        [Window(EUILayer.UI, cacheTimeToDestroy: -1f)]
         internal sealed class HandlerProbeWindow : UGUIWindow
         {
             private GameObject _panel;

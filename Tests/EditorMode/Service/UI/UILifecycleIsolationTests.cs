@@ -28,7 +28,7 @@ namespace Service.UI
         protected override void OnRefresh() => throw new System.InvalidOperationException("refresh probe");
     }
 
-    [Window(EUILayer.Tips, cacheInstance:true)]
+    [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
     internal class CloseThrowProbeWindow : UGUIWindow
     {
         public int ParkCount;

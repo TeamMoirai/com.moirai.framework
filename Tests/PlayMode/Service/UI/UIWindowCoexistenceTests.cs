@@ -512,13 +512,13 @@ namespace Service.UI
         public void ParkPanel_WindowWithUnboundPanel_ThrowsNullReferenceOnBothTracks()
         {
             var kit = new ProbeUITKWindowOnTipsLayer();
-            kit.Init("UnboundKit", (int)EUILayer.Tips, false, "Panel", false, 10, false);
+            kit.Init("UnboundKit", (int)EUILayer.Tips, false, "Panel", false, 10);
             Assert.IsNull(kit.gameObject, "量具前提坏了：未装载的窗口此刻没有面板本体");
             Assert.Throws<NullReferenceException>(() => kit.ParkForTest(),
                 "UI Toolkit 那一轨的停放不守卫绑定：未绑定时即抛");
 
             var ugui = new ProbeUGUIWindowOnUiLayer();
-            ugui.Init("UnboundUGUI", (int)EUILayer.UI, false, "Panel", false, 10, false);
+            ugui.Init("UnboundUGUI", (int)EUILayer.UI, false, "Panel", false, 10);
             Assert.IsNull(ugui.gameObject, "量具前提坏了：未装载的窗口此刻没有面板本体");
             Assert.Throws<NullReferenceException>(() => ugui.ParkForTest(),
                 "uGUI 那一轨的停放同形：未绑定时即抛");
@@ -643,7 +643,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨缓存实例探针窗（<see cref="EUILayer.UI"/>）：关闭后停放，重开交回同一只。</summary>
-        [Window(EUILayer.UI, cacheInstance: true)]
+        [Window(EUILayer.UI, cacheTimeToDestroy: -1f)]
         internal sealed class ProbeCachedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -654,7 +654,7 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨真装载探针窗（<see cref="EUILayer.Tips"/>）：模板取内置资源、缓存实例，装载路径不覆写。</summary>
-        [Window(EUILayer.Tips, TEMPLATE_RESOURCE_NAME, true, cacheInstance: true)]
+        [Window(EUILayer.Tips, TEMPLATE_RESOURCE_NAME, true, cacheTimeToDestroy: -1f)]
         internal sealed class ProbeCachedResourcesKitWindow : UITKWindow
         {
         }

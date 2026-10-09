@@ -142,8 +142,7 @@ namespace Moirai.Atropos.SourceGenerators
                 .Append(model.FullScreen ? "true" : "false").Append(", ")
                 .Append(model.Modal).Append(", ")
                 .Append(model.HideTimeToClose).Append(", ")
-                .Append(model.CacheInstance ? "true" : "false")
-                .Append(", ").Append(model.CacheTimeToDestroy.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append("f")
+                .Append(model.CacheTimeToDestroy.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append("f")
                 .Append("), static () => new ").Append(typeRef).Append("());")
                 .ToString();
         }
