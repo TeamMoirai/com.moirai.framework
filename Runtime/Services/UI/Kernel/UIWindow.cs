@@ -11,8 +11,8 @@ namespace Moirai.Atropos.UI
     /// 窗口对象模型：身份、生命周期与显隐/深度/交互的<b>意图位</b>，不含任何渲染后端类型。
     /// </summary>
     /// <remarks>
-    /// 面板本体住在各后端的派生基类里（uGUI 轨见 <see cref="UGUIWindow"/>），本类经七枚 <c>virtual</c> 钩子交接：<br />
-    /// 装载走 <c>LoadPanel(Async)</c>，落意图走三枚 <c>Apply*</c>，收面板走 <c>ParkPanel</c> / <c>DestroyPanel</c>。<br />
+    /// 面板本体住在各后端的派生基类里（uGUI 轨见 <see cref="UGUIWindow"/>），本类经七个 <c>virtual</c> 钩子交接：<br />
+    /// 装载走 <c>LoadPanel(Async)</c>，落意图走三个 <c>Apply*</c>，收面板走 <c>ParkPanel</c> / <c>DestroyPanel</c>。<br />
     /// 默认实现什么都不做：未挂后端基类的窗口不崩，但也开不出来。<br />
     /// 显隐/深度/交互以意图位为准，同值二次赋值不重复落钩子。<br />
     /// 自关（<see cref="Close"/>）一律等可交互之后过 <see cref="CanClose"/> 门再结算。<br />
@@ -23,16 +23,21 @@ namespace Moirai.Atropos.UI
         #region 属性 [PROPERTIES]
 
         private bool _isCreate = false;
+        private bool _eventsRegistered;
         private Action<UIWindow> _prepareCallback;
         // 交互/可见性交接代次：每次状态转移（打开/关闭/重开/销毁）递增，只有最新一轮的续体可以交还交互锁与隐藏窗口
         private uint _interactionLifetime;
 
+        /// <summary>过渡取消源：经 <see cref="_ctsLease"/> 从内存池租入，本字段保持对子类可见的原始来源。</summary>
         protected CancellationTokenSource _cts;
+
+        /// <summary>过渡取消源的租约：池寿命归它管，<see cref="_cts"/> 只是它携带的那个源。</summary>
+        private UICtsLease _ctsLease;
 
         public override UIType Type => UIType.Window;
 
-        /// <summary>窗口名称。</summary>
-        public string WindowName { get; private set; }
+        /// <summary>窗口标识：栈上身份、面板地址原料与给人读的显示名同由它给出。</summary>
+        public string WindowId { get; private set; }
 
         /// <summary>窗口层级。</summary>
         public int WindowLayer { get; private set; }
@@ -53,8 +58,14 @@ namespace Moirai.Atropos.UI
         /// <summary>隐藏转关闭的定时器标识。</summary>
         public ulong HideTimerId { get; internal set; }
 
-        /// <summary>缓存实例，关闭时不销毁。</summary>
-        public bool CacheInstance { get; internal set; }
+        /// <summary>停放档：0 = 不缓存（关闭即销毁），&gt;0 = 停放并在这么多秒后销毁，&lt;0 = 停放永久。</summary>
+        public float CacheTimeToDestroy { get; internal set; }
+
+        /// <summary>关闭时是否进停放表：停放档非零即为真（0 才是「关闭即销毁」）。</summary>
+        internal bool ParksOnClose => CacheTimeToDestroy != 0f;
+
+        /// <summary>停放转销毁的定时器标识；取用即取消，0 表示无在途计时。</summary>
+        internal ulong CacheTimerId { get; private set; }
 
         private int _depth;
         /// <summary>窗口深度值（意图）。</summary>
@@ -76,7 +87,14 @@ namespace Moirai.Atropos.UI
                 _depth = value;
 
                 // 面板落地（后端自己的事：父级取绝对值、子级按各自偏移一同平移）
-                ApplyDepth(value);
+                try
+                {
+                    ApplyDepth(value);
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 ApplyDepth 抛出异常，意图照常结算：{1}", WindowId, ex);
+                }
 
                 // 虚函数
                 if (Visible)
@@ -110,7 +128,14 @@ namespace Moirai.Atropos.UI
                 _visible = value;
 
                 // 面板落地
-                ApplyVisible(value);
+                try
+                {
+                    ApplyVisible(value);
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 ApplyVisible 抛出异常，意图照常结算：{1}", WindowId, ex);
+                }
 
                 if (value && _isCreate)
                 {
@@ -118,7 +143,7 @@ namespace Moirai.Atropos.UI
                     Internal_OnSortDepth();
                 }
 
-                // LogUtility.Info("[UI] Set '{0}' Visible {1}", WindowName, value);
+                // LogUtility.Info("[UI] Set '{0}' Visible {1}", WindowId, value);
 
                 // 虚函数
                 if (_isCreate)
@@ -139,9 +164,16 @@ namespace Moirai.Atropos.UI
             {
                 if (_interactable == value) return;
 
-                // LogUtility.Info("{0}'s Interactable: {1}", WindowName, value);
+                // LogUtility.Info("{0}'s Interactable: {1}", WindowId, value);
                 _interactable = value;
-                ApplyInteractable(value);
+                try
+                {
+                    ApplyInteractable(value);
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 ApplyInteractable 抛出异常，意图照常结算：{1}", WindowId, ex);
+                }
             }
         }
 
@@ -162,23 +194,23 @@ namespace Moirai.Atropos.UI
         /// 按描述符各档初始化窗口身份与配置。
         /// </summary>
         /// <remarks>internal：开窗调用方（注册表链路）与测试接缝专用，游戏代码经门面开窗不直接初始化。</remarks>
-        /// <param name="name">窗口名称。</param>
+        /// <param name="windowId">窗口标识：落到 <see cref="WindowId"/>，栈上身份、地址原料与显示名都由它给。</param>
         /// <param name="layer">窗口层级。</param>
         /// <param name="fullScreen">是否为全屏窗口。</param>
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">是内部资源无需AB加载。</param>
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数。</param>
-        /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
         /// <param name="modal">模态档；缺省按层级继承（模态层级 UI/Popup/System 即模态）。</param>
-        internal void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance, EUIModal modal = EUIModal.Inherit)
+        /// <param name="cacheTimeToDestroy">停放档；0 = 不缓存，&gt;0 = 停放转销毁的秒数，&lt;0 = 停放永久。</param>
+        internal void Init(string windowId, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, EUIModal modal = EUIModal.Inherit, float cacheTimeToDestroy = 0f)
         {
-            WindowName = name;
+            WindowId = windowId;
             WindowLayer = layer;
             FullScreen = fullScreen;
             AssetLocation = assetLocation;
             FromResources = fromResources;
             HideTimeToClose = hideTimeToClose;
-            CacheInstance = cacheInstance;
+            CacheTimeToDestroy = cacheTimeToDestroy;
             IsModalWindow = modal switch
             {
                 EUIModal.Modal => true,
@@ -191,10 +223,20 @@ namespace Moirai.Atropos.UI
         /// <remarks>压栈压下层交互位、开/关过渡占全局压制位的判据都以它为准。</remarks>
         internal bool IsModalWindow { get; private set; }
 
-        internal void TryInvoke(Action<UIWindow> prepareCallback, System.Object[] @params)
+        /// <summary>动态腿载荷落点：不带载荷槽的窗被塞非空载荷当场抬错（fail-fast，不静默吞）。</summary>
+        internal virtual void Internal_SetPayload(UIPayload payload)
+        {
+            if (!payload.IsEmpty)
+            {
+                throw new GameException(StringUtility.Format(
+                    "UI 窗口 '{0}'（{1}）不带载荷槽，却被塞了非空载荷：带参窗口必须继承 UGUIWindow<TArg> / UITKWindow<TArg>。",
+                    WindowId, GetType().FullName));
+            }
+        }
+
+        internal void TryInvoke(Action<UIWindow> prepareCallback)
         {
             CancelHideToCloseTimer();
-            _params = @params;
             if (IsPrepare)
             {
                 prepareCallback?.Invoke(this);
@@ -205,19 +247,71 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>装载期的取消源：装载在途时窗口被关闭（<see cref="InternalDestroy"/>）即掐断资源装载。</summary>
-        private CancellationTokenSource _loadCts;
+        /// <summary>装载期的取消源租约：装载在途时窗口被关闭（<see cref="InternalDestroy"/>）即掐断资源装载。</summary>
+        private UICtsLease _loadLease;
 
         /// <summary>装载失败位：面板装载回 false 或抛出后置位，等待腿据此判 <see cref="EUIOpenStatus.Failed"/>。</summary>
         internal bool IsLoadFailed { get; private set; }
 
-        internal async UniTaskVoid InternalLoad(string location, Action<UIWindow> prepareCallback, bool isAsync, System.Object[] @params)
+        private int _openWaiters;
+        private List<CancellationTokenRegistration> _openCancelRegs;
+
+        private static readonly System.Action<object> s_OpenCancelCallback = state => ((UIWindow)state).Internal_LeaveOpenWaiter();
+
+        /// <summary>登记一名开窗等待者（在飞合并的计数来源）。</summary>
+        internal void Internal_JoinOpenWaiter() => _openWaiters++;
+
+        /// <summary>等待者离场（取消唯一来路）：归零即掐断在途装载，回滚按取消落定。</summary>
+        internal void Internal_LeaveOpenWaiter()
+        {
+            if (IsLoadDone || IsDestroyed)
+            {
+                return;
+            }
+
+            // 下溢地板：未登记等待者的离场（如遗留 CancellationToken.None 路径）不得把计数拖成负数误掐在途装载
+            if (_openWaiters <= 0)
+            {
+                return;
+            }
+
+            if (--_openWaiters > 0)
+            {
+                return;
+            }
+
+            CancelLoadCts();
+        }
+
+        /// <summary>void 腿的调用方取消登记：静态回调 + 引用形 state，无闭包；仅 CanBeCanceled 时才叫。</summary>
+        internal void Internal_RegisterOpenCancel(CancellationToken callerCt)
+        {
+            _openCancelRegs ??= new List<CancellationTokenRegistration>(2);
+            _openCancelRegs.Add(callerCt.Register(s_OpenCancelCallback, this));
+        }
+
+        /// <summary>装载落定（就绪/失败/作废/销毁）时清账：等待者归零、取消登记整批解除。</summary>
+        private void SettleOpenWaiters()
+        {
+            _openWaiters = 0;
+            if (_openCancelRegs != null)
+            {
+                for (int i = 0; i < _openCancelRegs.Count; i++)
+                {
+                    _openCancelRegs[i].Dispose();
+                }
+
+                _openCancelRegs.Clear();
+            }
+        }
+
+        internal async UniTaskVoid InternalLoad(string location, Action<UIWindow> prepareCallback, bool isAsync)
         {
             _prepareCallback = prepareCallback;
-            _params = @params;
 
-            var loadCts = UICtsPool.Rent();
-            _loadCts = loadCts;
+            var loadLease = MemoryPool.Acquire<UICtsLease>();
+            var loadCts = loadLease.Source;
+            _loadLease = loadLease;
 
             // 装载面板是后端的活：本类只认「装上没有」，装上之后统一把三份意图落到新面板上
             try
@@ -237,7 +331,7 @@ namespace Moirai.Atropos.UI
                 }
                 catch (Exception ex)
                 {
-                    LogUtility.Error("UI 窗口 '{0}' 装载面板 {1} 抛出异常：{2}", WindowName, location, ex);
+                    LogUtility.Error("UI 窗口 '{0}' 装载面板 {1} 抛出异常：{2}", WindowId, location, ex);
                     RollbackFailedLoad();
                     return;
                 }
@@ -246,7 +340,7 @@ namespace Moirai.Atropos.UI
                 {
                     if (!loadCts.IsCancellationRequested)
                     {
-                        LogUtility.Error("UI 窗口 '{0}' 装载面板 {1} 失败：已从栈上回滚", WindowName, location);
+                        LogUtility.Error("UI 窗口 '{0}' 装载面板 {1} 失败：已从栈上回滚", WindowId, location);
                     }
                     RollbackFailedLoad();
                     return;
@@ -256,12 +350,12 @@ namespace Moirai.Atropos.UI
             }
             finally
             {
-                if (ReferenceEquals(_loadCts, loadCts))
+                if (ReferenceEquals(_loadLease, loadLease))
                 {
-                    _loadCts = null;
+                    _loadLease = null;
                 }
-                // 取消过的源由池内废弃，干净的回池复用
-                UICtsPool.Return(loadCts);
+                // 取消过的源由租约废弃，干净的回池复用
+                MemoryPool.Release(loadLease);
             }
         }
 
@@ -270,7 +364,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 回叫侧守卫与 <see cref="Hide"/>/<see cref="Close"/> 同一道：关停摘干净各轨之后不再动那条栈。<br />
-        /// 失败收口不触发 <see cref="OnDestroy"/>：本窗从未到过 <see cref="OnCreate"/>，不得凭空补一次销毁回执。
+        /// 失败收口不触发 <see cref="UIBase.OnDestroy"/>：本窗从未到过 <see cref="UIBase.OnCreate"/>，不得凭空补一次销毁回执。
         /// </remarks>
         private void RollbackFailedLoad()
         {
@@ -289,16 +383,32 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void AbortFailedLoad()
         {
+            SettleOpenWaiters();
             IsLoadFailed = true;
             IsDestroyed = true;
             _prepareCallback = null;
+
+            // InternalCreate 先置 _eventsRegistered 再叫 RegisterEvent：抛出型 RegisterEvent 会把已订阅的窗留在销毁态，此处补反注册
+            if (_eventsRegistered)
+            {
+                _eventsRegistered = false;
+                try
+                {
+                    UnregisterEvent();
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 UnregisterEvent 抛出异常，作废流程照常走完：{1}", WindowId, ex);
+                }
+            }
+
             DestroyPanel();
         }
 
         /// <summary>掐断装载期取消源：装载在途的窗口被关闭时，资源装载随之取消。</summary>
         private void CancelLoadCts()
         {
-            _loadCts?.Cancel();
+            _loadLease?.Source.Cancel();
         }
 
         /// <summary>
@@ -306,11 +416,12 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 实例方法轮询、无闭包分配；终态先于首帧检查，已就绪/已失败的窗口同帧落定。<br />
-        /// 超时落在 <see cref="OperationCanceledException"/>，由调用方归为超时档。
+        /// 超时落在 <see cref="OperationCanceledException"/>，由调用方归为超时档；调用方取消另走一档（<paramref name="callerCt"/> 撤销时原样上抛）。
         /// </remarks>
-        /// <param name="ct">等待方的超时令牌。</param>
+        /// <param name="timeoutCt">等待方的超时令牌。</param>
+        /// <param name="callerCt">调用方取消令牌；被它撤销时原样上抛 <see cref="OperationCanceledException"/>，与超时分档。</param>
         /// <returns>面板就绪时为真。</returns>
-        internal async UniTask<bool> WaitPanelReadyAsync(CancellationToken ct)
+        internal async UniTask<bool> WaitPanelReadyAsync(CancellationToken timeoutCt, CancellationToken callerCt = default)
         {
             while (!IsLoadDone)
             {
@@ -319,7 +430,8 @@ namespace Moirai.Atropos.UI
                     return false;
                 }
 
-                ct.ThrowIfCancellationRequested();
+                timeoutCt.ThrowIfCancellationRequested();
+                callerCt.ThrowIfCancellationRequested();
                 await UniTask.Yield();
             }
 
@@ -335,6 +447,7 @@ namespace Moirai.Atropos.UI
         private void PanelLoaded()
         {
             IsLoadDone = true;
+            SettleOpenWaiters();
 
             if (IsDestroyed)
             {
@@ -343,9 +456,32 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            ApplyVisible(_visible);
-            ApplyDepth(_depth);
-            ApplyInteractable(_interactable);
+            try
+            {
+                ApplyVisible(_visible);
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 ApplyVisible 抛出异常，落面板失败不挡流程：{1}", WindowId, ex);
+            }
+
+            try
+            {
+                ApplyDepth(_depth);
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 ApplyDepth 抛出异常，落面板失败不挡流程：{1}", WindowId, ex);
+            }
+
+            try
+            {
+                ApplyInteractable(_interactable);
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 ApplyInteractable 抛出异常，落面板失败不挡流程：{1}", WindowId, ex);
+            }
 
             // 通知UI管理器
             IsPrepare = true;
@@ -357,32 +493,55 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal void InternalCreate()
         {
-            // 缓存实例重开时 _isCreate 仍为 true，上一轮的动画续体可能还挂在路上：
-            // 先作废其代次并掐掉动画，再交还交互锁定状态，交给本次打开流程重新决策。
             _interactionLifetime++;
             CancelCts();
             UnlockInteraction();
 
-            if (_isCreate == false)
+            bool firstCreate = !_isCreate;
+            try
             {
-                _isCreate = true;
-                Inject();
-                ScriptGenerator();
-                BindMemberProperty();
-                RegisterEvent();
-                OnCreate();
+                if (firstCreate)
+                {
+                    _isCreate = true;
+                    Inject();
+                    ScriptGenerator();
+                    BindMemberProperty();
+                }
+
+                if (!_eventsRegistered)
+                {
+                    _eventsRegistered = true;
+                    RegisterEvent();
+                }
+
+                if (firstCreate)
+                {
+                    OnCreate();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 创建链抛出异常，按装载失败回滚：{1}", WindowId, ex);
+                RollbackFailedLoad();
+                return;
             }
 
             InternalRefresh(true);
-            // LogUtility.Info("[UI] Open {0}", WindowName);
         }
 
         internal void InternalRefresh(bool open)
         {
             SetInteractWaiter(open).Forget();
 
-            // LogUtility.Info("[UI] Refresh {0}", WindowName);
-            OnRefresh();
+            try
+            {
+                // LogUtility.Info("[UI] Refresh {0}", WindowId);
+                OnRefresh();
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 OnRefresh 抛出异常，窗口照常入栈：{1}", WindowId, ex);
+            }
         }
 
         /// <summary>
@@ -401,8 +560,31 @@ namespace Moirai.Atropos.UI
 
         protected internal virtual void InternalClose()
         {
-            OnClose();
+            try
+            {
+                OnClose();
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 OnClose 抛出异常，关闭流程照常走完：{1}", WindowId, ex);
+            }
+
             InternalCloseAsync(++_interactionLifetime).Forget();
+
+            if (_eventsRegistered)
+            {
+                _eventsRegistered = false;
+                try
+                {
+                    UnregisterEvent();
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 UnregisterEvent 抛出异常，关闭流程照常走完：{1}", WindowId, ex);
+                }
+            }
+
+            StartCacheTimer();
         }
 
         private async UniTaskVoid InternalCloseAsync(uint lifetime)
@@ -416,12 +598,25 @@ namespace Moirai.Atropos.UI
             }
 
             CancelCts();
-            _cts = UICtsPool.Rent();
+            _ctsLease = MemoryPool.Acquire<UICtsLease>();
+            _cts = _ctsLease.Source;
 
             LockInteraction();
 
             try { await transition.Play(false, _cts.Token); }
             catch (OperationCanceledException) { return; }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 过渡播放抛出异常，退 Snap 落终态：{1}", WindowId, ex);
+                try
+                {
+                    transition.Snap(false);
+                }
+                catch (System.Exception snapEx)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' Snap 也抛出异常，流程照常走完：{1}", WindowId, snapEx);
+                }
+            }
 
             if (IsDestroyed) return;
 
@@ -440,8 +635,19 @@ namespace Moirai.Atropos.UI
         {
             _isCreate = false;
 
-            UnregisterEvent();
-            
+            if (_eventsRegistered)
+            {
+                _eventsRegistered = false;
+                try
+                {
+                    UnregisterEvent();
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 UnregisterEvent 抛出异常，销毁流程照常走完：{1}", WindowId, ex);
+                }
+            }
+
             for (int i = 0; i < ChildList.Count; i++)
             {
                 var uiChild = ChildList[i];
@@ -452,17 +658,41 @@ namespace Moirai.Atropos.UI
             // 注销回调函数
             _prepareCallback = null;
 
-            OnDestroy();
+            try
+            {
+                OnDestroy();
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 OnDestroy 抛出异常，销毁流程照常走完：{1}", WindowId, ex);
+            }
 
             // 清理交互状态：代次先行作废，在途的打开/关闭续体不得再交还锁或隐藏
             _interactionLifetime++;
             CancelCts();
             CancelLoadCts();
+            // 销毁即终态：解除仍挂在调用方令牌上的在途取消登记，否则销毁窗被注册表根住
+            SettleOpenWaiters();
+            CancelCacheTimer();
             UnlockInteraction();
 
             // 销毁面板对象
-            if (!isShutDown && CacheInstance)
+            if (!isShutDown && ParksOnClose)
             {
+                var transition = Transition;
+                if (transition != null)
+                {
+                    // 缓存停放前把面板拨到关窗终态：停放窗不得带半截过渡姿态，下次取用从定态起播
+                    try
+                    {
+                        transition.Snap(false);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        LogUtility.Error("UI 窗口 '{0}' 停放前 Snap 抛出异常，照常停放：{1}", WindowId, ex);
+                    }
+                }
+
                 ParkPanel();
             }
             else
@@ -543,8 +773,9 @@ namespace Moirai.Atropos.UI
             if (_cts != null)
             {
                 _cts.Cancel();
-                // 取消过的源由池内废弃，干净的由池回收
-                UICtsPool.Return(_cts);
+                // 取消过的源由租约废弃，干净的回池复用
+                MemoryPool.Release(_ctsLease);
+                _ctsLease = null;
                 _cts = null;
             }
         }
@@ -573,7 +804,8 @@ namespace Moirai.Atropos.UI
             // 与关闭续体共用同一套代次协议；非栈顶的早退排在递增之前，不会作废他人在跑的过渡
             var lifetime = ++_interactionLifetime;
             CancelCts();
-            _cts = UICtsPool.Rent();
+            _ctsLease = MemoryPool.Acquire<UICtsLease>();
+            _cts = _ctsLease.Source;
 
             LockInteraction();
 
@@ -582,6 +814,18 @@ namespace Moirai.Atropos.UI
                 await transition.Play(open, _cts.Token);
             }
             catch (OperationCanceledException) { return; }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 过渡播放抛出异常，退 Snap 落终态：{1}", WindowId, ex);
+                try
+                {
+                    transition.Snap(open);
+                }
+                catch (System.Exception snapEx)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' Snap 也抛出异常，流程照常走完：{1}", WindowId, snapEx);
+                }
+            }
 
             if (IsDestroyed) return;
 
@@ -600,6 +844,25 @@ namespace Moirai.Atropos.UI
 
         /// <summary>试图关闭但关不了时调用（<see cref="CanClose"/> 为假的那一轮）。</summary>
         protected virtual void OnCloseFail() { }
+
+        /// <summary>关闭政策的同步初筛：可交互且未销毁才评 CanClose；CanClose 抛按拒关（fail-closed）。</summary>
+        internal bool Internal_EvaluateCanClose()
+        {
+            if (!Interactable || IsDestroyed)
+            {
+                return false;
+            }
+
+            try
+            {
+                return CanClose;
+            }
+            catch (System.Exception ex)
+            {
+                LogUtility.Error("UI 窗口 '{0}' 的 CanClose 抛出异常，按拒关计：{1}", WindowId, ex);
+                return false;
+            }
+        }
 
         /// <summary>
         /// 关闭本窗：已可交互就当场过门，否则等交互位让位、本窗被接管或销毁为止。
@@ -631,7 +894,7 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            if (CanClose)
+            if (Internal_EvaluateCanClose())
             {
                 ForceClose();
             }
@@ -654,7 +917,7 @@ namespace Moirai.Atropos.UI
         {
             if (UIService.IsValid)
             {
-                UIService.SharedLedger.HideUI(GetType(), WindowName);
+                UIService.SharedLedger.HideUI(GetType(), WindowId);
             }
         }
 
@@ -675,13 +938,13 @@ namespace Moirai.Atropos.UI
         {
             if (UIService.IsValid)
             {
-                UIService.SharedLedger.CloseUI(GetType(), WindowName);
+                UIService.SharedLedger.CloseUI(GetType(), WindowId);
             }
         }
 
         private Action _closeDelegate;
 
-        /// <summary>缓存的本窗关闭委托：隐藏转关闭的定时器复用同一枚，不在每次隐藏时分配。</summary>
+        /// <summary>缓存的本窗关闭委托：隐藏转关闭的定时器复用同一个，不在每次隐藏时分配。</summary>
         internal Action CloseDelegate => _closeDelegate ??= Close;
 
         internal void CancelHideToCloseTimer()
@@ -691,6 +954,38 @@ namespace Moirai.Atropos.UI
             {
                 TimerService.Cancel(HideTimerId);
                 HideTimerId = 0UL;
+            }
+        }
+
+        private System.Action _cacheExpireCallback;
+
+        internal void StartCacheTimer()
+        {
+            CancelCacheTimer();
+            if (CacheTimeToDestroy <= 0f)
+            {
+                return;
+            }
+
+            _cacheExpireCallback ??= OnCacheExpire;
+            CacheTimerId = TimerService.Delay(CacheTimeToDestroy, _cacheExpireCallback);
+        }
+
+        internal void CancelCacheTimer()
+        {
+            if (CacheTimerId != 0UL)
+            {
+                TimerService.Cancel(CacheTimerId);
+                CacheTimerId = 0UL;
+            }
+        }
+
+        private void OnCacheExpire()
+        {
+            CacheTimerId = 0UL;
+            if (UIService.IsValid)
+            {
+                UIService.SharedLedger.ExpireParkedWindow(this);
             }
         }
     }

@@ -16,6 +16,7 @@
 | [Core](Core.md) | 服务系统基座：`ServiceWorld` 服务世界、`GameServices` 注册/查找/作用域、`[ServiceDependency]` 依赖拓扑初始化 |
 | [Resource](Resource.md) | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 |
 | [UI](UI.md) | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 |
+| [UI 载荷迁移](UIMigration.md) | UI 硬切迁移：DTO 与基类换形、写点两种去向（静态腿 / 动态腿 `UIPayload`）、行为变更三条 |
 | [Audio](Audio.md) | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、句柄控制 |
 | [Localization](Localization.md) | 本地化：文本/图片/音频/Timeline 多类型注入、Google 翻译集成 |
 | [ConfigTable](ConfigTable.md) | Luban 配置表集成：表加载与懒加载访问、转表工具链 |

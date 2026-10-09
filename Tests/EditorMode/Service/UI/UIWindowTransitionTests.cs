@@ -101,11 +101,11 @@ namespace Service.UI
         }
 
         /// <summary>造一只压栈并就绪的探针窗（探针经注册表登记，开窗语义走生产链）。</summary>
-        private static T Prepared<T>(string windowName) where T : UIWindow, new()
+        private static T Prepared<T>(string windowId) where T : UIWindow, new()
         {
             var ledger = UIService.SharedLedger;
-            ledger.ShowUIImp(typeof(T), false, windowName, "Panel", false, null);
-            var window = ledger.GetWindow(windowName);
+            ledger.ShowUIImp(typeof(T), false, windowId, false, null, UIPayload.Empty);
+            var window = ledger.GetWindow(windowId);
             Assert.IsTrue(window.IsLoadDone, "量具前提坏了：探针窗要同步装载就绪");
             return (T)window;
         }

@@ -10,7 +10,7 @@ The input service (`Moirai.Atropos.Input`) abstracts three input backends throug
 - Unified action polling API: `GetButtonDown` / `GetButtonUp` / `GetButtonPressed` / `GetBool` / `GetFloat` / `GetVector2`, with action group support (`actionGroup`)
 - Dedicated mouse queries: button tri-state, position, scroll wheel (scroll values normalized across new and old systems)
 - Input state toggles: `Enabled` (global hard gate — action queries always return defaults), `LockPlayerController` (lock character control), `PreventInteractionUI` (lock UI interaction); residual input states are automatically reset when entering suppression. The Input System backend enforces suppression centrally by enabling/disabling whole Action Maps — consumers never need to check the flags themselves
-- UI modal coordination: Listens to `UIServiceEvent`; automatically locks player control when a modal window is present
+- UI modal coordination: Listens to `UIService.onWindowShown` / `onWindowClosed`; automatically locks player control when a modal window is present
 - Application focus coordination: Automatically disables input on focus lost, restores on focus gained
 - Key prompt system (Prompts): Key icons automatically switch based on the current active input device, supports mixed text and sprite rendering
 
@@ -136,7 +136,7 @@ When a GameObject with this component is enabled, it locks `LockPlayerController
 
 - The processor type is configured in the framework settings ("Input Settings") via `[SerializeReference]` and loaded lazily via `InputServiceSettings.InputServiceHandler`; switching processors requires a restart to take effect
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` are controlled by the `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` macros respectively
-- When a UI modal window is present, `LockPlayerController` is always true (driven by `UIServiceEvent`); this is expected behavior. On the Input System backend, the player map is disabled while the UI map stays active, so the modal's own hotkeys keep working
+- When a UI modal window is present, `LockPlayerController` is always true (driven by `UIService.onWindowShown` / `onWindowClosed`); this is expected behavior. On the Input System backend, the player map is disabled while the UI map stays active, so the modal's own hotkeys keep working
 - Suppression gating only applies to action queries (buttons/axes/vectors); mouse queries are not gated. Actions not listed in the player/UI map configuration are unaffected by context suppression (only gated by `Enabled`)
 - `GetButtonDown` / `GetButtonUp` in `UIMobileInputHandler` read per-frame latched edges from the components (semantics aligned with `WasPressedThisFrame`)
 - Input queries should be polled every frame; the service itself does not push events

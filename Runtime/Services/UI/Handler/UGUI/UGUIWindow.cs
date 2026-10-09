@@ -12,7 +12,7 @@ namespace Moirai.Atropos.UI
     /// uGUI 轨窗口基类：面板实现（GameObject/Canvas/GraphicRaycaster）后端专有，对象模型不认这些类型。
     /// </summary>
     /// <remarks>
-    /// 覆写 <see cref="UIWindow"/> 的七枚面板钩子，把 <see cref="UIWindow.Visible"/> / <see cref="UIWindow.Depth"/> / <see cref="UIWindow.Interactable"/> <br />
+    /// 覆写 <see cref="UIWindow"/> 的七个面板钩子，把 <see cref="UIWindow.Visible"/> / <see cref="UIWindow.Depth"/> / <see cref="UIWindow.Interactable"/> <br />
     /// 三份意图落到真实面板上：显隐切整棵子树的 layer（SHOW/HIDE）、深度给父 Canvas 写绝对值并按各自偏移差分同步子 Canvas、 <br />
     /// 交互推面板自身与全部子 <see cref="GraphicRaycaster"/> 的 <c>enabled</c>。判据与写入次序逐字承自下沉前的 <c>UIWindow</c>，未作修正。 <br />
     /// 空引用口径同样保持：未绑定时 <c>gameObject</c> 回 null，<c>transform</c> / <c>rectTransform</c> 抛 <see cref="NullReferenceException"/>（不补 <c>?.</c>）。 <br />
@@ -40,7 +40,7 @@ namespace Moirai.Atropos.UI
         /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
         public override GameObject gameObject => _panel;
 
-        /// <summary>面板根上那枚被 <see cref="BindPanel"/> 初始化并被 <see cref="ApplyDepth"/> 写序的 <see cref="Canvas"/>。</summary>
+        /// <summary>面板根上那个被 <see cref="BindPanel"/> 初始化并被 <see cref="ApplyDepth"/> 写序的 <see cref="Canvas"/>。</summary>
         /// <remarks>未绑定面板时为 <c>null</c>；与 <see cref="UITKWindow.Document"/> 同档——面板事实的唯一真值来源，取口只在这一处。</remarks>
         protected internal Canvas PanelCanvas => _canvas;
 
@@ -171,7 +171,7 @@ namespace Moirai.Atropos.UI
             if (_canvas == null)
             {
                 throw new GameException(StringUtility.Format(
-                    "面板 {0}（窗口 {1}）上找不到 {2}：uGUI 窗口的面板必须自带排序画布", panel.name, WindowName, nameof(Canvas)));
+                    "面板 {0}（窗口 {1}）上找不到 {2}：uGUI 窗口的面板必须自带排序画布", panel.name, WindowId, nameof(Canvas)));
             }
 
             _canvas.overrideSorting = true;
@@ -223,7 +223,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 设置某一个节点不受指定 <see cref="refRect"/> 的影响。
+        /// 设置某一个节点不受指定 <paramref name="refRect"/> 的影响。
         /// </summary>
         /// <param name="rect">设置的RectTransform。</param>
         /// <param name="refRect">依赖的RectTransform。</param>
@@ -253,5 +253,17 @@ namespace Moirai.Atropos.UI
                 LayoutRebuilder.ForceRebuildLayoutImmediate(layout.GetComponent<RectTransform>());
             }
         }
+    }
+
+    /// <summary>uGUI 轨带载荷窗口基类：每次开窗最多一个强类型 DTO，静态腿泛型直塞（struct 不装箱）。</summary>
+    /// <remarks>载荷每次开窗覆盖、关闭不清；再开覆盖。动态腿经 <see cref="UIPayload"/> 擦除后从这里取回。</remarks>
+    public abstract class UGUIWindow<TArg> : UGUIWindow, IUIPayloadSlot<TArg>
+    {
+        /// <summary>本次开窗的载荷。</summary>
+        public TArg Payload { get; private set; }
+
+        void IUIPayloadSlot<TArg>.SetPayload(in TArg payload) => Payload = payload;
+
+        internal override void Internal_SetPayload(UIPayload payload) => Payload = payload.To<TArg>();
     }
 }

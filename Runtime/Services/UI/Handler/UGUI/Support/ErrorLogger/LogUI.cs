@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace Moirai.Atropos.UI
 {
     [Window(EUILayer.System, fromResources:true)]
-    class LogUI : UGUIWindow
+    class LogUI : UGUIWindow<string>
     {
         private Stack<string> _errorTextString = new Stack<string>();
         
@@ -29,8 +29,8 @@ namespace Moirai.Atropos.UI
         
          protected override void OnRefresh()
          {
-             _errorTextString.Push(UserData?.ToString());
-             _textError.text = UserData?.ToString();
+             _errorTextString.Push(Payload);
+             _textError.text = Payload;
          }
 
          private async UniTaskVoid PopErrorLog()

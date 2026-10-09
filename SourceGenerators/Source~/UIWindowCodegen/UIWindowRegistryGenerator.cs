@@ -135,14 +135,12 @@ namespace Moirai.Atropos.SourceGenerators
             return new StringBuilder(256)
                 .Append("            global::Moirai.Atropos.UI.UIWindowRegistry.Register(typeof(").Append(typeRef).Append("),")
                 .Append(" new global::Moirai.Atropos.UI.UIWindowDescriptor(")
-                .AppendStringLiteral(model.ReflectionFullName).Append(", ")
-                .AppendStringLiteral(model.Location).Append(", ")
                 .Append(model.WindowLayer).Append(", ")
                 .Append(model.FromResources ? "true" : "false").Append(", ")
                 .Append(model.FullScreen ? "true" : "false").Append(", ")
                 .Append(model.Modal).Append(", ")
                 .Append(model.HideTimeToClose).Append(", ")
-                .Append(model.CacheInstance ? "true" : "false")
+                .Append(model.CacheTimeToDestroy.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append("f")
                 .Append("), static () => new ").Append(typeRef).Append("());")
                 .ToString();
         }

@@ -58,7 +58,7 @@
 ```csharp
 // 1. 业务代码通过静态外观访问框架服务
 TimerService.Delay(1f, () => Debug.Log("1s"));
-UIService.ShowUI<MainWindow>();
+UIService.ShowUI<MainWindow>("main");
 ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
 // 2. 定义自定义服务——依赖通过 [ServiceDependency] 特性声明
@@ -188,7 +188,7 @@ await GameServices.Default.InitializeAsync();                    // 按 [Service
 
 ### 服务事件 [SERVICE EVENTS]
 
-服务生命周期通知统一经 `IServiceInterceptor`（事件 API 已移除）：
+服务生命周期通知统一经 `IServiceInterceptor`：
 
 ```csharp
 public sealed class ServiceAuditInterceptor : IServiceInterceptor
@@ -322,7 +322,7 @@ GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
 
 ### 懒加载自动注册 [LAZY SELF REGISTRATION]
 
-服务实例没有集中工厂表（`RegisterDefaultFactory` 已随默认工厂表移除）。每个 HandlerHost 服务外观的默认处理器创建路径
+服务实例没有集中工厂表。每个 HandlerHost 服务外观的默认处理器创建路径
 （`CreateDefaultHandler`）首行调用 `GameServices.EnsureRegistered<T>()`——服务在未注册状态下被外观访问时，
 自动创建实例并注册到 App 作用域（幂等）：
 

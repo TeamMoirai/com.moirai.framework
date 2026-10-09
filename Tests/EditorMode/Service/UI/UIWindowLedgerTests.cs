@@ -49,12 +49,12 @@ namespace Service.UI
         }
 
         /// <summary>
-        /// CloseAll 走完缓存与销毁两支之后把栈一次清空：CacheInstance 落停放表、非缓存直销毁、栈上不留残余。
+        /// CloseAll 走完停放与销毁两支之后把栈一次清空：非零停放档落停放表、0 档直销毁、栈上不留残余。
         /// </summary>
         [Test]
         public void Ledger_CloseAll_EmptiesStackAndOnlyKeepsCachedInstancesInParkingTable()
         {
-            var cached = NewWindow("LedgerCached", (int)EUILayer.UI, cacheInstance: true);
+            var cached = NewWindow("LedgerCached", (int)EUILayer.UI, cacheTimeToDestroy: -1f);
             var plain = NewWindow("LedgerPlain", (int)EUILayer.UI);
 
             _ledger.Push(cached);
@@ -63,8 +63,8 @@ namespace Service.UI
             _ledger.CloseAll(isShutDown: false);
 
             Assert.AreEqual(0, _ledger.PeekStack().Count, "全关之后栈归零");
-            Assert.IsTrue(_ledger.IsParked("LedgerCached"), "CacheInstance 那一枚落进停放表");
-            Assert.IsFalse(_ledger.IsParked("LedgerPlain"), "非缓存那一枚直接销毁，不进停放表");
+            Assert.IsTrue(_ledger.IsParked("LedgerCached"), "非零停放档那一枚落进停放表");
+            Assert.IsFalse(_ledger.IsParked("LedgerPlain"), "0 档那一枚直接销毁，不进停放表");
         }
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace Service.UI
         [Test]
         public void Ledger_ResetStorage_ClearsStackAndParkingTableTogether()
         {
-            var cached = NewWindow("LedgerReset", (int)EUILayer.UI, cacheInstance: true);
+            var cached = NewWindow("LedgerReset", (int)EUILayer.UI, cacheTimeToDestroy: -1f);
             _ledger.Push(cached);
             _ledger.CloseUI(typeof(LedgerProbeWindow), "LedgerReset");
 
@@ -86,10 +86,10 @@ namespace Service.UI
             Assert.IsFalse(_ledger.IsParked("LedgerReset"), "Reset 后停放表也归零");
         }
 
-        private static LedgerProbeWindow NewWindow(string name, int layer, bool cacheInstance = false)
+        private static LedgerProbeWindow NewWindow(string name, int layer, float cacheTimeToDestroy = 0f)
         {
             var window = new LedgerProbeWindow();
-            window.Init(name, layer, false, "Panel", false, 10, cacheInstance);
+            window.Init(name, layer, false, "Panel", false, 10, cacheTimeToDestroy: cacheTimeToDestroy);
             return window;
         }
 
