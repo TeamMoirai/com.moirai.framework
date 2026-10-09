@@ -57,7 +57,7 @@
 
 #### 核心
 
-- ⚠ 应用对焦与退出通知改为 `GameApp` 上的两枚公共静态事件：`GameApp.onApplicationFocus`（`Action<bool>`，`true` 为回焦）与 `GameApp.onApplicationQuit`（`Action`，先广播再关停，订阅方在此还来得及落盘）。挂摘 `Application.focusChanged` / `Application.quitting` 由 `GameApp` 自持、随 `Initialize` / `Shutdown` 配对，转发逐项隔离——单项订户抛异常不截断其余，开发构建也不上抛；`Shutdown` 整批摘掉这两枚广播，一次 `+=` 配一次 `-=` 仍是订阅方的责任。
+- ⚠ 应用对焦与退出通知改为 `GameApp` 上的两个公共静态事件：`GameApp.onApplicationFocus`（`Action<bool>`，`true` 为回焦）与 `GameApp.onApplicationQuit`（`Action`，先广播再关停，订阅方在此还来得及落盘）。挂摘 `Application.focusChanged` / `Application.quitting` 由 `GameApp` 自持、随 `Initialize` / `Shutdown` 配对，转发逐项隔离——单项订户抛异常不截断其余，开发构建也不上抛；`Shutdown` 整批摘掉这两枚广播，一次 `+=` 配一次 `-=` 仍是订阅方的责任。
 
 #### 场景
 

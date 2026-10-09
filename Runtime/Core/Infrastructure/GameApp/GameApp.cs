@@ -12,7 +12,7 @@ namespace Moirai.Atropos
     /// 本类不含 MonoBehaviour 成员：帧逻辑订阅由 <see cref="PlayerLoopDriver"/> 静态表驱动，
     /// 只在 MonoBehaviour 上派发的消息（协程 / Gizmos / ApplicationPause）由 <see cref="GameAppHost"/> 承接，
     /// 对焦与退出走 Unity 的静态事件（<c>Application.focusChanged</c> / <c>Application.quitting</c>），本类直订并转成
-    /// <see cref="onApplicationFocus"/> / <see cref="onApplicationQuit"/> 两枚广播。
+    /// <see cref="onApplicationFocus"/> / <see cref="onApplicationQuit"/> 两个广播。
     /// </remarks>
     public partial class GameApp
     {
@@ -123,7 +123,7 @@ namespace Moirai.Atropos
         #region 生命周期事件 [LIFECYCLE EVENTS]
 
         /// <summary>应用对焦状态变化后广播，形参是本次的真值（<c>true</c> 为回焦）。</summary>
-        /// <remarks>订阅者自持生命周期：<see cref="Shutdown"/> 会把这两枚广播整批摘掉（禁用域重载时上一轮订阅者不得跨会话残留），但一次 <c>+=</c> 配一次 <c>-=</c> 仍是对话方的责任。注册与注销仅限主线程。</remarks>
+        /// <remarks>订阅者自持生命周期：<see cref="Shutdown"/> 会把这两个广播整批摘掉（禁用域重载时上一轮订阅者不得跨会话残留），但一次 <c>+=</c> 配一次 <c>-=</c> 仍是订阅方的责任。注册与注销仅限主线程。</remarks>
         public static event Action<bool> onApplicationFocus;
 
         /// <summary>由 <c>Application.focusChanged</c> 广播对焦状态，逐项隔离订户异常。</summary>
@@ -210,7 +210,7 @@ namespace Moirai.Atropos
             UnregisterBuiltinDrivers();
             PlayerLoopDriver.Shutdown();
 
-            // 归零门：整批摘掉两枚生命周期广播，未配对的订阅不得跨 Play 会话残留
+            // 归零门：整批摘掉两个生命周期广播，未配对的订阅不得跨 Play 会话残留
             onApplicationFocus = null;
             onApplicationQuit = null;
 
