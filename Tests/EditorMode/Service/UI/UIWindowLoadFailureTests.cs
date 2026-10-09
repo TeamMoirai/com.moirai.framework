@@ -52,8 +52,8 @@ namespace Service.UI
             Assert.IsFalse(UIService.SharedLedger.IsParked("FailSync"), "装载失败的窗口不得进停放表");
             Assert.IsTrue(FailingLoadUGUIWindow.Last.IsLoadFailed, "失败位要置上：等待腿据此分档");
             Assert.IsTrue(FailingLoadUGUIWindow.Last.IsDestroyed, "作废位要置上：实例不再可复用");
-            Assert.AreEqual(nameof(FailingLoadUGUIWindow), FailingLoadUGUIWindow.LastLocation,
-                "装载钩子拿到的是按解析链回落到类型名的面板地址（特性没写 location、调用方也没给地址）");
+            Assert.IsNull(FailingLoadUGUIWindow.LastLocation,
+                "AB 档的地址只由配置表答：表未就绪交回 null，不回落成字面地址，装载当场失败并回滚");
         }
 
         /// <summary>异步装载失败（同步落定的失败值）：与同步档同一条回滚链，同帧收口。</summary>
@@ -128,11 +128,11 @@ namespace Service.UI
             Assert.IsFalse(result, "隐式布尔在缺失档为假");
         }
 
-        /// <summary>取窗结果腿的就绪档：按类型全名开出的窗等出 <see cref="EUIOpenStatus.Opened"/>。</summary>
+        /// <summary>取窗结果腿的就绪档：按标识开出的窗等出 <see cref="EUIOpenStatus.Opened"/>。</summary>
         [Test]
         public void GetUIAwaitResult_OpenedWindow_ReturnsOpenedStatus()
         {
-            UIService.ShowUI<AcceptLoadUGUIWindow>();
+            UIService.ShowUI<AcceptLoadUGUIWindow>("AcceptLoadPanel");
 
             var result = UIService.GetUIAwaitResult<AcceptLoadUGUIWindow>().GetAwaiter().GetResult();
 

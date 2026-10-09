@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -12,17 +13,13 @@ namespace Moirai.Atropos.SourceGenerators
         /// <summary>窗口类符号。</summary>
         public INamedTypeSymbol Type { get; private set; }
 
-        /// <summary>类型反射全名（嵌套类带 <c>+</c>），作缺省窗口名。</summary>
-        public string ReflectionFullName { get; private set; }
-
         /// <summary>特性解析出的描述符取值（注册期即定，运行期零解析）。</summary>
         public int WindowLayer { get; private set; }
         public bool FromResources { get; private set; }
-        public string Location { get; private set; }
         public bool FullScreen { get; private set; }
         public byte Modal { get; private set; }
         public int HideTimeToClose { get; private set; }
-        public bool CacheInstance { get; private set; }
+        public float CacheTimeToDestroy { get; private set; }
 
         /// <summary>不可登记的成因诊断；可登记时为 null。</summary>
         public Diagnostic? InvalidReason { get; private set; }
@@ -30,8 +27,6 @@ namespace Moirai.Atropos.SourceGenerators
         private WindowRegistryModel(INamedTypeSymbol type)
         {
             Type = type;
-            ReflectionFullName = BuildReflectionFullName(type);
-            Location = type.Name;
             WindowLayer = DefaultLayer;
             HideTimeToClose = DefaultHideTimeToClose;
         }
@@ -108,96 +103,55 @@ namespace Moirai.Atropos.SourceGenerators
         }
 
         /// <summary>
-        /// 解码 <c>[Window]</c> 特性实参：构造器重载按形参类型走位，命名实参随后覆盖。
+        /// 解码 <c>[Window]</c> 特性实参：位置实参按特性自己的构造器形参表对号，命名实参随后覆盖。
         /// </summary>
         /// <remarks>
-        /// 位置实参形序（层级之后）：string ⇒ location；bool ⇒ fromResources（随后若跟 string 则为 location）；<br />
-        /// 尾段固定 fullScreen / hideTimeToClose / cacheInstance / modal（层级型枚举）。命名实参按名覆盖，缺省沿用特性默认。
+        /// 形参表是唯一的形状真源：构造器增减形参时这里不必跟着改走位，也不会把值落进邻档（实测过按位置猜形状会把 <c>modal</c> 读成 <c>hideTimeToClose</c> 的槽位且零诊断）。<br />
+        /// 命名实参的键按大小写不敏感匹配形参名与字段名，两种键形态（形参名 / PascalCase 字段名）都落同一档。
         /// </remarks>
         private void Decode(AttributeData attribute)
         {
-            var args = attribute.ConstructorArguments;
-            if (args.Length > 0)
+            ImmutableArray<IParameterSymbol> parameters = attribute.AttributeConstructor?.Parameters ?? ImmutableArray<IParameterSymbol>.Empty;
+            ImmutableArray<TypedConstant> args = attribute.ConstructorArguments;
+            for (var i = 0; i < args.Length && i < parameters.Length; i++)
             {
-                WindowLayer = ToInt32(args[0].Value, DefaultLayer);
-            }
-
-            var i = 1;
-            if (i < args.Length && IsString(args[i]))
-            {
-                Location = ToStringValue(args[i].Value, Type.Name);
-                i++;
-            }
-            else if (i < args.Length && IsBool(args[i]))
-            {
-                FromResources = ToBool(args[i].Value);
-                i++;
-                if (i < args.Length && IsString(args[i]))
-                {
-                    Location = ToStringValue(args[i].Value, Type.Name);
-                    i++;
-                }
-            }
-
-            if (i < args.Length)
-            {
-                FullScreen = ToBool(args[i].Value);
-                i++;
-            }
-
-            if (i < args.Length)
-            {
-                HideTimeToClose = ToInt32(args[i].Value, DefaultHideTimeToClose);
-                i++;
-            }
-
-            if (i < args.Length)
-            {
-                CacheInstance = ToBool(args[i].Value);
-                i++;
-            }
-
-            if (i < args.Length)
-            {
-                Modal = ToByte(args[i].Value, DefaultModal);
+                Apply(parameters[i].Name, args[i]);
             }
 
             foreach (KeyValuePair<string, TypedConstant> named in attribute.NamedArguments)
             {
-                switch (named.Key)
-                {
-                    case "windowLayer":
-                        WindowLayer = ToInt32(named.Value.Value, WindowLayer);
-                        break;
-                    case "location":
-                        Location = ToStringValue(named.Value.Value, Location);
-                        break;
-                    case "fromResources":
-                        FromResources = ToBool(named.Value.Value);
-                        break;
-                    case "fullScreen":
-                        FullScreen = ToBool(named.Value.Value);
-                        break;
-                    case "modal":
-                        Modal = ToByte(named.Value.Value, Modal);
-                        break;
-                    case "hideTimeToClose":
-                        HideTimeToClose = ToInt32(named.Value.Value, HideTimeToClose);
-                        break;
-                    case "cacheInstance":
-                        CacheInstance = ToBool(named.Value.Value);
-                        break;
-                }
+                Apply(named.Key, named.Value);
             }
 
-            if (string.IsNullOrEmpty(Location))
-            {
-                Location = Type.Name;
-            }
         }
 
-        private static bool IsString(TypedConstant constant) => constant.Type?.SpecialType == SpecialType.System_String;
-        private static bool IsBool(TypedConstant constant) => constant.Type?.SpecialType == SpecialType.System_Boolean;
+        /// <summary>把一枚实参落进它自己名下那一档；名字对不上形参表时不动任何档。</summary>
+        /// <param name="name">形参名或字段名。</param>
+        /// <param name="value">该名的实参。</param>
+        private void Apply(string name, TypedConstant value)
+        {
+            switch (name.ToLowerInvariant())
+            {
+                case "windowlayer":
+                    WindowLayer = ToInt32(value.Value, DefaultLayer);
+                    break;
+                case "fromresources":
+                    FromResources = ToBool(value.Value);
+                    break;
+                case "fullscreen":
+                    FullScreen = ToBool(value.Value);
+                    break;
+                case "hidetimetoclose":
+                    HideTimeToClose = ToInt32(value.Value, DefaultHideTimeToClose);
+                    break;
+                case "modal":
+                    Modal = ToByte(value.Value, DefaultModal);
+                    break;
+                case "cachetimetodestroy":
+                    CacheTimeToDestroy = ToSingle(value.Value, CacheTimeToDestroy);
+                    break;
+            }
+        }
 
         private static int ToInt32(object? constant, int fallback)
         {
@@ -216,7 +170,12 @@ namespace Moirai.Atropos.SourceGenerators
         }
 
         private static bool ToBool(object? constant) => constant is bool value && value;
-        private static string ToStringValue(object? constant, string fallback) => constant as string ?? fallback;
+        /// <remarks>NaN/±Infinity 是合法的编译期特性实参，但发射侧按 "R" 拼字面量会得到 <c>NaNf</c>/<c>Infinityf</c>（整工程编不过），故非有限值回 fallback。</remarks>
+        private static float ToSingle(object? constant, float fallback)
+        {
+            var value = constant is float f ? f : constant is double d ? (float)d : constant is int n ? n : fallback;
+            return float.IsNaN(value) || float.IsInfinity(value) ? fallback : value;
+        }
 
         /// <summary>枚举实参折算 byte（三态模态等小型枚举；值越界回 fallback）。</summary>
         private static byte ToByte(object? constant, byte fallback)
@@ -230,22 +189,5 @@ namespace Moirai.Atropos.SourceGenerators
             }
         }
 
-        /// <summary>反射全名：命名空间 + 嵌套链（<c>.</c> 与 <c>+</c> 按反射口径拼）。</summary>
-        private static string BuildReflectionFullName(INamedTypeSymbol symbol)
-        {
-            var parts = new Stack<string>();
-            for (var current = symbol; current != null; current = current.ContainingType)
-            {
-                parts.Push(current.Name);
-            }
-
-            var ns = symbol.ContainingNamespace is { IsGlobalNamespace: false } nsSymbol
-                ? nsSymbol.ToDisplayString()
-                : string.Empty;
-
-            return ns.Length == 0
-                ? string.Join("+", parts)
-                : ns + "." + string.Join("+", parts);
-        }
     }
 }

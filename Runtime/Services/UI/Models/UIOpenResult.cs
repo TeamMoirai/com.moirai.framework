@@ -11,11 +11,14 @@ namespace Moirai.Atropos.UI
         /// <summary>装载失败或装载中被关闭：窗口已从栈上回滚作废。</summary>
         Failed = 1,
 
-        /// <summary>按名取窗时栈上没有这一名，或那一只是别的类型。</summary>
+        /// <summary>按标识取窗时栈上没有这一枚标识（不带标识时按类型扫栈也无该型窗），或命中的那只是别的类型。</summary>
         Missing = 2,
 
         /// <summary>等待超时：面板仍未就绪，窗口可能还在装载。</summary>
         Timeout = 3,
+
+        /// <summary>调用方取消：等待被自己的 CancellationToken 撤销，在飞装载随之回滚。</summary>
+        Cancelled = 4,
     }
 
     /// <summary>
@@ -25,6 +28,7 @@ namespace Moirai.Atropos.UI
     /// <see cref="Status"/> 为 <see cref="EUIOpenStatus.Opened"/> 时 <see cref="Window"/> 已就绪可用。<br />
     /// 为 <see cref="EUIOpenStatus.Failed"/> 时窗口已回滚作废，只作诊断，不得再开、不得复用。<br />
     /// 为 <see cref="EUIOpenStatus.Timeout"/> 时窗口可能仍在装载，是否继续等由调用方决定，不得当就绪窗用。<br />
+    /// 为 <see cref="EUIOpenStatus.Cancelled"/> 时调用方的令牌撤销了等待，本次等待以取消落定；装载是否续跑取决于其余等待者（无人在等则回滚），不得当就绪窗用。<br />
     /// 为 <see cref="EUIOpenStatus.Missing"/> 时 <see cref="Window"/> 恒为 null。<br />
     /// 隐式布尔只答「就绪成功」一档，状态细判读 <see cref="Status"/>。
     /// </remarks>

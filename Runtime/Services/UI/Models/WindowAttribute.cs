@@ -42,20 +42,18 @@ namespace Moirai.Atropos.UI
     }
 
     /// <summary>
-    /// 窗口特性：声明层级、面板地址、全屏、缓存与隐转关延迟；窗口类必标。
+    /// 窗口特性：声明层级、取法档、全屏、模态、停放档与隐转关延迟；窗口类必标。
     /// </summary>
     /// <remarks>
     /// 由 <c>UIWindowCodegen</c> 编译期解码并登记进 <see cref="UIWindowRegistry"/>：未标注的窗口类不可开。 <br />
-    /// 构造器已收敛单一形状：层级强类型 <see cref="EUILayer"/>，其余按名可选。
+    /// 构造器已收敛单一形状：层级强类型 <see cref="EUILayer"/>，其余按名可选。 <br />
+    /// 本特性<b>不声明面板地址</b>：地址只由开窗时传入的窗口标识换算而来。
     /// </remarks>
     [AttributeUsage(AttributeTargets.Class)]
     public class WindowAttribute : Attribute
     {
         /// <summary>窗口层级。</summary>
         public readonly int WindowLayer;
-
-        /// <summary>资源定位地址（空缺省回落类型名）。</summary>
-        public readonly string Location;
 
         /// <summary>全屏窗口标记。</summary>
         /// <remarks>隐藏其他同 EUILayer 的弹窗。</remarks>
@@ -67,32 +65,31 @@ namespace Moirai.Atropos.UI
         /// <summary>隐藏后转关闭的秒数；≤0 表示隐藏即关。</summary>
         public readonly int HideTimeToClose;
 
-        /// <summary>缓存实例，关闭时不销毁。</summary>
-        public readonly bool CacheInstance;
-
         /// <summary>模态档：缺省 <see cref="EUIModal.Inherit"/> 按层级继承。</summary>
         public readonly byte Modal;
+
+        /// <summary>停放档：0 = 不缓存（关闭时直接销毁），&gt;0 = 停放并在这么多秒后销毁，&lt;0 = 停放永久。</summary>
+        public readonly float CacheTimeToDestroy;
 
         /// <summary>
         /// 构造窗口特性。
         /// </summary>
         /// <param name="windowLayer">窗口层级。</param>
         /// <param name="fromResources">是内部资源无需AB加载。</param>
-        /// <param name="location">资源定位地址；空缺省回落类型名。</param>
         /// <param name="fullScreen">全屏窗口标记。</param>
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数；≤0 表示隐藏即关。</param>
-        /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
         /// <param name="modal">模态档；缺省按层级继承（模态层级 UI/Popup/System 即模态）。</param>
-        public WindowAttribute(EUILayer windowLayer, bool fromResources = false, string location = null,
-            bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit)
+        /// <param name="cacheTimeToDestroy">停放档；0 = 不缓存，&gt;0 = 停放转销毁的秒数，&lt;0 = 停放永久。</param>
+        public WindowAttribute(EUILayer windowLayer, bool fromResources = false,
+            bool fullScreen = false, int hideTimeToClose = 10, EUIModal modal = EUIModal.Inherit,
+            float cacheTimeToDestroy = 0f)
         {
             WindowLayer = (int)windowLayer;
             FromResources = fromResources;
-            Location = location ?? string.Empty;
             FullScreen = fullScreen;
             HideTimeToClose = hideTimeToClose;
-            CacheInstance = cacheInstance;
             Modal = (byte)modal;
+            CacheTimeToDestroy = cacheTimeToDestroy;
         }
     }
 }

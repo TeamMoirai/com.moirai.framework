@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Input
     /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
     /// </remarks>
-    // 依赖说明：经 EventManager 订阅 UIServiceEvent + 读 UIService.CurrentModal——事件驱动软依赖，
+    // 依赖说明：订 UIService.onWindowShown/onWindowClosed 门面广播 + 读 UIService.CurrentModal——广播驱动软依赖，
     // 不做 [ServiceDependency] 硬声明（UI 侧对 Input 是静态调用硬依赖，双向硬声明会构成拓扑环）。
     [AutoRegisterService]
     [HandlerHost(typeof(InputServiceHandler))]
@@ -59,7 +59,8 @@ namespace Moirai.Atropos.Input
             _ = Handler;
 
             EventManager.RegisterCallback<GameAppMessageEvent>(ResetInput);
-            EventManager.RegisterCallback<UIServiceEvent>(RefreshUIModal);
+            UIService.onWindowShown += RefreshUIModal;
+            UIService.onWindowClosed += RefreshUIModal;
         }
 
         /// <summary>
@@ -72,7 +73,8 @@ namespace Moirai.Atropos.Input
             handler?.Internal_Shutdown();
 
             EventManager.UnregisterCallback<GameAppMessageEvent>(ResetInput);
-            EventManager.UnregisterCallback<UIServiceEvent>(RefreshUIModal);
+            UIService.onWindowShown -= RefreshUIModal;
+            UIService.onWindowClosed -= RefreshUIModal;
         }
 
         #endregion
@@ -260,14 +262,13 @@ namespace Moirai.Atropos.Input
             if (target.HasValue) handler.Enabled = target.Value;
         }
 
-        private static void RefreshUIModal(UIServiceEvent evt)
+        /// <summary>窗口开合回执共用这一枚：模态位重算只看「栈上还有没有模态窗」，与是哪一只、开还是关无关。</summary>
+        /// <param name="window">刚入栈或刚出栈的那一只；本回执不取用。</param>
+        private static void RefreshUIModal(UIWindow window)
         {
             if (s_Handler == null) return;
 
-            if (evt.Mode == UIServiceEvent.EMode.Shown || evt.Mode == UIServiceEvent.EMode.Closed)
-            {
-                s_Handler.SetUIModal(UIService.CurrentModal != null);
-            }
+            s_Handler.SetUIModal(UIService.CurrentModal != null);
         }
 
 #if UNITY_EDITOR

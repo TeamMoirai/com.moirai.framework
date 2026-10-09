@@ -38,22 +38,21 @@ namespace Service.UI
             InputService.PreventInteractionUI = _savedPreventInteraction;
         }
 
-        /// <summary>登记在表：描述符的六份取值按特性解析、工厂按类型可取。</summary>
+        /// <summary>登记在表：描述符的各档取值按特性解析、工厂按类型可取。</summary>
         [Test]
         public void Registry_RegisteredWindow_ExposesDescriptorResolvedFromAttribute()
         {
             Assert.IsTrue(UIWindowRegistry.TryGet(typeof(RegistryProbeWindow), out var entry), "带 [Window] 的探针窗要在注册表里");
 
             Assert.AreEqual((int)EUILayer.Popup, entry.Descriptor.WindowLayer, "层级按特性解析");
-            Assert.AreEqual("Registry/AttrPanel", entry.Descriptor.Location, "特性写了 location 用它");
-            Assert.IsFalse(entry.Descriptor.FromResources, "特性 fromResources=false 照实登记");
-            Assert.IsTrue(entry.Descriptor.CacheInstance, "命名实参 cacheInstance:true 照实登记");
+            Assert.IsTrue(entry.Descriptor.FromResources, "命名实参 fromResources:true 照实登记（描述符不再带面板地址）");
+            Assert.AreEqual(-1f, entry.Descriptor.CacheTimeToDestroy, "命名实参 cacheTimeToDestroy:-1f 照实登记");
             Assert.AreEqual((int)EUILayer.Popup, entry.Descriptor.WindowLayer, "层级取值稳定");
             var window = entry.Factory();
             Assert.IsInstanceOf<RegistryProbeWindow>(window, "工厂交回的就是登记的那一型");
         }
 
-        /// <summary>描述符落进开窗链路：层级、面板地址与缓存档全部按注册表取值。</summary>
+        /// <summary>描述符落进开窗链路：层级与停放档按注册表取值，面板地址由开窗标识换算而来。</summary>
         [Test]
         public void RegistryDescriptor_OpenAppliesMetadataWithoutReflection()
         {
@@ -62,31 +61,25 @@ namespace Service.UI
             var window = UIService.SharedLedger.GetWindow<RegistryProbeWindow>("RegAttr");
             Assert.IsNotNull(window, "注册过的窗口正常开出");
             Assert.AreEqual((int)EUILayer.Popup, window.WindowLayer, "层级来自描述符");
-            Assert.AreEqual("Registry/AttrPanel", RegistryProbeWindow.LastLocation, "面板地址来自描述符");
-            Assert.IsTrue(window.CacheInstance, "缓存档来自描述符");
+            Assert.AreEqual("RegAttr", RegistryProbeWindow.LastLocation, "标识按特性上的内置资源档换算：父目录留空即原样");
+            Assert.AreEqual(-1f, window.CacheTimeToDestroy, "停放档来自描述符");
 
             UIService.SharedLedger.CloseUI(typeof(RegistryProbeWindow), "RegAttr");
-            Assert.IsTrue(UIService.SharedLedger.IsParked("RegAttr"), "描述符的 cacheInstance 让关闭落进停放表");
+            Assert.IsTrue(UIService.SharedLedger.IsParked("RegAttr"), "非零停放档让关闭落进停放表");
         }
 
-        /// <summary>调用方给的面板地址与取法赢过特性，没给的档按描述符回落。</summary>
+        /// <summary>开窗标识的换算：父目录为空时标识原样当 Resources 相对路径；调用方给 false 也否不掉特性上的取法，没带标识则当场抬错且不占栈位。</summary>
         [Test]
-        public void RegistryDescriptor_CallerAddressAndFromResources_OverrideAttribute()
+        public void RegistryDescriptor_CallerWindowIdAndFromResources_ResolveOverAttribute()
         {
-            UIService.ShowUI<RegistryProbeWindow>("RegCaller", "Caller/Panel", true);
+            UIService.ShowUI<RegistryProbeWindow>("RegCaller", false);
 
-            Assert.AreEqual("Caller/Panel", RegistryProbeWindow.LastLocation, "调用方给的面板地址赢过特性");
-            Assert.IsTrue(RegistryProbeWindow.LastFromResources, "调用方给的内置资源档并入取法（真 || 特性假）");
-        }
+            Assert.AreEqual("RegCaller", RegistryProbeWindow.LastLocation, "父目录留空时标识就是 Resources 下的相对路径，不拼前缀");
+            Assert.IsTrue(RegistryProbeWindow.LastFromResources, "取法是调用方与特性的并集（真 || 特性）：入口给 false 也否不掉特性那一枚");
 
-        /// <summary>缺省窗口名按描述符的反射全名兜底（嵌套类带 <c>+</c>），与按名取窗的判据一致。</summary>
-        [Test]
-        public void RegistryDescriptor_FullNameFallback_MatchesReflectionFullName()
-        {
-            UIService.ShowUI<RegistryProbeWindow>();
-
-            Assert.IsNotNull(UIService.SharedLedger.GetWindow(typeof(RegistryProbeWindow).FullName),
-                "缺省窗口名就是反射全名，按名取窗答得出");
+            Assert.Throws<GameException>(() => UIService.ShowUI<RegistryProbeWindow>(),
+                "没带 windowId 的开窗请求当场抬错：面板地址没有第二条来路");
+            Assert.IsNull(UIService.SharedLedger.GetWindow("RegNoId"), "抬错排在压栈之前：栈上不多一只");
         }
 
         /// <summary>未登记类型当场抬错：窗口类没标 [Window] 不再静默兜默认层级与地址。</summary>
@@ -101,7 +94,7 @@ namespace Service.UI
         #region 探针 [PROBES]
 
         /// <summary>带全档特性的注册表探针窗：装载钩子记录入参并按装载成功交回。</summary>
-        [Window(EUILayer.Popup, false, "Registry/AttrPanel", cacheInstance: true)]
+        [Window(EUILayer.Popup, true, cacheTimeToDestroy: -1f)]
         internal sealed class RegistryProbeWindow : UGUIWindow
         {
             internal static string LastLocation;

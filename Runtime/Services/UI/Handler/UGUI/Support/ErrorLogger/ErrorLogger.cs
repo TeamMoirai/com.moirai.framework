@@ -25,7 +25,8 @@ namespace Moirai.Atropos.UI
                 string des = "An error is reported on the client.\n\n" +
                              $"#Context#: ---{condition} \n\n" +
                              $"#Stacktrace#: ---{stacktrace}";
-                UIService.ShowUIAsync<LogUI>(userData:des);
+                // LogUI 的面板在 Resources 根上：标识传类型名，配合 UIServiceSettings 的空父目录即原样取到
+                UIService.ShowUIAsync<LogUI, string>(des, nameof(LogUI));
             }
         }
     }

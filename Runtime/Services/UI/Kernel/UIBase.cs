@@ -48,28 +48,6 @@ namespace Moirai.Atropos.UI
         /// <summary>UI父节点。</summary>
         public UIBase Parent => _parent;
 
-        /// <summary>自定义数据集。</summary>
-        protected System.Object[] _params;
-        
-        /// <summary>自定义数据。</summary>
-        public System.Object UserData
-        {
-            get
-            {
-                if (_params != null && _params.Length >= 1)
-                {
-                    return _params[0];
-                }
-                else
-                {
-                    return null;
-                }
-            }
-        }
-
-        /// <summary>自定义数据集。</summary>
-        public System.Object[] Params => _params;
-
         /// <summary>窗口的实例资源对象。</summary>
         // ReSharper disable once InconsistentNaming
         public virtual GameObject gameObject { get; protected set; }
@@ -254,7 +232,16 @@ namespace Moirai.Atropos.UI
                     }
 
                     GameProfiler.BeginSample(uiWidget.ProfilerSampleName);
-                    var needValid = uiWidget.Internal_Update();
+                    bool needValid;
+                    try
+                    {
+                        needValid = uiWidget.Internal_Update();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        LogUtility.Error("UI 控件抛出异常，本帧其余控件照常结算：{0}", ex);
+                        needValid = true; // 抛的那一枚留在驱动清单里（与窗口档同一口径：隔离并继续）
+                    }
                     GameProfiler.EndSample();
 
                     if (!updateListValid && needValid)

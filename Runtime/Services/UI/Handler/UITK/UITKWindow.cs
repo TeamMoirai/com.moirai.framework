@@ -12,9 +12,9 @@ namespace Moirai.Atropos.UI
     /// UI Toolkit 轨窗口基类：面板实现（壳 GameObject/UIDocument/内容根）后端专有，对象模型不认这些类型。
     /// </summary>
     /// <remarks>
-    /// 覆写 <see cref="UIWindow"/> 的七枚面板钩子，把显隐/深度/交互三份意图落进真实的 UI Toolkit 面板；<br />
-    /// 每一枚怎么落、边界在哪写在它自己的文档上（<see cref="ApplyVisible"/>、<see cref="ApplyDepth"/>、<see cref="ApplyInteractable"/>）。<br />
-    /// 壳物体与 <see cref="UIDocument"/> 一窗一枚；面板配置优先 <c>PanelSettingsOverride</c>，缺位回 <c>SharedPanelSettings</c>。<br />
+    /// 覆写 <see cref="UIWindow"/> 的七个面板钩子，把显隐/深度/交互三份意图落进真实的 UI Toolkit 面板；<br />
+    /// 每项怎么落、边界在哪写在它自己的文档上（<see cref="ApplyVisible"/>、<see cref="ApplyDepth"/>、<see cref="ApplyInteractable"/>）。<br />
+    /// 壳物体与 <see cref="UIDocument"/> 一窗一个；面板配置优先 <c>PanelSettingsOverride</c>，缺位回 <c>SharedPanelSettings</c>。<br />
     /// 未绑定时的空引用口径与 uGUI 轨同形：读 <c>gameObject</c> 回 null，读 <c>transform</c> 抛 <see cref="NullReferenceException"/>，<br />
     /// 三份意图的写入与 <see cref="ApplySafeInsets"/> 则是不落任何一笔的空操作。线程契约：仅主线程。
     /// </remarks>
@@ -58,16 +58,16 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 写口是 UI Toolkit 后端的资产引用，因此不住在中性的 <see cref="UIServiceSettings"/> 里，只在这一处对包外开口。 <br />
-        /// 一窗一档的落点是 <see cref="PanelSettingsOverride"/>：那枚在场时这一位就让位，两者都不再是「全后端只有一份」。 <br />
-        /// 两枚都未写入时 <see cref="LoadPanel"/> / <see cref="LoadPanelAsync"/> 一律当场拒开并报一条 Error： <br />
+        /// 一窗一档的落点是 <see cref="PanelSettingsOverride"/>：它在场时这一位就让位，两者都不再是「全后端只有一份」。 <br />
+        /// 两者都未写入时 <see cref="LoadPanel"/> / <see cref="LoadPanelAsync"/> 一律当场拒开并报一条 Error： <br />
         /// 不拿 <c>CreateInstance</c> 兜底——缺配置的窗口会拿到一份没有主题、没有缩放模式的裸面板，比拒开更难查。
         /// </remarks>
         public static PanelSettings SharedPanelSettings { get; set; }
 
-        /// <summary>本窗口自己的 <see cref="PanelSettings"/>：装载本窗的面板时用这一枚，为空时才回 <see cref="SharedPanelSettings"/>。</summary>
+        /// <summary>本窗口自己的 <see cref="PanelSettings"/>：装载本窗的面板时用它，为空时才回 <see cref="SharedPanelSettings"/>。</summary>
         /// <remarks>
         /// 来路两条：UI Toolkit 腿带 <c>panelSettings</c> 实参时，由本轨在开窗支路里、面板装载之前经交接钩子写进来；项目侧也可以在自己窗口类的构造里直接给。 <br />
-        /// 只在造出新实例那一档被交到：栈上复用与停放重取那两条支路里面板早已装好，这一枚与面板地址一样不再吃。 <br />
+        /// 只在造出新实例那一档被交到：栈上复用与停放重取那两条支路里面板早已装好，它与面板地址一样不再吃。 <br />
         /// 判「有没有」用 Unity 的 == 而不是 <c>??</c>：共享那一份是资产引用，会被从背后销毁，<c>??</c> 认不出那种假空。 <br />
         /// 线程契约：仅主线程（与装载同一条线程）。
         /// </remarks>
@@ -109,7 +109,7 @@ namespace Moirai.Atropos.UI
             var tree = await ResourceService.TryLoadAssetAsync<VisualTreeAsset>(assetLocation, ct);
             if (tree == null)
             {
-                LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到面板模板 {1}", WindowName, assetLocation);
+                LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到面板模板 {1}", WindowId, assetLocation);
                 return false;
             }
 
@@ -198,7 +198,7 @@ namespace Moirai.Atropos.UI
             if (document == null)
             {
                 throw new GameException(StringUtility.Format(
-                    "面板壳 {0}（窗口 {1}）上找不到 {2}：UI Toolkit 窗口的壳必须自带文档组件", shell.name, WindowName, nameof(UIDocument)));
+                    "面板壳 {0}（窗口 {1}）上找不到 {2}：UI Toolkit 窗口的壳必须自带文档组件", shell.name, WindowId, nameof(UIDocument)));
             }
 
             _shell = shell;
@@ -226,7 +226,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 建一枚承载文档组件的壳物体：挂在 <see cref="UIService.UIRoot"/> 下，先把本窗那一枚 <see cref="PanelSettings"/> 配好再放它进激活流程。
+        /// 建一个承载文档组件的壳物体：挂在 <see cref="UIService.UIRoot"/> 下，先把本窗的 <see cref="PanelSettings"/> 配好再放它进激活流程。
         /// </summary>
         /// <remarks>
         /// 壳建成即不激活：<see cref="UIDocument"/> 的根元素与面板都在启用流程里创建，配置晚一步就位它就按空配置报错。 <br />
@@ -268,7 +268,7 @@ namespace Moirai.Atropos.UI
 
             if (tree == null)
             {
-                LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到面板模板 {1}", WindowName, assetLocation);
+                LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到面板模板 {1}", WindowId, assetLocation);
                 return false;
             }
 
@@ -277,7 +277,7 @@ namespace Moirai.Atropos.UI
 
         /// <summary>校验本窗这一档的 <see cref="PanelSettings"/> 已配置：窗口级覆盖与共享兜底任一在场即可。</summary>
         /// <remarks>
-        /// 两枚都缺位才抬这一条 Error，且只报一次、回 false：它与「取不到面板模板」是两种病因，文案各自分开才认得出是哪一种。 <br />
+        /// 两者都缺位才抬这一条 Error，且只报一次、回 false：它与「取不到面板模板」是两种病因，文案各自分开才认得出是哪一种。 <br />
         /// 覆盖为空不是错：那正是回 <see cref="SharedPanelSettings"/> 的那一档，只有两处都空才是配置缺位。
         /// </remarks>
         /// <param name="assetLocation">要装载的面板地址，只进文案。</param>
@@ -301,7 +301,7 @@ namespace Moirai.Atropos.UI
         /// <summary>贴主题：<see cref="ThemeLocation"/> 声明了才取样式表，取到就挂进内容根自己的 <c>styleSheets</c>。</summary>
         /// <remarks>
         /// 只降级不拒开：主题缺失报一条 Error 后面板照旧可用。不动 <see cref="PanelSettings.themeStyleSheet"/>——那是共享资产， <br />
-        /// 一枚窗口改它会影响全部 UI Toolkit 窗口。
+        /// 一个窗口改它会影响全部 UI Toolkit 窗口。
         /// </remarks>
         private void ApplyTheme()
         {
@@ -313,7 +313,7 @@ namespace Moirai.Atropos.UI
 
             if (!ResourceService.TryLoadAsset(location, out StyleSheet sheet) || sheet == null)
             {
-                LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到主题样式表 {1}", WindowName, location);
+                LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到主题样式表 {1}", WindowId, location);
                 return;
             }
 
@@ -346,5 +346,18 @@ namespace Moirai.Atropos.UI
         }
 
         #endregion
+    }
+
+    /// <summary>UI Toolkit 轨带载荷窗口基类：每次开窗最多一个强类型 DTO，静态腿泛型直塞（struct 不装箱）。</summary>
+    /// <remarks>载荷每次开窗覆盖、关闭不清；再开覆盖。动态腿经 <see cref="UIPayload"/> 擦除后从这里取回。</remarks>
+    // ReSharper disable once InconsistentNaming
+    public abstract class UITKWindow<TArg> : UITKWindow, IUIPayloadSlot<TArg>
+    {
+        /// <summary>本次开窗的载荷。</summary>
+        public TArg Payload { get; private set; }
+
+        void IUIPayloadSlot<TArg>.SetPayload(in TArg payload) => Payload = payload;
+
+        internal override void Internal_SetPayload(UIPayload payload) => Payload = payload.To<TArg>();
     }
 }
