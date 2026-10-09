@@ -81,7 +81,7 @@ com.moirai.framework/
 - **异常与错误处理：** 禁止 try-catch 做逻辑控制；热路径严禁 try-catch（**例外**：`PlayerLoopDriver.HandlerSlot/CallbackSlot.Drive` 与内核 `ServiceScope` 轮询循环内的 per-subscriber try/catch 属有意隔离——订阅/服务抛出不得截断同阶段其余项；异常本身仍按分级上抛或隔离，不吞）；用 Debug.Assert/Assert.IsTrue（仅 Editor）；非热路径公共 API 做参数校验抛 ArgumentException；异常不吞——要么处理要么上抛。
 - **代码组织：** 一文件一顶层类；类/接口/公有方法/枚举必须 &lt;summary&gt;（内容独占行，见《XML 文档注释》）；严禁 TODO 入主干；#region 用于小范围分组（双语标签），严禁大段折叠掩盖 SRP 违例（违反则拆类）；asmdef 最小化依赖、禁止循环引用。
 - **AOT/IL2CPP 兼容：** 禁止 Reflection.Emit/动态代码生成；反射仅限序列化/编辑器，运行时避免；泛型 AOT 预编译缺失时需预生成元数据或用非泛型路径；Type/enum 缓存为静态只读字段避免反复 GetType。
-- **测试可见性（强制）：** 测试不得用反射读写字段/属性（`GetField("m_…", BindingFlags.NonPublic)`）——需要触达的成员把访问级别 `private`→`internal`，`Runtime/AssemblyInfo.cs` 已对 `Moirai.Atropos.Editor` 与三个测试程序集（`.Tests.EditorMode`/`.Tests.PlayMode`/`.Tests.Player`）开了 `InternalsVisibleTo`。反射把字段名变成测试依赖：改名不报编译错，只在运行期 `GetField` 返回 null 后 NRE；`internal` 由编译器把关。序列化字段改 `internal` 不影响 Unity 序列化（`[SerializeField]` 不要求 `private`），前缀仍走 `m_`/`s_`/`_` 私有家族口径。反射只留两类正当用途：遍历 API 形状与断成员标注做契约守卫（`ResourceSeamShapeGuardTests`、`ResourceMethodSetContractTests`、`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`——这类只能反射，别当违例删掉）、唤起 Unity 生命周期回调（`Awake`/`OnEnable`/`OnInit`）。已有窄接缝的成员不为此放开字段：换入换出走 `Internal_PeekHandler()`/`Internal_UseHandler(next)`（常规情形由 `[HandlerHost]` 生成），`s_Handler` 保持 `private`。`UIService` 是例外：它不声明 `[HandlerHost]`，每支后端各一枚**具体类型**的处理器槽（`s_UGUIHandler`/`s_UITKHandler`，都是 `private`），只读接缝是手写的 `Internal_PeekUGUIHandler()`/`Internal_PeekUITKHandler()`，**没有换入接缝**——后端实现固定，加一支后端是加一枚 `UIService.<轨>.cs` partial（自登记一枚 `UITrack` 进门面目录，主文件零改动）；夹具要回到干净域状态走 `Internal_ResetHandlerSlots()`（不收实参、不能把对象放进槽；它同时清掉目录里各轨的关停回调认领）；合成轨登记的处置走 `Internal_UnregisterTrack()`。
+- **测试可见性（强制）：** 测试不得用反射读写字段/属性（`GetField("m_…", BindingFlags.NonPublic)`）——需要触达的成员把访问级别 `private`→`internal`，`Runtime/AssemblyInfo.cs` 已对 `Moirai.Atropos.Editor` 与三个测试程序集（`.Tests.EditorMode`/`.Tests.PlayMode`/`.Tests.Player`）开了 `InternalsVisibleTo`。反射把字段名变成测试依赖：改名不报编译错，只在运行期 `GetField` 返回 null 后 NRE；`internal` 由编译器把关。序列化字段改 `internal` 不影响 Unity 序列化（`[SerializeField]` 不要求 `private`），前缀仍走 `m_`/`s_`/`_` 私有家族口径。反射只留两类正当用途：行为契约守卫（断成员标注、经反射触达条件编译成员——`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`、`AddressableHandlerFailFastTests`，这类只能反射，别当违例删掉）、唤起 Unity 生命周期回调（`Awake`/`OnEnable`/`OnInit`）。API 形状不进测试登记（签名快照、成员计数、名单冻结类用例不建），破坏性更新在 `CHANGELOG.md` 记迁移口径。已有窄接缝的成员不为此放开字段：换入换出走 `Internal_PeekHandler()`/`Internal_UseHandler(next)`（常规情形由 `[HandlerHost]` 生成），`s_Handler` 保持 `private`。`UIService` 是例外：它不声明 `[HandlerHost]`，每支后端各一个**具体类型**的处理器槽（`s_UGUIHandler`/`s_UITKHandler`，都是 `private`），只读接缝是手写的 `Internal_PeekUGUIHandler()`/`Internal_PeekUITKHandler()`，**没有换入接缝**——后端实现固定，加一支后端是加一个 `UIService.<轨>.cs` partial（自登记一个 `UITrack` 进门面目录，主文件零改动）；夹具要回到干净域状态走 `Internal_ResetHandlerSlots()`（不收实参、不能把对象放进槽；它同时清掉目录里各轨的关停回调认领）；合成轨登记的处置走 `Internal_UnregisterTrack()`。
 - **工具链与质量门：** 启用 Roslyn Analyzers；.editorconfig indent_size=4；提交前通过 ZeroAlloc 性能测试；PR 须通过编译 + Analyzer + 测试三重门。
 - **执行等级：** Mandatory（违反打回：命名前缀、0-Alloc、防装箱、AOT 兼容、测试可见性）/ Prefer（性能敏感区必须，非热路径可放宽：Span/unsafe/池化/线程安全）/ Reference（逐步优化遗留）。
 
@@ -184,7 +184,7 @@ com.moirai.framework/
 
 白名单（必须能归入其一，且在文件头写明理由）：
 
-1. 契约形状守卫（`ResourceSeamShapeGuardTests`、`ResourceMethodSetContractTests`、`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`）；
+1. 行为契约守卫——断成员标注、经反射触达条件编译成员（`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`、`AddressableHandlerFailFastTests`）；
 2. 唤起 Unity 生命周期回调（`Awake`/`OnEnable`/`OnInit`）；
 3. 产码字段探针（`MemoryPoolFixture.StaticField`）。
 
@@ -202,14 +202,12 @@ com.moirai.framework/
 - 性能结论必须同工具同数据 before/after A/B；编辑器 Mono 基准 ±2× 噪声，只做同轮内比较。
 - 菜单驱动/场景 MonoBehaviour 的手动基准已全部废止（含原 `TimerServiceBenchmark` 与 JSON Benchmark 菜单工具）：基准统一住 `Tests/`（`[Explicit]`），入口与双通道政策见《Testing 规范》基准政策（L4）节。
 
-### 契约守卫维护（强制）
+### 公共 API 变更口径（强制）
 
-把 API 形状钉成基线常数的用例（`ResourceSeamShapeGuardTests` 等）**必须有人维护，否则退化成常年红**——那时它既不防回归，还掩盖真缺陷：
+测试不把 API 形状（签名、成员数、名单）钉成基线常数——公共面的有意变更不在测试里登记，那类守卫要求每次变更先同步测试基线，把破坏性变更的登记义务搬进了测试。正确口径：
 
-1. API 有意变更时**同一提交内**同步基线常数，不留到"下次一起改"。
-2. 基线注释写清数字来源（`2026-09-24 基线：19 个抽象属性 + 47 个抽象方法；……`）。
-3. `CHANGELOG.md` 写明收掉了哪些成员（常数是"现在的形状"，CHANGELOG 是"为什么变成这样"）。
-4. 守卫红了必须判断「有意变更（同步基线）」还是「意外收敛（修代码）」；**不允许直接改常数让它变绿**。
+1. **破坏性更新（增删公共成员、改签名/约束/枚举编号）在 `CHANGELOG.md` 记迁移口径**：收掉了什么、旧调用方怎么迁；UI 载荷/事件类另记 `UIMigration.md`。
+2. 反射白名单里的「契约守卫」只覆盖成员标注与运行行为的断言（如 `[NonSerialized]` 序列化边界），不承担形状登记。
 
 ### 覆盖率与出口准则
 

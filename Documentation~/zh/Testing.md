@@ -107,7 +107,7 @@ Tests/
 
 ## 夹具与隔离
 
-池、注册表、单例、静态配置都是**进程级全局状态**。一个用例漏还一只对象，下一个用例会读到虚高的计数，表现为"单独跑绿、整套跑红"。夹具基座的职责就是把这种污染**当场钉死在用例自己的红上**。
+池、注册表、单例、静态配置都是**进程级全局状态**。一个用例漏还一个对象，下一个用例会读到虚高的计数，表现为"单独跑绿、整套跑红"。夹具基座的职责就是把这种污染**当场钉死在用例自己的红上**。
 
 ### 基座契约
 
@@ -171,7 +171,7 @@ public abstract class XxxFixture
 
 **反射白名单**（仅这三类正当用途，且必须在文件头写明理由）：
 
-1. **契约形状守卫**——遍历 API 形状、断言成员标注（`ResourceSeamShapeGuardTests`、`ResourceMethodSetContractTests`、`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`）。这类**只能**反射，别当违例删掉。
+1. **行为契约守卫**——断成员标注、经反射触达条件编译成员（`YooAssetHandlerSmokeTests.RuntimeArrayFields_AreNonSerialized`：序列化边界；`AddressableHandlerFailFastTests`：条件编译后端的 fail-fast 面）。这类**只能**反射，别当违例删掉。
 2. **唤起 Unity 生命周期回调**——`Awake` / `OnEnable` / `OnInit`。
 3. **产码字段探针**——读取代码生成器产出的字段（`MemoryPoolFixture.StaticField`）。
 
@@ -212,7 +212,7 @@ public abstract class XxxFixture
 - **内容断言一律走内部事件** `LogUtility.onMessageLogged`——它与 Handler 无关，是唯一稳定的断言通道。
 - **`LogAssert.Expect` 只承担"消除未处理日志"的职责，正则一律用 `".*"`**，不要在正则里耦合 Handler 的渲染前缀（`[ERR]`/`[FAT]` 三字符前缀与文档里的 `[ERROR]`/`FATAL` 不一致，会成批假红）。
 - **消除未处理日志一律经 `UtfLogExpect`**（`Tests/EditorMode/Support/UtfLogExpect.cs`；PlayMode 侧有同名本地副本）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。**不要**在用例里自己写 `LogAssert.Expect` 加处理器判定——那会把「未装 com.unity.logging 的工程里 `UnityLoggingHandler` 根本不存在」扩散成每处一个 `#if`。API 面：
-  - `Error()` / `Warning()` / `Exception()`：三条基础级别各一枚声明，正则固定 `.*`；
+  - `Error()` / `Warning()` / `Exception()`：三条基础级别各一个声明，正则固定 `.*`；
   - `ErrorWithException(fragment)`：带异常对象的 Error 重载——级别随处理器自述（`ErrorWithExceptionUsesExceptionChannel`），ZLogger 下转 Exception 通道、DefaultLogHandler 下仍是 Error；
   - `ScopedIgnore()`：`ignoreFailingMessages` 的 using 形态窗口（构造快照、Dispose 还原），供**错误集不可枚举的故障注入夹具**使用。取舍：窗口内所有未处理日志（含真缺陷的）都不判红，相当于放弃「意外错误也要红」这层信号——只在夹具确实不需要该信号时选用；错误集可枚举的用例逐条声明。它是唯一允许触碰该全局开关的入口。
   - 测试程序集因此保留 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 的 `versionDefines`：全仓只有 `UtfLogExpect` 一处需要该宏，别在别处再依赖它。
@@ -241,12 +241,12 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 
 `Moirai.Atropos.Tests.Player` 的 `defineConstraints` 是 `["UNITY_INCLUDE_TESTS"]`——**编辑器里编译、可见**；0-GC 计量格经 GC.Alloc 采样能力探针决定真跑或整组 Ignore（可见不是死格、Ignore 不是假绿）。实证前提（2026-09-28，StandaloneOSX 双后端）：
 
-1. **玩家测试收录以编辑器可见性为前提**：UTF 玩家测试运行（GUI 与 CLI 同机制，构建带 `BuildOptions.IncludeTestAssemblies`）只收录编辑器可见的测试程序集——`!UNITY_EDITOR` 约束的程序集永远不进玩家测试包。旧章程「编辑器不编译 + Run all in Player」的组合在任何环境都不执行（L3 门禁因此从未真正跑过 0-GC 格）。
+1. **玩家测试收录以编辑器可见性为前提**：UTF 玩家测试运行（GUI 与 CLI 同机制，构建带 `BuildOptions.IncludeTestAssemblies`）只收录编辑器可见的测试程序集——`!UNITY_EDITOR` 约束的程序集永远不进玩家测试包。「编辑器不编译 + Run all in Player」的组合在任何环境都不执行。
 2. **发起通道三选一**：Test Runner 窗口 PlayMode 页签 → `Run all in Player`（可用搜索框把范围缩到目标夹具，结论以玩家侧报告为准）；本包 `Window/General/Test Player Runner` 窗口（参数化一键发起：目标平台/过滤/心跳超时/报告路径 + CLI 等价命令复制，报告自动落盘）；或 CLI `Unity -batchmode -projectPath <工程> -runTests -testPlatform StandaloneOSX -testResults <xml> -logFile <log>`（退出码 0=全过 / 2=测试失败 / 3=RunError / 4=平台名错；前提是 GUI 编辑器已关——工程锁互斥）。三条通道走同一 `PlayerLauncher` 机制。
 3. **不要自己 `BuildPipeline.BuildPlayer` 搭测试玩家**。玩家里的测试入口不是 `-runTests` 参数，而是构建期注入的引导场景（`CreateBootstrapSceneTask` 生成挂 `PlaymodeTestsController` 的 `Assets/InitTestScene<guid>.unity`）；手搓玩家没有这个场景，`-runTests` 什么也不会发生。且玩家**自己不写结果 XML**——结果经 `RemoteTestResultSender` 走 PlayerConnection 回传编辑器，由编辑器落盘（CLI 模式由 UTF 写入 `-testResults`）。
 4. **`Tests/Player/PlayerTestBootstrap.cs` 是必需前置**：玩家默认自动启动框架（`GameApp.AutoBoot` 默认 true），测试玩家跑的是空场景，UI 后端等不到 `UIRootBinding` 登记，启动链在 `UGUIHandler` 报出「UI 根尚未绑定」后停住，测试运行永远轮不到。Bootstrap 在 `AfterAssembliesLoaded` 把 `AutoBoot` 置 false——**仅玩家域生效（`#if !UNITY_EDITOR`）**，编辑器 PlayMode 测试域依赖自动启动链（L2 门禁前提），绝不能在编辑器里掐。
 5. **0-GC 真计量走 GC.Alloc 采样**：`AllocationCapture` 以 `GC.Alloc` 采样事件数计量（UTF 官方 AllocatingGCMemory 同机制、同款 API）；采样探不到的运行时整组 Ignore。字节口径 GC 计数 API 在 Unity 内无实现（`GetAllocatedBytesForCurrentThread` 在编辑器 Mono、Mono 玩家、IL2CPP 玩家三处实测恒 0，`GetTotalAllocatedBytes` 在 Unity profile 不存在）。Standalone 测试玩家后端按发布目标取——IL2CPP 增量缓存已建，改一个程序集后的测试玩家构建约 3.5 分钟。
-6. **钩子与取参**：`LocalizationChannelBuildHook` 已按「无 `-CustomArgs:` 前缀即缺省不动」早退（2026-09-28 修复——此前缺参 LogError 会把一切无参玩家构建判死，GUI 与 CLI 同撞）；CI 出包仍按约定传 `-CustomArgs:platform=X;localizationLanguage=Y`，前缀在而键缺失照样响亮报错。
+6. **钩子与取参**：`LocalizationChannelBuildHook` 在无 `-CustomArgs:` 前缀时按「缺省不动」早退；CI 出包仍按约定传 `-CustomArgs:platform=X;localizationLanguage=Y`，前缀在而键缺失照样响亮报错。
 
 ### IL2CPP 玩家的验证判据
 
@@ -262,26 +262,15 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 - **双通道基准**（需 Debugger 窗口也能跑的，如 MemoryPool/Timer）：矩阵核心（`XxxBenchmarkRunner`，public static，**住运行程序集**——运行时调试器窗口够不到测试程序集）+ Debugger 窗口基准区（Run/Export 按钮）+ Tests `[Explicit]` 薄壳（调 `Runner.Run()` 后写 XML）——两个入口跑同一份矩阵代码。同步矩阵直驱隔离 handler（不依赖门面懒加载的活服务世界）；依赖真实帧的 fire/burst 用例住 PlayMode `[Explicit]` `[UnityTest]`。
 - 软校验口径：矩阵内不变量命中只累加 `failures` 计数并 LogWarning，不抛出——正确性回归归测试族，基准是测量不是验收。
 - **性能结论必须用同一工具、同一数据做 before/after A/B 实测**（跨工具数据不可比）。编辑器 Mono 基准有 ±2× 噪声，只做同轮内比较。
-- 回调一律缓存方法组字段（C# 9 不缓存方法组转换，裸写每次分配一只委托，污染 0-GC 基准）。
+- 回调一律缓存方法组字段（C# 9 不缓存方法组转换，裸写每次分配一个委托，污染 0-GC 基准）。
 - CI 基准通道见 `Packages/GitHubActions~/README.BENCHMARK.md`。
 
-## 契约守卫的维护流程
+## 公共 API 变更口径
 
-"契约守卫"指把**当前 API 形状**钉成基线常数的用例（如 `ResourceSeamShapeGuardTests` 把抽象成员数、`internal abstract` 数、`[Obsolete]` 数记成常数）。它的价值是让"顺手少个成员"和"引用悄悄对不上"在 diff 里显形。
+测试不把 API 形状（签名、成员数、名单）钉成基线常数——公共面的有意变更不在测试里登记基线，那类守卫要求每次变更先同步测试，把破坏性变更的登记义务搬进了测试。正确口径：
 
-**但它必须有人维护，否则会退化成"常年红"**——那时它既不防回归，还掩盖真缺陷。2026-09-24 的基线里就有两个这样的例子：
-
-| 用例 | 现象 | 原因 |
-|---|---|---|
-| `ResourceSeamShapeGuardTests.Seam_AbstractMemberCount_MatchesRecordedBaseline` | 期望 66，实际 67 | 抽象成员增了 1 个，基线未同步 |
-| `ResourceMethodSetContractTests.InitializePackageAsync_Signature` | 期望 `UniTask<bool>`，实际 `UniTask<ResourcePackageInitResult>` | 包管理 API 有意改名改型，守卫未同步 |
-
-维护纪律：
-
-1. **API 有意变更时，同一个提交内同步基线常数**，不要留到"下次一起改"。
-2. **基线注释里写清这一笔的来源**（`2026-09-24 基线：19 个抽象属性 + 47 个抽象方法；……`），让下一个人能读懂数字怎么来的。
-3. **在 `CHANGELOG.md` 写明收掉了哪些成员**。基线常数是"现在的形状"，CHANGELOG 是"为什么变成这样"。
-4. 守卫红了你**必须**做判断：是有意变更（同步基线）还是意外收敛（修代码）。**不允许直接改常数让它变绿**。
+1. **破坏性更新（增删公共成员、改签名/约束/枚举编号）在 `CHANGELOG.md` 记迁移口径**：收掉了什么、旧调用方怎么迁；UI 载荷/事件类另记 `UIMigration.md`。
+2. 反射白名单里的「契约守卫」只覆盖成员标注与运行行为的断言（如 `[NonSerialized]` 序列化边界），不承担形状登记。
 
 ## 覆盖率与门禁
 
