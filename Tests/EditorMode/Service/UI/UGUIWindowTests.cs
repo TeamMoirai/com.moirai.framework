@@ -164,7 +164,7 @@ namespace Service.UI
             window.Visible = true;
             window.Depth = 500;
 
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
 
             Assert.IsTrue(window.IsLoadDone, "面板装配成功要置 IsLoadDone");
             Assert.IsTrue(window.IsPrepare, "面板装配成功要置 IsPrepare");
@@ -453,7 +453,7 @@ namespace Service.UI
         {
             var window = new ProbeWindow { Fixture = fixture };
             window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
             return window;
         }
 
@@ -462,7 +462,7 @@ namespace Service.UI
         {
             var window = new ProbeWindow { Fixture = fixture };
             window.Init(nameof(ProbeWindow), 1, false, "Panel", false, 10, false);
-            window.InternalLoad("Panel", w => w.InternalCreate(), false, null);
+            window.InternalLoad("Panel", w => w.InternalCreate(), false);
             return window;
         }
 

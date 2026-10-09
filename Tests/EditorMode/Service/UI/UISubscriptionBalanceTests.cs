@@ -43,14 +43,14 @@ namespace Service.UI
         [Test]
         public void ParkAndReopen_RegisterPairsBalanced()
         {
-            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "EventProbe", "Panel", false, null);
+            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "EventProbe", "Panel", false, null, UIPayload.Empty);
             var window = (EventProbeWindow)_ledger.GetWindow("EventProbe");
             Assert.AreEqual((1, 0), (window.RegisterCount, window.UnregisterCount), "首开注一次");
 
             _ledger.CloseUI<EventProbeWindow>("EventProbe");
             Assert.AreEqual((1, 1), (window.RegisterCount, window.UnregisterCount), "关（停放）即退订");
 
-            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "EventProbe", "Panel", false, null);
+            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "EventProbe", "Panel", false, null, UIPayload.Empty);
             Assert.AreEqual((2, 1), (window.RegisterCount, window.UnregisterCount), "停放重取再注一次");
 
             _ledger.CloseUI<EventProbeWindow>("EventProbe");
@@ -60,8 +60,8 @@ namespace Service.UI
         [Test]
         public void ShutdownSweep_ParkedWindowsOnTrackAreDestroyed()
         {
-            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepHit", "Panel", false, null);
-            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepMiss", "Panel", false, null);
+            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepHit", "Panel", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepMiss", "Panel", false, null, UIPayload.Empty);
             _ledger.CloseUI<EventProbeWindow>("SweepHit");
             _ledger.CloseUI<EventProbeWindow>("SweepMiss");
             var hit = _ledger.GetWindow("SweepHit") as EventProbeWindow;

@@ -28,7 +28,7 @@ namespace Service.UI
             var window = new HookProbeWindow();
             window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10, false);
 
-            window.InternalLoad("Panel", _ => window.Calls.Add("PrepareCallback"), false, null);
+            window.InternalLoad("Panel", _ => window.Calls.Add("PrepareCallback"), false);
 
             CollectionAssert.AreEqual(new[]
             {
@@ -53,7 +53,7 @@ namespace Service.UI
             window.Interactable = false;
             window.Calls.Clear();
 
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
 
             CollectionAssert.AreEqual(new[]
             {
@@ -75,7 +75,7 @@ namespace Service.UI
 
             // 装载失败收口的那一条 Error（失败必须报出来，不许静默）
             UtfLogExpect.Error();
-            window.InternalLoad("Panel", _ => called = true, false, null);
+            window.InternalLoad("Panel", _ => called = true, false);
 
             Assert.IsFalse(window.IsLoadDone, "默认钩子加载失败时不得置 IsLoadDone");
             Assert.IsFalse(window.IsPrepare, "默认钩子加载失败时不得置 IsPrepare");
@@ -235,7 +235,7 @@ namespace Service.UI
         {
             var window = new HookProbeWindow();
             window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10, false);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
             window.Calls.Clear();
             return window;
         }
@@ -248,7 +248,7 @@ namespace Service.UI
         {
             var window = new HookProbeWindow();
             window.Init(nameof(HookProbeWindow), 1, false, "Panel", false, 10, cacheInstance);
-            window.InternalLoad("Panel", w => w.InternalCreate(), false, null);
+            window.InternalLoad("Panel", w => w.InternalCreate(), false);
             window.Calls.Clear();
             return window;
         }

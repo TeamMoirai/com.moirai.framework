@@ -28,9 +28,14 @@ Shutdown order is expressed by each track's self-declared tier: the track hostin
 - Full lifecycle: `OnCreate` -> `OnRefresh` -> `OnUpdate` -> `OnClose` -> `OnDestroy`; open/close transitions go through `IUITransition` (override `UIWindow.Transition` to return an implementation; absent means instant — open by default has no delay or input lock, closing parks immediately)
 - Window registration: every window class must carry `[Window]`; the `UIWindowCodegen` source generator resolves it at compile time into `UIWindowRegistry` (descriptor + compile-time factory) — a class without the attribute cannot open
 - Modal blocking: When a modal window is pushed onto the stack, interaction with underlying windows is automatically disabled (`Interactable`); `IsBlockedByModal` can be used to query blocking status
-- Open-result contract: `ShowUIAwaitResult<T>` / `GetUIAwaitResult<T>` return a `UIOpenResult` whose `EUIOpenStatus` distinguishes four outcomes (`Opened` / `Failed` / `Missing` / `Timeout`) — a window whose load failed is rolled off the stack on the spot, so waiting no longer conflates null with timeout
+- Open-result contract: `ShowUIAwaitResult<T>` / `GetUIAwaitResult<T>` return a `UIOpenResult` whose `EUIOpenStatus` distinguishes five outcomes (`Opened` / `Failed` / `Missing` / `Timeout` / `Cancelled`) — a window whose load failed is rolled off the stack on the spot, so waiting no longer conflates null with timeout
+- Two payload channels: the per-track generic bases `UGUIWindow<TArg>` / `UITKWindow<TArg>` each carry one strongly typed `Payload` slot — a **static leg** whose window class is known at compile time pushes it through the generic channel as `in TArg` (no boxing for structs, never touching `UIPayload`), while the **dynamic leg** that only has a runtime `Type` erases it into `UIPayload` (reference types store the reference itself; value types box once)
+- In-flight merge, last-wins: reopening a window whose load is still in flight does not restart the load and does not push a second instance; the payload is overwritten by the last one and `OnRefresh` only ever sees the final one
+- Every leg takes a `CancellationToken`: `default` costs nothing; cancellation only matters while the load is in flight — a void leg rolls back silently, an await leg rethrows `OperationCanceledException`, a result leg lands the `Cancelled` tier, distinct from `Timeout`
+- Minimal navigation: `NavigationDepth` and `TryCloseTopWindow()` answer "which window opened most recently" by **open order** (the layer-sorted stack cannot answer that), and closing the top goes through the existing `CanClose` policy
+- Lifecycle hook isolation: a throwing hook is quarantined and the flow continues, all by hand-written try/catch with no lambda wrappers (zero allocation on the per-frame path); see the "Lifecycle Hook Isolation" table
 - Full-screen window optimization: Windows beneath a full-screen window are automatically hidden, reducing rendering and update overhead
-- Window caching: When `cacheInstance` is enabled, the window instance is not destroyed on close, and subsequent opens reuse the same instance
+- Window caching: When `cacheInstance` is enabled, the window instance is not destroyed on close, and subsequent opens reuse the same instance; parked windows optionally expire — `cacheTimeToDestroy` seconds later the ledger removes and destroys the parked instance, `0` means never (existing semantics), and re-taking it cancels the timer
 - Widget sub-controls: Embedded controls within a window reuse the same lifecycle, supporting creation by node path, resource path, or prefab
 - Multi-resolution adaptation: Safe area (notch screen) adaptation, `UIAdapter` layout adapters (horizontal / vertical / radial / safe area)
 - Editor code generation: `GameObject/ScriptGenerator` menu automatically generates UI binding code
@@ -48,8 +53,13 @@ Shutdown order is expressed by each track's self-declared tier: the track hostin
 | `Moirai.Atropos.UI.UIRootBinding` | UI root binding component: put it on the scene object acting as the UI root; `SingletonMono` first-wins registers it, and the uGUI track's `UGUIHandler` reads it via `TryGetInstance()` (never auto-creates; lookup by name is gone) |
 | `Moirai.Atropos.UI.UIBase` | UI base class, defines lifecycle virtual methods and Widget creation API |
 | `Moirai.Atropos.UI.UIWindow` | Backend-agnostic window object model (inherits `UIBase`): the three panel intents — visibility / depth / interactability — plus lifecycle and open/close transitions (`Transition`); panel loading is implemented by track base classes, and a window directly inheriting it cannot open a panel |
-| `Moirai.Atropos.UI.UGUIWindow` | uGUI-track window base class (`Handler/UGUI/`): applies the three intents to a GameObject / Canvas / GraphicRaycaster panel — **uGUI business windows always inherit this class** |
-| `Moirai.Atropos.UI.UITKWindow` | UI Toolkit track window base class (`Handler/UITK/`): `UIDocument` shell and content-root assembly, window-level `PanelSettings` override (the extra parameter the open-window family has over the uGUI legs); UI Toolkit business windows inherit this class |
+| `Moirai.Atropos.UI.UGUIWindow` | uGUI-track window base class (`Handler/UGUI/`): applies the three intents to a GameObject / Canvas / GraphicRaycaster panel — **uGUI business windows always inherit this class** (the payload-carrying ones inherit `UGUIWindow<TArg>`) |
+| `Moirai.Atropos.UI.UITKWindow` | UI Toolkit track window base class (`Handler/UITK/`): `UIDocument` shell and content-root assembly, window-level `PanelSettings` override (the extra parameter the open-window family has over the uGUI legs); UI Toolkit business windows inherit this class (the payload-carrying ones inherit `UITKWindow<TArg>`) |
+| `Moirai.Atropos.UI.UGUIWindow<TArg>` / `UITKWindow<TArg>` | The two tracks' payload-carrying bases: at most one strongly typed DTO per open, read through `Payload`; static legs push it through `IUIPayloadSlot<TArg>` directly, dynamic legs erase into `UIPayload` and read the same slot back |
+| `Moirai.Atropos.UI.UIPayload` | The dynamic legs' only erasure carrier (`readonly struct`): `Empty` and a `null` reference are the same case; `From` / `To<T>` / `TryGet<T>` — every failure surface is a `GameException` naming the expected type |
+| `Moirai.Atropos.UI.IUIPayloadSlot<TArg>` | Internal generic bridge of the payload slot (`internal`): the ledger's generic channel lands the payload by `TArg` through it, never passing through `UIPayload`; implemented by both tracks' generic bases |
+| `Moirai.Atropos.UI.UIWindowEvent` | The relayed window event: `Show` (two payload-free forms) / `Close` / `Hide` / `CloseAll`, and **no payload** — the payload-carrying `Show` shape was removed with the hard cut; payloads always go through the facade legs |
+| `Moirai.Atropos.UI.UIManager` | Scene-side addressing component and the subscriber of `UIWindowEvent`: the public static resolvers `ResolveWindowLocation(windowId)` / `ResolveFromResources` give direct-call legs the same addressing decision as the event leg |
 | `Moirai.Atropos.UI.UIWidget` | Window embedded control base class, inherits `UIBase` |
 | `Moirai.Atropos.UI.WindowAttribute` | Window attribute (required), declares layer, resource address, full-screen, caching, and other configuration; resolved at compile time by the `UIWindowCodegen` source generator into `UIWindowRegistry` |
 | `Moirai.Atropos.UI.EUILayer` | UI layer enum: `Bottom=0`, `UI=1`, `Popup=2`, `Tips=3`, `System=4` |
@@ -57,7 +67,7 @@ Shutdown order is expressed by each track's self-declared tier: the track hostin
 | `Moirai.Atropos.UI.UIWindowRegistry` | Window registry (`public static`): type handle → descriptor + compile-time factory, filled by each assembly's generated module initializer and read-only afterwards; `TryGet` is `internal` |
 | `Moirai.Atropos.UI.UIWindowDescriptor` | Window metadata descriptor (`readonly struct`): the full `[Window]` argument set resolved once at registration, read directly at open time with zero reflection |
 | `Moirai.Atropos.UI.IUITransition` | Open/close transition contract: `Play(open, ct)` plays and waits, `Snap(open)` drives the panel to its end state on the spot; returned from an overridden `UIWindow.Transition`, absent means instant |
-| `Moirai.Atropos.UI.UIOpenResult` / `EUIOpenStatus` | Open/fetch outcome (`readonly struct` + four-tier `byte` enum): `Window` and `Status` come back paired, `Success` and the implicit bool answer only the "ready" tier |
+| `Moirai.Atropos.UI.UIOpenResult` / `EUIOpenStatus` | Open/fetch outcome (`readonly struct` + five-tier `byte` enum: `Opened` / `Failed` / `Missing` / `Timeout` / `Cancelled`): `Window` and `Status` come back paired, `Success` and the implicit bool answer only the "ready" tier |
 | `Moirai.Atropos.UI.UIServiceEvent` | Window open/close events (`Shown` / `Closed`), dispatched via `EventManager` |
 | `Moirai.Atropos.UI.UIServiceHelper` | Interaction helper: `IsInteractionBlockedByModal`, `IsUIObjectInteractable` |
 | `Moirai.Atropos.UI.UIBindComponent` | Window/Widget component binding MonoBehaviour base class |
@@ -79,7 +89,7 @@ public class MainWindow : UGUIWindow
 
     protected override void OnCreate() { /* First creation, bind events */ }
 
-    protected override void OnRefresh() { /* Refresh when opened or when the top window closes; access parameters via UserData/Params */ }
+    protected override void OnRefresh() { /* Refresh when opened or when the top window closes; payload-carrying windows read Payload here */ }
 
     protected override void OnUpdate() { /* Per-frame update (visible windows only) */ }
 
@@ -95,13 +105,23 @@ Opening and closing windows:
 // Synchronous open (automatically falls back to async on WebGL)
 UIService.ShowUI<MainWindow>();
 
-// Asynchronous open, with optional custom parameters (accessed via UserData / Params inside the window)
-UIService.ShowUIAsync<MainWindow>(userData: new object[] { 1001 });
+// Asynchronous open (payload-free leg)
+UIService.ShowUIAsync<MainWindow>();
 
-// Asynchronous open and await completion (60-second timeout)
+// A payload-carrying open swaps to the two-type-argument family, payload first (read inside the window as Payload)
+UIService.ShowUIAsync<DetailWindow, int>(1001);
+
+// Dynamic leg, when the window class is only known at runtime: payload erased into UIPayload, addressing via the public static resolvers
+UIService.ShowUIAsync(type, windowName, UIManager.ResolveWindowLocation(windowName),
+    UIManager.ResolveFromResources, UIPayload.From(dto));
+
+// Every leg takes a CancellationToken (default costs nothing); it only means something while the load is in flight
+UIService.ShowUIAsync<MainWindow>(windowName: "Main", ct: cts.Token);
+
+// Asynchronous open and await completion (60-second timeout; a caller cancellation rethrows OperationCanceledException)
 UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>();
 
-// Asynchronous open that awaits the terminal state: opened / failed / missing / timeout are distinct
+// Asynchronous open that awaits the terminal state: opened / failed / missing / timeout / cancelled are distinct
 // (a failed window has already been rolled off the stack and must not be reused)
 UIOpenResult result = await UIService.ShowUIAwaitResult<MainWindow>();
 if (result.Status == EUIOpenStatus.Opened) { /* result.Window is usable */ }
@@ -113,9 +133,116 @@ UIService.HideUI<MainWindow>();
 // Query
 bool exist = UIService.HasWindow<MainWindow>();
 UIWindow top = UIService.GetTopWindow();
+
+// Navigation: close the most recently opened window (open order, not layer order)
+int depth = UIService.NavigationDepth;
+bool closed = UIService.TryCloseTopWindow();
 ```
 
+## Open-Leg Signatures
+
+Eight legs per track = four payload-free + four payload-carrying; the two backends' same-named overloads are resolved by their window-base constraint, not by parameter count. Every UI Toolkit leg takes one extra `PanelSettings panelSettings = null` right before `ct` (the window-level panel configuration; `null` falls back to the shared one). The `Type`-form entry adds three dynamic legs, and there are two navigation members plus three fetch legs.
+
+### Eight legs per track (uGUI signatures; UITK legs carry the extra `panelSettings`)
+
+| Leg | Signature | Returns |
+|---|---|---|
+| Async, payload-free | `ShowUIAsync<T>(string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`, `T : UGUIWindow, new()` | `void` |
+| Sync, payload-free | `ShowUI<T>(…same shape…), T : UGUIWindow, new()` | `void` |
+| Await, payload-free | `ShowUIAsyncAwait<T>(…same shape…), T : UGUIWindow, new()` | `UniTask<UIWindow>` |
+| Result, payload-free | `ShowUIAwaitResult<T>(…same shape…), T : UGUIWindow, new()` | `UniTask<UIOpenResult>` |
+| Async, payload | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`, `TWindow : UGUIWindow<TArg>, new()` | `void` |
+| Sync, payload | `ShowUI<TWindow, TArg>(in TArg payload, …same shape…)` | `void` |
+| Await, payload | `ShowUIAsyncAwait<TWindow, TArg>(TArg payload, …same shape…)` | `UniTask<TWindow>` |
+| Result, payload | `ShowUIAwaitResult<TWindow, TArg>(in TArg payload, …same shape…)` | `UniTask<UIOpenResult>` |
+
+- The await payload leg takes `payload` as a plain parameter rather than `in`: `async` methods forbid `in` parameters (CS1988), and the ledger's two async generic channels take plain `TArg` for the same reason; the other three legs stay `in TArg` (generic push, no boxing for structs)
+- On the UITK payload legs `panelSettings` sits after `fromResources` and before `ct`, and the payload is always the first slot — a dedicated case pins that mis-ordering guard
+- Every leg passes the claim gate first: a track that was not enabled (empty slot) throws on the spot instead of silently no-oping or fabricating a driver
+
+### Three dynamic legs (`Type`-form entry, payload as `UIPayload`)
+
+| Leg | Signature | Returns |
+|---|---|---|
+| Async | `ShowUIAsync(Type type, string windowName = null, string assetLocation = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
+| Sync | `ShowUI(Type type, …same shape…)` | `void` |
+| Await | `ShowUIAsyncAwait(Type type, …same shape…)` | `UniTask<UIWindow>` |
+
+Track ownership is decided by each track's self-described window base: an unclaimable type throws, and a claimed track whose driver is absent throws as well — the window is never pushed and left waiting on a load that will silently fail. This parameter table has no window-level `panelSettings` (that is the extra slot on the UITK generic legs), so the `Type`-form entry always passes `null` there.
+
+### Two navigation members and three fetch legs
+
+| Member | Signature | Semantics |
+|---|---|---|
+| Navigation depth | `NavigationDepth` (`int` property) | Length of the open-order history (the layer-sorted stack cannot answer "which window opened most recently") |
+| Close the top | `TryCloseTopWindow()` | Closes the most recently opened window through the existing `CanClose` policy; returns false when the history is empty, the window refuses, or it is mid-transition, and the history keeps it |
+| Fetch, await | `GetUIAsyncAwait<T>()` | Returns `null` when no such name is on the stack or that window is another type |
+| Fetch, callback | `GetUIAsync<T>(Action<T> callback)` | Logs one warning when not found; the callback is not invoked |
+| Fetch, result | `GetUIAwaitResult<T>()` | Returns `UIOpenResult`; the `Missing` tier means that window is not on the stack |
+
+The three fetch legs ask the same shared stack and only wait out an already-open window's load, so they take no caller token (internally only the 60-second bound applies).
+
 ## Advanced Usage
+
+### Payload Channels: Static and Dynamic Legs
+
+Each window carries at most one strongly typed payload (a DTO), living in the `Payload` slot of the track's generic base. Writes follow **overwrite** semantics: every open overwrites, closing does not clear, and the value survives until the next open replaces it.
+
+```csharp
+public struct RenameWindowPayload
+{
+    public string InitialText;
+    public int MaxLength;
+}
+
+[Window(EUILayer.Popup)]
+public class RenameWindow : UGUIWindow<RenameWindowPayload>   // carrying a payload requires UGUIWindow<TArg> / UITKWindow<TArg>
+{
+    protected override void OnRefresh()
+    {
+        _input.text = Payload.InitialText;                    // the payload of this very open
+        _input.maxLength = Payload.MaxLength;
+    }
+}
+
+// Static leg: window class known at compile time -> generic push (no boxing, never touches UIPayload)
+UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto);
+
+// Dynamic leg: only a runtime Type -> erased into UIPayload (reference stays a reference, value types box once)
+UIService.ShowUIAsync(type, windowName, UIManager.ResolveWindowLocation(windowName),
+    UIManager.ResolveFromResources, UIPayload.From(dto));
+```
+
+> Toolchain note: under this project's toolchain (C# 9 / netstandard2.1, no `IsExternalInit` polyfill) a `readonly struct` with writable public fields does not compile (CS8340 at the init sites; `readonly` fields plus an object initializer is CS0191, `{ get; init; }` is CS0518) — a DTO is a plain `struct` with public fields and an object initializer.
+
+- Payload writes precede the prepare receipt and the push on the re-park and the new-open branches (both channels share the same rule), so `OnRefresh` always reads this open's payload; on the reuse branch the Pop->Push precedes the slot check (that window is already fully on the stack — a failed check still throws, but the receipt and the re-ordering have already happened)
+- A slotless window (directly inheriting `UGUIWindow` / `UITKWindow`) given a non-empty payload throws on the spot — fail-fast, never silently swallowed; an empty payload on a slotless window is the legal case every payload-free leg takes
+- A name hit whose slot type mismatches (`SetPayloadChecked` matching `IUIPayloadSlot<TArg>`), or a facade hit whose instance is not `TWindow`, throws `GameException` with both the expected and actual type names; "the throw precedes un-parking and pushing" describes the **re-park and new-open** branches, so it neither half-opens a window nor consumes the parked state (that instance is still retrievable from the parking table); on the reuse branch the Pop->Push precedes the slot check (see the bullet above), so the receipt and the re-ordering have already happened when it throws
+- `UIPayload` failure surfaces: `To<T>` throws `GameException` on a type mismatch or an empty payload against a value type (message names the expected type); `TryGet<T>` returns false without throwing; `From(null)` reduces to `Empty`
+- Events no longer carry payloads: `UIWindowEvent.Show` keeps only its two payload-free forms — see the [UI migration guide](UIMigration.md) for where payload call sites go
+- Allocation tiers: payload-free round-trips (the steady re-park path), static-leg struct/class payloads, and dynamic-leg class payloads all promise a zero delta; only a primitive/value-type payload on a dynamic leg may box once. The meter is `GC.GetAllocatedBytesForCurrentThread` (per-thread basis; the L3 `[Explicit]` benchmark `UIOpenAllocBenchmarkTests`, measured bytes exported to `Temp/ui-open-alloc-benchmark.txt` — under editor Mono that counter reads 0, so the real verdict comes from the player-side report)
+
+### In-Flight Merging and Cancellation
+
+Reopening a window whose load is still in flight — from any leg, static or dynamic channel — **merges into that in-flight load**: no second load is started, no second instance is pushed, and the payload is overwritten by the last one; `OnRefresh` runs once when the panel is ready and sees only the final payload.
+
+- The caller token is only consumed while the load is in flight: a ready reuse and a re-park hand back synchronously without consuming `ct` (honest semantics — nothing pretends to be cancellable); reusing a window that is still loading registers the caller token just the same, and cancelling it aborts that in-flight load (the same semantics as the in-flight merge paragraph above)
+- Three distinct landing points: a void leg's cancellation zeroes the waiter count, aborts the in-flight load and rolls it off the stack (a silent cancel, no Error logged); an await leg rethrows `OperationCanceledException`; a result leg returns `EUIOpenStatus.Cancelled`
+- Separate from the timeout tier: the wait bound is 60 seconds, and a timeout logs one warning then still hands back that window (the result leg returns `Timeout`, the window may still be loading); a `Cancelled` window has been rolled back or never entered the stack — neither may be treated as ready
+- Waiter bookkeeping stays balanced: each waiter joins once and leaves once; a waiter settled by timeout does not decrement the count, and the load is only aborted once every registered, cancellable waiter has left
+
+### Minimal Navigation
+
+The window stack is insert-sorted by layer, so it cannot answer "which window opened most recently"; the ledger keeps a separate open-order history (`Push` appends, removal takes it out, and reuse or re-park moves that window to newest through Pop->Push). That history answers it.
+
+```csharp
+// Back button: close the most recently opened window through the existing CanClose policy (refusal returns false, history keeps it)
+if (!UIService.TryCloseTopWindow()) UIService.CloseAll();
+
+int depth = UIService.NavigationDepth;   // length of the open-order history
+```
+
+No routing table, no navigation events, no guard chain — `NavigationDepth` and `TryCloseTopWindow()` are the whole surface of this layer.
 
 ### Multi-Backend and Third-Track Extension
 
@@ -208,6 +335,20 @@ public class RenameWindow : UGUIWindow
 - `ForceClose()` settles on the spot, skipping both the wait and the gate — the escape hatch for a window that must close immediately
 - Only self-close goes through this path: closing from outside via `UIService.CloseUI` / `CloseAll` goes straight to the shared stack and is not affected by the wait or the gate
 
+### Lifecycle Hook Isolation
+
+The policy is "quarantine and continue": a throwing hook logs and moves on, never dragging other windows of the same batch down with it and never leaving its own flow half-finished. All of it is hand-written try/catch with no lambda wrappers — the per-frame path stays allocation-free.
+
+| Hook slot | When it throws |
+|---|---|
+| Creation chain (`Inject` / `ScriptGenerator` / `BindMemberProperty` / `RegisterEvent` / `OnCreate`) | Same collection as a failed load: `RollbackFailedLoad` -> the window leaves the stack in the explicit failed state |
+| `OnRefresh` | Error log, the window is still pushed onto the stack |
+| Per-window `Internal_Update` inside the ledger's `Tick` | Error log, the next window continues (the loop bails out immediately if a callback rewrites the stack, so a stale index is never read) |
+| Per-widget update inside `UpdateCore` | Error log, the remaining widgets of the frame still settle |
+| `CanClose` | Error log, counted as a refusal (fail-closed) — `TryCloseTopWindow` and window self-close share this one gate |
+| `OnClose` / `OnDestroy` / `UnregisterEvent` / the `Apply*` panel hooks | Error log, the close/destroy flow runs to completion (never half) |
+| Open/close transition `Play` / `Snap` | `Play` throws -> fall back to `Snap` to land the end state; `Snap` throws too -> log it and stop, flow continues |
+
 ### Safe Area and UIAdapter
 
 - Within a window: `SetUIFit(RectTransform, liuHaiFit, topSpacing, bottomFit, bottomSpacing)` adjusts the specified node for notch screen top/bottom padding; `SetUINotFit` excludes individual nodes.
@@ -216,7 +357,7 @@ public class RenameWindow : UGUIWindow
 
 ### Runtime Error Window
 
-The service registers `ErrorLogger` (capturing `LogType.Exception` and automatically showing the built-in `LogUI` window — `[Window(EUILayer.System, fromResources:true)]`, prefab at the service's `Resources/LogUI.prefab`) only when the debugger configuration (`DebuggerService.ActiveWindowType`) says error logging **is** enabled. Enablement rule: `AlwaysOpen` always; `OnlyOpenWhenDevelopment` follows development builds; `OnlyOpenInEditor` follows the editor; `AlwaysClose` and `OnlyOpenWhenDevelopment` outside a development build (i.e. the default release shape) never enable it, so exceptions pop no window.
+The service registers `ErrorLogger` (capturing `LogType.Exception` and automatically showing the built-in `LogUI` window — `[Window(EUILayer.System, fromResources:true)]`, prefab at the service's `Resources/LogUI.prefab`; `LogUI : UGUIWindow<string>`, the exception text landing in its `Payload` through the payload leg) only when the debugger configuration (`DebuggerService.ActiveWindowType`) says error logging **is** enabled. Enablement rule: `AlwaysOpen` always; `OnlyOpenWhenDevelopment` follows development builds; `OnlyOpenInEditor` follows the editor; `AlwaysClose` and `OnlyOpenWhenDevelopment` outside a development build (i.e. the default release shape) never enable it, so exceptions pop no window.
 
 ### Editor Binding Code Generation
 
@@ -232,6 +373,11 @@ Select the root node of a UI prefab and use the menu:
 - `HideUI` only takes effect when `HideTimeToClose > 0`; otherwise it is equivalent to `CloseUI`
 - `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` only waits for the loading of an already-open window; returns null / no callback if the window does not exist
 - Window updates (`OnUpdate`) are only triggered for visible windows; full-screen windows will block the visibility of windows beneath them
+- A payload-carrying window must inherit `UGUIWindow<TArg>` / `UITKWindow<TArg>`; a slotless base given a non-empty payload throws on the spot. Payloads are overwritten per open and never cleared on close (the value survives until the next open), so there is no read-once-and-clear semantics
+- The static leg's `in TArg` is the primary path for primitives and structs (generic push, zero boxing); `UIPayload` serves only the dynamic legs, where a value type boxes once — do not route hot-path structs through the dynamic leg
+- `default` costs nothing on every leg's `CancellationToken`, and the token is only consumed while the load is in flight: a ready reuse and a re-park do not consume `ct`; reusing a window that is still loading registers the caller token just the same, and cancelling it aborts that in-flight load (the same semantics as the in-flight merge)
+- Optional parking TTL: `[Window(cacheInstance: true, cacheTimeToDestroy: seconds)]`, where `0` means never (existing semantics) and the value only applies together with `cacheInstance`; on expiry the ledger removes the parked instance from the parking table and destroys it for good, and re-taking it cancels the timer
+- Events no longer carry payloads: `UIWindowEvent.Show` keeps only its two payload-free forms and `UIManager`'s Show branch uses the dynamic leg; payload call sites call the facade legs directly, addressing through the public static resolvers `UIManager.ResolveWindowLocation` / `UIManager.ResolveFromResources`. Those resolvers follow `SingletonMono.Instance` semantics: with no instance in the scene one is materialized on the spot (the default config-table shape), and during the app-quit / play-stop window a missing instance throws `GameException` — call them behind your own service-readiness guard
 
 ---
-[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)
+[« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [UI Migration](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

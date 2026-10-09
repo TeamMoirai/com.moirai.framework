@@ -233,7 +233,7 @@ namespace Service.UI
             UIService.SharedLedger.Push(loading);
             Assert.IsTrue(UIService.SharedLedger.IsAnyLoading(), "面板没就绪的窗口在栈上时要报加载中");
 
-            loading.InternalLoad("Panel", null, false, null);
+            loading.InternalLoad("Panel", null, false);
 
             Assert.IsFalse(UIService.SharedLedger.IsAnyLoading(), "面板就绪后加载查询落回假");
         }
@@ -331,7 +331,7 @@ namespace Service.UI
         {
             var window = Window<ProbeUGUIWindow>("Prepare1", (int)EUILayer.UI);
             UIService.SharedLedger.Push(window);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
 
             UIService.SharedLedger.OnWindowPrepare(window);
 
@@ -1120,7 +1120,7 @@ namespace Service.UI
             var plain = Prepared("PlainClose", (int)EUILayer.Bottom);
             var cached = Window<ProbeUGUIWindow>("CachedClose", (int)EUILayer.UI, false, true);
             UIService.SharedLedger.Push(cached);
-            cached.InternalLoad("Panel", null, false, null);
+            cached.InternalLoad("Panel", null, false);
             UIService.SharedLedger.OnWindowPrepare(cached);
 
             UIService.SharedLedger.CloseUI(typeof(ProbeUGUIWindow), "NoSuchWindow");
@@ -1196,7 +1196,7 @@ namespace Service.UI
             var window = Window<ProbeUGUIWindow>("InstantClose", (int)EUILayer.Bottom);
             window.Init("InstantClose", (int)EUILayer.Bottom, false, "Panel", false, 0, false);
             UIService.SharedLedger.Push(window);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
             UIService.SharedLedger.OnWindowPrepare(window);
 
             UIService.SharedLedger.HideUI(typeof(ProbeUGUIWindow), "InstantClose");
@@ -1311,7 +1311,7 @@ namespace Service.UI
             var uguiWindow = Prepared("ShutUGUI", (int)EUILayer.Bottom);
             var kitWindow = Window<ProbeUITKWindow>("ShutKit", (int)EUILayer.Bottom);
             UIService.SharedLedger.Push(kitWindow);
-            kitWindow.InternalLoad("Panel", null, false, null);
+            kitWindow.InternalLoad("Panel", null, false);
             UIService.SharedLedger.OnWindowPrepare(kitWindow);
 
             uguiDriver.Internal_Shutdown();
@@ -1344,7 +1344,7 @@ namespace Service.UI
             kitWindow.RootToObserve = _uiRootGo;
             var ledger = UIService.SharedLedger;
             ledger.Push(kitWindow);
-            kitWindow.InternalLoad("Panel", null, false, null);
+            kitWindow.InternalLoad("Panel", null, false);
             ledger.OnWindowPrepare(kitWindow);
 
             new UIService().OnShutdown();
@@ -1447,7 +1447,7 @@ namespace Service.UI
             var below = Prepared("ParkBelow", (int)EUILayer.Bottom);
             var cached = Window<ProbeUGUIWindow>("ParkFullScreen", (int)EUILayer.UI, true, true);
             UIService.SharedLedger.Push(cached);
-            cached.InternalLoad("Panel", null, false, null);
+            cached.InternalLoad("Panel", null, false);
             UIService.SharedLedger.OnWindowPrepare(cached);
             Assert.IsTrue(cached.Visible, "量具前提坏了：就绪回执要把栈顶那只置为可见");
             Assert.IsFalse(below.Visible, "量具前提坏了：全屏缓存窗压在栈顶时下层应被压住");
@@ -1548,7 +1548,7 @@ namespace Service.UI
             var ledger = UIService.SharedLedger;
             var window = Window<ProbeUGUIWindow>(windowName, layer, fullScreen);
             ledger.Push(window);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
             ledger.OnWindowPrepare(window);
             return window;
         }
@@ -1564,7 +1564,7 @@ namespace Service.UI
             var ledger = UIService.SharedLedger;
             var window = Window<ProbeUITKWindow>(windowName, layer);
             ledger.Push(window);
-            window.InternalLoad("Panel", null, false, null);
+            window.InternalLoad("Panel", null, false);
             ledger.OnWindowPrepare(window);
             return window;
         }

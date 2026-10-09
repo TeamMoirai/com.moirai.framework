@@ -4,11 +4,11 @@ using UnityEngine;
 namespace Moirai.GameLogic.UI
 {
 	[Window(EUILayer.UI)]
-	public partial class StartScreen : UGUIWindow
+	public partial class StartScreen : UGUIWindow<string>
 	{
 		protected override void OnRefresh()
 		{
-			_tmpInfo.text = (string)UserData;
+			_tmpInfo.text = Payload;
 		}
 	}
 }
