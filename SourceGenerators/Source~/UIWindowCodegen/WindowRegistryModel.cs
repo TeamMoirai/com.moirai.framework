@@ -125,7 +125,7 @@ namespace Moirai.Atropos.SourceGenerators
 
         }
 
-        /// <summary>把一枚实参落进它自己名下那一档；名字对不上形参表时不动任何档。</summary>
+        /// <summary>把一个实参落进它自己名下那一档；名字对不上形参表时不动任何档。</summary>
         /// <param name="name">形参名或字段名。</param>
         /// <param name="value">该名的实参。</param>
         private void Apply(string name, TypedConstant value)

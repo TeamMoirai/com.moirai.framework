@@ -365,7 +365,7 @@ namespace Moirai.Atropos
                     throw new GameException(StringUtility.Format(
                         "MonoBehaviour service '{0}' cannot implement IServiceLateTickable. " +
                         "Use Unity's LateUpdate() instead.", service.GetType().FullName));
-                // Gizmo 同理：Unity 对任意 MonoBehaviour 的 OnDrawGizmos 魔法方法无条件反射调用，
+                // Gizmo 同理：Unity 对任意 MonoBehaviour 的 OnDrawGizmos 消息无条件反射调用，
                 // 再进本容器的轮询列表就是编辑器下双重绘制
                 if (service is IServiceGizmoDrawable)
                     throw new GameException(StringUtility.Format(

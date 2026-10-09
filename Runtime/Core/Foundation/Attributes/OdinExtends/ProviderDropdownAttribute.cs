@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 引用模式（推荐）：配合 <see cref="SerializeReference"/>，字段为抽象类，选中后直接存实例并展开编辑子字段。 <br />
     /// 类型名模式：字段为 <c>string</c>，存类型全名，运行时经 <c>ReflectionUtility.ResolveImplType&lt;T&gt;</c> 创建实例，适用于接口类型。 <br />
-    /// 数组 / <c>List&lt;T&gt;</c> 字段同样适用：每个元素各自获得下拉与子属性展开，集合的增删 / 重排由 Inspector 默认列表 UI 承担；<c>Label</c> 会随特性一并列上下传到每个元素行。 <br />
+    /// 数组 / <c>List&lt;T&gt;</c> 字段同样适用：每个元素各自获得下拉与子属性展开；集合的增删 / 重排由 Inspector 默认列表 UI 承担；<c>Label</c> 随特性逐元素下传。 <br />
     /// 候选实现类可标注 <see cref="ProviderDisplayAttribute"/> 提供显示元数据：<c>Title</c> 替换下拉行与选中态的类型名，<c>Description</c> 在下拉详情面板置顶优先显示。
     /// </remarks>
     /// <example>

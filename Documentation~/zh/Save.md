@@ -210,7 +210,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | 异步生成（取消时返回 `null`） |
 | `DestroyPersistent(target)` | 销毁并登记语义（动态实体移表 / 预置对象记销毁表 / 无身份物体仅销毁） |
 | `SaveEntitiesAsync(fileName, folderName, ct)` | 写入实体表与全部活跃实体差分块（预热基准→差分捕获→增量判定→单趟合并；零变化零 IO 跳过；失败抛 `GameException`） |
-| `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐只触发 `onEntityRestored`） |
+| `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐个触发 `onEntityRestored`） |
 
 ## 截图与元数据镜像
 
@@ -296,7 +296,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `onBlockSaved` / `onBlockDeleted` | `SaveBlockChangedEvent` | 块保存/删除完成（fileName+key+后端+字节数）；幂等空删不触发 |
 | `onSaveProgress` / `onLoadProgress` | `SaveProgressEvent` | 组件存取按批回报（每 8 个一批 + 最终必报；`ShouldReportProgress`） |
 | `onSaveFailed` / `onLoadFailed` | `SaveFailedEvent` | 失败（`ESaveFailureStage` 阶段 + `SaveError`）；写路径同时 fail-fast 上抛 `GameException`；缺档/无块（FileNotFound）不触发 |
-| `onEntityRestored` | `SaveEntityRestoredEvent` | `RestoreEntitiesAsync` 恢复管线逐只实体触发（激活后；参数 = 实体 ID + 预制体键 + 实例） |
+| `onEntityRestored` | `SaveEntityRestoredEvent` | `RestoreEntitiesAsync` 恢复管线逐个实体触发（激活后；参数 = 实体 ID + 预制体键 + 实例） |
 | `onScreenshotCaptured` | `SaveScreenshotEvent` | 截图管线成功完成（fileName+sidecar 文件名+缩略图宽高） |
 
 ## 配置（SaveServiceSettings）

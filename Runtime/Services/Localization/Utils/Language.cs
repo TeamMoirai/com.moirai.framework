@@ -222,7 +222,7 @@ namespace Moirai.Atropos.Localization
         /// <example>English => English、ChineseSimplified => 简体中文、ChineseTraditional => 繁體中文</example>
         public string DisplayName => !string.IsNullOrEmpty(m_DisplayName) ? m_DisplayName : m_Name;
 
-        // 判 RTL 的 Code 白名单：只列 ar 与 he 两枚，不从语族或文字系统推断——
+        // 判 RTL 的 Code 白名单：只列 ar 与 he 两个，不从语族或文字系统推断——
         // 同属阿拉伯文字系统的波斯语、乌尔都语不在名单内，要进名单就改这里并连用例与文档一起对齐。
         private static readonly HashSet<string> s_RtlCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {

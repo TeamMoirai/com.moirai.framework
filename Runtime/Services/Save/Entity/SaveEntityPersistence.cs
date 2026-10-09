@@ -448,7 +448,7 @@ namespace Moirai.Atropos.Save
         /// 捕获实体差分块与实体表块，并按批触发保存进度事件。
         /// </summary>
         /// <remarks>
-        /// 须在主线程调用；活跃实体逐只全量捕获后与模板基准差分，无基准（加载器缺失/预制体无 <c>SaveComponent</c>）退化为全量写入。 <br />
+        /// 须在主线程调用；活跃实体逐个全量捕获后与模板基准差分，无基准（加载器缺失/预制体无 <c>SaveComponent</c>）退化为全量写入。 <br />
         /// 不在册实体（已被绕过 <c>DestroyPersistent</c> 销毁）跳过捕获但保留记录（CarryForward——原块滞留）。
         /// </remarks>
         /// <param name="fileName">存档文件名（进度事件参数）。</param>

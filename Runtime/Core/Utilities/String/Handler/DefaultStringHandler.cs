@@ -17,7 +17,7 @@ namespace Moirai.Atropos
     internal sealed class DefaultStringHandler : StringHandler
     {
         // StringBuilderCache: ThreadStatic 单槽缓存（优先）
-        [ThreadStatic] // 每个静态类型字段对于每一个线程都是唯一的
+        [ThreadStatic] // 每线程独立副本
         private static StringBuilder s_CacheStringBuilder;
         private const int MAX_CACHE_SIZE = 512;
 

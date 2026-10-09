@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Save
     /// <see cref="Register(ISaveSerializer)"/> / <see cref="Register{T}"/> 登记现成实例（运行期注入与测试用）。 <br />
     /// 查询未注册后端（依赖未接入/标识非法）由 <see cref="GetRequired"/> 抛 <see cref="GameException"/> fail-fast，避免静默降级导致块数据损坏。 <br />
     /// 键是 <see cref="SaveBackendIds"/> 那一套 2 字节线标识，取值不受框架枚举封版——项目新增后端直接登记自己的 ID 即可。 <br />
-    /// <see cref="Unregister"/> 连 ID→类型记录一并摘除：只删实例会让下一次查询按类型表把它悄悄重建出来，注销等于没生效。
+    /// <see cref="Unregister"/> 连 ID→类型记录一并摘除：只删实例的话，下次查询会按类型表把它重新建出来，注销不生效。
     /// </remarks>
     public static class SaveSerializerRegistry
     {

@@ -10,7 +10,7 @@ namespace Service.Resource
     /// packed key 三条名称轴的共享注册表实现的行为契约。
     /// </summary>
     /// <remarks>
-    /// 三条名称轴共用同一份实现，其中两处"看着一样其实不同"的分岔必须逐个对齐。
+    /// 三条名称轴共用同一份实现，其中两处同形异义的分岔必须逐个对齐。
     /// </remarks>
     public sealed class ResourceNameRegistryTests
     {

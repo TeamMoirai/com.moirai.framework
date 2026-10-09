@@ -170,7 +170,7 @@ namespace Service.Save
             Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.JSON, out _), "前置：内置后端可解析");
 
             Assert.IsTrue(SaveSerializerRegistry.Unregister(SaveBackendIds.JSON));
-            // 注销要连内置类型记录一起摘掉：只删实例的话，下一次查询会按那张表把它悄悄重建出来
+            // 注销要连内置类型记录一起摘掉：只删实例的话，下一次查询会按内置类型表把它重建出来
             Assert.IsFalse(SaveSerializerRegistry.TryGet(SaveBackendIds.JSON, out _), "注销后不得按内置类型表复活");
             Assert.Throws<GameException>(() => SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON));
         }

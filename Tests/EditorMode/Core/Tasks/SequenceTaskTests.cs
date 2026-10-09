@@ -10,7 +10,7 @@ namespace Core.Tasks
     /// <remarks>
     /// 覆盖缺陷形态：空队列越过 <c>TryPeek</c> 失败直接 <c>Start()</c> 的空引用；<c>Reset</c> 只 <c>Clear()</c> 队列而丢掉子任务欠 <c>Append</c> 的那次 <c>Acquire</c><br />
     /// （子任务回不了池、<c>DelayTask</c> 的 Timer 句柄不取消）；引用下穿（0 → -1）使任务永不凑齐归还。<br />
-    /// 跑完子任务需 <c>PostComplete</c> 广播，而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/> 的静态入口在非 play mode 返回 null，按序执行那格住在 <c>Tests/PlayMode/Core/Tasks/</c>。<br />
+    /// 跑完子任务需 <c>PostComplete</c> 广播，而事件宿主 <see cref="Moirai.Atropos.Events.EventManager"/> 的静态入口在非 play mode 返回 null，按序执行那格放在 <c>Tests/PlayMode/Core/Tasks/</c>。<br />
     /// 观测手法统一走池的 LIFO 复用：<c>GetPooled()</c> 取回同一个实例即说明它确实被 Dispose 并归还。
     /// </remarks>
     [TestFixture]

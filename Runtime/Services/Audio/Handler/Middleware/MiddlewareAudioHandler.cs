@@ -715,7 +715,7 @@ namespace Moirai.Atropos.Audio.Middleware
             ulong handle = _handles.Bind(voice);
             if (handle == 0UL)
             {
-                // 槽位用尽（2^20 只并发声部）：这一声宁可不出，也不留一只没有记账的实例
+                // 槽位用尽（2^20 个并发声部）：这一声宁可不出，也不留一个没有记账的实例
                 _bridge.StopInstance(instanceId, true);
                 ReturnVoice(voice);
                 return 0UL;

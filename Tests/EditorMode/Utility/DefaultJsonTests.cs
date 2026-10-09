@@ -1638,7 +1638,7 @@ namespace Utility
             var obj = new AllowListClass { marker = 1, iface = new ShapeLike { Value = 9 }, abs = new AbsChild { a = 1, b = 2 } };
             string json = DefaultJson.ToJson(obj);
             Assert.IsFalse(json.Contains("iface"), "接口成员无类型名，读回构造不出实例，不得写入: " + json);
-            Assert.IsFalse(json.Contains("abs"), "抽象成员同上: " + json);
+            Assert.IsFalse(json.Contains("abs"), "抽象成员不得被序列化: " + json);
         }
 
         [Test]

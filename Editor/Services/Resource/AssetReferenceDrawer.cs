@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Resource.Editor
 {
     /// <summary>
-    /// <see cref="AssetReference"/> 的检视器绘制：对象字段选中即写回 GUID，包名行绘制在其后（按 <see cref="ResourcePackageBridge"/> 的包名清单，有清单走下拉、无清单退回文本、后端不消费则不绘制，留空使用默认资源包），底部为路径与打包归属提示。
+    /// <see cref="AssetReference"/> 检视器绘制：对象字段选中即写回 GUID；包名行紧随其后（按 <see cref="ResourcePackageBridge"/> 的清单走下拉，无清单退回文本，后端不消费则不绘制，留空用默认资源包）；底部为路径与打包归属提示。
     /// </summary>
     /// <remarks>经反射闭合 <see cref="AssetInfoHelper"/> 的泛型绘制助手（编辑器一次查找后按资源类型缓存）。</remarks>
     [CustomPropertyDrawer(typeof(AssetReference), true)]

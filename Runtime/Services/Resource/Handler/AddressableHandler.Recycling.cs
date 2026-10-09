@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Resource
         public override void OnLowMemory()
         {
             // 这份委托由 ResourceService 初始化时登记进来（RequestForceUnloadUnusedAssets）。
-            // 吞掉它等于把 Application.lowMemory 这条链在这一后端上悄悄剪断：调用方照旧返回，
+            // 吞掉它会让 Application.lowMemory 在本后端失效：调用方照旧返回，
             // 只是再没有人在内存吃紧时请求强制回收。
             _forceUnloadUnusedAssetsAction?.Invoke(true);
         }

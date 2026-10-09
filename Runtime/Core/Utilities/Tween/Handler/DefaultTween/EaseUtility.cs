@@ -155,7 +155,7 @@ namespace Moirai.Atropos
         [BurstCompile]
         public static float OutSinusoidal(float t) => sin(PI / 2f * t);
         
-        /// <remarks>当t在0到1时，cos(PI * t)从1到-1，所以1 - cos(PI * t)从0到2，乘以0.5得到0到1，这与原函数的结果相同</remarks>
+        /// <remarks>t∈[0,1] 时 0.5f * (1 - cos(PI * t)) 的值域为 [0,1]，与原函数结果一致。</remarks>
         [BurstCompile]
         public static float InOutSinusoidal(float t) => 0.5f * (1 - cos(PI * t));
         

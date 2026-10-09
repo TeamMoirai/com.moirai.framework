@@ -12,15 +12,15 @@
             Restart,
 
             /// <summary>正反交替。</summary>
-            /// <remarks>像悠悠球一样来回摆动，回程的缓动效果与去程相同（交换起止值，重新施加同一条缓动曲线）。</remarks>
+            /// <remarks>回程交换起止值并重新施加同一条缓动曲线，缓动效果与去程相同。</remarks>
             Yoyo,
 
             /// <summary>在终点值基础上累加。</summary>
             /// <remarks>在循环结束时，将`endValue`增加`startValue`与`endValue`之间的差值。</remarks>
-            /// <example>例如，如果一个补间动画将position.x从0移动到1，那么在第一个周期结束后，补间动画会继续将position.x从1移动到2，以此类推。</example>
+            /// <example>例：position.x 从 0→1，首个周期结束后继续 1→2，依此类推。</example>
             Incremental,
 
-            /// <summary>将补间动画倒回，如同时间倒流。在反向循环时，缓动效果也会反转。</summary>
+            /// <summary>反向回放补间；反向循环时缓动效果随之反转。</summary>
             /// <remarks>实现为原轨迹的时间反演：反向周期的取值 = 起始值 + ease(1-t) × 差值，
             /// 与 Yoyo（交换起止值后重新施加缓动）轨迹不同——非对称缓动（如 OutQuad）下两者中点值不同。</remarks>
             Rewind,
