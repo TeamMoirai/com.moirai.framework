@@ -2,22 +2,21 @@
 
 > 为非 MonoBehaviour 代码提供 Unity 生命周期代理：协程托管、帧更新注入与 Unity 事件注入。
 
-## 架构变更（重要）
+## 架构
 
-帧逻辑订阅已从 MonoBehaviour 宿主迁移到 **`PlayerLoopDriver`**（`Runtime/Core/Infrastructure/GameApp/PlayerLoop`，命名空间 `Moirai.Atropos`，类型为 `internal`，游戏侧经 `GameApp` 门面使用）：
+帧逻辑订阅承载在 **`PlayerLoopDriver`**（`Runtime/Core/Infrastructure/GameApp/PlayerLoop`，命名空间 `Moirai.Atropos`，类型为 `internal`，游戏侧经 `GameApp` 门面使用）：
 
 - 订阅存储在 **静态注册表**，不挂在任何 GameObject 上
 - 场景切换、宿主被意外销毁 **不会丢失** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy`/`Gizmos`/`Pause` 订阅
-- 旧问题：帧订阅挂在隐藏 Mono 宿主的实例事件上，初始场景加载前宿主可能被销毁，订阅全部失效
 
-`GameApp` 本身**不再含任何 MonoBehaviour**（既无嵌套宿主，也无 GameObject 字段）。Unity 只在 MonoBehaviour 上派发的消息——协程、`OnDrawGizmos(Selected)`、`OnApplicationPause`——集中由 `GameAppHost`（`Runtime/Core/Infrastructure/GameApp/GameAppHost.cs`）这一个 `SingletonMono_Persistent` 宿主承接；它只做**转发**，订阅仍留在 Driver 的静态表里，因此宿主销毁或重建都不丢订阅。
+`GameApp` 本身**不含任何 MonoBehaviour**（既无嵌套宿主，也无 GameObject 字段）。Unity 只在 MonoBehaviour 上派发的消息——协程、`OnDrawGizmos(Selected)`、`OnApplicationPause`——集中由 `GameAppHost`（`Runtime/Core/Infrastructure/GameApp/GameAppHost.cs`）这一个 `SingletonMono_Persistent` 宿主承接；它只做**转发**，订阅仍留在 Driver 的静态表里，因此宿主销毁或重建都不丢订阅。
 
 详细设计见 [PlayerLoopDriver](PlayerLoopDriver.md)。
 
 ## 核心特性
 
 - 协程托管：`GameApp.StartCoroutine` / `StopCoroutine` / `StopAllCoroutines`
-- 帧更新注入：`GameApp.AddUpdateListener`（Action）与 `GameApp.AddUpdateHandler` / `AddFrameHandler`（接口式，支持 `IPlayerLoopPriority`）均 **同步** 写入驱动注册表（不再 `UniTask.Yield` 延迟挂载）
+- 帧更新注入：`GameApp.AddUpdateListener`（Action）与 `GameApp.AddUpdateHandler` / `AddFrameHandler`（接口式，支持 `IPlayerLoopPriority`）均 **同步** 写入驱动注册表
 - Unity 事件：`AddDestroyListener`（Shutdown 时广播）、`AddOnApplicationPauseListener`、Gizmos 相关
 - 运行态开关：`FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 承载引擎实况（`GameAppSettings` 只作开机默认值），暂停是引用计数的 `PauseGame` / `ResumeGame`，详见[暂停与速度语义](#暂停与速度语义)
 - 关闭即清理：`GameApp.Shutdown` 清空 Driver 注册表、摘除本框架的 PlayerLoop 系统（保留 UniTask 等第三方注入）、退掉未配对完的暂停并释放宿主（应用退出路径除外：退出期引擎随场景 teardown 自行销毁宿主，跳过主动 Destroy）
@@ -34,7 +33,7 @@
 ## 快速上手
 
 ```csharp
-// 回调方式（兼容旧 API）
+// 回调方式
 GameApp.AddUpdateListener(OnUpdate);
 GameApp.AddFixedUpdateListener(OnFixedUpdate);
 GameApp.AddLateUpdateListener(OnLateUpdate);
@@ -68,7 +67,7 @@ GameApp.AddDestroyListener(OnShutdown);
 
 1. `GameAppSettings.Initiation`（`BeforeSceneLoad`）把资产值推给引擎一次
 2. `GameApp.Initialize` 随即用 `SeedRuntimeFromEngine` 从**引擎实况**回读，播种进 `GameApp` 自有的静态字段
-3. 之后 `FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 的读写只碰这些字段与引擎，**不再解引用、也不再回写配置资产**
+3. 之后 `FrameRate` / `GameSpeed` / `RunInBackground` / `NeverSleep` 的读写只碰这些字段与引擎，**不解引用、也不回写配置资产**
 
 因此编辑器里 `GameApp.FrameRate = 60` 不会让 Resources 下那份共享 ScriptableObject 跨 Play 会话变脏；判据读的也是实况而非配置意图。
 
@@ -85,7 +84,7 @@ GameApp.AddDestroyListener(OnShutdown);
 
 弹窗 + 切后台 + 剧情过场各自 `PauseGame` 时须各自 `ResumeGame`，最后一个 `ResumeGame` 才真正回速。
 
-**要判什么就读什么**（1.0.2 的 `IsGamePaused` 等价于 `GameSpeed <= 0`，现已解耦）：
+**要判什么就读什么**：
 
 | 想知道 | 读 |
 |--------|-----|

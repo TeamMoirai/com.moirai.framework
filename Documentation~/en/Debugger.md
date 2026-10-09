@@ -11,7 +11,7 @@ The Debugger service exposes window registration and polling through the static 
 - **Info windows**: System / Environment / Screen / Graphics / Input (Input System devices & sensors) / Scene / Time / Quality / Path
 - **Profiler windows**: Summary, Memory Summary, Memory details (All / Texture / Mesh / Material / Shader / AnimationClip / AudioClip / Font / TextAsset / ScriptableObject), Object Pool / GameObject Pool / Memory Pool, Service Kernel (service container diagnostics)
 - **Service debug panels**: Timer / Resource / Audio / Procedure / Localization — per-module debug views auto-registered by each service's OnInit (see the "Service Debug Panels" section)
-- **Game app settings**: frame rate / game speed live controls and the local settings key-value list (`Other/Game Settings`, integrating the former GameAppEditor)
+- **Game app settings**: frame rate / game speed live controls and the local settings key-value list (`Other/Game Settings`)
 - **Stats HUD**: FPS / Tris / Batches / DrawCall / SetPass / Mono / Alloc / GfxDrv (`ProfilerRecorder` started on demand + 0.25s throttle)
 - **Operations**: GameObject pool flush, asset unloading / GC, Time Scale slider, framework shutdown (None / Restart / Quit)
 - **Fluent panel builder**: `RegisterPanel` registers a custom debug panel in one line (sliders / toggles / buttons / foldouts / read-only fields / progress bars, bound via Getter/Setter closures with 200ms polling refresh)
@@ -199,18 +199,6 @@ Custom popups and any OnGUI context can also call `view.OnDraw()` directly.
 - Console filter state (severities + scroll lock) also persists; see `Constant.Debug` for the keys
 - `LogNode`s returned by `GetRecentLogs` are pooled and owned by the capture — read-only, do not retain (nodes are recycled after ring eviction)
 - The service is opt-in (the composition root registers `DebuggerService` via the `[AutoRegisterService]` generated list); facade calls silently degrade when unregistered (log queries return empty, registrations are no-ops)
-
-## Migrating from the Old IMGUI DebuggerComp
-
-- The `DebuggerComp` component was removed from scenes/prefabs (the `GameEntry.prefab` no longer contains a Debugger node) — the host is spawned by the service at runtime
-- **`ServiceDebuggerComponent` (the Inspector host component) is deprecated and removed**: derived components (e.g. `TimerServiceDebugger`) and the generic Inspector are deleted — service debug views now auto-register into the in-game debugger from OnInit (native UI Toolkit, located in each module's folder)
-- **`GameAppEditor` (the GameApp Inspector) is deleted**: its debug info (frame rate / game speed / local settings list) is integrated into the built-in `Other/Game Settings` window (GameObject pool content was already covered by `Profiler/GameObject Pool`)
-- `DebuggerComp.Instance.GetRecentLogs(...)` → `DebuggerService.GetRecentLogs(...)`
-- `DebuggerComp.LogNode` → `Moirai.Atropos.Debugger.LogNode` (top-level type)
-- `IDebuggerWindow.OnDraw()` (IMGUI) → `CreateView()` (UI Toolkit); IMGUI content integrates via `RegisterDebugView` / `IMGUIDebuggerWindow`
-- `IDebuggerWindowGroup` / `DebuggerWindowRoot` (nested window-group toolbars) → `DebuggerWindowRegistry` (the path tree is navigation data only)
-- The activation policy moved from the `DebuggerComp` Inspector field to the `DebuggerServiceSettings` asset (`ActiveWindowType`); `UGUIHandler`'s error-log switch now reads `DebuggerService.ActiveWindowType`
-- The input info window was rewritten from the legacy `UnityEngine.Input` API (which throws under an Input System-only build) to Input System device model reads
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Core](Core.md)
