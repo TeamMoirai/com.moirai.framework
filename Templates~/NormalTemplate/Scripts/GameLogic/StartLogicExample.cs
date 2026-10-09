@@ -26,7 +26,7 @@ namespace Moirai.GameLogic
 
             await UniTask.Delay(10 * 1000);
             
-            // UI加载（第二枚是窗口标识：内置资源档拼 Resources 父目录，否则按标识查配置表；标识同时是栈上身份）
+            // UI加载（第二个参数是窗口标识：内置资源档拼 Resources 父目录，否则按标识查配置表；标识同时是栈上身份）
             UIService.ShowUIAsync<StartScreen, string>("Loading...", "start");
             
             // 场景加载
