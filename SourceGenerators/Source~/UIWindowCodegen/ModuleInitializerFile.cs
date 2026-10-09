@@ -8,7 +8,8 @@ namespace Moirai.Atropos.SourceGenerators
     /// </summary>
     /// <remarks>
     /// <c>ModuleInitializerAttribute</c> 缺失时的同程序集副本不在这里发：同包的 <c>SaveServiceCodegen</c> 已有
-    /// <c>SaveModuleInitializerShimGenerator</c> 唯一持有该副本，两支生成器同包进同一批编译单元，多处发同名 internal 类型即 CS0101。
+    /// <c>SaveModuleInitializerShimGenerator</c> 唯一持有该副本，两支生成器同包进同一批编译单元，多处发同名 internal 类型即 CS0101。 <br />
+    /// 产物开头压 <c>CS0436</c>：友装配（<c>InternalsVisibleTo</c>）能看见引用集里框架自带的那份同名补丁，特性名于是落在两份上——按设计用本装配自己那份，冲突是噪声不是错绑。
     /// </remarks>
     internal static class ModuleInitializerFile
     {
@@ -22,6 +23,7 @@ namespace Moirai.Atropos.SourceGenerators
         {
             var builder = new StringBuilder(1024);
             EmitHelpers.AppendGeneratedHeader(builder);
+            builder.AppendLine("#pragma warning disable CS0436 // 各装配自持一份补丁副本，撞上引用集里友装配可见的同名副本时以本装配这份为准");
             builder.AppendLine("internal static class " + className);
             builder.AppendLine("{");
             builder.AppendLine("    [global::System.Runtime.CompilerServices.ModuleInitializer]");
