@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using Moirai.Atropos.Events;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -11,7 +10,9 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// 本类不含 MonoBehaviour 成员：帧逻辑订阅由 <see cref="PlayerLoopDriver"/> 静态表驱动，
-    /// 只在 MonoBehaviour 上派发的消息（协程 / Gizmos / ApplicationPause）由 <see cref="GameAppHost"/> 承接。
+    /// 只在 MonoBehaviour 上派发的消息（协程 / Gizmos / ApplicationPause）由 <see cref="GameAppHost"/> 承接，
+    /// 对焦与退出走 Unity 的静态事件（<c>Application.focusChanged</c> / <c>Application.quitting</c>），本类直订并转成
+    /// <see cref="onApplicationFocus"/> / <see cref="onApplicationQuit"/> 两枚广播。
     /// </remarks>
     public partial class GameApp
     {
@@ -119,6 +120,32 @@ namespace Moirai.Atropos
 
         #endregion
 
+        #region 生命周期事件 [LIFECYCLE EVENTS]
+
+        /// <summary>应用对焦状态变化后广播，形参是本次的真值（<c>true</c> 为回焦）。</summary>
+        /// <remarks>订阅者自持生命周期：<see cref="Shutdown"/> 会把这两枚广播整批摘掉（禁用域重载时上一轮订阅者不得跨会话残留），但一次 <c>+=</c> 配一次 <c>-=</c> 仍是对话方的责任。注册与注销仅限主线程。</remarks>
+        public static event Action<bool> onApplicationFocus;
+
+        /// <summary>由 <c>Application.focusChanged</c> 广播对焦状态，逐项隔离订户异常。</summary>
+        /// <param name="hasFocus">本次对焦真值。</param>
+        internal static void InvokeApplicationFocus(bool hasFocus)
+        {
+            InvokeQuarantined(onApplicationFocus, hasFocus, "ApplicationFocus");
+        }
+
+        /// <summary>应用退出流程开始时广播，无负载：此刻服务世界尚未关闭。</summary>
+        /// <remarks>本类先把它发完再走 <see cref="Shutdown"/>，因此订阅方在这里还来得及落盘，但不得指望之后的帧。</remarks>
+        public static event Action onApplicationQuit;
+
+        /// <summary>由 <c>Application.quitting</c> 广播退出回执，逐项隔离订户异常后再关闭框架。</summary>
+        internal static void InvokeApplicationQuit()
+        {
+            InvokeQuarantined(onApplicationQuit, "ApplicationQuit");
+            Shutdown(quitting: true);
+        }
+
+        #endregion
+
         #region 生命周期 [LIFECYCLE]
 
         internal static void Initialize()
@@ -182,6 +209,10 @@ namespace Moirai.Atropos
             // UniTask 等第三方注入保留——关闭后进程可能还要跑若干帧（重启场景 / 退出期异步落盘）
             UnregisterBuiltinDrivers();
             PlayerLoopDriver.Shutdown();
+
+            // 归零门：整批摘掉两枚生命周期广播，未配对的订阅不得跨 Play 会话残留
+            onApplicationFocus = null;
+            onApplicationQuit = null;
 
             GameServices.Shutdown();
             if (!quitting) GameAppHost.Release();
@@ -531,8 +562,10 @@ namespace Moirai.Atropos
             PlayerLoopDriver.SetCoreFixedUpdateCallback(FixedTick);
             PlayerLoopDriver.SetCoreLateUpdateCallback(LateTick);
             PlayerLoopDriver.AddDrawGizmosCallback(DrawGizmos);
-            PlayerLoopDriver.AddApplicationFocusCallback(ApplicationFocus);
-            PlayerLoopDriver.AddApplicationQuitCallback(ApplicationQuit);
+
+            // 对焦与退出是 Unity 的静态事件，不经 PlayerLoop 的注册表：方法组直绑，零 lambda 分配
+            Application.focusChanged += InvokeApplicationFocus;
+            Application.quitting += InvokeApplicationQuit;
         }
 
         private static void UnregisterBuiltinDrivers()
@@ -541,8 +574,9 @@ namespace Moirai.Atropos
             PlayerLoopDriver.SetCoreFixedUpdateCallback(null);
             PlayerLoopDriver.SetCoreLateUpdateCallback(null);
             PlayerLoopDriver.RemoveDrawGizmosCallback(DrawGizmos);
-            PlayerLoopDriver.RemoveApplicationFocusCallback(ApplicationFocus);
-            PlayerLoopDriver.RemoveApplicationQuitCallback(ApplicationQuit);
+
+            Application.focusChanged -= InvokeApplicationFocus;
+            Application.quitting -= InvokeApplicationQuit;
         }
 
 #if UNITY_EDITOR
@@ -586,16 +620,54 @@ namespace Moirai.Atropos
             GameServices.LateTick(GameTime.deltaTime, GameTime.unscaledDeltaTime);
         }
 
-        private static void ApplicationFocus(bool hasFocus)
+        /// <summary>
+        /// 逐项调用广播，单项异常不截断其余项（低频生命周期事件专用）。
+        /// </summary>
+        /// <remarks>
+        /// 关闭与失焦回执的职责就是清理与联动，截断等于静默漏掉后续每一项的响应，故开发构建也不上抛，异常按 Error 级带栈记录。 <br />
+        /// <c>GetInvocationList</c> 每次调用有分配，不得用于帧热路径。
+        /// </remarks>
+        private static void InvokeQuarantined(Action handler, string stageName)
         {
-            if (hasFocus) GameAppMessageEvent.ApplicationFocus();
-            else GameAppMessageEvent.NotApplicationFocus();
+            if (handler == null) return;
+
+            Delegate[] invocations = handler.GetInvocationList();
+            for (int i = 0; i < invocations.Length; i++)
+            {
+                Action item = (Action)invocations[i];
+                try
+                {
+                    item();
+                }
+                catch (Exception exception)
+                {
+                    LogUtility.Error("GameApp.{0} subscriber '{1}.{2}' threw: {3}",
+                        stageName, item.Method.DeclaringType, item.Method.Name, exception);
+                }
+            }
         }
 
-        private static void ApplicationQuit()
+        /// <summary>
+        /// 带负载的 <see cref="InvokeQuarantined(Action, string)"/> 重载（对焦回执）。
+        /// </summary>
+        private static void InvokeQuarantined<T>(Action<T> handler, T argument, string stageName)
         {
-            GameAppMessageEvent.ApplicationQuit();
-            Shutdown(quitting: true);
+            if (handler == null) return;
+
+            Delegate[] invocations = handler.GetInvocationList();
+            for (int i = 0; i < invocations.Length; i++)
+            {
+                Action<T> item = (Action<T>)invocations[i];
+                try
+                {
+                    item(argument);
+                }
+                catch (Exception exception)
+                {
+                    LogUtility.Error("GameApp.{0} subscriber '{1}.{2}' threw: {3}",
+                        stageName, item.Method.DeclaringType, item.Method.Name, exception);
+                }
+            }
         }
 
         private static void DrawGizmos()
