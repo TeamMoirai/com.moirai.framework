@@ -50,8 +50,8 @@ Namespace: `Moirai.Atropos`
 | `FrameworkHandler` | Handler base class (`[Serializable]`): idempotent `Internal_Init`/`Internal_Shutdown` + sync/async lifecycle callbacks; base of all XxxHandler classes |
 | `ServiceScopeOrder` | Scope constant table (App=-10000, Scene=-5000, Gameplay=0); **the container never consumes it** — scope order comes from the fixed slots, polling order from `IService.Priority` |
 | `ServicePriorityOrder` | Framework built-in service polling priority constants (all ≤ -1000, banded separately from business services) |
-| `GameApp` | Static facade entry point (no MonoBehaviour): initialized by `GameAppSettings.Initiation` at `BeforeSceneLoad`, installs the builtin core hooks on `PlayerLoopDriver` to drive `GameServices.Tick` every frame, and calls `GameServices.Shutdown` on `Shutdown`; coroutines/Gizmos/Pause delegate to `GameAppHost` |
-| `GameAppMessageEvent` (nested `EEventType`) | Namespace `Moirai.Atropos.Events`, framework-level pooled events (focus/unfocus/quit); the enum carries only notifications the framework itself raises — SDK login/payment/etc. callbacks are project-layer types deriving `EventBase<T>` |
+| `GameApp` | Static facade entry point (no MonoBehaviour): initialized by `GameAppSettings.Initiation` at `BeforeSceneLoad`, installs the builtin core hooks on `PlayerLoopDriver` to drive `GameServices.Tick` every frame, and calls `GameServices.Shutdown` on `Shutdown`; coroutines/Gizmos/Pause delegate to `GameAppHost`, while focus/quit subscribe `Application.focusChanged` / `Application.quitting` directly |
+| `GameApp.onApplicationFocus` / `GameApp.onApplicationQuit` | Two public static events: the focus broadcast carries a `bool` value (`true` = regained focus), the quit broadcast is payload-less and fires before `Shutdown`; invoked item by item, so one throwing subscriber cannot block the rest. SDK login/payment/etc. callbacks remain project-layer types deriving `EventBase<T>`, sent through `EventManager` |
 
 ## Quick Start
 

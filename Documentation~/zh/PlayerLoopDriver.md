@@ -83,7 +83,7 @@ GameApp.RemoveUpdateListener(OnUpdate);
 两处豁免，确保订户级故障永远无法反过来禁用框架自身：
 
 - **核心钩子**（`SetCoreUpdateCallback` 等）：`GameServices.Tick/FixedTick/LateTick` 走这里，先于全部用户订户执行，且**永不参与熔断**。框架自身的心跳若能被熔断摘除，一个项目订户的连抛就会让整层服务静默停摆且无恢复路径。核心钩子仍按上表分级处置（开发期上抛、发布期隔离）。
-- **关闭 / 销毁与生命周期广播**（`AddApplicationQuitCallback`、`AddDestroyCallback`、`focusChanged`、`ApplicationPause`）：逐项调用（`GetInvocationList` 有分配，故只用于低频事件），单项异常不阻止其余项，且**开发构建也不上抛**——清理与切后台存档这类回调被截断等于静默漏掉后续每一项的响应。
+- **关闭 / 销毁与生命周期广播**（`AddDestroyCallback`、`ApplicationPause`）：逐项调用（`GetInvocationList` 有分配，故只用于低频事件），单项异常不阻止其余项，且**开发构建也不上抛**——清理与切后台存档这类回调被截断等于静默漏掉后续每一项的响应。对焦与退出不在这张表里：`GameApp` 自己订 `Application.focusChanged` / `Application.quitting`，按同样的逐项隔离转发成 `onApplicationFocus` / `onApplicationQuit`。
 
 其余 Unity 事件表（gizmos）仍是裸多播调用：仅编辑器派发，某一项抛出会截断该次广播中排在后面的订户。
 
