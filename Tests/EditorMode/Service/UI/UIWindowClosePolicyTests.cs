@@ -123,7 +123,7 @@ namespace Service.UI
         }
 
         /// <summary>
-        /// 造一只走完「压栈→面板就绪→就绪回执」的探针窗，并按用例需要拨好交互位与门位。
+        /// 造一个走完「压栈→面板就绪→就绪回执」的探针窗，并按用例需要拨好交互位与门位。
         /// </summary>
         /// <param name="windowId">窗口标识（同时是栈上身份）。</param>
         /// <param name="layer">窗口层级。</param>

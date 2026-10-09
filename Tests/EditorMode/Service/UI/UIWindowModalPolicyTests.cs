@@ -10,7 +10,7 @@ namespace Service.UI
     /// 模态档解耦的用例：显式 <c>[Window(modal:…)]</c> 赢过层级档，继承档仍按层级结算。
     /// </summary>
     /// <remarks>
-    /// 判据三面都对上：压栈压下层交互位、租约占压制位、门面模态查询三处读同一枚结算位。 <br />
+    /// 判据三面都对上：压栈压下层交互位、租约占压制位、门面模态查询三处读同一个结算位。 <br />
     /// attribute 实参禁 nullable，显式模态档由 <see cref="EUIModal"/> 三态表达。
     /// </remarks>
     [TestFixture]
@@ -44,7 +44,7 @@ namespace Service.UI
         {
             var window = Prepared<InheritModalProbeWindow>("InheritModal");
             Assert.IsTrue(UIService.IsModal(window), "Popup 层的继承档按层级结算为模态");
-            Assert.AreSame(window, UIService.CurrentModal, "栈上唯一且模态的那只窗，就是当前模态遮挡窗");
+            Assert.AreSame(window, UIService.CurrentModal, "栈上唯一且模态的那个窗，就是当前模态遮挡窗");
         }
 
         /// <summary>非模态层显式强制模态：压栈照样压下层交互位。</summary>
@@ -76,7 +76,7 @@ namespace Service.UI
             Assert.IsNull(UIService.CurrentModal, "强制非模态的窗不当任当前模态");
         }
 
-        /// <summary>造一只直接压栈的普通窗（继承档、显隐不落地）。</summary>
+        /// <summary>造一个直接压栈的普通窗（继承档、显隐不落地）。</summary>
         private static UIWindow PlainWindow(string windowId, int layer)
         {
             var window = new ForcedModalProbeWindow();
@@ -84,7 +84,7 @@ namespace Service.UI
             return window;
         }
 
-        /// <summary>经生产入口开一只注册表探针窗（同步装载就绪）。</summary>
+        /// <summary>经生产入口开一个注册表探针窗（同步装载就绪）。</summary>
         private static T Prepared<T>(string windowId) where T : UIWindow, new()
         {
             var ledger = UIService.SharedLedger;

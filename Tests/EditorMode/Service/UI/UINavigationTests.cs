@@ -5,11 +5,11 @@ using NUnit.Framework;
 namespace Service.UI
 {
     /// <summary>
-    /// 导航面（开启序历史）的用例：深度可数、取最近开的那只走既有关闭政策、拒关不动历史、重开把它挪成最新。
+    /// 导航面（开启序历史）的用例：深度可数、取最近开的那个走既有关闭政策、拒关不动历史、重开把它挪成最新。
     /// </summary>
     /// <remarks>
     /// 历史与栈是两份序：栈按层级排（答不出「最近开的是谁」），历史按开启序排——本文件的判据正是两者的分歧档：
-    /// 层级最高的那只不是最近开的那只时，<see cref="UIService.TryCloseTopWindow"/> 关的必须是最近开的那只。 <br />
+    /// 层级最高的那个不是最近开的那个时，<see cref="UIService.TryCloseTopWindow"/> 关的必须是最近开的那个。 <br />
     /// 探针一律同步装载（<c>ShowUI&lt;T&gt;</c> 在编辑器那一档走同步钩子）：
     /// 只有真落到栈上的窗才进得了历史，导航的判据才有主语；层级取非模态与模态两档，模态那一档另证「压层不改开启序」。 <br />
     /// 拒关探针把 <c>CanClose</c> 写成假：<see cref="UIService.TryCloseTopWindow"/> 回假且历史不出栈（政策拒关不是空操作）。
@@ -46,7 +46,7 @@ namespace Service.UI
         public void NavigationDepth_EmptyHistory_IsZeroAndTopCloseFails()
         {
             Assert.AreEqual(0, UIService.NavigationDepth, "干净栈的历史长度为零");
-            Assert.IsFalse(UIService.TryCloseTopWindow(), "无历史时取最近开的那只回假，不空转关闭");
+            Assert.IsFalse(UIService.TryCloseTopWindow(), "无历史时取最近开的那个回假，不空转关闭");
         }
 
         [Test]
@@ -57,10 +57,10 @@ namespace Service.UI
             UIService.ShowUI<NavBottomWindow>("NavC");
 
             Assert.AreEqual(3, UIService.NavigationDepth, "开启序历史按开窗次数计");
-            Assert.AreEqual(3, _ledger.PeekStack().Count, "历史与栈同数：三只都落进了共享栈");
+            Assert.AreEqual(3, _ledger.PeekStack().Count, "历史与栈同数：三个都落进了共享栈");
         }
 
-        /// <summary>取最近开的那只而不是层级最高的那只：栈顶由层级排，历史顶由开启序排，两者分歧时以历史为准。</summary>
+        /// <summary>取最近开的那个而不是层级最高的那个：栈顶由层级排，历史顶由开启序排，两者分歧时以历史为准。</summary>
         [Test]
         public void TryCloseTopWindow_LayerOrderDiffersFromOpenOrder_ClosesMostRecentWindow()
         {
@@ -69,14 +69,14 @@ namespace Service.UI
             UIService.ShowUI<NavBottomWindow>("NavC");
 
             Assert.AreSame(_ledger.GetWindow("NavB"), UIService.GetTopWindow(),
-                "量具前提坏了：栈顶按层级是那只 Tips 层的窗");
+                "量具前提坏了：栈顶按层级是那个 Tips 层的窗");
 
-            Assert.IsTrue(UIService.TryCloseTopWindow(), "最近开的那只可关");
+            Assert.IsTrue(UIService.TryCloseTopWindow(), "最近开的那个可关");
             Assert.IsNull(UIService.GetWindow<NavBottomWindow>("NavC"), "关的是最近开的 NavC，不是层级最高的 NavB");
             Assert.AreEqual(2, UIService.NavigationDepth, "摘栈即出历史");
             Assert.IsNotNull(UIService.GetWindow<NavTipsWindow>("NavB"), "NavB 仍在栈上");
 
-            Assert.IsTrue(UIService.TryCloseTopWindow(), "第二轮照常取到最近的那只");
+            Assert.IsTrue(UIService.TryCloseTopWindow(), "第二轮照常取到最近的那个");
             Assert.IsNull(UIService.GetWindow<NavTipsWindow>("NavB"), "开启序倒着退：第二轮收 NavB");
             Assert.IsTrue(UIService.TryCloseTopWindow(), "第三轮收 NavA");
             Assert.AreEqual(0, UIService.NavigationDepth, "历史退空");
@@ -107,12 +107,12 @@ namespace Service.UI
 
             Assert.AreEqual(2, UIService.NavigationDepth, "模态窗后开：历史长度两格");
             Assert.AreSame(_ledger.GetWindow("NavKitHi"), UIService.GetTopWindow(),
-                "量具前提坏了：栈顶是那一只层级更高的非模态窗");
+                "量具前提坏了：栈顶是那个层级更高的非模态窗");
 
-            Assert.IsTrue(UIService.TryCloseTopWindow(), "取最近开的那只：正是后开的模态窗");
+            Assert.IsTrue(UIService.TryCloseTopWindow(), "取最近开的那个：正是后开的模态窗");
             Assert.IsNull(UIService.GetWindow<NavModalWindow>("NavModalLast"), "关掉的必须是后开的模态窗");
-            Assert.IsNotNull(UIService.GetWindow<NavTipsWindow>("NavKitHi"), "层级更高的那只没被代关");
-            Assert.AreEqual(1, UIService.NavigationDepth, "摘一只即少一格");
+            Assert.IsNotNull(UIService.GetWindow<NavTipsWindow>("NavKitHi"), "层级更高的那个没被代关");
+            Assert.AreEqual(1, UIService.NavigationDepth, "摘一个即少一格");
         }
 
         [Test]
@@ -125,8 +125,8 @@ namespace Service.UI
             UIService.ShowUI<NavBottomWindow>("NavReA");
 
             Assert.AreEqual(2, UIService.NavigationDepth, "复用支路走 Pop→Push：历史长度不变");
-            Assert.AreEqual(2, _ledger.PeekStack().Count, "复用不压第二只");
-            Assert.IsTrue(UIService.TryCloseTopWindow(), "重开之后取到的最近是那一只");
+            Assert.AreEqual(2, _ledger.PeekStack().Count, "复用不压第二个");
+            Assert.IsTrue(UIService.TryCloseTopWindow(), "重开之后取到的最近是那个");
             Assert.IsNull(UIService.GetWindow<NavBottomWindow>("NavReA"), "重开的 NavReA 被挪成最新，先被关掉");
             Assert.IsNotNull(UIService.GetWindow<NavBottomWindow>("NavReB"), "NavReB 回到最新，仍留在栈上");
         }
@@ -154,7 +154,7 @@ namespace Service.UI
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => true;
         }
 
-        /// <summary>拒关探针窗：<c>CanClose</c> 恒假，取最近开的那只时政策初筛即回假。</summary>
+        /// <summary>拒关探针窗：<c>CanClose</c> 恒假，取最近开的那个时政策初筛即回假。</summary>
         [Window(EUILayer.Tips)]
         internal sealed class NavRefuseWindow : UGUIWindow
         {

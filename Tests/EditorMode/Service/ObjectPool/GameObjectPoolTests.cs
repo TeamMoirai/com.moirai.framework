@@ -736,7 +736,6 @@ namespace Service.GameObjectPool
         public void Despawn_Twice_DoesNotDestroyInactiveInstance()
         {
             DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
-            GameObject root = null;
             try
             {
                 handler.Internal_Init();

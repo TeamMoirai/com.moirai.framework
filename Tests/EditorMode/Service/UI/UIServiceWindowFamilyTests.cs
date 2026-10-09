@@ -140,7 +140,7 @@ namespace Service.UI
         {
             UIService.ShowUI<ProbeAddressUGUIWindow>("UGUIGiven", true);
 
-            Assert.AreEqual("UGUIGiven", PanelProbe.s_Address, "uGUI 腿把首枚当窗口标识：换算后才交下去（父目录留空即原样）");
+            Assert.AreEqual("UGUIGiven", PanelProbe.s_Address, "uGUI 腿把首个当窗口标识：换算后才交下去（父目录留空即原样）");
             Assert.IsTrue(PanelProbe.s_FromResources, "uGUI 腿把第二个当 fromResources 原样交下去");
             Assert.AreEqual("LoadPanel", PanelProbe.s_Hook, "同步那一支仍走同步装载");
 
@@ -149,7 +149,7 @@ namespace Service.UI
             UIService.ShowUI<ProbeAddressUitkWindow>("UITKGiven", true);
 
             Assert.AreEqual("UITKGiven", PanelProbe.s_Address,
-                "UI Toolkit 腿的首枚同样是窗口标识：换算后才交进共享栈");
+                "UI Toolkit 腿的首个同样是窗口标识：换算后才交进共享栈");
             Assert.IsTrue(PanelProbe.s_FromResources, "第二个同理：取法由腿交下去，不再写死 AB 口径");
         }
 
@@ -330,7 +330,7 @@ namespace Service.UI
         {
             Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeBareWindow), "w"),
                 "Type 入口错配须抬 GameException");
-            Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "错配不开半只窗：两条腿一次都没被叫到");
+            Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "错配不开半个窗：两条腿一次都没被叫到");
 
             Assert.Throws<GameException>(() => UIService.ShowUIAsync(typeof(ProbeBareWindow), "w"), "异步腿同一判据");
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "同上");
@@ -385,7 +385,7 @@ namespace Service.UI
 
             Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeBareWindow), "bare"),
                 "两轨都在场时，没挂任何一个窗口基类的类型照样认不出");
-            Assert.AreEqual(2, UIService.SharedLedger.PeekStack().Count, "认不出轨不开半只窗：栈上仍是那两个");
+            Assert.AreEqual(2, UIService.SharedLedger.PeekStack().Count, "认不出轨不开半个窗：栈上仍是那两个");
         }
 
         #endregion
@@ -588,11 +588,11 @@ namespace Service.UI
         }
 
         /// <summary>
-        /// 清单里提了 uGUI 那一支、但还没走生产初始化 ⇒ 开窗腿当场抬错，不顺手造一个，也不留半只窗。
+        /// 清单里提了 uGUI 那一支、但还没走生产初始化 ⇒ 开窗腿当场抬错，不顺手造一个，也不留半个窗。
         /// </summary>
         /// <remarks>
         /// 「配置已启用」与「驱动者已就位」是两档，这一格判的就是中间那一档：归位门清掉槽位之后，腿没有「替配置造一个」那条隐式启用。<br />
-        /// 抬错之后栈上一个窗都没有——静默开半只窗正是这一刀要消灭的形状。
+        /// 抬错之后栈上一个窗都没有——静默开半个窗正是这一刀要消灭的形状。
         /// </remarks>
         [Test]
         public void ShowUI_EnabledButNotRegistered_LegThrowsAndLeavesNoWindow()
@@ -602,7 +602,7 @@ namespace Service.UI
             Assert.Throws<GameException>(() =>
                 UIService.ShowUI<ProbeAddressUGUIWindow>("NotRegistered", false),
                 "已启用但没注册：开窗腿要抬错，不替配置造一个驱动者");
-            Assert.IsNull(UIService.GetTopWindow(), "抬错之后栈上不留半只窗");
+            Assert.IsNull(UIService.GetTopWindow(), "抬错之后栈上不留半个窗");
         }
 
         /// <summary>

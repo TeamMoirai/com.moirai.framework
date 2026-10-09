@@ -11,7 +11,7 @@ namespace Service.UI
     /// Task 13A 把窗口栈与编排从 <see cref="UIServiceHandler"/> 的实例字段搬进本持有者；两支 handler（Task 13B）之后
     /// 指向同一份实例，这三格锁的就是那份实例自己的栈序与关隐语义——只要持有者的三条不变式仍在，两支 handler 无论
     /// 怎么分派，都落进同一份栈与同一份停放表。 <br />
-    /// 载体只用一枚最简的 uGUI 轨探针窗：面板钩子一律只回真、不改运行时状态，本文件的判据是栈与停放本身，与轨无关。 <br />
+    /// 载体只用一个最简的 uGUI 轨探针窗：面板钩子一律只回真、不改运行时状态，本文件的判据是栈与停放本身，与轨无关。 <br />
     /// 线程契约：仅主线程（EditMode 用例即主线程）。
     /// </remarks>
     [TestFixture]
@@ -63,8 +63,8 @@ namespace Service.UI
             _ledger.CloseAll(isShutDown: false);
 
             Assert.AreEqual(0, _ledger.PeekStack().Count, "全关之后栈归零");
-            Assert.IsTrue(_ledger.IsParked("LedgerCached"), "非零停放档那一枚落进停放表");
-            Assert.IsFalse(_ledger.IsParked("LedgerPlain"), "0 档那一枚直接销毁，不进停放表");
+            Assert.IsTrue(_ledger.IsParked("LedgerCached"), "非零停放档那个落进停放表");
+            Assert.IsFalse(_ledger.IsParked("LedgerPlain"), "0 档那个直接销毁，不进停放表");
         }
 
         /// <summary>

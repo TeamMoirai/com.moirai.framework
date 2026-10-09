@@ -92,7 +92,7 @@ namespace Core.MemoryPool
     /// 内存池用例基座：为每个用到的类型重置池、跑独立帧号的 Tick，并在 TearDown 侦测未归还租约、清空对应用途的池、还原全局旋钮。
     /// </summary>
     /// <remarks>
-    /// 池是类型级全局单例，进程内所有夹具共享同一份状态：一个用例漏还一只对象，下个用例会读到虚高的 <c>UsingCount</c>，而 <c>ClearAll</c> 不能纠正（在外的对象本就该活着），表现为「单独跑绿、 <br />
+    /// 池是类型级全局单例，进程内所有夹具共享同一份状态：一个用例漏还一个对象，下个用例会读到虚高的 <c>UsingCount</c>，而 <c>ClearAll</c> 不能纠正（在外的对象本就该活着），表现为「单独跑绿、 <br />
     /// 整套跑红」——本基座把污染钉死在用例自己的红上。
     /// </remarks>
     public abstract class MemoryPoolFixture
