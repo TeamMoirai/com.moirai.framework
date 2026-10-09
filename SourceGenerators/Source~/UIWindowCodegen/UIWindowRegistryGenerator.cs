@@ -13,7 +13,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// </summary>
     /// <remarks>
     /// 登记跑在模块初始化期：运行期开窗只查表取工厂与元数据，不再走 <c>Activator</c> 与特性反射（IL2CPP 同构）。 <br />
-    /// 形状非法（非窗口类 / 缺公共无参构造 / 抽象或泛型）分别报 MIRAI500/501/502 一律 Error：放过去等于交付一枚开窗即炸的注册。 <br />
+    /// 形状非法（非窗口类 / 缺公共无参构造 / 抽象或泛型）分别报 MIRAI500/501/502 一律 Error：放过去等于交付一个开窗即炸的注册。 <br />
     /// <c>ModuleInitializerAttribute</c> 补丁由同包 <c>SaveServiceCodegen</c> 的 shim 生成器唯一持有，本生成器不发同名副本。
     /// </remarks>
     [Generator(LanguageNames.CSharp)]

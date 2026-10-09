@@ -39,7 +39,7 @@ namespace Moirai.Atropos.Timer
         private static BenchmarkReport s_Report;
         private static int s_Failures;
 
-        // 静态回调（缓存方法组：C#9 不缓存方法组转换，裸写每次分配一只委托）
+        // 静态回调（缓存方法组：C#9 不缓存方法组转换，裸写每次分配一个委托）
         private static readonly Action s_NoOpHandler = OnNoOp;
         private static readonly Action<BenchmarkArg> s_GenericHandler = OnGeneric;
 

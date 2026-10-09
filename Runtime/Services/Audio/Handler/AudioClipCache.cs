@@ -517,7 +517,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 取一只空槽；满载时先驱逐 LRU 头，全 Pin/全占用则返回 -1（新地址判负）。
+        /// 取一个空槽；满载时先驱逐 LRU 头，全 Pin/全占用则返回 -1（新地址判负）。
         /// </summary>
         private int AcquireSlot()
         {

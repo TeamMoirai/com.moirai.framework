@@ -844,7 +844,7 @@ namespace Moirai.Atropos
         }
         
         
-        [ThreadStatic] // 每个静态类型字段对于每一个线程都是唯一的
+        [ThreadStatic] // 每线程独立副本
         private static readonly StringBuilder s_StringBuilderCache = new StringBuilder(1024);
         
         /// <summary>

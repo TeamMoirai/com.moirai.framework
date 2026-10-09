@@ -31,9 +31,9 @@ namespace Moirai.Atropos.Tasks
         protected override void Reset()
         {
             base.Reset();
-            // 队列里每只子任务都欠着 Append 那次 Acquire 的引用，Clear 会把它们连引用一起丢掉
+            // 队列里每个子任务都欠着 Append 那次 Acquire 的引用，Clear 会把它们连引用一起丢掉
             // （子任务永世回不了池；DelayTask 更是连 Timer 句柄都不取消，回调回头会把 Completed
-            // 写在一只已复用的实例上）。_runningTask 仍留在队列里，摘干队列即已覆盖它。
+            // 写在一个已复用的实例上）。_runningTask 仍留在队列里，摘干队列即已覆盖它。
             _runningTask = null;
             while (_tasks.Count > 0)
             {

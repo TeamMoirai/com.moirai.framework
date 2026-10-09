@@ -142,7 +142,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 管线：DestroyUnwanted（会话实体整体替换 + 销毁表预置对象）→ SpawnMissing（原 ID 恢复 + 场景落位）→ 父子接线（第二轮）→ RestoreAll（差分块未激活写回， <br />
-        /// Awake 即见恢复后状态）→ 激活并逐只触发 <see cref="onEntityRestored"/>；生成失败的实体保留档案记录（原块滞留，不因本次保存丢失）。 <br />
+        /// Awake 即见恢复后状态）→ 激活并逐个触发 <see cref="onEntityRestored"/>；生成失败的实体保留档案记录（原块滞留，不因本次保存丢失）。 <br />
         /// 场景预置对象的字段恢复由 <c>LoadComponentsAsync</c> 承担——完整世界恢复 = <see cref="RestoreEntitiesAsync"/> + <c>LoadComponentsAsync</c>； <br />
         /// 处理器未就绪时静默降级为空任务。
         /// </remarks>

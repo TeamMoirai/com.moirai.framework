@@ -8,7 +8,7 @@ namespace Moirai.Atropos.UI
     /// <summary>
     /// UI 处理器（后端）：承载 UI 根的取用与常驻、面板装载与窗口实例创建。
     /// </summary>
-    [ProviderDisplay(title: "uGUI 轨", description: "默认：Canvas 根 + UGUI 面板，UITK 壳也挂在这枚 UI 根下")]
+    [ProviderDisplay(title: "uGUI 轨", description: "默认：Canvas 根 + UGUI 面板，UITK 壳也挂在这个 UI 根下")]
     [Serializable]
     internal sealed class UGUIHandler : UIServiceHandler
     {
@@ -31,7 +31,7 @@ namespace Moirai.Atropos.UI
         /// 处理器初始化。
         /// </summary>
         /// <remarks>
-        /// 共享栈与压制位的归零归门面（<see cref="UIService.OnInit"/>、<see cref="UIService.OnShutdown"/>），本枚只复位两个根位标志。<br />
+        /// 共享栈与压制位的归零归门面（<see cref="UIService.OnInit"/>、<see cref="UIService.OnShutdown"/>），本处理器只复位两个根位标志。<br />
         /// 此阶段（BeforeSceneLoad）场景尚未加载，根绑定与错误日志判据延迟到首个 Update tick 取用。
         /// </remarks>
         protected override void OnInit()
@@ -140,13 +140,13 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 本轨只认 uGUI 轨的窗：一次关停里 UI Toolkit 那一轨的窗留在共享栈上，由它自己那一枚驱动者去收。
+        /// 本轨只认 uGUI 轨的窗：一次关停里 UI Toolkit 那一轨的窗留在共享栈上，由它自己的驱动者去收。
         /// </summary>
-        /// <param name="window">栈上待判的那一只。</param>
-        /// <returns>这一只以 <see cref="UGUIWindow"/> 为基类时为真。</returns>
+        /// <param name="window">栈上待判的窗口。</param>
+        /// <returns>该窗口以 <see cref="UGUIWindow"/> 为基类时为真。</returns>
         protected override bool IsWindowOnOwnTrack(UIWindow window) => window is UGUIWindow;
 
-        /// <summary>把这一枚注册进 uGUI 那一轨的门面槽——归属由本类自述，门面入口不认识任何一枚具体实现。</summary>
+        /// <summary>把本处理器注册进 uGUI 轨的门面槽——归属由本类自述，门面入口不认识任何具体实现。</summary>
         internal override void Internal_Register() => UIService.Internal_ClaimUGUITrack(this);
 
         /// <summary>
@@ -154,8 +154,8 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 只交自己那一轨的窗进共享栈的关闭流程（<see cref="UIServiceHandler.CloseOwnTrackWindows"/>），另一轨的窗留在栈上。<br />
-        /// UI Toolkit 轨的壳挂在本轨这枚 UI 根下：销毁根之前那些壳必须已被门面收掉，<br />
-        /// 该次序归门面的 <see cref="UIService.OnShutdown"/>（先叫 UI Toolkit 那一枚、再叫这一枚）。
+        /// UI Toolkit 轨的壳挂在本轨的 UI 根下：销毁根之前那些壳必须已被门面收掉，<br />
+        /// 该次序归门面的 <see cref="UIService.OnShutdown"/>（先叫 UI Toolkit 轨、再叫本轨）。
         /// </remarks>
         protected override void OnShutdown()
         {
@@ -190,7 +190,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// UI 根晚到（后加载入的场景、运行期实例化）时保持续等，绑上之后即静默，本轨没有别的帧职责。<br />
-        /// 根没绑好不影响另一轨的窗：栈上窗口的内部更新由门面交给共享持有者结算，与本枚的根位无关。
+        /// 根没绑好不影响另一轨的窗：栈上窗口的内部更新由门面交给共享持有者结算，与本处理器的根位无关。
         /// </remarks>
         /// <param name="elapseSeconds">逻辑经过的秒数（本轨不吃）。</param>
         /// <param name="realElapseSeconds">真实经过的秒数（本轨不吃）。</param>

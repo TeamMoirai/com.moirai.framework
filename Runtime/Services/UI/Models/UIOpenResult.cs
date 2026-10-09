@@ -11,7 +11,7 @@ namespace Moirai.Atropos.UI
         /// <summary>装载失败或装载中被关闭：窗口已从栈上回滚作废。</summary>
         Failed = 1,
 
-        /// <summary>按标识取窗时栈上没有这一枚标识（不带标识时按类型扫栈也无该型窗），或命中的那只是别的类型。</summary>
+        /// <summary>按标识取窗时栈上没有该标识（不带标识时按类型扫栈也无该型窗），或命中的窗口不是该类型。</summary>
         Missing = 2,
 
         /// <summary>等待超时：面板仍未就绪，窗口可能还在装载。</summary>

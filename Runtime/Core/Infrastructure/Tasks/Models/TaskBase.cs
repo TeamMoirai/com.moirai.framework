@@ -244,7 +244,7 @@ namespace Moirai.Atropos.Tasks
         {
             if (_refCount <= 0)
             {
-                // 多还一次会把计数拖成负数：此后任何 Dispose 都到不了 ==0，这只任务永远回不了池（静默饥饿）。
+                // 多还一次会把计数拖成负数：此后任何 Dispose 都到不了 ==0，这个任务永远回不了池（静默饥饿）。
                 // 与其让它悄悄失踪，不如报出来——引用配平是调用方契约，见 GetPooled 的说明。
                 LogUtility.Error($"Task {GetTaskID()} disposed with reference count {_refCount}; the instance is leaked from the pool.");
                 return;
@@ -268,7 +268,7 @@ namespace Moirai.Atropos.Tasks
         }
         
         /// <summary>
-        /// 从池中取一只任务，返回时引用计数为 0。
+        /// 从池中取一个任务，返回时引用计数为 0。
         /// </summary>
         /// <remarks>
         /// 要长期持有需自行 <c>Acquire</c> 并在交还时 <c>Dispose</c>（见 <c>TaskRunner.RegisterTask</c>、<c>SequenceTask.Append</c>）。

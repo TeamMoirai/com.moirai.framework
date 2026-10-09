@@ -39,8 +39,8 @@ namespace Moirai.Atropos.Resource
                     }
 
                     // 只在读取处归一，不回写 Instance.m_PlayMode：那等于让一次 getter
-                    // 悄悄改掉一份共享的 ScriptableObject 实例，把"运维本该发现的配置错误"
-                    // 洗成一份看起来本来就对的资产。
+                    // 悄悄改掉共享的 ScriptableObject 实例，把"运维本该发现的配置错误"
+                    // 掩盖成一份看起来本来就对的资产。
                     return EResourcePlayMode.OfflinePlay;
                 }
 #endif
