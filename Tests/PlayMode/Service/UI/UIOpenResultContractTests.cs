@@ -57,7 +57,7 @@ namespace Service.UI
         public IEnumerator WaitWindowResult_NeverLoadingWindow_TimesOutWithTimeoutStatus()
         {
             var window = new NeverLoadProbeWindow();
-            window.Init("NeverLoad", (int)EUILayer.Tips, false, "Where/NoPanel", false, 10, false);
+            window.Init("NeverLoad", (int)EUILayer.Tips, false, "Where/NoPanel", false, 10);
 
             var awaiter = UIWindowLedger.WaitWindowResultAsync(window, "NeverLoad", TEST_TIMEOUT_SECONDS).GetAwaiter();
             UtfLogExpect.Warning();

@@ -280,7 +280,7 @@ namespace Service.UI
             // 下溢地板：未登记等待者的离场（取窗腿那一条来路）不得把计数拖成负数误掐在途装载。
             // 这一档要一只「装载在途但一次都没登记过等待者」的窗，开栈腿都登记，故直呼其装载钩子造样本。
             var orphan = new GatedLoadProbeWindow();
-            orphan.Init("NoWaiterRegistered", (int)EUILayer.Tips, false, "Panel", false, 10, false);
+            orphan.Init("NoWaiterRegistered", (int)EUILayer.Tips, false, "Panel", false, 10);
             _ledger.Push(orphan);
             orphan.InternalLoad("Panel", null, true).Forget();
             Assert.AreEqual(1, orphan.LoadCalls, "量具前提坏了：这一路没经开栈腿登记等待者，装载已在途");

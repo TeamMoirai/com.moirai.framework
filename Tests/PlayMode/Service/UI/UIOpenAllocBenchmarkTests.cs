@@ -22,7 +22,7 @@ namespace Service.UI
     /// 改引用同一性/计数类结构断言（每格都另带一组同一性与计数断言，正是为此留着），不抬阈值。 <br />
     /// 档位承诺（spec §9.4）：静态腿 struct/class DTO、动态腿 class、无载荷腿、<c>default(ct)</c> 全链稳态增量 0；
     /// 动态腿基元允许每次开窗装箱一次，按实测字节记档。 <br />
-    /// 每格先暖机一轮（首轮装载与建面板不计）再跑 32 次往返；探针窗一律 <c>cacheInstance</c>，往返走停放重取那条稳态支路。 <br />
+    /// 每格先暖机一轮（首轮装载与建面板不计）再跑 32 次往返；探针窗一律走停放档，往返走停放重取那条稳态支路。 <br />
     /// 共享状态走 static、实测字节导出 <see cref="ReportPath"/>（对齐 Kernel/GenericObjectPool 基准范式）。
     /// 线程契约：仅主线程（PlayMode 主线程跑的基准与本服务的线程契约同档）。
     /// </remarks>
@@ -242,7 +242,7 @@ namespace Service.UI
         }
 
         /// <summary>无载荷探针窗（缓存实例）：面板代码建出，装载只跑一次，之后走停放重取稳态。</summary>
-        [Window(EUILayer.Tips, cacheInstance: true)]
+        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
         internal sealed class AllocPlainWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -253,7 +253,7 @@ namespace Service.UI
         }
 
         /// <summary>静态腿 struct DTO 探针窗（缓存实例）。</summary>
-        [Window(EUILayer.Tips, cacheInstance: true)]
+        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
         internal sealed class AllocStructWindow : UGUIWindow<AllocDto>
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -264,7 +264,7 @@ namespace Service.UI
         }
 
         /// <summary>class DTO 探针窗（缓存实例）：静态腿与动态腿共用这一枚，两格各用各的窗口名。</summary>
-        [Window(EUILayer.Tips, cacheInstance: true)]
+        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
         internal sealed class AllocClassWindow : UGUIWindow<AllocBox>
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -275,7 +275,7 @@ namespace Service.UI
         }
 
         /// <summary>动态腿基元探针窗（缓存实例）：<see cref="UIPayload"/> 擦除后按 <c>int</c> 取回，允许装箱一次。</summary>
-        [Window(EUILayer.Tips, cacheInstance: true)]
+        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
         internal sealed class AllocIntWindow : UGUIWindow<int>
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>

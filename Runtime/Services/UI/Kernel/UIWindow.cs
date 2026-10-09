@@ -58,11 +58,11 @@ namespace Moirai.Atropos.UI
         /// <summary>隐藏转关闭的定时器标识。</summary>
         public ulong HideTimerId { get; internal set; }
 
-        /// <summary>缓存实例，关闭时不销毁。</summary>
-        public bool CacheInstance { get; internal set; }
-
-        /// <summary>缓存停放转销毁的秒数；0 = 永久。</summary>
+        /// <summary>停放档：0 = 不缓存（关闭即销毁），&gt;0 = 停放并在这么多秒后销毁，&lt;0 = 停放永久。</summary>
         public float CacheTimeToDestroy { get; internal set; }
+
+        /// <summary>关闭时是否进停放表：停放档非零即为真（0 才是「关闭即销毁」）。</summary>
+        internal bool ParksOnClose => CacheTimeToDestroy != 0f;
 
         /// <summary>停放转销毁的定时器标识；取用即取消，0 表示无在途计时。</summary>
         internal ulong CacheTimerId { get; private set; }
@@ -200,10 +200,9 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">是内部资源无需AB加载。</param>
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数。</param>
-        /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
         /// <param name="modal">模态档；缺省按层级继承（模态层级 UI/Popup/System 即模态）。</param>
-        /// <param name="cacheTimeToDestroy">缓存停放转销毁的秒数；0 = 永久。</param>
-        internal void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance, EUIModal modal = EUIModal.Inherit, float cacheTimeToDestroy = 0f)
+        /// <param name="cacheTimeToDestroy">停放档；0 = 不缓存，&gt;0 = 停放转销毁的秒数，&lt;0 = 停放永久。</param>
+        internal void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, EUIModal modal = EUIModal.Inherit, float cacheTimeToDestroy = 0f)
         {
             WindowName = name;
             WindowLayer = layer;
@@ -211,7 +210,6 @@ namespace Moirai.Atropos.UI
             AssetLocation = assetLocation;
             FromResources = fromResources;
             HideTimeToClose = hideTimeToClose;
-            CacheInstance = cacheInstance;
             CacheTimeToDestroy = cacheTimeToDestroy;
             IsModalWindow = modal switch
             {
@@ -679,7 +677,7 @@ namespace Moirai.Atropos.UI
             UnlockInteraction();
 
             // 销毁面板对象
-            if (!isShutDown && CacheInstance)
+            if (!isShutDown && ParksOnClose)
             {
                 var transition = Transition;
                 if (transition != null)
