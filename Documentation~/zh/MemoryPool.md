@@ -32,7 +32,7 @@ MemoryPool 系统为纯 C# 对象（非 GameObject）提供高性能池化。它
 
 ### 存活上限与漏还可见性
 
-硬容量只约束**空闲缓存**，不约束总量：`Acquire` 未命中即构造、永不失败，所以业务漏还一只就永久少一只——表现是缓慢上涨的 OOM，而不是当场报错。三条配套：
+硬容量只约束**空闲缓存**，不约束总量：`Acquire` 未命中即构造、永不失败，所以业务漏还一个就永久少一个——表现是缓慢上涨的 OOM，而不是当场报错。三条配套：
 
 - `MemoryPoolInfo.UsingCount` 是瞬时在外量，`MaxUsingCount` 是自上次 `ResetAllStats` 以来的峰值。跨小时只增不减即说明有引用没回来；`ResetStats` 把峰值按当前在外量重起，不会把正在漏的池洗成干净。
 - `MemoryPool<T>.SetLiveLimit(n)` / `MemoryPool.SetLiveLimit(type, n)`（0 表示不限制，默认不限制）给"漏还"装一个可发现的边界：越界时带池身份限流上报（默认 300 帧一条），开发期先报后抛。发布版**不拒绝发放**——拒绝会让已经开跑的演出当场断，也修不了调用方的漏还。全局默认值在 `MemoryPoolSetting` 的 Inspector 上。

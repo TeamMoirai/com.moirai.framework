@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Save
         /// 取后端标识的显示名：给人看的日志、检视器与调试面板统一走这里，不再直接印裸数字。
         /// </summary>
         /// <remarks>用字面名而非 <c>nameof(...)</c>：三个二进制实现受 <c>*_INSTALLED</c> 宏门控， <br />
-        /// 未接入的工程里那些类型根本不存在，<c>nameof</c> 会直接把这一格编不过。</remarks>
+        /// 未接入的工程里这些类型不存在，<c>nameof</c> 会在这里直接编译失败。</remarks>
         /// <param name="backendId">后端标识。</param>
         /// <returns>内建标识返回其名字；其余返回 <c>ID &lt;数值&gt;</c>（未注册的 ID 本就没有名字）。</returns>
         public static string DisplayName(ushort backendId)

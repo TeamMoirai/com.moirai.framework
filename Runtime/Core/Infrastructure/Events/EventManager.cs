@@ -128,7 +128,7 @@ namespace Moirai.Atropos.Events
         /// 向实例添加事件处理程序。如果已为同一阶段（TrickleDown 或 BubbleUp）注册了事件处理程序，则此方法无效。
         /// </summary>
         /// <param name="callback">要添加的事件处理程序。</param>
-        /// <param name="useTrickleDown">将此参数设置为 <c>true</c> 以从 TrickleDown 阶段删除回调。将此参数设置为 <c>false</c> 以从 BubbleUp 阶段删除回调。</param>
+        /// <param name="useTrickleDown"><c>true</c> 注册到 TrickleDown 阶段，<c>false</c> 注册到 BubbleUp 阶段。</param>
         public static void RegisterCallback<TEventType>(EventCallback<TEventType> callback, TrickleDown useTrickleDown = TrickleDown.NoTrickleDown) where TEventType : EventBase<TEventType>, new()
         {
             EventHandler.RegisterCallback(callback, useTrickleDown);
@@ -137,8 +137,8 @@ namespace Moirai.Atropos.Events
         /// <summary>
         /// 从实例中删除回调。
         /// </summary>
-        /// <param name="callback">要删除的回调。如果此回调从未注册，则不会发生任意情况。</param>
-        /// <param name="useTrickleDown">将此参数设置为 <c>true</c> 以从 TrickleDown 阶段删除回调。将此参数设置为 <c>false</c> 以从 BubbleUp 阶段删除回调。</param>
+        /// <param name="callback">要删除的回调。如果此回调从未注册，则不产生任何影响。</param>
+        /// <param name="useTrickleDown"><c>true</c> 从 TrickleDown 阶段删除回调，<c>false</c> 从 BubbleUp 阶段删除回调。</param>
         public static void UnregisterCallback<TEventType>(EventCallback<TEventType> callback, TrickleDown useTrickleDown = TrickleDown.NoTrickleDown) where TEventType : EventBase<TEventType>, new()
         {
             if (!s_Instance) return;

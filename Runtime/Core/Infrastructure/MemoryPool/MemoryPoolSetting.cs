@@ -62,7 +62,7 @@ namespace Moirai.Atropos
         [SerializeField] private bool m_VerifyMainThreadInRelease = false;
 
         [Tooltip("存活（在外）对象数量上限的全局默认值，0 表示不限制。\n" +
-                 "硬上限只约束空闲缓存、不约束总量：漏还一只就永久少一只，表现为缓慢上涨的 OOM。\n" +
+                 "硬上限只约束空闲缓存、不约束总量：漏还一个就永久少一个，表现为缓慢上涨的 OOM。\n" +
                  "开启后越界会带池身份限流上报，开发期直接抛出。")]
         [SerializeField] private int m_DefaultLiveLimit = 0;
 

@@ -45,7 +45,7 @@ namespace Moirai.Atropos
         public uint NextUInt32()
         {
             // 全零是 xoshiro 的不动点；default(RandomSource) 或外部把结构体清零时自愈，
-            // 否则整条流会永远吐 0 且不报错。
+            // 否则整条流会恒定输出 0 且不报错。
             if ((_s0 | _s1 | _s2 | _s3) == 0) Seed(Golden);
 
             uint result = Rotl(_s1 * 5, 7) * 9;

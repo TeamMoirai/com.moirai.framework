@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Collections
     /// 比普通数组快的稀疏数组，元素索引不一定连续的列表。
     /// </summary>
     /// <remarks>类似于 UE TSparseArray</remarks>
-    /// <example>当一个数组中大部分元素是一个相同元素时，可以使用稀疏数组来保存该数组，从而减少空间占用。</example>
+    /// <example>大部分元素为同一值时，可用稀疏数组存储以节省空间。</example>
     public class SparseArray<T> : IEnumerable<T>
     {
         private struct FreeListLink

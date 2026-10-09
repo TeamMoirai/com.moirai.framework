@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Tasks
 {
     internal class TaskRunner : MonoBehaviour
     {
-        // ── 任务 Tick 异常分级：开发期 Fatal 后上抛（第一时间暴露缺陷），发布期隔离续跑（一只坏任务不拖垮整帧）──
+        // ── 任务 Tick 异常分级：开发期 Fatal 后上抛（第一时间暴露缺陷），发布期隔离续跑（一个坏任务不拖垮整帧）──
         // const 门控：JIT 裁剪死分支，Release 零运行时成本。与内核 ServiceScope / EventDispatcher /
         // PlayerLoopDriver / MemoryPoolRegistry 的同形常量语义一致；五处重复体的收口已排进重构方案 S3。
         internal const bool RETHROW_TASK_EXCEPTIONS =

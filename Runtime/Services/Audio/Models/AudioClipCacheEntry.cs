@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Audio
         public AudioClipCacheEntry AllPrev;
         public AudioClipCacheEntry AllNext;
 
-        /// <summary>开址桶链的下一只槽位下标；-1 表示链尾。<see cref="AudioClipCache"/> 单点维护。</summary>
+        /// <summary>开址桶链的下一个槽位下标；-1 表示链尾。<see cref="AudioClipCache"/> 单点维护。</summary>
         public int HashNextIndex = -1;
 
         /// <summary>所在槽位下标；-1 表示已脱离槽表（驱逐或归还）。</summary>

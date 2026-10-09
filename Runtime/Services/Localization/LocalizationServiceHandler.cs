@@ -35,7 +35,7 @@ namespace Moirai.Atropos.Localization
         [NonSerialized] private Language _pendingLanguage;
         // 数据加载失败日志只打一次（数据未就绪时每次查询都会重试加载，避免刷屏）
         [NonSerialized] private bool _hasLoggedLoadError;
-        // "无可用语言"日志只打一次（ChangeLanguage 与 Activate 系列共一只闸门，成功加载后复位）
+        // "无可用语言"日志只打一次（ChangeLanguage 与 Activate 系列共一个闸门，成功加载后复位）
         [NonSerialized] private bool _hasLoggedNoLanguage;
         // 格式化失败日志只打一次（占位符与参数不匹配属表内缺陷，逐条刷屏会淹没日志）
         [NonSerialized] private bool _hasLoggedFormatError;

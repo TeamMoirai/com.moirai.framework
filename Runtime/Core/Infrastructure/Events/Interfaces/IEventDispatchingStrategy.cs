@@ -22,10 +22,10 @@ namespace Moirai.Atropos.Events
         TrickleDown = 1,
 
         /// <summary>事件将发送到目标。</summary>
-        /// <remarks>事件达到目标。</remarks>
+        /// <remarks>事件到达目标。</remarks>
         AtTarget = 2,
         
-        /// <summary>该事件将发送到目标元素，然后该元素可以在目标阶段对事件执行其默认操作。事件处理程序在此阶段不会接收事件。相反，在目标元素上调用 ExecuteDefaultActionAtTarget。</summary>
+        /// <summary>事件到达目标元素后执行默认操作；此阶段处理程序不接收事件，默认操作由 ExecuteDefaultActionAtTarget 执行。</summary>
         /// <remarks>在 target 处执行默认操作。</remarks>
         DefaultActionAtTarget = 5,
 
@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Events
         /// <remarks>在目标有机会处理事件后，事件会沿着父层次结构返回根。</remarks>
         BubbleUp = 3,
         
-        /// <summary>该事件将发送到 target 元素，然后该元素可以执行该事件的最终默认操作。事件处理程序在此阶段不会接收事件。相反，在目标元素上调用 ExecuteDefaultAction。</summary>
+        /// <summary>事件到达 target 元素后执行最终默认操作；此阶段处理程序不接收事件，默认操作由 ExecuteDefaultAction 执行。</summary>
         /// <remarks>最后，执行默认操作。</remarks>
         DefaultAction = 4
     }

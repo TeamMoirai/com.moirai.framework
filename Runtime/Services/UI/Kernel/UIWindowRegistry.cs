@@ -19,7 +19,7 @@ namespace Moirai.Atropos.UI
             new Dictionary<RuntimeTypeHandle, UIWindowRegistryEntry>(64, ContractHandleComparer.Instance);
 
         /// <summary>
-        /// 登记一枚窗口类。
+        /// 登记一个窗口类。
         /// </summary>
         /// <remarks>由生成的模块初始化器调用；手写补登同一类型时保留先到那份并记一条 Fatal。</remarks>
         /// <param name="windowType">窗口类。</param>

@@ -130,7 +130,7 @@ namespace Service.Resource
         [Test]
         public void ReleaseOwner_ZeroAlloc()
         {
-            // 同上：断言外移，窗内只走三趟调用。
+            // 断言外移，窗内只走三趟调用。
             EResourceBindStatus status = EResourceBindStatus.MissingOwner;   // 未跑过时的哨兵值（Success=0 不能当哨兵）
             AllocationCapture.MeasureManaged("Binding.ReleaseOwner", Iterations, () =>
             {

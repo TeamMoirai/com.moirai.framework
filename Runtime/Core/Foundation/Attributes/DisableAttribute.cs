@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Attributes
 {
     /// <summary>
-    /// 其实就是脱离 Odin 的 ReadOnly 实现。
+    /// 等价于脱离 Odin 的 ReadOnly 实现。
     /// </summary>
     [Conditional("UNITY_EDITOR")]
     [System.AttributeUsage(System.AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
