@@ -228,8 +228,12 @@ namespace Moirai.Atropos.SourceGenerators
         private static bool ToBool(object? constant) => constant is bool value && value;
         private static string ToStringValue(object? constant, string fallback) => constant as string ?? fallback;
 
-        private static float ToSingle(object? constant, float fallback) =>
-            constant is float f ? f : constant is double d ? (float)d : constant is int n ? n : fallback;
+        /// <remarks>NaN/±Infinity 是合法的编译期特性实参，但发射侧按 "R" 拼字面量会得到 <c>NaNf</c>/<c>Infinityf</c>（整工程编不过），故非有限值回 fallback。</remarks>
+        private static float ToSingle(object? constant, float fallback)
+        {
+            var value = constant is float f ? f : constant is double d ? (float)d : constant is int n ? n : fallback;
+            return float.IsNaN(value) || float.IsInfinity(value) ? fallback : value;
+        }
 
         /// <summary>枚举实参折算 byte（三态模态等小型枚举；值越界回 fallback）。</summary>
         private static byte ToByte(object? constant, byte fallback)
