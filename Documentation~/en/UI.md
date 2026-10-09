@@ -80,7 +80,7 @@ Define a window (window classes must have a parameterless constructor, i.e., `ne
 using Moirai.Atropos.UI;
 
 // Layer Popup, non-fullscreen, parks on close (negative = park forever; a positive value destroys on expiry)
-[Window(EUILayer.Popup, location: "MainWindow", fullScreen: false, cacheTimeToDestroy: -1f)]
+[Window(EUILayer.Popup, fullScreen: false, cacheTimeToDestroy: -1f)]
 public class MainWindow : UGUIWindow
 {
     protected override void ScriptGenerator() { }   // Generated binding code override
@@ -375,7 +375,7 @@ Select the root node of a UI prefab and use the menu:
 - `default` costs nothing on every leg's `CancellationToken`, and the token is only consumed while the load is in flight: a ready reuse and a re-park do not consume `ct`; reusing a window that is still loading registers the caller token just the same, and cancelling it aborts that in-flight load (the same semantics as the in-flight merge)
 - Window open/close receipts are a static facade broadcast: `UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent` (parameter `UIWindow`) — exactly one per push and per pop, fired for both parking and destruction. Subscribers own their own un-pairing, and the facade's shutdown and reset gates detach the whole batch
 - Optional parking TTL: `[Window(cacheTimeToDestroy: …)]` — `0` means no caching (destroy on close, the default), a positive value parks the instance and destroys it that many seconds later, a negative value parks it forever; on expiry the ledger removes the parked instance from the parking table and destroys it for good, and re-taking it cancels the timer
-- Addressing lives in the facade: the third slot of every open leg is the window **id** — with `fromResources` it is joined onto the Resources parent folder held by `UIServiceSettings`, otherwise it is looked up through `ConfigTableService.GetUIWindowLocation`; only an empty id falls back to `[Window(location)]` (and to the type name when that is empty too). The old `UIManager` and its two public static resolvers are retired, and the conversion happens in exactly one place: the ledger's create-new-instance branch (a stack reuse and a re-parked window never hit the table)
+- Addressing lives in the facade: the third slot of every open leg is the window **id** — with `fromResources` it is joined onto the Resources parent folder held by `UIServiceSettings`, otherwise it is looked up through `ConfigTableService.GetUIWindowLocation`; the id is mandatory (an absent one throws `GameException` — there is no second route to an address), and `[Window]` no longer declares one. The old `UIManager` and its two public static resolvers are retired, and the conversion happens in exactly one place: the ledger's create-new-instance branch (a stack reuse and a re-parked window never hit the table)
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [UI Migration](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

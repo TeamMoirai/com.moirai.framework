@@ -83,7 +83,7 @@ namespace Service.UI
             Assert.IsTrue(UIService.IsValid, "量具前提：播放态域的自动 Boot 要已把 UI 服务立起来");
 
             UtfLogExpect.Error();
-            var awaiter = UIService.ShowUIAwaitResult<DelayFailProbeWindow>("DelayFail").GetAwaiter();
+            var awaiter = UIService.ShowUIAwaitResult<DelayFailProbeWindow>("DelayFail", "DelayFail").GetAwaiter();
             var frames = 0;
             while (!awaiter.IsCompleted && frames < 600)
             {
@@ -106,7 +106,7 @@ namespace Service.UI
         {
             Assert.IsTrue(UIService.IsValid, "量具前提：播放态域的自动 Boot 要已把 UI 服务立起来");
 
-            var awaiter = UIService.ShowUIAwaitResult<DelayReadyProbeWindow>("DelayReady").GetAwaiter();
+            var awaiter = UIService.ShowUIAwaitResult<DelayReadyProbeWindow>("DelayReady", "DelayReady").GetAwaiter();
             var frames = 0;
             while (!awaiter.IsCompleted && frames < 600)
             {

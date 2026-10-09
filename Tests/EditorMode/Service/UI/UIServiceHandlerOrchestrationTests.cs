@@ -613,16 +613,16 @@ namespace Service.UI
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：这一格判的是 uGUI 那一轨没被启用的档");
 
             var error = Assert.Throws<GameException>(
-                () => UIService.ShowUI<ProbeUGUIWindow>("DisabledTrack"), "未启用那一轨的同步腿不得静默落空");
+                () => UIService.ShowUI<ProbeUGUIWindow>("DisabledTrack", "DisabledTrack"), "未启用那一轨的同步腿不得静默落空");
             StringAssert.Contains("UGUI", error.Message, "文案点名是没启用的哪一轨");
             StringAssert.Contains(nameof(UIServiceSettings), error.Message, "文案点名该去哪一处启用");
 
             Assert.Throws<GameException>(
-                () => UIService.ShowUIAsync<ProbeUGUIWindow>("DisabledTrackAsync"), "异步腿走的也是同一道守卫");
+                () => UIService.ShowUIAsync<ProbeUGUIWindow>("DisabledTrackAsync", "DisabledTrackAsync"), "异步腿走的也是同一道守卫");
             Assert.Throws<GameException>(
-                () => UIService.ShowUI(typeof(ProbeUGUIWindow), "DisabledTrackByType"), "Type 形入口的 uGUI 档同判据");
+                () => UIService.ShowUI(typeof(ProbeUGUIWindow), "DisabledTrackByType", "DisabledTrackByType"), "Type 形入口的 uGUI 档同判据");
             Assert.Throws<GameException>(
-                () => UIService.ShowUIAsyncAwait<ProbeUGUIWindow>("DisabledTrackAwait").GetAwaiter().GetResult(),
+                () => UIService.ShowUIAsyncAwait<ProbeUGUIWindow>("DisabledTrackAwait", "DisabledTrackAwait").GetAwaiter().GetResult(),
                 "等待腿把异常收进交回的那一份 UniTask");
 
             Assert.AreEqual(0, Stack.Count, "抬错排在压栈之前：栈上一只窗都不多");
@@ -645,7 +645,7 @@ namespace Service.UI
             Assert.IsNull(UIService.UIRoot, "未启用的 uGUI 轨答不出 UI 根");
             Assert.IsNull(UIService.UICamera, "同判据的另一枚轨专有查询");
 
-            UIService.ShowUI<ProbeUITKWindow>("EnabledTrackOpens");
+            UIService.ShowUI<ProbeUITKWindow>("EnabledTrackOpens", "EnabledTrackOpens");
 
             Assert.IsNotNull(UIService.GetTopWindow(), "未启用另一轨不是本轨开窗落空的理由");
             Assert.AreEqual("EnabledTrackOpens", UIService.GetTopWindow().WindowName, "开出来的就是刚叫开的那一只");
