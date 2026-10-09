@@ -68,7 +68,7 @@ RenameWindow w = await UIService.ShowUIAsyncAwait<RenameWindow, RenameWindowPayl
 UIOpenResult r = await UIService.ShowUIAwaitResult<RenameWindow, RenameWindowPayload>(in dto);        // 结果腿
 ```
 
-落地签名与位置序：`(in TArg payload, string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`；UI Toolkit 腿在 `ct` 前多一枚 `PanelSettings panelSettings = null`，载荷仍永远排第一枚。
+落地签名与位置序：`(in TArg payload, string windowId = null, bool fromResources = false, CancellationToken ct = default)`；UI Toolkit 腿在 `ct` 前多一枚 `PanelSettings panelSettings = null`，载荷仍永远排第一枚。
 
 手写 `Show` 助手时把标识直接交给腿（旧写法先自己算地址，如今门面按档换算）：
 
@@ -78,11 +78,11 @@ public static void ShowRenameWindow(RenameWindowPayload dto)
     const string WindowId = "RenameWindow";
     UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(
         in dto,
-        WindowId, WindowId);
+        WindowId);
 }
 ```
 
-- 第三枚是窗口标识而不是面板地址：`fromResources` 为真时按 `UIServiceSettings` 的 Resources 父目录拼地址，为假时按标识查配置表；两档的换算只在开窗造新实例那一格发生
+- 那一枚窗口标识不是面板地址：`fromResources` 为真时按 `UIServiceSettings` 的 Resources 父目录拼地址，为假时按标识查配置表；两档的换算只在开窗造新实例那一格发生
 - 缺省档位由 `[Window(fromResources:)]` 与调用方给的 `fromResources` 并集决定（真 || 特性）；配置表服务未就绪时取到 `null`、查无此 id 取到空串，两者都落进装载失败回滚，不在门面代答
 
 ### 动态腿：运行期才知道 `Type`（类型替换缝、注册表驱动的开窗）
@@ -91,9 +91,9 @@ public static void ShowRenameWindow(RenameWindowPayload dto)
 
 ```csharp
 // 旧写法在末位排一枚位置实参数组（已退役）；新写法把载荷收进 UIPayload 这一枚载体
-UIService.ShowUIAsync(type, windowName, location, false, UIPayload.From(dto), ct);
-UIService.ShowUI(type, windowName, location, false, UIPayload.From(dto), ct);        // 同步档同形
-UIWindow win = await UIService.ShowUIAsyncAwait(type, windowName, location, false, UIPayload.From(dto), ct);
+UIService.ShowUIAsync(type, windowId, false, UIPayload.From(dto), ct);
+UIService.ShowUI(type, windowId, false, UIPayload.From(dto), ct);        // 同步档同形
+UIWindow win = await UIService.ShowUIAsyncAwait(type, windowId, false, UIPayload.From(dto), ct);
 ```
 
 - 动态腿共三支（异步 / 同步 / 等待），`UIPayload payload` 恒排在 `ct` 之前；结果腿只有泛型形，Type 形入口不带结果档

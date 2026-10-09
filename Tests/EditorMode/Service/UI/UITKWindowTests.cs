@@ -16,7 +16,7 @@ namespace Service.UI
     /// <see cref="UITKWindow.DestroyPanel"/> 不在本文件测：它按 uGUI 轨同语义走 <c>Object.Destroy</c>（生产正确），而 <c>Destroy</c> 在 EditMode 会打错误日志、把用例打成假红。 <br />
     /// 夹具不依赖场景与预制体：装配判据用的面板由用例自备的空 <see cref="GameObject"/> 经 <c>BindPanel</c> 接缝注入， <br />
     /// <c>PanelSettings</c> 取包内 <c>Runtime/Services/Debugger/Resources/DebuggerPanelSettings</c> 作正对照——取不到是量具前提坏了，不是被测代码坏。 <br />
-    /// 装载路径的三格成功用例（同步 / 异步 / 内置资源）不吃接缝、走真实现，因此只读引用包内<b>实存</b>资产（一枚 <c>.uxml</c>、一枚 <c>.uss</c>）： <br />
+    /// 装载路径的三格成功用例（同步 / 异步 / 内置资源）不吃接缝、走真实现，因此只读引用包内<b>实存</b>资产（一个 <c>.uxml</c>、一个 <c>.uss</c>）： <br />
     /// 本文件不新增测试资产，测试桩一律代码注入。异步那格今天在 EditMode 就判得了：编辑器域里资源服务未初始化， <br />
     /// <c>ResourceService.TryLoadAssetAsync</c> 走 <c>AssetDatabase</c> 那一支不经过任何 await 站点，<c>InternalLoad</c> 的续体当场跑完（不是「推测要 PlayMode」）。 <br />
     /// 真装载建出的壳交 <c>TearDown</c> 清理，且登记排在断言之前：<c>InternalLoad</c> 是 <c>async UniTaskVoid</c>，中途抛错时壳已经挂到场景根，漏登记就是串味。 <br />
@@ -33,10 +33,10 @@ namespace Service.UI
         /// <summary>真主题资产的定位地址：包内实存的调试器样式表（<c>ApplyTheme</c> 成功分支的挂载判据）。</summary>
         private const string ThemeAssetPath = "Packages/com.moirai.framework/Runtime/Services/Debugger/Resources/Debugger UI.uss";
 
-        /// <summary>同一枚样式表的 Resources 地址：拿它与 <paramref name="ThemeAssetPath"/> 取到的对象比同一性，钉住「挂的就是取到的那一份」。</summary>
+        /// <summary>同一个样式表的 Resources 地址：拿它与 <paramref name="ThemeAssetPath"/> 取到的对象比同一性，钉住「挂的就是取到的那一份」。</summary>
         private const string ThemeResourceName = "Debugger UI";
 
-        /// <summary>那枚真模板的内置资源地址（它在 <c>Editor/Foundation/Events/Resources/</c> 下）：先证 <c>Resources.Load</c> 取不取得到，再决定 <c>fromResources</c> 那一支覆不覆。</summary>
+        /// <summary>那个真模板的内置资源地址（它在 <c>Editor/Foundation/Events/Resources/</c> 下）：先证 <c>Resources.Load</c> 取不取得到，再决定 <c>fromResources</c> 那一支覆不覆。</summary>
         private const string TemplateResourceName = "EventsDebugger";
 
         private GameObject _host;
@@ -45,7 +45,7 @@ namespace Service.UI
         private readonly List<GameObject> _shells = new List<GameObject>();
 
         /// <summary>
-        /// 壳物体统一挂在一只场景空父下便于清理；<c>SharedPanelSettings</c> 是程序集级静态，先存原值再交给用例改写。
+        /// 壳物体统一挂在一个场景空父下便于清理；<c>SharedPanelSettings</c> 是程序集级静态，先存原值再交给用例改写。
         /// </summary>
         [SetUp]
         public void SetUp()
@@ -120,7 +120,7 @@ namespace Service.UI
         #region 装载判据 [LOAD]
 
         /// <summary>
-        /// 两枚配置都缺位（窗口级覆盖没给、共享那一份也被清空）：当场拒开——只报一条 Error、回 false，且不造半个面板。
+        /// 两个配置都缺位（窗口级覆盖没给、共享那一份也被清空）：当场拒开——只报一条 Error、回 false，且不造半个面板。
         /// </summary>
         /// <remarks>
         /// 拒开必须发生在壳物体与 <c>UIDocument</c> 之前（窗口仍停在未绑定态），三份意图与 <c>ApplySafeInsets</c> 的写入照旧落空而不抛—— <br />
@@ -239,7 +239,7 @@ namespace Service.UI
         /// <c>fromResources = true</c> 那一支（<c>Resources.Load&lt;VisualTreeAsset&gt;</c>）的覆盖：模板住在 <c>Editor</c> 装配的 Resources 下，取到了才谈得上覆盖。
         /// </summary>
         /// <remarks>
-        /// 第一句是前提断言，不是被测判据：它把「编辑器域里这枚 Editor 侧 Resources 资产取不取到」钉成实测事实， <br />
+        /// 第一句是前提断言，不是被测判据：它把「编辑器域里这个 Editor 侧 Resources 资产取不取到」钉成实测事实， <br />
         /// 取不到时这一格红在前提上（文案自带资源名），而不是让下面的装载判据去猜。 <br />
         /// 走 <c>LoadPanel</c> 的 <c>fromResources</c> 分支 ⇒ 地址按 Resources 名给，不经 <c>AssetDatabase</c> 路径。
         /// </remarks>
@@ -290,7 +290,7 @@ namespace Service.UI
             var error = Assert.Throws<Moirai.Atropos.GameException>(() => window.BindPanel(bareShell, null));
 
             StringAssert.Contains(nameof(ProbeWindow), error.Message,
-                "缺 UIDocument 的文案要带上窗口名：拿到半个可用面板不如当场指认");
+                "缺 UIDocument 的文案要带上窗口标识：拿到半个可用面板不如当场指认");
             Assert.IsNull(window.gameObject, "抛错后不得把半个面板占住引用");
         }
 
@@ -306,7 +306,7 @@ namespace Service.UI
             Assert.IsTrue(window.BindPanel(shell, null), "带 UIDocument 的壳应装配成功");
 
             Assert.AreSame(shell, window.gameObject, "gameObject 应交回装配好的壳");
-            Assert.AreSame(document, window.Document, "Document 应指向壳上那枚文档组件");
+            Assert.AreSame(document, window.Document, "Document 应指向壳上那个文档组件");
             Assert.AreSame(_panelSettings, document.panelSettings, "装配不得改写后端配好的 PanelSettings");
             Assert.AreEqual(nameof(ProbeWindow), shell.name, "壳要改写成窗口类型名（uGUI 轨的命名口径）");
             Assert.AreEqual(Vector3.zero, shell.transform.localPosition, "壳的本地坐标要归零");
@@ -389,7 +389,7 @@ namespace Service.UI
         /// 一刀切回 <c>Position</c> 会打穿按元素的意图；uGUI 轨没这个两难（它切 <c>GraphicRaycaster.enabled</c>，开关天然覆盖子树）。 <br />
         /// 摆夹具的时机是要害：装载当场 <c>PanelLoaded</c> 已按 <c>_interactable == false</c> 结算过一次（意图位停在 false），那时子元素还不存在， <br />
         /// 之后直接写 <c>false</c> 会被 <see cref="UIWindow.Interactable"/> 的意图同值早退吃掉、钩子一次都不进。故本格先扳到 <c>true</c>（第一次真转移）， <br />
-        /// 再挂子元素，再写回 <c>false</c>（第二次真转移）⇒ 钩子必然带着这枚后挂的子元素被调用一次。 <br />
+        /// 再挂子元素，再写回 <c>false</c>（第二次真转移）⇒ 钩子必然带着这个后挂的子元素被调用一次。 <br />
         /// 变异自证：把 <c>ApplyInteractable</c> 改成连子元素一起铺 <c>pickingMode</c>，最后那句断言当场红（红过才许改成「子元素也被屏蔽」）。
         /// </remarks>
         [Test]
@@ -398,7 +398,7 @@ namespace Service.UI
             var shell = NewShell("Panel");
             var window = Loaded(shell);
 
-            // 先把意图扳到反方向：装载那次结算看不见下面这枚子元素，同值再写又被早退吃掉，只有真转移才喂得到钩子
+            // 先把意图扳到反方向：装载那次结算看不见下面这个子元素，同值再写又被早退吃掉，只有真转移才喂得到钩子
             window.Interactable = true;
             Assert.AreEqual(PickingMode.Position, window.RootVisual.pickingMode,
                 "量具前提坏了：反向那次真转移应让钩子把内容根放回命中树（红在这里说明整格没进 ApplyInteractable）");
@@ -434,7 +434,7 @@ namespace Service.UI
         #region 序空间：意图位与文档事实 [ORDER SPACE]
 
         /// <summary>
-        /// 绑定好的窗口：深度意图经 <c>ApplyDepth</c> 落进文档组件的排序值，而 <see cref="UITKWindow.Document"/> 交回的就是被写那一枚。
+        /// 绑定好的窗口：深度意图经 <c>ApplyDepth</c> 落进文档组件的排序值，而 <see cref="UITKWindow.Document"/> 交回的就是被写那个。
         /// </summary>
         /// <remarks>
         /// UI Toolkit 没有子画布偏移那一层，落地就是绝对值；判据打在窗基类自己的钩子与它的文档取口上。 <br />
@@ -451,7 +451,7 @@ namespace Service.UI
             Assert.AreEqual(1200, window.Depth, "意图位跟着这次写入");
             Assert.AreEqual(1200f, window.Document.sortingOrder, "深度意图落进文档组件的序空间");
             Assert.AreSame(shell.GetComponent<UIDocument>(), window.Document,
-                "文档取口交回的须是被写入的那一枚：换个口径读就不是面板事实");
+                "文档取口交回的须是被写入的那个：换个口径读就不是面板事实");
         }
 
         /// <summary>
@@ -514,7 +514,7 @@ namespace Service.UI
 
             Assert.DoesNotThrow(() => window.Depth = 900, "面板未绑定时写深度不得触碰不存在的文档组件");
             Assert.AreEqual(900, window.Depth, "写入攒在意图位上，面板不在场时它是唯一可信的深度");
-            Assert.IsNull(window.Document, "未装载即没有文档事实可读：取口不得伪造一枚");
+            Assert.IsNull(window.Document, "未装载即没有文档事实可读：取口不得伪造一个");
         }
 
         /// <summary>
@@ -551,7 +551,7 @@ namespace Service.UI
         /// </summary>
         /// <remarks>
         /// 主题缺失只降级样式、不判装载失败——一个窗口的排版坏不该让整窗打不开；样式表进的是内容根自己的 <c>styleSheets</c>， <br />
-        /// 不动 <c>PanelSettings.themeStyleSheet</c>（那是共享资产，一枚窗口改它会影响全部 UITK 窗口）。
+        /// 不动 <c>PanelSettings.themeStyleSheet</c>（那是共享资产，一个窗口改它会影响全部 UITK 窗口）。
         /// </remarks>
         [Test]
         public void BindPanel_MissingThemeAsset_LogsOnceAndKeepsPanelUsable()
@@ -631,7 +631,7 @@ namespace Service.UI
         /// <summary>把窗口此刻的壳物体交 <c>TearDown</c> 清理并回给用例；未绑定（回 null）时登记一条空位，清理侧自会跳过。</summary>
         /// <remarks>
         /// 真装载的壳挂在场景根上而不是用例自己的 <c>_host</c> 下，只能靠这份登记回收： <br />
-        /// 它必须排在成功判据的断言之前，装载中途抛错或后面的断言红掉都不该把一枚面板留在现场串味下一轮。
+        /// 它必须排在成功判据的断言之前，装载中途抛错或后面的断言红掉都不该把一个面板留在现场串味下一轮。
         /// </remarks>
         private GameObject RegisterShell(UITKWindow window)
         {

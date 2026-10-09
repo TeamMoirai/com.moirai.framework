@@ -25,7 +25,7 @@ namespace Moirai.Atropos.UI
         private readonly int _shutdownOrder;
         private readonly Func<Type, bool> _ownsWindowType;
         private readonly Func<bool> _isDriverValid;
-        private readonly Action<Type, bool, string, string, bool, UIPayload, CancellationToken> _openWindow;
+        private readonly Action<Type, bool, string, bool, UIPayload, CancellationToken> _openWindow;
         private Action _claimedShutDown;
 
         /// <summary>轨道名：进抬错文案，点名是哪一轨。</summary>
@@ -54,7 +54,7 @@ namespace Moirai.Atropos.UI
         /// <param name="openWindow">Type 形入口落到本轨的开窗实现。</param>
         internal UITrack(string trackName, Type windowBaseType, int shutdownOrder,
             Func<Type, bool> ownsWindowType, Func<bool> isDriverValid,
-            Action<Type, bool, string, string, bool, UIPayload, CancellationToken> openWindow)
+            Action<Type, bool, string, bool, UIPayload, CancellationToken> openWindow)
         {
             _trackName = trackName;
             _windowBaseType = windowBaseType;
@@ -83,15 +83,14 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
-        /// <param name="windowName">窗口名称。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌。</param>
-        internal void OpenWindow(Type type, bool isAsync, string windowName, string windowId, bool fromResources,
+        internal void OpenWindow(Type type, bool isAsync, string windowId, bool fromResources,
             UIPayload payload, CancellationToken ct)
         {
-            _openWindow(type, isAsync, windowName, windowId, fromResources, payload, ct);
+            _openWindow(type, isAsync, windowId, fromResources, payload, ct);
         }
     }
 }

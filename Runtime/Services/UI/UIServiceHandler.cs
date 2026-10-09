@@ -11,7 +11,7 @@ namespace Moirai.Atropos.UI
     /// 栈本体、编排与查询住在 <see cref="UIWindowLedger"/>，各轨处理器只是转发口，两支后端因此并存于同一份栈。<br />
     /// 面板本体（根节点、摄像机、装载与拾取）住在各后端的派生处理器里，本类经 <see cref="UIRoot"/>、<see cref="UICamera"/> 取用。<br />
     /// 具体类型记在 <see cref="UIServiceSettings"/> 的启用清单里，由 <c>OnInit</c> 逐条叫 <see cref="Internal_Register"/> 认领。<br />
-    /// 新增一支后端：一枚派生实现类、一条认领门、一枚 <c>UIService.&lt;轨&gt;.cs</c> partial 文件。
+    /// 新增一支后端：一个派生实现类、一条认领门、一份 <c>UIService.&lt;轨&gt;.cs</c> partial 文件。
     /// </remarks>
     [Serializable]
     public abstract class UIServiceHandler : FrameworkHandler
@@ -104,7 +104,7 @@ namespace Moirai.Atropos.UI
         /// 抽象且无默认实现：栈是两支共用的，缺判据的派生者会把另一轨的窗一并清空。<br />
         /// 两支内建处理器各自认自己的窗口基类。
         /// </remarks>
-        /// <param name="window">栈上待判的那一只。</param>
+        /// <param name="window">栈上待判的窗口。</param>
         /// <returns>属于本轨时为真。</returns>
         protected abstract bool IsWindowOnOwnTrack(UIWindow window);
 
@@ -118,12 +118,12 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 把这一枚驱动者注册进它自己那一轨的门面槽：归属由实现类自述。
+        /// 把这个驱动者注册进它自己那一轨的门面槽：归属由实现类自述。
         /// </summary>
         /// <remarks>
         /// 由 <see cref="UIService.OnInit"/> 按 <see cref="UIServiceSettings.EnabledHandlers"/> 逐支调用。<br />
-        /// 同一轨再来第二枚不同实例时抬错，不静默换掉在位的那一枚。<br />
-        /// 同一枚实例重复注册是空操作（<c>OnInit</c> 可重入）。
+        /// 同一轨再来第二个不同实例时抬错，不静默换掉在位实例。<br />
+        /// 同一实例重复注册是空操作（<c>OnInit</c> 可重入）。
         /// </remarks>
         /// <exception cref="GameException">本轨已经有驱动者在位。</exception>
         internal abstract void Internal_Register();
@@ -133,7 +133,7 @@ namespace Moirai.Atropos.UI
         #region 内部门缝 [INTERNAL SEAMS]
 
         /// <summary>
-        /// 现读本枚处理器此刻用的那份共享持有者。
+        /// 现读本处理器此刻用的那份共享持有者。
         /// </summary>
         /// <returns>门面当前那一份 <see cref="UIWindowLedger"/>。</returns>
         internal UIWindowLedger Internal_PeekLedger() => Ledger;
@@ -145,11 +145,11 @@ namespace Moirai.Atropos.UI
         internal IReadOnlyList<UIWindow> Internal_PeekStack() => Ledger.PeekStack();
 
         /// <summary>
-        /// 停放表里是否有这个名字的窗：缓存实例关闭后落在这里，栈上已无。
+        /// 停放表里是否有这一标识的窗：缓存实例关闭后落在这里，栈上已无。
         /// </summary>
-        /// <param name="windowName">窗口名称。</param>
+        /// <param name="windowId">窗口标识。</param>
         /// <returns>停放表命中时为真。</returns>
-        internal bool Internal_IsParked(string windowName) => Ledger.IsParked(windowName);
+        internal bool Internal_IsParked(string windowId) => Ledger.IsParked(windowId);
 
         #endregion
     }

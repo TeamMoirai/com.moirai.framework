@@ -100,35 +100,36 @@ public class MainWindow : UGUIWindow
 打开与关闭窗口：
 
 ```csharp
-// 同步打开（WebGL 平台自动转为异步）
-UIService.ShowUI<MainWindow>();
+// 同步打开（WebGL 平台自动转为异步）：那一枚标识既是栈上身份，也是面板地址的原料
+UIService.ShowUI<MainWindow>("main");
 
 // 异步打开（无载荷腿）
-UIService.ShowUIAsync<MainWindow>();
+UIService.ShowUIAsync<MainWindow>("main");
 
 // 带载荷的开窗换两枚类型实参那一族，载荷排第一枚（窗口内以 Payload 读取）
-UIService.ShowUIAsync<DetailWindow, int>(1001);
+UIService.ShowUIAsync<DetailWindow, int>(1001, "detail");
 
-// 运行期才知道窗口类的动态腿：载荷擦进 UIPayload，第三枚给窗口标识、由门面按档换算
-UIService.ShowUIAsync(type, windowName, windowId,
+// 运行期才知道窗口类的动态腿：载荷擦进 UIPayload，第二枚给窗口标识、由门面按档换算
+UIService.ShowUIAsync(type, windowId,
     fromResources: false, payload: UIPayload.From(dto));
 
 // 全腿收 CancellationToken（default 零开销）；撤销只在装载在途那一段有意义
-UIService.ShowUIAsync<MainWindow>(windowName: "Main", ct: cts.Token);
+UIService.ShowUIAsync<MainWindow>(windowId: "main", ct: cts.Token);
 
 // 异步打开并等待加载完成（超时 60 秒；被调用方令牌撤销时原样上抛 OperationCanceledException）
-UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>();
+UIWindow window = await UIService.ShowUIAsyncAwait<MainWindow>("main");
 
 // 异步打开并等终态：就绪 / 失败 / 缺失 / 超时 / 取消分明（失败窗已回滚出栈，不得复用）
-UIOpenResult result = await UIService.ShowUIAwaitResult<MainWindow>();
+UIOpenResult result = await UIService.ShowUIAwaitResult<MainWindow>("main");
 if (result.Status == EUIOpenStatus.Opened) { /* result.Window 可用 */ }
 
-// 关闭 / 隐藏（HideTimeToClose 秒后自动关闭）
-UIService.CloseUI<MainWindow>();
+// 关闭 / 隐藏：带标识只点那一枚键，不带标识收这一类的每一只（HideUI 同样先等 HideTimeToClose 秒）
+UIService.CloseUI<MainWindow>("main");
 UIService.HideUI<MainWindow>();
 
-// 查询
+// 查询：带标识按标识判，不带标识按窗口类型扫栈
 bool exist = UIService.HasWindow<MainWindow>();
+MainWindow main = UIService.GetWindow<MainWindow>();
 UIWindow top = UIService.GetTopWindow();
 
 // 导航：关上最近开的那只（开启序，不是层级序）
@@ -144,11 +145,11 @@ bool closed = UIService.TryCloseTopWindow();
 
 | 腿 | 签名 | 交回 |
 |---|---|---|
-| 异步·无载荷 | `ShowUIAsync<T>(string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`，`T : UGUIWindow, new()` | `void` |
+| 异步·无载荷 | `ShowUIAsync<T>(string windowId = null, bool fromResources = false, CancellationToken ct = default)`，`T : UGUIWindow, new()` | `void` |
 | 同步·无载荷 | `ShowUI<T>(…同形…)`，`T : UGUIWindow, new()` | `void` |
 | 等待·无载荷 | `ShowUIAsyncAwait<T>(…同形…)`，`T : UGUIWindow, new()` | `UniTask<UIWindow>` |
 | 结果·无载荷 | `ShowUIAwaitResult<T>(…同形…)`，`T : UGUIWindow, new()` | `UniTask<UIOpenResult>` |
-| 异步·带载荷 | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`，`TWindow : UGUIWindow<TArg>, new()` | `void` |
+| 异步·带载荷 | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowId = null, bool fromResources = false, CancellationToken ct = default)`，`TWindow : UGUIWindow<TArg>, new()` | `void` |
 | 同步·带载荷 | `ShowUI<TWindow, TArg>(in TArg payload, …同形…)` | `void` |
 | 等待·带载荷 | `ShowUIAsyncAwait<TWindow, TArg>(TArg payload, …同形…)` | `UniTask<TWindow>` |
 | 结果·带载荷 | `ShowUIAwaitResult<TWindow, TArg>(in TArg payload, …同形…)` | `UniTask<UIOpenResult>` |
@@ -161,7 +162,7 @@ bool closed = UIService.TryCloseTopWindow();
 
 | 腿 | 签名 | 交回 |
 |---|---|---|
-| 异步 | `ShowUIAsync(Type type, string windowName = null, string windowId = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
+| 异步 | `ShowUIAsync(Type type, string windowId = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
 | 同步 | `ShowUI(Type type, …同形…)` | `void` |
 | 等待 | `ShowUIAsyncAwait(Type type, …同形…)` | `UniTask<UIWindow>` |
 
@@ -173,9 +174,11 @@ bool closed = UIService.TryCloseTopWindow();
 |---|---|---|
 | 导航深度 | `NavigationDepth`（`int` 属性） | 开启序历史的长度（栈按层级排序答不出「最近开的是谁」） |
 | 关顶 | `TryCloseTopWindow()` | 关上最近开的那只，走既有 `CanClose` 政策；无历史 / 拒关 / 过渡中回假，历史不出栈 |
-| 取窗·等待 | `GetUIAsyncAwait<T>()` | 栈上没有这一名或那只是别的类型时交回 `null` |
-| 取窗·回调 | `GetUIAsync<T>(Action<T> callback)` | 找不到时只发一条 Warning，回调不被调用 |
-| 取窗·结果 | `GetUIAwaitResult<T>()` | 交回 `UIOpenResult`，`Missing` 档表栈上没有那一只 |
+| 取窗·等待 | `GetUIAsyncAwait<T>(string windowId = null)` | 带标识按标识找、不带标识按类型扫栈取栈顶那一只；找不到交回 `null` 并只发一条 Warning |
+| 取窗·回调 | `GetUIAsync<T>(Action<T> callback, string windowId = null)` | 同一判据；找不到时只发一条 Warning，回调不被调用 |
+| 取窗·结果 | `GetUIAwaitResult<T>(string windowId = null)` | 交回 `UIOpenResult`，`Missing` 档表栈上没有那一只 |
+
+关与隐两支同一条键规则：`CloseUI<T>(windowId)` / `HideUI<T>(windowId)` 只点那一枚键，不带标识则收这一类的每一只（自栈顶向下逐只走单窗那条路径，停放/销毁与交互位交还的分档不变）。
 
 取窗这三支问的是那条共享栈、只等已开窗的装载终态，因此不接调用方令牌（等待内部只受 60 秒上界约束）。
 
@@ -203,10 +206,10 @@ public class RenameWindow : UGUIWindow<RenameWindowPayload>   // 带载荷必须
 }
 
 // 静态腿：编译期已知窗口类 → 泛型直塞，struct 不装箱，一步都不经 UIPayload 擦除
-UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto);
+UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto, "rename");
 
 // 动态腿：运行期才有 Type → 载荷擦进 UIPayload（引用型只存引用，值类型装箱一次）
-UIService.ShowUIAsync(type, windowName, windowId,
+UIService.ShowUIAsync(type, windowId,
     fromResources: false, payload: UIPayload.From(dto));
 ```
 
@@ -214,7 +217,7 @@ UIService.ShowUIAsync(type, windowName, windowId,
 
 - 载荷写入排在**准备回执与压栈之前**这一条管的是**停放重取与新开**两条支路（两条通道同一口径），所以 `OnRefresh` 读到的永远是这一次的载荷；复用支路的 Pop→Push 排在验槽之前（那只窗本就完整在栈，验槽不过抬错，回执与挪序已发生）
 - 不带槽的窗口（直继 `UGUIWindow` / `UITKWindow`）被塞非空载荷当场抬错——fail-fast，不静默吞；空载荷作用于无槽窗是合法档（无载荷腿一路走这一档）
-- 按名命中的窗槽型不符（`SetPayloadChecked` 认 `IUIPayloadSlot<TArg>`）、或门面按名取回的实例不是 `TWindow`，都抬 `GameException` 且消息带期望/实际类型名；「抬错排在卸停放与压栈之前」说的是**停放重取与新开**这两条支路，因此既不压半只窗、也不消费停放态（那只实例仍从停放表取得回）；复用支路的 Pop→Push 排在验槽之前（见上一条），抬错时回执与挪序都已发生
+- 按标识命中的窗槽型不符（`SetPayloadChecked` 认 `IUIPayloadSlot<TArg>`）、或门面按标识取回的实例不是 `TWindow`，都抬 `GameException` 且消息带期望/实际类型名；「抬错排在卸停放与压栈之前」说的是**停放重取与新开**这两条支路，因此既不压半只窗、也不消费停放态（那只实例仍从停放表取得回）；复用支路的 Pop→Push 排在验槽之前（见上一条），抬错时回执与挪序都已发生
 - `UIPayload` 的失败面：`To<T>` 在类型不符、或空载荷作用于值类型时抬 `GameException`（消息带期望类型名）；`TryGet<T>` 回假不抬错；`From(null)` 归约为 `Empty`
 - 分配档位：无载荷往返（停放重取稳态）、静态腿 struct/class 载荷、动态腿 class 载荷都承诺增量 0；只有动态腿的基元/值类型载荷允许装箱一次。量具是 `GC.GetAllocatedBytesForCurrentThread`（本线程口径；L3 `[Explicit]` 基准格 `UIOpenAllocBenchmarkTests`，实测字节导出 `Temp/ui-open-alloc-benchmark.txt`——编辑器 Mono 下这一口径恒 0，真判据以玩家侧报告为准）
 
@@ -366,14 +369,14 @@ public class RenameWindow : UGUIWindow
 - uGUI 轨的 UI 根由场景物体上的 `UIRootBinding` 组件登记（其下需含 `Canvas`）：`SingletonMono` 先到先得，后到者整物体销毁；取用走 `TryGetInstance()`，只回读、不自动创建。后端在首个 Update tick 取用，缺绑定报一条 Error、缺 Canvas 报一条 Fatal，之后都每帧续等（后加入的场景、运行期实例化的根、事后补上的 Canvas 都补得上）。登记到位后 UI 根自动 `DontDestroyOnLoad`（仅播放态）。**查找不按物体名字**——改名不影响，多场景/热更下同名也不会错挂根。UI Toolkit 轨的文档壳也挂在这枚根下，关停时它先于根销毁被收走。
 - `ShowUI` 同步加载依赖资源服务的同步加载能力，WebGL 下自动退化为异步；建议优先使用 `ShowUIAsync`
 - `HideUI` 仅当窗口 `HideTimeToClose > 0` 时生效，否则等同直接 `CloseUI`
-- `GetUIAsyncAwait<T>()` / `GetUIAsync<T>` 只等待"已打开"窗口的加载完成，窗口不存在时返回 null / 不回调
+- `GetUIAsyncAwait<T>(windowId)` / `GetUIAsync<T>(callback, windowId)` 只等待"已打开"窗口的加载完成：带标识按标识找、不带标识按窗口类型扫栈取栈顶那一只，找不到时返回 null / 不回调并各报一条 Warning
 - 窗口更新（`OnUpdate`）仅对可见窗口触发；全屏窗口会遮挡其下窗口的可见性
 - 带载荷窗口必须继承 `UGUIWindow<TArg>` / `UITKWindow<TArg>`：直继无槽基类却被塞非空载荷当场抬错。载荷每次开窗覆盖、关闭不清（残留到下一次覆盖为止），无「读一次即清」的语义
 - 基元与 struct 的主路是静态腿 `in TArg`（泛型直塞、零装箱）；`UIPayload` 只服务运行期才知 `Type` 的动态腿，值类型经它装箱一次——热路径别把 struct 塞进动态腿
 - 全腿的 `CancellationToken` 传 `default` 零开销，且只在装载在途那一段被消费：已就绪的复用与停放重取不消费 `ct`；复用一只仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载（与在飞合并同段语义）
 - 窗口开合回执走门面静态广播：`UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent`（形参 `UIWindow`），入栈/出栈各恰一次、停放与销毁都发；订阅者自己配对退订，门面关停与归零门会整批摘掉
 - 停放档一枚三态：`[Window(cacheTimeToDestroy: …)]`，`0` = 不缓存（关闭即销毁，缺省即此）、正数 = 停放并在这么多秒后转销毁、负数 = 停放永久；到期由账本移出停放表并终态销毁，重新取用即取消计时
-- 寻址归门面：开窗腿的第三枚是**窗口标识**——`fromResources` 为真时把它拼到 `UIServiceSettings` 的 Resources 父目录下，为假时按它查 `ConfigTableService.GetUIWindowLocation`；标识必填（没带即当场 `GameException`，地址没有第二条来路）；`[Window]` 不再声明地址。原 `UIManager` 与它的两枚公共静态定位口已退役，换算判据只此一份，且只在账本造新实例那一格发生（复用栈上窗与停放重取不查表）
+- 寻址归门面：开窗腿带的**窗口标识**（无载荷腿第一枚；带载荷腿排在载荷之后；`Type` 形入口排在 `Type` 之后）既是栈上身份又是地址原料——`fromResources` 为真时把它拼到 `UIServiceSettings` 的 Resources 父目录下，为假时按它查 `ConfigTableService.GetUIWindowLocation`；标识必填（没带即当场 `GameException`，地址没有第二条来路）；`[Window]` 不再声明地址。同标识即复用栈上那一只，窗口对象上的 `WindowId` 也就是这一枚标识；`CloseUI` / `HideUI` 不带标识时收这一类的每一只。原 `UIManager` 与它的两枚公共静态定位口已退役，换算判据只此一份，且只在账本造新实例那一格发生（复用栈上窗与停放重取不查表）
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI 迁移](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

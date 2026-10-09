@@ -97,37 +97,34 @@ namespace Service.UI
         {
             Type passedType = null;
             var passedAsync = false;
-            string passedName = null;
-            string passedLocation = null;
+            string passedWindowId = null;
             var passedFromResources = false;
             UIPayload passedPayload = UIPayload.Empty;
             CancellationToken passedToken = default;
             var payload = new object();
             RegisterSyntheticTrack("SYNTH", typeof(ProbeNeutralWindow), UITrack.SHUTDOWN_ORDER_DEFAULT,
-                (type, isAsync, windowName, assetLocation, fromResources, erased, ct) =>
+                (type, isAsync, windowId, fromResources, erased, ct) =>
                 {
                     passedType = type;
                     passedAsync = isAsync;
-                    passedName = windowName;
-                    passedLocation = assetLocation;
+                    passedWindowId = windowId;
                     passedFromResources = fromResources;
                     passedPayload = erased;
                     passedToken = ct;
                 }, NeverValid);
 
-            UIService.ShowUIAsync(typeof(ProbeNeutralWindow), "SynthAsync", "Synth/Address", true, UIPayload.From(payload));
+            UIService.ShowUIAsync(typeof(ProbeNeutralWindow), "SynthAsync", true, UIPayload.From(payload));
             Assert.AreEqual(typeof(ProbeNeutralWindow), passedType, "交进合成轨的就是调用方给的窗口类");
             Assert.IsTrue(passedAsync, "异步入口落下异步档");
-            Assert.AreEqual("SynthAsync", passedName, "窗口名原样交下");
-            Assert.AreEqual("Synth/Address", passedLocation, "面板地址原样交下");
+            Assert.AreEqual("SynthAsync", passedWindowId, "窗口标识原样交下（栈上身份与地址原料同这一枚）");
             Assert.IsTrue(passedFromResources, "取法原样交下");
             Assert.IsFalse(passedPayload.IsEmpty, "擦除后的载荷按一枚 UIPayload 收下");
             Assert.AreSame(payload, passedPayload.To<object>(), "交进轨道的就是调用方那一枚");
             Assert.IsFalse(passedToken.CanBeCanceled, "缺省令牌一路是 None 档：动态腿不收 CT 时不造可撤销源");
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "合成轨不往栈里写：分派到此为止，栈上一只窗都不多");
 
-            UIService.ShowUI(typeof(ProbeNeutralWindow), "SynthSync", "Synth/Address", false, UIPayload.From(payload));
-            Assert.AreEqual("SynthSync", passedName, "同步入口落到同一枚实现");
+            UIService.ShowUI(typeof(ProbeNeutralWindow), "SynthSync", false, UIPayload.From(payload));
+            Assert.AreEqual("SynthSync", passedWindowId, "同步入口落到同一枚实现");
             Assert.IsFalse(passedAsync, "同步入口在编辑器那一档不落异步");
         }
 
@@ -144,14 +141,14 @@ namespace Service.UI
             var synth = RegisterSyntheticTrack("SYNTH-MSG", typeof(ProbeNeutralWindow), UITrack.SHUTDOWN_ORDER_DEFAULT,
                 DelegateSink.None, NeverValid);
 
-            var error = Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeUnclaimedWindow), "w", "w"),
+            var error = Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeUnclaimedWindow), "w"),
                 "不落任何一轨的窗口类照旧当场抬错");
             StringAssert.Contains("ProbeNeutralWindow", error.Message, "文案按目录枚举：合成轨的窗口基类也要答得出");
             StringAssert.Contains("UGUIWindow", error.Message, "内建轨的窗口基类照旧在列");
 
             Assert.IsTrue(UIService.Internal_UnregisterTrack(synth), "摘登记要真把合成轨从目录里拿掉");
             _syntheticTracks.Remove(synth);
-            Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeNeutralWindow), "w", "w"),
+            Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeNeutralWindow), "w"),
                 "摘掉登记后合成轨的窗口类回「认不出轨」那一档");
         }
 
@@ -231,7 +228,7 @@ namespace Service.UI
         /// <param name="validProbe">有效性探针，由用例控制。</param>
         /// <returns>登记进目录的那一枚。</returns>
         private UITrack RegisterSyntheticTrack(string name, Type windowBaseType, int shutdownOrder,
-            Action<Type, bool, string, string, bool, UIPayload, CancellationToken> openSink, Func<bool> validProbe)
+            Action<Type, bool, string, bool, UIPayload, CancellationToken> openSink, Func<bool> validProbe)
         {
             var track = new UITrack(name, windowBaseType, shutdownOrder,
                 windowBaseType.IsAssignableFrom, validProbe, openSink);
@@ -247,7 +244,7 @@ namespace Service.UI
         private static class DelegateSink
         {
             /// <summary>什么都不做的开窗落点。</summary>
-            internal static void None(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            internal static void None(Type type, bool isAsync, string windowId, bool fromResources,
                 UIPayload payload, CancellationToken ct)
             {
             }
