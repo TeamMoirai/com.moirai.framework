@@ -235,6 +235,7 @@ namespace Moirai.Atropos.UI
         {
             Internal_ResetSharedLedger();
             Internal_EnableHandlersFromSettings();
+            DebuggerService.RegisterDebuggerWindow("Profiler/UI", new UIServiceDebuggerWindow());
         }
 
         /// <summary>
@@ -501,13 +502,12 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <param name="type">窗口类型。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        public static void ShowUIAsync(Type type, string windowId = null, bool fromResources = false,
+        public static void ShowUIAsync(Type type, string windowId,
             UIPayload payload = default, CancellationToken ct = default)
         {
-            RequireOwningTrack(type).OpenWindow(type, true, windowId, fromResources, payload, ct);
+            RequireOwningTrack(type).OpenWindow(type, true, windowId, payload, ct);
         }
 
         /// <summary>
@@ -515,17 +515,16 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 寻址两档与上一道同一判据：落在哪一轨由 <see cref="RequireOwningTrack"/> 按目录先认。<br />
-        /// 同步档在 <c>UNITY_WEBGL</c> 上交给异步装载；内置资源（<paramref name="fromResources"/>）那一路两支都不落 await。
+        /// 同步档在 <c>UNITY_WEBGL</c> 上交给异步装载；内置资源那一路两支都不落 await。
         /// </remarks>
         /// <param name="type">窗口类型。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        public static void ShowUI(Type type, string windowId = null, bool fromResources = false,
+        public static void ShowUI(Type type, string windowId,
             UIPayload payload = default, CancellationToken ct = default)
         {
-            RequireOwningTrack(type).OpenWindow(type, SYNC_LOAD_USES_ASYNC, windowId, fromResources, payload, ct);
+            RequireOwningTrack(type).OpenWindow(type, SYNC_LOAD_USES_ASYNC, windowId, payload, ct);
         }
 
         /// <summary>
@@ -537,11 +536,10 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <param name="type">窗口类型。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
         /// <returns>栈上那个窗口（面板就绪后交回；装载失败交回 null）。</returns>
-        public static async UniTask<UIWindow> ShowUIAsyncAwait(Type type, string windowId = null, bool fromResources = false,
+        public static async UniTask<UIWindow> ShowUIAsyncAwait(Type type, string windowId,
             UIPayload payload = default, CancellationToken ct = default)
         {
             var track = RequireOwningTrack(type);
@@ -552,7 +550,7 @@ namespace Moirai.Atropos.UI
                     track.TrackName, nameof(UIServiceSettings)));
             }
 
-            return await SharedLedger.ShowUIAwaitImp(type, true, windowId, fromResources, null, payload, ct);
+            return await SharedLedger.ShowUIAwaitImp(type, true, windowId, null, payload, ct);
         }
 
         /// <summary>
@@ -690,8 +688,9 @@ namespace Moirai.Atropos.UI
         /// 异步获取窗口。
         /// </summary>
         /// <typeparam name="T">窗口类型。</typeparam>
+        /// <param name="windowId">窗口标识：栈上没有这一枚时按类型扫栈取栈顶那一只。</param>
         /// <param name="callback">回调。</param>
-        public static void GetUIAsync<T>(Action<T> callback, string windowId = null) where T : UIWindow =>
+        public static void GetUIAsync<T>(string windowId, Action<T> callback) where T : UIWindow =>
             SharedLedger.GetUIAsync(callback, windowId);
 
         /// <summary>
