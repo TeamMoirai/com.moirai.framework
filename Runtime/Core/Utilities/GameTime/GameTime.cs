@@ -13,6 +13,7 @@ namespace Moirai.Atropos
     /// 测试注入自定义 <see cref="GameTimeHandler"/> 即可让依赖时间的服务获得与 Unity 主循环无关的确定性推进，调用方代码无需改动。
     /// </remarks>
     [HandlerHost(typeof(GameTimeHandler))]
+    [HotPath]
     public static partial class GameTime
     {
         #region 处理器 [HANDLER]
