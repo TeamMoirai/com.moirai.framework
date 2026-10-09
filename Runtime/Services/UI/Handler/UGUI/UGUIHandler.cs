@@ -42,7 +42,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 取用场景登记的 UI 根（<see cref="UIRootBinding.TryGetInstance()"/>）。
+        /// 取用场景登记的 UI 根（<see cref="SingletonMono{T}.TryGetInstance()"/>）。
         /// </summary>
         /// <remarks>
         /// 尚未绑定、或已绑定但其下还没有 Canvas 时挂起等待，由 <see cref="Tick"/> 续等。 <br />
