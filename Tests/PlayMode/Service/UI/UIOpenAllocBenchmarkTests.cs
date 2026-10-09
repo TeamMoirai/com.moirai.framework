@@ -16,7 +16,7 @@ namespace Service.UI
     /// </summary>
     /// <remarks>
     /// 量具是 <see cref="GC.GetAllocatedBytesForCurrentThread"/>（本线程口径；计划里写的 <c>GetAllocatedMemoryForCurrentThread</c>
-    /// 在 Unity 的 .NET 档不存在，仓内既有的同口径计量走的就是这一枚）。 <br />
+    /// 在 Unity 的 .NET 档不存在，仓内既有的同口径计量走的就是这个）。 <br />
     /// 口径已知：本包 <c>Documentation~/zh/Testing.md</c> 记录该字节口径在编辑器 Mono、Mono 玩家、IL2CPP 玩家三处实测恒 0 ——
     /// 测不出分配不等于没有分配。判假红预案按派发口径执行：若读数出现 4096 的整数倍噪音，先怀疑量具（并行 build 抢 CPU），
     /// 改引用同一性/计数类结构断言（每格都另带一组同一性与计数断言，正是为此留着），不抬阈值。 <br />
@@ -36,7 +36,7 @@ namespace Service.UI
         /// <summary>每格往返次数：够摊平一次性的池与列表扩容，又不把基准跑成分钟级。</summary>
         private const int ITERATIONS = 32;
 
-        /// <summary>动态腿基元的装箱上界（字节/次）：一枚装箱 header+字段按 32 字节预算，超出即红。</summary>
+        /// <summary>动态腿基元的装箱上界（字节/次）：一个装箱 header+字段按 32 字节预算，超出即红。</summary>
         private const int BOXING_BYTES_PER_ITERATION = 32;
 
         /// <summary>跨用例累积的读数行：NUnit 每个测试新建 fixture 实例，基准记账走 static（与 KernelBenchmark 同口径）。</summary>
@@ -90,7 +90,7 @@ namespace Service.UI
         {
             var delta = Measure("Grid1_NoPayload", "无载荷腿（停放重取稳态）", () =>
             {
-                UIService.ShowUI<AllocPlainWindow>("AllocNoPayload", "AllocNoPayload");
+                UIService.ShowUI<AllocPlainWindow>("AllocNoPayload");
                 UIService.CloseUI<AllocPlainWindow>("AllocNoPayload");
             });
 
@@ -105,7 +105,7 @@ namespace Service.UI
             var dto = new AllocDto { Value = 7, Text = "seven" };
             var delta = Measure("Grid2_StaticLegStruct", "静态腿 struct DTO", () =>
             {
-                UIService.ShowUI<AllocStructWindow, AllocDto>(in dto, "AllocStruct", "AllocStruct");
+                UIService.ShowUI<AllocStructWindow, AllocDto>(in dto, "AllocStruct");
                 UIService.CloseUI<AllocStructWindow>("AllocStruct");
             });
 
@@ -121,13 +121,13 @@ namespace Service.UI
             var box = new AllocBox();
             var delta = Measure("Grid3_StaticLegClass", "静态腿 class DTO", () =>
             {
-                UIService.ShowUI<AllocClassWindow, AllocBox>(in box, "AllocStaticClass", "AllocStaticClass");
+                UIService.ShowUI<AllocClassWindow, AllocBox>(in box, "AllocStaticClass");
                 UIService.CloseUI<AllocClassWindow>("AllocStaticClass");
             });
 
             Assert.Zero(delta, "静态腿 class 载荷只写引用，不复制不装箱");
             var window = AssertIdentityAfterRound<AllocClassWindow>("AllocStaticClass");
-            Assert.AreSame(box, window.Payload, "落进槽的是调用方那一枚引用");
+            Assert.AreSame(box, window.Payload, "落进槽的是调用方那个引用");
         }
 
         /// <summary>格 4：动态腿 class（<see cref="UIPayload"/> 擦除）——承诺增量 0（引用型只存引用）。</summary>
@@ -137,13 +137,13 @@ namespace Service.UI
             var box = new AllocBox();
             var delta = Measure("Grid4_DynamicLegClass", "动态腿 class（UIPayload 擦除）", () =>
             {
-                UIService.ShowUI(typeof(AllocClassWindow), "AllocDynClass", "AllocDynClass", false, UIPayload.From(box));
+                UIService.ShowUI(typeof(AllocClassWindow), "AllocDynClass", false, UIPayload.From(box));
                 UIService.CloseUI<AllocClassWindow>("AllocDynClass");
             });
 
             Assert.Zero(delta, "动态腿的引用型载荷按口径零分配：擦除载体只存引用");
             var window = AssertIdentityAfterRound<AllocClassWindow>("AllocDynClass");
-            Assert.AreSame(box, window.Payload, "擦除后按 TArg 取回的是同一枚引用");
+            Assert.AreSame(box, window.Payload, "擦除后按 TArg 取回的是同一个引用");
         }
 
         /// <summary>格 5：动态腿基元（int）——允许每次开窗装箱一次，实测字节记档并按 32 字节/次的上界守。</summary>
@@ -152,12 +152,12 @@ namespace Service.UI
         {
             var delta = Measure("Grid5_DynamicLegPrimitive", "动态腿基元 int（允许装箱一次）", () =>
             {
-                UIService.ShowUI(typeof(AllocIntWindow), "AllocDynInt", "AllocDynInt", false, UIPayload.From(7));
+                UIService.ShowUI(typeof(AllocIntWindow), "AllocDynInt", false, UIPayload.From(7));
                 UIService.CloseUI<AllocIntWindow>("AllocDynInt");
             });
 
             Assert.LessOrEqual(delta, BOXING_BYTES_PER_ITERATION * ITERATIONS,
-                "动态腿基元的装箱预算是每次开窗一枚 int：超出即契约坏了（不抬阈值，先查量具）");
+                "动态腿基元的装箱预算是每次开窗一个 int：超出即契约坏了（不抬阈值，先查量具）");
             var window = AssertIdentityAfterRound<AllocIntWindow>("AllocDynInt");
             Assert.AreEqual(7, window.Payload, "量具前提坏了：装箱后按 TArg 取回原值");
         }
@@ -168,7 +168,7 @@ namespace Service.UI
         {
             var delta = Measure("Grid6_DefaultToken", "default(ct) 全链（对照格）", () =>
             {
-                UIService.ShowUIAsync<AllocPlainWindow>("AllocNoCt", "AllocNoCt", false, default);
+                UIService.ShowUIAsync<AllocPlainWindow>("AllocNoCt", false, default);
                 UIService.CloseUI<AllocPlainWindow>("AllocNoCt");
             });
 
@@ -198,17 +198,17 @@ namespace Service.UI
             return delta;
         }
 
-        /// <summary>结构档：往返之后栈上必须仍是同一只实例（量具失效时的真判据，不抬阈值）。</summary>
-        private T AssertIdentityAfterRound<T>(string windowName) where T : UGUIWindow, new()
+        /// <summary>结构档：往返之后栈上必须仍是同一个实例（量具失效时的真判据，不抬阈值）。</summary>
+        private T AssertIdentityAfterRound<T>(string windowId) where T : UGUIWindow, new()
         {
-            UIService.ShowUI<T>(windowName, windowName);
-            var first = UIService.GetWindow<T>(windowName);
-            Assert.IsNotNull(first, "量具前提坏了：{0} 这一名要开得起来", windowName);
+            UIService.ShowUI<T>(windowId);
+            var first = UIService.GetWindow<T>(windowId);
+            Assert.IsNotNull(first, "量具前提坏了：{0} 这一标识要开得起来", windowId);
             Track(first);
-            UIService.CloseUI<T>(windowName);
-            UIService.ShowUI<T>(windowName, windowName);
-            var second = UIService.GetWindow<T>(windowName);
-            Assert.AreSame(first, second, "停放重取交回的必须是同一只实例");
+            UIService.CloseUI<T>(windowId);
+            UIService.ShowUI<T>(windowId);
+            var second = UIService.GetWindow<T>(windowId);
+            Assert.AreSame(first, second, "停放重取交回的必须是同一个实例");
             return second;
         }
 
@@ -218,7 +218,7 @@ namespace Service.UI
             _trackedShells.Add(window?.gameObject);
         }
 
-        /// <summary>代码建出的 uGUI 面板：只带一枚 <see cref="Canvas"/>——<c>BindPanel</c> 认的就是这一枚组件。</summary>
+        /// <summary>代码建出的 uGUI 面板：只带一个 <see cref="Canvas"/>——<c>BindPanel</c> 认的就是这个组件。</summary>
         private static GameObject NewCodeUGUIPanel(string name)
         {
             var panel = new GameObject(name, typeof(RectTransform));
@@ -228,14 +228,14 @@ namespace Service.UI
             return panel;
         }
 
-        /// <summary>基准用的强类型 struct DTO：静态腿按值直达的那一枚。</summary>
+        /// <summary>基准用的强类型 struct DTO：静态腿按值直达的那个。</summary>
         internal struct AllocDto
         {
             internal int Value;
             internal string Text;
         }
 
-        /// <summary>基准用的 class DTO：两腿都只存引用的那一枚。</summary>
+        /// <summary>基准用的 class DTO：两腿都只存引用的那个。</summary>
         internal sealed class AllocBox
         {
             internal int Value;
@@ -263,7 +263,7 @@ namespace Service.UI
                 UniTask.FromResult(LoadPanel(assetLocation, fromResources));
         }
 
-        /// <summary>class DTO 探针窗（缓存实例）：静态腿与动态腿共用这一枚，两格各用各的窗口名。</summary>
+        /// <summary>class DTO 探针窗（缓存实例）：静态腿与动态腿共用这个，两格各用各的窗口标识。</summary>
         [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
         internal sealed class AllocClassWindow : UGUIWindow<AllocBox>
         {

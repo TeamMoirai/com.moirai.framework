@@ -135,7 +135,6 @@ namespace Moirai.Atropos.SourceGenerators
             return new StringBuilder(256)
                 .Append("            global::Moirai.Atropos.UI.UIWindowRegistry.Register(typeof(").Append(typeRef).Append("),")
                 .Append(" new global::Moirai.Atropos.UI.UIWindowDescriptor(")
-                .AppendStringLiteral(model.ReflectionFullName).Append(", ")
                 .Append(model.WindowLayer).Append(", ")
                 .Append(model.FromResources ? "true" : "false").Append(", ")
                 .Append(model.FullScreen ? "true" : "false").Append(", ")

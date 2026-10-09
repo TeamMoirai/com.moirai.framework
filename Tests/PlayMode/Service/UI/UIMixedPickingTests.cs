@@ -208,10 +208,10 @@ namespace Service.UI
         #region 夹具 [FIXTURE]
 
         /// <summary>开一扇代码建树、壳已点亮的 UI Toolkit 窗，并把它的面板本体登记进出门清理表。</summary>
-        private ProbeLiveUITKWindow OpenUITKWindow(string windowName)
+        private ProbeLiveUITKWindow OpenUITKWindow(string windowId)
         {
-            UIService.ShowUI<ProbeLiveUITKWindow>(windowName, windowName);
-            var window = UIService.GetWindow<ProbeLiveUITKWindow>(windowName);
+            UIService.ShowUI<ProbeLiveUITKWindow>(windowId);
+            var window = UIService.GetWindow<ProbeLiveUITKWindow>(windowId);
             Assert.IsNotNull(window, "开栈失败：UI Toolkit 那一轨的窗没落到协调者那一份栈上");
             Assert.IsNotNull(window.RootVisual, "开栈失败：窗口的内容根没建出来");
             Assert.IsTrue(window.Visible, "开栈失败：窗口的可见意图没结算");

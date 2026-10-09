@@ -77,19 +77,19 @@ namespace Service.UI
         }
 
         /// <summary>造一只直接压栈的普通窗（继承档、显隐不落地）。</summary>
-        private static UIWindow PlainWindow(string windowName, int layer)
+        private static UIWindow PlainWindow(string windowId, int layer)
         {
             var window = new ForcedModalProbeWindow();
-            window.Init(windowName, layer, false, "Panel", false, 10);
+            window.Init(windowId, layer, false, "Panel", false, 10);
             return window;
         }
 
         /// <summary>经生产入口开一只注册表探针窗（同步装载就绪）。</summary>
-        private static T Prepared<T>(string windowName) where T : UIWindow, new()
+        private static T Prepared<T>(string windowId) where T : UIWindow, new()
         {
             var ledger = UIService.SharedLedger;
-            ledger.ShowUIImp(typeof(T), false, windowName, "Panel", false, null, UIPayload.Empty);
-            var window = ledger.GetWindow(windowName);
+            ledger.ShowUIImp(typeof(T), false, windowId, false, null, UIPayload.Empty);
+            var window = ledger.GetWindow(windowId);
             Assert.IsNotNull(window, "量具前提坏了：探针窗要开出");
             Assert.IsTrue(window.IsLoadDone, "量具前提坏了：探针窗要同步装载就绪");
             return (T)window;
