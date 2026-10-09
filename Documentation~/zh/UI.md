@@ -59,7 +59,6 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 | `Moirai.Atropos.UI.UIPayload` | 动态腿唯一擦除载体（`readonly struct`）：`Empty` 与 `null` 引用同判，`From` / `To<T>` / `TryGet<T>`——失败面一律 `GameException` 且消息带期望类型名 |
 | `Moirai.Atropos.UI.IUIPayloadSlot<TArg>` | 载荷槽的内部泛型桥（`internal`）：账本的泛型直塞通道经它按 `TArg` 把载荷落进窗口，不经过 `UIPayload` 擦除；两轨泛型基类实现它 |
 | `UIService.onWindowShown` / `onWindowClosed` | 窗口开合回执（`public static event Action<UIWindow>`）：入栈/出栈各发一次，停放与销毁都发；订阅者自持生命周期，门面关停与归零门整批摘订阅 |
-| `Moirai.Atropos.UI.UIManager` | 场景侧寻址组件：公共静态定位口 `ResolveWindowLocation(windowId)` / `ResolveFromResources` 给开窗腿按配置表或 Resources 档换算地址，派生类可覆写 `GetWindowLocation` 改自己的寻址策略 |
 | `Moirai.Atropos.UI.UIWidget` | 窗口内嵌控件基类，继承 `UIBase` |
 | `Moirai.Atropos.UI.WindowAttribute` | 窗口特性（必标），声明层级、资源地址、全屏、缓存等配置；由源生成器 `UIWindowCodegen` 编译期解析并登记进 `UIWindowRegistry` |
 | `Moirai.Atropos.UI.EUILayer` | UI 层级枚举：`Bottom=0`、`UI=1`、`Popup=2`、`Tips=3`、`System=4` |
@@ -110,9 +109,9 @@ UIService.ShowUIAsync<MainWindow>();
 // 带载荷的开窗换两枚类型实参那一族，载荷排第一枚（窗口内以 Payload 读取）
 UIService.ShowUIAsync<DetailWindow, int>(1001);
 
-// 运行期才知道窗口类的动态腿：载荷擦进 UIPayload，寻址走公共静态定位口
-UIService.ShowUIAsync(type, windowName, UIManager.ResolveWindowLocation(windowName),
-    UIManager.ResolveFromResources, UIPayload.From(dto));
+// 运行期才知道窗口类的动态腿：载荷擦进 UIPayload，第三枚给窗口标识、由门面按档换算
+UIService.ShowUIAsync(type, windowName, windowId,
+    fromResources: false, payload: UIPayload.From(dto));
 
 // 全腿收 CancellationToken（default 零开销）；撤销只在装载在途那一段有意义
 UIService.ShowUIAsync<MainWindow>(windowName: "Main", ct: cts.Token);
@@ -145,11 +144,11 @@ bool closed = UIService.TryCloseTopWindow();
 
 | 腿 | 签名 | 交回 |
 |---|---|---|
-| 异步·无载荷 | `ShowUIAsync<T>(string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`，`T : UGUIWindow, new()` | `void` |
+| 异步·无载荷 | `ShowUIAsync<T>(string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`，`T : UGUIWindow, new()` | `void` |
 | 同步·无载荷 | `ShowUI<T>(…同形…)`，`T : UGUIWindow, new()` | `void` |
 | 等待·无载荷 | `ShowUIAsyncAwait<T>(…同形…)`，`T : UGUIWindow, new()` | `UniTask<UIWindow>` |
 | 结果·无载荷 | `ShowUIAwaitResult<T>(…同形…)`，`T : UGUIWindow, new()` | `UniTask<UIOpenResult>` |
-| 异步·带载荷 | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`，`TWindow : UGUIWindow<TArg>, new()` | `void` |
+| 异步·带载荷 | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`，`TWindow : UGUIWindow<TArg>, new()` | `void` |
 | 同步·带载荷 | `ShowUI<TWindow, TArg>(in TArg payload, …同形…)` | `void` |
 | 等待·带载荷 | `ShowUIAsyncAwait<TWindow, TArg>(TArg payload, …同形…)` | `UniTask<TWindow>` |
 | 结果·带载荷 | `ShowUIAwaitResult<TWindow, TArg>(in TArg payload, …同形…)` | `UniTask<UIOpenResult>` |
@@ -162,7 +161,7 @@ bool closed = UIService.TryCloseTopWindow();
 
 | 腿 | 签名 | 交回 |
 |---|---|---|
-| 异步 | `ShowUIAsync(Type type, string windowName = null, string assetLocation = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
+| 异步 | `ShowUIAsync(Type type, string windowName = null, string windowId = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
 | 同步 | `ShowUI(Type type, …同形…)` | `void` |
 | 等待 | `ShowUIAsyncAwait(Type type, …同形…)` | `UniTask<UIWindow>` |
 
@@ -207,8 +206,8 @@ public class RenameWindow : UGUIWindow<RenameWindowPayload>   // 带载荷必须
 UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto);
 
 // 动态腿：运行期才有 Type → 载荷擦进 UIPayload（引用型只存引用，值类型装箱一次）
-UIService.ShowUIAsync(type, windowName, UIManager.ResolveWindowLocation(windowName),
-    UIManager.ResolveFromResources, UIPayload.From(dto));
+UIService.ShowUIAsync(type, windowName, windowId,
+    fromResources: false, payload: UIPayload.From(dto));
 ```
 
 > 工具链注：本工程工具链（C# 9 / netstandard2.1，无 `IsExternalInit` polyfill）下 `readonly struct` 配公共可写字段不编译（初始化点 CS8340；字段改 `readonly` 再配对象初始化器是 CS0191，`{ get; init; }` 是 CS0518），DTO 用普通 `struct` + 公共字段 + 对象初始化器。
@@ -374,7 +373,7 @@ public class RenameWindow : UGUIWindow
 - 全腿的 `CancellationToken` 传 `default` 零开销，且只在装载在途那一段被消费：已就绪的复用与停放重取不消费 `ct`；复用一只仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载（与在飞合并同段语义）
 - 窗口开合回执走门面静态广播：`UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent`（形参 `UIWindow`），入栈/出栈各恰一次、停放与销毁都发；订阅者自己配对退订，门面关停与归零门会整批摘掉
 - 停放档一枚三态：`[Window(cacheTimeToDestroy: …)]`，`0` = 不缓存（关闭即销毁，缺省即此）、正数 = 停放并在这么多秒后转销毁、负数 = 停放永久；到期由账本移出停放表并终态销毁，重新取用即取消计时
-- `UIManager` 承担寻址职责：动态腿的寻址经公共静态定位口 `UIManager.ResolveWindowLocation` / `UIManager.ResolveFromResources`。定位口吃的是 `SingletonMono.Instance` 语义：场景里没有实例时现场物化一枚裸 `UIManager`（默认配置表档），应用退出/播放停止的关停窗口内取不到实例则抬 `GameException`——消费方应在服务就绪守卫之后再调
+- 寻址归门面：开窗腿的第三枚是**窗口标识**——`fromResources` 为真时把它拼到 `UIServiceSettings` 的 Resources 父目录下，为假时按它查 `ConfigTableService.GetUIWindowLocation`；标识留空才回落 `[Window(location)]`（特性也没写时回类型名）。原 `UIManager` 与它的两枚公共静态定位口已退役，换算判据只此一份，且只在账本造新实例那一格发生（复用栈上窗与停放重取不查表）
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI 迁移](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

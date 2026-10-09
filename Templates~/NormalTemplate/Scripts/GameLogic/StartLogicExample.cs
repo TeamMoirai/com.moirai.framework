@@ -1,7 +1,6 @@
 ﻿using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
-using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.ObjectPool;
 using Moirai.Atropos.Scene;
@@ -27,8 +26,8 @@ namespace Moirai.GameLogic
 
             await UniTask.Delay(10 * 1000);
             
-            // UI加载
-            UIService.ShowUIAsync<StartScreen, string>("Loading...", "StartScreen", GetWindowLocation("start"));
+            // UI加载（第三枚是窗口标识：内置资源档拼 Resources 父目录，否则按标识查配置表）
+            UIService.ShowUIAsync<StartScreen, string>("Loading...", "StartScreen", "start");
             
             // 场景加载
             await SceneService.LoadSceneAsync("Assets/AssetRaw/Default/Scene/start.unity");
@@ -45,15 +44,6 @@ namespace Moirai.GameLogic
             var instance = GameObjectPoolService.Spawn("Assets/AssetRaw/Default/UI/Window/StartScreen");
             await UniTask.Delay(5 * 1000);
             GameObjectPoolService.Despawn(instance);
-        }
-
-        /// <summary>
-        /// 从配置表获取弹窗资产的位置。
-        /// </summary>
-        private static string GetWindowLocation(string id)
-        {
-            // LogUtility.Info("Load UI: {0}", id);
-            return ConfigTableService.GetUIWindowLocation(id);
         }
     }
 }
