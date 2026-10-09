@@ -1127,8 +1127,8 @@ namespace Moirai.Atropos.UI
             if (insertIndex > 0 && IsModal(window)) _uiStack[insertIndex - 1].Interactable = false;
 
             _uiStack.Insert(insertIndex, window);
-            UIServiceEvent.Shown(window);
-            _history.Add(window); // 开启序追加：复用/停放重取经 Pop→Push 也会挪到最新
+            _history.Add(window); // 开启序追加：复用/停放重取经 Pop→Push 也会挪到最新；排在回执之前，令回执里重开的窗接在本窗之后
+            UIService.Internal_RaiseWindowShown(window);
         }
 
         /// <summary>
@@ -1137,7 +1137,7 @@ namespace Moirai.Atropos.UI
         internal void Pop(UIWindow window)
         {
             RemoveFromStack(window);
-            UIServiceEvent.Closed(window);
+            UIService.Internal_RaiseWindowClosed(window);
         }
 
         /// <summary>

@@ -101,7 +101,7 @@ namespace Service.UI
         #region 探针 [PROBES]
 
         /// <summary>带全档特性的注册表探针窗：装载钩子记录入参并按装载成功交回。</summary>
-        [Window(EUILayer.Popup, false, "Registry/AttrPanel", cacheInstance: true)]
+        [Window(EUILayer.Popup, "Registry/AttrPanel", false, cacheInstance: true)]
         internal sealed class RegistryProbeWindow : UGUIWindow
         {
             internal static string LastLocation;

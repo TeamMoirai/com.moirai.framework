@@ -1,5 +1,4 @@
 using Moirai.Atropos.ConfigTable;
-using Moirai.Atropos.Events;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -25,14 +24,14 @@ namespace Moirai.Atropos.UI
 
         #region 引擎方法 [UNITY METHODS]
 
+        // 本体留空是刻意的扩展缝：派生类（如项目的界面管理器）往里挂自己的订阅，
+        // 空体让派生类可以照旧 base 调用而不必判断上游有没有实现。
         protected virtual void OnEnable()
         {
-            EventManager.RegisterCallback<UIWindowEvent>(OnUIWindowEvent);
         }
 
         protected virtual void OnDisable()
         {
-            EventManager.UnregisterCallback<UIWindowEvent>(OnUIWindowEvent);
         }
         
         #endregion
@@ -54,43 +53,9 @@ namespace Moirai.Atropos.UI
         
         #endregion
         
-        #region 事件 [EVENTS]
-
-        /// <summary>
-        /// 常规弹窗操作
-        /// </summary>
-        /// <remarks>不传参的简单弹窗</remarks>
-        protected virtual void OnUIWindowEvent(UIWindowEvent evt)
-        {
-            switch (evt.Mode)
-            {
-                case UIWindowEvent.EMode.Show:
-                    UIService.ShowUIAsync(evt.WindowType, evt.WindowId, GetWindowLocation(evt.WindowId), FromResources);
-                    // LogUtility.Info($"Show UI {evt.WindowId}");
-                    break;
-
-                case UIWindowEvent.EMode.Close:
-                    UIService.CloseUI<UIWindow>(evt.WindowId);
-                    // LogUtility.Info($"Close UI {evt.WindowId}");
-                    break;
-
-                case UIWindowEvent.EMode.Hide:
-                    UIService.HideUI<UIWindow>(evt.WindowId);
-                    // LogUtility.Info($"Hide {evt.WindowId}");
-                    break;
-
-                case UIWindowEvent.EMode.CloseAll:
-                    UIService.CloseAll();
-                    // LogUtility.Info($"Close all UI");
-                    break;
-            }
-        }
-        
-        #endregion
-
         #region 定位口 [LOCATION RESOLVERS]
 
-        /// <summary>解析窗口资产定位地址：直调腿（不经事件中转）的寻址接缝，与事件腿同一份判据。</summary>
+        /// <summary>解析窗口资产定位地址：直调开窗腿的寻址接缝，按本实例的配置表/Resources 档换算。</summary>
         /// <exception cref="GameException">实例不可用（关停窗口期/编辑模式）。</exception>
         public static string ResolveWindowLocation(string windowId)
         {

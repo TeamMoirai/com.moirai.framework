@@ -80,20 +80,20 @@ namespace Moirai.Atropos.UI
         /// 构造窗口特性。
         /// </summary>
         /// <param name="windowLayer">窗口层级。</param>
-        /// <param name="fromResources">是内部资源无需AB加载。</param>
         /// <param name="location">资源定位地址；空缺省回落类型名。</param>
+        /// <param name="fromResources">是内部资源无需AB加载。</param>
         /// <param name="fullScreen">全屏窗口标记。</param>
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数；≤0 表示隐藏即关。</param>
         /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
         /// <param name="modal">模态档；缺省按层级继承（模态层级 UI/Popup/System 即模态）。</param>
         /// <param name="cacheTimeToDestroy">缓存停放转销毁的秒数；0 = 永久。</param>
-        public WindowAttribute(EUILayer windowLayer, bool fromResources = false, string location = null,
+        public WindowAttribute(EUILayer windowLayer, string location = null, bool fromResources = false,
             bool fullScreen = false, int hideTimeToClose = 10, bool cacheInstance = false, EUIModal modal = EUIModal.Inherit,
             float cacheTimeToDestroy = 0f)
         {
             WindowLayer = (int)windowLayer;
-            FromResources = fromResources;
             Location = location ?? string.Empty;
+            FromResources = fromResources;
             FullScreen = fullScreen;
             HideTimeToClose = hideTimeToClose;
             CacheInstance = cacheInstance;

@@ -36,7 +36,7 @@ namespace Service.UI
     public sealed class UIWindowCoexistenceTests
     {
         /// <summary>UI Toolkit 模板的内置资源地址：包内实存的调试器事件面板模板，只读消费，本文件不新增测试资产。</summary>
-        private const string TemplateResourceName = "EventsDebugger";
+        private const string TEMPLATE_RESOURCE_NAME = "EventsDebugger";
 
         /// <summary><see cref="EUILayer.UI"/> 那一层的序空间基址。</summary>
         private const int UI_LAYER_BASE = (int)EUILayer.UI * UIService.LAYER_DEEP;
@@ -319,8 +319,8 @@ namespace Service.UI
         [UnityTest]
         public IEnumerator ShowUI_FromResourcesTemplate_BuildsActiveDocumentShellBesideTheUGUIWindow()
         {
-            Assert.IsNotNull(Resources.Load<VisualTreeAsset>(TemplateResourceName),
-                "量具前提坏了：播放态取不到内置资源模板 {0}，fromResources 那一支无从覆盖", TemplateResourceName);
+            Assert.IsNotNull(Resources.Load<VisualTreeAsset>(TEMPLATE_RESOURCE_NAME),
+                "量具前提坏了：播放态取不到内置资源模板 {0}，fromResources 那一支无从覆盖", TEMPLATE_RESOURCE_NAME);
 
             UIService.ShowUI<ProbeCachedResourcesKitWindow>("RealKit");
             var kit = UIService.GetWindow<ProbeCachedResourcesKitWindow>("RealKit");
@@ -578,7 +578,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨探针窗（<see cref="EUILayer.UI"/>）：同步与异步装载都当场交出代码面板。</summary>
-        [Window(EUILayer.UI, false)]
+        [Window(EUILayer.UI)]
         internal sealed class ProbeUGUIWindowOnUiLayer : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -591,7 +591,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨探针窗（<see cref="EUILayer.Tips"/>）：与另一轨同层时判序位表用。</summary>
-        [Window(EUILayer.Tips, false)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeUGUIWindowOnTipsLayer : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -602,7 +602,7 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨探针窗（<see cref="EUILayer.Tips"/>）：代码建树，内容根不带模板克隆。</summary>
-        [Window(EUILayer.Tips, false)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeUITKWindowOnTipsLayer : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -615,7 +615,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨延迟装载探针窗（<see cref="EUILayer.UI"/>）：面板在若干帧之后才绑上，等待腿要等的就是这一段。</summary>
-        [Window(EUILayer.UI, false)]
+        [Window(EUILayer.UI)]
         internal sealed class ProbeDelayedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -629,7 +629,7 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨延迟装载探针窗（<see cref="EUILayer.Tips"/>）：同上一条腿，另一轨各量一次。</summary>
-        [Window(EUILayer.Tips, false)]
+        [Window(EUILayer.Tips)]
         internal sealed class ProbeDelayedUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -643,7 +643,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨缓存实例探针窗（<see cref="EUILayer.UI"/>）：关闭后停放，重开交回同一只。</summary>
-        [Window(EUILayer.UI, false, cacheInstance: true)]
+        [Window(EUILayer.UI, cacheInstance: true)]
         internal sealed class ProbeCachedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -654,7 +654,7 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨真装载探针窗（<see cref="EUILayer.Tips"/>）：模板取内置资源、缓存实例，装载路径不覆写。</summary>
-        [Window(EUILayer.Tips, true, TemplateResourceName, cacheInstance: true)]
+        [Window(EUILayer.Tips, TEMPLATE_RESOURCE_NAME, true, cacheInstance: true)]
         internal sealed class ProbeCachedResourcesKitWindow : UITKWindow
         {
         }

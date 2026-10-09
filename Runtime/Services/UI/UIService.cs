@@ -41,6 +41,13 @@ namespace Moirai.Atropos.UI
         /// <summary>各轨各自摘掉自己那枚处理器槽的广播：关停与归零门都先叫它一次，销毁链里迟到的回叫因此当场落空。</summary>
         private static event Action onDetachTrackSlots;
 
+        /// <summary>窗口入栈后广播，形参是刚入栈的那一只；装载在途也照发（回执说的是栈序，不是面板就绪）。</summary>
+        /// <remarks>订阅者自持生命周期：门面的归零门会整批摘掉这两枚广播（禁用域重载时上一轮订阅者不得跨会话残留），但一次 <c>+=</c> 配一次 <c>-=</c> 仍是对话方的责任。</remarks>
+        public static event Action<UIWindow> onWindowShown;
+
+        /// <summary>窗口出栈后广播，形参是刚出栈的那一只：停放与销毁都发，一次出栈恰一次。</summary>
+        public static event Action<UIWindow> onWindowClosed;
+
         /// <summary>轨道目录：各轨 partial 的静态初始化器把自述登记进这一份，门面只枚举它。</summary>
         /// <remarks>懒建＋compare-exchange：partial 各文件静态字段的初始化次序没有契约保证，目录不能靠本文件自己的初始化器先就位。</remarks>
         private static volatile List<UITrack> s_Tracks;
@@ -180,6 +187,8 @@ namespace Moirai.Atropos.UI
             onTrackTick = null;
             onScreenSafeArea = null;
             onNotchSimulate = null;
+            onWindowShown = null;
+            onWindowClosed = null;
 
             var tracks = s_Tracks;
             if (tracks != null)
@@ -193,6 +202,18 @@ namespace Moirai.Atropos.UI
 
         /// <summary>帧广播当前的订阅条数：一支驱动者认领成功才加一条，第二轮认领同一枚实例不再加。</summary>
         internal static int Internal_PeekTrackTickSubscriberCount() => onTrackTick?.GetInvocationList().Length ?? 0;
+
+        #region 窗口事件触发 [WINDOW EVENT RAISERS]
+
+        /// <summary>发一次入栈回执：`event` 只能在声明类内触发，共享持有者经这一道口转手。</summary>
+        /// <param name="window">刚入栈的那一只。</param>
+        internal static void Internal_RaiseWindowShown(UIWindow window) => onWindowShown?.Invoke(window);
+
+        /// <summary>发一次出栈回执：停放与销毁两条路都由 <see cref="UIWindowLedger.Pop"/> 叫到这一道。</summary>
+        /// <param name="window">刚出栈的那一只。</param>
+        internal static void Internal_RaiseWindowClosed(UIWindow window) => onWindowClosed?.Invoke(window);
+
+        #endregion
 
         #endregion
 
@@ -328,7 +349,7 @@ namespace Moirai.Atropos.UI
 
         /// <summary>当前模态遮挡窗口：读的是那条各轨共用的栈，与哪一轨在位无关。</summary>
         public static UIWindow CurrentModal => SharedLedger.CurrentModal;
-
+        
         #endregion
 
         #region 安全区域 [SAFE AREA]
