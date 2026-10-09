@@ -91,7 +91,7 @@ namespace Moirai.Atropos.UI
         #region 定位口 [LOCATION RESOLVERS]
 
         /// <summary>解析窗口资产定位地址：直调腿（不经事件中转）的寻址接缝，与事件腿同一份判据。</summary>
-        /// <exception cref="GameException">场景里没有 UIManager 实例。</exception>
+        /// <exception cref="GameException">实例不可用（关停窗口期/编辑模式）。</exception>
         public static string ResolveWindowLocation(string windowId)
         {
             var instance = Instance;
@@ -105,6 +105,7 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>本实例的面板取法（配置表/Resources）：与 <see cref="ResolveWindowLocation"/> 成对使用。</summary>
+        /// <exception cref="GameException">实例不可用（关停窗口期/编辑模式）。</exception>
         public static bool ResolveFromResources
         {
             get
@@ -113,7 +114,7 @@ namespace Moirai.Atropos.UI
                 if (instance == null)
                 {
                     throw new GameException(StringUtility.Format(
-                    "{0}.{1} requires a live {0} instance in scene.", nameof(UIManager), nameof(ResolveFromResources)));
+                        "{0}.{1} requires a live {0} instance in scene.", nameof(UIManager), nameof(ResolveFromResources)));
                 }
 
                 return instance.FromResources;

@@ -117,7 +117,7 @@
 - ⚠ 载荷形态硬切：`params object[]` 从两轨全部公开腿消失，每轨改「无载荷 4 支 + 带载荷 4 支」平铺——带载荷那一族按 `TWindow : UGUIWindow<TArg>` / `UITKWindow<TArg>` 约束与无载荷那一族分辨，载荷排第一枚（`in TArg` 泛型直塞，struct 不装箱、一步都不经擦除），窗口名 / 地址 / 内置资源 / `panelSettings`（仅 UITK 腿）依次排其后，同名重载按约束而非形参个数落轨。全腿收 `CancellationToken ct = default`：不传零开销，且只在装载在途那段被消费（已就绪的复用与停放重取同步交回、不消费 `ct`；复用一只仍在装载的窗时令牌照样登记，撤销会掐断那一次在途装载，与在飞合并同段语义）。迁移：`ShowUIAsync<T>(name, location, false, userData: …)` 改 `ShowUIAsync<TWindow, TArg>(in payload, name, location, fromResources)`；等待腿 `ShowUIAsyncAwait<TWindow, TArg>` 因 `async` 禁 `in` 形参（CS1988）收普通 `TArg`。
 - ⚠ `UIBase._params` / `UserData` / `Params` 删除，载荷落点换成 `UGUIWindow<TArg>.Payload` / `UITKWindow<TArg>.Payload`：每次开窗覆盖、关闭不清（残留到下一次覆盖为止，无「读一次即清」语义）。迁移：`UserData?.ToString()` / `(string)UserData` / `_params[i]` / `Params[i]` 与 `Params.Length` 判空各改读 `Payload.字段`，一枚 DTO 装齐全部字段，位置序号从此消失。
 - ⚠ 带载荷窗口基类换形：`class X : UGUIWindow` → `class X : UGUIWindow<MyDto>`（UI Toolkit 轨同形）。不带槽的窗口被塞非空载荷当场 `GameException`（文案带窗口类名，指认漏换基类的调用点），按名命中的窗槽型不符、或门面按名取回的实例不是 `TWindow` 同样抬错并带期望/实际双类型名；抬错排在压栈与卸停放之前说的是停放重取与新开两条支路——既不压半只窗，也不消费停放态（那只实例仍从停放表取得回）；复用支路的 Pop→Push 排在验槽之前（那只窗本就完整在栈，验槽不过抬错，回执与挪序已发生）。迁移口径见 `Documentation~/zh/UIMigration.md` / `Documentation~/en/UIMigration.md`。
-- ⚠ 动态腿（`Type` 形入口）载荷形参由 `params object[]` 改一枚 `UIPayload`（`default` 即空载荷，与 `null` 引用同判）：引用型只存引用（0 分配、到达后引用同一），值类型装箱一次，`To<T>` 失败面为 `GameException`、`TryGet<T>` 回假不抬错。同批 `EUIOpenStatus` 增 `Cancelled = 4`：调用方令牌撤销等待的结果档，与 `Timeout` 分档可辨（`Cancelled` 的窗已回滚或从未入栈，不得当就绪窗用）；撤销的落点按腿分档——void 腿静默回滚出栈不报 Error，等待腿原样上抛 `OperationCanceledException`，结果腿落 `Cancelled`。迁移：`userData: new object[] { dto }` 改 `UIPayload.From(dto)`；原先只判 `Timeout` 的结果消费点一并接住 `Cancelled`。
+- ⚠ 动态腿（`Type` 形入口）载荷形参由 `params object[]` 改一枚 `UIPayload`（`default` 即空载荷，与 `null` 引用同判）：引用型只存引用（0 分配、到达后引用同一），值类型装箱一次，`To<T>` 失败面为 `GameException`、`TryGet<T>` 回假不抬错。同批 `EUIOpenStatus` 增 `Cancelled = 4`：调用方令牌撤销等待的结果档，与 `Timeout` 分档可辨（`Cancelled` 只说明本次等待以取消落定，装载是否续跑取决于其余等待者（无人在等则回滚），不得当就绪窗用）；撤销的落点按腿分档——void 腿静默回滚出栈不报 Error，等待腿原样上抛 `OperationCanceledException`，结果腿落 `Cancelled`。迁移：`userData: new object[] { dto }` 改 `UIPayload.From(dto)`；原先只判 `Timeout` 的结果消费点一并接住 `Cancelled`。
 - ⚠ 同一只窗装载在途时再开，由「静默覆盖 / 重开发装载」改为**合并在飞 + 载荷 last-wins**：不重开发装载、不压第二只实例，载荷覆盖为最后一枚，`OnRefresh` 只在面板就绪那一次跑并见终载荷。迁移：依赖「两次 Show 各刷一次」的用法改等结果腿交回，或先关再开。
 
 #### 文档
@@ -138,6 +138,12 @@
 - ⚠ 移除 `UIServiceHandler` 上 25 枚纯转发 `UIWindowLedger` 的转发口：`public virtual` 二十枚（查询族 `GetTopWindow()`/`GetTopWindow(int)`/`GetTopWindowName(int)`/`IsAnyLoading`/`HasWindow`/`GetWindow<T>`/`IsBlockedByModal`/`IsModal` 与属性 `CurrentModal`、关隐族 `CloseUI`/`HideUI`/`CloseAll`/`CloseAllWithOut`、取窗族 `GetUIAsyncAwait`/`GetUIAsync`）与 `protected` 五枚（`GetWindow(string)`/`IsContains` 两道查询、`OnWindowPrepare`/`Push`/`Pop` 三枚栈钩子）。包内 Runtime/Editor/Samples~/Templates~ 与同宿主各包零调用方——各包对这些名字的引用全部走门面。迁移：`handler.X(…)` 改 `UIService.X(…)`，形参与语义一字未动；派生后端里自调栈钩子的改叫 `UIService.SharedLedger`（框架装配内可达）。
 
 ### Fixed
+
+#### UI
+
+- 停放窗不再续留全局事件订阅：关闭进停放即反注册（`UnregisterEvent` 恰一次），停放态窗口不挂事件；装载在途被作废的窗口（`AbortFailedLoad`）补上守卫式反注册，抛出型 `RegisterEvent` 不再把已订阅的窗留在销毁态。关停扫尾（`CloseAllWhere(isShutDown: true)`）现在真的销毁被这一轨认得的停放窗——出停放表、`OnDestroy` 随之触发一次（此前只摘表不销毁）。
+- 停放窗不再带半截过渡姿态：缓存停放前先把面板 `Snap` 拨到关窗终态（此前只 `ParkPanel` 不拨，下次取用从半截动画起播）；过渡 `Play` 抛出时退到 `Snap` 落终态、不把窗口卡在半开，`Snap` 自身也抛出才记一条 Error 并照常走完。
+- 生命周期与 Tick 钩子抛出不再黑屏或半开窗：`OnCreate` / `OnRefresh` / `OnClose` / `OnDestroy` / `OnUpdate` 等钩子抛出改为记一条 Error 后继续走后续流程（此前一处抛出会中断整帧驱动、或让窗口停在半开态回不来）。
 
 #### 工具
 

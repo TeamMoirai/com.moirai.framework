@@ -62,16 +62,19 @@ namespace Service.UI
         {
             _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepHit", "Panel", false, null, UIPayload.Empty);
             _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepMiss", "Panel", false, null, UIPayload.Empty);
+            // 停放窗出栈后 GetWindow 取不到引用：关之前在栈上扣下两枚，扫尾后凭引用读销毁计数
+            var hit = (EventProbeWindow)_ledger.GetWindow("SweepHit");
+            var miss = (EventProbeWindow)_ledger.GetWindow("SweepMiss");
             _ledger.CloseUI<EventProbeWindow>("SweepHit");
             _ledger.CloseUI<EventProbeWindow>("SweepMiss");
-            var hit = _ledger.GetWindow("SweepHit") as EventProbeWindow;
-            // 停放窗已不在栈上，经 IsParked 取回引用做计数断言
             Assert.IsTrue(_ledger.IsParked("SweepHit") && _ledger.IsParked("SweepMiss"), "两枚都已停放");
 
             _ledger.CloseAllWhere(true, window => window.WindowName == "SweepHit");
 
             Assert.IsFalse(_ledger.IsParked("SweepHit"), "被轨认得的停放窗关停时销毁出表");
             Assert.IsTrue(_ledger.IsParked("SweepMiss"), "轨外停放窗原地不动");
+            Assert.AreEqual(1, hit.DestroyPanelCount, "关停扫尾真销毁面板：命中窗恰销毁一次");
+            Assert.AreEqual(0, miss.DestroyPanelCount, "轨外停放窗未被动：面板原样留着");
         }
     }
 }

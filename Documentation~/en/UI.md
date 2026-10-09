@@ -228,7 +228,7 @@ Reopening a window whose load is still in flight — from any leg, static or dyn
 
 - The caller token is only consumed while the load is in flight: a ready reuse and a re-park hand back synchronously without consuming `ct` (honest semantics — nothing pretends to be cancellable); reusing a window that is still loading registers the caller token just the same, and cancelling it aborts that in-flight load (the same semantics as the in-flight merge paragraph above)
 - Three distinct landing points: a void leg's cancellation zeroes the waiter count, aborts the in-flight load and rolls it off the stack (a silent cancel, no Error logged); an await leg rethrows `OperationCanceledException`; a result leg returns `EUIOpenStatus.Cancelled`
-- Separate from the timeout tier: the wait bound is 60 seconds, and a timeout logs one warning then still hands back that window (the result leg returns `Timeout`, the window may still be loading); a `Cancelled` window has been rolled back or never entered the stack — neither may be treated as ready
+- Separate from the timeout tier: the wait bound is 60 seconds, and a timeout logs one warning then still hands back that window (the result leg returns `Timeout`, the window may still be loading); a `Cancelled` result only means this wait settled as cancelled — whether the load continues depends on the remaining waiters (it rolls back if no one is left waiting) — neither tier may be treated as ready
 - Waiter bookkeeping stays balanced: each waiter joins once and leaves once; a waiter settled by timeout does not decrement the count, and the load is only aborted once every registered, cancellable waiter has left
 
 ### Minimal Navigation
