@@ -290,6 +290,7 @@ namespace Moirai.Atropos.UI
 
             if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
             {
+                window.CancelCacheTimer();
                 window.gameObject.SetActive(true);
                 _cache.Remove(windowName);
                 Push(window); // 首次压入
@@ -465,7 +466,7 @@ namespace Moirai.Atropos.UI
 
             window.Init(windowName, descriptor.WindowLayer, descriptor.FullScreen, assetLocation,
                 fromResources || descriptor.FromResources, descriptor.HideTimeToClose, descriptor.CacheInstance,
-                (EUIModal)descriptor.Modal);
+                (EUIModal)descriptor.Modal, descriptor.CacheTimeToDestroy);
 
             return window;
         }
@@ -712,6 +713,23 @@ namespace Moirai.Atropos.UI
             {
                 OnSetWindowVisible();
             }
+        }
+
+        /// <summary>停放 TTL 到期：仍停放着才移出并终态销毁；已被取用/顶替的迟到到期静默落空。</summary>
+        internal void ExpireParkedWindow(UIWindow window)
+        {
+            if (window == null)
+            {
+                return;
+            }
+
+            if (!_cache.TryGetValue(window.WindowName, out var parked) || !ReferenceEquals(parked, window))
+            {
+                return;
+            }
+
+            _cache.Remove(window.WindowName);
+            window.InternalDestroy(isShutDown: true); // 终态：不再返停放表
         }
 
         /// <summary>

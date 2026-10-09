@@ -61,6 +61,12 @@ namespace Moirai.Atropos.UI
         /// <summary>缓存实例，关闭时不销毁。</summary>
         public bool CacheInstance { get; internal set; }
 
+        /// <summary>缓存停放转销毁的秒数；0 = 永久。</summary>
+        public float CacheTimeToDestroy { get; internal set; }
+
+        /// <summary>停放转销毁的定时器标识；取用即取消，0 表示无在途计时。</summary>
+        internal ulong CacheTimerId { get; private set; }
+
         private int _depth;
         /// <summary>窗口深度值（意图）。</summary>
         /// <remarks>
@@ -196,7 +202,8 @@ namespace Moirai.Atropos.UI
         /// <param name="hideTimeToClose">隐藏后转关闭的秒数。</param>
         /// <param name="cacheInstance">缓存实例，关闭时不销毁。</param>
         /// <param name="modal">模态档；缺省按层级继承（模态层级 UI/Popup/System 即模态）。</param>
-        internal void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance, EUIModal modal = EUIModal.Inherit)
+        /// <param name="cacheTimeToDestroy">缓存停放转销毁的秒数；0 = 永久。</param>
+        internal void Init(string name, int layer, bool fullScreen, string assetLocation, bool fromResources, int hideTimeToClose, bool cacheInstance, EUIModal modal = EUIModal.Inherit, float cacheTimeToDestroy = 0f)
         {
             WindowName = name;
             WindowLayer = layer;
@@ -205,6 +212,7 @@ namespace Moirai.Atropos.UI
             FromResources = fromResources;
             HideTimeToClose = hideTimeToClose;
             CacheInstance = cacheInstance;
+            CacheTimeToDestroy = cacheTimeToDestroy;
             IsModalWindow = modal switch
             {
                 EUIModal.Modal => true,
@@ -497,6 +505,8 @@ namespace Moirai.Atropos.UI
                     LogUtility.Error("UI 窗口 '{0}' 的 UnregisterEvent 抛出异常，关闭流程照常走完：{1}", WindowName, ex);
                 }
             }
+
+            StartCacheTimer();
         }
 
         private async UniTaskVoid InternalCloseAsync(uint lifetime)
@@ -583,6 +593,7 @@ namespace Moirai.Atropos.UI
             _interactionLifetime++;
             CancelCts();
             CancelLoadCts();
+            CancelCacheTimer();
             UnlockInteraction();
 
             // 销毁面板对象
@@ -855,6 +866,38 @@ namespace Moirai.Atropos.UI
             {
                 TimerService.Cancel(HideTimerId);
                 HideTimerId = 0UL;
+            }
+        }
+
+        private System.Action _cacheExpireCallback;
+
+        internal void StartCacheTimer()
+        {
+            CancelCacheTimer();
+            if (CacheTimeToDestroy <= 0f)
+            {
+                return;
+            }
+
+            _cacheExpireCallback ??= OnCacheExpire;
+            CacheTimerId = TimerService.Delay(CacheTimeToDestroy, _cacheExpireCallback);
+        }
+
+        internal void CancelCacheTimer()
+        {
+            if (CacheTimerId != 0UL)
+            {
+                TimerService.Cancel(CacheTimerId);
+                CacheTimerId = 0UL;
+            }
+        }
+
+        private void OnCacheExpire()
+        {
+            CacheTimerId = 0UL;
+            if (UIService.IsValid)
+            {
+                UIService.SharedLedger.ExpireParkedWindow(this);
             }
         }
     }
