@@ -25,7 +25,7 @@ namespace Moirai.Atropos.UI
                 string des = "An error is reported on the client.\n\n" +
                              $"#Context#: ---{condition} \n\n" +
                              $"#Stacktrace#: ---{stacktrace}";
-                UIService.ShowUIAsync<LogUI>(userData:des);
+                UIService.ShowUIAsync<LogUI, string>(des);
             }
         }
     }

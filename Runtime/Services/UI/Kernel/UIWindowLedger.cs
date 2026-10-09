@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Timer;
 using UnityEngine;
@@ -22,6 +23,7 @@ namespace Moirai.Atropos.UI
         private readonly List<UIWindow> _uiStack = new List<UIWindow>(128); // 窗口堆栈
         private readonly Dictionary<string, UIWindow> _cache = new Dictionary<string, UIWindow>(128);
         private List<string> _sweepScratch;
+        private readonly List<UIWindow> _history = new List<UIWindow>(32); // 开启序：Push 追加、摘栈移除
 
         /// <summary>模态动画期间交互压制的归属仲裁。与窗口堆栈同生命周期。</summary>
         internal UIInteractionLease InteractionLease { get; } = new UIInteractionLease();
@@ -68,6 +70,7 @@ namespace Moirai.Atropos.UI
         {
             _uiStack.Clear();
             _cache.Clear();
+            _history.Clear();
         }
 
         /// <summary>
@@ -254,13 +257,40 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="payload">动态腿擦除后的载荷；无载荷时传 <see cref="UIPayload.Empty"/>。</param>
+        /// <param name="callerCt">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
         internal void ShowUIImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            Action<UIWindow> onInstanceCreated, params object[] userData)
+            Action<UIWindow> onInstanceCreated, UIPayload payload, CancellationToken callerCt = default)
         {
             if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
 
-            ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out _);
+            ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, payload, out var window);
+            JoinInFlight(window, callerCt);
+        }
+
+        /// <summary>开栈编排的同步腿（泛型直塞形）：静态腿经此把载荷按 <typeparamref name="TArg"/> 零装箱落进窗口。</summary>
+        internal void ShowUIImp<TArg>(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, in TArg payload, CancellationToken callerCt = default)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+
+            ResolveOrStartLoad<TArg>(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, in payload, out var window);
+            JoinInFlight(window, callerCt);
+        }
+
+        /// <summary>装载在途才登记等待者；复用/停放命中同步完成，CT 不消费（语义诚实）。</summary>
+        private static void JoinInFlight(UIWindow window, CancellationToken callerCt)
+        {
+            if (window.IsLoadDone || window.IsDestroyed)
+            {
+                return;
+            }
+
+            window.Internal_JoinOpenWaiter();
+            if (callerCt.CanBeCanceled)
+            {
+                window.Internal_RegisterOpenCancel(callerCt);
+            }
         }
 
         /// <summary>
@@ -277,38 +307,83 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="window">进栈的那一只窗口（可能仍在装载）。</param>
-        /// <returns>走的是栈上复用支路时为真：等待腿对这一档不必再等。</returns>
-        private bool ResolveOrStartLoad(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            Action<UIWindow> onInstanceCreated, object[] userData, out UIWindow window)
+        private void ResolveOrStartLoad(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, UIPayload payload, out UIWindow window)
         {
-            if (TryGetWindow(windowName, out window, userData))
+            if (TryGetWindow(windowName, out window))
             {
-                return true;
+                if (!payload.IsEmpty) window.Internal_SetPayload(payload);   // last-wins：在飞/复用都覆盖
+                window.TryInvoke(OnWindowPrepare);
+                return;
             }
 
             if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
             {
+                // 载荷校验排在卸停放之前：抬错时那只实例仍留在停放表里取得回，不落既离表又未入栈的悬空态。
+                if (!payload.IsEmpty) window.Internal_SetPayload(payload);
                 window.CancelCacheTimer();
                 window.gameObject.SetActive(true);
                 _cache.Remove(windowName);
-                Push(window); // 首次压入
-                window.TryInvoke(OnWindowPrepare, userData);
-            }
-            else
-            {
-                window = CreateInstance(type, windowName, assetLocation, fromResources);
-                onInstanceCreated?.Invoke(window); // 交在压栈与装载之前：晚一步面板就按没覆盖的那一份装上了
-                Push(window); // 首次压入
-                window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync, userData).Forget();
+                Push(window);
+                window.TryInvoke(OnWindowPrepare);
+                return; // 停放重取：装载早已完成，同步交回不再等待
             }
 
-            return false;
+            window = CreateInstance(type, windowName, assetLocation, fromResources);
+            onInstanceCreated?.Invoke(window);
+            if (!payload.IsEmpty) window.Internal_SetPayload(payload);
+            Push(window);
+            window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync).Forget();
         }
 
-        /// <summary>栈上已有同名窗口时把它挪到栈顶并发准备回执。</summary>
-        private bool TryGetWindow(string windowName, out UIWindow window, params object[] userData)
+        /// <summary>开栈编排的公共前置（泛型直塞形）：与 UIPayload 形同路，只把载荷经 <see cref="IUIPayloadSlot{TArg}"/> 强类型落位、不擦除。</summary>
+        private void ResolveOrStartLoad<TArg>(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+            Action<UIWindow> onInstanceCreated, in TArg payload, out UIWindow window)
+        {
+            if (TryGetWindow(windowName, out window))
+            {
+                SetPayloadChecked(window, in payload);
+                window.TryInvoke(OnWindowPrepare);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(windowName) && _cache.TryGetValue(windowName, out window))
+            {
+                // 载荷校验排在卸停放之前：抬错时那只实例仍留在停放表里取得回，不落既离表又未入栈的悬空态。
+                SetPayloadChecked(window, in payload);
+                window.CancelCacheTimer();
+                window.gameObject.SetActive(true);
+                _cache.Remove(windowName);
+                Push(window);
+                window.TryInvoke(OnWindowPrepare);
+                return;
+            }
+
+            window = CreateInstance(type, windowName, assetLocation, fromResources);
+            onInstanceCreated?.Invoke(window);
+            SetPayloadChecked(window, in payload);
+            Push(window);
+            window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync).Forget();
+        }
+
+        /// <summary>泛型直塞通道的落点：槽型不符（含不带槽）当场抬错，不退化为擦除路径。</summary>
+        private static void SetPayloadChecked<TArg>(UIWindow window, in TArg payload)
+        {
+            if (window is IUIPayloadSlot<TArg> slot)
+            {
+                slot.SetPayload(in payload);
+                return;
+            }
+
+            throw new GameException(StringUtility.Format(
+                "UI 窗口 '{0}' 的载荷槽类型不符：按名命中的是 {1}，这一腿要塞 {2}。",
+                window.WindowName, window.GetType().FullName, typeof(TArg).Name));
+        }
+
+        /// <summary>栈上已有同名窗口时把它挪到栈顶（Pop/Push 重排）；载荷写入与准备回执交由调用方排在重排之后。</summary>
+        private bool TryGetWindow(string windowName, out UIWindow window)
         {
             window = null;
             if (IsContains(windowName))
@@ -316,8 +391,6 @@ namespace Moirai.Atropos.UI
                 window = GetWindow(windowName);
                 Pop(window); // 弹出窗口
                 Push(window); // 重新压入
-                window.TryInvoke(OnWindowPrepare, userData);
-
                 return true;
             }
             return false;
@@ -327,7 +400,7 @@ namespace Moirai.Atropos.UI
         /// 开栈编排的等待腿：与同步腿同一份栈、同一次压入，另把「面板就绪」等出来再交回窗口。
         /// </summary>
         /// <remarks>
-        /// 压栈那一段与 <see cref="ShowUIImp"/> 同一份判据，含 <paramref name="onInstanceCreated"/> 的交接时机与不吃它的那两条支路。<br />
+        /// 压栈那一段与 <c>ShowUIImp</c> 同一份判据（那一名下有 UIPayload 形与 <c>TArg</c> 形两枚重载，故不写 cref），含 <paramref name="onInstanceCreated"/> 的交接时机与不吃它的那两条支路。<br />
         /// 等面板就绪最长 <see cref="LOAD_WAIT_TIMEOUT_SECONDS"/> 秒；超时只发一条 Warning，仍交回那只窗口。<br />
         /// 装载失败或装载中被关闭的窗不再当结果交回：失败那一刻即交回 null，不再等到超时。
         /// </remarks>
@@ -337,30 +410,83 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="callerCt">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>，与超时分档。</param>
         /// <returns>栈上那一只窗口（面板就绪或等待超时之后交回；装载失败交回 null）。</returns>
-        internal async UniTask<UIWindow> ShowUIAwaitImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            Action<UIWindow> onInstanceCreated, params object[] userData)
+        internal async UniTask<UIWindow> ShowUIAwaitImp(Type type, bool isAsync, string windowName, string assetLocation,
+            bool fromResources, Action<UIWindow> onInstanceCreated, UIPayload payload, CancellationToken callerCt = default)
         {
             if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
 
-            // 栈上复用支路：同帧交回那一只（可能仍在装载），不进等待
-            if (ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out var window))
+            ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, payload, out var window);
+            if (window.IsLoadDone)
             {
-                return window;
+                return window; // 复用/停放命中：同步完成
             }
 
-            // 等面板就绪：先过一帧再入轮询（对齐旧 WaitUntil 的次帧首查语义），实例方法等待零闭包；
-            // 超时经池租的取消源兜底，超时后照常交回窗口
+            window.Internal_JoinOpenWaiter(); // 在飞合并：等待者 +1，装载不重启
+
             var waitLease = MemoryPool.Acquire<UICtsLease>();
             waitLease.Source.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
             try
             {
                 await UniTask.Yield();
-                await window.WaitPanelReadyAsync(waitLease.Source.Token);
+                await window.WaitPanelReadyAsync(waitLease.Source.Token, callerCt);
             }
             catch (System.OperationCanceledException)
             {
+                if (callerCt.IsCancellationRequested)
+                {
+                    window.Internal_LeaveOpenWaiter();
+                    throw; // 调用方取消：OCE 原样上抛（与超时分档）
+                }
+
+                LogUtility.Warning("ShowUIAsyncAwait timed out waiting for window load: {0}", windowName);
+            }
+            finally
+            {
+                waitLease.Source.CancelAfter(System.Threading.Timeout.InfiniteTimeSpan);
+                MemoryPool.Release(waitLease);
+            }
+
+            if (window.IsLoadFailed || (window.IsDestroyed && !window.IsLoadDone))
+            {
+                return null;
+            }
+
+            return window;
+        }
+
+        /// <summary>开栈编排的等待腿（泛型直塞形）：与 UIPayload 形同路，仅把载荷换进泛型直塞通道。</summary>
+        /// <remarks><paramref name="payload"/> 用普通形参而非 <c>in</c>：<c>async</c> 方法禁 <c>in</c> 形参（CS1988）；交给泛型直塞前置时按其 <c>in</c> 形参隐式按值传递。</remarks>
+        internal async UniTask<UIWindow> ShowUIAwaitImp<TArg>(Type type, bool isAsync, string windowName, string assetLocation,
+            bool fromResources, Action<UIWindow> onInstanceCreated, TArg payload, CancellationToken callerCt = default)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+
+            ResolveOrStartLoad<TArg>(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, payload, out var window);
+            if (window.IsLoadDone)
+            {
+                return window;
+            }
+
+            window.Internal_JoinOpenWaiter();
+
+            var waitLease = MemoryPool.Acquire<UICtsLease>();
+            waitLease.Source.CancelAfter(System.TimeSpan.FromSeconds(LOAD_WAIT_TIMEOUT_SECONDS));
+            try
+            {
+                await UniTask.Yield();
+                await window.WaitPanelReadyAsync(waitLease.Source.Token, callerCt);
+            }
+            catch (System.OperationCanceledException)
+            {
+                if (callerCt.IsCancellationRequested)
+                {
+                    window.Internal_LeaveOpenWaiter();
+                    throw;
+                }
+
                 LogUtility.Warning("ShowUIAsyncAwait timed out waiting for window load: {0}", windowName);
             }
             finally
@@ -390,21 +516,39 @@ namespace Moirai.Atropos.UI
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="onInstanceCreated">新实例装载前的交接钩子；不需要交接时为 null。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="callerCt">调用方取消令牌；被它撤销即落 <see cref="EUIOpenStatus.Cancelled"/> 档。</param>
         /// <returns>开窗结果。</returns>
-        internal async UniTask<UIOpenResult> ShowUIAwaitResultImp(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            Action<UIWindow> onInstanceCreated, params object[] userData)
+        internal async UniTask<UIOpenResult> ShowUIAwaitResultImp(Type type, bool isAsync, string windowName, string assetLocation,
+            bool fromResources, Action<UIWindow> onInstanceCreated, UIPayload payload, CancellationToken callerCt = default)
         {
             if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
 
-            // 栈上复用且已就绪的那一只同帧交回 Opened；仍在装载的复用窗照常等终态
-            if (ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, userData, out var window)
-                && window.IsLoadDone)
+            ResolveOrStartLoad(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, payload, out var window);
+            if (window.IsLoadDone)
             {
                 return new UIOpenResult(EUIOpenStatus.Opened, window);
             }
 
-            return await WaitWindowResultAsync(window, windowName, LOAD_WAIT_TIMEOUT_SECONDS);
+            window.Internal_JoinOpenWaiter();
+            return await WaitWindowResultAsync(window, windowName, LOAD_WAIT_TIMEOUT_SECONDS, callerCt);
+        }
+
+        /// <summary>开栈编排的结果腿（泛型直塞形）：与 UIPayload 形同路，仅把载荷换进泛型直塞通道。</summary>
+        /// <remarks><paramref name="payload"/> 用普通形参而非 <c>in</c>：<c>async</c> 方法禁 <c>in</c> 形参（CS1988）；交给泛型直塞前置时按其 <c>in</c> 形参隐式按值传递。</remarks>
+        internal async UniTask<UIOpenResult> ShowUIAwaitResultImp<TArg>(Type type, bool isAsync, string windowName, string assetLocation,
+            bool fromResources, Action<UIWindow> onInstanceCreated, TArg payload, CancellationToken callerCt = default)
+        {
+            if (string.IsNullOrEmpty(windowName)) windowName = type.FullName;
+
+            ResolveOrStartLoad<TArg>(type, isAsync, windowName, assetLocation, fromResources, onInstanceCreated, payload, out var window);
+            if (window.IsLoadDone)
+            {
+                return new UIOpenResult(EUIOpenStatus.Opened, window);
+            }
+
+            window.Internal_JoinOpenWaiter();
+            return await WaitWindowResultAsync(window, windowName, LOAD_WAIT_TIMEOUT_SECONDS, callerCt);
         }
 
         /// <summary>
@@ -504,7 +648,7 @@ namespace Moirai.Atropos.UI
             try
             {
                 await UniTask.Yield();
-                await ret.WaitPanelReadyAsync(waitLease.Source.Token);
+                await ret.WaitPanelReadyAsync(waitLease.Source.Token, CancellationToken.None);
             }
             catch (System.OperationCanceledException)
             {
@@ -552,7 +696,7 @@ namespace Moirai.Atropos.UI
                 {
                     // 先过一帧再入轮询（次帧首查语义），实例方法等待零闭包
                     await UniTask.Yield();
-                    await ret.WaitPanelReadyAsync(waitLease.Source.Token);
+                    await ret.WaitPanelReadyAsync(waitLease.Source.Token, CancellationToken.None);
                 }
                 catch (System.OperationCanceledException)
                 {
@@ -586,7 +730,7 @@ namespace Moirai.Atropos.UI
                 return new UIOpenResult(EUIOpenStatus.Missing, null);
             }
 
-            return await WaitWindowResultAsync(ret, typeof(T).FullName, LOAD_WAIT_TIMEOUT_SECONDS);
+            return await WaitWindowResultAsync(ret, typeof(T).FullName, LOAD_WAIT_TIMEOUT_SECONDS, CancellationToken.None);
         }
 
         /// <summary>
@@ -598,21 +742,32 @@ namespace Moirai.Atropos.UI
         /// <param name="window">等终态的那一只。</param>
         /// <param name="windowName">窗口名称，只进超时文案。</param>
         /// <param name="timeoutSeconds">等待上限（秒）。</param>
+        /// <param name="callerCt">调用方取消令牌；被它撤销即落 <see cref="EUIOpenStatus.Cancelled"/> 档。</param>
         /// <returns>开窗结果。</returns>
-        internal static async UniTask<UIOpenResult> WaitWindowResultAsync(UIWindow window, string windowName, float timeoutSeconds)
+        internal static async UniTask<UIOpenResult> WaitWindowResultAsync(UIWindow window, string windowName, float timeoutSeconds,
+            CancellationToken callerCt = default)
         {
-            if (!await WaitForPanelReady(window, timeoutSeconds) && !window.IsLoadDone)
+            try
             {
-                if (window.IsLoadFailed || window.IsDestroyed)
+                if (!await WaitForPanelReady(window, timeoutSeconds, callerCt) && !window.IsLoadDone)
                 {
-                    return new UIOpenResult(EUIOpenStatus.Failed, window);
+                    if (window.IsLoadFailed || window.IsDestroyed)
+                    {
+                        return new UIOpenResult(EUIOpenStatus.Failed, window);
+                    }
+
+                    LogUtility.Warning("UI 窗口 '{0}' 等待面板就绪超时（{1} 秒）", windowName, timeoutSeconds);
+                    return new UIOpenResult(EUIOpenStatus.Timeout, window);
                 }
 
-                LogUtility.Warning("UI 窗口 '{0}' 等待面板就绪超时（{1} 秒）", windowName, timeoutSeconds);
-                return new UIOpenResult(EUIOpenStatus.Timeout, window);
+                return new UIOpenResult(EUIOpenStatus.Opened, window);
             }
-
-            return new UIOpenResult(EUIOpenStatus.Opened, window);
+            catch (System.OperationCanceledException)
+            {
+                // 调用方取消：等待腿登记过等待者，由离场掐断装载；取窗腿未登记等待者，Leave 的下溢地板守卫令离场空转（不误掐装载）。
+                window.Internal_LeaveOpenWaiter();
+                return new UIOpenResult(EUIOpenStatus.Cancelled, window);
+            }
         }
 
         /// <summary>
@@ -620,21 +775,27 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <remarks>
         /// 取消源经 <see cref="UICtsLease"/> 租约从 <see cref="MemoryPool"/> 取还：超时计时还池前先解除，取消过的源由租约废弃。 <br />
-        /// 超时与就绪竞速时以就绪为准：取消异常落定后回读一次就绪位。
+        /// 超时与就绪竞速时以就绪为准：取消异常落定后回读一次就绪位；调用方取消原样上抛，交上层落 Cancelled 档。
         /// </remarks>
         /// <param name="window">等终态的那一只。</param>
         /// <param name="timeoutSeconds">等待上限（秒）。</param>
+        /// <param name="callerCt">调用方取消令牌；被它撤销时原样上抛 <see cref="System.OperationCanceledException"/>。</param>
         /// <returns>面板就绪时为真。</returns>
-        internal static async UniTask<bool> WaitForPanelReady(UIWindow window, float timeoutSeconds)
+        internal static async UniTask<bool> WaitForPanelReady(UIWindow window, float timeoutSeconds, CancellationToken callerCt = default)
         {
             var lease = MemoryPool.Acquire<UICtsLease>();
             lease.Source.CancelAfter(System.TimeSpan.FromSeconds(timeoutSeconds));
             try
             {
-                return await window.WaitPanelReadyAsync(lease.Source.Token);
+                return await window.WaitPanelReadyAsync(lease.Source.Token, callerCt);
             }
             catch (System.OperationCanceledException)
             {
+                if (callerCt.IsCancellationRequested)
+                {
+                    throw; // 调用方取消：上抛交 WaitWindowResultAsync 落 Cancelled 档，与超时分档
+                }
+
                 return window.IsLoadDone;
             }
             finally
@@ -752,6 +913,7 @@ namespace Moirai.Atropos.UI
             }
 
             _uiStack.Clear();
+            _history.Clear();
         }
 
         /// <summary>
@@ -960,6 +1122,7 @@ namespace Moirai.Atropos.UI
 
             _uiStack.Insert(insertIndex, window);
             UIServiceEvent.Shown(window);
+            _history.Add(window); // 开启序追加：复用/停放重取经 Pop→Push 也会挪到最新
         }
 
         /// <summary>
@@ -993,6 +1156,33 @@ namespace Moirai.Atropos.UI
             {
                 below.Interactable = above == null || !IsModal(above);
             }
+
+            _history.Remove(window);
+        }
+
+        #endregion
+
+        #region 导航 [NAVIGATION]
+
+        /// <summary>导航深度：开启序历史的长度（栈按层级排序答不出「最近开的是谁」，历史按开启序答）。</summary>
+        internal int NavigationDepth => _history.Count;
+
+        /// <summary>取最近开的那只走既有关闭政策：无历史/过渡中/政策拒关回假，历史不出栈。</summary>
+        internal bool TryCloseTopWindow()
+        {
+            if (_history.Count == 0)
+            {
+                return false;
+            }
+
+            var top = _history[_history.Count - 1];
+            if (!top.Internal_EvaluateCanClose())
+            {
+                return false;
+            }
+
+            top.TryClose().Forget();
+            return true;
         }
 
         #endregion

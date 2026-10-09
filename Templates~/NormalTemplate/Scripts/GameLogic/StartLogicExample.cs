@@ -28,7 +28,7 @@ namespace Moirai.GameLogic
             await UniTask.Delay(10 * 1000);
             
             // UI加载
-            UIService.ShowUIAsync<StartScreen>("StartScreen", GetWindowLocation("start"), false, "Loading...");            
+            UIService.ShowUIAsync<StartScreen, string>("Loading...", "StartScreen", GetWindowLocation("start"));
             
             // 场景加载
             await SceneService.LoadSceneAsync("Assets/AssetRaw/Default/Scene/start.unity");

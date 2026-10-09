@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace Moirai.Atropos.UI
 {
@@ -24,7 +25,7 @@ namespace Moirai.Atropos.UI
         private readonly int _shutdownOrder;
         private readonly Func<Type, bool> _ownsWindowType;
         private readonly Func<bool> _isDriverValid;
-        private readonly Action<Type, bool, string, string, bool, object[]> _openWindow;
+        private readonly Action<Type, bool, string, string, bool, UIPayload, CancellationToken> _openWindow;
         private Action _claimedShutDown;
 
         /// <summary>轨道名：进抬错文案，点名是哪一轨。</summary>
@@ -53,7 +54,7 @@ namespace Moirai.Atropos.UI
         /// <param name="openWindow">Type 形入口落到本轨的开窗实现。</param>
         internal UITrack(string trackName, Type windowBaseType, int shutdownOrder,
             Func<Type, bool> ownsWindowType, Func<bool> isDriverValid,
-            Action<Type, bool, string, string, bool, object[]> openWindow)
+            Action<Type, bool, string, string, bool, UIPayload, CancellationToken> openWindow)
         {
             _trackName = trackName;
             _windowBaseType = windowBaseType;
@@ -85,11 +86,12 @@ namespace Moirai.Atropos.UI
         /// <param name="windowName">窗口名称。</param>
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="userData">用户自定义数据。</param>
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="ct">调用方取消令牌。</param>
         internal void OpenWindow(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-            object[] userData)
+            UIPayload payload, CancellationToken ct)
         {
-            _openWindow(type, isAsync, windowName, assetLocation, fromResources, userData);
+            _openWindow(type, isAsync, windowName, assetLocation, fromResources, payload, ct);
         }
     }
 }

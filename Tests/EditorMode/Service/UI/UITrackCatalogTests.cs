@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Moirai.Atropos;
 using Moirai.Atropos.UI;
 using NUnit.Framework;
@@ -99,30 +100,33 @@ namespace Service.UI
             string passedName = null;
             string passedLocation = null;
             var passedFromResources = false;
-            object[] passedUserData = null;
+            UIPayload passedPayload = UIPayload.Empty;
+            CancellationToken passedToken = default;
             var payload = new object();
             RegisterSyntheticTrack("SYNTH", typeof(ProbeNeutralWindow), UITrack.SHUTDOWN_ORDER_DEFAULT,
-                (type, isAsync, windowName, assetLocation, fromResources, userData) =>
+                (type, isAsync, windowName, assetLocation, fromResources, erased, ct) =>
                 {
                     passedType = type;
                     passedAsync = isAsync;
                     passedName = windowName;
                     passedLocation = assetLocation;
                     passedFromResources = fromResources;
-                    passedUserData = userData;
+                    passedPayload = erased;
+                    passedToken = ct;
                 }, NeverValid);
 
-            UIService.ShowUIAsync(typeof(ProbeNeutralWindow), "SynthAsync", "Synth/Address", true, payload);
+            UIService.ShowUIAsync(typeof(ProbeNeutralWindow), "SynthAsync", "Synth/Address", true, UIPayload.From(payload));
             Assert.AreEqual(typeof(ProbeNeutralWindow), passedType, "交进合成轨的就是调用方给的窗口类");
             Assert.IsTrue(passedAsync, "异步入口落下异步档");
             Assert.AreEqual("SynthAsync", passedName, "窗口名原样交下");
             Assert.AreEqual("Synth/Address", passedLocation, "面板地址原样交下");
             Assert.IsTrue(passedFromResources, "取法原样交下");
-            Assert.AreEqual(1, passedUserData.Length, "用户数据按位收下");
-            Assert.AreSame(payload, passedUserData[0], "交进轨道的就是调用方那一枚");
+            Assert.IsFalse(passedPayload.IsEmpty, "擦除后的载荷按一枚 UIPayload 收下");
+            Assert.AreSame(payload, passedPayload.To<object>(), "交进轨道的就是调用方那一枚");
+            Assert.IsFalse(passedToken.CanBeCanceled, "缺省令牌一路是 None 档：动态腿不收 CT 时不造可撤销源");
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "合成轨不往栈里写：分派到此为止，栈上一只窗都不多");
 
-            UIService.ShowUI(typeof(ProbeNeutralWindow), "SynthSync", "Synth/Address", false, payload);
+            UIService.ShowUI(typeof(ProbeNeutralWindow), "SynthSync", "Synth/Address", false, UIPayload.From(payload));
             Assert.AreEqual("SynthSync", passedName, "同步入口落到同一枚实现");
             Assert.IsFalse(passedAsync, "同步入口在编辑器那一档不落异步");
         }
@@ -227,7 +231,7 @@ namespace Service.UI
         /// <param name="validProbe">有效性探针，由用例控制。</param>
         /// <returns>登记进目录的那一枚。</returns>
         private UITrack RegisterSyntheticTrack(string name, Type windowBaseType, int shutdownOrder,
-            Action<Type, bool, string, string, bool, object[]> openSink, Func<bool> validProbe)
+            Action<Type, bool, string, string, bool, UIPayload, CancellationToken> openSink, Func<bool> validProbe)
         {
             var track = new UITrack(name, windowBaseType, shutdownOrder,
                 windowBaseType.IsAssignableFrom, validProbe, openSink);
@@ -244,7 +248,7 @@ namespace Service.UI
         {
             /// <summary>什么都不做的开窗落点。</summary>
             internal static void None(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
-                object[] userData)
+                UIPayload payload, CancellationToken ct)
             {
             }
         }

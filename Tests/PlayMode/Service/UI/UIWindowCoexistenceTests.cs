@@ -55,7 +55,7 @@ namespace Service.UI
         private PanelSettings _sharedPanelSettings;
         private readonly List<GameObject> _trackedShells = new List<GameObject>();
 
-        /// <summary>等待腿的交回物：两只窗各自的续体落点，同帧只可能是 null。</summary>
+        /// <summary>等待腿的交回物：两只窗各自的续体落点——装载跨过帧的窗同帧还是 null，装载同帧落定的窗当场就有值。</summary>
         private UIWindow _awaitedUgui;
         private UIWindow _awaitedKit;
 
@@ -173,7 +173,7 @@ namespace Service.UI
         /// 两支并在同一层：层级排序给同一层内的两只窗依次发序位，两支各拿自己那枚面板事实；关掉栈顶那一支不动栈底那一支。
         /// </summary>
         /// <remarks>
-        /// <see cref="UIServiceHandler"/> 的深度重排按栈序从本层基址起逐窗口加一档 <see cref="UIService.WINDOW_DEEP"/>，
+        /// <see cref="UIWindowLedger.OnSortWindowDepth"/> 的深度重排按栈序从本层基址起逐窗口加一档 <see cref="UIService.WINDOW_DEEP"/>，
         /// 认的是窗口而不是轨——所以 uGUI 面板的 <see cref="Canvas.sortingOrder"/> 与 UI Toolkit 文档的
         /// <see cref="UIDocument.sortingOrder"/> 拿到的是同一份序位表里的两格。
         /// </remarks>
@@ -358,7 +358,7 @@ namespace Service.UI
         /// 复用支路在第一个 await 之前就返回，量不到这一半；本格的装载钩子真的排了 <see cref="PANEL_DELAY_SECONDS"/> 的帧，
         /// 于是「同帧没落定 → 跨帧落定」是量出来的而不是推的。等待期间 <see cref="UIService.IsAnyLoading()"/> 答真，
         /// 两支各自把序位结算到自己那枚面板事实上。 <br />
-        /// 超时那一档（<see cref="UIServiceHandler"/> 的 60 秒上界与那条 Warning）不在本文件射程：等它是 60 秒真实时间，
+        /// 超时那一档（账本 <see cref="UIWindowLedger"/> 的 60 秒上界 <c>LOAD_WAIT_TIMEOUT_SECONDS</c> 与那条 Warning）不在本文件射程：等它是 60 秒真实时间，
         /// 判据要红也要等满，交回别的量具口径。
         /// </remarks>
         [UnityTest]
@@ -396,14 +396,22 @@ namespace Service.UI
         }
 
         /// <summary>
-        /// 面板当场就绪时等待腿仍跨帧落定：<c>UniTask.WaitUntil</c> 排在就绪之后，同帧拿不到交回物。
+        /// 面板同帧就绪时等待腿同帧落定：账本的 <c>IsLoadDone</c> 短路在第一个 await 之前就把栈上那一只交回，跨帧那一段根本不曾开始。
         /// </summary>
         /// <remarks>
-        /// 与上一格合起来才是这条腿的两档：<see cref="UIServiceHandler.ShowUIAwaitImp"/> 的早退只覆盖「栈上已有同名窗口」，
-        /// 新开的窗一律走到 <c>WaitUntil</c>——就绪位在这一帧已经为真，续体仍要到下一帧的更新时机才落定。
+        /// 硬切后的两档以「装载有没有跨帧」为界，不再以「是不是新开的窗」为界（引 spec §4.1「复用/停放命中 → 同步完成」）：
+        /// 账本 <c>UIWindowLedger.ShowUIAwaitImp</c> 的早退判的是 <c>ResolveOrStartLoad</c> 交回时 <see cref="UIWindow.IsLoadDone"/>
+        /// 已为真，这一档如今吃三条来路——栈上已有同名窗、停放表命中，以及新开窗的装载当场落定。新开窗那一条按两支探针各自实测：
+        /// 本格的 <c>ProbeUGUIWindowOnUiLayer</c> 与 <c>ProbeUITKWindowOnTipsLayer</c> 异步腿交出的是已完成的 <c>UniTask</c>
+        /// （<c>UniTask.FromResult</c>），await 一枚已完成的 awaiter 由状态机就地续跑、不排下一帧 ⇒ 装载在同一次
+        /// <c>InternalLoad(...).Forget()</c> 里走到 <c>PanelLoaded</c>，等待腿因此同帧交回；上一格的
+        /// <c>ProbeDelayedUGUIWindow</c> 与 <c>ProbeDelayedUITKWindow</c> 异步腿 await 的是未完成的 <c>UniTask.WaitForSeconds</c> ⇒
+        /// 就绪位在检查时还是假，这才走到 <c>UniTask.Yield</c> + <c>WaitPanelReadyAsync</c> 的跨帧腿。 <br />
+        /// 本格旧文钉的是被硬切推翻的那一份（「就绪位已为真仍同帧不落定」），随 §4.1 拍板退役；交回物既已同帧在位，
+        /// 判据不再写跨帧等待，末尾那一帧只补判「同帧落定之后不补压第二只、交回物也没被换掉」。
         /// </remarks>
         [UnityTest]
-        public IEnumerator ShowUIAsyncAwait_PanelReadyInPlace_ResolvesOnTheNextFrameNotSynchronously()
+        public IEnumerator ShowUIAsyncAwait_PanelReadyInPlace_ResolvesInTheSameFrame()
         {
             KickInPlaceUGUI().Forget();
             KickInPlaceKit().Forget();
@@ -415,16 +423,21 @@ namespace Service.UI
 
             Assert.IsTrue(ugui.IsLoadDone, "同步就绪的装载钩子当场把面板绑上");
             Assert.IsTrue(kit.IsLoadDone, "同步就绪的装载钩子当场把面板绑上");
-            Assert.IsNull(_awaitedUgui, "就绪位已为真，等待腿仍同帧不落定");
-            Assert.IsNull(_awaitedKit, "就绪位已为真，等待腿仍同帧不落定");
+            Assert.IsNotNull(_awaitedUgui,
+                "spec §4.1「复用/停放命中 → 同步完成」：装载同帧落定的新开窗同走账本 ShowUIAwaitImp 的 IsLoadDone 短路，等待腿当帧就交回");
+            Assert.IsNotNull(_awaitedKit,
+                "spec §4.1「复用/停放命中 → 同步完成」：另一轨同判据——就绪位同帧为真即同帧交回，不等下一帧");
 
-            yield return PumpUntil(() => _awaitedUgui != null && _awaitedKit != null, PUMP_TIMEOUT_SECONDS);
-
-            Assert.AreSame(ugui, _awaitedUgui, "跨一帧交回的是栈上那一只");
-            Assert.AreSame(kit, _awaitedKit, "跨一帧交回的是栈上那一只");
+            Assert.AreSame(ugui, _awaitedUgui, "同帧交回的就是栈上那一只");
+            Assert.AreSame(kit, _awaitedKit, "同帧交回的就是栈上那一只");
             Assert.AreEqual(2, _coordinator.Internal_PeekStack().Count, "等待腿不压第二只");
 
+            // 交回物的落定不靠续体，这一帧因此没有时序要等；它判的是同帧短路之后不再有第二次结算
             yield return null;
+
+            Assert.AreEqual(2, _coordinator.Internal_PeekStack().Count, "跨一帧栈上仍是两只：等待腿没有延后的第二次压入");
+            Assert.AreSame(ugui, _awaitedUgui, "跨一帧交回物仍是同一只实例");
+            Assert.AreSame(kit, _awaitedKit, "跨一帧交回物仍是同一只实例");
         }
 
         private async UniTaskVoid KickDelayedUGUI()

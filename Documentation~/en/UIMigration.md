@@ -1,0 +1,121 @@
+# UI Payload Migration
+
+> Migration notes for the hard cut: the `params object[]` payload shape is retired from every public leg, replaced by a strongly typed `Payload` slot (static legs) and the `UIPayload` erasure carrier (dynamic legs). This page is the one-page checklist for an external business project (the fifth consumer): declare a DTO and swap the base class -> two destinations for write sites -> three behavior changes.
+
+The full contract and the signature tables live in [UI Service](UI.md). Payload-free call sites — the overwhelming majority — need no change: `ShowUI<T>` / `ShowUIAsync<T>` / `ShowUIAsyncAwait<T>` / `ShowUIAwaitResult<T>` only gained a trailing `ct`, so their existing arguments still bind.
+
+## 1. Declare a DTO and swap the base class
+
+For every payload-carrying window, declare one DTO (`struct` preferred — the static leg's `in TArg` pushes it generically without boxing) and swap to the slot-carrying base:
+
+| Old | New |
+|---|---|
+| `class MyWindow : UGUIWindow` | `class MyWindow : UGUIWindow<MyWindowPayload>` |
+| `class MyWindow : UITKWindow` | `class MyWindow : UITKWindow<MyWindowPayload>` |
+| Read sites `UserData?.ToString()` / `(string)UserData` | `Payload` (already strongly typed, no cast) |
+| Read sites `_params[i]` / `Params[i]` (including the `Params.Length` emptiness check) | `Payload.Field` (at most one DTO per open; fields you did not set keep the DTO's own default) |
+
+```csharp
+// Old shape (retired): positional arguments, read by index
+[Window(EUILayer.Popup)]
+public class RenameWindow : UGUIWindow
+{
+    protected override void OnRefresh()
+    {
+        var initial = Params.Length > 0 ? (string)Params[0] : string.Empty;
+        _input.text = initial;
+    }
+}
+
+// New shape: one DTO, read by name
+public struct RenameWindowPayload
+{
+    public string InitialText;
+    public int MaxLength;
+}
+
+[Window(EUILayer.Popup)]
+public class RenameWindow : UGUIWindow<RenameWindowPayload>
+{
+    protected override void OnRefresh()
+    {
+        _input.text = Payload.InitialText;
+        _input.maxLength = Payload.MaxLength;
+    }
+}
+```
+
+> Toolchain note: under this project's toolchain (C# 9 / netstandard2.1, no `IsExternalInit` polyfill) a `readonly struct` with writable public fields does not compile (CS8340 at the init sites; `readonly` fields plus an object initializer is CS0191, `{ get; init; }` is CS0518) — a DTO is a plain `struct` with public fields and an object initializer.
+
+- One DTO carries every field: the old shape spread three values over three positions, the new one removes the possibility of mis-ordering entirely — which slot the payload takes and which takes `panelSettings` is fixed by the signature table
+- `Payload` is overwritten per open and never cleared on close: no null check is needed before reading it (you get this open's value), and a payload-free reopen of the same window leaves the residual in place until the next overwrite
+- Windows that carry no payload do not need a base swap: inheriting `UGUIWindow` / `UITKWindow` directly still opens fine — it just throws `GameException` (window class named in the message) the moment a non-empty payload is pushed into it, which points at the call site whose base was never swapped instead of swallowing it
+
+## 2. Two destinations for write sites
+
+After the read sites, rewrite the call sites, split by "is the window class known at compile time".
+
+### Static leg: window class known at compile time (most write sites)
+
+Payload first, two type arguments naming the window class and the DTO class:
+
+```csharp
+var dto = new RenameWindowPayload { InitialText = current, MaxLength = 16 };
+
+UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto);                                  // async
+UIService.ShowUI<RenameWindow, RenameWindowPayload>(in dto);                                       // sync tier
+RenameWindow w = await UIService.ShowUIAsyncAwait<RenameWindow, RenameWindowPayload>(dto);         // await leg (async forbids `in`)
+UIOpenResult r = await UIService.ShowUIAwaitResult<RenameWindow, RenameWindowPayload>(in dto);     // result leg
+```
+
+Landed signature and position order: `(in TArg payload, string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`; the UI Toolkit legs take one extra `PanelSettings panelSettings = null` before `ct`, and the payload is still always the first slot.
+
+When you hand-write a `Show` helper, take the addressing from `UIManager`'s public static resolvers (the old shape delegated addressing to the event relay; a direct leg resolves it itself):
+
+```csharp
+public static void ShowRenameWindow(RenameWindowPayload dto)
+{
+    const string WindowId = "RenameWindow";
+    UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(
+        in dto,
+        WindowId,
+        UIManager.ResolveWindowLocation(WindowId),
+        UIManager.ResolveFromResources);
+}
+```
+
+- `ResolveWindowLocation(windowId)` and `ResolveFromResources` are used as a pair: the first returns the location computed from the config table or the `Resources` path, the second answers which loading mode this instance uses — both read the same decision as the `UIManager` event path
+- The resolvers follow `SingletonMono.Instance` semantics: with no `UIManager` in the scene one is materialized on the spot (the default config-table shape), and inside the app-quit / play-stop window a missing instance throws `GameException` — keep the call behind your own service-readiness guard
+
+### Dynamic leg: only a runtime `Type` (type-substitution seams, registry-driven opens)
+
+`TArg` is unknown at runtime, so the payload is erased into the single carrier `UIPayload`:
+
+```csharp
+// The retired shape queued a positional argument array in the trailing slot; the new shape carries the payload in the single UIPayload carrier
+UIService.ShowUIAsync(type, windowName, location, false, UIPayload.From(dto), ct);
+UIService.ShowUI(type, windowName, location, false, UIPayload.From(dto), ct);        // sync tier, same shape
+UIWindow win = await UIService.ShowUIAsyncAwait(type, windowName, location, false, UIPayload.From(dto), ct);
+```
+
+- The dynamic family has exactly three legs (async / sync / await) and `UIPayload payload` always sits right before `ct`; there is no `Type`-form result leg
+- A reference payload stores the reference: zero allocation, and the arriving `Payload` is the same reference you sent; a value type boxes once through `object` — keep hot-path primitives and structs on the static leg
+- An empty payload and a `null` reference are the same case: `UIPayload.Empty`, `default(UIPayload)` and `UIPayload.From(null)` are equivalent, and that is what the payload-free legs pass
+- Reading it back uses the window class's `TArg`: `To<T>()` throws `GameException` on a type mismatch or an empty payload against a value type (message names the expected type); use `TryGet<T>(out T)` when you would rather not throw
+- Keep `mgr.SomeWindowType`-style branches (runtime window-class substitution) on the dynamic leg and move the direct branches to the static leg: one DTO shape serves both channels, so no separate carrier type is needed for the dynamic path
+
+## 3. Three behavior changes
+
+1. **The payload-carrying `UIWindowEvent.Show` shape is gone**: neither `Show<T>(string, params Object[])` nor `Show(Type, string, params Object[])` exists any more, and `UIWindowEvent` no longer has a `Params` property; the payload-free `Show` (both forms) plus `Close` / `Hide` / `CloseAll` stay available. Payload-carrying opens now call a facade leg directly, at the call site — the "send an event, a subscriber relays it" hop is gone.
+2. **In-flight merge, last-wins**: reopening a window whose load is still in flight — any leg, either channel — does not restart the load and does not push a second instance; the payload is overwritten by the last one and `OnRefresh` runs once when the panel is ready, seeing only the final payload. The old assumption that "two Shows refresh twice" no longer holds — if you need to change content mid-flight, wait for the result leg or close before reopening.
+3. **Every leg takes a `CancellationToken`**: trailing `CancellationToken ct = default`, costing nothing when you omit it, and the token is only consumed while the load is in flight (a ready reuse and a re-park hand back synchronously without consuming `ct`; reusing a window that is still loading registers the caller token just the same, and cancelling it aborts that in-flight load — the same semantics as the in-flight merge above). Cancellation lands per leg: a void leg rolls back off the stack silently (no Error), an await leg rethrows `OperationCanceledException`, and a result leg returns `EUIOpenStatus.Cancelled` (a new tier, distinguishable from `Timeout`). Both `Cancelled` and `Failed` windows have been rolled back or never entered the stack and must not be treated as ready.
+
+## Closing checklist
+
+- No `userData` / `UserData` / `Params` / `_params` / `params object[]` UI-payload shapes remain anywhere
+- Every payload-carrying window base has its `<TArg>`; the same DTO shape serves both channels
+- No payload-carrying `Show` is sent through events, and addressing goes through the `ResolveWindowLocation` / `ResolveFromResources` pair
+- The three failure tiers are all self-identifying: a base you forgot to swap -> the generic constraint will not bind (compile time) or a `GameException` naming the window class when a non-empty payload arrives (runtime); a slot-type mismatch -> `GameException` with both expected and actual type names; passing `in` to the await leg -> that leg already takes a plain parameter, so just follow the signature
+
+---
+[« Documentation Index](Index.md) · [UI Service](UI.md) · [Main README](../../README_EN.md)

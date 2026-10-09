@@ -11,7 +11,7 @@ using UnityEngine.UIElements;
 namespace Service.UI
 {
     /// <summary>
-    /// UI 门面开窗面用例：同名两腿各自的实参形状、错配当场抬错、门面 public static 签名快照与对象模型的回叫落点。
+    /// UI 门面开窗面用例：同名两腿各自的实参形状、错配当场抬错（认不出任何一轨、按名命中的是别的窗口类）、门面 public static 签名快照与对象模型的回叫落点。
     /// </summary>
     /// <remarks>
     /// 两条腿共用同一个协调者的开栈编排，本文件因此只判这些：同一形状的实参是否各自落进自己那一腿（协调者处留下的形参形状差别）、<br />
@@ -27,8 +27,9 @@ namespace Service.UI
     /// 判的是这一腿开出的窗落回哪一轨的窗口基类；面板就绪与壳/内容根那一半住在 <c>UITKWindowTests</c>，uGUI 那一枚探针窗自己造物体当面板。<br />
     /// UI Toolkit 腿的三枚新格同样吃真装载：窗口级 <c>PanelSettings</c> 落到文档组件且优先于共享那一份（不给时回兜底）、
     /// 腿传 <c>fromResources</c> 时各走 <c>TryReadTree</c> 自己那条支路（两个地址互为反证）、第四枚位置在两支里说的是两件不同的事。<br />
-    /// 签名快照覆盖门面全部 public static 方法：两支的开窗腿都带 <c>assetLocation</c> 与 <c>fromResources</c>、UI Toolkit 三条腿再多一枚 <c>panelSettings</c>、<br />
-    /// 两支的约束各写在自己的窗口基类上；共享栈上的全局操作仍是一条 <c>where T : UIWindow</c> 入口。线程契约：仅主线程。
+    /// 签名快照覆盖门面全部 public static 方法：两支的开窗腿都带 <c>assetLocation</c> 与 <c>fromResources</c>、UI Toolkit 的无载荷四支再多一枚 <c>panelSettings</c>、<br />
+    /// 带载荷那四支的载荷永远排第一枚（等待腿因 <c>async</c> 禁 <c>in</c> 形参而收普通 <c>TArg</c>）；<br />
+    /// 两支的约束各写在自己的窗口基类上（带载荷那一族写在 <c>UGUIWindow&lt;TArg&gt;</c> 与 <c>UITKWindow&lt;TArg&gt;</c> 上）；共享栈上的全局操作仍是一条 <c>where T : UIWindow</c> 入口。线程契约：仅主线程。
     /// </remarks>
     [TestFixture]
     public sealed class UIServiceWindowFamilyTests
@@ -60,28 +61,57 @@ namespace Service.UI
             "T GetWindow<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
             "System.Boolean IsBlockedByModal(UnityEngine.GameObject)",
             "System.Boolean IsModal(Moirai.Atropos.UI.UIWindow)",
-            "System.Void ShowUIAsync<T>(System.String,System.String,System.Boolean,System.Object[])" +
-            "<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
-            "System.Void ShowUI<T>(System.String,System.String,System.Boolean,System.Object[])" +
-            "<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
             "System.Void ShowUIAsync<T>(System.String,System.String,System.Boolean," +
-            "UnityEngine.UIElements.PanelSettings,System.Object[])" +
+            "System.Threading.CancellationToken)<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
+            "System.Void ShowUI<T>(System.String,System.String,System.Boolean," +
+            "System.Threading.CancellationToken)<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
+            "System.Void ShowUIAsync<T>(System.String,System.String,System.Boolean," +
+            "UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
             "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
             "System.Void ShowUI<T>(System.String,System.String,System.Boolean," +
-            "UnityEngine.UIElements.PanelSettings,System.Object[])" +
+            "UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
             "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
-            "System.Void ShowUIAsync(System.Type,System.String,System.String,System.Boolean,System.Object[])",
-            "System.Void ShowUI(System.Type,System.String,System.String,System.Boolean,System.Object[])",
+            "System.Void ShowUIAsync(System.Type,System.String,System.String,System.Boolean," +
+            "Moirai.Atropos.UI.UIPayload,System.Threading.CancellationToken)",
+            "System.Void ShowUI(System.Type,System.String,System.String,System.Boolean," +
+            "Moirai.Atropos.UI.UIPayload,System.Threading.CancellationToken)",
             "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIWindow> ShowUIAsyncAwait<T>(" +
-            "System.String,System.String,System.Boolean,System.Object[])<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
+            "System.String,System.String,System.Boolean,System.Threading.CancellationToken)" +
+            "<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
             "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIWindow> ShowUIAsyncAwait<T>(" +
-            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings,System.Object[])" +
+            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings," +
+            "System.Threading.CancellationToken)" +
             "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
+            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIWindow> ShowUIAsyncAwait(System.Type," +
+            "System.String,System.String,System.Boolean,Moirai.Atropos.UI.UIPayload,System.Threading.CancellationToken)",
             "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<T>(" +
-            "System.String,System.String,System.Boolean,System.Object[])<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
+            "System.String,System.String,System.Boolean,System.Threading.CancellationToken)<T:Moirai.Atropos.UI.UGUIWindow+.ctor>",
             "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<T>(" +
-            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings,System.Object[])" +
+            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings," +
+            "System.Threading.CancellationToken)" +
             "<T:Moirai.Atropos.UI.UITKWindow+.ctor>",
+            "System.Void ShowUIAsync<TWindow,TArg>(TArg in,System.String,System.String,System.Boolean," +
+            "System.Threading.CancellationToken)<TWindow:Moirai.Atropos.UI.UGUIWindow<TArg>+.ctor,TArg:>",
+            "System.Void ShowUI<TWindow,TArg>(TArg in,System.String,System.String,System.Boolean," +
+            "System.Threading.CancellationToken)<TWindow:Moirai.Atropos.UI.UGUIWindow<TArg>+.ctor,TArg:>",
+            "System.Void ShowUIAsync<TWindow,TArg>(TArg in,System.String,System.String,System.Boolean," +
+            "UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
+            "<TWindow:Moirai.Atropos.UI.UITKWindow<TArg>+.ctor,TArg:>",
+            "System.Void ShowUI<TWindow,TArg>(TArg in,System.String,System.String,System.Boolean," +
+            "UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
+            "<TWindow:Moirai.Atropos.UI.UITKWindow<TArg>+.ctor,TArg:>",
+            "Cysharp.Threading.Tasks.UniTask<TWindow> ShowUIAsyncAwait<TWindow,TArg>(TArg,System.String,System.String," +
+            "System.Boolean,System.Threading.CancellationToken)<TWindow:Moirai.Atropos.UI.UGUIWindow<TArg>+.ctor,TArg:>",
+            "Cysharp.Threading.Tasks.UniTask<TWindow> ShowUIAsyncAwait<TWindow,TArg>(TArg,System.String,System.String," +
+            "System.Boolean,UnityEngine.UIElements.PanelSettings,System.Threading.CancellationToken)" +
+            "<TWindow:Moirai.Atropos.UI.UITKWindow<TArg>+.ctor,TArg:>",
+            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<TWindow,TArg>(TArg in," +
+            "System.String,System.String,System.Boolean,System.Threading.CancellationToken)" +
+            "<TWindow:Moirai.Atropos.UI.UGUIWindow<TArg>+.ctor,TArg:>",
+            "Cysharp.Threading.Tasks.UniTask<Moirai.Atropos.UI.UIOpenResult> ShowUIAwaitResult<TWindow,TArg>(TArg in," +
+            "System.String,System.String,System.Boolean,UnityEngine.UIElements.PanelSettings," +
+            "System.Threading.CancellationToken)<TWindow:Moirai.Atropos.UI.UITKWindow<TArg>+.ctor,TArg:>",
+            "System.Boolean TryCloseTopWindow()",
             "System.Void CloseUI<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
             "System.Void CloseUI(System.Type,System.String)",
             "System.Void HideUI<T>(System.String)<T:Moirai.Atropos.UI.UIWindow>",
@@ -226,7 +256,7 @@ namespace Service.UI
         /// 两支形参表的差别只剩一枚：寻址两档同形同序，UI Toolkit 腿从第四枚起才是它自己那一档。
         /// </summary>
         /// <remarks>
-        /// 两支的第二、三枚都是面板地址与取法，且都原样交给本轨实现；uGUI 腿的第四枚直接就是 <c>userData</c>，UI Toolkit 腿的第四枚是 <c>panelSettings</c>。 <br />
+        /// 两支的第二、三枚都是面板地址与取法，且都原样交给本轨实现；uGUI 腿的第四枚直接就是 <c>ct</c>，UI Toolkit 腿的第四枚是 <c>panelSettings</c>。 <br />
         /// 这一档与 <see cref="SignatureSnapshot"/> 是一对：一枚看编译期形状、一枚看运行期落地。窗口级配置的可观测那一半在 <c>ShowUI_UITKLegWindowLevel…</c> 那几格。
         /// </remarks>
         [Test]
@@ -311,33 +341,49 @@ namespace Service.UI
         }
 
         /// <summary>
-        /// 同形实参的第四次自证：两支都收得下这一形状的调用，第四枚位置在两支里说的是两件不同的事。
+        /// 载荷腿的实参形状：载荷永远排在第一枚，UI Toolkit 腿的 <c>panelSettings</c> 槽不吃它。
         /// </summary>
         /// <remarks>
-        /// 三枚位置实参（窗口名 + 地址 + 取法）两支同形同序 ⇒ 各编一次就是 <c>CS0121</c> 没有回来的凭据（分辨依据仍是各自的窗口基类约束）。 <br />
-        /// 第四枚起分叉：uGUI 腿的那一枚是 <c>userData</c>，UI Toolkit 腿的那一枚是 <c>panelSettings</c> ⇒ 同一形状的调用在 Kit 腿里 <br />
-        /// 少一格 <c>userData</c> 位（下面按 <c>Params</c> 读回交给窗口的那一排）。实参恰好是 <c>PanelSettings</c> 之外类型的第四枚位置， <br />
-        /// 在 Kit 腿里编不过（CS1503）而不是静默改义：包外与包内今天都没有这种调用，本刀的射程表逐处数过。
+        /// 带载荷那一族与无载荷那一族的分辨依据是<b>类型实参枚数</b>（两支各 2 枚 vs 1 枚），不是形参个数 ⇒ 同名重载编得过、绑得准。 <br />
+        /// 载荷排第一枚是硬切后的新契约：旧的「寻址三枚之后排 userData」形状已随 <c>params object[]</c> 一起删除，这一格钉的是新形状的两半—— <br />
+        /// uGUI 腿那一半证 class 载荷按引用直达（不走擦除、不复制），UI Toolkit 腿那一半证第四枚位置说的是 <c>panelSettings</c> 而不是载荷 <br />
+        /// （交真配置时配置落进实例位、载荷仍从第一枚直达 <c>Payload</c>，两头各亮一次）。等待腿用普通 <c>TArg</c> 而非 <c>in</c>：<c>async</c> 方法禁 <c>in</c> 形参（CS1988）。
         /// </remarks>
         [Test]
-        public void ShowUI_SameShapeArgumentsAcrossBothLegs_FourthSlotDiffersByTrack()
+        public void PayloadLeg_UGUI_PayloadArrivesByReference()
         {
             var payload = new object();
+            UIService.ShowUIAsync<ProbeAddressUGUIWindow, object>(payload, "ShapeUGUI", "Given/Address", false);
+            var window = UIService.SharedLedger.GetWindow<ProbeAddressUGUIWindow>("ShapeUGUI");
+            Assert.AreSame(payload, window.Payload, "静态腿 class 载荷引用同一性直达");
+        }
 
-            UIService.ShowUI<ProbeAddressUGUIWindow>("ShapeUGUI", "Given/Address", false, payload);
-            var ugui = UIService.SharedLedger.GetWindow<ProbeAddressUGUIWindow>("ShapeUGUI");
-            Assert.AreEqual(1, ugui.Params.Length, "uGUI 腿的第四枚位置仍是 userData");
-            Assert.AreSame(payload, ugui.Params[0], "交进窗口的那一排实参就是调用方给的那一枚");
+        /// <summary><see cref="PayloadLeg_UGUI_PayloadArrivesByReference"/> 的 UI Toolkit 对格：第四枚位置是窗口级配置槽，不吃载荷。</summary>
+        /// <remarks>
+        /// 错位守卫两头都要亮：交<b>真配置</b>时「配置落进实例位」与「载荷仍从第一枚直达」各判一次——
+        /// 给 <c>null</c> 覆盖时 <c>HandoffPanelSettings(null)</c> 一枚委托都不建，实例位停在 <c>null</c> 是结构上必然，
+        /// 那句 <c>Assert.IsNull</c> 在「槽位被载荷吃掉」的坏实装下同样成立，守不住任何东西，故换成真配置那一档；
+        /// 「不给覆盖时回共享兜底、实例位停在空中」那一半仍由 <see cref="ShowUI_UITKLegWindowLevelPanelSettings_LandsOnDocumentAheadOfShared"/> 钉着，没有丢。 <br />
+        /// 探针窗覆写 <c>LoadPanel</c> 且按「装载成功、面板留空」交回 ⇒ 这一格不吃共享配置、不建壳，只判交接钩子那一次写入；
+        /// 副本是 <c>Instantiate</c> 出来的同资产克隆，交 <see cref="TearDown"/> 销毁。
+        /// </remarks>
+        [Test]
+        public void PayloadLeg_UITK_PanelSettingsSlotDoesNotEatPayload()
+        {
+            var shared = Resources.Load<PanelSettings>(SharedSettingsResourceName);
+            Assert.IsNotNull(shared, "量具前提坏了：取不到 {0} 夹具资产，第四枚位置的落点判据无从判起", SharedSettingsResourceName);
+            var windowLevel = UnityEngine.Object.Instantiate(shared);
+            Assert.IsNotNull(windowLevel, "量具前提坏了：克隆不出第二枚配置，与共享位无从比较同一性");
+            _clonedSettings.Add(windowLevel);
 
-            UIService.ShowUI<ProbeAddressUITKWindow>("ShapeKitShift", "Given/Address", false, null);
-            var kitAtFourth = UIService.SharedLedger.GetWindow<ProbeAddressUITKWindow>("ShapeKitShift");
-            Assert.AreEqual(0, kitAtFourth.Params.Length, "UI Toolkit 腿的第四枚位置已被 panelSettings 占去：那一枚 null 不再算一格 userData");
-            Assert.IsNull(kitAtFourth.PanelSettingsOverride, "给的是 null 覆盖：实例位停在空，装载回共享那一份");
-
-            UIService.ShowUI<ProbeAddressUITKWindow>("ShapeKitData", "Given/Address", false, null, payload);
-            var kitAtFifth = UIService.SharedLedger.GetWindow<ProbeAddressUITKWindow>("ShapeKitData");
-            Assert.AreEqual(1, kitAtFifth.Params.Length, "本腿的 userData 从第五枚起排");
-            Assert.AreSame(payload, kitAtFifth.Params[0], "挪一格之后交来的仍是调用方那一枚");
+            var payload = new object();
+            // UITK 载荷腿第四枚位置是 panelSettings（这一格给真配置），载荷永远排第一枚：两头各亮一次
+            UIService.ShowUIAsync<ProbeAddressUITKWindow, object>(payload, "ShapeKitData", "Given/Address", false, windowLevel);
+            var window = UIService.SharedLedger.GetWindow<ProbeAddressUITKWindow>("ShapeKitData");
+            Assert.IsNotNull(window, "量具前提坏了：UI Toolkit 载荷腿把窗开进了共享栈");
+            Assert.AreSame(windowLevel, window.PanelSettingsOverride, "第四枚的窗口级配置落进实例位：那一枚位置说的是配置，不是载荷");
+            Assert.AreNotSame(shared, window.PanelSettingsOverride, "交进本窗的是那一枚副本，不是共享位");
+            Assert.AreSame(payload, window.Payload, "载荷仍从第一枚直达：配置槽没吃它");
         }
 
         #endregion
@@ -529,6 +575,37 @@ namespace Service.UI
             Assert.AreEqual(2, UIService.SharedLedger.PeekStack().Count, "复用支路只挪栈顶，不压第二只：栈上仍是那两只窗");
         }
 
+        /// <summary>
+        /// 等待腿的转型守卫：账本按名命中的实例不是这一腿声明的窗口类时当场抬 <see cref="GameException"/>，不把别的类的窗当成 <c>TWindow</c> 交回。
+        /// </summary>
+        /// <remarks>
+        /// 可达的构造是「同名两只窗共用同一枚载荷槽型」：账本 <c>ResolveOrStartLoad&lt;TArg&gt;</c> 认名不认类，
+        /// <c>SetPayloadChecked</c> 只判命中那只窗是否 <c>IUIPayloadSlot&lt;TArg&gt;</c>——<see cref="ProbeAddressUGUIWindow"/> 与
+        /// <see cref="ProbeAliasedUGUIWindow"/> 都是 <c>UGUIWindow&lt;object&gt;</c> ⇒ 槽型这一关放行、交回的是 A 那一枚实例，
+        /// 「窗口类对不对」只剩门面 <c>window switch</c> 那一道拦得住（两支后门的同一道守卫在 UITK 腿同形）。<br />
+        /// A 由同步腿开出、当场就绪 ⇒ 复用支路排在等待腿第一个 await 之前，同帧交回实例，门面那一支 <c>async</c> 腿因此也同帧落定为故障，
+        /// <c>GetResult()</c> 当场答得出这一枚 <see cref="GameException"/>（与 <see cref="ShowUIAsyncAwait_PerTrackLegsOnStackedWindow_ReturnItWithoutWaiting"/> 同一档射程）。<br />
+        /// 抬错排在装载之后、栈不变：判据吃的是「不静默交回别的类」与「不压第二只、也不收走原来那一只」。
+        /// </remarks>
+        [Test]
+        public void ShowUIAsyncAwait_PayloadLeg_NameHitIsAnotherWindowClass_FailsFastWithGameException()
+        {
+            var payload = new object();
+            UIService.ShowUI<ProbeAddressUGUIWindow, object>(payload, "CastGuard", "Given/Address", false);
+            var opened = UIService.SharedLedger.GetWindow<ProbeAddressUGUIWindow>("CastGuard");
+            Assert.IsNotNull(opened, "量具前提坏了：A 已按这个名字开进共享栈");
+            Assert.IsTrue(opened.IsLoadDone, "量具前提坏了：A 走的是同步装载，复用支路才能同帧落定");
+
+            var ex = Assert.Throws<GameException>(() =>
+                UIService.ShowUIAsyncAwait<ProbeAliasedUGUIWindow, object>(payload, "CastGuard").GetAwaiter().GetResult(),
+                "按名命中的实例不是这一腿的窗口类：等待腿要抬错，不把别的类的窗当成 TWindow 交回");
+            StringAssert.Contains(nameof(ProbeAliasedUGUIWindow), ex.Message, "文案带这一腿期望的窗口类名");
+            StringAssert.Contains(nameof(ProbeAddressUGUIWindow), ex.Message, "文案带上实际的窗口类名");
+
+            Assert.AreEqual(1, UIService.SharedLedger.PeekStack().Count, "抬错不压第二只：栈上仍是那一只");
+            Assert.AreSame(opened, UIService.SharedLedger.GetWindow("CastGuard"), "抬错不收走 A：复用支路交回的仍是原来那一只");
+        }
+
         #endregion
 
         #region 对象模型的回叫 [WINDOW CALLBACK TARGET]
@@ -693,7 +770,7 @@ namespace Service.UI
             return window;
         }
 
-        /// <summary>把方法形状渲染成快照里的写法：返回类型 + 方法名 + 每个形参的<b>类型</b>全名 + 泛型参数的约束（形参标识名不入钉子）。</summary>
+        /// <summary>把方法形状渲染成快照里的写法：返回类型 + 方法名 + 每个形参的<b>类型</b>全名（带修饰符者补 <c>in</c>/<c>out</c>/…） + 泛型参数的约束（形参标识名不入钉子）。</summary>
         /// <param name="method">门面上的 public static 方法。</param>
         /// <returns>快照用的一行签名。</returns>
         private static string SignatureOf(MethodInfo method)
@@ -717,7 +794,7 @@ namespace Service.UI
             for (var i = 0; i < parameters.Length; i++)
             {
                 if (i > 0) text += ",";
-                text += NameOf(parameters[i].ParameterType);
+                text += ParameterOf(parameters[i]);
             }
 
             text += ")";
@@ -741,6 +818,25 @@ namespace Service.UI
             }
 
             return text + ">";
+        }
+
+        /// <summary>形参渲染：按值形参只给类型全名（与旧钉子一致），带修饰符的形参在类型后补一枚 <c>in</c>/<c>out</c>/<c>retval</c>/<c>ref</c>。</summary>
+        /// <param name="parameter">门面上的形参。</param>
+        /// <returns>快照用的一枚形参文本。</returns>
+        /// <remarks>
+        /// <c>in TArg payload</c> 的 <see cref="ParameterInfo.ParameterType"/> 是 ByRef，而 ByRef 的 <c>Name</c> 是空串——不取元素类型并如实标注修饰符，<br />
+        /// 载荷腿的形参表会渲染成空白，快照因此判不出「这一枚到底是按值还是按引用」。
+        /// </remarks>
+        private static string ParameterOf(ParameterInfo parameter)
+        {
+            var type = parameter.ParameterType;
+            if (!type.IsByRef) return NameOf(type);
+
+            var element = NameOf(type.GetElementType());
+            if (parameter.IsOut) return element + " out";
+            if (parameter.IsRetval) return element + " retval";
+
+            return parameter.IsIn ? element + " in" : element + " ref";
         }
 
         /// <summary>类型名渲染：泛型参数只给名字，泛型类型按定义名 + 实参递归展开，其余取 <c>FullName</c>。</summary>
@@ -833,9 +929,9 @@ namespace Service.UI
                 UniTask.FromResult(RecordAndAccept("LoadPanelAsync", assetLocation, fromResources));
         }
 
-        /// <summary>带特性但没有 <c>location</c> 的 uGUI 探针窗：调用方给的地址在这一轨赢过类型名回落。</summary>
+        /// <summary>带特性但没有 <c>location</c> 的 uGUI 探针窗：调用方给的地址在这一轨赢过类型名回落；带载荷那一格用它的 <c>object</c> 槽。</summary>
         [Window(EUILayer.Tips)]
-        internal sealed class ProbeAddressUGUIWindow : UGUIWindow
+        internal sealed class ProbeAddressUGUIWindow : UGUIWindow<object>
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 RecordAndAccept("LoadPanel", assetLocation, fromResources);
@@ -845,9 +941,25 @@ namespace Service.UI
                 UniTask.FromResult(RecordAndAccept("LoadPanelAsync", assetLocation, fromResources));
         }
 
-        /// <summary>带特性但没有 <c>location</c> 的 UI Toolkit 探针窗：与 uGUI 那一枚同形，用来比两轨的地址来源。</summary>
+        /// <summary>带特性但没有 <c>location</c> 的 UI Toolkit 探针窗：与 uGUI 那一枚同形，用来比两轨的地址来源；带载荷那一格同样用它的 <c>object</c> 槽。</summary>
         [Window(EUILayer.Tips)]
-        internal sealed class ProbeAddressUITKWindow : UITKWindow
+        internal sealed class ProbeAddressUITKWindow : UITKWindow<object>
+        {
+            protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
+                RecordAndAccept("LoadPanel", assetLocation, fromResources);
+
+            protected internal override UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources,
+                System.Threading.CancellationToken ct) =>
+                UniTask.FromResult(RecordAndAccept("LoadPanelAsync", assetLocation, fromResources));
+        }
+
+        /// <summary>
+        /// 与 <see cref="ProbeAddressUGUIWindow"/> 同一枚载荷槽型（<c>object</c>）的另一枚 uGUI 窗口类：
+        /// 账本按名命中、槽型校验放行，只有门面的转型那一关认得出「这两枚不是同一个类」——转型守卫那一格拿它当 <c>TWindow</c>。
+        /// </summary>
+        /// <remarks>装载钩子与 <see cref="ProbeAddressUGUIWindow"/> 同形（记录入参、按「装载成功、面板留空」交回）：这一格本不该造出它，兜底也不建壳。</remarks>
+        [Window(EUILayer.Tips)]
+        internal sealed class ProbeAliasedUGUIWindow : UGUIWindow<object>
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
                 RecordAndAccept("LoadPanel", assetLocation, fromResources);

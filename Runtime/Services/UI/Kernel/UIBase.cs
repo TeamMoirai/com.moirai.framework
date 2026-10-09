@@ -48,28 +48,6 @@ namespace Moirai.Atropos.UI
         /// <summary>UI父节点。</summary>
         public UIBase Parent => _parent;
 
-        /// <summary>自定义数据集。</summary>
-        protected System.Object[] _params;
-        
-        /// <summary>自定义数据。</summary>
-        public System.Object UserData
-        {
-            get
-            {
-                if (_params != null && _params.Length >= 1)
-                {
-                    return _params[0];
-                }
-                else
-                {
-                    return null;
-                }
-            }
-        }
-
-        /// <summary>自定义数据集。</summary>
-        public System.Object[] Params => _params;
-
         /// <summary>窗口的实例资源对象。</summary>
         // ReSharper disable once InconsistentNaming
         public virtual GameObject gameObject { get; protected set; }

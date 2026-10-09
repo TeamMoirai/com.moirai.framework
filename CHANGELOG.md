@@ -29,11 +29,15 @@
 - 新增 UI Toolkit 轨：`UITKWindow`（`UIDocument` 壳与内容根装配、窗口级 `PanelSettings` 覆盖——缺省回共享那一份）与 `UITKHandler` 驱动者；开窗族多出 `where T : UITKWindow` 的同名腿（比 uGUI 腿多一枚 `panelSettings` 形参，同名重载按窗口基类约束分辨），寻址两档（AB / 内置资源）与 uGUI 轨同形同序。
 - 新增多后端并存能力：各轨窗口并进同一条共享窗口栈（`UIWindowLedger`），关·隐·查询、层级深度、模态遮挡与交互租约不分轨；`UITrack` 轨道自述（认窗判据、有效性探针、Type 形分派、关停档位）由各轨 partial 静态自登记进门面目录，主入口只枚举目录——加一支后端＝三件套（窗口基类 / 驱动者 / partial）＋自登记＋启用清单加一项，`UIService.cs` 零改动。
 - 新增窗口自关策略（`UIWindow` 上 `TryClose` / `CanClose` / `OnCloseFail` / `ForceClose`）：自关先等可交互再过 `CanClose` 门，门为假落 `OnCloseFail` 且窗口留在栈上；`ForceClose` 是跳过等待与门的即时旁路，外部经 `CloseUI` 的关闭不经过这一道。策略在后端无关对象模型上，两轨窗口同形覆写；等待经既有代次与销毁守卫，被重开/销毁接管的续体静默终止、已销毁的窗不空转轮询。
-- 新增开窗结果契约 `UIOpenResult` / `EUIOpenStatus`（Opened / Failed / Missing / Timeout）与门面腿 `ShowUIAwaitResult<T>`（uGUI 腿同形、UI Toolkit 腿多一枚 `panelSettings`）与 `GetUIAwaitResult<T>()`：就绪、失败、缺失、超时各按状态档交回，装载当场失败或已被关闭的窗口同帧落定，跨帧装载按实际就绪帧落定——等待不再以 null 与超时混言成败。
+- 新增开窗结果契约 `UIOpenResult` / `EUIOpenStatus`（Opened / Failed / Missing / Timeout / Cancelled）与门面腿 `ShowUIAwaitResult<T>`（uGUI 腿同形、UI Toolkit 腿多一枚 `panelSettings`）与 `GetUIAwaitResult<T>()`：就绪、失败、缺失、超时、取消各按状态档交回，装载当场失败或已被关闭的窗口同帧落定，跨帧装载按实际就绪帧落定——等待不再以 null 与超时混言成败。
 - 新增装载失败回滚：`UIWindow.InternalLoad` 装载回 false 或抛出时，窗口从共享栈摘出（补对称 `Closed` 回执、刷新新栈顶与显隐深度）并置失败 / 作废位，不再永占栈位、不再让 `IsAnyLoading` 永真；真装载失败报一条 Error，装载被取消不报错。
 - 新增装载取消贯通：窗口自持装载期取消源，装载在途被关闭即掐断；uGUI 轨 `LoadPanelAsync` 把令牌转发给 `ResourceService.LoadGameObjectAsync`（UI Toolkit 轨此前已转发）。
 - 新增窗口注册表 `UIWindowRegistry` 与元数据描述符 `UIWindowDescriptor`：新源生成器 `UIWindowCodegen` 在编译期解析 `[Window]` 实参（四个构造器重载与命名实参全解），把描述符与 `static () => new X()` 工厂写进模块初始化器 `UIWindowModuleInit` 逐类型登记；`UIWindowLedger.CreateInstance` 改为按类型句柄查表取工厂与元数据，开窗路径零 `Activator`、零特性反射（IL2CPP 同构）。形状非法报 MIRAI500~503（标在非窗口类 / 缺公共无参构造 / 抽象或泛型 / 嵌套在私有类型内），模块初始化期重复登记记 Fatal 保留先到。迁移：窗口类嵌套须 internal 或公开（生成的初始化器够不到 private 嵌套），测试探针窗已同步迁移。
 - 新增开/关过渡契约 `IUITransition` 与 `UIWindow.Transition` 虚属性：真过渡期间锁交互（模态窗占全局压制位）、被接管按取消令牌掐断；缺位即瞬时，瞬时档零锁零占用零取消源分配。
+- 新增 `UIManager` 公共静态定位口 `ResolveWindowLocation(windowId)` / `ResolveFromResources`（新增，非破坏）：直调腿（不经事件中转）的寻址接缝，与事件腿共用同一份配置表 / `Resources` 判据；按 `SingletonMono.Instance` 语义取实例——场景里没有时现场物化一枚（默认配置表档），应用退出/播放停止的关停窗口内取不到则 `GameException`，调用排在服务就绪守卫之后。
+- 新增最小导航两成员 `UIService.NavigationDepth`（开启序历史的长度——栈按层级排序答不出「最近开的是谁」）与 `UIService.TryCloseTopWindow()`（关上最近开的那只，走既有 `CanClose` 政策；无历史 / 拒关 / 过渡中回假且历史不出栈）；`Type` 形入口另补等待腿 `ShowUIAsyncAwait(Type, …, UIPayload, ct)` 交回 `UniTask<UIWindow>`。认不出轨与「认出来却没人认领驱动」两档都当场抬错，不把窗口推进栈再等装载静默失败。
+- 新增停放窗可选 TTL：`[Window(cacheInstance: true, cacheTimeToDestroy: 秒)]`，`0` = 永久（缺省即此，现行语义不变），只配合 `cacheInstance` 生效；到期由账本移出停放表并终态销毁，重新取用即取消计时。
+- 新增双语文档：`Documentation~/zh|en/UIMigration.md`（外部业务工程一页迁移指南：DTO + 基类换形 / 写点两种去向 / 行为变更三条），`Documentation~/zh|en/UI.md` 补公开腿签名表（一轨 8 支 + 动态 3 支 + 导航 2 成员 + 取窗 3 支）、载荷双通道、在飞合并与取消分档、停放 TTL 与生命周期钩子隔离政策表。
 
 #### 日志
 
@@ -110,6 +114,11 @@
 - ⚠ `ShowUIAsyncAwait` / `GetUIAsyncAwait` / `GetUIAsync` 在装载失败或装载中被关闭时不再交回 / 回调未就绪窗口（改交 null、不调回调并各报一条 Warning）；等待超时档维持原行为照常交回。取窗找不到目标时从全静默改为报一条 Warning。
 - `UGUIWindow.BindPanel` / `UITKWindow.BindPanel` 缺组件从裸 `Exception` 改抛 `GameException`；`CloseUI` / `HideUI` 对不在栈上的窗口从全静默改为补一条 Debug 级开发日志。
 - UI 模块目录归位（命名空间一律不变，只动文件位置）：`UIOpenResult`/`EUIOpenStatus`、`UIWindowDescriptor`、`WindowAttribute`/`EUILayer`/`EUIModal`、`UIInteractionLease` 进 `Runtime/Services/UI/Models/`，`IUITransition` 进 `Abstractions/`，`ErrorLogger`/`LogUI` 进 `Handler/UGUI/Support/`；对象模型 `UIBase`/`UIWindow`/`UIWidget` 与 `UIWindowLedger`/`UITrack`/`UIWindowRegistry` 留在 `Kernel/`。
+- ⚠ 载荷形态硬切：`params object[]` 从两轨全部公开腿消失，每轨改「无载荷 4 支 + 带载荷 4 支」平铺——带载荷那一族按 `TWindow : UGUIWindow<TArg>` / `UITKWindow<TArg>` 约束与无载荷那一族分辨，载荷排第一枚（`in TArg` 泛型直塞，struct 不装箱、一步都不经擦除），窗口名 / 地址 / 内置资源 / `panelSettings`（仅 UITK 腿）依次排其后，同名重载按约束而非形参个数落轨。全腿收 `CancellationToken ct = default`：不传零开销，且只在装载在途那段被消费（已就绪的复用与停放重取同步交回、不消费 `ct`；复用一只仍在装载的窗时令牌照样登记，撤销会掐断那一次在途装载，与在飞合并同段语义）。迁移：`ShowUIAsync<T>(name, location, false, userData: …)` 改 `ShowUIAsync<TWindow, TArg>(in payload, name, location, fromResources)`；等待腿 `ShowUIAsyncAwait<TWindow, TArg>` 因 `async` 禁 `in` 形参（CS1988）收普通 `TArg`。
+- ⚠ `UIBase._params` / `UserData` / `Params` 删除，载荷落点换成 `UGUIWindow<TArg>.Payload` / `UITKWindow<TArg>.Payload`：每次开窗覆盖、关闭不清（残留到下一次覆盖为止，无「读一次即清」语义）。迁移：`UserData?.ToString()` / `(string)UserData` / `_params[i]` / `Params[i]` 与 `Params.Length` 判空各改读 `Payload.字段`，一枚 DTO 装齐全部字段，位置序号从此消失。
+- ⚠ 带载荷窗口基类换形：`class X : UGUIWindow` → `class X : UGUIWindow<MyDto>`（UI Toolkit 轨同形）。不带槽的窗口被塞非空载荷当场 `GameException`（文案带窗口类名，指认漏换基类的调用点），按名命中的窗槽型不符、或门面按名取回的实例不是 `TWindow` 同样抬错并带期望/实际双类型名；抬错排在压栈与卸停放之前说的是停放重取与新开两条支路——既不压半只窗，也不消费停放态（那只实例仍从停放表取得回）；复用支路的 Pop→Push 排在验槽之前（那只窗本就完整在栈，验槽不过抬错，回执与挪序已发生）。迁移口径见 `Documentation~/zh/UIMigration.md` / `Documentation~/en/UIMigration.md`。
+- ⚠ 动态腿（`Type` 形入口）载荷形参由 `params object[]` 改一枚 `UIPayload`（`default` 即空载荷，与 `null` 引用同判）：引用型只存引用（0 分配、到达后引用同一），值类型装箱一次，`To<T>` 失败面为 `GameException`、`TryGet<T>` 回假不抬错。同批 `EUIOpenStatus` 增 `Cancelled = 4`：调用方令牌撤销等待的结果档，与 `Timeout` 分档可辨（`Cancelled` 的窗已回滚或从未入栈，不得当就绪窗用）；撤销的落点按腿分档——void 腿静默回滚出栈不报 Error，等待腿原样上抛 `OperationCanceledException`，结果腿落 `Cancelled`。迁移：`userData: new object[] { dto }` 改 `UIPayload.From(dto)`；原先只判 `Timeout` 的结果消费点一并接住 `Cancelled`。
+- ⚠ 同一只窗装载在途时再开，由「静默覆盖 / 重开发装载」改为**合并在飞 + 载荷 last-wins**：不重开发装载、不压第二只实例，载荷覆盖为最后一枚，`OnRefresh` 只在面板就绪那一次跑并见终载荷。迁移：依赖「两次 Show 各刷一次」的用法改等结果腿交回，或先关再开。
 
 #### 文档
 
@@ -124,6 +133,8 @@
 
 #### UI
 
+- ⚠ 移除 `UIWindowEvent.Params` 属性与两枚带载荷 `Show`（`Show<T>(string, params Object[])` / `Show(Type, string, params Object[])`）：事件不再搬载荷，`UIManager` 的 Show 分支改走动态腿（`UIService.ShowUIAsync(Type, …)`）。无载荷 `Show`（两形）与 `Close` / `Hide` / `CloseAll` 保留照用。迁移：带载荷的事件开窗改直调门面腿，寻址经新增的 `UIManager.ResolveWindowLocation` / `UIManager.ResolveFromResources` 这一对；`Show` 调用点即时执行，不再有「发事件 + 订阅者转手」那一段。
+- ⚠ 移除 `UIManager.LoadUGUI<T>`（framework 侧公开虚方法，零消费者零文档，实测无调用点）。迁移：直调 `UIService` 的开窗腿。
 - ⚠ 移除 `UIServiceHandler` 上 25 枚纯转发 `UIWindowLedger` 的转发口：`public virtual` 二十枚（查询族 `GetTopWindow()`/`GetTopWindow(int)`/`GetTopWindowName(int)`/`IsAnyLoading`/`HasWindow`/`GetWindow<T>`/`IsBlockedByModal`/`IsModal` 与属性 `CurrentModal`、关隐族 `CloseUI`/`HideUI`/`CloseAll`/`CloseAllWithOut`、取窗族 `GetUIAsyncAwait`/`GetUIAsync`）与 `protected` 五枚（`GetWindow(string)`/`IsContains` 两道查询、`OnWindowPrepare`/`Push`/`Pop` 三枚栈钩子）。包内 Runtime/Editor/Samples~/Templates~ 与同宿主各包零调用方——各包对这些名字的引用全部走门面。迁移：`handler.X(…)` 改 `UIService.X(…)`，形参与语义一字未动；派生后端里自调栈钩子的改叫 `UIService.SharedLedger`（框架装配内可达）。
 
 ### Fixed

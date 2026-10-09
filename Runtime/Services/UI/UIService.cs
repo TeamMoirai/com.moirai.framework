@@ -457,10 +457,12 @@ namespace Moirai.Atropos.UI
         /// <param name="windowName">窗口名称。</param>
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        public static void ShowUIAsync(Type type, string windowName = null, string assetLocation = null, bool fromResources = false, params object[] userData)
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
+        public static void ShowUIAsync(Type type, string windowName = null, string assetLocation = null, bool fromResources = false,
+            UIPayload payload = default, CancellationToken ct = default)
         {
-            RequireOwningTrack(type).OpenWindow(type, true, windowName, assetLocation, fromResources, userData);
+            RequireOwningTrack(type).OpenWindow(type, true, windowName, assetLocation, fromResources, payload, ct);
         }
 
         /// <summary>
@@ -474,10 +476,40 @@ namespace Moirai.Atropos.UI
         /// <param name="windowName">窗口名称。</param>
         /// <param name="assetLocation">资源定位地址。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
-        /// <param name="userData">用户自定义数据。</param>
-        public static void ShowUI(Type type, string windowName = null, string assetLocation = null, bool fromResources = false, params object[] userData)
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
+        public static void ShowUI(Type type, string windowName = null, string assetLocation = null, bool fromResources = false,
+            UIPayload payload = default, CancellationToken ct = default)
         {
-            RequireOwningTrack(type).OpenWindow(type, SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, userData);
+            RequireOwningTrack(type).OpenWindow(type, SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, payload, ct);
+        }
+
+        /// <summary>
+        /// 异步打开窗口并等待面板就绪（Type 形入口）。
+        /// </summary>
+        /// <remarks>
+        /// 与两条 void 腿不同：等待腿不经各轨的 Type 形开窗实现（那一份只压栈、不等就绪），而是直叫共享账本的等待腿，故在此现读认轨结果与驱动者在位否。<br />
+        /// 认轨当场抬错，认出来却没人认领驱动那一档也当场抬错——不把窗口推进栈再等装载静默失败。
+        /// </remarks>
+        /// <param name="type">窗口类型。</param>
+        /// <param name="windowName">窗口名称。</param>
+        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="fromResources">从 Resources 加载资源。</param>
+        /// <param name="payload">动态腿擦除后的载荷。</param>
+        /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
+        /// <returns>栈上那一只窗口（面板就绪后交回；装载失败交回 null）。</returns>
+        public static async UniTask<UIWindow> ShowUIAsyncAwait(Type type, string windowName = null, string assetLocation = null, bool fromResources = false,
+            UIPayload payload = default, CancellationToken ct = default)
+        {
+            var track = RequireOwningTrack(type);
+            if (!track.IsDriverValid)
+            {
+                throw new GameException(StringUtility.Format(
+                    "UI backend track '{0}' has no driver in place: list it in {1} and let OnInit register it.",
+                    track.TrackName, nameof(UIServiceSettings)));
+            }
+
+            return await SharedLedger.ShowUIAwaitImp(type, true, windowName, assetLocation, fromResources, null, payload, ct);
         }
 
         /// <summary>
@@ -630,6 +662,16 @@ namespace Moirai.Atropos.UI
         /// <returns>取窗结果。</returns>
         public static UniTask<UIOpenResult> GetUIAwaitResult<T>() where T : UIWindow =>
             SharedLedger.GetUIAwaitResultImp<T>();
+
+        #endregion
+
+        #region 导航 [NAVIGATION]
+
+        /// <summary>导航深度：开启序历史的长度（栈按层级排序答不出「最近开的是谁」，历史按开启序答）。</summary>
+        public static int NavigationDepth => SharedLedger.NavigationDepth;
+
+        /// <summary>关上最近开的那只：走既有 CanClose 政策，无历史/拒关/过渡中回假。</summary>
+        public static bool TryCloseTopWindow() => SharedLedger.TryCloseTopWindow();
 
         #endregion
     }
