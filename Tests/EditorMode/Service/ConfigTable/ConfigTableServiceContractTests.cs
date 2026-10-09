@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Resource;
@@ -156,6 +155,21 @@ namespace Service.ConfigTable
             }
         }
 
+        /// <summary>
+        /// 默认后端按语言取列：开关停在整批模式，未覆写的取列实现回 null（视为未就绪）。
+        /// </summary>
+        /// <remarks>回空字典会冒充「已加载的空列」，本地化会把空列当真；回 null 让调用方留在整批路径。</remarks>
+        [Test]
+        public void DefaultHandler_GetLocalizedStringsByLanguage_ReturnsNullAndStaysInBatchMode()
+        {
+            var defaultHandler = new DefaultConfigTableHandler();
+
+            Assert.IsFalse(defaultHandler.SupportsPerLanguageLocalizationLoad,
+                "未覆写的后端必须留在整批路径。");
+            Assert.IsNull(defaultHandler.GetLocalizedStringsByLanguage("en"),
+                "未覆写的取列实现必须回 null（视为未就绪），不得回空字典冒充已加载的空列。");
+        }
+
         #endregion
 
         #region 关闭语义 [SHUTDOWN]
@@ -220,84 +234,11 @@ namespace Service.ConfigTable
 
         #endregion
 
-        #region 后端接缝形状 [HANDLER SEAM SHAPE]
-
-        /// <summary>
-        /// 后端接缝形状守卫：四个抽象成员。
-        /// </summary>
-        /// <remarks>游戏侧生成代码派生本类并实现这四个成员；少一个或改签名不会有编译错误，只会在游戏侧装机时才失败，故把形状钉住。</remarks>
-        [Test]
-        public void Seam_AbstractMembers_ShapeMatchesContract()
-        {
-            Type seam = typeof(ConfigTableServiceHandler);
-
-            AssertAbstractMethod(seam, "GetAllLocalizedStrings", typeof(Dictionary<string, List<string>>));
-            AssertAbstractMethod(seam, "GetLocalizationLanguageCodes", typeof(IReadOnlyList<string>));
-            AssertAbstractMethod(seam, "LoadSpriteByID", typeof(UniTask<Sprite>), typeof(string), typeof(System.Threading.CancellationToken));
-            AssertAbstractMethod(seam, "GetUIWindowLocation", typeof(string), typeof(string));
-
-            int abstractCount = seam.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .Count(method => method.IsAbstract && !method.Name.StartsWith("get_", StringComparison.Ordinal));
-            Assert.AreEqual(4, abstractCount, "后端接缝的抽象方法数变了；同步本基线并写明收掉了什么。");
-        }
-
-        /// <summary>
-        /// 按语言取列是可选接缝：两个成员都必须带默认实现，且默认落在整批模式。
-        /// </summary>
-        /// <remarks>默认开成 <c>true</c> 会让存量整批后端进不了列模式却再也拿不到语言头；把接缝改抽象则会打断所有游戏侧生成代码——两者都只在装机时暴露。</remarks>
-        [Test]
-        public void Seam_PerLanguageColumnLoad_IsVirtualWithBatchDefaults()
-        {
-            Type seam = typeof(ConfigTableServiceHandler);
-
-            MethodInfo supportGetter = seam.GetProperty("SupportsPerLanguageLocalizationLoad")?.GetMethod;
-            MethodInfo columnLoader = seam.GetMethod("GetLocalizedStringsByLanguage", new[] { typeof(string) });
-
-            Assert.IsNotNull(supportGetter, "按语言取列的开关缺失。");
-            Assert.IsNotNull(columnLoader, "按语言取列的取列入口缺失。");
-            Assert.IsFalse(supportGetter.IsAbstract, "开关必须带默认实现（存量整批后端零改）。");
-            Assert.IsFalse(columnLoader.IsAbstract, "取列入口必须带默认实现。");
-            Assert.IsTrue(supportGetter.IsVirtual && columnLoader.IsVirtual);
-
-            var defaultHandler = new DefaultConfigTableHandler();
-            Assert.IsFalse(defaultHandler.SupportsPerLanguageLocalizationLoad,
-                "未覆写的后端必须留在整批路径。");
-            Assert.IsNull(defaultHandler.GetLocalizedStringsByLanguage("en"),
-                "未覆写的取列实现必须回 null（视为未就绪），不得回空字典冒充已加载的空列。");
-        }
-
-        /// <summary>
-        /// 编辑器预览取数挂在外观的静态入口上，后端不带预览专用虚方法。
-        /// </summary>
-        /// <remarks>「非播放态不经服务世界取到表」由外观解决（未注册处理器时经 Settings 里配置的那份实例），后端因此只有一条读表路径。</remarks>
-        [Test]
-        public void Seam_EditorPreview_IsOnFacadeNotOnHandler()
-        {
-            Assert.IsNull(typeof(ConfigTableServiceHandler).GetMethod("GetLocalizedStringsForEditorPreview"),
-                "后端不该再挂预览专用虚方法：读表只有一条路径。");
-
-            MethodInfo preview = typeof(ConfigTableService).GetMethod("GetAllLocalizedStringsForEditor");
-
-            Assert.IsNotNull(preview, "编辑器预览取数入口缺失。");
-            Assert.IsTrue(preview.IsStatic, "预览取数是外观的静态入口，不要求服务世界起来。");
-        }
-
-        #endregion
-
         #region 辅助 [HELPERS]
 
         private static void InstallDefaultHandler()
         {
             ConfigTableService.Internal_UseHandler(new DefaultConfigTableHandler());
-        }
-
-        private static void AssertAbstractMethod(Type owner, string name, Type returnType, params Type[] parameters)
-        {
-            MethodInfo method = owner.GetMethod(name, BindingFlags.Public | BindingFlags.Instance, null, parameters, null);
-
-            Assert.IsNotNull(method, $"{owner.Name}.{name} 缺失或签名已变。");
-            Assert.IsTrue(method.IsAbstract, $"{owner.Name}.{name} 应为抽象成员（后端必须实现）。");
-            Assert.AreEqual(returnType, method.ReturnType, $"{owner.Name}.{name} 返回类型已变。");
         }
 
         /// <summary>

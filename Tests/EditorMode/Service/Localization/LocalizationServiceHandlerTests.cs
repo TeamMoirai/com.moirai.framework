@@ -176,7 +176,7 @@ namespace Service.Localization
         public void ChangeLanguage_BeforeDataReady_AppliesIntentOnceLoaded()
         {
             // 启动早期（表未就绪）切语言不得被静默吞掉：数据加载成功时应落在意图语言，而非检测链默认。
-            // 意图语言取"与检测链不同的那只"，让"意图被忽略"在此处必败
+            // 意图语言取"与检测链不同的那个"，让"意图被忽略"在此处必败
             var source = string.Empty;
             var detected = LocalizationService.GetCurrentLanguage(false, ref source);
             var intent = detected == English ? Chinese : English;

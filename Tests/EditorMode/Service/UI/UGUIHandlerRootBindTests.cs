@@ -18,7 +18,7 @@ namespace Service.UI
         private UGUIHandler _handler;
         private GameObject _root;
 
-        /// <summary>进门把共享栈归零：本夹具每格造的每一枚 <see cref="UGUIHandler"/> 拿的都是那一份共用持有者，不再自带新存储。</summary>
+        /// <summary>进门把共享栈归零：本夹具每格造的每个 <see cref="UGUIHandler"/> 拿的都是那一份共用持有者，不再自带新存储。</summary>
         [SetUp]
         public void SetUp()
         {

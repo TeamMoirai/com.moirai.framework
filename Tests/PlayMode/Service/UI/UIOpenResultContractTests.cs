@@ -51,7 +51,7 @@ namespace Service.UI
 
         private void CountClosed(UIWindow window) => _closedCount++;
 
-        /// <summary>永不落定的装载：等待只能按超时收口，交回的仍是装载中的那一只。</summary>
+        /// <summary>永不落定的装载：等待只能按超时收口，交回的仍是装载中的那个。</summary>
         /// <remarks>等待走 awaiter 轮询：UniTask 单发，<c>ToCoroutine</c> 已消费 await，结果须在 <c>IsCompleted</c> 后取一次。</remarks>
         [UnityTest]
         public IEnumerator WaitWindowResult_NeverLoadingWindow_TimesOutWithTimeoutStatus()
@@ -72,7 +72,7 @@ namespace Service.UI
             var result = awaiter.GetResult();
             Assert.AreEqual(EUIOpenStatus.Timeout, result.Status, "永不落定的装载按超时档交回");
             Assert.IsFalse(result, "隐式布尔在超时档为假");
-            Assert.AreSame(window, result.Window, "超时档交回仍在装载的那一只，供诊断与后续决策");
+            Assert.AreSame(window, result.Window, "超时档交回仍在装载的那个，供诊断与后续决策");
             Assert.IsFalse(window.IsLoadDone, "窗口本身仍未就绪");
         }
 
@@ -100,7 +100,7 @@ namespace Service.UI
             Assert.AreEqual(1, _closedCount, "回滚补一次对称的 Closed，配对保持平衡");
         }
 
-        /// <summary>延迟就绪的装载：按实际就绪帧落定 Opened 档，交回的就是栈上那一只。</summary>
+        /// <summary>延迟就绪的装载：按实际就绪帧落定 Opened 档，交回的就是栈上那个。</summary>
         [UnityTest]
         public IEnumerator ShowUIAwaitResult_DelayedLoadReady_ReturnsOpenedStatusAndStaysOnStack()
         {
@@ -118,7 +118,7 @@ namespace Service.UI
             var result = awaiter.GetResult();
             Assert.AreEqual(EUIOpenStatus.Opened, result.Status, "延迟就绪按 Opened 档交回");
             Assert.IsTrue(result, "隐式布尔在就绪档为真");
-            Assert.AreSame(UIService.SharedLedger.GetWindow("DelayReady"), result.Window, "交回的就是栈上那一只");
+            Assert.AreSame(UIService.SharedLedger.GetWindow("DelayReady"), result.Window, "交回的就是栈上那个");
 
             UIService.CloseUI<DelayReadyProbeWindow>("DelayReady");
         }

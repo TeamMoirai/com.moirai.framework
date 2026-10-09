@@ -74,7 +74,7 @@ namespace Service.Save
         }
 
 #if MESSAGEPACK_INSTALLED
-        [MessagePackObject(true)]
+        [MessagePackObject(true, AllowPrivate = true)]
         internal sealed class MpData
         {
             public int Hp;
