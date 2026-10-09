@@ -7,7 +7,7 @@ using App = Moirai.Atropos.GameApp;
 namespace Core.GameApp
 {
     /// <summary>
-    /// <see cref="App"/> 两枚生命周期广播的契约：对焦回执逐项送达、单项异常不截断其余订户、注销后即停发。
+    /// <see cref="App"/> 两个生命周期广播的契约：对焦回执逐项送达、单项异常不截断其余订户、注销后即停发。
     /// </summary>
     /// <remarks>
     /// 经 <c>InvokeApplicationFocus</c> / <c>InvokeApplicationQuit</c> 这两个引擎回调入口驱动，与 <c>Application.focusChanged</c> / <br />
