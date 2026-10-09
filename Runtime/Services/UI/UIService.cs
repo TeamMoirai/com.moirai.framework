@@ -381,11 +381,12 @@ namespace Moirai.Atropos.UI
         #region 寻址换算 [ADDRESS RESOLVER]
 
         /// <summary>
-        /// 把开窗传入的 <paramref name="windowId"/> 换算成面板资产地址：内置资源档拼 <see cref="UIServiceSettings"/> 的 Resources 父目录，否则查配置表。
+        /// 把开窗传入的 <paramref name="windowId"/> 换算成面板资产地址：内置资源档按 <see cref="UIServiceSettings"/> 的 Resources 父目录拼，否则查配置表。
         /// </summary>
         /// <remarks>
         /// 只在账本造新实例那一格叫：复用栈上窗与停放重取两条支路不吃标识，配置表未就绪时停放窗照样能重开。 <br />
-        /// 配置表档的降级口径归 <c>ConfigTableService</c>：服务未就绪回 <c>null</c>，查无此 id 回空串并记一条 Warning——两者都落到装载失败回滚，不在这里代答。 <br />
+        /// 父目录为空时标识<b>原样</b>当 Resources 相对路径用（不拼分隔符）——包内与项目根的内置资源都靠这一档。 <br />
+        /// 配置表档的降级口径归 <c>ConfigTableService</c>：服务未就绪回 <c>null</c>，查无此 id 回空串并记一条 Warning——两者都不再回落成字面地址，直接落进装载失败回滚。 <br />
         /// 线程契约：仅主线程（开窗链路本身即主线程）。
         /// </remarks>
         /// <param name="windowId">窗口标识：配置表 configId，或 <c>Resources</c> 下的相对路径。</param>
@@ -393,9 +394,13 @@ namespace Moirai.Atropos.UI
         /// <returns>交给面板装载的地址。</returns>
         internal static string ResolveWindowLocation(string windowId, bool fromResources)
         {
-            return fromResources
-                ? StringUtility.Concat(UIServiceSettings.ResourcesFolder, "/", windowId)
-                : ConfigTableService.GetUIWindowLocation(windowId);
+            if (!fromResources)
+            {
+                return ConfigTableService.GetUIWindowLocation(windowId);
+            }
+
+            var folder = UIServiceSettings.ResourcesFolder;
+            return string.IsNullOrEmpty(folder) ? windowId : StringUtility.Concat(folder, "/", windowId);
         }
 
         #endregion

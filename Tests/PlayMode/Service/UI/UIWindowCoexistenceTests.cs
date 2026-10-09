@@ -124,8 +124,8 @@ namespace Service.UI
         [UnityTest]
         public IEnumerator Coexist_TwoTracksOpenInOneSession_EachStaysVisibleInItsOwnOrderSpace()
         {
-            UIService.ShowUI<ProbeUGUIWindowOnUiLayer>("MixUGUI");
-            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("MixUITK");
+            UIService.ShowUI<ProbeUGUIWindowOnUiLayer>("MixUGUI", "MixUGUI");
+            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("MixUITK", "MixUITK");
 
             var ugui = UIService.GetWindow<ProbeUGUIWindowOnUiLayer>("MixUGUI");
             var kit = UIService.GetWindow<ProbeUITKWindowOnTipsLayer>("MixUITK");
@@ -180,8 +180,8 @@ namespace Service.UI
         [UnityTest]
         public IEnumerator Coexist_TwoTracksOnOneLayer_SecondWindowTakesTheNextSlotOfThatLayer()
         {
-            UIService.ShowUI<ProbeUGUIWindowOnTipsLayer>("SameUGUI");
-            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("SameKit");
+            UIService.ShowUI<ProbeUGUIWindowOnTipsLayer>("SameUGUI", "SameUGUI");
+            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("SameKit", "SameKit");
 
             var ugui = UIService.GetWindow<ProbeUGUIWindowOnTipsLayer>("SameUGUI");
             var kit = UIService.GetWindow<ProbeUITKWindowOnTipsLayer>("SameKit");
@@ -221,8 +221,8 @@ namespace Service.UI
         [UnityTest]
         public IEnumerator Coexist_CloseUGUIWindow_UITKWindowKeepsVisibilityAndOrder()
         {
-            UIService.ShowUI<ProbeUGUIWindowOnUiLayer>("SoloUGUI");
-            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("SoloKit");
+            UIService.ShowUI<ProbeUGUIWindowOnUiLayer>("SoloUGUI", "SoloUGUI");
+            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("SoloKit", "SoloKit");
 
             var ugui = UIService.GetWindow<ProbeUGUIWindowOnUiLayer>("SoloUGUI");
             var kit = UIService.GetWindow<ProbeUITKWindowOnTipsLayer>("SoloKit");
@@ -260,9 +260,9 @@ namespace Service.UI
         [UnityTest]
         public IEnumerator MixedStack_ThreeWindowsOnTwoTracks_QueriesAndCloseAllAnswerOneStack()
         {
-            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("LedgerKitA");
-            UIService.ShowUI<ProbeUGUIWindowOnUiLayer>("LedgerUGUI");
-            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("LedgerKitB");
+            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("LedgerKitA", "LedgerKitA");
+            UIService.ShowUI<ProbeUGUIWindowOnUiLayer>("LedgerUGUI", "LedgerUGUI");
+            UIService.ShowUI<ProbeUITKWindowOnTipsLayer>("LedgerKitB", "LedgerKitB");
 
             var kitA = UIService.GetWindow<ProbeUITKWindowOnTipsLayer>("LedgerKitA");
             var ugui = UIService.GetWindow<ProbeUGUIWindowOnUiLayer>("LedgerUGUI");
@@ -322,7 +322,7 @@ namespace Service.UI
             Assert.IsNotNull(Resources.Load<VisualTreeAsset>(TEMPLATE_RESOURCE_NAME),
                 "量具前提坏了：播放态取不到内置资源模板 {0}，fromResources 那一支无从覆盖", TEMPLATE_RESOURCE_NAME);
 
-            UIService.ShowUI<ProbeCachedResourcesKitWindow>("RealKit");
+            UIService.ShowUI<ProbeCachedResourcesKitWindow>("RealKit", TEMPLATE_RESOURCE_NAME);
             var kit = UIService.GetWindow<ProbeCachedResourcesKitWindow>("RealKit");
             Track(kit);
 
@@ -333,7 +333,7 @@ namespace Service.UI
             Assert.AreEqual(_sharedPanelSettings, kit.Document.panelSettings, "面板配置由装载路径写入");
             Assert.IsTrue(kit.Visible, "真装载的 UI Toolkit 窗照样可见");
 
-            UIService.ShowUI<ProbeUGUIWindowOnUiLayer>("RealUGUI");
+            UIService.ShowUI<ProbeUGUIWindowOnUiLayer>("RealUGUI", "RealUGUI");
             var ugui = UIService.GetWindow<ProbeUGUIWindowOnUiLayer>("RealUGUI");
             Track(ugui);
 
@@ -442,22 +442,22 @@ namespace Service.UI
 
         private async UniTaskVoid KickDelayedUGUI()
         {
-            _awaitedUgui = await UIService.ShowUIAsyncAwait<ProbeDelayedUGUIWindow>("WaitUGUI");
+            _awaitedUgui = await UIService.ShowUIAsyncAwait<ProbeDelayedUGUIWindow>("WaitUGUI", "WaitUGUI");
         }
 
         private async UniTaskVoid KickDelayedKit()
         {
-            _awaitedKit = await UIService.ShowUIAsyncAwait<ProbeDelayedUITKWindow>("WaitKit");
+            _awaitedKit = await UIService.ShowUIAsyncAwait<ProbeDelayedUITKWindow>("WaitKit", "WaitKit");
         }
 
         private async UniTaskVoid KickInPlaceUGUI()
         {
-            _awaitedUgui = await UIService.ShowUIAsyncAwait<ProbeUGUIWindowOnUiLayer>("InPlaceUGUI");
+            _awaitedUgui = await UIService.ShowUIAsyncAwait<ProbeUGUIWindowOnUiLayer>("InPlaceUGUI", "InPlaceUGUI");
         }
 
         private async UniTaskVoid KickInPlaceKit()
         {
-            _awaitedKit = await UIService.ShowUIAsyncAwait<ProbeUITKWindowOnTipsLayer>("InPlaceKit");
+            _awaitedKit = await UIService.ShowUIAsyncAwait<ProbeUITKWindowOnTipsLayer>("InPlaceKit", "InPlaceKit");
         }
 
         #endregion
@@ -474,7 +474,7 @@ namespace Service.UI
         [UnityTest]
         public IEnumerator ParkPanel_CachedUGUIWindowAfterInstantClose_StaysParkedUntilReopened()
         {
-            UIService.ShowUI<ProbeCachedUGUIWindow>("ParkUGUI");
+            UIService.ShowUI<ProbeCachedUGUIWindow>("ParkUGUI", "ParkUGUI");
             var ugui = UIService.GetWindow<ProbeCachedUGUIWindow>("ParkUGUI");
             Track(ugui);
 
@@ -489,7 +489,7 @@ namespace Service.UI
             Assert.IsTrue(_coordinator.Internal_IsParked("ParkUGUI"), "缓存实例进协调者那一份停放表");
             Assert.IsNull(UIService.GetTopWindow(), "栈上空");
 
-            UIService.ShowUI<ProbeCachedUGUIWindow>("ParkUGUI");
+            UIService.ShowUI<ProbeCachedUGUIWindow>("ParkUGUI", "ParkUGUI");
 
             Assert.IsTrue(panel.activeSelf, "重开交回同一只实例并重新激活");
             Assert.AreSame(ugui, UIService.GetWindow<ProbeCachedUGUIWindow>("ParkUGUI"), "重开的是那一只缓存实例");
@@ -654,7 +654,7 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨真装载探针窗（<see cref="EUILayer.Tips"/>）：模板取内置资源、缓存实例，装载路径不覆写。</summary>
-        [Window(EUILayer.Tips, TEMPLATE_RESOURCE_NAME, true, cacheTimeToDestroy: -1f)]
+        [Window(EUILayer.Tips, true, cacheTimeToDestroy: -1f)]
         internal sealed class ProbeCachedResourcesKitWindow : UITKWindow
         {
         }

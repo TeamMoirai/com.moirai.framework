@@ -18,14 +18,14 @@ namespace Moirai.Atropos.UI
         [ProviderDropdown]
         [SerializeReference] private UIServiceHandler[] m_EnabledHandlers = new UIServiceHandler[] { new UGUIHandler() };
 
-        [Tooltip("内置资源窗（fromResources 档）在 Resources 下的父目录：开窗传 windowId 时地址按本目录拼出。")]
+        [Tooltip("内置资源窗（fromResources 档）在 Resources 下的父目录：开窗传的标识按它拼出地址；留空即把标识原样当 Resources 下的相对路径用。")]
         [FolderPath(ParentFolder = "Assets/Resources")]
-        [SerializeField] private string m_UIFolder = "UI";
+        [SerializeField] private string m_UIFolder = string.Empty;
 
         /// <summary>启用中的后端驱动者清单（按配置填槽的唯一来路）。</summary>
         internal static UIServiceHandler[] EnabledHandlers => Instance.m_EnabledHandlers;
 
-        /// <summary>内置资源窗在 <c>Resources</c> 下的父目录（寻址换算的目录档）。</summary>
+        /// <summary>内置资源窗在 <c>Resources</c> 下的父目录（寻址换算的目录档；空串即不拼前缀）。</summary>
         internal static string ResourcesFolder => Instance.m_UIFolder;
 
         /// <summary>
