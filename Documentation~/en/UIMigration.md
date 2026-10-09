@@ -68,9 +68,9 @@ RenameWindow w = await UIService.ShowUIAsyncAwait<RenameWindow, RenameWindowPayl
 UIOpenResult r = await UIService.ShowUIAwaitResult<RenameWindow, RenameWindowPayload>(in dto);     // result leg
 ```
 
-Landed signature and position order: `(in TArg payload, string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`; the UI Toolkit legs take one extra `PanelSettings panelSettings = null` before `ct`, and the payload is still always the first slot.
+Landed signature and position order: `(in TArg payload, string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`; the UI Toolkit legs take one extra `PanelSettings panelSettings = null` before `ct`, and the payload is still always the first slot.
 
-When you hand-write a `Show` helper, take the addressing from `UIManager`'s public static resolvers (the old shape delegated addressing to the event relay; a direct leg resolves it itself):
+When you hand-write a `Show` helper, pass the id straight to the leg (the old shape computed the address first; the facade now resolves it per band):
 
 ```csharp
 public static void ShowRenameWindow(RenameWindowPayload dto)
@@ -78,14 +78,12 @@ public static void ShowRenameWindow(RenameWindowPayload dto)
     const string WindowId = "RenameWindow";
     UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(
         in dto,
-        WindowId,
-        UIManager.ResolveWindowLocation(WindowId),
-        UIManager.ResolveFromResources);
+        WindowId, WindowId);
 }
 ```
 
-- `ResolveWindowLocation(windowId)` and `ResolveFromResources` are used as a pair: the first returns the location computed from the config table or the `Resources` path, the second answers which loading mode this instance uses — both read the same decision as the `UIManager` event path
-- The resolvers follow `SingletonMono.Instance` semantics: with no `UIManager` in the scene one is materialized on the spot (the default config-table shape), and inside the app-quit / play-stop window a missing instance throws `GameException` — keep the call behind your own service-readiness guard
+- The third slot is a window id, not an asset address: with `fromResources` it is joined onto the Resources parent folder from `UIServiceSettings`, otherwise the config table answers it; the conversion happens only when the ledger creates a new instance
+- The fetch mode defaults to the union of the caller's `fromResources` and `[Window(fromResources:)]` (true || attribute); with the config-table service unready the lookup answers `null` and an unknown id answers an empty string — both land in the load-failure rollback rather than being papered over here
 
 ### Dynamic leg: only a runtime `Type` (type-substitution seams, registry-driven opens)
 

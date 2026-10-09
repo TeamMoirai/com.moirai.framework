@@ -69,14 +69,18 @@ namespace Service.UI
             Assert.IsTrue(UIService.SharedLedger.IsParked("RegAttr"), "非零停放档让关闭落进停放表");
         }
 
-        /// <summary>调用方给的面板地址与取法赢过特性，没给的档按描述符回落。</summary>
+        /// <summary>开窗标识的换算：内置资源档拼 Resources 父目录，标识为空才回落描述符的面板地址。</summary>
         [Test]
-        public void RegistryDescriptor_CallerAddressAndFromResources_OverrideAttribute()
+        public void RegistryDescriptor_CallerWindowIdAndFromResources_ResolveOverAttribute()
         {
             UIService.ShowUI<RegistryProbeWindow>("RegCaller", "Caller/Panel", true);
 
-            Assert.AreEqual("Caller/Panel", RegistryProbeWindow.LastLocation, "调用方给的面板地址赢过特性");
+            Assert.AreEqual("UI/Caller/Panel", RegistryProbeWindow.LastLocation, "内置资源档把标识拼到 UIServiceSettings 的父目录下");
             Assert.IsTrue(RegistryProbeWindow.LastFromResources, "调用方给的内置资源档并入取法（真 || 特性假）");
+
+            UIService.ShowUI<RegistryProbeWindow>("RegPlain");
+
+            Assert.AreEqual("Registry/AttrPanel", RegistryProbeWindow.LastLocation, "没给标识时按描述符的面板地址走，不再查表");
         }
 
         /// <summary>缺省窗口名按描述符的反射全名兜底（嵌套类带 <c>+</c>），与按名取窗的判据一致。</summary>

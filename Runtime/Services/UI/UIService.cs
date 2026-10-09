@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Input;
 using Moirai.Atropos.Resource;
@@ -377,6 +378,28 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
+        #region 寻址换算 [ADDRESS RESOLVER]
+
+        /// <summary>
+        /// 把开窗传入的 <paramref name="windowId"/> 换算成面板资产地址：内置资源档拼 <see cref="UIServiceSettings"/> 的 Resources 父目录，否则查配置表。
+        /// </summary>
+        /// <remarks>
+        /// 只在账本造新实例那一格叫：复用栈上窗与停放重取两条支路不吃标识，配置表未就绪时停放窗照样能重开。 <br />
+        /// 配置表档的降级口径归 <c>ConfigTableService</c>：服务未就绪回 <c>null</c>，查无此 id 回空串并记一条 Warning——两者都落到装载失败回滚，不在这里代答。 <br />
+        /// 线程契约：仅主线程（开窗链路本身即主线程）。
+        /// </remarks>
+        /// <param name="windowId">窗口标识：配置表 configId，或 <c>Resources</c> 下的相对路径。</param>
+        /// <param name="fromResources">取哪一档：真走 <c>Resources</c>，假走配置表。</param>
+        /// <returns>交给面板装载的地址。</returns>
+        internal static string ResolveWindowLocation(string windowId, bool fromResources)
+        {
+            return fromResources
+                ? StringUtility.Concat(UIServiceSettings.ResourcesFolder, "/", windowId)
+                : ConfigTableService.GetUIWindowLocation(windowId);
+        }
+
+        #endregion
+
         #region 窗口查询 [WINDOW QUERIES]
 
         // 这一族的读数都来自那条各轨共用的栈：门面直叫共享持有者，与哪一轨在位、哪一轨先就位无关。
@@ -476,14 +499,14 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <param name="type">窗口类型。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        public static void ShowUIAsync(Type type, string windowName = null, string assetLocation = null, bool fromResources = false,
+        public static void ShowUIAsync(Type type, string windowName = null, string windowId = null, bool fromResources = false,
             UIPayload payload = default, CancellationToken ct = default)
         {
-            RequireOwningTrack(type).OpenWindow(type, true, windowName, assetLocation, fromResources, payload, ct);
+            RequireOwningTrack(type).OpenWindow(type, true, windowName, windowId, fromResources, payload, ct);
         }
 
         /// <summary>
@@ -495,14 +518,14 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <param name="type">窗口类型。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        public static void ShowUI(Type type, string windowName = null, string assetLocation = null, bool fromResources = false,
+        public static void ShowUI(Type type, string windowName = null, string windowId = null, bool fromResources = false,
             UIPayload payload = default, CancellationToken ct = default)
         {
-            RequireOwningTrack(type).OpenWindow(type, SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, payload, ct);
+            RequireOwningTrack(type).OpenWindow(type, SYNC_LOAD_USES_ASYNC, windowName, windowId, fromResources, payload, ct);
         }
 
         /// <summary>
@@ -514,12 +537,12 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <param name="type">窗口类型。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
         /// <returns>栈上那一只窗口（面板就绪后交回；装载失败交回 null）。</returns>
-        public static async UniTask<UIWindow> ShowUIAsyncAwait(Type type, string windowName = null, string assetLocation = null, bool fromResources = false,
+        public static async UniTask<UIWindow> ShowUIAsyncAwait(Type type, string windowName = null, string windowId = null, bool fromResources = false,
             UIPayload payload = default, CancellationToken ct = default)
         {
             var track = RequireOwningTrack(type);
@@ -530,7 +553,7 @@ namespace Moirai.Atropos.UI
                     track.TrackName, nameof(UIServiceSettings)));
             }
 
-            return await SharedLedger.ShowUIAwaitImp(type, true, windowName, assetLocation, fromResources, null, payload, ct);
+            return await SharedLedger.ShowUIAwaitImp(type, true, windowName, windowId, fromResources, null, payload, ct);
         }
 
         /// <summary>
