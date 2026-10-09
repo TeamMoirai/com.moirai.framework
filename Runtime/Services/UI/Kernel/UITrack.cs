@@ -84,14 +84,14 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌。</param>
-        internal void OpenWindow(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+        internal void OpenWindow(Type type, bool isAsync, string windowName, string windowId, bool fromResources,
             UIPayload payload, CancellationToken ct)
         {
-            _openWindow(type, isAsync, windowName, assetLocation, fromResources, payload, ct);
+            _openWindow(type, isAsync, windowName, windowId, fromResources, payload, ct);
         }
     }
 }

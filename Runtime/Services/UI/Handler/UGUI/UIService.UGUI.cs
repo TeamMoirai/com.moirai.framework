@@ -130,14 +130,14 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <typeparam name="T">窗口类。</typeparam>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        public static void ShowUIAsync<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
+        public static void ShowUIAsync<T>(string windowName = null, string windowId = null, bool fromResources = false,
             CancellationToken ct = default) where T : UGUIWindow, new()
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            SharedLedger.ShowUIImp(typeof(T), true, windowName, assetLocation, fromResources, null, UIPayload.Empty, ct);
+            SharedLedger.ShowUIImp(typeof(T), true, windowName, windowId, fromResources, null, UIPayload.Empty, ct);
         }
 
         /// <summary>
@@ -145,14 +145,14 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <typeparam name="T">窗口类。</typeparam>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        public static void ShowUI<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
+        public static void ShowUI<T>(string windowName = null, string windowId = null, bool fromResources = false,
             CancellationToken ct = default) where T : UGUIWindow, new()
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            SharedLedger.ShowUIImp(typeof(T), SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, null, UIPayload.Empty, ct);
+            SharedLedger.ShowUIImp(typeof(T), SYNC_LOAD_USES_ASYNC, windowName, windowId, fromResources, null, UIPayload.Empty, ct);
         }
 
         /// <summary>
@@ -160,15 +160,15 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <typeparam name="T">窗口类。</typeparam>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
         /// <returns>打开窗口操作句柄。</returns>
-        public static async UniTask<UIWindow> ShowUIAsyncAwait<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
+        public static async UniTask<UIWindow> ShowUIAsyncAwait<T>(string windowName = null, string windowId = null, bool fromResources = false,
             CancellationToken ct = default) where T : UGUIWindow, new()
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            return await SharedLedger.ShowUIAwaitImp(typeof(T), true, windowName, assetLocation, fromResources, null, UIPayload.Empty, ct);
+            return await SharedLedger.ShowUIAwaitImp(typeof(T), true, windowName, windowId, fromResources, null, UIPayload.Empty, ct);
         }
 
         /// <summary>
@@ -179,15 +179,15 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <typeparam name="T">窗口类。</typeparam>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="ct">调用方取消令牌；被它撤销即落 <see cref="EUIOpenStatus.Cancelled"/> 档。</param>
         /// <returns>开窗结果。</returns>
-        public static UniTask<UIOpenResult> ShowUIAwaitResult<T>(string windowName = null, string assetLocation = null, bool fromResources = false,
+        public static UniTask<UIOpenResult> ShowUIAwaitResult<T>(string windowName = null, string windowId = null, bool fromResources = false,
             CancellationToken ct = default) where T : UGUIWindow, new()
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            return SharedLedger.ShowUIAwaitResultImp(typeof(T), true, windowName, assetLocation, fromResources, null, UIPayload.Empty, ct);
+            return SharedLedger.ShowUIAwaitResultImp(typeof(T), true, windowName, windowId, fromResources, null, UIPayload.Empty, ct);
         }
 
         /// <summary>
@@ -197,14 +197,14 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="TArg">载荷类型。</typeparam>
         /// <param name="payload">本次开窗的载荷。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        public static void ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null,
+        public static void ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string windowId = null,
             bool fromResources = false, CancellationToken ct = default) where TWindow : UGUIWindow<TArg>, new()
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            SharedLedger.ShowUIImp<TArg>(typeof(TWindow), true, windowName, assetLocation, fromResources, null, in payload, ct);
+            SharedLedger.ShowUIImp<TArg>(typeof(TWindow), true, windowName, windowId, fromResources, null, in payload, ct);
         }
 
         /// <summary>
@@ -214,14 +214,14 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="TArg">载荷类型。</typeparam>
         /// <param name="payload">本次开窗的载荷。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="ct">调用方取消令牌；装载在途时它撤销即掐断装载并回滚。</param>
-        public static void ShowUI<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null,
+        public static void ShowUI<TWindow, TArg>(in TArg payload, string windowName = null, string windowId = null,
             bool fromResources = false, CancellationToken ct = default) where TWindow : UGUIWindow<TArg>, new()
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            SharedLedger.ShowUIImp<TArg>(typeof(TWindow), SYNC_LOAD_USES_ASYNC, windowName, assetLocation, fromResources, null, in payload, ct);
+            SharedLedger.ShowUIImp<TArg>(typeof(TWindow), SYNC_LOAD_USES_ASYNC, windowName, windowId, fromResources, null, in payload, ct);
         }
 
         /// <summary>
@@ -232,16 +232,16 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="TArg">载荷类型。</typeparam>
         /// <param name="payload">本次开窗的载荷。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
         /// <returns>打开窗口操作句柄。</returns>
         /// <exception cref="GameException">按名取回的实例不是 <typeparamref name="TWindow"/>（缓存命中类型不符，消息带期望/实际双类型名）。</exception>
-        public static async UniTask<TWindow> ShowUIAsyncAwait<TWindow, TArg>(TArg payload, string windowName = null, string assetLocation = null,
+        public static async UniTask<TWindow> ShowUIAsyncAwait<TWindow, TArg>(TArg payload, string windowName = null, string windowId = null,
             bool fromResources = false, CancellationToken ct = default) where TWindow : UGUIWindow<TArg>, new()
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            var window = await SharedLedger.ShowUIAwaitImp<TArg>(typeof(TWindow), true, windowName, assetLocation, fromResources, null, payload, ct);
+            var window = await SharedLedger.ShowUIAwaitImp<TArg>(typeof(TWindow), true, windowName, windowId, fromResources, null, payload, ct);
             return window switch
             {
                 null => null,
@@ -259,15 +259,15 @@ namespace Moirai.Atropos.UI
         /// <typeparam name="TArg">载荷类型。</typeparam>
         /// <param name="payload">本次开窗的载荷。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="ct">调用方取消令牌；被它撤销即落 <see cref="EUIOpenStatus.Cancelled"/> 档。</param>
         /// <returns>开窗结果。</returns>
-        public static UniTask<UIOpenResult> ShowUIAwaitResult<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null,
+        public static UniTask<UIOpenResult> ShowUIAwaitResult<TWindow, TArg>(in TArg payload, string windowName = null, string windowId = null,
             bool fromResources = false, CancellationToken ct = default) where TWindow : UGUIWindow<TArg>, new()
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            return SharedLedger.ShowUIAwaitResultImp<TArg>(typeof(TWindow), true, windowName, assetLocation, fromResources, null, payload, ct);
+            return SharedLedger.ShowUIAwaitResultImp<TArg>(typeof(TWindow), true, windowName, windowId, fromResources, null, payload, ct);
         }
 
         /// <summary>
@@ -279,15 +279,15 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
         /// <param name="windowName">窗口名称。</param>
-        /// <param name="assetLocation">资源定位地址。</param>
+        /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
         /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌。</param>
-        private static void OpenUGUIWindowForTypeEntry(Type type, bool isAsync, string windowName, string assetLocation, bool fromResources,
+        private static void OpenUGUIWindowForTypeEntry(Type type, bool isAsync, string windowName, string windowId, bool fromResources,
             UIPayload payload, CancellationToken ct)
         {
             _ = UGUIHandler; // 认领门：本轨未启用当场抬错（槽位取用即判据）
-            SharedLedger.ShowUIImp(type, isAsync, windowName, assetLocation, fromResources, null, payload, ct);
+            SharedLedger.ShowUIImp(type, isAsync, windowName, windowId, fromResources, null, payload, ct);
         }
 
         #endregion

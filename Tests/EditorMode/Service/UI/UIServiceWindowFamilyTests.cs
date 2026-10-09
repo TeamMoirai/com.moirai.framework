@@ -111,26 +111,26 @@ namespace Service.UI
         /// <remarks>
         /// 寻址两档自 R10 起两支同形同序 ⇒ 「同形实参」这一次给满三枚位置实参，两支各编一次：绑得上就是二义没有回来（分辨依据仍是各自的窗口基类约束）。 <br />
         /// uGUI 窗与 UI Toolkit 窗互不派生 ⇒ 两支各叫各的实现，观察点是「本轨的实现把窗口送进共享栈」那一步： <br />
-        /// 两支交进共享栈的地址都是调用方给的那一枚，缺省时才由窗口类那条链路答（<see cref="ShowUI_PanelAddressOnProductionHandler_AttributeLocationWinsOverTypeName"/> 量的是缺省那一档）。
+        /// 两支都不再收调用方给的面板地址：缺省时由窗口类那条链路答（<see cref="ShowUI_PanelAddressOnProductionHandler_AttributeLocationWinsOverTypeName"/> 量的就是这一档），给了标识才由门面按档换算。
         /// </remarks>
         [Test]
         public void ShowUI_SameShapeArguments_PerTrackWindows_EachHitsItsOwnLeg()
         {
-            UIService.ShowUI<ProbeLocatedUGUIWindow>("UGUILeg", "Given/Address", false);
+            UIService.ShowUI<ProbeLocatedUGUIWindow>("UGUILeg");
 
-            Assert.AreEqual("Given/Address", PanelProbe.s_Address, "uGUI 腿带着调用方给的面板地址交给共享栈");
+            Assert.AreEqual(LOCATED_ADDRESS, PanelProbe.s_Address, "uGUI 腿没给标识：地址由窗口类那条链路答");
             Assert.AreEqual("LoadPanel", PanelProbe.s_Hook, "同步腿走的是同步装载那一档");
             Assert.IsNotNull(UIService.SharedLedger.GetWindow<ProbeLocatedUGUIWindow>("UGUILeg"), "开出来的窗落在协调者那一份栈上");
 
             PanelProbe.s_Address = null;
-            UIService.ShowUI<ProbeLocatedUitkWindow>("UITKLeg", "Given/Address", false);
+            UIService.ShowUI<ProbeLocatedUitkWindow>("UITKLeg");
 
-            Assert.AreEqual("Given/Address", PanelProbe.s_Address,
-                "UI Toolkit 腿同样收下这一枚地址：它不再比 uGUI 腿少那一档");
+            Assert.AreEqual(LOCATED_ADDRESS, PanelProbe.s_Address,
+                "UI Toolkit 腿同样由窗口类那条链路答地址：它不比 uGUI 腿少这一档");
             Assert.IsNotNull(UIService.SharedLedger.GetWindow<ProbeLocatedUitkWindow>("UITKLeg"), "两支落的是同一份栈");
 
             PanelProbe.s_Address = null;
-            UIService.ShowUIAsync<ProbeLocatedUitkWindow>("UITKAsyncLeg", "Given/Address", false);
+            UIService.ShowUIAsync<ProbeLocatedUitkWindow>("UITKAsyncLeg");
 
             Assert.AreEqual("LoadPanelAsync", PanelProbe.s_Hook, "异步那一支与同步那一支同形，但走异步装载");
             Assert.IsNotNull(UIService.SharedLedger.GetWindow<ProbeLocatedUitkWindow>("UITKAsyncLeg"), "异步那一支也落进同一份栈");
@@ -147,7 +147,7 @@ namespace Service.UI
         {
             UIService.ShowUI<ProbeAddressUGUIWindow>("UGUIGiven", "Given/Address", true);
 
-            Assert.AreEqual("Given/Address", PanelProbe.s_Address, "uGUI 腿把第二枚当面板地址交给本轨实现");
+            Assert.AreEqual("UI/Given/Address", PanelProbe.s_Address, "uGUI 腿把第二枚当窗口标识交下去：内置资源档拼上 Resources 父目录");
             Assert.IsTrue(PanelProbe.s_FromResources, "uGUI 腿把第三枚当 fromResources 原样交下去");
             Assert.AreEqual("LoadPanel", PanelProbe.s_Hook, "同步那一支仍走同步装载");
 
@@ -155,8 +155,8 @@ namespace Service.UI
             PanelProbe.s_FromResources = false;
             UIService.ShowUI<ProbeAddressUitkWindow>("UITKGiven", "Given/Address", true);
 
-            Assert.AreEqual("Given/Address", PanelProbe.s_Address,
-                "UI Toolkit 腿的第二枚现在也是面板地址：交进共享栈的不再是写死的空");
+            Assert.AreEqual("UI/Given/Address", PanelProbe.s_Address,
+                "UI Toolkit 腿的第二枚同样是窗口标识：换算后才交进共享栈");
             Assert.IsTrue(PanelProbe.s_FromResources, "第三枚同理：取法由腿交下去，不再写死 AB 口径");
         }
 
@@ -183,15 +183,15 @@ namespace Service.UI
             _clonedSettings.Add(windowLevel);
             UITKWindow.SharedPanelSettings = shared;
 
-            UIService.ShowUI<ProbeRealLoadUitkWindow>("OwnPanelKit", TEMPLATE_ASSET_PATH, false, windowLevel);
-            var withOverride = RegisterShell(UIService.SharedLedger.GetWindow<ProbeRealLoadUitkWindow>("OwnPanelKit"));
+            UIService.ShowUI<ProbeLoadedUitkWindow>("OwnPanelKit", null, false, windowLevel);
+            var withOverride = RegisterShell(UIService.SharedLedger.GetWindow<ProbeLoadedUitkWindow>("OwnPanelKit"));
             Assert.IsTrue(withOverride.IsLoadDone, "带窗口级配置的那一窗要装得上面板");
             Assert.Greater(withOverride.RootVisual.childCount, 0, "模板克隆进内容根：这一窗走的是完整装载路径");
             Assert.AreSame(windowLevel, withOverride.Document.panelSettings, "文档组件拿到的必须是本窗那一枚配置");
             Assert.AreNotSame(shared, withOverride.Document.panelSettings, "共享那一份不得顶掉窗口级覆盖");
 
-            UIService.ShowUI<ProbeRealLoadUitkWindow>("SharedPanelKit", TEMPLATE_ASSET_PATH, false);
-            var withoutOverride = RegisterShell(UIService.SharedLedger.GetWindow<ProbeRealLoadUitkWindow>("SharedPanelKit"));
+            UIService.ShowUI<ProbeLoadedUitkWindow>("SharedPanelKit");
+            var withoutOverride = RegisterShell(UIService.SharedLedger.GetWindow<ProbeLoadedUitkWindow>("SharedPanelKit"));
             Assert.IsNull(withoutOverride.PanelSettingsOverride, "没给覆盖的那一窗，实例位停在空中");
             Assert.AreSame(shared, withoutOverride.Document.panelSettings, "覆盖为空时回共享那一份兜底：新形参是覆盖不是替换");
         }
@@ -212,13 +212,13 @@ namespace Service.UI
             Assert.IsNotNull(Resources.Load<VisualTreeAsset>(TEMPLATE_RESOURCE_NAME),
                 "量具前提坏了：Resources.Load 取不到内置模板 {0}，取法那一档无从覆盖", TEMPLATE_RESOURCE_NAME);
 
-            UIService.ShowUI<ProbeRealLoadUitkWindow>("AbModeKit", TEMPLATE_ASSET_PATH, false);
-            var viaAb = RegisterShell(UIService.SharedLedger.GetWindow<ProbeRealLoadUitkWindow>("AbModeKit"));
+            UIService.ShowUI<ProbeLoadedUitkWindow>("AbModeKit");
+            var viaAb = RegisterShell(UIService.SharedLedger.GetWindow<ProbeLoadedUitkWindow>("AbModeKit"));
             Assert.IsTrue(viaAb.IsLoadDone, "fromResources=false 那一档要按地址走资源服务把模板取到手");
             Assert.Greater(viaAb.RootVisual.childCount, 0, "AB 那一档克隆的是按路径取到的模板");
 
-            UIService.ShowUI<ProbeRealLoadUitkWindow>("ResourcesModeKit", TEMPLATE_RESOURCE_NAME, true);
-            var viaResources = RegisterShell(UIService.SharedLedger.GetWindow<ProbeRealLoadUitkWindow>("ResourcesModeKit"));
+            UIService.ShowUI<ProbeLoadedFromResourcesUitkWindow>("ResourcesModeKit");
+            var viaResources = RegisterShell(UIService.SharedLedger.GetWindow<ProbeLoadedFromResourcesUitkWindow>("ResourcesModeKit"));
             Assert.IsTrue(viaResources.IsLoadDone, "腿传 fromResources=true 时要真走 Resources 那一档");
             Assert.Greater(viaResources.RootVisual.childCount, 0, "内置资源那一档克隆的是按 Resources 名取到的模板");
         }
@@ -236,7 +236,7 @@ namespace Service.UI
         public void PayloadLeg_UGUI_PayloadArrivesByReference()
         {
             var payload = new object();
-            UIService.ShowUIAsync<ProbeAddressUGUIWindow, object>(payload, "ShapeUGUI", "Given/Address", false);
+            UIService.ShowUIAsync<ProbeAddressUGUIWindow, object>(payload, "ShapeUGUI");
             var window = UIService.SharedLedger.GetWindow<ProbeAddressUGUIWindow>("ShapeUGUI");
             Assert.AreSame(payload, window.Payload, "静态腿 class 载荷引用同一性直达");
         }
@@ -261,7 +261,7 @@ namespace Service.UI
 
             var payload = new object();
             // UITK 载荷腿第四枚位置是 panelSettings（这一格给真配置），载荷永远排第一枚：两头各亮一次
-            UIService.ShowUIAsync<ProbeAddressUitkWindow, object>(payload, "ShapeKitData", "Given/Address", false, windowLevel);
+            UIService.ShowUIAsync<ProbeAddressUitkWindow, object>(payload, "ShapeKitData", null, false, windowLevel);
             var window = UIService.SharedLedger.GetWindow<ProbeAddressUitkWindow>("ShapeKitData");
             Assert.IsNotNull(window, "量具前提坏了：UI Toolkit 载荷腿把窗开进了共享栈");
             Assert.AreSame(windowLevel, window.PanelSettingsOverride, "第四枚的窗口级配置落进实例位：那一枚位置说的是配置，不是载荷");
@@ -339,13 +339,13 @@ namespace Service.UI
         [Test]
         public void ShowUI_TypeEntry_UITKWindowType_ClaimsUITKTrack()
         {
-            UIService.ShowUI(typeof(ProbeLocatedUitkWindow), "TypeUITK", "Given/Address", false);
+            UIService.ShowUI(typeof(ProbeLocatedUitkWindow), "TypeUITK");
 
             var opened = UIService.SharedLedger.GetWindow<ProbeLocatedUitkWindow>("TypeUITK");
             Assert.IsNotNull(opened, "认出轨才交给那一轨的实现：窗口在共享栈上");
             Assert.AreEqual("TypeUITK", opened.WindowName, "带的是调用方给的窗口名");
-            Assert.AreEqual("Given/Address", PanelProbe.s_Address,
-                "入口带来的面板地址在 UI Toolkit 档同样收下：这一档两支不再有别");
+            Assert.AreEqual(LOCATED_ADDRESS, PanelProbe.s_Address,
+                "入口没带标识时，UI Toolkit 档也按窗口类那条链路答地址：这一档两支没有别");
         }
 
         /// <summary>
@@ -359,12 +359,12 @@ namespace Service.UI
         public void ShowUI_TypeEntry_UGUIWindowType_TakesTheGivenAddress()
         {
             PanelProbe.s_Address = null;
-            PanelProbe.s_FromResources = true;
+            PanelProbe.s_FromResources = false;
 
-            UIService.ShowUI(typeof(ProbeAddressUGUIWindow), "TypeAddr", "Given/Address", false);
+            UIService.ShowUI(typeof(ProbeAddressUGUIWindow), "TypeAddr", "Given/Address", true);
 
-            Assert.AreEqual("Given/Address", PanelProbe.s_Address, "uGUI 档收下入口带来的面板地址");
-            Assert.IsFalse(PanelProbe.s_FromResources, "取法也按入口给的那一枚交下去，不是特性里的默认值");
+            Assert.AreEqual("UI/Given/Address", PanelProbe.s_Address, "入口带来的标识按内置资源档换算后交下去");
+            Assert.IsTrue(PanelProbe.s_FromResources, "取法也按入口给的那一枚交下去，不是特性里的默认值");
             Assert.IsNotNull(UIService.SharedLedger.GetWindow<ProbeAddressUGUIWindow>("TypeAddr"), "窗口落在协调者那一份栈上");
         }
 
@@ -445,7 +445,7 @@ namespace Service.UI
         [Test]
         public void ShowUIAsyncAwait_PerTrackLegsOnStackedWindow_ReturnItWithoutWaiting()
         {
-            UIService.ShowUI<ProbeAddressUGUIWindow>("AwaitUGUI", "Given/Address", false);
+            UIService.ShowUI<ProbeAddressUGUIWindow>("AwaitUGUI");
             var stackedUgui = UIService.SharedLedger.GetWindow<ProbeAddressUGUIWindow>("AwaitUGUI");
             var awaitedUgui = UIService.ShowUIAsyncAwait<ProbeAddressUGUIWindow>("AwaitUGUI").GetAwaiter().GetResult();
             Assert.AreSame(stackedUgui, awaitedUgui, "uGUI 的等待腿经复用支路同步交回栈上那一只窗");
@@ -474,7 +474,7 @@ namespace Service.UI
         public void ShowUIAsyncAwait_PayloadLeg_NameHitIsAnotherWindowClass_FailsFastWithGameException()
         {
             var payload = new object();
-            UIService.ShowUI<ProbeAddressUGUIWindow, object>(payload, "CastGuard", "Given/Address", false);
+            UIService.ShowUI<ProbeAddressUGUIWindow, object>(payload, "CastGuard");
             var opened = UIService.SharedLedger.GetWindow<ProbeAddressUGUIWindow>("CastGuard");
             Assert.IsNotNull(opened, "量具前提坏了：A 已按这个名字开进共享栈");
             Assert.IsTrue(opened.IsLoadDone, "量具前提坏了：A 走的是同步装载，复用支路才能同帧落定");
@@ -564,7 +564,7 @@ namespace Service.UI
 
             var opened = UIService.SharedLedger.GetWindow<ProbeAddressUGUIWindow>("OwnUGUI");
             Assert.IsNotNull(opened, "uGUI 腿开出的窗落在协调者那一份栈上");
-            Assert.AreEqual("Own/Address", PanelProbe.s_Address, "走的是带面板地址那一档的 uGUI 实现");
+            Assert.AreEqual("UI/Own/Address", PanelProbe.s_Address, "走的是带窗口标识那一档的 uGUI 实现：地址按父目录换算过");
             Assert.IsTrue(PanelProbe.s_FromResources, "取法同样由 uGUI 这条腿交下去");
         }
 
@@ -782,15 +782,15 @@ namespace Service.UI
                 System.Threading.CancellationToken ct) => UniTask.FromResult(Bind());
         }
 
-        /// <summary>不带 <c>location</c> 的真装载 UI Toolkit 探针窗：地址与取法只能由腿交进来，装载路径不覆写。</summary>
-        [Window(EUILayer.Tips)]
-        internal sealed class ProbeRealLoadUitkWindow : UITKWindow
-        {
-        }
-
         /// <summary>真装载的 UI Toolkit 探针窗：面板地址写死在 <c>[Window(location)]</c> 上，装载路径不覆写。</summary>
         [Window(EUILayer.Tips, TEMPLATE_ASSET_PATH, false)]
         internal sealed class ProbeLoadedUitkWindow : UITKWindow
+        {
+        }
+
+        /// <summary>真装载的 UI Toolkit 探针窗（内置资源档）：模板名与 <c>fromResources</c> 都写死在特性上，装载路径不覆写。</summary>
+        [Window(EUILayer.Tips, TEMPLATE_RESOURCE_NAME, true)]
+        internal sealed class ProbeLoadedFromResourcesUitkWindow : UITKWindow
         {
         }
 

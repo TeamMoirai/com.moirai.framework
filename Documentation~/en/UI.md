@@ -59,7 +59,6 @@ Shutdown order is expressed by each track's self-declared tier: the track hostin
 | `Moirai.Atropos.UI.UIPayload` | The dynamic legs' only erasure carrier (`readonly struct`): `Empty` and a `null` reference are the same case; `From` / `To<T>` / `TryGet<T>` — every failure surface is a `GameException` naming the expected type |
 | `Moirai.Atropos.UI.IUIPayloadSlot<TArg>` | Internal generic bridge of the payload slot (`internal`): the ledger's generic channel lands the payload by `TArg` through it, never passing through `UIPayload`; implemented by both tracks' generic bases |
 | `UIService.onWindowShown` / `onWindowClosed` | Window open/close broadcasts (`public static event Action<UIWindow>`): one per push and per pop, parked and destroyed windows both fire; subscribers own their pairing, and the facade's shutdown and reset gates detach every handler |
-| `Moirai.Atropos.UI.UIManager` | Scene-side addressing component: the public static resolvers `ResolveWindowLocation(windowId)` / `ResolveFromResources` convert an id through the config-table or Resources setting, and a derived class can override `GetWindowLocation` to change its own addressing policy |
 | `Moirai.Atropos.UI.UIWidget` | Window embedded control base class, inherits `UIBase` |
 | `Moirai.Atropos.UI.WindowAttribute` | Window attribute (required), declares layer, resource address, full-screen, caching, and other configuration; resolved at compile time by the `UIWindowCodegen` source generator into `UIWindowRegistry` |
 | `Moirai.Atropos.UI.EUILayer` | UI layer enum: `Bottom=0`, `UI=1`, `Popup=2`, `Tips=3`, `System=4` |
@@ -111,8 +110,8 @@ UIService.ShowUIAsync<MainWindow>();
 UIService.ShowUIAsync<DetailWindow, int>(1001);
 
 // Dynamic leg, when the window class is only known at runtime: payload erased into UIPayload, addressing via the public static resolvers
-UIService.ShowUIAsync(type, windowName, UIManager.ResolveWindowLocation(windowName),
-    UIManager.ResolveFromResources, UIPayload.From(dto));
+UIService.ShowUIAsync(type, windowName, windowId,
+    fromResources: false, payload: UIPayload.From(dto));
 
 // Every leg takes a CancellationToken (default costs nothing); it only means something while the load is in flight
 UIService.ShowUIAsync<MainWindow>(windowName: "Main", ct: cts.Token);
@@ -146,11 +145,11 @@ Eight legs per track = four payload-free + four payload-carrying; the two backen
 
 | Leg | Signature | Returns |
 |---|---|---|
-| Async, payload-free | `ShowUIAsync<T>(string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`, `T : UGUIWindow, new()` | `void` |
+| Async, payload-free | `ShowUIAsync<T>(string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`, `T : UGUIWindow, new()` | `void` |
 | Sync, payload-free | `ShowUI<T>(…same shape…), T : UGUIWindow, new()` | `void` |
 | Await, payload-free | `ShowUIAsyncAwait<T>(…same shape…), T : UGUIWindow, new()` | `UniTask<UIWindow>` |
 | Result, payload-free | `ShowUIAwaitResult<T>(…same shape…), T : UGUIWindow, new()` | `UniTask<UIOpenResult>` |
-| Async, payload | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`, `TWindow : UGUIWindow<TArg>, new()` | `void` |
+| Async, payload | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`, `TWindow : UGUIWindow<TArg>, new()` | `void` |
 | Sync, payload | `ShowUI<TWindow, TArg>(in TArg payload, …same shape…)` | `void` |
 | Await, payload | `ShowUIAsyncAwait<TWindow, TArg>(TArg payload, …same shape…)` | `UniTask<TWindow>` |
 | Result, payload | `ShowUIAwaitResult<TWindow, TArg>(in TArg payload, …same shape…)` | `UniTask<UIOpenResult>` |
@@ -163,7 +162,7 @@ Eight legs per track = four payload-free + four payload-carrying; the two backen
 
 | Leg | Signature | Returns |
 |---|---|---|
-| Async | `ShowUIAsync(Type type, string windowName = null, string assetLocation = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
+| Async | `ShowUIAsync(Type type, string windowName = null, string windowId = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
 | Sync | `ShowUI(Type type, …same shape…)` | `void` |
 | Await | `ShowUIAsyncAwait(Type type, …same shape…)` | `UniTask<UIWindow>` |
 
@@ -208,8 +207,8 @@ public class RenameWindow : UGUIWindow<RenameWindowPayload>   // carrying a payl
 UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto);
 
 // Dynamic leg: only a runtime Type -> erased into UIPayload (reference stays a reference, value types box once)
-UIService.ShowUIAsync(type, windowName, UIManager.ResolveWindowLocation(windowName),
-    UIManager.ResolveFromResources, UIPayload.From(dto));
+UIService.ShowUIAsync(type, windowName, windowId,
+    fromResources: false, payload: UIPayload.From(dto));
 ```
 
 > Toolchain note: under this project's toolchain (C# 9 / netstandard2.1, no `IsExternalInit` polyfill) a `readonly struct` with writable public fields does not compile (CS8340 at the init sites; `readonly` fields plus an object initializer is CS0191, `{ get; init; }` is CS0518) — a DTO is a plain `struct` with public fields and an object initializer.
@@ -376,7 +375,7 @@ Select the root node of a UI prefab and use the menu:
 - `default` costs nothing on every leg's `CancellationToken`, and the token is only consumed while the load is in flight: a ready reuse and a re-park do not consume `ct`; reusing a window that is still loading registers the caller token just the same, and cancelling it aborts that in-flight load (the same semantics as the in-flight merge)
 - Window open/close receipts are a static facade broadcast: `UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent` (parameter `UIWindow`) — exactly one per push and per pop, fired for both parking and destruction. Subscribers own their own un-pairing, and the facade's shutdown and reset gates detach the whole batch
 - Optional parking TTL: `[Window(cacheTimeToDestroy: …)]` — `0` means no caching (destroy on close, the default), a positive value parks the instance and destroys it that many seconds later, a negative value parks it forever; on expiry the ledger removes the parked instance from the parking table and destroys it for good, and re-taking it cancels the timer
-- `UIManager` carries the addressing job: the dynamic legs resolve through the public static resolvers `UIManager.ResolveWindowLocation` / `UIManager.ResolveFromResources`. Those resolvers follow `SingletonMono.Instance` semantics: with no instance in the scene one is materialized on the spot (the default config-table shape), and during the app-quit / play-stop window a missing instance throws `GameException` — call them behind your own service-readiness guard
+- Addressing lives in the facade: the third slot of every open leg is the window **id** — with `fromResources` it is joined onto the Resources parent folder held by `UIServiceSettings`, otherwise it is looked up through `ConfigTableService.GetUIWindowLocation`; only an empty id falls back to `[Window(location)]` (and to the type name when that is empty too). The old `UIManager` and its two public static resolvers are retired, and the conversion happens in exactly one place: the ledger's create-new-instance branch (a stack reuse and a re-parked window never hit the table)
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [UI Migration](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

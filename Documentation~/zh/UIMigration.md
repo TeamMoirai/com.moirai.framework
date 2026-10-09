@@ -68,9 +68,9 @@ RenameWindow w = await UIService.ShowUIAsyncAwait<RenameWindow, RenameWindowPayl
 UIOpenResult r = await UIService.ShowUIAwaitResult<RenameWindow, RenameWindowPayload>(in dto);        // 结果腿
 ```
 
-落地签名与位置序：`(in TArg payload, string windowName = null, string assetLocation = null, bool fromResources = false, CancellationToken ct = default)`；UI Toolkit 腿在 `ct` 前多一枚 `PanelSettings panelSettings = null`，载荷仍永远排第一枚。
+落地签名与位置序：`(in TArg payload, string windowName = null, string windowId = null, bool fromResources = false, CancellationToken ct = default)`；UI Toolkit 腿在 `ct` 前多一枚 `PanelSettings panelSettings = null`，载荷仍永远排第一枚。
 
-手写 `Show` 助手时，寻址经 `UIManager` 的公共静态定位口（旧写法把寻址交给事件中转，直调腿自己取地址）：
+手写 `Show` 助手时把标识直接交给腿（旧写法先自己算地址，如今门面按档换算）：
 
 ```csharp
 public static void ShowRenameWindow(RenameWindowPayload dto)
@@ -78,14 +78,12 @@ public static void ShowRenameWindow(RenameWindowPayload dto)
     const string WindowId = "RenameWindow";
     UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(
         in dto,
-        WindowId,
-        UIManager.ResolveWindowLocation(WindowId),
-        UIManager.ResolveFromResources);
+        WindowId, WindowId);
 }
 ```
 
-- `ResolveWindowLocation(windowId)` 与 `ResolveFromResources` 成对使用：前者给出按配置表或 `Resources` 路径算出的定位地址，后者答本实例用哪一种取法，两枚读同一份判据（与 `UIManager` 事件腿那条路一模一样）
-- 定位口吃 `SingletonMono.Instance` 语义：场景里没有 `UIManager` 时现场物化一枚（默认配置表档），应用退出/播放停止的关停窗口内取不到实例则抬 `GameException`——把调用排在服务就绪守卫之后
+- 第三枚是窗口标识而不是面板地址：`fromResources` 为真时按 `UIServiceSettings` 的 Resources 父目录拼地址，为假时按标识查配置表；两档的换算只在开窗造新实例那一格发生
+- 缺省档位由 `[Window(fromResources:)]` 与调用方给的 `fromResources` 并集决定（真 || 特性）；配置表服务未就绪时取到 `null`、查无此 id 取到空串，两者都落进装载失败回滚，不在门面代答
 
 ### 动态腿：运行期才知道 `Type`（类型替换缝、注册表驱动的开窗）
 
