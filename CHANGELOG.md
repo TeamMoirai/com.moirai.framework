@@ -34,10 +34,11 @@
 - 新增装载取消贯通：窗口自持装载期取消源，装载在途被关闭即掐断；uGUI 轨 `LoadPanelAsync` 把令牌转发给 `ResourceService.LoadGameObjectAsync`（UI Toolkit 轨此前已转发）。
 - 新增窗口注册表 `UIWindowRegistry` 与元数据描述符 `UIWindowDescriptor`：新源生成器 `UIWindowCodegen` 在编译期解析 `[Window]` 实参（四个构造器重载与命名实参全解），把描述符与 `static () => new X()` 工厂写进模块初始化器 `UIWindowModuleInit` 逐类型登记；`UIWindowLedger.CreateInstance` 改为按类型句柄查表取工厂与元数据，开窗路径零 `Activator`、零特性反射（IL2CPP 同构）。形状非法报 MIRAI500~503（标在非窗口类 / 缺公共无参构造 / 抽象或泛型 / 嵌套在私有类型内），模块初始化期重复登记记 Fatal 保留先到。迁移：窗口类嵌套须 internal 或公开（生成的初始化器够不到 private 嵌套），测试探针窗已同步迁移。
 - 新增开/关过渡契约 `IUITransition` 与 `UIWindow.Transition` 虚属性：真过渡期间锁交互（模态窗占全局压制位）、被接管按取消令牌掐断；缺位即瞬时，瞬时档零锁零占用零取消源分配。
-- 新增 `UIManager` 公共静态定位口 `ResolveWindowLocation(windowId)` / `ResolveFromResources`（新增，非破坏）：直调腿（不经事件中转）的寻址接缝，与事件腿共用同一份配置表 / `Resources` 判据；按 `SingletonMono.Instance` 语义取实例——场景里没有时现场物化一枚（默认配置表档），应用退出/播放停止的关停窗口内取不到则 `GameException`，调用排在服务就绪守卫之后。
+- 新增 `UIManager` 公共静态定位口 `ResolveWindowLocation(windowId)` / `ResolveFromResources`（新增，非破坏）：开窗腿的寻址接缝，配置表 / `Resources` 两档判据只此一份；按 `SingletonMono.Instance` 语义取实例——场景里没有时现场物化一枚（默认配置表档），应用退出/播放停止的关停窗口内取不到则 `GameException`，调用排在服务就绪守卫之后。
 - 新增最小导航两成员 `UIService.NavigationDepth`（开启序历史的长度——栈按层级排序答不出「最近开的是谁」）与 `UIService.TryCloseTopWindow()`（关上最近开的那只，走既有 `CanClose` 政策；无历史 / 拒关 / 过渡中回假且历史不出栈）；`Type` 形入口另补等待腿 `ShowUIAsyncAwait(Type, …, UIPayload, ct)` 交回 `UniTask<UIWindow>`。认不出轨与「认出来却没人认领驱动」两档都当场抬错，不把窗口推进栈再等装载静默失败。
 - 新增停放窗可选 TTL：`[Window(cacheInstance: true, cacheTimeToDestroy: 秒)]`，`0` = 永久（缺省即此，现行语义不变），只配合 `cacheInstance` 生效；到期由账本移出停放表并终态销毁，重新取用即取消计时。
-- 新增双语文档：`Documentation~/zh|en/UIMigration.md`（外部业务工程一页迁移指南：DTO + 基类换形 / 写点两种去向 / 行为变更三条），`Documentation~/zh|en/UI.md` 补公开腿签名表（一轨 8 支 + 动态 3 支 + 导航 2 成员 + 取窗 3 支）、载荷双通道、在飞合并与取消分档、停放 TTL 与生命周期钩子隔离政策表。
+- 新增窗口开合回执静态事件 `UIService.onWindowShown` / `UIService.onWindowClosed`（`public static event Action<UIWindow>`）：入栈、出栈各恰一次，停放与销毁都发；取代经 `EventManager` 派发的 `UIServiceEvent`，订阅者自持配对退订，门面关停与归零门整批摘订阅。
+- 新增双语文档：`Documentation~/zh|en/UIMigration.md`（外部业务工程一页迁移指南：DTO + 基类换形 / 写点两种去向 / 行为变更四条），`Documentation~/zh|en/UI.md` 补公开腿签名表（一轨 8 支 + 动态 3 支 + 导航 2 成员 + 取窗 3 支）、载荷双通道、在飞合并与取消分档、停放 TTL 与生命周期钩子隔离政策表。
 
 #### 日志
 
@@ -133,7 +134,8 @@
 
 #### UI
 
-- ⚠ 移除 `UIWindowEvent.Params` 属性与两枚带载荷 `Show`（`Show<T>(string, params Object[])` / `Show(Type, string, params Object[])`）：事件不再搬载荷，`UIManager` 的 Show 分支改走动态腿（`UIService.ShowUIAsync(Type, …)`）。无载荷 `Show`（两形）与 `Close` / `Hide` / `CloseAll` 保留照用。迁移：带载荷的事件开窗改直调门面腿，寻址经新增的 `UIManager.ResolveWindowLocation` / `UIManager.ResolveFromResources` 这一对；`Show` 调用点即时执行，不再有「发事件 + 订阅者转手」那一段。
+- ⚠ 移除 `UIWindowEvent` 整枚事件类（`Show<T>` / `Show(Type, …)` 各含带载荷两形、`Close` 两形、`Hide` 两形、`CloseAll`）：开合窗不再经「发事件 + `UIManager` 订阅转手」的中转，调用点直调门面腿即时执行。迁移：`Show<T>(id)` → `UIService.ShowUIAsync<T>(id)`（同步档 `ShowUI<T>`）、`Show(type, id)` → `UIService.ShowUIAsync(type, id)`、`Close<T>(id)` / `Close(type, id)` → `UIService.CloseUI<T>(id)` / `UIService.CloseUI(type, id)`、`Hide` 两形 → `UIService.HideUI`、`CloseAll()` → `UIService.CloseAll()`；带载荷的写点另按迁移指南换静态/动态腿，寻址经新增的 `UIManager.ResolveWindowLocation` / `UIManager.ResolveFromResources` 这一对。`UIManager` 自此只剩寻址职责。
+- ⚠ 移除 `UIServiceEvent`（含 `EMode` 全档）与标记接口 `IUIEvent`：窗口开合回执不再经 `EventManager` 派发。迁移：订阅点改 `UIService.onWindowShown` / `UIService.onWindowClosed`（`public static event Action<UIWindow>`，形参即那枚窗口），入栈/出栈各恰一次、停放与销毁都发；退订由订阅者自己配对，门面关停与归零门整批摘掉。实现 `IUIEvent` 的业务事件（如提示类事件）去掉该接口即可，本身照旧走 `EventManager`。
 - ⚠ 移除 `UIManager.LoadUGUI<T>`（framework 侧公开虚方法，零消费者零文档，实测无调用点）。迁移：直调 `UIService` 的开窗腿。
 - ⚠ 移除 `UIServiceHandler` 上 25 枚纯转发 `UIWindowLedger` 的转发口：`public virtual` 二十枚（查询族 `GetTopWindow()`/`GetTopWindow(int)`/`GetTopWindowName(int)`/`IsAnyLoading`/`HasWindow`/`GetWindow<T>`/`IsBlockedByModal`/`IsModal` 与属性 `CurrentModal`、关隐族 `CloseUI`/`HideUI`/`CloseAll`/`CloseAllWithOut`、取窗族 `GetUIAsyncAwait`/`GetUIAsync`）与 `protected` 五枚（`GetWindow(string)`/`IsContains` 两道查询、`OnWindowPrepare`/`Push`/`Pop` 三枚栈钩子）。包内 Runtime/Editor/Samples~/Templates~ 与同宿主各包零调用方——各包对这些名字的引用全部走门面。迁移：`handler.X(…)` 改 `UIService.X(…)`，形参与语义一字未动；派生后端里自调栈钩子的改叫 `UIService.SharedLedger`（框架装配内可达）。
 

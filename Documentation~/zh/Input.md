@@ -10,7 +10,7 @@
 - 统一动作轮询 API：`GetButtonDown` / `GetButtonUp` / `GetButtonPressed` / `GetBool` / `GetFloat` / `GetVector2`，支持动作分组（`actionGroup`）
 - 鼠标专用查询：按键三态、位置、滚轮（新旧系统滚轮值已归一化对齐）
 - 输入状态开关：`Enabled`（全局硬门控，动作类查询一律返回默认值）、`LockPlayerController`（锁角色控制）、`PreventInteractionUI`（锁 UI 交互），进入压制态时自动重置残留输入状态；Input System 后端经 Action Map 整体启停中心强制，消费者无需自查
-- UI 模态联动：监听 `UIServiceEvent`，存在模态窗口时自动锁定玩家控制
+- UI 模态联动：监听 `UIService.onWindowShown` / `onWindowClosed`，存在模态窗口时自动锁定玩家控制
 - 应用焦点联动：失焦自动禁用输入，聚焦自动恢复
 - 按键提示系统（Prompts）：按键图标随当前活动输入设备自动切换，支持图文混排
 
@@ -136,7 +136,7 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 
 - 处理器类型在框架设置"输入设置"中通过 `[SerializeReference]` 配置，运行时通过 `InputServiceSettings.InputServiceHandler` 懒加载；切换处理器需重启生效
 - `UnityInputSystemHandler` / `UnityInputManagerHandler` 分别受 `ENABLE_INPUT_SYSTEM` / `ENABLE_LEGACY_INPUT_MANAGER` 宏控制编译
-- 存在 UI 模态窗口时 `LockPlayerController` 恒为 true（由 `UIServiceEvent` 驱动），属预期行为；Input System 后端此时玩家 Map 整体禁用而 UI Map 保持可用，模态自身热键不受影响
+- 存在 UI 模态窗口时 `LockPlayerController` 恒为 true（由 `UIService.onWindowShown` / `onWindowClosed` 驱动），属预期行为；Input System 后端此时玩家 Map 整体禁用而 UI Map 保持可用，模态自身热键不受影响
 - 压制门控仅作用于动作类查询（按钮/轴/向量）；鼠标查询不参与门控。未列入玩家/UI Map 配置的动作不受上下文压制（仅受 `Enabled` 全局门控）
 - `UIMobileInputHandler` 的 `GetButtonDown` / `GetButtonUp` 读取组件帧闩锁边沿（语义对齐 `WasPressedThisFrame`）
 - 输入查询应每帧轮询调用，服务本身不做事件推送
