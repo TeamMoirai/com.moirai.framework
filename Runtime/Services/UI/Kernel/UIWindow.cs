@@ -389,6 +389,21 @@ namespace Moirai.Atropos.UI
             IsLoadFailed = true;
             IsDestroyed = true;
             _prepareCallback = null;
+
+            // InternalCreate 先置 _eventsRegistered 再叫 RegisterEvent：抛出型 RegisterEvent 会把已订阅的窗留在销毁态，此处补反注册
+            if (_eventsRegistered)
+            {
+                _eventsRegistered = false;
+                try
+                {
+                    UnregisterEvent();
+                }
+                catch (System.Exception ex)
+                {
+                    LogUtility.Error("UI 窗口 '{0}' 的 UnregisterEvent 抛出异常，作废流程照常走完：{1}", WindowName, ex);
+                }
+            }
+
             DestroyPanel();
         }
 

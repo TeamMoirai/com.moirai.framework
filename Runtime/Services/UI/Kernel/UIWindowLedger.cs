@@ -952,22 +952,28 @@ namespace Moirai.Atropos.UI
             if (isShutDown && _cache.Count > 0)
             {
                 _sweepScratch ??= new List<string>(8);
-                foreach (var pair in _cache)
+                try
                 {
-                    if (onTrack(pair.Value))
+                    foreach (var pair in _cache)
                     {
-                        _sweepScratch.Add(pair.Key);
+                        if (onTrack(pair.Value))
+                        {
+                            _sweepScratch.Add(pair.Key);
+                        }
+                    }
+
+                    for (int i = 0; i < _sweepScratch.Count; i++)
+                    {
+                        var parked = _cache[_sweepScratch[i]];
+                        _cache.Remove(_sweepScratch[i]);
+                        parked.InternalDestroy(isShutDown: true);
                     }
                 }
-
-                for (int i = 0; i < _sweepScratch.Count; i++)
+                // 抛出型 DestroyPanel 不得把陈旧键留在 scratch 上：否则下一轨扫尾回读旧键即 KeyNotFoundException
+                finally
                 {
-                    var parked = _cache[_sweepScratch[i]];
-                    _cache.Remove(_sweepScratch[i]);
-                    parked.InternalDestroy(isShutDown: true);
+                    _sweepScratch.Clear();
                 }
-
-                _sweepScratch.Clear();
             }
         }
 

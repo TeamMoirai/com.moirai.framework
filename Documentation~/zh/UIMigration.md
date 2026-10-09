@@ -108,7 +108,7 @@ UIWindow win = await UIService.ShowUIAsyncAwait(type, windowName, location, fals
 
 1. **带载荷的 `UIWindowEvent.Show` 形态删除**：`Show<T>(string, params Object[])` 与 `Show(Type, string, params Object[])` 不再存在，`UIWindowEvent` 也不再有 `Params` 属性；无载荷的 `Show`（两形）与 `Close` / `Hide` / `CloseAll` 照旧可用。带载荷的开窗因此直调门面腿、调用点即时执行——「发事件 + 订阅者转手」那一段中转消失了。
 2. **在飞合并 last-wins**：同一只窗装载在途时再开（任意腿、任意通道）不重开发装载、不压第二只实例，载荷覆盖为最后一枚；`OnRefresh` 只在面板就绪那一次跑，见的是终载荷。旧写法「两次 Show 各刷一次」的假设不再成立——需要在途里换内容，请等结果腿交回或先关再开。
-3. **全腿收 `CancellationToken`**：每支腿尾参 `CancellationToken ct = default`，不传零开销；令牌只在装载在途那段被消费（已就绪的复用与停放重取同步交回、不消费 `ct`；复用一只仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载——与在飞合并同段语义）。撤销的落点按腿分档：void 腿静默回滚出栈（不报 Error），等待腿原样上抛 `OperationCanceledException`，结果腿落 `EUIOpenStatus.Cancelled`（新增档，与 `Timeout` 可分辨）。`Cancelled` 与 `Failed` 的窗口都已回滚或从未入栈，不得当就绪窗复用。
+3. **全腿收 `CancellationToken`**：每支腿尾参 `CancellationToken ct = default`，不传零开销；令牌只在装载在途那段被消费（已就绪的复用与停放重取同步交回、不消费 `ct`；复用一只仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载——与在飞合并同段语义）。撤销的落点按腿分档：void 腿静默回滚出栈（不报 Error），等待腿原样上抛 `OperationCanceledException`，结果腿落 `EUIOpenStatus.Cancelled`（新增档，与 `Timeout` 可分辨）。`Failed` 的窗口已回滚作废、不得复用；`Cancelled` 只说明本次等待以取消落定，装载是否续跑取决于其余等待者（无人在等则回滚）——两者都不得当就绪窗复用。
 
 ## 收口自检
 
