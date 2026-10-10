@@ -20,7 +20,7 @@
 |---|---|---|---|---|
 | **L1 单元 / 契约** | `Moirai.Atropos.Tests.EditorMode` | `Tests/EditorMode/` | 纯逻辑、数据结构、状态机、契约形状、降级路径 | 不需要 Unity 运行期（PlayerLoop、真实帧、场景、真实 IO）即可判定 |
 | **L2 集成** | `Moirai.Atropos.Tests.PlayMode` | `Tests/PlayMode/` | 跨组件协作、真实帧驱动、场景/宿主生命周期、真实 IO 往返 | 结论依赖"跑起来"——进播放态才能观察到 |
-| **L3 玩家验收** | `Moirai.Atropos.Tests.Player` | `Tests/Player/` | 0-GC 热路径、托管分配计量、IL2CPP 行为差异 | 编辑器内**测不出来**（计量器不推进），只能在玩家构建里判定 |
+| **L3 玩家验收** | `Moirai.Atropos.Tests.Player` | `Tests/Player/` | 0-GC 热路径、托管分配计量、IL2CPP 行为差异 | 事件口径（`GC.Alloc` 采样）在编辑器 PlayMode 也推进（2026-10-10 实证：校准格绿并当场逮到开窗路径的委托分配），但**发布出口以玩家构建的报告为准** |
 | **L4 基准** | `[Explicit]` 标记，随所在程序集 | 与模块同目录或 `Tests/Benchmarks/` | 吞吐/延迟/分配基线 | 不参与常规套件；由人工或 benchmark CI 通道触发 |
 
 ### 选层判据
@@ -30,13 +30,15 @@
 - 结论依赖**托管分配计量** → L3（编辑器 Mono 的 `GC.GetAllocatedBytesForCurrentThread()` 恒返回 0，见下文《0-GC 验收》）。
 - 只是"想知道现在有多快" → L4，且必须 `[Explicit]`。
 
-### 当前分布（2026-10-05 更新，测试方法数口径）
+### 当前分布（2026-10-10 复算，测试方法数口径）
 
 | 层 | 文件 | 用例 |
 |---|---|---|
-| L1 | 160（含支撑文件） | ~2048 |
-| L2 | 19（测试 15：Audio×11 + Kernel + Tasks + Timer + Scene；其余为支撑/host） | ~73 |
-| L3 | 6 | ~23 |
+| L1 | 180（含支撑文件） | 2215 |
+| L2 | 23（测试 15：Audio×11 + Kernel + Tasks + Timer + Scene；其余为支撑/host） | 122（另 1 格 skipped） |
+| L3 | 10 | 28 |
+
+「用例」列取当日整趟运行回执（含 `[TestCase]` 展开），复现口径是运行 `run g-l1-1 | passed 2215 | failed 0`、`run g-l2-1 | passed 122 | failed 0 | skipped 1`；按源码声明数另用 `grep -rh '\[Test' Tests/<层> --include=*.cs | grep -c '^\s*\[Test\]'`（该口径不含 `[TestCase]` 行，故比回执小）。
 
 ## 覆盖目标
 
@@ -51,6 +53,8 @@
 | Debugger OnlyOpenWhenDevelopment×非调试构建注册分支 | 延后——`ResolveActivation` 直读 `Debug.isDebugBuild`（编辑器恒 true、无注入接缝），与 GameApp 发布分支同类环境不可达 | 注入接缝或 L3 |
 | Save 维护门互锁 / 日志等级过滤 / 跨线程契约 | **已覆盖**（审计证实，勿重建） | — |
 | Timer 0-GC | **已补** TimerHotPathAllocationTests | L3 |
+| UI 开窗族 0-GC | **已补** UIOpenWindowAllocationTests（2026-10-10：换上事件口径当场逮到「每次停放重取一个委托」，修后稳态 0 事件） | L3 |
+| 取池地址归一化 0-GC | **已补** PoolLocationAllocationTests（同批从 L1 的字节尺迁来）；同夹具剩下的 `HotPath_ZeroGcAlloc_WarmPoolRoundtrip` 因依赖池夹具机器（假装载器/注册表/调度器/根节点）**仍在用恒 0 的字节尺**，未迁 | L1（待迁 L3） |
 | 加密与路径工具契约（AES 往返/防篡改、XOR 自逆、路径规范化/远程前缀） | **已补** EncryptionUtilityTests / PathUtilityTests（2026-10-06） | L1 |
 | `CommandLineUtility` / `VersionUtility` / `FileUtility` 等其余无直接用例的工具 | 待补（按用例价值判据滚动，不追数字） | L1 |
 | `PathUtility.CommonPath` / `TruncatePath` | 运行时零调用方且 CommonPath 对更短路径会越界——死 API，不锁用例；复活前先修实现 | — |
@@ -235,6 +239,7 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 ```
 
 - 计数器不可用时 `MeasureManaged` 会 **`Assert.Ignore`**（测量台 `AllocationCapture` 自带能力探测缓存）。**绝不要写"前后差"计量**。
+- 这条禁令有实测背书（2026-10-10）：同一把事件尺量「开窗+关窗」稳态往返读到 **1 事件/往返**，同一条路径上的字节尺前后差读 **0**；往测量窗里加一次 `new byte[4096]`，事件尺按 **+1 事件/往返** 精确跟随（同趟校准格 `CalibrateKnownAllocation` 绿）。字节尺读 0 时，`AreEqual(0, after - before)` 与 `LessOrEqual(delta, 阈值)` 两形都是必真的绿——后者还把分配写成了许可。
 - 0-GC 断言的**发布出口以 L3 玩家侧报告为准**（最终判据是 IL2CPP 玩家）；编辑器 PlayMode 同机制可跑（便于日常回归），编辑器跑绿不替代玩家验收。计量走 `GC.Alloc` 采样事件数，UTF 官方 AllocatingGCMemory 同机制——字节口径 GC 计数 API 在 Unity 内无实现：`GetAllocatedBytesForCurrentThread` 三处实测恒 0，`GetTotalAllocatedBytes` 在 Unity profile 不存在。
 
 ### 玩家侧用例的运行方式（2026-09-28 按实证重写）
