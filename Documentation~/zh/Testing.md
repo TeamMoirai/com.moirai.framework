@@ -355,14 +355,26 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 - `Filter` 必须显式设 `testMode`，否则默认走 PlayMode 流程并触发域重载，中断调用方脚本且结果全空。
 - 统计要对 `ITestResultAdaptor` 的 `Children` **手工递归**（根节点没有 `TestCount`），且失败态字符串不保证是官方 `"Failed"`，按 `Fail`/`Error`/`Cancel`/`Inconclusive` 关键字宽匹配归类。
 
-### 通道三：编辑器状态桥（判活与刷新）
+### 通道三：编辑器状态桥（判活、刷新与驱动编译）
 
 `Tests/EditorMode/EditorStateBridge.cs` 把编辑器状态每 ~1s 覆写到工程根目录下的 `Temp/MoiraiEditorState.json`。用途：
 
 - **判活**：`now - unix` 大到几秒即主线程没在跑 `update`（导入中、域重载中、被原生模态框挡住）。
 - **判新域**：`domainSeq` 递增即域重载真发生过。
-- **判新鲜度**：逐源树比 `assemblies[].unix` 是否越过自己的改动时刻（`Runtime/**` → `Moirai.Atropos`、`Tests/EditorMode/**` → `.Tests.EditorMode`）。**还要比 `assemblies[]` 与 `domainDllUnix`：不相等就是"dll 已被后台代编换掉、而这个域还没重载"**，此时跑的还是旧代码。
+- **判新鲜度（兼判「编译完成」）**：逐源树比 `assemblies[].unix` 是否越过自己的改动时刻（`Runtime/**` → `Moirai.Atropos`、`Tests/EditorMode/**` → `.Tests.EditorMode`）。**还要比 `assemblies[]` 与 `domainDllUnix`：不相等就是"dll 已被后台代编换掉、而这个域还没重载"**——此时跑的还是旧代码，发 `recompile`。**编译完成 = `isCompiling` 为 false 且改动源树那份 `assemblies[].unix` 已越过自己的改动时刻**；本桥只跟踪四份 `Moirai.Atropos*` 产物，其余包（如玩法包 `Moirai.Clotho`）直接比对它自己的 dll mtime。
 - **投测试单前**：`testRunActive` 为 0 且 `isCompiling`/`isUpdating`/`isChangingPlayMode` 皆 false 才是接单窗口。这个编辑器是共享的，别的会话随时可能占住它。
+
+**动作通道（用它驱动编译，别只靠聚焦窗口）**：往工程根目录下的 `Temp/MoiraiEditorCommand.json` 投单，格式 `{"id":"<唯一串>","action":"focus|refresh|recompile"}`；写入须先落临时名再原子改名，避免半截 JSON 被消费掉。
+
+| action | 语义 | 拒绝条件 |
+|---|---|---|
+| `focus` | 把编辑器顶到系统前台（仅 Windows：`AttachThreadInput` + `SetForegroundWindow`） | 无 |
+| `refresh` | `AssetDatabase.Refresh()`（等价 `Ctrl+R`）；磁盘上有改动的 `.cs` 时它自己就会起编译 | 正在编译 / 正在导入 |
+| `recompile` | `CompilationPipeline.RequestScriptCompilation()`，跳过磁盘检测强制重编并重载域 | 正在编译 / 正在导入；播放或暂停中 |
+
+- **回执**：`Temp/MoiraiEditorCommand.result.json` 配 `.done`（内容是请求 `id`，只认与本次配对的 `.done`）。回执只答"命令有没有被执行"，效果一律回状态文件读。`refresh`/`recompile` 的回执会写两遍——受理一遍、结论覆写一遍：动作本身可能当场把本域拆走（编译与域重载就是这次调用发起的），读到"已受理"停在原地是正常形态，去看状态文件。
+- **`refresh` 与 `recompile` 不要叠发**：磁盘上有改动时 `refresh` 自己就会起编译，再叠一次 `recompile` 会重入编译管线、和 Bee 抢同一份在途构建（要跳过磁盘检测强制重编时才用 `recompile`）。
+- **实测（2026-10-11）**：`open -a` 聚焦脉冲连续多次不触发自动刷新（等五分钟没有新 `*** Tundra build` 行），改发 `refresh` 后编译立刻开始（`domainSeq` 8→9、`consoleErrors` 0、dll 更新）。**判"编辑器在不在编译"以状态桥为准，不要依赖窗口焦点。**
 
 ### 通道四：Test Runner 窗口（L3 唯一通道）
 
@@ -405,6 +417,7 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 | 改字段名后用例 NRE | 用例用反射读字段 | 改 `internal`，别用反射 |
 | 用例红了但代码没动 | 并行会话改了 API | 先 `git diff` 排除并行改动，再归因 |
 | Inspector 下拉框出现陌生 Handler | 测试里建了 `[SerializeReference]` 基类的子类 | 删除该类型，改用内置实现 + 事件回调 |
+| 改了 `.cs` 编辑器迟迟不编译 | 窗口焦点脉冲不可靠（失焦时自动刷新不触发） | 投 `refresh` 命令驱动编译（通道三），别只靠聚焦窗口 |
 
 ---
 
