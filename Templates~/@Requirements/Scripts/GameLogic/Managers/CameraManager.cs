@@ -1,12 +1,10 @@
 using Moirai.Atropos;
-using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Moirai.GameLogic
 {
     public class CameraManager : SingletonMono_Persistent<CameraManager>
     {
-        [DisableIf(nameof(m_MainCamera))]
         [SerializeField] private Camera m_MainCamera;
 
         public Camera MainCamera

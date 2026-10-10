@@ -129,7 +129,7 @@ namespace Moirai.Atropos
 
         [Header("内置热更UI自定义")]
         [FolderPath(ParentFolder = "Assets/Resources")]
-        [SerializeField] private string m_UIWindowPath = "UIWindow/";
+        [SerializeField] private string m_UIWindowPath = "UI/Window/";
         public static string UIWindowPath => Instance.m_UIWindowPath;
 
         /// <summary>是否启用热更新。</summary>

@@ -2,11 +2,12 @@
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Resource;
+using Moirai.GameMain.UI;
 
-namespace Moirai.Main
+namespace Moirai.GameMain
 {
     /// <summary>
-    /// 流程 => 下载文件。
+    /// 流程 => 下载文件
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureDownloadFile : ProcedurePremainBase

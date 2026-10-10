@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4022160420422240251}
   - component: {fileID: 7970050588064717259}
   m_Layer: 5
-  m_Name: m_imgBg
+  m_Name: Bg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -86,7 +86,7 @@ GameObject:
   - component: {fileID: 9006786507610325982}
   - component: {fileID: 7041340502061577287}
   m_Layer: 5
-  m_Name: m_sliderProgress
+  m_Name: Slider@Progress
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -364,7 +364,7 @@ GameObject:
   - component: {fileID: 2221955140432902513}
   - component: {fileID: 2218148894183039864}
   m_Layer: 5
-  m_Name: m_textUpdateDesc
+  m_Name: Text@UpdateDesc
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -555,7 +555,7 @@ GameObject:
   - component: {fileID: 7408920366768410708}
   - component: {fileID: 3906250900488968538}
   m_Layer: 5
-  m_Name: m_textVersion
+  m_Name: Text@Version
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -646,6 +646,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1633508802563447727}
+  - component: {fileID: 4678528784307315034}
   m_Layer: 5
   m_Name: LoadUpdateUI
   m_TagString: Untagged
@@ -676,6 +677,23 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &4678528784307315034
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9130266365217219149}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30acaec20d2f04046b56b4148b5326c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Moirai.GameMain.UI.LoadUpdateUIBinder
+  m_Scale: {x: 1, y: 1, z: 1}
+  m_SliderProgress: {fileID: 7041340502061577287}
+  m_TextAppid: {fileID: 1355718662626521362}
+  m_TextUpdateDesc: {fileID: 2218148894183039864}
+  m_TextVersion: {fileID: 7408920366768410708}
 --- !u!1 &9157096376857424144
 GameObject:
   m_ObjectHideFlags: 0
@@ -689,7 +707,7 @@ GameObject:
   - component: {fileID: 1355718662626521362}
   - component: {fileID: 64988348858103615}
   m_Layer: 5
-  m_Name: m_textLabelAppid
+  m_Name: Text@Appid
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

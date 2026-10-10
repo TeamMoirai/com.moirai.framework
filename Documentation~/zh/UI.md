@@ -206,7 +206,7 @@ public class RenameWindow : UGUIWindow<RenameWindowPayload>   // 带载荷必须
 }
 
 // 静态腿：编译期已知窗口类 → 泛型直塞，struct 不装箱，一步都不经 UIPayload 擦除
-UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto, "rename");
+UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>("rename", in dto);
 
 // 动态腿：运行期才有 Type → 载荷擦进 UIPayload（引用型只存引用，值类型装箱一次）；标识在前、载荷随后
 UIService.ShowUIAsync(type, windowId,
