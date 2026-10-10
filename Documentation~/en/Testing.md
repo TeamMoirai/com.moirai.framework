@@ -353,14 +353,26 @@ Inside an editor script, use `ScriptableObject.CreateInstance<TestRunnerApi>()` 
 - `Filter` must set `testMode` explicitly, otherwise it defaults to the PlayMode flow, triggers a domain reload, aborts the calling script and returns empty results.
 - Count results by **recursing manually** over `ITestResultAdaptor.Children` (the root node has no `TestCount`), and note that the failure state string is not guaranteed to be the official `"Failed"` — classify with a broad match on `Fail`/`Error`/`Cancel`/`Inconclusive`.
 
-### Channel 3: editor state bridge (liveness and refresh)
+### Channel 3: editor state bridge (liveness, refresh and compilation driving)
 
 `Tests/EditorMode/EditorStateBridge.cs` rewrites editor state to `Temp/MoiraiEditorState.json` under the project root roughly every second. Uses:
 
 - **Liveness**: a `now - unix` gap of several seconds means the main thread is not running `update` (importing, domain reloading, blocked by a native modal).
 - **New domain**: an incrementing `domainSeq` proves a domain reload really happened.
-- **Freshness**: compare each source tree against the `assemblies[].unix` it belongs to (`Runtime/**` → `Moirai.Atropos`, `Tests/EditorMode/**` → `.Tests.EditorMode`). **Also compare `assemblies[]` against `domainDllUnix`: inequality means "the dll was replaced by a background compile but this domain has not reloaded"**, in which case you are still running old code.
+- **Freshness (which also answers "compilation finished")**: compare each source tree against the `assemblies[].unix` it belongs to (`Runtime/**` → `Moirai.Atropos`, `Tests/EditorMode/**` → `.Tests.EditorMode`). **Also compare `assemblies[]` against `domainDllUnix`: inequality means "the dll was replaced by a background compile but this domain has not reloaded"** — you are still running old code, send `recompile`. **Compilation is finished when `isCompiling` is false *and* the `assemblies[].unix` of the tree you changed has moved past your edit**; the bridge only tracks the four `Moirai.Atropos*` artifacts, so for other packages (e.g. the gameplay package `Moirai.Clotho`) compare that dll's mtime yourself.
 - **Before submitting a test request**: `testRunActive` must be 0 and `isCompiling`/`isUpdating`/`isChangingPlayMode` all false. This editor is shared — another session may occupy it at any moment.
+
+**Command channel (drive compilation with it, do not just poke the window)**: drop a request into `Temp/MoiraiEditorCommand.json` under the project root, shaped `{"id":"<unique>","action":"focus|refresh|recompile"}`; write it to a temporary name and rename it into place so a half-written JSON is never consumed.
+
+| action | Meaning | Rejected when |
+|---|---|---|
+| `focus` | bring the editor to the system foreground (Windows only: `AttachThreadInput` + `SetForegroundWindow`) | never |
+| `refresh` | `AssetDatabase.Refresh()` (same as `Ctrl+R`); starts a compile by itself when changed `.cs` files are on disk | compiling / importing |
+| `recompile` | `CompilationPipeline.RequestScriptCompilation()`: force a rebuild and domain reload, skipping the disk check | compiling / importing; Play or Paused |
+
+- **Receipts**: `Temp/MoiraiEditorCommand.result.json` plus `.done` (content = the request `id`; only the matching `.done` counts). A receipt answers "was the command executed" only — always read the effect back from the state file. `refresh`/`recompile` receipts are written twice (accepted, then overwritten by the conclusion) because the action itself may tear this domain down (the compile and domain reload are started by that very call); stopping at "accepted" is the normal shape — go read the state file.
+- **Do not stack `refresh` and `recompile`**: with changed files on disk `refresh` already starts a compile, and a second `recompile` re-enters the compilation pipeline, racing Bee for the same in-flight build (use `recompile` only when you must force a rebuild past the disk check).
+- **Measured (2026-10-11)**: focus pulses via `open -a` repeatedly failed to trigger the auto refresh (five minutes with no new `*** Tundra build` line), while a `refresh` request started the compile immediately (`domainSeq` 8→9, `consoleErrors` 0, dll updated). **Judge "is the editor compiling" from the state bridge, not from window focus.**
 
 ### Channel 4: Test Runner window (the only channel for L3)
 
@@ -405,6 +417,7 @@ Rules that live only in a document stop nothing the next time someone "just quic
 | Cases NRE after a field rename | Cases read fields by reflection | Widen to `internal`, drop reflection |
 | Cases go red while you changed nothing | A parallel session changed the API | `git diff` to rule out parallel edits before attributing |
 | An unfamiliar Handler appears in an Inspector dropdown | A test created a subclass of a `[SerializeReference]` base | Delete that type; use a built-in implementation plus an event callback |
+| Edited `.cs` but the editor never compiles | Focus pulses are unreliable (auto refresh does not fire while unfocused) | Send a `refresh` command to drive compilation (Channel 3) instead of relying on window focus |
 
 ---
 
