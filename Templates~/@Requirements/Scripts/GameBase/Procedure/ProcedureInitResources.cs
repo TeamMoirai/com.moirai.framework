@@ -1,12 +1,13 @@
 ﻿using System.Collections;
 using Moirai.Atropos;
 using Moirai.Atropos.Resource;
+using Moirai.GameMain.UI;
 using UnityEngine;
 
-namespace Moirai.Main
+namespace Moirai.GameMain
 {
     /// <summary>
-    /// 流程 => 初始化资源。
+    /// 流程 => 初始化资源
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureInitResources : ProcedurePremainBase

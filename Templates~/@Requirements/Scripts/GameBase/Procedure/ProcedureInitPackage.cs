@@ -1,13 +1,14 @@
-using System;
+﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Resource;
+using Moirai.GameMain.UI;
 using UnityEngine;
 
-namespace Moirai.Main
+namespace Moirai.GameMain
 {
     /// <summary>
-    /// 流程 => 初始化 Package。
+    /// 流程 => 初始化 Package
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureInitPackage : ProcedurePremainBase

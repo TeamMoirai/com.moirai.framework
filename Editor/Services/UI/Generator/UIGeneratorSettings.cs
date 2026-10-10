@@ -100,9 +100,9 @@ namespace Moirai.Atropos.UI.Editor
             m_UIScriptGenerateConfigs = new List<UIScriptGenerateData>
             {
                 new UIScriptGenerateData(
-                    "Main",
+                    "Launcher",
                     "Moirai.GameMain.UI",
-                    "Assets/Scripts/GameBase/UI/Window",
+                    "Assets/Scripts/GameBase/Launcher/UI",
                     "Assets/Resources/UI/Window",
                     true
                     ),

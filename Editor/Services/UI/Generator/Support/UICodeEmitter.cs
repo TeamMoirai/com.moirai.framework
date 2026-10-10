@@ -119,7 +119,7 @@ namespace Moirai.Atropos.UI.Editor
 
             var controllerContent = new StringBuilder();
             controllerContent.AppendLine();
-            controllerContent.AppendLine($"\tpublic partial class {className}");
+            controllerContent.AppendLine($"\tpartial class {className}");
             controllerContent.AppendLine("\t{");
             controllerContent.AppendLine($"\t\tprivate {className}Binder {BINDER_VARIABLE_NAME};");
 

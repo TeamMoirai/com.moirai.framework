@@ -1,39 +1,17 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
-
-namespace Moirai.Main
+﻿namespace Moirai.GameMain.UI
 {
     /// <summary>
     /// UI更新界面。
     /// </summary>
-    public class LoadUpdateUI : UIBase
+    public partial class LoadUpdateUI : LauncherUIBase
     {
-        #region 脚本工具生成的代码
-
-        private Image m_imgBg;
-        private Slider m_sliderProgress;
-        private Text m_textUpdateDesc;
-        private Text m_textVersion;
-        private Text m_textLabelAppid;
-
-        protected override void ScriptGenerator()
-        {
-            m_imgBg = FindChildComponent<Image>("m_imgBg");
-            m_sliderProgress = FindChildComponent<Slider>("m_sliderProgress");
-            m_textUpdateDesc = FindChildComponent<Text>("m_sliderProgress/m_textUpdateDesc");
-            m_textVersion = FindChildComponent<Text>("m_textVersion");
-            m_textLabelAppid = FindChildComponent<Text>("m_textLabelAppid");
-        }
-
-        #endregion
-
-        protected override bool FullScreen => true;
-
         public override void Show(object param)
         {
             base.Show(param);
-
-            m_textUpdateDesc.text = param?.ToString();
+            
+            if (_binder == null) return;
+            
+            _binder.TextUpdateDesc.text = param?.ToString();
         }
 
         protected override void OnOpen()
@@ -44,18 +22,32 @@ namespace Moirai.Main
 
         internal void RefreshProgress(float progress)
         {
-            m_sliderProgress.gameObject.SetActive(true);
-            m_sliderProgress.value = progress;
+            if (_binder == null) return;
+            
+            _binder.SliderProgress.gameObject.SetActive(true);
+            _binder.SliderProgress.value = progress;
         }
 
         internal void RefreshVersion(string version)
         {
-            m_textVersion.text = version;
+            if (_binder == null) return;
+            
+            _binder.TextVersion.text = version;
         }
 
         internal void RefreshAppid(string appid)
         {
-            m_textLabelAppid.text = appid;
+            if (_binder == null) return;
+            
+            _binder.TextAppid.text = appid;
+        }
+
+        /// <summary>
+        /// 进度条拖拽不需要响应：进度值只由热更逻辑经 RefreshProgress 写入。
+        /// 注册在 <c>LoadUpdateUI.g.cs</c> 的 ScriptGenerator 中，无实现的分部方法不能作为委托传入，故保留空实现。
+        /// </summary>
+        private partial void OnChangeSliderProgress(float value)
+        {
         }
     }
 }

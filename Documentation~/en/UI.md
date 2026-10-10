@@ -206,7 +206,7 @@ public class RenameWindow : UGUIWindow<RenameWindowPayload>   // carrying a payl
 }
 
 // Static leg: window class known at compile time -> generic push (no boxing, never touches UIPayload)
-UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto, "rename");
+UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>("rename", in dto);
 
 // Dynamic leg: only a runtime Type -> erased into UIPayload (reference stays a reference, value types box once)
 UIService.ShowUIAsync(type, windowId,

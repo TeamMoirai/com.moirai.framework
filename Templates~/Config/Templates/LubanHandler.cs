@@ -126,9 +126,6 @@ namespace Moirai.GameProto.Config
         /// </summary>
         private static Dictionary<string, string> ReadLanguageColumn(string languageCode)
         {
-            LogUtility.Info("<color=yellow>\u25bc\u25bc\u25bc\u25bc Start Load Localization Column [{0}] \u25bc\u25bc\u25bc\u25bc</color>",
-                languageCode);
-
             // 多语言表不在 Tables 里：它按语言分份导出，逐语言自建，不占启动期的整表展开
             var table = LoadLanguageTable<TbLocalizedStrings>(languageCode + "/" + LOCALIZED_STRINGS_TABLE);
 
@@ -138,8 +135,7 @@ namespace Moirai.GameProto.Config
                 column[data.Key] = data.FormattedStrings.Text;
             }
 
-            LogUtility.Info("<color=yellow>\u25b2\u25b2\u25b2\u25b2 Localization Column [{0}] Loaded: {1} entries \u25b2\u25b2\u25b2\u25b2</color>",
-                languageCode, column.Count);
+            LogUtility.Info("<color=yellow>Localization Column [{0}] Loaded: {1} entries</color>", languageCode, column.Count);
 
             return column;
         }
