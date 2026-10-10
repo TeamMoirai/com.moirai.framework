@@ -172,25 +172,27 @@ Moirai Framework
 ```
 com.moirai.framework/
 ├── Runtime/                    # 核心框架程序集 (Moirai.Atropos)
-│   ├── Core/                   # 与具体玩法无关的基础设施
-│   │   ├── Foundation/         # 基础构件：自定义属性、常量、数据结构、扩展方法、异常、模型
-│   │   ├── Infrastructure/     # 基础设施：事件系统、GameApp、性能分析、内存池、混淆、对象池、单例、任务
-│   │   └── Utilities/          # 工具集：日志、设置、时间、加密、HTTP、反射、缓动等 30+ 工具类
-│   └── Services/               # 功能服务（每个服务一份文档，见 Documentation~）
-│       ├── Kernel/             # 服务系统基座（Contracts / Interception / World）
+│   ├── Core/                   # 与具体玩法无关的基础件，按功能分组平铺（无 Foundation/Infrastructure 层级壳）
+│   │   ├── <功能组>/           # Attributes / Constant / DataStructure / Extensions / GameException / Events /
+│   │   │                       # GameApp / GameProfiler / FrameworkSettings / Graphics / MemoryPool / Obfuz /
+│   │   │                       # SettingPersistence / Singleton / Tasks
+│   │   └── Utilities/          # 工具集：日志、时间、加密、HTTP、反射、缓动等 30 个关注点，一个子目录一个
+│   └── Services/               # 功能服务（每个服务一份文档，见 Documentation~），模块内按封闭角色档归位：
+│       #  角色档：模块根平铺门面四件套 + Handler/ Models/ Objects/ Internal/ Support/（按需 Extension/ Views/）
+│       ├── Kernel/             # 服务系统基座（门面 GameServices.cs + Internal/ Models/ Objects/）
 │       ├── Audio/              # 音频系统（分类/代理/混音/淡入淡出）
 │       ├── ConfigTable/        # 配置表管理
 │       ├── Debugger/           # 运行时调试器
 │       ├── Input/              # 输入系统（键鼠/手柄/移动端）
 │       ├── Localization/       # 本地化（文本/图片/音频/Timeline）
-│       ├── Pooling/            # 对象池服务（通用池/GameObject 池）
+│       ├── Pooling/            # 对象池服务（多服务模块：先按服务分档 ObjectPool/ GameObjectPool/，共享件在 Internal/）
 │       ├── Procedure/          # 流程管理
 │       ├── Resource/           # YooAsset 资源管理
 │       ├── Save/               # 存档系统（多块容器/多后端序列化/加密/迁移/云同步）
 │       ├── Scene/              # 场景管理
 │       ├── Timer/              # 计时器（时间轮 + 帧计时双引擎）
 │       └── UI/                 # UI 框架（窗口/控件/层）
-├── Editor/                     # 编辑器工具集（Foundation / Services / Tools / Utilities）
+├── Editor/                     # 编辑器工具集（Foundation / Services / Tools / Utilities；Services 用五档 Drawers / Windows / BuildPipeline / Generator / Support）
 ├── Plugins/                    # 第三方库
 ├── Samples~/                   # 示例
 ├── SourceGenerators/           # 预编译源生成器（HandlerHost / SaveServiceCodegen / ServiceDependency）

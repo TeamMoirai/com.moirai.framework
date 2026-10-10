@@ -4,12 +4,12 @@
 
 ## Architecture
 
-Frame subscriptions live on **`PlayerLoopDriver`** (`Runtime/Core/Infrastructure/GameApp/PlayerLoop`, namespace `Moirai.Atropos`, type is `internal` — game code reaches it through the `GameApp` facade):
+Frame subscriptions live on **`PlayerLoopDriver`** (`Runtime/Core/GameApp/PlayerLoop`, namespace `Moirai.Atropos`, type is `internal` — game code reaches it through the `GameApp` facade):
 
 - Subscriptions live in a **static registry**, not on any GameObject
 - Scene loads / unexpected host destruction **do not lose** `Update`/`FixedUpdate`/`LateUpdate`/`Destroy`/`Gizmos`/`Pause` listeners
 
-`GameApp` itself holds **no MonoBehaviour at all** (no nested host, no GameObject field). The Unity messages that only dispatch on a MonoBehaviour — coroutines, `OnDrawGizmos(Selected)`, `OnApplicationPause` — are collected in a single `SingletonMono_Persistent` host, `GameAppHost` (`Runtime/Core/Infrastructure/GameApp/GameAppHost.cs`). It only **forwards**; the subscriptions stay in the Driver's static tables, so destroying or rebuilding the host loses nothing.
+`GameApp` itself holds **no MonoBehaviour at all** (no nested host, no GameObject field). The Unity messages that only dispatch on a MonoBehaviour — coroutines, `OnDrawGizmos(Selected)`, `OnApplicationPause` — are collected in a single `SingletonMono_Persistent` host, `GameAppHost` (`Runtime/Core/GameApp/GameAppHost.cs`). It only **forwards**; the subscriptions stay in the Driver's static tables, so destroying or rebuilding the host loses nothing.
 
 See [PlayerLoopDriver](PlayerLoopDriver.md) for details.
 

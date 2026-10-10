@@ -34,7 +34,7 @@ public class <UI_NAME> : UGUIWindow
 }
 ```
 
-生命周期方法名以 `Runtime/Services/UI/Kernel/UIBase.cs` 与 `Kernel/UIWindow.cs` 为准——框架里没有 `UIForm` / `UIFormLogic` 这一族，也没有 `[UIForm]` 特性。
+生命周期方法名以 `Runtime/Services/UI/Objects/UIBase.cs` 与 `Objects/UIWindow.cs` 为准——框架里没有 `UIForm` / `UIFormLogic` 这一族，也没有 `[UIForm]` 特性。
 
 ## 打开与关闭
 
@@ -49,7 +49,7 @@ UIService.CloseUI<<UI_NAME>>();    // 关闭，是否留缓存实例由 WindowAt
 ## 要点
 
 - `[Window]` 决定层级（`Bottom=0` / `UI=1` / `Popup=2` / `Tips=3` / `System=4`）、是否全屏、自动隐藏与缓存时长；查询走 `UIService.HasWindow<T>` / `GetWindow<T>` / `GetTopWindow()`。
-- 组件引用不手写 `transform.Find`：在层级里挂 `UIBindComponent`，用右键菜单 `GameObject/ScriptGenerator/生成绑定代码` 生成字段，值在 `BindMemberProperty()` 里落地（发射器实现见 `Editor/Services/UI/Helper/UICodeEmitter.cs`）。
+- 组件引用不手写 `transform.Find`：在层级里挂 `UIBindComponent`，用右键菜单 `GameObject/ScriptGenerator/生成绑定代码` 生成字段，值在 `BindMemberProperty()` 里落地（发射器实现见 `Editor/Services/UI/Generator/Support/UICodeEmitter.cs`）。
 - 模态与交互压制读 `UIService.CurrentModal` / `IsBlockedByModal(GameObject)`，不要另立一套"锁屏"标志。
 - 动到 UI 公开面时同步 `Documentation~/zh|en/UI.md` 与 `CHANGELOG.md`，口径见 `CLAUDE.md` 的「提交时的文档与 CHANGELOG」。
 

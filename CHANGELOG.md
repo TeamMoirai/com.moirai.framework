@@ -59,6 +59,10 @@
 
 ### Changed
 
+#### 目录结构
+
+- 包内目录按职责归位：`Runtime/Services/<模块>/` 收成一套封闭角色档（模块根平铺门面四件套 `XxxService.cs`/`XxxServiceHandler.cs`/`XxxServiceSettings.cs`/`XxxServiceDebuggerWindow.cs` + `Handler/` `Models/` `Objects/` `Internal/` `Support/`，按需 `Extension/` `Views/`，多服务模块先按服务分档）；`Runtime/Core` 解掉 `Foundation/`、`Infrastructure/` 两个层级壳改按功能分组（`MemoryPool` 吸收原 `Pool/`，`Utilities/GameSetting/` 拆为 `FrameworkSettings/`、`Graphics/`、`SettingPersistence/`）；`Editor/Services/<模块>/` 用五档 `Drawers/` `Windows/` `BuildPipeline/` `Generator/` `Support/`。迁移口径：本轮只动文件夹与文件名——命名空间、程序集归属、GUID、公共 API 面零改动，包外调用点的 `using` 与代码无需修改，资产引用不断；下划线分段的 partial 文件名改为点分段（如 `GameApp_Boot.cs` → `GameApp.Boot.cs`、`ProcedureServiceSettings_Drawer.cs` → `ProcedureServiceSettings.Drawer.cs`），按路径写的构建脚本与未合并分支需重新对路径。`Tests/**`、四处 `Resources/`、两处 `.asmref` 射程与 `Samples~`/`Templates~`/`Plugins`/`SourceGenerators` 不参与本轮归位。
+
 #### 核心
 
 - ⚠ 应用对焦与退出通知改为 `GameApp` 上的两个公共静态事件：`GameApp.onApplicationFocus`（`Action<bool>`，`true` 为回焦）与 `GameApp.onApplicationQuit`（`Action`，先广播再关停，订阅方在此还来得及落盘）。挂摘 `Application.focusChanged` / `Application.quitting` 由 `GameApp` 自持、随 `Initialize` / `Shutdown` 配对，转发逐项隔离——单项订户抛异常不截断其余，开发构建也不上抛；`Shutdown` 整批摘掉这两枚广播，一次 `+=` 配一次 `-=` 仍是订阅方的责任。

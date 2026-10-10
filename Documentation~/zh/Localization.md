@@ -34,7 +34,7 @@
 | `AudioSourceInjector` | 音频注入器，作用于 AudioSource |
 | `TextLocalizerTrack` / `TextLocalizerPlayableAsset` / `TextLocalizerPlayableBehaviour` | Timeline 轨道与 Playable，绑定 `TextLocalizer` 按片段切换文本 |
 | `ComponentFinder` | 静态工具：按泛型顺序在 GameObject 上查找组件 |
-| `CommandLineUtility` | 命令行解析（`-force-language`），见 `Runtime/Core/Utilities` 同名类的分部定义 |
+| `CommandLineUtility` | 命令行解析（`-force-language`），见 `Runtime/Core/Utilities/CommandLine/CommandLineUtility.cs` 同名类的分部定义 |
 
 ## 快速上手
 
