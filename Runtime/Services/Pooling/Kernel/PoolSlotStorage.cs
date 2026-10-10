@@ -12,6 +12,7 @@ namespace Moirai.Atropos.ObjectPool
     /// 槽位内容由调用方在 <see cref="AllocSlot"/> 返回后全量初始化（含链表指针复位）。
     /// </remarks>
     /// <typeparam name="TSlot">槽位结构类型（字段由调用方定义）。</typeparam>
+    [HotPath]
     internal struct PoolSlotStorage<TSlot> where TSlot : struct
     {
         #region 常量 [CONSTANTS]

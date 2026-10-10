@@ -4,6 +4,7 @@ using Moirai.Atropos.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using Moirai.Atropos.Tests.EditorMode;
 
 namespace Service.UI
 {
@@ -75,7 +76,7 @@ namespace Service.UI
             window.TransitionProbe.ThrowOnPlay = true;
             int snapsBefore = window.TransitionProbe.Snaps;
 
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("过渡"));
+            UtfLogExpect.Error();
             _ledger.CloseUI<SnapProbeWindow>("SnapB");
 
             Assert.AreEqual(snapsBefore + 1, window.TransitionProbe.Snaps, "Play 抛退 Snap");
@@ -91,8 +92,8 @@ namespace Service.UI
             window.TransitionProbe.ThrowOnPlay = true;
             window.TransitionProbe.ThrowOnSnap = true;
 
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("过渡|Snap"));
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Snap"));
+            UtfLogExpect.Error();
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => _ledger.CloseUI<SnapProbeWindow>("SnapC"));
             Assert.IsTrue(_ledger.IsParked("SnapC"), "Snap 抛不挡停放");
         }

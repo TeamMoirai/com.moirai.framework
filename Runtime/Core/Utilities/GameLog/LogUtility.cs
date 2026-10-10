@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
@@ -49,7 +48,6 @@ namespace Moirai.Atropos
         /// </remarks>
         /// <param name="logLevel">日志等级。</param>
         /// <returns>等级未被过滤时返回 <see langword="true"/>。</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool IsEnabled(ELogLevel logLevel)
         {
             return Handler.MinimumLevel <= logLevel;

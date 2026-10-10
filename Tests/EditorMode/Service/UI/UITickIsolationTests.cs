@@ -2,6 +2,7 @@ using Moirai.Atropos.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using Moirai.Atropos.Tests.EditorMode;
 
 namespace Service.UI
 {
@@ -27,7 +28,7 @@ namespace Service.UI
             _ledger.Push(throwing);
             _ledger.Push(counting);
 
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("TickThrowing"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => _ledger.Tick(), "一窗 OnUpdate 抛不得炸掉整帧结算");
             Assert.AreEqual(1, counting.UpdateTicks, "抛窗之后的窗照常结算本帧");
         }
@@ -45,7 +46,7 @@ namespace Service.UI
 
             _ledger.Push(owner);
 
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("OnUpdate"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => _ledger.Tick(), "一控件抛不得炸掉本窗与其余控件");
             Assert.AreEqual(1, countingWidget.Ticks, "抛控件之后的控件照常结算");
             Assert.AreEqual(1, owner.UpdateTicks, "本窗 OnUpdate 照常结算");
