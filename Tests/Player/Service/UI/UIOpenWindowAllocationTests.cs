@@ -40,9 +40,6 @@ namespace Service.UI
         /// <summary>动态腿基元的装箱事件预算：每次开窗一个 <c>int</c> 装箱 ⇒ 上界就是往返次数。</summary>
         private const int PRIMITIVE_BOXING_EVENTS_PER_ITERATION = 1;
 
-        /// <summary>诊断格（临时）的单侧往返次数：够把「每次 1 事件」与「0 事件」分开即可。</summary>
-        private const int DIAG_ITERATIONS = 10;
-
         /// <summary>跨用例累积的读数行：NUnit 每个测试新建 fixture 实例，基准记账走 static。</summary>
         private static readonly List<string> s_Lines = new List<string>();
 
@@ -187,52 +184,6 @@ namespace Service.UI
 
             Assert.AreEqual(0, events, "default(ct) 那一档不得产生任何取消侧分配");
             AssertIdentityAfterRound<AllocPlainWindow>("AllocNoCt");
-        }
-
-        #endregion
-
-        #region 诊断（临时）[DIAGNOSTIC - TEMPORARY]
-
-        /// <summary>
-        /// 分半定域（临时格，取完数即删）：把「开+关」往返那一次分配钉到开窗侧还是关窗侧。
-        /// </summary>
-        /// <remarks>
-        /// 先把 <see cref="DIAG_IDS"/> 枚标识各跑一次「开+关」预热成停放态，再分两个测量窗各做单侧动作：
-        /// 第一窗只做「停放→打开」（每发换一枚，保证走的是同一条复用支路、且窗不在栈上），
-        /// 第二窗只做「打开→停放」。哪一侧读数非零，那一次分配就在那一侧。
-        /// </remarks>
-        [Test]
-        public void Diag_SplitOpenAndCloseHalf()
-        {
-            const int ids = 12;
-            var opened = new List<string>(ids);
-            for (var i = 0; i < ids; i++)
-            {
-                var windowId = "DiagSplit" + i.ToString(CultureInfo.InvariantCulture);
-                UIService.ShowUI<AllocPlainWindow>(windowId);
-                var shell = UIService.GetWindow<AllocPlainWindow>(windowId);
-                Assert.IsNotNull(shell, "诊断量具前提坏了：{0} 开不出来", windowId);
-                Track(shell);
-                opened.Add(windowId);
-                UIService.CloseUI<AllocPlainWindow>(windowId);
-            }
-
-            var cursor = 0;
-            var openEvents = AllocationCapture.MeasureManaged("DiagOpenHalf", DIAG_ITERATIONS,
-                () =>
-                {
-                    var windowId = opened[cursor++];
-                    UIService.ShowUI<AllocPlainWindow>(windowId);
-                }, null);
-
-            var closeCursor = 0;
-            var closeEvents = AllocationCapture.MeasureManaged("DiagCloseHalf", DIAG_ITERATIONS,
-                () => UIService.CloseUI<AllocPlainWindow>(opened[closeCursor++]), null);
-
-            s_Lines.Add("DiagOpenHalf | 单侧：停放→打开 | allocEvents=" + openEvents +
-                        " | iterations=" + DIAG_ITERATIONS);
-            s_Lines.Add("DiagCloseHalf | 单侧：打开→停放 | allocEvents=" + closeEvents +
-                        " | iterations=" + DIAG_ITERATIONS);
         }
 
         #endregion
