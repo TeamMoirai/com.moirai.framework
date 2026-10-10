@@ -15,6 +15,7 @@ namespace Moirai.Atropos.ObjectPool
     [ProviderDisplay(title: "默认对象池", description: "分页槽位 + 按名复用链 + 引用计数，内嵌 ObjectPool<T>")]
     [Serializable]
     [UnityEngine.Scripting.Preserve]
+    [HotPath]
     internal sealed class DefaultObjectPoolHandler : ObjectPoolServiceHandler
     {
         #region 常量 [CONSTANTS]

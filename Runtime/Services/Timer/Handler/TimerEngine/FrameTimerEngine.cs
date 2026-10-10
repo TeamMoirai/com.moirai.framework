@@ -15,6 +15,7 @@ namespace Moirai.Atropos.Timer
     /// <remarks>
     /// 自持分页槽位池、版本化句柄命名空间与三阶段活跃列表，完全不感知时间轮。
     /// </remarks>
+    [HotPath]
     internal sealed class FrameTimerEngine : ITimerEngine
     {
 #if UNITY_EDITOR
@@ -627,6 +628,10 @@ namespace Moirai.Atropos.Timer
 
         #region 等待信号 [WAIT SIGNAL]
 
+        // 轮询谓词按类缓存：多等待者回退路径每次 WaitUntil 不再分配委托实例
+        private static readonly Func<(FrameTimerEngine engine, ulong handle), bool> s_WaitDonePredicate =
+            static s => s.engine.IsDone(s.handle);
+
         public UniTask WaitAsync(ulong handle, CancellationToken cancellationToken)
         {
             int slotIndex = GetSlotIndex(handle);
@@ -639,7 +644,7 @@ namespace Moirai.Atropos.Timer
             {
                 // 同一句柄已有等待者：额外等待者退回轮询，避免覆盖首信号使其永不唤醒。
                 // 状态经元组传入 + 静态谓词：轮询在整个 await 期间每帧求值，不留闭包分配。
-                return UniTask.WaitUntil((engine: this, handle: handle), static s => s.engine.IsDone(s.handle),
+                return UniTask.WaitUntil((engine: this, handle: handle), s_WaitDonePredicate,
                     cancellationToken: cancellationToken);
             }
 

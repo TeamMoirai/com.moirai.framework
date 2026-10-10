@@ -65,7 +65,13 @@ namespace Moirai.Atropos.SourceGenerators
 
             var visitor = new HotPathVisitor(method, context.ReportDiagnostic);
             foreach (var block in context.OperationBlocks)
+            {
+                // 匿名函数会作为额外顶层块出现，外层方法体遍历已覆盖，跳过避免重复报告
+                if (block is IAnonymousFunctionOperation)
+                    continue;
+
                 visitor.Visit(block);
+            }
         }
 
         private static bool IsHotPath(IMethodSymbol method)

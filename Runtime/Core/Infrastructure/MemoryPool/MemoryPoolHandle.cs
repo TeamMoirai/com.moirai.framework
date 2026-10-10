@@ -6,6 +6,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 内存池缓存句柄，用于避免重复的 Type 查找。
     /// </summary>
+    [HotPath]
     public readonly struct MemoryPoolHandle
     {
         private readonly MemoryPoolRegistry.MemoryPoolHandle _handle;

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -56,7 +55,7 @@ namespace Moirai.Atropos
         /// <c>s_MainThreadId == 0</c> 是捕获钩子尚未运行的启动窗口（SubsystemRegistration 之前的其它程序集静态构造），此窗口内放行；
         /// 真正的捕获由 <see cref="CaptureMainThreadId"/> 在钩子内完成。
         /// </remarks>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         internal static void EnsureMainThread()
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -283,7 +282,7 @@ namespace Moirai.Atropos
         /// <remarks>
         /// 按 Gameplay &gt; Scene &gt; App 优先级返回最优服务；容器未构建时同样抛出。
         /// </remarks>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         public static T GetRequiredService<T>() where T : class
         {
             EnsureMainThread();
@@ -295,7 +294,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取服务（未找到返回 null）。
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         public static T GetService<T>() where T : class
         {
             EnsureMainThread();
@@ -305,7 +304,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 尝试获取服务。
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         public static bool TryGetService<T>(out T service) where T : class
         {
             EnsureMainThread();

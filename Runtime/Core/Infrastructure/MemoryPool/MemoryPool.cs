@@ -6,6 +6,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 内存池静态外观。
     /// </summary>
+    [HotPath]
     public static partial class MemoryPool
     {
         #region 常量 [CONSTANTS]
