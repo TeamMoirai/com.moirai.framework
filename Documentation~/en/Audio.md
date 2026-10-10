@@ -8,30 +8,24 @@ The `Audio` service divides audio into tracks (`EAudioTrack`). The Unity backend
 
 ```text
 Runtime/Services/Audio/
-├── AudioService.cs / AudioServiceHandler.cs   # Facade + backend contract
-├── AudioAgent.cs / AudioCategory.cs           # Unity agents & tracks
-├── AudioAgentHostPool.cs                      # Host GameObject pool
-├── AudioServiceSettings.cs
-├── Handler/
-│   ├── AudioHandleRegistry.cs                 # Shared handle registry (handle gen / user-ID map / list pool)
-│   ├── AudioFadeScheduler.cs                  # Shared fade scheduler (voices + bus pseudo-handles)
-│   ├── AudioClipCache.cs                      # Clip lease cache (LRU + TTL + Pin + lowMemory)
-│   ├── UnityAudioHandler.cs                   # Default Unity backend
-│   ├── Middleware/
-│   │   ├── IAudioMiddlewareBridge.cs          # Shared FMOD/Wwise bridge
-│   │   └── MiddlewareAudioHandler.cs          # Shared middleware base
-│   ├── Fmod/  FmodBridgeStub|Native
-│   ├── FmodAudioHandler.cs
-│   ├── Wwise/ WwiseBridgeStub|Native
-│   └── WwiseAudioHandler.cs
-├── Mix/ AudioMixStateMachine.cs               # Mix snapshot state machine
-│      AudioVoiceDucking.cs                    # Voice-driven auto ducking
-├── Spatial/ AudioOcclusionHrtf.cs             # Occlusion + HRTF
-├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
-│          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
-└── Support/ BackgroundMusic / AudioSettingsWidget / BgmPlaylist / AudioEmitter
-           AudioMainThread / AudioFault / AudioWarnOnce   # main-thread assert, backed-off fault reporting, deduped warnings
-           AudioBlockingLoadGate / ShuffleIndexBag        # blocking-load gate, no-repeat shuffle bag
+├── AudioService.cs / AudioServiceHandler.cs / AudioServiceSettings.cs   # facade quartet, flat at the module root
+├── AudioServiceDebuggerWindow.cs                            # live control of master volume and the five tracks
+├── Handler/                     # swappable-backend seam
+│   ├── UnityAudioHandler.cs   # default Unity backend
+│   ├── Middleware/            # shared FMOD/Wwise: IAudioMiddlewareBridge + two narrow capability interfaces + shared base + EAudioBankLoadResult
+│   ├── Fmod/                  # FmodAudioHandler + FmodBridgeStub|Native
+│   └── Wwise/                 # WwiseAudioHandler + WwiseBridgeStub|Native
+├── Internal/                    # module-private machinery
+│   ├── AudioHandleRegistry.cs / AudioClipCache.cs / AudioFadeScheduler.cs / AudioAgentHostPool.cs
+│   ├── AudioMainThread.cs / AudioFault.cs / AudioWarnOnce.cs / AudioBlockingLoadGate.cs / ResourceClipLeaseSource.cs
+│   └── Mix/                   # AudioMixStateMachine (mix snapshot machine) / AudioVoiceDucking (voice-driven auto ducking)
+├── Models/                      # data & type surface: AudioPlayRequest / ColdParams(+Pool) / Options(+SO) / AssetData /
+│                                # GroupConfig / AudioCategory (tracks) / AudioClipCacheEntry / AudioClipLease / EventMapping /
+│                                # SpatialOptions / LoadRequest / ShuffleIndexBag / EAudioTrack / EAudioCachePolicy /
+│                                # EAudioAgentRuntimeState / IAudioClipLeaseSource
+├── Objects/                     # AudioAgent (the proxy entity living on a host GameObject)
+└── Support/                     # BackgroundMusic / BgmPlaylist / AudioEmitter / AudioSettingsWidget /
+                                 # AudioOcclusionHrtf (occlusion + HRTF, attached to scene objects)
 ```
 
 ## Architecture (HandlerHost + Strategy)

@@ -9,12 +9,19 @@
 
 ```
 Runtime/Services/<Module>/
-├── <Module>Service.cs              # 静态外观，派生 ServiceBase
+├── <Module>Service.cs              # 静态外观，派生 ServiceBase（门面四件套平铺在模块根）
 ├── <Module>ServiceHandler.cs       # 抽象契约基类（可插拔后端的边界）
 ├── <Module>ServiceSettings.cs      # 配置资产，派生 FrameworkSettings<T>
-└── Handler/
-    └── Default<Module>Handler.cs   # 内置默认实现
+├── <Module>ServiceDebuggerWindow.cs # 可选：调试面板，确有面板才建
+├── Handler/
+│   └── Default<Module>Handler.cs   # 内置默认实现（单支默认后端不建 <Backend>/ 子目录）
+├── Models/                         # 数据面与类型面：Entry/Lease/Request/Options/枚举/事件/Attribute
+├── Objects/                        # 服务管理的对象、项目侧要继承的基类
+├── Internal/                       # 模块私有机制：注册表/缓存/调度/编解码/状态机
+└── Support/                        # 挂 GameObject 或场景的运行时配套件
 ```
+
+模块顶层只允许这套封闭角色档（`Extension/`、`Views/` 按需），新文件按 `CLAUDE.md`「目录与文件」的 R1–R8 归位；多后端才开 `Handler/<Backend>/`，一支默认后端不造空档。
 
 命名与生命周期约定以 `CLAUDE.md` 的「编码规范 / 命名规范」为准，本文件不复述第二套。
 
@@ -53,7 +60,7 @@ Settings 侧的 handler 槽位用 `[SerializeReference]` 持有契约基类，�
 ## 要点
 
 - `Handler` 属性与 `s_Handler` 字段由 `SourceGenerators/` 里的 `HandlerHostGenerator` 生成，**不要手写**。换处理器只走生成出来的 `Internal_PeekHandler()` / `Internal_UseHandler(next)`，测试也不反射私有字段。
-- 抽象接缝上只放真正随后端变化的成员：`internal abstract` 会把后端实现权往程序集内收一格，新增要有理由（`ResourceSeamShapeGuardTests` 那类基线用例就是为此存在）。
+- 抽象接缝上只放真正随后端变化的成员：`internal abstract` 会把后端实现权往程序集内收一格，新增要有理由（形状不进测试登记——不建签名快照/成员计数类基线用例，破坏性变更写 `CHANGELOG.md` 迁移口径；反射只留行为契约守卫，如 `Tests/EditorMode/Service/Resource/AddressableHandlerFailFastTests.cs`、`Tests/EditorMode/Service/Resource/YooAssetHandlerSmokeTests.cs`）。
 - 每帧驱动实现 `IServiceTickable`：`Tick(float elapseSeconds, float realElapseSeconds)`。
 - 服务必须派生 `ServiceBase` 或 `ServiceMono<TScope>`，裸实现 `IService` 会被注册守卫拦下。
 - 发起即忘的异步不要 `Forget()` 掉异常——要么把失败原因落到日志，要么让调用方拿到可await的结果。

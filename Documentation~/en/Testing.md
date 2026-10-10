@@ -68,7 +68,7 @@ Tests/
 │   │   ├── Singleton/
 │   │   ├── Events/
 │   │   └── GameApp/
-│   ├── DataStructure/           # mirrors Runtime/Core/Foundation/DataStructure (pure data-structure cases)
+│   ├── DataStructure/           # mirrors Runtime/Core/DataStructure (pure data-structure cases)
 │   ├── Service/                 # mirrors Runtime/Services/<module>
 │   │   ├── Audio/  Save/  Resource/  UI/  ...
 │   │   └── Kernel/
@@ -82,7 +82,7 @@ Tests/
 
 Rules:
 
-- **Test directories mirror the code under test.** A case for `Runtime/Services/Save/Container/X.cs` lives in `Tests/EditorMode/Service/Save/`. Finer sub-directory mirroring inside a module is optional.
+- **The test tree mirrors the code under test only down to the module level**: a case for anything under `Runtime/Services/<module>/…` lives in `Tests/EditorMode/Service/<module>/`, and `Runtime/Core/<group>/…` maps to `Tests/EditorMode/Core/<group>/`. The production role buckets (`Handler/`, `Models/`, `Objects/`, `Internal/`, `Support/`) are **not replicated in the test tree** — the directory reorganization never moved `Tests/**`, so both sides agree only at the module/functional-group level; looking for a role bucket inside the test tree will find nothing.
 - Infrastructure (bridges, bootstrap, shared support) that belongs to no module goes at the test root or beside its module.
 - One type under test may have several case files (split by behavior cluster), but **one file holds exactly one public test class** (consistent with "one top-level type per file"); fixture bases and test-only types are exceptions — see "Fixtures and isolation".
 

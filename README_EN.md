@@ -172,25 +172,27 @@ In `Tools/Framework Settings` → `[服务]资源设置`, set `PlayMode` to `Edi
 ```
 com.moirai.framework/
 ├── Runtime/                    # Core framework assembly (Moirai.Atropos)
-│   ├── Core/                   # Gameplay-agnostic foundations
-│   │   ├── Foundation/         # Building blocks: attributes, constants, data structures, extensions, exceptions, models
-│   │   ├── Infrastructure/     # Infrastructure: events, GameApp, profiler, memory pool, obfuscation, pool, singletons, tasks
-│   │   └── Utilities/          # Utility set: logging, settings, time, encryption, HTTP, reflection, tween, 30+ more
-│   └── Services/               # Functional services (one doc per service, see Documentation~)
-│       ├── Kernel/             # Service system base (Contracts / Interception / World)
+│   ├── Core/                   # Gameplay-agnostic foundations, flat functional groups (no Foundation/Infrastructure shells)
+│   │   ├── <group>/            # Attributes / Constant / DataStructure / Extensions / GameException / Events /
+│   │   │                       # GameApp / GameProfiler / FrameworkSettings / Graphics / MemoryPool / Obfuz /
+│   │   │                       # SettingPersistence / Singleton / Tasks
+│   │   └── Utilities/          # Utility set: logging, time, encryption, HTTP, reflection, tween — 30 concerns, one folder each
+│   └── Services/               # Functional services (one doc per service, see Documentation~), each module filed by a closed role vocabulary:
+│       #  role buckets: facade quartet flat at the module root + Handler/ Models/ Objects/ Internal/ Support/ (+ Extension/ Views/ on demand)
+│       ├── Kernel/             # Service system base (facade GameServices.cs + Internal/ Models/ Objects/)
 │       ├── Audio/              # Audio system (categories/agents/mixer/fade)
 │       ├── ConfigTable/        # Config table management
 │       ├── Debugger/           # Runtime debugger
 │       ├── Input/              # Input system (keyboard/mouse/gamepad/mobile)
 │       ├── Localization/       # Localization (text/image/audio/Timeline)
-│       ├── Pooling/            # Object pool service (generic/GameObject pools)
+│       ├── Pooling/            # Object pool service (multi-service module: service-first buckets ObjectPool/ GameObjectPool/, shared Internal/)
 │       ├── Procedure/          # Procedure management
 │       ├── Resource/           # YooAsset asset management
 │       ├── Save/               # Save system (multi-block container/multi-backend serialization/encryption/migration/cloud sync)
 │       ├── Scene/              # Scene management
 │       ├── Timer/              # Timer (time wheel + frame-tick dual engine)
 │       └── UI/                 # UI framework (windows/widgets/layers)
-├── Editor/                     # Editor toolset (Foundation / Services / Tools / Utilities)
+├── Editor/                     # Editor toolset (Foundation / Services / Tools / Utilities; Services uses five slots Drawers / Windows / BuildPipeline / Generator / Support)
 ├── Plugins/                    # Third-party libraries
 ├── Samples~/                   # Examples
 ├── SourceGenerators/           # Precompiled source generators (HandlerHost / SaveServiceCodegen / ServiceDependency)

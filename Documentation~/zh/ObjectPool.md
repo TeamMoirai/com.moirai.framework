@@ -17,22 +17,26 @@
 
 ```
 Runtime/Services/Pooling/
-├── Kernel/                 # 共享内核（internal）
-│   ├── PoolSlotStorage<T>      # 分页槽位存储（128 槽/页 + 页级 free stack）
-│   ├── PoolMaintenanceScheduler # 共享最小堆维护调度（1ms 帧预算）
-│   ├── OpenHashMap<K> / ReferenceOpenHashMap / StringOpenHashMap  # 开放寻址零分配哈希
-│   └── SlotArrayPool<T>        # 按长度分桶的数组池
-├── Object/                 # 通用池
-│   ├── ObjectPoolService.cs    # 通用池静态外观（[HandlerHost]）
-│   ├── ObjectBase.cs           # 池化对象基类（OnSpawn/OnDespawn/Release 契约）
-│   └── IObjectPool.cs          # 通用池契约
-└── GameObject/             # GameObject 特化
-    ├── GameObjectPoolService.cs    # GO 池静态外观（[HandlerHost] + ServiceDependency(Resource)）
-    ├── RuntimeGameObjectPool.cs    # 单池运行时（代系句柄 + 策略裁剪；Location / External Prefab）
-    ├── DefaultPoolRules.cs         # 未注册地址 / 外部 Prefab 的默认规则
-    ├── PoolCatalog.cs / PoolPolicy.cs / Data/  # 数据驱动配置与策略
-    ├── IPrefabLoader.cs            # 预制体加载抽象（ResourceAssetLease 租约制）
-    └── Pooled/                     # IDisposable 薄包装（PooledGameObject / PooledComponent）
+├── Internal/                 # 两支池共享的机制件（R3：多服务模块先按服务分档，共享件留在模块顶层 Internal/）
+│   ├── PoolSlotStorage.cs    # 分页槽位存储（128 槽/页 + 页级 free stack）
+│   ├── PoolMaintenanceScheduler.cs # 共享最小堆维护调度（1ms 帧预算）
+│   ├── OpenHashMap.cs / ReferenceOpenHashMap.cs / StringOpenHashMap.cs  # 开放寻址零分配哈希
+│   └── SlotArrayPool.cs      # 按长度分桶的数组池
+├── ObjectPool/               # 通用池服务
+│   ├── ObjectPoolService.cs / …ServiceHandler.cs / …ServiceSettings.cs / …ServiceDebuggerWindow.cs  # 门面四件套
+│   ├── Handler/DefaultObjectPoolHandler.cs  # 内置默认后端
+│   ├── Models/               # IObjectPool.cs（契约）/ ObjectInfo.cs / ObjectPoolCreateOptions.cs / ObjectPoolKey.cs
+│   ├── Objects/ObjectBase.cs # 池化对象基类（OnSpawn/OnDespawn/Release 契约）
+│   └── Internal/ObjectPoolBase.cs           # 池基类实现
+└── GameObjectPool/           # GameObject 池服务
+    ├── GameObjectPoolService.cs（+ .Debug.cs 分段 partial）/ …ServiceHandler.cs / …ServiceSettings.cs / …ServiceDebuggerWindow.cs
+    ├── Handler/DefaultGameObjectPoolHandler.cs
+    ├── Models/               # IPrefabLoader.cs（预制体加载抽象，ResourceAssetLease 租约制）/ PoolEntry.cs /
+    │                         # PoolGlobMatcher.cs / GameObjectPoolSource.cs / GameObjectPoolTypes.cs
+    ├── Objects/              # PooledGameObject.cs / PooledComponent.cs（IDisposable 薄包装）
+    └── Internal/             # RuntimeGameObjectPool.cs（单池运行时，代系句柄 + 策略裁剪）/ DefaultPoolRules.cs（未注册地址
+                              # 与外部 Prefab 的默认规则）/ PoolCatalog.cs / PoolPolicy.cs（数据驱动配置与策略）/
+                              # GameObjectPrefabSource.cs / PooledInstanceRegistry.cs / PoolDestroyUtility.cs
 ```
 
 两池共用同一维护调度器语义：每帧 Tick 仅处理到期池（最小堆 O(log n)），单帧维护预算 1ms；维护分"采集 / 派发"两段——本轮工作集在派发前一次性采集，故**每池每帧至多维护一次**，维护中重排的到期项顺延下一次 Tick；预算耗尽时残留项留在工作集里续派，不会丢失；

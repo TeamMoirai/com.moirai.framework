@@ -155,7 +155,7 @@ DebuggerService.RegisterDebugView("Profiler/My Service", new MyServiceDebugView(
 新增服务调试面板的固定模式：
 
 ```csharp
-// 1) 视图类放在服务模块自己的目录下（如 Runtime/Services/Audio/AudioServiceDebuggerWindow.cs），
+// 1) 视图类是门面四件套之一，平铺在该服务模块根（如 Runtime/Services/Audio/AudioServiceDebuggerWindow.cs），
 //    继承 PollingDebuggerWindowBase（数据型）或 ScrollableDebuggerWindowBase（控制型），内容经 DebuggerUI 主题化辅助构建；
 // 2) 服务 OnInit 末尾注册（组合根已保证 DebuggerService 先行——外观未就绪时静默跳过）：
 public override void OnInit()
