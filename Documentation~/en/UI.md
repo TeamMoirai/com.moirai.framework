@@ -106,12 +106,12 @@ UIService.ShowUI<MainWindow>("main");
 // Asynchronous open (payload-free leg)
 UIService.ShowUIAsync<MainWindow>("main");
 
-// A payload-carrying open swaps to the two-type-argument family, payload first (read inside the window as Payload)
-UIService.ShowUIAsync<DetailWindow, int>(1001, "detail");
+// A payload-carrying open swaps to the two-type-argument family: id first, payload right after it (read inside the window as Payload)
+UIService.ShowUIAsync<DetailWindow, int>("detail", 1001);
 
-// Dynamic leg, when the window class is only known at runtime: payload erased into UIPayload, the id resolves per band
+// Dynamic leg, when the window class is only known at runtime: payload erased into UIPayload, carried after the id
 UIService.ShowUIAsync(type, windowId,
-    fromResources: false, payload: UIPayload.From(dto));
+    UIPayload.From(dto));
 
 // Every leg takes a CancellationToken (default costs nothing); it only means something while the load is in flight
 UIService.ShowUIAsync<MainWindow>(windowId: "main", ct: cts.Token);
@@ -139,30 +139,30 @@ bool closed = UIService.TryCloseTopWindow();
 
 ## Open-Leg Signatures
 
-Eight legs per track = four payload-free + four payload-carrying; the two backends' same-named overloads are resolved by their window-base constraint, not by parameter count. Every UI Toolkit leg takes one extra `PanelSettings panelSettings = null` right before `ct` (the window-level panel configuration; `null` falls back to the shared one). The `Type`-form entry adds three dynamic legs, and there are two navigation members plus three fetch legs.
+Eight legs per track = four payload-free + four payload-carrying; the two backends' same-named overloads are resolved by their window-base constraint, not by parameter count. Every UI Toolkit leg takes one extra `PanelSettings panelSettings = null` right after the id (the window-level panel configuration; `null` falls back to the shared one). The `Type`-form entry adds three dynamic legs, and there are two navigation members plus three fetch legs.
 
 ### Eight legs per track (uGUI signatures; UITK legs carry the extra `panelSettings`)
 
 | Leg | Signature | Returns |
 |---|---|---|
-| Async, payload-free | `ShowUIAsync<T>(string windowId = null, bool fromResources = false, CancellationToken ct = default)`, `T : UGUIWindow, new()` | `void` |
+| Async, payload-free | `ShowUIAsync<T>(string windowId, CancellationToken ct = default)`, `T : UGUIWindow, new()` | `void` |
 | Sync, payload-free | `ShowUI<T>(…same shape…), T : UGUIWindow, new()` | `void` |
 | Await, payload-free | `ShowUIAsyncAwait<T>(…same shape…), T : UGUIWindow, new()` | `UniTask<UIWindow>` |
 | Result, payload-free | `ShowUIAwaitResult<T>(…same shape…), T : UGUIWindow, new()` | `UniTask<UIOpenResult>` |
-| Async, payload | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowId = null, bool fromResources = false, CancellationToken ct = default)`, `TWindow : UGUIWindow<TArg>, new()` | `void` |
+| Async, payload | `ShowUIAsync<TWindow, TArg>(string windowId, in TArg payload, CancellationToken ct = default)`, `TWindow : UGUIWindow<TArg>, new()` | `void` |
 | Sync, payload | `ShowUI<TWindow, TArg>(in TArg payload, …same shape…)` | `void` |
 | Await, payload | `ShowUIAsyncAwait<TWindow, TArg>(TArg payload, …same shape…)` | `UniTask<TWindow>` |
 | Result, payload | `ShowUIAwaitResult<TWindow, TArg>(in TArg payload, …same shape…)` | `UniTask<UIOpenResult>` |
 
 - The await payload leg takes `payload` as a plain parameter rather than `in`: `async` methods forbid `in` parameters (CS1988), and the ledger's two async generic channels take plain `TArg` for the same reason; the other three legs stay `in TArg` (generic push, no boxing for structs)
-- On the UITK payload legs `panelSettings` sits after `fromResources` and before `ct`, and the payload is always the first slot — a dedicated case pins that mis-ordering guard
+- On the UITK payload legs `panelSettings` sits after the payload and before `ct`, and the payload follows the id — a dedicated case pins that mis-ordering guard
 - Every leg passes the claim gate first: a track that was not enabled (empty slot) throws on the spot instead of silently no-oping or fabricating a driver
 
 ### Three dynamic legs (`Type`-form entry, payload as `UIPayload`)
 
 | Leg | Signature | Returns |
 |---|---|---|
-| Async | `ShowUIAsync(Type type, string windowId = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
+| Async | `ShowUIAsync(Type type, string windowId, UIPayload payload = default, CancellationToken ct = default)` | `void` |
 | Sync | `ShowUI(Type type, …same shape…)` | `void` |
 | Await | `ShowUIAsyncAwait(Type type, …same shape…)` | `UniTask<UIWindow>` |
 
@@ -175,7 +175,7 @@ Track ownership is decided by each track's self-described window base: an unclai
 | Navigation depth | `NavigationDepth` (`int` property) | Length of the open-order history (the layer-sorted stack cannot answer "which window opened most recently") |
 | Close the top | `TryCloseTopWindow()` | Closes the most recently opened window through the existing `CanClose` policy; returns false when the history is empty, the window refuses, or it is mid-transition, and the history keeps it |
 | Fetch, await | `GetUIAsyncAwait<T>(string windowId = null)` | With an id it matches that key; without one it scans the stack by window type and takes the topmost. Returns `null` and logs one warning when nothing matches |
-| Fetch, callback | `GetUIAsync<T>(Action<T> callback, string windowId = null)` | Same rule; logs one warning when not found and never invokes the callback |
+| Fetch, callback | `GetUIAsync<T>(string windowId, Action<T> callback)` | Same rule; logs one warning when not found and never invokes the callback |
 | Fetch, result | `GetUIAwaitResult<T>(string windowId = null)` | Returns `UIOpenResult`; the `Missing` tier means that window is not on the stack |
 
 Close and hide take the same key rule: `CloseUI<T>(windowId)` / `HideUI<T>(windowId)` hit that one key, while a call without an id takes every window of that type (top of the stack down, each through the single-window path, so parking, destruction and the interaction hand-back stay unchanged).

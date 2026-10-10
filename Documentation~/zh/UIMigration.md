@@ -57,18 +57,18 @@ public class RenameWindow : UGUIWindow<RenameWindowPayload>
 
 ### 静态腿：编译期已知窗口类（绝大多数写点）
 
-载荷排第一个，两个类型实参给出窗口类与 DTO 类：
+标识在前、载荷随后，两个类型实参给出窗口类与 DTO 类：
 
 ```csharp
 var dto = new RenameWindowPayload { InitialText = current, MaxLength = 16 };
 
-UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto);                                     // 异步
-UIService.ShowUI<RenameWindow, RenameWindowPayload>(in dto);                                          // 同步档
-RenameWindow w = await UIService.ShowUIAsyncAwait<RenameWindow, RenameWindowPayload>(dto);            // 等待腿（async 禁 in）
-UIOpenResult r = await UIService.ShowUIAwaitResult<RenameWindow, RenameWindowPayload>(in dto);        // 结果腿
+UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>("rename", in dto);                                     // 异步
+UIService.ShowUI<RenameWindow, RenameWindowPayload>("rename", in dto);                                          // 同步档
+RenameWindow w = await UIService.ShowUIAsyncAwait<RenameWindow, RenameWindowPayload>("rename", dto);            // 等待腿（async 禁 in）
+UIOpenResult r = await UIService.ShowUIAwaitResult<RenameWindow, RenameWindowPayload>("rename", in dto);        // 结果腿
 ```
 
-落地签名与位置序：`(in TArg payload, string windowId = null, bool fromResources = false, CancellationToken ct = default)`；UI Toolkit 腿在 `ct` 前多一个 `PanelSettings panelSettings = null`，载荷仍永远排第一个。
+落地签名与位置序：`(string windowId, in TArg payload, CancellationToken ct = default)`；UI Toolkit 腿在载荷之后、`ct` 之前多一个 `PanelSettings panelSettings = null`。开窗标识必填，取法不由入口给。
 
 手写 `Show` 助手时把标识直接交给腿（旧写法先自己算地址，如今门面按档换算）：
 
@@ -83,7 +83,7 @@ public static void ShowRenameWindow(RenameWindowPayload dto)
 ```
 
 - 那个窗口标识不是面板地址：`fromResources` 为真时按 `UIServiceSettings` 的 Resources 父目录拼地址，为假时按标识查配置表；两档的换算只在开窗造新实例那一格发生
-- 缺省档位由 `[Window(fromResources:)]` 与调用方给的 `fromResources` 并集决定（真 || 特性）；配置表服务未就绪时取到 `null`、查无此 id 取到空串，两者都落进装载失败回滚，不在门面代答
+- 取法只由 `[Window(fromResources:)]` 决定（调用方不再带这一档）；配置表服务未就绪时取到 `null`、查无此 id 取到空串，两者都落进装载失败回滚，不在门面代答
 
 ### 动态腿：运行期才知道 `Type`（类型替换缝、注册表驱动的开窗）
 
@@ -91,9 +91,9 @@ public static void ShowRenameWindow(RenameWindowPayload dto)
 
 ```csharp
 // 旧写法在末位排一个位置实参数组（已退役）；新写法把载荷收进 UIPayload 这个载体
-UIService.ShowUIAsync(type, windowId, false, UIPayload.From(dto), ct);
-UIService.ShowUI(type, windowId, false, UIPayload.From(dto), ct);        // 同步档同形
-UIWindow win = await UIService.ShowUIAsyncAwait(type, windowId, false, UIPayload.From(dto), ct);
+UIService.ShowUIAsync(type, windowId, UIPayload.From(dto), ct);
+UIService.ShowUI(type, windowId, UIPayload.From(dto), ct);        // 同步档同形
+UIWindow win = await UIService.ShowUIAsyncAwait(type, windowId, UIPayload.From(dto), ct);
 ```
 
 - 动态腿共三支（异步 / 同步 / 等待），`UIPayload payload` 恒排在 `ct` 之前；结果腿只有泛型形，Type 形入口不带结果档

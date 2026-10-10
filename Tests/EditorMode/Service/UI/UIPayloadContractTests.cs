@@ -119,7 +119,7 @@ namespace Service.UI
         public void StaticLeg_StructDto_LandsByValueWithoutErasure()
         {
             var dto = new ProbeDto { Value = 7, Text = "seven" };
-            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotStruct", false, null, in dto);
+            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotStruct", null, in dto);
 
             var window = (SlotProbeWindow)_ledger.GetWindow("SlotStruct");
             Assert.IsNotNull(window, "量具前提坏了：静态腿要开出那个带槽窗");
@@ -133,7 +133,7 @@ namespace Service.UI
         public void StaticLeg_ClassDto_LandsByReferenceWithoutErasure()
         {
             var payload = new object();
-            _ledger.ShowUIImp<object>(typeof(SlotRefProbeWindow), false, "SlotRef", false, null, in payload);
+            _ledger.ShowUIImp<object>(typeof(SlotRefProbeWindow), false, "SlotRef", null, in payload);
 
             var window = (SlotRefProbeWindow)_ledger.GetWindow("SlotRef");
             _panels.Add(window.gameObject);
@@ -145,7 +145,7 @@ namespace Service.UI
         public void DynamicLeg_ErasedPayload_ReachesSlotThroughErasure()
         {
             var payload = new object();
-            _ledger.ShowUIImp(typeof(SlotRefProbeWindow), false, "SlotDyn", false, null, UIPayload.From(payload));
+            _ledger.ShowUIImp(typeof(SlotRefProbeWindow), false, "SlotDyn", null, UIPayload.From(payload));
 
             var window = (SlotRefProbeWindow)_ledger.GetWindow("SlotDyn");
             _panels.Add(window.gameObject);
@@ -157,7 +157,7 @@ namespace Service.UI
         public void DynamicLeg_StructDto_UnboxesIntoSlot()
         {
             var dto = new ProbeDto { Value = 3, Text = "three" };
-            _ledger.ShowUIImp(typeof(SlotProbeWindow), false, "SlotDynStruct", false, null, UIPayload.From(dto));
+            _ledger.ShowUIImp(typeof(SlotProbeWindow), false, "SlotDynStruct", null, UIPayload.From(dto));
 
             var window = (SlotProbeWindow)_ledger.GetWindow("SlotDynStruct");
             _panels.Add(window.gameObject);
@@ -170,13 +170,13 @@ namespace Service.UI
         public void SlotlessWindow_NonEmptyPayload_FailsFastBeforePush()
         {
             var ex = Assert.Throws<GameException>(() => _ledger.ShowUIImp(typeof(SlotlessProbeWindow), false, "Slotless",
-                false, null, UIPayload.From("x")), "不带槽却给非空载荷必须当场抬错，不静默吞");
+                null, UIPayload.From("x")), "不带槽却给非空载荷必须当场抬错，不静默吞");
             StringAssert.Contains(nameof(SlotlessProbeWindow), ex.Message, "文案带窗口类，便于定位漏换基类的调用点");
             Assert.IsNull(_ledger.GetWindow("Slotless"), "抬错排在压栈之前：不开半个窗");
 
             // 空载荷作用于无槽窗是合法档：不带载荷的腿本就一路走这一档
             Assert.DoesNotThrow(() => _ledger.ShowUIImp(typeof(SlotlessProbeWindow), false, "SlotlessEmpty",
-                false, null, UIPayload.Empty), "空载荷 + 无槽窗为合法组合");
+                null, UIPayload.Empty), "空载荷 + 无槽窗为合法组合");
             Assert.IsNotNull(_ledger.GetWindow("SlotlessEmpty"), "空载荷那一档照常开窗");
         }
 
@@ -184,12 +184,12 @@ namespace Service.UI
         public void GenericChannel_WrongSlotTypeOnStackedWindow_FailsFast()
         {
             var dto = new ProbeDto { Value = 1, Text = "one" };
-            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotMismatch", false, null, in dto);
+            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotMismatch", null, in dto);
             var window = (SlotProbeWindow)_ledger.GetWindow("SlotMismatch");
             _panels.Add(window.gameObject);
 
             var ex = Assert.Throws<GameException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false,
-                "SlotMismatch", false, null, "text"), "按标识命中的窗槽型不符时泛型直塞通道当场抬错，不退化为擦除");
+                "SlotMismatch", null, "text"), "按标识命中的窗槽型不符时泛型直塞通道当场抬错，不退化为擦除");
             StringAssert.Contains(nameof(String), ex.Message, "文案带这一腿要塞的类型名");
         }
 
@@ -202,14 +202,14 @@ namespace Service.UI
         public void GenericChannel_WrongSlotTypeOnParkedWindow_FailsFast()
         {
             var dto = new ProbeDto { Value = 1, Text = "one" };
-            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotParked", false, null, in dto);
+            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotParked", null, in dto);
             var window = (SlotProbeWindow)_ledger.GetWindow("SlotParked");
             _panels.Add(window.gameObject);
             _ledger.CloseUI<SlotProbeWindow>("SlotParked");
             Assert.IsTrue(_ledger.IsParked("SlotParked"), "量具前提坏了：缓存实例的窗关闭后落在停放表里");
 
             Assert.Throws<GameException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false,
-                "SlotParked", false, null, "text"), "停放支路同样校验槽型：不按标识命中就万事大吉是假象");
+                "SlotParked", null, "text"), "停放支路同样校验槽型：不按标识命中就万事大吉是假象");
             Assert.AreEqual(dto.Value, window.Payload.Value, "抬错那一档不吃载荷：残留位仍是上一次那一份");
         }
 
@@ -226,19 +226,19 @@ namespace Service.UI
         public void GenericChannel_WrongSlotTypeOnParkedWindow_ParkedStateNotConsumedByThrow()
         {
             var dto = new ProbeDto { Value = 1, Text = "one" };
-            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "ParkedSurvive", false, null, in dto);
+            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "ParkedSurvive", null, in dto);
             var window = (SlotProbeWindow)_ledger.GetWindow("ParkedSurvive");
             _panels.Add(window.gameObject);
             _ledger.CloseUI<SlotProbeWindow>("ParkedSurvive");
             Assert.IsTrue(_ledger.IsParked("ParkedSurvive"), "量具前提坏了：关闭后落在停放表里");
 
             Assert.Throws<GameException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false, "ParkedSurvive",
-                false, null, "text"), "量具前提坏了：槽型不符仍按 R2 那一道抬错");
+                null, "text"), "量具前提坏了：槽型不符仍按 R2 那一道抬错");
 
             Assert.IsTrue(_ledger.IsParked("ParkedSurvive"), "R2 修复转绿：抬错不消费停放态，那个实例仍留在停放表里");
             Assert.IsNull(_ledger.GetWindow("ParkedSurvive"), "抬错也不压栈：栈上没有半开的那个");
 
-            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "ParkedSurvive", false, null, in dto);
+            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "ParkedSurvive", null, in dto);
             var reopened = _ledger.GetWindow<SlotProbeWindow>("ParkedSurvive");
             Assert.IsNotNull(reopened, "量具前提坏了：抬错之后再按对得上的槽型开，栈上要有一个");
             _panels.Add(reopened.gameObject);
@@ -251,19 +251,19 @@ namespace Service.UI
         public void PayloadResidual_NoPayloadReopen_KeepsLastPayload_UntilOverwritten()
         {
             var p1 = new ProbeDto { Value = 1, Text = "P1" };
-            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotResidual", false, null, in p1);
+            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotResidual", null, in p1);
             var window = (SlotProbeWindow)_ledger.GetWindow("SlotResidual");
             _panels.Add(window.gameObject);
             Assert.AreEqual(1, window.Payload.Value, "量具前提坏了：先落 P1");
 
             _ledger.CloseUI<SlotProbeWindow>("SlotResidual");
-            _ledger.ShowUIImp(typeof(SlotProbeWindow), false, "SlotResidual", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(SlotProbeWindow), false, "SlotResidual", null, UIPayload.Empty);
 
             Assert.AreEqual(1, window.Payload.Value, "关闭不清、无载荷腿不覆盖：残留仍是 P1");
             Assert.AreEqual("P1", window.Payload.Text, "关闭不清、无载荷腿不覆盖：残留仍是 P1");
 
             var p2 = new ProbeDto { Value = 2, Text = "P2" };
-            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotResidual", false, null, in p2);
+            _ledger.ShowUIImp<ProbeDto>(typeof(SlotProbeWindow), false, "SlotResidual", null, in p2);
 
             Assert.AreEqual(2, window.Payload.Value, "再开覆盖为 P2：载荷每次开窗覆盖");
             Assert.AreEqual("P2", window.Payload.Text, "再开覆盖为 P2：载荷每次开窗覆盖");
@@ -275,8 +275,8 @@ namespace Service.UI
         {
             var p1 = new object();
             var p2 = new object();
-            _ledger.ShowUIImp<object>(typeof(SlotRefProbeWindow), false, "SlotLastWins", false, null, in p1);
-            _ledger.ShowUIImp<object>(typeof(SlotRefProbeWindow), false, "SlotLastWins", false, null, in p2);
+            _ledger.ShowUIImp<object>(typeof(SlotRefProbeWindow), false, "SlotLastWins", null, in p1);
+            _ledger.ShowUIImp<object>(typeof(SlotRefProbeWindow), false, "SlotLastWins", null, in p2);
 
             var window = (SlotRefProbeWindow)_ledger.GetWindow("SlotLastWins");
             _panels.Add(window.gameObject);

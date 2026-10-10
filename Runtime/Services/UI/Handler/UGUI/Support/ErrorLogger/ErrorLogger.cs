@@ -26,7 +26,7 @@ namespace Moirai.Atropos.UI
                              $"#Context#: ---{condition} \n\n" +
                              $"#Stacktrace#: ---{stacktrace}";
                 // LogUI 的面板在 Resources 根上：标识传类型名，配合 UIServiceSettings 的空父目录即原样取到
-                UIService.ShowUIAsync<LogUI, string>(des, nameof(LogUI));
+                UIService.ShowUIAsync<LogUI, string>(nameof(LogUI), des);
             }
         }
     }

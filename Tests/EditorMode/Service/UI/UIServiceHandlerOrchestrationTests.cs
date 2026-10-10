@@ -896,7 +896,7 @@ namespace Service.UI
                 Assert.AreSame(ugui.Internal_PeekStack(), uikit.Internal_PeekStack(),
                     "两支生产 handler 手里必须是同一个栈实例：R8 只有一条栈");
 
-                UIService.ShowUI<HandlerProbeWindow>("ProductionCrossProbe", false);
+                UIService.ShowUI<HandlerProbeWindow>("ProductionCrossProbe");
                 var opened = UIService.GetWindow<HandlerProbeWindow>("ProductionCrossProbe");
                 Assert.IsNotNull(opened, "量具前提坏了：uGUI 腿没把窗口开进那条栈");
                 _objects.Add(opened.gameObject);
@@ -1494,7 +1494,7 @@ namespace Service.UI
             EnableBothTracksAndInit();
             var handler = UIService.UGUIHandler;
             // 开窗腿在门面上（协调者已无那条默认腿）：这一格判的是「经门面写入 → 处理器手里那一份栈答到」
-            UIService.ShowUI<HandlerProbeWindow>("HandlerProbe", false);
+            UIService.ShowUI<HandlerProbeWindow>("HandlerProbe");
 
             var opened = UIService.GetWindow<HandlerProbeWindow>("HandlerProbe");
             Assert.IsNotNull(opened, "处理器写入的窗口要能在协调者那一份栈上查到");
@@ -1509,7 +1509,7 @@ namespace Service.UI
             Assert.IsFalse(UIService.HasWindow<HandlerProbeWindow>("HandlerProbe"), "全关清空的就是那一份栈");
 
             opened.gameObject.SetActive(false);
-            UIService.ShowUI<HandlerProbeWindow>("HandlerProbe", false);
+            UIService.ShowUI<HandlerProbeWindow>("HandlerProbe");
 
             Assert.AreSame(opened, UIService.GetTopWindow(), "重开取回停放表里那个，而不是第二份实例");
             Assert.IsTrue(opened.gameObject.activeSelf, "缓存复用支路真的走到把面板重新点亮");

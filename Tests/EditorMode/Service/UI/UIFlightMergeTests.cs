@@ -65,13 +65,13 @@ namespace Service.UI
         [Test]
         public void Merge_TwoVoidShowsDuringFlight_LoadsOnceAndRefreshSeesLastPayload()
         {
-            _ledger.ShowUIImp<string>(typeof(GatedLoadProbeWindow), true, "MergeVoid", false, null, "P1");
+            _ledger.ShowUIImp<string>(typeof(GatedLoadProbeWindow), true, "MergeVoid", null, "P1");
             var window = (GatedLoadProbeWindow)_ledger.GetWindow("MergeVoid");
             Assert.IsNotNull(window, "量具前提坏了：第一次调用把窗口压上了栈");
             Assert.AreEqual(1, window.LoadCalls, "量具前提坏了：装载已发起");
             Assert.IsFalse(window.IsLoadDone, "量具前提坏了：闸门未放，装载仍在途");
 
-            _ledger.ShowUIImp<string>(typeof(GatedLoadProbeWindow), true, "MergeVoid", false, null, "P2");
+            _ledger.ShowUIImp<string>(typeof(GatedLoadProbeWindow), true, "MergeVoid", null, "P2");
 
             Assert.AreEqual(1, window.LoadCalls, "在飞合并：第二次调用不重开发装载");
             Assert.AreEqual(1, _ledger.PeekStack().Count, "同一次开窗只一个实例");
@@ -89,12 +89,12 @@ namespace Service.UI
         [Test]
         public void Merge_TwoResultLegsDuringFlight_JoinTheSameSingleLoad()
         {
-            _ledger.ShowUIImp<string>(typeof(GatedLoadProbeWindow), true, "MergeAwait", false, null, "P0");
+            _ledger.ShowUIImp<string>(typeof(GatedLoadProbeWindow), true, "MergeAwait", null, "P0");
             var window = (GatedLoadProbeWindow)_ledger.GetWindow("MergeAwait");
 
-            var first = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "MergeAwait", false, null,
+            var first = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "MergeAwait", null,
                 UIPayload.From("P1")).GetAwaiter();
-            var second = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "MergeAwait", false, null,
+            var second = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "MergeAwait", null,
                 UIPayload.From("P2")).GetAwaiter();
 
             Assert.AreEqual(1, window.LoadCalls, "两个等待腿都没重开发装载");
@@ -127,7 +127,7 @@ namespace Service.UI
         {
             using (var cts = new CancellationTokenSource())
             {
-                _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "VoidCancel", false, null,
+                _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "VoidCancel", null,
                     UIPayload.From("P"), cts.Token);
                 var window = (GatedLoadProbeWindow)_ledger.GetWindow("VoidCancel");
                 Assert.AreEqual(1, window.LoadCalls, "量具前提坏了：装载已在途");
@@ -150,8 +150,7 @@ namespace Service.UI
             {
                 cts.Cancel();
 
-                var result = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "ResultCancel", false,
-                    null, UIPayload.From("P"), cts.Token).GetAwaiter().GetResult();
+                var result = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "ResultCancel", null, UIPayload.From("P"), cts.Token).GetAwaiter().GetResult();
 
                 Assert.AreEqual(EUIOpenStatus.Cancelled, result.Status, "调用方撤销落 Cancelled 档");
                 Assert.IsFalse(result, "取消档不是就绪成功");
@@ -168,7 +167,7 @@ namespace Service.UI
         [Test]
         public void AwaitLegWaiter_CanceledCallerToken_ThrowsOperationCanceledNotTimeout()
         {
-            _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "AwaitCancel", false, null, UIPayload.From("P"));
+            _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "AwaitCancel", null, UIPayload.From("P"));
             var window = (GatedLoadProbeWindow)_ledger.GetWindow("AwaitCancel");
             Assert.IsFalse(window.IsLoadDone, "量具前提坏了：装载在途");
 
@@ -205,15 +204,14 @@ namespace Service.UI
         [Test]
         public void WaitWindowResult_CancelledSettlesInEditModeTimeoutSettlesInPlayMode()
         {
-            _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "StatusSplit", false, null, UIPayload.From("P"));
+            _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "StatusSplit", null, UIPayload.From("P"));
             var window = (GatedLoadProbeWindow)_ledger.GetWindow("StatusSplit");
 
             using (var cts = new CancellationTokenSource())
             {
                 cts.Cancel();
 
-                var cancelled = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "StatusSplit", false,
-                    null, UIPayload.Empty, cts.Token).GetAwaiter().GetResult();
+                var cancelled = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "StatusSplit", null, UIPayload.Empty, cts.Token).GetAwaiter().GetResult();
 
                 Assert.AreEqual(EUIOpenStatus.Cancelled, cancelled.Status, "同一个在途装载的取消档：超时档另在 PlayMode 钉");
                 Assert.AreSame(window, cancelled.Window, "取消档交回的就是那个仍在装载的窗");
@@ -244,8 +242,8 @@ namespace Service.UI
             using (var first = new CancellationTokenSource())
             using (var second = new CancellationTokenSource())
             {
-                _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "WaiterTwo", false, null, UIPayload.Empty, first.Token);
-                _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "WaiterTwo", false, null, UIPayload.Empty, second.Token);
+                _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "WaiterTwo", null, UIPayload.Empty, first.Token);
+                _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "WaiterTwo", null, UIPayload.Empty, second.Token);
                 var window = (GatedLoadProbeWindow)_ledger.GetWindow("WaiterTwo");
 
                 first.Cancel();
@@ -265,14 +263,14 @@ namespace Service.UI
         [Test]
         public void DefaultToken_LegsSettleNormallyAndUnregisteredLeaveIsNoOp()
         {
-            _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "NoToken", false, null, UIPayload.From("P"));
+            _ledger.ShowUIImp(typeof(GatedLoadProbeWindow), true, "NoToken", null, UIPayload.From("P"));
             var window = (GatedLoadProbeWindow)_ledger.GetWindow("NoToken");
 
             window.Gate.TrySetResult(true);
             Assert.IsTrue(window.IsLoadDone, "default(ct) 那一档照常落定");
             Assert.AreEqual(1, window.RefreshCount, "照常回执一次");
 
-            var opened = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "NoToken", false, null,
+            var opened = _ledger.ShowUIAwaitResultImp(typeof(GatedLoadProbeWindow), true, "NoToken", null,
                 UIPayload.From("Q"), default).GetAwaiter().GetResult();
             Assert.AreEqual(EUIOpenStatus.Opened, opened.Status, "复用已就绪的窗：结果腿同帧落 Opened，不吃令牌");
             Assert.AreEqual("Q", window.Payload, "last-wins 在复用支路同样覆盖载荷");

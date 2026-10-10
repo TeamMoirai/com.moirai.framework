@@ -153,14 +153,14 @@ namespace Service.UI
         [UnityTest]
         public IEnumerator CloseAndReopenDuringGatedFlight_SameFrame_LeavesSingleInstanceWithFinalPayload()
         {
-            UIService.ShowUIAsync<CrossFlightProbeWindow, string>("P1", "CrossFlight");
+            UIService.ShowUIAsync<CrossFlightProbeWindow, string>("CrossFlight", "P1");
             var first = UIService.GetWindow<CrossFlightProbeWindow>("CrossFlight");
             Assert.IsNotNull(first, "量具前提坏了：第一次调用把窗口压上了栈");
             Assert.AreEqual(1, first.LoadCalls, "量具前提坏了：装载已发起");
             Assert.IsFalse(first.IsLoadDone, "量具前提坏了：闸门未放，装载在途");
 
             UIService.CloseUI<CrossFlightProbeWindow>("CrossFlight");
-            UIService.ShowUIAsync<CrossFlightProbeWindow, string>("P2", "CrossFlight");
+            UIService.ShowUIAsync<CrossFlightProbeWindow, string>("CrossFlight", "P2");
 
             var second = UIService.GetWindow<CrossFlightProbeWindow>("CrossFlight");
             Track(second);
@@ -199,7 +199,7 @@ namespace Service.UI
         {
             using (var keeper = new CancellationTokenSource())
             {
-                UIService.ShowUIAsync<CrossFlightProbeWindow, string>("P", "StatusSplitPM", false, keeper.Token);
+                UIService.ShowUIAsync<CrossFlightProbeWindow, string>("StatusSplitPM", "P", keeper.Token);
                 var window = UIService.GetWindow<CrossFlightProbeWindow>("StatusSplitPM");
                 Track(window);
                 Assert.IsNotNull(window, "量具前提坏了：门面腿把窗口压上了栈");
@@ -221,7 +221,7 @@ namespace Service.UI
                 {
                     caller.Cancel();
 
-                    var cancelled = UIService.ShowUIAwaitResult<CrossFlightProbeWindow, string>("Q", "StatusSplitPM", false, caller.Token)
+                    var cancelled = UIService.ShowUIAwaitResult<CrossFlightProbeWindow, string>("StatusSplitPM", "Q", caller.Token)
                         .GetAwaiter().GetResult();
 
                     Assert.AreEqual(EUIOpenStatus.Cancelled, cancelled.Status, "同一个在途装载的取消档");
@@ -252,7 +252,7 @@ namespace Service.UI
         {
             using (var cts = new CancellationTokenSource())
             {
-                UIService.ShowUIAsync<CrossFlightProbeWindow, string>("P", "TimedOutWaiterPM", false, cts.Token);
+                UIService.ShowUIAsync<CrossFlightProbeWindow, string>("TimedOutWaiterPM", "P", cts.Token);
                 var window = UIService.GetWindow<CrossFlightProbeWindow>("TimedOutWaiterPM");
                 Track(window);
                 Assert.IsNotNull(window, "量具前提坏了：门面腿把窗口压上了栈");
@@ -375,7 +375,7 @@ namespace Service.UI
 
             protected override void OnClose()
             {
-                UIService.ShowUIAsync<ReentryBWindow, string>(ReentryPayload, "ReentryB");
+                UIService.ShowUIAsync<ReentryBWindow, string>("ReentryB", ReentryPayload);
                 OpenedByCallback = UIService.SharedLedger.GetWindow("ReentryB") != null;
             }
         }
