@@ -9,6 +9,9 @@
 3. 变更记入 [CHANGELOG.md](CHANGELOG.md) 的 `[Unreleased]` 段——格式遵循 Keep a Changelog，只记尚未发行的净结果，具体排版规则见该文件头部说明。
 4. 提交信息格式为 `类型(范围): 摘要`，如 `feat(save): ...`、`fix(json): ...`、`docs(ui): ...`、`refactor(resource): ...`。
 5. 提交前跑测试（见 [Testing 文档](Documentation~/zh/Testing.md)），确认既有用例不红。
+6. 搬目录/改文件名的提交另过两把仓内工具（都在 `Documentation~/Tools/`，各脚本头部写明自己的量程与检不出的形状）：
+   `pure-move-gate.sh` 逐笔证「内容一个字节没动」，**只准审一笔提交**（跨区间它会 `RESULT: REFUSED`）；
+   `move-integrity-check.sh` 证「成对搬运与 GUID 身份」，可以按 `--base <批前提交>` 跑区间。两把都要过，单跑一把不成立。
 
 ## 测试约定
 
@@ -46,11 +49,11 @@ config.m_MaxChannelCeiling = 4096;
 
 | 常量 | 文件 | 范围 |
 |------|------|------|
-| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Core/Infrastructure/GameApp/PlayerLoop/PlayerLoopDriver.cs` | 帧订阅 Handler / 核心钩子旁路 |
-| `ServiceScope.RETHROW_TICK_EXCEPTIONS` | `Runtime/Services/Kernel/World/ServiceScope.cs` | 服务 Tick / 拦截器（否决通道 `OnServiceRegistering` 除外：抛出即拒绝注册，不被隔离） |
-| `EventDispatcher.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Core/Infrastructure/Events/Models/EventDispatcher.cs` | 事件回调、`ProcessEvent`、协调器排空 |
-| `TaskRunner.RETHROW_TASK_EXCEPTIONS` | `Runtime/Core/Infrastructure/Tasks/Components/TaskRunner.cs` | 任务/序列系统回调 |
-| `MemoryPoolRegistry.RETHROW_POOL_EXCEPTIONS` | `Runtime/Core/Infrastructure/MemoryPool/MemoryPoolRegistry.cs` | 池回调 |
+| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Core/GameApp/PlayerLoop/PlayerLoopDriver.cs` | 帧订阅 Handler / 核心钩子旁路 |
+| `ServiceScope.RETHROW_TICK_EXCEPTIONS` | `Runtime/Services/Kernel/Internal/ServiceScope.cs` | 服务 Tick / 拦截器（否决通道 `OnServiceRegistering` 除外：抛出即拒绝注册，不被隔离） |
+| `EventDispatcher.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Core/Events/Models/EventDispatcher.cs` | 事件回调、`ProcessEvent`、协调器排空 |
+| `TaskRunner.RETHROW_TASK_EXCEPTIONS` | `Runtime/Core/Tasks/Components/TaskRunner.cs` | 任务/序列系统回调 |
+| `MemoryPoolRegistry.RETHROW_POOL_EXCEPTIONS` | `Runtime/Core/MemoryPool/MemoryPoolRegistry.cs` | 池回调 |
 
 **与分级无关的硬性卫生（`finally` 无条件执行）：**
 

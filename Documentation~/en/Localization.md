@@ -34,7 +34,7 @@ Namespace: `Moirai.Atropos.Localization`
 | `AudioSourceInjector` | Audio injector, targeting AudioSource |
 | `TextLocalizerTrack` / `TextLocalizerPlayableAsset` / `TextLocalizerPlayableBehaviour` | Timeline track and Playable, binds `TextLocalizer` to switch text on clips |
 | `ComponentFinder` | Static utility: finds components on a GameObject by generic type order |
-| `CommandLineUtility` | Command-line parsing (`-force-language`), see the partial definition of the same class in `Runtime/Core/Utilities` |
+| `CommandLineUtility` | Command-line parsing (`-force-language`), see the partial definition of the same class in `Runtime/Core/Utilities/CommandLine/CommandLineUtility.cs` |
 
 ## Quick Start
 

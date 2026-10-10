@@ -18,9 +18,14 @@
 ```
 com.moirai.framework/
 ├── Runtime/                  # 运行时代码（Moirai.Atropos.asmdef）
-│   ├── Core/                 # 核心系统，不依赖服务层
-│   └── Services/             # 各功能服务
-├── Editor/                   # 编辑器代码
+│   ├── Core/                 # 核心系统，不依赖服务层；按功能分组平铺，不套服务层的角色档
+│   │   ├── <功能组>/         # Attributes / Constant / DataStructure / Extensions / GameException /
+│   │   │                     # Events / GameApp / GameProfiler / FrameworkSettings / Graphics /
+│   │   │                     # MemoryPool / Obfuz / SettingPersistence / Singleton / Tasks
+│   │   └── Utilities/        # 横切工具，一个关注点一个子目录（Algorithm / Json / GameLog / Tween …）
+│   └── Services/             # 各功能服务（13 个模块，每个服务一份文档，见 Documentation~）
+│       └── <Module>/         # 模块根平铺门面四件套 + 封闭角色档（见《目录与文件》）
+├── Editor/                   # 编辑器代码（Core / Services / Tools / Utilities）
 ├── Tests/                    # EditorMode / PlayMode / Player 三套测试
 ├── SourceGenerators/         # HandlerHost 等代码生成器
 ├── Documentation~/           # 模块文档，zh / en 双语成对维护
@@ -48,22 +53,26 @@ com.moirai.framework/
 - **TimerService** - 定时器
 - **UIService** - UI 框架
 
-服务注册与生命周期由 `Runtime/Services/Kernel`（`GameServices` / `ServiceScope` / `ServiceBase`）承接。
+服务注册与生命周期由 `Runtime/Services/Kernel` 承接：门面 `GameServices.cs`（+ `GameServices.DiagnosticInfo.cs`）、容器与轮询 `Internal/ServiceScope.cs`、服务基类 `Objects/ServiceBase.cs`。
 
 ### Core 系统
-- **Attributes** - 自定义特性（`[HandlerHost]`、`BooleanButtonAttribute` 等）
-- **Constant** / **Models** - 常量与共享数据模型
+按功能分组平铺在 `Runtime/Core/<功能>/`（没有 `Foundation/`、`Infrastructure/` 层级壳，也不用服务层的角色档）：
+- **Attributes** - 自定义特性（`BooleanButtonAttribute`、`ConditionAttribute`、`CustomLabelAttribute` 等编辑器绘图/校验用特性；`[HandlerHost]` 不在这一组，它随设置基座住 `FrameworkSettings/`）
+- **Constant** - 常量
 - **DataStructure** - 数据结构
 - **Events** - 事件系统
 - **Extensions** - 扩展方法
-- **GameApp** - 启动、帧驱动与运行期开关
+- **FrameworkSettings** - 框架设置基座（`FrameworkSettings<T>`、`FrameworkHandler`、`[HandlerHost]` 宿主侧）
+- **GameApp** - 启动、帧驱动与运行期开关（`PlayerLoop/` 次层）
 - **GameException** - 框架异常约定
 - **GameProfiler** - 性能采样
-- **MemoryPool** / **Pool** - 内存池与通用池
+- **Graphics** - 图形设置资产
+- **MemoryPool** - 内存池与通用池件（原 `Infrastructure/Pool/` 已并入本组）
+- **SettingPersistence** - 设置的落盘与读回
 - **Singleton** - 单例模式
-- **Tasks** - 任务系统
+- **Tasks** - 任务系统（`Components/`、`Models/` 次层）
 - **Obfuz** - 混淆虚拟机初始化（`OBFUZ_INSTALLED && ENABLE_OBFUZ` 门控）
-- **Utilities** - 工具类（算法、随机、JSON、Tween、日志 `LogUtility` 等）
+- **Utilities** - 工具类（算法、随机、JSON、Tween、日志 `LogUtility` 等；一个关注点一个子目录）
 
 ## 编码规范
 
@@ -90,7 +99,7 @@ com.moirai.framework/
 规则源是解决方案级的 `Client/Client.sln.DotSettings`（Rider / ReSharper 实拦）。两个前提要先知道：
 
 - `ApplyAutoDetectedRules=False`——关掉的是"从现有代码里自动学出来的"命名规则（Rider 会照着仓库里的高频写法生成告警），本仓的口径由表内这些显式规则自己承担。内置预定义规则（类型/成员 `PascalCase`、参数 `camelCase`、接口 `I`、泛型 `T` 等）仍按 IDE 默认生效，所以表里"未配"不等于"随便写"。
-- `CheckNamespace` 降为 `SUGGESTION`——命名空间与目录不一致只提示不报红，这是给下面《程序集与命名空间》那条留的口子。
+- `CheckNamespace` 降为 `SUGGESTION`——命名空间与目录不一致只提示不报红，这是给下面《程序集与命名空间》那条留的口子。**目录与命名空间解耦是有意设计**，不是待修的历史偏差：目录按职责归位只搬文件位置，命名空间、程序集归属与公共 API 面一律不动（前置条件是这条停在 SUGGESTION，否则整棵树一起报黄）。
 
 改前缀或风格必须连这张表一起改，否则规范与 IDE 各说各话。表右列"本仓实测"是 grep 出来的约数（字段与常量取 `Runtime`，事件取 `Runtime`+`Editor`），只用于说明历史，**不是可复制的写法**。
 
@@ -119,7 +128,35 @@ com.moirai.framework/
 - **服务三件套**：`XxxService.cs`（门面）+ `XxxServiceHandler.cs`（后端契约，派生 `FrameworkHandler`）+ `XxxServiceSettings.cs`（配置资产）；默认实现 `DefaultXxxHandler`，按后端的 `<Backend>XxxHandler`（`YooAssetHandler`、`UnityAudioHandler`、`MiddlewareAudioHandler`）。
 - **生命周期**：覆写点一律 `protected virtual On*`（`OnInit`/`OnShutdown`/`OnInitAsync`/`OnShutdownAsync`/`OnUpdate`/`OnLowMemory`），框架内部门面一律 `internal Internal_*`（`Internal_Init`/`Internal_Shutdown`）。调用方只碰 `Internal_*`，不要在 `On*` 上直接互调。
 - **SDK 适配层**：`IXxxBridge` 主接口 + `XxxBridgeStub`（无 SDK 也要能编译）+ `XxxBridgeNative`（真 SDK，整文件由 `*_INSTALLED` 宏门控）；可选能力另开窄接口按能力探测（`IAudioMiddlewareBankControl`、`IAudioMiddlewareRtpcControl`），不扩主接口。
-- **目录与文件**：`Runtime/Core/` 三层——`Foundation/`（Attributes/Constant/Models/Extensions/GameException/DataStructure：零内部依赖的基础件；DataStructure 为纯 BCL 容器库）、`Infrastructure/`（GameApp/GameProfiler/MemoryPool/Pool/Singleton/Tasks/Events/Obfuz：引擎绑定与跨模块设施，可依赖 Foundation、被服务层消费；Events 属此层——它被 GameApp/Tasks 依赖，不得置于更高层）、`Utilities/`（横切工具不分层，每个关注点一个子目录，新工具类归入对应主题目录、不裸放根下）。层级判据=依赖方向：新增 Core 目录先问「它依赖谁、谁依赖它」再归层。`Runtime/Services/<Module>/{Handler,Mix,Models,Spatial,Support}/`，后端进 `Handler/<Backend>/`；池家族在 `Services/Pooling/{Object,GameObject,Kernel}`（ObjectPoolService 与 GameObjectPoolService 两服务共享 Kernel 的家族例外）。数据结构在 `Models/`（`XxxEntry`/`XxxLease`/`XxxRequest`/`XxxOptions`/`XxxConfig`/`XxxSlot`），场景组件与辅助件在 `Support/`（`AudioEmitter`、`BgmPlaylist`、`AudioFault`、`ShuffleIndexBag`），契约/类型面按 `<Module>Types.cs`/`Abstractions`/`Callbacks`/`Contract` 分档。`Editor/` 五域——`Tools/`（单点工具窗与构建工具）、`Foundation/`（编辑器侧基础件）、`Services/`（运行时服务的编辑器配套）、`Utilities/`、`Testing/`（`UNITY_INCLUDE_TESTS` 门控独立程序集）。新增文件先归位再提交，不制造新一轮粒度割裂。
+- **目录与文件**：`Runtime/Services/<Module>/` 顶层只允许下面这套**封闭角色词表**，其余目录名一律视为同义词归并，不许临时开档；新文件归位的判据 = 这张表 + R1–R8。
+
+| 档 | 装什么 | 不该进这里 |
+|---|---|---|
+| 模块根（平铺） | 服务门面四件套：`XxxService.cs` + 其 `.` 分段 partial、`XxxServiceHandler.cs`（宿主）、`XxxServiceSettings.cs`（含 `.` 分段 partial）、`XxxServiceDebuggerWindow.cs`。门面**按实名认不按 glob**——Kernel 模块的门面实名是 `GameServices.cs`（+ `GameServices.DiagnosticInfo.cs`），不以 `Service` 结尾但计入根档 | 领域类型、后端实现 |
+| `Handler/` | 可换后端缝：跨后端抽象与宿主 partial，每支后端一个 `Handler/<后端>/` | 后端之间的共享缓存/注册表（→ `Internal/`） |
+| `Models/` | 数据面与类型面：`XxxEntry`/`Lease`/`Request`/`Options`/`Config`/`Slot`、枚举、struct/class 数据、事件与 Args 类型、Attribute，以及 `*Types.cs`/`*Abstractions.cs`/`*Callbacks.cs`/`*Contract.cs` 这类纯声明文件 | 带引擎行为的机制类；有实现的接口（见 R4） |
+| `Objects/` | 服务所管理的对象类型、项目侧要继承的基类（`UIWindow`/`UIWidget`/`UIBase`、`ServiceBase`/`ServiceMono`、`ObjectBase`） | 只被模块自己 `new` 的机制件（→ `Internal/`） |
+| `Internal/` | 模块私有机制：注册表、缓存、编解码、调度、状态机、迁移、容器、压缩、序列化、存储与云后端 | 用户会 `new`/继承的类型 |
+| `Support/` | 挂场景或 GameObject 的 MonoBehaviour、运行时配套件与其域次层 | 纯 C# 数据类型 |
+| `Extension/`、`Views/` | 按需档：确有扩展方法面 / 确有调试窗集合时才出现（`Resource/Extension/`、`Debugger/Views/`） | 为对齐而造的空档 |
+| `Resources/` | Unity 路径语义目录（按名解析） | **不参与归位** |
+
+规则：
+
+- **R1** 一支后端一个 `Handler/<后端>/`，后端私有件（桥、平台文件系统、引擎实现）住在该后端目录内部；**单支默认后端不建 `<后端>/` 子目录**（否则给 ConfigTable/Scene/Procedure/Timer/Debugger/Localization 造六个只装一个文件的空档）。
+- **R2** 域目录不作废，但只作角色档的次层：`Save/Internal/Container/`、`Localization/Support/Text/` 合法，`Save/Container/` 不合法。
+- **R3** 一个模块含两支以上服务时先按服务分档、档内再按角色切：`Pooling/ObjectPool/{四件套,Handler,Models,Objects,Internal}/`、`Pooling/GameObjectPool/{…}`，两支共享的机制件在 `Pooling/Internal/`。**R3 只在两支队伍各自成套时生效**：判据是有没有第二套 `Handler`/`Settings`/`DebuggerWindow`，不是根上有几个 `XxxService.cs`——`Resource` 根的 `ResourceBindingService` 是 `internal sealed partial class ResourceBindingService : IResourceBindingService`（经 `ResourceService.BindingService` 取用，没有独立三件套），属同一服务的第二个门面族，**不拆**。
+- **R4** 归属拿不准按消费者判：项目侧继承/`new` → `Objects/`，只有模块内部走 → `Internal/`，只是数据 → `Models/`，挂在 GameObject 上 → `Support/`；接口、枚举、Attribute、委托一律算类型面 → `Models/`（无论有无实现、实现在哪个档）；判"内部还是对外"不许凭名字猜，在 `Packages/` 全域 grep 类型名，命中包外即对外。
+- **R5** 路径语义区不参与：`Resources/` 与两处 `.asmref` 射程保持原路径。
+- **R6** UI 两腿例外：`Runtime/Services/UI/Handler/{UGUI,UITK}/UIService.<轨>.cs` 是后端自包含形状（见上文 UIService 例外条），留在后端目录，不搬回模块根。
+- **R7** 一个文件只整体归一档，档位由**文件名所指的那个类型**决定，文件内共存的次要类型随之同行（不做"一个文件里两个类型拆两档"，本刀严禁改文件内容）。
+- **R8** 整目录优先：内容同档的子目录整目录搬（连它的 `.meta`），不拆散同目录文件。
+
+`Runtime/Core/` **不套这套角色词表**，按功能分组平铺 `Core/<功能>/`：`Attributes`、`Constant`、`DataStructure`、`Extensions`、`GameException`、`Events`、`GameApp`、`GameProfiler`、`FrameworkSettings`、`Graphics`、`MemoryPool`、`Obfuz`、`SettingPersistence`、`Singleton`、`Tasks` + `Utilities/`（横切工具，一个关注点一个子目录）。`Foundation/`、`Infrastructure/` 两个层级壳与 `Utilities/GameSetting/` 已解除；Core 没有 `Internal/` 这一档。层级名消失后依赖方向只剩一条机械判据：`Tests/EditorMode/Policy/CoreDependencyRatchetTests.cs`——扫 `Runtime/Core/**` 对服务类型的整词取用、豁免 `Kernel/**` 容器与同名类型、基线钉 3 站点只准降不准升（键用 `文件名|类型名`，与路径无关）。
+
+`Editor/` 四域——`Tools/`（单点工具窗与构建工具）、`Foundation/`（编辑器侧基础件）、`Services/`（运行时服务的编辑器配套）、`Utilities/`；其中 `Editor/Services/<Module>/` 用编辑器侧的**五档封闭集合** + 模块根平铺配套件：`Drawers/`（属性绘制与自定义检视器）、`Windows/`（工具窗）、`BuildPipeline/`（构建期：转表、bake、BuildValidator、快照导出）、`Generator/`（产码，其配套件在 `Generator/Support/`）、`Support/`（编辑器侧桥与预览失效器等）。纯资产**不参与角色档**：单件的留在模块根（`Input/template-input-actions.txt`），成套的自成一目（`Input/Gizmos/`，8 张 `.psd` 加一份 `README.md`）——九件平铺在模块根比自成一目更糟，所以这里不硬套「留模块根」。五档之外、模块根上的目次只有两处：`Input/Gizmos/` 与 `Resource/YooAsset/`（后者是 `.asmref` 射程的禁碰区，不是资产堆）。
+
+禁碰区（搬了就换装配或断引用）：`Editor/Services/Resource/YooAsset/Internal/**`（`YooAsset.Editor.asmref` 射程）、`Runtime/Core/Utilities/Tween/Handler/PrimeTween/AssemblyReference/`（`PrimeTween.Runtime.asmref`）、四处 `Resources/`（`Runtime/Services/{Debugger,UI}/Resources/`、`Editor/Foundation/{Attributes,Events}/Resources/`）、`Tests/**`（两份 Policy 门禁的白名单按 Tests 相对路径为键）、`Samples~`/`Templates~`/`Plugins`/`SourceGenerators`。新增文件先按上面归位再提交，不制造新一轮粒度割裂。
 - **partial 拆文件**：`Xxx.<职责>.cs`，职责名是首字母大写的单个英文名词（`.Core`/`.Slots`/`.Maintenance`/`.Bindings`/`.Async`/`.IO`，在仓 66 个）；拆文件不破坏"一文件一顶层类型"。
 - **通用后缀**：静态工具 `XxxUtility`（单数）、扩展方法 `XxxExtensions`、账本 `XxxRegistry`、缓存 `XxxCache`、调度 `XxxScheduler`/`XxxStateMachine`、调试器面板 `XxxServiceDebuggerWindow`。
 - **键名常量**：Mixer 参数与设置键按 `<域>_<对象>_<属性>` 全大写（`AUDIO_MASTER_VOLUME`、`GRAPHICS_FULLSCREEN_MODE`）；存档 schema 字段是 `PascalCase` + `Key` 后缀（`LocalPositionKey`、`SpawnsKey`）。两套并存是历史，改到哪个文件就跟哪个，不新造第三种。
@@ -160,7 +197,7 @@ com.moirai.framework/
 - 夹具基座 `XxxFixture`、共享支撑 `XxxTestSupport`/`XxxTestHost`、基准 `XxxBenchmark`。
 - 用例方法 `场景_条件_期望` 三段式（`RetainRelease_CycleAllocatesZeroBytes`）。
 - 命名空间用**短名**（`Service.Audio`、`Core.MemoryPool`、`Utility`），不带 `Moirai` 根；引用框架子命名空间类型**必须 `using` 别名**（`using Res = Moirai.Atropos.Resource;`），禁止裸限定名（会撞全局命名空间或 `UnityEngine` 类型，报 CS0246/CS0426）。
-- 测试目录镜像被测目录；一个文件一个公开测试类；测试专用类型一律 `internal`。
+- 测试树**镜像到模块档为止**：`Runtime/Services/<Module>/…` 的用例落 `Tests/EditorMode/Service/<Module>/`，`Runtime/Core/<功能>/…` 落 `Tests/EditorMode/Core/<功能>/`。服务层内部的**角色档（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）不在测试树里复刻**——本轮目录归位没有搬动 `Tests/**`，两侧同形只到模块/功能档，别按生产侧档名去测试树找目录。按 R3 分过服务档的模块连**模块档名**也不镜像：`Runtime/Services/Pooling/**` 的用例在 `Tests/EditorMode/Service/ObjectPool/`（测试树里没有 `Service/Pooling/` 这一目），池的用例按池找，不按模块名找。一个文件一个公开测试类；测试专用类型一律 `internal`。
 - **禁止在测试里创建 `[Serializable]` 框架基类的子类**（`LogHandler`/`JsonHandler`/`TweenHandler`/`XxxServiceHandler` 等）——`[SerializeReference]` 类型扫描会把它们塞进生产资产的 Inspector 下拉框。捕获日志用内置实现 + `LogUtility.onMessageLogged`。
 - 测试/Editor/非运行时脚本的日志用 `Debug.LogXX`，不用 `LogUtility`。
 

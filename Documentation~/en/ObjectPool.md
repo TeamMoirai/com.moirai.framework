@@ -17,22 +17,26 @@ The service is split into two independent facades; choose by pooled object type:
 
 ```
 Runtime/Services/Pooling/
-├── Kernel/                 # Shared kernel (internal)
-│   ├── PoolSlotStorage<T>      # Paged slot storage (128 slots/page + page-level free stacks)
-│   ├── PoolMaintenanceScheduler # Shared min-heap maintenance scheduler (1ms frame budget)
-│   ├── OpenHashMap<K> / ReferenceOpenHashMap / StringOpenHashMap  # Open-addressing zero-alloc hashes
-│   └── SlotArrayPool<T>        # Bucketed array pool by length
-├── Object/                 # Generic pool
-│   ├── ObjectPoolService.cs    # Generic pool static facade ([HandlerHost])
-│   ├── ObjectBase.cs           # Pooled object base (OnSpawn/OnDespawn/Release contract)
-│   └── IObjectPool.cs          # Generic pool contract
-└── GameObject/             # GameObject specialization
-    ├── GameObjectPoolService.cs    # GO pool static facade ([HandlerHost] + ServiceDependency(Resource))
-    ├── RuntimeGameObjectPool.cs    # Per-pool runtime (generation handle + policy; Location / External Prefab sources)
-    ├── DefaultPoolRules.cs         # Default rules for unregistered locations / external prefabs
-    ├── PoolCatalog.cs / PoolPolicy.cs / Data/  # Data-driven config and policies
-    ├── IPrefabLoader.cs            # Prefab loading abstraction (ResourceAssetLease-based)
-    └── Pooled/                     # IDisposable thin wrappers (PooledGameObject / PooledComponent)
+├── Internal/                 # machinery shared by both pools (R3: a multi-service module splits by service first, shared parts stay in the module-root Internal/)
+│   ├── PoolSlotStorage.cs    # Paged slot storage (128 slots/page + page-level free stacks)
+│   ├── PoolMaintenanceScheduler.cs # Shared min-heap maintenance scheduler (1ms frame budget)
+│   ├── OpenHashMap.cs / ReferenceOpenHashMap.cs / StringOpenHashMap.cs  # Open-addressing zero-alloc hashes
+│   └── SlotArrayPool.cs      # Bucketed array pool by length
+├── ObjectPool/               # generic pool service
+│   ├── ObjectPoolService.cs / …ServiceHandler.cs / …ServiceSettings.cs / …ServiceDebuggerWindow.cs  # facade quartet ([HandlerHost])
+│   ├── Handler/DefaultObjectPoolHandler.cs  # built-in default backend
+│   ├── Models/               # IObjectPool.cs (contract) / ObjectInfo.cs / ObjectPoolCreateOptions.cs / ObjectPoolKey.cs
+│   ├── Objects/ObjectBase.cs # Pooled object base (OnSpawn/OnDespawn/Release contract)
+│   └── Internal/ObjectPoolBase.cs           # pool base implementation
+└── GameObjectPool/           # GameObject pool service
+    ├── GameObjectPoolService.cs (+ .Debug.cs partial segment) / …ServiceHandler.cs / …ServiceSettings.cs / …ServiceDebuggerWindow.cs
+    ├── Handler/DefaultGameObjectPoolHandler.cs
+    ├── Models/               # IPrefabLoader.cs (prefab loading abstraction, ResourceAssetLease-based) / PoolEntry.cs /
+    │                         # PoolGlobMatcher.cs / GameObjectPoolSource.cs / GameObjectPoolTypes.cs
+    ├── Objects/              # PooledGameObject.cs / PooledComponent.cs (IDisposable thin wrappers)
+    └── Internal/             # RuntimeGameObjectPool.cs (per-pool runtime: generation handle + policy pruning) / DefaultPoolRules.cs
+                              # (defaults for unregistered locations / external prefabs) / PoolCatalog.cs / PoolPolicy.cs
+                              # (data-driven config and policies) / GameObjectPrefabSource.cs / PooledInstanceRegistry.cs / PoolDestroyUtility.cs
 ```
 
 Both pools share the same maintenance semantics: each Tick processes only due pools (min-heap, O(log n)) within a 1ms per-frame budget; maintenance runs in two phases — collect, then dispatch — so **each pool is maintained at most once per frame**, items re-scheduled during a wake-up wait for the next Tick, and any residue left by the budget stays in the work set and is dispatched next Tick rather than dropped;

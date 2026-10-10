@@ -21,7 +21,7 @@
 | **L1 单元 / 契约** | `Moirai.Atropos.Tests.EditorMode` | `Tests/EditorMode/` | 纯逻辑、数据结构、状态机、契约形状、降级路径 | 不需要 Unity 运行期（PlayerLoop、真实帧、场景、真实 IO）即可判定 |
 | **L2 集成** | `Moirai.Atropos.Tests.PlayMode` | `Tests/PlayMode/` | 跨组件协作、真实帧驱动、场景/宿主生命周期、真实 IO 往返 | 结论依赖"跑起来"——进播放态才能观察到 |
 | **L3 玩家验收** | `Moirai.Atropos.Tests.Player` | `Tests/Player/` | 0-GC 热路径、托管分配计量、IL2CPP 行为差异 | 事件口径（`GC.Alloc` 采样）在编辑器 PlayMode 也推进（2026-10-10 实证：校准格绿并当场逮到开窗路径的委托分配），但**发布出口以玩家构建的报告为准** |
-| **L4 基准** | `[Explicit]` 标记，随所在程序集 | 与模块同目录或 `Tests/Benchmarks/` | 吞吐/延迟/分配基线 | 不参与常规套件；由人工或 benchmark CI 通道触发 |
+| **L4 基准** | `[Explicit]` 标记，随所在程序集 | 与被测模块同目录（如 `Tests/EditorMode/Service/Kernel/KernelBenchmark.cs`；包内**没有** `Tests/Benchmarks/` 这一目） | 吞吐/延迟/分配基线 | 不参与常规套件；由人工或 benchmark CI 通道触发 |
 
 ### 选层判据
 
@@ -72,7 +72,7 @@ Tests/
 │   │   ├── Singleton/
 │   │   ├── Events/
 │   │   └── GameApp/
-│   ├── DataStructure/           # 对应 Runtime/Core/Foundation/DataStructure（纯数据结构用例）
+│   ├── DataStructure/           # 对应 Runtime/Core/DataStructure（纯数据结构用例）
 │   ├── Service/                 # 对应 Runtime/Services/<模块>
 │   │   ├── Audio/  Save/  Resource/  UI/  ...
 │   │   └── Kernel/
@@ -86,7 +86,7 @@ Tests/
 
 规则：
 
-- **测试目录镜像被测目录**。`Runtime/Services/Save/Container/X.cs` 的用例落在 `Tests/EditorMode/Service/Save/`。模块内再细分的子目录不强制镜像。
+- **测试树镜像到模块档为止**：`Runtime/Services/<模块>/…` 的用例落 `Tests/EditorMode/Service/<模块>/`，`Runtime/Core/<功能组>/…` 落 `Tests/EditorMode/Core/<功能组>/`。生产侧的角色档目录名（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）**不在测试树里复刻**——目录归位那一轮没有搬动 `Tests/**`，两侧同形只到模块/功能档，按生产侧档名去测试树找目录会找不到。
 - 基础设施（桥、Bootstrap、共享支撑）与被测模块无关的，放测试根目录或就近的模块目录。
 - 一个被测类型可以有多个用例文件（按行为簇拆分），但**一个文件只放一个公开测试类**（与"一文件一顶层类"一致）；夹具基座与测试专用类型是例外，见《夹具与隔离》。
 

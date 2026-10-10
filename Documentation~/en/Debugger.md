@@ -155,7 +155,7 @@ Each framework service module holds a native UI Toolkit debug view (implementing
 The fixed pattern for adding a service debug panel:
 
 ```csharp
-// 1) Place the view class in the service module's own folder (e.g. Runtime/Services/Audio/AudioServiceDebuggerWindow.cs),
+// 1) The view class is one of the facade quartet and sits flat at that service module's root (e.g. Runtime/Services/Audio/AudioServiceDebuggerWindow.cs),
 //    inheriting PollingDebuggerWindowBase (data-driven) or ScrollableDebuggerWindowBase (control-driven), content themed via DebuggerUI helpers;
 // 2) Register at the end of the service's OnInit (the composition root guarantees DebuggerService is registered first — silently skipped when the facade isn't ready):
 public override void OnInit()

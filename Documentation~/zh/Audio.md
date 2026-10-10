@@ -8,30 +8,24 @@
 
 ```text
 Runtime/Services/Audio/
-├── AudioService.cs / AudioServiceHandler.cs   # Facade + 后端契约
-├── AudioAgent.cs / AudioCategory.cs           # Unity 代理与音轨
-├── AudioAgentHostPool.cs                      # 宿主 GameObject 池
-├── AudioServiceSettings.cs
-├── Handler/
-│   ├── AudioHandleRegistry.cs                 # 共享句柄注册表（句柄生成/用户 ID 映射/列表池）
-│   ├── AudioFadeScheduler.cs                  # 共享音量过渡调度器（声部 + 总线伪句柄）
-│   ├── AudioClipCache.cs                      # Clip 租约缓存（LRU + TTL + Pin + lowMemory）
-│   ├── UnityAudioHandler.cs                   # 默认 Unity 后端
-│   ├── Middleware/
-│   │   ├── IAudioMiddlewareBridge.cs          # FMOD/Wwise 共用桥接
-│   │   └── MiddlewareAudioHandler.cs          # 中间件共用基类
-│   ├── Fmod/  FmodBridgeStub|Native
-│   ├── FmodAudioHandler.cs
-│   ├── Wwise/ WwiseBridgeStub|Native
-│   └── WwiseAudioHandler.cs
-├── Mix/ AudioMixStateMachine.cs               # 混音快照状态机
-│      AudioVoiceDucking.cs                    # Voice 驱动的自动 Ducking
-├── Spatial/ AudioOcclusionHrtf.cs             # 遮挡 + HRTF
-├── Models/  AudioPlayRequest / ColdParams / Options / AssetData / GroupConfig
-│          EAudioCachePolicy / AudioClipCacheEntry / AudioLoadRequest
-└── Support/ BackgroundMusic / AudioSettingsWidget / BgmPlaylist / AudioEmitter
-           AudioMainThread / AudioFault / AudioWarnOnce      # 主线程断言、退避式异常上报、按 key 去重告警
-           AudioBlockingLoadGate / ShuffleIndexBag           # 阻塞加载闸门、不重复随机袋
+├── AudioService.cs / AudioServiceHandler.cs / AudioServiceSettings.cs   # 门面四件套（平铺在模块根）
+├── AudioServiceDebuggerWindow.cs                            # 主音量与五条音轨的实时控制
+├── Handler/                     # 可换后端缝
+│   ├── UnityAudioHandler.cs   # 默认 Unity 后端
+│   ├── Middleware/            # FMOD/Wwise 共用：IAudioMiddlewareBridge + 两条窄能力接口 + 共用基类 + EAudioBankLoadResult
+│   ├── Fmod/                  # FmodAudioHandler + FmodBridgeStub|Native
+│   └── Wwise/                 # WwiseAudioHandler + WwiseBridgeStub|Native
+├── Internal/                    # 模块私有机制
+│   ├── AudioHandleRegistry.cs / AudioClipCache.cs / AudioFadeScheduler.cs / AudioAgentHostPool.cs
+│   ├── AudioMainThread.cs / AudioFault.cs / AudioWarnOnce.cs / AudioBlockingLoadGate.cs / ResourceClipLeaseSource.cs
+│   └── Mix/                   # AudioMixStateMachine（混音快照状态机）/ AudioVoiceDucking（Voice 驱动的自动 Ducking）
+├── Models/                      # 数据面与类型面：AudioPlayRequest / ColdParams(+Pool) / Options(+SO) / AssetData /
+│                                # GroupConfig / AudioCategory（音轨）/ AudioClipCacheEntry / AudioClipLease / EventMapping /
+│                                # SpatialOptions / LoadRequest / ShuffleIndexBag / EAudioTrack / EAudioCachePolicy /
+│                                # EAudioAgentRuntimeState / IAudioClipLeaseSource
+├── Objects/                     # AudioAgent（宿主 GameObject 上的代理实体）
+└── Support/                     # BackgroundMusic / BgmPlaylist / AudioEmitter / AudioSettingsWidget /
+                                 # AudioOcclusionHrtf（遮挡 + HRTF，挂在场景对象上）
 ```
 
 ## 架构（HandlerHost + 策略）
