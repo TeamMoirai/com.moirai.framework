@@ -1,7 +1,4 @@
-using Moirai.Atropos.Events;
-using Moirai.Atropos.Procedure;
-
-namespace Moirai.Main
+namespace Moirai.GameMain
 {
     /// <summary>
     /// 流程 => 闪屏。
@@ -15,66 +12,19 @@ namespace Moirai.Main
         {
             base.OnEnter();
 
-            if (SplashScreenManager.IsValid && SplashScreenManager.Instance.ShowSplashScreen)
+            if (SplashManager.IsValid && SplashManager.Instance.ShowSplashScreen)
             {
                 // 播放 Splash 动画
-                SplashScreenEvent.SplashStart();
-                EventManager.RegisterCallback<SplashScreenEvent>(OnSplashScreenEvent);
-            }
-            else
-            {
-                ChangeState<ProcedureInitPackage>();
+                SplashManager.Instance.SplashStart();
             }
         }
         
-        /// <summary>
-        /// 处理闪屏结束事件。
-        /// </summary>
-        private void OnSplashScreenEvent(SplashScreenEvent evt)
+        protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)
         {
-            if (evt.Stage == SplashScreenEvent.ESplashStage.End)
-            {
-                // 闪屏结束切换至初始化资源包
-                ChangeState<ProcedureInitPackage>();
-                EventManager.UnregisterCallback<SplashScreenEvent>(OnSplashScreenEvent);
-            }
-        }
-    }
+            base.OnUpdate(elapseSeconds, realElapseSeconds);
 
-    /// <summary>
-    /// 闪屏事件。
-    /// </summary>
-    public class SplashScreenEvent : EventBase<SplashScreenEvent>, IProcedureEvent
-    {
-        public enum ESplashStage
-        {
-            /// <summary>闪屏开始。</summary>
-            Start,
-
-            /// <summary>闪屏结束。</summary>
-            End,
-        }
-
-        /// <summary>闪屏阶段。</summary>
-        public ESplashStage Stage { get; private set; }
-
-        private static SplashScreenEvent GetPooled(ESplashStage stage)
-        {
-            var evt = GetPooled();
-            evt.Stage = stage;
-            return evt;
-        }
-
-        public static void SplashStart()
-        {
-            using var evt = GetPooled(ESplashStage.Start);
-            EventManager.SendEvent(evt);
-        }
-
-        public static void SplashEnd()
-        {
-            using var evt = GetPooled(ESplashStage.End);
-            EventManager.SendEvent(evt);
+            // 运行一帧后初始化资源包，意在将闪屏过程遮盖掉初始化过程
+            ChangeState<ProcedureInitPackage>();
         }
     }
 }

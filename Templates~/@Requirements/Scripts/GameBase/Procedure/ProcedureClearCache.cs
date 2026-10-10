@@ -1,10 +1,11 @@
 ﻿using Moirai.Atropos;
 using Moirai.Atropos.Resource;
+using Moirai.GameMain.UI;
 
-namespace Moirai.Main
+namespace Moirai.GameMain
 {
     /// <summary>
-    /// 流程 => 清理缓存。
+    /// 流程 => 清理缓存
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureClearCache : ProcedurePremainBase

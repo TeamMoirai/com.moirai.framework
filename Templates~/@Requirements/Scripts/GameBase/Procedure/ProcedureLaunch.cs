@@ -1,9 +1,9 @@
 using Moirai.Atropos.Procedure;
 
-namespace Moirai.Main
+namespace Moirai.GameMain
 {
     /// <summary>
-    /// 流程 => 启动器。
+    /// 流程 => 启动器
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedureLaunch : ProcedurePremainBase
@@ -13,9 +13,6 @@ namespace Moirai.Main
         protected override void OnEnter()
         {
             base.OnEnter();
-
-            // 热更新UI初始化
-            LauncherMgr.Initialize();
         }
 
         protected override void OnUpdate(float elapseSeconds, float realElapseSeconds)

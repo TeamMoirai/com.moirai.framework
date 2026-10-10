@@ -6,11 +6,10 @@ using Moirai.Atropos.ObjectPool;
 using Moirai.Atropos.Scene;
 using Moirai.Atropos.UI;
 using Moirai.GameLogic.UI;
-using UnityEngine;
 
 namespace Moirai.GameLogic
 {
-    public static partial class HotfixEntry
+    partial class HotfixEntry
     {
         private static partial void StartGameLogic()
         {

@@ -31,7 +31,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4070374929253206932}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -88,7 +87,7 @@ GameObject:
   - component: {fileID: 645983327802647272}
   - component: {fileID: 4219727438000553557}
   m_Layer: 5
-  m_Name: m_textCancel
+  m_Name: Text@Cancel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -107,7 +106,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 467775921333773033}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -169,7 +167,7 @@ GameObject:
   - component: {fileID: 2073778946355818605}
   - component: {fileID: 3131367135403148864}
   m_Layer: 5
-  m_Name: m_btnCancel
+  m_Name: Btn@Cancel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -189,7 +187,6 @@ RectTransform:
   m_Children:
   - {fileID: 3247927574776663183}
   m_Father: {fileID: 928376975392745263}
-  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -290,7 +287,7 @@ GameObject:
   - component: {fileID: 8063972175727103246}
   - component: {fileID: 2466977151352647592}
   m_Layer: 5
-  m_Name: m_textUpdate
+  m_Name: Text@Update
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -309,7 +306,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1387175525974173601}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -391,7 +387,6 @@ RectTransform:
   - {fileID: 1387175525974173601}
   - {fileID: 467775921333773033}
   m_Father: {fileID: 4081528251189279610}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
@@ -436,7 +431,7 @@ GameObject:
   - component: {fileID: 6758812057621712415}
   - component: {fileID: 1428100571973796269}
   m_Layer: 5
-  m_Name: m_textDesc
+  m_Name: Text@Desc
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -455,7 +450,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4081528251189279610}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -517,7 +511,7 @@ GameObject:
   - component: {fileID: 2753918907388885679}
   - component: {fileID: 4052728381356402893}
   m_Layer: 5
-  m_Name: m_btnUpdate
+  m_Name: Btn@Update
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -537,7 +531,6 @@ RectTransform:
   m_Children:
   - {fileID: 2973468776522536444}
   m_Father: {fileID: 928376975392745263}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -638,7 +631,7 @@ GameObject:
   - component: {fileID: 3505031759991688881}
   - component: {fileID: 6023906705680163797}
   m_Layer: 5
-  m_Name: m_textConfirm
+  m_Name: Text@Confirm
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -657,7 +650,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2745714441875214452}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -715,6 +707,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4070374929253206932}
+  - component: {fileID: 8147511938139366814}
   m_Layer: 5
   m_Name: LoadTipsUI
   m_TagString: Untagged
@@ -737,13 +730,32 @@ RectTransform:
   - {fileID: 5120598360611216442}
   - {fileID: 4081528251189279610}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &8147511938139366814
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7666412045263395013}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2356436839afb5646b4d2c21278b0778, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Moirai.GameMain.UI.LoadTipsUIBinder
+  m_Scale: {x: 1, y: 1, z: 1}
+  m_BtnCancel: {fileID: 3131367135403148864}
+  m_BtnConfirm: {fileID: 9100534761354987250}
+  m_BtnUpdate: {fileID: 4052728381356402893}
+  m_TextCancel: {fileID: 4219727438000553557}
+  m_TextConfirm: {fileID: 6023906705680163797}
+  m_TextDesc: {fileID: 1428100571973796269}
+  m_TextUpdate: {fileID: 2466977151352647592}
 --- !u!1 &8012535748721374403
 GameObject:
   m_ObjectHideFlags: 0
@@ -757,7 +769,7 @@ GameObject:
   - component: {fileID: 6090299446030196608}
   - component: {fileID: 9100534761354987250}
   m_Layer: 5
-  m_Name: m_btnConfirm
+  m_Name: Btn@Confirm
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -777,7 +789,6 @@ RectTransform:
   m_Children:
   - {fileID: 4671620152714554425}
   m_Father: {fileID: 928376975392745263}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -899,7 +910,6 @@ RectTransform:
   - {fileID: 9127528276671758327}
   - {fileID: 928376975392745263}
   m_Father: {fileID: 4070374929253206932}
-  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}

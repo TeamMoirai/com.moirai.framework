@@ -1,91 +1,83 @@
 ﻿using System;
-using UnityEngine.UI;
 
-namespace Moirai.Main
+namespace Moirai.GameMain.UI
 {
     /// <summary>
     /// UI更新加载提示。
     /// </summary>
-    public class LoadTipsUI : UIBase
+    public partial class LoadTipsUI : LauncherUIBase
     {
-        #region 脚本工具生成的代码
-
-        private Text m_textDesc;
-        private Button m_btnConfirm;
-        private Text m_textConfirm;
-        private Button m_btnUpdate;
-        private Text m_textUpdate;
-        private Button m_btnCancel;
-        private Text m_textCancel;
-
-        protected override void ScriptGenerator()
-        {
-            m_textDesc = FindChildComponent<Text>("BgImage/m_textDesc");
-            m_btnConfirm = FindChildComponent<Button>("BgImage/ButtonGroup/m_btnConfirm");
-            m_textConfirm = FindChildComponent<Text>("BgImage/ButtonGroup/m_btnConfirm/m_textConfirm");
-            m_btnUpdate = FindChildComponent<Button>("BgImage/ButtonGroup/m_btnUpdate");
-            m_textUpdate = FindChildComponent<Text>("BgImage/ButtonGroup/m_btnUpdate/m_textUpdate");
-            m_btnCancel = FindChildComponent<Button>("BgImage/ButtonGroup/m_btnCancel");
-            m_textCancel = FindChildComponent<Text>("BgImage/ButtonGroup/m_btnCancel/m_textCancel");
-            m_btnConfirm.onClick.AddListener(OnClickConfirmBtn);
-            m_btnUpdate.onClick.AddListener(OnClickUpdateBtn);
-            m_btnCancel.onClick.AddListener(OnClickCancelBtn);
-        }
-
-        #endregion
-
+        /// <summary>确认按钮被按下时触发。</summary>
         public Action OnConfirmClick { get; set; }
+
+        /// <summary>更新按钮被按下时触发。</summary>
         public Action OnUpdateClick { get; set; }
+
+        /// <summary>取消按钮被按下时触发。</summary>
         public Action OnCancelClick { get; set; }
 
         public override void Show(object param)
         {
             base.Show(param);
-            m_textDesc.text = param?.ToString();
-
-            m_btnUpdate.gameObject.SetActive(false);
-            m_btnCancel.gameObject.SetActive(false);
-            m_btnConfirm.gameObject.SetActive(false);
+            
+            if (_binder == null) return;
+            
+            _binder.TextDesc.text = param?.ToString();
+            _binder.BtnUpdate.gameObject.SetActive(false);
+            _binder.BtnCancel.gameObject.SetActive(false);
+            _binder.BtnConfirm.gameObject.SetActive(false);
         }
 
         public void SetAllCallback(Action onConfirm, Action onUpdate, Action onCancel)
         {
-            m_btnUpdate.gameObject.SetActive(false);
-            m_btnCancel.gameObject.SetActive(false);
-            m_btnConfirm.gameObject.SetActive(false);
+            if (_binder == null) return;
+
+            _binder.BtnUpdate.gameObject.SetActive(false);
+            _binder.BtnCancel.gameObject.SetActive(false);
+            _binder.BtnConfirm.gameObject.SetActive(false);
             if (onConfirm != null)
             {
                 OnConfirmClick = onConfirm;
-                m_btnConfirm.gameObject.SetActive(true);
+                _binder.BtnConfirm.gameObject.SetActive(true);
             }
+
             if (onUpdate != null)
             {
                 OnUpdateClick = onUpdate;
-                m_btnUpdate.gameObject.SetActive(true);
+                _binder.BtnUpdate.gameObject.SetActive(true);
             }
+
             if (onCancel != null)
             {
                 OnCancelClick = onCancel;
-                m_btnCancel.gameObject.SetActive(true);
+                _binder.BtnCancel.gameObject.SetActive(true);
             }
         }
 
-        private void OnClickUpdateBtn()
+        #region 事件 [EVENTS]
+
+        /// <summary>
+        /// 事件注册由 <c>LoadTipsUI.g.cs</c> 的 <c>ScriptGenerator</c> 完成，本分部只实现回调语义：
+        /// 先调用外部传入的回调，再关闭本窗。
+        /// </summary>
+        private partial void OnClickBtnConfirm()
+        {
+            OnConfirmClick?.Invoke();
+            Close();
+        }
+
+        private partial void OnClickBtnUpdate()
         {
             OnUpdateClick?.Invoke();
             Close();
         }
 
-        private void OnClickCancelBtn()
+        private partial void OnClickBtnCancel()
         {
             OnCancelClick?.Invoke();
             Close();
         }
 
-        private void OnClickConfirmBtn()
-        {
-            OnConfirmClick?.Invoke();
-            Close();
-        }
+        #endregion 事件 [EVENTS]
     }
 }

@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Resource;
+using Moirai.GameMain.UI;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Main
+namespace Moirai.GameMain
 {
     /// <summary>
-    /// 流程 => 预加载。
+    /// 流程 => 预加载
     /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Global
     public class ProcedurePreload : ProcedurePremainBase
