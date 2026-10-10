@@ -68,16 +68,16 @@ namespace Service.UI
             Assert.IsTrue(UIService.SharedLedger.IsParked("RegAttr"), "非零停放档让关闭落进停放表");
         }
 
-        /// <summary>开窗标识的换算：父目录为空时标识原样当 Resources 相对路径；调用方给 false 也否不掉特性上的取法，没带标识则当场抬错且不占栈位。</summary>
+        /// <summary>开窗标识的换算：父目录为空时标识原样当 Resources 相对路径；取法只由特性答，空标识当场抬错且不占栈位。</summary>
         [Test]
-        public void RegistryDescriptor_CallerWindowIdAndFromResources_ResolveOverAttribute()
+        public void RegistryDescriptor_WindowIdResolvesLocation_BandComesFromAttribute()
         {
-            UIService.ShowUI<RegistryProbeWindow>("RegCaller", false);
+            UIService.ShowUI<RegistryProbeWindow>("RegCaller");
 
             Assert.AreEqual("RegCaller", RegistryProbeWindow.LastLocation, "父目录留空时标识就是 Resources 下的相对路径，不拼前缀");
-            Assert.IsTrue(RegistryProbeWindow.LastFromResources, "取法是调用方与特性的并集（真 || 特性）：入口给 false 也否不掉特性那个");
+            Assert.IsTrue(RegistryProbeWindow.LastFromResources, "取法只由特性答：入口这一档已不存在，特性写了内置资源即为真");
 
-            Assert.Throws<GameException>(() => UIService.ShowUI<RegistryProbeWindow>(),
+            Assert.Throws<GameException>(() => UIService.ShowUI<RegistryProbeWindow>(""),
                 "没带 windowId 的开窗请求当场抬错：面板地址没有第二条来路");
             Assert.IsNull(UIService.SharedLedger.GetWindow("RegNoId"), "抬错排在压栈之前：栈上不多一个");
         }

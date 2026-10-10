@@ -43,14 +43,14 @@ namespace Service.UI
         [Test]
         public void ParkAndReopen_RegisterPairsBalanced()
         {
-            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "EventProbe", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "EventProbe", null, UIPayload.Empty);
             var window = (EventProbeWindow)_ledger.GetWindow("EventProbe");
             Assert.AreEqual((1, 0), (window.RegisterCount, window.UnregisterCount), "首开注一次");
 
             _ledger.CloseUI<EventProbeWindow>("EventProbe");
             Assert.AreEqual((1, 1), (window.RegisterCount, window.UnregisterCount), "关（停放）即退订");
 
-            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "EventProbe", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "EventProbe", null, UIPayload.Empty);
             Assert.AreEqual((2, 1), (window.RegisterCount, window.UnregisterCount), "停放重取再注一次");
 
             _ledger.CloseUI<EventProbeWindow>("EventProbe");
@@ -60,8 +60,8 @@ namespace Service.UI
         [Test]
         public void ShutdownSweep_ParkedWindowsOnTrackAreDestroyed()
         {
-            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepHit", false, null, UIPayload.Empty);
-            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepMiss", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepHit", null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(EventProbeWindow), false, "SweepMiss", null, UIPayload.Empty);
             // 停放窗出栈后 GetWindow 取不到引用：关之前在栈上扣下两个，扫尾后凭引用读销毁计数
             var hit = (EventProbeWindow)_ledger.GetWindow("SweepHit");
             var miss = (EventProbeWindow)_ledger.GetWindow("SweepMiss");
