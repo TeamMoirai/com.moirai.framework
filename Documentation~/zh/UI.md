@@ -106,12 +106,12 @@ UIService.ShowUI<MainWindow>("main");
 // 异步打开（无载荷腿）
 UIService.ShowUIAsync<MainWindow>("main");
 
-// 带载荷的开窗换两个类型实参那一族，载荷排第一个（窗口内以 Payload 读取）
-UIService.ShowUIAsync<DetailWindow, int>(1001, "detail");
+// 带载荷的开窗换两个类型实参那一族：标识在前、载荷随后（窗口内以 Payload 读取）
+UIService.ShowUIAsync<DetailWindow, int>("detail", 1001);
 
-// 运行期才知道窗口类的动态腿：载荷擦进 UIPayload，第二个给窗口标识、由门面按档换算
+// 运行期才知道窗口类的动态腿：载荷擦进 UIPayload，标识在 Type 之后、载荷在第三枚
 UIService.ShowUIAsync(type, windowId,
-    fromResources: false, payload: UIPayload.From(dto));
+    UIPayload.From(dto));
 
 // 全腿收 CancellationToken（default 零开销）；撤销只在装载在途那一段有意义
 UIService.ShowUIAsync<MainWindow>(windowId: "main", ct: cts.Token);
@@ -139,30 +139,30 @@ bool closed = UIService.TryCloseTopWindow();
 
 ## 开窗腿签名
 
-一轨 8 支 = 无载荷 4 支 + 带载荷 4 支，两支后端同名重载靠窗口基类约束分辨而不是形参个数；UI Toolkit 腿每支在 `ct` 前多收一个 `PanelSettings panelSettings = null`（窗口级面板配置，`null` 时该窗回共享那一份）。`Type` 形入口另有动态 3 支，全局另有导航 2 成员与取窗 3 支。
+一轨 8 支 = 无载荷 4 支 + 带载荷 4 支，两支后端同名重载靠窗口基类约束分辨而不是形参个数；UI Toolkit 腿每支在标识之后多收一个 `PanelSettings panelSettings = null`（窗口级面板配置，`null` 时该窗回共享那一份）。`Type` 形入口另有动态 3 支，全局另有导航 2 成员与取窗 3 支。
 
 ### 每轨 8 支（uGUI 轨签名；UITK 轨同形多一个 `panelSettings`）
 
 | 腿 | 签名 | 交回 |
 |---|---|---|
-| 异步·无载荷 | `ShowUIAsync<T>(string windowId = null, bool fromResources = false, CancellationToken ct = default)`，`T : UGUIWindow, new()` | `void` |
+| 异步·无载荷 | `ShowUIAsync<T>(string windowId, CancellationToken ct = default)`，`T : UGUIWindow, new()` | `void` |
 | 同步·无载荷 | `ShowUI<T>(…同形…)`，`T : UGUIWindow, new()` | `void` |
 | 等待·无载荷 | `ShowUIAsyncAwait<T>(…同形…)`，`T : UGUIWindow, new()` | `UniTask<UIWindow>` |
 | 结果·无载荷 | `ShowUIAwaitResult<T>(…同形…)`，`T : UGUIWindow, new()` | `UniTask<UIOpenResult>` |
-| 异步·带载荷 | `ShowUIAsync<TWindow, TArg>(in TArg payload, string windowId = null, bool fromResources = false, CancellationToken ct = default)`，`TWindow : UGUIWindow<TArg>, new()` | `void` |
-| 同步·带载荷 | `ShowUI<TWindow, TArg>(in TArg payload, …同形…)` | `void` |
-| 等待·带载荷 | `ShowUIAsyncAwait<TWindow, TArg>(TArg payload, …同形…)` | `UniTask<TWindow>` |
-| 结果·带载荷 | `ShowUIAwaitResult<TWindow, TArg>(in TArg payload, …同形…)` | `UniTask<UIOpenResult>` |
+| 异步·带载荷 | `ShowUIAsync<TWindow, TArg>(string windowId, in TArg payload, CancellationToken ct = default)`，`TWindow : UGUIWindow<TArg>, new()` | `void` |
+| 同步·带载荷 | `ShowUI<TWindow, TArg>(string windowId, in TArg payload, …同形…)` | `void` |
+| 等待·带载荷 | `ShowUIAsyncAwait<TWindow, TArg>(string windowId, TArg payload, …同形…)` | `UniTask<TWindow>` |
+| 结果·带载荷 | `ShowUIAwaitResult<TWindow, TArg>(string windowId, in TArg payload, …同形…)` | `UniTask<UIOpenResult>` |
 
 - 等待·带载荷那一支的 `payload` 用普通形参而非 `in`：`async` 方法禁 `in` 形参（CS1988），账本那两个 async 泛型通道同样收普通 `TArg`；其余三支仍是 `in TArg`（泛型直塞，struct 不装箱）
-- UITK 带载荷腿的 `panelSettings` 排在 `fromResources` 之后、`ct` 之前，载荷永远排第一个——错位守卫有格钉着
+- UITK 带载荷腿的 `panelSettings` 排在载荷之后、`ct` 之前，载荷跟在标识之后——错位守卫有格钉着
 - 每支腿先过认领门：本轨没启用（槽位空着）当场抬错，不静默落空也不替本轨造一个驱动者
 
 ### 动态 3 支（`Type` 形入口，载荷走 `UIPayload`）
 
 | 腿 | 签名 | 交回 |
 |---|---|---|
-| 异步 | `ShowUIAsync(Type type, string windowId = null, bool fromResources = false, UIPayload payload = default, CancellationToken ct = default)` | `void` |
+| 异步 | `ShowUIAsync(Type type, string windowId, UIPayload payload = default, CancellationToken ct = default)` | `void` |
 | 同步 | `ShowUI(Type type, …同形…)` | `void` |
 | 等待 | `ShowUIAsyncAwait(Type type, …同形…)` | `UniTask<UIWindow>` |
 
@@ -175,7 +175,7 @@ bool closed = UIService.TryCloseTopWindow();
 | 导航深度 | `NavigationDepth`（`int` 属性） | 开启序历史的长度（栈按层级排序答不出「最近开的是谁」） |
 | 关顶 | `TryCloseTopWindow()` | 关上最近开的那个，走既有 `CanClose` 政策；无历史 / 拒关 / 过渡中回假，历史不出栈 |
 | 取窗·等待 | `GetUIAsyncAwait<T>(string windowId = null)` | 带标识按标识找、不带标识按类型扫栈取栈顶那个；找不到交回 `null` 并只发一条 Warning |
-| 取窗·回调 | `GetUIAsync<T>(Action<T> callback, string windowId = null)` | 同一判据；找不到时只发一条 Warning，回调不被调用 |
+| 取窗·回调 | `GetUIAsync<T>(string windowId, Action<T> callback)` | 同一判据；找不到时只发一条 Warning，回调不被调用 |
 | 取窗·结果 | `GetUIAwaitResult<T>(string windowId = null)` | 交回 `UIOpenResult`，`Missing` 档表栈上没有那个 |
 
 关与隐两支同一条键规则：`CloseUI<T>(windowId)` / `HideUI<T>(windowId)` 只点那个键，不带标识则收这一类的每个（自栈顶向下逐个走单窗那条路径，停放/销毁与交互位交还的分档不变）。
@@ -208,9 +208,9 @@ public class RenameWindow : UGUIWindow<RenameWindowPayload>   // 带载荷必须
 // 静态腿：编译期已知窗口类 → 泛型直塞，struct 不装箱，一步都不经 UIPayload 擦除
 UIService.ShowUIAsync<RenameWindow, RenameWindowPayload>(in dto, "rename");
 
-// 动态腿：运行期才有 Type → 载荷擦进 UIPayload（引用型只存引用，值类型装箱一次）
+// 动态腿：运行期才有 Type → 载荷擦进 UIPayload（引用型只存引用，值类型装箱一次）；标识在前、载荷随后
 UIService.ShowUIAsync(type, windowId,
-    fromResources: false, payload: UIPayload.From(dto));
+    UIPayload.From(dto));
 ```
 
 > 工具链注：本工程工具链（C# 9 / netstandard2.1，无 `IsExternalInit` polyfill）下 `readonly struct` 配公共可写字段不编译（初始化点 CS8340；字段改 `readonly` 再配对象初始化器是 CS0191，`{ get; init; }` 是 CS0518），DTO 用普通 `struct` + 公共字段 + 对象初始化器。
@@ -376,7 +376,7 @@ public class RenameWindow : UGUIWindow
 - 全腿的 `CancellationToken` 传 `default` 零开销，且只在装载在途那一段被消费：已就绪的复用与停放重取不消费 `ct`；复用一个仍在装载的窗时，令牌照样登记，撤销会掐断那一次在途装载（与在飞合并同段语义）
 - 窗口开合回执走门面静态广播：`UIService.onWindowShown += OnWindowShownEvent` / `onWindowClosed += OnWindowClosedEvent`（形参 `UIWindow`），入栈/出栈各恰一次、停放与销毁都发；订阅者自己配对退订，门面关停与归零门会整批摘掉
 - 停放档一个三态：`[Window(cacheTimeToDestroy: …)]`，`0` = 不缓存（关闭即销毁，缺省即此）、正数 = 停放并在这么多秒后转销毁、负数 = 停放永久；到期由账本移出停放表并终态销毁，重新取用即取消计时
-- 寻址归门面：开窗腿带的**窗口标识**（无载荷腿第一个；带载荷腿排在载荷之后；`Type` 形入口排在 `Type` 之后）既是栈上身份又是地址原料——`fromResources` 为真时把它拼到 `UIServiceSettings` 的 Resources 父目录下，为假时按它查 `ConfigTableService.GetUIWindowLocation`；标识必填（没带即当场 `GameException`，地址没有第二条来路）；`[Window]` 不再声明地址。同标识即复用栈上那个，窗口对象上的 `WindowId` 也就是这个标识；`CloseUI` / `HideUI` 不带标识时收这一类的每个。原 `UIManager` 与它的两个公共静态定位口已退役，换算判据只此一份，且只在账本造新实例那一格发生（复用栈上窗与停放重取不查表）
+- 寻址归门面：开窗腿带的**窗口标识**（无载荷腿与带载荷腿都是第一枚；`Type` 形入口排在 `Type` 之后）既是栈上身份又是地址原料，且必填、不写即编译不过；取法不再由入口给——`fromResources` 为真时把它拼到 `UIServiceSettings` 的 Resources 父目录下，为假时按它查 `ConfigTableService.GetUIWindowLocation`；标识必填（没带即当场 `GameException`，地址没有第二条来路）；`[Window]` 不再声明地址。同标识即复用栈上那个，窗口对象上的 `WindowId` 也就是这个标识；`CloseUI` / `HideUI` 不带标识时收这一类的每个。原 `UIManager` 与它的两个公共静态定位口已退役，换算判据只此一份，且只在账本造新实例那一格发生（复用栈上窗与停放重取不查表）
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [UI 迁移](UIMigration.md) · [Input](Input.md) · [Scene](Scene.md) · [Audio](Audio.md)

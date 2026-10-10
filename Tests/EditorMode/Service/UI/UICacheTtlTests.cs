@@ -94,7 +94,7 @@ namespace Service.UI
         [Test]
         public void DescriptorPlumbing_AttributeTtlReachesWindow()
         {
-            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlAttr", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlAttr", null, UIPayload.Empty);
             var window = (TtlProbeWindow)_ledger.GetWindow("TtlAttr");
             Assert.AreEqual(5f, window.CacheTimeToDestroy, "特性档经描述符落到窗口");
         }
@@ -102,21 +102,21 @@ namespace Service.UI
         [Test]
         public void ParkWithTtl_StartsTimer_UnparkCancels()
         {
-            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlPark", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlPark", null, UIPayload.Empty);
             var window = (TtlProbeWindow)_ledger.GetWindow("TtlPark");
 
             _ledger.CloseUI<TtlProbeWindow>("TtlPark");
             Assert.IsTrue(_ledger.IsParked("TtlPark"), "已停放");
             Assert.AreNotEqual(0UL, window.CacheTimerId, "停放即启计时");
 
-            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlPark", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlPark", null, UIPayload.Empty);
             Assert.AreEqual(0UL, window.CacheTimerId, "取用即取消计时");
         }
 
         [Test]
         public void NegativeTtl_StaysForever_NoTimer()
         {
-            _ledger.ShowUIImp(typeof(ForeverCacheProbeWindow), false, "TtlForever", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(ForeverCacheProbeWindow), false, "TtlForever", null, UIPayload.Empty);
             var window = (ForeverCacheProbeWindow)_ledger.GetWindow("TtlForever");
 
             _ledger.CloseUI<ForeverCacheProbeWindow>("TtlForever");
@@ -127,7 +127,7 @@ namespace Service.UI
         [Test]
         public void ZeroTtl_CloseIsDestroy_NotParked()
         {
-            _ledger.ShowUIImp(typeof(NoCacheProbeWindow), false, "TtlNone", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(NoCacheProbeWindow), false, "TtlNone", null, UIPayload.Empty);
             var window = (NoCacheProbeWindow)_ledger.GetWindow("TtlNone");
 
             _ledger.CloseUI<NoCacheProbeWindow>("TtlNone");
@@ -140,7 +140,7 @@ namespace Service.UI
         [Test]
         public void ExpireParkedWindow_RemovesFromCacheAndDestroys()
         {
-            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlExpire", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlExpire", null, UIPayload.Empty);
             var window = (TtlProbeWindow)_ledger.GetWindow("TtlExpire");
             _ledger.CloseUI<TtlProbeWindow>("TtlExpire");
 
@@ -153,10 +153,10 @@ namespace Service.UI
         [Test]
         public void StaleExpire_AfterUnpark_IsNoOp()
         {
-            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlStale", false, null, UIPayload.Empty);
+            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlStale", null, UIPayload.Empty);
             var window = (TtlProbeWindow)_ledger.GetWindow("TtlStale");
             _ledger.CloseUI<TtlProbeWindow>("TtlStale");
-            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlStale", false, null, UIPayload.Empty); // 取用
+            _ledger.ShowUIImp(typeof(TtlProbeWindow), false, "TtlStale", null, UIPayload.Empty); // 取用
 
             _ledger.ExpireParkedWindow(window); // 迟到的到期
 

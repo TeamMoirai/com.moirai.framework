@@ -7,7 +7,7 @@ namespace Moirai.Atropos.UI
     /// UI 轨道描述符：一支后端在门面通用逻辑里的全部自述——认窗判据、有效性探针、Type 形入口的开窗实现与关停档位。
     /// </summary>
     /// <remarks>
-    /// 门面只按这份描述枚举轨道（认轨分派、有效性、按档位收口），不认识任何具体后端：加一轨＝加一枚自登记的 <c>UIService.&lt;轨&gt;.cs</c> partial，主文件零改动。 <br />
+    /// 门面只按这份描述枚举轨道（认轨分派、有效性、按档位收口），不认识任何具体后端：加一轨＝加一个自登记的 <c>UIService.&lt;轨&gt;.cs</c> partial，主文件零改动。 <br />
     /// 轨道的「在位」由各轨自己的探针回答（探针读本轨槽位），目录不另记一份在位状态。 <br />
     /// 关停回调实例绑定、摘槽之后仍然有效：门面先摘槽再收口，摘槽只让窗口回叫静默，不撤掉还欠着的关停。 <br />
     /// 线程契约：仅主线程（登记走静态初始化，认领与摘除都在门面的生命周期里）。
@@ -17,7 +17,7 @@ namespace Moirai.Atropos.UI
         /// <summary>默认关停档：不持有别轨依赖的宿主资源，按目录序第一批收。</summary>
         internal const int SHUTDOWN_ORDER_DEFAULT = 0;
 
-        /// <summary>宿主档：本轨持有别轨面板挂靠的宿主根（如 uGUI 那枚 UI 根），必须最后收。</summary>
+        /// <summary>宿主档：本轨持有别轨面板挂靠的宿主根（如 uGUI 的 UI 根），必须最后收。</summary>
         internal const int SHUTDOWN_ORDER_HOST = 100;
 
         private readonly string _trackName;
@@ -25,7 +25,7 @@ namespace Moirai.Atropos.UI
         private readonly int _shutdownOrder;
         private readonly Func<Type, bool> _ownsWindowType;
         private readonly Func<bool> _isDriverValid;
-        private readonly Action<Type, bool, string, bool, UIPayload, CancellationToken> _openWindow;
+        private readonly Action<Type, bool, string, UIPayload, CancellationToken> _openWindow;
         private Action _claimedShutDown;
 
         /// <summary>轨道名：进抬错文案，点名是哪一轨。</summary>
@@ -40,11 +40,11 @@ namespace Moirai.Atropos.UI
         /// <summary>本轨驱动者是否在位：探针读的是那一轨自己的槽位。</summary>
         internal bool IsDriverValid => _isDriverValid();
 
-        /// <summary>认领进槽时挂上的那一枚关停回调：实例绑定，摘槽不清它，门面整批清认领时才摘。</summary>
+        /// <summary>认领进槽时挂上的那条关停回调：实例绑定，摘槽不清它，门面整批清认领时才摘。</summary>
         internal Action ClaimedShutDown => _claimedShutDown;
 
         /// <summary>
-        /// 造一枚轨道自述。
+        /// 造一条轨道自述。
         /// </summary>
         /// <param name="trackName">轨道名：进抬错文案。</param>
         /// <param name="windowBaseType">本轨的窗口基类：进「认不出轨」的枚举文案。</param>
@@ -54,7 +54,7 @@ namespace Moirai.Atropos.UI
         /// <param name="openWindow">Type 形入口落到本轨的开窗实现。</param>
         internal UITrack(string trackName, Type windowBaseType, int shutdownOrder,
             Func<Type, bool> ownsWindowType, Func<bool> isDriverValid,
-            Action<Type, bool, string, bool, UIPayload, CancellationToken> openWindow)
+            Action<Type, bool, string, UIPayload, CancellationToken> openWindow)
         {
             _trackName = trackName;
             _windowBaseType = windowBaseType;
@@ -70,9 +70,9 @@ namespace Moirai.Atropos.UI
         internal bool OwnsWindowType(Type windowType) => _ownsWindowType(windowType);
 
         /// <summary>
-        /// 把驱动者的关停交进轨道：认领门在槽位占上之后叫这一枚，门面按档位升序收口时叫的也是它。
+        /// 把驱动者的关停交进轨道：认领门在槽位占上之后叫它，门面按档位升序收口时叫的也是它。
         /// </summary>
-        /// <param name="driverShutDown">刚认领进槽的那一枚驱动者的关停。</param>
+        /// <param name="driverShutDown">刚认领进槽的驱动者的关停。</param>
         internal void AttachDriver(Action driverShutDown) => _claimedShutDown = driverShutDown;
 
         /// <summary>整批清认领：归位门与关停收尾各走一次，下一轮认领重新挂。</summary>
@@ -84,13 +84,12 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类。</param>
         /// <param name="isAsync">面板按异步装载还是同步装载。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 Resources 目录下的相对路径）。</param>
-        /// <param name="fromResources">从 Resources 加载资源。</param>
         /// <param name="payload">动态腿擦除后的载荷。</param>
         /// <param name="ct">调用方取消令牌。</param>
-        internal void OpenWindow(Type type, bool isAsync, string windowId, bool fromResources,
+        internal void OpenWindow(Type type, bool isAsync, string windowId,
             UIPayload payload, CancellationToken ct)
         {
-            _openWindow(type, isAsync, windowId, fromResources, payload, ct);
+            _openWindow(type, isAsync, windowId, payload, ct);
         }
     }
 }
