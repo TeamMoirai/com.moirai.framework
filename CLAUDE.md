@@ -252,7 +252,7 @@ com.moirai.framework/
 
 | 场景 | 通道 |
 |---|---|
-| EditMode / PlayMode 全量或过滤 | **测试桥**（`Temp/MoriaiTestRequest.json` 文件协议，见《验证：让开着的编辑器自己跑测试》） |
+| EditMode / PlayMode 全量或过滤 | **测试桥**（`Temp/MoiraiTestRequest.json` 文件协议，见《验证：让开着的编辑器自己跑测试》） |
 | 桥不可用（编辑器刚重载、桥未进域） | `TestRunnerApi` 直跑（`exec_editor_script` + `ICallbacks` 宿主） |
 | 判编辑器是否空闲 / dll 是否新鲜 | **状态桥**（`Temp/MoriaiEditorState.json`，见《验证：编辑器状态桥》） |
 | L3 玩家验收 | 玩家通道三选一：Test Runner 窗口 PlayMode 页签 → `Run all in Player`、本包 `Window/General/Test Player Runner` 窗口、CLI `-runTests -testPlatform <BuildTarget>`（详见《测试规范》玩家侧用例的运行方式）；不要自己 `BuildPipeline.BuildPlayer` 搭测试玩家 |
