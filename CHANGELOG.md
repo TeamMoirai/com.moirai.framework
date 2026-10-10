@@ -164,6 +164,7 @@
 - 停放窗不再续留全局事件订阅：关闭进停放即反注册（`UnregisterEvent` 恰一次），停放态窗口不挂事件；装载在途被作废的窗口（`AbortFailedLoad`）补上守卫式反注册，抛出型 `RegisterEvent` 不再把已订阅的窗留在销毁态。关停扫尾（`CloseAllWhere(isShutDown: true)`）现在真的销毁被这一轨认得的停放窗——出停放表、`OnDestroy` 随之触发一次（此前只摘表不销毁）。
 - 停放窗不再带半截过渡姿态：缓存停放前先把面板 `Snap` 拨到关窗终态（此前只 `ParkPanel` 不拨，下次取用从半截动画起播）；过渡 `Play` 抛出时退到 `Snap` 落终态、不把窗口卡在半开，`Snap` 自身也抛出才记一条 Error 并照常走完。
 - 生命周期与 Tick 钩子抛出不再黑屏或半开窗：`OnCreate` / `OnRefresh` / `OnClose` / `OnDestroy` / `OnUpdate` 等钩子抛出改为记一条 Error 后继续走后续流程（此前一处抛出会中断整帧驱动、或让窗口停在半开态回不来）。
+- 开窗稳态回到零分配：`UIWindowLedger` 的就绪回执 `OnWindowPrepare` 此前以方法组直接传给 `Action<UIWindow>` 形参，每次开窗（含停放重取这条稳态支路）都在堆上新建一个委托；改在构造期缓存那一枚委托、六处调用点共用。`GC.Alloc` 采样口径实测「开+关」稳态往返由 1 事件/次降为 0；动态腿基元载荷仍是每次开窗装箱一次（契约允许）。
 
 #### 工具
 

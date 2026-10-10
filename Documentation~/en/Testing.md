@@ -236,7 +236,8 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
     b => Assert.AreEqual(0, b, "the hot path must not allocate managed memory"));
 ```
 
-- When the counter is unusable, `MeasureManaged` calls **`Assert.Ignore`** (the `AllocationCapture` bench caches its own capability probe). **Never write "before/after delta" metering.**
+- When the counter is unusable, `MeasureManaged` calls **`Assert.Ignore`** (the `AllocationCapture` bench caches its own capability probe). **Never write before/after delta metering.**
+- This prohibition carries measured backing (2026-10-10): on the same path the event meter reads **1 event per open+close round-trip** while the byte-denominated before/after delta reads **0**; adding one `new byte[4096]` inside the measurement window moves the event meter by exactly **+1 event per round-trip** (the calibration case `CalibrateKnownAllocation` passed in that same run). While the byte meter reads 0, both `AreEqual(0, after - before)` and `LessOrEqual(delta, budget)` are provably true greens — and the latter additionally writes allocations into the contract as a licence.
 - The **release exit gate for zero-GC is the L3 player-side report** (the final arbiter is the IL2CPP player); the editor PlayMode suite runs the same mechanism for daily regression, but an editor green never replaces player acceptance. Metering uses `GC.Alloc` sample counts, the same mechanism as UTF's official AllocatingGCMemory constraint — byte-denominated GC counter APIs do not exist in Unity: `GetAllocatedBytesForCurrentThread` measured constantly 0 in three environments, and `GetTotalAllocatedBytes` does not exist in Unity's profile.
 
 ### How player-side cases run (rewritten from empirical findings, 2026-09-28)

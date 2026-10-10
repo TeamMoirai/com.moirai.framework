@@ -25,6 +25,17 @@ namespace Moirai.Atropos.UI
         private List<string> _sweepScratch;
         private readonly List<UIWindow> _history = new List<UIWindow>(32); // 开启序：Push 追加、摘栈移除
 
+        /// <summary>
+        /// 就绪回执的那一枚回调：方法组转委托每次都在堆上新建一个委托对象，因此只在构造期转换一次。
+        /// </summary>
+        private readonly Action<UIWindow> _onWindowPrepare;
+
+        internal UIWindowLedger()
+        {
+            _onWindowPrepare = OnWindowPrepare;
+        }
+
+
         /// <summary>模态动画期间交互压制的归属仲裁。与窗口堆栈同生命周期。</summary>
         internal UIInteractionLease InteractionLease { get; } = new UIInteractionLease();
 
@@ -339,7 +350,7 @@ namespace Moirai.Atropos.UI
             if (TryGetWindow(windowId, out window))
             {
                 if (!payload.IsEmpty) window.Internal_SetPayload(payload);   // last-wins：在飞/复用都覆盖
-                window.TryInvoke(OnWindowPrepare);
+                window.TryInvoke(_onWindowPrepare);
                 return;
             }
 
@@ -351,7 +362,7 @@ namespace Moirai.Atropos.UI
                 window.gameObject.SetActive(true);
                 _cache.Remove(windowId);
                 Push(window);
-                window.TryInvoke(OnWindowPrepare);
+                window.TryInvoke(_onWindowPrepare);
                 return; // 停放重取：装载早已完成，同步交回不再等待
             }
 
@@ -359,7 +370,7 @@ namespace Moirai.Atropos.UI
             onInstanceCreated?.Invoke(window);
             if (!payload.IsEmpty) window.Internal_SetPayload(payload);
             Push(window);
-            window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync).Forget();
+            window.InternalLoad(window.AssetLocation, _onWindowPrepare, isAsync).Forget();
         }
 
         /// <summary>开栈编排的公共前置（泛型直塞形）：与 UIPayload 形同路，只把载荷经 <see cref="IUIPayloadSlot{TArg}"/> 强类型落位、不擦除。</summary>
@@ -369,7 +380,7 @@ namespace Moirai.Atropos.UI
             if (TryGetWindow(windowId, out window))
             {
                 SetPayloadChecked(window, in payload);
-                window.TryInvoke(OnWindowPrepare);
+                window.TryInvoke(_onWindowPrepare);
                 return;
             }
 
@@ -381,7 +392,7 @@ namespace Moirai.Atropos.UI
                 window.gameObject.SetActive(true);
                 _cache.Remove(windowId);
                 Push(window);
-                window.TryInvoke(OnWindowPrepare);
+                window.TryInvoke(_onWindowPrepare);
                 return;
             }
 
@@ -389,7 +400,7 @@ namespace Moirai.Atropos.UI
             onInstanceCreated?.Invoke(window);
             SetPayloadChecked(window, in payload);
             Push(window);
-            window.InternalLoad(window.AssetLocation, OnWindowPrepare, isAsync).Forget();
+            window.InternalLoad(window.AssetLocation, _onWindowPrepare, isAsync).Forget();
         }
 
         /// <summary>泛型直塞通道的落点：槽型不符（含不带槽）当场抬错，不退化为擦除路径。</summary>
