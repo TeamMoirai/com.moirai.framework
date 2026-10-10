@@ -11,6 +11,7 @@ namespace Moirai.Atropos.ObjectPool
     /// struct 语义：必须存储于可变字段后调用（方法直接改写字段状态）；Dispose 后归还全部内部数组。
     /// </remarks>
     /// <typeparam name="TKey">键类型，需实现 <see cref="IEquatable{TKey}"/>。</typeparam>
+    [HotPath]
     internal struct OpenHashMap<TKey> where TKey : IEquatable<TKey>
     {
         #region 常量 [CONSTANTS]

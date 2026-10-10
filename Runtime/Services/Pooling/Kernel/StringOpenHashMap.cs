@@ -10,6 +10,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <remarks>
     /// struct 语义：必须存储于可变字段后调用（方法直接改写字段状态）；Dispose 后归还全部内部数组。
     /// </remarks>
+    [HotPath]
     internal struct StringOpenHashMap
     {
         #region 常量 [CONSTANTS]

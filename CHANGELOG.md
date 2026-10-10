@@ -53,6 +53,10 @@
 - 新增 `[ProviderDropdown]` 对数组 / `List<T>` 字段的支持：特性放在集合字段上时每个元素各自获得实现类下拉与子属性展开（元素经 Odin 集合特性透传逐个走单字段绘制），集合的增删与重排由 Inspector 默认列表 UI 承担；此前该特性放在集合字段上会按单引用处理直接报错。
 - 新增 `[ProviderDisplay]` 类型级显示元数据（标注在候选实现类上，配合 `[ProviderDropdown]`）：`Title` 非空时替换下拉行与选中态的类型名显示，`Description` 非空时在下拉详情面板置顶优先显示（折行、高度随内容伸缩），无描述时面板回退显示 Type / Base / Assembly；两者全空等价于不标注。框架内置候选实现类（工具 Handler / 各服务后端 / 存档处理器与序列化器 / 密钥与加密提供方 / UI 双轨驱动者）已全部标注。
 
+#### 性能
+
+- 新增 `[HotPath]` 标注与 HotPathAnalyzer 编译期守卫（MIRAI600 值类型装箱 / MIRAI601 热路径内匿名函数，Warning 级）：标注类型或方法即受检，未标注代码零诊断；首批覆盖 GameTime、服务查找三件套与 GameObject 池门面、Timer 双引擎与双 Handler、Pooling 内核与 MemoryPool 族，全量扫描验证零违例并捕获双引擎 WaitAsync 轮询谓词的按次委托分配（已改类级缓存）。
+
 ### Changed
 
 #### 核心

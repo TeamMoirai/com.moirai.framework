@@ -3,6 +3,7 @@ using Moirai.Atropos.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using Moirai.Atropos.Tests.EditorMode;
 
 namespace Service.UI
 {
@@ -85,7 +86,7 @@ namespace Service.UI
         [Test]
         public void OnRefreshThrows_WindowStillEntersStack()
         {
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("OnRefresh"));
+            UtfLogExpect.Error();
             _ledger.ShowUIImp(typeof(RefreshThrowProbeWindow), false, "RefreshThrow", null, UIPayload.Empty);
 
             Assert.IsTrue(_ledger.IsContains("RefreshThrow"), "OnRefresh 抛照常入栈");
@@ -97,7 +98,7 @@ namespace Service.UI
             _ledger.ShowUIImp(typeof(CloseThrowProbeWindow), false, "CloseThrow", null, UIPayload.Empty);
             var window = (CloseThrowProbeWindow)_ledger.GetWindow("CloseThrow");
 
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("OnClose"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => _ledger.CloseUI<CloseThrowProbeWindow>("CloseThrow"));
             Assert.IsTrue(_ledger.IsParked("CloseThrow"), "OnClose 抛不挡停放");
             Assert.AreEqual(1, window.ParkCount, "面板照常停放");
@@ -110,7 +111,7 @@ namespace Service.UI
             _ledger.ShowUIImp(typeof(DestroyThrowProbeWindow), false, "DestroyThrow", null, UIPayload.Empty);
             var window = (DestroyThrowProbeWindow)_ledger.GetWindow("DestroyThrow");
 
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("OnDestroy"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() => _ledger.CloseUI<DestroyThrowProbeWindow>("DestroyThrow"));
             Assert.AreEqual(1, window.DestroyPanelCount, "OnDestroy 抛不挡收面板");
             Assert.AreEqual(0, _ledger.PeekStack().Count, "销毁流程走完");
@@ -123,7 +124,7 @@ namespace Service.UI
             var window = (CanCloseThrowProbeWindow)_ledger.GetWindow("CanCloseThrow");
             window.Interactable = true;
 
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("CanClose"));
+            UtfLogExpect.Error();
             window.TryClose().Forget();
 
             Assert.AreEqual(1, window.CloseFailCount, "CanClose 抛按拒关计并走 OnCloseFail");
@@ -133,7 +134,7 @@ namespace Service.UI
         [Test]
         public void ApplyHookThrows_PanelLoadedCompletes()
         {
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("ApplyVisible"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() =>
                 _ledger.ShowUIImp(typeof(ApplyThrowProbeWindow), false, "ApplyThrow", null, UIPayload.Empty));
 
@@ -172,7 +173,7 @@ namespace Service.UI
         [Test]
         public void CreateChainThrows_RollsBackToExplicitFailedState()
         {
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("创建链"));
+            UtfLogExpect.Error();
             Assert.DoesNotThrow(() =>
                 UIService.SharedLedger.ShowUIImp(typeof(CreateThrowProbeWindow), false, "CreateThrow", null, UIPayload.Empty),
                 "创建链抛不得透出开窗调用");

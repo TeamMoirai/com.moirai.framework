@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
@@ -82,7 +81,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="source">池化来源（地址或 Prefab，string/GameObject 隐式转换）。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>游戏对象。</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         public static GameObject Spawn(GameObjectPoolSource source, Transform parent = null) =>
             source.IsValid ? s_Handler?.Spawn(source, parent) : null;
 
@@ -95,7 +94,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="useLocalPosition">是否使用本地位置而不是世界位置。</param>
         /// <returns>游戏对象。</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         public static GameObject Spawn(
             GameObjectPoolSource source,
             Vector3 position,
@@ -120,7 +119,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件（未就绪时为 null）。</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         public static T Spawn<T>(GameObjectPoolSource source, Transform parent = null) where T : Component =>
             source.IsValid ? s_Handler?.Spawn<T>(source, parent) : null;
 
@@ -302,7 +301,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 回收游戏对象。仅外来对象会 Destroy。
         /// </summary>
         /// <param name="instance">游戏对象。</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         public static void Despawn(GameObject instance) =>
             s_Handler?.Despawn(instance);
 
@@ -310,7 +309,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 通过租约回收游戏对象。
         /// </summary>
         /// <param name="pooled">池化租约。</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [HotPath]
         public static void Despawn(PooledGameObject pooled) =>
             s_Handler?.Despawn(pooled);
 
