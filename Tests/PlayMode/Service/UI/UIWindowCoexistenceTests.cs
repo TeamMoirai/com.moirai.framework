@@ -504,24 +504,23 @@ namespace Service.UI
         /// 登记现状：<c>ParkPanel</c> 不守卫绑定——面板从未绑上的窗口走到这个钩子直接抛 <see cref="NullReferenceException"/>，两支同形。
         /// </summary>
         /// <remarks>
-        /// 这一格只钉「现状」，不是背书：同名的三份意图写入与 <see cref="UITKWindow.ApplySafeInsets"/> 都在未绑定时判为空操作，
-        /// 唯独停放直读物体引用。窗口在装载被拒之后仍留在栈上，若走到关闭动画末尾的停放，抛点就落在续体里——
-        /// 判据因此打在钩子本身上，不由续体的时序代答。
+        /// 未绑定时的停放与三份意图写入一致地判为空操作：装载在途的缓存窗被关闭可达这一档， <br />
+        /// 守卫落地后 NRE 不再抛给调用方、窗口随后按停放态被完整创建，不会带出半个可用面板。
         /// </remarks>
         [Test]
-        public void ParkPanel_WindowWithUnboundPanel_ThrowsNullReferenceOnBothTracks()
+        public void ParkPanel_WindowWithUnboundPanel_IsANoOpOnBothTracks()
         {
             var kit = new ProbeUITKWindowOnTipsLayer();
             kit.Init("UnboundKit", (int)EUILayer.Tips, false, "Panel", false, 10);
             Assert.IsNull(kit.gameObject, "量具前提坏了：未装载的窗口此刻没有面板本体");
-            Assert.Throws<NullReferenceException>(() => kit.ParkForTest(),
-                "UI Toolkit 那一轨的停放不守卫绑定：未绑定时即抛");
+            Assert.DoesNotThrow(() => kit.ParkForTest(),
+                "UI Toolkit 那一轨的停放未绑定时为空操作：不再把 NRE 抛给调用方");
 
             var ugui = new ProbeUGUIWindowOnUiLayer();
             ugui.Init("UnboundUGUI", (int)EUILayer.UI, false, "Panel", false, 10);
             Assert.IsNull(ugui.gameObject, "量具前提坏了：未装载的窗口此刻没有面板本体");
-            Assert.Throws<NullReferenceException>(() => ugui.ParkForTest(),
-                "uGUI 那一轨的停放同形：未绑定时即抛");
+            Assert.DoesNotThrow(() => ugui.ParkForTest(),
+                "uGUI 那一轨的停放同款守卫：未绑定时为空操作");
         }
 
         #endregion

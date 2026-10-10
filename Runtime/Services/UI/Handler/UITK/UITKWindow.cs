@@ -155,10 +155,14 @@ namespace Moirai.Atropos.UI
             _contentRoot.pickingMode = value ? PickingMode.Position : PickingMode.Ignore;
         }
 
-        /// <summary>停放面板：壳物体留着但不激活（缓存实例的关闭态、关闭动画结束后的隐藏）。</summary>
+        /// <summary>停放面板：壳物体留着但不激活（缓存实例的关闭态、关闭过渡结束后的隐藏）。</summary>
+        /// <remarks>未绑定壳时为空操作：装载在途的缓存窗被关闭可达这一档，与 <see cref="DestroyPanel"/> 同款守卫。</remarks>
         protected internal override void ParkPanel()
         {
-            _shell.SetActive(false);
+            if (_shell != null)
+            {
+                _shell.SetActive(false);
+            }
         }
 
         /// <summary>收走面板：销毁壳物体并断开全部后端引用，令窗口回到「未绑定」口径。</summary>
