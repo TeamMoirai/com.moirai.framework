@@ -1,124 +1,99 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using Moirai.Atropos.Editor;
+using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Resource.Editor
 {
     /// <summary>
-    /// <see cref="AssetReference"/> 检视器绘制：对象字段选中即写回 GUID；包名行紧随其后（按 <see cref="ResourcePackageBridge"/> 的清单走下拉，无清单退回文本，后端不消费则不绘制，留空用默认资源包）；底部为路径与打包归属提示。
+    /// <see cref="AssetReference"/> 的 Odin 绘制器，单行绘制：对象字段选中即写回 GUID（标签 tooltip 附解析路径）、
+    /// 行尾「Package」包名下拉（后端不消费则不绘制，选项语义见 <see cref="DrawPackagePopup"/>）；
+    /// GUID 悬空（资产已不存在）时行下报错。
     /// </summary>
-    /// <remarks>经反射闭合 <see cref="AssetInfoHelper"/> 的泛型绘制助手（编辑器一次查找后按资源类型缓存）。</remarks>
-    [CustomPropertyDrawer(typeof(AssetReference), true)]
-    public class AssetReferenceDrawer : PropertyDrawer
+    /// <remarks>
+    /// 全管线经 Odin 接管（含 List 元素），字段无需再标 <c>[DrawWithUnity]</c>；
+    /// 无 Unity 序列化后端（纯 Odin 宿主）或类型参数不可解析时回退默认绘制。
+    /// </remarks>
+    public class AssetReferenceDrawer : OdinValueDrawer<AssetReference>
     {
         private const string GUID_PROPERTY = nameof(AssetReference.m_GUID);
         private const string PACKAGE_PROPERTY = nameof(AssetReference.m_PackageName);
-        private const float LINE_SPACING = 2f;
 
         private static readonly GUIContent s_PackageContent =
-            new GUIContent("Package", "资源包名称，留空使用默认资源包");
+            new GUIContent("Package", "资源包名称，留空使用后端配置的默认资源包");
 
-        /// <summary>包名下拉的首项（空串）：随时可回到"默认资源包"语义。</summary>
-        private static readonly GUIContent s_DefaultPackageContent =
-            new GUIContent("(Default Package)", "留空使用默认资源包");
-
-        private static readonly Dictionary<Type, MethodInfo> s_HeightMethods = new Dictionary<Type, MethodInfo>();
-        private static readonly Dictionary<Type, MethodInfo> s_FieldMethods = new Dictionary<Type, MethodInfo>();
-        private static readonly Dictionary<Type, MethodInfo> s_HintMethods = new Dictionary<Type, MethodInfo>();
+        /// <summary>「留空」状态项的标记文案（全角括号使其区别于真实包裹名）。</summary>
+        private const string s_EmptyPackageText = "（留空 · 默认资源包）";
 
         #region 引擎方法 [UNITY METHODS]
 
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        protected override void DrawPropertyLayout(GUIContent label)
         {
-            Type assetType = ResolveAssetType(fieldInfo?.FieldType);
-            if (assetType == null)
+            if (ValueEntry.SmartValue == null)
             {
-                return EditorGUIUtility.singleLineHeight * 2;
-            }
-
-            // 对象字段一行 + 包名行（后端不消费包名时不绘制）（提示行由助手按内容追加）
-            object[] args = { property.FindPropertyRelative(GUID_PROPERTY).stringValue, ResourcePackageBridge.GetPackageNames() != null ? 2 : 1 };
-            return (float)GetHelperMethod(s_HeightMethods, nameof(AssetInfoHelper.GetGuidAssetInfoHeight), assetType)
-                .Invoke(null, args);
-        }
-
-        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
-        {
-            Type assetType = ResolveAssetType(fieldInfo?.FieldType);
-            if (assetType == null)
-            {
-                EditorGUI.HelpBox(position, "AssetReference requires a type argument: AssetReference<TObject>.",
-                    MessageType.Warning);
+                CallNextDrawer(label);
                 return;
             }
 
-            // 对象字段行：选中即写回 GUID
-            object[] fieldArgs = { position, property, GUID_PROPERTY };
-            object target = GetHelperMethod(s_FieldMethods, nameof(AssetInfoHelper.DrawGuidAssetField), assetType)
-                .Invoke(null, fieldArgs);
-            position = (Rect)fieldArgs[0];
-
-            // 包名行：绘制在对象字段之后（Addressables 这类单包后端不绘制）；有包名清单走下拉，无清单退回自由文本
-            string[] packages = ResourcePackageBridge.GetPackageNames();
-            if (packages != null)
+            Type assetType = ResolveAssetType(ValueEntry.TypeOfValue);
+            if (assetType == null)
             {
-                Rect packageRect = new Rect(position) { height = EditorGUIUtility.singleLineHeight };
-                SerializedProperty packageProperty = property.FindPropertyRelative(PACKAGE_PROPERTY);
-                if (packages.Length > 0)
-                {
-                    DrawPackagePopup(packageRect, packageProperty, packages);
-                }
-                else
-                {
-                    packageProperty.stringValue = EditorGUI.TextField(packageRect, s_PackageContent, packageProperty.stringValue);
-                }
-                position.y += EditorGUIUtility.singleLineHeight + LINE_SPACING;
+                CallNextDrawer(label);
+                return;
             }
 
-            // 附加信息行：路径与打包归属提示
-            object[] hintArgs = { position, target, property.FindPropertyRelative(GUID_PROPERTY).stringValue };
-            GetHelperMethod(s_HintMethods, nameof(AssetInfoHelper.DrawGuidAssetHints), assetType).Invoke(null, hintArgs);
+            SerializedProperty property = FindUnityProperty(Property);
+            if (property == null)
+            {
+                CallNextDrawer(label);
+                return;
+            }
+
+            SerializedProperty guidProp = property.FindPropertyRelative(GUID_PROPERTY);
+            SerializedProperty packageProp = property.FindPropertyRelative(PACKAGE_PROPERTY);
+            if (guidProp == null || packageProp == null)
+            {
+                CallNextDrawer(label);
+                return;
+            }
+
+            string guid = guidProp.stringValue;
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            UObject current = string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath(path, assetType);
+
+            EditorGUILayout.BeginHorizontal();
+
+            // 对象行：选中即写回 GUID
+            EditorGUI.BeginChangeCheck();
+            UObject selected = EditorGUILayout.ObjectField(BuildLabel(label, path), current, assetType, false);
+            if (EditorGUI.EndChangeCheck())
+            {
+                guidProp.stringValue = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(selected));
+                Apply(property);
+            }
+
+            if (ResourcePackageBridge.GetPackageNames() != null)
+            {
+                DrawPackagePopup(packageProp);
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+            // GUID 悬空：资产已不存在时行下报错
+            if (current == null && !string.IsNullOrEmpty(guid))
+            {
+                EditorGUILayout.LabelField(
+                    AssetInfoHelper.GetResultCodeInfo(AssetInfoHelper.AssetCheckResult.FailAssetNotExist),
+                    CustomStyles.ErrorTextStyle);
+            }
         }
 
         #endregion
 
         #region 公共方法 [PUBLIC METHODS]
-        
-        /// <summary>
-        /// 包名下拉：首项恒为默认资源包（空串），其后为后端包名清单；当前值不在清单中（包裹被改名 / 删除）时插到默认项之后，同 <see cref="CollectorPackageDropdownAttributeDrawer"/> 的置顶约定。
-        /// </summary>
-        private static void DrawPackagePopup(Rect rect, SerializedProperty packageProperty, string[] packages)
-        {
-            var options = new List<string>(packages.Length + 1) { string.Empty };
-            options.AddRange(packages);
-
-            string current = packageProperty.stringValue;
-            int index = current.Length == 0 ? 0 : options.IndexOf(current);
-            if (index < 0)
-            {
-                options.Insert(1, current);
-                index = 1;
-            }
-
-            var displayed = new GUIContent[options.Count];
-            displayed[0] = s_DefaultPackageContent;
-            for (int i = 1; i < options.Count; i++)
-            {
-                displayed[i] = new GUIContent(options[i]);
-            }
-
-            EditorGUI.BeginChangeCheck();
-            int selected = EditorGUI.Popup(rect, s_PackageContent, index, displayed);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(packageProperty.serializedObject.targetObject, "Change Package Name");
-                packageProperty.stringValue = options[selected];
-                packageProperty.serializedObject.ApplyModifiedProperties();
-            }
-        }
 
         /// <summary>
         /// 从字段类型解析 <c>AssetReference&lt;TObject&gt;</c> 的资源类型（兼容数组与泛型容器字段）。
@@ -157,17 +132,115 @@ namespace Moirai.Atropos.Resource.Editor
 
         #endregion
 
-        private static MethodInfo GetHelperMethod(Dictionary<Type, MethodInfo> cache, string name, Type assetType)
+        #region 私有方法 [PRIVATE METHODS]
+
+        /// <summary>
+        /// 包名下拉：选项与 <see cref="ResourceServiceSettings"/> 的 YooAsset 包名选择同源
+        /// （<see cref="CollectorPackageDropdownAttributeDrawer.CollectOptions"/>，当前值不在清单中时置顶），
+        /// 顶部恒有「留空」状态项——留空即使用后端默认资源包；清单未就绪时置灰占位。
+        /// </summary>
+        private static void DrawPackagePopup(SerializedProperty packageProp)
         {
-            if (cache.TryGetValue(assetType, out MethodInfo cached))
+            string current = packageProp.stringValue;
+            List<string> options = CollectorPackageDropdownAttributeDrawer.CollectOptions(current, out int index);
+            bool manifestEmpty = options.Count == 0;
+
+            string defaultName = ResourceServiceSettings.ResourceServiceHandler?.DefaultPackageName;
+            var emptyContent = new GUIContent(s_EmptyPackageText,
+                string.IsNullOrEmpty(defaultName)
+                    ? "留空：运行时使用后端配置的默认资源包"
+                    : $"留空：运行时使用后端默认资源包（{defaultName}）");
+
+            if (!manifestEmpty)
             {
-                return cached;
+                options.Insert(0, string.Empty);
+                index += 1; // 空串当前值经 CollectOptions 得 -1，+1 后恰落「留空」项
+            }
+            else
+            {
+                index = -1;
             }
 
-            MethodInfo open = typeof(AssetInfoHelper).GetMethod(name, BindingFlags.Public | BindingFlags.Static);
-            MethodInfo closed = open?.MakeGenericMethod(assetType);
-            cache[assetType] = closed;
-            return closed;
+            var displayed = manifestEmpty
+                ? new[] { CollectorPackageDropdownAttributeDrawer.s_NoPackages }
+                : new GUIContent[options.Count];
+            if (!manifestEmpty)
+            {
+                displayed[0] = emptyContent;
+                for (int i = 1; i < options.Count; i++)
+                {
+                    displayed[i] = new GUIContent(options[i]);
+                }
+            }
+
+            using (new EditorGUI.DisabledScope(manifestEmpty))
+            {
+                // 标签与下拉分离绘制：前缀标签式弹窗的标签区宽由宿主（Odin）控制的 labelWidth 决定，窄行内会把按钮挤成零宽
+                GUILayout.Label(s_PackageContent, GUILayout.Width(56f));
+
+                EditorGUI.BeginChangeCheck();
+                int selected = EditorGUILayout.Popup(index, displayed, GUILayout.MaxWidth(180));
+                if (EditorGUI.EndChangeCheck() && selected >= 0 && selected < options.Count)
+                {
+                    packageProp.stringValue = options[selected];
+                    packageProp.serializedObject.ApplyModifiedProperties();
+                    EditorUtility.SetDirty(packageProp.serializedObject.targetObject);
+                }
+            }
         }
+
+        /// <summary>
+        /// 标签 tooltip 附资源解析路径；已有 tooltip 时保留。
+        /// </summary>
+        private static GUIContent BuildLabel(GUIContent label, string path)
+        {
+            if (label == null)
+            {
+                return GUIContent.none;
+            }
+
+            if (string.IsNullOrEmpty(path))
+            {
+                return label;
+            }
+
+            string tooltip = string.IsNullOrEmpty(label.tooltip) ? path : label.tooltip + "\n" + path;
+            return new GUIContent(label.text, tooltip);
+        }
+
+        /// <summary>
+        /// 取该属性的 Unity 序列化属性；托管引用路径带前导点时剥掉重试（与检视器回退约定一致）。
+        /// </summary>
+        private static SerializedProperty FindUnityProperty(Sirenix.OdinInspector.Editor.InspectorProperty property)
+        {
+            try
+            {
+                string path = property.UnityPropertyPath;
+                if (!string.IsNullOrEmpty(path) && path.StartsWith("."))
+                {
+                    path = path.Substring(1);
+                }
+
+                var tree = property.Tree;
+                return tree.UnitySerializedObject?.FindProperty(path)
+                    ?? tree.GetUnityPropertyForPath(property.Path);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 应用序列化改动并标脏目标资产。
+        /// </summary>
+        private static void Apply(SerializedProperty property)
+        {
+            property.serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(property.serializedObject.targetObject);
+        }
+
+        #endregion
+
     }
 }
