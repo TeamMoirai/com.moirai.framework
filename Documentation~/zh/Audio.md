@@ -30,7 +30,7 @@ Runtime/Services/Audio/
 
 ## 架构（HandlerHost + 策略）
 
-- **`AudioService`**：静态外观，依赖 `DebuggerService`、`ResourceService`
+- **`AudioService`**：静态外观，依赖 `DebuggerService`、`ResourceService`（`OnInit` 同步加载音频设置）
 - **`AudioServiceHandler`**：后端抽象契约（含 `StopByID`、16B 热请求 `Play`、`OnAgentPlaybackEnded` 虚回调）。Master/音轨总线过渡由本契约**直接实现**（持 `AudioFadeScheduler`，落到 `IAudioFadeTarget.ApplyFade`），后端只需实现"音量写到哪儿"
 - **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**：Unity 与中间件后端共享的句柄注册与过渡调度（总线 Fade 用高位段伪句柄）
 - **`UnityAudioHandler`**：默认 Unity `AudioSource`/`AudioMixer` 后端
