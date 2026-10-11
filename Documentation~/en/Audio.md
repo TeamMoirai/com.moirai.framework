@@ -30,7 +30,7 @@ Runtime/Services/Audio/
 
 ## Architecture (HandlerHost + Strategy)
 
-- **`AudioService`**: Static facade; depends on `DebuggerService`, `ResourceService`
+- **`AudioService`**: Static facade; depends on `DebuggerService`, `ResourceService` (`OnInit` loads audio settings synchronously)
 - **`AudioServiceHandler`**: Backend contract (`StopByID`, 16-byte `Play`, virtual `OnAgentPlaybackEnded`). Master/track bus fades are **implemented here** (the contract owns the `AudioFadeScheduler` and lands values through `IAudioFadeTarget.ApplyFade`); a backend only has to say where a volume goes
 - **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**: Shared handle registry and fade scheduling for both backends (bus fades use high-segment pseudo-handles)
 - **`UnityAudioHandler`**: Default Unity `AudioSource`/`AudioMixer` backend

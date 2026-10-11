@@ -173,3 +173,7 @@
 #### 工具
 
 - `PathUtility.FormatToSysFilePath(null)` 从抛 `NullReferenceException` 改为返回 `null`，与 `FormatToUnityPath(null)` 的既有行为对称（UNC 格式化漏了同款 null 守卫）。
+
+#### 音频
+
+- `AudioService.OnInit` 改为直接同步调用 `LoadSettings()` 加载音频设置：读侧 `SettingUtility` 与各后端写侧均为同步操作，无延迟需求，启动首帧播放的音频即用用户偏好音量；此前经 `TimerService.WaitFrame(1, …)` 等帧，且初始化拓扑序不保证 `TimerService` 先就绪——该调度静默返回 `0UL`，设置实际从不加载。
