@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Resource;
-using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -59,8 +58,8 @@ namespace Moirai.Atropos.Audio
                 AudioAgentHostPool.Warmup(Handler.InstanceRoot, AudioServiceSettings.AudioHostWarmupCount);
             }
 
-            // 加载音频设置，必须等一帧设置才能生效
-            TimerService.WaitFrame(1, LoadSettings);
+            // 加载音频设置
+            LoadSettings();
 
             DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
 
