@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
@@ -12,6 +13,21 @@ namespace Moirai.Atropos.Editor
     /// </summary>
     public static class AssetInfoHelper
     {
+        /// <summary>
+        /// <see cref="CheckAssetGuidAndPath{T}"/> 结果缓存（检视器逐绘制帧调用，同一键一帧内重复求值多次）。
+        /// </summary>
+        /// <remarks>
+        /// 键含资源类型——<c>LoadAssetAtPath&lt;T&gt;</c> 成败随类型不同； <br />
+        /// 判定输入全随资产库状态走，故 <see cref="EditorApplication.projectChanged"/> 后失效即可；域重载本身复位。
+        /// </remarks>
+        private static readonly Dictionary<(Type type, string guid, string path), AssetCheckResult> s_CheckResultCache
+            = new Dictionary<(Type, string, string), AssetCheckResult>();
+
+        static AssetInfoHelper()
+        {
+            EditorApplication.projectChanged += s_CheckResultCache.Clear;
+        }
+
         public enum AssetCheckResult
         {
             /// <summary>路径正确但是 GUID 错误。</summary>
@@ -25,17 +41,30 @@ namespace Moirai.Atropos.Editor
             PassAssetBundle = 2,
             PassAssetPackage = 3,
         }
-        
+
         /// <summary>
-        /// 根据 GUID 检查资源是否合法。
+        /// 根据 GUID 检查资源是否合法（逐绘制帧调用，结果按域缓存）。
         /// </summary>
         public static AssetCheckResult CheckAssetGuidAndPath<T>(string guid, string path) where T : UObject
+        {
+            var key = (typeof(T), guid, path);
+            if (s_CheckResultCache.TryGetValue(key, out AssetCheckResult cached))
+            {
+                return cached;
+            }
+
+            AssetCheckResult result = CheckAssetGuidAndPathUncached<T>(guid, path);
+            s_CheckResultCache[key] = result;
+            return result;
+        }
+
+        private static AssetCheckResult CheckAssetGuidAndPathUncached<T>(string guid, string path) where T : UObject
         {
             if (string.IsNullOrEmpty(guid) && string.IsNullOrEmpty(path))
             {
                 return AssetCheckResult.Fail;
             }
-            
+
             T asset = AssetDatabase.LoadAssetAtPath<T>(path);
 
             string newPath = AssetDatabase.GUIDToAssetPath(guid);

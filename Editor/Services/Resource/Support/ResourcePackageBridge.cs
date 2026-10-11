@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using YooAsset.Editor;
 
 namespace Moirai.Atropos.Resource.Editor
@@ -11,28 +12,60 @@ namespace Moirai.Atropos.Resource.Editor
     /// 包名清单是编辑器侧数据（YooAsset 读收集器设置，见 <see cref="BundleCollectorSettingData"/>），运行时无此需求， <br />
     /// 故住 Editor 程序集而非 Runtime 接缝； <br />
     /// 返回 <c>null</c> 表示后端不消费包名（Addressables 单隐式目录，检视器不绘制包名行）； <br />
-    /// 空数组表示后端消费包名但清单未就绪（收集器未配置）或无编辑器桥（自定义后端），检视器退回自由文本。
+    /// 空数组表示后端消费包名但清单未就绪（收集器未配置）或无编辑器桥（自定义后端），检视器退回自由文本。 <br />
+    /// 本桥被检视器逐绘制帧调用，清单按域缓存，<see cref="EditorApplication.projectChanged"/> 后失效。
     /// </remarks>
     internal static class ResourcePackageBridge
     {
+        /// <summary>包名清单缓存：null 与「后端不消费包名」语义一致，一并缓存。</summary>
+        private static string[] s_PackageNames;
+
+        private static bool s_PackageNamesCached;
+
+        static ResourcePackageBridge()
+        {
+            // 收集器配置与设置资产都住在资产库里：导入/移动/保存均触发 projectChanged，域重载本身即复位
+            EditorApplication.projectChanged += InvalidatePackageNames;
+        }
+
         /// <summary>
-        /// 取后端可用的资源包名数组，<c>null</c> / 空数组的语义见类型备注。
+        /// 取后端可用的资源包名数组（逐绘制帧调用，走缓存），<c>null</c> / 空数组的语义见类型备注。
         /// </summary>
         internal static string[] GetPackageNames()
         {
+            if (s_PackageNamesCached)
+            {
+                return s_PackageNames;
+            }
+
             ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
-            
+
             switch (handler)
             {
                 case YooAssetHandler _:
-                    return CollectYooAssetPackages();
+                    s_PackageNames = CollectYooAssetPackages();
+                    break;
 #if ADDRESSABLES_INSTALLED
                 case AddressableHandler _:
-                    return null;
+                    s_PackageNames = null;
+                    break;
 #endif
                 default:
-                    return Array.Empty<string>();
+                    s_PackageNames = Array.Empty<string>();
+                    break;
             }
+
+            s_PackageNamesCached = true;
+            return s_PackageNames;
+        }
+
+        /// <summary>
+        /// 使包名清单缓存失效（<see cref="EditorApplication.projectChanged"/> 触发，收集器改动落盘即生效）。
+        /// </summary>
+        internal static void InvalidatePackageNames()
+        {
+            s_PackageNames = null;
+            s_PackageNamesCached = false;
         }
 
         /// <summary>
