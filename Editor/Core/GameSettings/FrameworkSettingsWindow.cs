@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Editor
     /// 框架配置统一管理窗口（Odin 实现）：自动发现所有 <c>FrameworkSettings&lt;T&gt;</c> 子类，侧边栏为 Odin 菜单树，内容区由 Odin 原生管线绘制。
     /// </summary>
     /// <remarks>
-    /// 侧边栏内置搜索 / 键盘导航 / 状态图标；内容区与独立 Inspector 同一宿主，managed reference 及其 Odin 特性完整生效；支持创建、Ping、重置和打开目录。
+    /// 侧边栏内置搜索 / 状态图标；内容区与独立 Inspector 同一宿主，managed reference 及其 Odin 特性完整生效；支持创建、Ping、重置和打开目录。
     /// </remarks>
     public class FrameworkSettingsWindow : OdinMenuEditorWindow
     {
@@ -292,7 +292,7 @@ namespace Moirai.Atropos.Editor
 
             tree.Config.DrawSearchToolbar = true;
             tree.Config.AutoScrollOnSelectionChanged = true;
-            tree.Config.AutoHandleKeyboardNavigation = true;
+            tree.Config.AutoHandleKeyboardNavigation = false;
             tree.Config.SearchFunction = MatchesSearch;
 
             foreach (var entry in _entries)
