@@ -22,6 +22,11 @@ namespace Moirai.Atropos.Resource.Editor
 
         private static bool s_PackageNamesCached;
 
+        /// <summary>收集器包名清单缓存：按域有效，<see cref="InvalidatePackageNames"/> 后重读。</summary>
+        private static string[] s_YooAssetPackages;
+
+        private static bool s_YooAssetPackagesCached;
+
         static ResourcePackageBridge()
         {
             // 收集器配置与设置资产都住在资产库里：导入/移动/保存均触发 projectChanged，域重载本身即复位
@@ -66,12 +71,33 @@ namespace Moirai.Atropos.Resource.Editor
         {
             s_PackageNames = null;
             s_PackageNamesCached = false;
+            s_YooAssetPackages = null;
+            s_YooAssetPackagesCached = false;
         }
 
         /// <summary>
-        /// 收集器设置（<see cref="BundleCollectorSettingData"/>）里已配置的资源包名，保持配置顺序、跳过空名。
+        /// 收集器设置（<see cref="BundleCollectorSettingData"/>）里已配置的资源包名，保持配置顺序、跳过空名；
+        /// 按域缓存，失效口径同 <see cref="GetPackageNames"/>。
         /// </summary>
+        /// <remarks>
+        /// 不可直读：<see cref="BundleCollectorSettingData.HasSettingAsset"/> 内部是全工程
+        /// <c>AssetDatabase.FindAssets("t:BundleCollectorSetting")</c>（实测单次约 27ms，峰值 606ms），
+        /// 而本方法经 <c>AssetReference</c> 与 <c>CollectorPackageDropdown</c> 两条检视路径按绘制帧调用。
+        /// </remarks>
         internal static string[] CollectYooAssetPackages()
+        {
+            if (s_YooAssetPackagesCached)
+            {
+                return s_YooAssetPackages;
+            }
+
+            s_YooAssetPackages = ReadYooAssetPackages();
+            s_YooAssetPackagesCached = true;
+            return s_YooAssetPackages;
+        }
+
+        /// <summary>无缓存直读收集器配置。</summary>
+        private static string[] ReadYooAssetPackages()
         {
             if (!BundleCollectorSettingData.HasSettingAsset())
             {
