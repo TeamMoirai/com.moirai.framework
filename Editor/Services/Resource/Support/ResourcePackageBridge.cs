@@ -13,9 +13,10 @@ namespace Moirai.Atropos.Resource.Editor
     /// 故住 Editor 程序集而非 Runtime 接缝； <br />
     /// 返回 <c>null</c> 表示后端不消费包名（Addressables 单隐式目录，检视器不绘制包名行）； <br />
     /// 空数组表示后端消费包名但清单未就绪（收集器未配置）或无编辑器桥（自定义后端），检视器退回自由文本。 <br />
-    /// 本桥被检视器逐绘制帧调用，清单按域缓存，<see cref="EditorApplication.projectChanged"/> 后失效。
+    /// 本桥被检视器逐绘制帧调用，清单按域缓存，<see cref="EditorApplication.projectChanged"/> 后失效。 <br />
+    /// <see cref="GetPackageNames"/> 对外公开：宿主自绘引用行（不走 <c>AssetReferenceDrawer</c>）时按同一清单、同一缓存取包名，避免第二份收集器读取实现。
     /// </remarks>
-    internal static class ResourcePackageBridge
+    public static class ResourcePackageBridge
     {
         /// <summary>包名清单缓存：null 与「后端不消费包名」语义一致，一并缓存。</summary>
         private static string[] s_PackageNames;
@@ -36,7 +37,7 @@ namespace Moirai.Atropos.Resource.Editor
         /// <summary>
         /// 取后端可用的资源包名数组（逐绘制帧调用，走缓存），<c>null</c> / 空数组的语义见类型备注。
         /// </summary>
-        internal static string[] GetPackageNames()
+        public static string[] GetPackageNames()
         {
             if (s_PackageNamesCached)
             {
@@ -82,7 +83,7 @@ namespace Moirai.Atropos.Resource.Editor
         /// <remarks>
         /// 不可直读：<see cref="BundleCollectorSettingData.HasSettingAsset"/> 内部是全工程
         /// <c>AssetDatabase.FindAssets("t:BundleCollectorSetting")</c>（实测单次约 27ms，峰值 606ms），
-        /// 而本方法经 <c>AssetReference</c> 与 <c>CollectorPackageDropdown</c> 两条检视路径按绘制帧调用。
+        /// 而本方法经 <c>AssetReference</c> 与 <c>ResourcePackageDropdown</c> 两条检视路径按绘制帧调用。
         /// </remarks>
         internal static string[] CollectYooAssetPackages()
         {
