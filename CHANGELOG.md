@@ -52,12 +52,17 @@
 
 - 新增 `[ProviderDropdown]` 对数组 / `List<T>` 字段的支持：特性放在集合字段上时每个元素各自获得实现类下拉与子属性展开（元素经 Odin 集合特性透传逐个走单字段绘制），集合的增删与重排由 Inspector 默认列表 UI 承担；此前该特性放在集合字段上会按单引用处理直接报错。
 - 新增 `[ProviderDisplay]` 类型级显示元数据（标注在候选实现类上，配合 `[ProviderDropdown]`）：`Title` 非空时替换下拉行与选中态的类型名显示，`Description` 非空时在下拉详情面板置顶优先显示（折行、高度随内容伸缩），无描述时面板回退显示 Type / Base / Assembly；两者全空等价于不标注。框架内置候选实现类（工具 Handler / 各服务后端 / 存档处理器与序列化器 / 密钥与加密提供方 / UI 双轨驱动者）已全部标注。
+- 新增 `FrameworkMenuWindowBase`（Odin 菜单窗口共享骨架）：上移 `FrameworkSettingsWindow` 与 Gameplay Database 窗口完全重复的窗口基建——信息头样式、EditorStyles 探针、域重载无条件建树与样式就绪补重建、防抖重建（重建前后回调交子类缓存/恢复选中）与工具栏按钮助手；新窗口继承即得全套。
 
 #### 性能
 
 - 新增 `[HotPath]` 标注与 HotPathAnalyzer 编译期守卫（MIRAI600 值类型装箱 / MIRAI601 热路径内匿名函数，Warning 级）：标注类型或方法即受检，未标注代码零诊断；首批覆盖 GameTime、服务查找三件套与 GameObject 池门面、Timer 双引擎与双 Handler、Pooling 内核与 MemoryPool 族，全量扫描验证零违例并捕获双引擎 WaitAsync 轮询谓词的按次委托分配（已改类级缓存）。
 
 ### Changed
+
+#### 编辑器
+
+- `FrameworkSettingsWindow` 工具栏计数标签改发现期缓存（此前逐 GUI 事件 LINQ 计数与插值串分配），工具栏按钮统一走基类助手。
 
 #### 目录结构
 
@@ -177,3 +182,7 @@
 #### 音频
 
 - `AudioService.OnInit` 改为直接同步调用 `LoadSettings()` 加载音频设置：读侧 `SettingUtility` 与各后端写侧均为同步操作，无延迟需求，启动首帧播放的音频即用用户偏好音量；此前经 `TimerService.WaitFrame(1, …)` 等帧，且初始化拓扑序不保证 `TimerService` 先就绪——该调度静默返回 `0UL`，设置实际从不加载。
+
+#### 编辑器
+
+- `FrameworkSettingsWindow` 已开窗口在脚本重编译后不再空白、需关窗重开：域重载回调里 `EditorStyles` 必未就绪（访问即抛 NRE），建树不再以它为前提——`OnEnable` 无条件建树，菜单加粗样式缺席时待样式就绪后补一次重建；信息头样式懒初始化同步改探针守卫。
