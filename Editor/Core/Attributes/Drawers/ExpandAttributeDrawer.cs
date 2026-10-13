@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using Moirai.Atropos.Attributes.Editor.Utils;
 using Sirenix.OdinInspector.Editor;
 using Sirenix.Utilities.Editor;
 using UnityEditor;
@@ -232,13 +233,12 @@ namespace Moirai.Atropos.Attributes.Editor.Drawers
 
         protected override void DrawPropertyLayout(GUIContent label)
         {
-            SerializedProperty prop = null;
-            try { prop = Property.Tree.GetUnityPropertyForPath(Property.UnityPropertyPath); }
-            catch { prop = null; }
+            SerializedProperty prop = Property.Tree.UnitySerializedObject?.FindProperty(Property.UnityPropertyPath);
 
             string titleText = ResolveTitle(label);
 
-            if (ExpandAttributeDrawer.IsObjectReference(prop))
+            // 无真实序列化槽位（纯 Odin 宿主 / [ShowInInspector] 成员）时 prop 为 null，交给下面两条 Odin 腿
+            if (prop != null && ExpandAttributeDrawer.IsObjectReference(prop))
             {
                 DrawObjectReferencePath(prop, titleText);
                 return;
