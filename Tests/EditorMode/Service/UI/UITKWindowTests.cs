@@ -28,7 +28,7 @@ namespace Service.UI
     public sealed class UITKWindowTests
     {
         /// <summary>真模板资产的定位地址：包内实存的调试器事件面板模板（只读消费，成功路径的装载判据）。</summary>
-        private const string TemplateAssetPath = "Packages/com.moirai.framework/Editor/Foundation/Events/Resources/EventsDebugger.uxml";
+        private const string TemplateAssetPath = "Packages/com.moirai.framework/Editor/Core/Events/Resources/EventsDebugger.uxml";
 
         /// <summary>真主题资产的定位地址：包内实存的调试器样式表（<c>ApplyTheme</c> 成功分支的挂载判据）。</summary>
         private const string ThemeAssetPath = "Packages/com.moirai.framework/Runtime/Services/Debugger/Resources/Debugger UI.uss";
@@ -36,7 +36,7 @@ namespace Service.UI
         /// <summary>同一个样式表的 Resources 地址：拿它与 <paramref name="ThemeAssetPath"/> 取到的对象比同一性，钉住「挂的就是取到的那一份」。</summary>
         private const string ThemeResourceName = "Debugger UI";
 
-        /// <summary>那个真模板的内置资源地址（它在 <c>Editor/Foundation/Events/Resources/</c> 下）：先证 <c>Resources.Load</c> 取不取得到，再决定 <c>fromResources</c> 那一支覆不覆。</summary>
+        /// <summary>那个真模板的内置资源地址（它在 <c>Editor/Core/Events/Resources/</c> 下）：先证 <c>Resources.Load</c> 取不取得到，再决定 <c>fromResources</c> 那一支覆不覆。</summary>
         private const string TemplateResourceName = "EventsDebugger";
 
         private GameObject _host;
