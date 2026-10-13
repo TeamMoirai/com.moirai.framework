@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Resource
 
         #region YooAsset 专有配置 [YOOASSET CONFIG]
 
-        [CollectorPackageDropdown]
+        [ResourcePackageDropdown]
         [LabelText("资源包名")]
         [SerializeField] private string m_DefaultPackageName = "Default";
 

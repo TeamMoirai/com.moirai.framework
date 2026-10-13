@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Moirai.Atropos.Editor;
 using Sirenix.OdinInspector.Editor;
 using UnityEditor;
@@ -9,7 +8,8 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Resource.Editor
 {
     /// <summary>
-    /// <see cref="AssetReference"/> 的 Odin 绘制器，单行绘制：对象字段选中即写回 GUID（标签 tooltip 附解析路径）、
+    /// <see cref="AssetReference"/> 的 Odin 绘制器，单行绘制：对象字段选中即写回 GUID、
+    /// 标签按字段名实宽自绘（tooltip 附解析路径）、控件框紧贴其后，
     /// 行尾「Package」包名下拉（后端不消费则不绘制，选项语义见 <see cref="DrawPackagePopup"/>）；
     /// GUID 悬空（资产已不存在）时行下报错。
     /// </summary>
@@ -24,9 +24,6 @@ namespace Moirai.Atropos.Resource.Editor
 
         private static readonly GUIContent s_PackageContent =
             new GUIContent("Package", "资源包名称，留空使用后端配置的默认资源包");
-
-        /// <summary>「留空」状态项的标记文案（全角括号使其区别于真实包裹名）。</summary>
-        private const string s_EmptyPackageText = "（留空 · 默认资源包）";
 
         #region 引擎方法 [UNITY METHODS]
 
@@ -64,11 +61,19 @@ namespace Moirai.Atropos.Resource.Editor
             string path = AssetDatabase.GUIDToAssetPath(guid);
             UObject current = string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath(path, assetType);
 
+            // 前缀标签式控件的标签列宽由宿主 labelWidth 决定（置 0 实测被当「默认 150」哨兵，无从收窄），
+            // 窄检视面板内字段名与控件框之间会空出整段标签列、控件框被挤出可视区；
+            // 故标签一律分离自绘、按字段名实宽自适应，控件框紧贴其后
             EditorGUILayout.BeginHorizontal();
 
             // 对象行：选中即写回 GUID
+            GUIContent fieldLabel = BuildLabel(label, path);
+            GUILayout.Label(fieldLabel, GUILayout.Width(EditorStyles.label.CalcSize(fieldLabel).x + 2f));
+
+            Rect fieldRect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight,
+                GUILayout.ExpandWidth(true));
             EditorGUI.BeginChangeCheck();
-            UObject selected = EditorGUILayout.ObjectField(BuildLabel(label, path), current, assetType, false);
+            UObject selected = EditorGUI.ObjectField(fieldRect, current, assetType, false);
             if (EditorGUI.EndChangeCheck())
             {
                 guidProp.stringValue = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(selected));
@@ -135,43 +140,12 @@ namespace Moirai.Atropos.Resource.Editor
         #region 私有方法 [PRIVATE METHODS]
 
         /// <summary>
-        /// 包名下拉：选项与 <see cref="ResourceServiceSettings"/> 的 YooAsset 包名选择同源
-        /// （<see cref="CollectorPackageDropdownAttributeDrawer.CollectOptions"/>，当前值不在清单中时置顶），
-        /// 顶部恒有「留空」状态项——留空即使用后端默认资源包；清单未就绪时置灰占位。
+        /// 包名下拉：行与置顶规则取自 <see cref="ResourcePackagePopup"/>（带「留空」项，清单与 <see cref="ResourceServiceSettings"/> 的
+        /// YooAsset 包名选择同源）；清单未就绪时置灰占位。
         /// </summary>
         private static void DrawPackagePopup(SerializedProperty packageProp)
         {
-            string current = packageProp.stringValue;
-            List<string> options = CollectorPackageDropdownAttributeDrawer.CollectOptions(current, out int index);
-            bool manifestEmpty = options.Count == 0;
-
-            string defaultName = ResourceServiceSettings.ResourceServiceHandler?.DefaultPackageName;
-            var emptyContent = new GUIContent(s_EmptyPackageText,
-                string.IsNullOrEmpty(defaultName)
-                    ? "留空：运行时使用后端配置的默认资源包"
-                    : $"留空：运行时使用后端默认资源包（{defaultName}）");
-
-            if (!manifestEmpty)
-            {
-                options.Insert(0, string.Empty);
-                index += 1; // 空串当前值经 CollectOptions 得 -1，+1 后恰落「留空」项
-            }
-            else
-            {
-                index = -1;
-            }
-
-            var displayed = manifestEmpty
-                ? new[] { CollectorPackageDropdownAttributeDrawer.s_NoPackages }
-                : new GUIContent[options.Count];
-            if (!manifestEmpty)
-            {
-                displayed[0] = emptyContent;
-                for (int i = 1; i < options.Count; i++)
-                {
-                    displayed[i] = new GUIContent(options[i]);
-                }
-            }
+            GUIContent[] displayed = ResourcePackagePopup.Build(packageProp.stringValue, true, out int index, out bool manifestEmpty);
 
             using (new EditorGUI.DisabledScope(manifestEmpty))
             {
@@ -180,9 +154,9 @@ namespace Moirai.Atropos.Resource.Editor
 
                 EditorGUI.BeginChangeCheck();
                 int selected = EditorGUILayout.Popup(index, displayed, GUILayout.MaxWidth(180));
-                if (EditorGUI.EndChangeCheck() && selected >= 0 && selected < options.Count)
+                if (EditorGUI.EndChangeCheck() && !manifestEmpty && selected >= 0 && selected < displayed.Length)
                 {
-                    packageProp.stringValue = options[selected];
+                    packageProp.stringValue = ResourcePackagePopup.Pick(displayed, true, selected);
                     packageProp.serializedObject.ApplyModifiedProperties();
                     EditorUtility.SetDirty(packageProp.serializedObject.targetObject);
                 }
