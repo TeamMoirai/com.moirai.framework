@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Editor
     /// <remarks>
     /// 侧边栏内置搜索 / 状态图标；内容区与独立 Inspector 同一宿主，managed reference 及其 Odin 特性完整生效；支持创建、Ping、重置和打开目录。
     /// </remarks>
-    public class FrameworkSettingsWindow : OdinMenuEditorWindow
+    public class FrameworkSettingsWindow : FrameworkMenuWindowBase
     {
         #region 菜单 [MENU]
 
@@ -50,76 +50,9 @@ namespace Moirai.Atropos.Editor
         private static readonly Color s_ExistsIconColor = new Color(0.30f, 0.80f, 0.42f);
         private static readonly Color s_MissingIconColor = new Color(0.95f, 0.58f, 0.18f);
 
-        // ── Odin LabelTextAttribute 的完整类型名，避免硬依赖 ──
+        // Odin LabelText 的类型名以字符串引用，避免硬依赖
         private const string ODIN_LABEL_TEXT_TYPE = "Sirenix.OdinInspector.LabelTextAttribute";
         private const string ODIN_LABEL_TEXT_PROP = "Text";
-
-        #endregion
-
-        #region 信息头样式 [HEADER STYLES]
-
-        /// <summary>
-        /// 信息头 GUIStyle 懒初始化。域重载早期 EditorStyles 未就绪时跳过，等下一帧重试。
-        /// </summary>
-        private static class HeaderStyles
-        {
-            private static bool s_Initialized;
-
-            public static GUIStyle HeaderBg;
-            public static GUIStyle Title;
-            public static GUIStyle Description;
-            public static GUIStyle Meta;
-            public static GUIStyle CountLabel;
-
-            /// <summary>样式是否已就绪。</summary>
-            public static bool IsReady => s_Initialized && Title != null;
-
-            public static void Init()
-            {
-                if (IsReady) return;
-                // 域重载后 EditorStyles 可能尚未初始化，此时属性返回 null，直接等下一帧
-                if (EditorStyles.boldLabel == null) return;
-
-                s_Initialized = true;
-
-                var headerBgTex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-                {
-                    hideFlags = HideFlags.HideAndDontSave
-                };
-                headerBgTex.SetPixel(0, 0, new Color(0.158f, 0.158f, 0.158f));
-                headerBgTex.Apply();
-
-                HeaderBg = new GUIStyle
-                {
-                    normal = { background = headerBgTex },
-                    padding = new RectOffset(14, 14, 12, 10)
-                };
-
-                Title = new GUIStyle(EditorStyles.boldLabel)
-                {
-                    fontSize = 17,
-                    normal = { textColor = new Color(0.95f, 0.95f, 0.95f) }
-                };
-
-                Description = new GUIStyle(EditorStyles.wordWrappedLabel)
-                {
-                    fontSize = 12,
-                    normal = { textColor = new Color(0.60f, 0.60f, 0.60f) }
-                };
-
-                Meta = new GUIStyle(EditorStyles.miniLabel)
-                {
-                    wordWrap = true,
-                    normal = { textColor = new Color(0.55f, 0.55f, 0.55f) }
-                };
-
-                // 工具栏计数：配合 ExpandHeight 铺满行高，垂直中心与按钮文字对齐
-                CountLabel = new GUIStyle(EditorStyles.miniLabel)
-                {
-                    alignment = TextAnchor.MiddleCenter
-                };
-            }
-        }
 
         #endregion
 
@@ -131,7 +64,7 @@ namespace Moirai.Atropos.Editor
         private sealed class SettingEntry
         {
             public Type type;
-            // 缓存 FrameworkSettings<T> 泛型基类及其 Instance 属性，避免每次操作都遍历继承链
+            // 反射缓存：避免每次操作遍历继承链
             public Type genericBase;
             public PropertyInfo instanceProp;
             public string title;
@@ -197,11 +130,14 @@ namespace Moirai.Atropos.Editor
         private List<SettingEntry> _entries;
         private readonly Dictionary<Type, SettingEntry> _entriesByType = new Dictionary<Type, SettingEntry>();
 
-        // delayCall 防抖：同帧多次触发只重建一次
-        private bool _rebuildQueued;
-
         // 工具栏条件按钮的选中条目：仅 Layout 遍刷新，保证同帧 Layout/Repaint 控件数一致
         private SettingEntry _toolbarEntry;
+
+        // 工具栏计数标签缓存：仅发现期更新，绘制期零分配
+        private string _toolbarCountLabel = "0/0";
+
+        // 重建前捕获的选中条目类型：重建后按类型恢复（Create Asset 流程依赖——未创建页选中重建后定位到新实例）
+        private Type _rebuildEntryType;
 
         #endregion
         
@@ -213,20 +149,7 @@ namespace Moirai.Atropos.Editor
             titleContent = new GUIContent("Framework Settings");
             MenuWidth = MENU_WIDTH;
             base.OnEnable();
-            // 此构建中基类 OnEnable/懒建路径都不会主动建树，需自行兜底；
-            // 域重载早期 EditorStyles 未就绪时跳过（BuildMenuTree 内样式代码依赖它），由 OnImGUI 的排队重建接管
-            // 注意 EditorStyles.label 该阶段本身会抛 NRE（非返回 null），守卫须 try/catch 包裹
-            if (MenuTree == null && IsEditorStylesReady())
-                ForceMenuTreeRebuild();
-        }
-
-        /// <summary>
-        /// EditorStyles 是否已就绪。域重载早期访问 EditorStyles.label 会抛 NRE（而非返回 null），须捕获判定。
-        /// </summary>
-        private static bool IsEditorStylesReady()
-        {
-            try { return EditorStyles.label != null; }
-            catch (NullReferenceException) { return false; }
+            EnsureMenuTreeBuilt();
         }
 
         private void OnFocus()
@@ -280,15 +203,7 @@ namespace Moirai.Atropos.Editor
 
             var tree = new OdinMenuTree(false);
 
-            // 侧边栏样式：条目名称加粗（含选中态）。
-            // DefaultLabelStyle 内部访问 EditorStyles，域重载早期为 null，未就绪时跳过定制
-            if (IsEditorStylesReady())
-            {
-                var menuStyle = tree.DefaultMenuStyle.Clone();
-                menuStyle.DefaultLabelStyle = new GUIStyle(menuStyle.DefaultLabelStyle) { fontStyle = FontStyle.Bold };
-                menuStyle.SelectedLabelStyle = new GUIStyle(menuStyle.SelectedLabelStyle) { fontStyle = FontStyle.Bold };
-                tree.DefaultMenuStyle = menuStyle;
-            }
+            ApplyMenuStyle(tree);
 
             tree.Config.DrawSearchToolbar = true;
             tree.Config.AutoScrollOnSelectionChanged = true;
@@ -340,23 +255,21 @@ namespace Moirai.Atropos.Editor
 
             if (_entries == null)
             {
-                // 域重载恢复后树未建（EditorStyles 未就绪跳过了 OnEnable 兜底），排队到 GUI 外重建
                 QueueTreeRebuild();
                 return;
             }
 
-            // 选中条目仅在 Layout 遍求值，避免帧内选中状态变化导致控件数不匹配异常
+            // 仅 Layout 遍求值，避免帧内选中变化导致控件数不匹配
             if (Event.current.type == EventType.Layout)
                 _toolbarEntry = GetSelectedEntry();
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                // 刷新按钮钉在左上角：计数标签排其后、宽度随内容伸缩，设置数量再多也不改变按钮的绝对位置
-                if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(64)))
+                // Refresh 固定最左，计数随后自适应宽度，按钮位置不随条目数变化
+                if (ToolbarButton("Refresh", 64f))
                     QueueTreeRebuild();
 
-                int loadedCount = _entries.Count(e => e.Exists);
-                GUILayout.Label($"{loadedCount}/{_entries.Count}",
+                GUILayout.Label(_toolbarCountLabel,
                     HeaderStyles.IsReady ? HeaderStyles.CountLabel : EditorStyles.miniLabel,
                     GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(true));
 
@@ -367,21 +280,21 @@ namespace Moirai.Atropos.Editor
                 {
                     if (entry.Exists)
                     {
-                        if (GUILayout.Button("Ping", EditorStyles.toolbarButton, GUILayout.Width(48)))
+                        if (ToolbarButton("Ping", 48f))
                             EditorGUIUtility.PingObject(entry.instance);
-                        if (GUILayout.Button("Reset", EditorStyles.toolbarButton, GUILayout.Width(64)))
+                        if (ToolbarButton("Reset", 64f))
                             ResetSetting(entry);
                     }
-                    else if (GUILayout.Button("Create", EditorStyles.toolbarButton, GUILayout.Width(64)))
+                    else if (ToolbarButton("Create", 64f))
                     {
                         CreateOrPingAsset(entry);
                     }
-                    if (GUILayout.Button("Open Folder", EditorStyles.toolbarButton, GUILayout.Width(88)))
+                    if (ToolbarButton("Open Folder", 88f))
                         OpenSaveFolder(entry);
                 }
             }
 
-            // 此 Odin 版本中 OnImGUI 是 OnGUI 绘制链的虚入口，必须调用 base 才会绘制菜单树与编辑器区
+            // 此 Odin 版本必须调 base.OnImGUI 才会绘制菜单树与编辑器区
             base.OnImGUI();
         }
 
@@ -416,7 +329,6 @@ namespace Moirai.Atropos.Editor
 
             using (new EditorGUILayout.VerticalScope(HeaderStyles.IsReady ? HeaderStyles.HeaderBg : EditorStyles.helpBox))
             {
-                // 标题行：名称 + Script 引用（对齐 Unity 默认 Inspector 的 Script 字段）
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     var titleContent = entry.title;
@@ -473,7 +385,6 @@ namespace Moirai.Atropos.Editor
                     instance = TryLoadAsset(folder + t.Name + ".asset", t)
                 };
 
-                // 构建字段级搜索文本
                 BuildFieldSearchText(entry);
                 _entries.Add(entry);
                 _entriesByType[t] = entry;
@@ -484,6 +395,15 @@ namespace Moirai.Atropos.Editor
                 int cmp = a.order.CompareTo(b.order);
                 return cmp != 0 ? cmp : string.Compare(a.title, b.title, StringComparison.Ordinal);
             });
+
+            // 工具栏计数：仅发现期更新，绘制期零分配
+            int loadedCount = 0;
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                if (_entries[i].Exists) loadedCount += 1;
+            }
+
+            _toolbarCountLabel = $"{loadedCount}/{_entries.Count}";
         }
 
         /// <summary>
@@ -496,7 +416,7 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 向上遍历继承链，找到具体的 <c>FrameworkSettings&lt;T&gt;</c> 泛型基类；CRTP 模式下须检查泛型定义，不能直接用 <c>IsAssignableFrom</c>。
+        /// 向上遍历继承链找 <c>FrameworkSettings&lt;T&gt;</c> 泛型基类；CRTP 下须比对泛型定义，<c>IsAssignableFrom</c> 不可用。
         /// </summary>
         private static Type FindGenericBaseType(Type type)
         {
@@ -521,45 +441,32 @@ namespace Moirai.Atropos.Editor
         #region 字段搜索文本构建器 [FIELD SEARCH BUILDER]
 
         /// <summary>
-        /// 扫描 <c>entry.type</c> 的所有序列化字段，把字段名（Nicified）、<c>[Tooltip]</c>、<c>[Header]</c>、Odin <c>[LabelText]</c> 文本拼成一个字符串。
+        /// 把字段名（Nicified + 原始名）、<c>[Tooltip]</c>、<c>[Header]</c>、Odin <c>[LabelText]</c> 拼成一段搜索文本，供一次性匹配。
         /// </summary>
-        /// <remarks>
-        /// 供搜索时一次性匹配，避免逐帧反射。
-        /// </remarks>
         private static void BuildFieldSearchText(SettingEntry entry)
         {
             var sb = new StringBuilder(256);
             var visitedHeaders = new HashSet<string>();
 
-            // 同时扫描基类链上的字段（直到 FrameworkSettings<T> / ScriptableObject）
             var chain = new List<FieldInfo>();
             CollectFieldsUpChain(entry.type, chain);
 
             foreach (var field in chain)
             {
-                // 跳过不可序列化的私有字段
+                // 跳过不可序列化的私有字段与 static / readonly / const
                 if (field.IsPrivate && field.GetCustomAttribute<SerializeField>() == null) continue;
-
-                // 跳过 static / readonly / const / volatile
                 if (field.IsStatic || field.IsInitOnly || field.IsLiteral) continue;
 
-                // 1. 字段名（Nicified）
-                string niceName = NicifyFieldName(field.Name);
-                sb.AppendLine(niceName);
-
-                // 同时追加原始字段名，方便搜索 m_moveSpeed → "moveSpeed"
+                sb.AppendLine(NicifyFieldName(field.Name));
                 sb.AppendLine(field.Name);
 
-                // 2. [Tooltip("...")]
                 var tooltip = field.GetCustomAttribute<TooltipAttribute>();
                 if (tooltip != null && !string.IsNullOrEmpty(tooltip.tooltip)) sb.AppendLine(tooltip.tooltip);
 
-                // 3. [Header("...")]
                 var header = field.GetCustomAttribute<HeaderAttribute>();
                 if (header != null && !string.IsNullOrEmpty(header.header) && visitedHeaders.Add(header.header))
                     sb.AppendLine(header.header);
 
-                // 4. [LabelText("...")] — Odin Inspector，通过类型名反射避免硬依赖
                 TryAppendOdinLabelText(field, sb);
             }
             entry.fieldSearchText = sb.ToString();
@@ -574,7 +481,6 @@ namespace Moirai.Atropos.Editor
             var current = type;
             while (current != null && current != typeof(ScriptableObject) && current != typeof(UObject))
             {
-                // 遇到 FrameworkSettings<T> 泛型基类时停止
                 if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(FrameworkSettings<>))
                     break;
 
@@ -618,43 +524,29 @@ namespace Moirai.Atropos.Editor
         #region 重建 [REBUILD]
 
         /// <summary>
-        /// 防抖重建：经 delayCall 延迟到 GUI 事件外执行，避免 GUI 事件中途重建菜单树。
+        /// 重建前捕获选中条目类型，重建后按类型恢复选中（未创建页 → Create Asset 后定位到新实例）。
         /// </summary>
-        private void QueueTreeRebuild()
+        protected override void OnBeforeTreeRebuild(object previousSelection)
         {
-            if (_rebuildQueued) return;
-            _rebuildQueued = true;
-            EditorApplication.delayCall += () =>
-            {
-                _rebuildQueued = false;
-                if (this == null) return;
-                RebuildTreePreservingSelection();
-            };
+            _rebuildEntryType = GetSelectedEntry()?.type;
         }
 
-        /// <summary>
-        /// 重建菜单树并按类型恢复选中项（重建会重新发现与加载资产）。
-        /// </summary>
-        private void RebuildTreePreservingSelection()
+        protected override void OnAfterTreeRebuild(object previousSelection)
         {
-            Type selectedType = GetSelectedEntry()?.type;
-            ForceMenuTreeRebuild();
-
-            if (selectedType != null
-                && _entriesByType.TryGetValue(selectedType, out var entry)
+            if (_rebuildEntryType != null
+                && _entriesByType.TryGetValue(_rebuildEntryType, out SettingEntry entry)
                 && entry.Exists
                 && MenuTree != null)
             {
                 TrySelectMenuItemWithObject(entry.instance);
             }
+
+            _rebuildEntryType = null;
         }
 
         /// <summary>
-        /// 按配置类型在菜单树中选中对应条目（已创建匹配资产本体，未创建匹配创建页面），树未就绪时延迟到下一帧重试。
+        /// 按配置类型选中菜单条目；树未就绪时延迟重试。编程式选中必须走 <c>OdinMenuItem.Select</c>。
         /// </summary>
-        /// <remarks>
-        /// 编程式选中必须走 <c>OdinMenuItem.Select</c>；<c>TrySelectMenuItemWithObject</c> 延迟到下一次 OnGUI 消费，窗口无焦点时不生效。
-        /// </remarks>
         private void SelectEntry(Type type)
         {
             if (type == null) return;
@@ -679,7 +571,6 @@ namespace Moirai.Atropos.Editor
                 if (!match) continue;
 
                 item.Select(false);
-                // AutoScrollOnSelectionChanged 已开启，选中即自动滚动到可见区域
                 Repaint();
                 return;
             }
@@ -690,7 +581,7 @@ namespace Moirai.Atropos.Editor
         #region 操作 [ACTIONS]
 
         /// <summary>
-        /// 创建或 Ping 配置资产：反射调用 <c>FrameworkSettings&lt;T&gt;.Instance</c>，因为具体泛型参数 <c>T</c> 在编译期未知。
+        /// 创建或 Ping 配置资产：创建经反射调 <c>Instance</c>（泛型参数 <c>T</c> 编译期未知）。
         /// </summary>
         private void CreateOrPingAsset(SettingEntry entry)
         {
@@ -714,12 +605,12 @@ namespace Moirai.Atropos.Editor
             }
 
             EditorGUIUtility.PingObject(instance);
-            // Instance 首次调用会在磁盘创建资产；重建后按对象选中新条目
+            // Instance 首次调用会在磁盘创建资产
             QueueTreeRebuild();
         }
 
         /// <summary>
-        /// 二次确认后把配置重置到默认值：创建临时实例并 <c>CopySerialized</c> 恢复全部序列化字段（等效 Inspector 的 Reset），保留资产原有 <c>m_Name</c>。
+        /// 二次确认后用临时实例 <c>CopySerialized</c> 重置全部序列化字段（等效 Inspector 的 Reset），保留 <c>m_Name</c>。
         /// </summary>
         private void ResetSetting(SettingEntry entry)
         {
