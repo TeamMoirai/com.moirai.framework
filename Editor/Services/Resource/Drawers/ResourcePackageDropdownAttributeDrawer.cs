@@ -1,4 +1,4 @@
-using System;
+using Moirai.Atropos.Attributes.Editor.Utils;
 using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -27,15 +27,7 @@ namespace Moirai.Atropos.Resource.Editor
 
             bool allowEmpty = Attribute.AllowEmpty;
 
-            // 门必须只看 Unity 自己的 FindProperty：Odin 的 GetUnityPropertyForPath 查不到路径时会经 UnityPropertyEmitter
-            // 造一个假的 SerializedProperty 返回（实测永不 null），于是 [ShowInInspector] 句柄属性也被判成有序列化后端，
-            // 选中的包名写进那个凭空对象——属性 setter 不被调用、行弹回「留空」（InspectorProperty.UnityPropertyPath 的文档自述：
-            // 它只是 Path 的转换形态，"未必指向真实的 Unity 属性"）。
-            // managed reference 子字段的路径带前导点（实测 ".m_ResourceServiceHandler.m_PackageName"），故原样与剥点各试一次。
-            // 两次都取不到（纯 Odin 宿主 / 无 SerializedObject / 句柄属性）时走 ValueEntry 驱动的 popup，与 ProviderDropdownDrawer 同一套回退约定。
-            SerializedProperty prop = FindUnityProperty(Property.UnityPropertyPath);
-            if (prop == null)
-                prop = FindUnityProperty(NormalizeUnityPath(Property.UnityPropertyPath));
+            SerializedProperty prop = Property.Tree.UnitySerializedObject?.FindProperty(Property.UnityPropertyPath);
 
             GUIContent rowLabel = label ?? GUIContent.none;
             Rect rowRect = EditorGUILayout.GetControlRect(
@@ -78,25 +70,6 @@ namespace Moirai.Atropos.Resource.Editor
                 }
             }
         }
-
-        /// <summary>
-        /// 按 Unity 路径取真属性：只认 <see cref="PropertyTree.UnitySerializedObject"/> 的 <c>FindProperty</c>（查不到返回 null），
-        /// 不经 <c>GetUnityPropertyForPath</c>——那条对不存在的路径会用 <c>UnityPropertyEmitter</c> 造一个假属性返回。
-        /// </summary>
-        private SerializedProperty FindUnityProperty(string path)
-        {
-            if (string.IsNullOrEmpty(path)) return null;
-
-            try
-            {
-                return Property.Tree.UnitySerializedObject?.FindProperty(path);
-            }
-            catch { return null; }
-        }
-
-        /// <summary>剥掉 managed reference 子属性路径的前导点；没有前导点时原样返回。</summary>
-        private static string NormalizeUnityPath(string path) =>
-            path != null && path.StartsWith(".") ? path.Substring(1) : path;
 
         /// <summary>
         /// 无 SerializedProperty 时（纯 Odin 宿主、<c>[ShowInInspector]</c> 句柄属性）：用 Odin ValueEntry 读写包裹名，仍从收集器设置取选项。

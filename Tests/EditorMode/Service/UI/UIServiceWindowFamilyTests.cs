@@ -30,7 +30,7 @@ namespace Service.UI
     [TestFixture]
     public sealed class UIServiceWindowFamilyTests
     {
-        /// <summary>同一个模板的内置资源地址（它住在 <c>Editor/Foundation/Events/Resources/</c> 下）：AB 那一路拿它取不到东西，两档因此互为反证。</summary>
+        /// <summary>同一个模板的内置资源地址（它住在 <c>Editor/Core/Events/Resources/</c> 下）：AB 那一路拿它取不到东西，两档因此互为反证。</summary>
         private const string TEMPLATE_RESOURCE_NAME = "EventsDebugger";
 
         /// <summary>夹具用的共享面板配置（包内实存资产）：本文件只读消费，用例出门把静态位还原。</summary>

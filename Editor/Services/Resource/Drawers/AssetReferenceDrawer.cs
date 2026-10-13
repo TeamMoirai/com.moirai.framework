@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Resource.Editor
                 return;
             }
 
-            SerializedProperty property = FindUnityProperty(Property);
+            SerializedProperty property = Property.Tree.UnitySerializedObject?.FindProperty(Property.UnityPropertyPath);
             if (property == null)
             {
                 CallNextDrawer(label);
@@ -180,29 +180,6 @@ namespace Moirai.Atropos.Resource.Editor
 
             string tooltip = string.IsNullOrEmpty(label.tooltip) ? path : label.tooltip + "\n" + path;
             return new GUIContent(label.text, tooltip);
-        }
-
-        /// <summary>
-        /// 取该属性的 Unity 序列化属性；托管引用路径带前导点时剥掉重试（与检视器回退约定一致）。
-        /// </summary>
-        private static SerializedProperty FindUnityProperty(Sirenix.OdinInspector.Editor.InspectorProperty property)
-        {
-            try
-            {
-                string path = property.UnityPropertyPath;
-                if (!string.IsNullOrEmpty(path) && path.StartsWith("."))
-                {
-                    path = path.Substring(1);
-                }
-
-                var tree = property.Tree;
-                return tree.UnitySerializedObject?.FindProperty(path)
-                    ?? tree.GetUnityPropertyForPath(property.Path);
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         /// <summary>
