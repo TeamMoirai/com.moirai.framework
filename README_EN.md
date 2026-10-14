@@ -38,17 +38,6 @@ Moirai Framework
 ## 📚 Table of Contents
 
 - [🚀 Quick Start](#-quick-start)
-  - [Requirements](#requirements)
-  - [Installation](#installation)
-    - [Option 1: One-Click Installer (Recommended)](#option-1-one-click-installer-recommended)
-    - [Option 2: UPM](#option-2-upm)
-    - [Option 3: Manual](#option-3-manual)
-  - [Initial Setup](#initial-setup)
-    - [Scene In Build](#scene-in-build)
-    - [Config Table Service](#config-table-service)
-  - [Running](#running)
-    - [Editor Play](#editor-play)
-    - [Build & Run (Hot Update Workflow)](#build--run-hot-update-workflow)
 - [🏗️ Architecture](#-architecture)
   - [Service System](#service-system)
   - [Startup Chain](#startup-chain)
