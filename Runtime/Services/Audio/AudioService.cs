@@ -300,82 +300,35 @@ namespace Moirai.Atropos.Audio
             s_Handler?.Play(clip, request, cold) ?? 0UL;
 
         /// <summary>
-        /// 播放音频（传统巨型签名重载，仅为兼容保留）。
+        /// 在指定位置播放音频（常用 3D SFX 入口）；其余参数从 <see cref="AudioPlayOptions.Create(EAudioTrack)"/> 起覆盖。
         /// </summary>
-        /// <remarks>内部转发到 <see cref="AudioPlayOptions"/> 路径；新代码请用参数对象。</remarks>
-        [Obsolete("使用 Play(AudioClip, in AudioPlayOptions) 或 Play(AudioClip, in AudioPlayRequest, AudioPlayColdParams)", false)]
-        public static ulong Play(AudioClip clip, EAudioTrack track, Vector3 location,
-            bool loop = false,
-            float volume = 1, int id = 0, bool fade = false, float fadeInitialVolume = 0, float fadeDuration = 1,
-            TweenEase fadeTweenEase = default, bool persistent = false, AudioSource recycleAudioSource = null,
-            AudioMixerGroup audioGroup = null, float pitch = 1, float panStereo = 0, float spatialBlend = 0,
-            bool soloSingleTrack = false, bool soloAllTracks = false, bool autoUnSoloOnEnd = false,
-            bool bypassEffects = false,
-            bool bypassListenerEffects = false, bool bypassReverbZones = false, int priority = 128,
-            float reverbZoneMix = 1,
-            float dopplerLevel = 1, int spread = 0, AudioRolloffMode rolloffMode = AudioRolloffMode.Logarithmic,
-            float minDistance = 1, float maxDistance = 500, bool doNotAutoRecycleIfNotDonePlaying = true,
-            float playbackTime = 0, float playbackDuration = 0, Transform attachToTransform = null,
-            bool useSpreadCurve = false,
-            AnimationCurve spreadCurve = null, bool useCustomRolloffCurve = false,
-            AnimationCurve customRolloffCurve = null,
-            bool useSpatialBlendCurve = false, AnimationCurve spatialBlendCurve = null,
-            bool useReverbZoneMixCurve = false, AnimationCurve reverbZoneMixCurve = null,
-            float initialDelay = 0f)
+        public static ulong Play(AudioClip clip, EAudioTrack track, Vector3 location, float volume = 1, bool loop = false)
         {
-            if (s_Handler == null) return 0UL;
-
-            return s_Handler.Play(clip, AudioServiceHandler.BuildOptions(track, location, loop, volume, id, fade,
-                fadeInitialVolume, fadeDuration, fadeTweenEase, persistent, recycleAudioSource, audioGroup, pitch,
-                panStereo, spatialBlend, soloSingleTrack, soloAllTracks, autoUnSoloOnEnd, bypassEffects,
-                bypassListenerEffects, bypassReverbZones, priority, reverbZoneMix, dopplerLevel, spread, rolloffMode,
-                minDistance, maxDistance, doNotAutoRecycleIfNotDonePlaying, playbackTime, playbackDuration,
-                attachToTransform, useSpreadCurve, spreadCurve, useCustomRolloffCurve, customRolloffCurve,
-                useSpatialBlendCurve, spatialBlendCurve, useReverbZoneMixCurve, reverbZoneMixCurve, initialDelay));
+            AudioPlayOptions options = AudioPlayOptions.Create(track);
+            options.Location = location;
+            options.Volume = volume;
+            options.Loop = loop;
+            return s_Handler?.Play(clip, options) ?? 0UL;
         }
 
         /// <summary>
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
         /// <remarks>默认异步加载；同步加载（<paramref name="bAsync"/>=false）会阻塞主线程，仅限启动期/预加载场景使用。</remarks>
-        public static ulong Play(string path, in AudioPlayOptions options, bool bAsync = true, bool bInPool = false) =>
-            s_Handler?.Play(path, options, bAsync, bInPool) ?? 0UL;
-
+        public static ulong Play(string path, in AudioPlayOptions options, bool bAsync = true) =>
+            s_Handler?.Play(path, options, bAsync) ?? 0UL;
+        
         /// <summary>
-        /// 播放音频（传统巨型签名重载，仅为兼容保留）。
+        /// 在指定位置播放音频（常用 3D SFX 入口）；其余参数从 <see cref="AudioPlayOptions.Create(EAudioTrack)"/> 起覆盖。
         /// </summary>
-        /// <remarks>内部转发到 <see cref="AudioPlayOptions"/> 路径；默认值与各工厂方法/契约对齐（DoNotAutoRecycle 为 true）。
-        /// 默认异步加载；同步加载（<paramref name="bAsync"/>=false）会阻塞主线程，仅限启动期/预加载场景使用。</remarks>
-        [Obsolete("使用 Play(AudioClip, in AudioPlayOptions) 或 Play(AudioClip, in AudioPlayRequest, AudioPlayColdParams)", false)]
-        public static ulong Play(string path, EAudioTrack track, Vector3 location, bool bAsync = true, bool bInPool = false,
-            bool loop = false, float volume = 1.0f, int id = 0,
-            bool fade = false, float fadeInitialVolume = 0f, float fadeDuration = 1f, TweenEase fadeTweenEase = default,
-            bool persistent = false,
-            AudioSource recycleAudioSource = null, AudioMixerGroup audioGroup = null,
-            float pitch = 1f, float panStereo = 0f, float spatialBlend = 0.0f,
-            bool soloSingleTrack = false, bool soloAllTracks = false, bool autoUnSoloOnEnd = false,
-            bool bypassEffects = false, bool bypassListenerEffects = false, bool bypassReverbZones = false,
-            int priority = 128, float reverbZoneMix = 1f,
-            float dopplerLevel = 1f, int spread = 0, AudioRolloffMode rolloffMode = AudioRolloffMode.Logarithmic,
-            float minDistance = 1f, float maxDistance = 500f,
-            bool doNotAutoRecycleIfNotDonePlaying = true, float playbackTime = 0f, float playbackDuration = 0f,
-            Transform attachToTransform = null,
-            bool useSpreadCurve = false, AnimationCurve spreadCurve = null, bool useCustomRolloffCurve = false,
-            AnimationCurve customRolloffCurve = null,
-            bool useSpatialBlendCurve = false, AnimationCurve spatialBlendCurve = null,
-            bool useReverbZoneMixCurve = false, AnimationCurve reverbZoneMixCurve = null,
-            float initialDelay = 0f)
+        /// <remarks>默认异步加载；同步加载（<paramref name="bAsync"/>=false）会阻塞主线程，仅限启动期/预加载场景使用。</remarks>
+        public static ulong Play(string path, EAudioTrack track, Vector3 location, float volume = 1, bool loop = false, bool bAsync = true)
         {
-            if (s_Handler == null) return 0UL;
-
-            return s_Handler.Play(path, AudioServiceHandler.BuildOptions(track, location, loop, volume, id, fade,
-                fadeInitialVolume, fadeDuration, fadeTweenEase, persistent, recycleAudioSource, audioGroup, pitch,
-                panStereo, spatialBlend, soloSingleTrack, soloAllTracks, autoUnSoloOnEnd, bypassEffects,
-                bypassListenerEffects, bypassReverbZones, priority, reverbZoneMix, dopplerLevel, spread, rolloffMode,
-                minDistance, maxDistance, doNotAutoRecycleIfNotDonePlaying, playbackTime, playbackDuration,
-                attachToTransform, useSpreadCurve, spreadCurve, useCustomRolloffCurve, customRolloffCurve,
-                useSpatialBlendCurve, spatialBlendCurve, useReverbZoneMixCurve, reverbZoneMixCurve, initialDelay),
-                bAsync, bInPool);
+            AudioPlayOptions options = AudioPlayOptions.Create(track);
+            options.Location = location;
+            options.Volume = volume;
+            options.Loop = loop;
+            return s_Handler?.Play(path, options, bAsync) ?? 0UL;
         }
 
         #endregion 播放音频 [PLAY AUDIO]
