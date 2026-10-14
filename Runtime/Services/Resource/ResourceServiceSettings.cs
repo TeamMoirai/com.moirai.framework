@@ -11,13 +11,8 @@ namespace Moirai.Atropos.Resource
         [BoxGroup(BASE_GROUP)]
         [LabelText("资源运行模式")]
         [SerializeField] private EResourcePlayMode m_PlayMode = EResourcePlayMode.EditorSimulate;
-#if !UNITY_EDITOR
-        // getter 不回写资产值，所以"EditorSimulate 要归一"这个判定每次读取都会走到；
-        // 本标志只保证那条 Error 打一次。进程内单次判定即可，无需跨域重载复位。
-        private static bool s_OfflineFallbackReported;
-#endif
         /// <summary>资源运行模式（玩家构建读作 <see cref="EResourcePlayMode.OfflinePlay"/>，EditorSimulate 归一而来）。</summary>
-        /// <remarks>归一不回写资产原值（要看原值请读检视面板）；首次读取归一时打一次 Error。</remarks>
+        /// <remarks>归一不回写资产原值（要看原值请读检视面板），也不打日志——静默降级。</remarks>
         public static EResourcePlayMode PlayMode
         {
             get
@@ -25,22 +20,7 @@ namespace Moirai.Atropos.Resource
 #if !UNITY_EDITOR
                 if (Instance.m_PlayMode == EResourcePlayMode.EditorSimulate)
                 {
-                    // EditorSimulate 只在编辑器里有意义，玩家构建里它只能整体退回离线。
-                    // 但"退回离线"等于关掉全部远程热更，而此前它一行日志都不打：
-                    // 该远程拉包的包就这么整包离线发行，而 OnInit 那行 Run Mode 读到的
-                    // 恰恰是被改写之后的值，运维看不出资产里原本写了什么。
-                    if (!s_OfflineFallbackReported)
-                    {
-                        s_OfflineFallbackReported = true;
-                        LogUtility.Error("ResourceServiceSettings.m_PlayMode is EditorSimulate, which only exists in the " +
-                            "editor; falling back to OfflinePlay for this player build, so NO remote resource will be " +
-                            "fetched. Set it to HostPlay/WebPlay in " +
-                            "Assets/Settings/Framework/Resources/ResourceServiceSettings.asset to enable hot update.");
-                    }
-
-                    // 只在读取处归一，不回写 Instance.m_PlayMode：那等于让一次 getter
-                    // 悄悄改掉共享的 ScriptableObject 实例，把"运维本该发现的配置错误"
-                    // 掩盖成一份看起来本来就对的资产。
+                    // 只在读取处归一，不回写 Instance.m_PlayMode。
                     return EResourcePlayMode.OfflinePlay;
                 }
 #endif

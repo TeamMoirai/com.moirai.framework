@@ -44,6 +44,15 @@ namespace Moirai.Atropos.Resource
             lease.Kind = leaseKind;
             lease.State = EResourceLeaseState.Active;
             lease.Flags = (byte)options;
+#if UNITY_EDITOR
+            if (ResourceLeaseProvenance.Enabled)
+            {
+                var source = ResourceLeaseProvenance.Capture();
+                lease.SourceDisplay = source.Display;
+                lease.SourceFile = source.File;
+                lease.SourceLine = source.Line;
+            }
+#endif
             return new ResourceLeaseHandle(leaseIndex, lease.Generation);
         }
 
@@ -59,6 +68,12 @@ namespace Moirai.Atropos.Resource
             int assetId = lease.AssetId;
             EResourceLeaseOption options = (EResourceLeaseOption)lease.Flags;
             lease.State = EResourceLeaseState.Released;
+#if UNITY_EDITOR
+            // 归还即断掉来源字符串：槽位会被复用，留着就把上一个租户的调用点算到下一个头上
+            lease.SourceDisplay = null;
+            lease.SourceFile = null;
+            lease.SourceLine = 0;
+#endif
 
             if (lease.Kind == EResourceLeaseKind.Binding)
             {
@@ -162,5 +177,32 @@ namespace Moirai.Atropos.Resource
             ref LeaseSlot lease = ref GetLeaseSlotRef(leaseIndex);
             lease.Flags = (byte)options;
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// 读一条租约的取用来源：句柄失效、开关未开或该次取用没采到来源时回假。
+        /// </summary>
+        /// <remarks>来源只在 <see cref="ResourceLeaseProvenance.Enabled"/> 为真时写入，所以为假不代表租约不是本框取的，只代表当时没记。</remarks>
+        internal bool TryGetLeaseSource(ResourceLeaseHandle handle, out string display, out string file, out int line)
+        {
+            display = file = string.Empty;
+            line = 0;
+            if (!TryGetLeaseSlotIndex(handle, out int leaseIndex))
+            {
+                return false;
+            }
+
+            ref LeaseSlot lease = ref GetLeaseSlotRef(leaseIndex);
+            if (string.IsNullOrEmpty(lease.SourceDisplay))
+            {
+                return false;
+            }
+
+            display = lease.SourceDisplay;
+            file = lease.SourceFile;
+            line = lease.SourceLine;
+            return true;
+        }
+#endif
     }
 }

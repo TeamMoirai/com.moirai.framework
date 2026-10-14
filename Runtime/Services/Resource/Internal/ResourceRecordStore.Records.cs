@@ -56,6 +56,12 @@ namespace Moirai.Atropos.Resource
             public uint Generation;
             public byte Flags;
             public int NextFree;
+#if UNITY_EDITOR
+            // 来源只随开关写入；未开启时三个字段恒为空，槽位里不留任何取用痕迹
+            public string SourceDisplay;
+            public string SourceFile;
+            public int SourceLine;
+#endif
         }
 
         #endregion
