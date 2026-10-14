@@ -20,7 +20,7 @@ namespace Moirai.Atropos.UI
     /// 每轨一个驱动者，由 <see cref="UIServiceSettings"/> 的启用清单认领进各自槽位，拿的都是同一份 <see cref="SharedLedger"/>：栈只有一条。<br />
     /// 各轨以一条 <see cref="UITrack"/> 自述登记进目录；本文件只枚举目录，加一轨就是加一个自登记的 partial。<br />
     /// 跨轨的全局操作（查询、关隐、租约、每帧结算）直叫共享持有者；轨专有的走门面私有广播，<see cref="UIRoot"/>、<see cref="UICamera"/> 只有 uGUI 轨答得出。<br />
-    /// 关停按自报档位升序逐轨收口，uGUI 最后收。线程契约：仅主线程；不声明 <c>[HandlerHost]</c>，<see cref="IsValid"/> 与归零门手写在本文件。
+    /// 关停按自报档位升序逐轨收口，uGUI 最后收。线程契约：仅主线程；不声明 <c>[ProviderHandlerHost]</c>，<see cref="IsValid"/> 与归零门手写在本文件。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]
