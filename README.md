@@ -38,17 +38,6 @@ Moirai Framework
 ## 📚 目录
 
 - [🚀 快速开始](#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)
-  - [环境要求](#%E7%8E%AF%E5%A2%83%E8%A6%81%E6%B1%82)
-  - [下载安装](#%E4%B8%8B%E8%BD%BD%E5%AE%89%E8%A3%85)
-    - [方式一：一键安装（推荐）](#%E6%96%B9%E5%BC%8F%E4%B8%80%E4%B8%80%E9%94%AE%E5%AE%89%E8%A3%85%E6%8E%A8%E8%8D%90)
-    - [方式二：UPM 安装](#%E6%96%B9%E5%BC%8F%E4%BA%8Cupm-%E5%AE%89%E8%A3%85)
-    - [方式三：手动安装](#%E6%96%B9%E5%BC%8F%E4%B8%89%E6%89%8B%E5%8A%A8%E5%AE%89%E8%A3%85)
-  - [初始设置](#%E5%88%9D%E5%A7%8B%E8%AE%BE%E7%BD%AE)
-    - [场景打包](#%E5%9C%BA%E6%99%AF%E6%89%93%E5%8C%85)
-    - [配置表服务](#%E9%85%8D%E7%BD%AE%E8%A1%A8%E6%9C%8D%E5%8A%A1)
-  - [运行](#%E8%BF%90%E8%A1%8C)
-    - [编辑器模式运行](#%E7%BC%96%E8%BE%91%E5%99%A8%E6%A8%A1%E5%BC%8F%E8%BF%90%E8%A1%8C)
-    - [打包运行（热更新流程）](#%E6%89%93%E5%8C%85%E8%BF%90%E8%A1%8C%E7%83%AD%E6%9B%B4%E6%96%B0%E6%B5%81%E7%A8%8B)
 - [🏗️ 架构](#-%E6%9E%B6%E6%9E%84)
   - [服务系统](#%E6%9C%8D%E5%8A%A1%E7%B3%BB%E7%BB%9F)
   - [启动流程](#%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B)
@@ -65,105 +54,15 @@ Moirai Framework
 
 ## 🚀 快速开始
 
-### 环境要求
+**环境要求**：Unity 2022.3.x（推荐）或更高、.NET 4.x，依赖 [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)；支持 Windows、OSX、Android、iOS、WebGL、微信小游戏。
 
-- **Unity 版本**: 2022.3.x（推荐）或更高
-- **开发环境**: .NET 4.x
-- **依赖插件**: [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
-- **支持平台**: Windows、OSX、Android、iOS、WebGL、微信小游戏
+**安装方式三选一**：
 
-### 下载安装
+1. **一键安装（推荐）** —— 在 Package Manager 用 Git URL `https://github.com/TeamMoirai/com.moirai.framework.git#installer` 安装，或克隆 `installer` 分支进工程，再执行菜单 `Tools/Install Framework`
+2. **UPM 安装** —— 在 Project Settings/Package Manager 添加 Open UPM 的 Scoped Registry，再对 Moirai Framework 点 Install
+3. **手动安装** —— 用 Git URL 安装，或下载最新 Release 的 Source Code 压缩包
 
-#### 方式一：一键安装（推荐）
-
-1. 通过以下任一方式安装 **Framework Installer**：
-
-   - 在 **Window/Package Manager** 中，通过 Git URL 安装：
-
-     ```bash
-     https://github.com/TeamMoirai/com.moirai.framework.git#installer
-     ```
-
-     ![Package Manager 安装](Documentation~/.src/quick-start-1.png)
-
-   - 或克隆 `installer` 分支至工程目录（Assets/...）：
-
-     ```bash
-     git clone --branch installer --single-branch https://github.com/TeamMoirai/com.moirai.framework.git Scripts/Installer
-     ```
-
-2. 回到 Unity，手动执行菜单 `Tools/Install Framework`。
-
-3. 安装完成后可安全删除该脚本。
-
-#### 方式二：UPM 安装
-
-1. 在 **Project Settings/Package Manager** 中，手动添加 **Scoped Registry**：
-
-   ```text
-   // 输入以下内容（国际版）
-   Name: Open UPM
-   URL: https://package.openupm.com
-   Scope(s): com.cysharp
-             com.tuyoogame
-             com.moirai
-   ```
-
-   ![Scoped Registry 配置](Documentation~/.src/quick-start-2-scoped-registries.png)
-
-2. 在 **Window/Package Manager** 中，选中 **Moirai Framework**，点击 **Install** 进行安装：
-
-   ![Package 详情](Documentation~/.src/quick-start-2-package-detail.png)
-
-3. <a id="manual-import"></a>手动复制 `工程根目录/Library/PackageCache/com.moirai.framework@xxx/Templates~/` 下 **@Requirements** 文件夹内的所有内容到 **工程根目录/Assets** 目录。
-
-   （可选）根据需要选择同目录下合适的模板复制到工程，一般选择 **NormalTemplate** 即可。
-
-#### 方式三：手动安装
-
-1. 以下获取框架的方式任选其一：
-
-   - 在 **Window/Package Manager** 中，通过 Git URL 安装：
-
-     ```bash
-     https://github.com/TeamMoirai/com.moirai.framework.git
-     ```
-
-   - 在发布的 Release 版本中，选择最新版本下载 **Source Code** 压缩包。
-
-2. 参见 **[方式二第 3 步](#manual-import)**，将 `Templates~/@Requirements` 内容复制进工程。
-
-### 初始设置
-
-#### 场景打包
-
-将 `Scenes/main.unity`（随模板复制进工程）加入打包列表：
-
-- Unity 6.0+：`File -> Build Profiles -> Scene List`
-- Unity 6.0-：`File -> Build Settings -> Scenes In Build`
-
-#### 配置表服务
-
-- 在 `Tools/Framework Settings` 窗口选择 `[框架]Luban 配置`，点击 `生成 Config 到指定目录`。
-- 初次生成时，导出前先执行 **build-luban** 编译（脚本位于模板 `Config/` 目录），或自行导入 Luban 至配置表根目录。
-- 如果移动了配置表目录，需在 `Tools/Framework Settings` 的 `[框架]Luban 配置` 中手动更新——`重定向 Config 目录`。
-
-### 运行
-
-#### 编辑器模式运行
-
-在 `Tools/Framework Settings` 的 `[服务]资源设置` 中将 `PlayMode` 设为 `EditorSimulate`（编辑器下的模拟模式，默认值），点击 `Play` 开始运行。
-
-#### 打包运行（热更新流程）
-
-1. 运行菜单 `HybridCLR/Install...` 安装 HybridCLR（HybridCLR 包菜单）
-2. 运行菜单 `HybridCLR/Define Symbols/Enable HybridCLR` 开启热更新
-3. 运行菜单 `HybridCLR/Generate/All` 进行必要的生成操作（HybridCLR 包菜单）
-4. 运行菜单 `HybridCLR/Build/BuildAssets And CopyTo AssemblyTextAssetPath` 生成热更新 DLL
-5. 运行菜单 `YooAsset/Bundle Builder` 构建 AssetBundle（YooAsset 包菜单）
-6. 打开 Build Settings，点击 `Build And Run`
-
-> 💡 **提示**: 遇到问题请查看 [HybridCLR 常见错误](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors)
+三种方式的逐步说明与截图、装完后的初始设置（模板复制、场景打包列表、Luban Config 生成）与编辑器/打包运行流程，见 **[安装与运行](Documentation~/zh/Install.md)**。
 
 ---
 
