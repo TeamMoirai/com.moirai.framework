@@ -18,9 +18,6 @@ namespace Moirai.Atropos.Audio.Wwise
     /// </remarks>
     internal sealed class WwiseBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {
-        /// <summary>非立即停止时使用的短淡出（毫秒）。Middleware 层通常先做音量 Fade 再 immediate Stop。</summary>
-        private const uint NON_IMMEDIATE_STOP_MS = 250u;
-
         private const int MAX_IDLE_EMITTERS = 32;
 
         private readonly Dictionary<ulong, uint> _handleToPlayingId = new Dictionary<ulong, uint>(64);
@@ -104,16 +101,14 @@ namespace Moirai.Atropos.Audio.Wwise
             return handle;
         }
 
-        public void StopInstance(ulong instanceId, bool immediate)
+        public void StopInstance(ulong instanceId)
         {
             if (!_handleToPlayingId.TryGetValue(instanceId, out var playingId)) return;
 
-            // 非立即 = 短衰减停止，且 UnregisterInstance 紧随其后执行——尾音仍挂在发射体上而框架已失去跟踪。
-            // 因此 immediate:false 不得对生产暴露（MiddlewareAudioHandler 恒传 true），暴露前须先改成「淡出完成后再注销/回收」。
             AkSoundEngine.ExecuteActionOnPlayingId(
                 AkActionOnEventType.AkActionOnEventType_Stop,
                 playingId,
-                immediate ? 0u : NON_IMMEDIATE_STOP_MS,
+                0u,
                 AkCurveInterpolation.AkCurveInterpolation_Linear);
             UnregisterInstance(instanceId);
         }

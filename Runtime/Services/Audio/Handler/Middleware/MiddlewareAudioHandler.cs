@@ -439,7 +439,7 @@ namespace Moirai.Atropos.Audio.Middleware
                 if (_handles.TryGet(handle, out var voice))
                 {
                     voice.Playing = false;
-                    _bridge?.StopInstance(voice.InstanceId, true);
+                    _bridge?.StopInstance(voice.InstanceId);
                 }
 
                 ReleaseHandle(handle);
@@ -467,7 +467,7 @@ namespace Moirai.Atropos.Audio.Middleware
                 if (_handles.TryGet(handle, out var voice))
                 {
                     voice.Playing = false;
-                    _bridge?.StopInstance(voice.InstanceId, true);
+                    _bridge?.StopInstance(voice.InstanceId);
                 }
 
                 ReleaseHandle(handle);
@@ -716,7 +716,7 @@ namespace Moirai.Atropos.Audio.Middleware
             if (handle == 0UL)
             {
                 // 槽位用尽（2^20 个并发声部）：这一声宁可不出，也不留一个没有记账的实例
-                _bridge.StopInstance(instanceId, true);
+                _bridge.StopInstance(instanceId);
                 ReturnVoice(voice);
                 return 0UL;
             }
@@ -768,7 +768,7 @@ namespace Moirai.Atropos.Audio.Middleware
             }
 
             voice.Playing = false;
-            _bridge?.StopInstance(voice.InstanceId, true);
+            _bridge?.StopInstance(voice.InstanceId);
             ReleaseHandle(handle);
         }
 

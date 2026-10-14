@@ -64,7 +64,7 @@ namespace Moirai.Atropos.Audio.Fmod
             return id;
         }
 
-        public void StopInstance(ulong instanceId, bool immediate)
+        public void StopInstance(ulong instanceId)
         {
             if (_instances.TryGetValue(instanceId, out var inst))
             {
