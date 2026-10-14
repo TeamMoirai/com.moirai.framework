@@ -42,7 +42,7 @@ python -c "import os;print('request path is file:', os.path.isfile(r'E:/Workspac
 |---|---|---|
 | `id` | 是 | 每单唯一的串；回执 `.done` 的内容就是它 |
 | `mode` | 是 | `EditMode` / `PlayMode` |
-| `output` | 是 | 报告绝对路径；同名旧产物与 `.done`、`.error` 在开跑前清掉 |
+| `output` | 是 | 报告绝对路径；开跑前只清旧的 `.done` 与 `.error`（报告本体不删，收口时整体覆写——跑期间读它拿到的可能还是上一轮的），所以只认配对 `id` 的那份 `.done` |
 | `timeoutSeconds` | 否 | 墙钟秒数，`0` 或缺省为不限时；编译、导入与域重载的等待计入 |
 | `assemblies` | 与 `tests` 至少一个非空 | 程序集名数组 |
 | `tests` | 与 `assemblies` 至少一个非空 | 用例全名数组 |
@@ -83,7 +83,9 @@ cat "$OUT.done"; cat "$OUT"
 - 先写 `.tmp` 再 `mv` 原子改名：直接写目标名会让驱动读到半份 JSON。
 - `report.txt` 首行形状：`run <id> | passed N | failed N | skipped N | <秒>s`；以 `ABORTED` 收口的首行形状：
   `run <id> | ABORTED: <原因> | collected passed N | failed N | skipped N | wall <秒>s`。
-- 失败正文逐格附在首行之后，**每条最多 6 行**（缩进占行）⇒ 一趟红最多稳定露出 5 条违例。要全量名单就把它设计成收集式断言或分批投。
+- 失败正文逐格附在首行之后。每条失败是一块：用例全名一行 + 消息至多 6 行 + 堆栈至多 8 行；**失败条数不封顶**，收口时逐条全量写进报告。
+  「一趟红露出几条」取决于你把多少违例聚合成一条断言——单条断言的消息被削到 6 行，去掉 `Expected` / `But was` 大约剩 5 条；各条断言各自成块，露出的就多。
+  要全量名单就把违例落盘或分批投，别指望一条聚合断言打满，也别为此去改桥的截断宽度。
 - `{output}.progress` 是在跑的用例全名，判卡死用；收口时删除。
 - `{output}.done` 的内容是本次 `id`，只认配对的这份。
 
