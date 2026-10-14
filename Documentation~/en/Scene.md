@@ -21,7 +21,7 @@ The scene service's (`Moirai.Atropos.Scene`) default backend `DefaultSceneHandle
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Scene.SceneService` | Scene service static facade (`[HandlerHost]`). When unregistered, facade calls silently degrade (queries return defaults, loads return an invalid scene); the `Handler` property lazily creates the handler from `SceneServiceSettings`, falling back to the default `DefaultSceneHandler` when the configuration is empty |
+| `Moirai.Atropos.Scene.SceneService` | Scene service static facade (`[ProviderHandlerHost]`). When unregistered, facade calls silently degrade (queries return defaults, loads return an invalid scene); the `Handler` property lazily creates the handler from `SceneServiceSettings`, falling back to the default `DefaultSceneHandler` when the configuration is empty |
 | `Moirai.Atropos.Scene.SceneServiceHandler` | Handler abstract base class defining the backend contract; the default implementation `DefaultSceneHandler` loads and manages main/sub scenes via `ResourceService` |
 | `Moirai.Atropos.Resource.ResourceSceneHandle` | Resource system scene handle abstraction, implemented per resource backend (YooAsset / Addressables), carrying load progress, activation, unsuspend, and unload |
 

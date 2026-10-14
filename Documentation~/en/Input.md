@@ -18,7 +18,7 @@ The input service (`Moirai.Atropos.Input`) abstracts three input backends throug
 
 | Class/Interface | Description |
 |---------|------|
-| `Moirai.Atropos.Input.InputService` | Input service static facade (`[HandlerHost]`); all polling APIs are static methods forwarding through the `Handler` property. Degradation contract: when not registered/initialized, APIs return safe defaults (false/0/zero) instead of throwing |
+| `Moirai.Atropos.Input.InputService` | Input service static facade (`[ProviderHandlerHost]`); all polling APIs are static methods forwarding through the `Handler` property. Degradation contract: when not registered/initialized, APIs return safe defaults (false/0/zero) instead of throwing |
 | `Moirai.Atropos.Input.InputServiceHandler` | Input handler abstract base class (`[Serializable]`), defines all input query methods. Configured via `[SerializeReference]` in Input Settings |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | Handler based on Unity Input System (macro `ENABLE_INPUT_SYSTEM`) |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | Handler based on legacy Input Manager (macro `ENABLE_LEGACY_INPUT_MANAGER`) |

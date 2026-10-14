@@ -18,7 +18,7 @@ Namespace: `Moirai.Atropos.Procedure`
 
 | Class/Interface | Description |
 |---------|------|
-| `ProcedureService` | Static facade (`[HandlerHost]`, `IServiceTickable`): `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` and `CurrentProcedure`, `CurrentProcedureTime`; query APIs silently degrade to safe defaults when not ready, mutating APIs (`StartProcedure` / `ChangeState`) are ignored with a warning when not ready, and `Initialize` / `RestartProcedure` are bootstrap entry points that only require the handler to be present; direct backend calls still fail fast |
+| `ProcedureService` | Static facade (`[ProviderHandlerHost]`, `IServiceTickable`): `StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` and `CurrentProcedure`, `CurrentProcedureTime`; query APIs silently degrade to safe defaults when not ready, mutating APIs (`StartProcedure` / `ChangeState`) are ignored with a warning when not ready, and `Initialize` / `RestartProcedure` are bootstrap entry points that only require the handler to be present; direct backend calls still fail fast |
 | `ProcedureServiceHandler` | Handler abstract base class defining the procedure state-machine backend contract; `ProcedureBase` subclasses call back into this handler via the internal `Owner` reference |
 | `DefaultProcedureHandler` | Default implementation, holds the internal state dictionary and tick-driven polling |
 | `ProcedureBase` | Procedure base class (standalone abstract class), provides `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` parameterless lifecycle methods and `ChangeState<T>()` switching |

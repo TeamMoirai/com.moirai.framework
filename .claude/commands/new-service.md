@@ -32,7 +32,7 @@ namespace Moirai.Atropos.<Module>
 {
     [AutoRegisterService]
     [ServiceDependency(typeof(ResourceService))]          // 只在真正依赖时声明
-    [HandlerHost(typeof(<Module>ServiceHandler))]
+    [ProviderHandlerHost(typeof(<Module>ServiceHandler))]
     public partial class <Module>Service : ServiceBase
     {
         public override int Priority => ServicePriorityOrder.MID_TIER;
@@ -59,7 +59,7 @@ Settings 侧的 handler 槽位用 `[SerializeReference]` 持有契约基类，�
 
 ## 要点
 
-- `Handler` 属性与 `s_Handler` 字段由 `SourceGenerators/` 里的 `HandlerHostGenerator` 生成，**不要手写**。换处理器只走生成出来的 `Internal_PeekHandler()` / `Internal_UseHandler(next)`，测试也不反射私有字段。
+- `Handler` 属性与 `s_Handler` 字段由 `SourceGenerators/` 里的 `ProviderHandlerHostGenerator` 生成，**不要手写**。换处理器只走生成出来的 `Internal_PeekHandler()` / `Internal_UseHandler(next)`，测试也不反射私有字段。
 - 抽象接缝上只放真正随后端变化的成员：`internal abstract` 会把后端实现权往程序集内收一格，新增要有理由（形状不进测试登记——不建签名快照/成员计数类基线用例，破坏性变更写 `CHANGELOG.md` 迁移口径；反射只留行为契约守卫，如 `Tests/EditorMode/Service/Resource/AddressableHandlerFailFastTests.cs`、`Tests/EditorMode/Service/Resource/YooAssetHandlerSmokeTests.cs`）。
 - 每帧驱动实现 `IServiceTickable`：`Tick(float elapseSeconds, float realElapseSeconds)`。
 - 服务必须派生 `ServiceBase` 或 `ServiceMono<TScope>`，裸实现 `IService` 会被注册守卫拦下。

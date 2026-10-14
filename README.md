@@ -94,7 +94,7 @@ com.moirai.framework/
 ├── Editor/                     # 编辑器工具集（Foundation / Services / Tools / Utilities；Services 用五档 Drawers / Windows / BuildPipeline / Generator / Support）
 ├── Plugins/                    # 第三方库
 ├── Samples~/                   # 示例
-├── SourceGenerators/           # 预编译源生成器（HandlerHost / SaveServiceCodegen / ServiceDependency）
+├── SourceGenerators/           # 预编译源生成器（ProviderHandlerHost / SaveServiceCodegen / ServiceDependency）
 ├── Templates~/                 # 项目初始模板（@Requirements / Config / HybridTemplate / NormalTemplate）
 ├── Documentation~/             # 双语服务文档（zh / en）
 └── Tests/                      # 单元测试（EditorMode / PlayMode / Player / Coverage）
@@ -105,7 +105,7 @@ com.moirai.framework/
 框架采用**服务化架构**，所有子系统均为继承 `ServiceBase` 的普通 C# 类（非 MonoBehaviour），由统一服务世界 `ServiceWorld` 管理注册、生命周期、轮询与作用域；入口 `GameApp` 驱动世界轮询（内建更新循环、引擎回调代理与协程托管）。
 
 ```csharp
-// 服务访问 — 各服务提供静态外观（HandlerHost 源生成），内部懒加载
+// 服务访问 — 各服务提供静态外观（ProviderHandlerHost 源生成），内部懒加载
 ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>();
 TimerService.Delay(1f, () => Debug.Log("1s"));

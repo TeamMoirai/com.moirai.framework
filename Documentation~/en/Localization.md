@@ -21,7 +21,7 @@ Namespace: `Moirai.Atropos.Localization`
 
 | Class/Interface | Description |
 |----------------|-------------|
-| `LocalizationService` | Static facade (`[HandlerHost]`) responsible for loading config table text, language switching, and Localizer management; the `onLanguageChanged` event is exposed directly on the facade; `ToLanguage` / `Localize` / `ResolveLanguages` and the editor-preview API live in the same class's partial implementation (`LocalizationService.Helper`) |
+| `LocalizationService` | Static facade (`[ProviderHandlerHost]`) responsible for loading config table text, language switching, and Localizer management; the `onLanguageChanged` event is exposed directly on the facade; `ToLanguage` / `Localize` / `ResolveLanguages` and the editor-preview API live in the same class's partial implementation (`LocalizationService.Helper`) |
 | `Language` | Language class (`IEquatable<Language>`, compared by `Code`): `Name`, `Code`, `DisplayName`, `BuiltinLanguages`, supports conversion to/from `SystemLanguage`; built-in entries are shared read-only instances |
 | `LocalizationServiceHandler` | Abstract handler base class: per-language text resolution, language switching, localizer registration |
 | `LocalizerBase` | Abstract base class for localizers (MonoBehaviour): `Prepare` gets the target component reference, `Localize` performs injection |

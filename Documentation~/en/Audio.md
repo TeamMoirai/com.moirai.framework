@@ -28,7 +28,7 @@ Runtime/Services/Audio/
                                  # AudioOcclusionHrtf (occlusion + HRTF, attached to scene objects)
 ```
 
-## Architecture (HandlerHost + Strategy)
+## Architecture (ProviderHandlerHost + Strategy)
 
 - **`AudioService`**: Static facade; depends on `DebuggerService`, `ResourceService` (`OnInit` loads audio settings synchronously)
 - **`AudioServiceHandler`**: Backend contract (`StopByID`, 16-byte `Play`, virtual `OnAgentPlaybackEnded`). Master/track bus fades are **implemented here** (the contract owns the `AudioFadeScheduler` and lands values through `IAudioFadeTarget.ApplyFade`); a backend only has to say where a volume goes
