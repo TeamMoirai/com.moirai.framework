@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <IsRoslynComponent>true</IsRoslynComponent>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <AssemblyName>HandlerHost</AssemblyName>
+    <AssemblyName>ProviderHandlerHost</AssemblyName>
     <RootNamespace>Moirai.Atropos.SourceGenerators</RootNamespace>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <NoWarn>RS2008</NoWarn>
