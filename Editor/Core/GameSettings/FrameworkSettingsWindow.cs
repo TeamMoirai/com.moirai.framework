@@ -403,7 +403,7 @@ namespace Moirai.Atropos.Editor
                 if (_entries[i].Exists) loadedCount += 1;
             }
 
-            _toolbarCountLabel = $"{loadedCount}/{_entries.Count}";
+            _toolbarCountLabel = $"配置数量: {loadedCount}/{_entries.Count}";
         }
 
         /// <summary>
