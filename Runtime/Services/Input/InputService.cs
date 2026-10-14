@@ -9,17 +9,19 @@ namespace Moirai.Atropos.Input
     /// <remarks>
     /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="InputServiceSettings"/> 解析， <br />
     /// 未配置则回退 <see cref="CreateDefaultHandler"/>。
-    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
     /// </remarks>
     // 依赖说明：订 UIService.onWindowShown/onWindowClosed 门面广播 + 读 UIService.CurrentModal——广播驱动软依赖，
     // 不做 [ServiceDependency] 硬声明（UI 侧对 Input 是静态调用硬依赖，双向硬声明会构成拓扑环）。
     [AutoRegisterService]
-    [HandlerHost(typeof(InputServiceHandler))]
+    [ProviderHandlerHost(typeof(InputServiceHandler))]
     public partial class InputService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
 
+        // 保留手写不走声明默认：两支输入后端由引擎宏门控（另一档输入配置下特性里的 typeof 编译不过），
+        // InputServiceSettings 的字段初始化器也依赖本工厂播种
         /// <summary>
         /// 创建默认输入处理器（settings 未配置时的代码兜底，按编译符号选择输入后端）。
         /// </summary>

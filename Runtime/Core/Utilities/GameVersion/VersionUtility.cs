@@ -3,15 +3,10 @@
     /// <summary>
     /// 版本号类。
     /// </summary>
-    [HandlerHost(typeof(VersionHandler))]
+    [ProviderHandlerHost(typeof(VersionHandler), typeof(DefaultVersionHandler))]
     public static partial class VersionUtility
     {
         #region 处理器 [HANDLER]
-
-        internal static VersionHandler CreateDefaultHandler()
-        {
-            return new DefaultVersionHandler();
-        }
 
         private static VersionHandler GetHandlerFromSettings() => GameAppSettings.VersionHandler;
 

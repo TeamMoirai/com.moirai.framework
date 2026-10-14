@@ -6,25 +6,16 @@ namespace Moirai.Atropos
     /// 游戏时间外观：统一的静态时间访问入口，时间源由 <see cref="Handler"/> 替换。
     /// </summary>
     /// <remarks>
-    /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载），未显式设置时使用 <see cref="DefaultGameTimeHandler"/>。
+    /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载），未显式设置时使用 <see cref="DefaultGameTimeHandler"/>。
     /// 帧内高频读取走 <see cref="StartFrame"/> 每帧采样的静态字段（零虚调用开销）； <br />
     /// 对精度敏感的服务经 <see cref="GameTimeHandler.ScaledNow"/>/<see cref="GameTimeHandler.UnscaledNow"/> 实时直读双精度时钟。 <br />
     /// 测试注入自定义 <see cref="GameTimeHandler"/> 即可让依赖时间的服务获得与 Unity 主循环无关的确定性推进，调用方代码无需改动。
     /// </remarks>
-    [HandlerHost(typeof(GameTimeHandler))]
+    [ProviderHandlerHost(typeof(GameTimeHandler), typeof(DefaultGameTimeHandler))]
     [HotPath]
     public static partial class GameTime
     {
         #region 处理器 [HANDLER]
-
-        /// <summary>
-        /// 按缺省时间源创建默认处理器（引擎时钟）。
-        /// </summary>
-        /// <returns>默认游戏时间处理器实例。</returns>
-        internal static GameTimeHandler CreateDefaultHandler()
-        {
-            return new DefaultGameTimeHandler();
-        }
 
         // private static GameTimeHandler GetHandlerFromSettings() => GameAppSettings.GameTimeHandler;
 

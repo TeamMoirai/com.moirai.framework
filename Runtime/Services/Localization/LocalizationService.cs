@@ -14,20 +14,14 @@ namespace Moirai.Atropos.Localization
     /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="LocalizationServiceSettings"/> 解析， <br />
     /// 未配置则回退 <see cref="CreateDefaultHandler"/>。 <br />
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
-    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ConfigTableService))]
-    [HandlerHost(typeof(LocalizationServiceHandler))]
+    [ProviderHandlerHost(typeof(LocalizationServiceHandler), typeof(ConfigTableLocalizationHandler))]
     public partial class LocalizationService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
-
-        /// <summary>
-        /// 创建默认本地化处理器（settings 未配置时的代码兜底）。
-        /// </summary>
-        /// <returns>默认本地化处理器实例。</returns>
-        internal static LocalizationServiceHandler CreateDefaultHandler() => new ConfigTableLocalizationHandler();
 
         /// <summary>
         /// 从 <see cref="LocalizationServiceSettings"/> 解析本地化处理器。

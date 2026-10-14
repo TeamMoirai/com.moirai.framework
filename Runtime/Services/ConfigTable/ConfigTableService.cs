@@ -12,20 +12,14 @@ namespace Moirai.Atropos.ConfigTable
     /// </summary>
     /// <remarks>
     /// 未显式设置处理器时，懒加载优先从 <see cref="ConfigTableServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>。
-    /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成，线程安全懒加载。
+    /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成，线程安全懒加载。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(ResourceService))]
-    [HandlerHost(typeof(ConfigTableServiceHandler))]
+    [ProviderHandlerHost(typeof(ConfigTableServiceHandler), typeof(DefaultConfigTableHandler))]
     public partial class ConfigTableService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
-
-        /// <summary>
-        /// 创建默认配置表处理器（settings 未配置时的代码兜底）。
-        /// </summary>
-        /// <returns>默认配置表处理器实例。</returns>
-        internal static ConfigTableServiceHandler CreateDefaultHandler() => new DefaultConfigTableHandler();
 
         /// <summary>
         /// 从 <see cref="ConfigTableServiceSettings"/> 解析配置表处理器。
