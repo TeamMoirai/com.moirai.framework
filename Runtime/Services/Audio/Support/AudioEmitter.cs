@@ -193,7 +193,7 @@ namespace Moirai.Atropos.Audio
             else
             {
                 if (string.IsNullOrEmpty(m_Address)) return;
-                _handle = AudioService.Play(m_Address, options, m_Async, false);
+                _handle = AudioService.Play(m_Address, options, m_Async);
             }
         }
 

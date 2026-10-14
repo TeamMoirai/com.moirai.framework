@@ -584,7 +584,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override ulong Play(string path, in AudioPlayOptions options, bool bAsync, bool bInPool)
+        public override ulong Play(string path, in AudioPlayOptions options, bool bAsync)
         {
             if (_unityAudioDisabled || IsTrackPaused(options.AudioTrack)) return 0UL;
 
@@ -616,7 +616,7 @@ namespace Moirai.Atropos.Audio
             ulong handle = _handles.Bind(audioAgent);
             if (handle == 0UL) return 0UL;
             _handles.RegisterUser(handle, options.ID);
-            audioAgent.LoadWithOptions(path, options, bAsync, bInPool);
+            audioAgent.LoadWithOptions(path, options, bAsync);
 
             // 同步加载失败会立刻 End 并自动释放
             if (audioAgent.IsFree && audioAgent.CurrentHandle == 0UL)
