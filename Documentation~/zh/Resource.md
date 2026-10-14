@@ -28,6 +28,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 |---------|------|
 | `AssetReference` | 可序列化资源弱引用基类（对齐 Addressables 的 `AssetReferenceT` 与 YooAsset 官方 `AssetReference` 扩展）：序列化面只有 `m_GUID` 与 `m_PackageName` 两个字符串，资源本体不进序列化快照；`TryGetLocation` 按 GUID 解析定位地址，`RuntimeKeyIsValid` 检查引用键。检视器经 GUID 引用资源，运行时按需异步加载，不产生强引用 |
 | `AssetReference<T>` | 类型化弱引用：`LoadAssetAsync(ct)` 自持租约加载（已加载幂等回放、在途并发并入同一次加载、失败/取消回 `null` 可重试）、`ReleaseAsset()` 释放（未加载时空操作）、`Asset`/`IsLoaded` 读缓存；编辑器另有 `EditorAsset` 直读 `AssetDatabase` 预览 |
+| `SpriteReference` | 精灵引用门面：数据为 `AssetReference<Sprite>` 弱引用 + 打包方式判别（`ESpritePackageType`：Common 常规散图/合图、Config 经 `ConfigTableService.LoadSpriteByID` 取 SpriteAtlas 图集精灵）+ 子图名/配置表 ID 各占一字段。`SetSprite(Image/SpriteRenderer)` 异步取像并赋给目标：普通与配置表精灵走保活窗口，合图子精灵按名经绑定服务挂目标元素；`DataSave/DataLoad` 自带版本号；编辑器面 `LoadEditorSubSprite` 按名直取子精灵 |
 | `ResourceLeaseHandle` | generation 校验的槽位句柄（`readonly struct`），用于安全引用资源记录。字段：`Index`、`Generation`。静态 `Invalid` 表示无效句柄。`IsValid` 检查有效性。 |
 | `ResourceAssetLease<T>` | 类型化租约（`struct`，实现 `IDisposable`），持有资源对象并在 `Dispose` 时自动释放。支持 `using` 语句。字段：`Asset`、`Handle`、`IsValid`。 |
 | `ResourceKey` | `readonly struct`，描述资源位置、包名、类型和种类。工厂方法 `ResourceKey.Asset<T>(location, packageName)` 创建类型化键。`HasResolvedIds` 检查内部 ID 解析状态。 |
@@ -41,7 +42,7 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ResourceService` | 静态外观（`[HandlerHost]`），定义加载、租约、绑定、卸载、包操作全部 API；全部静态方法/属性经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）。配置注入在 `OnInit` 接线，每帧驱动（时间轮推进 / 卸载调度 / GC 节流 / 销毁态回收）在 `Tick` 推进 |
+| `ResourceService` | 静态外观（`[ProviderHandlerHost]`），定义加载、租约、绑定、卸载、包操作全部 API；全部静态方法/属性经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）。配置注入在 `OnInit` 接线，每帧驱动（时间轮推进 / 卸载调度 / GC 节流 / 销毁态回收）在 `Tick` 推进 |
 | `YooAssetHandler` | 默认后端，`partial` 按职责拆分：主文件（基础属性、卸载调度、资产信息查询、预制体实例化、宿主接口接线）/ Leases（接缝上 Lease 取还的转发）/ Loading（向 YooAsset 要句柄、挂载与失败文案）/ Cache（设置注入与容量预热）/ Initialization（包与清单初始化）/ Scene（场景句柄）/ Attributes（检视器标注）。**记账不在此**，见下面三件内核类型 |
 | `ResourceRecordStore` | 资源记录内核（`internal sealed partial`，在 `Runtime/Services/Resource/Internal/`，按 `.cs` + `.Records`/`.Leases`/`.Loading`/`.Expiry` 分段 partial 拆文件），由后端持有：带 generation 校验的资产槽与租约槽、两条 packed key 索引表、在途加载去重、两座过期时间轮与容量淘汰。它看向后端只有 `IResourceRecordHost`：三个原生句柄算子加三个配置读数 |
 | `ResourceKeyCodec` | packed key 的位域编解码与 `assetKind` / `assetType` 互推（纯静态、零状态） |
@@ -95,6 +96,19 @@ m_Bgm.ReleaseAsset(); // OnDestroy 等生命周期点释放；未加载时为空
 ```
 
 检视器由 `AssetReferenceDrawer` 绘制：包名行走下拉，选项经编辑器桥 `ResourcePackageBridge.GetPackageNames(handler)` 实时取自后端（仅编辑器可用，不落 Runtime 接缝；YooAsset 读收集器设置，首项为默认资源包，当前值不在清单中时置顶），无清单退回自由文本，留空使用默认资源包；Addressables 单隐式目录不消费包名，不绘制包名行。对象字段选中即写回 GUID，并显示路径与打包归属提示。解析接缝 `ResourceServiceHandler.TryGetLocationByGuid` 为 abstract，由各后端显式实现：YooAsset 走清单 GUID 映射，Addressable 走目录 GUID key（定位地址即 GUID 本身）。
+
+### SpriteReference 精灵引用门面（直接引用 / 配置表 ID 双模式）
+
+序列化面为 `AssetReference<Sprite>` 弱引用加一个打包方式判别字段：`Common` 覆盖常规散图与合图（合图子图名由引用行拖入实捕获，留空取整资产精灵），`Config` 经配置表 ID 取 SpriteAtlas 图集精灵。取像统一走 `SetSprite(Image/SpriteRenderer)`：普通与配置表精灵为保活窗口口径，合图子精灵按名经绑定服务挂目标元素（租约随元素生命周期）。
+
+```csharp
+[SerializeField] private SpriteReference m_Icon;
+
+// 取像并赋给目标；内部按打包方式与子图名自动分流（散图/配置表/合图子图）
+m_Icon.SetSprite(targetImage, cancellationToken: this.GetCancellationTokenOnDestroy());
+```
+
+检视面为属性驱动：引用行显示按 GUID + 子图名解析到的精灵（拖入即写回 GUID 并按导入器模式捕子图名——Multiple 记名、Single/Polygon 留空），包名行由 `[ResourcePackageDropdown]` 接管，`Config` 模式以 `[ShowIf]` 显隐配置表 ID。`DataSave/DataLoad` 存档块自带版本号（版本 + 打包方式 + GUID/包名/子图名/配置表 ID）。
 
 
 ### Lease API（自持所有权时用）

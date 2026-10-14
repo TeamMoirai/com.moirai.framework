@@ -28,6 +28,7 @@ Namespace: `Moirai.Atropos.Resource`
 |---------|------|
 | `AssetReference` | Serializable weak-reference base class (mirrors Addressables' `AssetReferenceT` and YooAsset's official `AssetReference` extension): the serialized surface is just two strings, `m_GUID` and `m_PackageName`; the asset itself never enters the serialized snapshot. `TryGetLocation` resolves a location from the GUID, `RuntimeKeyIsValid` checks the runtime key. Assets are picked in the Inspector by GUID and loaded on demand asynchronously at runtime — no strong references |
 | `AssetReference<T>` | Typed weak reference: `LoadAssetAsync(ct)` loads with a self-held lease (idempotent replay when already loaded, concurrent callers join the same in-flight load, failure/cancellation returns `null` and allows retry), `ReleaseAsset()` releases (no-op when not loaded), `Asset`/`IsLoaded` read the cache; editor-only `EditorAsset` reads `AssetDatabase` directly for previews |
+| `SpriteReference` | Sprite reference facade: data is an `AssetReference<Sprite>` weak reference plus a packaging-mode discriminator (`ESpritePackageType`: Common for regular sprites/sprite atlases, Config resolves SpriteAtlas sprites via `ConfigTableService.LoadSpriteByID`) with a sub-sprite name / config-table ID field each. `SetSprite(Image/SpriteRenderer)` fetches asynchronously and assigns to the target: regular and config sprites go through the keep-alive window, atlas sub-sprites bind by name onto the target element; `DataSave/DataLoad` carry their own version; editor-only `LoadEditorSubSprite` fetches a sub-sprite by name |
 | `ResourceLeaseHandle` | Generation-validated slot handle (`readonly struct`) for safe resource references. Fields: `Index`, `Generation`. Static `Invalid` represents an invalid handle. `IsValid` checks validity. |
 | `ResourceAssetLease<T>` | Typed lease (`struct`, implements `IDisposable`) that holds a resource object and auto-releases on `Dispose`. Supports `using` statements. Fields: `Asset`, `Handle`, `IsValid`. |
 | `ResourceKey` | `readonly struct` describing resource location, package, type, and kind. Factory method `ResourceKey.Asset<T>(location, packageName)` creates a typed key. `HasResolvedIds` checks internal ID resolution. |
@@ -41,7 +42,7 @@ Namespace: `Moirai.Atropos.Resource`
 
 | Class/Interface | Description |
 |---------|------|
-| `ResourceService` | Static facade (`[HandlerHost]`) defining all APIs for loading, leasing, binding, unloading, and package operations; all static methods/properties forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades). Configuration is injected in `OnInit`; the per-frame driver (timer-wheel advancement, unload scheduling, GC throttling, destroyed-slot reclaim) runs in `Tick` |
+| `ResourceService` | Static facade (`[ProviderHandlerHost]`) defining all APIs for loading, leasing, binding, unloading, and package operations; all static methods/properties forward through the `Handler` property (fail-fast: lazily initialized when not ready, throws if the default factory is missing, never silently degrades). Configuration is injected in `OnInit`; the per-frame driver (timer-wheel advancement, unload scheduling, GC throttling, destroyed-slot reclaim) runs in `Tick` |
 | `YooAssetHandler` | Default backend, `partial` split by responsibility: main (base properties, unload scheduling, asset info queries, prefab instantiation, host-interface wiring) / Leases (forwards of the Lease API on the seam) / Loading (acquiring YooAsset handles, attaching them, failure text) / Cache (settings injection and capacity warmup) / Initialization (package and manifest init) / Scene (scene handles) / Attributes (inspector annotations). **Bookkeeping does not live here** - see the three kernel types below |
 | `ResourceRecordStore` | The resource record kernel (`internal sealed partial`, under `Runtime/Services/Resource/Internal/`, split into `.cs` + `.Records`/`.Leases`/`.Loading`/`.Expiry` partial files), held by the backend: generation-checked asset and lease slots, two packed-key index maps, loading dedup, both expiry wheels and capacity trimming. It reaches the backend only through `IResourceRecordHost`: three raw-handle operations plus three configuration reads |
 | `ResourceKeyCodec` | Bit-field packing/unpacking of the resource key and `assetKind` / `assetType` inference (pure static, no state) |
@@ -95,6 +96,19 @@ m_Bgm.ReleaseAsset(); // Release at lifecycle points such as OnDestroy; no-op wh
 ```
 
 The Inspector draws it via `AssetReferenceDrawer`: the package-name line is a dropdown whose options come live from the backend through the editor-only bridge `ResourcePackageBridge.GetPackageNames(handler)` (no Runtime seam; YooAsset reads the collector settings, with a leading "(Default Package)" entry, and the current value is pinned on top when it is no longer listed); with no options it falls back to a free text field, and empty means the default package; Addressables' single implicit catalog consumes no package name, so the line is hidden. The object field writes the GUID back on pick, plus path and packing-hint info. The resolution seam `ResourceServiceHandler.TryGetLocationByGuid` is abstract, implemented explicitly per backend: YooAsset resolves through the manifest GUID map, Addressable through the catalog's GUID keys (the resolved location is the GUID itself).
+
+### SpriteReference facade — direct reference or config-table ID
+
+The serialized surface is an `AssetReference<Sprite>` weak reference plus a packaging-mode discriminator: `Common` covers regular sprites and sprite atlases (the atlas sub-sprite name is captured when a sprite is dragged into the reference row; empty means the whole-asset sprite), while `Config` resolves SpriteAtlas sprites by config-table ID. Fetching goes through `SetSprite(Image/SpriteRenderer)`: regular and config sprites use the keep-alive window; atlas sub-sprites bind by name through the binding service (the lease follows the target element's lifetime).
+
+```csharp
+[SerializeField] private SpriteReference m_Icon;
+
+// Fetch and assign to the target; internally routed by packaging mode and sub-sprite name
+m_Icon.SetSprite(targetImage, cancellationToken: this.GetCancellationTokenOnDestroy());
+```
+
+The inspector is attribute-driven: the reference row shows the sprite resolved from GUID + sub-sprite name (dropping one in writes the GUID back and captures the sub-sprite name by importer mode — Multiple records the name, Single/Polygon leaves it empty), the package line is handled by `[ResourcePackageDropdown]`, and the config-table ID shows via `[ShowIf]` in `Config` mode. The `DataSave/DataLoad` block carries its own version (version + packaging mode + GUID/package name/sub-sprite name/config-table ID).
 
 
 ### Lease API (use when you own the lifetime)
