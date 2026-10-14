@@ -8,7 +8,7 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 生命周期为 <see cref="Internal_Init"/> → <see cref="OnInit"/> → 运行期 → <see cref="Internal_Shutdown"/> → <br />
     /// <see cref="OnShutdown"/>，全部同步。
-    /// <c>HandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 自动驱动：设置时初始化新实例，替换时先关闭旧实例。
+    /// <c>ProviderHandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 自动驱动：设置时初始化新实例，替换时先关闭旧实例。
     /// 需要异步初始化的对象走 Kernel 的 <c>IService.OnInitAsync</c>，处理器挂异步钩子不会被调用。
     /// </remarks>
     [Serializable]
@@ -22,7 +22,7 @@ namespace Moirai.Atropos
         #region 同步生命周期 [SYNC LIFECYCLE]
 
         /// <summary>
-        /// 初始化处理器。由 <c>HandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 调用。
+        /// 初始化处理器。由 <c>ProviderHandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 调用。
         /// </summary>
         internal void Internal_Init()
         {

@@ -62,7 +62,7 @@ namespace Service.Timer
         [SetUp]
         public void SetUp()
         {
-            // 触发 HandlerHost 懒加载（不要求 GameApp 已 Boot；但 fire 用例依赖运行期每帧 Tick 驱动）
+            // 触发 ProviderHandlerHost 懒加载（不要求 GameApp 已 Boot；但 fire 用例依赖运行期每帧 Tick 驱动）
             _ = TimerService.Handler;
             ClearAllTimers();
             s_CallbackCount = 0;

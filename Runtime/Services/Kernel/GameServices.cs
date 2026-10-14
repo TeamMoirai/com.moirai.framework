@@ -210,7 +210,7 @@ namespace Moirai.Atropos
         /// 确保服务已注册到指定作用域，未注册时创建默认实例并注册（幂等）。
         /// </summary>
         /// <remarks>
-        /// HandlerHost 外观懒加载路径（<c>CreateDefaultHandler</c>）调用：首次经外观访问服务时自动完成世界注册——世界未初始化时挂入待初始化图（依赖校验在初始化拓扑时统一执行），已初始化时立即注册并初始化。 <br />
+        /// ProviderHandlerHost 外观懒加载路径（<c>CreateDefaultHandler</c>）调用：首次经外观访问服务时自动完成世界注册——世界未初始化时挂入待初始化图（依赖校验在初始化拓扑时统一执行），已初始化时立即注册并初始化。 <br />
         /// 关闭态阻断懒加载复活——显式 RegisterService 是关闭后重建世界的唯一路径。
         /// </remarks>
         /// <typeparam name="T">服务具体类型（契约即类型本身，须有无参构造函数）。</typeparam>

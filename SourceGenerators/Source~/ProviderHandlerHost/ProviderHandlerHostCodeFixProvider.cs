@@ -17,8 +17,8 @@ namespace Moirai.Atropos.SourceGenerators
     /// <remarks>
     /// 对 MIRAI102（settings-only）补充代码兜底工厂后转为「settings 优先 / 代码兜底」契约。
     /// </remarks>
-    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(HandlerHostCodeFixProvider))]
-    public class HandlerHostCodeFixProvider : CodeFixProvider
+    [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ProviderHandlerHostCodeFixProvider))]
+    public class ProviderHandlerHostCodeFixProvider : CodeFixProvider
     {
         private const string Title = "生成 CreateDefaultHandler()";
 
