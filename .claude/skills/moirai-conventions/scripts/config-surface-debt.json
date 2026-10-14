@@ -1,0 +1,126 @@
+{
+  "note": "配置层判据的豁免登记表，与 `check_config_surface.py` 同目录。frontmatter 键为命令文件名、measured 是登记的违例串（缺键、档位违例与 allowed-tools 书写形态合并成同一条串，逐字等值才豁免）；symbols 按三档分节——dead_api 是本包查无声明的死写法（键 `文件名|符号`，走单向棘轮，也是债务清零要吃的名单），member_form 是活的框架成员被裸写出来的成员形态，example_placeholder 是模板拿示例参数代入出来的产物名，后两节是口径外分类登记：不计入债务豁免、不进只准降不准升的棘轮，但每项既要仍命中候选集、又要量具当场复算得出它的分类依据（member_form 要该文件真有一处把这个名字写成成员形态的取用点；example_placeholder 要同一行的行内反引号里写出被代入的参数名，词根还要够长——散文里的普通词与接口前缀不算依据）；class 字段必填且必须与该节档位自洽，量具会校验。non_framework_names 是排除表（B 档），它的牙分三级，别读成「进了排除表就有人替你把关」：①同一个名字既在 symbols 又在排除表直接红；②belongs 的**形状**有牙——必须写得出一个以外部根命名空间（量具的 EXTERNAL_ROOTS）起头、末段等于该名字的限定名，「Unity 的 UI 组件」这类含糊话按量不出来收（退出码 2），它只挡含糊话；③「删净 dead_api 原登记、只留一条写了诚实限定名的排除表项」无牙——UnityEngine.EventSystems.EventSystem 这种形状过关的限定名照样 exit 0，判 A 还是判 B 的分界（命令在此断言的是不是本包的 API）机器读不出来，要抓得核被断言的成员，属成员级判据、已单列任务；所以改档这一半靠 diff 里的痕迹与人的纪律。另受两条反向对账（量的都是候选集）：本包确有声明即陈旧豁免，今天挡不到任何候选即该删。layer_isolation 键为 `文件路径|指针串`，一条命中一个键，记的是随包发行面指进只活在检出环境的层、或公开层指进内建契约层。归不进 A（本包查无声明的死写法）也归不进 B（Unity/BCL/第三方同名）的，宁可让判据红着上报；把死写法搬进排除表不会让红消失，只会让上面第三级那句「无牙」替它背书。把活成员记进 dead_api 同样不行——那会让清债的正确动作变成把正确的文档改错。",
+  "frontmatter": {
+    "add-event.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条；缺哪个键就改成缺那个键的串，不等值即红。"
+    },
+    "explain.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "fix-bug.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "generate-docs.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "migrate.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "new-service.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "new-ui.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "optimize.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "refactor.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "review.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    },
+    "test.md": {
+      "measured": "missing-keys:name,description,when_to_use,argument-hint,arguments,allowed-tools",
+      "reason": "命令文件尚未带 frontmatter 头，六键全缺。档位目录落位时补齐并删本条。"
+    }
+  },
+  "symbols": {
+    "dead_api": {
+      "add-event.md|EventSystem": {
+        "class": "A",
+        "reason": "否定式提及：第 6 节围栏里那句「框架里没有 IEvent / EventSystem」正是要告诉读者这两个名字在本包不存在，不是对 API 的断言。本包事件总线真名是 `EventManager`（`Runtime/Core/Events/EventManager.cs`）。登记按同量法生效：这句话被删掉或改写到候选集取不着时，本条当场上红，逼着一起收掉。"
+      },
+      "add-event.md|IEvent": {
+        "class": "A",
+        "reason": "否定式提及，出处与 `add-event.md|EventSystem` 同一句。本包无 `interface IEvent` 声明，按类别过滤订阅走自建窄接口 + `EventBase<T>`。抽取里不加「否定句豁免」这一档——那等于让一句「没有 X」给登记续命，反向探针就没有牙了。"
+      },
+      "add-event.md|Service": {
+        "class": "A",
+        "reason": "第 4 节示例 `public class SomeService : Service` 的基类名在本包查无声明。清它靠的是把示例改成本包真名：服务基类 `ServiceBase`（`Runtime/Services/Kernel/Objects/ServiceBase.cs`）。该节自述只用于包外的纯 C# 场景，所以先登记不顺手改正文。"
+      },
+      "migrate.md|Service": {
+        "class": "A",
+        "reason": "服务系统迁移一节的新代码 `[Service] public class NewService : Service` 里，特性名与基类名都在本包查无声明。清它靠的是改用真名 `ServiceBase` 与 `[AutoRegisterService]`（`Runtime/Services/Kernel/Objects/ServiceBase.cs`、`Runtime/Services/Kernel/Models/AutoRegisterServiceAttribute.cs`）。"
+      },
+      "migrate.md|EventSystem": {
+        "class": "A",
+        "reason": "事件系统迁移一节把 `EventSystem.Instance.Subscribe<T>()` / `EventSystem.Instance.Publish(...)` 当成本包新代码的总线，而本包无 `EventSystem` 声明。Unity 侧同名者是 `UnityEngine.EventSystems.EventSystem`（UI 输入射线组件，没有 `Instance.Publish`），语义对不上，所以它进登记表而不是排除表。这条裁定没有机械依据兜着：排除表的 belongs 只挡含糊话，写得出这条诚实限定名就能把它搬进排除表转绿（登记表 note 的三级自述第③级），要挡得核 `Publish` 这个成员——属成员级判据，单列任务。清它靠的是改走 `EventManager` + `EventBase<T>`（`Runtime/Core/Events/EventManager.cs`、`Runtime/Core/Events/Models/EventBase.cs`）。"
+      },
+      "optimize.md|EventSystem": {
+        "class": "A",
+        "reason": "Update 优化一节的「事件驱动」示例 `EventSystem.Subscribe<SomeEvent>(OnSomeEvent)` 同样断言本包总线，本包查无声明。清它靠的是改走 `EventManager.SendEvent` / `RegisterCallback<T>` 与 `EventBase<T>`。"
+      },
+      "migrate.md|IEvent": {
+        "class": "A",
+        "reason": "示例 `public class NewEvent : IEvent { }` 断言的事件标记接口在本包查无声明（`interface IEvent` 于 `Runtime/`、`Editor/` 出现 0 次）。本包按类别过滤订阅走自建的窄接口 + `EventBase<T>`，没有 `IEvent` 这一层；清它靠的是把示例接口改成本包真名或直接删掉该基类。"
+      }
+    },
+    "member_form": {
+      "migrate.md|OnEvent": {
+        "class": "C",
+        "reason": "活的成员名，不是死 API：`OnEvent` 是 migrate.md 第 2 节示例自己 `public event EventHandler OnEvent;` 声明的事件成员，同段 `OnEvent?.Invoke();` 取用的就是它。抽取已按 `event <Type> Name;` 声明位把它认成成员形态（量具在本文件复算出的成员命中集含 `OnEvent`），但 `OnEvent?.Invoke();` 这一处取用不落在成员判定射程内，它仍在候选集里，故按 C 档分节登记。成员名不在「类型是否存在」口径内，本条不进债务清零名单。"
+      },
+      "new-service.md|Handler": {
+        "class": "C",
+        "reason": "活的框架成员，不是死 API：`Handler` 属性由 `SourceGenerators/Source~/HandlerHost/HandlerHostGenerator.cs` 给标了 `[HandlerHost(typeof(THandler))]` 的 partial class 发射，消费点如 `LogUtility.Handler`（`Runtime/Core/Utilities/GameLog/UnityLogInterceptor.cs:45`）与 `GameTime.Handler`（`Runtime/Services/Audio/Internal/AudioClipCache.cs:171`）。命令里「`Handler` 属性由源生成器生成，不要手写」是对的。骨架行 `_ = Handler;` 已由抽取按赋值右值成员形态收掉（量具在本文件复算出的成员命中集含 `Handler`），要点行 `` `Handler` 属性 `` 是裸写成员名的散文用法，仍在候选集里，故按 C 档分节登记。本条不进债务清零名单——清它等于把写对的文档改错。"
+      }
+    },
+    "example_placeholder": {
+      "new-service.md|QuestService": {
+        "class": "C",
+        "reason": "示例代入名，不是对本包已有类型的断言：参数说明行「服务名（如 `Quest`，生成 `QuestService`）」写的是 `<Module>Service` 拿示例参数 `Quest` 代入之后命令将要产出的服务类，`Quest` 与 `QuestService` 在 `Runtime/`、`Editor/` 的声明与引用都是 0 次。量具的机械依据是同一行的行内反引号里写出被代入的参数名 `Quest`（词根够长、且写在反引号段里，散文里的普通词与接口前缀不算依据；example_stem_written 当场复算得出示例代入命中）；本条不进债务清零名单——把说明换成尖括号模板只会让示例更难读，而正文并没有断言一个死 API。"
+      }
+    }
+  },
+  "non_framework_names": {
+    "EventArgs": {
+      "class": "B",
+      "belongs": "BCL `System.EventArgs`：add-event.md 第 2 节示例 `public class {EVENT_NAME}EventArgs : EventArgs` 的基类（模板邻接的 `{EVENT_NAME}EventArgs` 由抽取归一化收掉，落在这里的是独立写出的 BCL 名）。本包 `Runtime/`、`Editor/` 无同名类型声明。"
+    },
+    "EventHandler": {
+      "class": "B",
+      "belongs": "BCL `System.EventHandler` 与 `System.EventHandler<TEventArgs>`：add-event.md 第 3 节的 `public static event EventHandler<...>` 与 migrate.md 第 2 节的 `public delegate void EventHandler();` / `public event EventHandler OnEvent;`。本包声明集里同族的是 `CallbackEventHandler`（`Runtime/Core/Events/EventManager.cs`），不是这个名字。"
+    },
+    "IEnumerator": {
+      "class": "B",
+      "belongs": "BCL `System.Collections.IEnumerator`：test.md 的 `[UnityTest]` 用例签名与 optimize.md 协程示例 `IEnumerator SomeCoroutine()`。Unity 的协程与 `[UnityTest]` 都要求它，不属本包。"
+    },
+    "System": {
+      "class": "B",
+      "belongs": "BCL/CLR 根命名空间 `System.*`：test.md 的 `using System.Collections;`。命名空间限定按口径不豁免（点号前无声明照样收），所以它落在这里而不是靠抽取规则放过。本包声明集无名为 `System` 的类型。"
+    }
+  },
+  "layer_isolation": {
+    ".claude/skills/moirai-conventions/references/gates/metas-pairing.md|docs/": {
+      "reason": "该块第 17 行的表格行在叙述「docs/ 被包根 .gitignore 的 [Dd]ocs/ 排除」这条事实，不是把读者指向一份底稿。F 段按形态判，分不清「指过去」与「点名它」，故逐条登记而非给判据开例外。清它的形状：把被禁根段改成不带反引号的散文或裸名列表——加表内例外就等于没人替你报新违例。"
+    },
+    ".claude/skills/moirai-conventions/references/gates/metas-pairing.md|.superpowers/": {
+      "reason": "该块第 23 行「那种路径连 git check-ignore 都不命中」在点名 .superpowers/ 这层本身，同上一条同形登记。"
+    },
+    ".claude/skills/moirai-conventions/references/gates/metas-pairing.md|.superpowers/sdd/.gitignore": {
+      "reason": "该块第 22 行在说明挡 .superpowers/sdd/** 出去的是该目录自己的 .gitignore，指的是这个文件确实存在的那条配置，不是文档指针；同上一条同形登记。"
+    }
+  }
+}
