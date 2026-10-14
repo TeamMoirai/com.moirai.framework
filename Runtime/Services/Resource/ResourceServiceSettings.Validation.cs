@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Resource
     /// <b>只报不改</b>：夹取会掩盖配置错误，取向与 <see cref="PlayMode"/> 读取时"只归一返回值、不回写资产"一致。
     /// 判据以数组形式交给调用方，同一份规则可被 <c>ResourceService.OnInit</c> 启动期与构建期检查各复用一次。
     /// </remarks>
-    public sealed partial class ResourceServiceSettings
+    partial class ResourceServiceSettings
     {
         /// <summary>
         /// 收集配置问题，返回实际写入条数。缓冲区不足时少报而不抛——自检永远不该成为故障源。
