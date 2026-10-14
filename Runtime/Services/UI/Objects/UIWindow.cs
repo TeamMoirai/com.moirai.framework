@@ -178,12 +178,14 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>是否加载完毕。</summary>
-        /// <remarks>装载路径私有写：装载完成置位，回滚不回落（失败窗走 <see cref="IsLoadFailed"/> + <see cref="IsDestroyed"/>）。</remarks>
-        internal bool IsLoadDone { get; private set; }
+        /// <remarks>由 <see cref="ELoadPhase"/> 派生：装载完成进 Ready，之后被收口进 ClosedAfterReady 仍算装载过（回滚不回落；失败窗走 <see cref="IsLoadFailed"/>）。</remarks>
+        internal bool IsLoadDone => _loadPhase == ELoadPhase.Ready || _loadPhase == ELoadPhase.ClosedAfterReady;
 
         /// <summary>是否被销毁。</summary>
-        /// <remarks>销毁路径私有写：显式关闭与装载失败作废两个来路。</remarks>
-        internal bool IsDestroyed { get; private set; }
+        /// <remarks>由 <see cref="ELoadPhase"/> 派生：装载前收口、装载后收口、装载失败作废三个终态皆为真。</remarks>
+        internal bool IsDestroyed => _loadPhase == ELoadPhase.ClosedBeforeReady
+            || _loadPhase == ELoadPhase.ClosedAfterReady
+            || _loadPhase == ELoadPhase.LoadFailed;
 
         /// <summary>UI是否隐藏标志位。</summary>
         public bool IsHide { get; internal set; }
@@ -250,8 +252,39 @@ namespace Moirai.Atropos.UI
         /// <summary>装载期的取消源租约：装载在途时窗口被关闭（<see cref="InternalDestroy"/>）即掐断资源装载。</summary>
         private UICtsLease _loadLease;
 
+        /// <summary>装载相位：五元链，取代原先「装载完毕 / 已销毁 / 装载失败」三个独立布尔。</summary>
+        /// <remarks>
+        /// 那三个全程只置真、从不复位，可达态本就是一条链；收成枚举后「失败却没销毁」「收口后又回到在途」
+        /// 这类假组合无法再表示。<see cref="ClosedBeforeReady"/> 与 <see cref="LoadFailed"/> 的分界是
+        /// 装载有没有失败过——两者都算"面板没能用起来过"，台账里那串
+        /// <c>IsLoadFailed || (IsDestroyed &amp;&amp; !IsLoadDone)</c> 就是在手写这个并集。
+        /// </remarks>
+        internal enum ELoadPhase : byte
+        {
+            /// <summary>面板装载在途（字段默认值即此档）。</summary>
+            Loading,
+
+            /// <summary>面板装载完成且未被收口。</summary>
+            Ready,
+
+            /// <summary>装载没成就被收口（用户在装载途中关闭）。</summary>
+            ClosedBeforeReady,
+
+            /// <summary>装载完成后被收口（正常关闭，或收口后装载才落地）。</summary>
+            ClosedAfterReady,
+
+            /// <summary>装载失败作废：面板没能装上，实例不再复用。</summary>
+            LoadFailed,
+        }
+
+        /// <summary>当前装载相位。</summary>
+        private ELoadPhase _loadPhase;
+
         /// <summary>装载失败位：面板装载回 false 或抛出后置位，等待腿据此判 <see cref="EUIOpenStatus.Failed"/>。</summary>
-        internal bool IsLoadFailed { get; private set; }
+        internal bool IsLoadFailed => _loadPhase == ELoadPhase.LoadFailed;
+
+        /// <summary>当前装载相位的测试接缝：断相位本身，而不是把三个派生位拼回同一句话。</summary>
+        internal ELoadPhase Internal_PeekLoadPhase() => _loadPhase;
 
         private int _openWaiters;
         private List<CancellationTokenRegistration> _openCancelRegs;
@@ -379,13 +412,12 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 作废装载失败的窗口：置失败位与销毁位、撤准备回调、防御性收走可能半绑定的面板。
+        /// 作废装载失败的窗口：落失败相位（含销毁语义）、撤准备回调、防御性收走可能半绑定的面板。
         /// </summary>
         internal void AbortFailedLoad()
         {
             SettleOpenWaiters();
-            IsLoadFailed = true;
-            IsDestroyed = true;
+            _loadPhase = ELoadPhase.LoadFailed;
             _prepareCallback = null;
 
             // InternalCreate 先置 _eventsRegistered 再叫 RegisterEvent：抛出型 RegisterEvent 会把已订阅的窗留在销毁态，此处补反注册
@@ -446,7 +478,16 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         private void PanelLoaded()
         {
-            IsLoadDone = true;
+            // 在途→就绪；若在落地前已被收口，则改为「装载过再收口」——装载事实补上，销毁语义保持为真
+            if (_loadPhase == ELoadPhase.Loading)
+            {
+                _loadPhase = ELoadPhase.Ready;
+            }
+            else if (_loadPhase == ELoadPhase.ClosedBeforeReady)
+            {
+                _loadPhase = ELoadPhase.ClosedAfterReady;
+            }
+
             SettleOpenWaiters();
 
             if (IsDestroyed)
@@ -700,7 +741,15 @@ namespace Moirai.Atropos.UI
                 DestroyPanel();
             }
 
-            IsDestroyed = true;
+            // 只在两个活态上落销毁语义：已是终态（含装载失败作废）就原样留着，重复收口不改相位
+            if (_loadPhase == ELoadPhase.Loading)
+            {
+                _loadPhase = ELoadPhase.ClosedBeforeReady;
+            }
+            else if (_loadPhase == ELoadPhase.Ready)
+            {
+                _loadPhase = ELoadPhase.ClosedAfterReady;
+            }
 
             if (!isShutDown)
             {
