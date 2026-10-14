@@ -141,6 +141,60 @@ namespace Service.UI
             Assert.IsTrue(result, "隐式布尔在就绪档为真");
         }
 
+        #region 装载相位 [LOAD PHASE]
+
+        /// <summary>装载成功落 Ready；正常关闭进 ClosedAfterReady——收口不把"装载过"这个事实抹掉。</summary>
+        [Test]
+        public void LoadPhase_ReadyThenClose_KeepsTheLoadFact()
+        {
+            UIService.ShowUI<AcceptLoadUGUIWindow>("PhaseOk");
+
+            var window = UIService.SharedLedger.GetWindow<AcceptLoadUGUIWindow>("PhaseOk");
+            Assert.AreEqual(UIWindow.ELoadPhase.Ready, window.Internal_PeekLoadPhase(), "同步装载成功落 Ready 档");
+
+            UIService.CloseUI<AcceptLoadUGUIWindow>("PhaseOk");
+
+            Assert.AreEqual(UIWindow.ELoadPhase.ClosedAfterReady, window.Internal_PeekLoadPhase(), "关闭后进 ClosedAfterReady");
+            Assert.IsTrue(window.IsLoadDone, "回滚不回落：装载过这件事保持为真");
+            Assert.IsTrue(window.IsDestroyed, "收口后销毁语义为真");
+        }
+
+        /// <summary>装载途中关闭落 ClosedBeforeReady；迟到的失败回滚被销毁守卫挡住，不改写成 LoadFailed。</summary>
+        [Test]
+        public void LoadPhase_CloseDuringLoad_StaysClosedBeforeReadyAgainstLateRollback()
+        {
+            UIService.ShowUIAsync<NeverLoadUGUIWindow>("PhaseNever");
+
+            var window = UIService.SharedLedger.GetWindow<NeverLoadUGUIWindow>("PhaseNever");
+            UIService.CloseUI<NeverLoadUGUIWindow>("PhaseNever");
+
+            Assert.AreEqual(UIWindow.ELoadPhase.ClosedBeforeReady, window.Internal_PeekLoadPhase(),
+                "在途关闭落 ClosedBeforeReady：销毁为真而装载从未完成");
+            Assert.IsFalse(window.IsLoadDone, "面板没装上就不算装载完成");
+
+            UIService.SharedLedger.RollbackFailedLoad(window);
+
+            Assert.AreEqual(UIWindow.ELoadPhase.ClosedBeforeReady, window.Internal_PeekLoadPhase(),
+                "显式关闭收口过的窗，迟到的失败回滚不得把它改写成装载失败");
+            Assert.IsFalse(window.IsLoadFailed, "失败位保持未翻：作废回执只发一次");
+        }
+
+        /// <summary>同步装载失败落 LoadFailed：销毁语义为真、装载语义为假——这两位在失败档不可能各自单独成立。</summary>
+        [Test]
+        public void LoadPhase_SyncLoadFailure_LandsOnLoadFailed()
+        {
+            UtfLogExpect.Error();
+
+            UIService.ShowUI<FailingLoadUGUIWindow>("PhaseFail");
+
+            var window = FailingLoadUGUIWindow.Last;
+            Assert.AreEqual(UIWindow.ELoadPhase.LoadFailed, window.Internal_PeekLoadPhase(), "装载失败落 LoadFailed 档");
+            Assert.IsTrue(window.IsDestroyed, "失败档含销毁语义：实例不再复用");
+            Assert.IsFalse(window.IsLoadDone, "失败档不含装载语义");
+        }
+
+        #endregion 装载相位 [LOAD PHASE]
+
         #region 探针 [PROBES]
 
         /// <summary>同步装载失败的探针窗：记录实例与装载地址，装载钩子一律回 false。</summary>
