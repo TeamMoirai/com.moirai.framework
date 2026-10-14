@@ -21,19 +21,10 @@ namespace Moirai.Atropos
     /// });
     /// </code>
     /// </example>
-    [HandlerHost(typeof(StringHandler))]
+    [ProviderHandlerHost(typeof(StringHandler), typeof(DefaultStringHandler))]
     public static partial class StringUtility
     {
         #region 处理器 [HANDLER]
-
-        internal static StringHandler CreateDefaultHandler()
-        {
-#if ZSTRING_INSTALLED
-            return new ZStringHandler();
-#else
-            return new DefaultStringHandler();
-#endif
-        }
 
         private static StringHandler GetHandlerFromSettings() => GameAppSettings.StringHandler;
 

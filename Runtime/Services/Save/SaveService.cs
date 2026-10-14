@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Save
     /// 便捷单对象 API（<c>SaveAsync</c>/<c>LoadAsync</c>/…）映射到保留块 <see cref="MAIN_BLOCK_KEY"/>。 <br />
     /// 序列化后端（JSON/MessagePack/MemoryPack/protobuf-net）与存储管线（明文/AES 加密）两轴可插拔，经 <see cref="SaveServiceSettings"/> 配置。 <br />
     /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 解析，settings 未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
-    /// <see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     /// <example>
     /// <code lang="csharp">
@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Save
     /// </code>
     /// </example>
     [AutoRegisterService]
-    [HandlerHost(typeof(SaveServiceHandler))]
+    [ProviderHandlerHost(typeof(SaveServiceHandler), typeof(PlainSaveHandler))]
     [ServiceDependency(typeof(DebuggerService))]
     public partial class SaveService : ServiceBase
     {
@@ -31,12 +31,6 @@ namespace Moirai.Atropos.Save
         public const string MAIN_BLOCK_KEY = SaveServiceHandler.MAIN_BLOCK_KEY;
 
         #region 生命周期 [LIFECYCLE]
-
-        /// <summary>
-        /// 创建默认存档处理器（settings 未配置时的代码兜底）。
-        /// </summary>
-        /// <returns>默认存档处理器实例。</returns>
-        internal static SaveServiceHandler CreateDefaultHandler() => new PlainSaveHandler();
 
         /// <summary>
         /// 从 <see cref="SaveServiceSettings"/> 解析存档处理器。

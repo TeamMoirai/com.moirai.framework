@@ -6,15 +6,10 @@ namespace Moirai.Atropos
     /// 游戏配置服务：读写按用户隔离的键值配置，键由用户 ID 自动组合。
     /// </summary>
     /// <remarks>仅用于游戏配置，禁止用于游戏内容保存。</remarks>
-    [HandlerHost(typeof(SettingHandler))]
+    [ProviderHandlerHost(typeof(SettingHandler), typeof(DefaultSettingHandler))]
     public static partial class SettingUtility
     {
         #region 处理器 [HANDLER]
-
-        internal static SettingHandler CreateDefaultHandler()
-        {
-            return new DefaultSettingHandler();
-        }
 
         private static SettingHandler GetHandlerFromSettings() => GameAppSettings.SettingHandler;
 

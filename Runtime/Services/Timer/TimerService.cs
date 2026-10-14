@@ -13,22 +13,17 @@ namespace Moirai.Atropos.Timer
     /// 默认后端 <see cref="DefaultTimerHandler"/> 是时间轮（<c>Delay</c> 系列）与帧计时（<c>WaitFrame</c> 系列）两条泳道的复合外观， <br />
     /// 可在 <see cref="TimerServiceSettings"/> 中替换。 <br />
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册 / 未初始化时返回安全默认值。
-    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService))]
-    [HandlerHost(typeof(TimerServiceHandler))]
+    [ProviderHandlerHost(typeof(TimerServiceHandler), typeof(DefaultTimerHandler))]
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
     public partial class TimerService : ServiceBase, IServiceTickable, IServiceFixedTickable, IServiceLateTickable
     {
         #region 生命周期 [LIFECYCLE]
-
-        /// <summary>
-        /// 创建默认计时器处理器（settings 未配置时的代码兜底）。
-        /// </summary>
-        internal static TimerServiceHandler CreateDefaultHandler() => new DefaultTimerHandler();
 
         /// <summary>
         /// 从 <see cref="TimerServiceSettings"/> 解析计时器处理器。

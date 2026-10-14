@@ -17,21 +17,10 @@ namespace Moirai.Atropos
     /// TweenUtility.Position(t, end, 0.3f, myAnimationCurve);            // 曲线缓动
     /// </code>
     /// </example>
-    [HandlerHost(typeof(TweenHandler))]
+    [ProviderHandlerHost(typeof(TweenHandler), typeof(DefaultTweenHandler))]
     public static partial class TweenUtility
     {
         #region 处理器 [HANDLER]
-
-        internal static TweenHandler CreateDefaultHandler()
-        {
-#if LITMOTION_INSTALLED
-            return new LitMotionHandler();
-#elif PRIMETWEEN_INSTALLED
-            return new PrimeTweenHandler();
-#else
-            return new DefaultTweenHandler();
-#endif
-        }
 
         private static TweenHandler GetHandlerFromSettings() => GameAppSettings.TweenHandler;
 

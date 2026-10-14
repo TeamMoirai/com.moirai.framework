@@ -11,30 +11,13 @@ namespace Moirai.Atropos
     /// 等级过滤在各 <see cref="LogHandler"/> 的 <see cref="LogHandler.Log"/> 入口按 <see cref="LogHandler.MinimumLevel"/> <br />
     /// 执行（含全局拦截器转发的三方日志）；
     /// <see cref="onMessageLogged"/> 仅在日志通过过滤后触发。
-    /// 未显式设置处理器时按编译期可用的最优后端自动选择（优先级：Unity Logging &gt; ZLogger &gt; Serilog &gt; Unity Debug）。 <br />
+    /// 未显式设置处理器且 GameAppSettings 未配置时回退默认后端（DefaultLogHandler）；切换后端在 GameAppSettings 配置。 <br />
     /// 日志方法由 T4 模板生成，见 <c>LogUtility.LogMethods.tt</c>。
     /// </remarks>
-    [HandlerHost(typeof(LogHandler))]
+    [ProviderHandlerHost(typeof(LogHandler), typeof(DefaultLogHandler))]
     public static partial class LogUtility
     {
         #region 处理器 [HANDLER]
-
-        /// <summary>
-        /// 按编译期可用的最优后端创建默认处理器。
-        /// </summary>
-        /// <returns>默认日志处理器实例。</returns>
-        internal static LogHandler CreateDefaultHandler()
-        {
-#if ZLOGGER_INSTALLED
-            return new ZLoggerHandler();
-#elif SERILOG_INSTALLED
-            return new SerilogHandler();
-#elif UNITY_LOGGING_INSTALLED
-            return new UnityLoggingHandler();
-#else
-            return new DefaultLogHandler();
-#endif
-        }
 
         private static LogHandler GetHandlerFromSettings() => GameAppSettings.LogHandler;
 
