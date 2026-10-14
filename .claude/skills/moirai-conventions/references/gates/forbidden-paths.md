@@ -21,7 +21,8 @@
 
 ## 按名解析的 `Resources/`
 
-四处 `Resources/` 目录：`Editor/Core/Attributes/Resources/`、`Editor/Core/Events/Resources/`、`Runtime/Services/Debugger/Resources/`、`Runtime/Services/UI/Resources/`。
+参与 Unity 导入的 `Resources/` 目录是下面这几处：`Editor/Core/Attributes/Resources/`、`Editor/Core/Events/Resources/`、`Runtime/Services/Debugger/Resources/`、`Runtime/Services/UI/Resources/`。
+`~` 结尾目录（`Samples~`、`Templates~` 等）里另有同名 `Resources/`，它们不参与导入、`Resources.Load` 够不到，所以不在本表射程——按 `find -type d -name Resources` 数会得到比这里多的条目，那不是本表的口径，也别把计数钉进本层。
 `Resources.Load` 只认「目录名 `Resources` + 相对路径不含扩展名」，不看程序集归属、编译期没有任何引用可查：改名或搬动 ⇒ 编译照过，运行期取到 `null`。
 在盘面上对得上的几对（动一侧就断另一侧）：
 
