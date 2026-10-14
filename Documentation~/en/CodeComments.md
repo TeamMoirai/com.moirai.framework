@@ -52,7 +52,7 @@ Narrative in Chinese, consistent with the existing codebase; type names, member 
 
 ```csharp
 /// <remarks>
-/// 生成 s_Handler 字段（private，partial 同类可访问）、IsValid、Handler（get/set）与 RequireHandler（不触发懒加载，未就绪抛 GameException，写路径 fail-fast 入口）；工厂契约三档：两者皆声明时懒加载先调 GetHandlerFromSettings、返回 null 回退 CreateDefaultHandler，仅声明后者则直接调用，仅声明前者（MIRAI102）必须返回非空，null 即抛 InvalidOperationException；两者都未声明（MIRAI101）时访问 Handler 抛异常，显式 setter 赋值始终可用。
+/// 生成 s_Handler 字段（private，partial 同类可访问）、IsValid、Handler（get/set）与 RequireHandler（不触发懒加载，未就绪抛 GameException，写路径 fail-fast 入口）；默认工厂三档：声明 DefaultHandlerType 时生成器生成 CreateDefaultHandler 兜底工厂，非法声明（未继承处理器类型/抽象/无可访问无参构造）报 MIRAI103；手写 CreateDefaultHandler 仍合法（引擎宏分派宿主），与声明默认共存时手写生效、声明冗余（MIRAI104）；懒加载先调 GetHandlerFromSettings、返回 null 回退默认工厂。
 /// </remarks>
 ```
 
@@ -64,15 +64,15 @@ Narrative in Chinese, consistent with the existing codebase; type names, member 
 /// </summary>
 /// <remarks>
 /// 生成 <c>s_Handler</c> 字段（private，partial 同类可访问）、<c>IsValid</c>、<c>Handler</c>（get/set）与 <c>RequireHandler</c>（未就绪抛 <see cref="GameException"/>，写路径 fail-fast 入口）。<br />
-/// 工厂契约三档：两者皆声明时先调 <c>GetHandlerFromSettings</c>、返回 null 回退 <c>CreateDefaultHandler</c>；仅声明后者直接调用。<br />
-/// 仅声明 <c>GetHandlerFromSettings</c>（MIRAI102）必须返回非空，null 即抛 <see cref="InvalidOperationException"/>；两者都未声明（MIRAI101）时访问 <c>Handler</c> 抛异常。
+/// 默认工厂三档：声明 <c>DefaultHandlerType</c>（第二构造参数）时生成器生成 <c>CreateDefaultHandler</c> 兜底工厂，非法声明报 MIRAI103；手写 <c>CreateDefaultHandler</c> 仍合法（引擎宏分派宿主），与声明默认共存时手写生效、声明冗余（MIRAI104）。<br />
+/// 懒加载先调 <c>GetHandlerFromSettings</c>、返回 null 回退默认工厂；工厂全缺（MIRAI101）时访问 <c>Handler</c> 抛异常；仅 <c>GetHandlerFromSettings</c>（MIRAI102）必须返回非空，null 即抛 <see cref="InvalidOperationException"/>。
 /// </remarks>
 /// <example>
 /// <code>
-/// [HandlerHost(typeof(LogHandler))]
+/// [ProviderHandlerHost(typeof(LogHandler), typeof(DefaultLogHandler))]
 /// public static partial class LogUtility
 /// {
-///     private static LogHandler CreateDefaultHandler() => new DefaultLogHandler();
+///     private static LogHandler GetHandlerFromSettings() => ...; // 可选：settings 优先，返回 null 回退声明的默认处理器
 /// }
 /// </code>
 /// </example>

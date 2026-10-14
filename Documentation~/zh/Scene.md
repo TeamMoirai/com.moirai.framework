@@ -21,7 +21,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.Scene.SceneService` | 场景服务静态外观（`[HandlerHost]`）。未注册时外观调用静默降级（查询返回默认值、加载返回无效场景）；`Handler` 属性懒加载从 `SceneServiceSettings` 创建处理器，配置为空时回退默认实现 `DefaultSceneHandler` |
+| `Moirai.Atropos.Scene.SceneService` | 场景服务静态外观（`[ProviderHandlerHost]`）。未注册时外观调用静默降级（查询返回默认值、加载返回无效场景）；`Handler` 属性懒加载从 `SceneServiceSettings` 创建处理器，配置为空时回退默认实现 `DefaultSceneHandler` |
 | `Moirai.Atropos.Scene.SceneServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `DefaultSceneHandler` 经 `ResourceService` 加载并管理主/子场景 |
 | `Moirai.Atropos.Resource.ResourceSceneHandle` | 资源系统场景句柄抽象，由资源后端（YooAsset / Addressable）适配实现，承载加载进度、激活、解除挂起与卸载 |
 

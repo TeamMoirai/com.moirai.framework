@@ -9,7 +9,7 @@
 - **Instantiable service world**: `ServiceWorld` can be `new`-constructed into an isolated world (tests/sandboxes), and the `GameServices` static facade is merely a projection of the default world `Default`; 3 fixed-order scope slots (App/Scene/Gameplay, zero sorting) + an inline 3-slot binding value-type struct for O(1) cross-scope lookup
 - **Attribute-declared dependencies + topological initialization**: `[ServiceDependency(typeof(DepA), typeof(DepB))]` declares multiple dependencies in a single attribute, validated at compile time by `ServiceDependencyAnalyzer` (MIRAI201/MIRAI202) to ensure types implement `IService`; world initialization drives all `OnInit` uniformly via Kahn topological sorting over the declared graph (initialization order is independent of registration order)
 - **Two-phase build**: `Register` only enqueues into the graph (no `OnInit` is driven during registration); `Initialize()`/`InitializeAsync()` commits the second phase — missing and circular dependencies fail-fast at initialization (the error message includes cycle members); runtime registration after the world is initialized requires all dependencies ready right now (fail-fast otherwise) and drives `OnInit` immediately — **no topological insertion**, a late service always lands after the existing ones (services implementing `IServiceInitializableAsync` are forbidden from runtime registration)
-- **HandlerHost static facades**: all 13 framework services follow the `[HandlerHost] XxxService : ServiceBase` static facade + serializable `XxxHandler` backend + `XxxSettings` (`[SerializeReference]` + `[ProviderDropdown]`) backend-selection pattern
+- **ProviderHandlerHost static facades**: all 13 framework services follow the `[ProviderHandlerHost] XxxService : ServiceBase` static facade + serializable `XxxHandler` backend + `XxxSettings` (`[SerializeReference]` + `[ProviderDropdown]`) backend-selection pattern
 - **Three-level scope** (`EServiceScopeKind.App` / `Scene` / `Gameplay`), cross-scope lookup follows Gameplay > Scene > App priority
 - **Lifecycle capability interfaces implemented on demand**: `IServiceTickable`, `IServiceFixedTickable`, `IServiceLateTickable`, `IServiceGizmoDrawable`, `IAsyncShutdownService` (all inherit `IService`)
 - **`Priority`** controls polling order (higher priority polls first, shuts down later). Framework built-in services are uniformly ≤ -1000 (see `ServicePriorityOrder`); business services default to 0 and above
@@ -97,17 +97,17 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 - Unregistration granularity is the **service**, not the contract: when one instance is registered under several contracts, unregistering any one of them removes the whole instance from the scope (the remaining contracts go with it).
 - While initialization is running (`ServiceWorld.IsInitializing`), `UnregisterService` and `ShutdownContainer` throw `GameException` — the pending graph is being consumed by an index-driven loop, so removing entries mid-flight would still `OnInit` the removed service (with no activation record, hence no `OnShutdown`) and shift later services out of turn. Do these after initialization returns.
 
-### HandlerHost Service Architecture
+### ProviderHandlerHost Service Architecture
 
 All 13 built-in framework services (Resource/Debugger/Audio/ObjectPool/GameObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input/ConfigTable) follow a unified three-layer structure:
 
 | Layer | Form | Responsibility |
 |------|------|------|
-| `XxxService : ServiceBase` | Static facade, marked with `[HandlerHost(typeof(XxxHandler))]` + `[ServiceDependency(...)]` | All static APIs; `OnInit` triggers handler lazy-init, `OnShutdown` clears the handler |
+| `XxxService : ServiceBase` | Static facade, marked with `[ProviderHandlerHost(typeof(XxxHandler), typeof(default backend))]` + `[ServiceDependency(...)]` | All static APIs; `OnInit` triggers handler lazy-init, `OnShutdown` clears the handler |
 | `XxxHandler : FrameworkHandler` | Serializable backend class | Carries the core logic; replacing the backend requires no changes to callers |
 | `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject settings | Selects the backend implementation via `[ProviderDropdown]` + `[SerializeReference]` |
 
-Business code always calls static facades (e.g. `AudioService.Play(...)`, `UIService.ShowUI<T>()`) without holding service instance references. Custom backends: inherit `XxxHandler`, override virtual methods → switch in the provider dropdown of `XxxSettings`.
+Business code always calls static facades (e.g. `AudioService.Play(...)`, `UIService.ShowUI<T>()`) without holding service instance references. The default handler is declared via the second `[ProviderHandlerHost]` constructor argument and `ProviderHandlerHostGenerator` emits the `CreateDefaultHandler` fallback factory (invalid declarations fail at compile time with MIRAI103); lazy loading reads settings first and falls back to the declared default — **no auto-preference over installed packages**, backend switching is always an explicit settings choice (engine-define dispatch hosts such as `InputService` keep a hand-written factory). Custom backends: inherit `XxxHandler`, override virtual methods → switch in the provider dropdown of `XxxSettings`.
 
 ### Lifecycle State Machine
 
@@ -180,7 +180,7 @@ BuiltinServiceRegistration.RegisterAll(GameServices.Default);   // graph entry o
 await GameServices.Default.InitializeAsync();                    // drives OnInit in [ServiceDependency] topological order
 ```
 
-Built-in services enter the registration list via the `[AutoRegisterService]` attribute on the service class: the source generator collects marked types and emits the assembly-level `BuiltinServiceRegistration.RegisterAll(ServiceWorld)` (instances are created by generated code through parameterless constructors; invalid targets — not implementing `IService`, abstract/generic, lacking an accessible parameterless constructor, out-of-range scope — fail at compile time with MIRAI203/204/205). `[ServiceDependency]` declarations are ordered and validated by the world-initialization topological sort (missing dependencies fail fast, registration order is irrelevant). The `CreateDefaultHandler` path of each facade still calls `GameServices.EnsureRegistered<T>()` as a fallback, so a service touched before the composition root has run still gets registered (a shut-down `GameApp` blocks this explicitly — see Lazy Self Registration). Custom service backend implementations can be swapped in the corresponding `XxxSettings` Inspector via the provider dropdown.
+Built-in services enter the registration list via the `[AutoRegisterService]` attribute on the service class: the source generator collects marked types and emits the assembly-level `BuiltinServiceRegistration.RegisterAll(ServiceWorld)` (instances are created by generated code through parameterless constructors; invalid targets — not implementing `IService`, abstract/generic, lacking an accessible parameterless constructor, out-of-range scope — fail at compile time with MIRAI203/204/205). `[ServiceDependency]` declarations are ordered and validated by the world-initialization topological sort (missing dependencies fail fast, registration order is irrelevant). The lazy-loading path of each facade (`GetHandlerFromSettings`, first line) still calls `GameServices.EnsureRegistered<T>()` as a fallback, so a service touched before the composition root has run still gets registered (a shut-down `GameApp` blocks this explicitly — see Lazy Self Registration). Custom service backend implementations can be swapped in the corresponding `XxxSettings` Inspector via the provider dropdown.
 
 ### Handler Async Lifecycle
 
@@ -322,8 +322,8 @@ GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
 
 ### Lazy Self Registration
 
-Service instances have no centralized factory table. Each HandlerHost service facade's default handler creation path
-(`CreateDefaultHandler`) calls `GameServices.EnsureRegistered<T>()` first — when a service is accessed through its facade while unregistered,
+Service instances have no centralized factory table. Each ProviderHandlerHost service facade's lazy-loading path
+(`GetHandlerFromSettings`, first line) calls `GameServices.EnsureRegistered<T>()` — when a service is accessed through its facade while unregistered,
 an instance is automatically created and registered into the App scope (idempotent):
 
 ```csharp

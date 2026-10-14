@@ -23,7 +23,7 @@ Runtime/Services/Pooling/
 │   ├── OpenHashMap.cs / ReferenceOpenHashMap.cs / StringOpenHashMap.cs  # Open-addressing zero-alloc hashes
 │   └── SlotArrayPool.cs      # Bucketed array pool by length
 ├── ObjectPool/               # generic pool service
-│   ├── ObjectPoolService.cs / …ServiceHandler.cs / …ServiceSettings.cs / …ServiceDebuggerWindow.cs  # facade quartet ([HandlerHost])
+│   ├── ObjectPoolService.cs / …ServiceHandler.cs / …ServiceSettings.cs / …ServiceDebuggerWindow.cs  # facade quartet ([ProviderHandlerHost])
 │   ├── Handler/DefaultObjectPoolHandler.cs  # built-in default backend
 │   ├── Models/               # IObjectPool.cs (contract) / ObjectInfo.cs / ObjectPoolCreateOptions.cs / ObjectPoolKey.cs
 │   ├── Objects/ObjectBase.cs # Pooled object base (OnSpawn/OnDespawn/Release contract)

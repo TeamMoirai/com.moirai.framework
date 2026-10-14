@@ -9,7 +9,7 @@
 - **可实例化服务世界**：`ServiceWorld` 可 `new` 构造隔离世界（测试/沙盒），`GameServices` 静态外观仅是默认世界 `Default` 的投影；3 作用域固定序槽位（App/Scene/Gameplay，零排序）+ 内联 3 槽绑定值类型 struct O(1) 跨作用域查找
 - **特性声明依赖 + 拓扑初始化**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MIRAI201/MIRAI202）校验类型实现 `IService`；世界初始化按声明图 Kahn 拓扑排序统一驱动 OnInit（初始化顺序与注册顺序无关）
 - **两阶段构建**：`Register` 仅入图（注册期不驱动 OnInit）；`Initialize()`/`InitializeAsync()` 提交第二阶段——缺失依赖与循环依赖在初始化期 fail-fast（错误消息含环成员）；世界已初始化后的运行时注册要求全部依赖已就绪（缺失即 fail-fast），通过后立即 OnInit——**不做拓扑插入**，新服务总是排在既有服务之后（实现 `IServiceInitializableAsync` 的服务禁止运行时注册）
-- **HandlerHost 静态外观**：13 个框架服务均为 `[HandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
+- **ProviderHandlerHost 静态外观**：13 个框架服务均为 `[ProviderHandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
 - **生命周期能力接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`、`IAsyncShutdownService`（均继承 `IService`）
 - **`Priority` 优先级**控制轮询顺序（高优先先轮询、后关闭）。框架内置服务统一 ≤ -1000（见 `ServicePriorityOrder`），业务服务默认 0 及以上
@@ -97,17 +97,17 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 - 注销粒度是**服务**而非契约：同一实例以多个契约注册时，注销其中任一契约会把该实例整体摘出作用域（其余契约随之失效）。
 - 初始化进行中（`ServiceWorld.IsInitializing`）禁止 `UnregisterService` 与 `ShutdownContainer`——挂起图正被按索引推进的循环消费，中途摘除会让被注销者仍被 `OnInit`（且不记激活序 → 无 `OnShutdown`）、并让其后服务因索引位移被跳过。这类操作请放到初始化完成之后。
 
-### HandlerHost 服务架构
+### ProviderHandlerHost 服务架构
 
 框架的 13 个内置服务（Resource/Debugger/Audio/ObjectPool/GameObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input/ConfigTable）统一采用三层结构：
 
 | 层 | 形态 | 职责 |
 |------|------|------|
-| `XxxService : ServiceBase` | 静态外观，标记 `[HandlerHost(typeof(XxxHandler))]` + `[ServiceDependency(...)]` | 全部静态 API；`OnInit` 触发 Handler 懒加载，`OnShutdown` 清空 Handler |
+| `XxxService : ServiceBase` | 静态外观，标记 `[ProviderHandlerHost(typeof(XxxHandler), typeof(默认后端))]` + `[ServiceDependency(...)]` | 全部静态 API；`OnInit` 触发 Handler 懒加载，`OnShutdown` 清空 Handler |
 | `XxxHandler : FrameworkHandler` | 可序列化后端类 | 承载核心逻辑；替换后端无需改动调用方 |
 | `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject 设置 | `[ProviderDropdown]` + `[SerializeReference]` 选择后端实现 |
 
-业务代码一律调用静态外观（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。自定义后端：继承 `XxxHandler` 覆写虚方法 → 在 `XxxSettings` 的 Provider 下拉框中切换。
+业务代码一律调用静态外观（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。默认处理器经 `[ProviderHandlerHost]` 第二构造参数声明，由 `ProviderHandlerHostGenerator` 生成 `CreateDefaultHandler` 兜底工厂（非法声明编译期报 MIRAI103）；懒加载优先读 settings，未配置回退声明默认——**不按已安装包自动优选**，切换后端一律在 settings 里显式选择（引擎宏分派的宿主如 `InputService` 保留手写工厂）。自定义后端：继承 `XxxHandler` 覆写虚方法 → 在 `XxxSettings` 的 Provider 下拉框中切换。
 
 ### 生命周期状态机
 
@@ -180,7 +180,7 @@ BuiltinServiceRegistration.RegisterAll(GameServices.Default);   // 仅入图，�
 await GameServices.Default.InitializeAsync();                    // 按 [ServiceDependency] 拓扑序统一驱动 OnInit
 ```
 
-内置服务经服务类上的 `[AutoRegisterService]` 特性进入注册清单：源生成器收集标记类型并生成程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)`（实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MIRAI203/204/205 报错）。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。各服务外观的 `CreateDefaultHandler` 首行仍调用 `GameServices.EnsureRegistered<T>()` 作兜底——组合根尚未跑到就被访问服务时也能完成注册（关闭态会被显式阻断，见「懒加载自动注册」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
+内置服务经服务类上的 `[AutoRegisterService]` 特性进入注册清单：源生成器收集标记类型并生成程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)`（实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MIRAI203/204/205 报错）。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。各服务外观的懒加载路径（`GetHandlerFromSettings` 首行）仍调用 `GameServices.EnsureRegistered<T>()` 作兜底——组合根尚未跑到就被访问服务时也能完成注册（关闭态会被显式阻断，见「懒加载自动注册」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
 
 ### 处理器异步生命周期 [HANDLER ASYNC LIFECYCLE]
 
@@ -322,8 +322,8 @@ GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
 
 ### 懒加载自动注册 [LAZY SELF REGISTRATION]
 
-服务实例没有集中工厂表。每个 HandlerHost 服务外观的默认处理器创建路径
-（`CreateDefaultHandler`）首行调用 `GameServices.EnsureRegistered<T>()`——服务在未注册状态下被外观访问时，
+服务实例没有集中工厂表。每个 ProviderHandlerHost 服务外观的懒加载路径
+（`GetHandlerFromSettings` 首行）调用 `GameServices.EnsureRegistered<T>()`——服务在未注册状态下被外观访问时，
 自动创建实例并注册到 App 作用域（幂等）：
 
 ```csharp

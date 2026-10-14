@@ -2,7 +2,7 @@
 
 > Luban 配置表桥接层：框架侧定义接口与单例入口，具体配置代码由 Luban 从 Excel 生成到项目程序集。
 
-`ConfigTable` 服务在 Runtime 侧只包含 `ConfigTableService` 静态外观（`[HandlerHost]`）与 `ConfigTableServiceHandler` 抽象契约：前者提供框架关心的四个能力（多语言文本、语言列自报、图标加载、UI 窗口路径）的静态入口，后者约定后端实现。真正的表数据与 `Tables` 表集合均由 Luban 转表工具从模板生成到项目的 `GameProto` 程序集，游戏侧的 `LubanHandler`（继承 `ConfigTableServiceHandler`）在编辑器脚本重载时经 `[DidReloadScripts]` 调用 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 写入设置，运行期由外观按设置懒加载安装。配套的编辑器工具（`Tools/Framework Settings` 的 `LubanSettings` 与 `Tools/Config` 菜单）负责配置表工程目录的生成、重定向与转表。
+`ConfigTable` 服务在 Runtime 侧只包含 `ConfigTableService` 静态外观（`[ProviderHandlerHost]`）与 `ConfigTableServiceHandler` 抽象契约：前者提供框架关心的四个能力（多语言文本、语言列自报、图标加载、UI 窗口路径）的静态入口，后者约定后端实现。真正的表数据与 `Tables` 表集合均由 Luban 转表工具从模板生成到项目的 `GameProto` 程序集，游戏侧的 `LubanHandler`（继承 `ConfigTableServiceHandler`）在编辑器脚本重载时经 `[DidReloadScripts]` 调用 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 写入设置，运行期由外观按设置懒加载安装。配套的编辑器工具（`Tools/Framework Settings` 的 `LubanSettings` 与 `Tools/Config` 菜单）负责配置表工程目录的生成、重定向与转表。
 
 ## 核心特性
 
@@ -17,7 +17,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.ConfigTable.ConfigTableService` | 配置表静态外观（`[HandlerHost]`）：`GetAllLocalizedStrings`、`GetLocalizationLanguageCodes`、`SupportsPerLanguageLocalizationLoad`、`GetLocalizedStringsByLanguage`、`LoadSpriteByID`、`GetUIWindowLocation`；查询 API 经 `s_Handler?.` 转发（未就绪时静默降级为 null / 空集，按语言取列的开关降级为 `false`），处理器懒加载优先从 settings 取、再回退默认工厂，两者都取不到才抛异常 |
+| `Moirai.Atropos.ConfigTable.ConfigTableService` | 配置表静态外观（`[ProviderHandlerHost]`）：`GetAllLocalizedStrings`、`GetLocalizationLanguageCodes`、`SupportsPerLanguageLocalizationLoad`、`GetLocalizedStringsByLanguage`、`LoadSpriteByID`、`GetUIWindowLocation`；查询 API 经 `s_Handler?.` 转发（未就绪时静默降级为 null / 空集，按语言取列的开关降级为 `false`），处理器懒加载优先从 settings 取、再回退默认工厂，两者都取不到才抛异常 |
 | `Moirai.Atropos.ConfigTable.ConfigTableServiceHandler` | 配置表处理器抽象基类（继承 `FrameworkHandler`），定义后端契约；未安装自定义处理器时使用 `DefaultConfigTableHandler`（记录错误并返回空结果） |
 | `Moirai.GameProto.Config.LubanHandler` | 游戏侧处理器（继承 `ConfigTableServiceHandler`），编辑器脚本重载时经 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 安装，桥接 Luban 生成代码与框架外观 |
 | `Moirai.GameProto.Config.Tables` | Luban 生成的表集合（`TbUIWindow`、`TbSprite`、`TbSpriteAtlas` 及业务表）。**不含多语言表**——那些按语言分份，见下一行 |

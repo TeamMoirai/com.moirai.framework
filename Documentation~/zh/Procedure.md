@@ -18,7 +18,7 @@ Procedure 服务（`ProcedureService`）是一台自包含的状态机——内�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `ProcedureService` | 静态外观（`[HandlerHost]`，`IServiceTickable`）：`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；查询类 API 未就绪时静默降级为安全默认值，变更类 API（`StartProcedure` / `ChangeState`）未就绪时忽略并告警，`Initialize` / `RestartProcedure` 是引导入口仅要求处理器在位；后端直接调用仍 fail-fast |
+| `ProcedureService` | 静态外观（`[ProviderHandlerHost]`，`IServiceTickable`）：`StartProcedure` / `HasProcedure` / `ChangeState` / `GetProcedure` / `RestartProcedure` 及 `CurrentProcedure`、`CurrentProcedureTime`；查询类 API 未就绪时静默降级为安全默认值，变更类 API（`StartProcedure` / `ChangeState`）未就绪时忽略并告警，`Initialize` / `RestartProcedure` 是引导入口仅要求处理器在位；后端直接调用仍 fail-fast |
 | `ProcedureServiceHandler` | 处理器抽象基类，定义流程状态机后端契约；`ProcedureBase` 子类经内部 `Owner` 引用回调本处理器 |
 | `DefaultProcedureHandler` | 默认实现，内置状态字典与轮询驱动 |
 | `ProcedureBase` | 流程基类（独立抽象类），提供 `OnInit / OnEnter / OnUpdate / OnLeave / OnDestroy` 无参生命周期与 `ChangeState<T>()` 切换 |

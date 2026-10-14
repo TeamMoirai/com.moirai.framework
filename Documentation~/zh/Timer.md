@@ -2,7 +2,7 @@
 
 > 基于四级时间轮的高性能计时器服务，无全量扫描，适合技能 CD、心跳包、延时任务等大规模定时场景。
 
-`Timer` 服务提供延时、按帧等待、暂停、恢复、重启、取消计时器的能力。默认实现 `DefaultTimerHandler` 是**两套独立引擎的复合外观（Composite）**：时间轮引擎 `WheelTimerEngine`（`Delay`，四级时间轮，每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick）与帧计时引擎 `FrameTimerEngine`（`WaitFrame`，按帧递减），各占一条泳道、自持独立的分页槽位池与句柄命名空间，互不知晓、互不糅合；`DefaultTimerHandler` 只做「创建落到对应引擎、句柄按内嵌泳道号路由、阶段推进与统计跨引擎扇出/聚合」。时间轮引擎同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条轮。对外经 `TimerService.Xxx()` 静态外观访问（HandlerHost 模式：`TimerService` 静态外观 + `TimerServiceHandler` 抽象基类 + `DefaultTimerHandler` 复合后端 + `TimerServiceSettings` 配置）。
+`Timer` 服务提供延时、按帧等待、暂停、恢复、重启、取消计时器的能力。默认实现 `DefaultTimerHandler` 是**两套独立引擎的复合外观（Composite）**：时间轮引擎 `WheelTimerEngine`（`Delay`，四级时间轮，每级 256 槽、1 毫秒精度、每帧最多推进 64 个 tick）与帧计时引擎 `FrameTimerEngine`（`WaitFrame`，按帧递减），各占一条泳道、自持独立的分页槽位池与句柄命名空间，互不知晓、互不糅合；`DefaultTimerHandler` 只做「创建落到对应引擎、句柄按内嵌泳道号路由、阶段推进与统计跨引擎扇出/聚合」。时间轮引擎同时维护缩放（受 `Time.timeScale` 影响）与非缩放两条轮。对外经 `TimerService.Xxx()` 静态外观访问（ProviderHandlerHost 模式：`TimerService` 静态外观 + `TimerServiceHandler` 抽象基类 + `DefaultTimerHandler` 复合后端 + `TimerServiceSettings` 配置）。
 
 公开 API 以 `ulong` 句柄驱动：`Delay` / `WaitFrame` / `Cancel` / `Pause` / `Resume` / `IsDone`。句柄可直接调用 `TimerHandleExtensions` 上的扩展方法（`handle.Cancel()` / `handle.Pause()` / `handle.Resume()` / `handle.IsDone()`），无需额外句柄类型。
 
@@ -26,7 +26,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `TimerService` | 静态外观（`[HandlerHost]`）：`Delay`（四个重载）、`DelayUnsafe`、`WaitFrame`（两个重载）、`WaitFrameUnsafe`、`Pause` / `Resume` / `PauseAll` / `ResumeAll` / `Restart` / `Cancel` / `CancelAll`、`IsRunning` / `IsDone` / `GetLeftTime` / `GetLeftFrames` / `GetElapsed` / `GetDuration`、`WaitAsync`；调试 API（`GetStatistics` / `GetAllTimers` / `GetStaleOneShotTimers`）位于 partial `TimerService.Debug` |
+| `TimerService` | 静态外观（`[ProviderHandlerHost]`）：`Delay`（四个重载）、`DelayUnsafe`、`WaitFrame`（两个重载）、`WaitFrameUnsafe`、`Pause` / `Resume` / `PauseAll` / `ResumeAll` / `Restart` / `Cancel` / `CancelAll`、`IsRunning` / `IsDone` / `GetLeftTime` / `GetLeftFrames` / `GetElapsed` / `GetDuration`、`WaitAsync`；调试 API（`GetStatistics` / `GetAllTimers` / `GetStaleOneShotTimers`）位于 partial `TimerService.Debug` |
 | `TimerServiceHandler` | 计时器后端处理器抽象基类（继承 `FrameworkHandler`，契约成员为 `internal`），定义外观调用的后端契约 |
 | `DefaultTimerHandler` | 默认实现——双泳道复合外观（`Handler/` 目录）：`WheelTimerEngine`（四级时间轮 + 进度 + Fixed/Late 延后）与 `FrameTimerEngine`（按帧递减），各持独立槽位池与泳道化句柄命名空间；两泳道初始预热容量分别由序列化字段 `m_WheelInitialCapacity`（默认 1024）/ `m_FrameInitialCapacity`（默认 256）配置 |
 | `TimerServiceSettings` | 框架设置，`[ProviderDropdown]` 选择计时器后端实现 |

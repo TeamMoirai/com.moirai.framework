@@ -105,7 +105,7 @@ com.moirai.framework/
 ├── Editor/                     # Editor toolset (Foundation / Services / Tools / Utilities; Services uses five slots Drawers / Windows / BuildPipeline / Generator / Support)
 ├── Plugins/                    # Third-party libraries
 ├── Samples~/                   # Examples
-├── SourceGenerators/           # Precompiled source generators (HandlerHost / SaveServiceCodegen / ServiceDependency)
+├── SourceGenerators/           # Precompiled source generators (ProviderHandlerHost / SaveServiceCodegen / ServiceDependency)
 ├── Templates~/                 # Project initial templates (@Requirements / Config / HybridTemplate / NormalTemplate)
 ├── Documentation~/             # Bilingual service docs (zh / en)
 └── Tests/                      # Unit tests (EditorMode / PlayMode / Player / Coverage)
@@ -116,7 +116,7 @@ com.moirai.framework/
 The framework uses a **service-oriented architecture** where all subsystems are plain C# classes inheriting `ServiceBase` (not MonoBehaviour), managed by a unified service world `ServiceWorld` for registration, lifecycle, ticking and scoping; the entry point `GameApp` drives the world tick (built-in update loop, engine callback proxy and coroutine hosting).
 
 ```csharp
-// Service access — each service provides a static facade (HandlerHost generated), lazy-loaded internally
+// Service access — each service provides a static facade (ProviderHandlerHost generated), lazy-loaded internally
 ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>();
 TimerService.Delay(1f, () => Debug.Log("1s"));

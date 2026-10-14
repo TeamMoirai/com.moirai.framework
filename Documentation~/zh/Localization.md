@@ -21,7 +21,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `LocalizationService` | 静态外观（`[HandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`onLanguageChanged` 事件由外观直接暴露；`ToLanguage` / `Localize` / `ResolveLanguages` 与编辑器预览 API 住在同一类的分部实现（`LocalizationService.Helper`）中 |
+| `LocalizationService` | 静态外观（`[ProviderHandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`onLanguageChanged` 事件由外观直接暴露；`ToLanguage` / `Localize` / `ResolveLanguages` 与编辑器预览 API 住在同一类的分部实现（`LocalizationService.Helper`）中 |
 | `Language` | 语言类（`IEquatable<Language>`，按 `Code` 比较）：`Name`、`Code`、`DisplayName`、`BuiltinLanguages`，支持与 `SystemLanguage` 互转；内置条目为共享只读实例 |
 | `LocalizationServiceHandler` | 处理器抽象基类：按语言取值解析、语言切换、本地化器注册 |
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
