@@ -111,7 +111,7 @@ Runtime/Services/Audio/
 var options = AudioPlayOptions.Create(EAudioTrack.Sfx);
 ulong h = AudioService.Play(clip, options);
 
-// 16B 热请求（推荐）
+// 16B 热请求（推荐）：cold 传 null＝零堆对象，且不写 AudioSource 空间整形
 var req = new AudioPlayRequest(id: 1, volume: 1f, pitch: 1f, EAudioTrack.Sfx, 128,
     EAudioPlayFlags.DoNotAutoRecycle);
 ulong h2 = AudioService.Play(clip, req, cold: null);
@@ -146,7 +146,7 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 - **事件命名**：`Play(clip, …)` 依赖映射表，映射表缺项时按 `clip.name` 推导（FMOD 前缀 `event:/`、Wwise 取裸名）。事件名与 clip 名不一致是**静默**播错/不播的头号来源，因此生产内容必须逐条登记进「事件映射表」，不依赖推导；按事件路径直发的 `Play(eventPath, …)` 不经表，调用约定由游戏侧规范约束。
 - **总线**：框架按 `bus:/{EAudioTrack}` 下发线性音量，Master 走 `bus:/Master`。工程侧改名即等于该轨失控；Wwise 桥把总线映射成 RTPC（`bus:/Music` → `MusicVolume`），这批 RTPC 与 `SetRtpc` 用的参数名一起构成需要随包交付的**名单**，任一侧改名都要对表。
 - **Bank 装卸顺序**：切场景固定为 `LoadBank(next)` → `StopAllButPersistent(fade)` → `UnloadBank(prev)`；`UnloadBank` 只在返回 `true` 时才算真的释放，返回 `false` 表示「没记账 / SDK 拒绝」，内存快照比对以 `true` 为准。
-- **停止语义**：淡出由框架先写音量 Fade 到 0 再 `StopInstance(immediate: true)`；`immediate: false` 分支目前无生产调用方，接真 SDK 时按 G1 单独验（实现侧不得在淡出还没走完时就 release/回收发射体）。
+- **停止语义**：桥接层一律立即停（`StopInstance` 不带淡出分支）；带尾音的停由框架排程——先把实例音量 Fade 到 0 并记入待停时刻表，到点才落停。实现侧不得再插第二段淡出，那会与框架的淡出叠成双份时长。接真 SDK 时按 G1 单独验框架那段淡出确实走完才停。
 
 #### 初始化失败的回退
 
@@ -259,6 +259,7 @@ AudioService.ResetMixSnapshot(0.25f);
 - 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
 - 游戏内调试器 `Profiler/Audio` 除音量/音轨控制外，还显示 Clip 缓存条目/容量、在途、常驻、失败冷却、当前混音快照与 Ducking 占用，并提供清空缓存按钮——排查"音效没出来"先看这里  
 - 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`  
+- `Play(clip, in AudioPlayRequest, cold)`：`cold` 传 null 时零堆对象，且**不写 AudioSource 空间整形**——声源与 Agent 一对一，宿主池复位只覆盖音量/循环/静音与遮挡滤镜，故声像/衰减曲线/多普勒保持该声源此前的值。每次都要带整形（或淡入/延迟/起播点/截取时长）请走 `AudioPlayOptions` 门面，由框架按次取还池实例；`cold` 非 null 即所有权转移，调用方不得再使用或自行归还，也不可在上一次播放结束前重复投递同一实例  
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../../README.md) · [Resource](Resource.md) · [UI](UI.md)
