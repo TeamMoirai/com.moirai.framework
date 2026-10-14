@@ -284,12 +284,18 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
+        /// <remarks>每次播放从池取一份冷参并写全 AudioSource 空间整形；热路径连发改用 <see cref="AudioPlayRequest"/> 重载（cold 传 null 即零堆对象）。</remarks>
         public static ulong Play(AudioClip clip, in AudioPlayOptions options) =>
             s_Handler?.Play(clip, options) ?? 0UL;
 
         /// <summary>
-        /// 16 字节热请求 + 冷参数播放（推荐热路径 API）。cold 可为 null。
+        /// 16 字节热请求 + 冷参数播放（推荐热路径 API）。
         /// </summary>
+        /// <remarks>
+        /// <paramref name="cold"/> 为 null 时零堆对象，且不写 AudioSource 空间整形，语义见 <see cref="AudioPlayColdParams"/>。
+        /// 非 null 时所有权转移给服务：调用方不得再使用或自行归还，同一实例也不可在上一次播放结束前重复投递。
+        /// 每次播放都要带空间整形与淡入/时间参数时改走 <see cref="AudioPlayOptions"/> 门面。
+        /// </remarks>
         public static ulong Play(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold = null) =>
             s_Handler?.Play(clip, request, cold) ?? 0UL;
 
