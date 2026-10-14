@@ -44,7 +44,7 @@ namespace Service.Audio
                 return 42UL;
             }
 
-            public void StopInstance(ulong instanceId, bool immediate) => Touch(nameof(StopInstance));
+            public void StopInstance(ulong instanceId) => Touch(nameof(StopInstance));
             public void SetPaused(ulong instanceId, bool paused) => Touch(nameof(SetPaused));
             public void SetInstanceVolume(ulong instanceId, float volume) => Touch(nameof(SetInstanceVolume));
             public void SetBusVolume(string busPath, float volume) => Touch(nameof(SetBusVolume));

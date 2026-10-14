@@ -37,7 +37,7 @@ namespace Service.Audio
                 return FailingPaths.Contains(eventPath) ? 0UL : 1000UL + (ulong)PlayedPaths.Count;
             }
 
-            public void StopInstance(ulong instanceId, bool immediate) { }
+            public void StopInstance(ulong instanceId) { }
             public void SetPaused(ulong instanceId, bool paused) { }
             public void SetInstanceVolume(ulong instanceId, float volume) { }
             public void SetBusVolume(string busPath, float volume) { }
