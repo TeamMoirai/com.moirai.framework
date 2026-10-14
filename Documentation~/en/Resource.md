@@ -412,7 +412,7 @@ Batch query for asset record states. Returns the number of entries written. Each
 
 ### Play Mode and Encryption
 
-Configured on the `PlayMode` field of the `ResourceServiceSettings` asset in the editor (`Tools/Framework Settings` > `[服务]资源设置`; on device, `EditorSimulate` automatically falls back to `OfflinePlay` with an error log):
+Configured on the `PlayMode` field of the `ResourceServiceSettings` asset in the editor (`Tools/Framework Settings` > `[服务]资源设置`; on device, `EditorSimulate` silently falls back to `OfflinePlay` — the normalization neither writes back to the asset nor logs, and remote hot updating is turned off entirely, so this field must be `HostPlay`/`WebPlay` before shipping):
 
 - `PlayMode`: Four play modes, determines whether `InitializePackageAsync` uses simulated build, built-in file system, cache file system, or web file system
 - Encryption is decided by the `[SerializeReference]` `YooAssetHandler.EncryptorHandler` setting (no encryption when unset); the runtime creates the matching decryptor from it. The build-side and runtime-side handlers must be the same pair.

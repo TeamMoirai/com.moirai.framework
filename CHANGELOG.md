@@ -12,6 +12,7 @@
 
 - SpriteReference 精灵引用门面（自玩法层上移为框架类型）：数据为 `AssetReference<Sprite>` 弱引用 + 打包方式判别（Common 常规散图/合图、Config 经 `ConfigTableService.LoadSpriteByID` 取配置表精灵）+ 子图名/配置表 ID 各占一字段；`SetSprite(Image/SpriteRenderer)` 异步取像并赋给目标（普通与配置表精灵走保活窗口，合图子精灵按名经绑定服务挂目标元素），`Clone`/`Matches`/`DataSave`/`DataLoad` 存档块自带版本号；检视面为属性驱动（引用行拖入实捕子图名、包名行由 `[ResourcePackageDropdown]` 接管），编辑器面 `LoadEditorSubSprite` 按名直取子精灵
 - SpriteReferenceTests：存档块往返与线格式（与玩法侧 IOExtensions 字节对齐）、版本守卫、等值比较与克隆独立契约用例
+- 资源内核诊断面（仅编辑器）：`Profiler/Resource` 新增 LEASE PROVENANCE 段——开关打开后为每条新租约记一次取用来源（类型全名.方法名 + 源文件 + 行号，跳过资源内核自身帧），并留一窗有界卸载账（地址/类型/UTC 时刻，满 64 条覆盖最旧并计入 Dropped）；开关默认关闭，关掉时既不建调用栈也不建字符串
 
 #### 核心
 
@@ -22,6 +23,10 @@
 #### 核心
 
 - ⚠ 移除默认后端的安装探测自动优选：`LogUtility`/`StringUtility`/`TweenUtility`/`ObjectUtility` 的 `#if` 优选链删除，settings 未配置时一律回退声明默认（DefaultLogHandler/DefaultStringHandler/DefaultTweenHandler/UnityObjectHandler），新建 settings 资产的播种值同步变为声明默认；迁移口径 = 已安装 ZLogger/UnityLogging/ZString/LitMotion/PrimeTween/Fusion 的工程在 `GameAppSettings` 的 Provider 下拉框显式选择后端（已配置工程无感；`InputService` 保留引擎宏分派手写工厂不受影响）
+
+#### 资源
+
+- 真机下 `ResourceServiceSettings.PlayMode` 把 `EditorSimulate` 归一为 `OfflinePlay` 时不再打 Error：静默降级、不回写资产原值也不落一行日志，远程热更随之整体关闭；发行前该字段必须是 `HostPlay`/`WebPlay`（口径已写进 zh/en Resource.md）
 
 #### 音频
 
