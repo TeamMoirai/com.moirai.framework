@@ -243,6 +243,13 @@ namespace Moirai.Atropos.Resource
             RemoveUnusedAssetCandidate(assetId, ref slot);
             DisposeAssetSlotHandle(ref slot);
             ulong key = slot.Key;
+#if UNITY_EDITOR
+            // 卸载账要在 ClearAssetSlot 抹掉 key 之前记，事后才认得出是哪一条地址、哪一型
+            var unloadedType = GetAssetTypeById(ResourceKeyCodec.UnpackTypeId(key));
+            ResourceLeaseProvenance.AddUnload(
+                GetLocationNameById(ResourceKeyCodec.UnpackLocationId(key)),
+                unloadedType != null ? unloadedType.Name : string.Empty);
+#endif
             _assetRecordsByKey.Remove(key);
             ReleaseResourceKey(key);
             if (slot.LoadKeyId > 0)

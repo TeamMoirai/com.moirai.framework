@@ -412,7 +412,7 @@ int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 
 ### 播放模式与加密
 
-编辑器中在 `ResourceServiceSettings` 资产的 `PlayMode` 字段上配置（`Tools/Framework Settings` → `[服务]资源设置`；真机下 `EditorSimulate` 自动降级为 `OfflinePlay` 并打一条 Error）：
+编辑器中在 `ResourceServiceSettings` 资产的 `PlayMode` 字段上配置（`Tools/Framework Settings` → `[服务]资源设置`；真机下 `EditorSimulate` 静默降级为 `OfflinePlay`，归一不回写资产原值也不打日志，远程热更随之整体关闭——发行前该字段必须是 `HostPlay`/`WebPlay`）：
 
 - `PlayMode`：四种播放模式，决定 `InitializePackageAsync` 走模拟构建、内置文件系统、缓存文件系统还是 Web 文件系统
 - 加密方式由 `YooAssetHandler.EncryptorHandler` 这个 `[SerializeReference]` 配置决定（不配即为无加密），运行时据此创建对应解密服务

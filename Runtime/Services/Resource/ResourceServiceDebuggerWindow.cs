@@ -14,6 +14,9 @@ namespace Moirai.Atropos.Resource
 
         private const int SAMPLE_COUNT = 64;
 
+        /// <summary>卸载账展示行数上限（最新优先；账本身比这长，靠 Dropped 读数知道截没截）。</summary>
+        private const int PROVENANCE_ROW_COUNT = 12;
+
         /// <summary>资产定位与信息展示的行宽占比（定位 2/3，信息 1/3）。</summary>
         private const float ASSET_TITLE_RATIO = 2f / 3f;
 
@@ -51,6 +54,37 @@ namespace Moirai.Atropos.Resource
             VisualElement summaryCard = AddSection(root, "RUNTIME STATE");
             AddRow(summaryCard, "Play Mode", ResourceService.PlayMode.ToString());
             AddRow(summaryCard, "Updatable While Playing", ResourceService.UpdatableWhilePlaying.ToString());
+
+#if UNITY_EDITOR
+            // 放在资产样本之前：卸载账最有话可说的时刻恰恰是栈上已经没东西可列的时候
+            VisualElement provenanceCard = AddSection(root, "LEASE PROVENANCE (EDITOR)");
+            provenanceCard.Add(DebuggerUI.CreateToggle("Capture lease source", ResourceLeaseProvenance.Enabled,
+                value => ResourceLeaseProvenance.Enabled = value));
+            provenanceCard.Add(DebuggerUI.CreateActionButton("Clear unload history",
+                () => ResourceLeaseProvenance.ClearUnload()));
+            int unloaded = ResourceLeaseProvenance.UnloadCount;
+            if (unloaded <= 0)
+            {
+                provenanceCard.Add(DebuggerUI.CreateHintLabel("No unload recorded since the last clear."));
+            }
+            else
+            {
+                int shown = Math.Min(unloaded, PROVENANCE_ROW_COUNT);
+                for (int i = 0; i < shown; i++)
+                {
+                    ResourceLeaseProvenance.UnloadRecord record = ResourceLeaseProvenance.GetNewestUnload(i);
+                    AddRow(provenanceCard, record.Location,
+                        StringUtility.Format("{0} | {1:HH:mm:ss} UTC", record.TypeName, record.UnloadTimeUtc),
+                        ASSET_TITLE_RATIO);
+                }
+
+                if (ResourceLeaseProvenance.UnloadDropped > 0)
+                {
+                    AddRow(provenanceCard, "Dropped by ring cap",
+                        StringUtility.Format("{0}", ResourceLeaseProvenance.UnloadDropped));
+                }
+            }
+#endif
 
             VisualElement assetCard = AddSection(root, "LOADED ASSET SAMPLE");
             int count = ResourceService.GetAssetInfos(_infoBuffer, 0, SAMPLE_COUNT);
