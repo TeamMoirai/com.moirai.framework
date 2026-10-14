@@ -30,16 +30,14 @@ namespace Moirai.Atropos.Audio.Middleware
         ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, Vector3? position3D);
 
         /// <summary>
-        /// 停止实例。
+        /// 停止实例（一律立即，后端不自带淡出分支）。
         /// </summary>
         /// <remarks>
-        /// <paramref name="immediate"/> 为 <c>false</c> 时要求「带尾音地停」：实现里不得紧接着做
-        /// 会立刻终止播放的收尾动作（FMOD 的 <c>EventInstance.release()</c>、Wwise 的发射体回收/停用），
-        /// 否则淡出被掐掉、听感与 immediate 无差别。
-        /// <para>当前 <c>MiddlewareAudioHandler</c> 一律传 <c>true</c>（淡出由上层先走音量 Fade 到 0 再立即停），
-        /// 所以该分支尚未被生产路径覆盖——接真 SDK 时按上线门槛 G1 单独验一次，别默认它可用。</para>。
+        /// 带尾音的停止在 <c>MiddlewareAudioHandler</c> 侧排程：先把音量 Fade 到 0 并记入待停时刻表，
+        /// 到点才调本方法。实现侧因此不得再插第二段淡出——那会与框架的淡出叠成双份时长；
+        /// 也不得把「停」与「回收发射体」拆成两步异步收尾，待停表已经保证调用发生时尾音走完了。
         /// </remarks>
-        void StopInstance(ulong instanceId, bool immediate);
+        void StopInstance(ulong instanceId);
 
         /// <summary>
         /// 暂停/恢复。

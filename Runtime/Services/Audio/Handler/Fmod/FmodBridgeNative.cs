@@ -69,11 +69,11 @@ namespace Moirai.Atropos.Audio.Fmod
             return (ulong)instance.handle;
         }
 
-        public void StopInstance(ulong instanceId, bool immediate)
+        public void StopInstance(ulong instanceId)
         {
             var instance = new FMOD.Studio.EventInstance((IntPtr)instanceId);
             if (!instance.isValid()) return;
-            instance.stop(immediate ? FMOD.STOP_MODE.IMMEDIATE : FMOD.STOP_MODE.ALLOWFADEOUT);
+            instance.stop(FMOD.STOP_MODE.IMMEDIATE);
             instance.release();
         }
 

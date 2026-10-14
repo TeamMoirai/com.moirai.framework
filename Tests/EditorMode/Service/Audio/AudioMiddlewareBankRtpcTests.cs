@@ -272,7 +272,7 @@ namespace Service.Audio
             public void Shutdown() { }
             public void Update(float unscaledDeltaTime) { }
             public ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, UnityEngine.Vector3? position3D) => 0UL;
-            public void StopInstance(ulong instanceId, bool immediate) { }
+            public void StopInstance(ulong instanceId) { }
             public void SetPaused(ulong instanceId, bool paused) { }
             public void SetInstanceVolume(ulong instanceId, float volume) { }
             public void SetBusVolume(string busPath, float volume) { }
