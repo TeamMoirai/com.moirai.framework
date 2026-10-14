@@ -181,7 +181,7 @@ AudioService.ClearClipCache(force: true);                   // 连 Pin 一并清
 - 地址表是**定长槽数组 + 开址桶 + 侵入式索引链**（不是 `Dictionary`）：取用/归还/驱逐都走这张表，字典的按需扩容与 rehash 尖峰就会落在播放那一帧上；容量上调时现存条目按 All 链原地重落新表，不需要临时数组。地址哈希走 Ordinal djb2，不取 `string.GetHashCode`——那个按进程随机化，两次启动的桶分布都不一样，线上冲突链无从复现。
 - `AssetHandlePool` / `PoolReadOnly` 是**现算投影**而不是镜像表：缓存内部不再维护第二份字典，每次取用/归还也不多写一笔状态（漏同步就是"视图里还在、缓存里已无"的残影）。代价是枚举它每次分配一份快照——这条只有调试面板在用，属观测路径。
 - `Application.lowMemory` 触发一次非强制清理（Pin 与在播不受影响）。
-- `PutInAudioPool` / `RemoveClipFromPool` / `CleanAudioPool` 与 `AssetHandlePool` 保留为兼容入口，语义分别映射为 `Preload(Pin)` / `Unload(force)` / `ClearClipCache(force)`；`bInPool: true` 等价于「至少按 TTL 留池」。
+- `PutInAudioPool` / `RemoveClipFromPool` / `CleanAudioPool` 与 `AssetHandlePool` 保留为兼容入口，语义分别映射为 `Preload(Pin)` / `Unload(force)` / `ClearClipCache(force)`。
 
 ### 混音快照
 

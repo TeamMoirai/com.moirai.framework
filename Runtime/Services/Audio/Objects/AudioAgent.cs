@@ -577,20 +577,10 @@ namespace Moirai.Atropos.Audio
         /// <param name="path">资源路径。</param>
         /// <param name="options">音频播放选项设置（<see cref="AudioPlayOptions.CachePolicy"/> 决定 clip 留池策略）。</param>
         /// <param name="bAsync">是否异步加载。</param>
-        /// <param name="bInPool">兼容旧签名：为 true 时至少按 TTL 留池，覆盖 settings 里的「不缓存」默认。</param>
-        public void Load(string path, in AudioPlayOptions options, bool bAsync, bool bInPool = false)
+        public void Load(string path, in AudioPlayOptions options, bool bAsync)
         {
             LoadWithRequest(path, options.ToRequest(), AudioPlayColdParams.FromOptions(options), bAsync,
-                ResolveCachePolicy(options.CachePolicy, bInPool));
-        }
-
-        /// <summary>
-        /// 旧 <c>bInPool</c> 布尔位与 <see cref="EAudioCachePolicy"/> 的合并点：显式策略优先，未指定时 <c>bInPool</c> 保证「至少留池」。
-        /// </summary>
-        private static EAudioCachePolicy ResolveCachePolicy(EAudioCachePolicy policy, bool bInPool)
-        {
-            if (policy != EAudioCachePolicy.Default) return policy;
-            return bInPool ? EAudioCachePolicy.Ttl : EAudioCachePolicy.Default;
+                options.CachePolicy);
         }
 
         /// <summary>
@@ -612,9 +602,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 路径加载入口（Handler 调用）。
         /// </summary>
-        internal void LoadWithOptions(string path, in AudioPlayOptions options, bool bAsync, bool bInPool)
+        internal void LoadWithOptions(string path, in AudioPlayOptions options, bool bAsync)
         {
-            Load(path, options, bAsync, bInPool);
+            Load(path, options, bAsync);
         }
 
         private void LoadInternal(string path, bool bAsync, EAudioCachePolicy cachePolicy)
