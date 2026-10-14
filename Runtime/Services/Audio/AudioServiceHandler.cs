@@ -170,8 +170,9 @@ namespace Moirai.Atropos.Audio
         public abstract ulong Play(AudioClip clip, in AudioPlayOptions options);
 
         /// <summary>
-        /// 16 字节热请求 + 冷参数播放（推荐热路径 API）。冷参数所有权转移给服务。
+        /// 16 字节热请求 + 冷参数播放（推荐热路径 API）。冷参数所有权转移给本方法：每条早退路径都必须先归还。
         /// </summary>
+        /// <remarks><paramref name="cold"/> 为 null 表示本次播放不写 AudioSource 空间整形，语义见 <see cref="AudioPlayColdParams"/>。</remarks>
         public abstract ulong Play(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold);
 
         /// <summary>

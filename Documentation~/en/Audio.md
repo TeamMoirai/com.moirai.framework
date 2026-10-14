@@ -110,7 +110,7 @@ Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middl
 var options = AudioPlayOptions.Create(EAudioTrack.Sfx);
 ulong h = AudioService.Play(clip, options);
 
-// 16-byte hot request (preferred)
+// 16-byte hot request (preferred): cold: null allocates nothing and skips the spatial shaping write
 var req = new AudioPlayRequest(id: 1, volume: 1f, pitch: 1f, EAudioTrack.Sfx, 128,
     EAudioPlayFlags.DoNotAutoRecycle);
 ulong h2 = AudioService.Play(clip, req, cold: null);
@@ -137,7 +137,7 @@ Conventions that must be pinned down before release — a change on either side 
 - **Event naming**: `Play(clip, …)` relies on the event map; a missing entry falls back to deriving from `clip.name`. Mismatched names are the number one source of silently wrong/absent audio, so every production clip must be registered explicitly. `Play(eventPath, …)` sends the path as-is and bypasses the map.
 - **Buses**: the framework writes linear volume to `bus:/{EAudioTrack}` and `bus:/Master`. Renaming a bus on the project side silently detaches that track; the Wwise bridge maps buses to RTPCs (`bus:/Music` → `MusicVolume`), so those plus every `SetRtpc` name form a list that ships with the build.
 - **Bank order**: on a scene change the fixed order is `LoadBank(next)` → `StopAllButPersistent(fade)` → `UnloadBank(prev)`. Only `UnloadBank` returning `true` means it actually released; compare memory snapshots against `true` results.
-- **Stop semantics**: fades are driven by the framework writing instance volume down to 0 and then `StopInstance(immediate: true)`. The `immediate: false` branch has no production caller today — verify it separately against the real SDK, and note that an implementation must not release/reclaim the emitter while the tail is still fading.
+- **Stop semantics**: the bridge always stops immediately (`StopInstance` carries no fade branch); tail fades are scheduled by the framework — instance volume is faded to 0 and the handle parked in a pending-stop table, and the stop lands only when that time arrives. An implementation must not add a second fade, which would stack on the framework's and double the duration. When wiring a real SDK, verify under G1 that the framework's fade actually completes before the stop fires.
 
 #### When initialization fails
 
@@ -235,6 +235,7 @@ Editor Mono reports `GC.GetAllocatedBytesForCurrentThread()` and `ProfilerRecord
 - Handles are auto-released; do not rely on long-lived manual `ReleaseHandle`  
 - The in-game debugger's `Profiler/Audio` panel now also shows clip cache entries/capacity, in-flight loads, pinned count, failure cooldowns, the current mix snapshot and ducking ownership, plus cache-clear buttons — check it first when "a sound didn't play"  
 - Cold APIs (`PlayFade` / `StopByID`) may allocate lambdas; hot path uses 16B `AudioPlayRequest`  
+- `Play(clip, in AudioPlayRequest, cold)`: a null `cold` allocates nothing and **skips the AudioSource spatial shaping write** — an Agent keeps one source for its lifetime and host-pool reuse only resets volume/loop/mute plus the occlusion filter, so pan, rolloff curves and doppler keep whatever that source was last set to. When every play must carry its own shaping (or fade-in, initial delay, start time, duration cap), use the `AudioPlayOptions` facade and let the framework take and return pooled instances per play; a non-null `cold` transfers ownership — the caller must not use or release it again, and must not hand the same instance to a further play before the previous one ends  
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Resource](Resource.md) · [UI](UI.md)

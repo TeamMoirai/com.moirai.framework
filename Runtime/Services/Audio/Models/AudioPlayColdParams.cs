@@ -6,7 +6,9 @@ namespace Moirai.Atropos.Audio
     /// <summary>
     /// 播放冷路径参数——位置/跟随/淡入/时间与空间整形，仅在 <c>BeginPlayback</c> 写入 AudioSource。
     /// </summary>
-    /// <remarks>与 16 字节热请求 <see cref="AudioPlayRequest"/> 分离，热循环不拷贝本类型；可为 null，此时 Agent 使用默认空间/无曲线。
+    /// <remarks>与 16 字节热请求 <see cref="AudioPlayRequest"/> 分离，热循环不拷贝本类型。
+    /// 可为 null：本次播放不写 AudioSource 空间整形（声像/衰减/多普勒/曲线保持该声源此前的值——声源与 Agent 一对一，宿主池复位只覆盖音量/循环/静音与遮挡滤镜），
+    /// 淡入、延迟、起播点与截取时长落到各自缺省。
     /// 空间整形经单字段 <see cref="Spatial"/>（与 <see cref="AudioPlayOptions.Spatial"/> 同构）整体携带。</remarks>
     public sealed class AudioPlayColdParams
     {
