@@ -736,7 +736,8 @@ namespace Moirai.Atropos.Audio
                 for (int j = 0; j < agents.Count; j++)
                 {
                     var agent = agents[j];
-                    if (agent?.AudioResource != null && agent.AudioResource.clip == clip)
+                    // 托管镜像预过滤：clip 命中前不碰原生属性，按 clip 遍历零原生读
+                    if (agent != null && agent.PlayingClip == clip && agent.AudioResource != null)
                         action(agent);
                 }
             }
@@ -763,8 +764,10 @@ namespace Moirai.Atropos.Audio
                 for (int j = 0; j < agents.Count; j++)
                 {
                     var agent = agents[j];
-                    if (agent?.AudioResource != null &&
-                        agent.AudioResource.clip == clip &&
+                    // 托管镜像预过滤：clip 命中前不碰原生属性，整表扫描从 2N 次原生读降为命中数×1
+                    if (agent != null &&
+                        agent.PlayingClip == clip &&
+                        agent.AudioResource != null &&
                         agent.AudioResource.isPlaying)
                         count++;
                 }

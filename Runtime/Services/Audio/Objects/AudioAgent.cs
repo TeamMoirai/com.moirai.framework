@@ -58,6 +58,8 @@ namespace Moirai.Atropos.Audio
 
         // ===== 热路径播放状态（从 AudioPlayRequest 解出，Update 高频读）=====
         private AudioPlayRequest _hot;
+        // 在播 clip 的托管镜像：并发计数/按 clip 遍历按它预过滤，免逐声部原生读（BeginPlayback 写、EnterEndState 清）
+        private AudioClip _clip;
         private float _volume = 1f;
         private float _fadeInInitialVolume;
         private float _fadeInDuration = 1f;
@@ -137,6 +139,9 @@ namespace Moirai.Atropos.Audio
             }
         }
 
+        /// <summary>当前在播的 clip（无在播为 null）——并发计数与按 clip 遍历经它预过滤，免逐声部原生读。</summary>
+        internal AudioClip PlayingClip => _clip;
+
         /// <summary>音频代理辅助器是否正在播放。</summary>
         internal bool IsPlaying => AudioResource != null && AudioResource.isPlaying;
 
@@ -212,6 +217,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         private void EnterEndState()
         {
+            _clip = null;
             InvalidateAsyncLoad();
             _hasPendingLoad = false;
             _pendingPath = null;
@@ -468,6 +474,7 @@ namespace Moirai.Atropos.Audio
                 ApplyColdSourceParams(source, _cold);
             }
 
+            _clip = clip;
             source.pitch = _hot.Pitch;
             source.priority = _hot.Priority;
             source.clip = clip;
