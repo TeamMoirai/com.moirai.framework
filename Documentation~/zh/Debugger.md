@@ -25,7 +25,7 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `DebuggerService` | 静态外观（`[HandlerHost]`，`IServiceTickable`）：`ActiveWindow` / `ShowFullWindow` / `ActiveWindowType` / `WindowRegistry` / `LogCapture`；`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` / `RegisterPanel` / `RegisterDebugView` / `GetRecentLogs`。经 `s_Handler` 转发（未注册时静默降级——仅主动注册方可使用服务） |
+| `DebuggerService` | 静态外观（`[ProviderHandlerHost]`，`IServiceTickable`）：`ActiveWindow` / `ShowFullWindow` / `ActiveWindowType` / `WindowRegistry` / `LogCapture`；`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` / `RegisterPanel` / `RegisterDebugView` / `GetRecentLogs`。经 `s_Handler` 转发（未注册时静默降级——仅主动注册方可使用服务） |
 | `DebuggerServiceHandler` | 处理器抽象基类（契约）：`ActiveWindow` / `ShowFullWindow` / `WindowRegistry` / `LogCapture` / `Tick` / 注册族四方法 |
 | `DefaultDebuggerHandler` | 内置后端：持有窗口注册表与日志捕获器，按激活策略解析可见性，首个 Tick 懒建运行时宿主；序列化字段 `ConsoleCapacity`（环形缓冲容量，默认 256）/ `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity` |
 | `DebuggerServiceSettings` | 设置资产（`[FrameworkSetting]`）：`ActiveWindowType` 激活策略 + `m_DebuggerServiceHandler` 处理器 |

@@ -18,7 +18,7 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.Input.InputService` | 输入服务静态外观（`[HandlerHost]`），全部轮询 API 为静态方法，经 `Handler` 属性转发；降级契约——未注册/未初始化时返回安全默认值（false/0/zero），不抛异常 |
+| `Moirai.Atropos.Input.InputService` | 输入服务静态外观（`[ProviderHandlerHost]`），全部轮询 API 为静态方法，经 `Handler` 属性转发；降级契约——未注册/未初始化时返回安全默认值（false/0/zero），不抛异常 |
 | `Moirai.Atropos.Input.InputServiceHandler` | 输入处理器抽象基类（`[Serializable]`），定义全部输入查询方法。通过 `[SerializeReference]` 在输入设置中配置 |
 | `Moirai.Atropos.Input.UnityInputSystemHandler` | 基于 Unity Input System 的处理器（宏 `ENABLE_INPUT_SYSTEM`） |
 | `Moirai.Atropos.Input.UnityInputManagerHandler` | 基于旧版 Input Manager 的处理器（宏 `ENABLE_LEGACY_INPUT_MANAGER`） |

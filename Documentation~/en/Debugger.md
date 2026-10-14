@@ -25,7 +25,7 @@ Namespace: `Moirai.Atropos.Debugger`
 
 | Class/Interface | Description |
 |-----------------|-------------|
-| `DebuggerService` | Static facade (`[HandlerHost]`, `IServiceTickable`): `ActiveWindow` / `ShowFullWindow` / `ActiveWindowType` / `WindowRegistry` / `LogCapture`; `RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` / `RegisterPanel` / `RegisterDebugView` / `GetRecentLogs`. Forwards via `s_Handler` (silently degrades when unregistered — only explicit registration enables the service) |
+| `DebuggerService` | Static facade (`[ProviderHandlerHost]`, `IServiceTickable`): `ActiveWindow` / `ShowFullWindow` / `ActiveWindowType` / `WindowRegistry` / `LogCapture`; `RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` / `RegisterPanel` / `RegisterDebugView` / `GetRecentLogs`. Forwards via `s_Handler` (silently degrades when unregistered — only explicit registration enables the service) |
 | `DebuggerServiceHandler` | Abstract handler (contract): `ActiveWindow` / `ShowFullWindow` / `WindowRegistry` / `LogCapture` / `Tick` / the four registration methods |
 | `DefaultDebuggerHandler` | Built-in backend: owns the window registry and log capture, resolves visibility by activation policy, lazily spawns the runtime host on first Tick; serialized fields `ConsoleCapacity` (ring buffer size, default 256) / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity` |
 | `DebuggerServiceSettings` | Settings asset (`[FrameworkSetting]`): `ActiveWindowType` activation policy + `m_DebuggerServiceHandler` handler |

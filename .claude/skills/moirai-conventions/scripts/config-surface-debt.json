@@ -84,7 +84,7 @@
       },
       "new-service.md|Handler": {
         "class": "C",
-        "reason": "活的框架成员，不是死 API：`Handler` 属性由 `SourceGenerators/Source~/HandlerHost/HandlerHostGenerator.cs` 给标了 `[HandlerHost(typeof(THandler))]` 的 partial class 发射，消费点如 `LogUtility.Handler`（`Runtime/Core/Utilities/GameLog/UnityLogInterceptor.cs:45`）与 `GameTime.Handler`（`Runtime/Services/Audio/Internal/AudioClipCache.cs:171`）。命令里「`Handler` 属性由源生成器生成，不要手写」是对的。骨架行 `_ = Handler;` 已由抽取按赋值右值成员形态收掉（量具在本文件复算出的成员命中集含 `Handler`），要点行 `` `Handler` 属性 `` 是裸写成员名的散文用法，仍在候选集里，故按 C 档分节登记。本条不进债务清零名单——清它等于把写对的文档改错。"
+        "reason": "活的框架成员，不是死 API：`Handler` 属性由 `SourceGenerators/Source~/ProviderHandlerHost/ProviderHandlerHostGenerator.cs` 给标了 `[ProviderHandlerHost(typeof(THandler))]` 的 partial class 发射，消费点如 `LogUtility.Handler`（`Runtime/Core/Utilities/GameLog/UnityLogInterceptor.cs:45`）与 `GameTime.Handler`（`Runtime/Services/Audio/Internal/AudioClipCache.cs:171`）。命令里「`Handler` 属性由源生成器生成，不要手写」是对的。骨架行 `_ = Handler;` 已由抽取按赋值右值成员形态收掉（量具在本文件复算出的成员命中集含 `Handler`），要点行 `` `Handler` 属性 `` 是裸写成员名的散文用法，仍在候选集里，故按 C 档分节登记。本条不进债务清零名单——清它等于把写对的文档改错。"
       }
     },
     "example_placeholder": {

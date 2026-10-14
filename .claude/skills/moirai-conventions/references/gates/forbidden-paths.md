@@ -41,7 +41,7 @@
 |---|---|
 | `Samples~`、`Templates~`、`Documentation~` | 尾带 `~` 的目录被 Unity 与包管理器排除在导入与编译校验之外：里面写坏不报错，判据也看不见。搬动会断示例/模板的解析入口（`Samples~/Moirai.Atropos.Samples.asmref`、`Templates~/@Requirements/`） |
 | `Plugins` | 走特殊导入管线，程序集与平台面按目录约定装配；搬动影响的是原生/第三方依赖的可见性——没有判据会替你报错，只能自己核平台面 |
-| `SourceGenerators` | 随包的是带 `RoslynAnalyzer` 标签的编译产物（`SourceGenerators/HandlerHost.dll` 起头的一批，dll 与工程一一对应），工程源码在 `Source~/` 形态里、不参与 Unity 导入。产物正是手写代码引用的成员与注册表：`HandlerHostGenerator` 给标了 `[HandlerHost(typeof(THandler))]` 的 partial class 发射 `s_Handler` 字段、`IsValid` 与 `Handler` 属性和 `RequireHandler` 方法（消费点如 `LogUtility.Handler`、`GameTime.Handler`），`SaveServiceCodegen` 发射存档字段的 capture/restore 与 serializer/migrator 注册，`UIWindowCodegen` 与 `ServiceDependency` 发射窗口注册表与内建服务注册。摘掉或搬走 dll ⇒ 这些成员当场查无，是编译失败而不是静默降级；改生成器本体要在 Unity 外用 dotnet 编好 dll 再放回，标签跟着 `.meta` 走 |
+| `SourceGenerators` | 随包的是带 `RoslynAnalyzer` 标签的编译产物（`SourceGenerators/ProviderHandlerHost.dll` 起头的一批，dll 与工程一一对应），工程源码在 `Source~/` 形态里、不参与 Unity 导入。产物正是手写代码引用的成员与注册表：`ProviderHandlerHostGenerator` 给标了 `[ProviderHandlerHost(typeof(THandler))]` 的 partial class 发射 `s_Handler` 字段、`IsValid` 与 `Handler` 属性和 `RequireHandler` 方法（消费点如 `LogUtility.Handler`、`GameTime.Handler`），`SaveServiceCodegen` 发射存档字段的 capture/restore 与 serializer/migrator 注册，`UIWindowCodegen` 与 `ServiceDependency` 发射窗口注册表与内建服务注册。摘掉或搬走 dll ⇒ 这些成员当场查无，是编译失败而不是静默降级；改生成器本体要在 Unity 外用 dotnet 编好 dll 再放回，标签跟着 `.meta` 走 |
 
 ## `Tests/`：白名单键是按路径写的
 

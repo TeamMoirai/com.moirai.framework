@@ -28,7 +28,7 @@
 `example_placeholder` 要同一行的**行内反引号里**写出被代入的参数名，且词根长度不小于量具的门槛——散文里随口一提的
 `Event` 不给 `EventSystem` 当依据，接口前缀 `I` 也不给 `IEvent` 当依据；围栏代码行整行受检、没有行内反引号可言，
 所以它不产出示例依据（被代入的参数名是在正文里交代给读者的）。
-`Handler`（`HandlerHostGenerator` 发射的活属性）与 `OnEvent`（示例自己 `public event EventHandler OnEvent;`
+`Handler`（`ProviderHandlerHostGenerator` 发射的活属性）与 `OnEvent`（示例自己 `public event EventHandler OnEvent;`
 声明的成员）就是这么记的：它们是活的框架成员，记进 `dead_api` 会让清债的正确动作变成把写对的文档改错。
 
 ## 射程边界
