@@ -10,21 +10,15 @@ namespace Moirai.Atropos.ObjectPool
     /// GameObject 池化请使用 <see cref="GameObjectPoolService"/>。 <br />
     /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ObjectPoolServiceSettings"/> 解析； <br />
     /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
-    /// <c>Handler</c> 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
-    [HandlerHost(typeof(ObjectPoolServiceHandler))]
+    [ProviderHandlerHost(typeof(ObjectPoolServiceHandler), typeof(DefaultObjectPoolHandler))]
     [ServiceDependency(typeof(DebuggerService))]
     [UnityEngine.Scripting.Preserve]
     public partial class ObjectPoolService : ServiceBase, IServiceTickable
     {
         #region 生命周期 [LIFECYCLE]
-
-        /// <summary>
-        /// 创建默认通用对象池处理器（settings 未配置时的代码兜底）。
-        /// </summary>
-        /// <returns>默认通用对象池处理器实例。</returns>
-        internal static ObjectPoolServiceHandler CreateDefaultHandler() => new DefaultObjectPoolHandler();
 
         /// <summary>
         /// 从 <see cref="ObjectPoolServiceSettings"/> 解析通用对象池处理器。

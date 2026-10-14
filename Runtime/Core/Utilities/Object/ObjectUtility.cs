@@ -2,19 +2,10 @@
 
 namespace Moirai.Atropos
 {
-    [HandlerHost(typeof(ObjectHandler))]
+    [ProviderHandlerHost(typeof(ObjectHandler), typeof(UnityObjectHandler))]
     public static partial class ObjectUtility
     {
         #region 处理器 [HANDLER]
-
-        internal static ObjectHandler CreateDefaultHandler()
-        {
-#if FUSION2
-            return new PhotonFusionObjectHandler();
-#else
-            return new UnityObjectHandler();
-#endif
-        }
 
         private static ObjectHandler GetHandlerFromSettings() => GameAppSettings.ObjectHandler;
 

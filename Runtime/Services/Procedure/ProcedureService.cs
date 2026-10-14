@@ -13,14 +13,14 @@ namespace Moirai.Atropos.Procedure
     /// </summary>
     /// <remarks>
     /// 依赖组合：世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序，缺失/循环 fail-fast；调试面板注册要求 <see cref="DebuggerService"/> 拓扑先行。<br />
-    /// 处理器懒加载：优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析，未配置回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>HandlerHostGenerator</c> 生成（线程安全懒加载）。<br />
+    /// 处理器懒加载：优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析，未配置回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 生成（线程安全懒加载）。<br />
     /// 时序门槛：<see cref="ResourceService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> / <see cref="TimerService"/> 须在流程 OnInit 前就绪（非本服务自身消费，极简项目应移除对应声明）。<br />
     /// 未就绪降级：查询类 API 返回安全默认值；<see cref="StartProcedure"/> / <see cref="ChangeState"/> 忽略并告警；<see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位，后端直接调用 fail-fast。<br />
     /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="GameException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
-    [HandlerHost(typeof(ProcedureServiceHandler))]
+    [ProviderHandlerHost(typeof(ProcedureServiceHandler), typeof(DefaultProcedureHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {
         private static readonly ProcedureBase[] s_EmptyProcedures = new ProcedureBase[0];
@@ -30,12 +30,6 @@ namespace Moirai.Atropos.Procedure
         private static bool s_WarnedLazyRebind;
 
         #region 生命周期 [LIFECYCLE]
-
-        /// <summary>
-        /// 创建默认流程处理器（settings 未配置时的代码兜底）。
-        /// </summary>
-        /// <returns>默认流程处理器实例。</returns>
-        internal static ProcedureServiceHandler CreateDefaultHandler() => new DefaultProcedureHandler();
 
         /// <summary>
         /// 从 <see cref="ProcedureServiceSettings"/> 解析流程处理器。

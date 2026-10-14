@@ -5,15 +5,10 @@ namespace Moirai.Atropos
     /// <summary>
     /// JSON 相关的实用函数。
     /// </summary>
-    [HandlerHost(typeof(JsonHandler))]
+    [ProviderHandlerHost(typeof(JsonHandler), typeof(DefaultJsonHandler))]
     public static partial class JsonUtility
     {
         #region 处理器 [HANDLER]
-
-        internal static JsonHandler CreateDefaultHandler()
-        {
-            return new DefaultJsonHandler();
-        }
 
         private static JsonHandler GetHandlerFromSettings() => GameAppSettings.JsonHandler;
 

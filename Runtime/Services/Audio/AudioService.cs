@@ -13,10 +13,10 @@ namespace Moirai.Atropos.Audio
     /// <remarks>
     /// 统一的静态音频访问入口，替换 <see cref="Handler"/> 即可在不同音频后端之间切换。 <br />
     /// 未显式设置处理器时懒加载：优先从 <see cref="AudioServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
-    /// Handler 属性由 <c>HandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// Handler 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
-    [HandlerHost(typeof(AudioServiceHandler))]
+    [ProviderHandlerHost(typeof(AudioServiceHandler), typeof(UnityAudioHandler))]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
@@ -24,12 +24,6 @@ namespace Moirai.Atropos.Audio
         private static GameApp.Subscription s_PauseSubscription;
 
         #region 生命周期 [LIFECYCLE]
-
-        /// <summary>
-        /// 创建默认音频处理器（settings 未配置时的代码兜底）。
-        /// </summary>
-        /// <returns>默认音频处理器实例。</returns>
-        internal static AudioServiceHandler CreateDefaultHandler() => new UnityAudioHandler();
 
         /// <summary>
         /// 从 <see cref="AudioServiceSettings"/> 解析音频处理器，并幂等确保服务已注册。
