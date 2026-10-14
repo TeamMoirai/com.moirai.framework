@@ -1,0 +1,27 @@
+{
+  "name": "com.moirai.framework.plugin",
+  "displayName": "Moirai Framework Plugins",
+  "category": "Tools",
+  "description": "Catalog branch consumed by the Framework Package Manager. Each top-level folder is one importable plugin, described by its own <id>.plugin.json manifest.",
+  "version": "0.1.0",
+  "unity": "2022.3",
+  "unityRelease": "0f1",
+  "license": "MIT",
+  "keywords": [
+    "Framework",
+    "Plugin",
+    "Package Manager"
+  ],
+  "repository": {
+    "name": "com.moirai.framework.plugin",
+    "url": "https://github.com/TeamMoirai/com.moirai.framework.git#plugin",
+    "type": "git"
+  },
+  "author": {
+    "name": "Team Moirai",
+    "url": "https://github.com/TeamMoirai"
+  },
+  "changelogUrl": "",
+  "documentationUrl": "https://github.com/TeamMoirai/com.moirai.framework/tree/plugin#readme",
+  "dependencies": {}
+}

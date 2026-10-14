@@ -1,0 +1,25 @@
+# Unity 生成物（本分支是插件目录，不含工程，这些一律不该出现）
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+[Mm]emoryCaptures/
+
+# IDE 生成物
+*.csproj
+*.sln
+*.user
+*.userprefs
+*.suo
+.vs/
+.vscode/
+.idea/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 注意：*.meta 不在忽略之列——插件的 GUID 靠它携带，必须提交。
