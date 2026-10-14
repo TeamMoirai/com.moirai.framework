@@ -10,12 +10,16 @@ description: Moirai Framework 的规范知识层。写/改本包代码、做检�
 
 | 什么时候读 | 块 | 有无自动判据 |
 |---|---|---|
+| 写/改本包生产代码前的命名、结构、热路径与引擎约束 | `.claude/skills/moirai-conventions/references/coding.md` | 无：靠评审与编译器，命名面部分落在 `.claude/skills/moirai-conventions/scripts/check_config_surface.py` 的 C 段 |
+| 写用例、选分层、建夹具、放可见性、维护守卫与覆盖率基线 | `.claude/skills/moirai-conventions/references/testing.md` | 无：由 `Tests/EditorMode/**` 的用例与守卫承担 |
+| 决定"要不要写测试、按什么顺序写、怎么算判绿" | `.claude/skills/moirai-conventions/references/verification.md` | 无：对错由桥落盘的报告当场见分晓 |
+| 提交、文档与 CHANGELOG、版本号与 PR 收尾 | `.claude/skills/moirai-conventions/references/release.md` | 无：靠工作流与人工自查承担 |
 | 核对命令正文里的框架符号是否真存在 | `.claude/skills/moirai-conventions/references/gates/symbol-truth.md` | 有：`.claude/skills/moirai-conventions/scripts/check_config_surface.py` 的 C 段 |
 | 投单取回执的可执行片段 | `.claude/skills/moirai-conventions/references/gates/bridge-protocol.md` | 无：对错由桥落盘的报告当场见分晓 |
 | 动手前确认路径能不能碰 | `.claude/skills/moirai-conventions/references/gates/forbidden-paths.md` | 无：靠权限 deny 与命令正文承担 |
 | 新增/搬动源文件的 `.meta` 成对 | `.claude/skills/moirai-conventions/references/gates/metas-pairing.md` | 无：靠该块自带的 shell 片段自查 |
 
-四块分两档，只有符号真名那块有量具替你报错：`.claude/skills/moirai-conventions/scripts/check_config_surface.py` 是本地脚本，
+上表八块分两类：四块**规范细则**（`coding`、`testing`、`verification`、`release`）是各自主题的唯一权威落点，`CLAUDE.md` 只留摘要与指针；四块**判据口径**（`gates/*`）述执行体的射程与修法优先级。八块里只有符号真名那块有量具替你报错：`.claude/skills/moirai-conventions/scripts/check_config_surface.py` 是本地脚本，
 一趟跑完配置层的全部判据段（段数与分段标题以量具自己的输出为准，本层不抄），不进测试装配也不进 CI 门禁——跑不跑由动手的人负责。
 **上表的块与量具的段不是一一对应**：有的段没有独立细则块可指，也有块的规矩一部分落在权限 deny 与人工自查上、并不只由某一段管——
 别把「上表没列这一段」读成「那段不存在」，也别把「这段绿了」读成「这个主题有人替你守着」（各段管到哪一层，写在该段自己的射程边界里）。
