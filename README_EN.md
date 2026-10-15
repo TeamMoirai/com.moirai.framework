@@ -24,7 +24,8 @@ Top-level folders are named by `<id>` and stay flat — there is no function lay
 2. **Keep assembly names globally unique.** `Moirai.Plugin.<Id>` is the convention. Duplicate assembly names are invisible until an assembly references both (usually the test suite), which then fails with CS0433.
 3. **Do not put a `package.json` inside a plugin folder.** Unity reads only the branch-root one. The plugin manifest filename is fixed: `<id>.plugin.json`.
 4. **Commit `.meta` files next to their assets.** GUIDs come from `.meta`; without them Unity regenerates GUIDs on another machine and serialized references break.
-5. **`minUnityVersion` is actually enforced** (install is refused when unmet), and **`versionOperator` is actually parsed** — `>=`, `>`, `=`, `<=`, `<`.
+5. **`minUnityVersion` and `minFrameworkVersion` are actually enforced** (either unmet floor refuses the install), and **`versionOperator` is actually parsed** — `>=`, `>`, `=`, `<=`, `<`.
+6. **Need a NuGet package? Write the prerequisite into `description`.** `upmDependencies` only covers UPM packages (written into the project's `manifest.json`); dependencies that come from NuGet — `ZLogger.dll`, for example — require the user to install NuGetForUnity and that package first. Put that step in `description`; the detail pane's description box shows it verbatim.
 
 ## Manifest fields
 
@@ -33,8 +34,11 @@ Top-level folders are named by `<id>` and stay flat — there is no function lay
 | `id` | Plugin identifier, also the folder name | `[a-z0-9._-]+`, unique across the branch |
 | `name` | Display name | — |
 | `function` | Group label in the window's menu tree | Classification only, never part of a path |
+| `description` | Blurb — **put install prerequisites here too** | Shown verbatim (word-wrapped) in the detail pane |
+| `author` | Author | — |
 | `version` | Plugin version | Three-segment semantic version |
 | `minUnityVersion` | Minimum Unity version | Compared against the running editor |
+| `minFrameworkVersion` | Minimum framework version | Compared against the installed `com.moirai.framework` package version; a hard requirement exactly like `minUnityVersion` |
 | `tags` | Scripting define symbols | Added on install, removed on uninstall |
 | `dependencies` | Other plugin `id`s in this branch | Transitively resolved, installed in topological order; a missing one aborts the batch |
 | `upmDependencies` | External UPM packages | Written to the **project's** `Packages/manifest.json`, never to the branch-root `package.json` |

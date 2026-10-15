@@ -1,25 +1,97 @@
-# Unity 生成物（本分支是插件目录，不含工程，这些一律不该出现）
+# =============== #
+# Unity generated #
+# =============== #
+[Aa]rtifacts/
 [Ll]ibrary/
-[Tt]emp/
 [Oo]bj/
-[Bb]uild/
-[Bb]uilds/
+[Tt]emp/
+[Ss]treaming[Aa]ssets/
+[Aa]ctual[Ii]mages/
+[Ll]og/
 [Ll]ogs/
+[Aa]ctual[Ii]mages.meta
+[Ss]treaming[Aa]ssets.meta
 [Uu]serSettings/
+[Aa]ssetBundles/
 [Mm]emoryCaptures/
+[Uu]IElementsSchema/
 
-# IDE 生成物
+# ===================================== #
+# Visual Studio / MonoDevelop generated #
+# ===================================== #
+*.aspx
+*.browser
 *.csproj
+*.exe
+*.ini
+*.log
+*.map
+# *.mdb
+*.npmrc
+*.pyc
+*.resS
+*.sdf
 *.sln
-*.user
-*.userprefs
+*.sln.DotSettings.user
+*.sublime-project
+*.sublime-workspace
 *.suo
-.vs/
-.vscode/
-.idea/
+*.userprefs
+*.orig
+*.orig.meta
 
-# 系统
+# ============ #
+# OS generated #
+# ============ #
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+# Icon?
+ehthumbs.db
 Thumbs.db
 
-# 注意：*.meta 不在忽略之列——插件的 GUID 靠它携带，必须提交。
+# ============== #
+# IDE generated  #
+# ============== #
+.vs
+.vscode
+.idea
+
+# ===================================== #
+# Local data #
+# ===================================== #
+[Hh]ybridCLRData/
+[Aa]ssets/AATemp/
+[Aa]ssets/AATemp.meta
+
+# Build
+[Bb]uild/
+[Bb]uilds/
+
+# Bundles
+[Bb]undles/
+
+# Sandbox
+[Ss]andbox/
+
+# Samples
+[Ss]amples/
+[Ss]amples.meta
+
+# SourceGenerator
+!**/Source~/**/*.csproj
+!**/Source~/**/*.sln
+
+# ============ #
+# AI generated #
+# ============ #
+
+# Codely
+.codely-cli/
+.codely.packages/
+CODELY.md*
+
+[Dd]ocs/
+[Dd]ocs.meta

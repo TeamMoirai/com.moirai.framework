@@ -24,7 +24,8 @@ com.moirai.framework.plugin/
 2. **程序集名全局唯一。** 建议 `Moirai.Plugin.<Id>`。同名程序集在别的装配里平时完全隐形，只有同时引用双方的装配（通常是测试集）才报 CS0433。
 3. **插件目录内不要放 `package.json`。** Unity 只读分支根那一份；插件自带的那份是清单的干扰源。清单文件名固定为 `<id>.plugin.json`。
 4. **`.meta` 与源文件一起提交。** GUID 由 `.meta` 携带，缺了会在别人机器上重新生成，序列化引用随即断链。
-5. **`minUnityVersion` 会被真比较**，不满足即拒绝安装；**`versionOperator` 会被真解析**，只认 `>=`、`>`、`=`、`<=`、`<`。
+5. **`minUnityVersion` 与 `minFrameworkVersion` 会被真比较**，任一不满足即拒绝安装；**`versionOperator` 会被真解析**，只认 `>=`、`>`、`=`、`<=`、`<`。
+6. **要 NuGet 包就把安装前置写进 `description`。** `upmDependencies` 只覆盖 UPM 包（写进工程 `manifest.json`）；`ZLogger.dll` 这类来自 NuGet 的依赖，得让使用者先用 NuGetForUnity 装好——这一步写进 `description`，窗口详情面的说明框会原样展示。
 
 ## 清单字段
 
@@ -37,6 +38,7 @@ com.moirai.framework.plugin/
     "author": "……",
     "version": "0.1.0",
     "minUnityVersion": "2022.3.0",
+    "minFrameworkVersion": "1.1.0",
     "tags": [ "MOIRAI_BLACKBOARD" ],
     "dependencies": [ { "id": "system-extensions", "version": "1.0.0", "versionOperator": ">=" } ],
     "upmDependencies": [ { "id": "com.cysharp.unitask", "version": "2.5.11" } ]
@@ -48,8 +50,11 @@ com.moirai.framework.plugin/
 | `id` | 插件标识，同时是目录名 | `[a-z0-9._-]+`，全分支唯一 |
 | `name` | 显示名 | — |
 | `function` | 窗口菜单树的分组名 | 仅作分类，不参与路径 |
+| `description` | 说明，**安装前置也写这里** | 窗口详情面原样展示（折行） |
+| `author` | 作者 | — |
 | `version` | 插件版本 | 语义化三段，`x.y.z` |
 | `minUnityVersion` | 最低 Unity 版本 | 与当前编辑器比较，不满足拒绝安装 |
+| `minFrameworkVersion` | 最低框架版本 | 与当前 `com.moirai.framework` 包版本比较，不满足拒绝安装（与 `minUnityVersion` 同款硬性要求） |
 | `tags` | 脚本宏 | 安装时添加、卸载时移除，成对 |
 | `dependencies` | 指向同分支其它插件 `id` | 传递解析，按拓扑序安装；缺失即中止 |
 | `upmDependencies` | 外部 UPM 包 | 写进**工程的** `Packages/manifest.json`，不写进分支根 `package.json` |

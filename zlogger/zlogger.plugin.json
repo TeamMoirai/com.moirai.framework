@@ -1,0 +1,15 @@
+{
+  "id": "zlogger",
+  "name": "ZLogger 日志后端",
+  "function": "日志",
+  "description": "Cysharp ZLogger 零分配结构化日志后端：接管 LogUtility 的输出，直写绕过全局拦截器的 Unity 控制台通道，条目自带异常时升为 Exception 通道。安装前置——先用 NuGetForUnity 装好 ZLogger（本插件的 UPM 依赖只带 com.cysharp.zlogger 的 Unity 侧，ZLogger.dll 来自 NuGet），再装本插件。",
+  "author": "Team Moirai",
+  "version": "1.0.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": [
+    { "id": "com.cysharp.zlogger", "version": "2.5.10" }
+  ]
+}

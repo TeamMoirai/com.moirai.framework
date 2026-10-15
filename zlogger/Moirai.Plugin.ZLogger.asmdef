@@ -1,0 +1,23 @@
+{
+    "name": "Moirai.Plugin.ZLogger",
+    "rootNamespace": "Moirai.Atropos",
+    "references": [
+        "GUID:24c092aee38482f4e80715eaa8148782",
+        "GUID:2b78dc61ba35e42c39ba2aabce11b6c4"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.zlogger",
+            "expression": "2.0.0",
+            "define": "ZLOGGER_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}
