@@ -12,7 +12,7 @@
 
 - SpriteReference 精灵引用门面（自玩法层上移为框架类型）：数据为 `AssetReference<Sprite>` 弱引用 + 打包方式判别（Common 常规散图/合图、Config 经 `ConfigTableService.LoadSpriteByID` 取配置表精灵）+ 子图名/配置表 ID 各占一字段；`SetSprite(Image/SpriteRenderer)` 异步取像并赋给目标（普通与配置表精灵走保活窗口，合图子精灵按名经绑定服务挂目标元素），`Clone`/`Matches`/`DataSave`/`DataLoad` 存档块自带版本号；检视面为属性驱动（引用行拖入实捕子图名、包名行由 `[ResourcePackageDropdown]` 接管），编辑器面 `LoadEditorSubSprite` 按名直取子精灵
 - SpriteReferenceTests：存档块往返与线格式（与玩法侧 IOExtensions 字节对齐）、版本守卫、等值比较与克隆独立契约用例
-- 资源内核诊断面（仅编辑器）：`Profiler/Resource` 新增 LEASE PROVENANCE 段——开关打开后为每条新租约记一次取用来源（类型全名.方法名 + 源文件 + 行号，跳过资源内核自身帧），并留一窗有界卸载账（地址/类型/UTC 时刻，满 64 条覆盖最旧并计入 Dropped）；开关默认关闭，关掉时既不建调用栈也不建字符串
+- 资源内核诊断面（仅编辑器）：`Profiler/Resource` 新增 LEASE PROVENANCE 段——开关打开后为每条新租约记一次取用来源（类型全名.方法名 + 源文件 + 行号，跳过资源内核自身帧），段内先列在途租约（带来源的成行、可按句柄答回同一来源，开关没开时取的那批只计入读数），再看有界卸载账（地址/类型/UTC 时刻，满 64 条覆盖最旧并计入 Dropped）；开关默认关闭，关掉时既不建调用栈也不建字符串
 
 #### 核心
 

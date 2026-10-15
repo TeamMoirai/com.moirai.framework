@@ -470,6 +470,20 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         public abstract int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount);
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 在途租约来源快照（仅编辑器）：带来源的租约写进 results，返回写入条数；out 计全部在途与其中带来源的。
+        /// </summary>
+        /// <remarks>默认零：没有记录内核的后端交空表。</remarks>
+        internal virtual int GetLeaseSourceInfos(ResourceLeaseSourceInfo[] results, int startIndex, int maxCount,
+            out int outstandingCount, out int sourcedCount)
+        {
+            outstandingCount = 0;
+            sourcedCount = 0;
+            return 0;
+        }
+#endif
+
         #endregion
 
         /// <summary>

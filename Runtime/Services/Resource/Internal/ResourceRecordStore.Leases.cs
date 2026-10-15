@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
@@ -202,6 +203,62 @@ namespace Moirai.Atropos.Resource
             file = lease.SourceFile;
             line = lease.SourceLine;
             return true;
+        }
+
+        /// <summary>
+        /// 在途租约来源快照（仅编辑器）：自 startIndex 起把带来源的在途租约写进 results，返回写入条数。
+        /// </summary>
+        /// <remarks>两个计数同样自 startIndex 起算：outstandingCount 计全部在途、sourcedCount 计带来源——差值即开关没开时取的那批。<br />
+        /// 不带来源的不成行：引用计数在资产快照里已有，这里只答"哪一行取的"。</remarks>
+        internal int GetLeaseSourceInfos(ResourceLeaseSourceInfo[] results, int startIndex, int maxCount,
+            out int outstandingCount, out int sourcedCount)
+        {
+            outstandingCount = 0;
+            sourcedCount = 0;
+            if (results == null || _leaseSlotPages == null)
+            {
+                return 0;
+            }
+
+            int written = 0;
+            int index = startIndex < 0 ? 0 : startIndex;
+            int total = _leaseSlotNextIndex;
+            while (index < total)
+            {
+                ref LeaseSlot lease = ref GetLeaseSlotRef(index);
+                if (lease.State == EResourceLeaseState.Active)
+                {
+                    outstandingCount++;
+                    if (!string.IsNullOrEmpty(lease.SourceDisplay))
+                    {
+                        sourcedCount++;
+                        if (written < maxCount)
+                        {
+                            ref ResourceLeaseSourceInfo info = ref results[written];
+                            info.Handle = new ResourceLeaseHandle(index, lease.Generation);
+                            info.Kind = lease.Kind;
+                            info.Location = string.Empty;
+                            info.TypeName = string.Empty;
+                            if (IsValidAssetId(lease.AssetId))
+                            {
+                                ref AssetSlot asset = ref GetAssetSlotRef(lease.AssetId);
+                                info.Location = GetLocationNameById(ResourceKeyCodec.UnpackLocationId(asset.Key));
+                                Type assetType = GetAssetTypeById(ResourceKeyCodec.UnpackTypeId(asset.Key));
+                                info.TypeName = assetType != null ? assetType.Name : string.Empty;
+                            }
+
+                            info.Display = lease.SourceDisplay;
+                            info.File = lease.SourceFile;
+                            info.Line = lease.SourceLine;
+                            written++;
+                        }
+                    }
+                }
+
+                index++;
+            }
+
+            return written;
         }
 #endif
     }
