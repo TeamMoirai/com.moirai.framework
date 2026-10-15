@@ -1135,7 +1135,7 @@ namespace Service.Kernel
             UtfLogExpect.Error();
             Assert.Throws<GameException>(() => GameServices.Tick(0f, 0f));
             Assert.AreEqual(1, CountLogCaptured(ELogLevel.Fatal, "EDeferMode.Throw"),
-                "Throw 模式应先记录带模式名的 Fatal 日志（ZLogger 把无异常对象的 Critical 渲染进 Error 通道）");
+                "Throw 模式应先记录带模式名的 Fatal 日志（框架层 Fatal；无异常对象时在 Unity 通道落 Error）");
         }
 
         private sealed class UnregisterOnTickService : TestServiceBase, IAlphaService
@@ -1574,7 +1574,7 @@ namespace Service.Kernel
             Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0f, 0f),
                 "开发环境（编辑器/开发构建）下 Tick 异常应记录后上抛（fail-fast）");
             Assert.AreEqual(1, CountLogCaptured(ELogLevel.Fatal, "threw in Tick"),
-                "上抛前应记录带 Tick 语境的 Fatal 日志（LogTickFailure；ZLogger 渲染进 Error 通道）");
+                "上抛前应记录带 Tick 语境的 Fatal 日志（LogTickFailure；框架层 Fatal，无异常对象时在 Unity 通道落 Error）");
         }
 
         // ═══════════════════════════════════════════════════════

@@ -29,6 +29,7 @@
 #### 核心
 
 - ⚠ 移除默认后端的安装探测自动优选：`LogUtility`/`StringUtility`/`TweenUtility`/`ObjectUtility` 的 `#if` 优选链删除，settings 未配置时一律回退声明默认（DefaultLogHandler/DefaultStringHandler/DefaultTweenHandler/UnityObjectHandler），新建 settings 资产的播种值同步变为声明默认；迁移口径 = 已安装 ZLogger/UnityLogging/ZString/LitMotion/PrimeTween/Fusion 的工程在 `GameAppSettings` 的 Provider 下拉框显式选择后端（已配置工程无感；`InputService` 保留引擎宏分派手写工厂不受影响）
+- ⚠ ZLogger 日志后端移出框架，改由 `plugin` 分支的 `zlogger` 插件提供：`ZLoggerHandler` 与 `ZLoggerBypassUnityDebugLoggerProvider` 从 `Moirai.Atropos` 删除，Runtime asmdef 的 `com.cysharp.zlogger` versionDefine（宏 `ZLOGGER_INSTALLED`）与 `ZLogger.Unity` 引用一并移除；迁移口径 = 经 `Tools/Moirai/Package Manager` 装 `zlogger` 插件（清单自带 `com.cysharp.zlogger` UPM 依赖与自有宏），装完在 `GameAppSettings` 的 Provider 下拉框重选后端（`SerializeReference` 的 `asm:` 随类型迁到插件装配而变），未装插件时日志回落 `DefaultLogHandler`
 
 #### 资源
 

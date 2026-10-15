@@ -174,7 +174,7 @@ Each service doc covers key features, core types, quick start and advanced usage
 | **MemoryPool** | Zero-GC page-based memory pool: unmanaged metadata, EWMA adaptive watermarks, phase budgets | [MemoryPool.md](Documentation~/en/MemoryPool.md) |
 | **GameApp** | Unity lifecycle proxy: coroutine hosting, frame update injection, engine event injection, game speed/pause control | [GameApp.md](Documentation~/en/GameApp.md) |
 | **PlayerLoopDriver** | Mono-free PlayerLoop logic driver: zero-allocation handlers, inject/restore, editor visualization | [PlayerLoopDriver.md](Documentation~/en/PlayerLoopDriver.md) |
-| **GameLog** | Logging: runtime level filtering, pluggable backends (Default / Serilog / ZLogger / Unity Logging), T4-generated format overloads, intercepts Unity `Debug.Log` | — |
+| **GameLog** | Logging: runtime level filtering, pluggable backends (built-in Default / Serilog / Unity Logging, further backends ship as plugins), T4-generated format overloads, intercepts Unity `Debug.Log` | — |
 | **GameTime** | Lightweight time accessor, sampled once per frame, avoids frequent `Time.deltaTime` calls | — |
 | **GameProfiler** | Conditional-compilation profiling (`PROFILER_ENABLE` macro), zero overhead when off | — |
 | **GameSettings** | Framework / graphics / update settings (menu `Tools/Framework Settings`) | — |

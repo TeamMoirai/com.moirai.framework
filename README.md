@@ -175,7 +175,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **MemoryPool** | 零 GC 页式内存池：非托管元数据、EWMA 自适应水位线、阶段预算 | [MemoryPool.md](Documentation~/zh/MemoryPool.md) |
 | **GameApp** | Unity 生命周期代理：协程托管、帧更新注入、引擎事件注入、游戏速度/暂停控制 | [GameApp.md](Documentation~/zh/GameApp.md) |
 | **PlayerLoopDriver** | 剥离 Mono 的 PlayerLoop 逻辑驱动：零分配 Handler、注入/恢复、编辑器可视化 | [PlayerLoopDriver.md](Documentation~/zh/PlayerLoopDriver.md) |
-| **GameLog** | 日志系统：运行时级别过滤、可插拔后端（Default / Serilog / ZLogger / Unity Logging）、T4 生成的格式化重载、拦截 Unity 原生 `Debug.Log` | — |
+| **GameLog** | 日志系统：运行时级别过滤、可插拔后端（内置 Default / Serilog / Unity Logging，其余由插件提供）、T4 生成的格式化重载、拦截 Unity 原生 `Debug.Log` | — |
 | **GameTime** | 轻量时间访问器，每帧采样一次，避免频繁调用 `Time.deltaTime` | — |
 | **GameProfiler** | 条件编译的性能采样（`PROFILER_ENABLE` 宏），宏关闭时零开销 | — |
 | **GameSettings** | 框架设置 / 画面设置 / 更新设置（菜单 `Tools/Framework Settings`） | — |
