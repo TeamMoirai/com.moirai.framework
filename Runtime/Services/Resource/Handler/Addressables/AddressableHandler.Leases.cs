@@ -17,25 +17,18 @@ namespace Moirai.Atropos.Resource
     /// 记账（记录槽、租约、去重、时间轮）全在 <see cref="ResourceRecordStore"/>，与 YooAsset 后端共用同一份； <br />
     /// 异步加载与去重核心见 Loading 分部。Addressables 无同步取资产 API，故同步族按 <see cref="CreateNotSupported"/> 快速失败，不静默返回 Invalid。
     /// </remarks>
-    partial class AddressableHandler : IResourceRecordHost
+    partial class AddressableHandler
     {
         #region 内核接线 [KERNEL WIRING]
 
-        [NonSerialized] private ResourceRecordStore _store;
-
-        private ResourceRecordStore Store =>
-            _store ??= new ResourceRecordStore(this, () => DefaultPackageName);
-
-        internal int LoadingOperationCount => Store.LoadingOperationCount;
-
         /// <inheritdoc />
-        bool IResourceRecordHost.IsHandleValid(object handle)
+        protected override bool IsHandleValid(object handle)
         {
             return (handle as IAddressableHandleRef)?.IsValid == true;
         }
 
         /// <inheritdoc />
-        void IResourceRecordHost.DisposeHandle(object handle)
+        protected override void DisposeHandle(object handle)
         {
             (handle as IAddressableHandleRef)?.Release();
         }
@@ -44,7 +37,7 @@ namespace Moirai.Atropos.Resource
         /// <remarks>只有图集形态的记录（<see cref="SpriteAtlas"/>）有子精灵可取；单资产句柄返回 null
         /// 是正解，不是降级。按名取用走 <c>SpriteAtlas.GetSprite</c>——本机 6000.3 的 CoreModule 里。 <br />
         /// 并没有 <c>TryGetSprite</c>（那串只出现在 TextCore 模块的另一套类型上），别照着记忆写。</remarks>
-        Sprite IResourceRecordHost.GetSubSprite(object handle, string spriteName)
+        protected override Sprite GetSubSprite(object handle, string spriteName)
         {
             if (string.IsNullOrEmpty(spriteName) || !(handle is AddressableHandleRef<SpriteAtlas> atlasRef))
             {
@@ -53,9 +46,6 @@ namespace Moirai.Atropos.Resource
 
             return atlasRef.GetSprite(spriteName);
         }
-
-        // 三个配置读数不再另写一遍显式实现：容量属性本来就是 public 的 get/set，
-        // 隐式即满足接口的 get 要求，多写一层只会让两处读数各说各话。
 
         #endregion
 
@@ -166,12 +156,6 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override void Release(ResourceLeaseHandle handle)
-        {
-            Store.Release(handle);
-        }
-
-        /// <inheritdoc />
         public override ResourceAssetLease<T> LoadLease<T>(ResourceKey key)
         {
             throw CreateNotSupported();
@@ -207,12 +191,6 @@ namespace Moirai.Atropos.Resource
         {
             return LoadLeaseAsync<T>(new ResourceKey(location, packageName, typeof(T),
                 ResourceKeyCodec.InferAssetKind(typeof(T))), cancellationToken);
-        }
-
-        /// <inheritdoc />
-        public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
-        {
-            return Store.TryGetLeaseAsset(handle, out asset);
         }
 
         #endregion
@@ -251,24 +229,6 @@ namespace Moirai.Atropos.Resource
         public override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
         {
             return AcquireSubAssetsAsync(location, packageName, options, cancellationToken);
-        }
-
-        /// <inheritdoc />
-        public override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
-        {
-            return Store.TryGetSubSpriteAsset(handle, spriteName, out sprite);
-        }
-
-        /// <inheritdoc />
-        public override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
-        {
-            return Store.TryGetLeaseAssetId(handle, out assetId);
-        }
-
-        /// <inheritdoc />
-        public override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
-        {
-            Store.SetLeaseOptions(handle, options);
         }
 
         /// <inheritdoc />

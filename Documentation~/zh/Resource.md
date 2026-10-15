@@ -43,8 +43,9 @@ Resource 服务（`ResourceService`）对 [YooAsset](https://github.com/tuyoogam
 | 类/接口 | 说明 |
 |---------|------|
 | `ResourceService` | 静态外观（`[ProviderHandlerHost]`），定义加载、租约、绑定、卸载、包操作全部 API；全部静态方法/属性经 `Handler` 属性转发（fail-fast：未就绪时按需初始化，工厂缺失时抛异常，不静默降级）。配置注入在 `OnInit` 接线，每帧驱动（时间轮推进 / 卸载调度 / GC 节流 / 销毁态回收）在 `Tick` 推进 |
-| `YooAssetHandler` | 默认后端，`partial` 按职责拆分：主文件（基础属性、卸载调度、资产信息查询、预制体实例化、宿主接口接线）/ Leases（接缝上 Lease 取还的转发）/ Loading（向 YooAsset 要句柄、挂载与失败文案）/ Cache（设置注入与容量预热）/ Initialization（包与清单初始化）/ Scene（场景句柄）/ Attributes（检视器标注）。**记账不在此**，见下面三件内核类型 |
-| `ResourceRecordStore` | 资源记录内核（`internal sealed partial`，在 `Runtime/Services/Resource/Internal/`，按 `.cs` + `.Records`/`.Leases`/`.Loading`/`.Expiry` 分段 partial 拆文件），由后端持有：带 generation 校验的资产槽与租约槽、两条 packed key 索引表、在途加载去重、两座过期时间轮与容量淘汰。它看向后端只有 `IResourceRecordHost`：三个原生句柄算子加三个配置读数 |
+| `YooAssetHandler` | 默认后端，`partial` 按职责拆分：主文件（基础属性、卸载调度、资产信息查询、预制体实例化）/ Records（三个原生句柄算子）/ Leases（接缝上 Lease 取还的转发）/ Loading（向 YooAsset 要句柄、挂载与失败文案）/ Initialization（包与清单初始化）/ Scene（场景句柄）/ Attributes（检视器标注）。**记账不在此**，见下面三件内核类型 |
+| `ResourceRecordHostHandler` | 记录内核宿主基类（`internal abstract`，两个后端的共同父类）：内核懒建、容量与预热、绑定服务、租约与每帧维护转发、回收模板（bundle 级卸载走 `UnloadUnusedBundles` 钩子由后端覆写）；后端只补三个原生句柄算子 |
+| `ResourceRecordStore` | 资源记录内核（`internal sealed partial`，在 `Runtime/Services/Resource/Internal/`，按 `.cs` + `.Records`/`.Leases`/`.Loading`/`.Expiry` 分段 partial 拆文件），由 `ResourceRecordHostHandler` 持有：带 generation 校验的资产槽与租约槽、两条 packed key 索引表、在途加载去重、两座过期时间轮与容量淘汰。它看向后端只有 `IResourceRecordHost`：三个原生句柄算子加三个配置读数 |
 | `ResourceKeyCodec` | packed key 的位域编解码与 `assetKind` / `assetType` 互推（纯静态、零状态） |
 | `ResourceNameRegistry<TValue>` | 单条名称轴的登记、引用计数与 ID 回收；package / location / type 三轴各持一份 |
 | `ResourceBindingService` | 绑定服务实现（`internal sealed`），`partial` 按职责拆分：主文件（所有者注册、释放、槽位快照）/ Bindings（绑定注册与组件应用）/ Async（异步绑定安全的预约与代次判定）/ Maintenance（关停、重置与销毁态回收）/ Slots（分页槽位借还） |
@@ -493,7 +494,7 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 
 ## 注意事项
 
-- **Addressables 后端（实验性）：** `AddressableHandler` 与 `YooAssetHandler` 共用同一套记录内核（`ResourceRecordStore`），异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均已对齐。未安装 `com.unity.addressables` 时整层由 asmdef 的 `versionDefines`（宏 `ADDRESSABLES_INSTALLED`）连同文件级 `#if` 一起剔除，**不拆独立程序集**——内核类型是 `Moirai.Atropos` 的 `internal`，拆出去只会逼出一行 `InternalsVisibleTo`，换不到任何东西。
+- **Addressables 后端（实验性）：** `AddressableHandler` 与 `YooAssetHandler` 经共同基类 `ResourceRecordHostHandler` 共用同一套记录内核（`ResourceRecordStore`），异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均已对齐。未安装 `com.unity.addressables` 时整层由 asmdef 的 `versionDefines`（宏 `ADDRESSABLES_INSTALLED`）连同文件级 `#if` 一起剔除，**不拆独立程序集**——内核类型是 `Moirai.Atropos` 的 `internal`，拆出去只会逼出一行 `InternalsVisibleTo`，换不到任何东西。
 - **Addressables 的同步族与下载族抛错：** `LoadLease<T>` / `AcquireDirect` / `AcquireBinding` / `AcquirePrefabSourceLease` / 同步 `LoadGameObject` 一律抛 `GameException`——Addressables 没有同步加载 API，返回 `null` 只会把错误推到后面的空引用上。`RequestPackageVersion` / `LoadPackageManifestAsync` / `CreateResourceDownloader` / `GetDownloadSize` 同理：它的更新流程是 Check→Update 两步式，`DownloadStatus` 也没有 `TotalDownloadCount` 与 `FailedFiles` 的对应项。
 - **Addressables 的降级查询：** `IsNeedDownloadFromRemote` 恒为 `false`、`GetPackageVersion` 恒为空串、`GetAssetInfo` 恒为 `default`、按标签的 `GetAssetInfos` 恒为空数组（对应能力只有异步版本，或 `IResourceLocation` 根本不带标签与体积）。`HasAsset` 只要地址可定位就报 `AssetOnDisk`，区分不出"需远端下载"（`AssetOnline` 永不出现）；图集子精灵仅支持 `SpriteAtlas` 形态的地址。非强制档的 `UnloadUnusedAssets()` 在这一后端不做任何事（YooAsset 那一档推进的是 bundle 卸载操作，没有对应物），强制档与低内存回收走的是记录释放。生产环境请使用 `YooAssetHandler`。
 - **Lease API：** `ResourceAssetLease<T>` 是 `struct` —— 务必调用 `Dispose`（使用 `using` 语句）。Dispose 后 `IsValid` 返回 `false`，`Asset` 为 `null`。

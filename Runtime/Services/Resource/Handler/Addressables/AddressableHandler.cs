@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 基于 Unity Addressables 的资源处理器实现（实验性），与 <see cref="YooAssetHandler"/> 共用 <see cref="ResourceRecordStore"/> 记录内核。
+    /// 基于 Unity Addressables 的资源处理器实现（实验性），与 <see cref="YooAssetHandler"/> 经 <see cref="ResourceRecordHostHandler"/> 共用 <see cref="ResourceRecordStore"/> 记录内核。
     /// </summary>
     /// <remarks>
     /// 异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均为对等实现。 <br />
@@ -16,17 +16,12 @@ namespace Moirai.Atropos.Resource
     /// </remarks>
     [ProviderDisplay(title: "Addressables", description: "Unity Addressables 后端（实验性）：无同步加载族，下载族 fail-fast")]
     [Serializable]
-    internal sealed partial class AddressableHandler : ResourceServiceHandler
+    internal sealed partial class AddressableHandler : ResourceRecordHostHandler
     {
         #region 基础属性 [BASE PROPERTIES]
 
         /// <inheritdoc />
         public override string DefaultPackageName { get; set; } = "Default";
-
-        /// <inheritdoc />
-        public override IResourceBindingService BindingService => _bindingService;
-
-        private ResourceBindingService _bindingService;
 
         /// <inheritdoc />
         public override string HostServerURL { get; set; }
