@@ -41,6 +41,7 @@
 | [ObjectUtility](ObjectUtility.md) | 对象实例化/销毁：可插拔 Handler、联网感知 |
 | [TweenUtility](TweenUtility.md) | 缓动动画：可插拔引擎（自研/PrimeTween/LitMotion）、统一缓动参数 |
 | [Testing](Testing.md) | 测试规范：分层归属、用例规范、运行通道、覆盖率门禁、发布出口准则 |
+| [PackageManager](PackageManager.md) | 分支作包源的插件包管理器：cone 稀疏检出装卸、外部依赖归属台账、依赖闭包规划 |
 
 ## 开发规范
 

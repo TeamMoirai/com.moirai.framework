@@ -41,6 +41,7 @@ Welcome to Moirai Framework. This documentation set covers every functional serv
 | [ObjectUtility](ObjectUtility.md) | Object instantiation/destruction: pluggable Handler, network-aware |
 | [TweenUtility](TweenUtility.md) | Tween animation: pluggable engines (built-in/PrimeTween/LitMotion), unified ease parameter |
 | [Testing](Testing.md) | Test specification: layer assignment, case conventions, run channels, coverage gates, release exit criteria |
+| [PackageManager](PackageManager.md) | Plugin package manager over a branch-as-source: cone sparse-checkout install/uninstall, UPM ownership ledger, dependency-closure planning |
 
 ## Development Standards
 
