@@ -133,40 +133,9 @@ namespace Moirai.Atropos.Resource
                 new ResourceKey(location, packageName, typeof(T), ResourceKeyCodec.InferAssetKind(typeof(T))), cancellationToken);
         }
 
-        /// <inheritdoc />
-        public override void Release(ResourceLeaseHandle handle)
-        {
-            Store.Release(handle);
-        }
-
-        /// <inheritdoc />
-        public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
-        {
-            return Store.TryGetLeaseAsset(handle, out asset);
-        }
-
         #endregion
 
         #region 内部 Lease 方法 [INTERNAL LEASE METHODS]
-
-        /// <inheritdoc />
-        public override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName,
-            out Sprite sprite)
-        {
-            return Store.TryGetSubSpriteAsset(handle, spriteName, out sprite);
-        }
-
-        /// <inheritdoc />
-        public override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
-        {
-            return Store.TryGetLeaseAssetId(handle, out assetId);
-        }
-
-        /// <inheritdoc />
-        public override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
-        {
-            Store.SetLeaseOptions(handle, options);
-        }
 
         public override ResourceLeaseHandle AcquireBinding(ResourceKey key)
         {

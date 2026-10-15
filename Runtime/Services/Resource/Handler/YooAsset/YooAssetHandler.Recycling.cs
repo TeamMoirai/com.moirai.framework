@@ -1,49 +1,25 @@
-using System;
 using System.Collections.Generic;
 using YooAsset;
 
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// YooAsset 后端的回收面：低内存回调、包级未用/全量卸载操作与代际清空。
+    /// YooAsset 后端的回收面：bundle 级未用/全量卸载操作与代际清空。
     /// </summary>
     /// <remarks>强制全量回收走"清空后继续用同一实例"的口径：卸载代际自增、加载中操作与绑定服务同步作废。</remarks>
     partial class YooAssetHandler
     {
         #region 资源回收 [ASSET RECYCLING]
 
-        /// <inheritdoc />
-        public override void OnLowMemory()
-        {
-            _forceUnloadUnusedAssetsAction?.Invoke(true);
-        }
-
-        private Action<bool> _forceUnloadUnusedAssetsAction;
-
         private readonly List<UnloadUnusedAssetsOperation> _unloadUnusedAssetsOperations = new List<UnloadUnusedAssetsOperation>();
 
         private readonly List<UnloadAllAssetsOperation> _unloadAllAssetsOperations = new List<UnloadAllAssetsOperation>();
 
-        /// <inheritdoc />
-        public override void SetForceUnloadUnusedAssetsAction(Action<bool> action)
+        /// <summary>
+        /// 推进 bundle 级未用卸载：清掉已完成操作后，向每个就绪资源包发起一轮卸载；进行中未收尾则跳过本轮。
+        /// </summary>
+        protected override void UnloadUnusedBundles()
         {
-            _forceUnloadUnusedAssetsAction = action;
-        }
-
-        /// <inheritdoc />
-        public override void UnloadUnusedAssets()
-        {
-            UnloadUnusedAssets(false);
-        }
-
-        /// <inheritdoc />
-        public override void UnloadUnusedAssets(bool force)
-        {
-            if (force)
-            {
-                ReleaseAllUnusedAssetRecords();
-            }
-
             RemoveCompletedUnloadUnusedOperations();
             if (_unloadUnusedAssetsOperations.Count > 0)
             {
