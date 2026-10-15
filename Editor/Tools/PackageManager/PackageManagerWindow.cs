@@ -46,8 +46,9 @@ namespace Moirai.Atropos.Editor
         {
             MenuWidth = MenuWidthPixels;
             base.OnEnable();
-            EnsureMenuTreeBuilt();
+            // 先读账本再建树：设置节点要装活的设置模型，否则工具栏 Settings 按对象匹配找不到它
             ReloadFromDisk();
+            EnsureMenuTreeBuilt();
         }
 
         /// <summary>重读账本与现场，不联网。</summary>
