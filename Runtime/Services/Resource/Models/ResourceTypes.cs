@@ -381,4 +381,33 @@ namespace Moirai.Atropos.Resource
         public UnityEngine.GameObject OwnerObject;
 #endif
     }
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// 在途租约的来源快照（仅编辑器诊断面）。
+    /// </summary>
+    internal struct ResourceLeaseSourceInfo
+    {
+        /// <summary>租约句柄。</summary>
+        public ResourceLeaseHandle Handle;
+
+        /// <summary>租约种类。</summary>
+        public EResourceLeaseKind Kind;
+
+        /// <summary>被租资产的定位地址。</summary>
+        public string Location;
+
+        /// <summary>被租资产的类型名。</summary>
+        public string TypeName;
+
+        /// <summary>取用来源（类型全名.方法名）；开关未开时取的那批为空。</summary>
+        public string Display;
+
+        /// <summary>取用来源文件路径（正斜杠）。</summary>
+        public string File;
+
+        /// <summary>取用来源行号。</summary>
+        public int Line;
+    }
+#endif
 }

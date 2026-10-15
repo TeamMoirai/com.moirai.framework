@@ -77,18 +77,18 @@ namespace Service.Resource
         [Test]
         public void UnloadRing_IsBoundedAndCountsDropped()
         {
-            int total = ResourceLeaseProvenance.UnloadCapacity + 5;
+            int total = ResourceLeaseProvenance.UNLOAD_CAPACITY + 5;
             for (int i = 0; i < total; i++)
             {
                 ResourceLeaseProvenance.AddUnload("asset/" + i, "Texture2D");
             }
 
-            Assert.AreEqual(ResourceLeaseProvenance.UnloadCapacity, ResourceLeaseProvenance.UnloadCount,
+            Assert.AreEqual(ResourceLeaseProvenance.UNLOAD_CAPACITY, ResourceLeaseProvenance.UnloadCount,
                 "条数钉在容量上，不随写入次数无界增长");
             Assert.AreEqual(5, ResourceLeaseProvenance.UnloadDropped, "被覆盖掉的条数要如实报出来");
             Assert.AreEqual("asset/" + (total - 1), ResourceLeaseProvenance.GetNewestUnload(0).Location,
                 "覆盖之后最新的仍是最后写入那条");
-            Assert.AreEqual("asset/5", ResourceLeaseProvenance.GetNewestUnload(ResourceLeaseProvenance.UnloadCapacity - 1).Location,
+            Assert.AreEqual("asset/5", ResourceLeaseProvenance.GetNewestUnload(ResourceLeaseProvenance.UNLOAD_CAPACITY - 1).Location,
                 "最旧留住的那条应该是第 5 条——前 5 条已被覆盖");
         }
 

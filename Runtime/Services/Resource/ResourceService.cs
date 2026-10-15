@@ -323,6 +323,24 @@ namespace Moirai.Atropos.Resource
         public static int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount) =>
             s_Handler?.GetAssetInfos(results, startIndex, maxCount) ?? 0;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 在途租约来源快照（仅编辑器）：带来源的租约写进 results，返回写入条数；out 计全部在途与其中带来源的。
+        /// </summary>
+        internal static int GetLeaseSourceInfos(ResourceLeaseSourceInfo[] results, int startIndex, int maxCount,
+            out int outstandingCount, out int sourcedCount)
+        {
+            if (s_Handler != null)
+            {
+                return s_Handler.GetLeaseSourceInfos(results, startIndex, maxCount, out outstandingCount, out sourcedCount);
+            }
+
+            outstandingCount = 0;
+            sourcedCount = 0;
+            return 0;
+        }
+#endif
+
         #endregion
 
         #region 初始化 [INITIALIZATION]

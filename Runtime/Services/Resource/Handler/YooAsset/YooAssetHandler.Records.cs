@@ -19,6 +19,13 @@ namespace Moirai.Atropos.Resource
         public override int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount) =>
             Store.GetAssetInfos(results, startIndex, maxCount);
 
+#if UNITY_EDITOR
+        /// <inheritdoc />
+        internal override int GetLeaseSourceInfos(ResourceLeaseSourceInfo[] results, int startIndex, int maxCount,
+            out int outstandingCount, out int sourcedCount) =>
+            Store.GetLeaseSourceInfos(results, startIndex, maxCount, out outstandingCount, out sourcedCount);
+#endif
+
         /// <inheritdoc />
         public override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
         {
