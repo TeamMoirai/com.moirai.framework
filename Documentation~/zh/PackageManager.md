@@ -54,7 +54,7 @@
 
 ```bash
 # 复现当前读数：83 个用例名 / 128 格通过 / 0 失败
-bash "$LOCALAPPDATA/pm-names.sh" Tests/EditorMode/Editor/Tools/PackageManager/*Tests.cs > names.txt
+bash "$LOCALAPPDATA/pm-names.sh" Tests/EditorMode/Editor/Tools/PackageManager/*/*Tests.cs > names.txt
 bash "$LOCALAPPDATA/pm-gate.sh" pm refresh
 bash "$LOCALAPPDATA/pm-test.sh" pm names.txt
 ```

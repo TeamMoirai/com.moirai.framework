@@ -54,7 +54,7 @@ Everything decidable about install/uninstall lives in L1 (EditMode): the version
 
 ```bash
 # reproduces the current reading: 83 test names / 128 cells passed / 0 failed
-bash "$LOCALAPPDATA/pm-names.sh" Tests/EditorMode/Editor/Tools/PackageManager/*Tests.cs > names.txt
+bash "$LOCALAPPDATA/pm-names.sh" Tests/EditorMode/Editor/Tools/PackageManager/*/*Tests.cs > names.txt
 bash "$LOCALAPPDATA/pm-gate.sh" pm refresh
 bash "$LOCALAPPDATA/pm-test.sh" pm names.txt
 ```
