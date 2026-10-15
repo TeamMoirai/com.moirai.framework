@@ -18,6 +18,12 @@
 
 - `[ProviderHandlerHost]` 新增默认处理器声明（第二构造参数）：`ProviderHandlerHostGenerator` 据此生成 `CreateDefaultHandler` 兜底工厂，19 个宿主的手写兜底工厂移除；非法声明（未继承契约/抽象/无可访问无参构造）编译期 MIRAI103 报错，声明默认与手写工厂并存提示 MIRAI104
 
+#### 编辑器
+
+- 编辑器窗口异步数据装载管线 `EditorLoadPipeline`：即时步、主线程分帧切片步（编辑器 update 每拍预算毫秒内连吃条目）、后台任务步顺序执行，装载中可在主线程步内继续登记后续步、每步带完成回调，取消与进度计数齐备；起跑经编辑器 update 自摘除延一拍（不走 `delayCall`——它不随 EditMode 测试的模拟泵派发）
+- `FrameworkMenuWindowBase` 装载接入面：`StartDataLoad`/`BuildDataLoadSteps` 登记装载步骤，`IsDataLoading`/`IsDataFailed`/`IsDataReady`（虚属性，派生窗可按热缓存扩展）供呈现装载态；冷装载（无可展示数据）默认绘制整窗遮罩（居中装载进度 + 进度条）并禁用输入，数据在屏的重扫不遮罩不锁交互；装载完成经 `ShouldRebuildTreeAfterDataLoad` 裁决单次重建树再置就绪（在屏数据与新结果一致时可跳过重建免无谓抖动；遮罩与树同拍切换不露空树帧）、`OnDisable` 取消在途装载，不接入异步装载的派生窗零成本
+- EditorLoadPipelineTests：步序与动态登记、切片跨拍分摊与计数、后台线程与主线程续体、后台/切片取消观察、失败面用例
+
 ### Changed
 
 #### 核心
