@@ -131,6 +131,26 @@ namespace Moirai.Atropos.Editor
             return result.Ok;
         }
 
+        /// <summary>报 HEAD 所在分支与工作树脏否；分离头指针时分支名为空。</summary>
+        internal bool TryDescribeHead(out string headBranch, out bool isDirty, out string failureReason)
+        {
+            headBranch = null;
+
+            GitRunResult symbolic = RunQuery("symbolic-ref --short -q HEAD", out string symbolicText, out _);
+            if (symbolic.Ok) headBranch = symbolicText.Trim();
+            // 分离头指针时 symbolic-ref 以非零退出，这是已知形状而不是故障。
+
+            return TryReadDirty(out isDirty, out failureReason);
+        }
+
+        private bool TryReadDirty(out bool isDirty, out string failureReason)
+        {
+            GitRunResult status = RunQuery("status --porcelain", out string text, out _);
+            isDirty = status.Ok && text.Length > 0;
+            failureReason = status.Ok ? null : $"读工作树状态失败：{status.FailureReason()}";
+            return status.Ok;
+        }
+
         /// <summary>取当前 HEAD 的提交号。</summary>
         internal bool TryHeadCommit(out string commit, out string failureReason)
         {
