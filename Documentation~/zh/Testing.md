@@ -208,7 +208,6 @@ public abstract class XxxFixture
 | Handler | Unity Test Framework 是否可见 | 后果 |
 |---|---|---|
 | `DefaultLogHandler` | 可见 | 必须 `LogAssert.Expect` |
-| `ZLoggerHandler` | 可见（仍经 `Debug` 通路） | 必须 `LogAssert.Expect` |
 | `UnityLoggingHandler` | **不可见**（`ConsoleWindow.AddMessage` 直写） | 声明 `Expect` 反而报 "Expected log did not appear" |
 
 因此：
@@ -217,7 +216,7 @@ public abstract class XxxFixture
 - **`LogAssert.Expect` 只承担"消除未处理日志"的职责，正则一律用 `".*"`**，不要在正则里耦合 Handler 的渲染前缀（`[ERR]`/`[FAT]` 三字符前缀与文档里的 `[ERROR]`/`FATAL` 不一致，会成批假红）。
 - **消除未处理日志一律经 `UtfLogExpect`**（`Tests/EditorMode/Support/UtfLogExpect.cs`；PlayMode 侧有同名本地副本）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。**不要**在用例里自己写 `LogAssert.Expect` 加处理器判定——那会把「未装 com.unity.logging 的工程里 `UnityLoggingHandler` 根本不存在」扩散成每处一个 `#if`。API 面：
   - `Error()` / `Warning()` / `Exception()`：三条基础级别各一个声明，正则固定 `.*`；
-  - `ErrorWithException(fragment)`：带异常对象的 Error 重载——级别随处理器自述（`ErrorWithExceptionUsesExceptionChannel`），ZLogger 下转 Exception 通道、DefaultLogHandler 下仍是 Error；
+  - `ErrorWithException(fragment)`：带异常对象的 Error 重载——级别随处理器自述（`ErrorWithExceptionUsesExceptionChannel`），内置 `DefaultLogHandler` 恒为 Error 通道；`plugin` 分支的 `zlogger` 插件自述为 true，该后端的条目带异常即转 Exception 通道；
   - `ScopedIgnore()`：`ignoreFailingMessages` 的 using 形态窗口（构造快照、Dispose 还原），供**错误集不可枚举的故障注入夹具**使用。取舍：窗口内所有未处理日志（含真缺陷的）都不判红，相当于放弃「意外错误也要红」这层信号——只在夹具确实不需要该信号时选用；错误集可枚举的用例逐条声明。它是唯一允许触碰该全局开关的入口。
   - 测试程序集因此保留 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 的 `versionDefines`：全仓只有 `UtfLogExpect` 一处需要该宏，别在别处再依赖它。
 - **被测走 `Debug.Log*` 直发、不经 LogUtility 的场景，`LogAssert` 是唯一正确通道**——该链路对 UTF 恒可见，声明预期不涉及处理器判定，用 `UtfLogExpect` 反而会在 UnityLoggingHandler 下漏声明而假红（范例：`DebuggerLogCaptureTests` 测的就是 Unity 控制台捕获器）。这类文件登记进 `TestLogChannelPolicyGuardTests.LogAssertAllowlist` 并写明归类；除此之外的直用一律按上一条走 `UtfLogExpect`。

@@ -1176,7 +1176,7 @@ namespace Service.GameObjectPool
 
             // 用户回调已在循环里逐项隔离，能逃到维护边界的只剩框架自身缺陷：
             // 必须带池身份显式报出来（此前只有调度器一层裸 Fatal，指不出是哪个池在退化）。
-            // 该日志走 LogUtility.Fatal（框架层 Fatal；ZLogger 把无异常对象的 Critical 渲染进 Error 通道）
+            // 该日志走 LogUtility.Fatal（框架层 Fatal；无异常对象时在 Unity 通道落 Error）
             UtfLogExpect.Error();
             Assert.DoesNotThrow(() => pool.ExecuteMaintenance(Time.time, true));
 

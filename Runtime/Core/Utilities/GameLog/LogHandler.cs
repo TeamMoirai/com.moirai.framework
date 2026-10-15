@@ -10,10 +10,10 @@ namespace Moirai.Atropos
     /// 游戏框架日志处理器基类（策略模式抽象策略），后端经 <see cref="LogUtility.Handler"/> 替换。
     /// </summary>
     /// <remarks>
-    /// 内置四种实现及启用条件：<see cref="DefaultLogHandler"/>（<c>UnityEngine.Debug</c>，始终可用，默认）、
+    /// 内置三种实现及启用条件：<see cref="DefaultLogHandler"/>（<c>UnityEngine.Debug</c>，始终可用，默认）、
     /// <see cref="UnityLoggingHandler"/>（需安装 com.unity.logging，自动定义 <c>UNITY_LOGGING_INSTALLED</c>）、
-    /// <see cref="ZLoggerHandler"/>（需安装 com.cysharp.zlogger，自动定义 <c>ZLOGGER_INSTALLED</c>）、
-    /// <see cref="SerilogHandler"/>（需引入 Serilog 程序集并手动定义 <c>SERILOG_INSTALLED</c>）。
+    /// <see cref="SerilogHandler"/>（需引入 Serilog 程序集并手动定义 <c>SERILOG_INSTALLED</c>）；
+    /// 其余后端（如 ZLogger）由 <c>plugin</c> 分支的插件装进来。
     /// </remarks>
     [Serializable]
     public abstract class LogHandler : FrameworkHandler
@@ -41,8 +41,8 @@ namespace Moirai.Atropos
         /// <summary>获取或设置是否在日志输出中包含时间戳。</summary>
         /// <remarks>
         /// 各实现经后端自身的模板/格式化系统应用：<see cref="DefaultLogHandler"/> 在消息前缀拼接 <c>[HH:mm:ss.fff]</c>；
-        /// <see cref="ZLoggerHandler"/> 经 <c>PrefixFormatter</c>； <br />
-        /// <see cref="UnityLoggingHandler"/> 与 <see cref="SerilogHandler"/> 由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制。
+        /// <see cref="UnityLoggingHandler"/> 与 <see cref="SerilogHandler"/> 由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制；
+        /// 外置后端（如 ZLogger 插件）由各自的 formatter 模板提供。
         /// </remarks>
         public bool TimestampEnabled
         {
@@ -74,7 +74,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 基类默认 <c>false</c>，与 <see cref="DefaultLogHandler"/> 一致：Error 落 <c>LogType.Error</c>，只有 Fatal 带异常时才走 LogException。 <br />
-        /// 后端只要「条目自带异常就升级成 Exception」即覆盖为 <c>true</c>（ZLogger 的旁路 processor 属此）。 <br />
+        /// 后端只要「条目自带异常就升级成 Exception」即覆盖为 <c>true</c>（<c>plugin</c> 分支的 zlogger 插件属此）。 <br />
         /// 这条判据存在的理由：日志级别随处理器变，而测试装配看不到各后端的 <c>*_INSTALLED</c> 宏，把级别写死在用例里换一次处理器就假红。
         /// </remarks>
         public virtual bool ErrorWithExceptionUsesExceptionChannel => false;

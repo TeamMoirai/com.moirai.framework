@@ -74,21 +74,36 @@ com.moirai.framework/
 - **Obfuz** - 混淆虚拟机初始化（`OBFUZ_INSTALLED && ENABLE_OBFUZ` 门控）
 - **Utilities** - 工具类（算法、随机、JSON、Tween、日志 `LogUtility` 等；一个关注点一个子目录）
 
-## 编码规范
-
-细则（`### 命名规范`、`### XML 文档注释` 及其分级条款）的权威落点在 `.claude/skills/moirai-conventions/references/coding.md`，本文不复述第二套。
-执行等级只有一个含义：Mandatory 违反要打回，Prefer 性能敏感区必须、非热路径可放宽，Reference 逐步优化遗留。
-
-## 测试规范
-
-细则（分层与归属、命名与结构、夹具与隔离、确定性、反射政策、日志断言、基准、公共 API 变更口径、覆盖率与出口准则、可执行守卫）
-的权威落点在 `.claude/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
-
-## AI 测试流程
-
-六步流程与两条验证环路（测试桥、编辑器状态桥）的权威落点在 `.claude/skills/moirai-conventions/references/verification.md`。
-三行硬条件：只认内容等于本次 `id` 的配对完成标记；结论取落盘报告首行计数；0 失败才算通过。
-
+## 编码规范
+
+
+
+细则（`### 命名规范`、`### XML 文档注释` 及其分级条款）的权威落点在 `.claude/skills/moirai-conventions/references/coding.md`，本文不复述第二套。
+
+执行等级只有一个含义：Mandatory 违反要打回，Prefer 性能敏感区必须、非热路径可放宽，Reference 逐步优化遗留。
+
+
+
+## 测试规范
+
+
+
+细则（分层与归属、命名与结构、夹具与隔离、确定性、反射政策、日志断言、基准、公共 API 变更口径、覆盖率与出口准则、可执行守卫）
+
+的权威落点在 `.claude/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
+
+
+
+## AI 测试流程
+
+
+
+六步流程与两条验证环路（测试桥、编辑器状态桥）的权威落点在 `.claude/skills/moirai-conventions/references/verification.md`。
+
+三行硬条件：只认内容等于本次 `id` 的配对完成标记；结论取落盘报告首行计数；0 失败才算通过。
+
+
+
 ## Claude Code Skills
 
 项目提供以下 Skills（通过 `/` 命令调用）：
@@ -141,11 +156,16 @@ com.moirai.framework/
 3. 实施优化
 4. 使用 `/review` 验证优化
 
-### 4. 提交时的文档与 CHANGELOG
-
-提交、文档与 CHANGELOG、发版与 PR 的权威落点在 `.claude/skills/moirai-conventions/references/release.md`。
-口径：只写净结果与现行事实，破坏性变更前置 ⚠ 给迁移口径，版本号与 Release 由工作流写入。
-
+### 4. 提交时的文档与 CHANGELOG
+
+
+
+提交、文档与 CHANGELOG、发版与 PR 的权威落点在 `.claude/skills/moirai-conventions/references/release.md`。
+
+口径：只写净结果与现行事实，破坏性变更前置 ⚠ 给迁移口径，版本号与 Release 由工作流写入。
+
+
+
 ## 依赖项
 
 ### 运行时核心依赖（Client 实装）
@@ -156,7 +176,7 @@ com.moirai.framework/
 ### 可选依赖（`*_INSTALLED` 宏门控，未装也能编译）
 - **HybridCLR** - 热更新（`HYBRIDCLR_INSTALLED`）
 - **R3** - 响应式编程（`R3_INSTALLED`）
-- 其余可选包见 Runtime asmdef 的 21 条 versionDefines（LitMotion/PrimeTween/ZString/ZLogger/com.unity.logging/Obfuz/Addressables/LZ4/CloudSave 等）。asmdef 对未安装包的 GUID 引用按 Unity 惯例静默跳过（Runtime 19 引用中 11 个 Client 未装而照常编译）——引用缺失不报错，缺的是宏。
+- 其余可选包见 Runtime asmdef 的 16 条 versionDefines（LitMotion/PrimeTween/ZString/com.unity.logging/Obfuz/Addressables/LZ4/CloudSave 等）。asmdef 对未安装包的 GUID 引用按 Unity 惯例静默跳过（Runtime 18 引用中 11 个 Client 未装而照常编译）——引用缺失不报错，缺的是宏。ZLogger 日志后端由 `plugin` 分支的插件提供，框架不再持有其宏与引用。
 
 ### 开发工具
 - **Odin Inspector** - 编辑器增强
