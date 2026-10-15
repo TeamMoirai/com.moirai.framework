@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Resource
     // ReSharper disable once ClassNeverInstantiated.Global
     [ProviderDisplay(title: "YooAsset", description: "默认：YooAsset 资源管线（加载/缓存/租约/绑定/远程包下载）")]
     [Serializable]
-    internal sealed partial class YooAssetHandler : ResourceServiceHandler, IResourceRecordHost
+    internal sealed partial class YooAssetHandler : ResourceRecordHostHandler
     {
         #region 基础属性 [BASE PROPERTIES]
 
@@ -117,11 +117,6 @@ namespace Moirai.Atropos.Resource
 
         /// <inheritdoc />
         public override bool IsInitialized => base.IsInitialized && DefaultPackage?.InitializeStatus == EOperationStatus.Succeeded;
-
-        private ResourceBindingService _bindingService;
-
-        /// <inheritdoc />
-        public override IResourceBindingService BindingService => _bindingService;
 
         /// <inheritdoc />
         public override string HostServerURL { get; set; }
