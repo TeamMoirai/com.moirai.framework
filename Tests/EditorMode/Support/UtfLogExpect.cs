@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Tests.EditorMode
     /// <remarks>
     /// <see cref="LogAssert"/> 是双向契约：处理器可见时不声明会因「未处理的错误日志」判红，不可见时声明会反报 "Expected log did not appear"。
     /// 可见性取决于运行期生效的处理器（<c>GameAppSettings.asset</c> 的 <c>m_LogHandler</c>）： <c>DefaultLogHandler</c> / <br />
-    /// <c>ZLoggerHandler</c> / <c>SerilogHandler</c> 经 <c>Debug</c> 通路，UTF 可见； <br />
+    /// <c>SerilogHandler</c> 经 <c>Debug</c> 通路，UTF 可见； <br />
     /// <c>UnityLoggingHandler</c> 直写控制台窗口、绕开 <c>Debug.unityLogger</c>，UTF 不可见。
     /// <c>UnityLoggingHandler</c> 整文件包在 <c>#if UNITY_LOGGING_INSTALLED</c> 内，未安装 <c>com.unity.logging</c> 时该类型不存在， <br />
     /// 编译期提及即 CS0103——判定收在本文件一处，用例侧只写一行调用。 <br />
@@ -101,8 +101,8 @@ namespace Moirai.Atropos.Tests.EditorMode
         /// 为随后一条「带异常对象的 Error 日志」声明 UTF 预期，级别判定同样收在这唯一一处。
         /// </summary>
         /// <remarks>
-        /// LogUtility 的 Error(Exception) 重载在不同处理器下落成不同级别：<c>ZLoggerHandler</c> 的旁路只要条目带异常就转 <c>LogType.Exception</c> <br />
-        /// （见 <c>ZLoggerBypassUnityDebugLoggerProvider</c> 的 AsUnityLogType 分支），而 <c>DefaultLogHandler</c> 的 Error 分支仍是 <c>LogType.Error</c>。 <br />
+        /// LogUtility 的 Error(Exception) 重载在不同处理器下落成不同级别：条目带异常即升级成 Exception 的后端（<c>plugin</c> 分支的 zlogger 插件）转 <c>LogType.Exception</c>， <br />
+        /// 而 <c>DefaultLogHandler</c> 的 Error 分支仍是 <c>LogType.Error</c>。 <br />
         /// 级别由处理器自述（<c>LogHandler.ErrorWithExceptionUsesExceptionChannel</c>）：本装配拿不到后端的 <c>*_INSTALLED</c> 宏， <br />
         /// 按类型名判定的写法会被预处理裁掉而恒走 Error 分支——实测假红过一次。
         /// </remarks>

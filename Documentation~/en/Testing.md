@@ -204,7 +204,6 @@ The framework's `LogUtility` is **pluggable**: the Handler active in the test do
 | Handler | Visible to Unity Test Framework | Consequence |
 |---|---|---|
 | `DefaultLogHandler` | Yes | Must `LogAssert.Expect` |
-| `ZLoggerHandler` | Yes (still goes through `Debug`) | Must `LogAssert.Expect` |
 | `UnityLoggingHandler` | **No** (writes straight to `ConsoleWindow.AddMessage`) | Declaring `Expect` instead reports "Expected log did not appear" |
 
 Therefore:
@@ -213,7 +212,7 @@ Therefore:
 - **`LogAssert.Expect` only serves to silence unhandled logs; always use the regex `".*"`** and never couple the regex to a Handler's rendering prefix (`[ERR]`/`[FAT]` three-character prefixes differ from the `[ERROR]`/`FATAL` in docs and cause bulk false reds).
 - **Always silence unhandled logs through `UtfLogExpect`** (`Tests/EditorMode/Support/UtfLogExpect.cs`; the PlayMode assembly carries a same-named local copy): the handler-visibility judgement lives there, so a case carries no `#if` and never names a handler type. Do **not** hand-roll `LogAssert.Expect` plus a handler check inside a case — that spreads "`UnityLoggingHandler` does not exist at all without com.unity.logging" into one `#if` per site. API surface:
   - `Error()` / `Warning()` / `Exception()` — one declaration per basic level, regex fixed to `.*`;
-  - `ErrorWithException(fragment)` — for the Error overload that carries an exception object; the level follows the handler's self-report (`ErrorWithExceptionUsesExceptionChannel`): ZLogger routes it to the Exception channel, DefaultLogHandler keeps Error;
+  - `ErrorWithException(fragment)` — for the Error overload that carries an exception object; the level follows the handler's self-report (`ErrorWithExceptionUsesExceptionChannel`): the built-in `DefaultLogHandler` always stays on the Error channel, while the `zlogger` plugin on the `plugin` branch reports `true` and turns any entry carrying an exception into the Exception channel;
   - `ScopedIgnore()` — a `using`-shaped window over `ignoreFailingMessages` (snapshots on construction, restores on Dispose) for **fault-injection fixtures whose error set is not enumerable**. Trade-off: every unhandled log inside the window (including real defects') stops failing, i.e. the fixture gives up the "unexpected errors must be red" signal — choose it only when the fixture truly does not need that signal; enumerable error sets declare one expectation per log. It is the only entry point allowed to touch that global switch.
   - The test assembly therefore keeps its `com.unity.logging` → `UNITY_LOGGING_INSTALLED` `versionDefines` entry: `UtfLogExpect` is the only place in the repository that needs that macro — do not rely on it anywhere else.
 - **When the code under test emits straight through `Debug.Log*` (not via LogUtility), `LogAssert` is the only correct channel** — that path is always visible to UTF, declaring an expectation involves no handler judgement, and going through `UtfLogExpect` would under-declare under `UnityLoggingHandler` and false-red (exemplar: `DebuggerLogCaptureTests` tests Unity's console capture itself). Register such files in `TestLogChannelPolicyGuardTests.LogAssertAllowlist` with the category stated; every other direct use follows the previous bullet through `UtfLogExpect`.
