@@ -17,10 +17,10 @@ namespace Moirai.Atropos.Resource
     internal static class ResourceLeaseProvenance
     {
         /// <summary>卸载账容量：满覆盖最旧，只保证"最近这么多次"可查，不保证全量。</summary>
-        internal const int UnloadCapacity = 64;
+        internal const int UNLOAD_CAPACITY = 64;
 
         /// <summary>来源采集开关：默认关闭。</summary>
-        internal static bool Enabled;
+        internal static bool Enabled { get; set; }
 
         /// <summary>一次取用的调用来源。</summary>
         internal struct LeaseSource
@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Resource
             internal DateTime UnloadTimeUtc { get; }
         }
 
-        private static readonly UnloadRecord[] s_Records = new UnloadRecord[UnloadCapacity];
+        private static readonly UnloadRecord[] s_Records = new UnloadRecord[UNLOAD_CAPACITY];
         private static int s_Start;
         private static int s_Count;
 
@@ -111,15 +111,15 @@ namespace Moirai.Atropos.Resource
         internal static void AddUnload(string location, string typeName)
         {
             var record = new UnloadRecord(location ?? string.Empty, typeName ?? string.Empty, DateTime.UtcNow);
-            if (s_Count < UnloadCapacity)
+            if (s_Count < UNLOAD_CAPACITY)
             {
-                s_Records[(s_Start + s_Count) % UnloadCapacity] = record;
+                s_Records[(s_Start + s_Count) % UNLOAD_CAPACITY] = record;
                 s_Count++;
                 return;
             }
 
             s_Records[s_Start] = record;
-            s_Start = (s_Start + 1) % UnloadCapacity;
+            s_Start = (s_Start + 1) % UNLOAD_CAPACITY;
             UnloadDropped++;
         }
 
@@ -131,7 +131,7 @@ namespace Moirai.Atropos.Resource
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
 
-            return s_Records[(s_Start + s_Count - 1 - index) % UnloadCapacity];
+            return s_Records[(s_Start + s_Count - 1 - index) % UNLOAD_CAPACITY];
         }
 
         /// <summary>清空卸载账：连引用一起断掉，让被记录的字符串能立刻回收。</summary>

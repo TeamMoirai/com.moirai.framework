@@ -38,6 +38,15 @@ namespace Moirai.Atropos.Resource
             return Store.GetAssetInfos(results, startIndex, maxCount);
         }
 
+#if UNITY_EDITOR
+        /// <inheritdoc />
+        internal override int GetLeaseSourceInfos(ResourceLeaseSourceInfo[] results, int startIndex, int maxCount,
+            out int outstandingCount, out int sourcedCount)
+        {
+            return Store.GetLeaseSourceInfos(results, startIndex, maxCount, out outstandingCount, out sourcedCount);
+        }
+#endif
+
         #endregion
     }
 }

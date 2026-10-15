@@ -26,6 +26,11 @@ namespace Moirai.Atropos.Resource
 
         private readonly ResourceAssetInfo[] _infoBuffer = new ResourceAssetInfo[SAMPLE_COUNT];
 
+#if UNITY_EDITOR
+        /// <summary>在途租约行缓冲（仅编辑器）：随面板节流重建复用。</summary>
+        private readonly ResourceLeaseSourceInfo[] _leaseBuffer = new ResourceLeaseSourceInfo[PROVENANCE_ROW_COUNT];
+#endif
+
         #endregion
 
         #region 构造 [CONSTRUCTOR]
@@ -62,6 +67,36 @@ namespace Moirai.Atropos.Resource
                 value => ResourceLeaseProvenance.Enabled = value));
             provenanceCard.Add(DebuggerUI.CreateActionButton("Clear unload history",
                 () => ResourceLeaseProvenance.ClearUnload()));
+
+            // 在途租约先列、卸载账后列：先答"谁还欠着"，再看"何时卸的"
+            int leaseWritten = ResourceService.GetLeaseSourceInfos(_leaseBuffer, 0, _leaseBuffer.Length,
+                out int outstanding, out int sourced);
+            if (outstanding <= 0)
+            {
+                provenanceCard.Add(DebuggerUI.CreateHintLabel("No outstanding leases."));
+            }
+            else
+            {
+                for (int i = 0; i < leaseWritten; i++)
+                {
+                    ref ResourceLeaseSourceInfo info = ref _leaseBuffer[i];
+                    string source = info.Line > 0
+                        ? StringUtility.Format("{0} @ {1}:{2}", info.Display, info.File, info.Line)
+                        : info.Display;
+                    AddRow(provenanceCard, StringUtility.Format("[{0}] {1}", info.Kind, info.Location), source,
+                        ASSET_TITLE_RATIO);
+                }
+
+                if (outstanding > leaseWritten)
+                {
+                    string extra = sourced > leaseWritten
+                        ? StringUtility.Format(" | showing first {0} with source", leaseWritten)
+                        : string.Empty;
+                    provenanceCard.Add(DebuggerUI.CreateHintLabel(StringUtility.Format(
+                        "Outstanding: {0} leases, {1} without source{2}.", outstanding, outstanding - sourced, extra)));
+                }
+            }
+
             int unloaded = ResourceLeaseProvenance.UnloadCount;
             if (unloaded <= 0)
             {
