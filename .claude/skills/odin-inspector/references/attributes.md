@@ -1,85 +1,88 @@
-# Odin 属性清单（按装机版本核过）
+# Odin 特性目录（项目惯用清单）
 
-## 枚举的正确姿势
+> 权威全集：https://odininspector.com/attributes （每特性含示例与参数说明）
+> 本文件只列本项目实际使用 / 推荐使用的特性。标记 ⭐ 的有项目自定义扩展。
 
-**从 dll 枚举，不要从 XML 枚举。** `Assemblies/*.xml` 只收"写了注释的成员"，所以：
+## 布局分组
 
-- XML 里查不到 ≠ API 不存在（实测：`TypeFilterAttribute`、`UnitAttribute`、`RequiredListLengthAttribute`、
-  `PolymorphicDrawerSettingsAttribute`、`TypeDrawerSettingsAttribute` 在 `Sirenix.OdinInspector.Attributes.xml`
-  里都没有 `T:` 条目，但在 dll 的 #Strings 堆里都在）
-- 方法（`M:`）与属性（`P:`）是两套条目，只 grep `M:` 会漏掉所有属性成员（我因此误判过一次）
-- 官方文档站描述的是**最新版**，不是本机这版；存在性一律以 `scripts/odin_api_probe.py` 的读数为准
+| 特性 | 用途 | 项目示例 |
+|------|------|----------|
+| `FoldoutGroup("组名")` | 折叠组 | `FrameworkSettingsWindow` 搜索示例 |
+| `TabGroup("组名", "页名")` | 页签组 | `ComprehensiveProbabilityWindow` |
+| `BoxGroup("组名")` | 盒子组 | 各 Settings |
+| `TitleGroup("标题", "副标题")` | 带标题组 | 配置面板 |
+| `HorizontalGroup` / `VerticalGroup` | 行/列布局 | 值行内并排控件 |
+| `ButtonGroup("组名")` | 按钮横排 | 多操作按钮 |
+| ⭐ `InspectorGroup` | 项目自定义分组 | `Runtime/Core/Attributes/OdinExtends/InspectorGroupAttribute.cs` |
 
-一条命令核多个名字（正例反例都要放，验证探针自己活着）：
+## 显示与标签
 
+| 特性 | 用途 | 备注 |
+|------|------|------|
+| `LabelText("...")` | 标签文本 | 支持 `$表达式` / `@表达式`；被 `FrameworkSettingsWindow` 字段搜索识别 |
+| `Tooltip("...")` | 悬停提示 | 与 Unity 原生同参，Settings 字段全用 |
+| `InfoBox("...", InfoMessageType.Warning)` | 字段上方信息框 | |
+| ⭐ `InfoBoxBelow` | 项目自定义：信息框置于字段下方 | `Runtime/Core/Attributes/OdinExtends/` |
+| ⭐ `HelpInfo("标题", "内容")` | 项目自定义帮助块 | |
+| `HideLabel` | 隐藏标签 | 列表项/预览字段 |
+| `InlineProperty` | 内联展开子字段 | 窄宽度结构体 |
+| `PreviewField(70)` | 资源预览图 | 贴图/Sprite 字段 |
+| `PropertyOrder(n)` | 排序 | 结果字段沉底用大值（如 100） |
+| `PropertySpace(n)` | 额外间距 | |
+| `GUIColor("...")` | 着色 | 状态提示 |
+| `DisplayAsString` / `DetailedInfoBox` | 只读展示 | |
+
+## 按钮
+
+| 特性 | 用途 | 备注 |
+|------|------|------|
+| `Button("文本")` | 方法变按钮 | 可加参数 `Button(ButtonSizes.Large)`；OdinEditorWindow 里最常用 |
+| `ButtonGroup` | 按钮组 | |
+| `InlineButton` | 字段行内按钮 | |
+| ⭐ `InlineEnableButton` | 项目自定义：行内启停按钮 | Drawer 处理列表元素场景 |
+
+## 校验
+
+| 特性 | 用途 | 备注 |
+|------|------|------|
+| `Required("提示")` | 非空校验 | 配 Odin Validator 扫描 |
+| `ValidateInput("方法名")` | 自定义校验 | |
+| `MinValue(n)` / `MaxValue(n)` | 数值钳制 | `[MinValue(16)]`（SaveServiceSettings 截图尺寸） |
+| `AssetsOnly` / `SceneObjectsOnly` / `ChildGameObjectsOnly` | 限定拖入对象 | |
+
+## 下拉与选择
+
+| 特性 | 用途 | 备注 |
+|------|------|------|
+| ⭐⭐ `ProviderDropdown` | **项目核心**：`[SerializeReference]` 多态实现类下拉（TypeCache 自动发现候选） | 见 SKILL.md §3；三宿主共用一套逻辑 |
+| `ValueDropdown("方法名")` | 值下拉（`IEnumerable`/`ValueDropdownItem`） | ⭐ `ConditionDropdown`（项目自定义）在其上扩展 `ShowIf` |
+| `ValueDropdownItem("文本", value)` | 下拉项显示值/真实值 | 实现 `IValueDropdownItem` 可自定义文本 |
+| `AssetList(Path = "/..", AutoPopulate = .., LayerNames = .., AssetNamePrefix = ..)` | 资源列表过滤 | |
+| `TypeFilter` | Object 字段类型过滤 | |
+
+## 条件显隐
+
+| 特性 | 用途 | 备注 |
+|------|------|------|
+| `ShowIf` / `HideIf` / `DisableIf` / `EnableIf` | 条件显隐/禁用 | 值为成员名或 `@表达式` |
+| `ReadOnly` | 只读 | 输出结果字段 |
+
+## 集合
+
+| 特性 | 用途 | 备注 |
+|------|------|------|
+| `TableList(AlwaysExpanded = true)` | 表格化列表 | 需要列头时用 |
+| `ListDrawerSettings(ShowFoldout = .., DraggableItems = ..)` | 列表行为 | |
+| `DictionaryDrawerSettings(KeyLabel = .., ValueLabel = ..)` | 字典展示 | |
+
+## 特性参数字符串求值
+
+所有接受 string 的特性参数（LabelText/ShowIf/InfoBox 等）支持三种模式：
+
+```csharp
+[LabelText("普通文本")]              // 字面量
+[LabelText("$memberName")]          // $ = 引用成员（字段/属性/方法返回值）
+[LabelText("@obj?.DisplayName")]    // @ = 表达式求值
 ```
-python scripts/odin_api_probe.py ValueDropdownAttribute DictionaryDrawerSettingsAttribute ApplyChanges
-```
 
-本机实测：`DictionaryDrawerSettingsAttribute`、`ValueDropdownListAttribute` **确实不存在**；
-XML 里有注释的属性共 **114 个**（这是下界，不是全集）。
-
-## 分组清单（名字即 `Sirenix.OdinInspector.<Name>`）
-
-### 分组与排版
-`BoxGroup` `FoldoutGroup` `TitleGroup` `TabGroup` `HorizontalGroup` `VerticalGroup` `ToggleGroup`
-`ShowIfGroup` `HideIfGroup` `ButtonGroup` `ResponsiveButtonGroup` `PropertyGroup`(基类)
-`Title` `TypeInfoBox` `Image` `PropertySpace` `Indent` `GUIColor` `Wrap` `DisplayAsString`
-
-标签三件套：`LabelText`（改显示名，支持 `"$Member"` 取成员值）、`LabelWidth`、`HideLabel`。
-`PropertyTooltip` 与 Unity 的 `[Tooltip]` 是两条不同通路（前者走 Odin 自己的 tooltip 层）。
-
-**多字段一行的对齐**：官方成例是给组路径常量 + 显式宽度，不让自动标签宽互相污染
-（`Demos/Sample - RPG Editor/Scripts/Items/Item.cs:7-24`：`protected const string LEFT_VERTICAL_GROUP = "Split/Left";`
-+ `[HorizontalGroup(LEFT_VERTICAL_GROUP + "/Split", 55, LabelWidth = 67)]`）；
-需要关掉自动对齐时用 `DisableAutomaticLabelWidth = true`（`ConsumableItem.cs:10-17`）。
-
-### 条件显隐/可用性
-`ShowIf` `HideIf` `EnableIf` `DisableIf`（各自都有 `ShowIfGroup`/`HideIfGroup` 的整组版）
-按宿主形态的还有：`ShowIn` `HideIn` `EnableIn` `DisableIn` `RequiredIn` `DisallowModificationsIn`
-`*InEditorMode` `*InPlayMode` `*InPrefabs` `*InPrefabAssets` `*InPrefabInstances` `*InNonPrefabs` `*InInlineEditors`。
-
-字符串参数三种形态：成员名（`nameof(x)`）、`@` 表达式（`"@m_List.Count > 0"`）、枚举两参比较
-（`[EnableIf("SomeEnumField", SomeEnum.Member)]`）。本仓已用成例：
-`Runtime/Core/Graphics/GraphicsSettings.Resolution.cs:78`、`Runtime/Services/Audio/Models/AudioPlayOptions.cs:88,92,97`
-（`[ShowIf(nameof(m_FadeInOnPlay))]` 一个条件挂多字段）；枚举两参形态本仓未用，要用先按上面的读数口径核一遍。
-
-### 校验与提示
-`ValidateInput`（方法名或 `@` 表达式，可用 `$value`；旧的重载带 `rejectInvalidInput` 已废弃——
-"Rejecting invalid input is no longer supported"）、`InfoBox` / `DetailedInfoBox`（`message` 支持 `$成员` 动态串，
-带 `visibleIf` 条件）、`Required`、`MinValue` `MaxValue` `Range` `MinMaxSlider` `PropertyRange`、
-`AssetsOnly` `SceneObjectsOnly` `ChildGameObjectsOnly` `FilePath` `FolderPath`、
-`DontValidate` `SuppressInvalidAttributeError`。
-全局可扫的红字走"自定义 attribute + `AttributeValidator` + 程序集级 `RegisterValidator`"
-（`Demos/Custom Drawers/Scripts/ValidationExample.cs:2,22-45`）。
-**校验器侧的完整面（基类取舍、Rule vs Validator、`ref` 报告、窗口/配置生效值）在 sibling 技能
-`odin-validator`（同级 `.claude/skills/odin-validator/`）**——本清单只管属性名，别在这里长校验知识。
-
-### 集合与表格
-`ListDrawerSettings`（含 `IsReadOnly`、`ShowPaged`、`NumberOfItemsPerPage` 等）、`TableList` `TableMatrix`
-`TableColumnWidth` `HideInTables`、`AssetList`（`Path`/`Tags`/`AutoPopulate`/`CustomFilterMethod`；
-**没有** `AssetsList` 这个拼法，也没有 `DictionaryDrawerSettings`）、`ValueCollectionChanged` 系：`OnCollectionChanged`。
-
-### 选择器与呈现
-`ValueDropdown`（指向成员名/方法，返回 `IEnumerable` 或 `ValueDropdownItem` 序列；
-`IsUniqueList`/`ExcludeExistingValuesInList`/`AppendNextDrawer`/`DropdownTitle` 常用；
-本仓成例 `Runtime/Services/Localization/LocalizationServiceSettings.cs:13`、
-`Editor/Tools/ReleaseTools/BuildConfig.cs:25`）、`AssetSelector`、`CustomValueDrawer`、
-`TypeFilter`、`PreviewField`、`InlineEditor`、`InlineProperty`、`Searchable`、`Optional`、
-`HideReferenceObjectPicker` `HideDuplicateReferenceBox` `DoNotDrawAsReference`、
-`DrawWithUnity`（退回 Unity 原生绘制）、`DrawWithVisualElements`。
-
-### 函数与回调
-`Button` `ButtonGroup` `InlineButton`、`OnInspectorGUI` `OnInspectorInit` `OnInspectorDispose`
-`OnStateUpdate` `OnValueChanged`、`CustomContextMenu` `DisableContextMenu`、`DelayedProperty`、`EnableGUI`。
-
-**`OnValueChanged` 的触发条件是 Odin 自己看见值变了**——抽屉里裸写 `SerializedProperty` 再
-`ApplyModifiedProperties()` 不会触发它，见 `drawers.md` 的"改值唯一正路"。
-
-### 枚举与开关
-`EnumToggleButtons` `EnumPaging` `Toggle` `ToggleLeft` `ProgressBar` `ColorPalette`。
-
-### 元/调试
-`ShowDrawerChain` `ShowPropertyResolver`（调试抽屉链，排查"谁在画这一行"最直接）、
-`ShowOdinSerializedPropertiesInInspector`、`IncludeMyAttributes` `DontApplyToListElements`、
-`HideMonoScript` `HideNetworkBehaviourFields`、`PropertyOrder`、`ShowInInspector`。
+自定义 Drawer 侧对应 `ValueResolver.Get<T>(Property, 表达式, default)`，检查 `resolver.ErrorMessage` / `resolver.HasError` 后再取值。
