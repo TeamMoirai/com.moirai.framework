@@ -204,7 +204,7 @@ The framework's `LogUtility` is **pluggable**: the Handler active in the test do
 | Handler | Visible to Unity Test Framework | Consequence |
 |---|---|---|
 | `DefaultLogHandler` | Yes | Must `LogAssert.Expect` |
-| `UnityLoggingHandler` | **No** (writes straight to `ConsoleWindow.AddMessage`) | Declaring `Expect` instead reports "Expected log did not appear" |
+| `UnityLoggingHandler` (the `unity-logging` plugin on the `plugin` branch) | **No** (writes straight to `ConsoleWindow.AddMessage`) | Declaring `Expect` instead reports "Expected log did not appear" |
 
 Therefore:
 
@@ -214,7 +214,7 @@ Therefore:
   - `Error()` / `Warning()` / `Exception()` — one declaration per basic level, regex fixed to `.*`;
   - `ErrorWithException(fragment)` — for the Error overload that carries an exception object; the level follows the handler's self-report (`ErrorWithExceptionUsesExceptionChannel`): the built-in `DefaultLogHandler` always stays on the Error channel, while the `zlogger` plugin on the `plugin` branch reports `true` and turns any entry carrying an exception into the Exception channel;
   - `ScopedIgnore()` — a `using`-shaped window over `ignoreFailingMessages` (snapshots on construction, restores on Dispose) for **fault-injection fixtures whose error set is not enumerable**. Trade-off: every unhandled log inside the window (including real defects') stops failing, i.e. the fixture gives up the "unexpected errors must be red" signal — choose it only when the fixture truly does not need that signal; enumerable error sets declare one expectation per log. It is the only entry point allowed to touch that global switch.
-  - The test assembly therefore keeps its `com.unity.logging` → `UNITY_LOGGING_INSTALLED` `versionDefines` entry: `UtfLogExpect` is the only place in the repository that needs that macro — do not rely on it anywhere else.
+  - That handler now lives in the `unity-logging` plugin, so `UtfLogExpect` no longer carries a branch testing for its type and the test assembly's `com.unity.logging` → `UNITY_LOGGING_INSTALLED` `versionDefines` entry was dropped with it — do not add it back. While the plugin is present its output stays invisible to UTF; that difference is covered by the plugin's own tests.
 - **When the code under test emits straight through `Debug.Log*` (not via LogUtility), `LogAssert` is the only correct channel** — that path is always visible to UTF, declaring an expectation involves no handler judgement, and going through `UtfLogExpect` would under-declare under `UnityLoggingHandler` and false-red (exemplar: `DebuggerLogCaptureTests` tests Unity's console capture itself). Register such files in `TestLogChannelPolicyGuardTests.LogAssertAllowlist` with the category stated; every other direct use follows the previous bullet through `UtfLogExpect`.
 
 ## Zero-GC acceptance (L3)
@@ -385,6 +385,8 @@ Rules that live only in a document stop nothing the next time someone "just quic
 - `TestLogChannelPolicyGuardTests`: test log emissions go through `Debug.Log*` uniformly; `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(` are forbidden. Allowlist categories: subject-under-test (LogUtilityTests) and doubles reproducing production emissions (Save fake loaders); assertion channels (`onMessageLogged` capture, `UtfLogExpect` noise suppression) are unrestricted. The guard scans raw text — the literal `LogUtility.Error(` inside a comment also matches; phrase it as "LogUtility's Error" to avoid it. <br />
   The same guard also pins the **LogAssert channel**: direct use of `LogAssert.Expect` / `LogAssert.ignoreFailingMessages` / `LogAssert.NoUnexpectedReceived` in cases is forbidden (always through `UtfLogExpect`; `ignoreFailingMessages` only through `ScopedIgnore()`) — the allowlist holds the two `UtfLogExpect` support copies and the "subject emits via `Debug.Log` directly" scenario (DebuggerLogCaptureTests), with bidirectional assertions against list rot.
 
+- `SettingsPolicyLocationGuardTests`: setting keys may only be composed inside their own module's policy file (judged by **key namespace**, which catches a second composition sitting in a file that is not named `*Handler.cs`), and `*Handler.cs` files must not reference `SettingUtility.`. The third case is a tool self-check: it goes red when a policy file cannot be found or no longer contains its key, otherwise the other two rules' zero-hit readings would mean nothing. Line comments are stripped before matching, so prose never counts as a composition site.
+
 **Anti-bloat principles** (legacy is not retroactively changed; new code is strictly held):
 
 - Do not batch-rename legacy method names to the three-segment form; new cases must use it.
@@ -409,7 +411,7 @@ Rules that live only in a document stop nothing the next time someone "just quic
 | EditMode case throws `DontDestroyOnLoad` | Not allowed in EditMode | Guard with `Application.isPlaying` |
 | `Awake` did not run in an EditMode case | EditMode does not run lifecycle | Provide an idempotent `EnsureActivated` fallback |
 | `Time.frameCount` does not advance | No frames in EditMode | Carry your own frame cursor |
-| `LogAssert` reports "Expected log did not appear" | Active Handler is `UnityLoggingHandler` (invisible) | Declare via `UtfLogExpect` (the judgement is centralised — do not add your own) |
+| `LogAssert` reports "Expected log did not appear" | Active Handler comes from a plugin (e.g. `unity-logging`) and is invisible to UTF | Declare via `UtfLogExpect` (the judgement is centralised — do not add your own) |
 | Many cases suddenly fail with CS0246/CS0426 | Bare qualified names in tests colliding with the global namespace or `UnityEngine` types | Switch to `using` aliases |
 | Zero-GC assertions "pass" while actually allocating | The editor meter is a constant 0 | Capability probe + `Assert.Ignore`; real verification is L3 |
 | `Assert.ThrowsAsync<T>` type mismatch | Exact `TaskCanceledException` type | `task.GetAwaiter().GetResult()` |

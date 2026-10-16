@@ -6,7 +6,7 @@
 
 ## 核心特性
 
-- 可插拔 Handler：`DefaultJsonHandler`（默认，自研反射式）/ `NewtonsoftJsonHandler`（Newtonsoft.Json），通过 `JsonUtility.Handler` 全局切换
+- 可插拔 Handler：框架内置 `DefaultJsonHandler`（自研反射式）；Newtonsoft.Json 后端由 `plugin` 分支的 `newtonsoft-json` 插件提供，装上才进 Provider 下拉，切换在 `GameAppSettings` 里做
 - 字节快速通路：`IBufferJsonHandler` 接口，IO/网络场景跳过 UTF16/UTF8 转码
 - 属性控制：`[JsonSerialize]` / `[JsonDoNotSerialize]` / `[JsonSerializeAs("name")]` 控制字段序列化
 - 生命周期回调：`[JsonBeforeSerialization]` / `[JsonAfterDeserialization]` 方法特性
@@ -22,8 +22,7 @@
 | `JsonUtility` | 静态外观，提供 `ToJson` / `ToObject` / `ToJsonBytes` / `FormatJson` 等方法 |
 | `JsonHandler` | 抽象基类，定义 `ToJson` / `ToObject<T>` / `ToObject(Type)` / `FromJsonOverwrite` |
 | `IBufferJsonHandler` | 字节通路接口，可选实现，提供 `ToJsonBytes` / `ToObject<T>(byte[])` / `ToObject(Type, byte[])` |
-| `DefaultJsonHandler` | 默认实现，自研反射式 JSON 序列化器 |
-| `NewtonsoftJsonHandler` | Newtonsoft.Json 适配实现 |
+| `DefaultJsonHandler` | 框架内置默认实现，自研反射式 JSON 序列化器 |
 | `JsonPropertyAttribute` | 属性特性基类，控制可序列化/可反序列化/序列化名称 |
 | `JsonSerializeAttribute` | 标记私有字段/属性可以序列化 |
 | `JsonDoNotSerializeAttribute` | 标记公开字段/属性不序列化 |
@@ -76,17 +75,15 @@ public class PlayerData
 
 ### 切换 Handler
 
-```csharp
-// 切换到 Newtonsoft.Json 实现
-JsonUtility.Handler = new NewtonsoftJsonHandler();
+后端一律在 settings 里选，不在游戏代码里 `new`：`Tools/Framework Settings` 打开 `GameAppSettings`，把「JSON 后端」下拉切到目标实现即可。
 
-// 恢复默认
-JsonUtility.Handler = new DefaultJsonHandler();
-```
+- 下拉里的 Newtonsoft 那一项来自 `plugin` 分支的 `newtonsoft-json` 插件（经 `Tools/Moirai/Package Manager` 安装）；没装插件时它不存在，下拉只有框架内置的 `DefaultJsonHandler`。
+- 该字段是 `[SerializeReference]`，切换会改变资产里的 `asm:` 归属，切完需保存资产。
+- 插件搬走的只是 `JsonHandler` 实现类：`com.unity.nuget.newtonsoft-json` 本身仍是框架 `package.json` 的硬依赖（事件基类的 `[JsonIgnore]`、任务基类、事件调试器与存档迁移的 JSON 改写都在无守卫地用它），不要把它当可选包摘掉。
 
 ### 字节通路（IBufferJsonHandler）
 
-`DefaultJsonHandler` 实现了 `IBufferJsonHandler`，`ToJsonBytes` 直接产出 UTF8 字节，反序列化直接消费字节，避免 string 中间态的 UTF16/UTF8 转码分配。`NewtonsoftJsonHandler` 未实现该接口，自动回退 string 路径。
+`DefaultJsonHandler` 实现了 `IBufferJsonHandler`，`ToJsonBytes` 直接产出 UTF8 字节，反序列化直接消费字节，避免 string 中间态的 UTF16/UTF8 转码分配。插件提供的 Newtonsoft 后端未实现该接口，自动回退 string 路径。
 
 ## 注意事项
 

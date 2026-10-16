@@ -208,7 +208,7 @@ public abstract class XxxFixture
 | Handler | Unity Test Framework 是否可见 | 后果 |
 |---|---|---|
 | `DefaultLogHandler` | 可见 | 必须 `LogAssert.Expect` |
-| `UnityLoggingHandler` | **不可见**（`ConsoleWindow.AddMessage` 直写） | 声明 `Expect` 反而报 "Expected log did not appear" |
+| `UnityLoggingHandler`（`plugin` 分支的 `unity-logging` 插件） | **不可见**（`ConsoleWindow.AddMessage` 直写） | 声明 `Expect` 反而报 "Expected log did not appear" |
 
 因此：
 
@@ -218,7 +218,7 @@ public abstract class XxxFixture
   - `Error()` / `Warning()` / `Exception()`：三条基础级别各一个声明，正则固定 `.*`；
   - `ErrorWithException(fragment)`：带异常对象的 Error 重载——级别随处理器自述（`ErrorWithExceptionUsesExceptionChannel`），内置 `DefaultLogHandler` 恒为 Error 通道；`plugin` 分支的 `zlogger` 插件自述为 true，该后端的条目带异常即转 Exception 通道；
   - `ScopedIgnore()`：`ignoreFailingMessages` 的 using 形态窗口（构造快照、Dispose 还原），供**错误集不可枚举的故障注入夹具**使用。取舍：窗口内所有未处理日志（含真缺陷的）都不判红，相当于放弃「意外错误也要红」这层信号——只在夹具确实不需要该信号时选用；错误集可枚举的用例逐条声明。它是唯一允许触碰该全局开关的入口。
-  - 测试程序集因此保留 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 的 `versionDefines`：全仓只有 `UtfLogExpect` 一处需要该宏，别在别处再依赖它。
+  - 该处理器已随 `unity-logging` 插件离开框架装配，`UtfLogExpect` 里不再有按它类型判定的分支，测试程序集的 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 那条 `versionDefines` 也随之摘掉——别为它再加回来。插件在场时它对 UTF 恒不可见，这条差异由插件自带的用例负责。
 - **被测走 `Debug.Log*` 直发、不经 LogUtility 的场景，`LogAssert` 是唯一正确通道**——该链路对 UTF 恒可见，声明预期不涉及处理器判定，用 `UtfLogExpect` 反而会在 UnityLoggingHandler 下漏声明而假红（范例：`DebuggerLogCaptureTests` 测的就是 Unity 控制台捕获器）。这类文件登记进 `TestLogChannelPolicyGuardTests.LogAssertAllowlist` 并写明归类；除此之外的直用一律按上一条走 `UtfLogExpect`。
 
 ## 0-GC 验收（L3）
@@ -387,6 +387,8 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 - `TestLogChannelPolicyGuardTests`：测试日志输出发射统一 `Debug.Log*`，禁止 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`——白名单两类：被测本体（LogUtilityTests）、替身复刻生产发射（Save fake loader）；断言通道（`onMessageLogged` 捕获、`UtfLogExpect` 消噪）不受限。守卫按原文扫描，注释里写「LogUtility.Error(」字面也会命中——措辞用「LogUtility 的 Error」规避。 <br />
   同一守卫还钉住 **LogAssert 通道**：用例侧禁止直用 `LogAssert.Expect` / `LogAssert.ignoreFailingMessages` / `LogAssert.NoUnexpectedReceived`（一律经 `UtfLogExpect`，`ignoreFailingMessages` 只经 `ScopedIgnore()`）——白名单为两份 `UtfLogExpect` 支撑副本与「被测走 `Debug.Log` 直发」的场景（DebuggerLogCaptureTests），双向断言防名单腐烂。
 
+- `SettingsPolicyLocationGuardTests`：设置键名只允许在对应模块的政策文件里拼装（按**键名空间**判，抓得住不叫 `*Handler.cs` 的第二份拼装），且 `*Handler.cs` 内不得出现 `SettingUtility.`。第三格是量具自检：政策文件取不到、或里面已不含该键名就判红，否则前两条的"零命中"没有含义；匹配前剥行注释，说明文字不算拼装站点。
+
 **反膨胀原则**（存量不追改、增量强制）：
 
 - 存量方法名不批量改三段式；新增用例必须三段式。
@@ -409,7 +411,7 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 | EditMode 用例报 `DontDestroyOnLoad` 异常 | EditMode 不允许 | 加 `Application.isPlaying` 守卫 |
 | EditMode 用例里 `Awake` 没跑 | EditMode 不执行生命周期 | 提供 `EnsureActivated` 幂等兜底 |
 | `Time.frameCount` 不推进 | EditMode 无帧 | 自带帧号游标 |
-| `LogAssert` 报 "Expected log did not appear" | 当前 Handler 是 `UnityLoggingHandler`（不可见） | 经 `UtfLogExpect` 声明（判定已内聚，别自己再加判定） |
+| `LogAssert` 报 "Expected log did not appear" | 当前 Handler 是 `plugin` 分支插件带来的后端（如 `unity-logging`），对 UTF 不可见 | 经 `UtfLogExpect` 声明（判定已内聚，别自己再加判定） |
 | 大量用例突然报 CS0246/CS0426 | 测试里用了裸限定名，撞全局命名空间或 `UnityEngine` 类型 | 改 `using` 别名 |
 | 0-GC 断言"通过"但实际在分配 | 编辑器计量器恒 0 | 能力探测 + `Assert.Ignore`；真验证走 L3 |
 | `Assert.ThrowsAsync<T>` 类型不匹配 | `TaskCanceledException` 精确类型 | `task.GetAwaiter().GetResult()` |

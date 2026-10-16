@@ -5,12 +5,13 @@ namespace Moirai.Atropos
     public partial class GraphicsSettings
     {
         /// <summary>
-        /// 写入分辨率设置。
+        /// 写入分辨率设置：这是图形侧的确认入口，写完落盘一次。
         /// </summary>
         public static void SetResolutionSettings(int resolutionIndex)
         {
             SetResolutionIndex(resolutionIndex);
             SettingUtility.SetInt(GameConstant.Setting.GRAPHICS_RESOLUTION, GetResolutionIndex());
+            SettingUtility.Save();
         }
 
         /// <summary>
@@ -20,6 +21,7 @@ namespace Moirai.Atropos
         {
             SetFullScreen(fullScreen);
             SettingUtility.SetBool(GameConstant.Setting.GRAPHICS_FULLSCREEN, GetFullScreen());
+            SettingUtility.Save();
         }
 
         /// <summary>
@@ -29,6 +31,7 @@ namespace Moirai.Atropos
         {
             SetWindowModeIndex(fullScreenMode);
             SettingUtility.SetInt(GameConstant.Setting.GRAPHICS_FULLSCREEN_MODE, GetWindowModeIndex());
+            SettingUtility.Save();
         }
 
         /// <summary>
@@ -38,6 +41,7 @@ namespace Moirai.Atropos
         {
             SetVSync(enabled);
             SettingUtility.SetBool(GameConstant.Setting.GRAPHICS_VSYNC, VSyncEnabled);
+            SettingUtility.Save();
         }
 
         /// <summary>
@@ -63,7 +67,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 移除设置。
+        /// 移除设置：四条键都摘掉后落盘一次。
         /// </summary>
         public static void RemoveSetting()
         {
@@ -71,6 +75,7 @@ namespace Moirai.Atropos
             SettingUtility.RemoveSetting(GameConstant.Setting.GRAPHICS_FULLSCREEN);
             SettingUtility.RemoveSetting(GameConstant.Setting.GRAPHICS_FULLSCREEN_MODE);
             SettingUtility.RemoveSetting(GameConstant.Setting.GRAPHICS_VSYNC);
+            SettingUtility.Save();
         }
     }
 }

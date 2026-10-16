@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using Moirai.Atropos.Localization;
+using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 
 namespace Service.Localization
@@ -157,9 +157,9 @@ namespace Service.Localization
         [Test]
         public void ExplicitSwitch_BeforeBatchLoaded_PersistsTheRecordedIntent()
         {
-            // 空批要念两条 Error：装载失败一次（闸门复位前不重复）＋ 无语言可用一次
-            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error, new Regex("generate config first"));
-            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error, new Regex("No language available"));
+            // 空批要念两条 Error：装载失败一次（闸门复位前不重复）＋ 无语言可用一次；声明走统一入口，用例不直用 LogAssert
+            UtfLogExpect.Error();
+            UtfLogExpect.Error();
 
             var probe = new L10nProbeHandler();
             probe.Internal_Init();

@@ -2,11 +2,11 @@
 
 > 框架的缓动动画统一外观，提供可插拔的 Handler 架构，支持多种补间引擎（自研/PrimeTween/LitMotion）。
 
-`TweenUtility` 是框架的缓动动画静态外观。默认使用基于 Unity 驱动循环的自研 `DefaultTweenHandler`，也可切换为 `PrimeTweenHandler` 或 `LitMotionHandler` 等第三方引擎。所有缓动方法统一接收 `TweenEase` 参数，支持从 `EEase` 枚举值或 `AnimationCurve` 隐式转换。
+`TweenUtility` 是框架的缓动动画静态外观。框架内置基于 Unity 驱动循环的自研 `DefaultTweenHandler`；PrimeTween 与 LitMotion 两支第三方引擎后端不在框架里，分别由 `plugin` 分支的 `primetween`、`litmotion` 插件提供，装上才会出现在 Provider 下拉里。所有缓动方法统一接收 `TweenEase` 参数，支持从 `EEase` 枚举值或 `AnimationCurve` 隐式转换。
 
 ## 核心特性
 
-- 可插拔 Handler：`DefaultTweenHandler`（默认，自研）/ `PrimeTweenHandler` / `LitMotionHandler`
+- 可插拔 Handler：框架内置 `DefaultTweenHandler`（自研）；PrimeTween / LitMotion 后端由 `primetween`、`litmotion` 插件提供
 - `TweenEase` 统一缓动参数：`EEase` 枚举（31 种内置曲线）/ `AnimationCurve` 双模式，隐式转换零分配
 - 全套 Transform 补间：`Position` / `LocalPosition` / `Rotation` / `LocalRotation` / `Scale`（各支持 Vector3 与单轴）
 - UI 补间：`UIAnchoredPosition` / `UISizeDelta` / `UISliderValue` / `UIFillAmount` / `UINormalizedPosition` / `CanvasGroup.Alpha` / `Graphic.Color` 等
@@ -27,9 +27,7 @@
 | `TweenEase` | 统一缓动参数结构体，支持 `EEase` / `AnimationCurve` 隐式转换 |
 | `TweenUtility.EEase` | 31 种内置缓动曲线枚举（Linear / InQuad / OutBounce / InElastic 等） |
 | `TweenUtility.ECycleMode` | 循环模式枚举（Restart / Yoyo 等） |
-| `DefaultTweenHandler` | 默认实现，自研缓动引擎 |
-| `PrimeTweenHandler` | PrimeTween 引擎适配 |
-| `LitMotionHandler` | LitMotion 引擎适配 |
+| `DefaultTweenHandler` | 框架内置默认实现，自研缓动引擎 |
 | `TweenHandler.TweenManager` | 定期调用已注册 handler 的 `ReleaseUnusedTween` 清理缓存 |
 
 ## 快速上手
@@ -120,17 +118,15 @@ TweenUtility.MoveBezierPath(transform, path, 2.0f, TweenUtility.EEase.InOutSine)
 
 ### 切换 Handler
 
-```csharp
-// 切换到 PrimeTween
-TweenUtility.Handler = new PrimeTweenHandler();
+后端一律在 settings 里选，不在游戏代码里 `new`：`Tools/Framework Settings` 打开 `GameAppSettings`，把「补间后端」下拉切到目标引擎。
 
-// 切换到 LitMotion
-TweenUtility.Handler = new LitMotionHandler();
-```
+- 下拉里的 PrimeTween / LitMotion 两项分别来自 `plugin` 分支的 `primetween`、`litmotion` 插件（经 `Tools/Moirai/Package Manager` 安装）。没装插件时它们不存在，下拉只有框架内置的 `DefaultTweenHandler`。
+- `primetween` 的前置是 `com.kyrylokuzyk.primetween`，宏 `PRIMETWEEN_INSTALLED` 由插件 asmdef 的 versionDefines 自动定义；让框架代码能直接引用 PrimeTween 类型的那份 `PrimeTween.Runtime.asmref` 随插件目录走（`primetween/PrimeTween/`），框架不再持有。`litmotion` 的前置是 `com.annulusgames.lit-motion`（该包在 UPM 注册表上没有正式版本，按官方指引以 git 渠道安装）加 `com.cysharp.unitask`，宏 `LITMOTION_INSTALLED` 同样由 versionDefines 自动定义。
+- 该字段是 `[SerializeReference]`，切换会改变资产里的 `asm:` 归属，切完需保存资产。
 
 ## 注意事项
 
-- `Handler` 赋 null 抛出 `ArgumentNullException`（fail-fast）
+- `TweenUtility.Handler` 是 `internal` 静态属性（源生成器产出），游戏与插件侧代码都不直接赋值——换后端只走 `GameAppSettings` 的 Provider 下拉；该 setter 拒绝 null（fail-fast）
 - 跨域重载（进入 Play 模式）时自动重置 handler 和帧监听，防止陈旧引用
 - `TweenManager` 默认每 60 秒清理一次缓存，可通过 `TweenHandler` 的 `m_CheckInterval` 调整
 - `TweenEase` 枚举模式零堆分配，`AnimationCurve` 模式持有曲线引用

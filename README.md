@@ -159,7 +159,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **ConfigTable** | Luban 配置表集成：表加载与懒加载访问、转表工具链 | [ConfigTable.md](Documentation~/zh/ConfigTable.md) |
 | **Procedure** | 游戏流程管理：启动链、可配置流程、自包含状态机 | [Procedure.md](Documentation~/zh/Procedure.md) |
 | **Input** | 多平台输入抽象：Input System / 旧版输入 / 移动端 UI 触控、按键提示 | [Input.md](Documentation~/zh/Input.md) |
-| **Save** | 可插拔存档系统：单文件多数据块容器、JSON/MessagePack/MemoryPack/Protobuf 多后端序列化、AES 加密与 GZip 压缩、文件级版本迁移总线、无代码组件保存（SourceGenerator）、云同步 | [Save.md](Documentation~/zh/Save.md) |
+| **Save** | 可插拔存档系统：单文件多数据块容器、内置 JSON 序列化（MessagePack/MemoryPack/Protobuf 由 `plugin` 分支插件提供）、AES 加密与 GZip 压缩、文件级版本迁移总线、无代码组件保存（SourceGenerator）、云同步（REST 内置、UGS 由插件提供） | [Save.md](Documentation~/zh/Save.md) |
 | **Scene** | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 | [Scene.md](Documentation~/zh/Scene.md) |
 | **Timer** | 双引擎计时器：四级时间轮（按秒）+ 帧计时（按帧）、版本化句柄、预热、统计 | [Timer.md](Documentation~/zh/Timer.md) |
 | **ObjectPool** | 服务级对象池：单次/多次 Spawn 池、GameObject 池 | [ObjectPool.md](Documentation~/zh/ObjectPool.md) |
@@ -175,7 +175,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **MemoryPool** | 零 GC 页式内存池：非托管元数据、EWMA 自适应水位线、阶段预算 | [MemoryPool.md](Documentation~/zh/MemoryPool.md) |
 | **GameApp** | Unity 生命周期代理：协程托管、帧更新注入、引擎事件注入、游戏速度/暂停控制 | [GameApp.md](Documentation~/zh/GameApp.md) |
 | **PlayerLoopDriver** | 剥离 Mono 的 PlayerLoop 逻辑驱动：零分配 Handler、注入/恢复、编辑器可视化 | [PlayerLoopDriver.md](Documentation~/zh/PlayerLoopDriver.md) |
-| **GameLog** | 日志系统：运行时级别过滤、可插拔后端（内置 Default / Serilog / Unity Logging，其余由插件提供）、T4 生成的格式化重载、拦截 Unity 原生 `Debug.Log` | — |
+| **GameLog** | 日志系统：运行时级别过滤、可插拔后端（框架内置 Default；Serilog / Unity Logging / ZLogger 各由 `plugin` 分支的同名插件提供，装上才进 Provider 下拉）、T4 生成的格式化重载、拦截 Unity 原生 `Debug.Log` | — |
 | **GameTime** | 轻量时间访问器，每帧采样一次，避免频繁调用 `Time.deltaTime` | — |
 | **GameProfiler** | 条件编译的性能采样（`PROFILER_ENABLE` 宏），宏关闭时零开销 | — |
 | **GameSettings** | 框架设置 / 画面设置 / 更新设置（菜单 `Tools/Framework Settings`） | — |
@@ -186,8 +186,8 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **Extensions/R3** | R3 响应式扩展 + UGUI 绑定：`OnClickAsObservable()`、`ReactiveProperty` 双向绑定 | — |
 | **StringUtility** | 字符串格式化与构建：可插拔 Handler、池化 StringBuilder、三种使用模式 | [StringUtility.md](Documentation~/zh/StringUtility.md) |
 | **JsonUtility** | JSON 序列化/反序列化：可插拔 Handler、字节快速通路、允许列表成员筛选 | [JsonUtility.md](Documentation~/zh/JsonUtility.md) |
-| **ObjectUtility** | 对象实例化/销毁：可插拔 Handler（单机 / Photon Fusion 联网感知） | [ObjectUtility.md](Documentation~/zh/ObjectUtility.md) |
-| **TweenUtility** | 缓动系统：自研 / PrimeTween / LitMotion 可插拔引擎、贝塞尔路径、统一缓动参数 | [TweenUtility.md](Documentation~/zh/TweenUtility.md) |
+| **ObjectUtility** | 对象实例化/销毁：可插拔 Handler（框架内置单机；Photon Fusion 联网感知由 `plugin` 分支的 `photon-fusion` 插件提供） | [ObjectUtility.md](Documentation~/zh/ObjectUtility.md) |
+| **TweenUtility** | 缓动系统：可插拔引擎（框架内置自研；PrimeTween / LitMotion 由 `plugin` 分支同名插件提供）、贝塞尔路径、统一缓动参数 | [TweenUtility.md](Documentation~/zh/TweenUtility.md) |
 
 <details>
 <summary>Utility — 全部工具类一览</summary>

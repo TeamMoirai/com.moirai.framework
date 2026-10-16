@@ -443,6 +443,8 @@ namespace Moirai.Atropos.Editor
                 case PlanConflictKind.VersionUnsatisfied: return "版本不符";
                 case PlanConflictKind.UnityFloorUnmet: return "Unity 版本不符";
                 case PlanConflictKind.FrameworkFloorUnmet: return "框架版本不符";
+                case PlanConflictKind.UnityCeilingExceeded: return "超出 Unity 支持范围";
+                case PlanConflictKind.FrameworkCeilingExceeded: return "框架侧停止提供";
                 default: return kind.ToString();
             }
         }
@@ -552,19 +554,58 @@ namespace Moirai.Atropos.Editor
                 return;
             }
 
-            if (!ConfirmUpdateAll()) return;
+            // 与详情面同一判据：版本过档的插件不参与批量更新，且逐条点名为什么被跳，不静默少一个
+            var allowed = new List<string>();
+            var skipped = new List<string>();
+            for (int i = 0; i < _updatableIds.Count; i++)
+            {
+                string id = _updatableIds[i];
+                PluginEntry entry = FindEntry(id);
+                if (entry == null || entry.CanInstall) allowed.Add(id);
+                else skipped.Add($"{id}：{entry.BlockerText}");
+            }
 
-            PluginInstallReport report = _installer.Install(_updatableIds, true);
-            AfterMutation(report, $"更新了 {report.TouchedPluginIds.Count} 个");
+            if (allowed.Count == 0)
+            {
+                SetMessage("可更新的插件都装不了：" + string.Join("；", skipped), MessageType.Warning);
+                return;
+            }
+
+            if (!ConfirmUpdateAll(allowed)) return;
+
+            string skippedNote = skipped.Count == 0
+                ? string.Empty
+                : $"，跳过 {skipped.Count} 个装不了的：{string.Join("；", skipped)}";
+            PluginInstallReport report = _installer.Install(allowed, true);
+            AfterMutation(report, $"更新了 {report.TouchedPluginIds.Count} 个" + skippedNote);
+        }
+
+        /// <summary>按 id 取当前目录里那条插件的详情模型；不在场返回 null。</summary>
+        private PluginEntry FindEntry(string pluginId)
+        {
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                if (string.Equals(_entries[i].EntryId, pluginId, StringComparison.Ordinal)) return _entries[i];
+            }
+
+            return null;
         }
 
         /// <summary>
-        /// 单包更新：强制重装一遍，可选先清目录（干净更新）。
+        /// 更新前把「已装 → 分支」逐条摆出来问一次。
         /// </summary>
-        private void UpdateRequested(string pluginId, bool removeFirst)
+        private bool ConfirmUpdateAll(List<string> ids)
         {
-            PluginInstallReport report = _installer.Install(pluginId, true, removeFirst);
-            AfterMutation(report, $"更新了 {pluginId}");
+            var lines = new List<string>();
+            for (int i = 0; i < ids.Count; i++)
+            {
+                string id = ids[i];
+                lines.Add($"{id}　{InstalledVersionOf(id) ?? "?"} → {BranchVersionOf(id) ?? "?"}");
+            }
+
+            lines.Add(string.Empty);
+            lines.Add("更新的外部依赖按归属台账回收/写入，装完刷新一次。");
+            return EditorUtility.DisplayDialog($"更新 {ids.Count} 个插件", string.Join("\n", lines), "继续", "取消");
         }
 
         /// <summary>
@@ -590,20 +631,12 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 更新前把「已装 → 分支」逐条摆出来问一次。
+        /// 单包更新：强制重装一遍，可选先清目录（干净更新）。
         /// </summary>
-        private bool ConfirmUpdateAll()
+        private void UpdateRequested(string pluginId, bool removeFirst)
         {
-            var lines = new List<string>();
-            for (int i = 0; i < _updatableIds.Count; i++)
-            {
-                string id = _updatableIds[i];
-                lines.Add($"{id}　{InstalledVersionOf(id) ?? "?"} → {BranchVersionOf(id) ?? "?"}");
-            }
-
-            lines.Add(string.Empty);
-            lines.Add("更新的外部依赖按归属台账回收/写入，装完刷新一次。");
-            return EditorUtility.DisplayDialog($"更新 {_updatableIds.Count} 个插件", string.Join("\n", lines), "继续", "取消");
+            PluginInstallReport report = _installer.Install(pluginId, true, removeFirst);
+            AfterMutation(report, $"更新了 {pluginId}");
         }
 
         /// <summary>
@@ -692,11 +725,20 @@ namespace Moirai.Atropos.Editor
             [BoxGroup("概况"), ShowInInspector, LabelText("分支版本")]
             internal string Version => _manifest.version;
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("最低 Unity")]
-            internal string MinUnityVersion => "Unity " + _manifest.minUnityVersion + "+";
+            [BoxGroup("概况"), ShowInInspector, LabelText("Unity 区间")]
+            internal string UnityRange => DescribeRange("Unity", _manifest.minUnityVersion, _manifest.maxUnityVersion);
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("最低框架")]
-            internal string MinFrameworkVersion => "框架 " + _manifest.minFrameworkVersion + "+";
+            [BoxGroup("概况"), ShowInInspector, LabelText("框架区间")]
+            internal string FrameworkRange => DescribeRange("框架", _manifest.minFrameworkVersion, _manifest.maxFrameworkVersion);
+
+            /// <summary>
+            /// 版本区间的一行读数：<c>[min, max)</c>，上限写作"起不再提供"以免读成"含这一档还能用"。
+            /// </summary>
+            private static string DescribeRange(string label, string floor, string ceiling)
+            {
+                string text = label + " " + floor + "+";
+                return string.IsNullOrEmpty(ceiling) ? text : $"{text}，{ceiling} 起不再提供";
+            }
 
             [BoxGroup("概况"), ShowInInspector, LabelText("分支头")]
             internal string HeadCommit => ShortSha(_headCommit);
@@ -741,24 +783,39 @@ namespace Moirai.Atropos.Editor
             private bool HasDescription =>
                 !string.IsNullOrEmpty(_manifest.description) && !(_window?.IsRefreshing ?? false);
 
-            [BoxGroup("操作"), Button("安装")]
+            /// <summary>版本区间与依赖都过得了才允许安装类动作；详情面与 Update All 共用这一条读数。</summary>
+            /// <remarks>判据来源就是徽标那条 _blocker——它由规划层试装得出，与真正拒绝安装的是同一条，
+            /// 所以置灰的理由与拒绝的理由不可能各说各话。</remarks>
+            internal bool CanInstall => string.IsNullOrEmpty(_blocker);
+
+            /// <summary>拦路的原文（能装为空），给 Update All 的跳过点名取用。</summary>
+            internal string BlockerText => _blocker;
+
+            /// <summary>不能装时给操作区那一行的正文；能装时为空、整行不画。</summary>
+            private string VersionBlockerBody => CanInstall ? string.Empty : _blocker;
+
+            [BoxGroup("操作"), Button("安装", ButtonSizes.Large)]
             [HideIf(nameof(IsInstalled))]
+            [EnableIf(nameof(CanInstall))]
             private void Install() => _window?.InstallRequested(_manifest.id, false);
 
-            [BoxGroup("操作"), Button("更新到分支版本")]
+            [BoxGroup("操作"), Button("更新到分支版本", ButtonSizes.Large)]
             [ShowIf(nameof(UpdateAvailable))]
+            [EnableIf(nameof(CanInstall))]
             private void UpdateToBranch() => _window?.UpdateRequested(_manifest.id, RemoveBeforeUpdate);
 
-            [BoxGroup("操作"), Button("重装（忽略已装判定）")]
+            [BoxGroup("操作"), Button("重装（忽略已装判定）", ButtonSizes.Large)]
             [ShowIf(nameof(IsInstalled))]
+            [EnableIf(nameof(CanInstall))]
             private void Reinstall() => _window?.InstallRequested(_manifest.id, true);
 
             [BoxGroup("操作"), Button("卸载")]
             [ShowIf(nameof(IsInstalled))]
             private void Uninstall() => _window?.UninstallRequested(_manifest.id);
 
-            [BoxGroup("操作"), Button("安装所选版本")]
+            [BoxGroup("操作"), Button("安装所选版本", ButtonSizes.Large)]
             [ShowIf(nameof(SelectedVersionDiffersFromHead))]
+            [EnableIf(nameof(CanInstall))]
             private void InstallSelectedVersion()
             {
                 string revision = RevisionOf(SelectedVersion);
@@ -770,6 +827,14 @@ namespace Moirai.Atropos.Editor
 
                 _window?.InstallVersionRequested(_manifest.id, revision, SelectedVersion);
             }
+
+            /// <summary>
+            /// 装不了的成因：✕ 图标加原因，排在动作按钮之后；能装时整行不画。
+            /// </summary>
+            /// <remarks>卸载不在拦的范围里——版本过档了也得让人把已装的拆掉，所以那一颗按钮不接 <see cref="CanInstall"/>。</remarks>
+            [BoxGroup("操作"), ShowInInspector, LabelText("不能安装的原因"), PropertyOrder(100)]
+            [HideIf(nameof(CanInstall))]
+            internal string InstallBlocker => "✕ " + VersionBlockerBody;
 
             private string DescribeStatus()
             {

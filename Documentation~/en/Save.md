@@ -2,7 +2,7 @@
 
 > Single-file multi-block container, pluggable serialization/encryption/compression, file-level migration bus, and no-code component saving.
 
-The Save service (`SaveService`) provides AAA-grade save infrastructure: **four pluggable serialization backends** (JSON / MessagePack / MemoryPack / protobuf-net), a **file-level version migration bus** (version chains + auditing + lazy write-back) alongside **block-level version migration**, an **AES-encrypted pipeline** (pluggable key source: static passphrase / runtime passphrase injection / HKDF per-user derivation), **optional GZip compression**, and **no-code component saving** (Source-Generator-generated strongly-typed capturers). Namespace `Moirai.Atropos.Save`.
+The Save service (`SaveService`) provides AAA-grade save infrastructure: **a pluggable serialization backend** (JSON built-in and default; MessagePack / MemoryPack / protobuf-net ship as the `messagepack` / `memorypack` / `protobuf` plugins on the `plugin` branch), a **file-level version migration bus** (version chains + auditing + lazy write-back) alongside **block-level version migration**, an **AES-encrypted pipeline** (pluggable key source: static passphrase / runtime passphrase injection / HKDF per-user derivation), **optional GZip compression**, and **no-code component saving** (Source-Generator-generated strongly-typed capturers). Namespace `Moirai.Atropos.Save`.
 
 ## Architecture
 
@@ -13,13 +13,13 @@ SaveService (static facade, write paths throw GameException when handler is null
 │     AESEncryptedSaveHandler AES-256-CBC + HMAC (encrypt-then-MAC), nested [SerializeReference] key provider
 ├── Storage backend ([SerializeReference] swappable, ISaveStorage + SaveStorageBackend)
 │     FileSaveStorageBackend  local files (temp + Flush(true) + atomic replace, default)
-│     CloudSaveStorageBackend local mirror + remote KV dual-write (remote plug-ins shipped: RestCloudSaveKvStore / UnityCloudSaveKvStore)
+│     CloudSaveStorageBackend local mirror + remote KV dual-write (remote implementations: RestCloudSaveKvStore built-in / UnityCloudSaveKvStore ships as the unity-cloud-save plugin)
 ├── Transform chain (fixed order: Serialize → Compress? → Encrypt? → CRC)
 │     Compression: ICompressionProvider + SaveCompressionRegistry (GZip built-in, ID=1; unknown IDs rejected on read)
 │     Keys: ISaveKeyProvider + SaveKeyProvider (nested on the AES handler; Static passphrase default / Passphrase runtime-injected / HkdfPerUser per-user HKDF)
 ├── Serialization backends (SaveBackendIds + ISaveSerializer + SaveSerializerRegistry)
-│     Json (built-in, default) / MessagePack / MemoryPack / Protobuf / KeyValue (reserved for the component capture format)
-│     the registry hard-codes no backend: the four built-in implementations and project ones alike carry [RegisterSerializer], which the SaveServiceCodegen generator records as ID→type; the single instance is created the first time that backend is queried; Unregister(ushort) drops the type record too
+│     Json (built-in, default) / MessagePack / MemoryPack / Protobuf (the last three ship as plugins) / KeyValue (reserved for the component capture format)
+│     the registry hard-codes no backend: the built-in JSON serializer, the plugin-shipped MessagePack / MemoryPack / protobuf-net ones and project ones alike carry [RegisterSerializer], which the SaveServiceCodegen generator records as ID→type; the single instance is created the first time that backend is queried; Unregister(ushort) drops the type record too
 │     code-side registration: Register(ISaveSerializer)/Register(ushort, Type)/Register<T>() (duplicates and framework-reserved ids fail fast; KEY_VALUE=254 cannot be claimed; custom backend ids start at 1000)
 ├── Multi-block container (SaveFileContainer, hand-rolled binary: key/version/backend/bytes per block)
 ├── Data model ([SaveData] + SaveDataBlock.OnMigrate version migration)
@@ -227,7 +227,7 @@ Save-slot thumbnail pipeline: capture the screen at end of frame (`ScreenCapture
 
 ## Cloud Saves (local mirror + remote KV)
 
-`CloudSaveStorageBackend` (storage backend plug-in, configured via the handler's `m_StorageBackend`): local file mirror + remote KV dual-write, with policy-arbitrated reads. The remote KV semantics are abstracted as `CloudSaveKvStore` ([SerializeReference] plug-in) — the framework ships two concrete backends (**`RestCloudSaveKvStore`** custom REST / **`UnityCloudSaveKvStore`** UGS conditional compilation), and projects may implement their own.
+`CloudSaveStorageBackend` (storage backend plug-in, configured via the handler's `m_StorageBackend`): local file mirror + remote KV dual-write, with policy-arbitrated reads. The remote KV semantics are abstracted as `CloudSaveKvStore` ([SerializeReference] plug-in) — the framework ships **`RestCloudSaveKvStore`** (custom REST, no extra package) while **`UnityCloudSaveKvStore`** (UGS) ships as the `unity-cloud-save` plugin on the `plugin` branch; projects may implement their own.
 
 - **Key spec**: cloud key = path relative to the save data root (`persistentDataPath/Data/`), `/`-separated (e.g. `Save/slot1.sav`) — no machine-local directory structure, consistent across devices.
 - **Error semantics**: unreachable/failed/logged-out remote calls throw; the backend normalizes to **offline degradation** (local mirror passthrough + warning). Missing keys are not errors (read `null` / exists `false` / idempotent delete).
@@ -387,3 +387,18 @@ Directory: `Tests/EditorMode/Service/Save/`
 
 ---
 [« Documentation Index](Index.md) · [Main README](../../README_EN.md) · [Resource](Resource.md) · [Core](Core.md)
+
+## Dependencies
+
+The three binary serializers and the UGS cloud backend no longer live in the framework: each ships as a same-named plugin on the `plugin` branch (assemblies `Moirai.Plugin.MemoryPack` / `.MessagePack` / `.Protobuf` / `.UnityCloudSave`). The table lists each plugin's install prerequisites — get the dependency and the macro in place first, then install the plugin, and only then can the backend be picked from the `SaveServiceSettings` dropdown.
+
+| Prerequisite | Version | Plugin | Notes |
+|---|---|---|---|
+| MessagePack | 3.1.8 | `messagepack` | via NuGetForUnity; runtime DLLs are auto-referenced, analyzer DLLs need the `RoslynAnalyzer` tag; `MESSAGEPACK_INSTALLED` is a hand-authored macro (defined on the project side — the plugin asmdef carries no versionDefines for it) |
+| protobuf-net | 3.3.8 | `protobuf` | same (`protobuf-net.dll` and `protobuf-net.Core.dll` both required); `PROTOBUF_INSTALLED` is hand-authored |
+| MemoryPack | 1.21.4 | `memorypack` | same (`MemoryPack.Core`); `MEMORYPACK_INSTALLED` is hand-authored |
+| com.unity.services.cloudsave | whatever the project's UPM panel actually offers | `unity-cloud-save` | once installed the plugin asmdef's versionDefines set `UNITY_CLOUD_SAVE_INSTALLED` automatically; the manifest deliberately does not declare it as `upmDependencies`, so install it yourself |
+
+While a dependency's DLLs are missing, `SaveSerializerRegistry.GetRequired` fail-fasts for that backend — an explicit `[SaveData(Backend = …)]` still goes down that path, so whether the dependency exists remains the code's responsibility; the default-backend dropdown in `SaveServiceSettings` only lists serializers that are actually compiled in, so an unavailable backend cannot be configured into existence.
+
+The registry **hard-codes no backend**: the framework's built-in `JsonSaveSerializer`, the three serializers brought in by the plugins, and project-specific ones alike are registered by the `[RegisterSerializer]` attribute on the class, recorded as ID→type during module initialisation, and instantiated only when that backend is first queried (all implementations are stateless) — so an installed-but-unused backend does not linger in memory. When the plugin is absent (or its dependency is not wired up) the type itself does not exist, nothing is registered, and queries still fail-fast. The wire-format IDs stay framework-owned and fixed: Json=0, MessagePack=1, MemoryPack=2, protobuf-net=3, component capture format=254 — those slots stay reserved whether or not the plugins are installed, which is what keeps existing save files readable.

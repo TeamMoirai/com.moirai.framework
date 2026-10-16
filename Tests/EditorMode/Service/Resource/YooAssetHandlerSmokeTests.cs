@@ -68,7 +68,9 @@ namespace Service.Resource
             // [SerializeReference] 反序列化会把未标注的数组字段还原为非 null 空数组（Length=0），使判空守卫失效。
             // 本用例锁定该序列化边界契约：运行时数组全部 [NonSerialized] + 使用点长度校验懒重建。
             // 两处要钉——数组本身，以及挂住整棵子树的 _store（它一旦被序列化，下面每条数组都会回来）。
-            AssertNonSerialized(typeof(YooAssetHandler), "_store");
+            // _store 已随后端外置那刀从 YooAssetHandler 上提到 ResourceRecordHostHandler（private 不进 GetField 的基类查找，
+            // 故按声明处判；契约本身没变：仍是 [NonSerialized]）。
+            AssertNonSerialized(typeof(ResourceRecordHostHandler), "_store");
             AssertNonSerialized(typeof(ResourceRecordStore), "_idleBuckets");
             AssertNonSerialized(typeof(ResourceRecordStore), "_keepAliveBuckets");
             AssertNonSerialized(typeof(ResourceRecordStore), "_unusedAssetCandidates");

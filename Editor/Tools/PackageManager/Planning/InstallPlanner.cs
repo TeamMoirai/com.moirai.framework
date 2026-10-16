@@ -145,8 +145,8 @@ namespace Moirai.Atropos.Editor
                 }
 
                 if (!CheckVersionRequirement(candidate, dependent, requirement)) return false;
-                if (!CheckUnityFloor(candidate)) return false;
-                if (!CheckFrameworkFloor(candidate)) return false;
+                if (!CheckUnityRange(candidate)) return false;
+                if (!CheckFrameworkRange(candidate)) return false;
 
                 if (_resolved.Contains(id)) return true;
                 if (_visiting.Contains(id))
@@ -195,24 +195,34 @@ namespace Moirai.Atropos.Editor
                 return false;
             }
 
-            private bool CheckUnityFloor(PluginManifest candidate)
+            private bool CheckUnityRange(PluginManifest candidate)
             {
-                if (candidate.SatisfiesUnityVersion(_unityVersion)) return true;
+                PluginManifest.VersionViolation violation = candidate.TryGetUnityVersionViolation(_unityVersion,
+                    out PluginManifest.VersionViolation kind, out string message);
+                if (violation == PluginManifest.VersionViolation.None) return true;
 
-                Plan.AddConflict(new PlanConflict(candidate.id, PlanConflictKind.UnityFloorUnmet,
-                    $"{candidate.id} 需要 Unity {candidate.minUnityVersion} 及以上，当前编辑器是 {_unityVersion}"));
+                Plan.AddConflict(new PlanConflict(candidate.id, ToConflictKind(kind, false), $"{candidate.id} {message}"));
                 return false;
             }
 
-            private bool CheckFrameworkFloor(PluginManifest candidate)
+            private bool CheckFrameworkRange(PluginManifest candidate)
             {
-                // 未提供框架版本（0.0.0 哨兵）就不判这条地板：纯规划用例可以不传，生产路径必传实测值
+                // 读不出框架版本（0.0.0 哨兵）时整条不判：地板和上限都不能因为量具没读数就把人拦在门外
                 if (_frameworkVersion == default) return true;
-                if (candidate.SatisfiesFrameworkVersion(_frameworkVersion)) return true;
 
-                Plan.AddConflict(new PlanConflict(candidate.id, PlanConflictKind.FrameworkFloorUnmet,
-                    $"{candidate.id} 需要框架 {candidate.minFrameworkVersion} 及以上，当前框架是 {_frameworkVersion}"));
+                PluginManifest.VersionViolation violation = candidate.TryGetFrameworkVersionViolation(_frameworkVersion,
+                    out PluginManifest.VersionViolation kind, out string message);
+                if (violation == PluginManifest.VersionViolation.None) return true;
+
+                Plan.AddConflict(new PlanConflict(candidate.id, ToConflictKind(kind, true), $"{candidate.id} {message}"));
                 return false;
+            }
+
+            private static PlanConflictKind ToConflictKind(PluginManifest.VersionViolation kind, bool framework)
+            {
+                if (kind == PluginManifest.VersionViolation.CeilingExceeded)
+                    return framework ? PlanConflictKind.FrameworkCeilingExceeded : PlanConflictKind.UnityCeilingExceeded;
+                return framework ? PlanConflictKind.FrameworkFloorUnmet : PlanConflictKind.UnityFloorUnmet;
             }
 
             private string DescribeCycle(string id)
