@@ -418,7 +418,6 @@ namespace Editor.Tools.PackageManager
         [Test]
         [TestCase("Com.Cysharp.Unitask")]
         [TestCase("has space")]
-        [TestCase("")]
         public void Validate_RequiresUpmMalformed_Reports(string requiresUpm)
         {
             PluginManifest candidate = Build();
@@ -427,13 +426,69 @@ namespace Editor.Tools.PackageManager
             Assert.That(string.Join(" | ", errors), Does.Contain("providers[0].requiresUpm"));
         }
 
+        // R8：requiresUpm 的「空」有两种形态——键缺席（JsonUtility 留 null）与显式写空串——两者同义，
+        // 都表示「该实现只随本插件本体、不依赖第三方 UPM 包」，一律放行。判非会让整条清单被
+        // PluginCatalog 丢弃（TryParse 返 false 即 continue），插件从目录里少掉。
+
+        /// <summary>requiresUpm 缺席（null）合法：这是全部不依赖第三方包的插件走的形态。</summary>
+        [Test]
+        public void Validate_RequiresUpmAbsent_SucceedsWithoutErrors()
+        {
+            PluginManifest candidate = Build();
+            candidate.providers = new[] { new PluginProvider { providerBase = "A.B", providerType = "C.D" } };
+            Assert.IsTrue(ValidateOnly(candidate, out List<string> errors), string.Join(" | ", errors));
+            Assert.IsEmpty(errors);
+        }
+
+        /// <summary>requiresUpm 显式写成空串同样合法：作者写了键不代表他声明了一个包。</summary>
+        [Test]
+        public void Validate_RequiresUpmEmptyString_SucceedsWithoutErrors()
+        {
+            PluginManifest candidate = Build();
+            candidate.providers = new[] { new PluginProvider { providerBase = "A.B", providerType = "C.D", requiresUpm = "" } };
+            Assert.IsTrue(ValidateOnly(candidate, out List<string> errors), string.Join(" | ", errors));
+            Assert.IsEmpty(errors);
+        }
+
+        /// <summary>两种「空」形态经解析通道都要整条收下——目录侧就是拿 TryParse 的返回值决定这条插件进不进目录。</summary>
+        [Test]
+        public void TryParse_RequiresUpmAbsentOrEmpty_ManifestStillParses()
+        {
+            const string absentJson = @"{
+                ""id"": ""yooasset"", ""name"": ""YooAsset"", ""function"": ""资源"", ""description"": ""d"",
+                ""author"": ""a"", ""version"": ""0.1.0"", ""minUnityVersion"": ""2022.3.0"",
+                ""minFrameworkVersion"": ""1.0.2"",
+                ""providers"": [{""providerBase"":""Moirai.Atropos.Resource.ResourceServiceHandler"",
+                                 ""providerType"":""Moirai.Atropos.Resource.YooAssetHandler"",
+                                 ""title"":""YooAsset""}]}";
+            const string emptyJson = @"{
+                ""id"": ""yooasset"", ""name"": ""YooAsset"", ""function"": ""资源"", ""description"": ""d"",
+                ""author"": ""a"", ""version"": ""0.1.0"", ""minUnityVersion"": ""2022.3.0"",
+                ""minFrameworkVersion"": ""1.0.2"",
+                ""providers"": [{""providerBase"":""Moirai.Atropos.Resource.ResourceServiceHandler"",
+                                 ""providerType"":""Moirai.Atropos.Resource.YooAssetHandler"",
+                                 ""title"":""YooAsset"",""requiresUpm"":""""}]}";
+
+            Assert.IsTrue(PluginManifest.TryParse("yooasset/yooasset.plugin.json", absentJson,
+                out PluginManifest absentManifest, out List<string> absentErrors), string.Join(" | ", absentErrors));
+            Assert.AreEqual(1, absentManifest.providers.Length);
+            Assert.That(absentManifest.providers[0].requiresUpm, Is.Null.Or.Empty);
+
+            Assert.IsTrue(PluginManifest.TryParse("yooasset/yooasset.plugin.json", emptyJson,
+                out PluginManifest emptyManifest, out List<string> emptyErrors), string.Join(" | ", emptyErrors));
+            Assert.AreEqual(1, emptyManifest.providers.Length);
+            Assert.That(emptyManifest.providers[0].requiresUpm, Is.Null.Or.Empty);
+        }
+
         [Test]
         public void Validate_DuplicateProviderType_Reports()
         {
             PluginManifest candidate = Build();
             candidate.providers = new[] { GoodProvider(), GoodProvider() };
             Assert.IsFalse(ValidateOnly(candidate, out List<string> errors));
-            Assert.That(string.Join(" | ", errors), Does.Contain("重复"));
+            string joined = string.Join(" | ", errors);
+            Assert.That(joined, Does.Contain("providers[1].providerType"));
+            Assert.That(joined, Does.Contain("重复"));
         }
 
         [Test]

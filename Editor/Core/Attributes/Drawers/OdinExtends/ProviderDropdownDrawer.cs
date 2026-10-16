@@ -70,12 +70,8 @@ namespace Moirai.Atropos
             private TypeMenuCache(Type baseType)
             {
                 BaseType = baseType;
-                Types = TypeCache.GetTypesDerivedFrom(baseType)
-                    .Where(t => !t.IsAbstract
-                        && !t.Assembly.GetName().Name.EndsWith(".Tests")
-                        && !t.Assembly.GetName().Name.Contains(".Tests."))
-                    .OrderBy(t => t.Name, StringComparer.Ordinal)
-                    .ToArray();
+                // 候选筛选项走归行判据层的唯一真相，避免下拉与判据两边各写一遍后分叉
+                Types = ProviderCatalogIndex.CompiledCandidates(baseType);
 
                 int n = Types.Length;
                 Names = new GUIContent[n + 1];
