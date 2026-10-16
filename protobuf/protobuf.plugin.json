@@ -1,0 +1,13 @@
+{
+  "id": "protobuf",
+  "name": "protobuf-net 存档后端",
+  "function": "存档",
+  "description": "protobuf-net 的 Proto3 契约二进制存档后端：装上后 SaveServiceSettings 的默认后端下拉多出「protobuf-net」，数据块按线格式 ID 3 落盘（ID 由框架保留，不装插件也不许别处占用）。数据类型需 [ProtoContract]/[ProtoMember] 标注，并靠 protobuf-net.BuildTools 预生成 AOT 安全序列化器（RuntimeTypeModel 的反射发射路径在 IL2CPP 下不可用）。安装前置——先用 NuGetForUnity 装好 protobuf-net（protobuf-net.Core.dll 同目录，两支 dll 都要），再在工程里自带宏 PROTOBUF_INSTALLED（该宏是手写档，不走 versionDefines），最后装本插件。三件不齐时整支插件编译为空、下拉里没有 protobuf-net，存档只剩框架内置 JSON；已存在的存档设置里写着 Moirai.Atropos.Save.ProtobufSaveSerializer 的话按全名解析不到，会回退内置 JSON 并记一次 Fatal。",
+  "author": "Team Moirai",
+  "version": "0.1.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": []
+}
