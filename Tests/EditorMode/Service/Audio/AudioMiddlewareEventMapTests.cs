@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Audio;
-using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
@@ -13,9 +12,19 @@ namespace Service.Audio
     /// 中间件事件路径面：映射表优先、按名回落只提示一次、计数与播放同一条解析路径、播放失败可归因。
     /// </summary>
     /// <remarks>对应门槛 G1（<c>GetEventPathFromClip</c> 与映射表联调）、G2-1（事件映射策略）与 G5（失败注入）。</remarks>
+    /// <remarks>
+    /// 事件映射表与路径解析都住在框架的 <see cref="MiddlewareAudioHandler"/> 里，与被外置的 FMOD / Wwise 后端无关， <br />
+    /// 故本用例留框架、用本地替身 <see cref="EventMapHandler"/> 顶掉插件 Handler，断言与期望值一字未动。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioMiddlewareEventMapTests
     {
+        /// <summary>中间件后端的本地替身：只提供抽象的默认桥工厂，用例一律经 <c>SetBridge</c> 注入 <see cref="RecordingBridge"/>。</summary>
+        private sealed class EventMapHandler : MiddlewareAudioHandler
+        {
+            protected override IAudioMiddlewareBridge CreateDefaultBridge() => new RecordingBridge();
+        }
+
         /// <summary>
         /// 记录播放路径与推导调用的假桥。
         /// </summary>
@@ -52,7 +61,7 @@ namespace Service.Audio
         }
 
         private RecordingBridge _bridge;
-        private FmodAudioHandler _handler;
+        private EventMapHandler _handler;
         private AudioClip _clip;
 
         [SetUp]
@@ -60,7 +69,7 @@ namespace Service.Audio
         {
             AudioWarnOnce.Reset();
             _bridge = new RecordingBridge();
-            _handler = new FmodAudioHandler();
+            _handler = new EventMapHandler();
             _handler.SetBridge(_bridge);
             _clip = AudioClip.Create("BossIdle", 1, 1, 44100, false);
         }

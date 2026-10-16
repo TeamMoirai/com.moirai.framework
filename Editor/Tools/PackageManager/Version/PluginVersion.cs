@@ -25,7 +25,9 @@ namespace Moirai.Atropos.Editor
             Patch = patch;
         }
 
-        /// <summary>解析三段版本号。</summary>
+        /// <summary>
+        /// 解析三段版本号。
+        /// </summary>
         public static bool TryParse(string text, out PluginVersion version)
         {
             version = default;
@@ -45,7 +47,9 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>按主/次/修订次序比较。</summary>
+        /// <summary>
+        /// 按主/次/修订次序比较。
+        /// </summary>
         public int CompareTo(PluginVersion other)
         {
             int byMajor = Major.CompareTo(other.Major);

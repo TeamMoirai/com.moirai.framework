@@ -173,13 +173,12 @@ namespace Editor.Tools.PackageManager
         }
 
         [Test]
-        public void Plan_SatisfiedDependencyTree_MergesUpmDepsTakingHighestVersion()
+        public void Plan_SatisfiedDependencyTree_LeavesUpmMergeToLedger()
         {
             InstallPlan plan = InstallPlanner.Plan(Catalog(), NoIds, new[] { "a" }, NoIds, CurrentUnity);
 
-            Assert.AreEqual(1, plan.MergedUpmDependencies.Count, string.Join(",", IdsOf(plan)));
-            Assert.AreEqual("com.x.y", plan.MergedUpmDependencies[0].id);
-            Assert.AreEqual("1.2.0", plan.MergedUpmDependencies[0].version);
+            Assert.AreEqual("c,b,a", IdsOf(plan), "外部依赖的合并不在规划层做，这里只保证顺序");
+            Assert.IsFalse(plan.HasConflicts, string.Join(" | ", ConflictReasons(plan)));
         }
 
         [Test]

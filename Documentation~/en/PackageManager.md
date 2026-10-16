@@ -23,11 +23,11 @@ Each plugin lives in `<id>/`, and its manifest file is always `<id>.plugin.json`
 |---|---|
 | `id` | lowercase slug, charset `[a-z0-9._-]`, not starting with a dot; must equal both the folder name and the manifest file stem |
 | `name` | display name |
-| `function` | menu group |
+| `function` | menu group; no `/`, `\` or control characters and at most 40 characters (the group name becomes one segment of the tree path, so a `/` would invent a level) |
 | `description` / `author` | blurb and author |
 | `version` | three-part decimal version |
 | `minUnityVersion` | minimum engine version |
-| `minFrameworkVersion` | minimum framework version: a hard requirement exactly like `minUnityVersion` — an unmet floor refuses the install |
+| `minFrameworkVersion` | minimum framework version: a hard requirement exactly like `minUnityVersion` — an unmet floor refuses the install. Name a framework version that is released or already scheduled; the framework's own `package.json` `version` is bumped by release automation, so a plugin must never edit it to satisfy its floor |
 | `tags` | scripting define symbols added on install and removed on uninstall |
 | `dependencies` | inter-plugin requirements: `id` + `version` + `versionOperator` (`>=` `>` `=` `<=` `<`) |
 | `upmDependencies` | external UPM packages: `id` + `version` |
@@ -38,16 +38,21 @@ Each plugin lives in `<id>/`, and its manifest file is always `<id>.plugin.json`
 
 `Install` follows this sequence: clone → fetch → attach branch → list tree → build catalog → plan → abort the whole batch on any conflict → apply the cone selection → validate each `.asmdef` (it must exist, and its assembly name must not collide with any `.asmdef` in the project) → write external dependencies into the project `manifest.json` → add scripting define symbols → **persist the ledger first** → a single `AssetDatabase.Refresh()`.
 
-Planning is a pure function. Any of these conflicts aborts the batch: missing dependency, dependency cycle, unsatisfied version requirement, engine floor not met. Multiple packages must be installed in one pass — a per-package pass would trigger a domain reload after each one, and nothing would be left running for the next.
+Planning is a pure function. Any of these conflicts aborts the batch: missing dependency, dependency cycle, unsatisfied version requirement, engine floor not met, framework floor (`minFrameworkVersion`) not met. Multiple packages must be installed in one pass — a per-package pass would trigger a domain reload after each one, and nothing would be left running for the next. When the framework package version cannot be read, that pass skips the framework floor and says so in the report.
 
-`Uninstall` relies entirely on the ledger rather than inferring state from the worktree: external dependencies are reclaimed by owner count (a line is deleted only when its owners are empty *and* the tool wrote it; an entry the user had already written stays verbatim even with no owners left), define symbols are removed only when no other installed plugin claims them, and the cone selection shrinks to the remaining installed ids. When installed plugins still depend on the target, the window asks first, with three real branches: cascade, abort, uninstall-only.
+`Uninstall` relies entirely on the ledger rather than inferring state from the worktree: external dependencies are reclaimed by owner count (a line is deleted only when its owners are empty *and* the tool wrote it; an entry the user had already written stays verbatim even with no owners left; when the ledger never recorded this plugin as an owner the release reports `NotFound` and touches neither the ledger nor the line), define symbols are removed only when no other installed plugin claims them, and the cone selection shrinks to the remaining installed ids. When installed plugins still depend on the target, the window asks first, with three real branches: `cascade` puts the named plugin and every installed dependent into one batch (one sparse-set write, one manifest write, one refresh), `abort` changes nothing, and `uninstall-only` removes just the named plugin and then lists who is left missing it. Install and uninstall are refused outright while the landing worktree has uncommitted changes — the tool never overwrites hand edits, commit or revert them first.
 
 `Update available` compares two tree hashes for `<id>/<id>.plugin.json`: one at the `commit` recorded at install time, one at `refs/remotes/origin/<branch>`.
 
 ## Known limits
 
+- A branch with **unpushed local commits** also refuses the re-attach: `checkout -B` would move those commits off the branch while the worktree looks perfectly clean, so the dirty-worktree gate can't catch it. Push or move them to another branch first.
 - Cone mode always materializes loose files at the branch root (such as the root `package.json`); that is its defined behaviour.
+- When offline, fetch is recorded as "did not reach the remote": packages are still listed from the local branch head and installing stays allowed (a manifest whose blob is genuinely missing is rejected per file with a reason), and the "last fetch" timestamp is not written.
+- Manifests that fail validation are named per file in the top bar instead of silently disappearing from the list.
 - After an uninstall or an empty selection, the plugin folder may remain as an empty directory: git removes files but not directories, and Unity clears the `.meta` alongside.
+- Branch names and the repository URL pass a shape guard before reaching git: a branch may only contain letters, digits and `. _ - /` (not starting with `- . /`, no `..`), and the URL may not start with `-` nor contain quotes or control characters.
+- The detail pane's overview group lists each manifest's source path in the branch tree, and the dependencies group lists the UPM ownership ledger (who wrote it, the version required, which installed plugins currently use it). Status badges reuse the same judgment as install (one trial plan per package) and cover not-installed / installed / updatable / missing dependency / dependency cycle / version mismatch / engine floor / framework floor.
 - A local `file://` source (handy for offline self-test) does not negotiate filtering — git reports `filtering not recognized by server` and fetches every object. "Fewer bytes" only holds against a real remote; offline the verifiable judgments are "unchecked folders are not materialized" and "the filter is recorded in `remote.origin.partialclonefilter`".
 - The first action surface is single install, single uninstall and `Update All`; there is no multi-select batch queue.
 
@@ -55,9 +60,12 @@ Planning is a pure function. Any of these conflicts aborts the batch: missing de
 
 Everything decidable about install/uninstall lives in L1 (EditMode): the version value type and operators, manifest validation, line-level edits of the project `manifest.json`, the state ledger and ownership counting, dependency closure and topology, tree-path-to-catalog discovery, and the git layer (clone / attach / sparse materialization plus manifest history: listing versions, reading a blob at a revision and materializing a revision) against a temporary `file://` fixture.
 
+The reading is countable without the editor: the module holds 111 test methods, 13 of them parameterized with 69 `[TestCase]` rows in total — parameterized methods contribute one cell per row, the rest contribute one — so a full pass = 111 − 13 + 69 = **167 cells**. The last measured editor run reported `passed 165 | failed 0`; the two missing cells are the unpushed-commit guard and the unknown-field parse-neutral grid, both added afterwards and neither executed by the editor.
+
 ```bash
-# reproduces the current reading: 95 test names / 143 cells passed / 0 failed
-bash "$LOCALAPPDATA/pm-names.sh" Tests/EditorMode/Editor/Tools/PackageManager/*/*Tests.cs > names.txt
+# extract per file and merge: pm-names.sh reads one file per call and rejects extra arguments (a passed glob fails loudly instead of silently under-extracting)
+for f in Tests/EditorMode/Editor/Tools/PackageManager/*/*Tests.cs; do bash "$LOCALAPPDATA/pm-names.sh" "$f"; done | sort -u > names.txt
+wc -l < names.txt                       # expect 111
 bash "$LOCALAPPDATA/pm-gate.sh" pm refresh
-bash "$LOCALAPPDATA/pm-test.sh" pm names.txt
+bash "$LOCALAPPDATA/pm-test.sh" pm names.txt   # first line should read passed 167 | failed 0
 ```

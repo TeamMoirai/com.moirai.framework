@@ -43,6 +43,7 @@ namespace Editor.Tools.PackageManager
             Assert.IsEmpty(result.Errors, string.Join(" | ", result.Errors));
             Assert.AreEqual(1, result.Manifests.Count);
             Assert.AreEqual("blackboard", result.Manifests[0].id);
+            Assert.AreEqual("blackboard/blackboard.plugin.json", result.Manifests[0].SourceTreePath);
             Assert.IsTrue(result.ById.TryGetValue("blackboard", out PluginManifest byId));
             Assert.AreSame(result.Manifests[0], byId);
         }

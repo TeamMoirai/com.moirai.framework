@@ -11,15 +11,8 @@
         "GUID:6055be8ebefd69e48b49212b09b47b2f",
         "GUID:f06555f75b070af458a003d92f9efb00",
         "GUID:77221876cc6b8244180b96e320b1bcd4",
-        "GUID:33661e06c33d31b4c9223810bf503247",
         "GUID:13ba8ce62aa80c74598530029cb2d649",
-        "GUID:4140bd2e2764f1f47ab93125ecb61942",
-        "GUID:3b570a5146f9d4f0fa107ed4559471a3",
-        "GUID:3aa1866a824b5472da50fe142777d95f",
-        "GUID:80ecb87cae9c44d19824e70ea7229748",
-        "GUID:fd228c28e14f1a34cbe508676c914dd7",
-        "GUID:9e24947de15b9834991c9d8411ea37cf",
-        "GUID:84651a3751eca9349aac36a66bba901b"
+        "GUID:4140bd2e2764f1f47ab93125ecb61942"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -65,11 +58,6 @@
             "define": "R3_INSTALLED"
         },
         {
-            "name": "com.cysharp.zstring",
-            "expression": "1.0.0",
-            "define": "ZSTRING_INSTALLED"
-        },
-        {
             "name": "com.code-philosophy.hybridclr",
             "expression": "2.0.0",
             "define": "HYBRIDCLR_INSTALLED"
@@ -78,36 +66,6 @@
             "name": "com.code-philosophy.obfuz",
             "expression": "1.0.0",
             "define": "OBFUZ_INSTALLED"
-        },
-        {
-            "name": "com.annulusgames.lit-motion",
-            "expression": "1.0.0",
-            "define": "LITMOTION_INSTALLED"
-        },
-        {
-            "name": "com.kyrylokuzyk.primetween",
-            "expression": "1.0.0",
-            "define": "PRIMETWEEN_INSTALLED"
-        },
-        {
-            "name": "com.unity.logging",
-            "expression": "1.0.0",
-            "define": "UNITY_LOGGING_INSTALLED"
-        },
-        {
-            "name": "com.unity.addressables",
-            "expression": "1.0.0",
-            "define": "ADDRESSABLES_INSTALLED"
-        },
-        {
-            "name": "org.nuget.k4os.compression.lz4",
-            "expression": "1.0.0",
-            "define": "LZ4_INSTALLED"
-        },
-        {
-            "name": "com.unity.services.cloudsave",
-            "expression": "1.0.0",
-            "define": "UNITY_CLOUD_SAVE_INSTALLED"
         }
     ],
     "noEngineReferences": false

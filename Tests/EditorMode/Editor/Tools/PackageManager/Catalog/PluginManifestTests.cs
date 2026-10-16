@@ -214,5 +214,55 @@ namespace Editor.Tools.PackageManager
             Assert.IsFalse(PluginManifest.TryParse(GoodPath, @"{""id"":""BAD""}", out PluginManifest manifest, out _));
             Assert.IsNull(manifest, "校验失败时不得交出半成品对象");
         }
+
+        [Test]
+        public void TryParse_UnknownFields_LeaveParsedValuesUnchanged()
+        {
+            Assert.IsTrue(PluginManifest.TryParse(GoodPath, GoodJson, out PluginManifest plain,
+                out List<string> plainErrors));
+
+            // 多写的字段（含一个拼错的地板字段名）必须原样被忽略：既不改已认字段的取值，也不改判非条数
+            string withExtras = GoodJson.Substring(0, GoodJson.Length - 1)
+                + @", ""vendor"": ""someone"", ""experimental"": { ""nested"": true },"
+                + @" ""minFrameworkVerion"": ""9.9.9""}";
+            Assert.IsTrue(PluginManifest.TryParse(GoodPath, withExtras, out PluginManifest extra,
+                out List<string> extraErrors), string.Join(" | ", extraErrors));
+
+            Assert.AreEqual(plain.id, extra.id);
+            Assert.AreEqual(plain.version, extra.version);
+            Assert.AreEqual(plain.minFrameworkVersion, extra.minFrameworkVersion, "未知字段不得改变已认字段的取值");
+            Assert.AreEqual(plain.dependencies.Length, extra.dependencies.Length);
+            Assert.AreEqual(plain.upmDependencies[0].version, extra.upmDependencies[0].version);
+            Assert.AreEqual(plainErrors.Count, extraErrors.Count);
+        }
+
+        [Test]
+        [TestCase("日志", true)]
+        [TestCase("Tools", true)]
+        [TestCase("工具/子面", false)]
+        [TestCase("bad\\name", false)]
+        [TestCase("带\n换行", false)]
+        [TestCase("", false)]
+        public void IsValidLabel_MenuPathShapes(string label, bool expectOk)
+        {
+            Assert.AreEqual(expectOk, PluginManifest.IsValidLabel(label), label);
+        }
+
+        [Test]
+        public void IsValidLabel_LongerThanCap_Rejects()
+        {
+            Assert.IsFalse(PluginManifest.IsValidLabel(new string('a', PluginManifest.MAX_LABEL_LENGTH + 1)));
+        }
+
+        [Test]
+        public void TryParse_FunctionWithSeparator_ReportsLabelReason()
+        {
+            string json = "{\"id\":\"blackboard\",\"name\":\"Blackboard\",\"function\":\"工具/子面\"," +
+                          "\"version\":\"1.0.0\",\"minUnityVersion\":\"2022.3.0\",\"minFrameworkVersion\":\"1.0.0\"}";
+
+            Assert.IsFalse(PluginManifest.TryParse("blackboard/blackboard.plugin.json", json,
+                out _, out List<string> errors));
+            StringAssert.Contains("function", string.Join(" | ", errors));
+        }
     }
 }

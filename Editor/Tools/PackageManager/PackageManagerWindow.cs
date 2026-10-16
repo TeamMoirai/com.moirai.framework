@@ -77,7 +77,9 @@ namespace Moirai.Atropos.Editor
         /// <summary>后台刷新在途：提示框先让位，左下角那句状态顶上；刷新一结束提示自己回来。</summary>
         internal bool IsRefreshing => IsDataLoading;
 
-        /// <summary>后台扫一遍分支，主线程把结果铺上树。</summary>
+        /// <summary>
+        /// 后台扫一遍分支，主线程把结果铺上树。
+        /// </summary>
         protected override void BuildDataLoadSteps(EditorLoadPipeline pipeline)
         {
             pipeline.AddBackgroundStep("扫分支", token =>
@@ -100,7 +102,9 @@ namespace Moirai.Atropos.Editor
             pipeline.AddStep("铺列表", ApplyScanResult);
         }
 
-        /// <summary>重读账本与现场，不联网。</summary>
+        /// <summary>
+        /// 重读账本与现场，不联网。
+        /// </summary>
         private void ReloadFromDisk()
         {
             _state = PackageManagerStateRegistry.Load();
@@ -212,7 +216,9 @@ namespace Moirai.Atropos.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        /// <summary>切换设置面：<c>true</c> 只列「分支包源」，<c>false</c> 回到插件列表。</summary>
+        /// <summary>
+        /// 切换设置面：<c>true</c> 只列「分支包源」，<c>false</c> 回到插件列表。
+        /// </summary>
         private void SwitchFace(bool settingsFace)
         {
             _settingsFace = settingsFace;
@@ -256,7 +262,9 @@ namespace Moirai.Atropos.Editor
             EditorGUILayout.HelpBox(_message, _messageType);
         }
 
-        /// <summary>后台刷新在途时在左下角报一句状态（有缓存的暖开窗不画装载遮罩，就靠它给反馈）。</summary>
+        /// <summary>
+        /// 后台刷新在途时在左下角报一句状态（有缓存的暖开窗不画装载遮罩，就靠它给反馈）。
+        /// </summary>
         private void DrawRefreshStatus()
         {
             if (!IsDataLoading) return;
@@ -273,13 +281,17 @@ namespace Moirai.Atropos.Editor
             return string.IsNullOrEmpty(stage) ? "后台刷新中…" : $"后台刷新中…（{stage}）";
         }
 
-        /// <summary>重扫一遍分支（开窗自动走这条，工具栏 Refresh 也走它；在途重扫会被取消重来）。</summary>
+        /// <summary>
+        /// 重扫一遍分支（开窗自动走这条，工具栏 Refresh 也走它；在途重扫会被取消重来）。
+        /// </summary>
         private void Refresh()
         {
             StartDataLoad();
         }
 
-        /// <summary>用上次扫分支的缓存先把列表铺上，免得开窗一片空白。</summary>
+        /// <summary>
+        /// 用上次扫分支的缓存先把列表铺上，免得开窗一片空白。
+        /// </summary>
         private void ApplyCachedCatalog()
         {
             if (!PackageManagerStateRegistry.TryGetCachedCatalog(_state, out List<PluginManifest> manifests, out string headCommit))
@@ -299,7 +311,9 @@ namespace Moirai.Atropos.Editor
             _cacheOnScreen = true;
         }
 
-        /// <summary>把后台扫出的结果铺上树，并连同"上次刷新"与缓存一起落盘（主线程步）。</summary>
+        /// <summary>
+        /// 把后台扫出的结果铺上树，并连同"上次刷新"与缓存一起落盘（主线程步）。
+        /// </summary>
         private void ApplyScanResult()
         {
             if (_scanCatalog == null)
@@ -310,7 +324,13 @@ namespace Moirai.Atropos.Editor
             }
 
             PluginCatalogResult catalog = _scanCatalog;
-            PackageManagerStateRegistry.StampFetch(_state);
+
+            // 解析判非的那几份要照面：静默少一个包会被读成"分支上没有它"
+            string brokenNote = catalog.Errors.Count > 0
+                ? $"　{catalog.Errors.Count} 份清单判非：" + string.Join("；", catalog.Errors)
+                : string.Empty;
+
+            if (_installer.LastFetchReachedRemote) PackageManagerStateRegistry.StampFetch(_state);
 
             // 落盘前重读一遍账本再写：别拿本窗口的旧快照覆盖别处（并行会话/其他路径）的记账
             PackageManagerStateData latest = PackageManagerStateRegistry.Load();
@@ -325,12 +345,18 @@ namespace Moirai.Atropos.Editor
             if (!_installer.TryCollectUpdatable(_state, out List<string> updatable, out string updatableReason))
             {
                 _updatableIds = new List<string>();
-                SetMessage("可更新判定没读通：" + updatableReason, MessageType.Warning);
+                SetMessage("可更新判定没读通：" + updatableReason + brokenNote, MessageType.Warning);
             }
             else
             {
                 _updatableIds = updatable;
-                SetMessage($"分支上有 {catalog.Manifests.Count} 个包，可更新 {updatable.Count} 个。", MessageType.Info);
+                string offline = _installer.LastFetchReachedRemote
+                    ? string.Empty
+                    : "　本轮没到远端，按本地已有的分支头列的。";
+                MessageType type = catalog.Errors.Count > 0 || !string.IsNullOrEmpty(offline)
+                    ? MessageType.Warning
+                    : MessageType.Info;
+                SetMessage($"分支上有 {catalog.Manifests.Count} 个包，可更新 {updatable.Count} 个。{offline}{brokenNote}", type);
             }
 
             // 条目要吃到刚算出的可更新集，故排在判定之后铺
@@ -345,16 +371,85 @@ namespace Moirai.Atropos.Editor
         {
             _entries.Clear();
 
+            // 徽标要用与安装同一条判据：拿规划层试装一次，缺依赖/版本不符/地板不符才报得出来
+            PluginInstaller.TryGetEngineVersion(out PluginVersion unityVersion, out _);
+            PluginInstaller.TryGetFrameworkVersion(out PluginVersion frameworkVersion, out _);
+            HashSet<string> installedIds = InstalledIdSet();
+
             for (int i = 0; i < catalog.Manifests.Count; i++)
             {
                 PluginManifest manifest = catalog.Manifests[i];
+                InstallPlan probe = InstallPlanner.Plan(catalog.Manifests, installedIds, new[] { manifest.id },
+                    Array.Empty<string>(), unityVersion, frameworkVersion);
+
                 var entry = new PluginEntry(this, manifest, InstalledVersionOf(manifest.id),
-                    _updatableIds.Contains(manifest.id), headCommit);
+                    _updatableIds.Contains(manifest.id), headCommit, DescribeBlocker(probe));
                 _entries.Add(entry);
             }
         }
 
-        /// <summary>账本里该插件的已装版本；没装过为空。</summary>
+        /// <summary>
+        /// 把规划判出的拦路项拼成一行；能装则空。
+        /// </summary>
+        /// <remarks>全部冲突都要报：只取第一条会把"还缺哪几个依赖"截掉，修一条才露下一条。</remarks>
+        private static string DescribeBlocker(InstallPlan plan)
+        {
+            if (plan.Conflicts.Count == 0) return null;
+
+            var parts = new List<string>();
+            for (int i = 0; i < plan.Conflicts.Count; i++)
+            {
+                PlanConflict conflict = plan.Conflicts[i];
+                parts.Add($"{KindLabel(conflict.Kind)}：{conflict.Reason}");
+            }
+
+            return string.Join("；", parts);
+        }
+
+        /// <summary>
+        /// 按台账标出每条外部依赖的归属：谁写入的、要求到的版本、当前有哪几个插件在用。
+        /// </summary>
+        private string DescribeUpmOwnership(PluginManifest manifest)
+        {
+            PluginUpmDependency[] entries = manifest.upmDependencies;
+            if (entries == null || entries.Length == 0) return "这个包没有外部依赖";
+
+            var lines = new List<string>();
+            for (int i = 0; i < entries.Length; i++)
+            {
+                UpmOwnershipData record = PackageManagerStateRegistry.FindOwnership(_state, entries[i].id);
+                if (record == null)
+                {
+                    lines.Add($"{entries[i].id}：台账里还没有（没人装过时不占位）");
+                    continue;
+                }
+
+                string owners = record.owners == null || record.owners.Count == 0
+                    ? "无"
+                    : string.Join("、", record.owners);
+                string writer = record.preexisting ? "用户手写" : "工具写入";
+                lines.Add($"{entries[i].id}：{writer}，要求 {record.requiredVersion}，在用 {owners}");
+            }
+
+            return string.Join("\n", lines);
+        }
+
+        private static string KindLabel(PlanConflictKind kind)
+        {
+            switch (kind)
+            {
+                case PlanConflictKind.MissingDependency: return "缺依赖";
+                case PlanConflictKind.Cycle: return "依赖成环";
+                case PlanConflictKind.VersionUnsatisfied: return "版本不符";
+                case PlanConflictKind.UnityFloorUnmet: return "Unity 版本不符";
+                case PlanConflictKind.FrameworkFloorUnmet: return "框架版本不符";
+                default: return kind.ToString();
+            }
+        }
+
+        /// <summary>
+        /// 账本里该插件的已装版本；没装过为空。
+        /// </summary>
         private string InstalledVersionOf(string pluginId)
         {
             List<InstalledPluginData> installed = _state?.installed;
@@ -366,14 +461,18 @@ namespace Moirai.Atropos.Editor
             return null;
         }
 
-        /// <summary>依赖行用：某插件的已装状态一句话。</summary>
+        /// <summary>
+        /// 依赖行用：某插件的已装状态一句话。
+        /// </summary>
         private string DescribeInstalled(string pluginId)
         {
             string version = InstalledVersionOf(pluginId);
             return string.IsNullOrEmpty(version) ? "未装" : $"已装 {version}";
         }
 
-        /// <summary>分支目录里该插件的版本；不在目录里为空。</summary>
+        /// <summary>
+        /// 分支目录里该插件的版本；不在目录里为空。
+        /// </summary>
         private string BranchVersionOf(string pluginId)
         {
             return _catalog != null && _catalog.ById.TryGetValue(pluginId, out PluginManifest manifest)
@@ -393,14 +492,18 @@ namespace Moirai.Atropos.Editor
             return ids;
         }
 
-        /// <summary>装单个包，依赖闭包由规划层带出。</summary>
+        /// <summary>
+        /// 装单个包，依赖闭包由规划层带出。
+        /// </summary>
         private void InstallRequested(string pluginId, bool force)
         {
             PluginInstallReport report = _installer.Install(pluginId, force);
             AfterMutation(report, $"装了 {pluginId}");
         }
 
-        /// <summary>卸单个包，依赖方在场时先问。</summary>
+        /// <summary>
+        /// 卸单个包，依赖方在场时先问。
+        /// </summary>
         private void UninstallRequested(string pluginId)
         {
             if (!InstalledIdSet().Contains(pluginId))
@@ -433,6 +536,12 @@ namespace Moirai.Atropos.Editor
 
             PluginInstallReport report = _installer.Uninstall(pluginId, cascade);
             AfterMutation(report, $"卸了 {pluginId}");
+
+            if (report.Ok && !cascade && report.Dependents.Count > 0)
+            {
+                SetMessage($"只卸了 {pluginId}，这些在场插件仍缺它：{string.Join("、", report.Dependents)}", MessageType.Warning);
+                Repaint();
+            }
         }
 
         private void UpdateAll()
@@ -449,21 +558,27 @@ namespace Moirai.Atropos.Editor
             AfterMutation(report, $"更新了 {report.TouchedPluginIds.Count} 个");
         }
 
-        /// <summary>单包更新：强制重装一遍，可选先清目录（干净更新）。</summary>
+        /// <summary>
+        /// 单包更新：强制重装一遍，可选先清目录（干净更新）。
+        /// </summary>
         private void UpdateRequested(string pluginId, bool removeFirst)
         {
             PluginInstallReport report = _installer.Install(pluginId, true, removeFirst);
             AfterMutation(report, $"更新了 {pluginId}");
         }
 
-        /// <summary>装所选的历史版本：先清目录再按该修订物化，账本记该修订。</summary>
+        /// <summary>
+        /// 装所选的历史版本：先清目录再按该修订物化，账本记该修订。
+        /// </summary>
         private void InstallVersionRequested(string pluginId, string revision, string version)
         {
             PluginInstallReport report = _installer.InstallAtRevision(pluginId, revision, version);
             AfterMutation(report, $"装了 {pluginId} 的历史版本 {version}");
         }
 
-        /// <summary>取某插件的版本历史（按 id 缓存一次）；列不出来时交出 false，下拉里就只剩分支头那一条。</summary>
+        /// <summary>
+        /// 取某插件的版本历史（按 id 缓存一次）；列不出来时交出 false，下拉里就只剩分支头那一条。
+        /// </summary>
         internal bool TryGetVersionHistory(string pluginId, out List<PluginVersionRevision> history)
         {
             if (_versionHistory.TryGetValue(pluginId, out history)) return history != null;
@@ -474,7 +589,9 @@ namespace Moirai.Atropos.Editor
             return history != null;
         }
 
-        /// <summary>更新前把「已装 → 分支」逐条摆出来问一次。</summary>
+        /// <summary>
+        /// 更新前把「已装 → 分支」逐条摆出来问一次。
+        /// </summary>
         private bool ConfirmUpdateAll()
         {
             var lines = new List<string>();
@@ -489,7 +606,9 @@ namespace Moirai.Atropos.Editor
             return EditorUtility.DisplayDialog($"更新 {_updatableIds.Count} 个插件", string.Join("\n", lines), "继续", "取消");
         }
 
-        /// <summary>装卸后的统一收尾：报告失败就停在原状，成功则等域重载重建。</summary>
+        /// <summary>
+        /// 装卸后的统一收尾：报告失败就停在原状，成功则等域重载重建。
+        /// </summary>
         private void AfterMutation(PluginInstallReport report, string successText)
         {
             if (!report.Ok)
@@ -547,15 +666,17 @@ namespace Moirai.Atropos.Editor
             [NonSerialized] private readonly string _installedVersion;
             [NonSerialized] private readonly bool _updateAvailable;
             [NonSerialized] private readonly string _headCommit;
+            [NonSerialized] private readonly string _blocker;
 
             internal PluginEntry(PackageManagerWindow window, PluginManifest manifest, string installedVersion,
-                bool updateAvailable, string headCommit)
+                bool updateAvailable, string headCommit, string blocker)
             {
                 _window = window;
                 _manifest = manifest;
                 _installedVersion = installedVersion;
                 _updateAvailable = updateAvailable;
                 _headCommit = headCommit;
+                _blocker = blocker;
                 SelectedVersion = manifest.version;
             }
 
@@ -580,6 +701,11 @@ namespace Moirai.Atropos.Editor
             [BoxGroup("概况"), ShowInInspector, LabelText("分支头")]
             internal string HeadCommit => ShortSha(_headCommit);
 
+            [BoxGroup("概况"), ShowInInspector, LabelText("来源路径")]
+            internal string SourcePath => string.IsNullOrEmpty(_manifest.SourceTreePath)
+                ? _manifest.id + "/" + _manifest.id + PluginManifest.MANIFEST_SUFFIX
+                : _manifest.SourceTreePath;
+
             [BoxGroup("标签"), ShowInInspector, LabelText("标签")]
             internal string TagsText => Join(_manifest.tags);
 
@@ -588,6 +714,9 @@ namespace Moirai.Atropos.Editor
 
             [BoxGroup("依赖"), ShowInInspector, LabelText("外部依赖")]
             internal string UpmText => DescribeUpm(_manifest);
+
+            [BoxGroup("依赖"), ShowInInspector, LabelText("归属台账")]
+            internal string UpmOwnershipText => _window.DescribeUpmOwnership(_manifest);
 
             [BoxGroup("操作"), ShowInInspector, LabelText("安装版本"), ValueDropdown(nameof(VersionOptions))]
             [Tooltip("默认分支头那一条；选历史版本后用「安装所选版本」——先清目录再按那次修订物化，因此可以降级。")]
@@ -644,6 +773,7 @@ namespace Moirai.Atropos.Editor
 
             private string DescribeStatus()
             {
+                if (!string.IsNullOrEmpty(_blocker)) return _blocker;
                 if (!IsInstalled) return "未装";
 
                 return _updateAvailable
@@ -651,7 +781,9 @@ namespace Moirai.Atropos.Editor
                     : $"已装 {_installedVersion}";
             }
 
-            /// <summary>版本候选：分支头那一条，加上清单历史上出现过的版本（打开下拉时才去问 git）。</summary>
+            /// <summary>
+            /// 版本候选：分支头那一条，加上清单历史上出现过的版本（打开下拉时才去问 git）。
+            /// </summary>
             private IEnumerable<ValueDropdownItem<string>> VersionOptions()
             {
                 string headMarker = InstalledMarker(_manifest.version);
@@ -668,7 +800,9 @@ namespace Moirai.Atropos.Editor
                 }
             }
 
-            /// <summary>所选版本那次修订：分支头版本用分支头提交，其余去历史里找。</summary>
+            /// <summary>
+            /// 所选版本那次修订：分支头版本用分支头提交，其余去历史里找。
+            /// </summary>
             private string RevisionOf(string version)
             {
                 if (string.Equals(version, _manifest.version, StringComparison.Ordinal)) return _headCommit;
@@ -691,7 +825,9 @@ namespace Moirai.Atropos.Editor
                 return string.Equals(_installedVersion, version, StringComparison.Ordinal) ? "（已装）" : string.Empty;
             }
 
-            /// <summary>筛选命中：名字/标识/分组/说明/标签，任一处不区分大小写包含即可。</summary>
+            /// <summary>
+            /// 筛选命中：名字/标识/分组/说明/标签，任一处不区分大小写包含即可。
+            /// </summary>
             internal bool Matches(string filter)
             {
                 return Contains(_manifest.name, filter)

@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Resource.Editor
     /// <remarks>
     /// 包名清单是编辑器侧数据（YooAsset 读收集器设置，见 <see cref="BundleCollectorSettingData"/>），运行时无此需求， <br />
     /// 故住 Editor 程序集而非 Runtime 接缝； <br />
-    /// 返回 <c>null</c> 表示后端不消费包名（Addressables 单隐式目录，检视器不绘制包名行）； <br />
+    /// 返回 <c>null</c> 表示后端自报不消费包名轴（只有一张隐式目录的后端，如 Addressables 插件；检视器不绘制包名行）； <br />
     /// 空数组表示后端消费包名但清单未就绪（收集器未配置）或无编辑器桥（自定义后端），检视器退回自由文本。 <br />
     /// 本桥被检视器逐绘制帧调用，清单按域缓存，<see cref="EditorApplication.projectChanged"/> 后失效。 <br />
     /// <see cref="GetPackageNames"/> 对外公开：宿主自绘引用行（不走 <c>AssetReferenceDrawer</c>）时按同一清单、同一缓存取包名，避免第二份收集器读取实现。
@@ -46,19 +46,16 @@ namespace Moirai.Atropos.Resource.Editor
 
             ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
 
-            switch (handler)
+            // 「要不要接管包名行」由被判定方自报（处理器能力属性）：后端可以住在插件装配里，
+            // 编辑器装配既不许引用插件装配、也不该用 is 具体类型判它——那种判定会被静默裁成恒假。
+            if (handler != null && !handler.ConsumesPackageNames)
             {
-                case YooAssetHandler _:
-                    s_PackageNames = CollectYooAssetPackages();
-                    break;
-#if ADDRESSABLES_INSTALLED
-                case AddressableHandler _:
-                    s_PackageNames = null;
-                    break;
-#endif
-                default:
-                    s_PackageNames = Array.Empty<string>();
-                    break;
+                s_PackageNames = null;
+            }
+            else
+            {
+                // 清单来源仍然只有内建后端的收集器：其余后端消费包名但没有编辑器桥，交空数组让检视器退回自由文本。
+                s_PackageNames = handler is YooAssetHandler ? CollectYooAssetPackages() : Array.Empty<string>();
             }
 
             s_PackageNamesCached = true;

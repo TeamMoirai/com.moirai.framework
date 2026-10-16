@@ -233,6 +233,69 @@ namespace Editor.Tools.PackageManager
         }
 
         [Test]
+        public void RecordUpmOwner_HigherRequirement_RewritesOwnedLine()
+        {
+            PackageManagerStateData state = NewState();
+            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.5.0"),
+                "blackboard", out string afterFirst);
+
+            UpmEntryOutcome outcome = PackageManagerStateRegistry.RecordUpmOwner(state, afterFirst,
+                Upm("com.cysharp.zstring", "2.6.0"), "skill-tree", out string afterSecond);
+
+            Assert.AreEqual(UpmEntryOutcome.Updated, outcome);
+            Assert.IsTrue(ProjectManifestUtility.TryGetDependency(afterSecond, "com.cysharp.zstring",
+                out string version));
+            Assert.AreEqual("2.6.0", version, "同键只留版本最高的那条要求");
+            Assert.IsTrue(ProjectManifestUtility.TryGetDependency(afterSecond, "com.unity.cinemachine", out _),
+                "邻居条目不能丢");
+        }
+
+        [Test]
+        public void ReleaseUpmOwner_PluginNotRecordedAsOwner_LeavesLedgerAndLine()
+        {
+            PackageManagerStateData state = NewState();
+            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+                "skill-tree", out string text);
+
+            UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, text,
+                "com.cysharp.zstring", "blackboard", out string released);
+
+            Assert.AreEqual(UpmEntryOutcome.NotFound, outcome);
+            Assert.AreEqual(text, released, "无关卸载不该改工程 manifest 的文本");
+            Assert.AreEqual(1, state.upmOwnership.Count, "别人的归属记录不该被抹掉");
+            Assert.IsTrue(ProjectManifestUtility.TryGetDependency(released, "com.cysharp.zstring", out _));
+        }
+
+        [Test]
+        public void ReleaseUpmOwner_LedgerWithNoOwners_LeavesLineAlone()
+        {
+            PackageManagerStateData state = NewState();
+            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+                "skill-tree", out string text);
+            state.upmOwnership[0].owners.Clear();
+
+            UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, text,
+                "com.cysharp.zstring", "blackboard", out string released);
+
+            Assert.AreEqual(UpmEntryOutcome.NotFound, outcome);
+            Assert.IsTrue(ProjectManifestUtility.TryGetDependency(released, "com.cysharp.zstring", out _),
+                "owners 空也不能替别人删那一行");
+        }
+
+        [Test]
+        public void FindOwnership_ReturnsRecordForPackageIdAndNullOtherwise()
+        {
+            PackageManagerStateData state = NewState();
+            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+                "blackboard", out _);
+
+            UpmOwnershipData record = PackageManagerStateRegistry.FindOwnership(state, "com.cysharp.zstring");
+            Assert.IsNotNull(record, "窗口标归属要靠这条查询");
+            Assert.AreEqual("blackboard", record.owners[0]);
+            Assert.IsNull(PackageManagerStateRegistry.FindOwnership(state, "com.nope"));
+        }
+
+        [Test]
         public void ReleaseUpmOwner_OtherOwnerRemains_KeepsEntry()
         {
             PackageManagerStateData state = NewState();

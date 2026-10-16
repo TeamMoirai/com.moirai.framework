@@ -120,5 +120,49 @@ namespace Editor.Tools.PackageManager
             StringAssert.Contains("scopedRegistries", text);
             StringAssert.Contains("com.moirai", text);
         }
+
+        [Test]
+        public void SetDependency_CrlfFile_WritesBackNoBareLineFeed()
+        {
+            string crlf = WithEntry.Replace("\n", "\r\n");
+
+            string text = ProjectManifestUtility.SetDependency(crlf, "com.a.b", "1.0.0",
+                takeOverExisting: false, out _);
+
+            StringAssert.Contains("com.a.b", text);
+            StringAssert.Contains("com.cysharp.unitask", text, "原有条目不能因为换行处理被弄丢");
+
+            int lineFeeds = 0;
+            int pairs = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] != '\n') continue;
+                lineFeeds++;
+                if (i > 0 && text[i - 1] == '\r') pairs++;
+            }
+
+            Assert.AreEqual(lineFeeds, pairs, "整篇必须保持 CRLF，插进去的那行不许掺裸 LF");
+        }
+
+        [Test]
+        public void SetDependency_KeepsEveryLineOutsideDependenciesBlock()
+        {
+            const string withExtraLines = @"{
+  // 这行是手写的说明，工具不该碰
+  ""testScriptsExclude"": [ ""a/b"" ],
+  ""dependencies"": {
+    ""com.a.b"": ""1.0.0""
+  },
+  ""testAutoRunning"": true
+}";
+            string text = ProjectManifestUtility.SetDependency(withExtraLines, "com.c.d", "2.0.0",
+                takeOverExisting: false, out _);
+
+            StringAssert.Contains("// 这行是手写的说明", text);
+            StringAssert.Contains("testScriptsExclude", text);
+            StringAssert.Contains("testAutoRunning", text);
+            StringAssert.Contains("com.a.b", text);
+            Assert.IsTrue(ProjectManifestUtility.TryGetDependency(text, "com.c.d", out _), "块内插入要成立");
+        }
     }
 }

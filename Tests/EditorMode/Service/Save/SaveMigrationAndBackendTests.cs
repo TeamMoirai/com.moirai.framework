@@ -1,18 +1,9 @@
 using System;
 using static Moirai.Atropos.LogHandler;
-#if MEMORYPACK_INSTALLED
-using MemoryPack;
-#endif
-#if MESSAGEPACK_INSTALLED
-using MessagePack;
-#endif
 using Moirai.Atropos;
 using Moirai.Atropos.Save;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
-#if PROTOBUF_INSTALLED
-using ProtoBuf;
-#endif
 using System.IO;
 using System.Threading;
 using UnityEngine;
@@ -21,13 +12,13 @@ using UnityEngine.TestTools;
 namespace Service.Save
 {
     /// <summary>
-    /// 序列化后端（MessagePack / MemoryPack / protobuf-net）与 <see cref="SaveDataBlock"/> 版本迁移管线测试。
+    /// 序列化后端（框架内置 JSON）与 <see cref="SaveDataBlock"/> 版本迁移管线测试。
     /// </summary>
     /// <remarks>
     /// 数据类建在测试程序集内（<see cref="SaveDataBlock"/> 非 <c>[SerializeReference]</c> 持有类型，无 Inspector 污染）； <br />
     /// 迁移/未来版本保护经 internal 管线直调（<c>InternalsVisibleTo</c>），真实文件 IO。 <br />
-    /// 三个第三方后端的标注类型与对应用例整块由 <c>MESSAGEPACK_INSTALLED</c> / <c>MEMORYPACK_INSTALLED</c> /
-    /// <c>PROTOBUF_INSTALLED</c> 门控（与运行时注册表同一套符号）：依赖未接入的工程里本夹具只剩 JSON 用例，仍可编译执行。
+    /// MessagePack / MemoryPack / protobuf-net 三个第三方后端已外置到 plugin 分支发行仓，其标注类型与对应用例随各插件自带
+    /// （<c>&lt;id&gt;/Tests/</c>）；本夹具只留契约层用例：注册表、内置 JSON 往返与迁移管线。
     /// </remarks>
     public partial class SaveMigrationAndBackendTests
     {
@@ -73,36 +64,6 @@ namespace Service.Save
         {
             public int X;
         }
-
-#if MESSAGEPACK_INSTALLED
-        [MessagePackObject(true, AllowPrivate = true)]
-        internal sealed class MpData
-        {
-            public int Hp;
-            public string Name;
-        }
-#endif
-
-#if MEMORYPACK_INSTALLED
-        [MemoryPackable]
-        internal sealed partial class MpkData
-        {
-            public int Hp;
-            public string Name;
-        }
-#endif
-
-#if PROTOBUF_INSTALLED
-        [ProtoContract]
-        private sealed class PbData
-        {
-            [ProtoMember(1)]
-            public int Hp;
-
-            [ProtoMember(2)]
-            public string Name;
-        }
-#endif
 
         private PlainSaveHandler _handler;
         private string _rootPath;
@@ -244,67 +205,10 @@ namespace Service.Save
 
         #region 序列化后端 [BACKENDS]
 
-#if MESSAGEPACK_INSTALLED
         [Test]
-        public void MessagePackBackend_RoundTrips()
-        {
-            var paths = Paths("slot");
-            var data = new MpData { Hp = 88, Name = "Moirai" };
-
-            _handler.SaveBlockCore(paths, "mp", data, SaveBackendIds.MESSAGE_PACK, 1, CancellationToken.None);
-
-            SaveError error = _handler.TryLoadBlockCore<MpData>(paths, "mp", out MpData loaded);
-            Assert.AreEqual(SaveError.None, error);
-            Assert.AreEqual(88, loaded.Hp);
-            Assert.AreEqual("Moirai", loaded.Name);
-        }
-#endif
-
-#if MEMORYPACK_INSTALLED
-        [Test]
-        public void MemoryPackBackend_RoundTrips()
-        {
-            var paths = Paths("slot");
-            var data = new MpkData { Hp = 77, Name = "MemoryPack⑵" };
-
-            _handler.SaveBlockCore(paths, "mpk", data, SaveBackendIds.MEMORY_PACK, 1, CancellationToken.None);
-
-            SaveError error = _handler.TryLoadBlockCore<MpkData>(paths, "mpk", out MpkData loaded);
-            Assert.AreEqual(SaveError.None, error);
-            Assert.AreEqual(77, loaded.Hp);
-            Assert.AreEqual("MemoryPack⑵", loaded.Name);
-        }
-#endif
-
-#if PROTOBUF_INSTALLED
-        [Test]
-        public void ProtobufBackend_RoundTrips()
-        {
-            var paths = Paths("slot");
-            var data = new PbData { Hp = 66, Name = "Proto" };
-
-            _handler.SaveBlockCore(paths, "pb", data, SaveBackendIds.PROTOBUF, 1, CancellationToken.None);
-
-            SaveError error = _handler.TryLoadBlockCore<PbData>(paths, "pb", out PbData loaded);
-            Assert.AreEqual(SaveError.None, error);
-            Assert.AreEqual(66, loaded.Hp);
-            Assert.AreEqual("Proto", loaded.Name);
-        }
-#endif
-
-        [Test]
-        public void Registry_ProvidesAllBinaryBackends()
+        public void Registry_ProvidesBuiltInJsonBackend()
         {
             Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.JSON, out _));
-#if MESSAGEPACK_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.MESSAGE_PACK, out _));
-#endif
-#if MEMORYPACK_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.MEMORY_PACK, out _));
-#endif
-#if PROTOBUF_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.PROTOBUF, out _));
-#endif
         }
 
         [Test]
@@ -315,34 +219,13 @@ namespace Service.Save
         }
 
         [Test]
-        public void Backends_MixedInOneFile_Coexist()
+        public void JsonBackend_InFileRoundTrips()
         {
             var paths = Paths("slot");
             _handler.SaveBlockCore(paths, "json-block", new PlainBox { X = 1 }, SaveBackendIds.JSON, 1, CancellationToken.None);
-#if MESSAGEPACK_INSTALLED
-            _handler.SaveBlockCore(paths, "mp-block", new MpData { Hp = 2, Name = "x" }, SaveBackendIds.MESSAGE_PACK, 1, CancellationToken.None);
-#endif
-#if MEMORYPACK_INSTALLED
-            _handler.SaveBlockCore(paths, "mpk-block", new MpkData { Hp = 3, Name = "y" }, SaveBackendIds.MEMORY_PACK, 1, CancellationToken.None);
-#endif
-#if PROTOBUF_INSTALLED
-            _handler.SaveBlockCore(paths, "pb-block", new PbData { Hp = 4, Name = "z" }, SaveBackendIds.PROTOBUF, 1, CancellationToken.None);
-#endif
 
             Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<PlainBox>(paths, "json-block", out PlainBox a));
             Assert.AreEqual(1, a.X);
-#if MESSAGEPACK_INSTALLED
-            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<MpData>(paths, "mp-block", out MpData b));
-            Assert.AreEqual(2, b.Hp);
-#endif
-#if MEMORYPACK_INSTALLED
-            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<MpkData>(paths, "mpk-block", out MpkData c));
-            Assert.AreEqual(3, c.Hp);
-#endif
-#if PROTOBUF_INSTALLED
-            Assert.AreEqual(SaveError.None, _handler.TryLoadBlockCore<PbData>(paths, "pb-block", out PbData d));
-            Assert.AreEqual(4, d.Hp);
-#endif
         }
 
         #endregion

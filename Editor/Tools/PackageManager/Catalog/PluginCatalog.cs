@@ -13,7 +13,9 @@ namespace Moirai.Atropos.Editor
     /// </remarks>
     internal static class PluginCatalog
     {
-        /// <summary>扫描树路径并解析清单，单文件失败只影响它自己。</summary>
+        /// <summary>
+        /// 扫描树路径并解析清单，单文件失败只影响它自己。
+        /// </summary>
         internal static PluginCatalogResult Build(IReadOnlyList<string> treePaths, Func<string, string> readBlob)
         {
             var result = new PluginCatalogResult();
@@ -70,6 +72,7 @@ namespace Moirai.Atropos.Editor
                 }
 
                 paths.Add(treePath);
+                manifest.SourceTreePath = treePath;
                 result.AddManifest(manifest);
             }
 
@@ -83,7 +86,9 @@ namespace Moirai.Atropos.Editor
             return result;
         }
 
-        /// <summary>按清单文件名的形状拆出目录名与 id，非清单形状返回假。</summary>
+        /// <summary>
+        /// 按清单文件名的形状拆出目录名与 id，非清单形状返回假。
+        /// </summary>
         private static bool TrySplitManifestPath(string treePath, out string folder, out string id)
         {
             folder = null;

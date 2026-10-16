@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Audio
     /// Unity 专属成员（中间件返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。
     /// </remarks>
     [Serializable]
-    internal abstract class AudioServiceHandler : FrameworkHandler
+    public abstract class AudioServiceHandler : FrameworkHandler
     {
         #region 处理器属性 [HANDLER PROPERTIES]
 

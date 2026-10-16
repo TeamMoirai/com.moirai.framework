@@ -17,7 +17,9 @@ namespace Moirai.Atropos.Editor
         /// <summary>没跑成进程时的退出码。</summary>
         internal const int NOT_RUN_EXIT_CODE = -1;
 
-        /// <summary>跑一次 git 并收齐两路输出。</summary>
+        /// <summary>
+        /// 跑一次 git 并收齐两路输出。
+        /// </summary>
         internal static GitRunResult Run(string gitPath, string workingDirectory, string arguments, int timeoutMilliseconds)
         {
             var output = new StringBuilder();
@@ -63,11 +65,38 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        /// <summary>给命令行参数加引号，空格与反斜杠路径靠它不裂变。</summary>
+        /// <summary>给命令行参数加引号：按 Windows 参数解析规则转义引号与反斜杠。</summary>
+        /// <remarks>收尾的反斜杠必须翻倍，否则它会把结束引号吃掉、参数形状就地裂变。</remarks>
         internal static string Quote(string argument)
         {
             if (string.IsNullOrEmpty(argument)) return "\"\"";
-            return "\"" + argument.Replace("\"", "\\\"") + "\"";
+
+            var builder = new StringBuilder(argument.Length + 2);
+            builder.Append('"');
+
+            int backslashes = 0;
+            for (int i = 0; i < argument.Length; i++)
+            {
+                char c = argument[i];
+                if (c == '\\')
+                {
+                    backslashes++;
+                    continue;
+                }
+
+                if (c == '"') builder.Append('\\', backslashes * 2 + 1).Append('"');
+                else
+                {
+                    builder.Append('\\', backslashes);
+                    builder.Append(c);
+                }
+
+                backslashes = 0;
+            }
+
+            builder.Append('\\', backslashes * 2);
+            builder.Append('"');
+            return builder.ToString();
         }
 
         private static void Append(StringBuilder builder, string line)
