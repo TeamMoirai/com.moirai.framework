@@ -298,20 +298,17 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
-        /// 把本轮显式切换受理到的语言记进存档；没受理（语言没发行、重复选当前语言、切换在进行中）时不动存档。
+        /// 把本轮显式切换受理到的语言记进配置项；没受理（语言没发行、重复选当前语言、切换在进行中）时不动配置项。
         /// </summary>
         /// <remarks>
-        /// 持久化政策因此只有服务这一处写入点：直接调处理器的代码换语言但不改存档，
+        /// 只写键、不落盘：是否 flush 由设置界面在用户确认时统一决定，预览过又放弃的切换因此不会写进档。 <br />
+        /// 持久化政策的写入点只有服务这一处：直接调处理器的代码换语言但不改配置项，
         /// 首启检测链给的语言也没有写入路径，不会被固化成用户选择。
         /// </remarks>
         private static void PersistAcceptedLanguage(LocalizationServiceHandler handler)
         {
             var accepted = handler.LastAcceptedLanguage;
-            if (accepted == null) return;
-
-            // 服务侧显式 checkpoint：写键与 flush 成对发生，缺了 flush 就只是内存里的下一次启动前有效
-            LocalizationSettingsPolicy.Save(accepted.Code);
-            SettingUtility.Save();
+            if (accepted != null) LocalizationSettingsPolicy.Save(accepted.Code);
         }
 
         /// <summary>

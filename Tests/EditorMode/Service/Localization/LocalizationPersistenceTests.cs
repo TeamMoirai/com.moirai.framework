@@ -6,11 +6,11 @@ using NUnit.Framework;
 
 namespace Service.Localization
 {
-    /// <summary>语言偏好的落盘时机：显式切换恰一次 flush，首启自动解析与直接调处理器都一次都不落。</summary>
+    /// <summary>语言偏好的写入时机：显式切换只写键、一次都不 flush，首启自动解析与直接调处理器连键都不写。</summary>
     /// <remarks>
-    /// 文件后端下 <c>SetString</c> 只改内存字典，没人补 <c>SettingUtility.Save()</c> 就重启即丢——量具换成只记数的
-    /// <see cref="RecordingSettingHandler"/>，判据因此是计数而不是 <c>persistentDataPath</c> 的字节。 <br />
-    /// 写入与 flush 都只在服务的显式入口发生：直接调 <c>handler.ChangeLanguage</c> 换语言不落盘，
+    /// 落盘归设置界面那一次确认：预览过又放弃的切换不该已经写进档，所以服务侧的显式入口只把 Code 记进配置项。
+    /// 量具换成只记数的 <see cref="RecordingSettingHandler"/>，判据因此是计数而不是 <c>persistentDataPath</c> 的字节。 <br />
+    /// 写入点只在服务的显式入口：直接调 <c>handler.ChangeLanguage</c> 换语言不写键，
     /// 首启检测链给出的语言也没有写入路径（两条反格钉的就是这两件事）。
     /// </remarks>
     [TestFixture]
@@ -56,7 +56,7 @@ namespace Service.Localization
         }
 
         [Test]
-        public void ExplicitLanguageSwitchFlushesExactlyOnce()
+        public void ExplicitLanguageSwitchWritesCodeWithoutFlushing()
         {
             var probe = NewEnglishFirstProbe();
             LocalizationService.Internal_UseHandler(probe);
@@ -65,8 +65,8 @@ namespace Service.Localization
                 LocalizationService.ChangeLanguage(Language.Japanese);
 
                 Assert.AreEqual(Language.Japanese, probe.CurrentLanguage, "先确认切换真的发生了");
-                Assert.AreEqual(Language.Japanese.Code, ReadStoredLanguage(_recording), "落盘的是当前语言的 Code");
-                Assert.AreEqual(1, _recording.SaveCount, "用户显式切换必须恰好吃一次 flush：只写键不 flush 等于重启即丢");
+                Assert.AreEqual(Language.Japanese.Code, ReadStoredLanguage(_recording), "写进配置项的是当前语言的 Code");
+                Assert.AreEqual(0, _recording.SaveCount, "显式切换一次都不落盘：落盘时机属于设置界面的确认动作");
             }
             finally
             {

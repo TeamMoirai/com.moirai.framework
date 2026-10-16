@@ -1,10 +1,11 @@
+using System;
 using UnityEditor;
 using UnityEngine;
 
 namespace Moirai.Atropos.Resource.Editor
 {
     /// <summary>
-    /// 资源包名下拉行的唯一构建器：清单取自 <see cref="ResourcePackageBridge.CollectYooAssetPackages"/>（按域缓存），
+    /// 资源包名下拉行的唯一构建器：清单取自 <see cref="ResourcePackageBridge.GetPackageNames"/>（按域缓存），
     /// 显示行缓存随清单换数组实例（<see cref="EditorApplication.projectChanged"/> 后桥重建）或后端默认包名变动而失效重建。
     /// </summary>
     /// <remarks>
@@ -46,7 +47,8 @@ namespace Moirai.Atropos.Resource.Editor
         /// <param name="includeEmptyItem">顶部是否加「留空 · 默认资源包」项（留空即运行时用后端默认资源包）。</param>
         public static GUIContent[] Build(string current, bool includeEmptyItem, out int index, out bool manifestEmpty)
         {
-            string[] names = ResourcePackageBridge.CollectYooAssetPackages();
+            // 后端自报不消费包名轴时桥给 null：三处宿主都在进这里之前挡掉了这种后端，此处再兜一次空清单走占位项
+            string[] names = ResourcePackageBridge.GetPackageNames() ?? Array.Empty<string>();
             if (names.Length == 0)
             {
                 index = -1;

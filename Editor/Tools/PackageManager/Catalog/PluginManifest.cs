@@ -409,8 +409,10 @@ namespace Moirai.Atropos.Editor
                         $"providers[{i}].title 不许含 / \\ 或控制字符，长度上限 {MAX_LABEL_LENGTH}"));
                 }
 
-                // 判据与 requiresUpm 的「空」语义：键缺席=null 表示只随本插件本体，放行；写了（含显式空串）就必须是合法包 id。
-                if (provider.requiresUpm != null && !IsValidUpmPackageId(provider.requiresUpm))
+                // requiresUpm 的「空」有两种写法：键缺席（JsonUtility 留 null）与显式空串，二者同义，
+                // 都按 PluginProvider.requiresUpm 文档的「空表示只随本插件本体」放行；真写了内容才必须是合法包 id。
+                // 这里若把空串判非，PluginCatalog 会因 TryParse 返 false 而 continue，整条插件从目录里少掉。
+                if (!string.IsNullOrEmpty(provider.requiresUpm) && !IsValidUpmPackageId(provider.requiresUpm))
                 {
                     errors.Add(Describe(sourcePath,
                         $"providers[{i}].requiresUpm '{provider.requiresUpm}' 不是小写点分的 UPM 包 id"));

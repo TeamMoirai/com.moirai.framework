@@ -35,8 +35,6 @@
 ### Changed
 
 #### 核心
-- 图形设置的确认入口落盘：`SetResolutionSettings` / `SetFullScreenSettings` / `SetWindowModeSettings` / `SetVSyncSettings` 与 `RemoveSetting` 各在写完后补一次 `SettingUtility.Save()`（此前只写内存，重启回到旧分辨率）
-
 
 - ⚠ 移除默认后端的安装探测自动优选：`LogUtility`/`StringUtility`/`TweenUtility`/`ObjectUtility` 的 `#if` 优选链删除，settings 未配置时一律回退声明默认（DefaultLogHandler/DefaultStringHandler/DefaultTweenHandler/UnityObjectHandler），新建 settings 资产的播种值同步变为声明默认；迁移口径 = 已安装 ZLogger/UnityLogging/ZString/LitMotion/PrimeTween/Fusion 的工程在 `GameAppSettings` 的 Provider 下拉框显式选择后端（已配置工程无感；`InputService` 保留引擎宏分派手写工厂不受影响）
 - ⚠ ZLogger 日志后端移出框架，改由 `plugin` 分支的 `zlogger` 插件提供：`ZLoggerHandler` 与 `ZLoggerBypassUnityDebugLoggerProvider` 从 `Moirai.Atropos` 删除，Runtime asmdef 的 `com.cysharp.zlogger` versionDefine（宏 `ZLOGGER_INSTALLED`）与 `ZLogger.Unity` 引用一并移除；迁移口径 = 经 `Tools/Moirai/Package Manager` 装 `zlogger` 插件（清单自带 `com.cysharp.zlogger` UPM 依赖与自有宏），装完在 `GameAppSettings` 的 Provider 下拉框重选后端（`SerializeReference` 的 `asm:` 随类型迁到插件装配而变），未装插件时日志回落 `DefaultLogHandler`
@@ -51,8 +49,6 @@
 - 真机下 `ResourceServiceSettings.PlayMode` 把 `EditorSimulate` 归一为 `OfflinePlay` 时不再打 Error：静默降级、不回写资产原值也不落一行日志，远程热更随之整体关闭；发行前该字段必须是 `HostPlay`/`WebPlay`（口径已写进 zh/en Resource.md）
 
 #### 音频
-- 音量设置真正落盘：`AudioService.SetSettings()` 与 `RemoveSetting()` 各在写完/清完后补一次 `SettingUtility.Save()`；两处的 `categories == null` 早退会连 flush 一起跳过，已改成条件块。滑杆与静音开关等连续量路径不落盘
-
 
 - 播放链消除 `AudioPlayOptions` 的整份防御性拷贝：全部属性 getter 标 `readonly`，经 `in` 参数读属性不再隐式复制约 190 字节结构体（修复前单次 Play 全链 17-18 处拷贝），序列化形状与公共 API 不变。
 - 并发检查与按 clip 遍历改经声部托管镜像（`PlayingClip`）预过滤：声部全表扫描不再逐个原生读 `AudioSource.clip`（命中才读 `isPlaying`，按 clip 遍历零原生读）；`AudioPlayOptionsSO` 的 `MaximumConcurrentInstances` 检查默认即走此路径。
@@ -70,5 +66,4 @@
 - 语言可用性的判定实现收成一份：公共 `ToLanguage(str, onlySupported)` 在判定档委派处理器的 `ResolvePreference`，同一件事不再有两份实现；`onlySupported` 为真且没有注册处理器时仍退化为身份解析，公共语义逐档不变
 - 「编辑器语言」留空不再当作用户选了一门语言：空串照旧往下走存档、渠道烘焙、系统语言，而它此前会提前返回并把整条链跳掉；切回 Unspecified 也不再走一次语言切换（不白烧该语言的一次性告警闸门）
 - ⚠ 语言存档的写入点从本地化处理器上移到服务：处理器只负责切换，直接调 `handler.ChangeLanguage(...)` 的代码不再写存档；键名与读写口径的定义处只剩 `LocalizationSettingsPolicy`，外观的检测链也从那里读存档
-- 显式切换在数据未就绪时也落存档（按处理器记下的切换意图当场写，旧口径要等装载完成才写，那次切换最终不在批内时则从不落盘）；首启检测链给的语言因此没有写入路径。存档里存着空值不再算「写过」，渠道烘焙与系统语言照旧参与解析
-- 语言存档真正落盘：服务的显式切换入口写完键后补一次 `SettingUtility.Save()`——此前全仓只有调试器会 flush，文件后端下用户选的语言重启即丢。直接调处理器换语言、以及首启检测链给出的语言都不落盘
+- 显式切换在数据未就绪时也写配置项（按处理器记下的切换意图当场写，旧口径要等装载完成才写，那次切换最终不在批内时则从不写）；首启检测链给的语言因此没有写入路径。配置项里存着空值不再算「写过」，渠道烘焙与系统语言照旧参与解析

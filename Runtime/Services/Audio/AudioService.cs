@@ -207,15 +207,12 @@ namespace Moirai.Atropos.Audio
             handler.SetMasterSettings();
 
             var categories = handler.AudioCategories;
-            if (categories != null)
-            {
-                foreach (var category in categories)
-                {
-                    category?.SetSettings();
-                }
-            }
+            if (categories == null) return;
 
-            SettingUtility.Save();
+            foreach (var category in categories)
+            {
+                category?.SetSettings();
+            }
         }
 
         /// <summary>
@@ -248,15 +245,12 @@ namespace Moirai.Atropos.Audio
             handler.RemoveMasterSetting();
 
             var categories = handler.AudioCategories;
-            if (categories != null)
-            {
-                foreach (var category in categories)
-                {
-                    category?.RemoveSetting();
-                }
-            }
+            if (categories == null) return;
 
-            SettingUtility.Save();
+            foreach (var category in categories)
+            {
+                category?.RemoveSetting();
+            }
         }
 
         #endregion 音轨状态 [TRACK STATUS]

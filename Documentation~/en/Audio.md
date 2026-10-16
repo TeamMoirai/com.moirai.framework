@@ -185,7 +185,7 @@ With `AudioServiceSettings.AutoDuckingOnVoice` (off by default), any active voic
 
 ### When audio settings are flushed
 
-Volume sliders and mute toggles only change runtime state and never persist. The confirmation entries are `AudioService.SetSettings()` and `AudioService.RemoveSetting()`: each writes master plus every track and then flushes once with `SettingUtility.Save()`. Key names, defaults and the 0..1 range clamp are defined in exactly one place, `AudioSettingsPolicy`; backends no longer compose keys themselves.
+Volume sliders and mute toggles only change runtime state and do not even touch the setting. `AudioService.SetSettings()` and `AudioService.RemoveSetting()` write master plus every track into the setting but **never flush on their own** — a volume that was only previewed in the panel and then abandoned must not reach the file, so `SettingUtility.Save()` belongs to the settings UI and runs once when the user confirms. Key names, defaults and the 0..1 range clamp are defined in exactly one place, `AudioSettingsPolicy`; backends no longer compose keys themselves.
 
 ### Occlusion / HRTF
 

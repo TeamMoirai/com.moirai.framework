@@ -212,7 +212,7 @@ AudioService.ResetMixSnapshot(0.25f);
 
 ### 音量设置的落盘时机
 
-音量滑杆与静音开关只改运行期状态，不落盘。把选择写进配置的入口是 `AudioService.SetSettings()` 与 `AudioService.RemoveSetting()`：各自主音量与全部音轨写完后统一 `SettingUtility.Save()` 落盘一次。键名、默认值与 0..1 的值域钳制都只在 `AudioSettingsPolicy` 里定义一处，后端不再自己拼键。
+音量滑杆与静音开关只改运行期状态，连配置项都不写。把选择记进配置的是 `AudioService.SetSettings()` 与 `AudioService.RemoveSetting()`：各自主音量与全部音轨写完后**不自动落盘**——面板上预览过又放弃的音量不该已经写进档，`SettingUtility.Save()` 由设置界面在用户确认的那一步统一调一次。键名、默认值与 0..1 的值域钳制都只在 `AudioSettingsPolicy` 里定义一处，后端不再自己拼键。
 
 ### 遮挡 / HRTF
 
