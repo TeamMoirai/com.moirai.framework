@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using Moirai.Atropos.Resource;
+using Moirai.Atropos.Resource.Editor;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI.Editor
@@ -86,17 +88,11 @@ namespace Moirai.Atropos.UI.Editor
 
         private static string GetAssetBundlePath(string assetPath, UIScriptGenerateData scriptGenerateData, string defaultPath)
         {
-            try
+            // 默认包的寻址位由跟着后端走的探针自报（读不到即没开），框架侧只留这条判定
+            ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
+            if (ResourcePackageBridge.DefaultPackageIsAddressable(handler))
             {
-                var defaultPackage = YooAsset.Editor.BundleCollectorSettingData.Setting.GetPackage("DefaultPackage");
-                if (defaultPackage?.EnableAddressable == true)
-                {
-                    return defaultPath;
-                }
-            }
-            catch
-            {
-                // ignored
+                return defaultPath;
             }
 
             var bundleRoot = scriptGenerateData.UIPrefabRootPath;
