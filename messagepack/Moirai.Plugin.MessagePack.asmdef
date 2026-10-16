@@ -1,0 +1,19 @@
+{
+    "name": "Moirai.Plugin.MessagePack",
+    "rootNamespace": "Moirai.Atropos",
+    "references": [
+        "GUID:24c092aee38482f4e80715eaa8148782"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "MessagePack.dll",
+        "MessagePack.Annotations.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
