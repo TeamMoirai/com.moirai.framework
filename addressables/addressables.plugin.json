@@ -1,0 +1,15 @@
+{
+  "id": "addressables",
+  "name": "Addressables 资源后端",
+  "function": "资源",
+  "description": "Unity Addressables 资源后端（实验性）：装上后 ResourceService 的 Provider 下拉多出「Addressables」，异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收与框架内建的 YooAsset 后端对等，并共用框架那份记录内核（经宿主基类的派生接缝取用）。不装本插件时整支后端不存在，后端仍是默认的 YooAsset，框架其余部分不受影响。前置——工程需装 com.unity.addressables（本插件的 UPM 依赖带它），宏 ADDRESSABLES_INSTALLED 由本插件 asmdef 的 versionDefines 自动定义；异步加载等待用的 ToUniTask 来自 UniTask 的 Addressables 集成。Addressables 没有同步取资产 API 与两步式 Check→Update 下载器，同步取用族与下载族一律抛 GameException fail-fast。",
+  "author": "Team Moirai",
+  "version": "0.1.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": [
+    { "id": "com.unity.addressables", "version": "2.10.3" }
+  ]
+}
