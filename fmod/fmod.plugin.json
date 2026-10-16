@@ -1,0 +1,13 @@
+{
+  "id": "fmod",
+  "name": "FMOD 中间件音频后端",
+  "function": "音频",
+  "description": "FMOD Studio 音频后端：装上后 AudioService 的 Provider 下拉多出「FMOD」，声音库加载、实时参数与事件播放都经 FMOD 原生桥下发；句柄生命周期、总线音量与淡入淡出仍由框架的中间件宿主统一管。安装前置——FMOD 走官方 Unity 集成包（不在 UPM，故本插件无 UPM 依赖），导入后需在脚本后端宏里手写定义 FMOD_INSTALLED，并把集成包的 FMODUnity 装配加进本插件 asmdef 的 references。宏未定义时后端退化到 FMOD 桩桥：生命周期与契约照跑、不出声，用于 CI 与压测；不装本插件则音频只有 Unity 原生后端可选。",
+  "author": "Team Moirai",
+  "version": "0.1.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": []
+}
