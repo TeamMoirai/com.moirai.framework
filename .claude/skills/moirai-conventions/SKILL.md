@@ -1,7 +1,14 @@
 ---
 name: moirai-conventions
-description: Moirai Framework 的规范知识层。写/改本包代码、做检视器接线、跑验证与发版收尾时按需加载对应细则块；主文档只留硬约束与指针。
+description: Moirai Framework convention layer — the single authoritative home for this package's coding, testing, verification and release rules. Load the matching block before changing code, wiring inspector data, running verification or closing out a release; the main doc keeps only hard constraints and pointers.
 ---
+
+## Triggers
+- Writing or changing code in this package (naming, structure, hot-path and engine rules)
+- Writing tests, choosing test layers, or maintaining guards and coverage baselines
+- Deciding whether to test, in what order, and what counts as green
+- Committing, updating docs and CHANGELOG, or closing out a release
+- 写/改本包代码、建用例与选用例分层、决定要不要测与怎么算判绿、提交与文档 CHANGELOG 版本收尾
 
 # Moirai 规范知识层
 

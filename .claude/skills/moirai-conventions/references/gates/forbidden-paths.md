@@ -17,7 +17,6 @@
 | asmref 所在目录 | 外部程序集 | 靠它的是谁 |
 |---|---|---|
 | `Editor/Services/Resource/YooAsset/Internal/` | `YooAsset.Editor` | 该目录及子目录里没有 `asmdef` 的实现（`ClearBuildCache`、`CollectorInspector`、`CustomBuildPipeline`、`CustomCollectRules` 等）整个靠它取类型 |
-| `Runtime/Core/Utilities/Tween/Handler/PrimeTween/AssemblyReference/` | `PrimeTween.Runtime` | 同形态：该目录下的实现没有 `asmdef`，引用只由这份 asmref 提供 |
 
 ## 按名解析的 `Resources/`
 
