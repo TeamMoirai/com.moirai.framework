@@ -17,23 +17,12 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "nunit.framework.dll",
-        "MessagePack.dll",
-        "MessagePack.Annotations.dll",
-        "MemoryPack.Core.dll",
-        "protobuf-net.dll",
-        "protobuf-net.Core.dll",
         "Newtonsoft.Json.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [
         "UNITY_INCLUDE_TESTS"
     ],
-    "versionDefines": [
-        {
-            "name": "com.unity.logging",
-            "expression": "1.0.0",
-            "define": "UNITY_LOGGING_INSTALLED"
-        }
-    ],
+    "versionDefines": [],
     "noEngineReferences": false
 }

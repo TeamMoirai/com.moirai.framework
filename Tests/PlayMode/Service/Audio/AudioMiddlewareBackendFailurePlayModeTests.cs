@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using Moirai.Atropos.Audio;
-using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
 using NUnit.Framework;
 using Testing;
@@ -21,6 +20,12 @@ namespace Service.Audio
     [TestFixture]
     public sealed class AudioMiddlewareBackendFailurePlayModeTests
     {
+        /// <summary>中间件后端的本地替身：失败即整体禁用的降级面全在框架契约基类里，默认桥用同文件的 <see cref="DeadBridge"/>。</summary>
+        private sealed class FailureHandler : MiddlewareAudioHandler
+        {
+            protected override IAudioMiddlewareBridge CreateDefaultBridge() => new DeadBridge();
+        }
+
         /// <summary>
         /// Initialize 返回 false 的假桥，并统计失败后被触达的次数。
         /// </summary>
@@ -98,7 +103,7 @@ namespace Service.Audio
         public void Init_Failed_BridgeIsDroppedAndAudioDisabled()
         {
             var dead = new DeadBridge();
-            var handler = new FmodAudioHandler();
+            var handler = new FailureHandler();
             handler.SetBridge(dead);
 
             UtfLogExpect.Error();
@@ -130,7 +135,7 @@ namespace Service.Audio
         public IEnumerator Init_Failed_TickStaysQuietAcrossFrames()
         {
             var dead = new DeadBridge();
-            var handler = new FmodAudioHandler();
+            var handler = new FailureHandler();
             handler.SetBridge(dead);
 
             UtfLogExpect.Error();
@@ -159,7 +164,7 @@ namespace Service.Audio
         public void Init_Failed_VolumeSurfaceReadsZeroAndIgnoresWrites()
         {
             var dead = new DeadBridge();
-            var handler = new FmodAudioHandler();
+            var handler = new FailureHandler();
             handler.SetBridge(dead);
 
             UtfLogExpect.Error();

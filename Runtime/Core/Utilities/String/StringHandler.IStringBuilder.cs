@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 字符串构建器适配器接口：统一 <see cref="System.Text.StringBuilder"/> 与 <see cref="Cysharp.Text.Utf16ValueStringBuilder"/> 的操作。
+    /// 字符串构建器适配器接口：统一 <see cref="System.Text.StringBuilder"/> 与零分配字符串构建器（ZString 的 Utf16ValueStringBuilder 一类，由 zstring 插件后端接入）的操作。
     /// </summary>
     public partial interface IStringBuilder : IDisposable
     {

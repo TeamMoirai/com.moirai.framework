@@ -27,8 +27,9 @@ namespace Moirai.Atropos.Localization
         [NonSerialized] private readonly List<LanguageChangeSubscription> _subscriptions = new List<LanguageChangeSubscription>();
         [NonSerialized] private LocalizationStore _store;
         [NonSerialized] private Language _currentLanguage;
-        // 当前本地化语言设置来自
-        [NonSerialized] private string _settingSource;
+        // 装配侧交接进来的语言原值与来路；_preferredRaw 为 null 表示「没人交接过」，与空串（选了但未指定）是两种状态
+        [NonSerialized] private string _preferredRaw;
+        [NonSerialized] private string _preferredSource;
         // 本地化数据是否已加载（懒式初始化标记）
         [NonSerialized] private bool _dataLoaded;
         // 数据未就绪期间记录的切换意图（首次加载成功时优先应用，避免启动早期切语言被静默吞掉）
@@ -56,12 +57,67 @@ namespace Moirai.Atropos.Localization
         // 异步预加载在途标记：在途期间同步懒加载按未就绪降级（查询返回 ID 原文），并发 LoadAsync 共享同一任务
         [NonSerialized] private bool _isAsyncLoading;
         [NonSerialized] private UniTask _pendingLoadAsync;
+        // 自报缓存：只在解析那趟问后端一次——候选面被 Inspector 逐拍重绘读到，
+        // 逐拍问后端在未转表（装了兜底后端，每次查询都打 Error）时会把面板与日志一起淹掉
+        [NonSerialized] private bool _exportedResolved;
+        [NonSerialized] private string[] _exportedCodes = Array.Empty<string>();
+        [NonSerialized] private Language[] _exportedLanguages = Array.Empty<Language>();
+        // 自报读取抛出的日志只打一次（成功后复位）
+        [NonSerialized] private bool _hasLoggedSelfReportError;
 
         /// <summary>缺译追踪集合的最大容量。</summary>
         private const int MAX_TRACKED_MISSING_KEYS = 256;
 
-        /// <summary>当前使用的本地化语言。</summary>
-        public Language CurrentLanguage => _currentLanguage ?? LocalizationService.GetCurrentLanguage(true, ref _settingSource);
+        /// <summary>
+        /// 当前使用的本地化语言。没交接过偏好时为 <see cref="Language.Unspecified"/>；
+        /// 交接过但解析不出来时落 <see cref="LocalizationService.DefaultLanguage"/>，连它也没发行时才由首启兜底落到语言表首项。
+        /// </summary>
+        public Language CurrentLanguage
+            => _currentLanguage ?? (_preferredRaw == null ? Language.Unspecified : ResolvePreference(_preferredRaw));
+
+        /// <summary>
+        /// 本轮切换受理到的语言：立即生效时为切换后的当前语言，数据未就绪时为新记下的待应用意图；未被受理时为 null。
+        /// </summary>
+        /// <remarks>
+        /// 每进入一次切换内部实现先复位，服务外观读到的因此必然是<strong>它刚发起的那次</strong>请求的结果，不是上一轮的残留。
+        /// 要不要把用户的选择记进存档由服务决定（见 <see cref="LocalizationService"/> 的切换入口），后端只出这一个读数。
+        /// </remarks>
+        internal Language LastAcceptedLanguage { get; private set; }
+
+        /// <summary>
+        /// 交接语言偏好：原值与来路都由装配侧算好交进来，本处理器不再向外询问。
+        /// </summary>
+        /// <remarks>
+        /// 「没交接过」与「交接过空串」是两种状态：前者算未选（<see cref="CurrentLanguage"/> 给 <see cref="Language.Unspecified"/>），
+        /// 后者仍走身份解析落默认语言。交接点集中在 <see cref="LocalizationService"/> 的偏好交接处——服务要在处理器被查询之前先走一遍检测链，
+        /// 否则首启会兜到语言表首项而不是用户要的语言。
+        /// </remarks>
+        /// <param name="rawValue">检测链给出的语言原值（Name 或 Code）。</param>
+        /// <param name="source">该原值来自哪一路（诊断用：CommandLine / EditorSetting / SavedSetting / ChannelBake / SystemLanguage）。</param>
+        internal void ApplyPreference(string rawValue, string source)
+        {
+            _preferredRaw = rawValue;
+            _preferredSource = source;
+        }
+
+        /// <summary>最近一次交接进来的偏好来路（诊断与切换日志用；没交接过时为 null）。</summary>
+        internal string AppliedPreferenceSource => _preferredSource;
+
+        /// <summary>
+        /// 语言偏好原值的解析入口（唯一实现）：身份按内置语言表解析，可用性按<b>本处理器</b>已装载的语言批判。
+        /// </summary>
+        /// <remarks>
+        /// 认不出、或批已就绪但本批没有该语言时落 <see cref="LocalizationService.DefaultLanguage"/>；批未就绪时退化为身份解析。
+        /// 外观的 <see cref="LocalizationService.ToLanguage(string,bool)"/> 在 onlySupported 档委派到这里，
+        /// 判定实现因此只有一份——独立实例（Settings 里那份预览用的、测试直建的探针）不该被「已注册的另一个处理器」的批态改写答案。
+        /// </remarks>
+        internal Language ResolvePreference(string rawValue)
+        {
+            if (string.IsNullOrEmpty(rawValue)) return LocalizationService.DefaultLanguage;
+            if (!LocalizationService.TryGetBuiltInLanguage(rawValue, out var language)) return LocalizationService.DefaultLanguage;
+
+            return _dataLoaded && !IsLanguageAvailable(language) ? LocalizationService.DefaultLanguage : language;
+        }
 
         /// <summary>当前语言索引（数据未就绪或语言未解析时为 -1）。</summary>
         public int CurrentLanguageIndex
@@ -93,6 +149,90 @@ namespace Moirai.Atropos.Localization
                 EnsureLocalizedStringsLoaded();
                 return Store.Batch.Languages;
             }
+        }
+
+        /// <summary>
+        /// 覆写点：本数据源自报的语言代码序列，顺序即批内列序；默认不自报。
+        /// </summary>
+        /// <remarks>
+        /// 只在解析那趟被问一次：结果连同解析出的语言一起缓存（见 <see cref="ExportedLanguageCodes"/> 与 <see cref="ExportedLanguages"/>），
+        /// 所以候选面每次重绘不会再打后端——未转表时装了兜底后端的场景，逐拍打 Error 会把 Inspector 与日志一起淹掉。 <br />
+        /// 自报集合发生变化（换后端、热更下发）时调 <see cref="InvalidateExportedLanguages"/>；成功换批与整批重载已自动作废缓存。
+        /// </remarks>
+        protected virtual IReadOnlyList<string> SelfReportedLanguageCodes() => Array.Empty<string>();
+
+        /// <summary>
+        /// 本数据源自报的语言代码，顺序即批内列序；没有语言可报的后端为空。
+        /// </summary>
+        /// <remarks>
+        /// 与 <see cref="LoadedLanguages"/> 的分工：本成员答「数据源有哪几门语言」，<b>不触发装载</b>，非播放态与服务未注册时都能读；
+        /// 那份答「当前批内收录了哪几门」，读它会懒加载。语言真相源只有「数据源自报」这一条，框架不回落任何全局注册表。 <br />
+        /// 要列语言选项目标请优先用 <see cref="ExportedLanguages"/>：本成员是后端交出的原样序列，可能含空码与重码。
+        /// </remarks>
+        public IReadOnlyList<string> ExportedLanguageCodes
+        {
+            get
+            {
+                EnsureExportedLanguages();
+                return _exportedCodes;
+            }
+        }
+
+        /// <summary>
+        /// 自报代码解析成的语言，已去空码与去重码——认不出的码按自定义语言直通；不自报时为空。
+        /// </summary>
+        /// <remarks>
+        /// 解析只走 <see cref="LocalizationService.ResolveLanguages"/> 这一个入口，与装批、编辑器预览同一套语言口径。
+        /// 因去空去重，本序列可能比 <see cref="ExportedLanguageCodes"/> 短，两者的下标不保证互相指向同一门语言。
+        /// </remarks>
+        public IReadOnlyList<Language> ExportedLanguages
+        {
+            get
+            {
+                EnsureExportedLanguages();
+                return _exportedLanguages;
+            }
+        }
+
+        /// <summary>作废自报缓存，下次访问重新问后端。</summary>
+        /// <remarks>换批与整批重载会自动调用；只有「后端自己换了集合」才需要外部显式调用。</remarks>
+        internal void InvalidateExportedLanguages()
+        {
+            _exportedResolved = false;
+        }
+
+        private void EnsureExportedLanguages()
+        {
+            if (_exportedResolved) return;
+
+            IReadOnlyList<string> reported;
+            try
+            {
+                reported = SelfReportedLanguageCodes();
+                _hasLoggedSelfReportError = false;
+            }
+            catch (Exception ex)
+            {
+                // 自报面会被 Inspector 的重绘路径读到：后端抛出不能打断绘制，也不能每拍刷一条
+                reported = Array.Empty<string>();
+                if (!_hasLoggedSelfReportError)
+                {
+                    _hasLoggedSelfReportError = true;
+                    LogUtility.Error("Failed to read the language self-report from {0}: {1}", GetType().Name, ex);
+                }
+            }
+
+            if (reported == null) reported = Array.Empty<string>();
+
+            // 留住一份自己的副本：后端返回可增删的列表时，原地改写不该悄悄改变已解析的结果
+            var codes = new string[reported.Count];
+            for (var i = 0; i < codes.Length; i++) codes[i] = reported[i];
+
+            _exportedCodes = codes;
+            _exportedLanguages = codes.Length == 0
+                ? Array.Empty<Language>()
+                : LocalizationService.ResolveLanguages(codes).ToArray();
+            _exportedResolved = true;
         }
 
         /// <summary>已加载的词条数（数据未就绪时为 0）。</summary>
@@ -167,10 +307,15 @@ namespace Moirai.Atropos.Localization
         protected override void OnShutdown()
         {
             _currentLanguage = null;
-            _settingSource = string.Empty;
+            _preferredRaw = null;
+            _preferredSource = null;
             _dataLoaded = false;
             _pendingLanguage = null;
+            LastAcceptedLanguage = null;
             _hasLoggedLoadError = false;
+            _hasLoggedSelfReportError = false;
+            // 自报缓存随会话作废：下一次取数重新问后端（换后端、换批都在这一趟之后）
+            _exportedResolved = false;
             _hasLoggedNoLanguage = false;
             _hasLoggedFormatError = false;
             _currentLanguageIndex = -1;
@@ -202,6 +347,15 @@ namespace Moirai.Atropos.Localization
         }
 
         #region 数据源 [DATA SOURCE]
+
+        /// <summary>
+        /// 编辑器预览用的一批词条（基类不提供）。
+        /// </summary>
+        /// <remarks>
+        /// 预览要同时看到所有语言列，且必须在没有服务世界时成立，因此取数由每个数据源自己实现。
+        /// 返回 <c>null</c> 即「本后端不给预览」，调用侧按不可用降级（组件显示 ID），基类不代取也不回落任何全局表。
+        /// </remarks>
+        internal virtual LocalizationTextBatch LoadEditorPreviewBatch() => null;
 
         /// <summary>
         /// 加载一批本地化词条（推荐扩展点）。
@@ -349,11 +503,11 @@ namespace Moirai.Atropos.Localization
         private void CompleteLoad()
         {
             _dataLoaded = true;
-            // 未就绪期间记录的切换意图优先于首启检测链（该意图来自显式 ChangeLanguage，按用户切换语义持久化）；
-            // 无意图时首次自动解析不持久化设置，避免把系统语言固化进存档
+            // 未就绪期间记录的切换意图优先于首启检测链（那份意图是用户的显式选择，服务发起时就把语言记进了存档）；
+            // 没有意图时走首启检测，检测出来的语言不落存档——要不要记住用户的选择从来不由后端决定
             var pending = _pendingLanguage;
             _pendingLanguage = null;
-            ChangeLanguage(pending ?? ResolveInitialLanguage(), true, pending != null);
+            ApplyLanguage(pending ?? ResolveInitialLanguage(), true);
         }
 
         /// <summary>
@@ -458,6 +612,8 @@ namespace Moirai.Atropos.Localization
                 // 成功即复位闸门：之后再次失败（热更包损坏等）仍应能上报，而不是永久哑火
                 _hasLoggedLoadError = false;
                 _hasLoggedNoLanguage = false;
+                // 换批即换数据形态：自报缓存跟着作废，热更后语言集合变化才能立刻反映到候选面
+                InvalidateExportedLanguages();
                 LogUtility.Info("Load Localized Text Success! [{0}] {1} entries x {2} languages",
                     batch.SourceId, batch.Strings.Count, batch.Languages.Length);
                 return;
@@ -521,7 +677,7 @@ namespace Moirai.Atropos.Localization
             var currentIndex = Store.IndexOf(_currentLanguage);
             if (currentIndex < 0)
             {
-                ChangeLanguage(ResolveInitialLanguage(), true, false);
+                ApplyLanguage(ResolveInitialLanguage(), true);
                 return;
             }
 
@@ -577,7 +733,7 @@ namespace Moirai.Atropos.Localization
             if (currentIndex < 0)
             {
                 // 当前语言被热更砍掉：走完整切换流程重选（列装载含在其中）
-                ChangeLanguage(ResolveInitialLanguage(), true, false);
+                ApplyLanguage(ResolveInitialLanguage(), true);
                 return;
             }
 
@@ -610,21 +766,25 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <param name="language">例如：<see cref="Language.ChineseSimplified"/>。</param>
         /// <param name="logSource">是否打印设置来源。</param>
-        public void ChangeLanguage(Language language, bool logSource = false) => ChangeLanguage(language, logSource, true);
+        /// <remarks>要不要把这次选择记进存档由 <see cref="LocalizationService"/> 的切换入口决定；直接调处理器的代码因此不写存档。</remarks>
+        public void ChangeLanguage(Language language, bool logSource = false) => ApplyLanguage(language, logSource);
 
         /// <summary>
-        /// 更改当前语言的内部实现。
+        /// 更改当前语言的内部实现，并把本轮受理结果记进 <see cref="LastAcceptedLanguage"/>。
         /// </summary>
-        /// <param name="persist">是否持久化设置；仅用户显式切换为 true，首次自动解析不写入，避免固化系统语言。</param>
-        private void ChangeLanguage(Language language, bool logSource, bool persist)
+        /// <param name="language">目标语言。</param>
+        /// <param name="logSource">是否打印设置来源。</param>
+        private void ApplyLanguage(Language language, bool logSource)
         {
             if (_isSwitching)
             {
                 // 注入回调内嵌套切换会让快照与事件顺序失效，且极易造成无限递归
+                // 拒收的一趟不动受理标记，否则会抹掉外层那次的结果
                 LogUtility.Error("ChangeLanguage({0}) is ignored: another language switch is already in progress.", language);
                 return;
             }
 
+            LastAcceptedLanguage = null;
             EnsureLocalizedStringsLoaded();
 
             if (Store.LanguageCount == 0)
@@ -632,6 +792,8 @@ namespace Moirai.Atropos.Localization
                 // 数据未就绪（配置表未生成/包未下载完）：记录切换意图，首次加载成功时优先应用，
                 // 用户在启动早期改语言不该被静默吞掉后落回检测链默认
                 _pendingLanguage = language;
+                // 意图就是用户点的那门语言：受理即回报，服务据此落存档（等它真的装上才写会把早上的选择留在窗外）
+                LastAcceptedLanguage = language;
                 LogNoLanguageOnce();
                 return;
             }
@@ -657,8 +819,8 @@ namespace Moirai.Atropos.Localization
                 ReinjectLocalizers();
                 RaiseLanguageChanged(_currentLanguage);
 
-                if (persist) SettingUtility.SetString(GameConstant.Setting.LANGUAGE, _currentLanguage.Code);
-                LogUtility.Info($"Change the language: {_currentLanguage}{(logSource ? $"(by {_settingSource})" : "")}");
+                LastAcceptedLanguage = _currentLanguage;
+                LogUtility.Info($"Change the language: {_currentLanguage}{(logSource ? $"(by {_preferredSource})" : "")}");
             }
             finally
             {

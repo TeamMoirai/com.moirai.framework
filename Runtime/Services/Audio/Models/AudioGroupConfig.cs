@@ -83,8 +83,8 @@ namespace Moirai.Atropos.Audio
         {
             if (_keysCached) return;
 
-            _muteSettingKey = StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_MUTED, m_AudioTrack);
-            _volumeSettingKey = StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_VOLUME, m_AudioTrack);
+            _muteSettingKey = AudioSettingsPolicy.TrackMutedKey(m_AudioTrack);
+            _volumeSettingKey = AudioSettingsPolicy.TrackVolumeKey(m_AudioTrack);
             _mixerVolumeParam = StringUtility.Format("{0}Volume",
                 m_AudioMixerGroup != null ? m_AudioMixerGroup.name : m_AudioTrack.ToString());
             _keysCached = true;
@@ -140,8 +140,8 @@ namespace Moirai.Atropos.Audio
         public void SetSettings()
         {
             EnsureCachedKeys();
-            SettingUtility.SetBool(_muteSettingKey, _isMuted);
-            SettingUtility.SetFloat(_volumeSettingKey, _volume);
+            AudioSettingsPolicy.SaveMuted(_muteSettingKey, _isMuted);
+            AudioSettingsPolicy.SaveVolume(_volumeSettingKey, _volume);
         }
 
         /// <summary>
@@ -150,9 +150,9 @@ namespace Moirai.Atropos.Audio
         public void LoadSettings()
         {
             EnsureCachedKeys();
-            _isMuted = SettingUtility.GetBool(_muteSettingKey, false);
+            _isMuted = AudioSettingsPolicy.LoadMuted(_muteSettingKey);
             // 存量值可能写于上限还是 10 的年代：Volume 是对外可读的，读回来就得在契约值域内
-            _volume = Mathf.Clamp01(SettingUtility.GetFloat(_volumeSettingKey, m_DefaultVolume));
+            _volume = AudioSettingsPolicy.LoadVolume(_volumeSettingKey, m_DefaultVolume);
 
             ApplyTrackVolume();
         }
@@ -163,11 +163,10 @@ namespace Moirai.Atropos.Audio
         public void RemoveSetting()
         {
             EnsureCachedKeys();
-            SettingUtility.RemoveSetting(_muteSettingKey);
-            SettingUtility.RemoveSetting(_volumeSettingKey);
+            AudioSettingsPolicy.RemovePair(_muteSettingKey, _volumeSettingKey);
 
-            _isMuted = false;
-            _volume = Mathf.Clamp01(m_DefaultVolume);
+            _isMuted = AudioSettingsPolicy.DefaultMuted;
+            _volume = AudioSettingsPolicy.NormalizeVolume(m_DefaultVolume);
             ApplyTrackVolume();
         }
 

@@ -33,7 +33,9 @@ namespace Moirai.Atropos.Editor
 
         internal void AddError(string error) => _errors.Add(error);
 
-        /// <summary>把撞名的 id 从索引与清单里一起撤掉。</summary>
+        /// <summary>
+        /// 把撞名的 id 从索引与清单里一起撤掉。
+        /// </summary>
         internal void RejectConflictingId(string id)
         {
             _byId.Remove(id);

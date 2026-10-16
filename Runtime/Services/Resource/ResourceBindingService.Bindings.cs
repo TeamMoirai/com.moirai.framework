@@ -186,7 +186,7 @@ namespace Moirai.Atropos.Resource
                 return reserveStatus;
             }
 
-            // 取用抛出时必须先取消预约位：后端未实现该异步能力时无条件抛（见 AddressableHandler），
+            // 取用抛出时必须先取消预约位：后端未实现该异步能力时无条件抛（见 addressables 插件提供的实验性后端），
             // 而抛出的预约位形状是"有目标、有版本号、无租约无资源"——除所有者释放外无人再收它。
             ResourceLeaseHandle newLease;
             try

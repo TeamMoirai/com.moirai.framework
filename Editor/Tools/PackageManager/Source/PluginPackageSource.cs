@@ -39,6 +39,66 @@ namespace Moirai.Atropos.Editor
             _gitPath = gitPath;
         }
 
+        /// <summary>
+        /// 分支名与源地址的形状守卫：任何拼进 git 的标识都先在这里收住。
+        /// </summary>
+        private bool TryGuardNames(out string failureReason, bool requireRepoUrl)
+        {
+            if (!IsSafeBranchName(_branch))
+            {
+                failureReason = $"分支名 '{_branch}' 不合约定：只许字母数字与 . _ - /，不得以 - . / 开头、不得含 ..";
+                return false;
+            }
+
+            if (requireRepoUrl && !IsSafeRepoUrl(_repoUrl))
+            {
+                failureReason = "源地址形状不合约定：不得以 - 开头（会被当选项），不得含引号与控制字符";
+                return false;
+            }
+
+            failureReason = null;
+            return true;
+        }
+
+        /// <summary>
+        /// 分支名可否原样拼进 git：拒选项形状、空白与上跳段。
+        /// </summary>
+        private static bool IsSafeBranchName(string branch)
+        {
+            if (string.IsNullOrEmpty(branch)) return false;
+            if (branch[0] == '-' || branch[0] == '.' || branch[0] == '/') return false;
+            if (branch[branch.Length - 1] == '/' || branch[branch.Length - 1] == '.') return false;
+            if (branch.IndexOf("..", StringComparison.Ordinal) >= 0) return false;
+
+            for (int i = 0; i < branch.Length; i++)
+            {
+                char c = branch[i];
+                bool allowed = (c >= 'a' && c <= 'z')
+                               || (c >= 'A' && c <= 'Z')
+                               || (c >= '0' && c <= '9')
+                               || c == '.' || c == '_' || c == '-' || c == '/';
+                if (!allowed) return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 源地址可否安全加引号交给 git。
+        /// </summary>
+        private static bool IsSafeRepoUrl(string repoUrl)
+        {
+            if (string.IsNullOrEmpty(repoUrl) || repoUrl[0] == '-') return false;
+
+            for (int i = 0; i < repoUrl.Length; i++)
+            {
+                char c = repoUrl[i];
+                if (c == '"' || char.IsControl(c)) return false;
+            }
+
+            return true;
+        }
+
         /// <summary>落点工作树目录。</summary>
         internal string WorkingDirectory => _workingDirectory;
 
@@ -51,7 +111,9 @@ namespace Moirai.Atropos.Editor
         /// <summary>落点存在且是 git 工作树。</summary>
         internal bool IsGitWorkspace => WorkspaceExists && Directory.Exists(Path.Combine(_workingDirectory, ".git"));
 
-        /// <summary>按需建检出：部分克隆 + 不物化 + 单分支，cone 初始为空集。</summary>
+        /// <summary>
+        /// 按需建检出：部分克隆 + 不物化 + 单分支，cone 初始为空集。
+        /// </summary>
         internal bool EnsureClone(out string failureReason)
         {
             if (Directory.Exists(_workingDirectory))
@@ -69,6 +131,12 @@ namespace Moirai.Atropos.Editor
             if (string.IsNullOrEmpty(_repoUrl))
             {
                 failureReason = "源地址为空，无法建检出";
+                return false;
+            }
+
+            if (!TryGuardNames(out string nameReason, true))
+            {
+                failureReason = nameReason;
                 return false;
             }
 
@@ -96,7 +164,9 @@ namespace Moirai.Atropos.Editor
             return false;
         }
 
-        /// <summary>摆正分支：把本地分支对齐到 origin 上的分支，并物化当前勾选集内的文件。</summary>
+        /// <summary>
+        /// 摆正分支：把本地分支对齐到 origin 上的分支，并物化当前勾选集内的文件。
+        /// </summary>
         internal bool EnsureBranchAttached(out string failureReason)
         {
             if (!IsGitWorkspace)
@@ -104,6 +174,8 @@ namespace Moirai.Atropos.Editor
                 failureReason = "落点还不是 git 工作树，先建检出";
                 return false;
             }
+
+            if (!TryGuardNames(out failureReason, false)) return false;
 
             // --no-checkout 的克隆已经建好 refs/heads/<branch> 却留空工作树：HEAD 已诞生不等于分支已摆正，
             // 因此这里一律走一次 checkout——已在目标分支且内容一致时 git 自己会跳过写入。
@@ -114,7 +186,16 @@ namespace Moirai.Atropos.Editor
                 return false;
             }
 
-            GitRunResult checkout = RunQuery($"checkout -B {GitProcessUtility.Quote(_branch)} refs/remotes/origin/{_branch}",
+            // checkout -B 会把本地分支强行挪到 origin 那份：未推送的本地提交会从分支上掉下去
+            // （工作树却是干净的，脏树门禁拦不住它）。落点同时也是插件作者的提交现场，故先问一句。
+            if (!IsLocalBranchAheadOfOrigin(out string aheadReason))
+            {
+                failureReason = aheadReason;
+                return false;
+            }
+
+            GitRunResult checkout = RunQuery(
+                $"checkout -B {GitProcessUtility.Quote(_branch)} {GitProcessUtility.Quote("refs/remotes/origin/" + _branch)}",
                 out _, out _);
             if (!checkout.Ok)
             {
@@ -126,15 +207,52 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>取分支头，只拉 commit 与 tree。</summary>
+        /// <summary>本地分支是否领先 origin（有未推送提交）；领先即拒绝摆正，绝不静默丢提交。</summary>
+        private bool IsLocalBranchAheadOfOrigin(out string failureReason)
+        {
+            GitRunResult head = RunQuery("rev-parse --verify --quiet HEAD", out _, out _);
+            if (!head.Ok)
+            {
+                failureReason = null;
+                return true;
+            }
+
+            GitRunResult ahead = RunQuery($"rev-list --count refs/remotes/origin/{_branch}..HEAD",
+                out string countText, out _);
+            if (!ahead.Ok)
+            {
+                failureReason = null;
+                return true;
+            }
+
+            int count = 0;
+            int.TryParse(countText.Trim(), out count);
+            if (count <= 0)
+            {
+                failureReason = null;
+                return true;
+            }
+
+            failureReason = $"落点分支 '{_branch}' 有 {count} 次未推送的提交，摆正分支会把它们从分支上挪走：" +
+                            $"{_workingDirectory}　先推送或另挪分支再装卸";
+            return false;
+        }
+
+        /// <summary>
+        /// 取分支头，只拉 commit 与 tree。
+        /// </summary>
         internal bool Fetch(out string failureReason)
         {
+            if (!TryGuardNames(out failureReason, false)) return false;
+
             GitRunResult result = RunQuery($"fetch --filter=blob:none origin {GitProcessUtility.Quote(_branch)}", out _, out _);
             failureReason = result.Ok ? null : $"fetch 失败：{result.FailureReason()}";
             return result.Ok;
         }
 
-        /// <summary>报 HEAD 所在分支与工作树脏否；分离头指针时分支名为空。</summary>
+        /// <summary>
+        /// 报 HEAD 所在分支与工作树脏否；分离头指针时分支名为空。
+        /// </summary>
         internal bool TryDescribeHead(out string headBranch, out bool isDirty, out string failureReason)
         {
             headBranch = null;
@@ -154,7 +272,9 @@ namespace Moirai.Atropos.Editor
             return status.Ok;
         }
 
-        /// <summary>取当前 HEAD 的提交号。</summary>
+        /// <summary>
+        /// 取当前 HEAD 的提交号。
+        /// </summary>
         internal bool TryHeadCommit(out string commit, out string failureReason)
         {
             GitRunResult result = RunQuery("rev-parse HEAD", out string text, out _);
@@ -163,7 +283,9 @@ namespace Moirai.Atropos.Editor
             return result.Ok;
         }
 
-        /// <summary>列整棵树的路径，勾选外的目录也在。</summary>
+        /// <summary>
+        /// 列整棵树的路径，勾选外的目录也在。
+        /// </summary>
         internal bool TryListPaths(out List<string> paths, out string failureReason)
         {
             GitRunResult result = RunQuery("ls-tree -r --name-only HEAD", out string text, out _);
@@ -172,13 +294,17 @@ namespace Moirai.Atropos.Editor
             return result.Ok;
         }
 
-        /// <summary>读一个树路径在 HEAD 上的文本内容。</summary>
+        /// <summary>
+        /// 读一个树路径在 HEAD 上的文本内容。
+        /// </summary>
         internal bool TryReadBlob(string treePath, out string text, out string failureReason)
         {
             return TryReadBlobAt(treePath, "HEAD", out text, out failureReason);
         }
 
-        /// <summary>读某修订下一个树路径的文本内容（装历史版本得看那一次写下的清单）。</summary>
+        /// <summary>
+        /// 读某修订下一个树路径的文本内容（装历史版本得看那一次写下的清单）。
+        /// </summary>
         internal bool TryReadBlobAt(string treePath, string revision, out string text, out string failureReason)
         {
             text = null;
@@ -200,7 +326,9 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>取某修订下某路径的 tree 或 blob 哈希，路径不在该修订时判非。</summary>
+        /// <summary>
+        /// 取某修订下某路径的 tree 或 blob 哈希，路径不在该修订时判非。
+        /// </summary>
         internal bool TryTreeHash(string treePath, string revision, out string hash, out string failureReason)
         {
             hash = null;
@@ -318,7 +446,9 @@ namespace Moirai.Atropos.Editor
             return restored.Ok;
         }
 
-        /// <summary>把 cone 勾选集换成这批目录名，只物化它们与根文件。</summary>
+        /// <summary>
+        /// 把 cone 勾选集换成这批目录名，只物化它们与根文件。
+        /// </summary>
         internal bool ApplySparsePaths(IReadOnlyList<string> ids, out string failureReason)
         {
             if (ids == null)
@@ -349,7 +479,9 @@ namespace Moirai.Atropos.Editor
             return result.Ok;
         }
 
-        /// <summary>修订可否交给 git：拒绝空、选项形状、空白与 <c>: ~ ^</c>（会与 <c>&lt;rev&gt;:&lt;path&gt;</c> 或修订运算符混义）。</summary>
+        /// <summary>
+        /// 修订可否交给 git：拒绝空、选项形状、空白与 <c>: ~ ^</c>（会与 <c>&lt;rev&gt;:&lt;path&gt;</c> 或修订运算符混义）。
+        /// </summary>
         private static bool IsSafeRevision(string revision)
         {
             if (string.IsNullOrEmpty(revision) || revision[0] == '-') return false;
@@ -363,7 +495,9 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>树路径可否交给 git：拒绝选项形状、绝对形状与上跳段。</summary>
+        /// <summary>
+        /// 树路径可否交给 git：拒绝选项形状、绝对形状与上跳段。
+        /// </summary>
         private static bool IsSafeTreePath(string treePath)
         {
             if (string.IsNullOrEmpty(treePath)) return false;

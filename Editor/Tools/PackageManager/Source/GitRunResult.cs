@@ -29,7 +29,9 @@ namespace Moirai.Atropos.Editor
         /// <summary>标准错误全文，超时与启动失败时写的是原因。</summary>
         internal string StandardError { get; }
 
-        /// <summary>取一行可直接展示的失败原因；成功时为空。</summary>
+        /// <summary>
+        /// 取一行可直接展示的失败原因；成功时为空。
+        /// </summary>
         internal string FailureReason()
         {
             if (Ok) return null;

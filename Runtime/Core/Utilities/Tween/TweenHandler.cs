@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// 缓动动画处理器抽象基类。
     /// </summary>
     /// <remarks>
-    /// 实现方可为 PrimeTween、LitMotion、DOTween 或自研引擎。 <br />
+    /// 实现方可为框架内置的自研引擎，也可为以插件发行的第三方补间后端（如 PrimeTween、LitMotion、DOTween）。 <br />
     /// 所有缓动方法统一接收 <see cref="TweenEase"/>，实现方可用 <see cref="TweenEase.IsCurve"/> / <see cref="TweenEase.IsEase"/>
     /// 判断并转换为自身格式，也可直接调用 <see cref="TweenEase.Evaluate(float)"/>。
     /// </remarks>
@@ -121,7 +121,7 @@ namespace Moirai.Atropos
         /// 任何结束原因（自然完成/Complete/Stop/目标销毁/清理）均正常返回，不区分死因；仅外部 CancellationToken 取消抛 <see cref="OperationCanceledException"/>（放弃等待， <br />
         /// tween 不被停止）。 <br />
         /// 基类默认实现为逐帧轮询兜底（async Yield 循环，无闭包/无每帧委托分配，判定晚一帧）； <br />
-        /// <see cref="DefaultTweenHandler"/> / <see cref="LitMotionHandler"/> 覆写为完成信号即时版本，<see cref="PrimeTweenHandler"/> 覆写为同构轮询版。
+        /// <see cref="DefaultTweenHandler"/> 覆写为完成信号即时版本；插件侧的 LitMotion 后端同为即时版本，PrimeTween 后端覆写为同构轮询版。
         /// </remarks>
         public virtual async UniTask WaitAsync(long tweenId, CancellationToken cancellationToken = default)
         {

@@ -10,6 +10,7 @@
 Runtime/Services/Audio/
 ├── AudioService.cs / AudioServiceHandler.cs / AudioServiceSettings.cs   # 门面四件套（平铺在模块根）
 ├── AudioServiceDebuggerWindow.cs                            # 主音量与五条音轨的实时控制
+├── AudioSettingsPolicy.cs                                   # 设置键名、默认值与音量值域钳制的唯一定义处
 ├── Handler/                     # 可换后端缝
 │   ├── UnityAudioHandler.cs   # 默认 Unity 后端
 │   ├── Middleware/            # FMOD/Wwise 共用：IAudioMiddlewareBridge + 两条窄能力接口 + 共用基类 + EAudioBankLoadResult

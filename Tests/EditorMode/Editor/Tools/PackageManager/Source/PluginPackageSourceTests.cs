@@ -210,6 +210,43 @@ namespace Editor.Tools.PackageManager
         }
 
         [Test]
+        public void Quote_DoublesTrailingBackslashSoTheClosingQuoteSurvives()
+        {
+            Assert.AreEqual("\"\"", GitProcessUtility.Quote(string.Empty));
+            Assert.AreEqual("\"plain\"", GitProcessUtility.Quote("plain"));
+            Assert.AreEqual("\"a b\"", GitProcessUtility.Quote("a b"));
+            Assert.AreEqual("\"a\\b\"", GitProcessUtility.Quote("a\\b"));
+            Assert.AreEqual("\"a\\\\\"", GitProcessUtility.Quote("a\\"), "收尾反斜杠会吃掉结束引号，必须翻倍");
+            Assert.AreEqual("\"a\\\"b\"", GitProcessUtility.Quote("a\"b"));
+        }
+
+        [TestCase("bad branch")]
+        [TestCase("-looked-like-option")]
+        [TestCase("../escape")]
+        [TestCase("trailing.")]
+        public void EnsureBranchAttached_MalformedBranchName_RejectsBeforeReachingGit(string branch)
+        {
+            Assert.IsTrue(NewSource().EnsureClone(out string cloneReason), cloneReason);
+            var source = new PluginPackageSource(_workspace, RepoUrl(), branch, null);
+
+            Assert.IsFalse(source.EnsureBranchAttached(out string attachReason), branch);
+            StringAssert.Contains("不合约定", attachReason);
+
+            Assert.IsFalse(source.Fetch(out string fetchReason), branch);
+            StringAssert.Contains("不合约定", fetchReason);
+        }
+
+        [Test]
+        public void EnsureClone_MalformedRepoUrl_RejectsBeforeReachingGit()
+        {
+            var source = new PluginPackageSource(_workspace, "-u:ext::sh -c whoami", Branch, null);
+
+            Assert.IsFalse(source.EnsureClone(out string failureReason));
+            StringAssert.Contains("源地址形状", failureReason);
+            Assert.IsFalse(Directory.Exists(_workspace), "形状不过就不该开始建检出");
+        }
+
+        [Test]
         public void TryListManifestHistory_SameVersionInTwoRevisions_KeepsTheNewerOne()
         {
             // 中间夹一次 0.1.1：第二次 0.1.0 必须真的改动清单，否则 git log -- 路径 根本不列那次提交
@@ -282,6 +319,32 @@ namespace Editor.Tools.PackageManager
             StringAssert.Contains("不符合字符集", failureReason);
         }
 
+        [Test]
+        public void EnsureBranchAttached_UnpushedLocalCommit_RefusesInsteadOfRewinding()
+        {
+            PluginPackageSource source = CloneAndAttach();
+            Assert.IsTrue(source.ApplySparsePaths(new[] { "blackboard" }, out string sparseReason), sparseReason);
+
+            string authored = Path.Combine(_workspace, "blackboard", "AuthorWork.cs");
+            File.WriteAllText(authored, "// 插件作者在本地的提交内容\n");
+            RunInWorkspace("add -A");
+            RunInWorkspace("-c user.email=author@test -c user.name=author commit -qm \"author local commit\"");
+
+            Assert.AreEqual(1, CountAheadOfOrigin(), "夹具自己要先真有一条未推送提交");
+            GitRunResult status = GitProcessUtility.Run(null, _workspace, "status --porcelain", 60000);
+            AssertIsEmpty(status.StandardOutput, "工作树必须干净，否则先被脏树门禁兜住，测不到这条");
+
+            Assert.IsFalse(source.EnsureBranchAttached(out string attachReason), "未推送的提交不许被 checkout -B 挪走");
+            StringAssert.Contains("未推送", attachReason);
+            Assert.AreEqual(1, CountAheadOfOrigin(), "分支不许被重置回 origin");
+            Assert.IsTrue(File.Exists(authored), "作者写的那份文件得还在");
+        }
+
+        private static void AssertIsEmpty(string text, string message)
+        {
+            Assert.AreEqual(string.Empty, text.Trim(), message);
+        }
+
         private PluginPackageSource NewSource()
         {
             return new PluginPackageSource(_workspace, RepoUrl(), Branch, null);
@@ -304,6 +367,22 @@ namespace Editor.Tools.PackageManager
         {
             GitRunResult result = GitProcessUtility.Run(null, _workspace, "symbolic-ref -q HEAD", 30000);
             return result.Ok ? result.StandardOutput.Trim() : string.Empty;
+        }
+
+        private void RunInWorkspace(string arguments)
+        {
+            GitRunResult result = GitProcessUtility.Run(null, _workspace, arguments, 60000);
+            Assert.IsTrue(result.Ok, $"{arguments} 失败：{result.FailureReason()}");
+        }
+
+        private int CountAheadOfOrigin()
+        {
+            GitRunResult result = GitProcessUtility.Run(null, _workspace,
+                "rev-list --count refs/remotes/origin/" + Branch + "..HEAD", 60000);
+            Assert.IsTrue(result.Ok, result.FailureReason());
+            int count;
+            Assert.IsTrue(int.TryParse(result.StandardOutput.Trim(), out count), result.StandardOutput);
+            return count;
         }
 
         private void BuildSourceRepo()

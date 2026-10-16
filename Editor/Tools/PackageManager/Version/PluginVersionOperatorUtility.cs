@@ -5,7 +5,9 @@ namespace Moirai.Atropos.Editor
     /// </summary>
     internal static class PluginVersionOperatorUtility
     {
-        /// <summary>解析运算符字面量，未识别一律判非。</summary>
+        /// <summary>
+        /// 解析运算符字面量，未识别一律判非。
+        /// </summary>
         public static bool TryParse(string text, out PluginVersionOperator value)
         {
             switch (text)

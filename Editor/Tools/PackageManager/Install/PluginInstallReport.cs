@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Editor
     /// </summary>
     /// <remarks>
     /// 编排层逐步记账，任一步判非即停在那里并把原因交给窗口；<see cref="Ok"/> 为假时不写盘也不刷新。<br />
-    /// <see cref="Dependents"/> 只在场依赖方时非空，窗口据此决定是否弹窗。
+    /// <see cref="Dependents"/> 记在场依赖方：连带卸载时它们是同批被收的对象，只卸点名那个时窗口据此提示谁还缺它。
     /// </remarks>
     internal sealed class PluginInstallReport
     {
@@ -53,14 +53,18 @@ namespace Moirai.Atropos.Editor
             _dependents.Add(pluginId);
         }
 
-        /// <summary>记失败原因并保留已走过的步骤。</summary>
+        /// <summary>
+        /// 记失败原因并保留已走过的步骤。
+        /// </summary>
         internal void Fail(string reason)
         {
             Ok = false;
             FailureReason = reason;
         }
 
-        /// <summary>取一行可直接展示的汇总。</summary>
+        /// <summary>
+        /// 取一行可直接展示的汇总。
+        /// </summary>
         internal string Summary()
         {
             if (!Ok) return FailureReason;

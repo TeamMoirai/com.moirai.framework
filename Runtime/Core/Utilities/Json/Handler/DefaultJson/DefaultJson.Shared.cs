@@ -12,7 +12,7 @@ namespace Moirai.Atropos
         /// <remarks>
         /// <para><b>设计</b>：ThreadStatic 引用栈 + 容器入口压栈/出口弹栈 + 成员处只查不压。
         /// 值类型/字符串/null 不参与跟踪（无环可能）。</para>
-        /// <para><b>引用环</b>：对齐 <see cref="NewtonsoftJsonHandler"/> 既定的 ReferenceLoopHandling.Ignore 语义
+        /// <para><b>引用环</b>：对齐 <c>NewtonsoftJsonHandler</c>（已外置到 plugin 分支的 newtonsoft-json 插件）既定的 ReferenceLoopHandling.Ignore 语义
         /// ——跳过构成环的成员/元素（不抛错、不无限递归）。</para>
         /// <para><b>深度守卫</b>：超限成员软截断（跳过+警告，不抛错）；标量豁免（无递归风险，任何深度照常写值）。</para>
         /// </remarks>

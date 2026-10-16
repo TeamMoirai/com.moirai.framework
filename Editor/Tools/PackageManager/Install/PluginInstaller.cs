@@ -26,6 +26,7 @@ namespace Moirai.Atropos.Editor
         private readonly string _projectManifestPath;
         private readonly PluginPackageSource _source;
         private readonly PackageManagerSettingsData _settings;
+        private bool _lastFetchReachedRemote;
 
         internal PluginInstaller(PackageManagerSettingsData settings, string packageRootPath, string projectManifestPath)
         {
@@ -37,7 +38,9 @@ namespace Moirai.Atropos.Editor
             _source = new PluginPackageSource(_packageRootPath, settings.repoUrl, settings.branch, settings.gitPath);
         }
 
-        /// <summary>按工程布局建一个编排器：落点与工程 manifest 都在 Packages 下。</summary>
+        /// <summary>
+        /// 按工程布局建一个编排器：落点与工程 manifest 都在 Packages 下。
+        /// </summary>
         internal static PluginInstaller Create(PackageManagerSettingsData settings)
         {
             string packagesRoot = Path.Combine(Directory.GetCurrentDirectory(), "Packages");
@@ -49,10 +52,12 @@ namespace Moirai.Atropos.Editor
         /// <summary>包源层，窗口取源状态用。</summary>
         internal PluginPackageSource Source => _source;
 
-        /// <summary>插件落点目录。</summary>
-        internal string PackageRootPath => _packageRootPath;
+        /// <summary>本轮 fetch 是否真到了远端；没到就不该记"上次刷新"时刻。</summary>
+        internal bool LastFetchReachedRemote => _lastFetchReachedRemote;
 
-        /// <summary>取当前编辑器版本，形状不符时回最低地板并交出原因。</summary>
+        /// <summary>
+        /// 取当前编辑器版本，形状不符时回最低地板并交出原因。
+        /// </summary>
         internal static bool TryGetEngineVersion(out PluginVersion version, out string failureReason)
         {
             if (TryParseEngineVersion(Application.unityVersion, out version))
@@ -66,7 +71,9 @@ namespace Moirai.Atropos.Editor
             return false;
         }
 
-        /// <summary>取当前框架包版本；读不到时交出 <c>0.0.0</c> 与原因（那一刻不判地板，宁可放过也不误拦）。</summary>
+        /// <summary>
+        /// 取当前框架包版本；读不到时交出 <c>0.0.0</c> 与原因（那一刻不判地板，宁可放过也不误拦）。
+        /// </summary>
         internal static bool TryGetFrameworkVersion(out PluginVersion version, out string failureReason)
         {
             PackageInfo info = PackageInfo.FindForAssembly(typeof(PluginInstaller).Assembly);
@@ -107,11 +114,14 @@ namespace Moirai.Atropos.Editor
             return text.Substring(0, end);
         }
 
-        /// <summary>走一遍源侧读取，产出目录与分支头。</summary>
+        /// <summary>
+        /// 走一遍源侧读取，产出目录与分支头。
+        /// </summary>
         internal bool TryBrowse(PluginInstallReport report, out PluginCatalogResult catalog, out string headCommit)
         {
             catalog = null;
             headCommit = null;
+            _lastFetchReachedRemote = false;
 
             if (!_source.EnsureClone(out string reason))
             {
@@ -121,13 +131,16 @@ namespace Moirai.Atropos.Editor
 
             report.Note("落点工作树就绪");
 
+            // 离线不算失败：本地已有的分支头与缓存 blob 足够列出与装（blob 真取不到时由清单读取那步判非并说明）
             if (!_source.Fetch(out reason))
             {
-                report.Fail(reason);
-                return false;
+                report.Note($"离线：fetch 没走通（{reason}），本轮按本地已有的分支头继续");
             }
-
-            report.Note($"已取 {(_settings.branch ?? string.Empty)} 分支头");
+            else
+            {
+                _lastFetchReachedRemote = true;
+                report.Note($"已取 {(_settings.branch ?? string.Empty)} 分支头");
+            }
 
             if (!_source.EnsureBranchAttached(out reason))
             {
@@ -163,13 +176,17 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>装一个插件，连它的依赖闭包一起。</summary>
+        /// <summary>
+        /// 装一个插件，连它的依赖闭包一起。
+        /// </summary>
         internal PluginInstallReport Install(string pluginId, bool force)
         {
             return Install(new[] { pluginId }, force);
         }
 
-        /// <summary>装一个插件；<paramref name="removeFirst"/> 为真时先清掉它的目录（干净更新）。</summary>
+        /// <summary>
+        /// 装一个插件；<paramref name="removeFirst"/> 为真时先清掉它的目录（干净更新）。
+        /// </summary>
         internal PluginInstallReport Install(string pluginId, bool force, bool removeFirst)
         {
             return Install(new[] { pluginId }, force, removeFirst ? new[] { pluginId } : null);
@@ -191,6 +208,7 @@ namespace Moirai.Atropos.Editor
             IReadOnlyList<string> removeFirstIds = null, string revision = null, string revisionVersion = null)
         {
             var report = new PluginInstallReport();
+            if (!GateCleanWorktree(report)) return report;
 
             if (!TryGetEngineVersion(out PluginVersion unityVersion, out string versionReason)) report.Note(versionReason);
             if (!TryGetFrameworkVersion(out PluginVersion frameworkVersion, out string frameworkReason)) report.Note(frameworkReason);
@@ -223,7 +241,7 @@ namespace Moirai.Atropos.Editor
 
             if (!_source.ApplySparsePaths(selectedIds, out string sparseReason))
             {
-                report.Fail(sparseReason);
+                report.Fail(sparseReason + "　若已清过目录，重跑一次同样的安装即可对齐（账本没动）");
                 return report;
             }
 
@@ -277,10 +295,14 @@ namespace Moirai.Atropos.Editor
             return report;
         }
 
-        /// <summary>卸一个插件，按账本回收外部依赖与脚本宏。</summary>
-        internal PluginInstallReport Uninstall(string pluginId, bool allowCascade)
+        /// <summary>
+        /// 卸一个插件，按账本回收外部依赖与脚本宏。
+        /// </summary>
+        internal PluginInstallReport Uninstall(string pluginId, bool cascadeDependents)
         {
             var report = new PluginInstallReport();
+            if (!GateCleanWorktree(report)) return report;
+
             PackageManagerStateData state = PackageManagerStateRegistry.Load();
 
             InstalledPluginData entry = PackageManagerStateRegistry.FindInstalled(state, pluginId);
@@ -293,59 +315,136 @@ namespace Moirai.Atropos.Editor
             if (!TryBrowse(report, out PluginCatalogResult catalog, out _)) return report;
 
             IReadOnlyList<string> dependents = InstallPlanner.DependentsOf(catalog.Manifests, pluginId, InstalledIds(state));
-            if (dependents.Count > 0 && !allowCascade)
+            for (int i = 0; i < dependents.Count; i++) report.AddDependent(dependents[i]);
+
+            var removalIds = new List<string> { pluginId };
+            if (cascadeDependents)
             {
-                for (int i = 0; i < dependents.Count; i++) report.AddDependent(dependents[i]);
-                report.Fail($"仍有插件依赖它：{string.Join("、", dependents)}");
-                return report;
+                for (int i = 0; i < dependents.Count; i++)
+                {
+                    if (!removalIds.Contains(dependents[i])) removalIds.Add(dependents[i]);
+                }
             }
 
+            if (dependents.Count > 0)
+            {
+                report.Note(cascadeDependents
+                    ? $"连带卸载在场依赖方：{string.Join("、", dependents)}"
+                    : $"只卸 {pluginId}，这些依赖方留在场且会缺它：{string.Join("、", dependents)}");
+            }
+
+            // 先算后写：稀疏集、工程 manifest、宏、账本全部判通了才动第一次盘
             List<string> remainingIds = InstalledIds(state);
-            remainingIds.Remove(pluginId);
+            for (int i = 0; i < removalIds.Count; i++) remainingIds.Remove(removalIds[i]);
 
-            if (!_source.ApplySparsePaths(remainingIds, out string sparseReason))
-            {
-                report.Fail(sparseReason);
-                return report;
-            }
-
-            string manifestText = ReadProjectManifest(out string readReason);
-            if (manifestText == null)
+            string baseline = ReadProjectManifest(out string readReason);
+            if (baseline == null)
             {
                 report.Fail(readReason);
                 return report;
             }
 
+            string manifestText = baseline;
             bool textChanged = false;
             var ownedPackageIds = new List<string>();
             for (int i = 0; i < state.upmOwnership.Count; i++) ownedPackageIds.Add(state.upmOwnership[i].packageId);
 
-            for (int i = 0; i < ownedPackageIds.Count; i++)
+            for (int i = 0; i < removalIds.Count; i++)
             {
-                UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, manifestText,
-                    ownedPackageIds[i], pluginId, out string released);
-                if (!ReferenceEquals(released, manifestText))
+                for (int j = 0; j < ownedPackageIds.Count; j++)
                 {
-                    manifestText = released;
-                    textChanged = true;
-                }
+                    UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, manifestText,
+                        ownedPackageIds[j], removalIds[i], out string released);
+                    if (!ReferenceEquals(released, manifestText))
+                    {
+                        manifestText = released;
+                        textChanged = true;
+                    }
 
-                if (outcome != UpmEntryOutcome.NotFound) report.Note($"外部依赖 {ownedPackageIds[i]}：{outcome}");
+                    if (outcome != UpmEntryOutcome.NotFound)
+                        report.Note($"外部依赖 {ownedPackageIds[j]}（{removalIds[i]}）：{outcome}");
+                }
             }
 
-            if (textChanged) WriteProjectManifest(manifestText);
+            if (!_source.ApplySparsePaths(remainingIds, out string sparseReason))
+            {
+                report.Fail(sparseReason + "　磁盘与账本都没改");
+                return report;
+            }
 
-            RemoveOrphanTags(entry, state, report);
-            PackageManagerStateRegistry.RemoveInstalled(state, pluginId);
+            report.Note($"勾选集缩到 {remainingIds.Count} 项");
+
+            if (textChanged && !TryWriteProjectManifest(baseline, manifestText, out string writeReason))
+            {
+                report.Fail(writeReason + "　勾选集已改，账本未改，重来一次即可对齐");
+                return report;
+            }
+
+            HashSet<string> stillClaimed = TagsClaimedBy(state, removalIds);
+            for (int i = 0; i < removalIds.Count; i++)
+            {
+                InstalledPluginData removal = PackageManagerStateRegistry.FindInstalled(state, removalIds[i]);
+                if (removal == null) continue;
+
+                RemoveOrphanTags(removal, stillClaimed, report);
+                PackageManagerStateRegistry.RemoveInstalled(state, removal.id);
+                report.AddTouched(removal.id);
+            }
+
             PackageManagerStateRegistry.Save(state);
-            report.AddTouched(pluginId);
             report.Note("状态账本已落盘");
 
             AssetDatabase.Refresh();
             return report;
         }
 
-        /// <summary>判定某个已装插件在新分支头上有没有内容变化。</summary>
+        /// <summary>
+        /// 落点工作树脏 ⇒ 拒绝任何会覆写文件的装卸：不擅自处置用户手改。
+        /// </summary>
+        private bool GateCleanWorktree(PluginInstallReport report)
+        {
+            if (!_source.IsGitWorkspace) return true;
+            if (!_source.TryDescribeHead(out _, out bool isDirty, out string reason))
+            {
+                report.Fail(reason);
+                return false;
+            }
+
+            if (isDirty)
+            {
+                report.Fail($"落点工作树有未提交改动：{_source.WorkingDirectory}　工具不覆盖手改，请先提交或还原再装卸");
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 取仍被留下那批插件声明的宏集合，用来判哪些宏可以撤。
+        /// </summary>
+        private static HashSet<string> TagsClaimedBy(PackageManagerStateData state, List<string> removalIds)
+        {
+            var kept = new HashSet<string>(StringComparer.Ordinal);
+            if (state?.installed == null) return kept;
+
+            for (int i = 0; i < state.installed.Count; i++)
+            {
+                InstalledPluginData other = state.installed[i];
+                if (other == null || removalIds.Contains(other.id)) continue;
+
+                string[] otherTags = other.tags;
+                for (int j = 0; otherTags != null && j < otherTags.Length; j++)
+                {
+                    if (!string.IsNullOrEmpty(otherTags[j])) kept.Add(otherTags[j]);
+                }
+            }
+
+            return kept;
+        }
+
+        /// <summary>
+        /// 判定某个已装插件在新分支头上有没有内容变化。
+        /// </summary>
         internal bool TryIsUpdateAvailable(InstalledPluginData entry, out bool available, out string failureReason)
         {
             available = false;
@@ -362,14 +461,18 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>取某修订下该插件目录的 tree 哈希。</summary>
+        /// <summary>
+        /// 取某修订下该插件目录的 tree 哈希。
+        /// </summary>
         internal bool TryTreeHashOf(string pluginId, string revision, out string hash, out string failureReason)
         {
             string treePath = pluginId + "/" + pluginId + PluginManifest.MANIFEST_SUFFIX;
             return _source.TryTreeHash(treePath, revision, out hash, out failureReason);
         }
 
-        /// <summary>逐条判在场插件有没有内容变化；任一次读不通即交出原因。</summary>
+        /// <summary>
+        /// 逐条判在场插件有没有内容变化；任一次读不通即交出原因。
+        /// </summary>
         internal bool TryCollectUpdatable(PackageManagerStateData state, out List<string> updatableIds,
             out string failureReason)
         {
@@ -447,7 +550,9 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        /// <summary>只读校验分支根的 package.json：名字与落点目录名相符，工具永不写它。</summary>
+        /// <summary>
+        /// 只读校验分支根的 package.json：名字与落点目录名相符，工具永不写它。
+        /// </summary>
         private bool ValidateRootPackageJson(PluginCatalogResult catalog, PluginInstallReport report, out string failureReason)
         {
             if (!_source.TryReadBlob(ROOT_PACKAGE_JSON_NAME, out string json, out failureReason)) return false;
@@ -465,7 +570,9 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>逐个新装目录验 .asmdef 存在且装配名不与工程内任何装配重名。</summary>
+        /// <summary>
+        /// 逐个新装目录验 .asmdef 存在且装配名不与工程内任何装配重名。
+        /// </summary>
         private bool ValidateAssemblyDefinitions(InstallPlan plan, List<string> selectedIds, PluginInstallReport report,
             out string failureReason)
         {
@@ -588,19 +695,56 @@ namespace Moirai.Atropos.Editor
             return File.ReadAllText(_projectManifestPath);
         }
 
-        private void WriteProjectManifest(string text) => File.WriteAllText(_projectManifestPath, text);
+        /// <summary>整文替换工程 manifest：先落临时名再覆盖改名，避免半篇文件被 Unity 抢先读到。</summary>
+        /// <remarks>不用 <c>File.Move(source, target, overwrite)</c>：那个重载在最低引擎版本的 BCL 面里没有。</remarks>
+        private void WriteProjectManifest(string text)
+        {
+            string temporary = _projectManifestPath + ".moirai-tmp";
+            File.WriteAllText(temporary, text);
 
-        /// <summary>按台账逐条记归属并写盘，任一步失败都不落盘。</summary>
+            try
+            {
+                File.Copy(temporary, _projectManifestPath, true);
+            }
+            finally
+            {
+                if (File.Exists(temporary)) File.Delete(temporary);
+            }
+        }
+
+        /// <summary>
+        /// 带基线核对的写入：读进来与此刻盘上不一致说明别人动过，让路不覆盖。
+        /// </summary>
+        private bool TryWriteProjectManifest(string baseline, string text, out string failureReason)
+        {
+            string current = ReadProjectManifest(out failureReason);
+            if (current == null) return false;
+
+            if (!string.Equals(current, baseline, StringComparison.Ordinal))
+            {
+                failureReason = $"工程 manifest 在本次操作期间被别处改过：{_projectManifestPath}";
+                return false;
+            }
+
+            WriteProjectManifest(text);
+            failureReason = null;
+            return true;
+        }
+
+        /// <summary>
+        /// 按台账逐条记归属并写盘，任一步失败都不落盘。
+        /// </summary>
         private bool WriteProjectManifest(PackageManagerStateData state, InstallPlan plan, PluginInstallReport report,
             out string failureReason)
         {
-            string text = ReadProjectManifest(out string readReason);
+            string baseline = ReadProjectManifest(out string readReason);
             if (readReason != null)
             {
                 failureReason = readReason;
                 return false;
             }
 
+            string text = baseline;
             bool changed = false;
             foreach (PluginManifest manifest in plan.ToInstall)
             {
@@ -619,30 +763,29 @@ namespace Moirai.Atropos.Editor
                 }
             }
 
-            if (changed) WriteProjectManifest(text);
+            if (changed && !TryWriteProjectManifest(baseline, text, out string writeReason))
+            {
+                failureReason = writeReason;
+                return false;
+            }
+
             failureReason = null;
             return true;
         }
 
-        /// <summary>只减掉没有别的使用者的宏，成对回收。</summary>
-        private static void RemoveOrphanTags(InstalledPluginData entry, PackageManagerStateData state,
+        /// <summary>
+        /// 只减掉没有别的使用者的宏，成对回收。
+        /// </summary>
+        private static void RemoveOrphanTags(InstalledPluginData entry, HashSet<string> stillClaimed,
             PluginInstallReport report)
         {
             string[] tags = entry.tags;
             if (tags == null || tags.Length == 0) return;
 
-            var stillClaimed = new HashSet<string>(StringComparer.Ordinal);
-            for (int i = 0; i < state.installed.Count; i++)
-            {
-                InstalledPluginData other = state.installed[i];
-                if (other == entry || string.Equals(other.id, entry.id, StringComparison.Ordinal)) continue;
-
-                string[] otherTags = other.tags;
-                for (int j = 0; otherTags != null && j < otherTags.Length; j++) stillClaimed.Add(otherTags[j]);
-            }
-
             for (int i = 0; i < tags.Length; i++)
             {
+                if (string.IsNullOrEmpty(tags[i])) continue;
+
                 if (stillClaimed.Contains(tags[i]))
                 {
                     report.Note($"宏 {tags[i]} 还有别的使用者，留着");

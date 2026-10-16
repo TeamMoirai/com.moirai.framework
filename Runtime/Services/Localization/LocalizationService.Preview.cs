@@ -1,6 +1,5 @@
 ﻿#if UNITY_EDITOR
 using System;
-using Moirai.Atropos.ConfigTable;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -23,6 +22,10 @@ namespace Moirai.Atropos.Localization
             s_PreviewStore = null;
             s_PreviewLanguageSetting = null;
             s_PreviewFailed = false;
+            // 转表回写之后数据源的语言集合可能已变：候选缓存跟着作废（换批那侧由基类在装载成功时自动作废）
+            ExportedLanguageSource?.InvalidateExportedLanguages();
+            // 编辑器语言是检测链的一环：改它就等于改了处理器该用的偏好，趁这一次作废一起交接过去
+            ApplyEditorLanguagePreference();
         }
 
         /// <summary>编辑器预览是否已就绪（非播放态、且表数据取到了）。</summary>
@@ -121,37 +124,33 @@ namespace Moirai.Atropos.Localization
 
             try
             {
-                var strings = ConfigTableService.GetAllLocalizedStringsForEditor();
-                var codes = ConfigTableService.GetLocalizationLanguageCodesForEditor();
-                if (strings == null || strings.Count == 0)
+                // 取数向数据源要：预览用哪份处理器与导出语言同源（已注册的那份优先，非播放态退到 Settings 里配置的那份）
+                var source = ExportedLanguageSource;
+                var batch = source != null ? source.LoadEditorPreviewBatch() : null;
+                if (batch == null || batch.Languages.Length == 0)
                 {
                     s_PreviewFailed = true;
-                    LogUtility.Warning("Localization preview unavailable: generate config table first.");
-                    return null;
-                }
+                    var reported = source != null ? source.ExportedLanguageCodes : Array.Empty<string>();
+                    // 分得开「没转表」与「转了表却给不出预览批」：后者念"先生成配置"会把人引去重转一遍，而重转不修这个问题
+                    if (reported.Count == 0)
+                    {
+                        LogUtility.Warning("Localization preview unavailable: generate config first!");
+                    }
+                    else
+                    {
+                        LogUtility.Error("Localization preview unavailable: {0} reports {1} language(s) but supplies no preview batch.",
+                            source.GetType().Name, reported.Count);
+                    }
 
-                // 语言必须随表自报：未自报即预览不可用，不再回落任何全局注册表
-                if (codes == null || codes.Count == 0)
-                {
-                    s_PreviewFailed = true;
-                    LogUtility.Warning("Localization preview unavailable: the table does not self-report its languages.");
-                    return null;
-                }
-
-                var languages = ResolveLanguages(codes);
-                if (languages.Count == 0)
-                {
-                    s_PreviewFailed = true;
-                    LogUtility.Error("Localization preview unavailable: table language codes are all empty.");
                     return null;
                 }
 
                 var store = new LocalizationStore();
-                if (!store.TryApply(new LocalizationTextBatch(languages.ToArray(), strings, "editor-preview"), out var rejectedKey))
+                if (!store.TryApply(batch, out var rejectedKey))
                 {
                     s_PreviewFailed = true;
                     LogUtility.Error("Localization preview unavailable: entry '{0}' column count mismatches {1} languages.",
-                        rejectedKey, languages.Count);
+                        rejectedKey, batch.Languages.Length);
                     return null;
                 }
 

@@ -228,6 +228,58 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>
+        /// 当前数据源自报的导出语言代码，顺序即列序；后端没自报语言或未注册时为空。
+        /// </summary>
+        /// <remarks>读数来自当前数据源的 <see cref="LocalizationServiceHandler.ExportedLanguageCodes"/>（覆写点是它的 <c>SelfReportedLanguageCodes</c>）；本项目即配置表那份转表期生成的语言清单。列语言选项目标请优先用 <see cref="ExportedLanguages"/>。</remarks>
+        public static IReadOnlyList<string> ExportedLanguageCodes
+        {
+            get
+            {
+                var source = ExportedLanguageSource;
+                return source != null ? source.ExportedLanguageCodes : Array.Empty<string>();
+            }
+        }
+
+        /// <summary>
+        /// 导出语言解析成的 <see cref="Language"/>，已去空码与去重码；未自报时为空。
+        /// </summary>
+        /// <remarks>
+        /// 去空去重后它可能比 <see cref="ExportedLanguageCodes"/> 短，两者下标不保证互指。与 <see cref="LoadedLanguages"/> 的分工：
+        /// 本属性答「数据源自报有哪几门语言」，装载前即可用；那份答「当前批内收录了哪几门」，装载后才有。
+        /// 解析与缓存都落在处理器实例上，返回共享数组，<b>调用方禁止原地改写元素或长度</b>。
+        /// </remarks>
+        public static IReadOnlyList<Language> ExportedLanguages
+        {
+            get
+            {
+                var source = ExportedLanguageSource;
+                return source != null ? source.ExportedLanguages : Array.Empty<Language>();
+            }
+        }
+
+        /// <summary>
+        /// 导出语言的读数来源：已注册的处理器优先，编辑器内没有注册那份时直读 Settings 里配置的实例。
+        /// </summary>
+        /// <remarks>不装进 <c>s_Handler</c>、不触发初始化也不注册服务：语言候选要在服务世界之外也能成立。</remarks>
+        private static LocalizationServiceHandler ExportedLanguageSource
+        {
+            get
+            {
+                if (s_Handler != null) return s_Handler;
+#if UNITY_EDITOR
+                return LocalizationServiceSettings.LocalizationServiceHandler;
+#else
+                return null;
+#endif
+            }
+        }
+
+        /// <summary>编辑器语言设置是否为「未选」哨兵：<c>Unspecified</c> 的 Name 与 Code 两种写法都算。</summary>
+        /// <remarks>空值与认不出的写法判非哨兵，原样交给检测链解析；Name 与 Code 都判，是因为资产里落过两种写法。</remarks>
+        internal static bool IsEditorLanguageUnspecified(string setting) =>
+            TryGetBuiltInLanguage(setting, out var language) && language == Language.Unspecified;
+
+        /// <summary>
         /// 根据 名称/Code 获取语言。
         /// </summary>
         /// <param name="str">语言 Name 或 Code（不区分大小写）。</param>
@@ -244,25 +296,11 @@ namespace Moirai.Atropos.Localization
                 return DefaultLanguage;
             }
 
-            Language target = DefaultLanguage;
-            // 尝试从语言代码映射中获取语言
-            if (s_AllBuildInLanguageCodeMap.TryGetValue(str, out var langFromCode))
-            {
-                target = langFromCode;
-            }
-
-            // 尝试从语言名称映射中获取语言
-            if (s_AllBuildInLanguageMap.TryGetValue(str, out var langFromName))
-            {
-                target = langFromName;
-            }
-
-            if (!onlySupported) return target;
-
             var handler = s_Handler;
-            if (handler == null || !handler.IsDataLoaded) return target;
+            // 「是否支持」的判定实现只有一份：交给已注册的那个处理器按自己的语言批判
+            if (onlySupported && handler != null) return handler.ResolvePreference(str);
 
-            return handler.IsLanguageAvailable(target) ? target : DefaultLanguage;
+            return TryGetBuiltInLanguage(str, out var language) ? language : DefaultLanguage;
         }
     }
 }
