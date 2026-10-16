@@ -18,6 +18,34 @@ com.moirai.framework.plugin/
 
 顶层目录一律扁平，按 `<id>` 命名；**不**再套功能层级。功能归类写在清单的 `function` 字段里，由窗口在菜单树上分组。
 
+## 当前插件清单
+
+除 `zlogger` 外，其余全部自 `com.moirai.framework` 迁出：类型名与命名空间逐字不变，
+框架侧只留默认/内置后端。装好插件后在对应 settings 的 Provider 下拉里重选后端。
+
+| 分组 | 插件 id | 程序集 | 宏 | UPM 依赖 |
+|---|---|---|---|---|
+| 字符串 | `newtonsoft-json` | `Moirai.Plugin.NewtonsoftJson` | `NEWTONSOFT_JSON_INSTALLED（自动）` | com.unity.nuget.newtonsoft-json 3.2.2 |
+| 字符串 | `zstring` | `Moirai.Plugin.ZString` | `ZSTRING_INSTALLED（自动）` | com.cysharp.zstring 2.6.0 |
+| 存档 | `memorypack` | `Moirai.Plugin.MemoryPack` | `手写宏（见 description）` | — |
+| 存档 | `messagepack` | `Moirai.Plugin.MessagePack` | `手写宏（见 description）` | — |
+| 存档 | `protobuf` | `Moirai.Plugin.Protobuf` | `手写宏（见 description）` | — |
+| 存档 | `unity-cloud-save` | `Moirai.Plugin.UnityCloudSave` | `UNITY_CLOUD_SAVE_INSTALLED（自动）` | — |
+| 对象 | `photon-fusion` | `Moirai.Plugin.PhotonFusion` | `手写宏（见 description）` | — |
+| 日志 | `serilog` | `Moirai.Plugin.Serilog` | `手写宏（见 description）` | — |
+| 日志 | `unity-logging` | `Moirai.Plugin.UnityLogging` | `UNITY_LOGGING_INSTALLED（自动）` | com.unity.logging 1.3.10 |
+| 日志 | `zlogger` | `Moirai.Plugin.ZLogger` | `ZLOGGER_INSTALLED（自动）` | com.cysharp.zlogger 2.5.10 |
+| 补间 | `litmotion` | `Moirai.Plugin.LitMotion` | `LITMOTION_INSTALLED（自动）` | com.annulusgames.lit-motion 1.0.0、com.cysharp.unitask 2.5.11 |
+| 补间 | `primetween` | `Moirai.Plugin.PrimeTween` | `PRIMETWEEN_INSTALLED（自动）` | com.kyrylokuzyk.primetween 1.4.11 |
+| 资源 | `addressables` | `Moirai.Plugin.Addressables` | `ADDRESSABLES_INSTALLED（自动）` | com.unity.addressables 2.10.3 |
+| 音频 | `fmod` | `Moirai.Plugin.Fmod` | `手写宏（见 description）` | — |
+| 音频 | `wwise` | `Moirai.Plugin.Wwise` | `手写宏（见 description）` | — |
+
+「手写宏」那几支的依赖来自 NuGetForUnity 或厂商 SDK（不在 UPM 里），前置逐步写在各自清单的 `description`；
+宏没定义时后端整文件被预处理裁掉，下拉里就不会出现它。
+音频两支（`fmod`/`wwise`）的 `.asmdef` 只引框架：装上 FMOD / Wwise 集成后还要把它们的程序集（如 `FMODUnity`、`Ak.*`）加进 `references`，
+本目录无法读到那些装配的 GUID，所以没有预先写死。
+
 ## 插件作者必须遵守
 
 1. **每个插件自带 `.asmdef`。** Unity 要求包内脚本关联程序集定义，缺失的脚本会静默不参与编译——不会报错，只会"功能不存在"。包管理器只校验并拒绝安装，不代为生成。
