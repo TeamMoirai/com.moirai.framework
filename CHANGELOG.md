@@ -24,6 +24,8 @@
 - `FrameworkMenuWindowBase` 装载接入面：`StartDataLoad`/`BuildDataLoadSteps` 登记装载步骤，`IsDataLoading`/`IsDataFailed`/`IsDataReady`（虚属性，派生窗可按热缓存扩展）供呈现装载态；冷装载（无可展示数据）默认绘制整窗遮罩（居中装载进度 + 进度条）并禁用输入，数据在屏的重扫不遮罩不锁交互；装载完成经 `ShouldRebuildTreeAfterDataLoad` 裁决单次重建树再置就绪（在屏数据与新结果一致时可跳过重建免无谓抖动；遮罩与树同拍切换不露空树帧）、`OnDisable` 取消在途装载，不接入异步装载的派生窗零成本
 - EditorLoadPipelineTests：步序与动态登记、切片跨拍分摊与计数、后台线程与主线程续体、后台/切片取消观察、失败面用例
 - 包管理器插件清单新增必填 `minFrameworkVersion`（与 `minUnityVersion` 同款硬性要求：不满足即拒绝安装，规划期报 `FrameworkFloorUnmet`）；插件作者侧口径写进 `plugin` 分支 README 的字段表与守则（要 NuGet 包就把安装前置写进 `description`）
+- 包管理器插件清单新增可选上限 `maxUnityVersion` / `maxFrameworkVersion`（空或缺省=无限制；区间 `[min, max)`，等于上限即已停止提供，Unity 侧写内部版本号如 Unity 6.3=`6000.3.0`），配 `PlanConflictKind.UnityCeilingExceeded` / `FrameworkCeilingExceeded` 在规划期与地板同款中止整批；上限不高于同侧地板判作空区间并点名拒签，框架版本读不出时地板与上限一起跳过。有限生命周期的插件由此自己声明停止的那一档（`unity-logging` 按官方弃用公告取 `6000.3.0`），不必框架代记谁何时失效
+- 包管理器详情面 `操作` 面：安装类按钮改大号并按徽标同一条判据置灰，置灰时按钮下出一行 `✕ 原因`（能装则整行不画），`卸载` 不受此限；`Update All` 按同判据剔除装不了的并在结果里逐条点名，不静默少一个
 - 包管理器（编辑器窗口 `Tools/Moirai/Package Manager`）：以可配 git 分支作插件包源，部分克隆 + cone 稀疏检出使未勾选的包既不物化也不落盘；插件清单 `<id>.plugin.json` 的字段与目录名规则在此定形，依赖闭包、拓扑序、成环、版本不满足、引擎地板与框架地板在规划期判出且任一冲突整批中止；外部 UPM 依赖按归属台账行级写入工程 `Packages/manifest.json`（用户手写条目既不覆写也不删除，同键只留版本最高的要求），脚本宏按使用者计数成对回收；已装状态与依赖归属落 `ProjectSettings/MoiraiPackageManager.json`，动作面为安装 / 卸载（含连带在场依赖方）/ 更新 / 历史修订安装；落点工作树有未提交改动、或落点分支领先 origin（有未推送提交）时一律拒绝装卸；分支名、源地址与清单标签进 git 或上界面前先过形状守卫；模块文档 `Documentation~/zh|en/PackageManager.md`
 
 #### 本地化
@@ -33,9 +35,14 @@
 ### Changed
 
 #### 核心
+- 图形设置的确认入口落盘：`SetResolutionSettings` / `SetFullScreenSettings` / `SetWindowModeSettings` / `SetVSyncSettings` 与 `RemoveSetting` 各在写完后补一次 `SettingUtility.Save()`（此前只写内存，重启回到旧分辨率）
+
 
 - ⚠ 移除默认后端的安装探测自动优选：`LogUtility`/`StringUtility`/`TweenUtility`/`ObjectUtility` 的 `#if` 优选链删除，settings 未配置时一律回退声明默认（DefaultLogHandler/DefaultStringHandler/DefaultTweenHandler/UnityObjectHandler），新建 settings 资产的播种值同步变为声明默认；迁移口径 = 已安装 ZLogger/UnityLogging/ZString/LitMotion/PrimeTween/Fusion 的工程在 `GameAppSettings` 的 Provider 下拉框显式选择后端（已配置工程无感；`InputService` 保留引擎宏分派手写工厂不受影响）
 - ⚠ ZLogger 日志后端移出框架，改由 `plugin` 分支的 `zlogger` 插件提供：`ZLoggerHandler` 与 `ZLoggerBypassUnityDebugLoggerProvider` 从 `Moirai.Atropos` 删除，Runtime asmdef 的 `com.cysharp.zlogger` versionDefine（宏 `ZLOGGER_INSTALLED`）与 `ZLogger.Unity` 引用一并移除；迁移口径 = 经 `Tools/Moirai/Package Manager` 装 `zlogger` 插件（清单自带 `com.cysharp.zlogger` UPM 依赖与自有宏），装完在 `GameAppSettings` 的 Provider 下拉框重选后端（`SerializeReference` 的 `asm:` 随类型迁到插件装配而变），未装插件时日志回落 `DefaultLogHandler`
+- ⚠ 其余 14 支「装了第三方包才编进来」的兼容后端同样改由 `plugin` 分支按插件发行（一 `id` 一顶层目录）：日志 `serilog`、`unity-logging`；字符串 `zstring`、`newtonsoft-json`；补间 `litmotion`、`primetween`；对象 `photon-fusion`；资源 `addressables`；音频 `fmod`、`wwise`；存档 `memorypack`、`messagepack`、`protobuf`、`unity-cloud-save`。类型名与命名空间逐字不变（按全名反射的判据照旧命中），装配名从 `Moirai.Atropos` 变为各自的 `Moirai.Plugin.*`；框架里只剩默认/内置后端——`DefaultLogHandler`、`DefaultJsonHandler`、`DefaultStringHandler`、`DefaultTweenHandler`、`UnityObjectHandler`、`UnityAudioHandler`、`YooAssetHandler`、`RestCloudSaveKvStore`、`JsonSaveSerializer` 等。Runtime asmdef 随之摘掉 `com.cysharp.zstring`、`com.annulusgames.lit-motion`、`com.unity.logging`、`com.unity.addressables`、`com.unity.services.cloudsave` 五条 versionDefines 与对应 GUID 引用（现存 9 条），`org.nuget.k4os.compression.lz4` 那条无代码的空宏槽位一并删除；PrimeTween 的 `.asmref` 扩展随 `primetween` 插件走，框架那份 `#if !PRIMETWEEN_INSTALLED` 的 stub 不再存在
+- ⚠ 上述后端的迁移口径 = 经 `Tools/Moirai/Package Manager` 装对应插件，再在 Provider 下拉里重选后端：日志/字符串/JSON/对象/补间在 `GameAppSettings`，音频在 `AudioServiceSettings`，资源在 `ResourceServiceSettings`，存档序列化与云端 KV 在 `SaveServiceSettings`。插件未装时该后端在下拉里根本不存在、各门面回落内置默认；`[SerializeReference]` 资产与 `[SaveData(Backend = …)]` 按类型全名解析的后端随迁到插件装配而改 `asm:` 归属，存量配置要在下拉里重选一次。FMOD/Wwise/Photon Fusion/MemoryPack/MessagePack/protobuf-net/Serilog 的宏是手写档（`FMOD_INSTALLED`、`WWISE_INSTALLED`、`FUSION2`、`MEMORYPACK_INSTALLED`、`MESSAGEPACK_INSTALLED`、`PROTOBUF_INSTALLED`、`SERILOG_INSTALLED`），前置与宏一律以各插件清单的 `description` 为准；`com.unity.nuget.newtonsoft-json` 仍是框架 `package.json` 的硬依赖（事件基类 `[JsonIgnore]`、任务基类与事件调试器、存档迁移的 JSON 改写都无守卫地用它），搬走的只是 `JsonHandler` 实现类
+- 契约基类可见性按契约面定性补正：`AudioServiceHandler`、`MiddlewareAudioHandler`、`ResourceRecordHostHandler` 取 `public`（同为契约面的音频桥接口 `IAudioMiddlewareBridge`/`IAudioMiddlewareBankControl`/`IAudioMiddlewareRtpcControl` 与 `EAudioBankLoadResult` 亦然）——它们是 settings 的 Provider 下拉与装配外派生后端的接缝，与其余 `XxxServiceHandler` 同规格；资源记录内核（`ResourceRecordStore`、`ResourceKeyCodec`、`LoadingOperationState`、`ResourceBindingService`、`IResourceLeaseSource`、`IResourceRecordHost`）保持 `internal`，插件侧派生后端经 `ResourceRecordHostHandler` 上的 `protected internal` 接缝取内核能力，签名里不出现内核类型；`IAudioFadeTarget` 仍是 `internal`，由 `MiddlewareAudioHandler` 的嵌套 `FadeSink` 承接。跨装配的能力判定改由被判定方自报：`ResourceServiceHandler.ConsumesPackageNames`（`protected internal virtual`），Editor 侧以友元身份读取，不再按具体后端类型 `switch`。全仓不为插件新增 `InternalsVisibleTo`；插件清单的 `minFrameworkVersion` 按发行计划取 `1.0.2`，框架自身版本仍由发版流程写
 - 日志后端的扩展面由 `internal` 改为 `protected internal`，且不新增公共类型：`LogHandler.Log`／`MinimumLevel` 与新增的 `LogHandler.BypassUnityHandler`（转发 `LogUtility.GetBypassUnityHandler`，静态类不能带 protected 成员故由处理器基类转出）对派生类开放，日志等级词表嵌为 `LogHandler.ELogLevel`（不再是命名空间级类型，框架侧引用改为经 `using static Moirai.Atropos.LogHandler;`）；`Runtime/AssemblyInfo.cs` 的 `InternalsVisibleTo("Moirai.Plugin.ZLogger")` 随之删除——外置插件不再需要白名单；迁移口径 = 跨程序集的后端覆写 `Log` 须声明 `protected`（覆写 `protected internal` 成员不能收窄成 `internal`），框架与 `plugin` 分支的插件须同批更新
 - ⚠ 后端实现类可见性统一为 `internal`：`DefaultGameObjectPoolHandler`、`DefaultSettingHandler`（含两处 partial）、`PlayerPrefsSettingHandler`、`FileOffsetEncryptorHandler`、`FileStreamEncryptorHandler` 由 `public` 收窄，与其余内置后端一致；契约基类（各 `XxxServiceHandler`/`SettingHandler`/`YooAssetEncryptorHandler` 等）保持 `public`——它们是 settings 的 Provider 下拉与外部派生后端的接缝；迁移口径 = 外部若直接 `new`/引用过这些实现类，改为在对应 settings 资产里选择后端或派生契约基类（`[SerializeReference]` 资产与 Provider 下拉按类型名工作，与可见性无关，已配置资产无需迁移）
 
@@ -44,6 +51,8 @@
 - 真机下 `ResourceServiceSettings.PlayMode` 把 `EditorSimulate` 归一为 `OfflinePlay` 时不再打 Error：静默降级、不回写资产原值也不落一行日志，远程热更随之整体关闭；发行前该字段必须是 `HostPlay`/`WebPlay`（口径已写进 zh/en Resource.md）
 
 #### 音频
+- 音量设置真正落盘：`AudioService.SetSettings()` 与 `RemoveSetting()` 各在写完/清完后补一次 `SettingUtility.Save()`；两处的 `categories == null` 早退会连 flush 一起跳过，已改成条件块。滑杆与静音开关等连续量路径不落盘
+
 
 - 播放链消除 `AudioPlayOptions` 的整份防御性拷贝：全部属性 getter 标 `readonly`，经 `in` 参数读属性不再隐式复制约 190 字节结构体（修复前单次 Play 全链 17-18 处拷贝），序列化形状与公共 API 不变。
 - 并发检查与按 clip 遍历改经声部托管镜像（`PlayingClip`）预过滤：声部全表扫描不再逐个原生读 `AudioSource.clip`（命中才读 `isPlaying`，按 clip 遍历零原生读）；`AudioPlayOptionsSO` 的 `MaximumConcurrentInstances` 检查默认即走此路径。
@@ -62,3 +71,4 @@
 - 「编辑器语言」留空不再当作用户选了一门语言：空串照旧往下走存档、渠道烘焙、系统语言，而它此前会提前返回并把整条链跳掉；切回 Unspecified 也不再走一次语言切换（不白烧该语言的一次性告警闸门）
 - ⚠ 语言存档的写入点从本地化处理器上移到服务：处理器只负责切换，直接调 `handler.ChangeLanguage(...)` 的代码不再写存档；键名与读写口径的定义处只剩 `LocalizationSettingsPolicy`，外观的检测链也从那里读存档
 - 显式切换在数据未就绪时也落存档（按处理器记下的切换意图当场写，旧口径要等装载完成才写，那次切换最终不在批内时则从不落盘）；首启检测链给的语言因此没有写入路径。存档里存着空值不再算「写过」，渠道烘焙与系统语言照旧参与解析
+- 语言存档真正落盘：服务的显式切换入口写完键后补一次 `SettingUtility.Save()`——此前全仓只有调试器会 flush，文件后端下用户选的语言重启即丢。直接调处理器换语言、以及首启检测链给出的语言都不落盘

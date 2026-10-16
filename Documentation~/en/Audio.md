@@ -12,10 +12,9 @@ Runtime/Services/Audio/
 ├── AudioServiceDebuggerWindow.cs                            # live control of master volume and the five tracks
 ├── AudioSettingsPolicy.cs                                   # the single definition of setting keys, defaults and the volume range clamp
 ├── Handler/                     # swappable-backend seam
-│   ├── UnityAudioHandler.cs   # default Unity backend
-│   ├── Middleware/            # shared FMOD/Wwise: IAudioMiddlewareBridge + two narrow capability interfaces + shared base + EAudioBankLoadResult
-│   ├── Fmod/                  # FmodAudioHandler + FmodBridgeStub|Native
-│   └── Wwise/                 # WwiseAudioHandler + WwiseBridgeStub|Native
+│   ├── UnityAudioHandler.cs   # framework-built-in default Unity backend
+│   └── Middleware/            # shared middleware surface: IAudioMiddlewareBridge + two narrow capability interfaces + shared base + EAudioBankLoadResult
+│                              # the FMOD / Wwise SDK backends do not live here - they ship as the fmod and wwise plugins on the plugin branch
 ├── Internal/                    # module-private machinery
 │   ├── AudioHandleRegistry.cs / AudioClipCache.cs / AudioFadeScheduler.cs / AudioAgentHostPool.cs
 │   ├── AudioMainThread.cs / AudioFault.cs / AudioWarnOnce.cs / AudioBlockingLoadGate.cs / ResourceClipLeaseSource.cs
@@ -34,26 +33,25 @@ Runtime/Services/Audio/
 - **`AudioService`**: Static facade; depends on `DebuggerService`, `ResourceService` (`OnInit` loads audio settings synchronously)
 - **`AudioServiceHandler`**: Backend contract (`StopByID`, 16-byte `Play`, virtual `OnAgentPlaybackEnded`). Master/track bus fades are **implemented here** (the contract owns the `AudioFadeScheduler` and lands values through `IAudioFadeTarget.ApplyFade`); a backend only has to say where a volume goes
 - **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**: Shared handle registry and fade scheduling for both backends (bus fades use high-segment pseudo-handles)
-- **`UnityAudioHandler`**: Default Unity `AudioSource`/`AudioMixer` backend
-- **`MiddlewareAudioHandler`**: Shared FMOD/Wwise base (handles, voice fades, buses, layering)
-- **`FmodAudioHandler` / `WwiseAudioHandler`**: Thin wrappers; only implement `CreateDefaultBridge()`
+- **`UnityAudioHandler`**: Framework-built-in default Unity `AudioSource`/`AudioMixer` backend
+- **`MiddlewareAudioHandler`**: Shared middleware base (handles, voice fades, buses, layering); the two FMOD / Wwise SDK backends inherit from it but live in the `fmod` and `wwise` plugins on the `plugin` branch, not in this assembly
 - **`AudioServiceSettings`**: Backend selection, mixer/track config, mix snapshot mapping, host pool warmup, clip cache limits
 
 ### Swappable backends & scripting defines
 
-| Define | Backend | Without define |
-|--------|---------|----------------|
-| (default) | `UnityAudioHandler` | — |
-| `FMOD_INSTALLED` | `FmodBridgeNative` → `FmodAudioHandler` | `FmodBridgeStub` (contract/stress-test ready) |
-| `WWISE_INSTALLED` | `WwiseBridgeNative` → `WwiseAudioHandler` | `WwiseBridgeStub` |
+| Plugin | Gating define | Bridge | Without the define |
+|---|---|---|---|
+| (framework-built-in) | — | `UnityAudioHandler` | — |
+| `fmod` | `FMOD_INSTALLED` (hand-written: define it yourself in Scripting Define Symbols) | real SDK bridge → the plugin's FMOD backend | falls back to the plugin's own FMOD stub bridge (contract/stress-test ready, silent) |
+| `wwise` | `WWISE_INSTALLED` (also hand-written) | real SDK bridge → the plugin's Wwise backend | falls back to the plugin's own Wwise stub bridge |
 
-Select `FmodAudioHandler` / `WwiseAudioHandler` in `AudioServiceSettings`. Bridge contract: `IAudioMiddlewareBridge`.
+Neither SDK backend is in the framework: install the matching `fmod` / `wwise` plugin from the `plugin` branch through `Tools/Moirai/Package Manager` first, and only then does it enter the `AudioServiceSettings` Provider dropdown - without the plugin the dropdown offers only the framework-built-in Unity backend. Backends are always selected in settings, never `new`-ed in game code. Bridge contract: `IAudioMiddlewareBridge`.
 
 #### Event map
 
 Middleware backends derive the event path from `clip.name` (FMOD: `event:/<name>`). When the designer names events independently and the clip is only a placeholder, that implicit convention silently produces wrong paths — so the handler carries an explicit map:
 
-- Add `Clip` + `EventPath` entries under “Event Map” on `FmodAudioHandler` / `WwiseAudioHandler` in the Inspector.
+- Add `Clip` + `EventPath` entries under “Event Map” on the plugin-provided FMOD / Wwise backends in the Inspector.
 - A hit is used directly; a miss falls back to name derivation and emits a **one-time** warning for that clip.
 - Counting resolves through the same path: `CurrentlyPlayingCount(clip)` consults the map too, otherwise mapped clips would always report 0.
 - Call `InvalidateEventMap()` after changing the configuration at runtime (also the entry point for code-driven maps).
@@ -66,7 +64,7 @@ Middleware backends derive the event path from `clip.name` (FMOD: `event:/<name>
 - The Unity backend has no such concept: `LoadBank` returns `false`, `SetRtpc` is a no-op.
 - Middleware backends probe **capability interfaces** (`IAudioMiddlewareBankControl` / `IAudioMiddlewareRtpcControl`); a bridge without the capability warns once and degrades safely. They are deliberately *not* members of `IAudioMiddlewareBridge` — that would make every real SDK bridge that doesn't implement them fail to compile the moment `FMOD_INSTALLED` / `WWISE_INSTALLED` is defined.
 - `handle` 0 addresses a project/global parameter; a playback handle addresses that instance.
-- `FmodBridgeNative` / `WwiseBridgeNative` now carry implementations against these interfaces, but they **cannot be compiled on a machine without the plugin**: define the macro, pass the compile gate, then re-run the bridge contract tests against the real SDK.
+- The real SDK bridges inside the `fmod` / `wwise` plugins now carry implementations against these interfaces, but they **cannot be compiled on a machine without the plugin**: install the plugin, define the macro, pass the compile gate, then re-run the bridge contract tests against the real SDK.
 - At the bridge level `LoadBank` is **tri-state** (`Loaded` / `AlreadyLoaded` / `Failed`): an idempotent hit and a master/Init bank the plugin loaded itself are both normal, so only `Failed` produces a one-time warning per bank name. The facade `AudioService.LoadBank` stays `bool` and returns `true` only when this call actually completed the load.
 
 ## Core Features
@@ -84,15 +82,14 @@ Middleware backends derive the event path from `clip.name` (FMOD: `event:/<name>
 
 ## Core Types
 
-Namespace: `Moirai.Atropos.Audio` (middleware under `.Fmod` / `.Wwise` / `.Middleware`)
+Namespace: `Moirai.Atropos.Audio` (the shared middleware surface under `.Middleware`; the two plugin backends keep `.Fmod` / `.Wwise`, with their types living in the `Moirai.Plugin.Fmod` / `Moirai.Plugin.Wwise` assemblies)
 
 | Type | Description |
 |------|-------------|
 | `AudioService` | Static facade; includes `RequestMixSnapshot`, `StopByID`, 16B `Play` |
 | `AudioServiceHandler` | Backend contract |
 | `UnityAudioHandler` | Default Unity backend |
-| `MiddlewareAudioHandler` | Shared middleware base |
-| `FmodAudioHandler` / `WwiseAudioHandler` | FMOD / Wwise thin wrappers |
+| `MiddlewareAudioHandler` | Shared middleware base (`public abstract`); the FMOD / Wwise backends each ship as the same-named plugin and derive from it - namespaces unchanged, types not in this assembly |
 | `AudioPlayRequest` | 16-byte hot request |
 | `AudioPlayColdParams` | Cold params (location, curves, bypass); pooled |
 | `AudioPlayOptions` | Compatibility facade; `ToRequest()` / `FromOptions()`; spatial shaping carried wholesale via the `Spatial` field; `CachePolicy` decides lease retention |
@@ -129,7 +126,7 @@ AudioService.ResetMixSnapshot(0.5f);
 
 ### Middleware backends
 
-Add `FMOD_INSTALLED` or `WWISE_INSTALLED` in Scripting Define Symbols, import the plugin, and switch the Handler in `AudioServiceSettings`. Event paths: FMOD `event:/Name`; Wwise event name; buses `bus:/Music`, etc.
+Install the `fmod` or `wwise` plugin from the `plugin` branch through `Tools/Moirai/Package Manager` (neither SDK is distributed via UPM, so import the vendor's official Unity integration package first), define `FMOD_INSTALLED` or `WWISE_INSTALLED` in Scripting Define Symbols, then select the backend in the `AudioServiceSettings` Provider dropdown - without the plugin that entry does not exist. Leaving the macro undefined makes the plugin's backend fall back to its own stub bridge: the contract still runs, it just stays silent, which is what CI and stress tests use. Event paths: FMOD `event:/Name`; Wwise event name; buses `bus:/Music`, etc.
 
 #### Shipping conventions
 
@@ -185,6 +182,10 @@ With `AudioServiceSettings.AutoDuckingOnVoice` (off by default), any active voic
 - Driven from the backend `Tick`, so loading and fading-out voices count as active; turning the setting off releases a held duck on that same frame.
 - Coexists with snapshot priorities: when a higher-priority state (e.g. Cinematic) owns the mix the duck request is refused **and not recorded as taken**, so narration never steals the mix back mid-cutscene. The release only runs while the duck still owns `Dialogue`, and returns to the state captured before ducking rather than a hardcoded `Default`.
 - Requires a `Dialogue` `AudioMixerSnapshot` in `MixSnapshots`; without it the switch is a no-op (single warning) — it looks inert, not broken.
+
+### When audio settings are flushed
+
+Volume sliders and mute toggles only change runtime state and never persist. The confirmation entries are `AudioService.SetSettings()` and `AudioService.RemoveSetting()`: each writes master plus every track and then flushes once with `SettingUtility.Save()`. Key names, defaults and the 0..1 range clamp are defined in exactly one place, `AudioSettingsPolicy`; backends no longer compose keys themselves.
 
 ### Occlusion / HRTF
 

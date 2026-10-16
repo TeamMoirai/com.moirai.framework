@@ -307,7 +307,11 @@ namespace Moirai.Atropos.Localization
         private static void PersistAcceptedLanguage(LocalizationServiceHandler handler)
         {
             var accepted = handler.LastAcceptedLanguage;
-            if (accepted != null) LocalizationSettingsPolicy.Save(accepted.Code);
+            if (accepted == null) return;
+
+            // 服务侧显式 checkpoint：写键与 flush 成对发生，缺了 flush 就只是内存里的下一次启动前有效
+            LocalizationSettingsPolicy.Save(accepted.Code);
+            SettingUtility.Save();
         }
 
         /// <summary>

@@ -2,11 +2,11 @@
 
 > Framework unified tween animation facade, providing a pluggable Handler architecture with support for multiple tween engines (self-developed / PrimeTween / LitMotion).
 
-`TweenUtility` is the static facade for tween animation in the framework. By default, it uses the self-developed `DefaultTweenHandler` based on Unity's driver loop, and can also be switched to third-party engines like `PrimeTweenHandler` or `LitMotionHandler`. All tween methods uniformly accept a `TweenEase` parameter, supporting implicit conversion from the `EEase` enum value or `AnimationCurve`.
+`TweenUtility` is the static facade for tween animation in the framework. The framework ships the self-developed `DefaultTweenHandler` driven by Unity's loop; the PrimeTween and LitMotion third-party engine backends do not live in the framework — they ship as the `primetween` and `litmotion` plugins on the `plugin` branch and only appear in the Provider dropdown once installed. All tween methods uniformly accept a `TweenEase` parameter, supporting implicit conversion from the `EEase` enum value or `AnimationCurve`.
 
 ## Core Features
 
-- Pluggable Handler: `DefaultTweenHandler` (default, self-developed) / `PrimeTweenHandler` / `LitMotionHandler`
+- Pluggable Handler: framework-built-in `DefaultTweenHandler` (in-house); the PrimeTween / LitMotion backends ship as the `primetween` and `litmotion` plugins
 - `TweenEase` unified easing parameter: `EEase` enum (31 built-in curves) / `AnimationCurve` dual mode, zero-allocation implicit conversion
 - Full Transform tweening: `Position` / `LocalPosition` / `Rotation` / `LocalRotation` / `Scale` (each supports Vector3 and single axis)
 - UI tweening: `UIAnchoredPosition` / `UISizeDelta` / `UISliderValue` / `UIFillAmount` / `UINormalizedPosition` / `CanvasGroup.Alpha` / `Graphic.Color`, etc.
@@ -27,9 +27,7 @@ Namespace: `Moirai.Atropos`
 | `TweenEase` | Unified easing parameter struct, supports implicit conversion from `EEase` / `AnimationCurve` |
 | `TweenUtility.EEase` | 31 built-in easing curve enums (Linear / InQuad / OutBounce / InElastic, etc.) |
 | `TweenUtility.ECycleMode` | Cycle mode enum (Restart / Yoyo, etc.) |
-| `DefaultTweenHandler` | Default implementation, self-developed tween engine |
-| `PrimeTweenHandler` | PrimeTween engine adapter |
-| `LitMotionHandler` | LitMotion engine adapter |
+| `DefaultTweenHandler` | Framework-built-in default implementation, self-developed tween engine |
 | `TweenHandler.TweenManager` | Periodically calls `ReleaseUnusedTween` on the registered handler to clean up caches |
 
 ## Quick Start
@@ -120,17 +118,15 @@ TweenUtility.MoveBezierPath(transform, path, 2.0f, TweenUtility.EEase.InOutSine)
 
 ### Switching Handler
 
-```csharp
-// Switch to PrimeTween
-TweenUtility.Handler = new PrimeTweenHandler();
+Backends are always selected in settings, never `new`-ed in game code: open `GameAppSettings` via `Tools/Framework Settings` and switch the "tween backend" dropdown to the target engine.
 
-// Switch to LitMotion
-TweenUtility.Handler = new LitMotionHandler();
-```
+- The PrimeTween and LitMotion entries in that dropdown come from the `primetween` and `litmotion` plugins on the `plugin` branch (installed through `Tools/Moirai/Package Manager`). Without the plugins they do not exist and the dropdown only offers the framework-built-in `DefaultTweenHandler`.
+- `primetween` requires `com.kyrylokuzyk.primetween`; the `PRIMETWEEN_INSTALLED` macro is defined automatically by that plugin asmdef's versionDefines, and the `PrimeTween.Runtime.asmref` that lets framework code reference PrimeTween types travels with the plugin directory (`primetween/PrimeTween/`) rather than staying in the framework. `litmotion` requires `com.annulusgames.lit-motion` (which has no published UPM registry version and is installed from its git URL per the vendor's own guidance) plus `com.cysharp.unitask`; `LITMOTION_INSTALLED` is likewise defined by versionDefines.
+- The field is `[SerializeReference]`, so switching changes the `asm:` ownership recorded in the asset — save the asset afterwards.
 
 ## Notes
 
-- Setting `Handler` to null throws `ArgumentNullException` (fail-fast)
+- `TweenUtility.Handler` is an `internal` static property (emitted by the source generator) — neither game nor plugin code assigns it directly; switching backends goes exclusively through the `GameAppSettings` Provider dropdown. The setter rejects null (fail-fast)
 - On domain reload (entering Play mode), the handler and frame listener are automatically reset to prevent stale references
 - `TweenManager` cleans up caches every 60 seconds by default; this can be adjusted via `TweenHandler`'s `m_CheckInterval`
 - `TweenEase` enum mode has zero heap allocation; `AnimationCurve` mode holds a reference to the curve

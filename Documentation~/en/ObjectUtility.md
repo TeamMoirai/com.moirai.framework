@@ -2,11 +2,11 @@
 
 > Framework object instantiation/destruction facade, providing a pluggable Handler architecture with support for both standalone and networked modes.
 
-`ObjectUtility` is the static facade for creating and destroying Unity objects in the framework. By default, it uses `UnityObjectHandler` (wrapping `Object.Instantiate` / `Object.Destroy`). When integrating with network libraries such as Photon Fusion, it can be switched to `PhotonFusionObjectHandler`, so that instantiation/destruction automatically follows the network synchronization flow.
+`ObjectUtility` is the static facade for creating and destroying Unity objects in the framework. The framework ships `UnityObjectHandler` (wrapping `Object.Instantiate` / `Object.Destroy`). The Photon Fusion networked backend does not live in the framework — it ships as the `photon-fusion` plugin on the `plugin` branch; once installed, instantiation/destruction goes through the networked synchronization flow.
 
 ## Core Features
 
-- Pluggable Handler: `UnityObjectHandler` (default) / `PhotonFusionObjectHandler` (Fusion network synchronization)
+- Pluggable Handler: framework-built-in `UnityObjectHandler`; the Fusion network-synchronization backend ships as the `photon-fusion` plugin
 - Four `InstantiateObject` overloads: original object only, specify parent, specify position/rotation, full parameters with position/rotation and parent
 - Network awareness: `playerOwned` / `allowNetworked` parameters control network registration behavior
 - `DestroyObject` unified destruction, with network awareness
@@ -20,8 +20,7 @@ Namespace: `Moirai.Atropos`
 |---------|------|
 | `ObjectUtility` | Static facade, providing `InstantiateObject<T>` / `DestroyObject` methods |
 | `ObjectHandler` | Abstract base class, defining 4 `InstantiateObject` overloads + `DestroyObject` |
-| `UnityObjectHandler` | Default implementation, wrapping `Object.Instantiate` / `Object.Destroy` (standalone mode) |
-| `PhotonFusionObjectHandler` | Networked implementation, wrapping Fusion network instantiation/destruction |
+| `UnityObjectHandler` | Framework-built-in default implementation, wrapping `Object.Instantiate` / `Object.Destroy` (standalone mode) |
 
 ## Quick Start
 
@@ -47,16 +46,17 @@ ObjectUtility.DestroyObject(go, allowNetworked: false);
 
 ### Networked Scenario (Fusion)
 
-```csharp
-// Switch to Fusion network Handler
-ObjectUtility.Handler = new PhotonFusionObjectHandler();
+The networked backend is not in the framework: first install the `photon-fusion` plugin from the `plugin` branch via `Tools/Moirai/Package Manager` (Fusion comes from Photon's own distribution channel, so after importing the SDK you must define `FUSION2` in the scripting define symbols), then select it in the "object backend" dropdown of `GameAppSettings` — that entry only exists while the plugin is present, and backends are never `new`-ed in game code. Once switched, the call sites stay the same:
 
+```csharp
 // Instantiate as a networked object (playerOwned marks ownership)
 ObjectUtility.InstantiateObject(prefab, playerOwned: true, allowNetworked: true);
 
 // Destroy networked object
 ObjectUtility.DestroyObject(go, allowNetworked: true);
 ```
+
+Without the plugin, `allowNetworked` / `playerOwned` carry no network semantics and the calls land on the framework-built-in `UnityObjectHandler`.
 
 ## Notes
 

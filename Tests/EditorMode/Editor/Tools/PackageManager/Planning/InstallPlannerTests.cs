@@ -14,7 +14,8 @@ namespace Editor.Tools.PackageManager
         private static readonly string[] NoIds = new string[0];
 
         private static PluginManifest Plug(string id, string version = "1.0.0", PluginDependency[] deps = null,
-            PluginUpmDependency[] upm = null, string floor = "2022.3.0", string frameworkFloor = "1.0.0")
+            PluginUpmDependency[] upm = null, string floor = "2022.3.0", string frameworkFloor = "1.0.0",
+            string unityCeiling = null, string frameworkCeiling = null)
         {
             return new PluginManifest
             {
@@ -24,6 +25,8 @@ namespace Editor.Tools.PackageManager
                 version = version,
                 minUnityVersion = floor,
                 minFrameworkVersion = frameworkFloor,
+                maxUnityVersion = unityCeiling,
+                maxFrameworkVersion = frameworkCeiling,
                 dependencies = deps,
                 upmDependencies = upm
             };
@@ -143,6 +146,65 @@ namespace Editor.Tools.PackageManager
             Assert.AreEqual("h", conflict.PluginId);
             StringAssert.Contains("9999.0.0", conflict.Reason);
             Assert.IsEmpty(plan.ToInstall);
+        }
+
+        /// <summary>
+        /// 上限按 <c>[min, max)</c> 判：正好等于上限就是那一档已停止提供，判超而不是放过。
+        /// </summary>
+        [Test]
+        public void Plan_UnityCeilingAtCurrent_ReportsCeilingExceeded()
+        {
+            InstallPlan plan = InstallPlanner.Plan(new List<PluginManifest>
+            {
+                Plug("u", "1.0.0", null, null, "2022.3.0", "1.0.0", unityCeiling: "2022.3.0")
+            }, NoIds, new[] { "u" }, NoIds, CurrentUnity, CurrentFramework);
+
+            PlanConflict conflict = OnlyConflict(plan);
+            Assert.AreEqual(PlanConflictKind.UnityCeilingExceeded, conflict.Kind);
+            Assert.AreEqual("u", conflict.PluginId);
+            StringAssert.Contains("不再支持", conflict.Reason);
+            StringAssert.Contains("2022.3.0", conflict.Reason);
+            Assert.IsEmpty(plan.ToInstall);
+        }
+
+        [Test]
+        public void Plan_FrameworkCeilingAtCurrent_ReportsCeilingExceeded()
+        {
+            InstallPlan plan = InstallPlanner.Plan(new List<PluginManifest>
+            {
+                Plug("f", "1.0.0", null, null, "2022.3.0", "1.0.0", frameworkCeiling: "1.1.0")
+            }, NoIds, new[] { "f" }, NoIds, CurrentUnity, CurrentFramework);
+
+            PlanConflict conflict = OnlyConflict(plan);
+            Assert.AreEqual(PlanConflictKind.FrameworkCeilingExceeded, conflict.Kind);
+            StringAssert.Contains("不再提供维护", conflict.Reason);
+            Assert.IsEmpty(plan.ToInstall);
+        }
+
+        /// <summary>正对照：两档上限都还在当前版本之上时，装得下去——否则上面两条红可能是量具恒判。</summary>
+        [Test]
+        public void Plan_CeilingsAboveCurrent_InstallsWithoutConflict()
+        {
+            InstallPlan plan = InstallPlanner.Plan(new List<PluginManifest>
+            {
+                Plug("ok", "1.0.0", null, null, "2022.3.0", "1.0.0", "9999.0.0", "9999.0.0")
+            }, NoIds, new[] { "ok" }, NoIds, CurrentUnity, CurrentFramework);
+
+            Assert.IsEmpty(plan.Conflicts, string.Join(" | ", ConflictReasons(plan)));
+            Assert.AreEqual("ok", IdsOf(plan));
+        }
+
+        /// <summary>读不出框架版本时上限也不判：量具没读数不能把人已装的挡在门外。</summary>
+        [Test]
+        public void Plan_FrameworkCeilingWithoutMeasuredVersion_SkipsTheCheck()
+        {
+            InstallPlan plan = InstallPlanner.Plan(new List<PluginManifest>
+            {
+                Plug("s", "1.0.0", null, null, "2022.3.0", "1.0.0", null, "1.1.0")
+            }, NoIds, new[] { "s" }, NoIds, CurrentUnity);
+
+            Assert.IsEmpty(plan.Conflicts, string.Join(" | ", ConflictReasons(plan)));
+            Assert.AreEqual("s", IdsOf(plan));
         }
 
         [Test]

@@ -12,10 +12,9 @@ Runtime/Services/Audio/
 ├── AudioServiceDebuggerWindow.cs                            # 主音量与五条音轨的实时控制
 ├── AudioSettingsPolicy.cs                                   # 设置键名、默认值与音量值域钳制的唯一定义处
 ├── Handler/                     # 可换后端缝
-│   ├── UnityAudioHandler.cs   # 默认 Unity 后端
-│   ├── Middleware/            # FMOD/Wwise 共用：IAudioMiddlewareBridge + 两条窄能力接口 + 共用基类 + EAudioBankLoadResult
-│   ├── Fmod/                  # FmodAudioHandler + FmodBridgeStub|Native
-│   └── Wwise/                 # WwiseAudioHandler + WwiseBridgeStub|Native
+│   ├── UnityAudioHandler.cs   # 框架内置默认 Unity 后端
+│   └── Middleware/            # 中间件共用面：IAudioMiddlewareBridge + 两条窄能力接口 + 共用基类 + EAudioBankLoadResult
+│                              # FMOD / Wwise 两支 SDK 后端不住这里——由 plugin 分支的 fmod、wwise 插件各自发行
 ├── Internal/                    # 模块私有机制
 │   ├── AudioHandleRegistry.cs / AudioClipCache.cs / AudioFadeScheduler.cs / AudioAgentHostPool.cs
 │   ├── AudioMainThread.cs / AudioFault.cs / AudioWarnOnce.cs / AudioBlockingLoadGate.cs / ResourceClipLeaseSource.cs
@@ -34,27 +33,26 @@ Runtime/Services/Audio/
 - **`AudioService`**：静态外观，依赖 `DebuggerService`、`ResourceService`（`OnInit` 同步加载音频设置）
 - **`AudioServiceHandler`**：后端抽象契约（含 `StopByID`、16B 热请求 `Play`、`OnAgentPlaybackEnded` 虚回调）。Master/音轨总线过渡由本契约**直接实现**（持 `AudioFadeScheduler`，落到 `IAudioFadeTarget.ApplyFade`），后端只需实现"音量写到哪儿"
 - **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**：Unity 与中间件后端共享的句柄注册与过渡调度（总线 Fade 用高位段伪句柄）
-- **`UnityAudioHandler`**：默认 Unity `AudioSource`/`AudioMixer` 后端
-- **`MiddlewareAudioHandler`**：FMOD / Wwise 共用基类（句柄、声部 Fade、总线、分层）
-- **`FmodAudioHandler` / `WwiseAudioHandler`**：薄封装，仅提供 `CreateDefaultBridge()`
+- **`UnityAudioHandler`**：框架内置默认 Unity `AudioSource`/`AudioMixer` 后端
+- **`MiddlewareAudioHandler`**：中间件共用基类（句柄、声部 Fade、总线、分层）；FMOD / Wwise 两支 SDK 后端各自继承它，但都住在 `plugin` 分支的 `fmod`、`wwise` 插件里，不在本程序集
 - **`AudioServiceSettings`**：选择后端、配置 Mixer 与 `AudioGroupConfig[]`、混音快照映射、可选宿主池预热与 Clip 缓存档位
 - **`AudioClipCache`**：Unity 后端路径播放的资源真相源（同地址共享一条租约，LRU/TTL/Pin 驱逐）
 
 ### 可替换后端与预编译宏
 
-| 宏 | 后端 | 未定义时 |
-|---|---|---|
-| （默认） | `UnityAudioHandler` | — |
-| `FMOD_INSTALLED` | `FmodBridgeNative` → `FmodAudioHandler` | 使用 `FmodBridgeStub`（可跑通契约与压测） |
-| `WWISE_INSTALLED` | `WwiseBridgeNative` → `WwiseAudioHandler` | 使用 `WwiseBridgeStub` |
+| 插件 | 门控宏 | 桥 | 宏未定义时 |
+|---|---|---|---|
+| （框架内置） | — | `UnityAudioHandler` | — |
+| `fmod` | `FMOD_INSTALLED`（手写档，需自己在 Scripting Define Symbols 里定义） | 真 SDK 桥 → 插件的 FMOD 后端 | 退化到插件自带的 FMOD 桩桥（可跑通契约与压测，不出声） |
+| `wwise` | `WWISE_INSTALLED`（同上，手写档） | 真 SDK 桥 → 插件的 Wwise 后端 | 退化到插件自带的 Wwise 桩桥 |
 
-在 `AudioServiceSettings` 的 Handler 下拉中选择 `FmodAudioHandler` / `WwiseAudioHandler` 即可切换；桥接契约为 `IAudioMiddlewareBridge`（Play/Stop/Pause/Bus/IsPlaying）。
+两支 SDK 后端不在框架里：先用 `Tools/Moirai/Package Manager` 装上 `plugin` 分支对应的 `fmod` / `wwise` 插件，它们才会进 `AudioServiceSettings` 的 Provider 下拉——插件不在场时下拉里只有框架内置的 Unity 后端。后端一律经 settings 选，不在游戏代码里 `new`。桥接契约为 `IAudioMiddlewareBridge`（Play/Stop/Pause/Bus/IsPlaying）。
 
 #### 事件映射表
 
 中间件后端默认按 `clip.name` 推导事件路径（FMOD 为 `event:/<name>`）。事件由音效师命名、clip 只是占位引用时，这条隐性约定会静默推导错路径，因此在 Handler 上配一张显式映射表：
 
-- 在 Inspector 里给 `FmodAudioHandler` / `WwiseAudioHandler` 的「事件映射表」加条目：`Clip` + `EventPath`。
+- 在 Inspector 里给插件提供的 FMOD / Wwise 后端的「事件映射表」加条目：`Clip` + `EventPath`。
 - 命中映射直接用；未命中才回落到按名推导，并就该 clip **提示一次** Warning。
 - 计数与播放同一条解析路径：`CurrentlyPlayingCount(clip)` 也先查映射表，否则命中映射的 clip 会恒查到 0。
 - 运行期改过配置后调 `InvalidateEventMap()` 重建缓存（代码里配表时也用它）。
@@ -67,7 +65,7 @@ Runtime/Services/Audio/
 - Unity 后端无概念，`LoadBank` 返回 `false`、`SetRtpc` 空操作。
 - 中间件后端按**能力接口**探测（`IAudioMiddlewareBankControl` / `IAudioMiddlewareRtpcControl`），桥接没实现该能力时提示一次并安全降级——刻意不做进 `IAudioMiddlewareBridge` 主接口，否则未实现它的真 SDK 桥在定义 `FMOD_INSTALLED` 时会直接编译不过。
 - `SetRtpc` 的 `handle` 传 0 表示工程/全局参数，传播放句柄则作用于该实例。
-- `FmodBridgeNative` / `WwiseBridgeNative` 已按这两个接口写好实现，但**在无 SDK 的机器上无法编译核对**：装完插件必须先过编译（G0），再按真 SDK 契约复测（G1）。
+- 插件里的 FMOD / Wwise 真 SDK 桥已按这两个接口写好实现，但**在无 SDK 的机器上无法编译核对**：装完插件必须先过编译（G0），再按真 SDK 契约复测（G1）。
 - `LoadBank` 在桥侧是**三态**（`Loaded` / `AlreadyLoaded` / `Failed`）：幂等命中与「插件启动时自行加载的 master/Init 库」都属正常，只有 `Failed` 会让外观层就该库名提示一次；外观 `AudioService.LoadBank` 仍是 `bool`，只在真的完成加载时返回 `true`。
 
 ## 核心特性
@@ -85,15 +83,14 @@ Runtime/Services/Audio/
 
 ## 核心类型
 
-命名空间：`Moirai.Atropos.Audio`（中间件在 `.Fmod` / `.Wwise` / `.Middleware`）
+命名空间：`Moirai.Atropos.Audio`（中间件共用面在 `.Middleware`；插件那两支后端沿用 `.Fmod` / `.Wwise`，类型住在 `Moirai.Plugin.Fmod` / `Moirai.Plugin.Wwise` 装配里）
 
 | 类型 | 说明 |
 |------|------|
 | `AudioService` | 静态外观；含 `RequestMixSnapshot` / `StopByID` / 16B `Play` |
 | `AudioServiceHandler` | 后端契约 |
 | `UnityAudioHandler` | 默认 Unity 后端 |
-| `MiddlewareAudioHandler` | 中间件共用基类 |
-| `FmodAudioHandler` / `WwiseAudioHandler` | FMOD / Wwise 薄封装 |
+| `MiddlewareAudioHandler` | 中间件共用基类（`public abstract`）；FMOD / Wwise 两支后端各由同名插件提供、继承它，命名空间不变但类型不在本程序集 |
 | `AudioPlayRequest` | 16B 热路径请求（Id/Volume/Pitch/Track/Priority/Flags） |
 | `AudioPlayColdParams` | 冷路径：位置、曲线、旁通、淡入、Rolloff（池化） |
 | `AudioPlayOptions` | 完整兼容门面；`ToRequest()` / `FromOptions()` 拆分；空间整形经 `Spatial` 字段整体携带；`CachePolicy` 决定 clip 留池策略 |
@@ -135,8 +132,11 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 ### 中间件后端
 
 ```csharp
-// Player Settings → Scripting Define Symbols 添加 FMOD_INSTALLED 或 WWISE_INSTALLED
-// 导入对应插件后，在 AudioServiceSettings 将 Handler 切换为 FmodAudioHandler / WwiseAudioHandler
+// 1) 经 Tools/Moirai/Package Manager 装上 plugin 分支的 fmod 或 wwise 插件
+//    （两者的 SDK 都不在 UPM 渠道，需先自行导入官方 Unity 集成包）
+// 2) Player Settings → Scripting Define Symbols 定义 FMOD_INSTALLED 或 WWISE_INSTALLED
+//    未定义时插件后端退化为自带桩桥：契约照跑、不出声，用于 CI 与压测
+// 3) 在 AudioServiceSettings 的 Provider 下拉里选中该后端（没装插件时下拉里根本没有这一项）
 // 事件路径约定：FMOD = event:/Name；Wwise = 事件名；总线 bus:/Music 等
 ```
 
@@ -209,6 +209,10 @@ AudioService.ClearClipCache(force: true);                   // 连 Pin 一并清
 AudioService.RequestMixSnapshot(EMixSnapshot.Dialogue, 0.25f);
 AudioService.ResetMixSnapshot(0.25f);
 ```
+
+### 音量设置的落盘时机
+
+音量滑杆与静音开关只改运行期状态，不落盘。把选择写进配置的入口是 `AudioService.SetSettings()` 与 `AudioService.RemoveSetting()`：各自主音量与全部音轨写完后统一 `SettingUtility.Save()` 落盘一次。键名、默认值与 0..1 的值域钳制都只在 `AudioSettingsPolicy` 里定义一处，后端不再自己拼键。
 
 ### 遮挡 / HRTF
 

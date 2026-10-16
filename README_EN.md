@@ -158,7 +158,7 @@ Each service doc covers key features, core types, quick start and advanced usage
 | **ConfigTable** | Luban config table integration: table loading with lazy access, table conversion toolchain | [ConfigTable.md](Documentation~/en/ConfigTable.md) |
 | **Procedure** | Game flow management: startup chain, configurable procedures, self-contained state machine | [Procedure.md](Documentation~/en/Procedure.md) |
 | **Input** | Cross-platform input abstraction: Input System / legacy input / mobile UI touch, key prompts | [Input.md](Documentation~/en/Input.md) |
-| **Save** | Pluggable save system: single-file multi-block container, JSON/MessagePack/MemoryPack/Protobuf backends, AES encryption + GZip compression, file-level version migration bus, codeless save components (SourceGenerator), cloud sync | [Save.md](Documentation~/en/Save.md) |
+| **Save** | Pluggable save system: single-file multi-block container, built-in JSON serialization (MessagePack/MemoryPack/Protobuf ship as plugins on the `plugin` branch), AES encryption + GZip compression, file-level version migration bus, codeless save components (SourceGenerator), cloud sync (REST built in, UGS as a plugin) | [Save.md](Documentation~/en/Save.md) |
 | **Scene** | Scene management: async load/activate/unload via YooAsset SceneHandle | [Scene.md](Documentation~/en/Scene.md) |
 | **Timer** | Dual-engine timer: four-level time wheel (seconds) + frame ticking (frames), versioned handles, preheat, statistics | [Timer.md](Documentation~/en/Timer.md) |
 | **ObjectPool** | Service-level object pools: single/multi-spawn pools, GameObject pools | [ObjectPool.md](Documentation~/en/ObjectPool.md) |
@@ -174,7 +174,7 @@ Each service doc covers key features, core types, quick start and advanced usage
 | **MemoryPool** | Zero-GC page-based memory pool: unmanaged metadata, EWMA adaptive watermarks, phase budgets | [MemoryPool.md](Documentation~/en/MemoryPool.md) |
 | **GameApp** | Unity lifecycle proxy: coroutine hosting, frame update injection, engine event injection, game speed/pause control | [GameApp.md](Documentation~/en/GameApp.md) |
 | **PlayerLoopDriver** | Mono-free PlayerLoop logic driver: zero-allocation handlers, inject/restore, editor visualization | [PlayerLoopDriver.md](Documentation~/en/PlayerLoopDriver.md) |
-| **GameLog** | Logging: runtime level filtering, pluggable backends (built-in Default / Serilog / Unity Logging, further backends ship as plugins), T4-generated format overloads, intercepts Unity `Debug.Log` | — |
+| **GameLog** | Logging: runtime level filtering, pluggable backends (built-in Default; Serilog / Unity Logging / ZLogger each ship as the same-named plugin on the `plugin` branch and only show up in the Provider dropdown once installed), T4-generated format overloads, intercepts Unity `Debug.Log` | — |
 | **GameTime** | Lightweight time accessor, sampled once per frame, avoids frequent `Time.deltaTime` calls | — |
 | **GameProfiler** | Conditional-compilation profiling (`PROFILER_ENABLE` macro), zero overhead when off | — |
 | **GameSettings** | Framework / graphics / update settings (menu `Tools/Framework Settings`) | — |
@@ -185,8 +185,8 @@ Each service doc covers key features, core types, quick start and advanced usage
 | **Extensions/R3** | R3 reactive extensions + UGUI binding: `OnClickAsObservable()`, `ReactiveProperty` two-way binding | — |
 | **StringUtility** | String formatting & building: pluggable handlers, pooled StringBuilder, three usage modes | [StringUtility.md](Documentation~/en/StringUtility.md) |
 | **JsonUtility** | JSON serialization: pluggable handlers, byte fast path, allow-list member filtering | [JsonUtility.md](Documentation~/en/JsonUtility.md) |
-| **ObjectUtility** | Object instantiate/destroy: pluggable handlers (standalone / Photon Fusion network-aware) | [ObjectUtility.md](Documentation~/en/ObjectUtility.md) |
-| **TweenUtility** | Tween system: pluggable engines (in-house / PrimeTween / LitMotion), Bezier paths, unified tween parameters | [TweenUtility.md](Documentation~/en/TweenUtility.md) |
+| **ObjectUtility** | Object instantiate/destroy: pluggable handlers (built-in standalone; the Photon Fusion network-aware backend ships as the `photon-fusion` plugin on the `plugin` branch) | [ObjectUtility.md](Documentation~/en/ObjectUtility.md) |
+| **TweenUtility** | Tween system: pluggable engines (built-in in-house; PrimeTween / LitMotion ship as the same-named plugins on the `plugin` branch), Bezier paths, unified tween parameters | [TweenUtility.md](Documentation~/en/TweenUtility.md) |
 
 <details>
 <summary>Utility — full utility class list</summary>

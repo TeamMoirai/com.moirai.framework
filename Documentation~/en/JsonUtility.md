@@ -6,7 +6,7 @@
 
 ## Core Features
 
-- Pluggable Handler: `DefaultJsonHandler` (default, self-developed reflection-based) / `NewtonsoftJsonHandler` (Newtonsoft.Json), switchable globally via `JsonUtility.Handler`
+- Pluggable Handler: framework-built-in `DefaultJsonHandler` (self-developed, reflection-based); the Newtonsoft.Json backend ships as the `newtonsoft-json` plugin on the `plugin` branch and only enters the Provider dropdown once installed — switching happens in `GameAppSettings`
 - Fast byte path: `IBufferJsonHandler` interface, skips UTF16/UTF8 transcoding in IO/network scenarios
 - Attribute control: `[JsonSerialize]` / `[JsonDoNotSerialize]` / `[JsonSerializeAs("name")]` to control field serialization
 - Lifecycle callbacks: `[JsonBeforeSerialization]` / `[JsonAfterDeserialization]` method attributes
@@ -22,8 +22,7 @@ Namespace: `Moirai.Atropos`
 | `JsonUtility` | Static facade, providing `ToJson` / `ToObject` / `ToJsonBytes` / `FormatJson` methods |
 | `JsonHandler` | Abstract base class, defining `ToJson` / `ToObject<T>` / `ToObject(Type)` / `FromJsonOverwrite` |
 | `IBufferJsonHandler` | Byte path interface, optional implementation, providing `ToJsonBytes` / `ToObject<T>(byte[])` / `ToObject(Type, byte[])` |
-| `DefaultJsonHandler` | Default implementation, self-developed reflection-based JSON serializer |
-| `NewtonsoftJsonHandler` | Newtonsoft.Json adapter implementation |
+| `DefaultJsonHandler` | Framework-built-in default implementation, self-developed reflection-based JSON serializer |
 | `JsonPropertyAttribute` | Base class for property attributes, controlling serializable/deserializable/serialization name |
 | `JsonSerializeAttribute` | Marks private fields/properties as serializable |
 | `JsonDoNotSerializeAttribute` | Marks public fields/properties as not serializable |
@@ -76,17 +75,15 @@ public class PlayerData
 
 ### Switching Handler
 
-```csharp
-// Switch to Newtonsoft.Json implementation
-JsonUtility.Handler = new NewtonsoftJsonHandler();
+Backends are always selected in settings, never `new`-ed in game code: open `GameAppSettings` via `Tools/Framework Settings` and switch the "JSON backend" dropdown to the target implementation.
 
-// Restore default
-JsonUtility.Handler = new DefaultJsonHandler();
-```
+- The Newtonsoft entry in that dropdown comes from the `newtonsoft-json` plugin on the `plugin` branch (installed through `Tools/Moirai/Package Manager`); without the plugin it does not exist and the dropdown only offers the framework-built-in `DefaultJsonHandler`.
+- The field is `[SerializeReference]`, so switching changes the `asm:` ownership recorded in the asset — save the asset afterwards.
+- Only the `JsonHandler` implementation moves into the plugin: `com.unity.nuget.newtonsoft-json` remains a hard dependency of the framework `package.json` (the event base `[JsonIgnore]`, the task base class, the event debugger and the save-migration JSON rewrite all use it unguarded), so it must not be treated as an optional package.
 
 ### Byte Path (IBufferJsonHandler)
 
-`DefaultJsonHandler` implements `IBufferJsonHandler`. `ToJsonBytes` directly produces UTF8 bytes, and deserialization directly consumes bytes, avoiding the UTF16/UTF8 transcoding allocation of the intermediate string. `NewtonsoftJsonHandler` does not implement this interface and falls back to the string path automatically.
+`DefaultJsonHandler` implements `IBufferJsonHandler`. `ToJsonBytes` directly produces UTF8 bytes, and deserialization directly consumes bytes, avoiding the UTF16/UTF8 transcoding allocation of the intermediate string. The Newtonsoft backend supplied by the plugin does not implement this interface and falls back to the string path automatically.
 
 ## Notes
 
