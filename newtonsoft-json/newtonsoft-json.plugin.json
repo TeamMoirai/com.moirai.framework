@@ -1,0 +1,15 @@
+{
+  "id": "newtonsoft-json",
+  "name": "Newtonsoft Json 后端",
+  "function": "字符串",
+  "description": "Newtonsoft.Json（Json.NET）的 Json 函數集后端：装上后 JsonHandler 的 Provider 下拉多出「Newtonsoft」，ToJson/ToObject/FromJsonOverwrite 走 Json.NET 全功能通路（ContractResolver、最大深度可配）。宏 NEWTONSOFT_JSON_INSTALLED 由本插件的 asmdef 按 com.unity.nuget.newtonsoft-json ≥1.0.0 自动定义，装上即生效，不需要手写宏。不装本插件时整支编译为空、下拉里没有 Newtonsoft，JsonUtility 只剩框架自带的 DefaultJsonHandler 字节通路。注意：只搬走后端类，com.unity.nuget.newtonsoft-json 仍是框架 package.json 的硬依赖（事件调试器与存档迁移的 JSON 改写都在无守卫地用它），摘掉那个包框架自己就编不过。",
+  "author": "Team Moirai",
+  "version": "1.0.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": [
+    { "id": "com.unity.nuget.newtonsoft-json", "version": "3.2.2" }
+  ]
+}
