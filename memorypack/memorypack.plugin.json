@@ -1,0 +1,13 @@
+{
+  "id": "memorypack",
+  "name": "MemoryPack 存档后端",
+  "function": "存档",
+  "description": "MemoryPack 零编码开销二进制存档后端：装上后 SaveServiceSettings 的默认后端下拉多出「MemoryPack」，数据块按线格式 ID 2 落盘（ID 由框架保留，不装插件也不许别处占用）。数据类型需 [MemoryPackable] partial 标注，靠 MemoryPack 自带的 SourceGenerator 出 AOT 安全代码。安装前置——先用 NuGetForUnity 装好 MemoryPack.Core（本插件不带 UPM 包，dll 来自 NuGet），再在工程里自带宏 MEMORYPACK_INSTALLED（该宏是手写档，不走 versionDefines），最后装本插件。三件不齐时整支插件编译为空、下拉里没有 MemoryPack，存档只剩框架内置 JSON；已存在的存档设置里写着 Moirai.Atropos.Save.MemoryPackSaveSerializer 的话按全名解析不到，会回退内置 JSON 并记一次 Fatal。",
+  "author": "Team Moirai",
+  "version": "0.1.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": []
+}
