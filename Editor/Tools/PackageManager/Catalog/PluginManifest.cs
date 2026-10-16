@@ -17,6 +17,9 @@ namespace Moirai.Atropos.Editor
         /// <summary>清单文件名后缀。</summary>
         internal const string MANIFEST_SUFFIX = ".plugin.json";
 
+        /// <summary>菜单标签的长度上限：分组名与显示名都要当树路径的一节用。</summary>
+        internal const int MAX_LABEL_LENGTH = 40;
+
         public string id;
         public string name;
         public string function;
@@ -29,7 +32,12 @@ namespace Moirai.Atropos.Editor
         public PluginDependency[] dependencies;
         public PluginUpmDependency[] upmDependencies;
 
-        /// <summary>解析并校验一份清单文本。</summary>
+        /// <summary>这份清单在分支树里的来源路径，由发现层填入；不参与 JSON 往返。</summary>
+        internal string SourceTreePath;
+
+        /// <summary>
+        /// 解析并校验一份清单文本。
+        /// </summary>
         public static bool TryParse(string sourcePath, string json, out PluginManifest manifest, out List<string> errors)
         {
             manifest = null;
@@ -98,13 +106,16 @@ namespace Moirai.Atropos.Editor
                 errors.Add(Describe(sourcePath, $"minFrameworkVersion '{candidate.minFrameworkVersion}' 不是三段十进制版本号"));
             }
 
+            ValidateLabels(candidate, sourcePath, errors);
             ValidateDependencies(candidate, sourcePath, errors);
             ValidateUpmDependencies(candidate, sourcePath, errors);
 
             return errors.Count == 0;
         }
 
-        /// <summary>判定标识符可否同时作目录名。</summary>
+        /// <summary>
+        /// 判定标识符可否同时作目录名。
+        /// </summary>
         internal static bool IsValidId(string candidate)
         {
             if (string.IsNullOrEmpty(candidate) || candidate[0] == '.') return false;
@@ -123,25 +134,55 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>当前编辑器版本是否达到该插件的最低要求。</summary>
+        /// <summary>
+        /// 当前编辑器版本是否达到该插件的最低要求。
+        /// </summary>
         internal bool SatisfiesUnityVersion(PluginVersion unityVersion)
         {
             if (!PluginVersion.TryParse(minUnityVersion, out PluginVersion floor)) return false;
             return unityVersion >= floor;
         }
 
-        /// <summary>取该插件要求的最低 Unity 版本。</summary>
-        internal bool TryGetUnityFloor(out PluginVersion floor) => PluginVersion.TryParse(minUnityVersion, out floor);
-
-        /// <summary>当前框架版本是否达到该插件的最低要求。</summary>
+        /// <summary>
+        /// 当前框架版本是否达到该插件的最低要求。
+        /// </summary>
         internal bool SatisfiesFrameworkVersion(PluginVersion frameworkVersion)
         {
             if (!PluginVersion.TryParse(minFrameworkVersion, out PluginVersion floor)) return false;
             return frameworkVersion >= floor;
         }
 
-        /// <summary>取该插件要求的最低框架版本。</summary>
-        internal bool TryGetFrameworkFloor(out PluginVersion floor) => PluginVersion.TryParse(minFrameworkVersion, out floor);
+        /// <summary>
+        /// 标签字符集：可读即可，分隔符与控制字符一律拒。
+        /// </summary>
+        /// <remarks>菜单树按 <c>"分组/条目"</c> 拼路径，标签里一个 <c>/</c> 就会多撑出一层节点。</remarks>
+        internal static bool IsValidLabel(string label)
+        {
+            if (string.IsNullOrEmpty(label) || label.Length > MAX_LABEL_LENGTH) return false;
+
+            for (int i = 0; i < label.Length; i++)
+            {
+                char c = label[i];
+                if (c == '/' || c == '\\' || char.IsControl(c)) return false;
+            }
+
+            return true;
+        }
+
+        private static void ValidateLabels(PluginManifest candidate, string sourcePath, List<string> errors)
+        {
+            if (!string.IsNullOrEmpty(candidate.function) && !IsValidLabel(candidate.function))
+            {
+                errors.Add(Describe(sourcePath,
+                    $"function '{candidate.function}' 不许含 / \\ 或控制字符，长度上限 {MAX_LABEL_LENGTH}"));
+            }
+
+            if (!string.IsNullOrEmpty(candidate.name) && !IsValidLabel(candidate.name))
+            {
+                errors.Add(Describe(sourcePath,
+                    $"name '{candidate.name}' 不许含 / \\ 或控制字符，长度上限 {MAX_LABEL_LENGTH}"));
+            }
+        }
 
         private static void ValidateDependencies(PluginManifest candidate, string sourcePath, List<string> errors)
         {

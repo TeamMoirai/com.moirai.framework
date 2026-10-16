@@ -7,7 +7,7 @@
 ## 核心特性
 
 - `Language` 语言对象：携带 `Name`（枚举名）、`Code`（ISO-639-1）、`DisplayName`（本地显示名），内置 `SystemLanguage` 全量语言并支持自定义语言；内置语言与 `BuiltinLanguages` 为共享实例，不在访问时重建
-- 语言检测优先级：命令行 `-force-language` → 编辑器 `LocalizationServiceSettings.EditorLanguage` → `SettingUtility` 存档 → `Application.systemLanguage`（中文未区分简繁时回落简体）；检测出的语言没进这批词条时按语言表首项兜底，不会让整套界面停留在露 key 状态
+- 语言检测优先级：命令行 `-force-language` → 编辑器 `LocalizationServiceSettings.EditorLanguage`（存语言 Code，空串与 Unspecified 都算未选）→ `SettingUtility` 存档 → `Application.systemLanguage`（中文未区分简繁时回落简体）；检测出的语言没进这批词条时先落默认语言 English，连它也没发行才按语言表首项兜底，不会让整套界面停留在露 key 状态
 - 文本查询：`GetTextFromId`（支持 `string.Format` 参数；缺译即露 key）、`TryGetTextFromId`（单趟解析：命中给译文、缺失给 `false`+`null` 并按既有口径追踪缺译——资源模式本地化器的「有则注、无则报」判断走它，不再 `Has` + `GetTextFromId` 双查）、`GetTextFromIdLanguage`（语言传 `null` 即当前语言）、`GetDictionaryFromId`（取全部语言）、`GetAllIds`；零参调用改绑 `GetTextFromId` / `GetTextFromIdLanguage` 的无参重载——调用点不再构造 `params` 数组，零分配
 - 缺译即露 key：当前语言该词条为空或仅空白时直接返回 ID，不借别的语言顶上（详见「缺译即露 key」）；`TextLocalizer` 展示走这条口径
 - 内联解析：`LocalizationService.Localize` 将 `{l10n:ID}`、`{i18n:ID}`、`{g11n:ID}` 替换为本地化条目
@@ -21,9 +21,9 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `LocalizationService` | 静态外观（`[ProviderHandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理；`onLanguageChanged` 事件由外观直接暴露；`ToLanguage` / `Localize` / `ResolveLanguages` 与编辑器预览 API 住在同一类的分部实现（`LocalizationService.Helper`）中 |
+| `LocalizationService` | 静态外观（`[ProviderHandlerHost]`），负责加载配表文本、语言切换与 Localizer 管理，并给出导出语言自报面（`ExportedLanguages` / `ExportedLanguageCodes`）；`onLanguageChanged` 事件由外观直接暴露；`ToLanguage` / `Localize` / `ResolveLanguages` 与编辑器预览 API 住在同一类的分部实现（`LocalizationService.Helper`）中 |
 | `Language` | 语言类（`IEquatable<Language>`，按 `Code` 比较）：`Name`、`Code`、`DisplayName`、`BuiltinLanguages`，支持与 `SystemLanguage` 互转；内置条目为共享只读实例 |
-| `LocalizationServiceHandler` | 处理器抽象基类：按语言取值解析、语言切换、本地化器注册 |
+| `LocalizationServiceHandler` | 处理器抽象基类：按语言取值解析、语言切换、运行时覆盖与文本查询；数据源有哪几门语言由本类的 `ExportedLanguageCodes`（virtual）自报，基类据此给出 `ExportedLanguages` |
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
 | `ILocalizationInjector` | 注入器接口：`Inject<T1, T2>(localizedData, localizer)` |
 | `TextLocalizer` | 文本本地化器，自动发现 TextMesh / Text / TMP_Text 并注入文本 |
@@ -84,8 +84,15 @@ string hint = LocalizationService.Localize("按 {l10n:btn_confirm} 继续");
 
 取向是「表必须填全，漏翻要看得见」——拿另一种语言的译文顶上一格，界面确实不露 key 了，策划与 QA 却再也不会发现这一格没翻。
 
-- 首启语言（检测链结果）没随这批词条发行时按语言表首项兜底，避免整套界面从第一条查询起就露 key
+- 首启语言（检测链结果）没随这批词条发行时先落默认语言 `LocalizationService.DefaultLanguage`（English），连它也没发行才按语言表首项兜底，避免整套界面从第一条查询起就露 key
 - 按语言列模式（见「按语言列加载」）下这条取向更是必然：别的语言那一整列压根没装载，无从兜底
+
+### 偏好交接与存档写入
+
+- 检测链（命令行 → 编辑器语言 → 本地存档 → 渠道烘焙 → 系统语言）只在 `LocalizationService` 这一侧走：服务在每次取用处理器之前，把「原值 + 来源」交接给当前处理器（`ApplyPreference(rawValue, source)`）。处理器不向外询问偏好，也没有跨会话的静态注册点
+- 没被交接过的处理器把当前语言报成 `Language.Unspecified`。`ApplyPreference` 是 `internal`，只对包内以及编进 `Moirai.Atropos` 的补丁代码可见：自建处理器实例（包内自定义数据源、测试替身）要读语言，得先由调用方交接一次
+- 语言存档的键名与读写口径定义在 `LocalizationSettingsPolicy`，**写入点只有服务的显式切换入口**：直接调 `handler.ChangeLanguage(...)` 换语言不改存档；首启检测链给出的语言也不落档，免得把系统语言固化成用户选择；数据未就绪时的显式切换按处理器记下的切换意图当场落档
+- 诊断用的读数是 `LocalizationService.LastLanguageSource`：它记的是最近一次走检测链的来路，与「谁在用这份读数」无关
 
 ### 订阅语言切换
 
@@ -113,7 +120,7 @@ LocalizationService.onLanguageChanged += language =>
 
 - 本地化数据来自 Luban 配置表：必须先在 `Tools/Framework Settings` 的 `LubanSettings`（「[框架]Luban 配置」）中生成并转表，否则加载失败并提示 "Failed to load localized text, generate config first!"（该错误只打一次，未就绪期间每次查询都返回 ID 原文）
 - 本地化数据为懒式初始化：服务注册期（`OnInit`）不加载任何资源，首次访问多语言 API（查询/切换）时才从配置表加载——届时 `Resource` 服务必然已就绪
-- 可用语言由配表自报：多语言按语言分份导出后，语言取自转表期生成的 `L10nLanguages.Codes`，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给框架解析（`LocalizationService.ResolveLanguages`），不存在可回落的全局语言注册表。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
+- 可用语言由数据源自报：多语言按语言分份导出后，语言取自转表期生成的 `L10nLanguages.Codes`，经 `ConfigTableServiceHandler.GetLocalizationLanguageCodes()` 交给 `ConfigTableLocalizationHandler.SelfReportedLanguageCodes()`（覆写点是 `LocalizationServiceHandler.SelfReportedLanguageCodes`，protected virtual，换自定义数据源的后端各自实现这一个方法）。基类只在解析那趟问后端一次，把原样序列缓存成 `ExportedLanguageCodes`，再经 `LocalizationService.ResolveLanguages` 去空码去重码得出 `ExportedLanguages`；外观侧 `LocalizationService.ExportedLanguages` / `ExportedLanguageCodes` 转发到当前数据源，不触发装载、非播放态也读得到。**要列语言选项目标取 `ExportedLanguages`**（`ExportedLanguageCodes` 是后端原样序列，可能含空码与重码，下标不保证与解析结果互指）。语言真相源只有「数据源自报」这一条，不存在可回落的全局注册表；`Unspecified` 由编辑器下拉自己补在首格，不由后端报出。自报集合发生变化时调 `InvalidateExportedLanguages()`（换批与整批重载已自动作废）。`ChangeLanguage` 传入未收录语言时保持原语言不变并告警（每种语言只警告一次），不抛异常
 - 词条的语言列数与自报语言数不一致会被判为数据损坏：**整批数据拒载**并报错（下标错位只会表现为「显示了别的语言」，不会报错，所以宁可不加载）
 - `ToLanguage(str, onlySupported)` 中 `onlySupported` 为 `true` 时，未收录进当前批的语言会回落到默认语言 English（`LocalizationService.DefaultLanguage`）；需要区分「写错了」与「就是要默认语言」时用 `TryGetBuiltInLanguage`
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（编辑态没有后端可取资产，写进组件还会把场景标脏）；要看效果用组件 Inspector 的预览行，`LocalizationService.Localize` 在非运行模式也走同一条预览直读，取不到时才原样返回
@@ -210,7 +217,7 @@ string detail = LocalizationService.GetPluralTextFromId("quest.items", count, pl
 
 - 检测链顺序：命令行 → 编辑器语言 → 本地存档 → **烘焙渠道语言** → 系统语言；玩家改过语言后存档仍优先
 - CI：出包参数加 `localizationLanguage=xx`（如 `-CustomArgs:platform=Android;localizationLanguage=en`），构建钩子自动烘焙 `Assets/Resources/LocalizationBuildConfig.asset`；未给参数则不动产物
-- 手动：`Tools/Config/烘焙渠道默认语言` 窗口烘焙/清除；语言填 Name 或 Code（非法值直接抛异常不让坏值进包）
+- 手动：`Tools/Config/烘焙渠道默认语言` 窗口烘焙/清除；窗口候选即 `LocalizationService.ExportedLanguages`（表里没有的语言不进候选），烘焙资产里写的是语言 Code。`LocalizationBuildBaker.BakeLanguage` 收 Name 或 Code，认不出直接抛异常不让坏值进包
 - 仅播放器消费该资产；编辑器与 Play 预览按编辑器设置链走，不受烘焙影响
 
 ## 编辑器内预览
@@ -218,12 +225,12 @@ string detail = LocalizationService.GetPluralTextFromId("quest.items", count, pl
 `TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` 的 Inspector 在 ID 字段下方显示一行「译文预览 [Preview]」，解析路径与运行期同源，只是数据源按状态分两条：
 
 - **播放态**读已注册的服务：语言、译文与注入器已经取到的资产都是真值
-- **非播放态**读配置表的编辑器预览入口（`ConfigTableService.GetAllLocalizedStringsForEditor`：运行期没注册处理器时，经 Settings 里配置的那份实例取数），资源模式那条地址再经 `ResourceService.TryLoadAsset` 的编辑态分支解析成资产，不需要进 Play
+- **非播放态**向 Inspector 里选定的本地化数据源要预览批次（`LocalizationServiceHandler.LoadEditorPreviewBatch`，由**包内**后端实现——该钩子是 internal virtual，程序集外的自定义数据源不给预览，这是刻意的边界）；默认的配置表数据源内部走 `ConfigTableService.GetAllLocalizedStringsForEditor`，运行期没注册处理器时经 Settings 里配置的那份实例取数。资源模式那条地址再经 `ResourceService.TryLoadAsset` 的编辑态分支解析成资产，不需要进 Play
 - 文本类显示译文；取不到时按 `EPreviewResolveStatus` 分档点明「表内无此 ID」或「该语言留空」，不拿 key 冒充译文。解析入口是 `LocalizationService.ResolvePreviewText`（唯一）
 - 图/音的资源模式显示 `ID → 地址 → 资产类型 '名字'`，并点名三种在编辑器里就能看出来的错：地址指向的资产取不到、类型不符（注入器会拒绝）、类型可自动转换（运行期会为此告警一次）
 - 图/音的索引模式显示预览语言、将要取用的数组下标以及该下标上的元素（`缺项` / `空引用` / 资源名）——「新增语言后数组没补齐」这类错位在这里当场能看见，不必等运行时
 - 类型判据始终向注入器要（接缝是 `IInjectorAssetPreview`；非播放态没有 `Awake`，预览会临时补建注入器，只建对象、不碰目标组件），预览侧不留第二份类型对照表
-- 语言取 Inspector 里的「编辑器语言」；未设置或该语言不在表内时取英语列，再退到首列
+- 语言取 Inspector 里的「编辑器语言」，候选为 Unspecified 加配置表导出的语言、落盘值为语言 Code；未设置或该语言不在表内时取英语列，再退到首列
 - 预览**不写回**目标组件（不标脏场景、不留「忘了还原」的错文案）；某格缺译时预览直接露 ID，那正是策划要看见的信息
 - 预览缓存随项目资产变更自动失效（`EditorApplication.projectChanged` 钩子，含转表回写与编辑器语言切换），也可手动调 `LocalizationService.InvalidateEditorPreview()`
 

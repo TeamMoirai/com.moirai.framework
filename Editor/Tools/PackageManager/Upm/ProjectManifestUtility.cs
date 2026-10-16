@@ -16,7 +16,9 @@ namespace Moirai.Atropos.Editor
         private const string DEPENDENCIES_TOKEN = "\"dependencies\"";
         private const int DEFAULT_INDENT = 4;
 
-        /// <summary>读取依赖块内某键的版本值。</summary>
+        /// <summary>
+        /// 读取依赖块内某键的版本值。
+        /// </summary>
         public static bool TryGetDependency(string manifestText, string packageId, out string version)
         {
             version = null;
@@ -95,7 +97,9 @@ namespace Moirai.Atropos.Editor
             return JoinLines(rebuilt, crlf);
         }
 
-        /// <summary>删除一条依赖。</summary>
+        /// <summary>
+        /// 删除一条依赖。
+        /// </summary>
         public static string RemoveDependency(string manifestText, string packageId, out UpmEntryOutcome outcome)
         {
             outcome = UpmEntryOutcome.NotFound;

@@ -31,7 +31,10 @@ namespace Moirai.Atropos.Localization
         private static LocalizationServiceHandler GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<LocalizationService>();
-            return LocalizationServiceSettings.LocalizationServiceHandler;
+            var handler = LocalizationServiceSettings.LocalizationServiceHandler;
+            // 拿到实例就交接：这条是懒加载主路径，处理器在被查语言之前必须先有检测链读数
+            HandPreferenceTo(handler);
+            return handler;
         }
 
         /// <inheritdoc />
@@ -46,7 +49,9 @@ namespace Moirai.Atropos.Localization
         /// </remarks>
         public override void OnInit()
         {
-            Handler.onLanguageChanged += onLanguageChanged;
+            var handler = Handler;
+            HandPreferenceToHandler();
+            handler.onLanguageChanged += onLanguageChanged;
             ReplayPendingLocalizers();
             DebuggerService.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
         }
@@ -124,53 +129,81 @@ namespace Moirai.Atropos.Localization
         /// <param name="settingSource">该语言设置自。</param>
         public static Language GetCurrentLanguage(bool onlySupported, ref string settingSource)
         {
+            var (raw, source) = CapturePreference();
+            settingSource = source;
+            return ToLanguage(raw, onlySupported);
+        }
+
+        /// <summary>最近一次检测链读数的来路（诊断与日志用；还没走过检测链时为空）。</summary>
+        internal static string LastLanguageSource { get; private set; }
+
+        /// <summary>
+        /// 走一遍检测链取「用户要哪门语言」，并把来路记进 <see cref="LastLanguageSource"/>。
+        /// </summary>
+        /// <remarks>
+        /// 只出原值与来源、不判可用性：可用语言的真相源是数据源自报的那批列，判定留在处理器里
+        /// （外观这边判可用性时只能问<strong>已注册的那个</strong>处理器，独立实例会问错对象）。
+        /// </remarks>
+        internal static (string Raw, string Source) CapturePreference()
+        {
+            var detected = DetectPreference();
+            LastLanguageSource = detected.Source;
+            return detected;
+        }
+
+        /// <summary>检测链本身：命令行 → 编辑器设置 → 本地存档 → 渠道烘焙 → 系统语言。</summary>
+        private static (string Raw, string Source) DetectPreference()
+        {
             // 获取启动命令中的设置
-            string language = CommandLineUtility.GetForceLanguage();
-            if (!string.IsNullOrEmpty(language))
-            {
-                settingSource = "CommandLine";
-            }
-            else
-            {
+            var commandLine = CommandLineUtility.GetForceLanguage();
+            if (!string.IsNullOrEmpty(commandLine)) return (commandLine, "CommandLine");
+
 #if UNITY_EDITOR
-                // 如果处于编辑器模拟模式下，使用编辑器设置的语言
-                if (LocalizationServiceSettings.EditorLanguage != Language.Unspecified.Name)
-                {
-                    language = LocalizationServiceSettings.EditorLanguage;
-                    settingSource = "EditorSetting";
-                }
-                else
+            // 空串与未选哨兵都不算「选了语言」：否则一个空值会把存档、渠道烘焙、系统语言整条链跳掉
+            var editorLanguage = LocalizationServiceSettings.EditorLanguage;
+            if (!string.IsNullOrEmpty(editorLanguage) && !IsEditorLanguageUnspecified(editorLanguage))
+            {
+                return (editorLanguage, "EditorSetting");
+            }
 #endif
-                // 如果已设置语言，则使用设置的语言
-                if (SettingUtility.HasSetting(GameConstant.Setting.LANGUAGE))
-                {
-                    language = SettingUtility.GetString(GameConstant.Setting.LANGUAGE);
-                    settingSource = "SavedSetting";
-                }
-#if !UNITY_EDITOR
-                // 构建期渠道默认语言：先于系统语言生效（玩家改过语言后存档仍优先）
-                else if (!string.IsNullOrEmpty(GetBakedChannelLanguage()))
-                {
-                    language = GetBakedChannelLanguage();
-                    settingSource = "ChannelBake";
-                }
-#endif
-                // 否则，使用系统语言
-                else
-                {
-                    SystemLanguage systemLanguage = Application.systemLanguage;
-                    // 未区分简繁时，使用简体中文
-                    if (systemLanguage == SystemLanguage.Chinese)
-                    {
-                        systemLanguage = SystemLanguage.ChineseSimplified;
-                    }
-                    language = ((Language)systemLanguage).Code;
-                    settingSource = "SystemLanguage";
-                }
+
+            // 用户显式切换过的语言优先于渠道烘焙与系统语言；空值不算写过，整条链照旧往下走
+            if (LocalizationSettingsPolicy.TryLoad(out var savedLanguage))
+            {
+                return (savedLanguage, "SavedSetting");
             }
 
-            return ToLanguage(language, onlySupported);
+#if !UNITY_EDITOR
+            // 构建期渠道默认语言：先于系统语言生效（玩家改过语言后存档仍优先）
+            var baked = GetBakedChannelLanguage();
+            if (!string.IsNullOrEmpty(baked)) return (baked, "ChannelBake");
+#endif
+
+            // 否则，使用系统语言；未区分简繁时按简体中文
+            var systemLanguage = Application.systemLanguage;
+            if (systemLanguage == SystemLanguage.Chinese) systemLanguage = SystemLanguage.ChineseSimplified;
+            return (((Language)systemLanguage).Code, "SystemLanguage");
         }
+
+        /// <summary>
+        /// 走一遍检测链并把读数交给当前处理器；服务在可能用到处理器语言读数的入口都要先走这一步。
+        /// </summary>
+        /// <remarks>
+        /// 处理器不再自行询问检测链：没交接过就把 <c>CurrentLanguage</c> 报成未选，首启因此兜到语言表首项而不是用户要的语言——
+        /// 交接点漏一处不会编译报错，只会表现为「语言选错且没人报错」。来路在没有注册处理器时同样要记：诊断问的是检测链读到了什么。
+        /// </remarks>
+        private static void HandPreferenceToHandler() => HandPreferenceTo(s_Handler);
+
+        /// <summary>把检测链读数交给指定处理器实例；交接给谁与「当前注册的是谁」是两件事，懒加载途中要交给刚拿到的那份。</summary>
+        private static void HandPreferenceTo(LocalizationServiceHandler handler)
+        {
+            var (raw, source) = CapturePreference();
+            // 来路在没有注册处理器时同样要记：诊断问的是「检测链这次读到了什么」，不是「谁在用」
+            if (handler != null) handler.ApplyPreference(raw, source);
+        }
+
+        /// <summary>编辑器侧改了「编辑器语言」后代当前处理器交接一次；设置类不该自己碰注册的处理器。</summary>
+        internal static void ApplyEditorLanguagePreference() => HandPreferenceToHandler();
 
 #if !UNITY_EDITOR
         private static LocalizationBuildConfig s_BakedConfig;
@@ -197,32 +230,85 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <param name="language">例如：<see cref="Language.ChineseSimplified"/>。</param>
         /// <param name="logSource">是否打印设置来源。</param>
-        public static void ChangeLanguage(Language language, bool logSource = false) =>
-            s_Handler?.ChangeLanguage(language, logSource);
+        public static void ChangeLanguage(Language language, bool logSource = false)
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            handler.ChangeLanguage(language, logSource);
+            PersistAcceptedLanguage(handler);
+        }
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
         /// <param name="language">要切换的语言Name或Code。</param>
-        public static void ChangeLanguage(string language) => s_Handler?.ChangeLanguage(language);
+        public static void ChangeLanguage(string language)
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            HandPreferenceToHandler();
+            handler.ChangeLanguage(language);
+            PersistAcceptedLanguage(handler);
+        }
 
         /// <summary>
         /// 更改当前语言。
         /// </summary>
         /// <param name="index">要切换已加载的语言索引。</param>
-        public static void ChangeLanguage(int index) => s_Handler?.ChangeLanguage(index);
+        public static void ChangeLanguage(int index)
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            HandPreferenceToHandler();
+            handler.ChangeLanguage(index);
+            PersistAcceptedLanguage(handler);
+        }
 
         /// <summary>
         /// 激活上一个语言。
         /// </summary>
         /// <returns>激活的语言名称（未就绪时为 null）。</returns>
-        public static string ActivatePreviousLanguage() => s_Handler?.ActivatePreviousLanguage();
+        public static string ActivatePreviousLanguage()
+        {
+            var handler = s_Handler;
+            if (handler == null) return null;
+
+            HandPreferenceToHandler();
+            var name = handler.ActivatePreviousLanguage();
+            PersistAcceptedLanguage(handler);
+            return name;
+        }
 
         /// <summary>
         /// 激活下一个语言。
         /// </summary>
         /// <returns>激活的语言名称（未就绪时为 null）。</returns>
-        public static string ActivateNextLanguage() => s_Handler?.ActivateNextLanguage();
+        public static string ActivateNextLanguage()
+        {
+            var handler = s_Handler;
+            if (handler == null) return null;
+
+            HandPreferenceToHandler();
+            var name = handler.ActivateNextLanguage();
+            PersistAcceptedLanguage(handler);
+            return name;
+        }
+
+        /// <summary>
+        /// 把本轮显式切换受理到的语言记进存档；没受理（语言没发行、重复选当前语言、切换在进行中）时不动存档。
+        /// </summary>
+        /// <remarks>
+        /// 持久化政策因此只有服务这一处写入点：直接调处理器的代码换语言但不改存档，
+        /// 首启检测链给的语言也没有写入路径，不会被固化成用户选择。
+        /// </remarks>
+        private static void PersistAcceptedLanguage(LocalizationServiceHandler handler)
+        {
+            var accepted = handler.LastAcceptedLanguage;
+            if (accepted != null) LocalizationSettingsPolicy.Save(accepted.Code);
+        }
 
         /// <summary>
         /// 强制重载本地化词条（配置表热更、远程词库下发后调用；未就绪时为 no-op）。
@@ -231,7 +317,14 @@ namespace Moirai.Atropos.Localization
         /// 重载失败（数据源未就绪或整批拒载）保留上一份可用快照。 <br />
         /// 成功换批后自动重注入全部本地化器并广播语言变更；语言未变也会广播，词条内容可能已更新。覆盖层不被换批清空。
         /// </remarks>
-        public static void ReloadTexts() => s_Handler?.ReloadTexts();
+        public static void ReloadTexts()
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            HandPreferenceToHandler();
+            handler.ReloadTexts();
+        }
 
         /// <summary>
         /// 异步预加载本地化数据（启动期推荐调用，避免首查询承担整表展开的帧尖峰）。
@@ -240,7 +333,14 @@ namespace Moirai.Atropos.Localization
         /// 幂等且在途去重：并发调用共享同一任务；已加载或处理器未就绪时立即完成。 <br />
         /// 加载在途期间同步查询按未就绪降级（返回 ID 原文），完成后自动重注入全部本地化器。
         /// </remarks>
-        public static UniTask PreloadAsync() => s_Handler?.LoadAsync() ?? UniTask.CompletedTask;
+        public static UniTask PreloadAsync()
+        {
+            var handler = s_Handler;
+            if (handler == null) return UniTask.CompletedTask;
+
+            HandPreferenceToHandler();
+            return handler.LoadAsync();
+        }
 
         #endregion
 

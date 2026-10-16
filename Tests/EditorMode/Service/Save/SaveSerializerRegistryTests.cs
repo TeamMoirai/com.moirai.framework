@@ -243,16 +243,9 @@ namespace Service.Save
         [Test]
         public void BuiltIns_RemainRegistered()
         {
+            // 三个二进制后端（MessagePack / MemoryPack / protobuf-net）已外置到 plugin 分支，
+            // 它们各自的「装了就注册上」断言随各插件的 <id>/Tests/ 走；本装配只剩内置 JSON。
             Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.JSON, out _));
-#if MESSAGEPACK_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.MESSAGE_PACK, out _));
-#endif
-#if MEMORYPACK_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.MEMORY_PACK, out _));
-#endif
-#if PROTOBUF_INSTALLED
-            Assert.IsTrue(SaveSerializerRegistry.TryGet(SaveBackendIds.PROTOBUF, out _));
-#endif
         }
     }
 }

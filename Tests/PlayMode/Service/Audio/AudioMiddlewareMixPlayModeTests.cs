@@ -1,8 +1,6 @@
 using System.Collections;
 using Moirai.Atropos.Audio;
-using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
-using Moirai.Atropos.Audio.Wwise;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -15,18 +13,73 @@ namespace Service.Audio
     [TestFixture]
     public sealed class AudioMiddlewareMixPlayModeTests
     {
+        /// <summary>记录播放的本地桥——口径与被外置的 <c>*BridgeStub</c> 一致，供框架侧的混音/分层用例观测。</summary>
+        private sealed class MixBridge : IAudioMiddlewareBridge
+        {
+            private ulong _nextId = 1UL;
+
+            public bool Initialize(UnityEngine.Transform instanceRoot) => true;
+            public void Shutdown() { }
+            public void Update(float unscaledDeltaTime) { }
+
+            public ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, UnityEngine.Vector3? position3D)
+                => string.IsNullOrEmpty(eventPath) ? 0UL : _nextId++;
+
+            public void StopInstance(ulong instanceId) { }
+            public void SetPaused(ulong instanceId, bool paused) { }
+            public void SetInstanceVolume(ulong instanceId, float volume) { }
+            public void SetBusVolume(string busPath, float volume) { }
+            public float GetBusVolume(string busPath) => 1f;
+            public bool IsPlaying(ulong instanceId) => true;
+            public string GetEventPathFromClip(UnityEngine.AudioClip clip)
+                => clip == null || string.IsNullOrEmpty(clip.name) ? null : "event:/" + clip.name;
+        }
+
+        /// <summary>中间件后端的本地替身：只提供抽象的默认桥工厂，混音与分层语义全在框架契约基类里。</summary>
+        private sealed class MixHandler : MiddlewareAudioHandler
+        {
+            protected override IAudioMiddlewareBridge CreateDefaultBridge() => new MixBridge();
+        }
+
+        /// <summary>
+        /// 按名取插件装配里的后端 Handler；插件没装时返回 null。
+        /// </summary>
+        /// <remarks>框架测试装配不能引用插件装配（那会让框架反向依赖可选插件），两支共享契约这条只能按名探；探不到就跳过而不是判过。</remarks>
+        private static MiddlewareAudioHandler CreatePluginHandler(string typeFullName, string assemblyName)
+        {
+            System.Type handlerType = System.Type.GetType(typeFullName + ", " + assemblyName, throwOnError: false);
+            if (handlerType == null) return null;
+            return (MiddlewareAudioHandler)System.Activator.CreateInstance(handlerType, true);
+        }
+
+        /// <summary>按名取插件装配里的 Stub 桥（两支 Stub 都实现了主桥接口，公共服务面即可驱动）。</summary>
+        private static IAudioMiddlewareBridge CreatePluginStubBridge(string typeFullName, string assemblyName)
+        {
+            System.Type bridgeType = System.Type.GetType(typeFullName + ", " + assemblyName, throwOnError: false);
+            if (bridgeType == null) return null;
+            return (IAudioMiddlewareBridge)System.Activator.CreateInstance(bridgeType, true);
+        }
+
         [UnityTest]
         public IEnumerator FmodAndWwise_ShareMiddlewareContract()
         {
-            var fmodStub = new FmodBridgeStub();
-            var fmod = new FmodAudioHandler();
+            var fmodStub = CreatePluginStubBridge("Moirai.Atropos.Audio.Fmod.FmodBridgeStub", "Moirai.Plugin.Fmod");
+            var fmod = CreatePluginHandler("Moirai.Atropos.Audio.Fmod.FmodAudioHandler", "Moirai.Plugin.Fmod");
+
+            var wwiseStub = CreatePluginStubBridge("Moirai.Atropos.Audio.Wwise.WwiseBridgeStub", "Moirai.Plugin.Wwise");
+            var wwise = CreatePluginHandler("Moirai.Atropos.Audio.Wwise.WwiseAudioHandler", "Moirai.Plugin.Wwise");
+
+            if (fmod == null || wwise == null)
+            {
+                Assert.Ignore("fmod / wwise 插件装配没同时装上，两支共享中间件契约这条无从判起");
+                yield break;
+            }
+
             fmod.SetBridge(fmodStub);
             typeof(MiddlewareAudioHandler)
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(fmod, null);
 
-            var wwiseStub = new WwiseBridgeStub();
-            var wwise = new WwiseAudioHandler();
             wwise.SetBridge(wwiseStub);
             typeof(MiddlewareAudioHandler)
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
@@ -127,8 +180,8 @@ namespace Service.Audio
         [UnityTest]
         public IEnumerator Middleware_StopByID_LayerIsolation()
         {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
+            var stub = new MixBridge();
+            var handler = new MixHandler();
             handler.SetBridge(stub);
             typeof(MiddlewareAudioHandler)
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)

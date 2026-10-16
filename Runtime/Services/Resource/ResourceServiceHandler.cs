@@ -66,7 +66,7 @@ namespace Moirai.Atropos.Resource
     /// 资源管理器处理器抽象基类（策略模式抽象策略），定义通用资源加载、缓存、租约与绑定契约。
     /// </summary>
     /// <remarks>
-    /// 框架通用，不依赖具体资源系统；由具体后端（如 <see cref="YooAssetHandler"/>、<see cref="AddressableHandler"/>）实现。 <br />
+    /// 框架通用，不依赖具体资源系统；由内建后端（<see cref="YooAssetHandler"/>）实现，装配外的后端（如 addressables 插件）经插件分支派生。 <br />
     /// 由 <see cref="ResourceServiceSettings"/> 序列化配置，<see cref="ResourceService"/> 外观转发调用。
     /// </remarks>
     [Serializable]
@@ -76,6 +76,15 @@ namespace Moirai.Atropos.Resource
 
         /// <summary>默认资源包/资源组名称。</summary>
         public abstract string DefaultPackageName { get; set; }
+
+        /// <summary>
+        /// 本后端是否消费资源包名轴：为假时编辑器侧不接管包名下拉行（只有一张隐式目录、没有包名轴的后端覆写为假）。
+        /// </summary>
+        /// <remarks>
+        /// 判据由被判定方自报，<c>Moirai.Atropos.Editor</c> 的包名桥只读它：编辑器装配不许按具体后端类型判——
+        /// 后端可以住在插件装配里，那种判定会被预处理或装配缺失静默裁成恒假。默认真：包名轴成立。
+        /// </remarks>
+        protected internal virtual bool ConsumesPackageNames => true;
 
         /// <summary>
         /// 同步初始化回调。默认实现为空，由具体后端覆写以接管资源。

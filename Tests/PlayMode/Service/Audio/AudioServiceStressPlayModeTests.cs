@@ -3,7 +3,6 @@ using Testing;
 using System.Collections.Generic;
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
-using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
 using NUnit.Framework;
 using UnityEngine;
@@ -14,9 +13,76 @@ namespace Service.Audio
     /// <summary>
     /// Audio 并发压测：高频 Play/Stop/Fade/分层替换，验证句柄不泄漏、字典不膨胀。
     /// </summary>
+    /// <remarks>
+    /// 中间件侧用例原本借 FMOD 插件的 Stub 桥当观测点；后端已外置到插件装配，这里改用本地替身 <see cref="StressBridge"/> / <see cref="StressHandler"/>， <br />
+    /// 实例表与「未停即在播」的口径与 Stub 逐条对齐，断言与期望值一字未动。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioServiceStressPlayModeTests
     {
+        /// <summary>记账桥的实例状态。</summary>
+        private struct StressInstance
+        {
+            public bool Playing;
+            public bool Paused;
+        }
+
+        /// <summary>记录播放次数与实例在播状态的本地桥——口径与被外置的 <c>FmodBridgeStub</c> 一致。</summary>
+        private sealed class StressBridge : IAudioMiddlewareBridge
+        {
+            private readonly Dictionary<ulong, StressInstance> _instances = new Dictionary<ulong, StressInstance>(64);
+            private ulong _nextId = 1UL;
+
+            public int PlayCount { get; private set; }
+
+            public bool Initialize(Transform instanceRoot) => true;
+            public void Shutdown() { }
+            public void Update(float unscaledDeltaTime) { }
+
+            public ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, Vector3? position3D)
+            {
+                if (string.IsNullOrEmpty(eventPath)) return 0UL;
+                ulong id = _nextId++;
+                _instances[id] = new StressInstance { Playing = true };
+                PlayCount++;
+                return id;
+            }
+
+            public void StopInstance(ulong instanceId)
+            {
+                if (_instances.TryGetValue(instanceId, out StressInstance inst))
+                {
+                    inst.Playing = false;
+                    _instances[instanceId] = inst;
+                }
+            }
+
+            public void SetPaused(ulong instanceId, bool paused)
+            {
+                if (_instances.TryGetValue(instanceId, out StressInstance inst))
+                {
+                    inst.Paused = paused;
+                    _instances[instanceId] = inst;
+                }
+            }
+
+            public void SetInstanceVolume(ulong instanceId, float volume) { }
+            public void SetBusVolume(string busPath, float volume) { }
+            public float GetBusVolume(string busPath) => 1f;
+
+            public bool IsPlaying(ulong instanceId)
+                => _instances.TryGetValue(instanceId, out StressInstance inst) && inst.Playing && !inst.Paused;
+
+            public string GetEventPathFromClip(AudioClip clip)
+                => clip == null || string.IsNullOrEmpty(clip.name) ? null : "event:/" + clip.name;
+        }
+
+        /// <summary>中间件后端的本地替身：句柄与 Voice 池的记账全在框架契约基类里。</summary>
+        private sealed class StressHandler : MiddlewareAudioHandler
+        {
+            protected override IAudioMiddlewareBridge CreateDefaultBridge() => new StressBridge();
+        }
+
         private GameObject _root;
         private AudioClip _clip;
 
@@ -150,11 +216,11 @@ namespace Service.Audio
         [UnityTest]
         public IEnumerator FmodHandler_BurstPlayStop_StubBridge_HandlesStayConsistent()
         {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
+            var stub = new StressBridge();
+            var handler = new StressHandler();
             handler.SetBridge(stub);
 
-            var init = typeof(FmodAudioHandler).BaseType
+            var init = typeof(StressHandler).BaseType
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             init.Invoke(handler, null);
 
@@ -197,10 +263,10 @@ namespace Service.Audio
         [UnityTest]
         public IEnumerator FmodHandler_MultiIdLayering_StopByIDIsolated()
         {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
+            var stub = new StressBridge();
+            var handler = new StressHandler();
             handler.SetBridge(stub);
-            typeof(MiddlewareAudioHandler)
+            typeof(StressHandler)
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(handler, null);
 
@@ -225,10 +291,10 @@ namespace Service.Audio
         [UnityTest]
         public IEnumerator FmodHandler_FadeCompletes_AppliesEase()
         {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
+            var stub = new StressBridge();
+            var handler = new StressHandler();
             handler.SetBridge(stub);
-            typeof(MiddlewareAudioHandler)
+            typeof(StressHandler)
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(handler, null);
 
@@ -281,10 +347,10 @@ namespace Service.Audio
         [UnityTest]
         public IEnumerator MiddlewareVoicePool_BurstPlayStop_ReturnsToSteadyState()
         {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
+            var stub = new StressBridge();
+            var handler = new StressHandler();
             handler.SetBridge(stub);
-            typeof(MiddlewareAudioHandler)
+            typeof(StressHandler)
                 .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(handler, null);
 

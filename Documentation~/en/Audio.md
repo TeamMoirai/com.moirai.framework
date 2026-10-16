@@ -10,6 +10,7 @@ The `Audio` service divides audio into tracks (`EAudioTrack`). The Unity backend
 Runtime/Services/Audio/
 ├── AudioService.cs / AudioServiceHandler.cs / AudioServiceSettings.cs   # facade quartet, flat at the module root
 ├── AudioServiceDebuggerWindow.cs                            # live control of master volume and the five tracks
+├── AudioSettingsPolicy.cs                                   # the single definition of setting keys, defaults and the volume range clamp
 ├── Handler/                     # swappable-backend seam
 │   ├── UnityAudioHandler.cs   # default Unity backend
 │   ├── Middleware/            # shared FMOD/Wwise: IAudioMiddlewareBridge + two narrow capability interfaces + shared base + EAudioBankLoadResult

@@ -152,8 +152,10 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 写入账本。
+        /// 写入账本：先落临时名再覆盖，不留半篇文件。
         /// </summary>
+        /// <remarks>就地整写被中断会留下截断的 JSON，而读侧对损坏文件回的是空账本——那等于"什么都没装"，
+        /// 盘上的插件目录却还在。不用带 overwrite 的 <c>File.Move</c>：那个重载在最低引擎版本的 BCL 面里没有。</remarks>
         internal static void Save(PackageManagerStateData state)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -162,7 +164,17 @@ namespace Moirai.Atropos.Editor
             string directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
-            File.WriteAllText(path, JsonUtility.ToJson(state, true));
+            string temporary = path + ".moirai-tmp";
+            File.WriteAllText(temporary, JsonUtility.ToJson(state, true));
+
+            try
+            {
+                File.Copy(temporary, path, true);
+            }
+            finally
+            {
+                if (File.Exists(temporary)) File.Delete(temporary);
+            }
         }
 
         /// <summary>
@@ -279,15 +291,15 @@ namespace Moirai.Atropos.Editor
             UpmOwnershipData entry = FindOwnership(state, packageId);
             if (entry == null) return UpmEntryOutcome.NotFound;
 
-            if (entry.owners != null)
-            {
-                for (int i = entry.owners.Count - 1; i >= 0; i--)
-                {
-                    if (string.Equals(entry.owners[i], ownerPluginId, StringComparison.Ordinal)) entry.owners.RemoveAt(i);
-                }
+            // 归属记录里没有它，就既不该撤账也不该删行：半路接手或手改过的账本不该被无关卸载清掉
+            if (entry.owners == null || !ContainsOwner(entry.owners, ownerPluginId)) return UpmEntryOutcome.NotFound;
 
-                if (entry.owners.Count > 0) return UpmEntryOutcome.Retained;
+            for (int i = entry.owners.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(entry.owners[i], ownerPluginId, StringComparison.Ordinal)) entry.owners.RemoveAt(i);
             }
+
+            if (entry.owners.Count > 0) return UpmEntryOutcome.Retained;
 
             // 用户手写的条目即使再无使用者也原样留着
             if (entry.preexisting)
@@ -326,7 +338,10 @@ namespace Moirai.Atropos.Editor
             if (state.upmOwnership == null) state.upmOwnership = new List<UpmOwnershipData>();
         }
 
-        private static UpmOwnershipData FindOwnership(PackageManagerStateData state, string packageId)
+        /// <summary>
+        /// 取某外部包的归属记录；窗口标"谁在用/是不是用户手写"走这里。
+        /// </summary>
+        internal static UpmOwnershipData FindOwnership(PackageManagerStateData state, string packageId)
         {
             if (state.upmOwnership == null) return null;
 
@@ -336,6 +351,18 @@ namespace Moirai.Atropos.Editor
             }
 
             return null;
+        }
+
+        private static bool ContainsOwner(List<string> owners, string ownerPluginId)
+        {
+            if (string.IsNullOrEmpty(ownerPluginId)) return false;
+
+            for (int i = 0; i < owners.Count; i++)
+            {
+                if (string.Equals(owners[i], ownerPluginId, StringComparison.Ordinal)) return true;
+            }
+
+            return false;
         }
 
         private static void AddOwner(UpmOwnershipData entry, string ownerPluginId)

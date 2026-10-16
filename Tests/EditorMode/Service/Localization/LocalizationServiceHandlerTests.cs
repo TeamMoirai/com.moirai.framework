@@ -33,6 +33,8 @@ namespace Service.Localization
         public void SetUp()
         {
             _handler = new L10nProbeHandler();
+            // 处理器不回身问检测链：探针的首启语言要由夹具交接，交给批内首列的英语，读数因此与机器与存档无关
+            _handler.ApplyPreference(English.Code, "EditorSetting");
             _handler.Internal_Init();
 
             _logs = new List<(ELogLevel, string)>();
@@ -614,8 +616,10 @@ namespace Service.Localization
             _handler.Internal_Init();
 
             // 关服后热改内容不得串进下一次会话（此时数据源仍是同一批，只有覆盖层被丢弃）
+            // 重开后是哪门语言由检测链定，用例只判「文本回到源文」，不假定源文是哪一列
             Assert.AreEqual(0, _handler.StringOverlayLayerCount);
-            Assert.AreEqual("Title", _handler.GetTextFromId("ui.title"));
+            Assert.AreEqual(_handler.CurrentLanguage == English ? "Title" : "标题",
+                _handler.GetTextFromId("ui.title"));
         }
 
         #endregion

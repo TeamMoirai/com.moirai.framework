@@ -1,267 +1,23 @@
-using System;
-using System.Reflection;
 using Moirai.Atropos.Audio;
-using Moirai.Atropos.Audio.Fmod;
 using Moirai.Atropos.Audio.Middleware;
-using Moirai.Atropos.Audio.Wwise;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 
 namespace Service.Audio
 {
     /// <summary>
-    /// 中间件 Bank / RTPC 能力契约：Stub 幂等语义、Handler 外观派发、真 SDK 桥的能力接口实现。
+    /// 中间件 Bank / RTPC 能力契约：Handler 外观派发、能力探测降级与加载失败可归因。
     /// </summary>
     /// <remarks>
-    /// 不依赖 <c>FMOD_INSTALLED</c> / <c>WWISE_INSTALLED</c>，CI 无插件也能跑；宏已定义时经反射断言 Native 桥实现了能力接口。 <br />
-    /// 本文件含 2 处 <c>Assembly.GetType</c> 按名类型探测（FmodBridgeNative / WwiseBridgeNative）：目标类型仅存在于 <c>*_INSTALLED</c> 宏下，编译期引用不可达， <br />
-    /// 属能力探测正当用途。
+    /// 本文件只留「与具体 SDK 无关」的框架契约面，夹具用本地的 <see cref="ContractBridge"/> / <see cref="ContractHandler"/>； <br />
+    /// FMOD / Wwise 两个插件装配（<c>com.moirai.framework.plugin</c> 的 <c>fmod/</c>、<c>wwise/</c>）里的 <c>*BridgeStub</c> 自带语义， <br />
+    /// 它们的用例已随插件走：<c>fmod/Tests/AudioFmodBankRtpcTests.cs</c> 与 <c>wwise/Tests/AudioWwiseBankRtpcTests.cs</c>（断言与期望值未改）。 <br />
+    /// 不依赖 <c>FMOD_INSTALLED</c> / <c>WWISE_INSTALLED</c>，CI 无插件也能跑。
     /// </remarks>
     [TestFixture]
     public sealed class AudioMiddlewareBankRtpcTests
     {
-        #region Stub 契约 [STUB CONTRACT]
-
-        [Test]
-        public void FmodStub_LoadBank_EmptyOrNull_ReturnsFailed()
-        {
-            var stub = new FmodBridgeStub();
-            Assert.AreEqual(EAudioBankLoadResult.Failed, stub.LoadBank(null));
-            Assert.AreEqual(EAudioBankLoadResult.Failed, stub.LoadBank(string.Empty));
-            Assert.AreEqual(0, stub.BankLoadCount);
-            Assert.AreEqual(0, stub.Banks.Count);
-        }
-
-        [Test]
-        public void FmodStub_LoadBank_Idempotent_SecondIsAlreadyLoaded()
-        {
-            var stub = new FmodBridgeStub();
-            Assert.AreEqual(EAudioBankLoadResult.Loaded, stub.LoadBank("Master"));
-            Assert.AreEqual(EAudioBankLoadResult.AlreadyLoaded, stub.LoadBank("Master"),
-                "幂等命中必须与真失败分得开——它会被上层判成「正常」，不该进告警");
-            Assert.AreEqual(1, stub.BankLoadCount);
-            Assert.IsTrue(stub.Banks.Contains("Master"));
-        }
-
-        [Test]
-        public void FmodStub_UnloadBank_NotLoadedOrEmpty_ReturnsFalse()
-        {
-            var stub = new FmodBridgeStub();
-            Assert.IsFalse(stub.UnloadBank(null));
-            Assert.IsFalse(stub.UnloadBank(string.Empty));
-            Assert.IsFalse(stub.UnloadBank("Master"));
-        }
-
-        [Test]
-        public void FmodStub_UnloadBank_Loaded_ReturnsTrueThenFalse()
-        {
-            var stub = new FmodBridgeStub();
-            Assert.AreEqual(EAudioBankLoadResult.Loaded, stub.LoadBank("Master"));
-            Assert.IsTrue(stub.UnloadBank("Master"));
-            Assert.IsFalse(stub.UnloadBank("Master"), "卸载后再次 Unload 必须 false");
-            Assert.IsFalse(stub.Banks.Contains("Master"));
-        }
-
-        [Test]
-        public void FmodStub_SetRtpc_EmptyName_IsNoOp()
-        {
-            var stub = new FmodBridgeStub();
-            stub.SetRtpc(null, 1f, 0UL);
-            stub.SetRtpc(string.Empty, 1f, 0UL);
-            Assert.AreEqual(0, stub.RtpcCount);
-            Assert.AreEqual(0, stub.RtpcValues.Count);
-        }
-
-        [Test]
-        public void FmodStub_SetRtpc_GlobalAndInstance_ScopedSeparately()
-        {
-            var stub = new FmodBridgeStub();
-            stub.SetRtpc("Health", 0.25f, 0UL);
-            stub.SetRtpc("Health", 0.75f, 7UL);
-
-            Assert.AreEqual(0.25f, stub.RtpcValues["Health"], 1e-5f);
-            Assert.AreEqual(0.75f, stub.RtpcValues["7:Health"], 1e-5f);
-            Assert.AreEqual(2, stub.RtpcCount);
-        }
-
-        [Test]
-        public void WwiseStub_LoadUnloadBank_ContractMatchesFmod()
-        {
-            var stub = new WwiseBridgeStub();
-            Assert.AreEqual(EAudioBankLoadResult.Failed, stub.LoadBank(null));
-            Assert.AreEqual(EAudioBankLoadResult.Failed, stub.LoadBank(string.Empty));
-            Assert.AreEqual(EAudioBankLoadResult.Loaded, stub.LoadBank("Init"));
-            Assert.AreEqual(EAudioBankLoadResult.AlreadyLoaded, stub.LoadBank("Init"), "已加载再 Load 必须算幂等命中");
-            Assert.IsTrue(stub.UnloadBank("Init"));
-            Assert.IsFalse(stub.UnloadBank("Init"));
-            Assert.AreEqual(1, stub.BankLoadCount);
-        }
-
-        [Test]
-        public void WwiseStub_SetRtpc_GlobalAndInstance_ScopedSeparately()
-        {
-            var stub = new WwiseBridgeStub();
-            stub.SetRtpc(null, 1f, 0UL);
-            Assert.AreEqual(0, stub.RtpcCount);
-
-            stub.SetRtpc("PlayerHealth", 0.5f, 0UL);
-            stub.SetRtpc("PlayerHealth", 0.1f, 3UL);
-            Assert.AreEqual(0.5f, stub.RtpcValues["PlayerHealth"], 1e-5f);
-            Assert.AreEqual(0.1f, stub.RtpcValues["3:PlayerHealth"], 1e-5f);
-        }
-
-        #endregion Stub 契约 [STUB CONTRACT]
-
-        #region 能力接口实现 [CAPABILITY INTERFACES]
-
-        [Test]
-        public void Stubs_ImplementBankAndRtpcCapabilityInterfaces()
-        {
-            AssertBankAndRtpc(typeof(FmodBridgeStub));
-            AssertBankAndRtpc(typeof(WwiseBridgeStub));
-        }
-
-        [Test]
-        public void NativeBridges_WhenCompiled_ImplementBankAndRtpcCapabilityInterfaces()
-        {
-            // 类型仅在 FMOD_INSTALLED / WWISE_INSTALLED 下存在；存在则必须补齐能力，缺宏时跳过
-            Assembly runtime = typeof(FmodBridgeStub).Assembly;
-
-            Type fmodNative = runtime.GetType("Moirai.Atropos.Audio.Fmod.FmodBridgeNative");
-            if (fmodNative != null) AssertBankAndRtpc(fmodNative);
-
-            Type wwiseNative = runtime.GetType("Moirai.Atropos.Audio.Wwise.WwiseBridgeNative");
-            if (wwiseNative != null) AssertBankAndRtpc(wwiseNative);
-        }
-
-        [Test]
-        public void DefaultBridgeFactories_ExposeBankAndRtpcCapabilities()
-        {
-            AssertBankAndRtpc(CreateDefaultBridge(typeof(FmodAudioHandler)));
-            AssertBankAndRtpc(CreateDefaultBridge(typeof(WwiseAudioHandler)));
-        }
-
-        /// <summary>
-        /// 断言桥类型（或实例）实现了 Bank / RTPC 能力接口。
-        /// </summary>
-        private static void AssertBankAndRtpc(object bridgeOrType)
-        {
-            Assert.IsNotNull(bridgeOrType);
-            Type bridgeType = bridgeOrType as Type ?? bridgeOrType.GetType();
-            Assert.IsTrue(typeof(IAudioMiddlewareBankControl).IsAssignableFrom(bridgeType),
-                $"{bridgeType.Name} 必须实现 IAudioMiddlewareBankControl");
-            Assert.IsTrue(typeof(IAudioMiddlewareRtpcControl).IsAssignableFrom(bridgeType),
-                $"{bridgeType.Name} 必须实现 IAudioMiddlewareRtpcControl");
-        }
-
-        private static object CreateDefaultBridge(Type handlerType)
-        {
-            var handler = (MiddlewareAudioHandler)Activator.CreateInstance(handlerType);
-            return handler.Internal_PeekDefaultBridge();
-        }
-
-        #endregion 能力接口实现 [CAPABILITY INTERFACES]
-
-        #region Handler 外观派发 [HANDLER FACADE DISPATCH]
-
-        [Test]
-        public void MiddlewareHandler_LoadBank_UnloadBank_DispatchesToBridge()
-        {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
-            handler.SetBridge(stub);
-
-            Assert.IsFalse(handler.LoadBank(null));
-            Assert.IsFalse(handler.LoadBank(string.Empty));
-            Assert.AreEqual(0, stub.BankLoadCount);
-
-            Assert.IsTrue(handler.LoadBank("Master"));
-            Assert.IsFalse(handler.LoadBank("Master"), "Handler 层空路径短路后由桥做幂等");
-            Assert.AreEqual(1, stub.BankLoadCount);
-
-            Assert.IsTrue(handler.UnloadBank("Master"));
-            Assert.IsFalse(handler.UnloadBank("Master"));
-            Assert.AreEqual(0, stub.Banks.Count);
-        }
-
-        [Test]
-        public void MiddlewareHandler_LoadBank_WithoutCapability_ReturnsFalse()
-        {
-            var handler = new FmodAudioHandler();
-            handler.SetBridge(new BridgeWithoutCapabilities());
-            Assert.IsFalse(handler.LoadBank("Master"));
-            Assert.IsFalse(handler.UnloadBank("Master"));
-            Assert.DoesNotThrow(() => handler.SetRtpc("Health", 1f, 0UL));
-        }
-
-        [Test]
-        public void MiddlewareHandler_SetRtpc_Global_DispatchesToBridge()
-        {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
-            handler.SetBridge(stub);
-
-            handler.SetRtpc(null, 1f, 0UL);
-            Assert.AreEqual(0, stub.RtpcCount);
-
-            handler.SetRtpc("PlayerHealth", 0.2f, 0UL);
-            Assert.AreEqual(0.2f, stub.RtpcValues["PlayerHealth"], 1e-5f);
-            Assert.AreEqual(1, stub.RtpcCount);
-        }
-
-        [Test]
-        public void MiddlewareHandler_SetRtpc_WithHandle_MapsToNativeInstanceId()
-        {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
-            handler.SetBridge(stub);
-
-            var request = new AudioPlayRequest(42, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.Loop);
-            ulong handle = handler.Play("event:/Hit", request, null);
-            Assert.AreNotEqual(0UL, handle);
-
-            handler.SetRtpc("Intensity", 0.9f, handle);
-            Assert.IsTrue(stub.RtpcValues.ContainsKey("1:Intensity"),
-                "句柄必须解析成桥的 instanceId 后再下发（Stub 实例键为 \"{instanceId}:{name}\"）");
-            Assert.AreEqual(0.9f, stub.RtpcValues["1:Intensity"], 1e-5f);
-        }
-
-        [Test]
-        public void MiddlewareHandler_SetRtpc_UnknownHandle_DoesNotTouchBridge()
-        {
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
-            handler.SetBridge(stub);
-
-            handler.SetRtpc("Intensity", 0.5f, 999UL);
-            Assert.AreEqual(0, stub.RtpcCount);
-            Assert.AreEqual(0, stub.RtpcValues.Count);
-        }
-
-        [Test]
-        public void AudioService_LoadBank_UnloadBank_SetRtpc_DispatchesToHandler()
-        {
-            // 走生成器发的内部接缝做无副作用换入换出：getter 会懒加载、setter 会 Internal_Init 且拒收 null
-            AudioServiceHandler previous = AudioService.Internal_PeekHandler();
-            var stub = new WwiseBridgeStub();
-            var handler = new WwiseAudioHandler();
-            handler.SetBridge(stub);
-            AudioService.Internal_UseHandler(handler);
-            try
-            {
-                Assert.IsTrue(AudioService.LoadBank("Init"));
-                Assert.IsFalse(AudioService.LoadBank("Init"));
-                Assert.IsTrue(AudioService.UnloadBank("Init"));
-                Assert.IsFalse(AudioService.UnloadBank("Init"));
-
-                AudioService.SetRtpc("MasterVolume", 0.4f);
-                Assert.AreEqual(0.4f, stub.RtpcValues["MasterVolume"], 1e-5f);
-            }
-            finally
-            {
-                AudioService.Internal_UseHandler(previous);
-            }
-        }
+        #region 本地夹具 [LOCAL FIXTURES]
 
         /// <summary>
         /// 仅实现主桥接口的假件——验证能力探测安全降级，也是能力子类化的底座。
@@ -281,10 +37,6 @@ namespace Service.Audio
             public string GetEventPathFromClip(UnityEngine.AudioClip clip) => null;
         }
 
-        #endregion Handler 外观派发 [HANDLER FACADE DISPATCH]
-
-        #region 加载失败可归因 [LOAD FAILURE DIAGNOSIS]
-
         /// <summary>
         /// 可编排加载结果、并统计触达次数的假桥。
         /// </summary>
@@ -302,12 +54,159 @@ namespace Service.Audio
             public bool UnloadBank(string bankPath) => true;
         }
 
+        /// <summary>
+        /// 记账用的本地桥——声音库与实时参数的登记口径与被外置的 <c>*BridgeStub</c> 一致，供派发用例观测。
+        /// </summary>
+        private sealed class ContractBridge : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
+        {
+            private ulong _nextId = 1UL;
+
+            /// <summary>已加载的声音库。</summary>
+            public readonly System.Collections.Generic.HashSet<string> Banks =
+                new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal);
+
+            /// <summary>已设置的参数值；全局作用域按参数名，实例作用域带 "实例ID:" 前缀。</summary>
+            public readonly System.Collections.Generic.Dictionary<string, float> RtpcValues =
+                new System.Collections.Generic.Dictionary<string, float>(System.StringComparer.Ordinal);
+
+            public int BankLoadCount { get; private set; }
+            public int RtpcCount { get; private set; }
+
+            public bool Initialize(UnityEngine.Transform instanceRoot) => true;
+            public void Shutdown() { }
+            public void Update(float unscaledDeltaTime) { }
+
+            public ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, UnityEngine.Vector3? position3D)
+                => string.IsNullOrEmpty(eventPath) ? 0UL : _nextId++;
+
+            public void StopInstance(ulong instanceId) { }
+            public void SetPaused(ulong instanceId, bool paused) { }
+            public void SetInstanceVolume(ulong instanceId, float volume) { }
+            public void SetBusVolume(string busPath, float volume) { }
+            public float GetBusVolume(string busPath) => 0f;
+            public bool IsPlaying(ulong instanceId) => true;
+            public string GetEventPathFromClip(UnityEngine.AudioClip clip)
+                => clip == null || string.IsNullOrEmpty(clip.name) ? null : "event:/" + clip.name;
+
+            public EAudioBankLoadResult LoadBank(string bankPath)
+            {
+                if (string.IsNullOrEmpty(bankPath)) return EAudioBankLoadResult.Failed;
+                if (!Banks.Add(bankPath)) return EAudioBankLoadResult.AlreadyLoaded;
+
+                BankLoadCount++;
+                return EAudioBankLoadResult.Loaded;
+            }
+
+            public bool UnloadBank(string bankPath)
+                => !string.IsNullOrEmpty(bankPath) && Banks.Remove(bankPath);
+
+            public void SetRtpc(string name, float value, ulong instanceId)
+            {
+                if (string.IsNullOrEmpty(name)) return;
+                RtpcValues[instanceId == 0UL ? name : instanceId + ":" + name] = value;
+                RtpcCount++;
+            }
+        }
+
+        /// <summary>中间件后端的本地替身：Bank / RTPC 的派发语义全在框架的 <see cref="MiddlewareAudioHandler"/> 里。</summary>
+        private sealed class ContractHandler : MiddlewareAudioHandler
+        {
+            protected override IAudioMiddlewareBridge CreateDefaultBridge() => new ContractBridge();
+        }
+
+        #endregion 本地夹具 [LOCAL FIXTURES]
+
+        #region Handler 外观派发 [HANDLER FACADE DISPATCH]
+
+        [Test]
+        public void MiddlewareHandler_LoadBank_WithoutCapability_ReturnsFalse()
+        {
+            var handler = new ContractHandler();
+            handler.SetBridge(new BridgeWithoutCapabilities());
+            Assert.IsFalse(handler.LoadBank("Master"));
+            Assert.IsFalse(handler.UnloadBank("Master"));
+            Assert.DoesNotThrow(() => handler.SetRtpc("Health", 1f, 0UL));
+        }
+
+        [Test]
+        public void MiddlewareHandler_SetRtpc_Global_DispatchesToBridge()
+        {
+            var stub = new ContractBridge();
+            var handler = new ContractHandler();
+            handler.SetBridge(stub);
+
+            handler.SetRtpc(null, 1f, 0UL);
+            Assert.AreEqual(0, stub.RtpcCount);
+
+            handler.SetRtpc("PlayerHealth", 0.2f, 0UL);
+            Assert.AreEqual(0.2f, stub.RtpcValues["PlayerHealth"], 1e-5f);
+            Assert.AreEqual(1, stub.RtpcCount);
+        }
+
+        [Test]
+        public void MiddlewareHandler_SetRtpc_WithHandle_MapsToNativeInstanceId()
+        {
+            var stub = new ContractBridge();
+            var handler = new ContractHandler();
+            handler.SetBridge(stub);
+
+            var request = new AudioPlayRequest(42, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.Loop);
+            ulong handle = handler.Play("event:/Hit", request, null);
+            Assert.AreNotEqual(0UL, handle);
+
+            handler.SetRtpc("Intensity", 0.9f, handle);
+            Assert.IsTrue(stub.RtpcValues.ContainsKey("1:Intensity"),
+                "句柄必须解析成桥的 instanceId 后再下发（Stub 实例键为 \"{instanceId}:{name}\"）");
+            Assert.AreEqual(0.9f, stub.RtpcValues["1:Intensity"], 1e-5f);
+        }
+
+        [Test]
+        public void MiddlewareHandler_SetRtpc_UnknownHandle_DoesNotTouchBridge()
+        {
+            var stub = new ContractBridge();
+            var handler = new ContractHandler();
+            handler.SetBridge(stub);
+
+            handler.SetRtpc("Intensity", 0.5f, 999UL);
+            Assert.AreEqual(0, stub.RtpcCount);
+            Assert.AreEqual(0, stub.RtpcValues.Count);
+        }
+
+        [Test]
+        public void AudioService_LoadBank_UnloadBank_SetRtpc_DispatchesToHandler()
+        {
+            // 走生成器发的内部接缝做无副作用换入换出：getter 会懒加载、setter 会 Internal_Init 且拒收 null
+            AudioServiceHandler previous = AudioService.Internal_PeekHandler();
+            var stub = new ContractBridge();
+            var handler = new ContractHandler();
+            handler.SetBridge(stub);
+            AudioService.Internal_UseHandler(handler);
+            try
+            {
+                Assert.IsTrue(AudioService.LoadBank("Init"));
+                Assert.IsFalse(AudioService.LoadBank("Init"));
+                Assert.IsTrue(AudioService.UnloadBank("Init"));
+                Assert.IsFalse(AudioService.UnloadBank("Init"));
+
+                AudioService.SetRtpc("MasterVolume", 0.4f);
+                Assert.AreEqual(0.4f, stub.RtpcValues["MasterVolume"], 1e-5f);
+            }
+            finally
+            {
+                AudioService.Internal_UseHandler(previous);
+            }
+        }
+
+        #endregion Handler 外观派发 [HANDLER FACADE DISPATCH]
+
+        #region 加载失败可归因 [LOAD FAILURE DIAGNOSIS]
+
         [Test]
         public void MiddlewareHandler_LoadBank_Failed_WarnsOncePerPath()
         {
             AudioWarnOnce.Reset();
             var bridge = new ControllableBankBridge { NextResult = EAudioBankLoadResult.Failed };
-            var handler = new FmodAudioHandler();
+            var handler = new ContractHandler();
             handler.SetBridge(bridge);
 
             UtfLogExpect.Warning();
@@ -324,7 +223,7 @@ namespace Service.Audio
         {
             AudioWarnOnce.Reset();
             var bridge = new ControllableBankBridge { NextResult = EAudioBankLoadResult.AlreadyLoaded };
-            var handler = new FmodAudioHandler();
+            var handler = new ContractHandler();
             handler.SetBridge(bridge);
 
             // 幂等命中（含插件启动时自行加载的 master/Init 库）是正常路径：报出来就会把真失败淹成噪音
@@ -338,7 +237,7 @@ namespace Service.Audio
         {
             AudioWarnOnce.Reset();
             var bridge = new ControllableBankBridge { NextResult = EAudioBankLoadResult.Failed };
-            var handler = new FmodAudioHandler();
+            var handler = new ContractHandler();
             handler.SetBridge(bridge);
 
             Assert.IsFalse(handler.LoadBank(null));

@@ -44,10 +44,12 @@ namespace Service.Localization
             LocalizationServiceSettings.EditorLanguage = _originalEditorLanguage;
         }
 
-        private static void SeedEditorLanguage(Language language) => LocalizationServiceSettings.EditorLanguage = language.Name;
+        private static void SeedEditorLanguage(Language language) => LocalizationServiceSettings.EditorLanguage = language.Code;
 
         private T Track<T>(T handler) where T : LocalizationServiceHandler
         {
+            // 夹具已在 SetUp 里把编辑器语言播成简体中文：把它交接给每一份探针处理器，首启语言才与存档和机器无关
+            handler.ApplyPreference(LocalizationServiceSettings.EditorLanguage, "EditorSetting");
             handler.Internal_Init();
             _handlers.Add(handler);
             return handler;
@@ -59,6 +61,8 @@ namespace Service.Localization
         private static L10nProbeHandler CreateBatchProbe(Language[] languages, params (string key, string[] texts)[] entries)
         {
             var handler = new L10nProbeHandler { Languages = languages.ToList() };
+            // 与 Track 同一口径：探针的首启语言由夹具交接，不靠处理器去问检测链
+            handler.ApplyPreference(LocalizationServiceSettings.EditorLanguage, "EditorSetting");
             foreach (var (key, texts) in entries)
             {
                 handler.Strings[key] = texts.ToList();

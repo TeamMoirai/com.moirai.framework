@@ -24,7 +24,9 @@ namespace Moirai.Atropos.Editor
             return resolution.Plan;
         }
 
-        /// <summary>列出在场且仍依赖该插件的已装插件，直接依赖方排在传递依赖方之前。</summary>
+        /// <summary>
+        /// 列出在场且仍依赖该插件的已装插件，直接依赖方排在传递依赖方之前。
+        /// </summary>
         internal static IReadOnlyList<string> DependentsOf(IReadOnlyList<PluginManifest> catalog, string id,
             IReadOnlyCollection<string> installedIds)
         {
@@ -127,10 +129,7 @@ namespace Moirai.Atropos.Editor
                 if (Plan.HasConflicts)
                 {
                     Plan.AbortBatch();
-                    return;
                 }
-
-                MergeUpmDependencies();
             }
 
             private bool Visit(string id, PluginManifest dependent, PluginDependency requirement)
@@ -222,43 +221,6 @@ namespace Moirai.Atropos.Editor
                 for (int i = Math.Max(0, _visiting.IndexOf(id)); i < _visiting.Count; i++) parts.Add(_visiting[i]);
                 parts.Add(id);
                 return "依赖成环：" + string.Join(" → ", parts);
-            }
-
-            private void MergeUpmDependencies()
-            {
-                var positions = new Dictionary<string, int>(StringComparer.Ordinal);
-
-                foreach (PluginManifest manifest in Plan.ToInstall)
-                {
-                    PluginUpmDependency[] entries = manifest.upmDependencies;
-                    if (entries == null) continue;
-
-                    for (int i = 0; i < entries.Length; i++)
-                    {
-                        PluginUpmDependency entry = entries[i];
-                        if (entry == null || string.IsNullOrEmpty(entry.id)) continue;
-
-                        var merged = new PluginUpmDependency { id = entry.id, version = entry.version };
-                        if (!positions.TryGetValue(entry.id, out int at))
-                        {
-                            positions[entry.id] = Plan.MergedUpmDependencies.Count;
-                            Plan.AddMergedUpmDependency(merged);
-                            continue;
-                        }
-
-                        if (IsHigher(entry.version, Plan.MergedUpmDependencies[at].version))
-                        {
-                            Plan.ReplaceMergedUpmDependency(at, merged);
-                        }
-                    }
-                }
-            }
-
-            private static bool IsHigher(string candidate, string recorded)
-            {
-                if (!PluginVersion.TryParse(candidate, out PluginVersion want)) return false;
-                if (!PluginVersion.TryParse(recorded, out PluginVersion have)) return true;
-                return want > have;
             }
         }
     }

@@ -1,5 +1,5 @@
 using Moirai.Atropos.Audio;
-using Moirai.Atropos.Audio.Fmod;
+using Moirai.Atropos.Audio.Middleware;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -12,18 +12,50 @@ namespace Service.Audio
     /// 锁三件事：标记按音轨逐个生效不串味、中间件侧的暂停拦播放、以及 Unity 侧「数组未分配即整段作废」这条刻意保留的行为
     /// （分配点留在后端，见 <see cref="AudioServiceHandler._pausedTracks"/> 的 remarks；改成基类懒分配即判失败）。
     /// </remarks>
+    /// <remarks>
+    /// 中间件一侧用本文件的本地夹具（<see cref="PauseFlagHandler"/> / <see cref="PauseFlagBridge"/>）：FMOD / Wwise 后端已外置到插件装配， <br />
+    /// 本用例锁的是框架契约基类的暂停标记，断言与期望值一字未动。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioTrackPauseFlagTests
     {
+        /// <summary>能出声的本地桥：每次播放给一个自增实例 ID，与被外置的 Stub 同一口径。</summary>
+        private sealed class PauseFlagBridge : IAudioMiddlewareBridge
+        {
+            private ulong _nextId = 1UL;
+
+            public bool Initialize(UnityEngine.Transform instanceRoot) => true;
+            public void Shutdown() { }
+            public void Update(float unscaledDeltaTime) { }
+
+            public ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, UnityEngine.Vector3? position3D)
+                => string.IsNullOrEmpty(eventPath) ? 0UL : _nextId++;
+
+            public void StopInstance(ulong instanceId) { }
+            public void SetPaused(ulong instanceId, bool paused) { }
+            public void SetInstanceVolume(ulong instanceId, float volume) { }
+            public void SetBusVolume(string busPath, float volume) { }
+            public float GetBusVolume(string busPath) => 1f;
+            public bool IsPlaying(ulong instanceId) => true;
+            public string GetEventPathFromClip(AudioClip clip)
+                => clip == null || string.IsNullOrEmpty(clip.name) ? null : "event:/" + clip.name;
+        }
+
+        /// <summary>中间件后端的本地替身：只提供抽象的默认桥工厂，暂停标记语义全在框架契约里。</summary>
+        private sealed class PauseFlagHandler : MiddlewareAudioHandler
+        {
+            protected override IAudioMiddlewareBridge CreateDefaultBridge() => new PauseFlagBridge();
+        }
+
         private AudioClip _clip;
-        private FmodAudioHandler _middleware;
+        private PauseFlagHandler _middleware;
 
         [SetUp]
         public void SetUp()
         {
             _clip = AudioClip.Create("PauseFlagProbe", 1, 1, 44100, false);
-            _middleware = new FmodAudioHandler();
-            _middleware.SetBridge(new FmodBridgeStub());
+            _middleware = new PauseFlagHandler();
+            _middleware.SetBridge(new PauseFlagBridge());
         }
 
         [TearDown]

@@ -10,10 +10,9 @@ namespace Moirai.Atropos
     /// 游戏框架日志处理器基类（策略模式抽象策略），后端经 <see cref="LogUtility.Handler"/> 替换。
     /// </summary>
     /// <remarks>
-    /// 内置三种实现及启用条件：<see cref="DefaultLogHandler"/>（<c>UnityEngine.Debug</c>，始终可用，默认）、
-    /// <see cref="UnityLoggingHandler"/>（需安装 com.unity.logging，自动定义 <c>UNITY_LOGGING_INSTALLED</c>）、
-    /// <see cref="SerilogHandler"/>（需引入 Serilog 程序集并手动定义 <c>SERILOG_INSTALLED</c>）；
-    /// 其余后端（如 ZLogger）由 <c>plugin</c> 分支的插件装进来——跨程序集的覆写须声明为 <c>protected</c>，
+    /// 内置实现只有 <see cref="DefaultLogHandler"/>（<c>UnityEngine.Debug</c>，始终可用，默认）；
+    /// 其余后端（Unity Logging、Serilog、ZLogger 等）由 <c>plugin</c> 分支的插件各自装进来——未安装对应三方包时那些类型根本不存在，
+    /// 本装配也不提它们。跨程序集的覆写须声明为 <c>protected</c>，
     /// 覆写 <c>protected internal</c> 成员不能收窄成 <c>internal</c>。
     /// </remarks>
     [Serializable]
@@ -42,8 +41,8 @@ namespace Moirai.Atropos
         /// <summary>获取或设置是否在日志输出中包含时间戳。</summary>
         /// <remarks>
         /// 各实现经后端自身的模板/格式化系统应用：<see cref="DefaultLogHandler"/> 在消息前缀拼接 <c>[HH:mm:ss.fff]</c>；
-        /// <see cref="UnityLoggingHandler"/> 与 <see cref="SerilogHandler"/> 由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制；
-        /// 外置后端（如 ZLogger 插件）由各自的 formatter 模板提供。
+        /// <c>plugin</c> 分支的外置后端各自处置——Unity Logging 与 Serilog 由后端 outputTemplate 的 <c>{Timestamp}</c> 占位符控制，
+        /// ZLogger 由自己的 formatter 模板提供。
         /// </remarks>
         public bool TimestampEnabled
         {

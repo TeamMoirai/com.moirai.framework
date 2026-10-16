@@ -1,6 +1,7 @@
 using Moirai.Atropos.Audio;
-using Moirai.Atropos.Audio.Fmod;
+using Moirai.Atropos.Audio.Middleware;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Service.Audio
 {
@@ -8,9 +9,49 @@ namespace Service.Audio
     /// 跨后端音量语义对拍：同一份输入下两个后端给出同一个契约值，中间件落到总线的数等于 getter 报回的数。
     /// </summary>
     /// <remarks>音轨音量值域统一为 0..10，任一后端写入总线的值都不得超过该值域。</remarks>
+    /// <remarks>
+    /// 中间件一侧用本文件的本地夹具（<see cref="ParityHandler"/> / <see cref="ParityBridge"/>）：FMOD / Wwise 后端已外置到插件装配， <br />
+    /// 本用例锁的是框架契约基类的音量语义，断言与期望值一字未动。
+    /// </remarks>
     [TestFixture]
     public sealed class AudioVolumeParityTests
     {
+        /// <summary>记录总线音量的本地桥——写入夹取一次、未写过读作 0，与被外置的 Stub 同一口径。</summary>
+        private sealed class ParityBridge : IAudioMiddlewareBridge
+        {
+            private readonly System.Collections.Generic.Dictionary<string, float> _busVolumes =
+                new System.Collections.Generic.Dictionary<string, float>(8);
+            private ulong _nextId = 1UL;
+
+            public float GetBusVolume(string busPath)
+                => _busVolumes.TryGetValue(busPath, out float v) ? v : 0f;
+
+            public void SetBusVolume(string busPath, float volume)
+            {
+                if (!string.IsNullOrEmpty(busPath)) _busVolumes[busPath] = Mathf.Clamp01(volume);
+            }
+
+            public bool Initialize(UnityEngine.Transform instanceRoot) => true;
+            public void Shutdown() { }
+            public void Update(float unscaledDeltaTime) { }
+
+            public ulong PlayEvent(string eventPath, float volume, float pitch, bool loop, UnityEngine.Vector3? position3D)
+                => string.IsNullOrEmpty(eventPath) ? 0UL : _nextId++;
+
+            public void StopInstance(ulong instanceId) { }
+            public void SetPaused(ulong instanceId, bool paused) { }
+            public void SetInstanceVolume(ulong instanceId, float volume) { }
+            public bool IsPlaying(ulong instanceId) => true;
+            public string GetEventPathFromClip(AudioClip clip)
+                => clip == null || string.IsNullOrEmpty(clip.name) ? null : "event:/" + clip.name;
+        }
+
+        /// <summary>中间件后端的本地替身：只提供抽象的默认桥工厂，音量语义全在框架契约基类里。</summary>
+        private sealed class ParityHandler : MiddlewareAudioHandler
+        {
+            protected override IAudioMiddlewareBridge CreateDefaultBridge() => new ParityBridge();
+        }
+
         private static readonly float[] Inputs = { 1f, 0f, 0.5f, 0.25f, 2.5f, 10f, -3f };
 
         private static float Expected(float input) => UnityEngine.Mathf.Clamp01(input);
@@ -27,8 +68,8 @@ namespace Service.Audio
                 Assert.AreEqual(want, config.Volume, 1e-4f,
                     $"Unity 侧 AudioGroupConfig 存了契约外的值（输入 {input}）");
 
-                var stub = new FmodBridgeStub();
-                var handler = new FmodAudioHandler();
+                var stub = new ParityBridge();
+                var handler = new ParityHandler();
                 handler.SetBridge(stub);
                 handler.SetTrackVolume(EAudioTrack.Music, input);
 
@@ -52,8 +93,8 @@ namespace Service.Audio
                 Assert.AreEqual(want, unity.MasterVolume, 1e-4f,
                     $"Unity 侧 MasterVolume 没落在契约值域（输入 {input}）");
 
-                var stub = new FmodBridgeStub();
-                var middleware = new FmodAudioHandler();
+                var stub = new ParityBridge();
+                var middleware = new ParityHandler();
                 middleware.SetBridge(stub);
                 middleware.MasterVolume = input;
 
@@ -70,7 +111,7 @@ namespace Service.Audio
         [Test]
         public void NotYetInitializedBackend_StillReportsItsSettings()
         {
-            var noBridge = new FmodAudioHandler();
+            var noBridge = new ParityHandler();
 
             noBridge.MasterVolume = 0.8f;
             noBridge.SetTrackVolume(EAudioTrack.Music, 0.6f);
@@ -87,8 +128,8 @@ namespace Service.Audio
             config.Mute = true;
             Assert.AreEqual(0.6f, config.Volume, 1e-4f, "静音不得改 getter 报回的设置值（Unity 侧）");
 
-            var stub = new FmodBridgeStub();
-            var handler = new FmodAudioHandler();
+            var stub = new ParityBridge();
+            var handler = new ParityHandler();
             handler.SetBridge(stub);
             handler.SetTrackVolume(EAudioTrack.Voice, 0.6f);
             handler.SetTrackMute(EAudioTrack.Voice, true);

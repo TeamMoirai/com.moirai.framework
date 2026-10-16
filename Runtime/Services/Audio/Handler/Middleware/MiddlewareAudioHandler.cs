@@ -14,10 +14,12 @@ namespace Moirai.Atropos.Audio.Middleware
     /// 总线音量/静音/暂停与场景切换清理； <br />
     /// 子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。 <br />
     /// 语义与 Unity 后端对齐：暂停轨拦截新播放、<see cref="MasterVolume"/> getter 始终返回未静音值、Master/音轨 Fade 带缓动。 <br />
-    /// 不支持 InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。
+    /// 不支持 InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。 <br />
+    /// 过渡目标走框架内的 <see cref="FadeSink"/>（不直接实现 <c>IAudioFadeTarget</c>）：那条接缝是 <see cref="AudioFadeScheduler"/> 的内部回调面， <br />
+    /// 后端插件既不提供也不实现它，把它挂到本公共契约基类的基列表上会让调度器的内部面漏进公共 API。
     /// </remarks>
     [Serializable]
-    internal abstract class MiddlewareAudioHandler : AudioServiceHandler, IAudioFadeTarget
+    public abstract class MiddlewareAudioHandler : AudioServiceHandler
     {
         #region 声部 [VOICE]
 
@@ -248,26 +250,25 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void SetMasterSettings()
         {
-            SettingUtility.SetFloat(GameConstant.Setting.AUDIO_MASTER_VOLUME, _masterVolume);
-            SettingUtility.SetBool(GameConstant.Setting.AUDIO_MASTER_MUTED, _masterMute);
+            AudioSettingsPolicy.SaveVolume(AudioSettingsPolicy.MasterVolumeKey, _masterVolume);
+            AudioSettingsPolicy.SaveMuted(AudioSettingsPolicy.MasterMutedKey, _masterMute);
         }
 
         /// <inheritdoc />
         public override void LoadMasterSettings()
         {
-            _masterMute = SettingUtility.GetBool(GameConstant.Setting.AUDIO_MASTER_MUTED, false);
+            _masterMute = AudioSettingsPolicy.LoadMuted(AudioSettingsPolicy.MasterMutedKey);
             // 存量值可能写于上限还是 10 的年代，读回来先落到契约值域
-            _masterVolume = Mathf.Clamp01(SettingUtility.GetFloat(GameConstant.Setting.AUDIO_MASTER_VOLUME, 1f));
+            _masterVolume = AudioSettingsPolicy.LoadVolume(AudioSettingsPolicy.MasterVolumeKey, AudioSettingsPolicy.DefaultVolume);
             ApplyMasterVolume();
 
             EnsureTrackArrays();
             for (int i = 0; i < _trackVolumes.Length; i++)
             {
                 var track = (EAudioTrack)i;
-                _trackMutes[i] = SettingUtility.GetBool(
-                    StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_MUTED, track), false);
-                _trackVolumes[i] = Mathf.Clamp01(SettingUtility.GetFloat(
-                    StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_VOLUME, track), 1f));
+                _trackMutes[i] = AudioSettingsPolicy.LoadMuted(AudioSettingsPolicy.TrackMutedKey(track));
+                _trackVolumes[i] = AudioSettingsPolicy.LoadVolume(AudioSettingsPolicy.TrackVolumeKey(track),
+                    AudioSettingsPolicy.DefaultVolume);
                 ApplyTrackBus(track);
             }
         }
@@ -275,10 +276,9 @@ namespace Moirai.Atropos.Audio.Middleware
         /// <inheritdoc />
         public override void RemoveMasterSetting()
         {
-            SettingUtility.RemoveSetting(GameConstant.Setting.AUDIO_MASTER_MUTED);
-            SettingUtility.RemoveSetting(GameConstant.Setting.AUDIO_MASTER_VOLUME);
-            _masterMute = false;
-            _masterVolume = 1f;
+            AudioSettingsPolicy.RemovePair(AudioSettingsPolicy.MasterMutedKey, AudioSettingsPolicy.MasterVolumeKey);
+            _masterMute = AudioSettingsPolicy.DefaultMuted;
+            _masterVolume = AudioSettingsPolicy.DefaultVolume;
             ApplyMasterVolume();
         }
 
@@ -392,7 +392,7 @@ namespace Moirai.Atropos.Audio.Middleware
             // 中间件按事件路径即时下发、没有同步资源加载可拦，调 Close/Open 只会给出一个并不存在的保证。
             if (_bridge == null) return;
             _bridge.Update(Time.unscaledDeltaTime);
-            _fades.Update(GameTime.unscaledTime, this);
+            _fades.Update(GameTime.unscaledTime, Internal_PeekFadeTarget());
             ProcessPendingStops();
             ReleaseFinishedOneshots();
 
@@ -995,11 +995,34 @@ namespace Moirai.Atropos.Audio.Middleware
             => _handles.ForEachHandleByUser(id, _fades.Stop);
 
         /// <summary>
+        /// 过渡目标包装：把 <see cref="AudioFadeScheduler"/> 的内部回调面接进本处理器，不外泄到公共基类的基列表。
+        /// </summary>
+        /// <remarks>每个处理器实例一个（首帧 Tick 或首条过渡时建，之后复用），语义与原 <c>IAudioFadeTarget</c> 显式实现逐字一致。</remarks>
+        private sealed class FadeSink : IAudioFadeTarget
+        {
+            private readonly MiddlewareAudioHandler _owner;
+
+            public FadeSink(MiddlewareAudioHandler owner)
+            {
+                _owner = owner;
+            }
+
+            public bool ApplyFade(ulong handle, float volume, bool finished)
+                => _owner.ApplyFadeVolume(handle, volume, finished);
+        }
+
+        [NonSerialized] private FadeSink _fadeSink;
+
+        /// <summary>
+        /// 测试接缝：取过渡目标包装（懒建，与运行期同一实例）。
+        /// </summary>
+        /// <remarks>调度器的 <c>Update</c> 要一个 <c>IAudioFadeTarget</c>；本类不再直接实现它，故开此 internal 窄接缝（同 <see cref="Internal_PeekDefaultBridge"/> 的口径）。</remarks>
+        /// <returns>本处理器的过渡目标。</returns>
+        internal IAudioFadeTarget Internal_PeekFadeTarget() => _fadeSink ??= new FadeSink(this);
+
+        /// <summary>
         /// 过渡应用：总线伪句柄走音量属性（含 Clamp 与总线写入），声部句柄经桥接写实例音量。
         /// </summary>
-        bool IAudioFadeTarget.ApplyFade(ulong handle, float volume, bool finished)
-            => ApplyFadeVolume(handle, volume, finished);
-
         private bool ApplyFadeVolume(ulong handle, float volume, bool finished)
         {
             if (handle == AudioFadeScheduler.MASTER_FADE_HANDLE)

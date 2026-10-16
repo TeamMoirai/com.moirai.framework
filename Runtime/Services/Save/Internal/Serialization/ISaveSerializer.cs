@@ -7,12 +7,32 @@ namespace Moirai.Atropos.Save
     /// 实现必须为纯 .NET 逻辑（工作线程调用，禁止触达 Unity 主线程 API）； <br />
     /// 二进制后端要求目标类型带各自 AOT 标注（<c>MessagePackObject</c>/<c>MemoryPackable</c>/<c>ProtoContract</c>），未标注时序列化器应 fail-fast。 <br />
     /// 实现自述 <see cref="BackendId"/>，容器逐块记录该 2 字节标识；内置与保留 ID 见 <see cref="SaveBackendIds"/>。 <br />
+    /// 三个二进制内置后端（MessagePack / MemoryPack / protobuf-net）已外置到 plugin 分支发行仓， <br />
+    /// 它们的线格式标识经下面的 <c>protected internal</c> 别名开给实现方：数值真源仍在 <see cref="SaveBackendIds"/>，实现按符号引用、不写裸数字。 <br />
     /// 内置与自定义实现一律标 <see cref="RegisterSerializerAttribute"/>，由源生成器在模块初始化期按 ID→类型登记（首次查询该后端才实例化）；<see cref="SaveServiceSettings.DefaultBackend"/> 为未显式声明后端的数据块提供默认值。 <br />
     /// 进 <see cref="SaveServiceSettings"/> 默认后端下拉的实现按类型全名实例化（<c>Activator</c> 非公共构造可用），无需 <c>[Serializable]</c>； <br />
     /// 但该 ID 必须在 <see cref="SaveSerializerRegistry"/> 有主，否则块写得出、读不回。
     /// </remarks>
     public interface ISaveSerializer
     {
+        /// <summary>
+        /// MessagePack 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.MESSAGE_PACK"/>）。
+        /// </summary>
+        /// <remarks>外置到 plugin 分支的实现按符号引用本常量自述 <see cref="BackendId"/>，不写裸数字——线格式 ID 一经发行不得重排。</remarks>
+        protected internal const ushort MESSAGE_PACK = SaveBackendIds.MESSAGE_PACK;
+
+        /// <summary>
+        /// MemoryPack 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.MEMORY_PACK"/>）。
+        /// </summary>
+        /// <remarks>用途同 <see cref="MESSAGE_PACK"/>：只开给实现方，不对外部消费者公开，也不把 <see cref="SaveBackendIds"/> 整张表升成 <c>public</c>。</remarks>
+        protected internal const ushort MEMORY_PACK = SaveBackendIds.MEMORY_PACK;
+
+        /// <summary>
+        /// protobuf-net 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.PROTOBUF"/>）。
+        /// </summary>
+        /// <remarks>用途同 <see cref="MESSAGE_PACK"/>。</remarks>
+        protected internal const ushort PROTOBUF = SaveBackendIds.PROTOBUF;
+
         /// <summary>本序列化器对应的容器后端标识（写入块头 2 字节；0..255 为框架保留区）。</summary>
         ushort BackendId { get; }
 

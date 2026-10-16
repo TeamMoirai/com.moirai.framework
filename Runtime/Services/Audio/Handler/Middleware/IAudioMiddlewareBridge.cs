@@ -6,7 +6,7 @@ namespace Moirai.Atropos.Audio.Middleware
     /// 音频中间件统一桥接接口（FMOD / Wwise 共用契约）。
     /// </summary>
     /// <remarks>预编译宏约定：<c>FMOD_INSTALLED</c> / <c>WWISE_INSTALLED</c> 切换真 SDK 桥，未定义时用 Stub。</remarks>
-    internal interface IAudioMiddlewareBridge
+    public interface IAudioMiddlewareBridge
     {
         /// <summary>
         /// 初始化音频系统。

@@ -52,10 +52,9 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        /// <summary>源是否够格开扫：落点是工作树且没判出失败。</summary>
-        internal bool IsUsable => IsGitWorkspace && string.IsNullOrEmpty(FailureReason);
-
-        /// <summary>就地取一遍读数，不联网。</summary>
+        /// <summary>
+        /// 就地取一遍读数，不联网。
+        /// </summary>
         internal static PackageManagerSourceStatus Capture(PackageManagerSettingsData settings, PluginPackageSource source)
         {
             var status = new PackageManagerSourceStatus
