@@ -1,0 +1,23 @@
+{
+    "name": "Moirai.Plugin.ZString",
+    "rootNamespace": "Moirai.Atropos",
+    "references": [
+        "GUID:24c092aee38482f4e80715eaa8148782",
+        "GUID:33661e06c33d31b4c9223810bf503247"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.zstring",
+            "expression": "1.0.0",
+            "define": "ZSTRING_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}
