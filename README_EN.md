@@ -53,7 +53,8 @@ The two audio plugins reference only the framework assembly: after installing th
 3. **Do not put a `package.json` inside a plugin folder.** Unity reads only the branch-root one. The plugin manifest filename is fixed: `<id>.plugin.json`.
 4. **Commit `.meta` files next to their assets.** GUIDs come from `.meta`; without them Unity regenerates GUIDs on another machine and serialized references break.
 5. **`minUnityVersion` and `minFrameworkVersion` are actually enforced** (either unmet floor refuses the install), and **`versionOperator` is actually parsed** — `>=`, `>`, `=`, `<=`, `<`.
-6. **Need a NuGet package? Write the prerequisite into `description`.** `upmDependencies` only covers UPM packages (written into the project's `manifest.json`); dependencies that come from NuGet — `ZLogger.dll`, for example — require the user to install NuGetForUnity and that package first. Put that step in `description`; the detail pane's description box shows it verbatim.
+6. **`maxUnityVersion` / `maxFrameworkVersion` are optional ceilings**: empty or absent means unlimited, and a value names the *first version that no longer ships the plugin* — the interval is `[min, max)`, so equal to the ceiling is already out. Use the editor's internal number (Unity 6.3 = `6000.3.0`). A ceiling at or below its own floor is an empty interval and rejects the whole manifest. This is how a plugin with a limited life says so itself: a package Unity deprecated declares its own last-supported version instead of the framework having to remember it.
+7. **Need a NuGet package? Write the prerequisite into `description`.** `upmDependencies` only covers UPM packages (written into the project's `manifest.json`); dependencies that come from NuGet — `ZLogger.dll`, for example — require the user to install NuGetForUnity and that package first. Put that step in `description`; the detail pane's description box shows it verbatim.
 
 ## Manifest fields
 
@@ -67,6 +68,8 @@ The two audio plugins reference only the framework assembly: after installing th
 | `version` | Plugin version | Three-segment semantic version |
 | `minUnityVersion` | Minimum Unity version | Compared against the running editor |
 | `minFrameworkVersion` | Minimum framework version | Compared against the installed `com.moirai.framework` package version; a hard requirement exactly like `minUnityVersion` |
+| `maxUnityVersion` | First Unity version that no longer ships the plugin | Optional, empty = unlimited; half-open `[min, max)`, so equal to the ceiling is already out. Example: `unity-logging` uses `6000.3.0` (official deprecation notice: com.unity.logging is unsupported in Unity versions beyond 6.2, and Unity 6.3 is internal `6000.3`) |
+| `maxFrameworkVersion` | First framework version that no longer ships the plugin | Optional, empty = unlimited; a ceiling at or below `minFrameworkVersion` is an empty interval and rejects the manifest |
 | `tags` | Scripting define symbols | Added on install, removed on uninstall |
 | `dependencies` | Other plugin `id`s in this branch | Transitively resolved, installed in topological order; a missing one aborts the batch |
 | `upmDependencies` | External UPM packages | Written to the **project's** `Packages/manifest.json`, never to the branch-root `package.json` |
