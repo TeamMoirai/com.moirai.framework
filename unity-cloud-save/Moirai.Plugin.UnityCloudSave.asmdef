@@ -1,0 +1,25 @@
+{
+    "name": "Moirai.Plugin.UnityCloudSave",
+    "rootNamespace": "Moirai.Atropos",
+    "references": [
+        "GUID:24c092aee38482f4e80715eaa8148782",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "Unity.Services.CloudSave",
+        "Unity.Services.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.services.cloudsave",
+            "expression": "1.0.0",
+            "define": "UNITY_CLOUD_SAVE_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}

@@ -1,0 +1,13 @@
+{
+  "id": "unity-cloud-save",
+  "name": "Unity Cloud Save 存档后端",
+  "function": "存档",
+  "description": "Unity Gaming Services Cloud Save（Player Files）云端 KV 存档后端：装了 com.unity.services.cloudsave 后自动定义 UNITY_CLOUD_SAVE_INSTALLED，云端同步可选本后端（单档 1GB、每玩家 200 文件，须先 UnityServices.InitializeAsync() 且玩家已登录）。不装则 Provider 下拉不出现该后端，存档只剩本地路径与 REST 参考实现；com.unity.services.cloudsave 的具体版本以工程 UPM 面板实际能装到的为准（本机未装该包，无法给出已验证版本号）。",
+  "author": "Team Moirai",
+  "version": "0.1.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": []
+}
