@@ -11,6 +11,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UObject = UnityEngine.Object;
+using static Moirai.Atropos.LogHandler;
 
 namespace Service.Save
 {

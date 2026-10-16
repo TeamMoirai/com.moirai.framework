@@ -8,6 +8,7 @@ using Moirai.Atropos;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
+using static Moirai.Atropos.LogHandler;
 
 namespace Utility
 {

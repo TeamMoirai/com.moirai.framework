@@ -13,7 +13,8 @@ namespace Moirai.Atropos
     /// 内置三种实现及启用条件：<see cref="DefaultLogHandler"/>（<c>UnityEngine.Debug</c>，始终可用，默认）、
     /// <see cref="UnityLoggingHandler"/>（需安装 com.unity.logging，自动定义 <c>UNITY_LOGGING_INSTALLED</c>）、
     /// <see cref="SerilogHandler"/>（需引入 Serilog 程序集并手动定义 <c>SERILOG_INSTALLED</c>）；
-    /// 其余后端（如 ZLogger）由 <c>plugin</c> 分支的插件装进来。
+    /// 其余后端（如 ZLogger）由 <c>plugin</c> 分支的插件装进来——跨程序集的覆写须声明为 <c>protected</c>，
+    /// 覆写 <c>protected internal</c> 成员不能收窄成 <c>internal</c>。
     /// </remarks>
     [Serializable]
     public abstract class LogHandler : FrameworkHandler
@@ -21,7 +22,7 @@ namespace Moirai.Atropos
         [Tooltip("最小日志等级，低于该等级的日志将被丢弃。")]
         [SerializeField] private ELogLevel m_MinimumLevel = ELogLevel.Verbose;
         /// <summary>获取或设置最小日志等级，低于该等级的日志将被丢弃。</summary>
-        internal ELogLevel MinimumLevel
+        protected internal ELogLevel MinimumLevel
         {
             get
             {
@@ -61,6 +62,11 @@ namespace Moirai.Atropos
         protected string TimestampPrefix
             => m_TimestampEnabled ? StringUtility.Format("[{0}] ", DateTime.Now.ToString(m_TimestampFormat)) : null;
 
+        /// <summary>
+        /// 获取可直写 Unity 控制台、绕过全局拦截器的 logHandler，后端输出通道须经它取用（详见 <see cref="LogUtility.GetBypassUnityHandler"/>）。
+        /// </summary>
+        protected internal static ILogHandler BypassUnityHandler => LogUtility.GetBypassUnityHandler();
+
         /// <inheritdoc/>
         protected override void OnInit()
         {
@@ -86,6 +92,47 @@ namespace Moirai.Atropos
         /// <param name="message">已格式化的日志内容，不为 null。</param>
         /// <param name="exception">关联异常，无异常时为 null，由各实现决定是否输出异常堆栈。</param>
         /// <param name="context">日志关联对象（可选，Console 点击可定位到该对象）。</param>
-        internal abstract void Log(ELogLevel logLevel, string message, [CanBeNull] Exception exception, UObject context = null);
+        protected internal abstract void Log(ELogLevel logLevel, string message, [CanBeNull] Exception exception, UObject context = null);
+
+        #region 日志等级 [LOG LEVEL]
+
+        /// <summary>
+        /// 游戏框架日志等级。
+        /// </summary>
+        /// <remarks>嵌在处理器基类内：等级词表只对后端（含 <c>plugin</c> 分支的插件）开放，不作为框架的公共类型对外暴露。</remarks>
+        protected internal enum ELogLevel : byte
+        {
+            /// <summary>最详细的日志，可能包含敏感数据（如参数值、令牌等）。</summary>
+            /// <example>仅在开发环境临时调试，或生产环境排查极难复现的问题时临时开启</example>
+            /// <remarks>默认关闭，绝不能在生产环境长期启用，否则有安全风险</remarks>
+            Verbose = 0,
+
+            /// <summary>用于交互式调试，记录变量状态、方法进入/退出等。</summary>
+            /// <example>开发人员在本地开发时使用，辅助定位逻辑错误</example>
+            /// <remarks>无长期保留价值，生产环境通常关闭（除非临时调试）</remarks>
+            Debug,
+
+            /// <summary>记录应用程序的常规流程，如服务启动、用户登录、业务操作完成。</summary>
+            /// <example>生产环境推荐的最小日志级别，用于跟踪系统运行状态和审计</example>
+            /// <remarks>应具有长期保留价值，帮助运维人员了解系统行为</remarks>
+            Info,
+
+            /// <summary>发生异常或意外情况，但不影响当前操作继续执行（如降级处理、重试成功）。</summary>
+            /// <example>记录非致命问题，便于提前预警，如磁盘空间不足、请求稍慢</example>
+            /// <remarks>表明系统仍可用，但需关注潜在风险</remarks>
+            Warning,
+
+            /// <summary>当前请求/活动因失败而中断，但不影响整个应用进程（如 HTTP 500、数据库连接失败）。</summary>
+            /// <example>记录业务错误或组件故障，需开发人员介入排查</example>
+            /// <remarks>这是最常见的“报错”级别，重点监控</remarks>
+            Error,
+
+            /// <summary>灾难性故障，应用或系统崩溃、数据丢失风险，需立即人工干预。</summary>
+            /// <example>如无法恢复的异常、关键服务宕机、数据库不可用</example>
+            /// <remarks>应当触发警报，通知值班人员</remarks>
+            Fatal
+        }
+
+        #endregion
     }
 }

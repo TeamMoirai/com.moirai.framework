@@ -15,31 +15,37 @@ namespace Moirai.Atropos.Editor
     /// </remarks>
     internal static class PackageManagerStateRegistry
     {
-        private const string StateFileName = "MoiraiPackageManager.json";
-        private const string DefaultBranch = "plugin";
-        private const string DefaultGitPath = "git";
+        private const string STATE_FILE_NAME = "MoiraiPackageManager.json";
 
         private static string s_PathOverride;
 
-        /// <summary>当前状态文件的落盘路径。</summary>
+        /// <summary>
+        /// 当前状态文件的落盘路径。
+        /// </summary>
         internal static string Internal_PeekStatePath()
         {
-            return s_PathOverride ?? Path.Combine(GetProjectSettingsDirectory(), StateFileName);
+            return s_PathOverride ?? Path.Combine(GetProjectSettingsDirectory(), STATE_FILE_NAME);
         }
 
-        /// <summary>把账本指到别处（用例夹具用）。</summary>
+        /// <summary>
+        /// 把账本指到别处（用例夹具用）。
+        /// </summary>
         internal static void Internal_UseStatePath(string path)
         {
             s_PathOverride = path;
         }
 
-        /// <summary>恢复默认落盘路径。</summary>
+        /// <summary>
+        /// 恢复默认落盘路径。
+        /// </summary>
         internal static void Internal_ResetStatePath()
         {
             s_PathOverride = null;
         }
 
-        /// <summary>读入账本；文件缺失或损坏时回默认空态。</summary>
+        /// <summary>
+        /// 读入账本；文件缺失或损坏时回默认空态。
+        /// </summary>
         internal static PackageManagerStateData Load()
         {
             TryLoad(out PackageManagerStateData state, out _);
@@ -92,7 +98,62 @@ namespace Moirai.Atropos.Editor
             return true;
         }
 
-        /// <summary>写入账本。</summary>
+        /// <summary>
+        /// 把上次刷新的时刻记进设置项。
+        /// </summary>
+        internal static void StampFetch(PackageManagerStateData state)
+        {
+            if (state?.settings == null) return;
+            state.settings.lastFetchAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+
+        /// <summary>
+        /// 把一趟扫描的结果记成缓存（连当时的远端与分支，换源后即作废）。
+        /// </summary>
+        internal static void CacheCatalog(PackageManagerStateData state, PluginCatalogResult catalog, string headCommit)
+        {
+            if (state?.settings == null || catalog == null) return;
+
+            PackageManagerCatalogCache cache = state.catalogCache;
+            if (cache == null) state.catalogCache = cache = new PackageManagerCatalogCache();
+
+            cache.repoUrl = state.settings.repoUrl;
+            cache.branch = state.settings.branch;
+            cache.headCommit = headCommit;
+            cache.manifests.Clear();
+            for (int i = 0; i < catalog.Manifests.Count; i++) cache.manifests.Add(catalog.Manifests[i]);
+        }
+
+        /// <summary>
+        /// 取与当前设置匹配的上次扫描缓存；没有、为空或换过源都交出 false。
+        /// </summary>
+        internal static bool TryGetCachedCatalog(PackageManagerStateData state, out List<PluginManifest> manifests,
+            out string headCommit)
+        {
+            manifests = null;
+            headCommit = null;
+
+            PackageManagerCatalogCache cache = state?.catalogCache;
+            if (cache?.manifests == null || cache.manifests.Count == 0) return false;
+            if (!string.Equals(cache.repoUrl, state.settings?.repoUrl, StringComparison.Ordinal)) return false;
+            if (!string.Equals(cache.branch, state.settings?.branch, StringComparison.Ordinal)) return false;
+
+            var alive = new List<PluginManifest>(cache.manifests.Count);
+            for (int i = 0; i < cache.manifests.Count; i++)
+            {
+                if (cache.manifests[i] != null) alive.Add(cache.manifests[i]);
+            }
+
+            if (alive.Count == 0) return false;
+
+            manifests = alive;
+            headCommit = cache.headCommit;
+            return true;
+        }
+
+        /// <summary>
+        /// 写入账本。
+        /// </summary>
         internal static void Save(PackageManagerStateData state)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -104,7 +165,9 @@ namespace Moirai.Atropos.Editor
             File.WriteAllText(path, JsonUtility.ToJson(state, true));
         }
 
-        /// <summary>写入或覆盖一个已装记录。</summary>
+        /// <summary>
+        /// 写入或覆盖一个已装记录。
+        /// </summary>
         internal static void UpsertInstalled(PackageManagerStateData state, InstalledPluginData entry)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -122,7 +185,9 @@ namespace Moirai.Atropos.Editor
             state.installed.Add(entry);
         }
 
-        /// <summary>移出一个已装记录。</summary>
+        /// <summary>
+        /// 移出一个已装记录。
+        /// </summary>
         internal static bool RemoveInstalled(PackageManagerStateData state, string id)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -139,7 +204,9 @@ namespace Moirai.Atropos.Editor
             return false;
         }
 
-        /// <summary>取已装记录。</summary>
+        /// <summary>
+        /// 取已装记录。
+        /// </summary>
         internal static InstalledPluginData FindInstalled(PackageManagerStateData state, string id)
         {
             if (state?.installed == null) return null;
@@ -152,7 +219,9 @@ namespace Moirai.Atropos.Editor
             return null;
         }
 
-        /// <summary>记下一个使用者并按归属规则写工程 manifest。</summary>
+        /// <summary>
+        /// 记下一个使用者并按归属规则写工程 manifest。
+        /// </summary>
         internal static UpmEntryOutcome RecordUpmOwner(PackageManagerStateData state, string manifestText,
             PluginUpmDependency dependency, string ownerPluginId, out string newText)
         {
@@ -183,7 +252,6 @@ namespace Moirai.Atropos.Editor
             {
                 packageId = dependency.id,
                 requiredVersion = dependency.version,
-                owners = new List<string>(),
                 preexisting = existsOnDisk,
                 originalValue = existsOnDisk ? current : null
             };
@@ -197,7 +265,9 @@ namespace Moirai.Atropos.Editor
             return UpmEntryOutcome.Added;
         }
 
-        /// <summary>记下一个使用者离场，并按引用计数回收条目。</summary>
+        /// <summary>
+        /// 记下一个使用者离场，并按引用计数回收条目。
+        /// </summary>
         internal static UpmEntryOutcome ReleaseUpmOwner(PackageManagerStateData state, string manifestText,
             string packageId, string ownerPluginId, out string newText)
         {
@@ -246,17 +316,12 @@ namespace Moirai.Atropos.Editor
 
         private static PackageManagerStateData CreateDefault()
         {
-            return new PackageManagerStateData
-            {
-                settings = new PackageManagerSettingsData { branch = DefaultBranch, gitPath = DefaultGitPath },
-                installed = new List<InstalledPluginData>(),
-                upmOwnership = new List<UpmOwnershipData>()
-            };
+            return new PackageManagerStateData();
         }
-
+        
         private static void EnsureLists(PackageManagerStateData state)
         {
-            if (state.settings == null) state.settings = new PackageManagerSettingsData { branch = DefaultBranch, gitPath = DefaultGitPath };
+            if (state.settings == null) state.settings = new PackageManagerSettingsData();
             if (state.installed == null) state.installed = new List<InstalledPluginData>();
             if (state.upmOwnership == null) state.upmOwnership = new List<UpmOwnershipData>();
         }

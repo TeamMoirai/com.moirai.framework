@@ -31,7 +31,7 @@ namespace Moirai.Atropos
 
         /// <inheritdoc/>
         [HideInCallstack]
-        internal override void Log(ELogLevel logLevel, string message, Exception exception, UObject context = null)
+        protected internal override void Log(ELogLevel logLevel, string message, Exception exception, UObject context = null)
         {
             // 指定日志等级是否启用
             if (logLevel < MinimumLevel) return;

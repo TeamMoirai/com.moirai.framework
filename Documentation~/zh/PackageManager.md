@@ -2,15 +2,15 @@
 
 > 把一个可配的 git 分支当包源来浏览与装卸框架自定义插件包：未勾选的包既不物化也不落盘，外部 UPM 依赖按归属台账写进工程 `manifest.json`。
 
-菜单入口 `Tools/Moirai/Package Manager`。窗口是 Odin 菜单树：叶子按清单的 `function` 分组，右侧详情面就是选中条目本身；工具栏三个动作依次是 `Refresh`（扫分支）、`Update All (n)`（一趟更新全部可更新项）、`Settings`（跳到就地可编辑的源设置）。
+菜单入口 `Tools/Moirai/Package Manager`。窗口是 Odin 菜单树：叶子按清单的 `function` 分组，右侧详情面就是选中条目本身；工具栏三个动作依次是 `Refresh`（扫分支）、`Update All (n)`（一趟更新全部可更新项）、`Settings`（进独立设置面）。**开窗即可见内容**：先用上次扫分支的缓存铺列表，随后自动在后台重扫（扫分支跑在工作线程，界面不卡；只有首次开窗没有缓存时才显示装载遮罩）；工具栏另有筛选框（按名字/标识/分组/说明/标签不区分大小写匹配，右侧读数变成命中/总数），源不可用时的错误行带 `重试`。详情面按 `概况 / 标签 / 依赖 / 操作` 分组：**清单里的说明**用只读说明框折行展示（没写就不占地方），`状态` 直接写出版本对照（`已装 0.1.0　↑ 可更新到 0.2.0`），依赖逐条附已装状态；动作按状态取舍——未装只给 `安装`，可更新给 `更新到分支版本`（旁边可勾 `更新前先清目录`：先删掉插件目录再按分支头重新物化，清掉新版本不再产出的文件），已装给 `重装` 与 `卸载`；`Update All` 会先把每条的 `已装 → 分支` 摆出来问一次再动手。操作区还有 `安装版本` 下拉：默认分支头那一条，展开时才去问一遍 git，列出该插件清单历史上出现过的版本（同一版本只留最新那次修订，已装的那条标 `（已装）`）；选中历史版本后出现 `安装所选版本`——先清目录再按那次修订物化，因此**可以降级**，账本记的是该修订（随时可用 `更新到分支版本` 回到头）。**源设置住在设置面里**：默认视图的菜单树只列插件，进设置面后树里只列 `分支包源`、工具栏同一位置变成 `返回列表`。顶栏读数同样分面：常规面报 `上次刷新` 时刻、分支与已装数量，源、HEAD、工作树形态与落点这些现场细节只在设置面报（`上次刷新` 与目录缓存由每次扫分支成功时一起写进账本）；源不可用时的失败原因在两面都报。
 
 ## 包源与落点
 
 | 项 | 值 |
 |---|---|
-| 远端与分支 | 窗口内 `分支包源` 节点编辑，默认分支 `plugin` |
+| 远端与分支 | 设置面的 `分支包源` 节点编辑；远端默认 `https://github.com/TeamMoirai/com.moirai.framework.git`，分支默认 `plugin` |
 | 落点目录 | `Packages/com.moirai.framework.plugin/` |
-| 状态账本 | `ProjectSettings/MoiraiPackageManager.json` |
+| 状态账本 | `ProjectSettings/MoiraiPackageManager.json`（含设置项、已装记录、归属台账与上次扫描的目录缓存） |
 | git 可执行文件 | 默认 `git`，走进程外调用 |
 
 落点目录就是分支的工作树。工具按 `--filter=blob:none --no-checkout --single-branch` 建检出，再用 cone 模式稀疏检出，因此**未勾选的插件目录不会出现在磁盘上**，而 `git ls-tree` 仍能列出整棵树——浏览面靠树、取文靠按需读 blob。
@@ -27,9 +27,12 @@
 | `description` / `author` | 说明与作者 |
 | `version` | 三段十进制版本号 |
 | `minUnityVersion` | 最低引擎版本 |
+| `minFrameworkVersion` | 最低框架版本：与 `minUnityVersion` 同款硬性要求，不满足即拒绝安装 |
 | `tags` | 安装时添加、卸载时移除的脚本宏 |
 | `dependencies` | 包间依赖：`id` + `version` + `versionOperator`（`>=` `>` `=` `<=` `<`） |
 | `upmDependencies` | 外部 UPM 包依赖：`id` + `version` |
+
+**安装前置写在 `description` 里**（如「先用 NuGetForUnity 装好 ZLogger 再装本插件」）：详情面的说明框原样展示它，工具不把它解析成结构化步骤。
 
 ## 装、卸、更新
 
@@ -50,10 +53,10 @@
 
 ## 判定面
 
-装卸规则的可判部分全部收在 L1（EditMode）：版本值类型与运算符、清单校验、工程 `manifest.json` 的行级增删、状态账本与归属计数、依赖闭包与拓扑、树路径到目录的发现、以及 git 层的克隆/摆正/稀疏物化（跑在临时 `file://` 夹具上）。
+装卸规则的可判部分全部收在 L1（EditMode）：版本值类型与运算符、清单校验、工程 `manifest.json` 的行级增删、状态账本与归属计数、依赖闭包与拓扑、树路径到目录的发现、以及 git 层的克隆/摆正/稀疏物化与清单历史（列历史、按修订取文、按修订物化；跑在临时 `file://` 夹具上）。
 
 ```bash
-# 复现当前读数：83 个用例名 / 128 格通过 / 0 失败
+# 复现当前读数：95 个用例名 / 143 格通过 / 0 失败
 bash "$LOCALAPPDATA/pm-names.sh" Tests/EditorMode/Editor/Tools/PackageManager/*/*Tests.cs > names.txt
 bash "$LOCALAPPDATA/pm-gate.sh" pm refresh
 bash "$LOCALAPPDATA/pm-test.sh" pm names.txt

@@ -8,6 +8,7 @@ using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using static Moirai.Atropos.LogHandler;
 
 namespace Service.Save
 {

@@ -8,6 +8,7 @@ namespace Moirai.Atropos.Editor
         MissingDependency,
         Cycle,
         VersionUnsatisfied,
-        UnityFloorUnmet
+        UnityFloorUnmet,
+        FrameworkFloorUnmet
     }
 }

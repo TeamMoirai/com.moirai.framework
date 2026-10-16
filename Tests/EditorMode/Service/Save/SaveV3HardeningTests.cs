@@ -14,6 +14,7 @@ using EditorSceneManager = UnityEditor.SceneManagement.EditorSceneManager;
 using NewSceneMode = UnityEditor.SceneManagement.NewSceneMode;
 using NewSceneSetup = UnityEditor.SceneManagement.NewSceneSetup;
 using OpenSceneMode = UnityEditor.SceneManagement.OpenSceneMode;
+using static Moirai.Atropos.LogHandler;
 
 namespace Service.Save
 {

@@ -9,8 +9,9 @@ namespace Moirai.Atropos.Editor
     [Serializable]
     internal sealed class PackageManagerStateData
     {
-        public PackageManagerSettingsData settings;
-        public List<InstalledPluginData> installed;
-        public List<UpmOwnershipData> upmOwnership;
+        public PackageManagerSettingsData settings = new PackageManagerSettingsData();
+        public List<InstalledPluginData> installed = new List<InstalledPluginData>();
+        public List<UpmOwnershipData> upmOwnership = new List<UpmOwnershipData>();
+        public PackageManagerCatalogCache catalogCache = new PackageManagerCatalogCache();
     }
 }

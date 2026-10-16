@@ -16,9 +16,12 @@ namespace Moirai.Atropos.Editor
     /// </remarks>
     internal sealed class PluginPackageSource
     {
-        private const int CloneTimeoutMilliseconds = 180000;
-        private const int FetchTimeoutMilliseconds = 180000;
-        private const int QueryTimeoutMilliseconds = 60000;
+        private const int CLONE_TIMEOUT_MILLISECONDS = 180000;
+        private const int FETCH_TIMEOUT_MILLISECONDS = 180000;
+        private const int QUERY_TIMEOUT_MILLISECONDS = 60000;
+
+        // 列清单历史时只看最近这些次改动：一次开下拉对每个版本跑一条 git，更早的版本基本没人装
+        private const int HISTORY_SCAN_LIMIT = 50;
 
         private readonly string _workingDirectory;
         private readonly string _repoUrl;
@@ -75,7 +78,7 @@ namespace Moirai.Atropos.Editor
             GitRunResult clone = GitProcessUtility.Run(_gitPath, parent,
                 $"clone --filter=blob:none --no-checkout --single-branch --branch {GitProcessUtility.Quote(_branch)} " +
                 $"{GitProcessUtility.Quote(_repoUrl)} {GitProcessUtility.Quote(_workingDirectory)}",
-                CloneTimeoutMilliseconds);
+                CLONE_TIMEOUT_MILLISECONDS);
             if (!clone.Ok)
             {
                 failureReason = $"建检出失败：{clone.FailureReason()}";
@@ -169,20 +172,26 @@ namespace Moirai.Atropos.Editor
             return result.Ok;
         }
 
-        /// <summary>读一个树路径的文本内容。</summary>
+        /// <summary>读一个树路径在 HEAD 上的文本内容。</summary>
         internal bool TryReadBlob(string treePath, out string text, out string failureReason)
         {
+            return TryReadBlobAt(treePath, "HEAD", out text, out failureReason);
+        }
+
+        /// <summary>读某修订下一个树路径的文本内容（装历史版本得看那一次写下的清单）。</summary>
+        internal bool TryReadBlobAt(string treePath, string revision, out string text, out string failureReason)
+        {
             text = null;
-            if (!IsSafeTreePath(treePath))
+            if (!IsSafeTreePath(treePath) || !IsSafeRevision(revision))
             {
-                failureReason = $"树路径不合约定：'{treePath}'";
+                failureReason = $"树路径或修订不合约定：'{treePath}' @ '{revision}'";
                 return false;
             }
 
-            GitRunResult result = RunQuery($"show HEAD:{GitProcessUtility.Quote(treePath)}", out string body, out _);
+            GitRunResult result = RunQuery($"show {GitProcessUtility.Quote(revision + ":" + treePath)}", out string body, out _);
             if (!result.Ok)
             {
-                failureReason = $"读 '{treePath}' 失败：{result.FailureReason()}";
+                failureReason = $"读 '{treePath}' @ '{revision}' 失败：{result.FailureReason()}";
                 return false;
             }
 
@@ -195,7 +204,7 @@ namespace Moirai.Atropos.Editor
         internal bool TryTreeHash(string treePath, string revision, out string hash, out string failureReason)
         {
             hash = null;
-            if (!IsSafeTreePath(treePath) || string.IsNullOrEmpty(revision) || revision[0] == '-')
+            if (!IsSafeTreePath(treePath) || !IsSafeRevision(revision))
             {
                 failureReason = $"树路径或修订不合约定：'{treePath}' @ '{revision}'";
                 return false;
@@ -211,6 +220,102 @@ namespace Moirai.Atropos.Editor
             hash = body.Trim();
             failureReason = null;
             return true;
+        }
+
+        /// <summary>列某插件清单历史上出现过的版本：每版本取最新那次修订，新的在前。</summary>
+        /// <remarks>只看最近 <c>HISTORY_SCAN_LIMIT</c> 次改动，且同版本合并——一次开出版本下拉要对每个候选跑一条 git。</remarks>
+        internal bool TryListManifestHistory(string pluginId, out List<PluginVersionRevision> history, out string failureReason)
+        {
+            history = null;
+            if (!PluginManifest.IsValidId(pluginId))
+            {
+                failureReason = $"插件标识 '{pluginId}' 不符合字符集 [a-z0-9._-]，不交给 git";
+                return false;
+            }
+
+            string treePath = pluginId + "/" + pluginId + PluginManifest.MANIFEST_SUFFIX;
+            GitRunResult result = RunQuery(
+                $"log --format=%H -n {HISTORY_SCAN_LIMIT} -- {GitProcessUtility.Quote(treePath)}",
+                out string text, out _);
+            if (!result.Ok)
+            {
+                failureReason = $"列 '{treePath}' 的历史失败：{result.FailureReason()}";
+                return false;
+            }
+
+            List<string> revisions = SplitLines(text);
+            var seenVersions = new HashSet<string>(StringComparer.Ordinal);
+            var found = new List<PluginVersionRevision>();
+
+            for (int i = 0; i < revisions.Count; i++)
+            {
+                if (!TryReadBlobAt(treePath, revisions[i], out string json, out _)) continue;
+                if (!PluginManifest.TryParse(treePath, json, out PluginManifest manifest, out _)) continue;
+                if (!seenVersions.Add(manifest.version)) continue;
+
+                found.Add(new PluginVersionRevision(manifest.version, revisions[i], i == 0));
+            }
+
+            history = found;
+            failureReason = null;
+            return true;
+        }
+
+        /// <summary>把这些插件目录按指定修订物化进工作树：装历史版本用。</summary>
+        /// <remarks>走 <c>restore --worktree</c> 而不是 <c>checkout</c>——后者会把内容写进索引，落点工作树的 git status 就脏了。<br />
+        /// 路径一律取自 git 自己列出的清单，再过一遍 <see cref="IsSafeTreePath"/> 才拼进命令行。</remarks>
+        internal bool TryMaterializeAt(string revision, IReadOnlyList<string> ids, out string failureReason)
+        {
+            if (!IsSafeRevision(revision))
+            {
+                failureReason = $"修订不合约定：'{revision}'";
+                return false;
+            }
+
+            var paths = new List<string>();
+            for (int i = 0; ids != null && i < ids.Count; i++)
+            {
+                string id = ids[i];
+                if (!PluginManifest.IsValidId(id))
+                {
+                    failureReason = $"目录名 '{id}' 不符合字符集 [a-z0-9._-]，不交给 git";
+                    return false;
+                }
+
+                GitRunResult listed = RunQuery(
+                    $"ls-tree -r --name-only {GitProcessUtility.Quote(revision)} -- {GitProcessUtility.Quote(id + "/")}",
+                    out string text, out _);
+                if (!listed.Ok)
+                {
+                    failureReason = $"{id} 在 {revision} 里列不出文件：{listed.FailureReason()}";
+                    return false;
+                }
+
+                paths.AddRange(SplitLines(text));
+            }
+
+            if (paths.Count == 0)
+            {
+                failureReason = null;
+                return true;
+            }
+
+            var quoted = new List<string>(paths.Count);
+            for (int i = 0; i < paths.Count; i++)
+            {
+                if (!IsSafeTreePath(paths[i]))
+                {
+                    failureReason = $"修订里的路径不合约定：'{paths[i]}'";
+                    return false;
+                }
+
+                quoted.Add(GitProcessUtility.Quote(paths[i]));
+            }
+
+            GitRunResult restored = RunCone(
+                $"restore --source={GitProcessUtility.Quote(revision)} --worktree -- " + string.Join(" ", quoted),
+                out failureReason);
+            return restored.Ok;
         }
 
         /// <summary>把 cone 勾选集换成这批目录名，只物化它们与根文件。</summary>
@@ -242,6 +347,20 @@ namespace Moirai.Atropos.Editor
             GitRunResult result = RunQuery(arguments, out _, out _);
             failureReason = result.Ok ? null : $"设置勾选集失败：{result.FailureReason()}";
             return result.Ok;
+        }
+
+        /// <summary>修订可否交给 git：拒绝空、选项形状、空白与 <c>: ~ ^</c>（会与 <c>&lt;rev&gt;:&lt;path&gt;</c> 或修订运算符混义）。</summary>
+        private static bool IsSafeRevision(string revision)
+        {
+            if (string.IsNullOrEmpty(revision) || revision[0] == '-') return false;
+
+            for (int i = 0; i < revision.Length; i++)
+            {
+                char c = revision[i];
+                if (char.IsWhiteSpace(c) || c == ':' || c == '~' || c == '^') return false;
+            }
+
+            return true;
         }
 
         /// <summary>树路径可否交给 git：拒绝选项形状、绝对形状与上跳段。</summary>
@@ -276,7 +395,7 @@ namespace Moirai.Atropos.Editor
 
         private GitRunResult RunQuery(string arguments, out string standardOutput, out string failureReason)
         {
-            GitRunResult result = GitProcessUtility.Run(_gitPath, _workingDirectory, arguments, QueryTimeoutMilliseconds);
+            GitRunResult result = GitProcessUtility.Run(_gitPath, _workingDirectory, arguments, QUERY_TIMEOUT_MILLISECONDS);
             standardOutput = result.StandardOutput;
             failureReason = result.Ok ? null : result.FailureReason();
             return result;
@@ -284,7 +403,7 @@ namespace Moirai.Atropos.Editor
 
         private GitRunResult RunCone(string arguments, out string failureReason)
         {
-            GitRunResult result = GitProcessUtility.Run(_gitPath, _workingDirectory, arguments, QueryTimeoutMilliseconds);
+            GitRunResult result = GitProcessUtility.Run(_gitPath, _workingDirectory, arguments, QUERY_TIMEOUT_MILLISECONDS);
             failureReason = result.Ok ? null : $"{arguments} 失败：{result.FailureReason()}";
             return result;
         }
