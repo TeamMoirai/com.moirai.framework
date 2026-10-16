@@ -53,7 +53,8 @@ com.moirai.framework.plugin/
 3. **插件目录内不要放 `package.json`。** Unity 只读分支根那一份；插件自带的那份是清单的干扰源。清单文件名固定为 `<id>.plugin.json`。
 4. **`.meta` 与源文件一起提交。** GUID 由 `.meta` 携带，缺了会在别人机器上重新生成，序列化引用随即断链。
 5. **`minUnityVersion` 与 `minFrameworkVersion` 会被真比较**，任一不满足即拒绝安装；**`versionOperator` 会被真解析**，只认 `>=`、`>`、`=`、`<=`、`<`。
-6. **要 NuGet 包就把安装前置写进 `description`。** `upmDependencies` 只覆盖 UPM 包（写进工程 `manifest.json`）；`ZLogger.dll` 这类来自 NuGet 的依赖，得让使用者先用 NuGetForUnity 装好——这一步写进 `description`，窗口详情面的说明框会原样展示。
+6. **上限 `maxUnityVersion` / `maxFrameworkVersion` 可写可空**：留空=无限制，写了就是"不再提供的第一个版本"，区间按 `[min, max)` 判（等于上限即已停止提供）。版本号一律写**编辑器内部号**（Unity 6.3 = `6000.3.0`）。上限不高于地板属空区间，整条清单判非。给"有生命周期的插件"用：官方弃用的包自己声明停止的那一档，不必让框架去记。
+7. **要 NuGet 包就把安装前置写进 `description`。** `upmDependencies` 只覆盖 UPM 包（写进工程 `manifest.json`）；`ZLogger.dll` 这类来自 NuGet 的依赖，得让使用者先用 NuGetForUnity 装好——这一步写进 `description`，窗口详情面的说明框会原样展示。
 
 ## 清单字段
 
@@ -83,6 +84,8 @@ com.moirai.framework.plugin/
 | `version` | 插件版本 | 语义化三段，`x.y.z` |
 | `minUnityVersion` | 最低 Unity 版本 | 与当前编辑器比较，不满足拒绝安装 |
 | `minFrameworkVersion` | 最低框架版本 | 与当前 `com.moirai.framework` 包版本比较，不满足拒绝安装（与 `minUnityVersion` 同款硬性要求） |
+| `maxUnityVersion` | Unity 侧不再提供的第一个版本 | 可空=无限制；`[min, max)` 半开，等于上限即已停止提供。例：`unity-logging` 写 `6000.3.0`（官方弃用公告：com.unity.logging 在 Unity 6.2 之后不再支持，6.3 = 内部号 6000.3 起停） |
+| `maxFrameworkVersion` | 框架侧不再提供的第一个版本 | 可空=无限制；不高于 `minFrameworkVersion` 时空区间，整条清单判非 |
 | `tags` | 脚本宏 | 安装时添加、卸载时移除，成对 |
 | `dependencies` | 指向同分支其它插件 `id` | 传递解析，按拓扑序安装；缺失即中止 |
 | `upmDependencies` | 外部 UPM 包 | 写进**工程的** `Packages/manifest.json`，不写进分支根 `package.json` |
