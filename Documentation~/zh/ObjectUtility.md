@@ -2,11 +2,11 @@
 
 > 框架的对象实例化/销毁外观，提供可插拔的 Handler 架构，支持单机与联网两种模式。
 
-`ObjectUtility` 是框架的 Unity 对象创建与销毁的静态外观。默认使用 `UnityObjectHandler`（封装 `Object.Instantiate` / `Object.Destroy`）。当集成 Photon Fusion 等网络库时，可切换为 `PhotonFusionObjectHandler`，使实例化/销毁自动走网络同步流程。
+`ObjectUtility` 是框架的 Unity 对象创建与销毁的静态外观。框架内置 `UnityObjectHandler`（封装 `Object.Instantiate` / `Object.Destroy`）。Photon Fusion 的联网后端不在框架里，由 `plugin` 分支的 `photon-fusion` 插件提供——装上后实例化/销毁才会走网络同步流程。
 
 ## 核心特性
 
-- 可插拔 Handler：`UnityObjectHandler`（默认）/ `PhotonFusionObjectHandler`（Fusion 网络同步）
+- 可插拔 Handler：框架内置 `UnityObjectHandler`；Fusion 网络同步后端由 `photon-fusion` 插件提供
 - 四种 `InstantiateObject` 重载：仅原始对象、指定父级、指定位置旋转、位置旋转与父级全量
 - 网络感知：`playerOwned` / `allowNetworked` 参数控制网络注册行为
 - `DestroyObject` 统一销毁，支持网络感知
@@ -20,8 +20,7 @@
 |---------|------|
 | `ObjectUtility` | 静态外观，提供 `InstantiateObject<T>` / `DestroyObject` 方法 |
 | `ObjectHandler` | 抽象基类，定义 `InstantiateObject` 4 重载 + `DestroyObject` |
-| `UnityObjectHandler` | 默认实现，封装 `Object.Instantiate` / `Object.Destroy`（单机模式） |
-| `PhotonFusionObjectHandler` | 联网实现，封装 Fusion 网络实例化/销毁 |
+| `UnityObjectHandler` | 框架内置默认实现，封装 `Object.Instantiate` / `Object.Destroy`（单机模式） |
 
 ## 快速上手
 
@@ -47,16 +46,17 @@ ObjectUtility.DestroyObject(go, allowNetworked: false);
 
 ### 联网场景（Fusion）
 
-```csharp
-// 切换为 Fusion 网络 Handler
-ObjectUtility.Handler = new PhotonFusionObjectHandler();
+联网后端不在框架里：先用 `Tools/Moirai/Package Manager` 装上 `plugin` 分支的 `photon-fusion` 插件（Fusion SDK 走 Photon 自己的发行渠道，接入后需在脚本后端宏里定义 `FUSION2`），再到 `GameAppSettings` 的「对象后端」下拉里选中它——下拉里那一列只在插件在场时出现，后端一律不在游戏代码里 `new`。切换完成后调用方写法不变：
 
+```csharp
 // 实例化为网络对象（playerOwned 标记归属）
 ObjectUtility.InstantiateObject(prefab, playerOwned: true, allowNetworked: true);
 
 // 销毁网络对象
 ObjectUtility.DestroyObject(go, allowNetworked: true);
 ```
+
+未装插件时 `allowNetworked` / `playerOwned` 不产生网络语义，调用落到框架内置的 `UnityObjectHandler`。
 
 ## 注意事项
 

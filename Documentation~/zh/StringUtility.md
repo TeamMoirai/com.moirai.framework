@@ -2,11 +2,11 @@
 
 > 框架的字符串格式化与构建外观，提供可插拔的 Handler 架构，内置池化字符串构建器以减少 GC。
 
-`StringUtility` 是框架的字符串处理静态外观。默认使用 `DefaultStringHandler`（基于 `StringBuilder` 池化）；当安装 ZString 时可切换为 `ZStringHandler`（基于 `Utf16ValueStringBuilder` 池化，零分配格式化）。提供 `Format`、`CreateStringBuilder`、`GetString` 三种使用模式，覆盖不同场景的字符串构建需求。
+`StringUtility` 是框架的字符串处理静态外观。默认使用 `DefaultStringHandler`（基于 `StringBuilder` 池化）；零分配的 ZString 后端不在框架里，由 `plugin` 分支的 `zstring` 插件提供（基于 `Utf16ValueStringBuilder` 池化），装上之后才出现在 Provider 下拉里。提供 `Format`、`CreateStringBuilder`、`GetString` 三种使用模式，覆盖不同场景的字符串构建需求。
 
 ## 核心特性
 
-- 可插拔 Handler：`DefaultStringHandler`（默认，StringBuilder 池化）/ `ZStringHandler`（ZString 零分配池化）
+- 可插拔 Handler：框架内置 `DefaultStringHandler`（StringBuilder 池化）；ZString 零分配池化后端由 `zstring` 插件提供
 - 三种使用模式：便捷 `Format`、构建器模式 `CreateStringBuilder` + `ToStringAndDispose`、简化模式 `GetString`
 - `Format` 泛型重载支持 1-16 个参数，`[StringFormatMethod]` 注解触发 Roslyn 静态分析
 - `IStringBuilder` 统一接口：`StringBuilder` 与 `Utf16ValueStringBuilder` 的操作抽象
@@ -21,8 +21,7 @@
 | `StringUtility` | 静态外观，提供 `Format` / `CreateStringBuilder` / `GetString` / `Clear` |
 | `StringHandler` | 抽象基类，定义 `CreateStringBuilder` / `GetString` / `Clear` |
 | `StringHandler.IStringBuilder` | 字符串构建器适配器接口（partial），统一 `StringBuilder` 与 `Utf16ValueStringBuilder` 操作；Format 重载由 T4 模板生成 |
-| `DefaultStringHandler` | 默认实现，基于 `StringBuilder` 池化 |
-| `ZStringHandler` | ZString 实现，基于 `Utf16ValueStringBuilder` 池化，零分配 |
+| `DefaultStringHandler` | 框架内置默认实现，基于 `StringBuilder` 池化 |
 
 ## 快速上手
 
@@ -95,19 +94,17 @@ StringUtility.Replace("Hello", "l", "x", 0, 3);      // "Hexlo"（指定范围�
 
 ### 切换 Handler
 
-```csharp
-// 切换到 ZString（需安装 ZString 库）
-StringUtility.Handler = new ZStringHandler();
+后端一律在 settings 里选，不在游戏代码里 `new`：`Tools/Framework Settings` 打开 `GameAppSettings`，把「字符串后端」下拉切到目标实现即可。
 
-// 恢复默认
-StringUtility.Handler = new DefaultStringHandler();
-```
+- 下拉里的 ZString 那一项来自 `plugin` 分支的 `zstring` 插件（经 `Tools/Moirai/Package Manager` 安装）；没装插件时它根本不存在，下拉只有框架内置的 `DefaultStringHandler`。
+- 该字段是 `[SerializeReference]`，切换会改变资产里的 `asm:` 归属，切完需保存资产；运行时由 `GameAppSettings.Initiation` 生效，无需改代码。
+- 换回默认即选 `DefaultStringHandler`。
 
 ## 注意事项
 
 - `Format` 内部自动创建和归还 `IStringBuilder`，高频调用无内存泄漏
 - `IStringBuilder` 使用后必须调用 `Dispose()` 或 `ToStringAndDispose()` 归还池，否则池泄漏
-- `Handler` 赋 null 抛出 `ArgumentNullException`；赋新值时自动调用旧 handler 的 `Internal_Shutdown()` 和新 handler 的 `Internal_Init()`
+- `StringUtility.Handler` 是 `internal` 静态属性（源生成器产出），游戏与插件侧代码都不直接赋值——后端切换只走 `GameAppSettings` 的 Provider 下拉；该 setter 拒绝 null（抛 `ArgumentNullException`），换入时调新 handler 的 `Internal_Init()`、关停旧 handler 的 `Internal_Shutdown()`
 - `Clear()` 清空所有缓存和池，通常在场景切换时调用
 
 ---

@@ -157,6 +157,26 @@ namespace Service.Localization
         }
 
         [Test]
+        public void ReadingCurrentLanguageDoesNotCommitState()
+        {
+            var handler = CreateJaEnProbe();
+            handler.ApplyPreference(Language.Japanese.Code, "EditorSetting");
+            try
+            {
+                // 读一遍：解析出日语，但只解析不提交——撤销交接后必须回到未选，而不是留在已解析的日语上
+                Assert.AreEqual(Language.Japanese, handler.CurrentLanguage, "先确认解析给了日语");
+                handler.ApplyPreference(null, null);
+
+                Assert.AreEqual(Language.Unspecified, handler.CurrentLanguage,
+                    "读 CurrentLanguage 不得提交状态：装载或显式切换那一趟才写当前语言");
+            }
+            finally
+            {
+                handler.Internal_Shutdown();
+            }
+        }
+
+        [Test]
         public void SettingSourceLivesOnTheServiceNotTheHandler()
         {
             var handler = CreateJaEnProbe();
@@ -170,10 +190,11 @@ namespace Service.Localization
                 Assert.AreEqual("EditorSetting", handler.AppliedPreferenceSource,
                     "交接给处理器的是一份数据，不是一份查询能力");
 
-                // 撤销交接：原值与来路一起清空，诊断串不得比语言读数更旧
+                // 撤销交接：清的是来路，不回滚已经生效的切换——已装上的语言保持，诊断串不得比语言读数更旧
                 handler.ApplyPreference(null, null);
-                Assert.IsNull(handler.AppliedPreferenceSource);
-                Assert.AreEqual(Language.Unspecified, handler.CurrentLanguage);
+                Assert.IsNull(handler.AppliedPreferenceSource, "撤销交接后处理器不保留旧来源标签");
+                Assert.AreEqual(Language.Japanese, handler.CurrentLanguage,
+                    "语言已经装上，撤销来路不把它退回未选");
             }
             finally
             {

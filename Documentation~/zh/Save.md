@@ -2,7 +2,7 @@
 
 > 单文件多数据块容器、可插拔序列化/加密/压缩、文件级版本迁移总线与无代码组件保存。
 
-Save 服务（`SaveService`）提供 AAA 级存档基础设施：**四种可插拔序列化后端**（JSON / MessagePack / MemoryPack / protobuf-net）、**文件级版本迁移总线**（版本链 + 审计 + 惰性回写）与**块级版本迁移**、**AES 加密管线**（密钥来源可插拔：静态口令 / 运行期口令注入 / HKDF 按用户派生）、**可选 GZip 压缩**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
+Save 服务（`SaveService`）提供 AAA 级存档基础设施：**四种可插拔序列化后端**（JSON 框架内置；MessagePack / MemoryPack / protobuf-net 各由 `plugin` 分支的同名插件提供，见下文《依赖》）、**文件级版本迁移总线**（版本链 + 审计 + 惰性回写）与**块级版本迁移**、**AES 加密管线**（密钥来源可插拔：静态口令 / 运行期口令注入 / HKDF 按用户派生）、**可选 GZip 压缩**与**无代码组件保存**（SourceGenerator 生成强类型捕获器）。命名空间 `Moirai.Atropos.Save`。
 
 ## 架构
 
@@ -13,13 +13,13 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 │     AESEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），内嵌 [SerializeReference] 密钥提供方
 ├── 存储后端（[SerializeReference] 可切换，ISaveStorage + SaveStorageBackend）
 │     FileSaveStorageBackend  本地文件（临时文件 + Flush(true) + 原子替换，默认）
-│     CloudSaveStorageBackend 本地镜像 + 远端 KV 双写（远端插拔件内置 RestCloudSaveKvStore / UnityCloudSaveKvStore）
+│     CloudSaveStorageBackend 本地镜像 + 远端 KV 双写（远端插拔件：RestCloudSaveKvStore 框架内置 / Unity Cloud Save 由 unity-cloud-save 插件提供）
 ├── 转换链（顺序固定：Serialize → Compress? → Encrypt? → CRC）
 │     压缩：ICompressionProvider + SaveCompressionRegistry（GZip 内建 ID=1；未知 ID 读侧拒载）
 │     密钥：ISaveKeyProvider + SaveKeyProvider（内嵌于 AES 处理器；Static 静态口令默认 / Passphrase 运行期注入 / HkdfPerUser 按用户派生）
 ├── 序列化后端（SaveBackendIds + ISaveSerializer + SaveSerializerRegistry）
-│     Json（内置，默认）/ MessagePack / MemoryPack / Protobuf / KeyValue（组件捕获格式保留标识）
-│     注册表不硬编码任何后端：框架内置四个实现与项目实现一律标 [RegisterSerializer]，由 SaveServiceCodegen 登记成 ID→类型记录，首次查询到该后端才实例化；Unregister(ushort) 连类型记录一起摘除
+│     Json（框架内置，默认）/ KeyValue（组件捕获格式保留标识）/ MessagePack、MemoryPack、Protobuf 各由 plugin 分支的同名插件提供
+│     注册表不硬编码任何后端：框架内置实现、插件提供的实现与项目实现一律标 [RegisterSerializer]，由 SaveServiceCodegen 登记成 ID→类型记录，首次查询到该后端才实例化；Unregister(ushort) 连类型记录一起摘除
 │     代码式注册：Register(ISaveSerializer)/Register(ushort, Type)/Register<T>()（重复后端与保留区占号 fail-fast，KEY_VALUE=254 不可占用；自定义后端 ID 从 1000 起分配）
 ├── 多块容器（SaveFileContainer，手写二进制，块级 key/version/backend/bytes）
 ├── 数据模型（[SaveData] + SaveDataBlock.OnMigrate 版本迁移）
@@ -227,12 +227,12 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ## 云存档一体（本地镜像 + 远端 KV）
 
-`CloudSaveStorageBackend`（存储后端插拔件，经处理器的 `m_StorageBackend` 配置）：本地文件镜像 + 远端 KV 双写，读按冲突策略裁决。远端 KV 语义抽象为 `CloudSaveKvStore`（[SerializeReference] 插拔件）——框架内置两个具体后端（**`RestCloudSaveKvStore`** 自定义 REST / **`UnityCloudSaveKvStore`** UGS 条件编译），项目亦可实现自定义后端。
+`CloudSaveStorageBackend`（存储后端插拔件，经处理器的 `m_StorageBackend` 配置）：本地文件镜像 + 远端 KV 双写，读按冲突策略裁决。远端 KV 语义抽象为 `CloudSaveKvStore`（[SerializeReference] 插拔件）——框架内置 **`RestCloudSaveKvStore`**（自定义 REST），UGS 云端后端由 `plugin` 分支的 `unity-cloud-save` 插件提供，项目亦可实现自定义后端。
 
 - **键规范**：云端键 = 相对存档数据根目录（`persistentDataPath/Data/`）的路径，`/` 分隔（如 `Save/slot1.sav`）——不携带本机目录结构，跨设备一致。
 - **错误语义**：远端不可达/失败/未登录一律抛异常，后端归一为**离线降级**（降级本地镜像直通并记告警）；缺档非错误（读 `null` / 存在性 `false` / 删除幂等）。
 - **REST 后端（`RestCloudSaveKvStore`）**：配置端点根地址 / 键前缀（多租户命名空间）/ 认证头 / 超时；认证值经代码注入的动态令牌提供方优先于静态配置（防密钥随设置资产入库）。REST 契约：`GET/HEAD/PUT/DELETE {baseUrl}/{keyPrefix}{key}`（路径段逐段 URL 转义；读 404 = 缺档）+ `GET {baseUrl}?prefix=` 枚举下推（JSON 信封 `[{"key","size","modified","revision"}]`，返回键须含键前缀——本端剥离并二次校验，前缀外键防御性跳过）。修订号双通道（`X-Save-Revision` 首选 / `ETag` 回退，均无 = 0 回退时间戳裁决）；远端时间戳 `Last-Modified` → 响应 `Date` 回退链；超时归一 `TimeoutException`、非约定状态码归一 `IOException`。HttpClient 纯 .NET 传输（任意线程可调；**WebGL 无 raw socket 不可用**，WebGL 项目选 UGS 或 UnityWebRequest 自定义后端）。
-- **UGS 后端（`UnityCloudSaveKvStore`）**：安装 `com.unity.services.cloudsave` 后经 versionDefine（`UNITY_CLOUD_SAVE_INSTALLED`）自动激活。前置 `UnityServices.InitializeAsync()` + 玩家登录（Authentication），未就绪抛异常走离线降级；缺档经 `CloudSaveException.Reason == NotFound` 判 null/false/幂等。Player Files API 承载（配额：每玩家 200 文件 / 1GB）；WriteLock 为 etag 语义字符串（非单调数值）——`WriteAsync` 恒返回 0，裁决走 `FileItem.Modified` 远端权威时间戳通道；SDK 不接收取消令牌（调用前协作式检查，已发出的请求无法中止）。
+- **UGS 后端（`plugin` 分支的 `unity-cloud-save` 插件，程序集 `Moirai.Plugin.UnityCloudSave`）**：装了 `com.unity.services.cloudsave` 后由该插件 asmdef 的 versionDefines 自动定义 `UNITY_CLOUD_SAVE_INSTALLED`，后端才编得进来、才进 `SaveServiceSettings` 的 Provider 下拉（该包的版本以工程 UPM 面板实际能装到的为准，插件清单未把它写成 `upmDependencies`，需自行安装）。前置 `UnityServices.InitializeAsync()` + 玩家登录（Authentication），未就绪抛异常走离线降级；缺档经 `CloudSaveException.Reason == NotFound` 判 null/false/幂等。Player Files API 承载（配额：每玩家 200 文件 / 1GB）；WriteLock 为 etag 语义字符串（非单调数值）——`WriteAsync` 恒返回 0，裁决走 `FileItem.Modified` 远端权威时间戳通道；SDK 不接收取消令牌（调用前协作式检查，已发出的请求无法中止）。
 - **写双发**：本地镜像原子提交后远端跟随；远端失败**不阻断本地提交**——记入待回传集合，下次远端操作成功时 backfill 重放（待传上传 / 待删单键 / 待删前缀，按序弹出，失败即停余项保留）。镜像独有回传有失败冷却（默认 30s，冷却期内读路径不重试，积压由 backfill 兜底）。
 - **枚举下推**：`EnumerateAsync(prefix, ct)` 前缀重载——默认实现全量枚举后客户端过滤；支持服务端前缀过滤的后端覆写即降低流量（槽位枚举与前缀删除均经此通道）。
 - **读裁决**（`ESaveSyncPolicy`）：`Latest` 新者优先 / `LocalWins` 本地权威 / `CloudWins` 云端权威 / `Custom` 逐键委托 `SaveSyncConflictResolver`（未配置回退 Latest 并记告警；裁决条目携带双方尺寸与修订号——枚举路径远端尺寸取清单 SizeBytes，不从空载荷推导）。**裁决去时钟化**：远端提供单调修订号（`CloudKvEntry.Version` > 0）时按版本号裁决——镜像已同步修订号记录于 `{file}.cloudver` sidecar，镜像脏判定用镜像与 sidecar 的本地 mtime 失配（同一本地时钟，客户端与远端时钟偏移不参与）；无版本号后端回退时间戳比较（下载已把远端权威时间戳转写镜像）。单侧存在时自动对齐另一侧（远端独有 → 下载刷新镜像并保留远端时间戳与版本；镜像独有 → 回传补传远端）。`WriteAsync` 返回远端分配的修订号（0 = 后端不提供版本号）。
@@ -317,7 +317,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 | 字段 | 说明 |
 |---|---|
-| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件（内置 `RestCloudSaveKvStore` 自定义 REST / `UnityCloudSaveKvStore` UGS 条件编译）+ 冲突策略 + 自定义裁决器） |
+| `m_StorageBackend` | 存储后端（IO 下沉目标，默认 FileSaveStorageBackend；置空回退文件后端；云存档选 `CloudSaveStorageBackend`——组合远端 KV 插拔件（框架内置 `RestCloudSaveKvStore` 自定义 REST / UGS 那份由 `unity-cloud-save` 插件提供）+ 冲突策略 + 自定义裁决器） |
 | `m_CompressionProvider` | 压缩提供方（空 = 不压缩；内置 GZipCompressionProvider） |
 | `m_MigrationWriteBack` | 迁移回写（默认开）：加载触发迁移成功后惰性回写存档；关闭则迁移仅作用于当次加载的内存数据 |
 | `m_KeyProvider`（AES 处理器） | 密钥提供方（空 = 回退 `StaticSaveKeyProvider.Default` 占位默认；可选 StaticSaveKeyProvider / PassphraseSaveKeyProvider / HKDFPerUserSaveKeyProvider） |
@@ -332,17 +332,18 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ## 依赖
 
-| 包 | 版本 | 说明 |
-|---|---|---|
-| MessagePack | 3.1.8 | NuGetForUnity 引入；运行时 DLL 自动引用，分析器 DLL 需 `RoslynAnalyzer` 标签 |
-| protobuf-net | 3.3.8 | 同上（+Core 内嵌 BuildTools SG） |
-| MemoryPack | 1.21.4 | 同上 |
-| Unity Cloud Save | 可选 | 安装 `com.unity.services.cloudsave` 后经 versionDefine（`UNITY_CLOUD_SAVE_INSTALLED`）激活 `UnityCloudSaveKvStore` |
-| LZ4（K4os.Compression.LZ4） | 预留 | versionDefine 槽位 `LZ4_INSTALLED` 已预留（安装 `org.nuget.k4os.compression.lz4` 激活）；压缩提供方实现待后续补全 |
+三支二进制序列化后端与 UGS 云端后端都不在框架里，各由 `plugin` 分支的同名插件发行（程序集 `Moirai.Plugin.MemoryPack` / `.MessagePack` / `.Protobuf` / `.UnityCloudSave`）。表里列的是各插件的安装前置——先备齐依赖与宏，再装插件，最后才可能在 `SaveServiceSettings` 的下拉里选到它。
+
+| 前置 | 版本 | 对应插件 | 说明 |
+|---|---|---|---|
+| MessagePack | 3.1.8 | `messagepack` | NuGetForUnity 引入；运行时 DLL 自动引用，分析器 DLL 需 `RoslynAnalyzer` 标签；宏 `MESSAGEPACK_INSTALLED` 是手写档（工程侧自己定义，插件 asmdef 不走 versionDefines） |
+| protobuf-net | 3.3.8 | `protobuf` | 同上（`protobuf-net.dll` 与 `protobuf-net.Core.dll` 两支都要）；宏 `PROTOBUF_INSTALLED` 手写档 |
+| MemoryPack | 1.21.4 | `memorypack` | 同上（`MemoryPack.Core`）；宏 `MEMORYPACK_INSTALLED` 手写档 |
+| com.unity.services.cloudsave | 以工程 UPM 面板实际能装到的为准 | `unity-cloud-save` | 装好后由插件 asmdef 的 versionDefines 自动定义 `UNITY_CLOUD_SAVE_INSTALLED`；插件清单没把它写成 `upmDependencies`，需自行安装 |
 
 缺 DLL 时对应后端在 `SaveSerializerRegistry.GetRequired` fail-fast——`[SaveData(Backend = …)]` 显式声明后端仍走这条路，依赖存在与否由代码侧负责；`SaveServiceSettings` 的默认后端下拉只列已编译入包的序列化器，配不出未接入的后端。
 
-注册表**不硬编码任何后端**：框架内置的四个实现（`JsonSaveSerializer` / `MessagePackSaveSerializer` / `MemoryPackSaveSerializer` / `ProtobufSaveSerializer`）与项目实现一律靠类上的 `[RegisterSerializer]` 标注，在模块初始化期登记成 ID→类型记录，真正被查询到才实例化那一个（实现均无状态），因此装了依赖但没用的后端不常驻对象；依赖未接入时类型本身不编译，登记也就不存在，查询照旧 fail-fast。
+注册表**不硬编码任何后端**：框架内置的 `JsonSaveSerializer`、`plugin` 分支插件带来的 MessagePack / MemoryPack / protobuf-net 三支序列化器，与项目自己的实现，一律靠类上的 `[RegisterSerializer]` 标注，在模块初始化期登记成 ID→类型记录，真正被查询到才实例化那一个（实现均无状态），因此装了依赖但没用的后端不常驻对象；插件不在场或依赖未接入时类型本身不存在，登记也就不存在，查询照旧 fail-fast。线格式 ID 由框架保留并固定：Json=0、MessagePack=1、MemoryPack=2、protobuf-net=3、组件捕获格式=254——不装插件这些槽位也不许别处占用，存量存档因此照旧可读。
 
 项目自定义后端有两条接法：
 

@@ -93,6 +93,8 @@ string hint = LocalizationService.Localize("按 {l10n:btn_confirm} 继续");
 - 没被交接过的处理器把当前语言报成 `Language.Unspecified`。`ApplyPreference` 是 `internal`，只对包内以及编进 `Moirai.Atropos` 的补丁代码可见：自建处理器实例（包内自定义数据源、测试替身）要读语言，得先由调用方交接一次
 - 语言存档的键名与读写口径定义在 `LocalizationSettingsPolicy`，**写入点只有服务的显式切换入口**：直接调 `handler.ChangeLanguage(...)` 换语言不改存档；首启检测链给出的语言也不落档，免得把系统语言固化成用户选择；数据未就绪时的显式切换按处理器记下的切换意图当场落档
 - 诊断用的读数是 `LocalizationService.LastLanguageSource`：它记的是最近一次走检测链的来路，与「谁在用这份读数」无关
+- 读 `CurrentLanguage` 只解析偏好、不提交状态；显式 `ChangeLanguage` 成功那一趟才把语言与批内列下标一起提交，并把 Code 写进存档后 `SettingUtility.Save()` 落盘一次——只写键不 flush 就等于下次启动前有效、重启即丢
+- 认不出的语言代码分两路且都不回退到别的语言：偏好解析路落 `DefaultLanguage`，词条列解析路按自定义语言直通。公共孪生 `ToLanguage(str, onlySupported)` 与 `GetCurrentLanguage(onlySupported, ref settingSource)` 判的是<strong>已注册处理器</strong>的批，与处理器自身按本批判可用性各自成立
 
 ### 订阅语言切换
 

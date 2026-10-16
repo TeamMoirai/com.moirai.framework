@@ -9,6 +9,8 @@ namespace Moirai.Atropos.Editor
         Cycle,
         VersionUnsatisfied,
         UnityFloorUnmet,
-        FrameworkFloorUnmet
+        FrameworkFloorUnmet,
+        UnityCeilingExceeded,
+        FrameworkCeilingExceeded
     }
 }
