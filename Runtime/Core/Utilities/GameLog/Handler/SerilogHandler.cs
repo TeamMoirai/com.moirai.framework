@@ -46,7 +46,7 @@ namespace Moirai.Atropos
 
         /// <inheritdoc/>
         [HideInCallstack]
-        internal override void Log(ELogLevel logLevel, string message, Exception exception, UObject context = null)
+        protected internal override void Log(ELogLevel logLevel, string message, Exception exception, UObject context = null)
         {
             if (_logger == null) return;
 

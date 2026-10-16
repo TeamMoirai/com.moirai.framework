@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using static Moirai.Atropos.LogHandler;
 
 namespace Moirai.Atropos.Resource
 {

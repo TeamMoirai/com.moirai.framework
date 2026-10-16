@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UObject = UnityEngine.Object;
+using static Moirai.Atropos.LogHandler;
 
 namespace Moirai.Atropos
 {

@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
     {
         public string packageId;
         public string requiredVersion;
-        public List<string> owners;
+        public List<string> owners = new List<string>();
         public bool preexisting;
         public string originalValue;
     }

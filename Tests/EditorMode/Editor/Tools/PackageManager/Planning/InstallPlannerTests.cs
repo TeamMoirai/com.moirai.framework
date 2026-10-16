@@ -10,10 +10,11 @@ namespace Editor.Tools.PackageManager
     internal sealed class InstallPlannerTests
     {
         private static readonly PluginVersion CurrentUnity = new PluginVersion(2022, 3, 0);
+        private static readonly PluginVersion CurrentFramework = new PluginVersion(1, 1, 0);
         private static readonly string[] NoIds = new string[0];
 
         private static PluginManifest Plug(string id, string version = "1.0.0", PluginDependency[] deps = null,
-            PluginUpmDependency[] upm = null, string floor = "2022.3.0")
+            PluginUpmDependency[] upm = null, string floor = "2022.3.0", string frameworkFloor = "1.0.0")
         {
             return new PluginManifest
             {
@@ -22,6 +23,7 @@ namespace Editor.Tools.PackageManager
                 function = "Tools",
                 version = version,
                 minUnityVersion = floor,
+                minFrameworkVersion = frameworkFloor,
                 dependencies = deps,
                 upmDependencies = upm
             };
@@ -50,7 +52,8 @@ namespace Editor.Tools.PackageManager
                 Plug("d", "1.0.0", new[] { Dep("d", "1.0.0", ">=") }),
                 Plug("e", "1.0.0", new[] { Dep("missing", "1.0.0", ">=") }),
                 Plug("f", "1.0.0", new[] { Dep("b", "2.0.0", ">") }),
-                Plug("g", "1.0.0", null, null, "9999.0.0")
+                Plug("g", "1.0.0", null, null, "9999.0.0"),
+                Plug("h", "1.0.0", null, null, "2022.3.0", "9999.0.0")
             };
         }
 
@@ -128,6 +131,27 @@ namespace Editor.Tools.PackageManager
             Assert.AreEqual("g", conflict.PluginId);
             StringAssert.Contains("9999.0.0", conflict.Reason);
             Assert.IsEmpty(plan.ToInstall);
+        }
+
+        [Test]
+        public void Plan_FrameworkFloorAboveCurrent_ReportsFloorUnmet()
+        {
+            InstallPlan plan = InstallPlanner.Plan(Catalog(), NoIds, new[] { "h" }, NoIds, CurrentUnity, CurrentFramework);
+
+            PlanConflict conflict = OnlyConflict(plan);
+            Assert.AreEqual(PlanConflictKind.FrameworkFloorUnmet, conflict.Kind);
+            Assert.AreEqual("h", conflict.PluginId);
+            StringAssert.Contains("9999.0.0", conflict.Reason);
+            Assert.IsEmpty(plan.ToInstall);
+        }
+
+        [Test]
+        public void Plan_FrameworkFloorNotProvided_SkipsTheCheck()
+        {
+            InstallPlan plan = InstallPlanner.Plan(Catalog(), NoIds, new[] { "h" }, NoIds, CurrentUnity);
+
+            Assert.IsFalse(plan.HasConflicts, string.Join(" | ", ConflictReasons(plan)));
+            Assert.AreEqual("h", IdsOf(plan));
         }
 
         [Test]

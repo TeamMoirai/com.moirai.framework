@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Moirai.Atropos
 {
-    public sealed partial class DefaultSettingHandler
+    internal sealed partial class DefaultSettingHandler
     {
         /// <summary>
         /// 默认游戏配置。

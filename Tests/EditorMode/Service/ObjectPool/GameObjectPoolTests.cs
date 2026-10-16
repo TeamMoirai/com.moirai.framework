@@ -9,6 +9,7 @@ using NUnit.Framework;
 using UnityEngine;
 using Object = UnityEngine.Object;
 using Mp = Moirai.Atropos.MemoryPool;
+using static Moirai.Atropos.LogHandler;
 
 namespace Service.GameObjectPool
 {

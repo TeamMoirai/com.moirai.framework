@@ -16,7 +16,7 @@ namespace Moirai.Atropos.ObjectPool
     [ProviderDisplay(title: "默认 GameObject 池", description: "分页槽位 + 代系句柄校验 + 最小堆维护调度，PoolCatalog 数据驱动")]
     [Serializable]
     [UnityEngine.Scripting.Preserve]
-    public sealed class DefaultGameObjectPoolHandler : GameObjectPoolServiceHandler
+    internal sealed class DefaultGameObjectPoolHandler : GameObjectPoolServiceHandler
     {
         #region 常量 [CONSTANTS]
 

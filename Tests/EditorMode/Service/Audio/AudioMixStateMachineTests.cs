@@ -4,6 +4,7 @@ using Moirai.Atropos;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
+using static Moirai.Atropos.LogHandler;
 
 namespace Service.Audio
 {

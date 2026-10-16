@@ -6,6 +6,7 @@ using Moirai.Atropos.Tests.EditorMode;
 using Testing;
 using NUnit.Framework;
 using UnityEngine;
+using static Moirai.Atropos.LogHandler;
 
 namespace Service.Timer
 {

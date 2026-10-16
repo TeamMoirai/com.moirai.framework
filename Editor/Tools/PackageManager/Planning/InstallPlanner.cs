@@ -14,10 +14,12 @@ namespace Moirai.Atropos.Editor
     internal static class InstallPlanner
     {
         /// <summary>规划一次安装，依赖排在依赖方之前。</summary>
+        /// <remarks><paramref name="frameworkVersion"/> 以 <c>0.0.0</c>（<c>default</c>）作「未提供」哨兵：给了才判框架地板，纯规划用例可以不传；生产路径必须传当前框架版本的实测值。</remarks>
         internal static InstallPlan Plan(IReadOnlyList<PluginManifest> catalog, IReadOnlyCollection<string> installedIds,
-            IReadOnlyCollection<string> requestedIds, IReadOnlyCollection<string> forceIds, PluginVersion unityVersion)
+            IReadOnlyCollection<string> requestedIds, IReadOnlyCollection<string> forceIds, PluginVersion unityVersion,
+            PluginVersion frameworkVersion = default)
         {
-            var resolution = new Closure(catalog, installedIds, forceIds, unityVersion);
+            var resolution = new Closure(catalog, installedIds, forceIds, unityVersion, frameworkVersion);
             resolution.Run(requestedIds);
             return resolution.Plan;
         }
@@ -90,9 +92,10 @@ namespace Moirai.Atropos.Editor
             private readonly HashSet<string> _planned;
             private readonly List<string> _visiting;
             private readonly PluginVersion _unityVersion;
+            private readonly PluginVersion _frameworkVersion;
 
             internal Closure(IReadOnlyList<PluginManifest> catalog, IReadOnlyCollection<string> installedIds,
-                IReadOnlyCollection<string> forceIds, PluginVersion unityVersion)
+                IReadOnlyCollection<string> forceIds, PluginVersion unityVersion, PluginVersion frameworkVersion)
             {
                 Plan = new InstallPlan();
                 _byId = new Dictionary<string, PluginManifest>(StringComparer.Ordinal);
@@ -102,6 +105,7 @@ namespace Moirai.Atropos.Editor
                 _planned = new HashSet<string>(StringComparer.Ordinal);
                 _visiting = new List<string>();
                 _unityVersion = unityVersion;
+                _frameworkVersion = frameworkVersion;
 
                 if (catalog == null) return;
                 foreach (PluginManifest manifest in catalog)
@@ -143,6 +147,7 @@ namespace Moirai.Atropos.Editor
 
                 if (!CheckVersionRequirement(candidate, dependent, requirement)) return false;
                 if (!CheckUnityFloor(candidate)) return false;
+                if (!CheckFrameworkFloor(candidate)) return false;
 
                 if (_resolved.Contains(id)) return true;
                 if (_visiting.Contains(id))
@@ -197,6 +202,17 @@ namespace Moirai.Atropos.Editor
 
                 Plan.AddConflict(new PlanConflict(candidate.id, PlanConflictKind.UnityFloorUnmet,
                     $"{candidate.id} 需要 Unity {candidate.minUnityVersion} 及以上，当前编辑器是 {_unityVersion}"));
+                return false;
+            }
+
+            private bool CheckFrameworkFloor(PluginManifest candidate)
+            {
+                // 未提供框架版本（0.0.0 哨兵）就不判这条地板：纯规划用例可以不传，生产路径必传实测值
+                if (_frameworkVersion == default) return true;
+                if (candidate.SatisfiesFrameworkVersion(_frameworkVersion)) return true;
+
+                Plan.AddConflict(new PlanConflict(candidate.id, PlanConflictKind.FrameworkFloorUnmet,
+                    $"{candidate.id} 需要框架 {candidate.minFrameworkVersion} 及以上，当前框架是 {_frameworkVersion}"));
                 return false;
             }
 

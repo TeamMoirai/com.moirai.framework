@@ -23,6 +23,7 @@
 - 编辑器窗口异步数据装载管线 `EditorLoadPipeline`：即时步、主线程分帧切片步（编辑器 update 每拍预算毫秒内连吃条目）、后台任务步顺序执行，装载中可在主线程步内继续登记后续步、每步带完成回调，取消与进度计数齐备；起跑经编辑器 update 自摘除延一拍（不走 `delayCall`——它不随 EditMode 测试的模拟泵派发）
 - `FrameworkMenuWindowBase` 装载接入面：`StartDataLoad`/`BuildDataLoadSteps` 登记装载步骤，`IsDataLoading`/`IsDataFailed`/`IsDataReady`（虚属性，派生窗可按热缓存扩展）供呈现装载态；冷装载（无可展示数据）默认绘制整窗遮罩（居中装载进度 + 进度条）并禁用输入，数据在屏的重扫不遮罩不锁交互；装载完成经 `ShouldRebuildTreeAfterDataLoad` 裁决单次重建树再置就绪（在屏数据与新结果一致时可跳过重建免无谓抖动；遮罩与树同拍切换不露空树帧）、`OnDisable` 取消在途装载，不接入异步装载的派生窗零成本
 - EditorLoadPipelineTests：步序与动态登记、切片跨拍分摊与计数、后台线程与主线程续体、后台/切片取消观察、失败面用例
+- 包管理器插件清单新增必填 `minFrameworkVersion`（与 `minUnityVersion` 同款硬性要求：不满足即拒绝安装，规划期报 `FrameworkFloorUnmet`）；插件作者侧口径写进 `plugin` 分支 README 的字段表与守则（要 NuGet 包就把安装前置写进 `description`）
 
 ### Changed
 
@@ -30,6 +31,8 @@
 
 - ⚠ 移除默认后端的安装探测自动优选：`LogUtility`/`StringUtility`/`TweenUtility`/`ObjectUtility` 的 `#if` 优选链删除，settings 未配置时一律回退声明默认（DefaultLogHandler/DefaultStringHandler/DefaultTweenHandler/UnityObjectHandler），新建 settings 资产的播种值同步变为声明默认；迁移口径 = 已安装 ZLogger/UnityLogging/ZString/LitMotion/PrimeTween/Fusion 的工程在 `GameAppSettings` 的 Provider 下拉框显式选择后端（已配置工程无感；`InputService` 保留引擎宏分派手写工厂不受影响）
 - ⚠ ZLogger 日志后端移出框架，改由 `plugin` 分支的 `zlogger` 插件提供：`ZLoggerHandler` 与 `ZLoggerBypassUnityDebugLoggerProvider` 从 `Moirai.Atropos` 删除，Runtime asmdef 的 `com.cysharp.zlogger` versionDefine（宏 `ZLOGGER_INSTALLED`）与 `ZLogger.Unity` 引用一并移除；迁移口径 = 经 `Tools/Moirai/Package Manager` 装 `zlogger` 插件（清单自带 `com.cysharp.zlogger` UPM 依赖与自有宏），装完在 `GameAppSettings` 的 Provider 下拉框重选后端（`SerializeReference` 的 `asm:` 随类型迁到插件装配而变），未装插件时日志回落 `DefaultLogHandler`
+- 日志后端的扩展面由 `internal` 改为 `protected internal`，且不新增公共类型：`LogHandler.Log`／`MinimumLevel` 与新增的 `LogHandler.BypassUnityHandler`（转发 `LogUtility.GetBypassUnityHandler`，静态类不能带 protected 成员故由处理器基类转出）对派生类开放，日志等级词表嵌为 `LogHandler.ELogLevel`（不再是命名空间级类型，框架侧引用改为经 `using static Moirai.Atropos.LogHandler;`）；`Runtime/AssemblyInfo.cs` 的 `InternalsVisibleTo("Moirai.Plugin.ZLogger")` 随之删除——外置插件不再需要白名单；迁移口径 = 跨程序集的后端覆写 `Log` 须声明 `protected`（覆写 `protected internal` 成员不能收窄成 `internal`），框架与 `plugin` 分支的插件须同批更新
+- ⚠ 后端实现类可见性统一为 `internal`：`DefaultGameObjectPoolHandler`、`DefaultSettingHandler`（含两处 partial）、`PlayerPrefsSettingHandler`、`FileOffsetEncryptorHandler`、`FileStreamEncryptorHandler` 由 `public` 收窄，与其余内置后端一致；契约基类（各 `XxxServiceHandler`/`SettingHandler`/`YooAssetEncryptorHandler` 等）保持 `public`——它们是 settings 的 Provider 下拉与外部派生后端的接缝；迁移口径 = 外部若直接 `new`/引用过这些实现类，改为在对应 settings 资产里选择后端或派生契约基类（`[SerializeReference]` 资产与 Provider 下拉按类型名工作，与可见性无关，已配置资产无需迁移）
 
 #### 资源
 

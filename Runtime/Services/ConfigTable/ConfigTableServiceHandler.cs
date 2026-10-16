@@ -10,7 +10,7 @@ namespace Moirai.Atropos.ConfigTable
     /// 配置表处理器抽象基类（策略模式抽象策略），定义 <see cref="ConfigTableService"/> 外观调用的配置表后端契约。
     /// </summary>
     /// <remarks>
-    /// 游戏侧的配置表生成代码继承本类，经 <c>ConfigTableService.Handler = new XxxConfigTableServiceHandler()</c> 安装。 <br />
+    /// 游戏侧的配置表处理器继承本类，经 <see cref="ConfigTableServiceSettings"/> 的 Provider 下拉选定并随资产序列化装配（<c>Handler</c> 属性由源生成器发出、为 <c>internal</c>，只限框架与其友元程序集赋值）。 <br />
     /// 未安装自定义处理器时使用默认实现 <see cref="DefaultConfigTableHandler"/>（记录错误并返回空结果）。
     /// </remarks>
     [Serializable]

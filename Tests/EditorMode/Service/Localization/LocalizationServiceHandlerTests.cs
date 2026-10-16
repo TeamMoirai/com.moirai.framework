@@ -5,6 +5,7 @@ using Moirai.Atropos.Localization;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
+using static Moirai.Atropos.LogHandler;
 
 namespace Service.Localization
 {

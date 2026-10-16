@@ -6,6 +6,7 @@ using System.Threading;
 using Moirai.Atropos;
 using NUnit.Framework;
 using UnityEngine;
+using static Moirai.Atropos.LogHandler;
 
 namespace Core.Singleton
 {

@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
     internal sealed class PluginManifest
     {
         /// <summary>清单文件名后缀。</summary>
-        internal const string ManifestSuffix = ".plugin.json";
+        internal const string MANIFEST_SUFFIX = ".plugin.json";
 
         public string id;
         public string name;
@@ -24,6 +24,7 @@ namespace Moirai.Atropos.Editor
         public string author;
         public string version;
         public string minUnityVersion;
+        public string minFrameworkVersion;
         public string[] tags;
         public PluginDependency[] dependencies;
         public PluginUpmDependency[] upmDependencies;
@@ -92,6 +93,11 @@ namespace Moirai.Atropos.Editor
                 errors.Add(Describe(sourcePath, $"minUnityVersion '{candidate.minUnityVersion}' 不是三段十进制版本号"));
             }
 
+            if (string.IsNullOrEmpty(candidate.minFrameworkVersion) || !PluginVersion.TryParse(candidate.minFrameworkVersion, out _))
+            {
+                errors.Add(Describe(sourcePath, $"minFrameworkVersion '{candidate.minFrameworkVersion}' 不是三段十进制版本号"));
+            }
+
             ValidateDependencies(candidate, sourcePath, errors);
             ValidateUpmDependencies(candidate, sourcePath, errors);
 
@@ -126,6 +132,16 @@ namespace Moirai.Atropos.Editor
 
         /// <summary>取该插件要求的最低 Unity 版本。</summary>
         internal bool TryGetUnityFloor(out PluginVersion floor) => PluginVersion.TryParse(minUnityVersion, out floor);
+
+        /// <summary>当前框架版本是否达到该插件的最低要求。</summary>
+        internal bool SatisfiesFrameworkVersion(PluginVersion frameworkVersion)
+        {
+            if (!PluginVersion.TryParse(minFrameworkVersion, out PluginVersion floor)) return false;
+            return frameworkVersion >= floor;
+        }
+
+        /// <summary>取该插件要求的最低框架版本。</summary>
+        internal bool TryGetFrameworkFloor(out PluginVersion floor) => PluginVersion.TryParse(minFrameworkVersion, out floor);
 
         private static void ValidateDependencies(PluginManifest candidate, string sourcePath, List<string> errors)
         {
@@ -177,7 +193,7 @@ namespace Moirai.Atropos.Editor
         {
             string[] segments = sourcePath.Replace('\\', '/').Split('/');
             string fileName = segments[segments.Length - 1];
-            if (!string.Equals(fileName, id + ManifestSuffix, StringComparison.Ordinal)) return false;
+            if (!string.Equals(fileName, id + MANIFEST_SUFFIX, StringComparison.Ordinal)) return false;
 
             // 父目录名必须精确等于 id：只判"路径以 <id>.plugin.json 结尾"会让 id=board
             // 蒙过目录 blackboard（后缀匹配撞上前缀包含）。
