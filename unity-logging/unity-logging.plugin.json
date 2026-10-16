@@ -1,0 +1,15 @@
+{
+  "id": "unity-logging",
+  "name": "Unity Logging 日志后端",
+  "function": "日志",
+  "description": "Unity 官方 com.unity.logging 包驱动的后端：接管 LogUtility 的输出，自行补齐 VRB/DBG/INF/WRN/ERR/FAT 级别前缀，sink 与输出模板交给包自身的 LogSettings 接管。宏 UNITY_LOGGING_INSTALLED 由本插件的 asmdef 按 com.unity.logging ≥1.0.0 自动定义，装上即生效。不装 com.unity.logging 时整支插件编译为空、Provider 下拉里没有 Unity Logging，框架只剩默认的 Unity Console 后端。",
+  "author": "Team Moirai",
+  "version": "1.0.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": [
+    { "id": "com.unity.logging", "version": "1.3.10" }
+  ]
+}

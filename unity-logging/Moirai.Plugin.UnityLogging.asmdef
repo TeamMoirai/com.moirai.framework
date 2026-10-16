@@ -1,0 +1,25 @@
+{
+    "name": "Moirai.Plugin.UnityLogging",
+    "rootNamespace": "Moirai.Atropos",
+    "references": [
+        "GUID:24c092aee38482f4e80715eaa8148782",
+        "GUID:fd228c28e14f1a34cbe508676c914dd7",
+        "GUID:2665a8d13d1b3f18800f46e256720795",
+        "GUID:e0cd26848372d4e5c891c569017e11f1"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.logging",
+            "expression": "1.0.0",
+            "define": "UNITY_LOGGING_INSTALLED"
+        }
+    ],
+    "noEngineReferences": false
+}
