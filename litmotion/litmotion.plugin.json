@@ -1,0 +1,16 @@
+{
+  "id": "litmotion",
+  "name": "LitMotion 补间后端",
+  "function": "补间",
+  "description": "LitMotion 零 GC 补间后端：装上 com.annulusgames.lit-motion 后，TweenHandler 的 Provider 下拉多出「LitMotion」，位置/旋转/缩放/颜色/UI 各条补间走 MotionHandle 池化与 state-based Bind（无闭包分配），等待结束走 UniTask 即时完成信号。宏 LITMOTION_INSTALLED 由本插件的 asmdef 按 com.annulusgames.lit-motion ≥1.0.0 自动定义。发行渠道注意——该包在 UPM 注册表上没有正式版本，本工程按官方指引以 git 方式安装（https://github.com/annulusgames/LitMotion.git?path=src/LitMotion/Assets/LitMotion），清单里的版本只是宏判据下限，装的时候需自备这条 git 依赖；同渠道还要装 com.cysharp.unitask（LitMotion 自身依赖，本后端也直接 await UniTask）。不满足前置时整支插件编译为空、下拉里没有 LitMotion，补间只剩框架默认的自研后端。",
+  "author": "Team Moirai",
+  "version": "1.0.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": [
+    { "id": "com.annulusgames.lit-motion", "version": "1.0.0" },
+    { "id": "com.cysharp.unitask", "version": "2.5.11" }
+  ]
+}
