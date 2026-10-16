@@ -13,8 +13,8 @@ namespace Moirai.Atropos.Editor
     /// </remarks>
     internal static class ProjectManifestUtility
     {
-        private const string DependenciesToken = "\"dependencies\"";
-        private const int DefaultIndent = 4;
+        private const string DEPENDENCIES_TOKEN = "\"dependencies\"";
+        private const int DEFAULT_INDENT = 4;
 
         /// <summary>读取依赖块内某键的版本值。</summary>
         public static bool TryGetDependency(string manifestText, string packageId, out string version)
@@ -161,7 +161,7 @@ namespace Moirai.Atropos.Editor
 
             for (int i = 0; i < lines.Length; i++)
             {
-                if (!lines[i].Contains(DependenciesToken)) continue;
+                if (!lines[i].Contains(DEPENDENCIES_TOKEN)) continue;
                 if (!lines[i].Contains("{")) continue;
                 open = i;
                 break;
@@ -218,7 +218,7 @@ namespace Moirai.Atropos.Editor
                 return indent;
             }
 
-            return DefaultIndent;
+            return DEFAULT_INDENT;
         }
     }
 }

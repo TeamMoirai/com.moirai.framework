@@ -12,7 +12,7 @@ namespace Editor.Tools.PackageManager
         private const string GoodJson = @"{
             ""id"": ""blackboard"", ""name"": ""Blackboard"", ""function"": ""Data"",
             ""description"": ""d"", ""author"": ""a"", ""version"": ""0.1.0"",
-            ""minUnityVersion"": ""2022.3.0"", ""tags"": [""MOIRAI_BLACKBOARD""],
+            ""minUnityVersion"": ""2022.3.0"", ""minFrameworkVersion"": ""1.1.0"", ""tags"": [""MOIRAI_BLACKBOARD""],
             ""dependencies"": [{""id"":""system-extensions"",""version"":""1.0.1"",""versionOperator"":"">=""}],
             ""upmDependencies"": [{""id"":""com.cysharp.unitask"",""version"":""2.5.11""}]}";
 
@@ -20,7 +20,7 @@ namespace Editor.Tools.PackageManager
 
         private static PluginManifest Build(string id = "blackboard", string version = "0.1.0",
             string minUnityVersion = "2022.3.0", PluginDependency[] dependencies = null,
-            PluginUpmDependency[] upmDependencies = null)
+            PluginUpmDependency[] upmDependencies = null, string minFrameworkVersion = "1.1.0")
         {
             return new PluginManifest
             {
@@ -29,6 +29,7 @@ namespace Editor.Tools.PackageManager
                 function = "Data",
                 version = version,
                 minUnityVersion = minUnityVersion,
+                minFrameworkVersion = minFrameworkVersion,
                 dependencies = dependencies,
                 upmDependencies = upmDependencies
             };
@@ -121,6 +122,30 @@ namespace Editor.Tools.PackageManager
         }
 
         [Test]
+        public void SatisfiesFrameworkVersion_BelowFloor_ReturnsFalse()
+        {
+            PluginManifest manifest = Build();
+            PluginVersion.TryParse("1.0.0", out PluginVersion older);
+            PluginVersion.TryParse("1.1.0", out PluginVersion same);
+            PluginVersion.TryParse("2.0.0", out PluginVersion newer);
+
+            Assert.IsFalse(manifest.SatisfiesFrameworkVersion(older));
+            Assert.IsTrue(manifest.SatisfiesFrameworkVersion(same), "等于地板应满足");
+            Assert.IsTrue(manifest.SatisfiesFrameworkVersion(newer));
+        }
+
+        [Test]
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("1.1")]
+        [TestCase("1.1.0-beta")]
+        public void Validate_MissingOrMalformedFrameworkFloor_ReportsError(string floor)
+        {
+            Assert.IsFalse(ValidateOnly(Build(minFrameworkVersion: floor), out List<string> errors));
+            Assert.That(string.Join(" | ", errors), Does.Contain("minFrameworkVersion"));
+        }
+
+        [Test]
         [TestCase("1.0.1", true)]
         [TestCase("1.0.0", false)]
         [TestCase("9.9.9", true)]
@@ -170,7 +195,7 @@ namespace Editor.Tools.PackageManager
         [Test]
         public void TryParse_AbsentArrayFields_LeavesThemValidatable()
         {
-            const string Minimal = @"{""id"":""solo"",""version"":""0.1.0"",""minUnityVersion"":""2022.3.0""}";
+            const string Minimal = @"{""id"":""solo"",""version"":""0.1.0"",""minUnityVersion"":""2022.3.0"",""minFrameworkVersion"":""1.1.0""}";
             Assert.IsTrue(PluginManifest.TryParse("solo/solo.plugin.json", Minimal,
                 out PluginManifest manifest, out List<string> errors), string.Join(" | ", errors));
             Assert.AreEqual(0, manifest.dependencies?.Length ?? 0, "缺依赖字段的清单必须判为合法");

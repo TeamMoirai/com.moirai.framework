@@ -1,4 +1,5 @@
 using System;
+using static Moirai.Atropos.LogHandler;
 #if MEMORYPACK_INSTALLED
 using MemoryPack;
 #endif

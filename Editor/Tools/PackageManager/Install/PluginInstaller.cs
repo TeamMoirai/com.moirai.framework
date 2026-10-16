@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace Moirai.Atropos.Editor
 {
@@ -18,8 +19,8 @@ namespace Moirai.Atropos.Editor
     /// </remarks>
     internal sealed class PluginInstaller
     {
-        private const string RootPackageJsonName = "package.json";
-        private const int EngineVersionSegmentCount = 3;
+        private const string ROOT_PACKAGE_JSON_NAME = "package.json";
+        private const int ENGINE_VERSION_SEGMENT_COUNT = 3;
 
         private readonly string _packageRootPath;
         private readonly string _projectManifestPath;
@@ -65,6 +66,23 @@ namespace Moirai.Atropos.Editor
             return false;
         }
 
+        /// <summary>取当前框架包版本；读不到时交出 <c>0.0.0</c> 与原因（那一刻不判地板，宁可放过也不误拦）。</summary>
+        internal static bool TryGetFrameworkVersion(out PluginVersion version, out string failureReason)
+        {
+            PackageInfo info = PackageInfo.FindForAssembly(typeof(PluginInstaller).Assembly);
+            if (info != null && PluginVersion.TryParse(info.version, out version))
+            {
+                failureReason = null;
+                return true;
+            }
+
+            version = default;
+            failureReason = info == null
+                ? "读不出框架包信息，本轮不判 minFrameworkVersion"
+                : $"框架版本号 '{info.version}' 不是三段十进制，本轮不判 minFrameworkVersion";
+            return false;
+        }
+
         /// <summary>从引擎版本号里取前三段十进制。</summary>
         /// <remarks>修订段常带发行后缀（<c>2022.3.62f3</c>、<c>6000.3.26f1</c>），只取它的前导数字。</remarks>
         internal static bool TryParseEngineVersion(string engineVersion, out PluginVersion version)
@@ -73,7 +91,7 @@ namespace Moirai.Atropos.Editor
             if (string.IsNullOrEmpty(engineVersion)) return false;
 
             string[] parts = engineVersion.Split('.');
-            if (parts.Length < EngineVersionSegmentCount) return false;
+            if (parts.Length < ENGINE_VERSION_SEGMENT_COUNT) return false;
             if (!ContainsOnlyDigits(parts[0]) || !ContainsOnlyDigits(parts[1])) return false;
 
             string patch = LeadingDigits(parts[2]);
@@ -151,22 +169,38 @@ namespace Moirai.Atropos.Editor
             return Install(new[] { pluginId }, force);
         }
 
+        /// <summary>装一个插件；<paramref name="removeFirst"/> 为真时先清掉它的目录（干净更新）。</summary>
+        internal PluginInstallReport Install(string pluginId, bool force, bool removeFirst)
+        {
+            return Install(new[] { pluginId }, force, removeFirst ? new[] { pluginId } : null);
+        }
+
+        /// <summary>装某个插件的历史修订：先清目录再按该修订物化，账本记该修订与它那次的版本。</summary>
+        /// <remarks>清目录是必须的：不先删，<c>sparse-checkout</c> 的合并语义会把分支头那份残留文件留下来。</remarks>
+        internal PluginInstallReport InstallAtRevision(string pluginId, string revision, string version)
+        {
+            return Install(new[] { pluginId }, true, new[] { pluginId }, revision, version);
+        }
+
         /// <summary>
         /// 装一批插件：一次勾选集写入、一次 manifest 写入、一次刷新。
         /// </summary>
-        /// <remarks>分批装会在每个包后各触发一次域重载，第二趟起就没人在跑了——多包必须走这里。</remarks>
-        internal PluginInstallReport Install(IReadOnlyList<string> pluginIds, bool force)
+        /// <remarks>分批装会在每个包后各触发一次域重载，第二趟起就没人在跑了——多包必须走这里。<br />
+        /// <paramref name="revision"/> 非空即"装历史修订"：只装点名的这批、账本记该修订（批次内共用同一个修订）。</remarks>
+        internal PluginInstallReport Install(IReadOnlyList<string> pluginIds, bool force,
+            IReadOnlyList<string> removeFirstIds = null, string revision = null, string revisionVersion = null)
         {
             var report = new PluginInstallReport();
 
             if (!TryGetEngineVersion(out PluginVersion unityVersion, out string versionReason)) report.Note(versionReason);
+            if (!TryGetFrameworkVersion(out PluginVersion frameworkVersion, out string frameworkReason)) report.Note(frameworkReason);
             if (!TryBrowse(report, out PluginCatalogResult catalog, out string headCommit)) return report;
 
             PackageManagerStateData state = PackageManagerStateRegistry.Load();
             List<string> installedIds = InstalledIds(state);
 
             InstallPlan plan = InstallPlanner.Plan(catalog.Manifests, installedIds, pluginIds,
-                force ? pluginIds : NoIds, unityVersion);
+                force ? pluginIds : NoIds, unityVersion, frameworkVersion);
 
             for (int i = 0; i < plan.Conflicts.Count; i++) report.AddConflict(plan.Conflicts[i]);
 
@@ -183,6 +217,10 @@ namespace Moirai.Atropos.Editor
             }
 
             List<string> selectedIds = Union(installedIds, plan);
+
+            // 干净更新：先清目录，随后物化时按分支头重新落一遍，清掉新版本不再产出的文件
+            RemoveFolders(removeFirstIds, report);
+
             if (!_source.ApplySparsePaths(selectedIds, out string sparseReason))
             {
                 report.Fail(sparseReason);
@@ -190,6 +228,13 @@ namespace Moirai.Atropos.Editor
             }
 
             report.Note($"勾选集收到 {selectedIds.Count} 项");
+
+            // 装历史版本：目录已清过，这里按该修订把它们物化回来（排在 .asmdef 校验之前——校验要读盘上的文件）
+            if (!string.IsNullOrEmpty(revision) && !_source.TryMaterializeAt(revision, pluginIds, out string materializeReason))
+            {
+                report.Fail(materializeReason);
+                return report;
+            }
 
             if (!ValidateAssemblyDefinitions(plan, selectedIds, report, out string asmdefReason))
             {
@@ -208,17 +253,21 @@ namespace Moirai.Atropos.Editor
                 string[] tags = manifest.tags;
                 for (int i = 0; tags != null && i < tags.Length; i++) ScriptingDefineSymbols.AddScriptingDefineSymbol(tags[i]);
 
+                // 装历史版本时账本要记该修订与它那次的版本，不能用分支头这份
+                bool atRevision = !string.IsNullOrEmpty(revision);
+                string recordedVersion = atRevision ? revisionVersion ?? manifest.version : manifest.version;
+
                 PackageManagerStateRegistry.UpsertInstalled(state, new InstalledPluginData
                 {
                     id = manifest.id,
-                    version = manifest.version,
-                    commit = headCommit,
+                    version = recordedVersion,
+                    commit = atRevision ? revision : headCommit,
                     function = manifest.function,
                     tags = tags ?? Array.Empty<string>()
                 });
 
                 report.AddTouched(manifest.id);
-                report.Note($"装了 {manifest.id} {manifest.version}");
+                report.Note($"装了 {manifest.id} {recordedVersion}");
             }
 
             PackageManagerStateRegistry.Save(state);
@@ -316,7 +365,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>取某修订下该插件目录的 tree 哈希。</summary>
         internal bool TryTreeHashOf(string pluginId, string revision, out string hash, out string failureReason)
         {
-            string treePath = pluginId + "/" + pluginId + PluginManifest.ManifestSuffix;
+            string treePath = pluginId + "/" + pluginId + PluginManifest.MANIFEST_SUFFIX;
             return _source.TryTreeHash(treePath, revision, out hash, out failureReason);
         }
 
@@ -382,10 +431,26 @@ namespace Moirai.Atropos.Editor
 
         private static string[] NoIds => Array.Empty<string>();
 
+        /// <summary>干净更新：删掉这些插件目录，随后物化时会按分支头重新落一遍。</summary>
+        /// <remarks>删除面与 git 面同款纪律：目录名先过 <see cref="PluginManifest.IsValidId"/>，拼不出去才动手。</remarks>
+        private void RemoveFolders(IReadOnlyList<string> ids, PluginInstallReport report)
+        {
+            for (int i = 0; ids != null && i < ids.Count; i++)
+            {
+                if (!PluginManifest.IsValidId(ids[i])) continue;
+
+                string folder = Path.Combine(_packageRootPath, ids[i]);
+                if (!Directory.Exists(folder)) continue;
+
+                Directory.Delete(folder, true);
+                report.Note($"干净更新：已清掉 {ids[i]} 的目录");
+            }
+        }
+
         /// <summary>只读校验分支根的 package.json：名字与落点目录名相符，工具永不写它。</summary>
         private bool ValidateRootPackageJson(PluginCatalogResult catalog, PluginInstallReport report, out string failureReason)
         {
-            if (!_source.TryReadBlob(RootPackageJsonName, out string json, out failureReason)) return false;
+            if (!_source.TryReadBlob(ROOT_PACKAGE_JSON_NAME, out string json, out failureReason)) return false;
 
             var root = JsonUtility.ToObject<RootPackageJsonData>(json);
             string expected = new DirectoryInfo(_packageRootPath).Name;

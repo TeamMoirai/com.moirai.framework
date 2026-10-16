@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// </summary>
     [ProviderDisplay(title: "默认配置（文件）", description: "persistentDataPath 下单文件整档存取（Setting.dat）")]
     [Serializable]
-    public sealed partial class DefaultSettingHandler : SettingHandler
+    internal sealed partial class DefaultSettingHandler : SettingHandler
     {
         [SerializeField] private string m_SettingFileName = "Setting.dat";
 

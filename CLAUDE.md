@@ -82,6 +82,8 @@ com.moirai.framework/
 
 执行等级只有一个含义：Mandatory 违反要打回，Prefer 性能敏感区必须、非热路径可放宽，Reference 逐步优化遗留。
 
+可见性口径：框架非公开 API 不向外扩到 `public`；外部插件要用的接缝走契约基类上的 `protected internal`（类型则嵌成嵌套类型，如 `LogHandler.ELogLevel`），`InternalsVisibleTo` 不逐插件放行——细则见 `coding.md` 的《公开面收敛》。
+
 
 
 ## 测试规范

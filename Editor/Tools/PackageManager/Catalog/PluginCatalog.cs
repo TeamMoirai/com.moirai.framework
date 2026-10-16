@@ -92,9 +92,9 @@ namespace Moirai.Atropos.Editor
 
             string[] segments = treePath.Split('/');
             string fileName = segments[segments.Length - 1];
-            if (!fileName.EndsWith(PluginManifest.ManifestSuffix, StringComparison.Ordinal)) return false;
+            if (!fileName.EndsWith(PluginManifest.MANIFEST_SUFFIX, StringComparison.Ordinal)) return false;
 
-            id = fileName.Substring(0, fileName.Length - PluginManifest.ManifestSuffix.Length);
+            id = fileName.Substring(0, fileName.Length - PluginManifest.MANIFEST_SUFFIX.Length);
             if (id.Length == 0) return false;
 
             if (segments.Length >= 2) folder = segments[segments.Length - 2];

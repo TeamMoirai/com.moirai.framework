@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Editor
     /// </remarks>
     internal readonly struct PluginVersion : IEquatable<PluginVersion>, IComparable<PluginVersion>
     {
-        private const int SegmentCount = 3;
+        private const int SEGMENT_COUNT = 3;
 
         public readonly int Major;
         public readonly int Minor;
@@ -32,10 +32,10 @@ namespace Moirai.Atropos.Editor
             if (string.IsNullOrEmpty(text)) return false;
 
             string[] segments = text.Split('.');
-            if (segments.Length != SegmentCount) return false;
+            if (segments.Length != SEGMENT_COUNT) return false;
 
-            var numbers = new int[SegmentCount];
-            for (int i = 0; i < SegmentCount; i++)
+            var numbers = new int[SEGMENT_COUNT];
+            for (int i = 0; i < SEGMENT_COUNT; i++)
             {
                 if (!int.TryParse(segments[i], NumberStyles.None, CultureInfo.InvariantCulture, out numbers[i]))
                     return false;

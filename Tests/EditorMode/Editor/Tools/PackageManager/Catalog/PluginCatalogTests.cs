@@ -13,11 +13,13 @@ namespace Editor.Tools.PackageManager
         private const string BlackboardJson =
             "{\"id\":\"blackboard\",\"name\":\"Blackboard\",\"function\":\"Data\",\"description\":\"d\"," +
             "\"author\":\"a\",\"version\":\"0.1.0\",\"minUnityVersion\":\"2022.3.0\"," +
+            "\"minFrameworkVersion\":\"1.1.0\"," +
             "\"tags\":[\"MOIRAI_BLACKBOARD\"],\"dependencies\":[],\"upmDependencies\":[]}";
 
         private const string LedgerJson =
             "{\"id\":\"ledger\",\"name\":\"Ledger\",\"function\":\"Data\",\"description\":\"d\"," +
             "\"author\":\"a\",\"version\":\"0.2.0\",\"minUnityVersion\":\"2022.3.0\"," +
+            "\"minFrameworkVersion\":\"1.1.0\"," +
             "\"tags\":[],\"dependencies\":[],\"upmDependencies\":[]}";
 
         private static Func<string, string> BlobOf(params KeyValuePair<string, string>[] entries)

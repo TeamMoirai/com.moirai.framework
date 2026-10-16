@@ -8,9 +8,9 @@ namespace Moirai.Atropos.Editor
     [Serializable]
     internal sealed class PackageManagerSettingsData
     {
-        public string repoUrl;
-        public string branch;
-        public string gitPath;
+        public string repoUrl = "https://github.com/TeamMoirai/com.moirai.framework.git";
+        public string branch = "plugin";
+        public string gitPath = "git";
         public string lastFetchAt;
     }
 }

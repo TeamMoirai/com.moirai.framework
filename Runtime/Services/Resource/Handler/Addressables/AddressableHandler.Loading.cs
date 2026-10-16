@@ -7,6 +7,7 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.U2D;
 using UObject = UnityEngine.Object;
+using static Moirai.Atropos.LogHandler;
 
 namespace Moirai.Atropos.Resource
 {

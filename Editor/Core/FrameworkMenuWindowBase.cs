@@ -133,6 +133,26 @@ namespace Moirai.Atropos.Editor
             OnAfterTreeRebuild(selection);
         }
 
+        /// <summary>按值在树中选中条目，走 Odin 侧边栏点击同一条选中路径。</summary>
+        /// <remarks>
+        /// <c>TrySelectMenuItemWithObject</c> 只登记请求，要等下一拍 Layout 遍才落地；点击后要当下切换就同步选中。
+        /// 选中变更本身即请绘，故在 GUI 事件外调用也立即上屏；树中没有该值（值未上树）时交出 <c>false</c>。
+        /// </remarks>
+        protected bool SelectMenuItemWithValue(object value)
+        {
+            OdinMenuTree tree = MenuTree;
+            if (tree == null || value == null) return false;
+
+            foreach (OdinMenuItem item in tree.EnumerateTree())
+            {
+                if (!ReferenceEquals(item.Value, value)) continue;
+                item.Select();
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>重建前回调：缓存待恢复的选中或失效相关缓存；默认无操作。</summary>
         protected virtual void OnBeforeTreeRebuild(object previousSelection) { }
 

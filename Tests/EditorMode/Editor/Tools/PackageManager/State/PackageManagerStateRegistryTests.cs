@@ -67,6 +67,69 @@ namespace Editor.Tools.PackageManager
             Assert.IsNotNull(state.settings);
             Assert.AreEqual("plugin", state.settings.branch);
             Assert.AreEqual("git", state.settings.gitPath);
+            Assert.AreEqual("https://github.com/TeamMoirai/com.moirai.framework.git", state.settings.repoUrl);
+        }
+
+        [Test]
+        public void StampFetch_RecordsParseableTime()
+        {
+            PackageManagerStateData state = NewState();
+            Assert.IsTrue(string.IsNullOrEmpty(state.settings.lastFetchAt));
+
+            PackageManagerStateRegistry.StampFetch(state);
+
+            Assert.IsTrue(DateTime.TryParse(state.settings.lastFetchAt, out _), state.settings.lastFetchAt);
+        }
+
+        [Test]
+        public void CachedCatalog_SurvivesSaveAndLoad()
+        {
+            PackageManagerStateData state = NewState();
+            var catalog = new PluginCatalogResult();
+            catalog.AddManifest(Manifest("zlogger", "ZLOGGER_INSTALLED"));
+            PackageManagerStateRegistry.CacheCatalog(state, catalog, "abc1234");
+            PackageManagerStateRegistry.Save(state);
+
+            PackageManagerStateData reloaded = PackageManagerStateRegistry.Load();
+
+            Assert.IsTrue(PackageManagerStateRegistry.TryGetCachedCatalog(reloaded, out List<PluginManifest> manifests, out string headCommit));
+            Assert.AreEqual(1, manifests.Count);
+            Assert.AreEqual("zlogger", manifests[0].id);
+            Assert.AreEqual(1, manifests[0].tags.Length);
+            Assert.AreEqual("ZLOGGER_INSTALLED", manifests[0].tags[0]);
+            Assert.AreEqual("abc1234", headCommit);
+        }
+
+        [Test]
+        public void TryGetCachedCatalog_ChangedBranch_ReturnsFalse()
+        {
+            PackageManagerStateData state = NewState();
+            var catalog = new PluginCatalogResult();
+            catalog.AddManifest(Manifest("zlogger", "ZLOGGER_INSTALLED"));
+            PackageManagerStateRegistry.CacheCatalog(state, catalog, "abc1234");
+
+            state.settings.branch = "another-branch";
+
+            Assert.IsFalse(PackageManagerStateRegistry.TryGetCachedCatalog(state, out _, out _));
+        }
+
+        [Test]
+        public void TryGetCachedCatalog_NoCache_ReturnsFalse()
+        {
+            Assert.IsFalse(PackageManagerStateRegistry.TryGetCachedCatalog(NewState(), out _, out _));
+        }
+
+        private static PluginManifest Manifest(string id, params string[] tags)
+        {
+            return new PluginManifest
+            {
+                id = id,
+                name = id,
+                version = "0.1.0",
+                minUnityVersion = "2022.3.0",
+                minFrameworkVersion = "1.1.0",
+                tags = tags
+            };
         }
 
         [Test]

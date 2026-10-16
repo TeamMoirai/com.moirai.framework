@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Resource
     /// </summary>
     [ProviderDisplay(title: "文件流加密", description: "流式解密 + WebGL 内存兜底，保护强度高于偏移方案")]
     [Serializable]
-    public sealed class FileStreamEncryptorHandler : YooAssetEncryptorHandler
+    internal sealed class FileStreamEncryptorHandler : YooAssetEncryptorHandler
     {
         /// <inheritdoc />
         /// <remarks>仅实现流式解密，本地文件系统走 <see cref="IBundleStreamDecryptor"/> 流式加载路径。</remarks>

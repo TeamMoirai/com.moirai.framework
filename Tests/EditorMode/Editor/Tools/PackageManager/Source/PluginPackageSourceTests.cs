@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using Moirai.Atropos.Editor;
 using NUnit.Framework;
 
@@ -204,8 +205,81 @@ namespace Editor.Tools.PackageManager
             GitRunResult result = GitProcessUtility.Run("moirai-git-not-on-path", _sourceRepo, "--version", 5000);
 
             Assert.IsFalse(result.Ok);
-            Assert.AreEqual(GitProcessUtility.NotRunExitCode, result.ExitCode);
+            Assert.AreEqual(GitProcessUtility.NOT_RUN_EXIT_CODE, result.ExitCode);
             Assert.IsNotEmpty(result.FailureReason());
+        }
+
+        [Test]
+        public void TryListManifestHistory_SameVersionInTwoRevisions_KeepsTheNewerOne()
+        {
+            // 中间夹一次 0.1.1：第二次 0.1.0 必须真的改动清单，否则 git log -- 路径 根本不列那次提交
+            CommitManifest("blackboard", "0.1.0");
+            string oldest = HeadOfSource();
+            CommitManifest("blackboard", "0.1.1");
+            CommitManifest("blackboard", "0.1.0");
+            string newest = HeadOfSource();
+
+            PluginPackageSource source = CloneAndAttach();
+
+            Assert.IsTrue(source.TryListManifestHistory("blackboard", out var history, out string failureReason), failureReason);
+            Assert.AreEqual(2, history.Count, "同一版本只留一条");
+            Assert.AreEqual("0.1.0", history[0].Version);
+            Assert.IsTrue(history[0].IsHead);
+            Assert.AreEqual(newest, history[0].Revision, "0.1.0 要取最新那次，不是最早那次");
+            Assert.AreNotEqual(oldest, history[0].Revision);
+            Assert.AreEqual("0.1.1", history[1].Version);
+            Assert.IsFalse(history[1].IsHead);
+        }
+
+        [Test]
+        public void TryReadBlobAt_OldRevision_ReturnsThatRevisionsText()
+        {
+            CommitManifest("blackboard", "0.1.0");
+            string old = HeadOfSource();
+            CommitManifest("blackboard", "0.2.0");
+
+            PluginPackageSource source = CloneAndAttach();
+            string treePath = "blackboard/blackboard" + PluginManifest.MANIFEST_SUFFIX;
+
+            Assert.IsTrue(source.TryReadBlobAt(treePath, old, out string oldText, out string oldReason), oldReason);
+            StringAssert.Contains("\"0.1.0\"", oldText);
+
+            Assert.IsTrue(source.TryReadBlob(treePath, out string headText, out string headReason), headReason);
+            StringAssert.Contains("\"0.2.0\"", headText);
+        }
+
+        [Test]
+        public void TryMaterializeAt_OldRevision_BringsBackFilesHeadNoLongerHas()
+        {
+            CommitManifest("blackboard", "0.1.0");
+            File.WriteAllText(Path.Combine(_sourceRepo, "blackboard", "OnlyInOld.cs"), "// old\n");
+            RunInSource("add -A");
+            RunInSource("commit -qm only-in-old");
+            string old = HeadOfSource();
+
+            CommitManifest("blackboard", "0.2.0");
+            File.Delete(Path.Combine(_sourceRepo, "blackboard", "OnlyInOld.cs"));
+            RunInSource("add -A");
+            RunInSource("commit -qm drop-only-in-old");
+
+            PluginPackageSource source = CloneAndAttach();
+            Assert.IsTrue(source.ApplySparsePaths(new[] { "blackboard" }, out string sparseReason), sparseReason);
+
+            Assert.IsTrue(source.TryMaterializeAt(old, new[] { "blackboard" }, out string materializeReason), materializeReason);
+
+            string manifestText = File.ReadAllText(Path.Combine(_workspace, "blackboard", "blackboard" + PluginManifest.MANIFEST_SUFFIX));
+            StringAssert.Contains("\"0.1.0\"", manifestText);
+            Assert.IsTrue(File.Exists(Path.Combine(_workspace, "blackboard", "OnlyInOld.cs")), "那次修订里有的文件要回来");
+        }
+
+        [Test]
+        public void TryListManifestHistory_InvalidId_ReportsWithoutTouchingGit()
+        {
+            PluginPackageSource source = CloneAndAttach();
+
+            Assert.IsFalse(source.TryListManifestHistory("../escape", out var history, out string failureReason));
+            Assert.IsNull(history);
+            StringAssert.Contains("不符合字符集", failureReason);
         }
 
         private PluginPackageSource NewSource()
@@ -239,7 +313,7 @@ namespace Editor.Tools.PackageManager
             {
                 string folder = Path.Combine(_sourceRepo, id);
                 Directory.CreateDirectory(folder);
-                File.WriteAllText(Path.Combine(folder, id + PluginManifest.ManifestSuffix), "{\"id\":\"" + id + "\"}");
+                File.WriteAllText(Path.Combine(folder, id + PluginManifest.MANIFEST_SUFFIX), "{\"id\":\"" + id + "\"}");
                 File.WriteAllText(Path.Combine(folder, "Code.cs"), "// " + id + "\n");
             }
 
@@ -251,6 +325,28 @@ namespace Editor.Tools.PackageManager
             RunInSource("config user.name pm");
             RunInSource("add -A");
             RunInSource("commit -qm fixture");
+        }
+
+        /// <summary>把某插件的清单写成可解析的样子并提交一次：版本历史用例靠它造多次改动。</summary>
+        /// <remarks>顺带往 <c>Code.cs</c> 追加一行——同一版本连提两次时，光写清单会"没有改动"提交失败。</remarks>
+        private void CommitManifest(string id, string version)
+        {
+            string folder = Path.Combine(_sourceRepo, id);
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, id + PluginManifest.MANIFEST_SUFFIX),
+                "{\"id\":\"" + id + "\",\"name\":\"" + id + "\",\"version\":\"" + version + "\"," +
+                "\"minUnityVersion\":\"2022.3.0\",\"minFrameworkVersion\":\"1.0.0\"}");
+            File.AppendAllText(Path.Combine(folder, "Code.cs"), "// " + version + "\n");
+
+            RunInSource("add -A");
+            RunInSource("commit -qm \"" + id + " " + version + "\"");
+        }
+
+        private string HeadOfSource()
+        {
+            GitRunResult result = GitProcessUtility.Run(null, _sourceRepo, "rev-parse HEAD", 30000);
+            Assert.IsTrue(result.Ok, result.FailureReason());
+            return result.StandardOutput.Trim();
         }
 
         private void RunInSource(string arguments)

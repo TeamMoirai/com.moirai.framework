@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Editor
     internal static class GitProcessUtility
     {
         /// <summary>没跑成进程时的退出码。</summary>
-        internal const int NotRunExitCode = -1;
+        internal const int NOT_RUN_EXIT_CODE = -1;
 
         /// <summary>跑一次 git 并收齐两路输出。</summary>
         internal static GitRunResult Run(string gitPath, string workingDirectory, string arguments, int timeoutMilliseconds)
@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Editor
                 if (!process.WaitForExit(timeoutMilliseconds))
                 {
                     TryKill(process);
-                    return new GitRunResult(false, NotRunExitCode, output.ToString(),
+                    return new GitRunResult(false, NOT_RUN_EXIT_CODE, output.ToString(),
                         $"git 超时（{timeoutMilliseconds} ms）：{arguments}");
                 }
 
@@ -58,7 +58,7 @@ namespace Moirai.Atropos.Editor
             }
             catch (Exception exception)
             {
-                return new GitRunResult(false, NotRunExitCode, output.ToString(),
+                return new GitRunResult(false, NOT_RUN_EXIT_CODE, output.ToString(),
                     $"git 调用失败：{exception.Message}（{arguments}）");
             }
         }
