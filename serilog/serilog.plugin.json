@@ -1,0 +1,13 @@
+{
+  "id": "serilog",
+  "name": "Serilog 日志后端",
+  "function": "日志",
+  "description": "Serilog 结构化日志后端：接管 LogUtility 的输出，sink 直写绕过全局拦截器的 Unity 控制台，条目可按上下文对象与标签富化。安装前置——本插件没有可用的 UPM 依赖，需先用 NuGetForUnity 装好 Serilog（本工程实测 4.4.0，装在 Assets/Packages 下的纯 dll，不进 UPM 依赖表），再在工程的脚本宏里手动定义 SERILOG_INSTALLED（该宏源自 ProjectSettings，包版本判不出来）。不满足前置时整支插件编译为空、Provider 下拉里没有 Serilog，框架只剩默认的 Unity Console 后端。",
+  "author": "Team Moirai",
+  "version": "1.0.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": []
+}
