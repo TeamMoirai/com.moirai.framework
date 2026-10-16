@@ -126,8 +126,8 @@ com.moirai.framework/
 
 ### 自动触发的技能（Agent Skills，`.claude/skills/`）
 
-上表是显式 `/` 命令；下面两个放在 `.claude/skills/`，由 Claude 按各自 `SKILL.md` 的 `description` 自动选用，
-也可显式点名。每个技能自带 `references/`（按需加载）与 `scripts/`（量具，读的是**装机版 dll 与宿主配置资产**）。
+上表是显式 `/` 命令；`.claude/skills/` 下有技能，由 Claude 按各自 `SKILL.md` 的 `description` 自动选用。
+下面的两个是本仓自建，各自带 `references/`（按需加载）与 `scripts/`：
 
 | 技能 | 管什么 |
 |------|--------|
@@ -135,6 +135,12 @@ com.moirai.framework/
 | `odin-validator` | Odin Validator 校验器与规则：基类取舍、注册两型、`ref` 报告面、窗口/配置生效值、CI 驱动 |
 
 两份知识都以"先量装机版读数再下笔"为前提——官方文档站描述最新版，dll 里自带的模板原文也不是可编译证据。
+
+**SKILL.md 头部规范（10 个技能统一，基线 = `.claude/skills/yaml-editing/SKILL.md`）**：骨架固定为 frontmatter →
+（仅面向可调用命令面的技能带一段中性引导块）→ `## Triggers` → `# H1`。`## Triggers` 是入口索引而非正文，
+写成英文 2–4 条 + 一条中文合并条目（用「、」分隔、不加「触发词：」前缀）；触发信息不在 `description` 里重复，
+`description` 统一英文、命令/工具型追加 `Use when …`。跨文件指针一律用包根为基座的反引号全路径（形态见
+`.claude/skills/moirai-conventions/SKILL.md` 的指针形态节），不写指向本包不存在文件的相对链接。
 
 ## 开发流程
 
