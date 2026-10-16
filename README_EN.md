@@ -18,6 +18,34 @@ com.moirai.framework.plugin/
 
 Top-level folders are named by `<id>` and stay flat — there is no function layer. Grouping by function lives in the manifest's `function` field and drives the window's menu tree.
 
+## Current plugin inventory
+
+Everything except `zlogger` was extracted out of `com.moirai.framework`: type names and namespaces are unchanged,
+and the framework keeps only its default/built-in backends. Install a plugin, then re-pick the backend in the matching settings Provider dropdown.
+
+| Group | Plugin id | Assembly | Macro | UPM dependency |
+|---|---|---|---|---|
+| String | `newtonsoft-json` | `Moirai.Plugin.NewtonsoftJson` | `NEWTONSOFT_JSON_INSTALLED` (auto) | com.unity.nuget.newtonsoft-json 3.2.2 |
+| String | `zstring` | `Moirai.Plugin.ZString` | `ZSTRING_INSTALLED` (auto) | com.cysharp.zstring 2.6.0 |
+| Save | `memorypack` | `Moirai.Plugin.MemoryPack` | `hand-authored (see description)` | — |
+| Save | `messagepack` | `Moirai.Plugin.MessagePack` | `hand-authored (see description)` | — |
+| Save | `protobuf` | `Moirai.Plugin.Protobuf` | `hand-authored (see description)` | — |
+| Save | `unity-cloud-save` | `Moirai.Plugin.UnityCloudSave` | `UNITY_CLOUD_SAVE_INSTALLED` (auto) | — |
+| Object | `photon-fusion` | `Moirai.Plugin.PhotonFusion` | `hand-authored (see description)` | — |
+| Logging | `serilog` | `Moirai.Plugin.Serilog` | `hand-authored (see description)` | — |
+| Logging | `unity-logging` | `Moirai.Plugin.UnityLogging` | `UNITY_LOGGING_INSTALLED` (auto) | com.unity.logging 1.3.10 |
+| Logging | `zlogger` | `Moirai.Plugin.ZLogger` | `ZLOGGER_INSTALLED` (auto) | com.cysharp.zlogger 2.5.10 |
+| Tween | `litmotion` | `Moirai.Plugin.LitMotion` | `LITMOTION_INSTALLED` (auto) | com.annulusgames.lit-motion 1.0.0、com.cysharp.unitask 2.5.11 |
+| Tween | `primetween` | `Moirai.Plugin.PrimeTween` | `PRIMETWEEN_INSTALLED` (auto) | com.kyrylokuzyk.primetween 1.4.11 |
+| Resource | `addressables` | `Moirai.Plugin.Addressables` | `ADDRESSABLES_INSTALLED` (auto) | com.unity.addressables 2.10.3 |
+| Audio | `fmod` | `Moirai.Plugin.Fmod` | `hand-authored (see description)` | — |
+| Audio | `wwise` | `Moirai.Plugin.Wwise` | `hand-authored (see description)` | — |
+
+The rows marked hand-authored take their dependency from NuGetForUnity or a vendor SDK (outside UPM);
+each manifest's `description` spells out the prerequisite steps. With the macro undefined the backend is preprocessed away and never appears in the dropdown.
+The two audio plugins reference only the framework assembly: after installing the FMOD / Wwise integration you must add its assemblies
+(e.g. `FMODUnity`, `Ak.*`) to `references` — their GUIDs are not resolvable from this catalog, so nothing was guessed.
+
 ## Rules for plugin authors
 
 1. **Ship your own `.asmdef`.** Unity requires scripts inside a package to be associated with an assembly definition; scripts without one silently stop compiling — no error, just "the feature doesn't exist". The Package Manager only validates and refuses to install; it never generates one for you.
