@@ -1,0 +1,13 @@
+{
+  "id": "photon-fusion",
+  "name": "Photon Fusion 对象后端",
+  "function": "对象",
+  "description": "Photon Fusion 2 网络对象后端：装上后 ObjectHandler 的 Provider 下拉多出「Photon Fusion」，实例化/销毁走 NetworkRunner 的 Spawn/Despawn。安装前置——Fusion 走 Photon 自己的发行渠道（不在 UPM，故本插件无 UPM 依赖），需先接入 Photon Fusion 2 SDK 并在脚本后端宏里手写定义 FUSION2；宏未定义时本后端退化为纯本地 Instantiate/Destroy 的占位实现，不报错但不联网。",
+  "author": "Team Moirai",
+  "version": "0.1.0",
+  "minUnityVersion": "2022.3.12",
+  "minFrameworkVersion": "1.0.2",
+  "tags": [],
+  "dependencies": [],
+  "upmDependencies": []
+}
