@@ -62,9 +62,12 @@ Thumbs.db
 # ===================================== #
 # Local data #
 # ===================================== #
+[Bb]enchmarks/
+[Bb]enchmarks.meta
 [Hh]ybridCLRData/
-[Aa]ssets/AATemp/
-[Aa]ssets/AATemp.meta
+[Hh]ybridCLRData.meta
+[Dd]ocs/
+[Dd]ocs.meta
 
 # Build
 [Bb]uild/
@@ -87,11 +90,12 @@ Thumbs.db
 # ============ #
 # AI generated #
 # ============ #
-
-# Codely
+# Tuanjie Codely
+CODELY.md*
+.com-unity-codely.json
+.codelyignore
 .codely-cli/
 .codely.packages/
-CODELY.md*
 
-[Dd]ocs/
-[Dd]ocs.meta
+# Claude Code
+.claude/settings.local.json
