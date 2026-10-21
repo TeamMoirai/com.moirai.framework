@@ -121,7 +121,7 @@ TweenUtility.MoveBezierPath(transform, path, 2.0f, TweenUtility.EEase.InOutSine)
 后端一律在 settings 里选，不在游戏代码里 `new`：`Tools/Framework Settings` 打开 `GameAppSettings`，把「补间后端」下拉切到目标引擎。
 
 - 下拉里的 PrimeTween / LitMotion 两项分别来自 `plugin` 分支的 `primetween`、`litmotion` 插件（经 `Tools/Moirai/Package Manager` 安装）。没装插件时它们不存在，下拉只有框架内置的 `DefaultTweenHandler`。
-- `primetween` 的前置是 `com.kyrylokuzyk.primetween`，宏 `PRIMETWEEN_INSTALLED` 由插件 asmdef 的 versionDefines 自动定义；让框架代码能直接引用 PrimeTween 类型的那份 `PrimeTween.Runtime.asmref` 随插件目录走（`primetween/PrimeTween/`），框架不再持有。`litmotion` 的前置是 `com.annulusgames.lit-motion`（该包在 UPM 注册表上没有正式版本，按官方指引以 git 渠道安装）加 `com.cysharp.unitask`，宏 `LITMOTION_INSTALLED` 同样由 versionDefines 自动定义。
+- `primetween` 的前置是 `com.kyrylokuzyk.primetween`，而宏 `PRIME_TWEEN_INSTALLED` 是**手写宏**：加在工程的 Scripting Define Symbols 里，插件 asmdef 不再由 versionDefines 供给。原因是插件目录里那份 `PrimeTween/Tween.cs` 经 `PrimeTween.Runtime.asmref` 编进第三方程序集，看不见本插件 asmdef 的宏，只有工程级宏能同时喂到两边；那份 asmref 与扩展随插件目录走（`primetween/PrimeTween/`），框架不再持有——它服务的是插件后端，不是框架代码（框架里已无 PrimeTween 引用）。`litmotion` 的前置是 `com.annulusgames.lit-motion`（该包在 UPM 注册表上没有正式版本，按官方指引以 git 渠道安装）加 `com.cysharp.unitask`，宏 `LITMOTION_INSTALLED` 由插件 asmdef 的 versionDefines 自动定义。
 - 该字段是 `[SerializeReference]`，切换会改变资产里的 `asm:` 归属，切完需保存资产。
 
 ## 注意事项
