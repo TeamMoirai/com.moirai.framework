@@ -36,13 +36,13 @@ and the framework keeps only its default/built-in backends. Install a plugin, th
 | Logging | `unity-logging` | `Moirai.Plugin.UnityLogging` | `UNITY_LOGGING_INSTALLED` (auto) | com.unity.logging 1.3.10 |
 | Logging | `zlogger` | `Moirai.Plugin.ZLogger` | `ZLOGGER_INSTALLED` (auto) | com.cysharp.zlogger 2.5.10 |
 | Tween | `litmotion` | `Moirai.Plugin.LitMotion` | `LITMOTION_INSTALLED` (auto) | com.annulusgames.lit-motion 1.0.0、com.cysharp.unitask 2.5.11 |
-| Tween | `primetween` | `Moirai.Plugin.PrimeTween` | `PRIMETWEEN_INSTALLED` (auto) | com.kyrylokuzyk.primetween 1.4.11 |
+| Tween | `primetween` | `Moirai.Plugin.PrimeTween` | hand-authored `PRIME_TWEEN_INSTALLED` | com.kyrylokuzyk.primetween 1.4.11 |
 | Resource | `addressables` | `Moirai.Plugin.Addressables` | `ADDRESSABLES_INSTALLED` (auto) | com.unity.addressables 2.10.3 |
 | Audio | `fmod` | `Moirai.Plugin.Fmod` | `hand-authored (see description)` | — |
 | Audio | `wwise` | `Moirai.Plugin.Wwise` | `hand-authored (see description)` | — |
 
 The rows marked hand-authored take their dependency from NuGetForUnity or a vendor SDK (outside UPM);
-each manifest's `description` spells out the prerequisite steps. With the macro undefined the backend is preprocessed away and never appears in the dropdown.
+each manifest's `description` spells out the prerequisite steps. `primetween` is the one exception: its package is in UPM yet its macro still has to be authored on the project side, because the extension inside the plugin folder is compiled into the third-party `PrimeTween.Runtime` via `.asmref` and cannot see the plugin asmdef's versionDefines — only a project-level macro reaches both sides. With the macro undefined the backend is preprocessed away and never appears in the dropdown.
 The two audio plugins reference only the framework assembly: after installing the FMOD / Wwise integration you must add its assemblies
 (e.g. `FMODUnity`, `Ak.*`) to `references` — their GUIDs are not resolvable from this catalog, so nothing was guessed.
 

@@ -36,12 +36,12 @@ com.moirai.framework.plugin/
 | 日志 | `unity-logging` | `Moirai.Plugin.UnityLogging` | `UNITY_LOGGING_INSTALLED（自动）` | com.unity.logging 1.3.10 |
 | 日志 | `zlogger` | `Moirai.Plugin.ZLogger` | `ZLOGGER_INSTALLED（自动）` | com.cysharp.zlogger 2.5.10 |
 | 补间 | `litmotion` | `Moirai.Plugin.LitMotion` | `LITMOTION_INSTALLED（自动）` | com.annulusgames.lit-motion 1.0.0、com.cysharp.unitask 2.5.11 |
-| 补间 | `primetween` | `Moirai.Plugin.PrimeTween` | `PRIMETWEEN_INSTALLED（自动）` | com.kyrylokuzyk.primetween 1.4.11 |
+| 补间 | `primetween` | `Moirai.Plugin.PrimeTween` | 手写宏 `PRIME_TWEEN_INSTALLED` | com.kyrylokuzyk.primetween 1.4.11 |
 | 资源 | `addressables` | `Moirai.Plugin.Addressables` | `ADDRESSABLES_INSTALLED（自动）` | com.unity.addressables 2.10.3 |
 | 音频 | `fmod` | `Moirai.Plugin.Fmod` | `手写宏（见 description）` | — |
 | 音频 | `wwise` | `Moirai.Plugin.Wwise` | `手写宏（见 description）` | — |
 
-「手写宏」那几支的依赖来自 NuGetForUnity 或厂商 SDK（不在 UPM 里），前置逐步写在各自清单的 `description`；
+「手写宏」那几支的依赖来自 NuGetForUnity 或厂商 SDK（不在 UPM 里），前置逐步写在各自清单的 `description`；`primetween` 是唯一的例外——它的包在 UPM 里，宏却必须手写在工程侧：插件目录里那份经 `.asmref` 编进第三方 `PrimeTween.Runtime` 的扩展看不见插件 asmdef 的 versionDefines，只有工程级宏能同时喂到两边；
 宏没定义时后端整文件被预处理裁掉，下拉里就不会出现它。
 音频两支（`fmod`/`wwise`）的 `.asmdef` 只引框架：装上 FMOD / Wwise 集成后还要把它们的程序集（如 `FMODUnity`、`Ak.*`）加进 `references`，
 本目录无法读到那些装配的 GUID，所以没有预先写死。
