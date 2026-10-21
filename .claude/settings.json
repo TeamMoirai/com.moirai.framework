@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(Library/**)",
+      "Write(Library/**)",
+      "Edit(../Library/**)",
+      "Write(../Library/**)",
+      "Edit(ProjectSettings/**)",
+      "Write(ProjectSettings/**)",
+      "Edit(../../ProjectSettings/**)",
+      "Write(../../ProjectSettings/**)",
+      "Edit(../../Assets/**)",
+      "Write(../../Assets/**)",
+      "Edit(.github/**)",
+      "Write(.github/**)",
+      "Edit(../../Packages/**)",
+      "Write(../../Packages/**)",
+      "Bash(git push:*)",
+      "Bash(git clean:*)"
+    ]
+  }
+}
