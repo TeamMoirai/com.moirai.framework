@@ -2,7 +2,7 @@
   "id": "primetween",
   "name": "PrimeTween 补间后端",
   "function": "补间",
-  "description": "PrimeTween 高性能补间后端：装上 com.kyrylokuzyk.primetween 后，TweenHandler 的 Provider 下拉多出「PrimeTween」，补间按可配容量（默认 128）注册、按 id 缓存 Tween/Sequence，停止与完成走原生调用，等待结束是同构逐帧轮询版。宏 PRIMETWEEN_INSTALLED 由本插件的 asmdef 按 com.kyrylokuzyk.primetween ≥1.0.0 自动定义。实验面另说——PrimeTweenConfig.ManualInitialize 与 warnEndValueEqualsCurrent 那段在 #if PRIME_TWEEN_EXPERIMENTAL 里，这是手写宏、包版本判不出来，要用实验接口得自己在工程脚本宏里加 PRIME_TWEEN_EXPERIMENTAL。不满足前置时整支插件编译为空、下拉里没有 PrimeTween，补间只剩框架默认的自研后端。",
+  "description": "PrimeTween 高性能补间后端：装上 com.kyrylokuzyk.primetween 后，TweenHandler 的 Provider 下拉多出「PrimeTween」，补间按可配容量（默认 128）注册、按 id 缓存 Tween/Sequence，停止与完成走原生调用，等待结束是同构逐帧轮询版。宏 PRIME_TWEEN_INSTALLED 是手写宏，要自己在**工程的** Scripting Define Symbols 里加（本插件的 asmdef 不再由 versionDefines 供给）——原因在插件目录里那份 PrimeTween/Tween.cs：它经 .asmref 编进第三方 PrimeTween.Runtime 程序集，看不见本插件 asmdef 的宏，只有工程级宏能同时喂到两边；只喂一边时要么 Tween.Id 没发出来、要么 handler 整支编译为空。实验面另说——PrimeTweenConfig.ManualInitialize 与 warnEndValueEqualsCurrent 那段在 #if PRIME_TWEEN_EXPERIMENTAL 里，这是手写宏、包版本判不出来，要用实验接口得自己在工程脚本宏里加 PRIME_TWEEN_EXPERIMENTAL。两个宏都没加时整支插件编译为空、下拉里没有 PrimeTween，补间只剩框架默认的自研后端。",
   "author": "Team Moirai",
   "version": "1.0.0",
   "minUnityVersion": "2022.3.12",

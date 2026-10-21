@@ -1,7 +1,7 @@
-﻿#if PRIMETWEEN_INSTALLED
+﻿#if PRIME_TWEEN_INSTALLED
 namespace PrimeTween
 {
-    public partial struct Tween
+    partial struct Tween
     {
         public long Id => id;
     }

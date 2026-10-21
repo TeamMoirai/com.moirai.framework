@@ -1,4 +1,4 @@
-#if PRIMETWEEN_INSTALLED
+#if PRIME_TWEEN_INSTALLED
 using System;
 using PrimeTween;
 
