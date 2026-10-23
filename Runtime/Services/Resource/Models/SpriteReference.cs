@@ -141,6 +141,25 @@ namespace Moirai.Atropos.Resource
                 m_SpriteRef.PackageName = value ?? string.Empty;
             }
         }
+        
+        /// <summary>
+        /// 子精灵语义按导入器模式判别（勿按主资产身份或文件名比对）：Multiple 记实捕获的子图名、Single/Polygon 留空取整资产；非纹理源（.asset/.fbx 内精灵）回退主资产身份判定。
+        /// </summary>
+        internal static string ResolveSubSpriteName(Sprite sprite, string spritePath)
+        {
+            if (sprite == null || string.IsNullOrEmpty(spritePath))
+            {
+                return string.Empty;
+            }
+
+            if (UnityEditor.AssetImporter.GetAtPath(spritePath) is UnityEditor.TextureImporter importer)
+            {
+                return importer.spriteImportMode == UnityEditor.SpriteImportMode.Multiple ? sprite.name : string.Empty;
+            }
+
+            return UnityEditor.AssetDatabase.IsSubAsset(sprite) ? sprite.name : string.Empty;
+        }
+
 #endif
 
         #endregion
@@ -373,24 +392,6 @@ namespace Moirai.Atropos.Resource
                     target.sprite = null;
                 }
             }
-        }
-
-        /// <summary>
-        /// 子精灵语义按导入器模式判别（勿按主资产身份或文件名比对）：Multiple 记实捕获的子图名、Single/Polygon 留空取整资产；非纹理源（.asset/.fbx 内精灵）回退主资产身份判定。
-        /// </summary>
-        internal static string ResolveSubSpriteName(Sprite sprite, string spritePath)
-        {
-            if (sprite == null || string.IsNullOrEmpty(spritePath))
-            {
-                return string.Empty;
-            }
-
-            if (UnityEditor.AssetImporter.GetAtPath(spritePath) is UnityEditor.TextureImporter importer)
-            {
-                return importer.spriteImportMode == UnityEditor.SpriteImportMode.Multiple ? sprite.name : string.Empty;
-            }
-
-            return UnityEditor.AssetDatabase.IsSubAsset(sprite) ? sprite.name : string.Empty;
         }
 
 #if UNITY_EDITOR
