@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Resource;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -17,7 +18,7 @@ namespace Moirai.Atropos.Audio
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(AudioServiceHandler), typeof(UnityAudioHandler))]
-    [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
+    [ServiceDependency(typeof(TimerService), typeof(DebuggerService), typeof(ResourceService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
         /// <summary>前后台切换订阅句柄（注销只能靠它，lambda 事后摘不掉）。</summary>
@@ -52,8 +53,8 @@ namespace Moirai.Atropos.Audio
                 AudioAgentHostPool.Warmup(Handler.InstanceRoot, AudioServiceSettings.AudioHostWarmupCount);
             }
 
-            // 加载音频设置
-            LoadSettings();
+            // 加载音频设置：初始化当帧写 AudioMixer 不生效，排到下一帧再应用
+            TimerService.WaitFrame(1, LoadSettings);
 
             DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
 
