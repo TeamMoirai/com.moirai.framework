@@ -76,35 +76,23 @@ com.moirai.framework/
 
 ## 编码规范
 
-
-
 细则（`### 命名规范`、`### XML 文档注释` 及其分级条款）的权威落点在 `.claude/skills/moirai-conventions/references/coding.md`，本文不复述第二套。
 
 执行等级只有一个含义：Mandatory 违反要打回，Prefer 性能敏感区必须、非热路径可放宽，Reference 逐步优化遗留。
 
 可见性口径：框架非公开 API 不向外扩到 `public`；外部插件要用的接缝走契约基类上的 `protected internal`（类型则嵌成嵌套类型，如 `LogHandler.ELogLevel`），`InternalsVisibleTo` 不逐插件放行——细则见 `coding.md` 的《公开面收敛》。
 
-
-
 ## 测试规范
-
-
 
 细则（分层与归属、命名与结构、夹具与隔离、确定性、反射政策、日志断言、基准、公共 API 变更口径、覆盖率与出口准则、可执行守卫）
 
 的权威落点在 `.claude/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
 
-
-
 ## AI 测试流程
-
-
 
 六步流程与两条验证环路（测试桥、编辑器状态桥）的权威落点在 `.claude/skills/moirai-conventions/references/verification.md`。
 
 三行硬条件：只认内容等于本次 `id` 的配对完成标记；结论取落盘报告首行计数；0 失败才算通过。
-
-
 
 ## Claude Code Skills
 
@@ -166,13 +154,9 @@ com.moirai.framework/
 
 ### 4. 提交时的文档与 CHANGELOG
 
-
-
 提交、文档与 CHANGELOG、发版与 PR 的权威落点在 `.claude/skills/moirai-conventions/references/release.md`。
 
 口径：只写净结果与现行事实，破坏性变更前置 ⚠ 给迁移口径，版本号与 Release 由工作流写入。
-
-
 
 ## 依赖项
 
@@ -190,6 +174,26 @@ com.moirai.framework/
 ### 开发工具
 - **Odin Inspector** - 编辑器增强
 - **TextMesh Pro** - 文本渲染
+
+## 硬性工具调用规范（不可违反）
+任何代码分析、定位函数、查找类、追踪调用链路、寻找实现文件、新增功能开发，**第一步必须优先调用 CodeGraph MCP 工具**，禁止跳过 CodeGraph 直接读取文件、禁止 glob 遍历文件。
+
+执行标准流程：
+1. 收到需求 → 使用 `codegraph_search` / `codegraph_context` 检索符号、模块、业务代码
+2. 根据 CodeGraph 返回结果，按需读取对应文件
+3. 基于检索到的真实代码进行修改、方案设计
+
+禁止行为：
+❌ 跳过 CodeGraph 直接批量读取文件
+❌ 凭空猜测项目内函数、路径、接口定义
+❌ 优先使用原生 search codebase 代替 codegraph
+
+工具选择建议：
+- 查找函数/类定义：`codegraph_search`
+- 梳理调用关系、依赖：`codegraph_context`
+- 项目架构概览：`project_overview`
+
+只有当 CodeGraph 检索信息不足时，才允许补充读取文件。
 
 ## 注意事项
 
