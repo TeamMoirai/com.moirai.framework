@@ -59,12 +59,18 @@ namespace Moirai.Atropos.Localization
         /// <remarks>值为语言 Code（<see cref="LocalizationService.ExportedLanguageCodes"/> 那一族），<see cref="Language.Unspecified"/> 的 Code 表示未选。</remarks>
         public static string EditorLanguage
         {
-            get => Instance.m_EditorLanguage;
+            // 资产导入完成前 Instance 取不到（见 FrameworkSettings.Loader）：按「未选」降级，检测链继续往下走
+            get
+            {
+                var settings = Instance;
+                return settings != null ? settings.m_EditorLanguage : Language.Unspecified.Code;
+            }
             set
             {
-                if (Instance.m_EditorLanguage == value) return;
+                var settings = Instance;
+                if (settings == null || settings.m_EditorLanguage == value) return;
 
-                Instance.m_EditorLanguage = value;
+                settings.m_EditorLanguage = value;
                 // 预览缓存以编辑器语言为键，切换即作废
                 LocalizationService.InvalidateEditorPreview();
                 // 切回未选哨兵不等于「选了一门语言」：拿 und 走一遍切换只会白烧该语言的一次性告警闸门
@@ -77,6 +83,14 @@ namespace Moirai.Atropos.Localization
         [ProviderDropdown]
         [SerializeReference] private LocalizationServiceHandler m_LocalizationServiceHandler = LocalizationService.CreateDefaultHandler();
         /// <summary>本地化处理器实例（由 Inspector 序列化配置，可替换数据源策略）。</summary>
-        public static LocalizationServiceHandler LocalizationServiceHandler => Instance.m_LocalizationServiceHandler;
+        public static LocalizationServiceHandler LocalizationServiceHandler
+        {
+            // 资产导入完成前 Instance 取不到（见 FrameworkSettings.Loader）：返回 null 即「暂无数据源」
+            get
+            {
+                var settings = Instance;
+                return settings != null ? settings.m_LocalizationServiceHandler : null;
+            }
+        }
     }
 }
