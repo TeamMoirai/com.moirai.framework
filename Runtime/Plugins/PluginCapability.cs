@@ -11,6 +11,12 @@ namespace Moirai.Atropos.Plugins
         Input = 4,
         Save = 8,
         Network = 16,
-        Telemetry = 32
+        Telemetry = 32,
+        Auth = 64,
+        CloudSave = 128,
+        Payment = 256,
+        Leaderboard = 512,
+        RemoteConfig = 1024,
+        Session = 2048
     }
 }
