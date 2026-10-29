@@ -18,6 +18,7 @@ namespace Moirai.Atropos.Screens.Internal
         private readonly Dictionary<string, IUITrack> _tracks = new Dictionary<string, IUITrack>(StringComparer.Ordinal);
         private readonly Dictionary<string, Entry> _open = new Dictionary<string, Entry>(StringComparer.Ordinal);
         private readonly Dictionary<string, List<Entry>> _stacks = new Dictionary<string, List<Entry>>(StringComparer.Ordinal);
+        private readonly List<Entry> _ordered = new List<Entry>();
         private readonly Dictionary<string, UniTaskCompletionSource<UIOpenResult>> _opening =
             new Dictionary<string, UniTaskCompletionSource<UIOpenResult>>(StringComparer.Ordinal);
         private bool _closing;
@@ -82,6 +83,8 @@ namespace Moirai.Atropos.Screens.Internal
                         _stacks.Add(trackId, stack);
                     }
                     stack.Add(entry);
+                    _ordered.Add(entry);
+                    _ordered.Sort((left, right) => LayerOf(left).CompareTo(LayerOf(right)));
                     result = UIOpenResult.Success();
                 }
             }
@@ -104,6 +107,7 @@ namespace Moirai.Atropos.Screens.Internal
             if (!_open.TryGetValue(windowId, out Entry entry)) return;
             _open.Remove(windowId);
             _stacks[entry.TrackId].Remove(entry);
+            _ordered.Remove(entry);
             await entry.Window.OnHideAsync(false, cancellationToken);
             if (!_tracks.TryGetValue(entry.TrackId, out IUITrack track)) return;
             track.Destroy(entry.Window);
@@ -118,12 +122,26 @@ namespace Moirai.Atropos.Screens.Internal
             return ids;
         }
 
+        public IReadOnlyList<string> OpenWindows
+        {
+            get
+            {
+                var ids = new string[_ordered.Count];
+                for (int i = 0; i < _ordered.Count; i++) ids[i] = _ordered[i].Window.WindowId;
+                return ids;
+            }
+        }
+
+        private int LayerOf(Entry entry) =>
+            _tracks.TryGetValue(entry.TrackId, out IUITrack track) ? track.Layer : int.MaxValue;
+
         internal UniTask ShutdownAsync()
         {
             _closing = true;
             var entries = new List<Entry>(_open.Values);
             _open.Clear();
             _stacks.Clear();
+            _ordered.Clear();
             return HideAllAsync(entries);
         }
 

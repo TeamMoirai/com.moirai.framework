@@ -9,5 +9,6 @@ namespace Moirai.Atropos.Screens
         UniTask<UIOpenResult> OpenAsync(string windowId, CancellationToken cancellationToken);
         UniTask CloseAsync(string windowId, CancellationToken cancellationToken);
         IReadOnlyList<string> Stack(string trackId);
+        IReadOnlyList<string> OpenWindows { get; }
     }
 }
