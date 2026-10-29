@@ -41,6 +41,7 @@ namespace Settings
         {
             internal readonly Dictionary<string, byte[]> _files =
                 new Dictionary<string, byte[]>(StringComparer.Ordinal);
+            internal readonly HashSet<string> _directories = new HashSet<string>(StringComparer.Ordinal);
             internal readonly Queue<Attempt> _attempts = new Queue<Attempt>();
             internal readonly List<Attempt> _writes = new List<Attempt>();
             internal readonly List<string> _operations = new List<string>();
@@ -68,6 +69,7 @@ namespace Settings
                 _operations.Add("entry:" + path);
                 if (_entryGate != null) await _entryGate.Task.AttachExternalCancellation(cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
+                if (_directories.Contains(path)) return new StorageEntry(path, true, 0);
                 return _files.TryGetValue(path, out byte[] bytes)
                     ? new StorageEntry(path, false, bytes.Length) : null;
             }
@@ -787,6 +789,7 @@ namespace Settings
             catch (Exception error) { observed = error; }
 
             Assert.That(observed, Is.InstanceOf<InvalidOperationException>());
+            Assert.That(observed.Message, Does.Contain("newer"));
         });
 
         [UnityTest]
@@ -801,5 +804,149 @@ namespace Settings
 
             Assert.That(observed, Is.InstanceOf<InvalidDataException>());
         });
+
+        [UnityTest]
+        public IEnumerator ZeroLengthFile_IsRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Array.Empty<byte>();
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
+        });
+
+        [UnityTest]
+        public IEnumerator DirectoryAtPath_IsRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._directories.Add(Options.FilePath);
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidOperationException>());
+        });
+
+        [UnityTest]
+        public IEnumerator OlderFormat_IsRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 1 1", Entry("player.name", "s:Ada"));
+
+            Exception observed = await CaptureLoad(files, Options);
+            Assert.That(observed, Is.InstanceOf<InvalidOperationException>());
+            Assert.That(observed.Message, Does.Contain("migration"));
+        });
+
+        [UnityTest]
+        public IEnumerator OlderFormat_LoadsWhenOptionsMatchFileVersion() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files["settings.v1"] = Raw("MIRAI-SETTINGS 1 1", Entry("player.name", "s:Ada"));
+            var options = new SettingsOptions { FilePath = "settings.v1", FormatVersion = 1 };
+
+            IKeyValueStore store = await FileSettingsStore.LoadAsync(files, options);
+
+            Assert.That(store.GetString("player.name"), Is.EqualTo("Ada"));
+        });
+
+        [UnityTest]
+        public IEnumerator UnknownValuePrefix_IsRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1", Entry("player.name", "x:Ada"));
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
+        });
+
+        [UnityTest]
+        public IEnumerator MistypedIntValue_IsRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1", Entry("game.quality", "i:oops"));
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
+        });
+
+        [UnityTest]
+        public IEnumerator DuplicateKey_IsRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 2",
+                Entry("player.name", "s:Ada"), Entry("player.name", "s:Grace"));
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
+        });
+
+        [UnityTest]
+        public IEnumerator ExtraEntries_AreRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1",
+                Entry("player.name", "s:Ada"), Entry("player.extra", "s:again"));
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
+        });
+
+        [UnityTest]
+        public IEnumerator EmptyKey_IsRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1", Entry(string.Empty, "s:Ada"));
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
+        });
+
+        [UnityTest]
+        public IEnumerator EmptySnapshot_LoadsEmptyStore() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 0");
+
+            IKeyValueStore store = await FileSettingsStore.LoadAsync(files, Options);
+
+            Assert.AreEqual(0, store.Count);
+            Assert.That(store.IsDirty, Is.False);
+        });
+
+        [UnityTest]
+        public IEnumerator TruncatedEntries_AreRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 2", Entry("player.name", "s:Ada"));
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
+        });
+
+        [UnityTest]
+        public IEnumerator MissingTrailingNewline_Loads() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Encoding.UTF8.GetBytes(
+                "MIRAI-SETTINGS 2 1\n" + Entry("player.name", "s:Ada"));
+
+            IKeyValueStore store = await FileSettingsStore.LoadAsync(files, Options);
+
+            Assert.That(store.GetString("player.name"), Is.EqualTo("Ada"));
+        });
+
+        [UnityTest]
+        public IEnumerator InvalidUtf8Key_IsRejected() => UniTask.ToCoroutine(async () =>
+        {
+            var files = new FileSystem();
+            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1",
+                "/w== " + Convert.ToBase64String(Encoding.UTF8.GetBytes("s:x")));
+
+            Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
+        });
+
+        private static byte[] Raw(params string[] lines)
+            => Encoding.UTF8.GetBytes(string.Join("\n", lines) + "\n");
+
+        private static string Entry(string key, string value)
+            => Convert.ToBase64String(Encoding.UTF8.GetBytes(key)) + " " +
+               Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+
+        private static async UniTask<Exception> CaptureLoad(FileSystem files, SettingsOptions options)
+        {
+            try { await FileSettingsStore.LoadAsync(files, options); return null; }
+            catch (Exception error) { return error; }
+        }
     }
 }

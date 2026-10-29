@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Settings.Internal;
@@ -24,7 +25,11 @@ namespace Moirai.Atropos.Settings
 
             StorageEntry entry = await files.GetEntryAsync(snapshot.FilePath, cancellationToken);
             await UniTask.SwitchToMainThread();
-            if (entry != null && !entry.IsDirectory && entry.Length > 0)
+            if (entry != null && entry.IsDirectory)
+                throw new InvalidOperationException("Settings path is a directory: " + snapshot.FilePath);
+            if (entry != null && entry.Length == 0)
+                throw new InvalidDataException("Settings file is empty: " + snapshot.FilePath);
+            if (entry != null)
             {
                 byte[] bytes = await files.ReadAllBytesAsync(snapshot.FilePath, cancellationToken);
                 await UniTask.SwitchToMainThread();
