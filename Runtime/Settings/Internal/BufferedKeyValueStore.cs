@@ -1,18 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Kernel.Composition;
 
 namespace Moirai.Atropos.Settings.Internal
 {
-    internal sealed class BufferedKeyValueStore : IKeyValueStore
+    internal sealed class BufferedKeyValueStore : IKeyValueStore, IAsyncStoppable, IAsyncDisposableService
     {
         private readonly Dictionary<string, string> _values;
         private readonly ISettingsWriter _writer;
+        private readonly CancellationTokenSource _owner = new CancellationTokenSource();
         private long _revision;
         private long _persisted;
-        private bool _flushing;
+        private bool _closing;
+        private UniTaskCompletionSource<Exception> _active;
+        private UniTaskCompletionSource<Exception> _stopped;
 
         public BufferedKeyValueStore(IDictionary<string, string> loaded, ISettingsWriter writer)
         {
@@ -32,6 +37,7 @@ namespace Moirai.Atropos.Settings.Internal
 
         public bool Remove(string key)
         {
+            EnsureOpen();
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (!_values.Remove(key)) return false;
             _revision++;
@@ -40,6 +46,7 @@ namespace Moirai.Atropos.Settings.Internal
 
         public void RemoveAll()
         {
+            EnsureOpen();
             if (_values.Count == 0) return;
             _values.Clear();
             _revision++;
@@ -62,6 +69,7 @@ namespace Moirai.Atropos.Settings.Internal
 
         private void Write(string key, string value)
         {
+            EnsureOpen();
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (_values.TryGetValue(key, out string old) && old == value) return;
             _values[key] = value;
@@ -90,23 +98,94 @@ namespace Moirai.Atropos.Settings.Internal
             => Write(key, "f:" + value.ToString("R", CultureInfo.InvariantCulture));
 
         public void SetString(string key, string value)
-            => Write(key, "s:" + (value ?? throw new ArgumentNullException(nameof(value))));
-
-        public async UniTask<long> FlushAsync(CancellationToken cancellationToken)
         {
+            EnsureOpen();
+            Write(key, "s:" + (value ?? throw new ArgumentNullException(nameof(value))));
+        }
+
+        public UniTask<long> FlushAsync(CancellationToken cancellationToken)
+        {
+            EnsureOpen();
             cancellationToken.ThrowIfCancellationRequested();
-            if (_flushing) throw new InvalidOperationException("A settings commit is already in progress.");
-            if (!IsDirty) return _persisted;
-            _flushing = true;
+            if (_active != null) throw new InvalidOperationException("A settings commit is already in progress.");
+            if (!IsDirty) return UniTask.FromResult(_persisted);
             long revision = _revision;
             var snapshot = new Dictionary<string, string>(_values, StringComparer.Ordinal);
+            var done = new UniTaskCompletionSource<Exception>();
+            _active = done;
+            return CommitAsync(snapshot, revision, cancellationToken, done);
+        }
+
+        public UniTask StopAsync(CancellationToken cancellationToken)
+        {
+            if (_stopped == null)
+            {
+                _closing = true;
+                _stopped = new UniTaskCompletionSource<Exception>();
+                StopOwnedAsync(_active).Forget();
+            }
+            return ObserveStopAsync(_stopped, cancellationToken);
+        }
+
+        public UniTask DisposeAsync() => StopAsync(CancellationToken.None);
+
+        private async UniTask<long> CommitAsync(IReadOnlyDictionary<string, string> snapshot,
+            long revision, CancellationToken callerToken, UniTaskCompletionSource<Exception> done)
+        {
+            Exception failure = null;
+            CancellationToken operationToken = default;
             try
             {
-                await _writer.CommitAsync(snapshot, cancellationToken);
-                _persisted = revision;
-                return revision;
+                using (var linked = CancellationTokenSource.CreateLinkedTokenSource(_owner.Token, callerToken))
+                {
+                    operationToken = linked.Token;
+                    await _writer.CommitAsync(snapshot, operationToken);
+                }
             }
-            finally { _flushing = false; }
+            catch (Exception error) { failure = error; }
+
+            await UniTask.SwitchToMainThread();
+            if (failure == null) _persisted = revision;
+            bool cancelledByStop = failure is OperationCanceledException cancelled &&
+                cancelled.CancellationToken == operationToken && _closing &&
+                _owner.IsCancellationRequested && !callerToken.IsCancellationRequested;
+            _active = null;
+            // 排干结果独立于公开 Flush，避免重复消费 writer 的单次 UniTask。
+            done.TrySetResult(cancelledByStop ? null : failure);
+            if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
+            return revision;
+        }
+
+        private async UniTask StopOwnedAsync(UniTaskCompletionSource<Exception> active)
+        {
+            Exception failure = null;
+            try { _owner.Cancel(); }
+            catch (Exception error) { failure = error; }
+            if (active != null)
+            {
+                Exception commitFailure = await active.Task;
+                if (commitFailure != null)
+                    failure = failure == null ? commitFailure : new AggregateException(failure, commitFailure);
+            }
+            await UniTask.SwitchToMainThread();
+            try { _owner.Dispose(); }
+            catch (Exception error)
+            {
+                failure = failure == null ? error : new AggregateException(failure, error);
+            }
+            _stopped.TrySetResult(failure);
+        }
+
+        private static async UniTask ObserveStopAsync(UniTaskCompletionSource<Exception> stopped,
+            CancellationToken cancellationToken)
+        {
+            Exception failure = await stopped.Task.AttachExternalCancellation(cancellationToken);
+            if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+
+        private void EnsureOpen()
+        {
+            if (_closing) throw new ObjectDisposedException(nameof(BufferedKeyValueStore));
         }
     }
 }

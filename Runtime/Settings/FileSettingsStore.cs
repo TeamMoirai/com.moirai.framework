@@ -14,14 +14,21 @@ namespace Moirai.Atropos.Settings
         {
             if (files == null) throw new ArgumentNullException(nameof(files));
             if (options == null) throw new ArgumentNullException(nameof(options));
-            var writer = new FileSettingsWriter(files, options);
+            var snapshot = new SettingsOptions
+            {
+                FilePath = options.FilePath,
+                FormatVersion = options.FormatVersion
+            };
+            var writer = new FileSettingsWriter(files, snapshot);
             Dictionary<string, string> loaded;
 
-            StorageEntry entry = await files.GetEntryAsync(options.FilePath, cancellationToken);
+            StorageEntry entry = await files.GetEntryAsync(snapshot.FilePath, cancellationToken);
+            await UniTask.SwitchToMainThread();
             if (entry != null && !entry.IsDirectory && entry.Length > 0)
             {
-                byte[] bytes = await files.ReadAllBytesAsync(options.FilePath, cancellationToken);
-                loaded = SettingsFileFormat.Deserialize(bytes, options.FormatVersion);
+                byte[] bytes = await files.ReadAllBytesAsync(snapshot.FilePath, cancellationToken);
+                await UniTask.SwitchToMainThread();
+                loaded = SettingsFileFormat.Deserialize(bytes, snapshot.FormatVersion);
             }
             else
             {
