@@ -7,6 +7,8 @@ using Unity.IL2CPP.CompilerServices;
 [assembly: AssemblyCopyright("Copyright © 2026")]
 
 [assembly: InternalsVisibleTo("Moirai.Atropos.Editor")]
+[assembly: InternalsVisibleTo("Moirai.Tests.EditorMode")]
+[assembly: InternalsVisibleTo("Moirai.Tests.PlayMode")]
 [assembly: InternalsVisibleTo("Moirai.Atropos.Tests.EditorMode")]
 [assembly: InternalsVisibleTo("Moirai.Atropos.Tests.PlayMode")]
 [assembly: InternalsVisibleTo("Moirai.Atropos.Tests.Player")]

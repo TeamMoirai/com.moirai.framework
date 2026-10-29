@@ -1,0 +1,9 @@
+{
+    "name": "Moirai.Tests.PlayMode",
+    "rootNamespace": "Moirai.Tests.PlayMode",
+    "references": ["Moirai.Atropos", "UniTask", "UnityEngine.TestRunner"],
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "autoReferenced": false
+}
