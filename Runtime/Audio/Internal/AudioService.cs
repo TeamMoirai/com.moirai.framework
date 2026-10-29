@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Settings;
 
 namespace Moirai.Atropos.Sound.Internal
 {
@@ -10,26 +11,47 @@ namespace Moirai.Atropos.Sound.Internal
         private readonly IAudioBackend _backend;
         private readonly IAudioClipLeaseSource _source;
         private readonly AudioOptions _options;
+        private readonly IKeyValueStore _settings;
+        private float _masterVolume;
+        private bool _muted;
         private readonly Dictionary<string, IAudioClipLease> _clips =
             new Dictionary<string, IAudioClipLease>(StringComparer.Ordinal);
         private readonly Dictionary<int, IAudioClipLease> _voices = new Dictionary<int, IAudioClipLease>();
         private int _nextVoice = 1;
         private bool _closing;
 
-        internal AudioService(IAudioBackend backend, IAudioClipLeaseSource source, AudioOptions options)
+        internal AudioService(IAudioBackend backend, IAudioClipLeaseSource source,
+            AudioOptions options, IKeyValueStore settings)
         {
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _source = source ?? throw new ArgumentNullException(nameof(source));
             _options = options ?? throw new ArgumentNullException(nameof(options));
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _options.Validate();
-            _backend.SetVolume(0, _options.MasterVolume);
+            float storedVolume = _settings.GetFloat(AudioSettingKeys.MasterVolume,
+                _options.MasterVolume);
+            _masterVolume = storedVolume >= 0f && storedVolume <= 1f
+                ? storedVolume : _options.MasterVolume;
+            _muted = _settings.GetBool(AudioSettingKeys.MasterMuted, false);
+            _options.MasterVolume = _masterVolume;
+            _backend.SetVolume(0, EffectiveVolume);
         }
 
         public void SetMasterVolume(float volume)
         {
             if (volume < 0f || volume > 1f) throw new ArgumentOutOfRangeException(nameof(volume));
+            _masterVolume = volume;
             _options.MasterVolume = volume;
-            _backend.SetVolume(0, volume);
+            _settings.SetFloat(AudioSettingKeys.MasterVolume, volume);
+            _backend.SetVolume(0, EffectiveVolume);
+        }
+
+        public void SetMasterMuted(bool muted)
+        {
+            if (_muted == muted) return;
+            _muted = muted;
+            _settings.SetBool(AudioSettingKeys.MasterMuted, muted);
+            _backend.SetVolume(0, EffectiveVolume);
         }
 
         public bool TryPlay(string clipKey, float volume = 1f, bool loop = false)
@@ -133,6 +155,8 @@ namespace Moirai.Atropos.Sound.Internal
             if (clipKey.Length == 0)
                 throw new ArgumentException("Clip key must not be empty.", nameof(clipKey));
         }
+
+        private float EffectiveVolume => _muted ? 0f : _masterVolume;
 
         private void ValidateVolume(float volume)
         {

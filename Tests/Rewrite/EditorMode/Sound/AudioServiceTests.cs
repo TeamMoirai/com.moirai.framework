@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Sound;
+using System.Globalization;
+using Moirai.Atropos.Settings;
 using Moirai.Atropos.Sound.Internal;
 using NUnit.Framework;
 using UnityEngine;
@@ -57,8 +59,46 @@ namespace Sound
             }
         }
 
-        private static AudioService Create(Backend backend, Source source)
-            => new AudioService(backend, source, new AudioOptions());
+        private sealed class Settings : IKeyValueStore
+        {
+            internal readonly Dictionary<string, string> Values = new Dictionary<string, string>();
+            internal int Flushes;
+
+            public int Count => Values.Count;
+            public bool IsDirty => false;
+            public bool Has(string key) => Values.ContainsKey(key);
+            public bool Remove(string key) => Values.Remove(key);
+            public void RemoveAll() => Values.Clear();
+            public void GetAllKeys(List<string> results)
+            {
+                results.Clear();
+                results.AddRange(Values.Keys);
+            }
+            public bool GetBool(string key, bool defaultValue = false)
+                => Values.TryGetValue(key, out string value) && bool.TryParse(value, out bool parsed)
+                    ? parsed : defaultValue;
+            public int GetInt(string key, int defaultValue = 0) => defaultValue;
+            public float GetFloat(string key, float defaultValue = 0f)
+                => Values.TryGetValue(key, out string value) &&
+                   float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture,
+                       out float parsed)
+                    ? parsed : defaultValue;
+            public string GetString(string key, string defaultValue = "")
+                => Values.TryGetValue(key, out string value) ? value : defaultValue;
+            public void SetBool(string key, bool value) => Values[key] = value.ToString();
+            public void SetInt(string key, int value) => Values[key] = value.ToString();
+            public void SetFloat(string key, float value)
+                => Values[key] = value.ToString("R", CultureInfo.InvariantCulture);
+            public void SetString(string key, string value) => Values[key] = value;
+            public UniTask<long> FlushAsync(CancellationToken cancellationToken)
+            {
+                Flushes++;
+                return UniTask.FromResult(0L);
+            }
+        }
+
+        private static AudioService Create(Backend backend, Source source, Settings settings = null)
+            => new AudioService(backend, source, new AudioOptions(), settings ?? new Settings());
 
         [UnityTest]
         public IEnumerator ColdLoad_CachesAndPlays_CachedPlaySkipsSource() => UniTask.ToCoroutine(async () =>
@@ -113,6 +153,58 @@ namespace Sound
             }
             finally { service.Dispose(); UnityEngine.Object.DestroyImmediate(clip); }
         });
+
+        [Test]
+        public void Init_ReadsStoredMasterVolumeAndMute()
+        {
+            var backend = new Backend();
+            var settings = new Settings();
+            settings.Values[AudioSettingKeys.MasterVolume] = "0.25";
+            settings.Values[AudioSettingKeys.MasterMuted] = "True";
+            var options = new AudioOptions { MasterVolume = 0.8f };
+
+            var service = new AudioService(backend, new Source(), options, settings);
+
+            Assert.That(service, Is.Not.Null);
+            Assert.That(backend.Calls[backend.Calls.Count - 1], Is.EqualTo("volume:0"));
+            Assert.That(settings.Flushes, Is.Zero);
+        }
+
+        [Test]
+        public void SetMasterVolume_WritesKeyWithoutFlushing()
+        {
+            var backend = new Backend();
+            var settings = new Settings();
+            var service = Create(backend, new Source(), settings);
+
+            service.SetMasterVolume(0.5f);
+
+            Assert.That(settings.Values[AudioSettingKeys.MasterVolume], Is.EqualTo("0.5"));
+            Assert.That(settings.Flushes, Is.Zero);
+            Assert.That(backend.Calls[backend.Calls.Count - 1], Is.EqualTo("volume:0.5"));
+        }
+
+        [Test]
+        public void SetMasterMuted_AppliesSilenceAndRestoresVolume()
+        {
+            var backend = new Backend();
+            var settings = new Settings();
+            var service = Create(backend, new Source(), settings);
+            service.SetMasterVolume(0.4f);
+            int before = backend.Calls.Count;
+
+            service.SetMasterMuted(true);
+            service.SetMasterMuted(true);
+
+            Assert.That(backend.Calls.Count, Is.EqualTo(before + 1));
+            Assert.That(backend.Calls[backend.Calls.Count - 1], Is.EqualTo("volume:0"));
+            Assert.That(settings.Values[AudioSettingKeys.MasterMuted], Is.EqualTo("True"));
+            Assert.That(settings.Values[AudioSettingKeys.MasterVolume], Is.EqualTo("0.4"));
+
+            service.SetMasterMuted(false);
+            Assert.That(backend.Calls[backend.Calls.Count - 1], Is.EqualTo("volume:0.4"));
+            Assert.That(settings.Flushes, Is.Zero);
+        }
 
         [Test]
         public void TryPlay_InvalidArguments_ThrowBeforeTouchingSource()
