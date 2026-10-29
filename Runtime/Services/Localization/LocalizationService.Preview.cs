@@ -13,6 +13,9 @@ namespace Moirai.Atropos.Localization
         private static string s_PreviewLanguageSetting;
         // 预览数据取不到时只认一次，Inspector 每帧重绘不能每帧刷一条 Error
         private static bool s_PreviewFailed;
+        // 本方法挂在 projectChanged 上，而它读设置（Instance → 缺资产时创建 → 再派发 projectChanged）。
+        // 重入时只丢本地缓存、不再回头读写设置，切断这条同步自递归。
+        private static bool s_IsInvalidating;
 
         /// <summary>
         /// 丢弃编辑器预览缓存。改了编辑器语言、或重新转表之后调用。
@@ -22,10 +25,21 @@ namespace Moirai.Atropos.Localization
             s_PreviewStore = null;
             s_PreviewLanguageSetting = null;
             s_PreviewFailed = false;
-            // 转表回写之后数据源的语言集合可能已变：候选缓存跟着作废（换批那侧由基类在装载成功时自动作废）
-            ExportedLanguageSource?.InvalidateExportedLanguages();
-            // 编辑器语言是检测链的一环：改它就等于改了处理器该用的偏好，趁这一次作废一起交接过去
-            ApplyEditorLanguagePreference();
+
+            if (s_IsInvalidating) return;
+
+            s_IsInvalidating = true;
+            try
+            {
+                // 转表回写之后数据源的语言集合可能已变：候选缓存跟着作废（换批那侧由基类在装载成功时自动作废）
+                ExportedLanguageSource?.InvalidateExportedLanguages();
+                // 编辑器语言是检测链的一环：改它就等于改了处理器该用的偏好，趁这一次作废一起交接过去
+                ApplyEditorLanguagePreference();
+            }
+            finally
+            {
+                s_IsInvalidating = false;
+            }
         }
 
         /// <summary>编辑器预览是否已就绪（非播放态、且表数据取到了）。</summary>
