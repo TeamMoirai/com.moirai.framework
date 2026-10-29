@@ -76,6 +76,19 @@ namespace Moirai.Atropos.Assets.Unity
             }
 
             public UnityEngine.SceneManagement.Scene Scene => _scene;
+            public bool IsActivated => !_suspended;
+
+            public async UniTask ActivateAsync(CancellationToken cancellationToken)
+            {
+                if (!_suspended) return;
+                _suspended = false;
+                if (_operation != null)
+                {
+                    _operation.allowSceneActivation = true;
+                    await _operation.ToUniTask(cancellationToken: cancellationToken);
+                }
+                _scene = SceneManager.GetSceneAt(SceneManager.sceneCount - 1);
+            }
 
             public async UniTask DisposeAsync()
             {
@@ -83,9 +96,7 @@ namespace Moirai.Atropos.Assets.Unity
                 _disposed = true;
                 if (_suspended && _operation != null)
                 {
-                    _operation.allowSceneActivation = true;
-                    await _operation.ToUniTask();
-                    _suspended = false;
+                    await ActivateAsync(CancellationToken.None);
                 }
                 if (_scene.IsValid())
                 {

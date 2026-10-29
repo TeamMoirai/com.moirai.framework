@@ -56,20 +56,15 @@ namespace Moirai.Atropos.Assets.Internal
         private sealed class SceneLease : ISceneLease
         {
             private IScenePayload _payload;
-            private bool _activated;
             private bool _disposed;
 
             internal SceneLease(IScenePayload payload) { _payload = payload; }
 
             public UnityEngine.SceneManagement.Scene Scene => _payload.Scene;
-            public bool IsActivated => _activated;
+            public bool IsActivated => _payload.IsActivated;
 
             public UniTask ActivateAsync(CancellationToken cancellationToken)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                _activated = true;
-                return UniTask.CompletedTask;
-            }
+                => _payload.ActivateAsync(cancellationToken);
 
             public async UniTask DisposeAsync()
             {
