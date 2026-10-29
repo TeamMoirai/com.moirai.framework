@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+#### 编辑器
+
+- 包管理器扫分支改为一次探缺、一次取包、一条进程读齐清单：浏览只取分支根的 `package.json` 与各插件的 `<id>.plugin.json`，刚建好的检出不再重复 fetch
+
 ### Fixed
 
 #### 框架设置

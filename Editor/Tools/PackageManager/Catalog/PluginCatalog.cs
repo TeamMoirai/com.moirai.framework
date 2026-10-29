@@ -87,6 +87,21 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
+        /// 按清单文件名的形状挑出候选路径，供上层一次预取。
+        /// </summary>
+        /// <remarks>只判文件名后缀；目录名与 id 是否相等仍由 <see cref="Build"/> 判，多取一份坏清单不改变结论。</remarks>
+        internal static List<string> SelectManifestPaths(IReadOnlyList<string> treePaths)
+        {
+            var selected = new List<string>();
+            for (int i = 0; treePaths != null && i < treePaths.Count; i++)
+            {
+                if (TrySplitManifestPath(treePaths[i], out _, out _)) selected.Add(treePaths[i]);
+            }
+
+            return selected;
+        }
+
+        /// <summary>
         /// 按清单文件名的形状拆出目录名与 id，非清单形状返回假。
         /// </summary>
         private static bool TrySplitManifestPath(string treePath, out string folder, out string id)

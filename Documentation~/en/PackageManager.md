@@ -13,7 +13,7 @@ Menu entry: `Tools/Moirai/Package Manager`. The window is an Odin menu tree — 
 | State ledger | `ProjectSettings/MoiraiPackageManager.json` (settings, installed records, ownership ledger and the cached catalog of the last scan) |
 | git executable | `git` by default, driven out of process |
 
-The landing directory *is* the branch worktree. The tool clones with `--filter=blob:none --no-checkout --single-branch` and then applies cone sparse-checkout, so **folders of unchecked plugins never appear on disk**, while `git ls-tree` still lists the whole tree — browsing reads the tree and file contents are fetched on demand.
+The landing directory *is* the branch worktree. The tool clones with `--filter=blob:none --no-checkout --single-branch` and then applies cone sparse-checkout, so **folders of unchecked plugins never appear on disk**; browsing lists the tree once, prefetches the root files and every `<id>.plugin.json` in one request and reads them in a single process, while plugin contents are materialized only on install.
 
 ## Plugin manifest
 
