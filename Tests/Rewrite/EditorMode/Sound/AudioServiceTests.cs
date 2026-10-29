@@ -22,9 +22,12 @@ namespace Sound
                 Calls.Add("play:" + voice);
                 Playing.Add(voice);
             }
+            internal int FailStopVoice = -1;
+            internal Exception StopFailure;
             public void Stop(int voice, float fadeSeconds)
             {
                 Calls.Add("stop:" + voice);
+                if (voice == FailStopVoice && StopFailure != null) throw StopFailure;
                 Playing.Remove(voice);
             }
             public void SetVolume(int voice, float volume) => Calls.Add("volume:" + volume);
@@ -109,6 +112,109 @@ namespace Sound
                 Assert.IsFalse(service.TryPlay("unknown"));
             }
             finally { service.Dispose(); UnityEngine.Object.DestroyImmediate(clip); }
+        });
+
+        [Test]
+        public void TryPlay_InvalidArguments_ThrowBeforeTouchingSource()
+        {
+            var backend = new Backend();
+            var source = new Source();
+            var service = Create(backend, source);
+            backend.Calls.Clear();
+
+            Assert.Throws<ArgumentNullException>(() => service.TryPlay(null));
+            Assert.Throws<ArgumentException>(() => service.TryPlay(string.Empty));
+            Assert.Throws<ArgumentOutOfRangeException>(() => service.TryPlay("hit", -0.1f));
+            Assert.Throws<ArgumentOutOfRangeException>(() => service.TryPlay("hit", 1.1f));
+            Assert.That(source.Acquires, Is.Zero);
+            Assert.That(backend.Calls, Is.Empty);
+        }
+
+        [UnityTest]
+        public IEnumerator PlayAsync_InvalidArguments_ThrowBeforeAcquiring() => UniTask.ToCoroutine(async () =>
+        {
+            var backend = new Backend();
+            var source = new Source();
+            var service = Create(backend, source);
+            backend.Calls.Clear();
+            var errors = new List<Exception>();
+            try
+            {
+                try { await service.PlayAsync(null, 1f, false); }
+                catch (Exception error) { errors.Add(error); }
+                try { await service.PlayAsync(string.Empty, 1f, false); }
+                catch (Exception error) { errors.Add(error); }
+                try { await service.PlayAsync("hit", 2f, false); }
+                catch (Exception error) { errors.Add(error); }
+            }
+            finally { service.Dispose(); }
+
+            Assert.That(errors.Count, Is.EqualTo(3));
+            Assert.That(errors[0], Is.InstanceOf<ArgumentException>());
+            Assert.That(errors[1], Is.InstanceOf<ArgumentException>());
+            Assert.That(errors[2], Is.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(source.Acquires, Is.Zero);
+            Assert.That(backend.Calls.FindAll(x => x.StartsWith("play")), Is.Empty);
+        });
+
+        [UnityTest]
+        public IEnumerator Stop_BackendFailure_KeepsVoiceForRetry() => UniTask.ToCoroutine(async () =>
+        {
+            var clip = AudioClip.Create("probe", 8, 1, 44100, false);
+            var backend = new Backend();
+            var source = new Source { Clip = clip };
+            var service = Create(backend, source);
+            try
+            {
+                await service.PlayAsync("hit", 1f, false);
+                var failure = new InvalidOperationException("backend refused stop");
+                backend.FailStopVoice = 1;
+                backend.StopFailure = failure;
+
+                Assert.Throws<InvalidOperationException>(() => service.Stop(1, 0f));
+                Assert.That(source.Disposals, Is.Zero);
+                Assert.That(backend.IsPlaying(1), Is.True);
+
+                backend.FailStopVoice = -1;
+                service.Stop(1, 0f);
+                Assert.That(source.Disposals, Is.EqualTo(1));
+                Assert.That(backend.IsPlaying(1), Is.False);
+            }
+            finally { service.Dispose(); UnityEngine.Object.DestroyImmediate(clip); }
+        });
+
+        [UnityTest]
+        public IEnumerator Dispose_OneVoiceStopFails_StopsOthersAndReleasesAll() => UniTask.ToCoroutine(async () =>
+        {
+            var first = AudioClip.Create("first", 8, 1, 44100, false);
+            var second = AudioClip.Create("second", 8, 1, 44100, false);
+            var backend = new Backend();
+            var source = new Source { Clip = first };
+            var service = Create(backend, source);
+            Exception observed = null;
+            try
+            {
+                await service.PlayAsync("first", 1f, false);
+                source.Clip = second;
+                await service.PlayAsync("second", 1f, false);
+                var failure = new InvalidOperationException("first voice refused stop");
+                backend.FailStopVoice = 1;
+                backend.StopFailure = failure;
+
+                try { service.Dispose(); }
+                catch (Exception error) { observed = error; }
+
+                Assert.That(observed, Is.InstanceOf<AggregateException>());
+                Assert.That(observed.InnerException, Is.SameAs(failure));
+                CollectionAssert.AreEqual(new[] { 1 }, backend.Playing);
+                Assert.That(source.Disposals, Is.EqualTo(2));
+            }
+            finally
+            {
+                service.Dispose();
+                UnityEngine.Object.DestroyImmediate(first);
+                UnityEngine.Object.DestroyImmediate(second);
+            }
         });
     }
 }

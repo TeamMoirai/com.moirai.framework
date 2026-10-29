@@ -35,6 +35,8 @@ namespace Moirai.Atropos.Sound.Internal
         public bool TryPlay(string clipKey, float volume = 1f, bool loop = false)
         {
             EnsureOpen();
+            ValidateClipKey(clipKey);
+            ValidateVolume(volume);
             if (!_clips.TryGetValue(clipKey, out IAudioClipLease lease)) return false;
             StartVoice(lease, volume, loop);
             return true;
@@ -44,6 +46,7 @@ namespace Moirai.Atropos.Sound.Internal
             CancellationToken cancellationToken = default)
         {
             EnsureOpen();
+            ValidateClipKey(clipKey);
             ValidateVolume(volume);
             if (_clips.TryGetValue(clipKey, out IAudioClipLease cached))
             {
@@ -70,8 +73,8 @@ namespace Moirai.Atropos.Sound.Internal
         {
             if (fadeSeconds < 0f) throw new ArgumentOutOfRangeException(nameof(fadeSeconds));
             if (!_voices.TryGetValue(voice, out IAudioClipLease lease)) return;
-            _voices.Remove(voice);
             _backend.Stop(voice, fadeSeconds);
+            _voices.Remove(voice);
             if (!IsReferenced(lease)) RemoveClip(lease);
         }
 
@@ -79,11 +82,20 @@ namespace Moirai.Atropos.Sound.Internal
         {
             if (_closing) return;
             _closing = true;
+            var failures = new List<Exception>();
             foreach (KeyValuePair<int, IAudioClipLease> voice in _voices)
-                _backend.Stop(voice.Key, _options.DefaultFadeSeconds);
+            {
+                try { _backend.Stop(voice.Key, _options.DefaultFadeSeconds); }
+                catch (Exception error) { failures.Add(error); }
+            }
             _voices.Clear();
-            foreach (IAudioClipLease lease in _clips.Values) lease.Dispose();
+            foreach (IAudioClipLease lease in _clips.Values)
+            {
+                try { lease.Dispose(); }
+                catch (Exception error) { failures.Add(error); }
+            }
             _clips.Clear();
+            if (failures.Count != 0) throw new AggregateException(failures);
         }
 
         private void StartVoice(IAudioClipLease lease, float volume, bool loop)
@@ -113,6 +125,13 @@ namespace Moirai.Atropos.Sound.Internal
             if (key == null) return;
             _clips.Remove(key);
             lease.Dispose();
+        }
+
+        private static void ValidateClipKey(string clipKey)
+        {
+            if (clipKey == null) throw new ArgumentNullException(nameof(clipKey));
+            if (clipKey.Length == 0)
+                throw new ArgumentException("Clip key must not be empty.", nameof(clipKey));
         }
 
         private void ValidateVolume(float volume)
