@@ -13,7 +13,7 @@
 | 状态账本 | `ProjectSettings/MoiraiPackageManager.json`（含设置项、已装记录、归属台账与上次扫描的目录缓存） |
 | git 可执行文件 | 默认 `git`，走进程外调用 |
 
-落点目录就是分支的工作树。工具按 `--filter=blob:none --no-checkout --single-branch` 建检出，再用 cone 模式稀疏检出，因此**未勾选的插件目录不会出现在磁盘上**，而 `git ls-tree` 仍能列出整棵树——浏览面靠树、取文靠按需读 blob。
+落点目录就是分支的工作树。工具按 `--filter=blob:none --no-checkout --single-branch` 建检出，再用 cone 模式稀疏检出，因此**未勾选的插件目录不会出现在磁盘上**；浏览面只列一次树，把根文件与各份 `<id>.plugin.json` 合成一次预取取回、一条进程读齐，插件正文只在安装时才物化。
 
 ## 插件清单
 

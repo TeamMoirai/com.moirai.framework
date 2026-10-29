@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace Moirai.Atropos.Editor
 {
@@ -22,6 +23,24 @@ namespace Moirai.Atropos.Editor
 
         // 列清单历史时只看最近这些次改动：一次开下拉对每个版本跑一条 git，更早的版本基本没人装
         private const int HISTORY_SCAN_LIMIT = 50;
+
+        /// <summary>
+        /// 一条树路径与它在修订里的对象号。
+        /// </summary>
+        internal readonly struct TreeBlob
+        {
+            /// <summary>仓库内的树路径。</summary>
+            internal readonly string Path;
+
+            /// <summary>该路径在修订里的 blob 对象号。</summary>
+            internal readonly string ObjectId;
+
+            internal TreeBlob(string path, string objectId)
+            {
+                Path = path;
+                ObjectId = objectId;
+            }
+        }
 
         private readonly string _workingDirectory;
         private readonly string _repoUrl;
@@ -284,14 +303,250 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 列整棵树的路径，勾选外的目录也在。
+        /// 列某修订下的全部文件，一并给出对象号；勾选外的目录也在。
         /// </summary>
-        internal bool TryListPaths(out List<string> paths, out string failureReason)
+        /// <remarks>只读 tree、不取正文：列一遍不会让任何文件落到本地。</remarks>
+        internal bool TryListBlobs(string revision, out List<TreeBlob> blobs, out string failureReason)
         {
-            GitRunResult result = RunQuery("ls-tree -r --name-only HEAD", out string text, out _);
-            paths = SplitLines(text);
-            failureReason = result.Ok ? null : $"列树失败：{result.FailureReason()}";
+            blobs = null;
+            if (!IsSafeRevision(revision))
+            {
+                failureReason = $"修订不合约定：'{revision}'";
+                return false;
+            }
+
+            GitRunResult result = RunQuery($"ls-tree -r {GitProcessUtility.Quote(revision)}", out string text, out _);
+            if (!result.Ok)
+            {
+                failureReason = $"列树失败：{result.FailureReason()}";
+                return false;
+            }
+
+            var found = new List<TreeBlob>();
+            List<string> lines = SplitLines(text);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string line = lines[i];
+                int tab = line.IndexOf('\t');
+                if (tab < 0) continue;
+
+                string[] fields = line.Substring(0, tab).Split(' ');
+                if (fields.Length < 3 || !string.Equals(fields[1], "blob", StringComparison.Ordinal)) continue;
+
+                string objectId = fields[2];
+                if (!IsSafeObjectId(objectId))
+                {
+                    failureReason = $"树里的对象号不合形状：'{objectId}'";
+                    return false;
+                }
+
+                found.Add(new TreeBlob(line.Substring(tab + 1), objectId));
+            }
+
+            blobs = found;
+            failureReason = null;
+            return true;
+        }
+
+        /// <summary>
+        /// 把这一批对象补到本地：先问一次缺哪些，缺的用一条 fetch 一起取回。
+        /// </summary>
+        /// <remarks>逐份读会让每个缺的对象各触发一次网络往返；这里把缺的对象合成一个请求。</remarks>
+        internal bool TryEnsureBlobsPresent(string revision, IReadOnlyList<string> objectIds, out string failureReason)
+        {
+            if (!TryFindMissingObjects(revision, objectIds, out List<string> missing, out failureReason)) return false;
+            if (missing.Count == 0) return true;
+
+            return TryFetchObjects(missing, out failureReason);
+        }
+
+        /// <summary>
+        /// 批量读对象正文：一条 git 进程读完这一批。
+        /// </summary>
+        /// <remarks>正文按响应头声明的字节数切分，因此 <see cref="GitProcessUtility.RunWithInput"/> 整段取回而不按行收口。<br />
+        /// 本地仍缺的对象会在这里逐个惰性取包，调用方应先走 <see cref="TryEnsureBlobsPresent"/>。</remarks>
+        internal bool TryReadBlobs(IReadOnlyList<string> objectIds, out Dictionary<string, string> textByObjectId,
+            out string failureReason)
+        {
+            textByObjectId = null;
+            if (objectIds == null || objectIds.Count == 0)
+            {
+                textByObjectId = new Dictionary<string, string>(StringComparer.Ordinal);
+                failureReason = null;
+                return true;
+            }
+
+            var request = new StringBuilder();
+            for (int i = 0; i < objectIds.Count; i++)
+            {
+                if (!IsSafeObjectId(objectIds[i]))
+                {
+                    failureReason = $"对象号不合形状：'{objectIds[i]}'";
+                    return false;
+                }
+
+                request.Append(objectIds[i]).Append('\n');
+            }
+
+            GitRunResult result = GitProcessUtility.RunWithInput(_gitPath, _workingDirectory, "cat-file --batch --buffer",
+                QUERY_TIMEOUT_MILLISECONDS, request.ToString());
+            if (!result.Ok)
+            {
+                failureReason = $"批量取文失败：{result.FailureReason()}";
+                return false;
+            }
+
+            var parsed = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (!TryParseBatchOutput(result.StandardOutput, parsed, out failureReason)) return false;
+
+            textByObjectId = parsed;
+            return true;
+        }
+
+        /// <summary>从某修订的可达对象里挑出本地还没有的那些。</summary>
+        /// <remarks>只认 <c>--missing=print</c> 的标记行；探测本身不发惰性取包请求，因此不联网。</remarks>
+        private bool TryFindMissingObjects(string revision, IReadOnlyList<string> objectIds, out List<string> missing,
+            out string failureReason)
+        {
+            missing = null;
+            if (!IsSafeRevision(revision))
+            {
+                failureReason = $"修订不合约定：'{revision}'";
+                return false;
+            }
+
+            for (int i = 0; objectIds != null && i < objectIds.Count; i++)
+            {
+                if (!IsSafeObjectId(objectIds[i]))
+                {
+                    failureReason = $"对象号不合形状：'{objectIds[i]}'";
+                    return false;
+                }
+            }
+
+            GitRunResult result = RunQuery(
+                $"rev-list --objects --missing=print --no-walk {GitProcessUtility.Quote(revision)}",
+                out string text, out _);
+            if (!result.Ok)
+            {
+                failureReason = $"探测本地对象失败：{result.FailureReason()}";
+                return false;
+            }
+
+            var absent = new HashSet<string>(StringComparer.Ordinal);
+            List<string> lines = SplitLines(text);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string line = lines[i];
+                if (line.Length < 2 || line[0] != '?') continue;
+
+                int end = line.IndexOf(' ', 1);
+                absent.Add(end < 0 ? line.Substring(1) : line.Substring(1, end - 1));
+            }
+
+            var found = new List<string>();
+            for (int i = 0; objectIds != null && i < objectIds.Count; i++)
+            {
+                if (absent.Contains(objectIds[i])) found.Add(objectIds[i]);
+            }
+
+            missing = found;
+            failureReason = null;
+            return true;
+        }
+
+        /// <summary>把一批对象从远端一次取回。</summary>
+        /// <remarks>对象号先过字符集——这里唯一一处把对象号拼进命令行。<br />
+        /// 不带过滤器：要取的就是 blob 本体，<c>blob:none</c> 在这里自相矛盾，服务端真按它裁剪就把整单裁空了。</remarks>
+        private bool TryFetchObjects(IReadOnlyList<string> objectIds, out string failureReason)
+        {
+            var quoted = new List<string>(objectIds.Count);
+            for (int i = 0; i < objectIds.Count; i++)
+            {
+                if (!IsSafeObjectId(objectIds[i]))
+                {
+                    failureReason = $"对象号不合形状：'{objectIds[i]}'";
+                    return false;
+                }
+
+                quoted.Add(objectIds[i]);
+            }
+
+            GitRunResult result = RunQuery(
+                "fetch --no-tags origin " + string.Join(" ", quoted), out _, out _);
+            failureReason = result.Ok ? null : $"取清单内容失败：{result.FailureReason()}";
             return result.Ok;
+        }
+
+        /// <summary>按 <c>cat-file --batch</c> 的「头行 + 声明字节数正文」切分整段输出。</summary>
+        /// <remarks>取不到的对象回一行「<c>&lt;oid&gt; missing</c>」并继续下一条：跳过它，其余条目照收，
+        /// 缺的那份交给调用方的逐份重读兜底（<see cref="TryReadBlobs"/> 的 remarks）。<br />
+        /// internal：解析器用例直调（private→internal 走 InternalsVisibleTo 测试接缝，见 CONTRIBUTING.md）。</remarks>
+        internal static bool TryParseBatchOutput(string output, Dictionary<string, string> textByObjectId,
+            out string failureReason)
+        {
+            byte[] bytes = new UTF8Encoding(false).GetBytes(output ?? string.Empty);
+            int position = 0;
+            while (position < bytes.Length)
+            {
+                int lineEnd = Array.IndexOf(bytes, (byte)'\n', position);
+                if (lineEnd < 0)
+                {
+                    failureReason = "批量取文的输出以半行结尾";
+                    return false;
+                }
+
+                string header = Encoding.ASCII.GetString(bytes, position, lineEnd - position);
+                position = lineEnd + 1;
+
+                string[] fields = header.Split(' ');
+
+                // 「<oid> missing」没有正文段，也不占后续字节位；形状不对的伪 missing 行仍按坏头拒绝
+                if (fields.Length == 2 && string.Equals(fields[1], "missing", StringComparison.Ordinal))
+                {
+                    if (IsSafeObjectId(fields[0])) continue;
+
+                    failureReason = $"批量取文的缺失行不合形状：'{header}'";
+                    return false;
+                }
+
+                if (fields.Length != 3 || !string.Equals(fields[1], "blob", StringComparison.Ordinal)
+                    || !int.TryParse(fields[2], out int size) || size < 0 || position + size > bytes.Length)
+                {
+                    failureReason = $"批量取文的输出头不合形状：'{header}'";
+                    return false;
+                }
+
+                if (!IsSafeObjectId(fields[0]))
+                {
+                    failureReason = $"批量取文的对象号不合形状：'{fields[0]}'";
+                    return false;
+                }
+
+                textByObjectId[fields[0]] = Encoding.UTF8.GetString(bytes, position, size);
+                position += size;
+
+                // 正文与下一条头行之间隔一个换行；最后一条可能没有。
+                if (position < bytes.Length && bytes[position] == (byte)'\n') position++;
+            }
+
+            failureReason = null;
+            return true;
+        }
+
+        /// <summary>对象号可否原样拼进 git：只收 40 或 64 位十六进制。</summary>
+        private static bool IsSafeObjectId(string objectId)
+        {
+            if (objectId == null || (objectId.Length != 40 && objectId.Length != 64)) return false;
+
+            for (int i = 0; i < objectId.Length; i++)
+            {
+                char c = objectId[i];
+                bool hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+                if (!hex) return false;
+            }
+
+            return true;
         }
 
         /// <summary>

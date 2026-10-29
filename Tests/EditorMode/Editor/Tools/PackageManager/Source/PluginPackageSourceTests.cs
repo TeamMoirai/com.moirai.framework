@@ -75,15 +75,160 @@ namespace Editor.Tools.PackageManager
         }
 
         [Test]
-        public void ListPaths_ListsEveryTreePathWithoutMaterializingThem()
+        public void ListBlobs_ListsEveryTreePathWithoutMaterializingThem()
         {
             PluginPackageSource source = CloneAndAttach();
 
-            Assert.IsTrue(source.TryListPaths(out System.Collections.Generic.List<string> paths, out string failureReason), failureReason);
+            Assert.IsTrue(source.TryListBlobs("HEAD", out List<PluginPackageSource.TreeBlob> blobs,
+                out string failureReason), failureReason);
+
+            List<string> paths = PathsOf(blobs);
             CollectionAssert.Contains(paths, "blackboard/blackboard.plugin.json");
             CollectionAssert.Contains(paths, "skill-tree/skill-tree.plugin.json");
             CollectionAssert.Contains(paths, "package.json");
             Assert.IsFalse(Directory.Exists(Path.Combine(_workspace, "skill-tree")), "列树靠 tree 就够，勾选外的目录不因此落盘");
+        }
+
+        [Test]
+        public void ListBlobs_ManifestPaths_CarryObjectIds()
+        {
+            PluginPackageSource source = CloneAndAttach();
+
+            Assert.IsTrue(source.TryListBlobs("HEAD", out List<PluginPackageSource.TreeBlob> blobs,
+                out string failureReason), failureReason);
+
+            string oid = ObjectIdOf(blobs, "blackboard/blackboard" + PluginManifest.MANIFEST_SUFFIX);
+            Assert.AreEqual(40, oid.Length, oid);
+
+            var expected = GitProcessUtility.Run(null, _workspace,
+                "rev-parse HEAD:blackboard/blackboard" + PluginManifest.MANIFEST_SUFFIX, 30000);
+            Assert.IsTrue(expected.Ok, expected.FailureReason());
+            Assert.AreEqual(expected.StandardOutput.Trim(), oid);
+        }
+
+        [Test]
+        public void ReadBlobs_MultipleManifests_ReturnsEachTextInOneCall()
+        {
+            PluginPackageSource source = CloneAndAttach();
+            Assert.IsTrue(source.TryListBlobs("HEAD", out List<PluginPackageSource.TreeBlob> blobs,
+                out string listReason), listReason);
+
+            var objectIds = new List<string>();
+            for (int i = 0; i < PluginIds.Length; i++)
+            {
+                objectIds.Add(ObjectIdOf(blobs, PluginIds[i] + "/" + PluginIds[i] + PluginManifest.MANIFEST_SUFFIX));
+            }
+
+            Assert.IsTrue(source.TryReadBlobs(objectIds, out Dictionary<string, string> texts,
+                out string readReason), readReason);
+            Assert.AreEqual(PluginIds.Length, texts.Count);
+
+            for (int i = 0; i < objectIds.Count; i++)
+            {
+                StringAssert.Contains(PluginIds[i], texts[objectIds[i]]);
+            }
+        }
+
+        [Test]
+        public void ReadBlobs_ChineseDescription_SplitsByDeclaredByteLength()
+        {
+            PluginPackageSource source = CloneAndAttach();
+
+            File.WriteAllText(Path.Combine(_sourceRepo, "blackboard", "blackboard" + PluginManifest.MANIFEST_SUFFIX),
+                "{\"id\":\"blackboard\",\"name\":\"看板\",\"version\":\"0.1.0\"}");
+            RunInSource("add -A");
+            RunInSource("commit -qm chinese");
+
+            Assert.IsTrue(source.Fetch(out string fetchReason), fetchReason);
+            Assert.IsTrue(source.EnsureBranchAttached(out string attachReason), attachReason);
+
+            Assert.IsTrue(source.TryListBlobs("HEAD", out List<PluginPackageSource.TreeBlob> blobs,
+                out string listReason), listReason);
+
+            // 后面还有别的清单：按字符数切分会把下一条正文挪位，恰好这条藏的是双字节字符
+            var objectIds = new List<string>();
+            for (int i = 0; i < blobs.Count; i++)
+            {
+                if (blobs[i].Path.EndsWith(PluginManifest.MANIFEST_SUFFIX, StringComparison.Ordinal)) objectIds.Add(blobs[i].ObjectId);
+            }
+
+            Assert.IsTrue(source.TryReadBlobs(objectIds, out Dictionary<string, string> texts,
+                out string readReason), readReason);
+
+            StringAssert.Contains("看板", texts[ObjectIdOf(blobs, "blackboard/blackboard" + PluginManifest.MANIFEST_SUFFIX)]);
+        }
+
+        [Test]
+        public void EnsureBlobsPresent_FullFixture_ReportsSuccess()
+        {
+            PluginPackageSource source = CloneAndAttach();
+            Assert.IsTrue(source.TryListBlobs("HEAD", out List<PluginPackageSource.TreeBlob> blobs,
+                out string listReason), listReason);
+
+            var objectIds = new List<string>();
+            for (int i = 0; i < blobs.Count; i++) objectIds.Add(blobs[i].ObjectId);
+
+            Assert.IsTrue(source.TryEnsureBlobsPresent("HEAD", objectIds, out string failureReason), failureReason);
+        }
+
+        [Test]
+        public void EnsureBlobsPresent_InvalidObjectId_RejectsBeforeReachingGit()
+        {
+            PluginPackageSource source = CloneAndAttach();
+
+            Assert.IsFalse(source.TryEnsureBlobsPresent("HEAD", new[] { "not-an-object-id" }, out string failureReason));
+            StringAssert.Contains("对象号", failureReason);
+        }
+
+        [Test]
+        public void ReadBlobs_EmptyList_SucceedsWithoutTouchingGit()
+        {
+            PluginPackageSource source = CloneAndAttach();
+
+            Assert.IsTrue(source.TryReadBlobs(new string[0], out Dictionary<string, string> texts,
+                out string failureReason), failureReason);
+            Assert.IsEmpty(texts);
+        }
+
+        [Test]
+        public void ReadBlobs_UnsafeObjectId_RejectsBeforeReachingGit()
+        {
+            PluginPackageSource source = CloneAndAttach();
+
+            Assert.IsFalse(source.TryReadBlobs(new[] { "000000000000000000000000000000000000000g" },
+                out Dictionary<string, string> texts, out string failureReason));
+            Assert.IsNull(texts);
+            StringAssert.Contains("对象号", failureReason);
+        }
+
+        [Test]
+        public void ParseBatchOutput_MissingEntry_KeepsRemainingEntries()
+        {
+            // cat-file --batch 对取不到的对象回一行「<oid> missing」并继续下一条：
+            // 整批不能因为一个缺对象就全废，缺的那份交给调用方的逐份重读兜底
+            string present = new string('a', 40);
+            string absent = new string('b', 40);
+            string later = new string('c', 40);
+            string output = present + " blob 5\nhello\n"
+                            + absent + " missing\n"
+                            + later + " blob 3\nabc\n";
+
+            var texts = new Dictionary<string, string>(StringComparer.Ordinal);
+            Assert.IsTrue(PluginPackageSource.TryParseBatchOutput(output, texts, out string failureReason), failureReason);
+
+            Assert.AreEqual("hello", texts[present]);
+            Assert.AreEqual("abc", texts[later]);
+            Assert.IsFalse(texts.ContainsKey(absent), "缺的对象不该在结果里占位");
+        }
+
+        [Test]
+        public void ParseBatchOutput_AllEntriesMissing_SucceedsWithEmptyMap()
+        {
+            string output = new string('b', 40) + " missing\n" + new string('c', 40) + " missing\n";
+
+            var texts = new Dictionary<string, string>(StringComparer.Ordinal);
+            Assert.IsTrue(PluginPackageSource.TryParseBatchOutput(output, texts, out string failureReason), failureReason);
+            Assert.IsEmpty(texts);
         }
 
         [Test]
@@ -356,6 +501,24 @@ namespace Editor.Tools.PackageManager
             Assert.IsTrue(source.EnsureClone(out string cloneReason), cloneReason);
             Assert.IsTrue(source.EnsureBranchAttached(out string attachReason), attachReason);
             return source;
+        }
+
+        private static List<string> PathsOf(List<PluginPackageSource.TreeBlob> blobs)
+        {
+            var paths = new List<string>(blobs.Count);
+            for (int i = 0; i < blobs.Count; i++) paths.Add(blobs[i].Path);
+            return paths;
+        }
+
+        private static string ObjectIdOf(List<PluginPackageSource.TreeBlob> blobs, string path)
+        {
+            for (int i = 0; i < blobs.Count; i++)
+            {
+                if (string.Equals(blobs[i].Path, path, StringComparison.Ordinal)) return blobs[i].ObjectId;
+            }
+
+            Assert.Fail("夹具里缺 " + path);
+            return null;
         }
 
         private string RepoUrl()

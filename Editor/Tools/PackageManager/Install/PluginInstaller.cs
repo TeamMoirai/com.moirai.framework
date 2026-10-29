@@ -123,6 +123,8 @@ namespace Moirai.Atropos.Editor
             headCommit = null;
             _lastFetchReachedRemote = false;
 
+            // 刚建出来的检出已经站在分支头上，再 fetch 一遍就是白跑一趟网络
+            bool clonedNow = !_source.IsGitWorkspace;
             if (!_source.EnsureClone(out string reason))
             {
                 report.Fail(reason);
@@ -132,7 +134,12 @@ namespace Moirai.Atropos.Editor
             report.Note("落点工作树就绪");
 
             // 离线不算失败：本地已有的分支头与缓存 blob 足够列出与装（blob 真取不到时由清单读取那步判非并说明）
-            if (!_source.Fetch(out reason))
+            if (clonedNow)
+            {
+                _lastFetchReachedRemote = true;
+                report.Note("新建检出，已含分支头");
+            }
+            else if (!_source.Fetch(out reason))
             {
                 report.Note($"离线：fetch 没走通（{reason}），本轮按本地已有的分支头继续");
             }
@@ -142,26 +149,58 @@ namespace Moirai.Atropos.Editor
                 report.Note($"已取 {(_settings.branch ?? string.Empty)} 分支头");
             }
 
+            // 先列树、把根文件与清单一次补齐，再摆正分支：checkout 只物化根文件，正文已在本地就不会逐份联网
+            string remoteReference = "refs/remotes/origin/" + _source.Branch;
+            if (!_source.TryListBlobs(remoteReference, out List<PluginPackageSource.TreeBlob> blobs, out reason))
+            {
+                report.Fail(reason);
+                return false;
+            }
+
+            var treePaths = new List<string>(blobs.Count);
+            var oidByPath = new Dictionary<string, string>(StringComparer.Ordinal);
+            for (int i = 0; i < blobs.Count; i++)
+            {
+                treePaths.Add(blobs[i].Path);
+                oidByPath[blobs[i].Path] = blobs[i].ObjectId;
+            }
+
+            List<string> manifestPaths = PluginCatalog.SelectManifestPaths(treePaths);
+            List<string> neededObjectIds = CollectBrowseObjectIds(blobs, manifestPaths, oidByPath);
+            if (!_source.TryEnsureBlobsPresent(remoteReference, neededObjectIds, out string prefetchReason))
+            {
+                // 预取只决定快慢：读文那步仍会按需取，真取不到由清单读取报出来
+                report.Note($"清单预取没走通，逐份重读：{prefetchReason}");
+            }
+
             if (!_source.EnsureBranchAttached(out reason))
             {
                 report.Fail(reason);
                 return false;
             }
 
-            if (!_source.TryListPaths(out List<string> treePaths, out reason))
+            var textsByPath = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (!_source.TryReadBlobs(neededObjectIds, out Dictionary<string, string> textsByObjectId, out string readReason))
             {
-                report.Fail(reason);
-                return false;
+                report.Note($"批量取文没走通，逐份重读：{readReason}");
+            }
+            else
+            {
+                for (int i = 0; i < blobs.Count; i++)
+                {
+                    if (textsByObjectId.TryGetValue(blobs[i].ObjectId, out string text)) textsByPath[blobs[i].Path] = text;
+                }
             }
 
             catalog = PluginCatalog.Build(treePaths, path =>
             {
-                return _source.TryReadBlob(path, out string text, out _) ? text : null;
+                if (textsByPath.TryGetValue(path, out string text)) return text;
+                return _source.TryReadBlob(path, out string fallback, out _) ? fallback : null;
             });
 
             for (int i = 0; i < catalog.Errors.Count; i++) report.Note(catalog.Errors[i]);
 
-            if (!ValidateRootPackageJson(catalog, report, out reason))
+            if (!ValidateRootPackageJson(catalog, textsByPath, report, out reason))
             {
                 report.Fail(reason);
                 return false;
@@ -174,6 +213,30 @@ namespace Moirai.Atropos.Editor
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// 浏览一轮要预取的对象：根文件（cone 检出总会物化）与各份清单。
+        /// </summary>
+        private static List<string> CollectBrowseObjectIds(List<PluginPackageSource.TreeBlob> blobs,
+            List<string> manifestPaths, Dictionary<string, string> oidByPath)
+        {
+            var needed = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+
+            for (int i = 0; i < blobs.Count; i++)
+            {
+                if (blobs[i].Path.IndexOf('/') >= 0) continue;
+                if (seen.Add(blobs[i].ObjectId)) needed.Add(blobs[i].ObjectId);
+            }
+
+            for (int i = 0; i < manifestPaths.Count; i++)
+            {
+                if (!oidByPath.TryGetValue(manifestPaths[i], out string oid)) continue;
+                if (seen.Add(oid)) needed.Add(oid);
+            }
+
+            return needed;
         }
 
         /// <summary>
@@ -553,9 +616,14 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 只读校验分支根的 package.json：名字与落点目录名相符，工具永不写它。
         /// </summary>
-        private bool ValidateRootPackageJson(PluginCatalogResult catalog, PluginInstallReport report, out string failureReason)
+        private bool ValidateRootPackageJson(PluginCatalogResult catalog, Dictionary<string, string> textsByPath,
+            PluginInstallReport report, out string failureReason)
         {
-            if (!_source.TryReadBlob(ROOT_PACKAGE_JSON_NAME, out string json, out failureReason)) return false;
+            if (!textsByPath.TryGetValue(ROOT_PACKAGE_JSON_NAME, out string json)
+                && !_source.TryReadBlob(ROOT_PACKAGE_JSON_NAME, out json, out failureReason))
+            {
+                return false;
+            }
 
             var root = JsonUtility.ToObject<RootPackageJsonData>(json);
             string expected = new DirectoryInfo(_packageRootPath).Name;
