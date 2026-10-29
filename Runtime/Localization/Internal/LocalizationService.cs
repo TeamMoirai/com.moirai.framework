@@ -2,20 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Settings;
 
 namespace Moirai.Atropos.L10n.Internal
 {
     internal sealed class LocalizationService : ILocalizationService
     {
         private readonly ILocalizationStore _store;
+        private readonly IKeyValueStore _settings;
         private int _switchVersion;
 
-        internal LocalizationService(ILocalizationStore store, string initialLanguage)
+        internal LocalizationService(ILocalizationStore store, IKeyValueStore settings,
+            string initialLanguage)
         {
             _store = store ?? throw new ArgumentNullException(nameof(store));
-            if (!IsSupported(initialLanguage))
-                throw new ArgumentException("Unsupported initial language: " + initialLanguage, nameof(initialLanguage));
-            CurrentLanguage = initialLanguage;
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            string stored = _settings.GetString(LocalizationSettingKeys.Language, initialLanguage);
+            if (IsSupported(stored)) CurrentLanguage = stored;
+            else if (IsSupported(initialLanguage)) CurrentLanguage = initialLanguage;
+            else
+                throw new ArgumentException("Unsupported initial language: " + initialLanguage,
+                    nameof(initialLanguage));
         }
 
         public event Action<string> LanguageChanged;
@@ -34,8 +41,9 @@ namespace Moirai.Atropos.L10n.Internal
             if (version != _switchVersion) return;
             string previous = CurrentLanguage;
             CurrentLanguage = languageCode;
-            if (!string.Equals(previous, languageCode, StringComparison.Ordinal))
-                LanguageChanged?.Invoke(languageCode);
+            if (string.Equals(previous, languageCode, StringComparison.Ordinal)) return;
+            _settings.SetString(LocalizationSettingKeys.Language, languageCode);
+            LanguageChanged?.Invoke(languageCode);
         }
 
         public string GetText(string key)
