@@ -13,9 +13,9 @@ namespace Moirai.Atropos.SourceGenerators
     /// 存档二进制后端模式快照分析器：校验二进制线格式的成员键序号，防止跨版本重排破坏旧档读取。
     /// </summary>
     /// <remarks>
-    /// MIRAI400： <c>[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]</c> 类型的成员键序号（<c>[Key]</c>/<c>[MemoryPackOrder]</c>/ <br />
+    /// MOIRAI400： <c>[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]</c> 类型的成员键序号（<c>[Key]</c>/<c>[MemoryPackOrder]</c>/ <br />
     /// <c>[ProtoMember]</c>）与快照不符告警。
-    /// MIRAI401：快照成员被删除且类型未重写 <c>OnMigrate</c> 迁移钩子告警（旧档字段将静默丢失）。 <br />
+    /// MOIRAI401：快照成员被删除且类型未重写 <c>OnMigrate</c> 迁移钩子告警（旧档字段将静默丢失）。 <br />
     /// 快照来自附加文件 <c>.SaveSchemaSnapshot</c>（行格式：<c>类型全限定名|成员名:序号;成员名:序号…</c>，序号 -1 = 字符串键）。 <br />
     /// 快照文件不存在时分析器完全静默；启用需自行加入版本控制， <br />
     /// Unity 编辑器无 AdditionalFiles 界面时经 <c>csc.rsp</c> 的 <c>/additionalfile: </c> 或 CI 的 <c>dotnet build</c> 接线。
@@ -23,9 +23,9 @@ namespace Moirai.Atropos.SourceGenerators
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class SaveSchemaAnalyzer : DiagnosticAnalyzer
     {
-        /// <summary>MIRAI400：二进制后端成员键序号与快照不符。</summary>
+        /// <summary>MOIRAI400：二进制后端成员键序号与快照不符。</summary>
         public static readonly DiagnosticDescriptor KeyOrderMismatchRule = new DiagnosticDescriptor(
-            id: "MIRAI400",
+            id: "MOIRAI400",
             title: "二进制存档类型键序号与快照不符",
             messageFormat: "[SaveData] 类型 '{0}' 的成员 '{1}' 键序号 {2} 与快照记录 {3} 不符——二进制后端键序跨版本不得重排（会破坏旧档读取）",
             category: "SaveSchema",
@@ -33,9 +33,9 @@ namespace Moirai.Atropos.SourceGenerators
             isEnabledByDefault: true,
             description: "Integer-keyed binary serializers (MessagePack/MemoryPack/Protobuf) address fields by ordinal; reordering keys between versions breaks reading old saves.");
 
-        /// <summary>MIRAI401：二进制后端快照成员被删除且未提供迁移钩子。</summary>
+        /// <summary>MOIRAI401：二进制后端快照成员被删除且未提供迁移钩子。</summary>
         public static readonly DiagnosticDescriptor MemberDeletedRule = new DiagnosticDescriptor(
-            id: "MIRAI401",
+            id: "MOIRAI401",
             title: "二进制存档类型成员被删除且未提供迁移钩子",
             messageFormat: "[SaveData] 类型 '{0}' 删除了快照成员 '{1}' 且未重写 OnMigrate——旧档该字段数据将静默丢失",
             category: "SaveSchema",

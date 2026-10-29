@@ -13,14 +13,14 @@ namespace Moirai.Atropos.SourceGenerators
     public sealed class ServiceRegistryGenerator : IIncrementalGenerator
     {
         private static readonly DiagnosticDescriptor Invalid = new DiagnosticDescriptor(
-            "MIRAI700", "Invalid service",
+            "MOIRAI700", "Invalid service",
             "Service '{0}' must be accessible, concrete, closed, assignable to its contract, and have one public constructor",
             "Composition", DiagnosticSeverity.Error, true);
         private static readonly DiagnosticDescriptor Dependency = new DiagnosticDescriptor(
-            "MIRAI701", "Invalid dependency", "Service '{0}' has an unsupported dependency '{1}'",
+            "MOIRAI701", "Invalid dependency", "Service '{0}' has an unsupported dependency '{1}'",
             "Composition", DiagnosticSeverity.Error, true);
         private static readonly DiagnosticDescriptor Duplicate = new DiagnosticDescriptor(
-            "MIRAI702", "Duplicate service contract",
+            "MOIRAI702", "Duplicate service contract",
             "Contract '{0}' is registered by more than one service in this assembly",
             "Composition", DiagnosticSeverity.Error, true);
 

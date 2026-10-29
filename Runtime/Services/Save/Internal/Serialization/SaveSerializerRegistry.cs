@@ -91,7 +91,7 @@ namespace Moirai.Atropos.Save
         /// 标识由调用方给出（生成器静态取自实现的 <see cref="ISaveSerializer.BackendId"/>），实例化用可访问的（含非公共）无参构造。 <br />
         /// **占号冲突与重号不抛**：本方法跑在模块初始化期（<c>&lt;Module&gt;.cctor</c>），在那里抛出会连累整个编辑器——实测 Unity 的源生成扫描会因 <c>TypeInitializationException</c> 原生崩溃。 <br />
         /// 因此撞号只记一次 Fatal 并保留先到那份；先到者取决于各程序集初始化顺序，跨程序集撞号要靠编译期判据与评审消除。 <br />
-        /// 形状不合法（null / 非具体 ISaveSerializer 实现）仍抛：那是手写调用的编程错误，生成器侧由 MIRAI309 在编译期挡。
+        /// 形状不合法（null / 非具体 ISaveSerializer 实现）仍抛：那是手写调用的编程错误，生成器侧由 MOIRAI309 在编译期挡。
         /// </remarks>
         /// <param name="backendId">后端标识（容器逐块落盘的 2 字节 ID）。</param>
         /// <param name="serializerType">序列化器实现类型。</param>

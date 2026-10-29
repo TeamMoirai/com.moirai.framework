@@ -12,7 +12,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// 迁移器自注册生成器：扫描 <c>ISaveMigrator</c> 具体实现，把 <c>SaveMigrationManager.Register(new X())</c> 写进 <c>SaveMigratorModuleInit</c>。
     /// </summary>
     /// <remarks>
-    /// 迁移器无特性锚点，按「带基类列表的 class」粗筛后语义检查接口；抽象基类合法存在但不注册（静默跳过），无法实例化注册的实现报 MIRAI302。
+    /// 迁移器无特性锚点，按「带基类列表的 class」粗筛后语义检查接口；抽象基类合法存在但不注册（静默跳过），无法实例化注册的实现报 MOIRAI302。
     /// </remarks>
     [Generator(LanguageNames.CSharp)]
     public sealed class SaveMigratorRegistrationGenerator : IIncrementalGenerator

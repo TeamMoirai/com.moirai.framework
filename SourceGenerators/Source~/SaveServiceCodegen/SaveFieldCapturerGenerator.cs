@@ -19,8 +19,8 @@ namespace Moirai.Atropos.SourceGenerators
     /// 支持字段：基元/枚举/string/DateTime/TimeSpan、Unity 数学类型、集合（数组/List/Queue/Stack/HashSet/Dictionary，元素递归支持标量与嵌套数据类，引用元素不支持）、<br />
     /// 嵌套 <c>[SaveData]</c> 数据类、UnityEngine.Object 引用（场景对象存引用 ID，其余存资产定位串）。<br />
     /// 捕获器额外发射 <see cref="SaveFieldModel.SchemaVersion"/>（<c>[SaveComponentSchema]</c> 声明，缺省 1）；非 MonoBehaviour 类型上的 <c>[SaveField]</c> 不生成捕获器。<br />
-    /// 诊断 MIRAI300/301/303/304/305/306/307/308：字段类型不支持 / 存档键重复 / 包含类型须为 partial class / 须为实例字段 /<br />
-    /// 场景引用需 SaveObjectIdentity / 引用类型不明 / 嵌套数据类型无效 / 集合元素或映射键值类型不支持（MIRAI302 属迁移器，309~312 属后端）。
+    /// 诊断 MOIRAI300/301/303/304/305/306/307/308：字段类型不支持 / 存档键重复 / 包含类型须为 partial class / 须为实例字段 /<br />
+    /// 场景引用需 SaveObjectIdentity / 引用类型不明 / 嵌套数据类型无效 / 集合元素或映射键值类型不支持（MOIRAI302 属迁移器，309~312 属后端）。
     /// </remarks>
     [Generator(LanguageNames.CSharp)]
     public sealed partial class SaveFieldCapturerGenerator : IIncrementalGenerator
@@ -125,7 +125,7 @@ namespace Moirai.Atropos.SourceGenerators
 
                     if (field.Kind == FieldKind.Unsupported)
                     {
-                        // 分类期未给出更精确诊断（MIRAI306/307/308）时回退 MIRAI300
+                        // 分类期未给出更精确诊断（MOIRAI306/307/308）时回退 MOIRAI300
                         if (field.Value.Diagnostics == null || field.Value.Diagnostics.Count == 0)
                         {
                             diagnostics.Add(Diagnostic.Create(Diagnostics.UnsupportedFieldType, field.Location, head.ContainingTypeName, field.FieldName, field.TypeDisplay));

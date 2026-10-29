@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Settings.Internal
 {
     internal static class SettingsFileFormat
     {
-        internal const string Header = "MIRAI-SETTINGS";
+        internal const string Header = "MOIRAI-SETTINGS";
         private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
 
         internal static byte[] Serialize(IReadOnlyDictionary<string, string> snapshot, int format)

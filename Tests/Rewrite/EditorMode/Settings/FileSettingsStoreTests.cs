@@ -732,7 +732,7 @@ namespace Settings
 
         private static byte[] Bytes(string value, int format = 2)
         {
-            return Encoding.UTF8.GetBytes("MIRAI-SETTINGS " + format + " 1\n" +
+            return Encoding.UTF8.GetBytes("MOIRAI-SETTINGS " + format + " 1\n" +
                 Convert.ToBase64String(Encoding.UTF8.GetBytes("player.name")) + " " +
                 Convert.ToBase64String(Encoding.UTF8.GetBytes("s:" + value)) + "\n");
         }
@@ -782,7 +782,7 @@ namespace Settings
         public IEnumerator NewerFormat_IsRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Encoding.UTF8.GetBytes("MIRAI-SETTINGS 99 0\n");
+            files._files[Options.FilePath] = Encoding.UTF8.GetBytes("MOIRAI-SETTINGS 99 0\n");
 
             Exception observed = null;
             try { await FileSettingsStore.LoadAsync(files, Options); }
@@ -827,7 +827,7 @@ namespace Settings
         public IEnumerator OlderFormat_IsRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 1 1", Entry("player.name", "s:Ada"));
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 1 1", Entry("player.name", "s:Ada"));
 
             Exception observed = await CaptureLoad(files, Options);
             Assert.That(observed, Is.InstanceOf<InvalidOperationException>());
@@ -838,7 +838,7 @@ namespace Settings
         public IEnumerator OlderFormat_LoadsWhenOptionsMatchFileVersion() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files["settings.v1"] = Raw("MIRAI-SETTINGS 1 1", Entry("player.name", "s:Ada"));
+            files._files["settings.v1"] = Raw("MOIRAI-SETTINGS 1 1", Entry("player.name", "s:Ada"));
             var options = new SettingsOptions { FilePath = "settings.v1", FormatVersion = 1 };
 
             IKeyValueStore store = await FileSettingsStore.LoadAsync(files, options);
@@ -850,7 +850,7 @@ namespace Settings
         public IEnumerator UnknownValuePrefix_IsRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1", Entry("player.name", "x:Ada"));
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 2 1", Entry("player.name", "x:Ada"));
 
             Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
         });
@@ -859,7 +859,7 @@ namespace Settings
         public IEnumerator MistypedIntValue_IsRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1", Entry("game.quality", "i:oops"));
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 2 1", Entry("game.quality", "i:oops"));
 
             Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
         });
@@ -868,7 +868,7 @@ namespace Settings
         public IEnumerator DuplicateKey_IsRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 2",
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 2 2",
                 Entry("player.name", "s:Ada"), Entry("player.name", "s:Grace"));
 
             Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
@@ -878,7 +878,7 @@ namespace Settings
         public IEnumerator ExtraEntries_AreRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1",
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 2 1",
                 Entry("player.name", "s:Ada"), Entry("player.extra", "s:again"));
 
             Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
@@ -888,7 +888,7 @@ namespace Settings
         public IEnumerator EmptyKey_IsRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1", Entry(string.Empty, "s:Ada"));
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 2 1", Entry(string.Empty, "s:Ada"));
 
             Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
         });
@@ -897,7 +897,7 @@ namespace Settings
         public IEnumerator EmptySnapshot_LoadsEmptyStore() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 0");
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 2 0");
 
             IKeyValueStore store = await FileSettingsStore.LoadAsync(files, Options);
 
@@ -909,7 +909,7 @@ namespace Settings
         public IEnumerator TruncatedEntries_AreRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 2", Entry("player.name", "s:Ada"));
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 2 2", Entry("player.name", "s:Ada"));
 
             Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());
         });
@@ -919,7 +919,7 @@ namespace Settings
         {
             var files = new FileSystem();
             files._files[Options.FilePath] = Encoding.UTF8.GetBytes(
-                "MIRAI-SETTINGS 2 1\n" + Entry("player.name", "s:Ada"));
+                "MOIRAI-SETTINGS 2 1\n" + Entry("player.name", "s:Ada"));
 
             IKeyValueStore store = await FileSettingsStore.LoadAsync(files, Options);
 
@@ -930,7 +930,7 @@ namespace Settings
         public IEnumerator InvalidUtf8Key_IsRejected() => UniTask.ToCoroutine(async () =>
         {
             var files = new FileSystem();
-            files._files[Options.FilePath] = Raw("MIRAI-SETTINGS 2 1",
+            files._files[Options.FilePath] = Raw("MOIRAI-SETTINGS 2 1",
                 "/w== " + Convert.ToBase64String(Encoding.UTF8.GetBytes("s:x")));
 
             Assert.That(await CaptureLoad(files, Options), Is.InstanceOf<InvalidDataException>());

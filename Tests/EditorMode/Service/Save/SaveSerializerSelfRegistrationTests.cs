@@ -9,7 +9,7 @@ namespace Service.Save
     /// </summary>
     /// <remarks>
     /// 本文件不含任何 <c>SaveSerializerRegistry.Register</c> 调用——判据完全由生成器产物决定，摘掉标注即判红。 <br />
-    /// 实现须是程序集内可访问的类型（注册代码发在独立的初始化器类里，私有嵌套类型访问不到，形状不符落 MIRAI309）。 <br />
+    /// 实现须是程序集内可访问的类型（注册代码发在独立的初始化器类里，私有嵌套类型访问不到，形状不符落 MOIRAI309）。 <br />
     /// 不带 <c>[Serializable]</c>：避免被 ProviderDropdown 的类型扫描收进生产资产的候选。
     /// </remarks>
     public class SaveSerializerSelfRegistrationTests

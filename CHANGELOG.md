@@ -8,6 +8,9 @@
 
 ### Changed
 
+#### 工具链
+
+- ⚠ 分析器诊断编号统一为 MOIRAI 前缀（原 MIRAI1xx–7xx 全部改名），`#pragma warning disable` 与快照注释需同步替换
 #### 编辑器
 
 - 包管理器扫分支改为一次探缺、一次取包、一条进程读齐清单：浏览只取分支根的 `package.json` 与各插件的 `<id>.plugin.json`，刚建好的检出不再重复 fetch

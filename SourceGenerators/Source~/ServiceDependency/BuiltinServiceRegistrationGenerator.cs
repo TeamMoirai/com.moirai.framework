@@ -18,9 +18,9 @@ namespace Moirai.Atropos.SourceGenerators
     [Generator]
     public class BuiltinServiceRegistrationGenerator : IIncrementalGenerator
     {
-        /// <summary>MIRAI203: AutoRegisterService 目标类型未实现 IService。</summary>
+        /// <summary>MOIRAI203: AutoRegisterService 目标类型未实现 IService。</summary>
         private static readonly DiagnosticDescriptor s_MustImplementIServiceRule = new DiagnosticDescriptor(
-            id: "MIRAI203",
+            id: "MOIRAI203",
             title: "AutoRegisterService 目标类型未实现 IService",
             messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 未实现 'Moirai.Atropos.IService'，无法作为服务注册",
             category: "Usage",
@@ -29,9 +29,9 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Types marked with [AutoRegisterService] must implement IService.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>MIRAI204: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。</summary>
+        /// <summary>MOIRAI204: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。</summary>
         private static readonly DiagnosticDescriptor s_InvalidTargetShapeRule = new DiagnosticDescriptor(
-            id: "MIRAI204",
+            id: "MOIRAI204",
             title: "AutoRegisterService 目标类型形状非法",
             messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 必须是非抽象、非泛型且具有可访问无参构造函数的类（{1}）",
             category: "Usage",
@@ -40,9 +40,9 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Auto-registration instantiates the service via a parameterless constructor; abstract, static, generic or ctor-less types are rejected.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>MIRAI205: AutoRegisterService 作用域值非法。</summary>
+        /// <summary>MOIRAI205: AutoRegisterService 作用域值非法。</summary>
         private static readonly DiagnosticDescriptor s_InvalidScopeRule = new DiagnosticDescriptor(
-            id: "MIRAI205",
+            id: "MOIRAI205",
             title: "AutoRegisterService 作用域值非法",
             messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 声明的作用域值 {1} 超出 EServiceScopeKind 合法范围 [App, Scene, Gameplay]",
             category: "Usage",

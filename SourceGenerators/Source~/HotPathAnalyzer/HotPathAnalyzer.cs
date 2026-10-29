@@ -10,8 +10,8 @@ namespace Moirai.Atropos.SourceGenerators
     /// 诊断分析器：检查 <c>[HotPath]</c> 标注成员的热路径铁律（装箱与匿名函数）。
     /// </summary>
     /// <remarks>
-    /// MIRAI600（Warning）：热路径内值类型装箱进 object/接口/System.ValueType/System.Enum 目标——每次装箱都是一次 GC 堆分配，打破 0-Alloc 契约。 <br />
-    /// MIRAI601（Warning）：热路径方法体出现匿名函数——委托实例与闭包展示类按次分配，且绕过方法组缓存；改用热路径外缓存的静态委托。 <br />
+    /// MOIRAI600（Warning）：热路径内值类型装箱进 object/接口/System.ValueType/System.Enum 目标——每次装箱都是一次 GC 堆分配，打破 0-Alloc 契约。 <br />
+    /// MOIRAI601（Warning）：热路径方法体出现匿名函数——委托实例与闭包展示类按次分配，且绕过方法组缓存；改用热路径外缓存的静态委托。 <br />
     /// 类型级标注覆盖该类型声明的全部方法体（构造函数与属性访问器在内）；匿名函数自身的块由外层遍历覆盖，已跳过避免重复报告。
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -21,7 +21,7 @@ namespace Moirai.Atropos.SourceGenerators
         private const string HotPathAttributeFullyQualifiedName = "Moirai.Atropos.HotPathAttribute";
 
         public static readonly DiagnosticDescriptor BoxingRule = new DiagnosticDescriptor(
-            id: "MIRAI600",
+            id: "MOIRAI600",
             title: "热路径内禁止值类型装箱",
             messageFormat: "热路径 '{0}' 中值类型 '{1}' 装箱到 '{2}'：改用泛型/值类型专用重载直传，无法避免时把装箱实例缓存到热路径外",
             category: "Performance",
@@ -31,7 +31,7 @@ namespace Moirai.Atropos.SourceGenerators
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         public static readonly DiagnosticDescriptor AnonymousFunctionRule = new DiagnosticDescriptor(
-            id: "MIRAI601",
+            id: "MOIRAI601",
             title: "热路径内禁止匿名函数",
             messageFormat: "热路径 '{0}' 内出现匿名函数：委托实例与闭包按次分配，改用热路径外缓存的方法组或静态委托",
             category: "Performance",

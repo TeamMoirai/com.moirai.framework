@@ -108,7 +108,7 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 }
 ```
 
-- 注册：实现类由 SaveServiceCodegen 生成器 扫描经模块初始化器自注册（AOT 安全；要求具体非抽象类、非私有嵌套、可访问无参构造，否则报 MIRAI302）；也可 `SaveService.RegisterMigrator(...)` 手动注册。非法版本边（`To <= From`）注册期抛 `ArgumentException`——仅允许升级方向，天然防环
+- 注册：实现类由 SaveServiceCodegen 生成器 扫描经模块初始化器自注册（AOT 安全；要求具体非抽象类、非私有嵌套、可访问无参构造，否则报 MOIRAI302）；也可 `SaveService.RegisterMigrator(...)` 手动注册。非法版本边（`To <= From`）注册期抛 `ArgumentException`——仅允许升级方向，天然防环
 - 执行约束：迁移在加载/写入管线内**同步执行**（串行门持有期，可能在主线程）——`Migrate` 必须同步完成，禁止切线程或返回未完成任务（fail-fast `MigrationFailed`）；禁止触达 Unity 主线程 API
 - 目标块/字段不存在时操作为无操作（返回 `false`，兼容从未写过该块的旧档）；反序列化失败等真异常中止整条链
 - 字段级操作（`RenameField`/`RetypeField`）支持 JSON（需 Newtonsoft.Json）与 KeyValue 块；**二进制后端不支持字段级操作**（记告警并跳过——用 `TransformBlock<T>` 保留旧类型整对象迁移，键序纪律见下方分析器）
@@ -128,9 +128,9 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 - 恢复时存档版本与捕获器当前版本不符：组件实现 `ISaveComponentMigrator` → 路由到 `OnMigrateComponent(fromVersion, ref reader, recordCount)`（须恰好消费 recordCount 条记录）；未实现 → 记告警并按键匹配容错恢复
 - 旧格式块（无 `$schemas`）按当前版本处理（KVT 键匹配天然向后兼容）
 
-### 二进制后端键序冻结（分析器 MIRAI400/401）
+### 二进制后端键序冻结（分析器 MOIRAI400/401）
 
-- `SaveServiceCodegen.dll` 内置 `SaveSchemaAnalyzer`：`[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` 类型的成员键序号（`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`）与快照比对——MIRAI400 键序重排告警、MIRAI401 成员删除且未重写 `OnMigrate` 告警（均 Warning）
+- `SaveServiceCodegen.dll` 内置 `SaveSchemaAnalyzer`：`[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` 类型的成员键序号（`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`）与快照比对——MOIRAI400 键序重排告警、MOIRAI401 成员删除且未重写 `OnMigrate` 告警（均 Warning）
 - 快照为附加文件 `.SaveSchemaSnapshot`（行格式 `类型全限定名|成员名:序号;…`，序号 -1 = MessagePack 字符串键模式），纳入版本控制随模式演进更新；快照缺失时分析器静默
 - **快照生成**：菜单 `Tools/Moirai/Save/Export Schema Snapshot` 一键扫描全部二进制后端 [SaveData] 类型并写出项目根目录 `.SaveSchemaSnapshot`（提取规则与分析器逐条对齐，成员按名排序保证 diff 稳定）；二进制线格式变更前重新导出即推进基线
 - Unity 编辑器无 AdditionalFiles 界面，经 `csc.rsp` 的 `/additionalfile:` 或 CI `dotnet build` 接线
@@ -157,14 +157,14 @@ public partial class Player : MonoBehaviour
 ### 支持的字段类型（SG v2）
 
 - **标量**：基元/枚举/string/DateTime/TimeSpan/Unity 数学类型（Vector2/3/4、Quaternion、Color、Rect、Bounds）。
-- **集合**：数组 `T[]`、`List<T>`、`Queue<T>`、`Stack<T>`、`HashSet<T>`、`Dictionary<K,V>`；元素递归支持标量与嵌套数据类（含集合套集合）；映射键仅限标量/枚举；**引用类型暂不支持作集合元素**（报 MIRAI308）。恢复为**替换语义**（读回新容器实例）；null 与空集合严格区分；`Stack<T>` 按栈顶→栈底写出、恢复逆序压栈还原 LIFO。
-- **嵌套数据类**：标注 `[SaveData]` 的非 MonoBehaviour class，捕获其**全部 public 实例字段**（键 = 字段名，对齐 JSON 惯例；Key/Version 参数在嵌套语境不使用）。循环引用/抽象类/无可访问无参构造/struct 报 MIRAI307；`SaveDataBlock` 子类不能作嵌套字段（走手动轨块 API）。
-- **场景对象引用**（GameObject/Component 派生字段）：捕获存目标 `SaveObjectIdentity` 的**稳定 ID**（编辑器期 OnValidate 烘焙 GUID，空则自动赋值），恢复经 `SaveEntityRegistry` 反查当前场景内同 ID 对象（Component 字段经 `GetComponent<T>` 解析）。目标未挂 SaveObjectIdentity 时捕获写 Null 并记告警；档内 ID 在当前场景不存在时恢复为 null 并记告警。复制物体（Ctrl+D）会连 ID 拷贝——重复 ID 运行期首到先得并记告警，清空 ID 字段可重新烘焙。每个场景引用字段生成 MIRAI305 Info 指引。
-- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → ResourceService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MIRAI306 且不参与捕获。程序化修改目录条目（编辑器工具/导入器直改 `m_Entries`）后必须调用 `SaveAssetCatalog.InvalidateLookup()`——查找表延迟构建，缓存不失效既看不到新条目也无法拦截重复登记。
+- **集合**：数组 `T[]`、`List<T>`、`Queue<T>`、`Stack<T>`、`HashSet<T>`、`Dictionary<K,V>`；元素递归支持标量与嵌套数据类（含集合套集合）；映射键仅限标量/枚举；**引用类型暂不支持作集合元素**（报 MOIRAI308）。恢复为**替换语义**（读回新容器实例）；null 与空集合严格区分；`Stack<T>` 按栈顶→栈底写出、恢复逆序压栈还原 LIFO。
+- **嵌套数据类**：标注 `[SaveData]` 的非 MonoBehaviour class，捕获其**全部 public 实例字段**（键 = 字段名，对齐 JSON 惯例；Key/Version 参数在嵌套语境不使用）。循环引用/抽象类/无可访问无参构造/struct 报 MOIRAI307；`SaveDataBlock` 子类不能作嵌套字段（走手动轨块 API）。
+- **场景对象引用**（GameObject/Component 派生字段）：捕获存目标 `SaveObjectIdentity` 的**稳定 ID**（编辑器期 OnValidate 烘焙 GUID，空则自动赋值），恢复经 `SaveEntityRegistry` 反查当前场景内同 ID 对象（Component 字段经 `GetComponent<T>` 解析）。目标未挂 SaveObjectIdentity 时捕获写 Null 并记告警；档内 ID 在当前场景不存在时恢复为 null 并记告警。复制物体（Ctrl+D）会连 ID 拷贝——重复 ID 运行期首到先得并记告警，清空 ID 字段可重新烘焙。每个场景引用字段生成 MOIRAI305 Info 指引。
+- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → ResourceService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MOIRAI306 且不参与捕获。程序化修改目录条目（编辑器工具/导入器直改 `m_Entries`）后必须调用 `SaveAssetCatalog.InvalidateLookup()`——查找表延迟构建，缓存不失效既看不到新条目也无法拦截重复登记。
 
 ### 生成器诊断
 
-MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器无法自注册；MIRAI303 所在类型及其嵌套外层链须均为 partial class；MIRAI304 需实例字段；MIRAI305 场景引用需 SaveObjectIdentity 指引（Info）；MIRAI306 引用类型声明为 UnityEngine.Object 基类（Warning，字段跳过）；MIRAI307 嵌套数据类型无效；MIRAI308 集合元素/映射键值类型不支持。修改生成器源码（`SourceGenerators/Source~/SaveServiceCodegen/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveServiceCodegen.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
+MOIRAI300 字段类型不支持；MOIRAI301 存档键重复；MOIRAI302 迁移器无法自注册；MOIRAI303 所在类型及其嵌套外层链须均为 partial class；MOIRAI304 需实例字段；MOIRAI305 场景引用需 SaveObjectIdentity 指引（Info）；MOIRAI306 引用类型声明为 UnityEngine.Object 基类（Warning，字段跳过）；MOIRAI307 嵌套数据类型无效；MOIRAI308 集合元素/映射键值类型不支持。修改生成器源码（`SourceGenerators/Source~/SaveServiceCodegen/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveServiceCodegen.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
 
 ### 内置捕获器（引擎组件）
 
@@ -347,7 +347,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 项目自定义后端有两条接法：
 
-- **声明式（内置与项目同形的唯一入口）**：实现类标 `[RegisterSerializer]`，SaveServiceCodegen 生成器把 `SaveSerializerRegistry.Register(<编号>, typeof(Xxx))` 写进各自程序集的模块初始化器，引导代码为零。特性**不带编号**——唯一真源是实现自述的 `BackendId`，且须是编译期常量表达式（`=> 1000`；框架内部也可写 `=> SaveBackendIds.XXX`，但 `SaveBackendIds` 是 internal，工程侧只能写数字）；生成器据此静态判重，形状非法（未实现接口/抽象/泛型/无可访问无参构造）、编号非常量、编号落在框架保留区 0-255、同编译单元内撞号分别报 **MIRAI309/310/311/312** 且一律 Error——注册跑在模块初始化期，放过去就是程序集加载即抛。跨程序集撞号生成器看不见，运行期由 `Register(ushort, Type)` 记一次 Fatal 并保留先到那份——这条路径刻意不抛：注册跑在模块初始化期，在那里抛出实测会让 Unity 在源生成扫描阶段原生崩溃。
+- **声明式（内置与项目同形的唯一入口）**：实现类标 `[RegisterSerializer]`，SaveServiceCodegen 生成器把 `SaveSerializerRegistry.Register(<编号>, typeof(Xxx))` 写进各自程序集的模块初始化器，引导代码为零。特性**不带编号**——唯一真源是实现自述的 `BackendId`，且须是编译期常量表达式（`=> 1000`；框架内部也可写 `=> SaveBackendIds.XXX`，但 `SaveBackendIds` 是 internal，工程侧只能写数字）；生成器据此静态判重，形状非法（未实现接口/抽象/泛型/无可访问无参构造）、编号非常量、编号落在框架保留区 0-255、同编译单元内撞号分别报 **MOIRAI309/310/311/312** 且一律 Error——注册跑在模块初始化期，放过去就是程序集加载即抛。跨程序集撞号生成器看不见，运行期由 `Register(ushort, Type)` 记一次 Fatal 并保留先到那份——这条路径刻意不抛：注册跑在模块初始化期，在那里抛出实测会让 Unity 在源生成扫描阶段原生崩溃。
 - **代码式**（测试注入、运行期换实现时用）：`SaveSerializerRegistry.Register<MyBackend>()`、`Register(new MyBackend())`，或同样延迟到首次查询才实例化的 `Register(1000, typeof(MyBackend))`。
 
 换掉某个已占用的后端要先 `Unregister(id)` 再 `Register(...)`——`Unregister` 会连 ID→类型记录一并摘除，所以注销不会被下一次查询悄悄"复活"；被摘掉的内置实现要显式重新登记（如 `Register(0, typeof(JsonSaveSerializer))`）才回得来。

@@ -8,7 +8,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// <c>ISaveMigrator</c> 实现类模型（模块初始化器自注册生成用）。
     /// </summary>
     /// <remarks>
-    /// 抽象基类合法存在但不注册（静默跳过）；无法实例化注册的实现报 MIRAI302。
+    /// 抽象基类合法存在但不注册（静默跳过）；无法实例化注册的实现报 MOIRAI302。
     /// </remarks>
     internal sealed class MigratorModel
     {

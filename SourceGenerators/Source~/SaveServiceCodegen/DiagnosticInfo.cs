@@ -23,7 +23,7 @@ namespace Moirai.Atropos.SourceGenerators
         }
 
         /// <summary>
-        /// 创建不支持成员诊断（MIRAI308——集合元素/映射键值等嵌套位置）。
+        /// 创建不支持成员诊断（MOIRAI308——集合元素/映射键值等嵌套位置）。
         /// </summary>
         public static DiagnosticInfo UnsupportedMember(string memberPath, string typeDisplay, string reason, Location location)
         {
@@ -31,7 +31,7 @@ namespace Moirai.Atropos.SourceGenerators
         }
 
         /// <summary>
-        /// 创建引用类型不明诊断（MIRAI306）。
+        /// 创建引用类型不明诊断（MOIRAI306）。
         /// </summary>
         public static DiagnosticInfo AmbiguousReference(string memberPath, Location location)
         {
@@ -39,7 +39,7 @@ namespace Moirai.Atropos.SourceGenerators
         }
 
         /// <summary>
-        /// 创建嵌套数据类型无效诊断（MIRAI307）。
+        /// 创建嵌套数据类型无效诊断（MOIRAI307）。
         /// </summary>
         public static DiagnosticInfo InvalidNested(string memberPath, string typeDisplay, string reason, Location location)
         {

@@ -7,7 +7,7 @@
 ## 核心特性
 
 - **可实例化服务世界**：`ServiceWorld` 可 `new` 构造隔离世界（测试/沙盒），`GameServices` 静态外观仅是默认世界 `Default` 的投影；3 作用域固定序槽位（App/Scene/Gameplay，零排序）+ 内联 3 槽绑定值类型 struct O(1) 跨作用域查找
-- **特性声明依赖 + 拓扑初始化**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MIRAI201/MIRAI202）校验类型实现 `IService`；世界初始化按声明图 Kahn 拓扑排序统一驱动 OnInit（初始化顺序与注册顺序无关）
+- **特性声明依赖 + 拓扑初始化**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MOIRAI201/MOIRAI202）校验类型实现 `IService`；世界初始化按声明图 Kahn 拓扑排序统一驱动 OnInit（初始化顺序与注册顺序无关）
 - **两阶段构建**：`Register` 仅入图（注册期不驱动 OnInit）；`Initialize()`/`InitializeAsync()` 提交第二阶段——缺失依赖与循环依赖在初始化期 fail-fast（错误消息含环成员）；世界已初始化后的运行时注册要求全部依赖已就绪（缺失即 fail-fast），通过后立即 OnInit——**不做拓扑插入**，新服务总是排在既有服务之后（实现 `IServiceInitializableAsync` 的服务禁止运行时注册）
 - **ProviderHandlerHost 静态外观**：13 个框架服务均为 `[ProviderHandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
@@ -38,7 +38,7 @@
 | `ServiceScope` | 单作用域注册表、轮询列表（lazy-sort + swap-remove）、迭代安全（延迟变更队列）与 Tick 异常熔断（按轮询类别独立计数，阈值取自所属世界） |
 | `TopologySorter` | 内部 Kahn 拓扑排序器：同入度按注册序稳定出队；缺失依赖/循环依赖 fail-fast（错误消息含环成员） |
 | `GameServices` | 静态外观（默认世界 `Default` 投影）：注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、外观懒加载自动注册（`EnsureRegistered`，内部）、轮询驱动、帧边界拦截器 |
-| `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性多依赖；编译期 MIRAI201/MIRAI202 校验 + 初始化期拓扑排序 |
+| `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性多依赖；编译期 MOIRAI201/MOIRAI202 校验 + 初始化期拓扑排序 |
 | `IServiceInitializableAsync` | 异步初始化能力接口（`UniTask OnInitAsync()`）；须在 `InitializeAsync` 前注册（运行时注册 fail-fast） |
 | `IServiceInterceptor` | 拦截器接口：注册/注销/关闭回调 + 作用域帧边界（`OnBeforeScopeTick`/`OnAfterScopeTick`），按 Priority 降序；除 `OnServiceRegistering` 外异常被容器隔离 |
 | `EServiceScopeKind` | 服务作用域枚举：`App`（全局）、`Scene`（场景卸载时重置）、`Gameplay`（单局玩法） |
@@ -107,7 +107,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 | `XxxHandler : FrameworkHandler` | 可序列化后端类 | 承载核心逻辑；替换后端无需改动调用方 |
 | `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject 设置 | `[ProviderDropdown]` + `[SerializeReference]` 选择后端实现 |
 
-业务代码一律调用静态外观（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。默认处理器经 `[ProviderHandlerHost]` 第二构造参数声明，由 `ProviderHandlerHostGenerator` 生成 `CreateDefaultHandler` 兜底工厂（非法声明编译期报 MIRAI103）；懒加载优先读 settings，未配置回退声明默认——**不按已安装包自动优选**，切换后端一律在 settings 里显式选择（引擎宏分派的宿主如 `InputService` 保留手写工厂）。自定义后端：继承 `XxxHandler` 覆写虚方法 → 在 `XxxSettings` 的 Provider 下拉框中切换。
+业务代码一律调用静态外观（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。默认处理器经 `[ProviderHandlerHost]` 第二构造参数声明，由 `ProviderHandlerHostGenerator` 生成 `CreateDefaultHandler` 兜底工厂（非法声明编译期报 MOIRAI103）；懒加载优先读 settings，未配置回退声明默认——**不按已安装包自动优选**，切换后端一律在 settings 里显式选择（引擎宏分派的宿主如 `InputService` 保留手写工厂）。自定义后端：继承 `XxxHandler` 覆写虚方法 → 在 `XxxSettings` 的 Provider 下拉框中切换。
 
 ### 生命周期状态机
 
@@ -141,7 +141,7 @@ public sealed class UIService : ServiceBase, IServiceTickable
 }
 ```
 
-- 依赖声明是无序集合（全部依赖就绪后才轮到本服务）；所有依赖类型必须实现 `IService`，由 `ServiceDependencyAnalyzer`（MIRAI201/MIRAI202）在编译期校验
+- 依赖声明是无序集合（全部依赖就绪后才轮到本服务）；所有依赖类型必须实现 `IService`，由 `ServiceDependencyAnalyzer`（MOIRAI201/MOIRAI202）在编译期校验
 - 服务实例仅由手动注册创建（框架不隐式实例化）。世界未初始化时依赖校验推迟到 `Initialize(Async)` 的拓扑排序期；世界已初始化后的运行时注册则要求依赖当场已就绪，否则注册立即抛 `GameException`
 - 缺失依赖与循环依赖均抛 `GameException`（fail-fast，循环错误消息含环成员）：前者在拓扑排序期或运行时注册期，后者只可能在拓扑排序期
 
@@ -180,7 +180,7 @@ BuiltinServiceRegistration.RegisterAll(GameServices.Default);   // 仅入图，�
 await GameServices.Default.InitializeAsync();                    // 按 [ServiceDependency] 拓扑序统一驱动 OnInit
 ```
 
-内置服务经服务类上的 `[AutoRegisterService]` 特性进入注册清单：源生成器收集标记类型并生成程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)`（实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MIRAI203/204/205 报错）。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。各服务外观的懒加载路径（`GetHandlerFromSettings` 首行）仍调用 `GameServices.EnsureRegistered<T>()` 作兜底——组合根尚未跑到就被访问服务时也能完成注册（关闭态会被显式阻断，见「懒加载自动注册」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
+内置服务经服务类上的 `[AutoRegisterService]` 特性进入注册清单：源生成器收集标记类型并生成程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)`（实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MOIRAI203/204/205 报错）。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。各服务外观的懒加载路径（`GetHandlerFromSettings` 首行）仍调用 `GameServices.EnsureRegistered<T>()` 作兜底——组合根尚未跑到就被访问服务时也能完成注册（关闭态会被显式阻断，见「懒加载自动注册」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
 
 ### 处理器异步生命周期 [HANDLER ASYNC LIFECYCLE]
 

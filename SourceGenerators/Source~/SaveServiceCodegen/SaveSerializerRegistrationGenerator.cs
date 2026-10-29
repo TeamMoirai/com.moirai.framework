@@ -13,7 +13,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// </summary>
     /// <remarks>
     /// 编号以实现的 <c>BackendId</c> 常量为唯一真源，静态取出后用于判重与判占号；<br />
-    /// 形状非法 / 编号非常量 / 编号落在框架保留区 / 同编译单元撞号分别报 MIRAI309/310/311/312，一律 Error：<br />
+    /// 形状非法 / 编号非常量 / 编号落在框架保留区 / 同编译单元撞号分别报 MOIRAI309/310/311/312，一律 Error：<br />
     /// 注册跑在模块初始化期，放过去等于交付一份读不回旧档的存档；而运行期抛出会连累整个编辑器，故编译期必须挡下。 <br />
     /// 跨程序集撞号本生成器看不见，运行期由 <c>SaveSerializerRegistry.Register(ushort, Type)</c> 记 Fatal 并保留先到那份（该路径刻意不抛）。
     /// </remarks>
@@ -55,7 +55,7 @@ namespace Moirai.Atropos.SourceGenerators
 
 
         /// <summary>
-        /// 校验 <c>[RegisterSerializer]</c> 实现并产出注册行：形状非法、编号非常量、占号相撞、同编译单元重复分别报 MIRAI309~312 并跳过该行。
+        /// 校验 <c>[RegisterSerializer]</c> 实现并产出注册行：形状非法、编号非常量、占号相撞、同编译单元重复分别报 MOIRAI309~312 并跳过该行。
         /// </summary>
         /// <remarks>
         /// 生成的注册在模块初始化期执行，撞号即程序集加载期抛异常——故占号与重复一律判为 Error，不给 Warning 放行。

@@ -11,7 +11,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// <remarks>
     /// 与迁移器（无特性锚点、按接口扫）不同，本类只认显式标注的实现——测试桩与第三方包装类不该被静默扫进注册表。 <br />
     /// 编号取自实现的 <c>BackendId</c> 成员（表达式体 / 初始化器 / 单个 return 的 get 访问器），经 <c>GetConstantValue</c> 静态求值； <br />
-    /// 求不出来即判不了重，由调用方报 MIRAI310 并跳过注册。
+    /// 求不出来即判不了重，由调用方报 MOIRAI310 并跳过注册。
     /// </remarks>
     internal sealed class SaveSerializerModel
     {

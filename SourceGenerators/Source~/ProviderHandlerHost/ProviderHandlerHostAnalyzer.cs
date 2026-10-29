@@ -12,16 +12,16 @@ namespace Moirai.Atropos.SourceGenerators
     /// 诊断分析器：检查 <c>[ProviderHandlerHost]</c> 标记的类的 Handler 工厂方法契约与默认处理器声明。
     /// </summary>
     /// <remarks>
-    /// MIRAI101（Warning）：默认工厂与 settings 来源均缺——懒加载无来源。 <br />
-    /// MIRAI102（Info）：仅提供 <c>GetHandlerFromSettings</c>（settings-only）——懒加载依赖其返回非空值。 <br />
-    /// MIRAI103（Error）：声明的默认处理器不可实例化（未继承契约/抽象/无可访问无参构造）。 <br />
-    /// MIRAI104（Info）：声明默认与手写工厂并存——手写生效、声明不生成，提示删除其一。
+    /// MOIRAI101（Warning）：默认工厂与 settings 来源均缺——懒加载无来源。 <br />
+    /// MOIRAI102（Info）：仅提供 <c>GetHandlerFromSettings</c>（settings-only）——懒加载依赖其返回非空值。 <br />
+    /// MOIRAI103（Error）：声明的默认处理器不可实例化（未继承契约/抽象/无可访问无参构造）。 <br />
+    /// MOIRAI104（Info）：声明默认与手写工厂并存——手写生效、声明不生成，提示删除其一。
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class ProviderHandlerHostAnalyzer : DiagnosticAnalyzer
     {
         public static readonly DiagnosticDescriptor MissingHandlerFactoryRule = new DiagnosticDescriptor(
-            id: "MIRAI101",
+            id: "MOIRAI101",
             title: "缺少 Handler 工厂来源",
             messageFormat: "[ProviderHandlerHost] 标记的类 '{0}' 未声明默认处理器（第二构造参数）、未提供 'internal static {1} CreateDefaultHandler()'，也未提供 'private static {1} GetHandlerFromSettings()'，未显式设置 Handler 前访问将抛出运行时异常",
             category: "Usage",
@@ -31,7 +31,7 @@ namespace Moirai.Atropos.SourceGenerators
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         public static readonly DiagnosticDescriptor SettingsOnlyHandlerRule = new DiagnosticDescriptor(
-            id: "MIRAI102",
+            id: "MOIRAI102",
             title: "Handler 懒加载依赖 GetHandlerFromSettings",
             messageFormat: "[ProviderHandlerHost] 标记的类 '{0}' 仅提供 GetHandlerFromSettings（未声明默认处理器也未提供 CreateDefaultHandler）：Handler 懒加载将调用它并要求返回非空值，settings 未配置或返回 null 时访问 Handler 将抛出运行时异常",
             category: "Usage",
@@ -41,7 +41,7 @@ namespace Moirai.Atropos.SourceGenerators
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         public static readonly DiagnosticDescriptor InvalidDeclaredDefaultRule = new DiagnosticDescriptor(
-            id: "MIRAI103",
+            id: "MOIRAI103",
             title: "声明的默认处理器不可实例化",
             messageFormat: "[ProviderHandlerHost] 声明的默认处理器 '{0}' 不能作为 '{1}' 的兜底工厂：{2}；生成器不会为它生成 CreateDefaultHandler",
             category: "Usage",
@@ -51,7 +51,7 @@ namespace Moirai.Atropos.SourceGenerators
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         public static readonly DiagnosticDescriptor RedundantDeclaredDefaultRule = new DiagnosticDescriptor(
-            id: "MIRAI104",
+            id: "MOIRAI104",
             title: "声明默认处理器与手写工厂冗余",
             messageFormat: "[ProviderHandlerHost] 标记的类 '{0}' 同时声明默认处理器 '{1}' 与手写 CreateDefaultHandler——手写工厂生效、声明不会生成兜底工厂，请删除其一",
             category: "Usage",

@@ -8,7 +8,7 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 依赖必须先行手动注册（服务实例不由框架隐式创建），注册序即依赖链序。 <br />
     /// 支持单特性多类型声明（类似 <c>RequireComponent</c>）；声明顺序即依赖校验顺序。 <br />
-    /// 所有依赖类型必须实现 <see cref="IService"/>，由 <c>ServiceDependencyAnalyzer</c>（MIRAI201）在编译期校验。
+    /// 所有依赖类型必须实现 <see cref="IService"/>，由 <c>ServiceDependencyAnalyzer</c>（MOIRAI201）在编译期校验。
     /// </remarks>
     /// <example>
     /// <code>

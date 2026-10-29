@@ -11,10 +11,10 @@ namespace Moirai.Atropos.SourceGenerators
     /// </summary>
     /// <remarks>
     /// 生成的成员均为 static，但类声明沿用源类的修饰符（static 或非 static）。 <br />
-    /// 默认工厂三档：声明默认处理器且结构合法时生成 <c>CreateDefaultHandler</c>（宿主手写工厂存在时跳过生成——手写生效，MIRAI104 提示冗余）； <br />
-    /// 非法声明（未继承契约/抽象/无可访问无参构造）不生成工厂（MIRAI103 由分析器报告）；懒加载先调 <c>GetHandlerFromSettings</c>、返回 null 回退默认工厂； <br />
-    /// 工厂链末端 null 抛 <see cref="System.InvalidOperationException"/>；工厂全缺（MIRAI101）时 <c>Handler.get</c> 抛该异常； <br />
-    /// 仅声明 <c>GetHandlerFromSettings</c>（MIRAI102）时要求返回非空值。 <br />
+    /// 默认工厂三档：声明默认处理器且结构合法时生成 <c>CreateDefaultHandler</c>（宿主手写工厂存在时跳过生成——手写生效，MOIRAI104 提示冗余）； <br />
+    /// 非法声明（未继承契约/抽象/无可访问无参构造）不生成工厂（MOIRAI103 由分析器报告）；懒加载先调 <c>GetHandlerFromSettings</c>、返回 null 回退默认工厂； <br />
+    /// 工厂链末端 null 抛 <see cref="System.InvalidOperationException"/>；工厂全缺（MOIRAI101）时 <c>Handler.get</c> 抛该异常； <br />
+    /// 仅声明 <c>GetHandlerFromSettings</c>（MOIRAI102）时要求返回非空值。 <br />
     /// <c>RequireHandler</c> 读 <c>s_Handler</c> 且不触发懒加载，未就绪抛 GameException——写路径 fail-fast 入口。
     /// </remarks>
     [Generator]

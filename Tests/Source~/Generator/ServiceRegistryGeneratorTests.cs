@@ -54,10 +54,10 @@ public interface IConsumer { }
             Assert.That(output.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error), Is.False);
         }
 
-        [TestCase("[Service(typeof(IItem))] public sealed class Item : IItem { public Item(){} public Item(IItem item){} }", "MIRAI700")]
-        [TestCase("[Service(typeof(IItem))] public sealed class Item<T> : IItem { }", "MIRAI700")]
-        [TestCase("[Service(typeof(IItem))] public sealed class Item { }", "MIRAI700")]
-        [TestCase("[Service(typeof(IItem))] public sealed class Item : IItem { public Item(System.IServiceProvider provider){} }", "MIRAI701")]
+        [TestCase("[Service(typeof(IItem))] public sealed class Item : IItem { public Item(){} public Item(IItem item){} }", "MOIRAI700")]
+        [TestCase("[Service(typeof(IItem))] public sealed class Item<T> : IItem { }", "MOIRAI700")]
+        [TestCase("[Service(typeof(IItem))] public sealed class Item { }", "MOIRAI700")]
+        [TestCase("[Service(typeof(IItem))] public sealed class Item : IItem { public Item(System.IServiceProvider provider){} }", "MOIRAI701")]
         public void InvalidService_ReportsDiagnostic(string declaration, string expected)
         {
             Generate("using Moirai.Atropos.Kernel.Composition; public interface IItem { } " + declaration,
@@ -74,7 +74,7 @@ public interface IItem { }
 [Service(typeof(IItem))] public sealed class First : IItem { }
 [Service(typeof(IItem))] public sealed class Second : IItem { }";
             Generate(source, "Duplicate.Probe", out GeneratorDriverRunResult result);
-            Assert.That(result.Diagnostics.Select(item => item.Id), Does.Contain("MIRAI702"));
+            Assert.That(result.Diagnostics.Select(item => item.Id), Does.Contain("MOIRAI702"));
         }
 
         private static (Compilation Output, GeneratorDriverRunResult Result) Generate(string source, string assembly)
