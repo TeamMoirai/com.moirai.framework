@@ -187,6 +187,8 @@ namespace Moirai.Atropos.Editor
         {
             Debug.Log($"开始构建 : {config.m_BuildTarget}");
 
+            string packageName = GetDefaultPackageName();
+
             IBuildPipeline pipeline;
             BuildParameters buildParameters;
 
@@ -203,7 +205,7 @@ namespace Moirai.Atropos.Editor
                 pipeline = new ScriptableBuildPipeline();
                 buildParameters = scriptableBuildParameters;
                 scriptableBuildParameters.CompressOption = config.m_CompressOption;
-                scriptableBuildParameters.BuiltinShadersBundleName = GetBuiltinShaderBundleName("DefaultPackage");
+                scriptableBuildParameters.BuiltinShadersBundleName = GetBuiltinShaderBundleName(packageName);
                 scriptableBuildParameters.ReplaceAssetPathWithAddress = UpdateSettings.ReplaceAssetPathWithAddress;
             }
 
@@ -219,7 +221,7 @@ namespace Moirai.Atropos.Editor
             buildParameters.BuildPipeline = config.m_BuildPipeline.ToString();
             buildParameters.BuildTarget = config.m_BuildTarget;
             buildParameters.BuildBundleType = (int)EBundleType.AssetBundle;
-            buildParameters.PackageName = "DefaultPackage";
+            buildParameters.PackageName = packageName;
             buildParameters.PackageVersion = config.PackageVersion;
             buildParameters.VerifyBuildingResult = config.m_VerifyBuildingResult;
             buildParameters.EnableSharePackRule = config.m_EnableSharePackRule;
@@ -242,6 +244,8 @@ namespace Moirai.Atropos.Editor
         {
             Debug.Log($"开始构建 : {buildTarget}");
 
+            string packageName = GetDefaultPackageName();
+
             IBuildPipeline pipeline = null;
             BuildParameters buildParameters = null;
 
@@ -258,7 +262,7 @@ namespace Moirai.Atropos.Editor
                 pipeline = new ScriptableBuildPipeline();
                 buildParameters = scriptableBuildParameters;
                 scriptableBuildParameters.CompressOption = ECompressOption.LZ4;
-                scriptableBuildParameters.BuiltinShadersBundleName = GetBuiltinShaderBundleName("DefaultPackage");
+                scriptableBuildParameters.BuiltinShadersBundleName = GetBuiltinShaderBundleName(packageName);
                 scriptableBuildParameters.ReplaceAssetPathWithAddress = UpdateSettings.ReplaceAssetPathWithAddress;
             }
 
@@ -267,7 +271,7 @@ namespace Moirai.Atropos.Editor
             buildParameters.BuildPipeline = buildPipeline.ToString();
             buildParameters.BuildTarget = buildTarget;
             buildParameters.BuildBundleType = (int)EBundleType.AssetBundle;
-            buildParameters.PackageName = "DefaultPackage";
+            buildParameters.PackageName = packageName;
             buildParameters.PackageVersion = packageVersion;
             buildParameters.VerifyBuildingResult = true;
             buildParameters.EnableSharePackRule = true;
@@ -313,7 +317,7 @@ namespace Moirai.Atropos.Editor
             string outputPackageDirectory)
         {
             string streamingRoot = BundleBuilderHelper.GetStreamingAssetsRoot();
-            string packageName = "DefaultPackage";
+            string packageName = GetDefaultPackageName();
 
             // 定位构建报告文件
             string reportFileName = YooAssetConfiguration.GetBuildReportFileName(packageName, packageVersion);
@@ -494,6 +498,28 @@ namespace Moirai.Atropos.Editor
             }
 
             return target;
+        }
+
+        /// <summary>
+        /// 读取资源服务配置中的默认包名。
+        /// </summary>
+        /// <remarks>
+        /// 必须与运行期同源（<see cref="ResourceServiceHandler.DefaultPackageName"/>）。
+        /// 此处曾经硬编码 "DefaultPackage"，而运行期默认是 "Default"：采集配置里没有该包时，
+        /// YooAsset 会在 <c>BundleCollectorSetting.GetPackage</c> 抛 <c>Package not found</c>，构建直接失败。
+        /// </remarks>
+        private static string GetDefaultPackageName()
+        {
+            ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
+            string packageName = handler != null ? handler.DefaultPackageName : null;
+            if (string.IsNullOrEmpty(packageName))
+            {
+                throw new UnityEditor.Build.BuildFailedException(
+                    "无法确定 YooAsset 包名：ResourceServiceSettings 未配置资源处理器，或默认包名为空。" +
+                    "请在「[服务]资源设置」中指定资源包名后重试。");
+            }
+
+            return packageName;
         }
 
         private static string GetBuiltinShaderBundleName(string packageName)
