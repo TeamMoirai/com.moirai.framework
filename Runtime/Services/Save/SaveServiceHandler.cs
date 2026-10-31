@@ -1777,7 +1777,9 @@ namespace Moirai.Atropos.Save
             {
                 for (int i = 0; i < _gates.Length; i++)
                 {
-                    await _gates[i].WaitAsync(cancellationToken);
+                    // ConfigureAwait(false)：取门续体留在工作线程。否则持门者的续体要等主线程 PlayerLoop，
+                    // 而主线程可能正阻塞在同级门的同步 Wait() 上——续体永不执行，Leave 永不发生，门永久饥饿。
+                    await _gates[i].WaitAsync(cancellationToken).ConfigureAwait(false);
                     _acquiredCount = i + 1;
                 }
             }
