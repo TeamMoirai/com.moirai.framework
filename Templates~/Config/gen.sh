@@ -31,7 +31,7 @@ usage() {
 while [ "$#" -gt 0 ]; do
     case "$1" in
         client|server|all)
-            [ -n "$TARGET" ] && fail "目标只能给一个，已确定是 $TARGET，又多给一个 $1"
+            [ -n "$TARGET" ] && fail "目标只能给一个，已确定是 ${TARGET}，又多给一个 $1"
             TARGET="$1" ;;
         --format=*) FORMAT_OVERRIDE="${1#*=}" ;;
         --load=*)   LOAD_OVERRIDE="${1#*=}" ;;
@@ -47,7 +47,8 @@ TARGET="${TARGET:-client}"
 # ---------- 配置读取 ----------
 # 分标题只作分组：键名全局唯一，这里直接摊平成 CFG_<KEY>，读到 [xxx] 就跳过。
 # 值不做 xargs 修剪：xargs 会把反斜杠当转义吃掉，路径尾部的 \ 会被削掉。
-declare -A CFG
+# macOS 系统 bash 是 3.2，没有关联数组；Windows 的 Git Bash 是 5.x。
+# 键摊平成 CFG_<KEY> 全局量，读取走 ${CFG_KEY} 与 cfg_get，两端同一份代码。
 while IFS='=' read -r raw_key raw_value || [ -n "${raw_key//[$'\r\n']/}" ]; do
     key="${raw_key%$'\r'}"
     key="${key#"${key%%[![:space:]]*}"}"
@@ -59,10 +60,16 @@ while IFS='=' read -r raw_key raw_value || [ -n "${raw_key//[$'\r\n']/}" ]; do
     value="${raw_value%$'\r'}"
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
-    CFG["$key"]="$value"
+    case "$key" in
+        *[!A-Za-z0-9_]*) echo "[WARN] 跳过非法键名：$key" >&2; continue ;;
+    esac
+    printf -v "CFG_$key" '%s' "$value"
 done < "$CONFIG_FILE"
 
-need() { [ -n "${CFG[$1]:-}" ] || fail "$CONFIG_FILE 缺少键 $1（节 [$2]）"; }
+# 键名来自 config.ini，读不出间接展开就只能靠 cfg_get。
+cfg_get() { local _name="CFG_$1"; printf '%s' "${!_name:-}"; }
+
+need() { [ -n "$(cfg_get "$1")" ] || fail "$CONFIG_FILE 缺少键 $1（节 [$2]）"; }
 
 need LUBAN_DLL tools
 need CONF luban
@@ -71,23 +78,23 @@ need DATA_OUTPUT_PATH_CLIENT client
 need CODE_OUTPUT_PATH_CLIENT client
 need L10N_LANGUAGES l10n
 
-LUBAN="${CFG[LUBAN_DLL]}"
-[ -f "$LUBAN" ] || fail "Luban 不存在：$LUBAN（先跑 build-luban，或把编译好的文件放进 Luban/）"
+LUBAN="${CFG_LUBAN_DLL}"
+[ -f "$LUBAN" ] || fail "Luban 不存在：${LUBAN}（先跑 build-luban，或把编译好的文件放进 Luban/）"
 
 # 可选键：缺失时按空处理，对应参数整条不传
 optional_args=()
-[ -n "${CFG[PATH_VALIDATOR_ROOT]:-}" ] && optional_args+=(-x "pathValidator.rootDir=${CFG[PATH_VALIDATOR_ROOT]}")
+[ -n "${CFG_PATH_VALIDATOR_ROOT:-}" ] && optional_args+=(-x "pathValidator.rootDir=${CFG_PATH_VALIDATOR_ROOT}")
 
 # ---------- 生成路线（数据格式）与加载类型 ----------
 # 缺省取 config.ini，--format / --load 只做当次覆盖：排查问题时不该去改配置。
-FORMAT="${FORMAT_OVERRIDE:-${CFG[DATA_FORMAT]:-bin}}"
+FORMAT="${FORMAT_OVERRIDE:-${CFG_DATA_FORMAT:-bin}}"
 case "$FORMAT" in
     bin)  CODE_TARGET=cs-bin       ; DATA_TARGET=bin  ;;
     json) CODE_TARGET=cs-simple-json; DATA_TARGET=json ;;
     *) fail "DATA_FORMAT/--format 只认 bin 或 json，收到：$FORMAT" ;;
 esac
 
-LOAD="${LOAD_OVERRIDE:-${CFG[LAZY_LOAD]:-true}}"
+LOAD="${LOAD_OVERRIDE:-${CFG_LAZY_LOAD:-true}}"
 case "$LOAD" in
     lazy|true|TRUE|1)   LOAD=lazy ;;
     eager|false|FALSE|0) LOAD=eager ;;
@@ -97,27 +104,27 @@ esac
 # 懒加载模板按 code target 分目录（Luban 找的是 <dir>/<codeTarget>/tables.sbn）：
 # 少一份就只是那一趟静默退回内置模板，症状是"换了 json 路线就不懒加载了"，所以逐份确认。
 # 三趟（常规 / 多语言代码 / 各语言数据）必须用同一个模板目录，故只在这里算一次。
-LAZY_TEMPLATE_DIR="${CFG[CUSTOM_TEMPLATE_ROOT]:-Templates/}Client_LazyLoad"
+LAZY_TEMPLATE_DIR="${CFG_CUSTOM_TEMPLATE_ROOT:-Templates/}Client_LazyLoad"
 template_args=()
 if [ "$LOAD" = eager ]; then
-    echo "[gen.sh] 路线 $FORMAT，加载类型 eager：三趟统一用内置模板（构造期加载全部表）"
+    echo "[gen.sh] 路线 ${FORMAT}，加载类型 eager：三趟统一用内置模板（构造期加载全部表）"
 elif [ -f "$LAZY_TEMPLATE_DIR/$CODE_TARGET/tables.sbn" ]; then
     template_args=(--customTemplateDir "$LAZY_TEMPLATE_DIR")
-    echo "[gen.sh] 路线 $FORMAT，加载类型 lazy（模板 $LAZY_TEMPLATE_DIR/$CODE_TARGET/tables.sbn）"
+    echo "[gen.sh] 路线 ${FORMAT}，加载类型 lazy（模板 $LAZY_TEMPLATE_DIR/$CODE_TARGET/tables.sbn）"
 else
     echo "[WARN] 懒加载模板缺失：$LAZY_TEMPLATE_DIR/$CODE_TARGET/tables.sbn"
     echo "[WARN] 三趟统一退回内置模板（构造期加载全部表）"
 fi
 
 # 语言清单：唯一真源，空格分隔
-read -r -a LANGUAGES <<< "${CFG[L10N_LANGUAGES]}"
+read -r -a LANGUAGES <<< "${CFG_L10N_LANGUAGES}"
 [ "${#LANGUAGES[@]}" -gt 0 ] || fail "L10N_LANGUAGES 为空，拒绝生成一个没有语言变体的 schema"
 for lang in "${LANGUAGES[@]}"; do
     seen=0
     for other in "${LANGUAGES[@]}"; do [ "$other" = "$lang" ] && seen=$((seen + 1)); done
     [ "$seen" -le 1 ] || fail "L10N_LANGUAGES 有重复语言码：$lang"
 done
-BEAN_FIELD="${CFG[L10N_BEAN_FIELD]:-text}"
+BEAN_FIELD="${CFG_L10N_BEAN_FIELD:-text}"
 VARIANTS="$(IFS=,; echo "${LANGUAGES[*]}")"
 
 # ---------- 阶段 ----------
@@ -127,10 +134,10 @@ copy_runtime_scripts() {
                 "CONFIGINIT_SCRIPT_SOURCE CONFIGINIT_SCRIPT_TARGET" \
                 "EXTERNALTYPEUTIL_SCRIPT_SOURCE EXTERNALTYPEUTIL_SCRIPT_TARGET"; do
         src_key="${pair%% *}"; dst_key="${pair#* }"
-        src="${CFG[$src_key]:-}"; dst="${CFG[$dst_key]:-}"
+        src="$(cfg_get "$src_key")"; dst="$(cfg_get "$dst_key")"
         # 三件都可选：项目不覆盖某个处理器时留空即可，但留了源头就必须存在
         [ -z "$src" ] && [ -z "$dst" ] && continue
-        [ -n "$src" ] && [ -n "$dst" ] || fail "$CONFIG_FILE：$src_key 与 $dst_key 要同时给"
+        [ -n "$src" ] && [ -n "$dst" ] || fail "${CONFIG_FILE}：$src_key 与 $dst_key 要同时给"
         [ -f "$src" ] || fail "$src 不存在"
         mkdir -p "$(dirname "$dst")"
         cp -f "$src" "$dst" || fail "拷贝失败：$src -> $dst"
@@ -140,7 +147,7 @@ copy_runtime_scripts() {
 # 由 L10N_LANGUAGES 派生 Luban 用的变体声明 xml。必须在多语言那几趟之前写好。
 # xml 里的 comment 会成为生成代码的 /// <summary>，所以用中文与框架口径一致。
 generate_l10n_schema() {
-    local xml="${CFG[L10N_SCHEMA_XML]:-Temp/l10n_schema.xml}"
+    local xml="${CFG_L10N_SCHEMA_XML:-Temp/l10n_schema.xml}"
 
     mkdir -p "$(dirname "$xml")"
     {
@@ -157,8 +164,8 @@ generate_l10n_schema() {
 # 那一趟的 saver 会把不属于本次范围的文件删掉，且退出码仍是 0——先写后跑等于白写。
 # 内容含中文，故带 UTF-8 BOM，与 Templates 下其余 .cs 一致。
 generate_language_constant() {
-    local cs="${CFG[L10N_LANG_LIST_CODE]:-}"
-    local ns="${CFG[L10N_LANG_CLASS_NAMESPACE]:-Moirai.GameProto.Config}"
+    local cs="${CFG_L10N_LANG_LIST_CODE:-}"
+    local ns="${CFG_L10N_LANG_CLASS_NAMESPACE:-Moirai.GameProto.Config}"
 
     [ -n "$cs" ] || fail "$CONFIG_FILE 缺少键 L10N_LANG_LIST_CODE（节 [l10n]）"
     mkdir -p "$(dirname "$cs")"
@@ -204,7 +211,14 @@ strip_generated_header_blank_line() {
     for dir in "$@"; do
         [ -n "$dir" ] && [ -d "$dir" ] || continue
         while IFS= read -r file; do
-            [ -z "$(head -1 "$file" | tr -d '\r\n')" ] && sed -i '1d' "$file"
+            [ -z "$(head -1 "$file" | tr -d '\r\n')" ] || continue
+            # in-place 的 sed 参数形态 GNU 与 BSD 不一致，一条 tail 两支通用。
+            if tail -n +2 "$file" > "$file.tmp.$$"; then
+                mv -f "$file.tmp.$$" "$file"
+            else
+                rm -f "$file.tmp.$$"
+                fail "剥离首行失败：$file"
+            fi
         done < <(find "$dir" -type f -name '*.cs' | sort)
     done
 }
@@ -216,13 +230,16 @@ run_client() {
     step "客户端：派生多语言变体声明 xml"
     generate_l10n_schema
 
+    # 数据侧行尾同样要钉死：不传 data.lineEnding 时 Luban 用 Environment.NewLine，
+# Windows 出 CRLF、macOS 出 LF，同一张表两端字节就会不同。
     step "客户端 1/3：常规表（语言无关，一趟出代码与数据）"
-    dotnet "$LUBAN" -t client -c "$CODE_TARGET" -d "$DATA_TARGET" --conf "${CFG[CONF]}" \
+    dotnet "$LUBAN" -t client -c "$CODE_TARGET" -d "$DATA_TARGET" --conf "${CFG_CONF}" \
         "${template_args[@]}" \
         -x code.lineEnding=crlf \
+        -x data.lineEnding=crlf \
         "${optional_args[@]}" \
-        -x "outputCodeDir=${CFG[CODE_OUTPUT_PATH_CLIENT]}" \
-        -x "outputDataDir=${CFG[DATA_OUTPUT_PATH_CLIENT]}" \
+        -x "outputCodeDir=${CFG_CODE_OUTPUT_PATH_CLIENT}" \
+        -x "outputDataDir=${CFG_DATA_OUTPUT_PATH_CLIENT}" \
         || fail "常规趟失败"
 
     # 与主趟共用一个代码根：Luban 按模块名再分一层，产物才是 Gen/L10n/*.cs。
@@ -231,24 +248,25 @@ run_client() {
     # 也要带 --variant：bean 声明了 variants，不带每次刷一条 WARN；产物与选哪个 variant 无关
     # （实测三种跑法逐字节相同），所以取清单第一项只为满足解析器，不是"默认语言"。
     step "客户端 2/3：多语言代码（bean 只剩一个变体字段，代码与语言无关）"
-    dotnet "$LUBAN" -t client -c "$CODE_TARGET" --conf "${CFG[L10N_CONF]}" \
+    dotnet "$LUBAN" -t client -c "$CODE_TARGET" --conf "${CFG_L10N_CONF}" \
         "${template_args[@]}" \
         --variant "default=${LANGUAGES[0]}" \
         -x code.lineEnding=crlf \
         "${optional_args[@]}" \
-        -x "outputCodeDir=${CFG[CODE_OUTPUT_PATH_CLIENT]}" \
+        -x "outputCodeDir=${CFG_CODE_OUTPUT_PATH_CLIENT}" \
         -x "outputSaver.${CODE_TARGET}.cleanUpOutputDir=0" \
         || fail "多语言代码趟失败"
 
     # 一次进程只解析一版变体，所以有几种语言就跑几趟；且必须排在常规趟之后
     # （常规趟的 bin saver 会把输出目录连同语言子目录一起清掉，退出码还是 0）
-    local data_root="${CFG[DATA_OUTPUT_PATH_CLIENT]}"
+    local data_root="${CFG_DATA_OUTPUT_PATH_CLIENT}"
     local lang
     for lang in "${LANGUAGES[@]}"; do
         step "客户端 3/3：按语言导数据 -> ${data_root}${lang}"
-        dotnet "$LUBAN" -t client -d "$DATA_TARGET" --conf "${CFG[L10N_CONF]}" \
+        dotnet "$LUBAN" -t client -d "$DATA_TARGET" --conf "${CFG_L10N_CONF}" \
             "${template_args[@]}" \
             --variant "default=${lang}" \
+            -x data.lineEnding=crlf \
             "${optional_args[@]}" \
             -x "outputDataDir=${data_root}${lang}" \
             || fail "语言 $lang 的数据趟失败"
@@ -257,28 +275,29 @@ run_client() {
     # 所有会清 Gen/ 的趟都跑完了，才写这个落在生成目录里的常量（见函数注释）
     step "客户端：生成运行期语言常量"
     generate_language_constant
-    strip_generated_header_blank_line "${CFG[CODE_OUTPUT_PATH_CLIENT]}"
+    strip_generated_header_blank_line "${CFG_CODE_OUTPUT_PATH_CLIENT}"
 }
 
 run_server() {
-    [ -n "${CFG[DATA_OUTPUT_PATH_SERVER]:-}" ] || fail "$CONFIG_FILE 缺少键 DATA_OUTPUT_PATH_SERVER（节 [server]）"
+    [ -n "${CFG_DATA_OUTPUT_PATH_SERVER:-}" ] || fail "$CONFIG_FILE 缺少键 DATA_OUTPUT_PATH_SERVER（节 [server]）"
     # 服务端一趟不带 --variant（多语言不在服务端 schema 里），也不带懒加载模板：
     # Client_LazyLoad 只服务客户端，服务端要懒加载得另建一份模板目录并在这里显式传入。
-    step "服务端：常规表（$DATA_TARGET，内置模板 = 构造期加载）"
-    dotnet "$LUBAN" -t server -c "$CODE_TARGET" -d "$DATA_TARGET" --conf "${CFG[CONF]}" \
+    step "服务端：常规表（${DATA_TARGET}，内置模板 = 构造期加载）"
+    dotnet "$LUBAN" -t server -c "$CODE_TARGET" -d "$DATA_TARGET" --conf "${CFG_CONF}" \
         -x code.lineEnding=crlf \
+        -x data.lineEnding=crlf \
         "${optional_args[@]}" \
-        -x "outputCodeDir=${CFG[CODE_OUTPUT_PATH_SERVER]}" \
-        -x "outputDataDir=${CFG[DATA_OUTPUT_PATH_SERVER]}" \
+        -x "outputCodeDir=${CFG_CODE_OUTPUT_PATH_SERVER}" \
+        -x "outputDataDir=${CFG_DATA_OUTPUT_PATH_SERVER}" \
         || fail "服务端趟失败"
-    strip_generated_header_blank_line "${CFG[CODE_OUTPUT_PATH_SERVER]}"
+    strip_generated_header_blank_line "${CFG_CODE_OUTPUT_PATH_SERVER}"
 }
 
 case "$TARGET" in
     client) run_client ;;
     server) run_server ;;
     all)    run_client; run_server ;;
-    *)      fail "未知目标：$TARGET（可用 client | server | all）" ;;
+    *)      fail "未知目标：${TARGET}（可用 client | server | all）" ;;
 esac
 
 echo "[OK] 转表完成：$TARGET"

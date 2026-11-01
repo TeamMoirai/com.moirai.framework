@@ -1,8 +1,8 @@
 using System;
 using System.Reflection;
 using Luban;
+using Luban.SimpleJSON;
 using Moirai.Atropos;
-using SimpleJSON;
 using UnityEngine;
 using Moirai.Atropos.Resource;
 
@@ -13,29 +13,31 @@ namespace Moirai.GameProto.Config
 	/// </summary>
 	partial class LubanHandler
 	{
-		private static LubanHandler s_Instance;
-		public static LubanHandler Instance => s_Instance ??= new LubanHandler();
-
 		private const string CONFIG_PATH = "Assets/AssetRaw/Default/Config/Table/";
 
-		private Tables _tables;
+		private static Tables s_Tables;
 		/// <summary>
 		/// 所有配置表。
 		/// </summary>
-		public Tables Tables
+		public static Tables Tables
 		{
 			get
 			{
-				_tables ??= LoadTables();
-				return _tables;
+				s_Tables ??= LoadTables();
+				return s_Tables;
 			}
+		}
+		
+		protected override void OnShutdown()
+		{
+			s_Tables = null;
 		}
 
 		/// <summary>
 		/// 加载配置。
 		/// <remarks>自动判断加载bin或json配置</remarks>
 		/// </summary>
-		private Tables LoadTables()
+		private static Tables LoadTables()
 		{
 			ConstructorInfo tablesCtor = typeof(Tables).GetConstructors()[0];
 			Type loaderReturnType = tablesCtor.GetParameters()[0].ParameterType.GetGenericArguments()[1];
@@ -63,7 +65,7 @@ namespace Moirai.GameProto.Config
 		/// 判据与 <see cref="LoadTables"/> 同一个：路线写在转表配置里（bin 或 json），落到代码上就是生成表的构造器收 ByteBuf 还是 JSONNode，所以换 <c>--format=json</c> 不必改读取代码。
 		/// </remarks>
 		/// <param name="relativePath">相对 CONFIG_PATH 的路径，不含扩展名（多语言按语言子目录传 <c>语言码/表名</c>）。</param>
-		internal static T LoadLanguageTable<T>(string relativePath) where T : class
+		private static T LoadLanguageTable<T>(string relativePath) where T : class
 		{
 			ConstructorInfo tableCtor = typeof(T).GetConstructors()[0];
 			Type bufferType = tableCtor.GetParameters()[0].ParameterType;
@@ -90,8 +92,8 @@ namespace Moirai.GameProto.Config
 		private static ByteBuf LoadByteBuf(string file)
 		{
 			string location = CONFIG_PATH + file + ".bytes";
-			LogUtility.Info("Load bin config: {0}", location);
-			TextAsset textAsset = LoadTextAsset(location);
+			LogUtility.Info("[Config] Load bin config: {0}", location);
+			ResourceService.TryLoadAsset<TextAsset>(location, out TextAsset textAsset);
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
 		}
@@ -105,46 +107,9 @@ namespace Moirai.GameProto.Config
 		{
 			string location = CONFIG_PATH + file + ".json";
 			LogUtility.Info("[Config] Load json config: {0}", location);
-			TextAsset textAsset = LoadTextAsset(location);
+			ResourceService.TryLoadAsset<TextAsset>(location, out TextAsset textAsset);
 			string json = textAsset.text;
 			return JSON.Parse(json);
-		}
-
-		/// <summary>
-		/// 加载配置文本资源。
-		/// </summary>
-		/// <param name="location"></param>
-		/// <returns></returns>
-		private static TextAsset LoadTextAsset(string location)
-		{
-#if UNITY_EDITOR
-			if (!Application.isPlaying)
-			{
-				// 非播放态（编辑器预览、转表）不经资源系统，直读资产库；取不到同样要点名，
-				// 让 null 回到调用方就变成几行开外一句无来由的 NRE
-				var fromDatabase = UnityEditor.AssetDatabase.LoadAssetAtPath<TextAsset>(location);
-				if (fromDatabase == null)
-				{
-					throw new GameException(StringUtility.Format(
-						"Config asset is missing: '{0}'. Generate config first.", location));
-				}
-
-				return fromDatabase;
-			}
-#endif
-			// 因为配置是预加载（Asset tag 为 PRELOAD），所以无需异步加载
-			using var lease = ResourceService.LoadLease<TextAsset>(location);
-			if (lease.Asset == null)
-			{
-				// 预加载完成前同步取不到（如启动早期读表）：显式报错而非让 null 穿透成 NRE。
-				// 表数据未落成状态，下一次读表照常重试
-				throw new GameException(StringUtility.Format(
-					"Config asset is not loadable yet: '{0}'. Config tables are PRELOAD-tagged; " +
-					"make sure the resource preload has finished before reading tables.",
-					location));
-			}
-
-			return lease.Asset;
 		}
 	}
 }

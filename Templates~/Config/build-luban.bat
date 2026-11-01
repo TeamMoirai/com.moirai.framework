@@ -1,48 +1,45 @@
 @echo off
-setlocal
+REM Windows launcher only: locate bash, then hand off to build-luban.sh in this folder.
+REM All version pinning and build logic lives in build-luban.sh - the single
+REM implementation shared by Windows and macOS. Never duplicate it here.
+REM
+REM Keep this file ASCII-only: cmd.exe decodes a BOM-less .bat with the console
+REM codepage, so non-ASCII comment bytes would be parsed as commands.
+setlocal enabledelayedexpansion
+set "RC=0"
+cd /d "%~dp0"
 
-set LUBAN_REPO=https://github.com/focus-creative-games/luban.git
-set LUBAN_DIR=..\..\luban
+set "BASH_EXE="
+where bash.exe >nul 2>nul
+if not errorlevel 1 set "BASH_EXE=bash.exe"
 
-:: Step 1: Check if luban source directory exists
-if not exist "%LUBAN_DIR%\.git" (
-    echo [INFO] Luban source not found, cloning from %LUBAN_REPO% ...
-    git clone %LUBAN_REPO% %LUBAN_DIR%
-    if errorlevel 1 (
-        echo [ERROR] Git clone failed!
-        pause
-        exit /b 1
-    )
-) else (
-    :: Step 2: Check for remote updates
-    echo [INFO] Checking for updates ...
-    pushd %LUBAN_DIR%
-    git fetch origin
-    if errorlevel 1 (
-        echo [WARN] Git fetch failed, proceeding with local source.
-    ) else (
-        for /f %%i in ('git rev-parse HEAD') do set LOCAL_REV=%%i
-        for /f %%i in ('git rev-parse origin/HEAD') do set REMOTE_REV=%%i
-        if "%LOCAL_REV%"=="%REMOTE_REV%" (
-            echo [INFO] Already up-to-date, skipping pull.
-        ) else (
-            echo [INFO] Updates found, pulling ...
-            git pull origin
-            if errorlevel 1 (
-                echo [WARN] Git pull failed, proceeding with local source.
-            )
+if not defined BASH_EXE (
+    for %%D in (
+        "%ProgramFiles%\Git\bin\bash.exe"
+        "%ProgramFiles(x86)%\Git\bin\bash.exe"
+        "%LOCALAPPDATA%\Programs\Git\bin\bash.exe"
+        "%ProgramFiles%\Git\usr\bin\bash.exe"
+    ) do if not defined BASH_EXE if exist %%D set "BASH_EXE=%%~D"
+)
+
+if not defined BASH_EXE (
+    for /f "delims=" %%G in ('where git.exe 2^>nul') do (
+        if not defined BASH_EXE (
+            for %%B in ("%%~dpG..\bin\bash.exe") do if exist %%B set "BASH_EXE=%%~B"
         )
     )
-    popd
 )
 
-:: Step 3: Clean previous build output
-if exist Luban (
-    rd /s /q Luban
+if not defined BASH_EXE (
+    echo [ERROR] bash.exe not found. Install Git for Windows, or put bash.exe on PATH.
+    set "RC=1"
+    goto :end
 )
 
-:: Step 4: Build
-echo [INFO] Building Luban ...
-dotnet build %LUBAN_DIR%\src\Luban\Luban.csproj -c Release -o Luban
+echo [build-luban.bat] using bash: !BASH_EXE!
+"!BASH_EXE!" ./build-luban.sh %*
+set "RC=!ERRORLEVEL!"
 
-pause
+:end
+if "%~1"=="" pause
+exit /b %RC%
