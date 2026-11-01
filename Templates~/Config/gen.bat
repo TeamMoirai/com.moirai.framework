@@ -1,15 +1,16 @@
 @echo off
-REM 仅限 Windows 启动器：定位 bash，然后把参数交给此文件夹中的 gen.sh。
-REM 所有导出逻辑都放在 gen.sh（唯一的 bash 驱动脚本）中——绝不要在这里重复。
+REM Windows launcher only: locate bash, then hand the arguments to gen.sh in this folder.
+REM All export logic lives in gen.sh (the single bash driver) - never duplicate it here.
 REM
-REM   ./gen.sh              # 客户端（等价于 ./gen.sh client）
-REM   ./gen.sh client       # 常规表 + 多语言代码 + 按语言数据
-REM   ./gen.sh server       # 服务端表（不含多语言，故不涉及变体）
-REM   ./gen.sh all          # 客户端 + 服务端
-REM   ./gen.sh client false # 第2参：lazyload 开关，非 true/空 走默认模板
+REM   gen.bat                        client (same as: gen.bat client)
+REM   gen.bat server                 server tables (no l10n, so no variants)
+REM   gen.bat all                    client + server
+REM   gen.bat client --format=json   this run only: json route (default: bin)
+REM   gen.bat client --load=eager    this run only: builtin templates (default: lazy)
+REM   gen.bat --help                 usage, printed by gen.sh itself
 REM
-REM 保持此文件仅使用 ASCII 字符：cmd.exe 会用控制台代码页解码没有 BOM 的 .bat 文件，
-REM 因此非 ASCII 注释字节会被当作命令解析，脚本就会执行自己的注释。
+REM Keep this file ASCII-only: cmd.exe decodes a BOM-less .bat with the console codepage,
+REM so non-ASCII comment bytes get parsed as commands and the script runs its own comments.
 setlocal enabledelayedexpansion
 set "RC=0"
 cd /d "%~dp0"
