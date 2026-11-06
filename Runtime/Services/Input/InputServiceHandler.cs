@@ -29,7 +29,7 @@ namespace Moirai.Atropos.Input
         /// <summary>
         /// 设置 UI 模态状态。由 <see cref="InputService"/> 的事件回调驱动。
         /// </summary>
-        internal abstract void SetUIModal(bool hasModal);
+        protected internal abstract void SetUIModal(bool hasModal);
 
         #endregion
 

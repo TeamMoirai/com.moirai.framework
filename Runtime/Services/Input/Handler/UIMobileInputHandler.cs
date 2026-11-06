@@ -46,7 +46,7 @@ namespace Moirai.Atropos.Input
             set => _state.PreventInteractionUI = value;
         }
 
-        internal override void SetUIModal(bool hasModal)
+        protected internal override void SetUIModal(bool hasModal)
         {
             _state.SetUIModal(hasModal);
         }
