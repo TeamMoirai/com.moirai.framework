@@ -64,6 +64,6 @@ Settings 侧的 handler 槽位用 `[SerializeReference]` 持有契约基类，�
 - 每帧驱动实现 `IServiceTickable`：`Tick(float elapseSeconds, float realElapseSeconds)`。
 - 服务必须派生 `ServiceBase` 或 `ServiceMono<TScope>`，裸实现 `IService` 会被注册守卫拦下。
 - 发起即忘的异步不要 `Forget()` 掉异常——要么把失败原因落到日志，要么让调用方拿到可await的结果。
-- 动到公开面时同步 `Documentation~/zh|en/<Module>.md` 与 `CHANGELOG.md`，口径见 `CLAUDE.md` 的「提交时的文档与 CHANGELOG」。
+- 动到公开面时同步 `Documentation~/<Module>.md` 与 `CHANGELOG.md`，口径见 `CLAUDE.md` 的「提交时的文档与 CHANGELOG」。
 
 请告诉我要创建什么服务，我按上面的形状生成三件套与对应的默认处理器。

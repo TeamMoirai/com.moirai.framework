@@ -6,7 +6,7 @@
 
 ## AI 测试流程
 
-面向代理的执行流程；规范全文见 [`Documentation~/zh/Testing.md`](Documentation~/zh/Testing.md)。
+面向代理的执行流程；规范全文见 [`Documentation~/Testing.md`](Documentation~/Testing.md)。
 
 ### 1. 何时必须写测试
 
@@ -21,7 +21,7 @@
 3. **先写失败用例**：新增用例必须**先红后绿**——先跑一次确认它真的能失败（否则它可能什么都没断），再改代码让它变绿。这是"用例有效"的唯一证据。
 4. **实现 / 修复**。
 5. **验证**：编译 0 error → 目标夹具过滤回归 → 全量回归 0 失败。
-6. **同步文档**：公共 API 变更同步 `Documentation~/zh|en`；契约守卫基线变更同步常数与 `CHANGELOG.md`。
+6. **同步文档**：公共 API 变更同步 `Documentation~/<模块>.md`；契约守卫基线变更同步常数与 `CHANGELOG.md`。
 
 ### 3. 选通道
 

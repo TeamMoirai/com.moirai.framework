@@ -6,7 +6,6 @@ Moirai Framework
 [![Issues](https://img.shields.io/github/issues/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
 [![Top Language](https://img.shields.io/github/languages/top/TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework)
-[![README](https://img.shields.io/badge/README-English-FFA500)](https://github.com/TeamMoirai/com.moirai.framework/blob/main/README_EN.md)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TeamMoirai/com.moirai.framework)
 
 ---
@@ -62,7 +61,7 @@ Moirai Framework
 2. **UPM 安装** —— 在 Project Settings/Package Manager 添加 Open UPM 的 Scoped Registry，再对 Moirai Framework 点 Install
 3. **手动安装** —— 用 Git URL 安装，或下载最新 Release 的 Source Code 压缩包
 
-三种方式的逐步说明与截图、装完后的初始设置（模板复制、场景打包列表、Luban Config 生成）与编辑器/打包运行流程，见 **[安装与运行](Documentation~/zh/Install.md)**。
+三种方式的逐步说明与截图、装完后的初始设置（模板复制、场景打包列表、Luban Config 生成）与编辑器/打包运行流程，见 **[安装与运行](Documentation~/Install.md)**。
 
 ---
 
@@ -96,7 +95,7 @@ com.moirai.framework/
 ├── Samples~/                   # 示例
 ├── SourceGenerators/           # 预编译源生成器（ProviderHandlerHost / SaveServiceCodegen / ServiceDependency）
 ├── Templates~/                 # 项目初始模板（@Requirements / Config / HybridTemplate / NormalTemplate）
-├── Documentation~/             # 双语服务文档（zh / en）
+├── Documentation~/             # 服务文档（一个服务一份）
 └── Tests/                      # 单元测试（EditorMode / PlayMode / Player / Coverage）
 ```
 
@@ -122,7 +121,7 @@ var my = GameServices.GetRequiredService<MyService>();
 - 通过 `Priority` 属性控制轮询顺序（框架内置服务统一 ≤ -1000，业务服务默认 0 及以上），通过 `Scope`（App / Scene / Gameplay）控制生命周期范围，场景卸载时自动清理场景与玩法级服务
 - `ServiceWorld` 可 `new` 构造隔离世界（测试/沙盒），`GameServices` 静态外观仅是默认世界的投影
 
-> 📖 详细用法（自定义服务、作用域遮蔽、跨服务依赖）见 **[Core 服务系统文档](Documentation~/zh/Core.md)**
+> 📖 详细用法（自定义服务、作用域遮蔽、跨服务依赖）见 **[Core 服务系统文档](Documentation~/Core.md)**
 
 ### 启动流程
 
@@ -136,34 +135,33 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 每个阶段均为独立的 `ProcedureBase` 状态，可通过 `ProcedureServiceSettings`（ScriptableObject）自定义。
 
-> 📖 详见 **[Procedure 服务文档](Documentation~/zh/Procedure.md)**
+> 📖 详见 **[Procedure 服务文档](Documentation~/Procedure.md)**
 
 ---
 
 ## 📚 文档
 
-每篇服务文档包含核心特性、核心类型、快速上手与进阶用法，中英双语：
+每篇服务文档包含核心特性、核心类型、快速上手与进阶用法：
 
-- 中文文档索引：**[Documentation~/zh/Index.md](Documentation~/zh/Index.md)**
-- English docs: **[Documentation~/en/Index.md](Documentation~/en/Index.md)**
+- 文档索引：**[Documentation~/Index.md](Documentation~/Index.md)**
 
 ### 功能服务
 
 | 服务 | 说明 | 文档 |
 |------|------|------|
-| **Kernel** | 服务系统基座：`ServiceWorld` 服务世界、`GameServices` 注册/查找/作用域、`[ServiceDependency]` 依赖拓扑初始化 | [Core.md](Documentation~/zh/Core.md) |
-| **Resource** | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 | [Resource.md](Documentation~/zh/Resource.md) |
-| **UI** | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 | [UI.md](Documentation~/zh/UI.md) |
-| **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、句柄控制 | [Audio.md](Documentation~/zh/Audio.md) |
-| **Localization** | 本地化：文本/图片/音频/Timeline 多类型注入、Google 翻译集成 | [Localization.md](Documentation~/zh/Localization.md) |
-| **ConfigTable** | Luban 配置表集成：表加载与懒加载访问、转表工具链 | [ConfigTable.md](Documentation~/zh/ConfigTable.md) |
-| **Procedure** | 游戏流程管理：启动链、可配置流程、自包含状态机 | [Procedure.md](Documentation~/zh/Procedure.md) |
-| **Input** | 多平台输入抽象：Input System / 旧版输入 / 移动端 UI 触控、按键提示 | [Input.md](Documentation~/zh/Input.md) |
-| **Save** | 可插拔存档系统：单文件多数据块容器、内置 JSON 序列化（MessagePack/MemoryPack/Protobuf 由 `plugin` 分支插件提供）、AES 加密与 GZip 压缩、文件级版本迁移总线、无代码组件保存（SourceGenerator）、云同步（REST 内置、UGS 由插件提供） | [Save.md](Documentation~/zh/Save.md) |
-| **Scene** | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 | [Scene.md](Documentation~/zh/Scene.md) |
-| **Timer** | 双引擎计时器：四级时间轮（按秒）+ 帧计时（按帧）、版本化句柄、预热、统计 | [Timer.md](Documentation~/zh/Timer.md) |
-| **ObjectPool** | 服务级对象池：单次/多次 Spawn 池、GameObject 池 | [ObjectPool.md](Documentation~/zh/ObjectPool.md) |
-| **Debugger** | 运行时调试器：可注册调试窗口、日志回放 | [Debugger.md](Documentation~/zh/Debugger.md) |
+| **Kernel** | 服务系统基座：`ServiceWorld` 服务世界、`GameServices` 注册/查找/作用域、`[ServiceDependency]` 依赖拓扑初始化 | [Core.md](Documentation~/Core.md) |
+| **Resource** | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 | [Resource.md](Documentation~/Resource.md) |
+| **UI** | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 | [UI.md](Documentation~/UI.md) |
+| **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、句柄控制 | [Audio.md](Documentation~/Audio.md) |
+| **Localization** | 本地化：文本/图片/音频/Timeline 多类型注入、Google 翻译集成 | [Localization.md](Documentation~/Localization.md) |
+| **ConfigTable** | Luban 配置表集成：表加载与懒加载访问、转表工具链 | [ConfigTable.md](Documentation~/ConfigTable.md) |
+| **Procedure** | 游戏流程管理：启动链、可配置流程、自包含状态机 | [Procedure.md](Documentation~/Procedure.md) |
+| **Input** | 多平台输入抽象：Input System / 旧版输入 / 移动端 UI 触控、按键提示 | [Input.md](Documentation~/Input.md) |
+| **Save** | 可插拔存档系统：单文件多数据块容器、内置 JSON 序列化（MessagePack/MemoryPack/Protobuf 由 `plugin` 分支插件提供）、AES 加密与 GZip 压缩、文件级版本迁移总线、无代码组件保存（SourceGenerator）、云同步（REST 内置、UGS 由插件提供） | [Save.md](Documentation~/Save.md) |
+| **Scene** | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 | [Scene.md](Documentation~/Scene.md) |
+| **Timer** | 双引擎计时器：四级时间轮（按秒）+ 帧计时（按帧）、版本化句柄、预热、统计 | [Timer.md](Documentation~/Timer.md) |
+| **ObjectPool** | 服务级对象池：单次/多次 Spawn 池、GameObject 池 | [ObjectPool.md](Documentation~/ObjectPool.md) |
+| **Debugger** | 运行时调试器：可注册调试窗口、日志回放 | [Debugger.md](Documentation~/Debugger.md) |
 
 ### 核心工具
 
@@ -171,10 +169,10 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 |------|------|------|
 | **Attributes** | ~20 个自定义属性绘制器 + Odin 扩展（条件显示、Inspector 按钮、Layer/Tag/资源路径选择、ProviderDropdown 等） | — |
 | **Events** | 移植自 UIElements 的池化冒泡事件系统：零 GC、TrickleDown → BubbleUp、`StopPropagation()` / `PreventDefault()`、可视化调试窗口 | — |
-| **Singleton** | 单例家族：纯 C#（volatile 双检锁）/ MonoBehaviour（主线程物化）/ 注册式，线程规则 fail-fast | [Singleton.md](Documentation~/zh/Singleton.md) |
-| **MemoryPool** | 零 GC 页式内存池：非托管元数据、EWMA 自适应水位线、阶段预算 | [MemoryPool.md](Documentation~/zh/MemoryPool.md) |
-| **GameApp** | Unity 生命周期代理：协程托管、帧更新注入、引擎事件注入、游戏速度/暂停控制 | [GameApp.md](Documentation~/zh/GameApp.md) |
-| **PlayerLoopDriver** | 剥离 Mono 的 PlayerLoop 逻辑驱动：零分配 Handler、注入/恢复、编辑器可视化 | [PlayerLoopDriver.md](Documentation~/zh/PlayerLoopDriver.md) |
+| **Singleton** | 单例家族：纯 C#（volatile 双检锁）/ MonoBehaviour（主线程物化）/ 注册式，线程规则 fail-fast | [Singleton.md](Documentation~/Singleton.md) |
+| **MemoryPool** | 零 GC 页式内存池：非托管元数据、EWMA 自适应水位线、阶段预算 | [MemoryPool.md](Documentation~/MemoryPool.md) |
+| **GameApp** | Unity 生命周期代理：协程托管、帧更新注入、引擎事件注入、游戏速度/暂停控制 | [GameApp.md](Documentation~/GameApp.md) |
+| **PlayerLoopDriver** | 剥离 Mono 的 PlayerLoop 逻辑驱动：零分配 Handler、注入/恢复、编辑器可视化 | [PlayerLoopDriver.md](Documentation~/PlayerLoopDriver.md) |
 | **GameLog** | 日志系统：运行时级别过滤、可插拔后端（框架内置 Default；Serilog / Unity Logging / ZLogger 各由 `plugin` 分支的同名插件提供，装上才进 Provider 下拉）、T4 生成的格式化重载、拦截 Unity 原生 `Debug.Log` | — |
 | **GameTime** | 轻量时间访问器，每帧采样一次，避免频繁调用 `Time.deltaTime` | — |
 | **GameProfiler** | 条件编译的性能采样（`PROFILER_ENABLE` 宏），宏关闭时零开销 | — |
@@ -184,10 +182,10 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | **Obfuz** | [Obfuz](https://github.com/focus-creative-games/obfuz) 代码混淆集成：程序集加载后自动初始化加密虚拟机 | — |
 | **DataStructure** | `IOCContainer` / `PriorityQueue<T>` / `SparseArray<T>` / `SerializableDictionary<K,V>` / `ShuffleBag<T>` 等 12 个 | — |
 | **Extensions/R3** | R3 响应式扩展 + UGUI 绑定：`OnClickAsObservable()`、`ReactiveProperty` 双向绑定 | — |
-| **StringUtility** | 字符串格式化与构建：可插拔 Handler、池化 StringBuilder、三种使用模式 | [StringUtility.md](Documentation~/zh/StringUtility.md) |
-| **JsonUtility** | JSON 序列化/反序列化：可插拔 Handler、字节快速通路、允许列表成员筛选 | [JsonUtility.md](Documentation~/zh/JsonUtility.md) |
-| **ObjectUtility** | 对象实例化/销毁：可插拔 Handler（框架内置单机；Photon Fusion 联网感知由 `plugin` 分支的 `photon-fusion` 插件提供） | [ObjectUtility.md](Documentation~/zh/ObjectUtility.md) |
-| **TweenUtility** | 缓动系统：可插拔引擎（框架内置自研；PrimeTween / LitMotion 由 `plugin` 分支同名插件提供）、贝塞尔路径、统一缓动参数 | [TweenUtility.md](Documentation~/zh/TweenUtility.md) |
+| **StringUtility** | 字符串格式化与构建：可插拔 Handler、池化 StringBuilder、三种使用模式 | [StringUtility.md](Documentation~/StringUtility.md) |
+| **JsonUtility** | JSON 序列化/反序列化：可插拔 Handler、字节快速通路、允许列表成员筛选 | [JsonUtility.md](Documentation~/JsonUtility.md) |
+| **ObjectUtility** | 对象实例化/销毁：可插拔 Handler（框架内置单机；Photon Fusion 联网感知由 `plugin` 分支的 `photon-fusion` 插件提供） | [ObjectUtility.md](Documentation~/ObjectUtility.md) |
+| **TweenUtility** | 缓动系统：可插拔引擎（框架内置自研；PrimeTween / LitMotion 由 `plugin` 分支同名插件提供）、贝塞尔路径、统一缓动参数 | [TweenUtility.md](Documentation~/TweenUtility.md) |
 
 <details>
 <summary>Utility — 全部工具类一览</summary>
@@ -205,17 +203,17 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | `EncryptionUtility` | 加密工具 |
 | `FileUtility` | 文件操作 |
 | `HttpUtility` | HTTP 请求（支持 UniTask） |
-| `JsonUtility` | JSON 序列化/反序列化，[文档](Documentation~/zh/JsonUtility.md) |
+| `JsonUtility` | JSON 序列化/反序列化，[文档](Documentation~/JsonUtility.md) |
 | `MainThreadDispatcher` | 主线程调度 |
 | `MarshalUtility` | 非托管内存操作 |
 | `MaterialUtility` | 材质工具 |
 | `MathsUtility` | 数学工具（含 Unity.Mathematics 集成） |
-| `ObjectUtility` | 对象实例化/销毁，[文档](Documentation~/zh/ObjectUtility.md) |
+| `ObjectUtility` | 对象实例化/销毁，[文档](Documentation~/ObjectUtility.md) |
 | `PathUtility` | 路径工具 |
 | `ReflectionUtility` | 反射工具 |
-| `StringUtility` | 字符串格式化与构建，[文档](Documentation~/zh/StringUtility.md) |
+| `StringUtility` | 字符串格式化与构建，[文档](Documentation~/StringUtility.md) |
 | `ToolRegistry` | 组件注册表 |
-| `TweenUtility` | 缓动系统（含贝塞尔路径），[文档](Documentation~/zh/TweenUtility.md) |
+| `TweenUtility` | 缓动系统（含贝塞尔路径），[文档](Documentation~/TweenUtility.md) |
 | `UniParallel` | UniTask 并行任务收集器（等待全部完成） |
 | `UnityUtility` | Unity 通用工具 |
 

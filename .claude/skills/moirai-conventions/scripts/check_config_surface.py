@@ -106,10 +106,10 @@ NON_LITERAL_CHARS = set("*?<>{}|[]$ \t\"'")
 # 受检就是假红，而文档里点名 `Temp/MoiraiEditorState.json` 这类桥文件是正当用法
 IGNORED_ROOTS = ("docs/", ".superpowers/", ".codely-cli/")
 # 判据 F 的射程 = 随包发行面。未入库的在途产物不判（与判据 E 同理由）
-SHIPPED_SURFACES = ("Documentation~/", "README.md", "README_EN.md", "CONTRIBUTING.md",
+SHIPPED_SURFACES = ("Documentation~/", "README.md", "CONTRIBUTING.md",
                     "CHANGELOG.md", ".claude/", "Specs~/")
 # 给消费者看的那一层：只讲用法，不许指进内建契约层
-PUBLIC_ONLY = ("Documentation~/", "README.md", "README_EN.md")
+PUBLIC_ONLY = ("Documentation~/", "README.md")
 # skill 根相对写法（`references/…` 一类）不受检也不该再写：两种解析基座并存必脆
 # 成员名不在「类型是否存在」这一口径内：本判据只答类型面，方法、字段与生成成员一律不查
 
