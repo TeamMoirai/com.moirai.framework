@@ -52,6 +52,22 @@ namespace Moirai.Atropos.Audio
         /// <remarks>Clip 缓存的只读投影；租约由缓存持有，外部无法经此视图改写记账或释放租约。</remarks>
         public override IReadOnlyDictionary<string, object> AssetHandlePool => _clipCache.PoolReadOnly;
 
+        #region 后端能力 [BACKEND CAPABILITIES]
+
+        /// <inheritdoc />
+        /// <remarks>消费点是 <see cref="AudioAgent"/> 的起播路径：正值走 <c>PlayDelayed</c>，且计入自然结束计时。</remarks>
+        protected internal override bool SupportsDelayedStart => true;
+
+        /// <inheritdoc />
+        /// <remarks>消费点同上：严格大于 0 时用它压掉自然结束点，到点走淡出。</remarks>
+        protected internal override bool SupportsPlaybackTrim => true;
+
+        /// <inheritdoc />
+        /// <remarks>消费点是 <see cref="AudioAgent"/> 的独奏分支：按轨或全轨静音其他音源，并挂自动取消独奏的定时。</remarks>
+        protected internal override bool SupportsSoloControl => true;
+
+        #endregion 后端能力 [BACKEND CAPABILITIES]
+
         #region 音轨状态 [TRACK STATUS]
 
         /// <inheritdoc />

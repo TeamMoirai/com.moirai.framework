@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Audio.Middleware
     /// 总线音量/静音/暂停与场景切换清理； <br />
     /// 子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。 <br />
     /// 语义与 Unity 后端对齐：暂停轨拦截新播放、<see cref="MasterVolume"/> getter 始终返回未静音值、Master/音轨 Fade 带缓动。 <br />
-    /// 不支持 InitialDelay / PlaybackDuration / Solo（中间件事件由工程侧编排）。 <br />
+    /// 不支持 InitialDelay / PlaybackTime / PlaybackDuration / Solo（中间件事件由工程侧编排，自报能力见 <see cref="AudioServiceHandler"/> 的后端能力区）。 <br />
     /// 过渡目标走框架内的 <see cref="FadeSink"/>（不直接实现 <c>IAudioFadeTarget</c>）：那条接缝是 <see cref="AudioFadeScheduler"/> 的内部回调面， <br />
     /// 后端插件既不提供也不实现它，把它挂到本公共契约基类的基列表上会让调度器的内部面漏进公共 API。
     /// </remarks>
