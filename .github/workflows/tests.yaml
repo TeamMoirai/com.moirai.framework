@@ -124,7 +124,9 @@ jobs:
 
       # 玩家专用套件（Moirai.Atropos.Tests.Player）跑不了命令行：它的测试入口是构建期注入的
       # 引导场景，且结果通过 PlayerConnection 回传编辑器。这里退一步做**编译面**校验——
-      # 确认 defineConstraints 仍把它挡在编辑器之外，且没有引用 editor-only 程序集。
+      # 确认它仍只在带测试的构建里存在、对编辑器可见，且没被钉成编辑器专用而悄悄退出玩家构建。
+      # 引用面是 GUID 形式，按名字 grep 永不命中，所以这里不冒充「没引用编辑器程序集」的判据——
+      # 那一条由玩家侧真跑（L3）承担。
       - name: Assert player test assembly constraints
         shell: bash
         run: |
@@ -135,9 +137,12 @@ jobs:
             exit 1
           fi
           grep -q '"UNITY_INCLUDE_TESTS"' "$asmdef" || { echo "::error::$asmdef must require UNITY_INCLUDE_TESTS"; exit 1; }
-          grep -q '"!UNITY_EDITOR"' "$asmdef" || { echo "::error::$asmdef must be excluded from the editor"; exit 1; }
-          if grep -q 'UnityEditor' "$asmdef"; then
-            echo "::error::$asmdef must not reference editor-only assemblies"
+          if grep -q '"!UNITY_EDITOR"' "$asmdef"; then
+            echo "::error::$asmdef must stay editor-visible: UTF player runs only collect assemblies the editor can see"
+            exit 1
+          fi
+          if grep -Eq '"includePlatforms"[[:space:]]*:[[:space:]]*\[[[:space:]]*"Editor"' "$asmdef"; then
+            echo "::error::$asmdef must not be pinned to the Editor platform, or it disappears from player builds"
             exit 1
           fi
           echo "Player test assembly shape OK."
