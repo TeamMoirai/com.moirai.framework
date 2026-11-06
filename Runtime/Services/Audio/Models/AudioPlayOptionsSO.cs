@@ -155,15 +155,12 @@ namespace Moirai.Atropos.Audio
         // 独奏
         [Header("独奏 [Solo]")]
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
-        [Tooltip("此音频是否应在其目标音轨上以 Solo 模式播放。如果是，则当此音频开始播放时，该音轨上的所有其他音频都将静音")]
-        [SerializeField] private bool m_SoloSingleTrack = false;
-        public bool SoloSingleTrack => m_SoloSingleTrack;
+        [Tooltip("以 Solo 模式播放的范围：SingleTrack 开播时静音本音轨上的所有其他音频，AllTracks 开播时静音所有其他音轨")]
+        [SerializeField] private EAudioSoloMode m_SoloMode = EAudioSoloMode.None;
+        public EAudioSoloMode SoloMode => m_SoloMode;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
-        [Tooltip("此音频是否应在所有音轨上以 Solo 模式播放。如果是，则当此音频开始播放时，所有其他音频都将静音")]
-        [SerializeField] private bool m_SoloAllTracks = false;
-        public bool SoloAllTracks => m_SoloAllTracks;
-        [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
-        [Tooltip("如果在上面任意 Solo 模式下，一旦音频停止播放，AutoUnSoloOnEnd 将自动取消静音")]
+        [Tooltip("在任意 Solo 模式下，音频停止播放后自动取消静音")]
+        [HideIf(nameof(m_SoloMode), EAudioSoloMode.None)]
         [SerializeField] private bool m_AutoUnSoloOnEnd = false;
         public bool AutoUnSoloOnEnd => m_AutoUnSoloOnEnd;
 
@@ -171,12 +168,12 @@ namespace Moirai.Atropos.Audio
         [Header("空间设置 [Spatial Settings]")]
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("以立体声方式（左声道或右声道）平移正在播放的音频。仅适用于单声道或立体声。")]
-        [Range(-1f,1f)]
+        [Range(-1f, 1f)]
         [SerializeField] private float m_PanStereo;
         public float PanStereo => m_PanStereo;
         [InspectorGroup(AUDIO_PROPERTIES_GROUP)]
         [Tooltip("设置 3D 空间化计算（衰减、多普勒效应等）对该 AudioSource 的影响程度。0.0 使音频变成全 2D 效果，1.0 使其变成全 3D。")]
-        [Range(0f,1f)]
+        [Range(0f, 1f)]
         [SerializeField] private float m_SpatialBlend;
         public float SpatialBlend => m_SpatialBlend;
 
@@ -336,8 +333,7 @@ namespace Moirai.Atropos.Audio
                 FadeInDuration = m_FadeInDuration,
                 FadeInTweenEase = m_FadeInTweenEase,
 
-                SoloSingleTrack = m_SoloSingleTrack,
-                SoloAllTracks = m_SoloAllTracks,
+                SoloMode = m_SoloMode,
                 AutoUnSoloOnEnd = m_AutoUnSoloOnEnd,
 
                 Priority = m_Priority,
