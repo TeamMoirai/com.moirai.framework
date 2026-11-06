@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Audio
     /// 跨后端语义约定：暂停音轨拦截新播放（<see cref="Play"/> 返回 0）；<see cref="MasterVolume"/> getter 报未静音的设置值； <br />
     /// 主音量与音轨音量都是线性 <c>0..1</c>、在契约入口夹取一次；Master/音轨 Fade 经共享 <see cref="AudioFadeScheduler"/> 驱动且可中途停止； <br />
     /// 句柄生命周期与用户 ID 映射由共享 <see cref="AudioHandleRegistry{TVoice}"/> 保证；后端整体失效时（<see cref="IsBackendInert"/>）音量面读作 0、写作无效。 <br />
-    /// Unity 专属成员（中间件返回 null/空操作）见各成员 remarks；中间件不支持 InitialDelay / PlaybackDuration / Solo。
+    /// Unity 专属成员（中间件返回 null/空操作）见各成员 remarks；延迟起播/时长裁剪/独奏三项能力由后端自报，见「后端能力」区。
     /// </remarks>
     [Serializable]
     public abstract class AudioServiceHandler : FrameworkHandler
@@ -96,6 +96,34 @@ namespace Moirai.Atropos.Audio
         public abstract void SetTrackMute(EAudioTrack track, bool mute);
 
         #endregion 音轨状态 [TRACK STATUS]
+
+        #region 后端能力 [BACKEND CAPABILITIES]
+
+        /// <summary>
+        /// 本后端是否消费 <see cref="AudioPlayOptions.InitialDelay"/>（延迟起播）。
+        /// </summary>
+        /// <remarks>
+        /// 判据由被判定方自报：能力面不许在框架里按具体后端类型判，也不按插件宏分支——那种判定会被预处理静默裁成恒假。 <br />
+        /// 默认假：未知后端不得自称支持，配置里没生效的延迟由构建期校验器报出来，而不是变成偶发不响。
+        /// </remarks>
+        protected internal virtual bool SupportsDelayedStart => false;
+
+        /// <summary>
+        /// 本后端是否消费 <see cref="AudioPlayOptions.PlaybackTime"/> 与 <see cref="AudioPlayOptions.PlaybackDuration"/>（按请求裁剪播放区间）。
+        /// </summary>
+        /// <remarks>
+        /// 语义同 <see cref="SupportsDelayedStart"/>；区间两端算同一枚能力——逐后端实测里不存在只吃起点不吃时长（或反之）的实现，拆成两枚会逼出成对写死的平行布尔。 <br />
+        /// 消费与否以运行期是否据此决定起播位置与播完/淡出为准。
+        /// </remarks>
+        protected internal virtual bool SupportsPlaybackTrim => false;
+
+        /// <summary>
+        /// 本后端是否消费 <see cref="AudioPlayOptions.SoloMode"/>（开播时静音范围内的其他音频）。
+        /// </summary>
+        /// <remarks>语义同 <see cref="SupportsDelayedStart"/>；<see cref="AudioPlayOptions.AutoUnSoloOnEnd"/> 属独奏分支，随本项一起判。</remarks>
+        protected internal virtual bool SupportsSoloControl => false;
+
+        #endregion 后端能力 [BACKEND CAPABILITIES]
 
         #region 服务方法 [SERVICE METHOD]
 

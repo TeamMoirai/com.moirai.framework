@@ -15,6 +15,12 @@ namespace Moirai.Atropos.Audio
         /// <summary>音频处理器（后端）。</summary>
         internal static AudioServiceHandler AudioServiceHandler => Instance.m_AudioServiceHandler;
 
+        /// <summary>配置自检：当前序列化后端自报的播放能力快照。</summary>
+        /// <remarks>
+        /// 实例成员，不经 <see cref="FrameworkSettings{T}.Instance"/> 取用：构建期校验器缺资产时只读不新建。
+        /// </remarks>
+        internal AudioBackendCapabilities BackendCapabilities => AudioBackendCapabilities.From(m_AudioServiceHandler);
+
         [Tooltip("如果不配置 AudioGroupConfigs，则会从 AudioMixer 读取音轨配置")]
         [SerializeField] private AudioMixer m_AudioMixer;
         /// <summary>音频混音器。</summary>
