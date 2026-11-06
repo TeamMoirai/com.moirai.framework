@@ -10,7 +10,11 @@ using Unity.IL2CPP.CompilerServices;
 [assembly: InternalsVisibleTo("Moirai.Atropos.Tests.EditorMode")]
 [assembly: InternalsVisibleTo("Moirai.Atropos.Tests.PlayMode")]
 [assembly: InternalsVisibleTo("Moirai.Atropos.Tests.Player")]
+
 [assembly: InternalsVisibleTo("Moirai.Clotho")]
+[assembly: InternalsVisibleTo("Moirai.Clotho.CharacterControllerPro")]
+[assembly: InternalsVisibleTo("Moirai.Clotho.UIPro")]
+
 [assembly: InternalsVisibleTo("Moirai.Lachesis")]
 
 // IL2CPP 代码生成优化：仅 Player 构建生效，Editor Mono 保持全量隐式检查；
