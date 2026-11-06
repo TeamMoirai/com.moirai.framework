@@ -8,12 +8,15 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 生命周期为 <see cref="Internal_Init"/> → <see cref="OnInit"/> → 运行期 → <see cref="Internal_Shutdown"/> → <br />
     /// <see cref="OnShutdown"/>，全部同步。
-    /// <c>ProviderHandlerHostGenerator</c> 生成的 <c>Handler</c> 属性 setter 自动驱动：设置时初始化新实例，替换时先关闭旧实例。
+    /// <c>ProviderHandlerHostGenerator</c> 生成的 <c>Handler</c> 在共享冷路径锁内初始化，成功发布新实例后关闭旧实例。
     /// 需要异步初始化的对象走 Kernel 的 <c>IService.OnInitAsync</c>，处理器挂异步钩子不会被调用。
     /// </remarks>
     [Serializable]
     public abstract class FrameworkHandler
     {
+        /// <summary>所有生成宿主共享的冷初始化互斥锁；可重入以允许同步解析跨宿主依赖。</summary>
+        internal static readonly object s_InitializationLock = new object();
+
         // 标记 [NonSerialized] 以保证域重载后重置其值，避免序列化快照的状态污染
         [NonSerialized] private bool _initialized;
         /// <summary>处理器是否已初始化。</summary>

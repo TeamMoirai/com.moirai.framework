@@ -106,6 +106,8 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine($"    {classModifier} {info.ClassName}");
             sb.AppendLine("    {");
             sb.AppendLine($"        private static volatile {info.HandlerTypeName} s_Handler;");
+            sb.AppendLine("        // 仅在共享初始化锁内访问；工厂阶段不置位，允许服务注册重入。");
+            sb.AppendLine("        private static bool s_InitializingHandler;");
             sb.AppendLine();
 
             if (info.DeclaredDefaultFqn != null && !info.HasUserCreateDefaultHandler)
@@ -151,51 +153,68 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("                }");
             sb.AppendLine();
 
-            if (hasFactory)
-            {
-                // 直接调用工厂方法：s_DefaultFactory 委托字段恒非 Null 且无任何再赋值方，判空与字段均为死代码
-                sb.AppendLine(info.HasGetHandlerFromSettings
-                    ? "                var created = GetHandlerFromSettings() ?? CreateDefaultHandler()"
-                    : "                var created = CreateDefaultHandler()");
-
-                // 工厂链末端兜底：settings 缺值且工厂返回 null（或仅工厂且返回 null）时 fail-fast，
-                // 避免 null 流入 CAS 后在 Internal_Init 处 NRE 且每次访问复现
-                sb.AppendLine("                    ?? throw new InvalidOperationException(");
-                sb.AppendLine(info.HasGetHandlerFromSettings
-                    ? $"                        \"ProviderHandlerHost: '{info.ClassName}' GetHandlerFromSettings returned null and CreateDefaultHandler returned null.\");"
-                    : $"                        \"ProviderHandlerHost: '{info.ClassName}' CreateDefaultHandler returned null.\");");
-
-                sb.AppendLine("                if (Interlocked.CompareExchange(ref s_Handler, created, null) == null)");
-                sb.AppendLine("                {");
-                sb.AppendLine("                    created.Internal_Init();");
-                sb.AppendLine("                }");
-            }
-            else if (info.HasGetHandlerFromSettings)
-            {
-                // settings-only：懒加载唯一来源是 GetHandlerFromSettings，返回 null 即 fail-fast
-                sb.AppendLine("                var created = GetHandlerFromSettings()");
-                sb.AppendLine("                    ?? throw new InvalidOperationException(");
-                sb.AppendLine($"                        \"ProviderHandlerHost: '{info.ClassName}' has no CreateDefaultHandler and GetHandlerFromSettings returned null. Set Handler manually or configure the settings source.\");");
-                sb.AppendLine();
-
-                sb.AppendLine("                if (Interlocked.CompareExchange(ref s_Handler, created, null) == null)");
-                sb.AppendLine("                {");
-                sb.AppendLine("                    created.Internal_Init();");
-                sb.AppendLine("                }");
-            }
-            else
-            {
-                sb.AppendLine($"                throw new InvalidOperationException(");
-                sb.AppendLine($"                    \"ProviderHandlerHost: '{info.ClassName}' has no CreateDefaultHandler or GetHandlerFromSettings, set Handler manually before use.\");");
-            }
+            // 所有宿主共用一把可重入锁，避免跨宿主同步依赖导致宿主锁逆序。
+            sb.AppendLine("                lock (global::Moirai.Atropos.FrameworkHandler.s_InitializationLock)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    handler = s_Handler;");
+            sb.AppendLine("                    if (handler != null) return handler;");
+            sb.AppendLine("                    if (s_InitializingHandler)");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        throw new InvalidOperationException(");
+            sb.AppendLine($"                            \"ProviderHandlerHost: '{info.ClassName}' recursive handler initialization is not allowed.\");");
+            sb.AppendLine("                    }");
+            sb.AppendLine();
 
             if (hasFactory || info.HasGetHandlerFromSettings)
             {
-                // 懒加载路径：CAS 成功的一侧补 Internal_Init 后返回装配结果
+                sb.AppendLine(info.HasGetHandlerFromSettings
+                    ? "                    var created = GetHandlerFromSettings();"
+                    : "                    var created = CreateDefaultHandler();");
+                // 工厂可能经服务注册重入并成功装配；必须先接收其结果，再回退工厂或判空。
+                sb.AppendLine("                    handler = s_Handler;");
+                sb.AppendLine("                    if (handler != null) return handler;");
+                if (hasFactory && info.HasGetHandlerFromSettings)
+                {
+                    sb.AppendLine("                    if (created == null)");
+                    sb.AppendLine("                    {");
+                    sb.AppendLine("                        created = CreateDefaultHandler();");
+                    sb.AppendLine("                        handler = s_Handler;");
+                    sb.AppendLine("                        if (handler != null) return handler;");
+                    sb.AppendLine("                    }");
+                }
+                sb.AppendLine("                    if (created == null)");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        throw new InvalidOperationException(");
+                if (!hasFactory)
+                {
+                    sb.AppendLine($"                            \"ProviderHandlerHost: '{info.ClassName}' has no CreateDefaultHandler and GetHandlerFromSettings returned null. Set Handler manually or configure the settings source.\");");
+                }
+                else
+                {
+                    sb.AppendLine(info.HasGetHandlerFromSettings
+                        ? $"                            \"ProviderHandlerHost: '{info.ClassName}' GetHandlerFromSettings returned null and CreateDefaultHandler returned null.\");"
+                        : $"                            \"ProviderHandlerHost: '{info.ClassName}' CreateDefaultHandler returned null.\");");
+                }
+                sb.AppendLine("                    }");
                 sb.AppendLine();
-                sb.AppendLine("                return s_Handler;");
+                sb.AppendLine("                    s_InitializingHandler = true;");
+                sb.AppendLine("                    try");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        created.Internal_Init();");
+                sb.AppendLine("                        s_Handler = created;");
+                sb.AppendLine("                        return created;");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    finally");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        s_InitializingHandler = false;");
+                sb.AppendLine("                    }");
             }
-            // else：getter 以无条件 throw 结束，块尾不可达即满足 CS0161；不追加 return（避免 CS0162 不可达代码）
+            else
+            {
+                sb.AppendLine("                    throw new InvalidOperationException(");
+                sb.AppendLine($"                        \"ProviderHandlerHost: '{info.ClassName}' has no CreateDefaultHandler or GetHandlerFromSettings, set Handler manually before use.\");");
+            }
+            sb.AppendLine("                }");
 
             sb.AppendLine("            }");
             sb.AppendLine("            set");
@@ -205,12 +224,27 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("                    throw new ArgumentNullException(nameof(value));");
             sb.AppendLine("                }");
             sb.AppendLine();
-            sb.AppendLine("                value.Internal_Init();");
-            sb.AppendLine();
-            sb.AppendLine("                var previous = Interlocked.Exchange(ref s_Handler, value);");
-            sb.AppendLine("                if (previous != null && !ReferenceEquals(previous, value))");
+            sb.AppendLine("                lock (global::Moirai.Atropos.FrameworkHandler.s_InitializationLock)");
             sb.AppendLine("                {");
-            sb.AppendLine("                    previous.Internal_Shutdown();");
+            sb.AppendLine("                    var previous = s_Handler;");
+            sb.AppendLine("                    if (ReferenceEquals(previous, value)) return;");
+            sb.AppendLine("                    if (s_InitializingHandler)");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        throw new InvalidOperationException(");
+            sb.AppendLine($"                            \"ProviderHandlerHost: '{info.ClassName}' recursive handler initialization is not allowed.\");");
+            sb.AppendLine("                    }");
+            sb.AppendLine();
+            sb.AppendLine("                    s_InitializingHandler = true;");
+            sb.AppendLine("                    try");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        value.Internal_Init();");
+            sb.AppendLine("                        s_Handler = value;");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    finally");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        s_InitializingHandler = false;");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    previous?.Internal_Shutdown();");
             sb.AppendLine("                }");
             sb.AppendLine("            }");
             sb.AppendLine("        }");
