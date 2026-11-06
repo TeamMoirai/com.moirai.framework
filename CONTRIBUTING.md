@@ -5,10 +5,10 @@
 ## 开发流程
 
 1. Fork / 拉取仓库，从 `master` 切出功能分支。
-2. 开发时保持双语文档同步：`Documentation~/zh/` 与 `Documentation~/en/` 为平行翻译，改动任一侧必须同步另一侧（仓库存有标题骨架一致性检查的惯例，见提交历史 `docs(...)` 前缀的提交）。
+2. 模块文档只有中文一份，落在 `Documentation~/<模块>.md`；公共 API 变更同步对应那一篇（口径见 `.claude/skills/moirai-conventions/references/release.md`）。
 3. 变更记入 [CHANGELOG.md](CHANGELOG.md) 的 `[Unreleased]` 段——格式遵循 Keep a Changelog，只记尚未发行的净结果，具体排版规则见该文件头部说明。
 4. 提交信息格式为 `类型(范围): 摘要`，如 `feat(save): ...`、`fix(json): ...`、`docs(ui): ...`、`refactor(resource): ...`。
-5. 提交前跑测试（见 [Testing 文档](Documentation~/zh/Testing.md)），确认既有用例不红。
+5. 提交前跑测试（见 [Testing 文档](Documentation~/Testing.md)），确认既有用例不红。
 6. 搬目录/改文件名的提交另过两把仓内工具（都在 `Documentation~/Tools/`，各脚本头部写明自己的量程与检不出的形状）：
    `pure-move-gate.sh` 逐笔证「内容一个字节没动」，**只准审一笔提交**（跨区间它会 `RESULT: REFUSED`）；
    `move-integrity-check.sh` 证「成对搬运与 GUID 身份」，可以按 `--base <批前提交>` 跑区间。两把都要过，单跑一把不成立。
@@ -34,7 +34,7 @@ config.m_MaxChannelCeiling = 4096;
 - **已有窄接缝的不放开字段**：换入/换出服务处理器一律走 `ProviderHandlerHostGenerator` 生成的 `XxxService.Internal_PeekHandler()` / `Internal_UseHandler(next)`（用法见 `Tests/PlayMode/Service/Audio/AudioServiceTestHost.cs`），`s_Handler` 保持 `private`。
 - **`UIService` 没有换入接缝**：两支后端各一个具体类型的处理器槽（`s_UGUIHandler`/`s_UITKHandler`，`private`），只读走 `Internal_PeekUGUIHandler()`/`Internal_PeekUITKHandler()`；后端实现固定，测试不往槽里注入替身，回到干净域状态用 `Internal_ResetHandlerSlots()`。
 
-完整的分层归属、用例规范与覆盖率门禁见 **[Testing 文档](Documentation~/zh/Testing.md)**。
+完整的分层归属、用例规范与覆盖率门禁见 **[Testing 文档](Documentation~/Testing.md)**。
 
 ## 订阅/派发异常分级约定
 

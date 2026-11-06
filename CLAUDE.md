@@ -28,7 +28,7 @@ com.moirai.framework/
 ├── Editor/                   # 编辑器代码（Core / Services / Tools / Utilities）
 ├── Tests/                    # EditorMode / PlayMode / Player 三套测试
 ├── SourceGenerators/         # ProviderHandlerHost 等代码生成器
-├── Documentation~/           # 模块文档，zh / en 双语成对维护
+├── Documentation~/           # 模块文档，一个服务一份中文文档
 ├── Samples~/                 # 示例（InputSystem Action Prompts）
 ├── Templates~/               # 代码生成模板
 └── Plugins/                  # 第三方插件

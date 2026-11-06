@@ -6,7 +6,7 @@
 # 所以 checkout 拉的是宿主工程仓库（HOST_REPOSITORY）。
 #
 # 流程：插桩跑一轮 EditMode（覆盖全部运行时代码）→ 用 Tests/Coverage/coverage-gate.ps1
-# 按分级阈值判定。阈值口径见 Tests/Coverage/README.md 与 Documentation~/zh/Testing.md。
+# 按分级阈值判定。阈值口径见 Tests/Coverage/README.md 与 Documentation~/Testing.md。
 #
 # 注意：这一轮会打开 ENABLE_CODE_COVERAGE 并全量重编译，比普通测试轮慢得多（首次冷编译尤甚），
 # 因此单独成一个 workflow，不与 tests.yaml 合并。

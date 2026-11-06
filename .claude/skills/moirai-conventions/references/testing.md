@@ -6,7 +6,7 @@
 
 
 
-完整规范见 [`Documentation~/zh/Testing.md`](Documentation~/zh/Testing.md)（英文对照 [`en/Testing.md`](Documentation~/en/Testing.md)）。以下是必须遵守的硬约束清单。
+完整规范见 [`Documentation~/Testing.md`](Documentation~/Testing.md)。以下是必须遵守的硬约束清单。
 
 
 
@@ -182,7 +182,7 @@
 
 - 所有基准住 `Tests/`（`[Explicit]`，KernelBenchmark 范式），跑完经 `BenchmarkReport` 落 XML 至统一文件夹 `<工程根>/Benchmarks/`（`MOIRAI_BENCH_XML` 可覆盖）。需 Debugger 窗口跑的基准走双通道：矩阵核心 `XxxBenchmarkRunner`（运行程序集，public static）+ 窗口基准区 + Tests `[Explicit]` 薄壳，两入口同一份矩阵；帧依赖 fire 用例住 PlayMode `[UnityTest]`。
 
-- 反膨胀三原则（存量不追改增量强制 / 夹具基座触发条件 / 用例价值映射）与教训账本见 `Documentation~/zh/Testing.md`《可执行政策守卫与治理原则》。
+- 反膨胀三原则（存量不追改增量强制 / 夹具基座触发条件 / 用例价值映射）与教训账本见 `Documentation~/Testing.md`《可执行政策守卫与治理原则》。
 
 
 

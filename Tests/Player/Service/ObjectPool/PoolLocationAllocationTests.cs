@@ -11,7 +11,7 @@ namespace Service.ObjectPool
     /// <remarks>
     /// 量具与 UI/Timer/Audio/Resource 的 0-GC 格同一把：<see cref="AllocationCapture"/>（<c>GC.Alloc</c> 采样事件数）。
     /// 本刀把这两格从 <c>Tests/EditorMode</c> 的字节前后差迁过来——那把尺在编辑器 Mono／Mono 玩家／IL2CPP 玩家实测恒 0
-    /// （见 <c>Documentation~/zh/Testing.md</c>《0-GC 验收》，同文并明令「绝不要写前后差计量」），
+    /// （见 <c>Documentation~/Testing.md</c>《0-GC 验收》，同文并明令「绝不要写前后差计量」），
     /// 因此旧断言 <c>AreEqual(0, after - before)</c> 是必真的绿。 <br />
     /// 稳态之外还各带一条结构档：归一化结果必须仍是同一个字符串实例——量具哪天坏了，这条先替它喊。 <br />
     /// 同夹具里剩下的那格 <c>HotPath_ZeroGcAlloc_WarmPoolRoundtrip</c> 依赖 uGUI 池夹具机器（假装载器/注册表/调度器/根节点），
