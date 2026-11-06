@@ -78,6 +78,27 @@ namespace Service.Audio
         }
 
         [Test]
+        public void AudioPlayOptions_SoloMode_MapsOneExclusiveFlag()
+        {
+            var options = AudioPlayOptions.Default;
+
+            options.SoloMode = EAudioSoloMode.None;
+            var none = options.ToRequest();
+            Assert.IsFalse(none.SoloSingleTrack);
+            Assert.IsFalse(none.SoloAllTracks);
+
+            options.SoloMode = EAudioSoloMode.SingleTrack;
+            var single = options.ToRequest();
+            Assert.IsTrue(single.SoloSingleTrack);
+            Assert.IsFalse(single.SoloAllTracks);
+
+            options.SoloMode = EAudioSoloMode.AllTracks;
+            var all = options.ToRequest();
+            Assert.IsFalse(all.SoloSingleTrack);
+            Assert.IsTrue(all.SoloAllTracks);
+        }
+
+        [Test]
         public void AudioPlayOptions_Create_PopulatesHotFields()
         {
             var options = AudioPlayOptions.Create(EAudioTrack.Sfx);

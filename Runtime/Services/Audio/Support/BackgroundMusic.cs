@@ -35,8 +35,7 @@ namespace Moirai.Atropos.Audio
         [SerializeField] private TweenEase m_FadeTweenEase = new TweenEase(TweenUtility.EEase.InOutQuart);
 
         [Header("独奏 [Solo]")]
-        [SerializeField] private bool m_SoloSingleTrack = false;
-        [SerializeField] private bool m_SoloAllTracks = false;
+        [SerializeField] private EAudioSoloMode m_SoloMode = EAudioSoloMode.None;
         [SerializeField] private bool m_AutoUnSoloOnEnd = false;
 
         /// <summary>
@@ -96,12 +95,12 @@ namespace Moirai.Atropos.Audio
             options.Loop = m_Loop;
             options.Persistent = m_Persistent;
             options.AudioTrack = EAudioTrack.Music;
+            options.Priority = 0;
             options.FadeInOnPlay = m_Fade;
             options.FadeInInitialVolume = m_FadeInitialVolume;
             options.FadeInDuration = m_FadeDuration;
             options.FadeInTweenEase = m_FadeTweenEase;
-            options.SoloSingleTrack = m_SoloSingleTrack;
-            options.SoloAllTracks = m_SoloAllTracks;
+            options.SoloMode = m_SoloMode;
             options.AutoUnSoloOnEnd = m_AutoUnSoloOnEnd;
             return options;
         }
