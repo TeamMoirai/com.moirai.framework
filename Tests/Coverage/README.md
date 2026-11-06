@@ -1,6 +1,6 @@
 # Coverage 覆盖率门禁
 
-> 覆盖率怎么跑、阈值怎么判、报告落在哪。规范正文见 [`Documentation~/zh/Testing.md`](../../Documentation~/zh/Testing.md) 的《覆盖率与门禁》一节。
+> 覆盖率怎么跑、阈值怎么判、报告落在哪。规范正文见 [`Documentation~/Testing.md`](../../Documentation~/Testing.md) 的《覆盖率与门禁》一节。
 
 ## 工具与配置
 
@@ -119,4 +119,4 @@ powershell -ExecutionPolicy Bypass -File "Packages\com.moirai.framework\Tests\Co
 | PlayMode 层（Resource / Save / UI / Input / Localization / Procedure） | 已有 Kernel/Tasks/Timer/Scene 集成用例，其余模块仍缺 L2 |
 | `Debugger`、`UI` | 偏薄（UI 相关待 UI 双轨重构批次收口后补） |
 
-补齐优先级与顺序由 `Documentation~/zh/Testing.md` 的《覆盖目标》与各阶段提交记录决定。
+补齐优先级与顺序由 `Documentation~/Testing.md` 的《覆盖目标》与各阶段提交记录决定。

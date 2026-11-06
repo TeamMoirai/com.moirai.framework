@@ -17,7 +17,7 @@ namespace Service.UI
     /// </summary>
     /// <remarks>
     /// 量具是 <see cref="AllocationCapture"/>（事件口径，与 UTF 官方 <c>AllocatingGCMemoryConstraint</c> 同机制）——
-    /// 本包 <c>Documentation~/zh/Testing.md</c>《0-GC 验收》明令禁用字节前后差：那是编辑器 Mono／Mono 玩家／IL2CPP 玩家实测恒 0 的失明量具。
+    /// 本包 <c>Documentation~/Testing.md</c>《0-GC 验收》明令禁用字节前后差：那是编辑器 Mono／Mono 玩家／IL2CPP 玩家实测恒 0 的失明量具。
     /// 事件口径下「0 事件」比「0 字节」更强：任何一次分配都至少计 1 事件。 <br />
     /// 采样收不到的运行时由测量台整组 <see cref="Assert.Ignore"/>，绝不把「测不出分配」当成「没有分配」。 <br />
     /// 档位承诺（spec §9.4）：静态腿 struct/class DTO、动态腿 class、无载荷腿、<c>default(ct)</c> 全链稳态 0 事件；

@@ -107,7 +107,7 @@ Editor 侧以友元身份读，绝不在框架里 `is 具体插件类型` 或按
 
 ### XML 文档注释
 
-口径参考 Microsoft .NET API 文档惯例（`summary` 陈义 / `remarks` 补充 / `example` 用法 / 覆写用 `inheritdoc`）与 Google C# Style Guide「注释描述是什么，不描述怎么做与为何」。全文与 ✅/❌ 对照见 [`Documentation~/zh/CodeComments.md`](Documentation~/zh/CodeComments.md)（英文对照 [`en/CodeComments.md`](Documentation~/en/CodeComments.md)）。
+口径参考 Microsoft .NET API 文档惯例（`summary` 陈义 / `remarks` 补充 / `example` 用法 / 覆写用 `inheritdoc`）与 Google C# Style Guide「注释描述是什么，不描述怎么做与为何」。全文与 ✅/❌ 对照见 [`Documentation~/CodeComments.md`](Documentation~/CodeComments.md)。
 
 - **`summary` 一句话：** **类型与方法**用三行式（`/// <summary>`、内容、`/// </summary>` 各占一行，内容 ≤2 行，断行用 `<br />`、summary 是单段不套 `<para>`）；**其余一律单行内联**（属性/字段/枚举成员/事件等，`/// <summary>一句话</summary>`）。第三人称动词短语只答「是什么 / 做什么」；行内引用用 `<c>`/`<see cref="…"/>`/`<paramref name="…"/>`。
 - **`remarks` 放调用方必须知道的不变量（≤6 条，可省）：** 线程/时序约束、性能承诺（0-GC、帧预算）、生命周期配对（谁 Acquire 谁 Release）、降级与失败语义、幂等性、协议文件与调用顺序；**一条一行**短句罗列，长条目可续行（续行以 `<br />` 结尾、末行不加），分主题用 `<para>`。**精简是压缩不是删除**——调用方可感知的信息必须保留。
