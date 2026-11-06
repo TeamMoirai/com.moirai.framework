@@ -86,19 +86,15 @@ Thumbs.db
 # SourceGenerator
 !**/Source~/**/*.csproj
 !**/Source~/**/*.sln
+**/Source~/**/bin/
 
 # ============ #
 # AI generated #
 # ============ #
-# Tuanjie Codely
-CODELY.md*
-.com-unity-codely.json
-.codelyignore
-.codely-cli/
-.codely.packages/
 
 # Claude Code
 .claude/settings.local.json
 
-# Qoder
-.qoder/
+# Tuanjie Codely
+CODELY.md*
+.codely-cli/
