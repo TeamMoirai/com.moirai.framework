@@ -18,7 +18,7 @@ allowed-tools: Read, Grep, Glob, Bash(python:*), Bash(git status:*), Bash(git di
 1. `.meta` 成对：对 ['addressables', 'fmod', 'litmotion', 'memorypack', 'messagepack', 'newtonsoft-json', 'photon-fusion', 'primetween', 'protobuf', 'serilog', 'unity-cloud-save', 'unity-logging', 'wwise', 'zlogger', 'zstring'] 逐树比较「源文件 → 期望 meta」与「实际 meta」。
 2. asmdef/asmref：逐个插件检查 asmdef 是否存在、名称是否 `Moirai.Plugin.<名>`、测试 asmdef 是否只在 `*/Tests/`；例外是 `primetween/PrimeTween/PrimeTween.Runtime.asmref`（vendored PrimeTween 并入插件程序集），其余无根 asmref。。
 3. 禁碰面：`git status --porcelain` 里出现 `ProjectSettings/`、`.github/`（不存在）、插件 manifest 的 `id`/版本 时逐条报。
-4. 指针存在性：抽取 `.claude/**/*.md` 与 `CLAUDE.md` 里的包根相对路径，去掉 `:行号` 后缀后逐条检查。
+4. 指针存在性：抽取 `.claude/**/*.md` 与 `CLAUDE.md` 里的包根相对路径，去掉 `:行号` 后缀后逐条检查。入口档缺失直接计 fail，不许静默少扫。
 5. 版本归属：比较工作树 `package.json` 的 `version` 与 `git show HEAD:package.json`。
 
 ## 可执行片段
@@ -54,9 +54,15 @@ for line in out.splitlines():
 pat = re.compile(r"`([^`\n]+)`")
 roots = "addressables/", "fmod/", "litmotion/", "memorypack/", "messagepack/", "newtonsoft-json/", "photon-fusion/", "primetween/", "protobuf/", "serilog/", "unity-cloud-save/", "unity-logging/", "wwise/", "zlogger/", "zstring/", ".claude/", "README.md", "package.json", "CLAUDE.md"
 missing = []
-for md in list(ROOT.rglob(".claude/**/*.md")) + [ROOT / "CLAUDE.md"]:
+scanned = 0
+entry = ROOT / "CLAUDE.md"
+if not entry.exists():
+    print("[pointer] FAIL: 入口档 CLAUDE.md 不存在 —— 被静默跳过等于没查")
+    missing.append(("gate:policy", "CLAUDE.md"))
+for md in list(ROOT.rglob(".claude/**/*.md")) + [entry]:
     if not md.exists():
         continue
+    scanned += 1
     for token in pat.findall(md.read_text(encoding="utf-8")):
         token = re.sub(r":\d+(-\d+)?$", "", token.strip())
         if not token.startswith(roots) or token.startswith(".."):
@@ -65,7 +71,7 @@ for md in list(ROOT.rglob(".claude/**/*.md")) + [ROOT / "CLAUDE.md"]:
             continue
         if not (ROOT / token).exists():
             missing.append((md.relative_to(ROOT).as_posix(), token))
-print(f"[pointer] missing={len(missing)}")
+print(f"[pointer] scanned={scanned} missing={len(missing)}")
 for md, token in missing:
     print("   ", md, "->", token)
 
