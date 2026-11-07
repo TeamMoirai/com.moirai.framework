@@ -1,76 +1,22 @@
-# Moirai Framework Plugins - Claude Code 配置
+# Moirai Framework Plugins 仓库指令
 
-本包（`com.moirai.framework.plugin`）是 Moirai 系列里的 UPM 包，版本 `0.1.0`，Unity `2022.3`。本文件是本包自持的硬约束入口：只登记现行事实、摘要与指针，细则权威落点见文末「细则在哪」。
+使用中文交流、记录决策与交付结果。以当前源码、测试与实际工具读数为准，不把旧文档当 API 保证。
+包简介、核心特性与生态依赖见 `README.md`。
 
-## 项目概述
+## 工作方式
+1. 先读相关实现与 `git status`，保留已有修改；不恢复用户删除的文件。
+2. 按影响面选验证：小改直接实现并交付摘要；跨模块、高风险、多阶段任务先明确目标与验收，
+   用一份任务记录写下决策、授权与证据（模板 `.claude/templates/task.md`）。不要求小改建档。
+3. 先检索后动手：客户端提供 CodeGraph MCP 时，符号/调用链检索优先走它；没有就用本仓搜索工具。
+   禁止凭空猜测项目内的函数、路径与接口定义，一切以检索到的真实代码为准。
+4. 源码用代码编辑工具改；Unity 对象、序列化、资源数据库与 Editor 生命周期走本仓既有通道
+   （测试桥/状态桥/Editor 脚本），不手改 Scene/Prefab YAML、GUID 或 `.meta` 代替资源数据库操作。
+5. 闭环：需求确认 → 读源码与技能 → 实现 → 验证 → 审查 → 证据交付。
+6. 交付说明变更、实际执行的验证、剩余风险与阻塞。没有证据的检查不得标成通过。
 
-框架包管理器消费的插件目录分支：每个顶层目录是一个可导入插件，由各自的 `<id>.plugin.json` 清单描述。插件本身是框架后端/适配器，不是独立应用。
-
-### 核心事实
-
-- 15 个插件目录（2026-10-21 实测）；21 个 asmdef，其中 6 个是测试装配。
-- 清单必填字段：`id`、`name`、`function`、`description`、`author`、`version`、`minUnityVersion`、`minFrameworkVersion`、`tags`、`dependencies`、`upmDependencies`。
-- 插件程序集命名 `Moirai.Plugin.<名>`；多数代码直接扩展框架命名空间（`Moirai.Atropos.*`）。
-- 没有根 asmdef，也没有 CI/CHANGELOG。
-
-## 项目结构
-
-```
-com.moirai.framework.plugin/
-├── addressables/  fmod/  litmotion/  memorypack/  messagepack/
-├── newtonsoft-json/  photon-fusion/  primetween/  protobuf/
-├── serilog/  unity-cloud-save/  unity-logging/  wwise/
-├── zlogger/  zstring/
-│   ├── <id>.plugin.json      # 插件清单
-│   ├── Moirai.Plugin.<名>.asmdef
-│   └── Tests/                # 仅部分插件有
-└── package.json             # 目录分支自身的包元数据
-```
-
-## 程序集事实
-
-| 事实 | 值 |
-|---|---|
-| 根 asmdef | 无（根 package.json 只描述目录分支） |
-| 插件 asmdef | 21 个，分布在 15 个插件目录 |
-| 测试 asmdef | 6 个：addressables、fmod、memorypack、messagepack、protobuf、wwise |
-| 依赖方向 | 插件引用框架 `Moirai.Atropos.*` 与外部 SDK；插件之间不互相引用 |
-| 宏门控 | 各插件 asmdef 的 `versionDefines` 决定可选依赖 |
-| asmref | `primetween/PrimeTween/PrimeTween.Runtime.asmref`（vendored PrimeTween 并入插件程序集） |
-
-## 核心系统
-
-| 类别 | 插件 |
-|---|---|
-| 日志 | serilog、unity-logging、zlogger、zstring |
-| 序列化 | memorypack、messagepack、protobuf、newtonsoft-json |
-| 资源 | addressables |
-| 音频 | fmod、wwise |
-| 存档 | unity-cloud-save |
-| 动画/补间 | litmotion、primetween |
-| 联网 | photon-fusion |
-
-## 编码规范
-
-细则在 `.claude/skills/moirai-plugin-conventions/references/coding.md`，此处只登记打回档：
-
-- **Mandatory：** 清单字段必须与该插件的真实依赖一致（`minFrameworkVersion`、`minUnityVersion`、`upmDependencies`）；asmdef 引用与 `versionDefines` 必须匹配；不得把宿主工程设置或第三方 SDK 源码塞进插件目录；测试只放在 `*/Tests/` 的独立装配。
-- **Prefer：** 插件 asmdef 用 `Moirai.Plugin.<名>`；manifest `id` 用小写 kebab-case；代码命名跟随所扩展的框架模块。
-- **Reference：** 存量命名/引用差异，改动处顺手收，不单开一轮统一。
-
-## 测试规范
-
-本包没有统一测试装配；只有 addressables、fmod、memorypack、messagepack、protobuf、wwise 六个插件带 `*/Tests/` 测试 asmdef（2026-10-21 实测，各 1 个测试文件）。其余插件无测试装配。
-
-## AI 测试流程
-
-细则在 `.claude/skills/moirai-plugin-conventions/references/verification.md`，协议字面量在 `.claude/skills/moirai-plugin-conventions/references/gates/bridge-protocol.md`。
-
-- 测试请求必须按插件选择真实存在的装配（如 `Moirai.Plugin.MessagePack.Tests`）；没有测试装配的插件不得编造装配名。
-- 插件测试按装配存在性：只有 6 个插件有测试装配，其余无
-- 增删 `.cs` 后先 `refresh` 再 `recompile`；桥不可用时等一次真正的导入 + 域重载，不绕桥、不用 batchmode 开同一工程。
-
-## Claude Code 命令
+## 技能路由
+按下表读对应技能的 `SKILL.md`，再按需读 reference。技能未出现在客户端菜单时直接读文件，
+不依赖用户级安装，也不假设客户端会自动发现 `.claude/skills/`。
 
 | 入口 | 用途 |
 |---|---|
@@ -88,31 +34,80 @@ com.moirai.framework.plugin/
 | `/gate:docs` | 文档、包版本与结构事实对齐，只读 |
 | `/gate:release` | 发版前本地预检，只读 |
 
-## 自动触发的技能
+### 自动触发的技能（Agent Skills，`.claude/skills/`）
 
 | 技能 | 何时被选中 |
 |---|---|
 | `moirai-plugin-conventions` | 写/改本包代码、跑验证与发版收尾时，按 `SKILL.md` 的路由表加载对应细则块 |
 
-## 开发流程
+## 授权边界
+- 普通源码修改按用户任务实施；Unity 写入先预览具体目标与范围，再集中确认。
+- 删除、覆盖、包依赖/项目设置变更、平台切换、真实构建须单独明确授权；计划获准不等于获准发布。
+- 不自动安装或升级工具，不提交、推送、上传、签名或发布，不修改用户级技能配置。
+- 共享文档（本档、`README.md` 等）改前先过 dirty 门；共享编辑器投单前先查状态桥。
+- 禁碰路径与失效方式见 `.claude/skills/moirai-plugin-conventions/references/gates/forbidden-paths.md`。
 
-### 1. 新功能
+## 验证入口
+- 本包结构判据走 `/gate:policy`、文档判据走 `/gate:docs`（`.claude/commands/gate/` 内联 python 块为权威），退出码 0 才算过。
+- 桥投单协议见 `.claude/skills/moirai-plugin-conventions/references/gates/bridge-protocol.md`。
+- 判绿：0 失败才算通过；结论取落盘报告，不以「工具调用返回成功」为结论。
+- 本包没有 CI 工作流（无 `.github/`），不跑测试、不产生覆盖率；文档不得声称相反。
 
-定契约 → 定数据/资产 → 实现 → 编辑器面 → 编译门 → 测试或人工点验。
+## Review
+优先报可复现缺陷、资源/事件生命周期、生成代码与模板漂移、序列化兼容性、授权与测试缺口。
+源码与文档冲突先核源码；本轮范围内修正文档，否则在任务记录里列出具体差异，不积累无关记忆档。
 
-### 2. Bug 修复
+## 工程事实
 
-先构造可复现红态，再改盘；反复红先拆「上游自证一格 + 下游断言一格」再谈归属。
+### 项目概述
 
-### 3. 代码优化
+框架包管理器消费的插件目录分支：每个顶层目录是一个可导入插件，由各自的 `<id>.plugin.json` 清单描述。插件本身是框架后端/适配器，不是独立应用。
 
-先量再改：建测量环路，改动后同轮 A/B；跨轮时间差不算数。
+#### 核心事实
 
-### 4. 提交纪律
+- 15 个插件目录（2026-10-21 实测）；21 个 asmdef，其中 6 个是测试装配。
+- 清单必填字段：`id`、`name`、`function`、`description`、`author`、`version`、`minUnityVersion`、`minFrameworkVersion`、`tags`、`dependencies`、`upmDependencies`。
+- 插件程序集命名 `Moirai.Plugin.<名>`；多数代码直接扩展框架命名空间（`Moirai.Atropos.*`）。
+- 没有根 asmdef，也没有 CI/CHANGELOG。
 
-中文 conventional commits、按显式路径暂存、提交后 `git show --name-only` 复核；本目录没有发版工作流；根 `package.json` 与各插件 manifest 的版本各自独立，日常提交不批量改版本。
+### 项目结构
 
-## 依赖项
+```
+com.moirai.framework.plugin/
+├── addressables/  fmod/  litmotion/  memorypack/  messagepack/
+├── newtonsoft-json/  photon-fusion/  primetween/  protobuf/
+├── serilog/  unity-cloud-save/  unity-logging/  wwise/
+├── zlogger/  zstring/
+│   ├── <id>.plugin.json      # 插件清单
+│   ├── Moirai.Plugin.<名>.asmdef
+│   └── Tests/                # 仅部分插件有
+└── package.json             # 目录分支自身的包元数据
+```
+
+### 程序集事实
+
+| 事实 | 值 |
+|---|---|
+| 根 asmdef | 无（根 package.json 只描述目录分支） |
+| 插件 asmdef | 21 个，分布在 15 个插件目录 |
+| 测试 asmdef | 6 个：addressables、fmod、memorypack、messagepack、protobuf、wwise |
+| 依赖方向 | 插件引用框架 `Moirai.Atropos.*` 与外部 SDK；插件之间不互相引用 |
+| 宏门控 | 各插件 asmdef 的 `versionDefines` 决定可选依赖 |
+| asmref | `primetween/PrimeTween/PrimeTween.Runtime.asmref`（vendored PrimeTween 并入插件程序集） |
+
+### 核心系统
+
+| 类别 | 插件 |
+|---|---|
+| 日志 | serilog、unity-logging、zlogger、zstring |
+| 序列化 | memorypack、messagepack、protobuf、newtonsoft-json |
+| 资源 | addressables |
+| 音频 | fmod、wwise |
+| 存档 | unity-cloud-save |
+| 动画/补间 | litmotion、primetween |
+| 联网 | photon-fusion |
+
+### 依赖项
 
 根 `package.json` 的 `dependencies` 为空；每个插件在自身 manifest 的 `upmDependencies` 声明 UPM 依赖，外部 SDK 由使用方另行安装。
 
