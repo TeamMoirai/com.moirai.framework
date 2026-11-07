@@ -13,7 +13,7 @@ description: Moirai Framework Plugins（com.moirai.framework.plugin）的规范�
 |---|---|
 | 写/改生产代码前的命名、结构、领域模板与热路径 | `references/coding.md` |
 | 测试装配与替代判据 | `references/testing.md` |
-| 决定"这一轮算不算过"、编译门与新鲜度 | `references/verification.md` |
+| 决定"这一轮算不算过"、编译门与新鲜度；研发闭环与任务记录 | `references/verification.md` |
 | 提交、文档、版本号与发版预检 | `references/release.md` |
 
 ## 判据口径（按执行体）
