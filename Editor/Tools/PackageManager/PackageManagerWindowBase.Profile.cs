@@ -21,7 +21,7 @@ namespace Moirai.Atropos.PackageManager
             /// </summary>
             /// <param name="windowTitle">窗口标题。</param>
             /// <param name="stateFileName">状态账本文件名，落在工程 <c>ProjectSettings/</c> 下。</param>
-            /// <param name="workspaceFolderName">检出（clone）落点目录名，落在工程 <c>Library/</c> 下。</param>
+            /// <param name="workspaceFolderName">检出（clone）落点目录名，落在工程 <c>Library/MoiraiCache/</c> 下；同名缓存也在那里。</param>
             public PackageManagerProfile(string windowTitle, string stateFileName, string workspaceFolderName)
             {
                 WindowTitle = RequirePlainText(windowTitle, nameof(windowTitle));
@@ -35,8 +35,9 @@ namespace Moirai.Atropos.PackageManager
             /// <summary>状态账本文件名，落在 <c>ProjectSettings/</c> 下。</summary>
             public string StateFileName { get; }
 
-            /// <summary>检出（clone）落点目录名，落在 <c>Library/</c> 下。</summary>
-            /// <remarks>实际安装的包不在这里：每个包装在 <c>Packages/&lt;本目录名&gt;.&lt;id&gt;/</c>。</remarks>
+            /// <summary>检出（clone）落点目录名，落在 <c>Library/MoiraiCache/</c> 下。</summary>
+            /// <remarks>刷新缓存与它同名（<c>Library/MoiraiCache/&lt;本目录名&gt;.cache.json</c>）；
+            /// 实际安装的包不在这里：每个包装在 <c>Packages/&lt;本目录名&gt;.&lt;id&gt;/</c>。</remarks>
             public string WorkspaceFolderName { get; }
 
             /// <summary>远端地址缺省值。</summary>

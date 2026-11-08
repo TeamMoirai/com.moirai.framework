@@ -115,7 +115,8 @@ namespace Moirai.Atropos.PackageManager
         /// </summary>
         private void ReloadFromDisk()
         {
-            _stateRegistry = PackageManagerStateRegistry.Create(Profile.StateFileName, Profile.CreateDefaultSettings);
+            _stateRegistry = PackageManagerStateRegistry.Create(Profile.StateFileName, Profile.WorkspaceFolderName,
+                Profile.CreateDefaultSettings);
             _state = _stateRegistry.Load();
             _cache = _stateRegistry.LoadCache();
             _installer = PluginInstaller.Create(_state.settings, Profile, _stateRegistry);

@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace Tools.PackageManager
 {
     /// <summary>
-    /// 部分克隆、cone 稀疏检出与树读取的用例集，跑在临时 <c>file://</c> 夹具上。
+    /// 部分克隆、按目录的稀疏检出与树读取的用例集，跑在临时 <c>file://</c> 夹具上。
     /// </summary>
     /// <remarks>
     /// 本地夹具不支持过滤协商（git 报 "filtering not recognized by server" 并回全量 blob），
@@ -46,6 +46,18 @@ namespace Tools.PackageManager
             Assert.IsTrue(source.EnsureClone(out string failureReason), failureReason);
             Assert.IsTrue(source.IsGitWorkspace);
             Assert.IsFalse(Directory.Exists(Path.Combine(_workspace, "blackboard")), "没摆正分支前不该物化任何插件目录");
+            Assert.IsFalse(File.Exists(Path.Combine(_workspace, "package.json")), "分支根的散文件也不该落盘");
+        }
+
+        /// <summary>空勾选集不能变成"全选"：摆正分支后工作树里除了 <c>.git</c> 什么都不该有。</summary>
+        [Test]
+        public void EnsureBranchAttached_EmptySparseSet_MaterializesNoRootFiles()
+        {
+            PluginPackageSource source = CloneAndAttach();
+
+            Assert.IsFalse(File.Exists(Path.Combine(_workspace, "package.json")), "根 package.json 不该被检出");
+            Assert.IsFalse(File.Exists(Path.Combine(_workspace, "README.md")), "开发用的说明不该被检出");
+            Assert.IsFalse(Directory.Exists(Path.Combine(_workspace, "blackboard")), "未勾选的插件目录不该被检出");
         }
 
         [Test]
@@ -265,18 +277,33 @@ namespace Tools.PackageManager
             Assert.IsTrue(Directory.Exists(Path.Combine(_workspace, "blackboard")));
             Assert.IsTrue(Directory.Exists(Path.Combine(_workspace, "ledger")));
             Assert.IsFalse(Directory.Exists(Path.Combine(_workspace, "skill-tree")));
-            Assert.IsTrue(File.Exists(Path.Combine(_workspace, "package.json")), "cone 永远带根文件");
+            Assert.IsFalse(File.Exists(Path.Combine(_workspace, "package.json")), "分支根的散文件不在勾选集里");
+            Assert.IsFalse(File.Exists(Path.Combine(_workspace, "README.md")), "开发用的说明不随勾选落盘");
         }
 
         [Test]
-        public void ApplySparsePaths_EmptySet_LeavesRootFilesOnly()
+        public void ApplySparsePaths_EmptySet_LeavesNothingMaterialized()
         {
             PluginPackageSource source = CloneAndAttach();
             Assert.IsTrue(source.ApplySparsePaths(new[] { "blackboard" }, out _));
 
             Assert.IsTrue(source.ApplySparsePaths(new string[0], out string failureReason), failureReason);
             Assert.IsFalse(Directory.Exists(Path.Combine(_workspace, "blackboard")));
-            Assert.IsTrue(File.Exists(Path.Combine(_workspace, "package.json")));
+            Assert.IsFalse(File.Exists(Path.Combine(_workspace, "package.json")), "空勾选集不得变成全选");
+        }
+
+        /// <summary>旧检出是 cone 模式：建检出时按现有勾选就地换成按目录模式，并把根文件撤下。</summary>
+        [Test]
+        public void EnsureClone_ConeWorkspace_MigratesToDirectoryPatternsAndDropsRootFiles()
+        {
+            PluginPackageSource source = CloneAndAttach();
+            RunInWorkspace("sparse-checkout set --cone blackboard");
+            Assert.IsTrue(File.Exists(Path.Combine(_workspace, "package.json")), "夹具自己要先真是 cone 的样子");
+
+            Assert.IsTrue(source.EnsureClone(out string failureReason), failureReason);
+
+            Assert.IsFalse(File.Exists(Path.Combine(_workspace, "package.json")), "换成按目录后根文件撤下");
+            Assert.IsTrue(Directory.Exists(Path.Combine(_workspace, "blackboard")), "原来勾选的插件目录保留");
         }
 
         [Test]
@@ -561,6 +588,8 @@ namespace Tools.PackageManager
 
             File.WriteAllText(Path.Combine(_sourceRepo, "package.json"),
                 "{\"name\":\"com.moirai.framework.plugin\",\"version\":\"1.0.0\"}");
+            File.WriteAllText(Path.Combine(_sourceRepo, "README.md"), "# 分支说明\n");
+            File.WriteAllText(Path.Combine(_sourceRepo, "package.json.meta"), "fileFormatVersion: 2\n");
 
             RunInSource("init -q -b " + Branch + " .");
             RunInSource("config user.email pm@test.local");
