@@ -8,26 +8,43 @@ namespace Moirai.Atropos.PackageManager
     /// 包管理器已装状态与 UPM 依赖归属的账本。
     /// </summary>
     /// <remarks>
-    /// 一个实例绑定一份状态文件与一套缺省设置；不同包管理器各持一份，互不覆盖。<br />
-    /// 落盘位置由调用方给定（默认在 <c>ProjectSettings/</c> 下）；卸载与回收的全部依据都来自这里，不靠扫描工作树反推。<br />
+    /// 一个实例绑定一份状态文件、一份本机缓存文件与一套缺省设置；不同包管理器各持一份，互不覆盖。<br />
+    /// 状态账本默认落 <c>ProjectSettings/</c>，刷新缓存默认落 <c>Library/MoiraiPackageManager/</c>；
+    /// 卸载与回收的全部依据都来自状态账本，不靠扫描工作树反推。<br />
     /// 记账项一律按 <c>id</c> / <c>packageId</c> 去重（<see cref="UpsertInstalled"/>、<see cref="RecordUpmOwner"/>），重复写入覆盖旧值而非追加。<br />
     /// 读到损坏的状态文件时把原文另存为 <c>.corrupt-&lt;ticks&gt;</c> 再回空态，绝不就地覆写。<br />
     /// 安装状态必须在 <c>AssetDatabase.Refresh()</c> 之前落盘——刷新触发的域重载会杀掉在飞续体。
     /// </remarks>
     internal sealed class PackageManagerStateRegistry
     {
+        private const string CACHE_FILE_SUFFIX = ".cache.json";
+        private const string CACHE_DIRECTORY_NAME = "MoiraiPackageManager";
+
         private readonly string _statePath;
+        private readonly string _cachePath;
         private readonly Func<PackageManagerSettingsData> _createDefaultSettings;
 
         /// <summary>
-        /// 建一份绑定到指定状态文件的账本；缺省设置由调用方按各自的包源给出。
+        /// 建一份绑定到指定状态文件与本机缓存文件的账本；缺省设置由调用方按各自的包源给出。
         /// </summary>
-        internal PackageManagerStateRegistry(string statePath, Func<PackageManagerSettingsData> createDefaultSettings)
+        internal PackageManagerStateRegistry(string statePath, string cachePath,
+            Func<PackageManagerSettingsData> createDefaultSettings)
         {
             if (string.IsNullOrEmpty(statePath)) throw new ArgumentException("状态文件路径不能为空", nameof(statePath));
+            if (string.IsNullOrEmpty(cachePath)) throw new ArgumentException("缓存文件路径不能为空", nameof(cachePath));
 
             _statePath = Path.GetFullPath(statePath);
+            _cachePath = Path.GetFullPath(cachePath);
             _createDefaultSettings = createDefaultSettings;
+        }
+
+        /// <summary>
+        /// 按工程布局建一份账本：设置与已装账本在 <c>ProjectSettings/</c>，刷新缓存落 <c>Library/</c>。
+        /// </summary>
+        internal static PackageManagerStateRegistry Create(string fileName, Func<PackageManagerSettingsData> createDefaultSettings)
+        {
+            return new PackageManagerStateRegistry(ResolveDefaultPath(fileName), ResolveDefaultCachePath(fileName),
+                createDefaultSettings);
         }
 
         /// <summary>
@@ -39,8 +56,24 @@ namespace Moirai.Atropos.PackageManager
             return Path.Combine(Directory.GetCurrentDirectory(), "ProjectSettings", fileName);
         }
 
+        /// <summary>
+        /// 工程默认本机缓存路径：<c>Library/MoiraiPackageManager/&lt;stem&gt;.cache.json</c>。
+        /// </summary>
+        internal static string ResolveDefaultCachePath(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("状态文件名不能为空", nameof(fileName));
+
+            string stem = fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? fileName.Substring(0, fileName.Length - 5)
+                : fileName;
+            return Path.Combine(Directory.GetCurrentDirectory(), "Library", CACHE_DIRECTORY_NAME, stem + CACHE_FILE_SUFFIX);
+        }
+
         /// <summary>当前状态文件的落盘路径。</summary>
         internal string StatePath => _statePath;
+
+        /// <summary>本机缓存的落盘路径。</summary>
+        internal string CachePath => _cachePath;
 
         /// <summary>
         /// 读入账本；文件缺失或损坏时回默认空态。
@@ -98,55 +131,109 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
-        /// 把上次刷新的时刻记进设置项。
+        /// 读入本机缓存；文件缺失或损坏时回默认空态。
         /// </summary>
-        internal void StampFetch(PackageManagerStateData state)
+        internal PackageManagerCacheData LoadCache()
         {
-            if (state?.settings == null) return;
-            state.settings.lastFetchAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            TryLoadCache(out PackageManagerCacheData cache, out _);
+            return cache;
+        }
+
+        /// <summary>
+        /// 读入本机缓存并交出失败原因。
+        /// </summary>
+        /// <remarks>缓存损坏同样另存原文再回空态：它只是开窗铺列表的加速，不阻断任何装卸。</remarks>
+        internal bool TryLoadCache(out PackageManagerCacheData cache, out string failureReason)
+        {
+            failureReason = null;
+            if (!File.Exists(_cachePath))
+            {
+                cache = CreateDefaultCache();
+                return true;
+            }
+
+            string text = File.ReadAllText(_cachePath);
+            if (string.IsNullOrEmpty(text))
+            {
+                cache = CreateDefaultCache();
+                return true;
+            }
+
+            PackageManagerCacheData parsed;
+            try
+            {
+                parsed = JsonUtility.ToObject<PackageManagerCacheData>(text);
+            }
+            catch (Exception exception)
+            {
+                string preserveFailure = PreserveCorrupt(_cachePath);
+                failureReason = $"缓存文件解析失败，已另存副本：{exception.Message}{preserveFailure}";
+                cache = CreateDefaultCache();
+                return false;
+            }
+
+            if (parsed == null)
+            {
+                failureReason = "缓存文件解析结果为空";
+                cache = CreateDefaultCache();
+                return false;
+            }
+
+            EnsureCache(parsed);
+            cache = parsed;
+            return true;
+        }
+
+        /// <summary>
+        /// 把上次刷新的时刻记进本机缓存。
+        /// </summary>
+        internal void StampFetch(PackageManagerCacheData cache)
+        {
+            if (cache == null) return;
+            cache.lastFetchAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         }
 
         /// <summary>
         /// 把一趟扫描的结果记成缓存（连当时的远端与分支，换源后即作废）。
         /// </summary>
-        internal void CacheCatalog(PackageManagerStateData state, PluginCatalogResult catalog, string headCommit)
+        internal void CacheCatalog(PackageManagerCacheData cache, PackageManagerSettingsData settings,
+            PluginCatalogResult catalog, string headCommit)
         {
-            if (state?.settings == null || catalog == null) return;
+            if (cache == null || settings == null || catalog == null) return;
 
-            PackageManagerCatalogCache cache = state.catalogCache;
-            if (cache == null) state.catalogCache = cache = new PackageManagerCatalogCache();
-
-            cache.repoUrl = state.settings.repoUrl;
-            cache.branch = state.settings.branch;
-            cache.headCommit = headCommit;
-            cache.manifests.Clear();
-            for (int i = 0; i < catalog.Manifests.Count; i++) cache.manifests.Add(catalog.Manifests[i]);
+            EnsureCache(cache);
+            PackageManagerCatalogCache catalogCache = cache.catalogCache;
+            catalogCache.repoUrl = settings.repoUrl;
+            catalogCache.branch = settings.branch;
+            catalogCache.headCommit = headCommit;
+            catalogCache.manifests.Clear();
+            for (int i = 0; i < catalog.Manifests.Count; i++) catalogCache.manifests.Add(catalog.Manifests[i]);
         }
 
         /// <summary>
         /// 取与当前设置匹配的上次扫描缓存；没有、为空或换过源都交出 false。
         /// </summary>
-        internal bool TryGetCachedCatalog(PackageManagerStateData state, out List<PluginManifest> manifests,
-            out string headCommit)
+        internal bool TryGetCachedCatalog(PackageManagerCacheData cache, PackageManagerSettingsData settings,
+            out List<PluginManifest> manifests, out string headCommit)
         {
             manifests = null;
             headCommit = null;
 
-            PackageManagerCatalogCache cache = state?.catalogCache;
-            if (cache?.manifests == null || cache.manifests.Count == 0) return false;
-            if (!string.Equals(cache.repoUrl, state.settings?.repoUrl, StringComparison.Ordinal)) return false;
-            if (!string.Equals(cache.branch, state.settings?.branch, StringComparison.Ordinal)) return false;
+            PackageManagerCatalogCache catalogCache = cache?.catalogCache;
+            if (catalogCache?.manifests == null || catalogCache.manifests.Count == 0) return false;
+            if (!string.Equals(catalogCache.repoUrl, settings?.repoUrl, StringComparison.Ordinal)) return false;
+            if (!string.Equals(catalogCache.branch, settings?.branch, StringComparison.Ordinal)) return false;
 
-            var alive = new List<PluginManifest>(cache.manifests.Count);
-            for (int i = 0; i < cache.manifests.Count; i++)
+            var alive = new List<PluginManifest>(catalogCache.manifests.Count);
+            for (int i = 0; i < catalogCache.manifests.Count; i++)
             {
-                if (cache.manifests[i] != null) alive.Add(cache.manifests[i]);
+                if (catalogCache.manifests[i] != null) alive.Add(catalogCache.manifests[i]);
             }
 
             if (alive.Count == 0) return false;
 
             manifests = alive;
-            headCommit = cache.headCommit;
+            headCommit = catalogCache.headCommit;
             return true;
         }
 
@@ -160,16 +247,31 @@ namespace Moirai.Atropos.PackageManager
             if (state == null) throw new ArgumentNullException(nameof(state));
 
             EnsureLists(state);
+            WriteJson(_statePath, state);
+        }
 
-            string directory = Path.GetDirectoryName(_statePath);
+        /// <summary>
+        /// 写入本机缓存：同样先落临时名再覆盖，不留半篇文件。
+        /// </summary>
+        internal void SaveCache(PackageManagerCacheData cache)
+        {
+            if (cache == null) throw new ArgumentNullException(nameof(cache));
+
+            EnsureCache(cache);
+            WriteJson(_cachePath, cache);
+        }
+
+        private static void WriteJson(string path, object data)
+        {
+            string directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
-            string temporary = _statePath + ".moirai-tmp";
-            File.WriteAllText(temporary, JsonUtility.ToJson(state, true));
+            string temporary = path + ".moirai-tmp";
+            File.WriteAllText(temporary, JsonUtility.ToJson(data, true));
 
             try
             {
-                File.Copy(temporary, _statePath, true);
+                File.Copy(temporary, path, true);
             }
             finally
             {
@@ -346,6 +448,19 @@ namespace Moirai.Atropos.PackageManager
             var state = new PackageManagerStateData();
             EnsureLists(state);
             return state;
+        }
+
+        private static PackageManagerCacheData CreateDefaultCache()
+        {
+            var cache = new PackageManagerCacheData();
+            EnsureCache(cache);
+            return cache;
+        }
+
+        private static void EnsureCache(PackageManagerCacheData cache)
+        {
+            if (cache.catalogCache == null) cache.catalogCache = new PackageManagerCatalogCache();
+            if (cache.catalogCache.manifests == null) cache.catalogCache.manifests = new List<PluginManifest>();
         }
 
         /// <summary>

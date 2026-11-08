@@ -153,8 +153,9 @@ namespace Tools.PackageManager
                 gitPath = null
             };
 
+            string localRoot = Path.GetDirectoryName(workspace);
             var registry = new PackageManagerStateRegistry(
-                Path.Combine(Path.GetDirectoryName(workspace), "state.json"), () => settings);
+                Path.Combine(localRoot, "state.json"), Path.Combine(localRoot, "state.cache.json"), () => settings);
 
             string installRoot = Path.Combine(Directory.GetParent(workspace).Parent.FullName, "Packages");
             return new PluginInstaller(settings, workspace, installRoot, Path.Combine(installRoot, "manifest.json"),

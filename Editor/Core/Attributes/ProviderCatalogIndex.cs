@@ -154,14 +154,14 @@ namespace Moirai.Atropos
             Type[] compiled = CompiledCandidates(baseType);
 
             PackageManagerWindowBase.PackageManagerProfile profile = FrameworkPackageProfile.Instance;
-            var registry = new PackageManagerStateRegistry(
-                PackageManagerStateRegistry.ResolveDefaultPath(profile.StateFileName), profile.CreateDefaultSettings);
+            var registry = PackageManagerStateRegistry.Create(profile.StateFileName, profile.CreateDefaultSettings);
 
             PackageManagerStateData state = registry.Load();
+            PackageManagerCacheData cache = registry.LoadCache();
             List<PluginManifest> catalog = null;
             List<string> installedIds = null;
 
-            if (state != null && registry.TryGetCachedCatalog(state, out catalog, out _))
+            if (state != null && state.settings != null && registry.TryGetCachedCatalog(cache, state.settings, out catalog, out _))
             {
                 installedIds = new List<string>();
                 for (int i = 0; i < state.installed.Count; i++)

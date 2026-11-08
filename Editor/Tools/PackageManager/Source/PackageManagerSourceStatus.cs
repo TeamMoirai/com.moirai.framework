@@ -55,14 +55,15 @@ namespace Moirai.Atropos.PackageManager
         /// <summary>
         /// 就地取一遍读数，不联网。
         /// </summary>
-        internal static PackageManagerSourceStatus Capture(PackageManagerSettingsData settings, PluginPackageSource source)
+        internal static PackageManagerSourceStatus Capture(PackageManagerSettingsData settings,
+            PackageManagerCacheData cache, PluginPackageSource source)
         {
             var status = new PackageManagerSourceStatus
             {
                 RepoUrl = settings?.repoUrl,
                 Branch = source?.Branch,
                 WorkspacePath = source?.WorkingDirectory,
-                LastFetchAt = settings?.lastFetchAt
+                LastFetchAt = cache?.lastFetchAt
             };
 
             if (source == null)

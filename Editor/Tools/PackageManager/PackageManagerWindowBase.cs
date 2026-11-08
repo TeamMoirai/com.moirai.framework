@@ -27,6 +27,7 @@ namespace Moirai.Atropos.PackageManager
         private PackageManagerProfile _profile;
         private PackageManagerStateRegistry _stateRegistry;
         private PackageManagerStateData _state;
+        private PackageManagerCacheData _cache;
         private PluginInstaller _installer;
         private PackageManagerSourceStatus _status;
         private PluginCatalogResult _catalog;
@@ -114,11 +115,11 @@ namespace Moirai.Atropos.PackageManager
         /// </summary>
         private void ReloadFromDisk()
         {
-            _stateRegistry = new PackageManagerStateRegistry(
-                PackageManagerStateRegistry.ResolveDefaultPath(Profile.StateFileName), Profile.CreateDefaultSettings);
+            _stateRegistry = PackageManagerStateRegistry.Create(Profile.StateFileName, Profile.CreateDefaultSettings);
             _state = _stateRegistry.Load();
+            _cache = _stateRegistry.LoadCache();
             _installer = PluginInstaller.Create(_state.settings, Profile, _stateRegistry);
-            _status = PackageManagerSourceStatus.Capture(_state.settings, _installer.Source);
+            _status = PackageManagerSourceStatus.Capture(_state.settings, _cache, _installer.Source);
             _settingsModel = new SourceSettingsModel(this, _state.settings);
             _entries.Clear();
             _catalog = null;
@@ -303,7 +304,7 @@ namespace Moirai.Atropos.PackageManager
         /// </summary>
         private void ApplyCachedCatalog()
         {
-            if (!_stateRegistry.TryGetCachedCatalog(_state, out List<PluginManifest> manifests, out string headCommit))
+            if (!_stateRegistry.TryGetCachedCatalog(_cache, _state.settings, out List<PluginManifest> manifests, out string headCommit))
             {
                 return;
             }
@@ -321,7 +322,7 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
-        /// 把后台扫出的结果铺上树，并连同"上次刷新"与缓存一起落盘（主线程步）。
+        /// 把后台扫出的结果铺上树，并连同"上次刷新"写进本机缓存（主线程步）。
         /// </summary>
         private void ApplyScanResult()
         {
@@ -339,15 +340,16 @@ namespace Moirai.Atropos.PackageManager
                 ? $"　{catalog.Errors.Count} 份清单判非：" + string.Join("；", catalog.Errors)
                 : string.Empty;
 
-            if (_installer.LastFetchReachedRemote) _stateRegistry.StampFetch(_state);
+            if (_installer.LastFetchReachedRemote) _stateRegistry.StampFetch(_cache);
 
-            // 落盘前重读一遍账本再写：别拿本窗口的旧快照覆盖别处（并行会话/其他路径）的记账
-            PackageManagerStateData latest = _stateRegistry.Load();
-            if (latest?.settings != null) latest.settings.lastFetchAt = _state.settings.lastFetchAt;
-            _stateRegistry.CacheCatalog(latest, catalog, _scanHeadCommit);
-            _stateRegistry.Save(latest);
+            // 缓存会被并行会话改写，落盘前重读一遍再写；账本这次不碰
+            PackageManagerCacheData latestCache = _stateRegistry.LoadCache();
+            latestCache.lastFetchAt = _cache.lastFetchAt;
+            _stateRegistry.CacheCatalog(latestCache, _state.settings, catalog, _scanHeadCommit);
+            _stateRegistry.SaveCache(latestCache);
+            _cache = latestCache;
 
-            _status = PackageManagerSourceStatus.Capture(_state.settings, _installer.Source);
+            _status = PackageManagerSourceStatus.Capture(_state.settings, _cache, _installer.Source);
             _catalog = catalog;
             _versionHistory.Clear();
 
@@ -993,6 +995,9 @@ namespace Moirai.Atropos.PackageManager
 
             [ShowInInspector, LabelText("状态文件")]
             internal string StatePath => _window?._stateRegistry.StatePath;
+
+            [ShowInInspector, LabelText("本机缓存")]
+            internal string CachePath => _window?._stateRegistry.CachePath;
 
             [Button("保存设置")]
             private void Save()
