@@ -24,6 +24,22 @@ namespace Moirai.Atropos.PackageManager
     {
         private const float MENU_WIDTH_PIXELS = 200f;
 
+        private static readonly string[] FILTER_LABELS = { "全部", "未安装", "可升级" };
+
+        // 状态图标颜色：已装绿、可升级蓝、有拦路红、超出支持范围黄
+        private static readonly Color INSTALLED_ICON_COLOR = new Color(0.30f, 0.80f, 0.42f);
+        private static readonly Color UPGRADABLE_ICON_COLOR = new Color(0.35f, 0.65f, 0.98f);
+        private static readonly Color BLOCKED_ICON_COLOR = new Color(0.95f, 0.35f, 0.32f);
+        private static readonly Color OUT_OF_SUPPORT_ICON_COLOR = new Color(0.98f, 0.78f, 0.20f);
+
+        /// <summary>菜单树的列表筛选口径；与文本筛选叠加。</summary>
+        private enum EntryFilterMode
+        {
+            All = 0,
+            NotInstalled = 1,
+            Upgradable = 2
+        }
+
         private PackageManagerProfile _profile;
         private PackageManagerStateRegistry _stateRegistry;
         private PackageManagerStateData _state;
@@ -39,6 +55,7 @@ namespace Moirai.Atropos.PackageManager
         private bool _settingsFace;
         private List<string> _updatableIds = new List<string>();
         private string _filter = string.Empty;
+        private EntryFilterMode _filterMode;
         private int _visibleEntryCount;
 
         // 版本历史一问一次：值在下拉打开时才去取（每个候选一条 git）；扫分支换了头就整体作废
@@ -145,9 +162,22 @@ namespace Moirai.Atropos.PackageManager
             for (int i = 0; i < _entries.Count; i++)
             {
                 PluginEntry entry = _entries[i];
+                if (!entry.MatchesMode(_filterMode)) continue;
                 if (!string.IsNullOrEmpty(_filter) && !entry.Matches(_filter)) continue;
 
-                tree.Add(entry.GroupName + "/" + entry.DisplayName, entry);
+                // 图标挂在叶子上：Add 返回的可能是（新建的）分组节点加叶子，取最后一个
+                OdinMenuItem item = null;
+                foreach (OdinMenuItem added in tree.Add(entry.GroupName + "/" + entry.DisplayName, entry))
+                {
+                    item = added;
+                }
+
+                if (item != null && entry.StatusIcon.HasValue)
+                {
+                    item.SdfIcon = entry.StatusIcon.Value;
+                    item.SdfIconColor = entry.StatusIconColor;
+                }
+
                 visible++;
             }
 
@@ -210,6 +240,15 @@ namespace Moirai.Atropos.PackageManager
                 QueueTreeRebuild();
             }
 
+            GUILayout.Space(8f);
+            var mode = (EntryFilterMode)EditorGUILayout.Popup((int)_filterMode, FILTER_LABELS,
+                EditorStyles.toolbarPopup, GUILayout.Width(80f));
+            if (mode != _filterMode)
+            {
+                _filterMode = mode;
+                QueueTreeRebuild();
+            }
+
             string updateLabel = _updatableIds.Count > 0 ? $"Update All ({_updatableIds.Count})" : "Update All";
             if (ToolbarButton(updateLabel, 110f)) UpdateAll();
 
@@ -220,9 +259,10 @@ namespace Moirai.Atropos.PackageManager
             else if (ToolbarButton("Settings", 80f)) SwitchFace(true);
 
             GUILayout.FlexibleSpace();
-            string countLabel = string.IsNullOrEmpty(_filter)
-                ? $"分支{BranchEntryNoun}：{_entries.Count} 个"
-                : $"分支{BranchEntryNoun}：{_visibleEntryCount}/{_entries.Count} 个";
+            bool filtered = !string.IsNullOrEmpty(_filter) || _filterMode != EntryFilterMode.All;
+            string countLabel = filtered
+                ? $"分支{BranchEntryNoun}：{_visibleEntryCount}/{_entries.Count} 个"
+                : $"分支{BranchEntryNoun}：{_entries.Count} 个";
             GUILayout.Label(countLabel, HeaderStyles.IsReady ? HeaderStyles.Meta : EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
         }
@@ -395,9 +435,27 @@ namespace Moirai.Atropos.PackageManager
                     Array.Empty<string>(), unityVersion, hostVersion);
 
                 var entry = new PluginEntry(this, manifest, InstalledVersionOf(manifest.id),
-                    _updatableIds.Contains(manifest.id), headCommit, DescribeBlocker(probe));
+                    _updatableIds.Contains(manifest.id), headCommit, DescribeBlocker(probe),
+                    IsOutOfSupportOnly(probe));
                 _entries.Add(entry);
             }
+        }
+
+        /// <summary>
+        /// 拦路项是否全是"超出支持范围"：只有这一种时才用黄色警告，其余拦路仍按错误报红。
+        /// </summary>
+        private static bool IsOutOfSupportOnly(InstallPlan plan)
+        {
+            if (plan.Conflicts.Count == 0) return false;
+
+            for (int i = 0; i < plan.Conflicts.Count; i++)
+            {
+                PlanConflictKind kind = plan.Conflicts[i].Kind;
+                if (kind != PlanConflictKind.UnityCeilingExceeded && kind != PlanConflictKind.FrameworkCeilingExceeded)
+                    return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -712,9 +770,10 @@ namespace Moirai.Atropos.PackageManager
             [NonSerialized] private readonly bool _updateAvailable;
             [NonSerialized] private readonly string _headCommit;
             [NonSerialized] private readonly string _blocker;
+            [NonSerialized] private readonly bool _outOfSupport;
 
             internal PluginEntry(PackageManagerWindowBase window, PluginManifest manifest, string installedVersion,
-                bool updateAvailable, string headCommit, string blocker)
+                bool updateAvailable, string headCommit, string blocker, bool outOfSupport)
             {
                 _window = window;
                 _manifest = manifest;
@@ -722,6 +781,7 @@ namespace Moirai.Atropos.PackageManager
                 _updateAvailable = updateAvailable;
                 _headCommit = headCommit;
                 _blocker = blocker;
+                _outOfSupport = outOfSupport;
                 SelectedVersion = manifest.version;
             }
 
@@ -811,6 +871,41 @@ namespace Moirai.Atropos.PackageManager
 
             /// <summary>拦路的原文（能装为空），给 Update All 的跳过点名取用。</summary>
             internal string BlockerText => _blocker;
+
+            /// <summary>
+            /// 菜单行前的状态图标：超出支持范围黄警告 &gt; 其他拦路红叉 &gt; 可升级 &gt; 已装；未装且无拦路不画图标。
+            /// </summary>
+            internal SdfIconType? StatusIcon
+            {
+                get
+                {
+                    if (!CanInstall) return _outOfSupport ? SdfIconType.ExclamationCircleFill : SdfIconType.XCircleFill;
+                    if (_updateAvailable) return SdfIconType.ArrowUpCircleFill;
+                    return IsInstalled ? SdfIconType.CheckCircleFill : (SdfIconType?)null;
+                }
+            }
+
+            /// <summary>状态图标的前景色，与图标一一对应。</summary>
+            internal Color StatusIconColor
+            {
+                get
+                {
+                    if (!CanInstall) return _outOfSupport ? OUT_OF_SUPPORT_ICON_COLOR : BLOCKED_ICON_COLOR;
+                    if (_updateAvailable) return UPGRADABLE_ICON_COLOR;
+                    return INSTALLED_ICON_COLOR;
+                }
+            }
+
+            /// <summary>列表筛选口径的命中判据；文本筛选另由 <see cref="Matches"/> 叠加。</summary>
+            internal bool MatchesMode(EntryFilterMode mode)
+            {
+                switch (mode)
+                {
+                    case EntryFilterMode.NotInstalled: return !IsInstalled;
+                    case EntryFilterMode.Upgradable: return _updateAvailable;
+                    default: return true;
+                }
+            }
 
             /// <summary>不能装时给操作区那一行的正文；能装时为空、整行不画。</summary>
             private string VersionBlockerBody => CanInstall ? string.Empty : _blocker;
