@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 依赖条目写入的结果档。

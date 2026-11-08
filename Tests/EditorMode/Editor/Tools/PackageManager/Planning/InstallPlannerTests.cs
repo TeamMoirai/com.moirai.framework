@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 using NUnit.Framework;
 
-namespace Editor.Tools.PackageManager
+namespace Tools.PackageManager
 {
     /// <summary>
     /// 插件依赖闭包、拓扑序与冲突判定的用例集。

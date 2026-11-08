@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 
-namespace Editor.Tools.PackageManager
+namespace Tools.PackageManager
 {
     /// <summary>
     /// 已装状态与 UPM 依赖归属账本的用例集。
@@ -24,36 +24,42 @@ namespace Editor.Tools.PackageManager
   }
 }";
 
+        private const string DefaultRepoUrl = "https://example.test/moirai.git";
+
         private string _statePath;
+        private PackageManagerStateRegistry _registry;
 
         [SetUp]
         public void SetUp()
         {
             _statePath = Path.Combine(Path.GetTempPath(), $"pm-state-{Guid.NewGuid():N}.json");
-            PackageManagerStateRegistry.Internal_UseStatePath(_statePath);
+            _registry = new PackageManagerStateRegistry(_statePath, DefaultSettings);
 
             Assert.IsFalse(File.Exists(_statePath), "夹具起点必须没有状态文件");
-            Assert.IsNull(PackageManagerStateRegistry.FindInstalled(PackageManagerStateRegistry.Load(), "blackboard"));
+            Assert.IsNull(_registry.FindInstalled(_registry.Load(), "blackboard"));
+        }
+
+        private static PackageManagerSettingsData DefaultSettings()
+        {
+            return new PackageManagerSettingsData
+            {
+                repoUrl = DefaultRepoUrl,
+                branch = "plugin",
+                gitPath = "git"
+            };
         }
 
         [TearDown]
         public void TearDown()
         {
-            try
+            if (File.Exists(_statePath)) File.Delete(_statePath);
+            foreach (string leftover in Directory.GetFiles(Path.GetTempPath(), Path.GetFileName(_statePath) + ".corrupt-*"))
             {
-                if (File.Exists(_statePath)) File.Delete(_statePath);
-                foreach (string leftover in Directory.GetFiles(Path.GetTempPath(), Path.GetFileName(_statePath) + ".corrupt-*"))
-                {
-                    File.Delete(leftover);
-                }
-            }
-            finally
-            {
-                PackageManagerStateRegistry.Internal_ResetStatePath();
+                File.Delete(leftover);
             }
         }
 
-        private static PackageManagerStateData NewState() => PackageManagerStateRegistry.Load();
+        private PackageManagerStateData NewState() => _registry.Load();
 
         private static PluginUpmDependency Upm(string id, string version)
         {
@@ -67,7 +73,30 @@ namespace Editor.Tools.PackageManager
             Assert.IsNotNull(state.settings);
             Assert.AreEqual("plugin", state.settings.branch);
             Assert.AreEqual("git", state.settings.gitPath);
-            Assert.AreEqual("https://github.com/TeamMoirai/com.moirai.framework.git", state.settings.repoUrl);
+            Assert.AreEqual(DefaultRepoUrl, state.settings.repoUrl);
+        }
+
+        /// <summary>两套包源各持一份账本：同一工程里两份管理器并存时不得互相读写对方的已装记录。</summary>
+        [Test]
+        public void TwoRegistriesWithDifferentPaths_KeepIndependentLedgers()
+        {
+            string otherPath = Path.Combine(Path.GetTempPath(), $"pm-state-{Guid.NewGuid():N}.json");
+
+            try
+            {
+                var other = new PackageManagerStateRegistry(otherPath, DefaultSettings);
+
+                PackageManagerStateData mine = _registry.Load();
+                _registry.UpsertInstalled(mine, new InstalledPluginData { id = "blackboard", version = "0.1.0" });
+                _registry.Save(mine);
+
+                Assert.IsNotNull(_registry.FindInstalled(_registry.Load(), "blackboard"));
+                Assert.IsNull(other.FindInstalled(other.Load(), "blackboard"), "另一份账本不得读到这份的已装记录");
+            }
+            finally
+            {
+                if (File.Exists(otherPath)) File.Delete(otherPath);
+            }
         }
 
         [Test]
@@ -76,7 +105,7 @@ namespace Editor.Tools.PackageManager
             PackageManagerStateData state = NewState();
             Assert.IsTrue(string.IsNullOrEmpty(state.settings.lastFetchAt));
 
-            PackageManagerStateRegistry.StampFetch(state);
+            _registry.StampFetch(state);
 
             Assert.IsTrue(DateTime.TryParse(state.settings.lastFetchAt, out _), state.settings.lastFetchAt);
         }
@@ -87,12 +116,12 @@ namespace Editor.Tools.PackageManager
             PackageManagerStateData state = NewState();
             var catalog = new PluginCatalogResult();
             catalog.AddManifest(Manifest("zlogger", "ZLOGGER_INSTALLED"));
-            PackageManagerStateRegistry.CacheCatalog(state, catalog, "abc1234");
-            PackageManagerStateRegistry.Save(state);
+            _registry.CacheCatalog(state, catalog, "abc1234");
+            _registry.Save(state);
 
-            PackageManagerStateData reloaded = PackageManagerStateRegistry.Load();
+            PackageManagerStateData reloaded = _registry.Load();
 
-            Assert.IsTrue(PackageManagerStateRegistry.TryGetCachedCatalog(reloaded, out List<PluginManifest> manifests, out string headCommit));
+            Assert.IsTrue(_registry.TryGetCachedCatalog(reloaded, out List<PluginManifest> manifests, out string headCommit));
             Assert.AreEqual(1, manifests.Count);
             Assert.AreEqual("zlogger", manifests[0].id);
             Assert.AreEqual(1, manifests[0].tags.Length);
@@ -106,17 +135,17 @@ namespace Editor.Tools.PackageManager
             PackageManagerStateData state = NewState();
             var catalog = new PluginCatalogResult();
             catalog.AddManifest(Manifest("zlogger", "ZLOGGER_INSTALLED"));
-            PackageManagerStateRegistry.CacheCatalog(state, catalog, "abc1234");
+            _registry.CacheCatalog(state, catalog, "abc1234");
 
             state.settings.branch = "another-branch";
 
-            Assert.IsFalse(PackageManagerStateRegistry.TryGetCachedCatalog(state, out _, out _));
+            Assert.IsFalse(_registry.TryGetCachedCatalog(state, out _, out _));
         }
 
         [Test]
         public void TryGetCachedCatalog_NoCache_ReturnsFalse()
         {
-            Assert.IsFalse(PackageManagerStateRegistry.TryGetCachedCatalog(NewState(), out _, out _));
+            Assert.IsFalse(_registry.TryGetCachedCatalog(NewState(), out _, out _));
         }
 
         private static PluginManifest Manifest(string id, params string[] tags)
@@ -137,28 +166,28 @@ namespace Editor.Tools.PackageManager
         {
             PackageManagerStateData state = NewState();
 
-            PackageManagerStateRegistry.UpsertInstalled(state, new InstalledPluginData { id = "blackboard", version = "0.1.0" });
-            PackageManagerStateRegistry.UpsertInstalled(state, new InstalledPluginData { id = "blackboard", version = "0.2.0" });
+            _registry.UpsertInstalled(state, new InstalledPluginData { id = "blackboard", version = "0.1.0" });
+            _registry.UpsertInstalled(state, new InstalledPluginData { id = "blackboard", version = "0.2.0" });
 
             Assert.AreEqual(1, state.installed.Count, "重复安装不得长重复项");
-            Assert.AreEqual("0.2.0", PackageManagerStateRegistry.FindInstalled(state, "blackboard").version);
+            Assert.AreEqual("0.2.0", _registry.FindInstalled(state, "blackboard").version);
         }
 
         [Test]
         public void RemoveInstalled_UnknownId_ReturnsFalse()
         {
             PackageManagerStateData state = NewState();
-            Assert.IsFalse(PackageManagerStateRegistry.RemoveInstalled(state, "nope"));
+            Assert.IsFalse(_registry.RemoveInstalled(state, "nope"));
         }
 
         [Test]
         public void RemoveInstalled_KnownId_ReturnsTrueAndDropsEntry()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.UpsertInstalled(state, new InstalledPluginData { id = "blackboard" });
+            _registry.UpsertInstalled(state, new InstalledPluginData { id = "blackboard" });
 
-            Assert.IsTrue(PackageManagerStateRegistry.RemoveInstalled(state, "blackboard"));
-            Assert.IsNull(PackageManagerStateRegistry.FindInstalled(state, "blackboard"));
+            Assert.IsTrue(_registry.RemoveInstalled(state, "blackboard"));
+            Assert.IsNull(_registry.FindInstalled(state, "blackboard"));
         }
 
         [Test]
@@ -166,7 +195,7 @@ namespace Editor.Tools.PackageManager
         {
             PackageManagerStateData state = NewState();
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean,
+            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, ManifestClean,
                 Upm("com.cysharp.zstring", "2.6.0"), "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.Added, outcome);
@@ -181,7 +210,7 @@ namespace Editor.Tools.PackageManager
         {
             PackageManagerStateData state = NewState();
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.RecordUpmOwner(state, ManifestWithUserEntry,
+            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, ManifestWithUserEntry,
                 Upm("com.cysharp.unitask", "9.9.9"), "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.KeptUserEntry, outcome);
@@ -194,10 +223,10 @@ namespace Editor.Tools.PackageManager
         public void RecordUpmOwner_SecondOwner_CountsBothWithoutSecondWrite()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string afterFirst);
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.RecordUpmOwner(state, afterFirst,
+            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, afterFirst,
                 Upm("com.cysharp.zstring", "2.6.0"), "skill-tree", out string afterSecond);
 
             Assert.AreEqual(UpmEntryOutcome.Retained, outcome);
@@ -209,9 +238,9 @@ namespace Editor.Tools.PackageManager
         public void RecordUpmOwner_SameOwnerTwice_DoesNotDuplicateOwnerList()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string afterFirst);
-            PackageManagerStateRegistry.RecordUpmOwner(state, afterFirst, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, afterFirst, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out _);
 
             Assert.AreEqual(1, state.upmOwnership[0].owners.Count);
@@ -221,10 +250,10 @@ namespace Editor.Tools.PackageManager
         public void RecordUpmOwner_LowerRequirement_DoesNotDowngradeWrittenVersion()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string afterFirst);
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.RecordUpmOwner(state, afterFirst,
+            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, afterFirst,
                 Upm("com.cysharp.zstring", "2.5.0"), "skill-tree", out string afterSecond);
 
             Assert.AreEqual(UpmEntryOutcome.Retained, outcome);
@@ -236,10 +265,10 @@ namespace Editor.Tools.PackageManager
         public void RecordUpmOwner_HigherRequirement_RewritesOwnedLine()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.5.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.5.0"),
                 "blackboard", out string afterFirst);
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.RecordUpmOwner(state, afterFirst,
+            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, afterFirst,
                 Upm("com.cysharp.zstring", "2.6.0"), "skill-tree", out string afterSecond);
 
             Assert.AreEqual(UpmEntryOutcome.Updated, outcome);
@@ -254,10 +283,10 @@ namespace Editor.Tools.PackageManager
         public void ReleaseUpmOwner_PluginNotRecordedAsOwner_LeavesLedgerAndLine()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
                 "skill-tree", out string text);
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, text,
+            UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, text,
                 "com.cysharp.zstring", "blackboard", out string released);
 
             Assert.AreEqual(UpmEntryOutcome.NotFound, outcome);
@@ -270,11 +299,11 @@ namespace Editor.Tools.PackageManager
         public void ReleaseUpmOwner_LedgerWithNoOwners_LeavesLineAlone()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
                 "skill-tree", out string text);
             state.upmOwnership[0].owners.Clear();
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, text,
+            UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, text,
                 "com.cysharp.zstring", "blackboard", out string released);
 
             Assert.AreEqual(UpmEntryOutcome.NotFound, outcome);
@@ -286,25 +315,25 @@ namespace Editor.Tools.PackageManager
         public void FindOwnership_ReturnsRecordForPackageIdAndNullOtherwise()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out _);
 
-            UpmOwnershipData record = PackageManagerStateRegistry.FindOwnership(state, "com.cysharp.zstring");
+            UpmOwnershipData record = _registry.FindOwnership(state, "com.cysharp.zstring");
             Assert.IsNotNull(record, "窗口标归属要靠这条查询");
             Assert.AreEqual("blackboard", record.owners[0]);
-            Assert.IsNull(PackageManagerStateRegistry.FindOwnership(state, "com.nope"));
+            Assert.IsNull(_registry.FindOwnership(state, "com.nope"));
         }
 
         [Test]
         public void ReleaseUpmOwner_OtherOwnerRemains_KeepsEntry()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string text);
-            PackageManagerStateRegistry.RecordUpmOwner(state, text, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, text, Upm("com.cysharp.zstring", "2.6.0"),
                 "skill-tree", out text);
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, text,
+            UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, text,
                 "com.cysharp.zstring", "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.Retained, outcome);
@@ -315,10 +344,10 @@ namespace Editor.Tools.PackageManager
         public void ReleaseUpmOwner_LastOwnerRemovesOwnedEntry()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string text);
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, text,
+            UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, text,
                 "com.cysharp.zstring", "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.Removed, outcome);
@@ -330,10 +359,10 @@ namespace Editor.Tools.PackageManager
         public void ReleaseUpmOwner_PreexistingEntrySurvivesLastOwner()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestWithUserEntry, Upm("com.cysharp.unitask", "2.5.11"),
+            _registry.RecordUpmOwner(state, ManifestWithUserEntry, Upm("com.cysharp.unitask", "2.5.11"),
                 "blackboard", out string text);
 
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, text,
+            UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, text,
                 "com.cysharp.unitask", "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.KeptUserEntry, outcome);
@@ -345,7 +374,7 @@ namespace Editor.Tools.PackageManager
         public void ReleaseUpmOwner_UnknownPackage_ReturnsNotFound()
         {
             PackageManagerStateData state = NewState();
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, ManifestClean,
+            UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, ManifestClean,
                 "com.nope", "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.NotFound, outcome);
@@ -356,19 +385,19 @@ namespace Editor.Tools.PackageManager
         public void SaveThenLoad_RoundTripsOwnershipAndPreexistingFlag()
         {
             PackageManagerStateData state = NewState();
-            PackageManagerStateRegistry.RecordUpmOwner(state, ManifestWithUserEntry, Upm("com.cysharp.unitask", "2.5.11"),
+            _registry.RecordUpmOwner(state, ManifestWithUserEntry, Upm("com.cysharp.unitask", "2.5.11"),
                 "blackboard", out string text);
-            PackageManagerStateRegistry.RecordUpmOwner(state, text, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, text, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out text);
-            PackageManagerStateRegistry.UpsertInstalled(state, new InstalledPluginData
+            _registry.UpsertInstalled(state, new InstalledPluginData
             {
                 id = "blackboard", version = "0.1.0", commit = "abc123", function = "Data",
                 tags = new[] { "MOIRAI_BLACKBOARD" }
             });
 
-            PackageManagerStateRegistry.Save(state);
+            _registry.Save(state);
 
-            PackageManagerStateData reloaded = PackageManagerStateRegistry.Load();
+            PackageManagerStateData reloaded = _registry.Load();
             Assert.AreEqual(1, reloaded.installed.Count);
             Assert.AreEqual("abc123", reloaded.installed[0].commit);
             CollectionAssert.AreEqual(new[] { "MOIRAI_BLACKBOARD" }, reloaded.installed[0].tags);
@@ -395,7 +424,7 @@ namespace Editor.Tools.PackageManager
         {
             File.WriteAllText(_statePath, "{ this is not json");
 
-            Assert.IsFalse(PackageManagerStateRegistry.TryLoad(out PackageManagerStateData state, out string failure));
+            Assert.IsFalse(_registry.TryLoad(out PackageManagerStateData state, out string failure));
             Assert.IsNotNull(state);
             Assert.AreEqual(0, state.installed.Count);
             Assert.IsNotEmpty(failure);
@@ -407,7 +436,7 @@ namespace Editor.Tools.PackageManager
         public void RecordUpmOwner_EmptyManifestText_ReturnsNotFoundWithoutTouchingLedger()
         {
             PackageManagerStateData state = NewState();
-            UpmEntryOutcome outcome = PackageManagerStateRegistry.RecordUpmOwner(state, string.Empty,
+            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, string.Empty,
                 Upm("com.cysharp.zstring", "2.6.0"), "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.NotFound, outcome);

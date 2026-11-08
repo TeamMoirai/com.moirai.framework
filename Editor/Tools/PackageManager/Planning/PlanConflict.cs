@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 一条规划冲突：谁、哪一类、为什么。

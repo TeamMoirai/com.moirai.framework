@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 插件自带的清单，文件名固定为 <c>&lt;id&gt;.plugin.json</c>。

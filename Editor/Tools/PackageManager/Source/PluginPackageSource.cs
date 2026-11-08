@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 分支作包源的 git 侧：部分克隆、cone 稀疏检出与只读取文。

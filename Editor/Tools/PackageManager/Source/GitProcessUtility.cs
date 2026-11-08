@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Text;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 进程外 git 的调用面。

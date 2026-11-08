@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 一次装卸编排的产出：成没成、走过哪些步、哪些冲突与谁还依赖它。

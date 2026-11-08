@@ -2,51 +2,50 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 包管理器已装状态与 UPM 依赖归属的账本。
     /// </summary>
     /// <remarks>
-    /// 落盘位置 <c>ProjectSettings/MoiraiPackageManager.json</c>；卸载与回收的全部依据都来自这里，不靠扫描工作树反推。<br />
+    /// 一个实例绑定一份状态文件与一套缺省设置；不同包管理器各持一份，互不覆盖。<br />
+    /// 落盘位置由调用方给定（默认在 <c>ProjectSettings/</c> 下）；卸载与回收的全部依据都来自这里，不靠扫描工作树反推。<br />
     /// 记账项一律按 <c>id</c> / <c>packageId</c> 去重（<see cref="UpsertInstalled"/>、<see cref="RecordUpmOwner"/>），重复写入覆盖旧值而非追加。<br />
     /// 读到损坏的状态文件时把原文另存为 <c>.corrupt-&lt;ticks&gt;</c> 再回空态，绝不就地覆写。<br />
     /// 安装状态必须在 <c>AssetDatabase.Refresh()</c> 之前落盘——刷新触发的域重载会杀掉在飞续体。
     /// </remarks>
-    internal static class PackageManagerStateRegistry
+    internal sealed class PackageManagerStateRegistry
     {
-        private const string STATE_FILE_NAME = "MoiraiPackageManager.json";
-
-        private static string s_PathOverride;
+        private readonly string _statePath;
+        private readonly Func<PackageManagerSettingsData> _createDefaultSettings;
 
         /// <summary>
-        /// 当前状态文件的落盘路径。
+        /// 建一份绑定到指定状态文件的账本；缺省设置由调用方按各自的包源给出。
         /// </summary>
-        internal static string Internal_PeekStatePath()
+        internal PackageManagerStateRegistry(string statePath, Func<PackageManagerSettingsData> createDefaultSettings)
         {
-            return s_PathOverride ?? Path.Combine(GetProjectSettingsDirectory(), STATE_FILE_NAME);
+            if (string.IsNullOrEmpty(statePath)) throw new ArgumentException("状态文件路径不能为空", nameof(statePath));
+
+            _statePath = Path.GetFullPath(statePath);
+            _createDefaultSettings = createDefaultSettings;
         }
 
         /// <summary>
-        /// 把账本指到别处（用例夹具用）。
+        /// 工程默认状态文件路径：<c>ProjectSettings/&lt;fileName&gt;</c>。
         /// </summary>
-        internal static void Internal_UseStatePath(string path)
+        internal static string ResolveDefaultPath(string fileName)
         {
-            s_PathOverride = path;
+            if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("状态文件名不能为空", nameof(fileName));
+            return Path.Combine(Directory.GetCurrentDirectory(), "ProjectSettings", fileName);
         }
 
-        /// <summary>
-        /// 恢复默认落盘路径。
-        /// </summary>
-        internal static void Internal_ResetStatePath()
-        {
-            s_PathOverride = null;
-        }
+        /// <summary>当前状态文件的落盘路径。</summary>
+        internal string StatePath => _statePath;
 
         /// <summary>
         /// 读入账本；文件缺失或损坏时回默认空态。
         /// </summary>
-        internal static PackageManagerStateData Load()
+        internal PackageManagerStateData Load()
         {
             TryLoad(out PackageManagerStateData state, out _);
             return state;
@@ -57,17 +56,16 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         /// <remarks>账本自身不记日志：本工具直接发 <c>Debug.LogError</c> 会把 EditMode 用例打成未处理日志红，
         /// 且报告属交互面——原因交给调用方在窗口上显示。</remarks>
-        internal static bool TryLoad(out PackageManagerStateData state, out string failureReason)
+        internal bool TryLoad(out PackageManagerStateData state, out string failureReason)
         {
             failureReason = null;
-            string path = Internal_PeekStatePath();
-            if (!File.Exists(path))
+            if (!File.Exists(_statePath))
             {
                 state = CreateDefault();
                 return true;
             }
 
-            string text = File.ReadAllText(path);
+            string text = File.ReadAllText(_statePath);
             if (string.IsNullOrEmpty(text))
             {
                 state = CreateDefault();
@@ -81,7 +79,7 @@ namespace Moirai.Atropos.Editor
             }
             catch (Exception exception)
             {
-                string preserveFailure = PreserveCorrupt(path);
+                string preserveFailure = PreserveCorrupt(_statePath);
                 failureReason = $"状态文件解析失败，已另存副本：{exception.Message}{preserveFailure}";
                 state = CreateDefault();
                 return false;
@@ -94,6 +92,7 @@ namespace Moirai.Atropos.Editor
                 return false;
             }
 
+            ApplyDefaults(parsed);
             state = parsed;
             return true;
         }
@@ -101,7 +100,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 把上次刷新的时刻记进设置项。
         /// </summary>
-        internal static void StampFetch(PackageManagerStateData state)
+        internal void StampFetch(PackageManagerStateData state)
         {
             if (state?.settings == null) return;
             state.settings.lastFetchAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -110,7 +109,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 把一趟扫描的结果记成缓存（连当时的远端与分支，换源后即作废）。
         /// </summary>
-        internal static void CacheCatalog(PackageManagerStateData state, PluginCatalogResult catalog, string headCommit)
+        internal void CacheCatalog(PackageManagerStateData state, PluginCatalogResult catalog, string headCommit)
         {
             if (state?.settings == null || catalog == null) return;
 
@@ -127,7 +126,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 取与当前设置匹配的上次扫描缓存；没有、为空或换过源都交出 false。
         /// </summary>
-        internal static bool TryGetCachedCatalog(PackageManagerStateData state, out List<PluginManifest> manifests,
+        internal bool TryGetCachedCatalog(PackageManagerStateData state, out List<PluginManifest> manifests,
             out string headCommit)
         {
             manifests = null;
@@ -156,20 +155,21 @@ namespace Moirai.Atropos.Editor
         /// </summary>
         /// <remarks>就地整写被中断会留下截断的 JSON，而读侧对损坏文件回的是空账本——那等于"什么都没装"，
         /// 盘上的插件目录却还在。不用带 overwrite 的 <c>File.Move</c>：那个重载在最低引擎版本的 BCL 面里没有。</remarks>
-        internal static void Save(PackageManagerStateData state)
+        internal void Save(PackageManagerStateData state)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
 
-            string path = Internal_PeekStatePath();
-            string directory = Path.GetDirectoryName(path);
+            EnsureLists(state);
+
+            string directory = Path.GetDirectoryName(_statePath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
-            string temporary = path + ".moirai-tmp";
+            string temporary = _statePath + ".moirai-tmp";
             File.WriteAllText(temporary, JsonUtility.ToJson(state, true));
 
             try
             {
-                File.Copy(temporary, path, true);
+                File.Copy(temporary, _statePath, true);
             }
             finally
             {
@@ -180,7 +180,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 写入或覆盖一个已装记录。
         /// </summary>
-        internal static void UpsertInstalled(PackageManagerStateData state, InstalledPluginData entry)
+        internal void UpsertInstalled(PackageManagerStateData state, InstalledPluginData entry)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
             if (entry == null || string.IsNullOrEmpty(entry.id)) throw new ArgumentException("缺 id 的已装记录不入账", nameof(entry));
@@ -200,7 +200,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 移出一个已装记录。
         /// </summary>
-        internal static bool RemoveInstalled(PackageManagerStateData state, string id)
+        internal bool RemoveInstalled(PackageManagerStateData state, string id)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
 
@@ -219,7 +219,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 取已装记录。
         /// </summary>
-        internal static InstalledPluginData FindInstalled(PackageManagerStateData state, string id)
+        internal InstalledPluginData FindInstalled(PackageManagerStateData state, string id)
         {
             if (state?.installed == null) return null;
 
@@ -234,7 +234,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 记下一个使用者并按归属规则写工程 manifest。
         /// </summary>
-        internal static UpmEntryOutcome RecordUpmOwner(PackageManagerStateData state, string manifestText,
+        internal UpmEntryOutcome RecordUpmOwner(PackageManagerStateData state, string manifestText,
             PluginUpmDependency dependency, string ownerPluginId, out string newText)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -280,7 +280,7 @@ namespace Moirai.Atropos.Editor
         /// <summary>
         /// 记下一个使用者离场，并按引用计数回收条目。
         /// </summary>
-        internal static UpmEntryOutcome ReleaseUpmOwner(PackageManagerStateData state, string manifestText,
+        internal UpmEntryOutcome ReleaseUpmOwner(PackageManagerStateData state, string manifestText,
             string packageId, string ownerPluginId, out string newText)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -313,6 +313,21 @@ namespace Moirai.Atropos.Editor
             return UpmEntryOutcome.Removed;
         }
 
+        /// <summary>
+        /// 取某外部包的归属记录；窗口标"谁在用/是不是用户手写"走这里。
+        /// </summary>
+        internal UpmOwnershipData FindOwnership(PackageManagerStateData state, string packageId)
+        {
+            if (state.upmOwnership == null) return null;
+
+            for (int i = 0; i < state.upmOwnership.Count; i++)
+            {
+                if (string.Equals(state.upmOwnership[i].packageId, packageId, StringComparison.Ordinal)) return state.upmOwnership[i];
+            }
+
+            return null;
+        }
+
         private static string PreserveCorrupt(string path)
         {
             try
@@ -326,31 +341,34 @@ namespace Moirai.Atropos.Editor
             }
         }
 
-        private static PackageManagerStateData CreateDefault()
+        private PackageManagerStateData CreateDefault()
         {
-            return new PackageManagerStateData();
-        }
-        
-        private static void EnsureLists(PackageManagerStateData state)
-        {
-            if (state.settings == null) state.settings = new PackageManagerSettingsData();
-            if (state.installed == null) state.installed = new List<InstalledPluginData>();
-            if (state.upmOwnership == null) state.upmOwnership = new List<UpmOwnershipData>();
+            var state = new PackageManagerStateData();
+            EnsureLists(state);
+            return state;
         }
 
         /// <summary>
-        /// 取某外部包的归属记录；窗口标"谁在用/是不是用户手写"走这里。
+        /// 把缺项补成这套包源的缺省值；手改过或旧版的账本不该因缺一项就整份不可用。
         /// </summary>
-        internal static UpmOwnershipData FindOwnership(PackageManagerStateData state, string packageId)
+        private void ApplyDefaults(PackageManagerStateData state)
         {
-            if (state.upmOwnership == null) return null;
+            EnsureLists(state);
 
-            for (int i = 0; i < state.upmOwnership.Count; i++)
-            {
-                if (string.Equals(state.upmOwnership[i].packageId, packageId, StringComparison.Ordinal)) return state.upmOwnership[i];
-            }
+            PackageManagerSettingsData defaults = CreateDefaultSettings();
+            if (string.IsNullOrEmpty(state.settings.branch)) state.settings.branch = defaults.branch;
+        }
 
-            return null;
+        private PackageManagerSettingsData CreateDefaultSettings()
+        {
+            return _createDefaultSettings?.Invoke() ?? new PackageManagerSettingsData();
+        }
+
+        private void EnsureLists(PackageManagerStateData state)
+        {
+            if (state.settings == null) state.settings = CreateDefaultSettings();
+            if (state.installed == null) state.installed = new List<InstalledPluginData>();
+            if (state.upmOwnership == null) state.upmOwnership = new List<UpmOwnershipData>();
         }
 
         private static bool ContainsOwner(List<string> owners, string ownerPluginId)
@@ -383,11 +401,6 @@ namespace Moirai.Atropos.Editor
             if (!PluginVersion.TryParse(recorded, out PluginVersion have)) return false;
             if (!PluginVersion.TryParse(required, out PluginVersion want)) return true;
             return have >= want;
-        }
-
-        private static string GetProjectSettingsDirectory()
-        {
-            return Path.Combine(Directory.GetCurrentDirectory(), "ProjectSettings");
         }
     }
 }

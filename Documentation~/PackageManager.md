@@ -10,7 +10,7 @@
 |---|---|
 | 远端与分支 | 设置面的 `分支包源` 节点编辑；远端默认 `https://github.com/TeamMoirai/com.moirai.framework.git`，分支默认 `plugin` |
 | 落点目录 | `Packages/com.moirai.framework.plugin/` |
-| 状态账本 | `ProjectSettings/MoiraiPackageManager.json`（含设置项、已装记录、归属台账与上次扫描的目录缓存） |
+| 状态账本 | `ProjectSettings/MoiraiFrameworkPackage.json`（含设置项、已装记录、归属台账与上次扫描的目录缓存） |
 | git 可执行文件 | 默认 `git`，走进程外调用 |
 
 落点目录就是分支的工作树。工具按 `--filter=blob:none --no-checkout --single-branch` 建检出，再用 cone 模式稀疏检出，因此**未勾选的插件目录不会出现在磁盘上**；浏览面只列一次树，把根文件与各份 `<id>.plugin.json` 合成一次预取取回、一条进程读齐，插件正文只在安装时才物化。
@@ -46,6 +46,21 @@
 
 `可更新` 判定比对两处的 tree 哈希：账本里安装时那条 `commit` 下的 `<id>/<id>.plugin.json`，与 `refs/remotes/origin/<branch>` 下的同一份。
 
+## 复用：另一条分支的包管理器
+
+窗口的交互与装卸编排收在 `PackageManagerWindowBase` 里，派生窗只需给出一份 `PackageManagerWindowBase.PackageManagerProfile`：
+
+| Profile 项 | 作用 |
+|---|---|
+| `WindowTitle` | 窗口标题 |
+| `StateFileName` | 状态账本文件名，落在 `ProjectSettings/` 下；与检出落点一起把两套管理器隔开 |
+| `InstallRootFolderName` | 检出落点目录名，落在 `Packages/` 下；须与分支根 `package.json` 的 `name` 相同 |
+| `DefaultRepoUrl` / `DefaultBranch` / `DefaultGitPath` | 源设置的初值 |
+| `HostPackageType` | `minFrameworkVersion` / `maxFrameworkVersion` 拿哪个包的版本来判；空引用表示不判这段区间 |
+| `EntryNoun` / `BranchEntryNoun` / `SourceNodeName` / `UngroupedNodeName` / `HostLabel` | 界面文案（插件/模块、分支包/分支模块、框架/本体等） |
+
+派生窗覆写 `CreateProfile()` 并自备 `[MenuItem]`；菜单树、筛选、详情面、版本历史下拉、`Update All` 与装卸动作全部继承。框架插件源自己的配置在 `FrameworkPackageProfile.Instance`，状态账本 `ProjectSettings/MoiraiFrameworkPackage.json` 与落点 `Packages/com.moirai.framework.plugin/` 保持原样。同一工程里并存多套管理器时，只要 `StateFileName` 与 `InstallRootFolderName` 不重名，彼此的账本、检出与宿主版本判定互不影响。
+
 ## 已知边界
 
 - 落点工作树有未提交改动时拒绝装卸；分支上还有**未推送的提交**时同样拒绝摆正分支——`checkout -B` 会把它们从分支上挪走，而工作树此刻是干净的，脏树门禁兜不住。先推送或另挪分支再装。
@@ -63,12 +78,12 @@
 
 装卸规则的可判部分全部收在 L1（EditMode）：版本值类型与运算符、清单校验、工程 `manifest.json` 的行级增删、状态账本与归属计数、依赖闭包与拓扑、树路径到目录的发现、以及 git 层的克隆/摆正/稀疏物化与清单历史（列历史、按修订取文、按修订物化；跑在临时 `file://` 夹具上）。
 
-读数按属性就能数出来，再由编辑器实证：本模块 111 个用例方法，其中 13 个是参数化方法、共带 69 行 `[TestCase]`，参数化方法按行数格、其余按 1 格，故一趟全量 = 111 − 13 + 69 = **167 格**。编辑器实测 `passed 167 | failed 0 | skipped 0`（383s，先过 `GATE OK` 的空闲与逐装配新鲜度门）——推导数与执行数对上，未推送提交守卫与未知字段两格都已在场。
+读数按属性就能数出来，再由编辑器实证：本模块一趟全量 **206 格**（17 个参数化方法共带 80 行 `[TestCase]`）。编辑器实测 `passed 206 | failed 0 | skipped 0`（152s，先过 `GATE OK` 的空闲与逐装配新鲜度门）。
 
 ```bash
 # 逐文件抽取再合并：pm-names.sh 一次只吃一个文件，多传（如直接喂 glob）会当场判非而不是静默少抽
 for f in Tests/EditorMode/Editor/Tools/PackageManager/*/*Tests.cs; do bash "$LOCALAPPDATA/pm-names.sh" "$f"; done | sort -u > names.txt
-wc -l < names.txt                       # 应为 111
+wc -l < names.txt                       # 应为 142
 bash "$LOCALAPPDATA/pm-gate.sh" pm refresh
-bash "$LOCALAPPDATA/pm-test.sh" pm names.txt   # 首行应为 passed 167 | failed 0
+bash "$LOCALAPPDATA/pm-test.sh" pm names.txt   # 首行应为 passed 206 | failed 0
 ```

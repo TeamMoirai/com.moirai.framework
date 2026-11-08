@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 using UnityEditor;
 
 namespace Moirai.Atropos
@@ -153,11 +153,15 @@ namespace Moirai.Atropos
         {
             Type[] compiled = CompiledCandidates(baseType);
 
-            PackageManagerStateData state = PackageManagerStateRegistry.Load();
+            PackageManagerWindowBase.PackageManagerProfile profile = FrameworkPackageProfile.Instance;
+            var registry = new PackageManagerStateRegistry(
+                PackageManagerStateRegistry.ResolveDefaultPath(profile.StateFileName), profile.CreateDefaultSettings);
+
+            PackageManagerStateData state = registry.Load();
             List<PluginManifest> catalog = null;
             List<string> installedIds = null;
 
-            if (state != null && PackageManagerStateRegistry.TryGetCachedCatalog(state, out catalog, out _))
+            if (state != null && registry.TryGetCachedCatalog(state, out catalog, out _))
             {
                 installedIds = new List<string>();
                 for (int i = 0; i < state.installed.Count; i++)

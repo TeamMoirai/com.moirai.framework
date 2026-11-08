@@ -1,6 +1,6 @@
 using System;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 清单里的一段「本插件为哪个抽象基类提供哪个实现类」，供 Provider 下拉铺未安装行。

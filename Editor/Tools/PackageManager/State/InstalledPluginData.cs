@@ -1,6 +1,6 @@
 using System;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 一个已装插件的记账项。

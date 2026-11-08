@@ -1,7 +1,7 @@
 using NUnit.Framework;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 
-namespace Editor.Tools.PackageManager
+namespace Tools.PackageManager
 {
     /// <summary>
     /// 三段版本号解析与比较的用例集。

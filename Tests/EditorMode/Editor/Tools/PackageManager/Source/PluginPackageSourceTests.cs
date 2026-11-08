@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 using NUnit.Framework;
 
-namespace Editor.Tools.PackageManager
+namespace Tools.PackageManager
 {
     /// <summary>
     /// 部分克隆、cone 稀疏检出与树读取的用例集，跑在临时 <c>file://</c> 夹具上。

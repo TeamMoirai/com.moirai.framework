@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 版本运算符字面量的解析面。

@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 插件语义版本号，固定三段十进制。

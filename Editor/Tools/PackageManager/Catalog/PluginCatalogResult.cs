@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 一次目录扫描的产出：可用清单、逐文件错误与按 id 的索引。
