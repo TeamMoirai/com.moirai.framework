@@ -238,11 +238,11 @@ namespace Moirai.Atropos.PackageManager
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
-            // 现场细节（源/HEAD/工作树/落点）只在设置面报；常规面报上次刷新这类常用读数
+            // 现场细节（源/HEAD/工作树/检出目录）只在设置面报；常规面报上次刷新这类常用读数
             if (_settingsFace)
             {
                 GUILayout.Label($"源：{Text(_status.RepoUrl)}#{_status.Branch}　· HEAD：{ShortSha(_status.HeadCommit)}　· " +
-                                $"工作树：{_status.WorktreeShape}　· 落点：{Text(_status.PackageRootPath)}",
+                                $"工作树：{_status.WorktreeShape}　· 检出：{Text(_status.WorkspacePath)}",
                     HeaderStyles.IsReady ? HeaderStyles.Meta : EditorStyles.miniLabel);
                 GUILayout.Label($"上次刷新：{FetchText()}", EditorStyles.miniLabel);
             }

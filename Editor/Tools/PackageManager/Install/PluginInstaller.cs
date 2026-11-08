@@ -12,9 +12,11 @@ namespace Moirai.Atropos.PackageManager
     /// 装卸编排：把包源层、发现层、规划层与账本按固定时序串起来。
     /// </summary>
     /// <remarks>
+    /// 检出落在 <c>Library/</c>，只是刷新与取内容的中间层；安装把插件从检出复制到 <c>Packages/&lt;检出目录名&gt;.&lt;id&gt;/</c>，
+    /// 并补一份最小的 <c>package.json</c> 让 Unity 把它当嵌入包加载。<br />
     /// 时序：建检出 → 摆正分支 → fetch → 再摆正（fetch 后本地分支才看得见新提交）→ 列树 → 建目录 → 规划，
-    /// 规划判出冲突即整批中止，此刻还没写过任何东西。<br />
-    /// 落盘顺序收在"先写工程 manifest 与脚本宏，再把状态账本落盘，最后只刷新一次"：刷新会触发域重载，
+    /// 规划判出冲突或目标目录归属不明即整批中止，此刻还没写过任何东西。<br />
+    /// 落盘顺序收在"先复制安装目录，再写工程 manifest 与脚本宏，再把状态账本落盘，最后只刷新一次"：刷新会触发域重载，
     /// 账本晚一步就没机会写完。<br />
     /// 卸载的依据全部来自账本：分支上那份清单消失了也要能回收，不靠扫描工作树反推。
     /// </remarks>
@@ -23,7 +25,13 @@ namespace Moirai.Atropos.PackageManager
         private const string ROOT_PACKAGE_JSON_NAME = "package.json";
         private const int ENGINE_VERSION_SEGMENT_COUNT = 3;
 
-        private readonly string _packageRootPath;
+        // 检出只是临时工作树，安装目标是 Packages 下的独立嵌入包。
+        // Unity 只把带 package.json 的 Packages 子目录当包，且技术名须与目录名一致，
+        // 因此目标目录用「检出目录名.id」，包名也写同一个值。
+        private const string INSTALL_FOLDER_SEPARATOR = ".";
+
+        private readonly string _sourceRootPath;
+        private readonly string _installRootPath;
         private readonly string _projectManifestPath;
         private readonly PluginPackageSource _source;
         private readonly PackageManagerStateRegistry _stateRegistry;
@@ -31,31 +39,36 @@ namespace Moirai.Atropos.PackageManager
         private readonly Type _hostPackageType;
         private bool _lastFetchReachedRemote;
 
-        internal PluginInstaller(PackageManagerSettingsData settings, string packageRootPath, string projectManifestPath,
-            PackageManagerStateRegistry stateRegistry, Type hostPackageType)
+        internal PluginInstaller(PackageManagerSettingsData settings, string sourceRootPath, string installRootPath,
+            string projectManifestPath, PackageManagerStateRegistry stateRegistry, Type hostPackageType)
         {
             if (settings == null) throw new ArgumentNullException(nameof(settings));
             if (stateRegistry == null) throw new ArgumentNullException(nameof(stateRegistry));
+            if (string.IsNullOrEmpty(sourceRootPath)) throw new ArgumentException("检出目录不能为空", nameof(sourceRootPath));
+            if (string.IsNullOrEmpty(installRootPath)) throw new ArgumentException("安装目录不能为空", nameof(installRootPath));
 
             _settings = settings;
-            _packageRootPath = Path.GetFullPath(packageRootPath);
+            _sourceRootPath = Path.GetFullPath(sourceRootPath);
+            _installRootPath = Path.GetFullPath(installRootPath);
             _projectManifestPath = Path.GetFullPath(projectManifestPath);
             _stateRegistry = stateRegistry;
             _hostPackageType = hostPackageType;
-            _source = new PluginPackageSource(_packageRootPath, settings.repoUrl, settings.branch, settings.gitPath);
+            _source = new PluginPackageSource(_sourceRootPath, settings.repoUrl, settings.branch, settings.gitPath);
         }
 
         /// <summary>
-        /// 按一套包源配置建一个编排器：落点与工程 manifest 都在 Packages 下。
+        /// 按一套包源配置建一个编排器：检出落 <c>Library/</c>，安装与工程 manifest 在 <c>Packages/</c>。
         /// </summary>
         internal static PluginInstaller Create(PackageManagerSettingsData settings,
             PackageManagerWindowBase.PackageManagerProfile profile, PackageManagerStateRegistry stateRegistry)
         {
             if (profile == null) throw new ArgumentNullException(nameof(profile));
 
-            string packagesRoot = Path.Combine(Directory.GetCurrentDirectory(), "Packages");
+            string projectRoot = Directory.GetCurrentDirectory();
+            string packagesRoot = Path.Combine(projectRoot, "Packages");
             return new PluginInstaller(settings,
-                Path.Combine(packagesRoot, profile.InstallRootFolderName),
+                Path.Combine(projectRoot, "Library", profile.WorkspaceFolderName),
+                packagesRoot,
                 Path.Combine(packagesRoot, "manifest.json"), stateRegistry, profile.HostPackageType);
         }
 
@@ -315,10 +328,17 @@ namespace Moirai.Atropos.PackageManager
                 return report;
             }
 
+            if (!ValidateInstallTargets(plan, installedIds, out string targetReason))
+            {
+                report.Fail(targetReason);
+                return report;
+            }
+
             List<string> selectedIds = Union(installedIds, plan);
 
             // 干净更新：先清目录，随后物化时按分支头重新落一遍，清掉新版本不再产出的文件
             RemoveFolders(removeFirstIds, report);
+            if (!report.Ok) return report;
 
             if (!_source.ApplySparsePaths(selectedIds, out string sparseReason))
             {
@@ -340,6 +360,14 @@ namespace Moirai.Atropos.PackageManager
                 report.Fail(asmdefReason);
                 return report;
             }
+
+            if (!CopyInstalledFolders(plan, out string copyReason))
+            {
+                report.Fail(copyReason);
+                return report;
+            }
+
+            report.Note($"已落盘 {plan.ToInstall.Count} 个包到 Packages/");
 
             if (!WriteProjectManifest(state, plan, report, out string manifestReason))
             {
@@ -454,6 +482,9 @@ namespace Moirai.Atropos.PackageManager
             }
 
             report.Note($"勾选集缩到 {remainingIds.Count} 项");
+
+            RemoveFolders(removalIds, report);
+            if (!report.Ok) return report;
 
             if (textChanged && !TryWriteProjectManifest(baseline, manifestText, out string writeReason))
             {
@@ -615,7 +646,7 @@ namespace Moirai.Atropos.PackageManager
 
         private static string[] NoIds => Array.Empty<string>();
 
-        /// <summary>干净更新：删掉这些插件目录，随后物化时会按分支头重新落一遍。</summary>
+        /// <summary>删掉这些插件的安装目录（干净更新或被卸载的包）。</summary>
         /// <remarks>删除面与 git 面同款纪律：目录名先过 <see cref="PluginManifest.IsValidId"/>，拼不出去才动手。</remarks>
         private void RemoveFolders(IReadOnlyList<string> ids, PluginInstallReport report)
         {
@@ -623,16 +654,142 @@ namespace Moirai.Atropos.PackageManager
             {
                 if (!PluginManifest.IsValidId(ids[i])) continue;
 
-                string folder = Path.Combine(_packageRootPath, ids[i]);
+                string folder = InstallFolderPath(ids[i]);
                 if (!Directory.Exists(folder)) continue;
 
-                Directory.Delete(folder, true);
-                report.Note($"干净更新：已清掉 {ids[i]} 的目录");
+                try
+                {
+                    Directory.Delete(folder, true);
+                }
+                catch (Exception exception)
+                {
+                    report.Fail($"删不掉 {ids[i]} 的安装目录：{exception.Message}");
+                    return;
+                }
+
+                report.Note($"已清掉 {ids[i]} 的安装目录");
             }
         }
 
+        /// <summary>某个插件在工程里的安装目录：<c>Packages/&lt;检出目录名&gt;.&lt;id&gt;/</c>。</summary>
+        private string InstallFolderPath(string pluginId)
+        {
+            return Path.Combine(_installRootPath, new DirectoryInfo(_sourceRootPath).Name + INSTALL_FOLDER_SEPARATOR + pluginId);
+        }
+
         /// <summary>
-        /// 只读校验分支根的 package.json：名字与落点目录名相符，工具永不写它。
+        /// 安装目标目录先过一遍：同名目录若不是本账本装的，拒绝覆盖。
+        /// </summary>
+        /// <remarks>检出住在 Library，目标住在 Packages；后者可能有用户手放的同名包，不能拿安装去顶掉。</remarks>
+        private bool ValidateInstallTargets(InstallPlan plan, List<string> installedIds, out string failureReason)
+        {
+            for (int i = 0; i < plan.ToInstall.Count; i++)
+            {
+                string id = plan.ToInstall[i].id;
+                string folder = InstallFolderPath(id);
+
+                if (File.Exists(folder))
+                {
+                    failureReason = $"{folder} 是个文件，不能作安装目录";
+                    return false;
+                }
+
+                if (Directory.Exists(folder) && !installedIds.Contains(id))
+                {
+                    failureReason = $"{folder} 已存在且不在账本里，工具不覆盖不是自己装的目录";
+                    return false;
+                }
+            }
+
+            failureReason = null;
+            return true;
+        }
+
+        /// <summary>
+        /// 把这一批插件从检出复制到 <c>Packages/</c>，并补一份 Unity 认的 <c>package.json</c>。
+        /// </summary>
+        /// <remarks>复制而不是移动：检出留在 Library 作下一轮的增量源；未勾选的目录不复制。</remarks>
+        private bool CopyInstalledFolders(InstallPlan plan, out string failureReason)
+        {
+            for (int i = 0; i < plan.ToInstall.Count; i++)
+            {
+                PluginManifest manifest = plan.ToInstall[i];
+                string source = Path.Combine(_sourceRootPath, manifest.id);
+                if (!Directory.Exists(source))
+                {
+                    failureReason = $"{manifest.id} 没落到检出里，先刷新再试";
+                    return false;
+                }
+
+                string target = InstallFolderPath(manifest.id);
+                try
+                {
+                    CopyDirectory(source, target);
+                    WriteEmbeddedPackageManifest(target, manifest);
+                }
+                catch (Exception exception)
+                {
+                    failureReason = $"{manifest.id} 落到 Packages 失败：{exception.Message}";
+                    return false;
+                }
+            }
+
+            failureReason = null;
+            return true;
+        }
+
+        private static void CopyDirectory(string source, string target)
+        {
+            Directory.CreateDirectory(target);
+
+            string[] directories = Directory.GetDirectories(source, "*", SearchOption.AllDirectories);
+            for (int i = 0; i < directories.Length; i++)
+            {
+                Directory.CreateDirectory(Path.Combine(target, RelativePath(source, directories[i])));
+            }
+
+            string[] files = Directory.GetFiles(source, "*", SearchOption.AllDirectories);
+            for (int i = 0; i < files.Length; i++)
+            {
+                string destination = Path.Combine(target, RelativePath(source, files[i]));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination));
+                File.Copy(files[i], destination, true);
+            }
+        }
+
+        private static string RelativePath(string root, string fullPath)
+        {
+            return fullPath.Substring(root.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+
+        /// <summary>
+        /// 写安装目录的 <c>package.json</c>：Unity 只把带清单的 Packages 子目录当嵌入包。
+        /// </summary>
+        /// <remarks>包名与目录名同值（<c>&lt;检出目录名&gt;.&lt;id&gt;</c>）；插件分支里那份清单名固定为 <c>&lt;id&gt;.plugin.json</c>，两者互不替代。</remarks>
+        private static void WriteEmbeddedPackageManifest(string folder, PluginManifest manifest)
+        {
+            var data = new EmbeddedPackageManifestData
+            {
+                name = new DirectoryInfo(folder).Name,
+                displayName = string.IsNullOrEmpty(manifest.name) ? manifest.id : manifest.name,
+                version = manifest.version,
+                description = manifest.description ?? string.Empty,
+                author = manifest.author ?? string.Empty,
+                unity = UnityFloor(manifest.minUnityVersion)
+            };
+
+            File.WriteAllText(Path.Combine(folder, ROOT_PACKAGE_JSON_NAME), JsonUtility.ToJson(data, true));
+        }
+
+        private static string UnityFloor(string minUnityVersion)
+        {
+            return PluginVersion.TryParse(minUnityVersion, out PluginVersion version)
+                ? version.Major + "." + version.Minor
+                : minUnityVersion;
+        }
+
+        /// <summary>
+        /// 只读校验分支根的 package.json：名字与检出目录名相符，工具永不写它。
         /// </summary>
         private bool ValidateRootPackageJson(PluginCatalogResult catalog, Dictionary<string, string> textsByPath,
             PluginInstallReport report, out string failureReason)
@@ -644,10 +801,10 @@ namespace Moirai.Atropos.PackageManager
             }
 
             var root = JsonUtility.ToObject<RootPackageJsonData>(json);
-            string expected = new DirectoryInfo(_packageRootPath).Name;
+            string expected = new DirectoryInfo(_sourceRootPath).Name;
             if (root == null || !string.Equals(root.name, expected, StringComparison.Ordinal))
             {
-                failureReason = $"分支根 package.json 的 name '{root?.name}' 与落点目录名 '{expected}' 不符";
+                failureReason = $"分支根 package.json 的 name '{root?.name}' 与检出目录名 '{expected}' 不符";
                 return false;
             }
 
@@ -671,10 +828,10 @@ namespace Moirai.Atropos.PackageManager
 
             foreach (PluginManifest manifest in plan.ToInstall)
             {
-                string folder = Path.Combine(_packageRootPath, manifest.id);
+                string folder = Path.Combine(_sourceRootPath, manifest.id);
                 if (!Directory.Exists(folder))
                 {
-                    failureReason = $"{manifest.id} 勾选后没落盘，先刷新再试";
+                    failureReason = $"{manifest.id} 勾选后没落到检出里，先刷新再试";
                     return false;
                 }
 
@@ -713,9 +870,9 @@ namespace Moirai.Atropos.PackageManager
             failureReason = null;
             var names = new HashSet<string>(StringComparer.Ordinal);
             var exemptedFolders = new List<string>();
-            for (int i = 0; i < exemptedIds.Count; i++) exemptedFolders.Add(Path.Combine(_packageRootPath, exemptedIds[i]));
+            for (int i = 0; i < exemptedIds.Count; i++) exemptedFolders.Add(InstallFolderPath(exemptedIds[i]));
 
-            string packagesRoot = Path.GetDirectoryName(_packageRootPath);
+            string packagesRoot = _installRootPath;
             string assetsRoot = Path.Combine(Directory.GetCurrentDirectory(), "Assets");
 
             foreach (string root in new[] { packagesRoot, assetsRoot })
@@ -887,6 +1044,17 @@ namespace Moirai.Atropos.PackageManager
         private sealed class RootPackageJsonData
         {
             public string name;
+        }
+
+        [Serializable]
+        private sealed class EmbeddedPackageManifestData
+        {
+            public string name;
+            public string displayName;
+            public string version;
+            public string description;
+            public string author;
+            public string unity;
         }
 
         [Serializable]

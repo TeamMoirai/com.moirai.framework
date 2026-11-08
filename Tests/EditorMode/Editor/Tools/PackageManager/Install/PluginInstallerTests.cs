@@ -51,7 +51,7 @@ namespace Tools.PackageManager
         {
             string root = Path.Combine(Path.GetTempPath(), "pm-installer-" + Guid.NewGuid().ToString("N"));
             string sourceRepo = Path.Combine(root, "src");
-            string workspace = Path.Combine(root, PLUGIN_FOLDER);
+            string workspace = Path.Combine(root, "Library", PLUGIN_FOLDER);
 
             try
             {
@@ -79,11 +79,47 @@ namespace Tools.PackageManager
         }
 
         [Test]
+        public void Install_LandsPluginUnderPackagesAndUninstallRemovesIt()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "pm-installer-" + Guid.NewGuid().ToString("N"));
+            string sourceRepo = Path.Combine(root, "src");
+            string workspace = Path.Combine(root, "Library", PLUGIN_FOLDER);
+            string installRoot = Path.Combine(root, "Packages");
+
+            try
+            {
+                BuildSourceRepo(sourceRepo, GOOD_MANIFEST);
+                Directory.CreateDirectory(installRoot);
+                File.WriteAllText(Path.Combine(installRoot, "manifest.json"), "{\"dependencies\":{}}");
+
+                PluginInstaller installer = NewInstaller(sourceRepo, workspace);
+
+                var install = installer.Install(PLUGIN_ID, false);
+                Assert.IsTrue(install.Ok, install.FailureReason);
+
+                string installed = Path.Combine(installRoot, PLUGIN_FOLDER + "." + PLUGIN_ID);
+                Assert.IsTrue(Directory.Exists(installed), "安装目录应落在 Packages 下");
+                Assert.IsTrue(File.Exists(Path.Combine(installed, PLUGIN_ID + PluginManifest.MANIFEST_SUFFIX)));
+                Assert.IsTrue(File.Exists(Path.Combine(installed, "package.json")), "嵌入包必须有 Unity 认的 package.json");
+                StringAssert.Contains("\"name\": \"" + PLUGIN_FOLDER + "." + PLUGIN_ID + "\"",
+                    File.ReadAllText(Path.Combine(installed, "package.json")));
+
+                var uninstall = installer.Uninstall(PLUGIN_ID, false);
+                Assert.IsTrue(uninstall.Ok, uninstall.FailureReason);
+                Assert.IsFalse(Directory.Exists(installed), "卸载应删掉 Packages 下的安装目录");
+            }
+            finally
+            {
+                ForceDelete(root);
+            }
+        }
+
+        [Test]
         public void TryBrowse_BrokenManifest_ReportsPerFileAndKeepsBrowseWorking()
         {
             string root = Path.Combine(Path.GetTempPath(), "pm-installer-" + Guid.NewGuid().ToString("N"));
             string sourceRepo = Path.Combine(root, "src");
-            string workspace = Path.Combine(root, PLUGIN_FOLDER);
+            string workspace = Path.Combine(root, "Library", PLUGIN_FOLDER);
 
             try
             {
@@ -120,7 +156,8 @@ namespace Tools.PackageManager
             var registry = new PackageManagerStateRegistry(
                 Path.Combine(Path.GetDirectoryName(workspace), "state.json"), () => settings);
 
-            return new PluginInstaller(settings, workspace, Path.Combine(Path.GetDirectoryName(workspace), "manifest.json"),
+            string installRoot = Path.Combine(Directory.GetParent(workspace).Parent.FullName, "Packages");
+            return new PluginInstaller(settings, workspace, installRoot, Path.Combine(installRoot, "manifest.json"),
                 registry, typeof(PluginInstaller));
         }
 
@@ -131,6 +168,8 @@ namespace Tools.PackageManager
             File.WriteAllText(Path.Combine(sourceRepo, "package.json"),
                 "{\"name\":\"" + PLUGIN_FOLDER + "\",\"version\":\"1.0.0\"}");
             File.WriteAllText(Path.Combine(folder, PLUGIN_ID + PluginManifest.MANIFEST_SUFFIX), manifestJson);
+            File.WriteAllText(Path.Combine(folder, "Moirai.Plugin.Blackboard.asmdef"),
+                "{\"name\":\"Moirai.Plugin.Blackboard\",\"references\":[]}");
 
             RunGit(sourceRepo, "init -q -b plugin .");
             RunGit(sourceRepo, "config user.email pm@test.local");
