@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 清单历史里的一条：某个版本，以及它那次修订。

@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Moirai.Atropos;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 using NUnit.Framework;
 
-namespace Editor.Core.Attributes
+namespace Attributes
 {
     /// <summary>
     /// Provider 下拉的归行判据用例集：只测纯函数，不碰 IMGUI 与磁盘。

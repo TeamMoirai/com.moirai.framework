@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using NUnit.Framework;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 
-namespace Editor.Tools.PackageManager
+namespace Tools.PackageManager
 {
     /// <summary>
     /// 插件清单校验判据与解析通道的用例集。

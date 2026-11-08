@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 一次 git 进程调用的读数。

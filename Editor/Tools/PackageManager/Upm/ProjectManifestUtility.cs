@@ -1,6 +1,6 @@
 using System;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 工程 <c>Packages/manifest.json</c> 的依赖块行级读写。

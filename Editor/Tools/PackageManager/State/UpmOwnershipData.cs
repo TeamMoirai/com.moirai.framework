@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 一条外部 UPM 依赖的归属记账项。

@@ -1,7 +1,7 @@
 using NUnit.Framework;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 
-namespace Editor.Tools.PackageManager
+namespace Tools.PackageManager
 {
     /// <summary>
     /// 工程 manifest 依赖块行级增删的用例集。

@@ -1,6 +1,6 @@
 using System;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 插件清单里的一条外部 UPM 包依赖。

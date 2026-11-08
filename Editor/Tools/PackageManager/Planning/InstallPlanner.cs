@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 依赖闭包与安装顺序的规划面。
@@ -14,12 +14,13 @@ namespace Moirai.Atropos.Editor
     internal static class InstallPlanner
     {
         /// <summary>规划一次安装，依赖排在依赖方之前。</summary>
-        /// <remarks><paramref name="frameworkVersion"/> 以 <c>0.0.0</c>（<c>default</c>）作「未提供」哨兵：给了才判框架地板，纯规划用例可以不传；生产路径必须传当前框架版本的实测值。</remarks>
+        /// <remarks><paramref name="hostVersion"/> 以 <c>0.0.0</c>（<c>default</c>）作「未提供」哨兵：给了才判宿主包区间，纯规划用例可以不传；
+        /// 生产路径必须传当前宿主包版本（框架插件源是框架包，其余包源由各自的 <c>PackageManagerProfile</c> 指定）的实测值。</remarks>
         internal static InstallPlan Plan(IReadOnlyList<PluginManifest> catalog, IReadOnlyCollection<string> installedIds,
             IReadOnlyCollection<string> requestedIds, IReadOnlyCollection<string> forceIds, PluginVersion unityVersion,
-            PluginVersion frameworkVersion = default)
+            PluginVersion hostVersion = default)
         {
-            var resolution = new Closure(catalog, installedIds, forceIds, unityVersion, frameworkVersion);
+            var resolution = new Closure(catalog, installedIds, forceIds, unityVersion, hostVersion);
             resolution.Run(requestedIds);
             return resolution.Plan;
         }
@@ -94,10 +95,10 @@ namespace Moirai.Atropos.Editor
             private readonly HashSet<string> _planned;
             private readonly List<string> _visiting;
             private readonly PluginVersion _unityVersion;
-            private readonly PluginVersion _frameworkVersion;
+            private readonly PluginVersion _hostVersion;
 
             internal Closure(IReadOnlyList<PluginManifest> catalog, IReadOnlyCollection<string> installedIds,
-                IReadOnlyCollection<string> forceIds, PluginVersion unityVersion, PluginVersion frameworkVersion)
+                IReadOnlyCollection<string> forceIds, PluginVersion unityVersion, PluginVersion hostVersion)
             {
                 Plan = new InstallPlan();
                 _byId = new Dictionary<string, PluginManifest>(StringComparer.Ordinal);
@@ -107,7 +108,7 @@ namespace Moirai.Atropos.Editor
                 _planned = new HashSet<string>(StringComparer.Ordinal);
                 _visiting = new List<string>();
                 _unityVersion = unityVersion;
-                _frameworkVersion = frameworkVersion;
+                _hostVersion = hostVersion;
 
                 if (catalog == null) return;
                 foreach (PluginManifest manifest in catalog)
@@ -146,7 +147,7 @@ namespace Moirai.Atropos.Editor
 
                 if (!CheckVersionRequirement(candidate, dependent, requirement)) return false;
                 if (!CheckUnityRange(candidate)) return false;
-                if (!CheckFrameworkRange(candidate)) return false;
+                if (!CheckHostRange(candidate)) return false;
 
                 if (_resolved.Contains(id)) return true;
                 if (_visiting.Contains(id))
@@ -205,12 +206,12 @@ namespace Moirai.Atropos.Editor
                 return false;
             }
 
-            private bool CheckFrameworkRange(PluginManifest candidate)
+            private bool CheckHostRange(PluginManifest candidate)
             {
-                // 读不出框架版本（0.0.0 哨兵）时整条不判：地板和上限都不能因为量具没读数就把人拦在门外
-                if (_frameworkVersion == default) return true;
+                // 读不出宿主包版本（0.0.0 哨兵）时整条不判：地板和上限都不能因为量具没读数就把人拦在门外
+                if (_hostVersion == default) return true;
 
-                PluginManifest.VersionViolation violation = candidate.TryGetFrameworkVersionViolation(_frameworkVersion,
+                PluginManifest.VersionViolation violation = candidate.TryGetFrameworkVersionViolation(_hostVersion,
                     out PluginManifest.VersionViolation kind, out string message);
                 if (violation == PluginManifest.VersionViolation.None) return true;
 

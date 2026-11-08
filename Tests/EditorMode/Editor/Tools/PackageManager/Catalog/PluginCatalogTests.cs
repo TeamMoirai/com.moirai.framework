@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 using NUnit.Framework;
 
-namespace Editor.Tools.PackageManager
+namespace Tools.PackageManager
 {
     /// <summary>
     /// 分支树到插件目录的发现用例集，取文走委托注入因此不碰 git。

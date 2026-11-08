@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Moirai.Atropos.Editor;
 using UnityEditor;
 using UnityEngine;
 using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 装卸编排：把包源层、发现层、规划层与账本按固定时序串起来。
@@ -25,28 +26,37 @@ namespace Moirai.Atropos.Editor
         private readonly string _packageRootPath;
         private readonly string _projectManifestPath;
         private readonly PluginPackageSource _source;
+        private readonly PackageManagerStateRegistry _stateRegistry;
         private readonly PackageManagerSettingsData _settings;
+        private readonly Type _hostPackageType;
         private bool _lastFetchReachedRemote;
 
-        internal PluginInstaller(PackageManagerSettingsData settings, string packageRootPath, string projectManifestPath)
+        internal PluginInstaller(PackageManagerSettingsData settings, string packageRootPath, string projectManifestPath,
+            PackageManagerStateRegistry stateRegistry, Type hostPackageType)
         {
             if (settings == null) throw new ArgumentNullException(nameof(settings));
+            if (stateRegistry == null) throw new ArgumentNullException(nameof(stateRegistry));
 
             _settings = settings;
             _packageRootPath = Path.GetFullPath(packageRootPath);
             _projectManifestPath = Path.GetFullPath(projectManifestPath);
+            _stateRegistry = stateRegistry;
+            _hostPackageType = hostPackageType;
             _source = new PluginPackageSource(_packageRootPath, settings.repoUrl, settings.branch, settings.gitPath);
         }
 
         /// <summary>
-        /// 按工程布局建一个编排器：落点与工程 manifest 都在 Packages 下。
+        /// 按一套包源配置建一个编排器：落点与工程 manifest 都在 Packages 下。
         /// </summary>
-        internal static PluginInstaller Create(PackageManagerSettingsData settings)
+        internal static PluginInstaller Create(PackageManagerSettingsData settings,
+            PackageManagerWindowBase.PackageManagerProfile profile, PackageManagerStateRegistry stateRegistry)
         {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+
             string packagesRoot = Path.Combine(Directory.GetCurrentDirectory(), "Packages");
             return new PluginInstaller(settings,
-                Path.Combine(packagesRoot, "com.moirai.framework.plugin"),
-                Path.Combine(packagesRoot, "manifest.json"));
+                Path.Combine(packagesRoot, profile.InstallRootFolderName),
+                Path.Combine(packagesRoot, "manifest.json"), stateRegistry, profile.HostPackageType);
         }
 
         /// <summary>包源层，窗口取源状态用。</summary>
@@ -72,11 +82,19 @@ namespace Moirai.Atropos.Editor
         }
 
         /// <summary>
-        /// 取当前框架包版本；读不到时交出 <c>0.0.0</c> 与原因（那一刻不判地板，宁可放过也不误拦）。
+        /// 取宿主包版本（清单里 <c>minFrameworkVersion</c> / <c>maxFrameworkVersion</c> 的对照方）；
+        /// 没给宿主类型或读不到时交出 <c>0.0.0</c> 与原因（那一刻不判这段区间，宁可放过也不误拦）。
         /// </summary>
-        internal static bool TryGetFrameworkVersion(out PluginVersion version, out string failureReason)
+        internal static bool TryGetHostPackageVersion(Type hostPackageType, out PluginVersion version, out string failureReason)
         {
-            PackageInfo info = PackageInfo.FindForAssembly(typeof(PluginInstaller).Assembly);
+            if (hostPackageType == null)
+            {
+                version = default;
+                failureReason = "未指定宿主包类型，本轮不判 minFrameworkVersion / maxFrameworkVersion";
+                return false;
+            }
+
+            PackageInfo info = PackageInfo.FindForAssembly(hostPackageType.Assembly);
             if (info != null && PluginVersion.TryParse(info.version, out version))
             {
                 failureReason = null;
@@ -85,8 +103,8 @@ namespace Moirai.Atropos.Editor
 
             version = default;
             failureReason = info == null
-                ? "读不出框架包信息，本轮不判 minFrameworkVersion"
-                : $"框架版本号 '{info.version}' 不是三段十进制，本轮不判 minFrameworkVersion";
+                ? "读不出宿主包信息，本轮不判 minFrameworkVersion / maxFrameworkVersion"
+                : $"宿主包版本号 '{info.version}' 不是三段十进制，本轮不判 minFrameworkVersion / maxFrameworkVersion";
             return false;
         }
 
@@ -274,14 +292,14 @@ namespace Moirai.Atropos.Editor
             if (!GateCleanWorktree(report)) return report;
 
             if (!TryGetEngineVersion(out PluginVersion unityVersion, out string versionReason)) report.Note(versionReason);
-            if (!TryGetFrameworkVersion(out PluginVersion frameworkVersion, out string frameworkReason)) report.Note(frameworkReason);
+            if (!TryGetHostPackageVersion(_hostPackageType, out PluginVersion hostVersion, out string frameworkReason)) report.Note(frameworkReason);
             if (!TryBrowse(report, out PluginCatalogResult catalog, out string headCommit)) return report;
 
-            PackageManagerStateData state = PackageManagerStateRegistry.Load();
+            PackageManagerStateData state = _stateRegistry.Load();
             List<string> installedIds = InstalledIds(state);
 
             InstallPlan plan = InstallPlanner.Plan(catalog.Manifests, installedIds, pluginIds,
-                force ? pluginIds : NoIds, unityVersion, frameworkVersion);
+                force ? pluginIds : NoIds, unityVersion, hostVersion);
 
             for (int i = 0; i < plan.Conflicts.Count; i++) report.AddConflict(plan.Conflicts[i]);
 
@@ -338,7 +356,7 @@ namespace Moirai.Atropos.Editor
                 bool atRevision = !string.IsNullOrEmpty(revision);
                 string recordedVersion = atRevision ? revisionVersion ?? manifest.version : manifest.version;
 
-                PackageManagerStateRegistry.UpsertInstalled(state, new InstalledPluginData
+                _stateRegistry.UpsertInstalled(state, new InstalledPluginData
                 {
                     id = manifest.id,
                     version = recordedVersion,
@@ -351,7 +369,7 @@ namespace Moirai.Atropos.Editor
                 report.Note($"装了 {manifest.id} {recordedVersion}");
             }
 
-            PackageManagerStateRegistry.Save(state);
+            _stateRegistry.Save(state);
             report.Note("状态账本已落盘");
 
             AssetDatabase.Refresh();
@@ -366,9 +384,9 @@ namespace Moirai.Atropos.Editor
             var report = new PluginInstallReport();
             if (!GateCleanWorktree(report)) return report;
 
-            PackageManagerStateData state = PackageManagerStateRegistry.Load();
+            PackageManagerStateData state = _stateRegistry.Load();
 
-            InstalledPluginData entry = PackageManagerStateRegistry.FindInstalled(state, pluginId);
+            InstalledPluginData entry = _stateRegistry.FindInstalled(state, pluginId);
             if (entry == null)
             {
                 report.Fail($"账本里没有 '{pluginId}'，不凭目录猜装了什么");
@@ -416,7 +434,7 @@ namespace Moirai.Atropos.Editor
             {
                 for (int j = 0; j < ownedPackageIds.Count; j++)
                 {
-                    UpmEntryOutcome outcome = PackageManagerStateRegistry.ReleaseUpmOwner(state, manifestText,
+                    UpmEntryOutcome outcome = _stateRegistry.ReleaseUpmOwner(state, manifestText,
                         ownedPackageIds[j], removalIds[i], out string released);
                     if (!ReferenceEquals(released, manifestText))
                     {
@@ -446,15 +464,15 @@ namespace Moirai.Atropos.Editor
             HashSet<string> stillClaimed = TagsClaimedBy(state, removalIds);
             for (int i = 0; i < removalIds.Count; i++)
             {
-                InstalledPluginData removal = PackageManagerStateRegistry.FindInstalled(state, removalIds[i]);
+                InstalledPluginData removal = _stateRegistry.FindInstalled(state, removalIds[i]);
                 if (removal == null) continue;
 
                 RemoveOrphanTags(removal, stillClaimed, report);
-                PackageManagerStateRegistry.RemoveInstalled(state, removal.id);
+                _stateRegistry.RemoveInstalled(state, removal.id);
                 report.AddTouched(removal.id);
             }
 
-            PackageManagerStateRegistry.Save(state);
+            _stateRegistry.Save(state);
             report.Note("状态账本已落盘");
 
             AssetDatabase.Refresh();
@@ -544,7 +562,7 @@ namespace Moirai.Atropos.Editor
 
             for (int i = 0; i < installedIds.Count; i++)
             {
-                InstalledPluginData entry = PackageManagerStateRegistry.FindInstalled(state, installedIds[i]);
+                InstalledPluginData entry = _stateRegistry.FindInstalled(state, installedIds[i]);
                 if (!TryIsUpdateAvailable(entry, out bool available, out failureReason)) return false;
                 if (available) updatableIds.Add(entry.id);
             }
@@ -819,7 +837,7 @@ namespace Moirai.Atropos.Editor
                 PluginUpmDependency[] dependencies = manifest.upmDependencies;
                 for (int i = 0; dependencies != null && i < dependencies.Length; i++)
                 {
-                    UpmEntryOutcome outcome = PackageManagerStateRegistry.RecordUpmOwner(state, text, dependencies[i],
+                    UpmEntryOutcome outcome = _stateRegistry.RecordUpmOwner(state, text, dependencies[i],
                         manifest.id, out string written);
                     if (!ReferenceEquals(written, text))
                     {

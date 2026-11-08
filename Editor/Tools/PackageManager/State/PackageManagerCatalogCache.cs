@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 最近一次扫分支的结果缓存：开窗先拿它铺列表，随后后台重扫覆盖。

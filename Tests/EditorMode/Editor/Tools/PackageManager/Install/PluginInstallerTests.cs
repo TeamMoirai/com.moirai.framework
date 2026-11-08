@@ -1,9 +1,9 @@
 using System;
 using System.IO;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos.PackageManager;
 using NUnit.Framework;
 
-namespace Editor.Tools.PackageManager
+namespace Tools.PackageManager
 {
     /// <summary>
     /// 编排层的用例集：引擎版本号取段，以及扫分支在远端缺席与清单坏掉时的行为。
@@ -117,7 +117,11 @@ namespace Editor.Tools.PackageManager
                 gitPath = null
             };
 
-            return new PluginInstaller(settings, workspace, Path.Combine(Path.GetDirectoryName(workspace), "manifest.json"));
+            var registry = new PackageManagerStateRegistry(
+                Path.Combine(Path.GetDirectoryName(workspace), "state.json"), () => settings);
+
+            return new PluginInstaller(settings, workspace, Path.Combine(Path.GetDirectoryName(workspace), "manifest.json"),
+                registry, typeof(PluginInstaller));
         }
 
         private static void BuildSourceRepo(string sourceRepo, string manifestJson)

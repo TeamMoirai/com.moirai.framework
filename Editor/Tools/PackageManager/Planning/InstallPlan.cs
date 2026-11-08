@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 一次规划的结果：安装顺序与冲突。

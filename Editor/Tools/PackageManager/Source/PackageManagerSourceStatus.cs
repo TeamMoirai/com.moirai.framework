@@ -1,6 +1,6 @@
 using System;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
     /// 包源在一趟读取后的现场读数，窗口顶部状态条的数据面。
