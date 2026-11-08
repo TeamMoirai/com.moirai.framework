@@ -10,7 +10,7 @@ namespace Moirai.Atropos.PackageManager
         /// <remarks>
         /// 一份 Profile 对应一套独立的包源：状态账本、检出目录与宿主包版本量取目标互不共享，
         /// 因此同一个工程里可以并存多个包管理器（如框架插件与玩法模块各一套）。<br />
-        /// <see cref="StateFileName"/> 与 <see cref="InstallRootFolderName"/> 只收单段名字，不得含路径分隔符与上跳段。<br />
+        /// <see cref="StateFileName"/> 与 <see cref="WorkspaceFolderName"/> 只收单段名字，不得含路径分隔符与上跳段。<br />
         /// <see cref="HostPackageType"/> 决定 <c>minFrameworkVersion</c> / <c>maxFrameworkVersion</c> 拿哪个包版本来判：
         /// 空引用表示本轮不判这条区间。
         /// </remarks>
@@ -21,12 +21,12 @@ namespace Moirai.Atropos.PackageManager
             /// </summary>
             /// <param name="windowTitle">窗口标题。</param>
             /// <param name="stateFileName">状态账本文件名，落在工程 <c>ProjectSettings/</c> 下。</param>
-            /// <param name="installRootFolderName">检出落点目录名，落在工程 <c>Packages/</c> 下。</param>
-            public PackageManagerProfile(string windowTitle, string stateFileName, string installRootFolderName)
+            /// <param name="workspaceFolderName">检出（clone）落点目录名，落在工程 <c>Library/</c> 下。</param>
+            public PackageManagerProfile(string windowTitle, string stateFileName, string workspaceFolderName)
             {
                 WindowTitle = RequirePlainText(windowTitle, nameof(windowTitle));
                 StateFileName = RequirePlainFileName(stateFileName, nameof(stateFileName));
-                InstallRootFolderName = RequirePlainFileName(installRootFolderName, nameof(installRootFolderName));
+                WorkspaceFolderName = RequirePlainFileName(workspaceFolderName, nameof(workspaceFolderName));
             }
 
             /// <summary>窗口标题。</summary>
@@ -35,8 +35,9 @@ namespace Moirai.Atropos.PackageManager
             /// <summary>状态账本文件名，落在 <c>ProjectSettings/</c> 下。</summary>
             public string StateFileName { get; }
 
-            /// <summary>检出落点目录名，落在 <c>Packages/</c> 下。</summary>
-            public string InstallRootFolderName { get; }
+            /// <summary>检出（clone）落点目录名，落在 <c>Library/</c> 下。</summary>
+            /// <remarks>实际安装的包不在这里：每个包装在 <c>Packages/&lt;本目录名&gt;.&lt;id&gt;/</c>。</remarks>
+            public string WorkspaceFolderName { get; }
 
             /// <summary>远端地址缺省值。</summary>
             public string DefaultRepoUrl { get; set; } = string.Empty;

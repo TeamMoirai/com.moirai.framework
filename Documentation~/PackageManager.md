@@ -9,11 +9,12 @@
 | 项 | 值 |
 |---|---|
 | 远端与分支 | 设置面的 `分支包源` 节点编辑；远端默认 `https://github.com/TeamMoirai/com.moirai.framework.git`，分支默认 `plugin` |
-| 落点目录 | `Packages/com.moirai.framework.plugin/` |
+| 检出目录 | `Library/com.moirai.framework.plugin/`（临时工作树，可随时删除重建） |
+| 安装目录 | `Packages/com.moirai.framework.plugin.<id>/`（每个插件一个嵌入包） |
 | 状态账本 | `ProjectSettings/MoiraiFrameworkPackage.json`（含设置项、已装记录、归属台账与上次扫描的目录缓存） |
 | git 可执行文件 | 默认 `git`，走进程外调用 |
 
-落点目录就是分支的工作树。工具按 `--filter=blob:none --no-checkout --single-branch` 建检出，再用 cone 模式稀疏检出，因此**未勾选的插件目录不会出现在磁盘上**；浏览面只列一次树，把根文件与各份 `<id>.plugin.json` 合成一次预取取回、一条进程读齐，插件正文只在安装时才物化。
+检出目录就是分支的工作树，只作刷新与取内容的中间层。工具按 `--filter=blob:none --no-checkout --single-branch` 建检出，再用 cone 模式稀疏检出，因此**未勾选的插件目录不会出现在磁盘上**；浏览面只列一次树，把根文件与各份 `<id>.plugin.json` 合成一次预取取回、一条进程读齐，插件正文只在安装时才物化，随后复制进 `Packages/`。刷新拿到的清单目录只落进状态账本的 `catalogCache`，不再依赖检出常驻。
 
 ## 插件清单
 
@@ -38,11 +39,11 @@
 
 ## 装、卸、更新
 
-`安装` 走这条时序：建检出 → fetch → 摆正分支 → 列树 → 建目录 → 规划 → 冲突则整批中止 → 勾稀疏集 → 逐个校验 `.asmdef`（须存在，且装配名不得与工程内任何 `.asmdef` 重名）→ 写工程 `manifest.json` 的外部依赖 → 加脚本宏 → **状态账本先落盘** → 只 `AssetDatabase.Refresh()` 一次。
+`安装` 走这条时序：建检出 → fetch → 摆正分支 → 列树 → 建目录 → 规划 → 冲突或目标目录归属不明则整批中止 → 勾稀疏集 → 逐个校验 `.asmdef`（须存在，且装配名不得与工程内任何 `.asmdef` 重名）→ 从检出复制到 `Packages/<检出目录名>.<id>/` 并补一份最小 `package.json` → 写工程 `manifest.json` 的外部依赖 → 加脚本宏 → **状态账本先落盘** → 只 `AssetDatabase.Refresh()` 一次。`Packages/` 下已有同名目录但账本里没有该插件时，工具拒绝覆盖。
 
 规划层是纯函数，判出这几类冲突之一就整批不装：缺依赖、依赖成环、版本要求不满足、引擎地板不够、框架地板不够（`minFrameworkVersion`）、引擎已过上限、框架已过上限（`maxUnityVersion` / `maxFrameworkVersion`）。多包必须一趟装完——分批会在每包后各触发一次域重载，第二趟起没人接着跑。读不出框架包版本的那一趟把框架的地板与上限一起跳过，并在报告里说明判过了什么。上限的存在让"有限生命周期的插件"有处可写：官方弃用的包（如 `unity-logging` 之于 Unity 6.3）可以在清单里自己标出停止提供的那一档，不必让框架去记谁在哪天失效。
 
-`卸载` 的依据全部来自账本，不靠扫描工作树反推：按 `owners` 计数回收外部依赖（`owners` 清空且该条由工具写入才删那一行；用户本就手写的条目即使再无使用者也原样留着；归属记录里本来没有这个插件时判 `NotFound`，既不撤账也不删行），脚本宏只撤掉没有别的使用者的那枚，然后把稀疏集收到余下的已装项。仍有插件依赖它时先弹窗，三个选项各有真实分支：`连带卸载` 把点名的与全部在场依赖方收进同一批（一次稀疏集、一次 manifest 写、一次刷新），`中止` 什么都不改，`只卸它` 只收点名的一个并在结束后列出仍缺它的那批。落点工作树有未提交改动时，装与卸一律拒绝——工具不覆盖手改，请先提交或还原。
+`卸载` 的依据全部来自账本，不靠扫描工作树反推：按 `owners` 计数回收外部依赖（`owners` 清空且该条由工具写入才删那一行；用户本就手写的条目即使再无使用者也原样留着；归属记录里本来没有这个插件时判 `NotFound`，既不撤账也不删行），脚本宏只撤掉没有别的使用者的那枚，然后删掉 `Packages/<检出目录名>.<id>/` 并把稀疏集收到余下的已装项。仍有插件依赖它时先弹窗，三个选项各有真实分支：`连带卸载` 把点名的与全部在场依赖方收进同一批（一次稀疏集、一次 manifest 写、一次刷新），`中止` 什么都不改，`只卸它` 只收点名的一个并在结束后列出仍缺它的那批。落点工作树有未提交改动时，装与卸一律拒绝——工具不覆盖手改，请先提交或还原。
 
 `可更新` 判定比对两处的 tree 哈希：账本里安装时那条 `commit` 下的 `<id>/<id>.plugin.json`，与 `refs/remotes/origin/<branch>` 下的同一份。
 
@@ -53,21 +54,21 @@
 | Profile 项 | 作用 |
 |---|---|
 | `WindowTitle` | 窗口标题 |
-| `StateFileName` | 状态账本文件名，落在 `ProjectSettings/` 下；与检出落点一起把两套管理器隔开 |
-| `InstallRootFolderName` | 检出落点目录名，落在 `Packages/` 下；须与分支根 `package.json` 的 `name` 相同 |
+| `StateFileName` | 状态账本文件名，落在 `ProjectSettings/` 下；与检出目录一起把两套管理器隔开 |
+| `WorkspaceFolderName` | 检出目录名，落在 `Library/` 下；须与分支根 `package.json` 的 `name` 相同。安装目录取它的前缀，即 `Packages/<WorkspaceFolderName>.<id>/` |
 | `DefaultRepoUrl` / `DefaultBranch` / `DefaultGitPath` | 源设置的初值 |
 | `HostPackageType` | `minFrameworkVersion` / `maxFrameworkVersion` 拿哪个包的版本来判；空引用表示不判这段区间 |
 | `EntryNoun` / `BranchEntryNoun` / `SourceNodeName` / `UngroupedNodeName` / `HostLabel` | 界面文案（插件/模块、分支包/分支模块、框架/本体等） |
 
-派生窗覆写 `CreateProfile()` 并自备 `[MenuItem]`；菜单树、筛选、详情面、版本历史下拉、`Update All` 与装卸动作全部继承。框架插件源自己的配置在 `FrameworkPackageProfile.Instance`，状态账本 `ProjectSettings/MoiraiFrameworkPackage.json` 与落点 `Packages/com.moirai.framework.plugin/` 保持原样。同一工程里并存多套管理器时，只要 `StateFileName` 与 `InstallRootFolderName` 不重名，彼此的账本、检出与宿主版本判定互不影响。
+派生窗覆写 `CreateProfile()` 并自备 `[MenuItem]`；菜单树、筛选、详情面、版本历史下拉、`Update All` 与装卸动作全部继承。框架插件源自己的配置在 `FrameworkPackageProfile.Instance`，状态账本 `ProjectSettings/MoiraiFrameworkPackage.json` 与检出目录 `Library/com.moirai.framework.plugin/` 保持原样。同一工程里并存多套管理器时，只要 `StateFileName` 与 `WorkspaceFolderName` 不重名，彼此的账本、检出与宿主版本判定互不影响；安装目录也因前缀不同而互不相撞。
 
 ## 已知边界
 
-- 落点工作树有未提交改动时拒绝装卸；分支上还有**未推送的提交**时同样拒绝摆正分支——`checkout -B` 会把它们从分支上挪走，而工作树此刻是干净的，脏树门禁兜不住。先推送或另挪分支再装。
+- 检出工作树有未提交改动时拒绝装卸；分支上还有**未推送的提交**时同样拒绝摆正分支——`checkout -B` 会把它们从分支上挪走，而工作树此刻是干净的，脏树门禁兜不住。先推送或另挪分支再装。
 - cone 模式永远物化分支根的散文件（如根 `package.json`），这是它的既定形状。
 - 离线时 fetch 判为"没到远端"：仍按本地已有的分支头列包并允许安装（blob 真取不到时由该份清单判非并说明），"上次刷新"时刻不写。
 - 清单解析判非的份数会在顶栏按文件点名，不静默少一个包。
-- 卸载或清空勾选集后，插件目录本身可能作为空目录留在落点：git 撤文件不撤目录，Unity 会连带清掉它的 `.meta`。
+- 卸载或清空勾选集后，检出里的插件目录本身可能作为空目录留在 `Library/`：git 撤文件不撤目录，Unity 会连带清掉它的 `.meta`；`Packages/` 下的安装目录由工具整目录删除。
 - 分支名与源地址在进 git 前过形状守卫：分支只许字母数字与 `. _ - /`（不得以 `- . /` 开头、不得含 `..`），地址不得以 `-` 开头也不得含引号与控制字符。
 - 详情面的 `概况` 有清单在分支树里的来源路径，`依赖` 有外部依赖的归属台账（谁写入的、要求到的版本、当前哪几个插件在用）。状态徽标走的是与安装同一条判据（试装一次规划器），能报未装 / 已装 / 可更新 / 缺依赖 / 依赖成环 / 版本不符 / Unity 版本不符 / 框架版本不符 / 超出 Unity 支持范围 / 框架侧停止提供。
 - `操作` 面：安装类按钮是大号按钮，并按同一条判据置灰——判据就是徽标那条 blocker，所以"为什么不能装"与"为什么装不了"必然同源。置灰时按钮下方出一行 `✕ 原因`（能装时整行不画）。**`卸载` 不接这条限制**：版本过档了也得让人把已装的拆掉。`Update All` 同样按这条判据把装不了的剔掉并在结果里逐条点名，不静默少一个。
@@ -78,7 +79,7 @@
 
 装卸规则的可判部分全部收在 L1（EditMode）：版本值类型与运算符、清单校验、工程 `manifest.json` 的行级增删、状态账本与归属计数、依赖闭包与拓扑、树路径到目录的发现、以及 git 层的克隆/摆正/稀疏物化与清单历史（列历史、按修订取文、按修订物化；跑在临时 `file://` 夹具上）。
 
-读数按属性就能数出来，再由编辑器实证：本模块一趟全量 **206 格**（17 个参数化方法共带 80 行 `[TestCase]`）。编辑器实测 `passed 206 | failed 0 | skipped 0`（152s，先过 `GATE OK` 的空闲与逐装配新鲜度门）。
+读数按属性就能数出来，再由编辑器实证：本模块一趟全量 **207 格**（17 个参数化方法共带 80 行 `[TestCase]`）。编辑器实测 `passed 207 | failed 0 | skipped 0`（152s，先过 `GATE OK` 的空闲与逐装配新鲜度门）。
 
 ```bash
 # 逐文件抽取再合并：pm-names.sh 一次只吃一个文件，多传（如直接喂 glob）会当场判非而不是静默少抽

@@ -9,7 +9,7 @@ namespace Moirai.Atropos.PackageManager
     /// </remarks>
     internal static class FrameworkPackageProfile
     {
-        /// <summary>框架插件源的身份、落点、源缺省与文案。</summary>
+        /// <summary>框架插件源的身份、检出目录、源缺省与文案。</summary>
         internal static readonly PackageManagerWindowBase.PackageManagerProfile Instance = new PackageManagerWindowBase.PackageManagerProfile(
                 "Framework Package Manager", "MoiraiFrameworkPackage.json", "com.moirai.framework.plugin")
             {

@@ -17,8 +17,8 @@ namespace Moirai.Atropos.PackageManager
         /// <summary>配置的分支名。</summary>
         internal string Branch { get; private set; }
 
-        /// <summary>落点目录。</summary>
-        internal string PackageRootPath { get; private set; }
+        /// <summary>检出（clone）目录。</summary>
+        internal string WorkspacePath { get; private set; }
 
         /// <summary>落点目录存在。</summary>
         internal bool WorkspacePresent { get; private set; }
@@ -61,7 +61,7 @@ namespace Moirai.Atropos.PackageManager
             {
                 RepoUrl = settings?.repoUrl,
                 Branch = source?.Branch,
-                PackageRootPath = source?.WorkingDirectory,
+                WorkspacePath = source?.WorkingDirectory,
                 LastFetchAt = settings?.lastFetchAt
             };
 
