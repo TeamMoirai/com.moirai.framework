@@ -92,7 +92,7 @@ com.moirai.framework.plugin/
 
 ## 安装与卸载的落盘约定
 
-- 刷新 = 在工程 `Library/<分支包名>/` 建检出并扫描，清单结果只缓存进 `ProjectSettings/MoiraiFrameworkPackage.json` 的 `catalogCache`；未勾选的插件内容不落盘、不下载。
+- 刷新 = 在工程 `Library/<分支包名>/` 建检出并扫描，清单结果只缓存进 `Library/MoiraiPackageManager/MoiraiFrameworkPackage.cache.json` 的 `catalogCache`；`ProjectSettings/MoiraiFrameworkPackage.json` 只留设置与已装账本，未勾选的插件内容不落盘、不下载。
 - 安装 = 只把勾选的 `<id>/` 从检出复制到工程 `Packages/<分支包名>.<id>/`，并生成一份最小 `package.json` 供 Unity 当嵌入包加载。
 - 已装状态与 UPM 依赖归属记在 `ProjectSettings/MoiraiFrameworkPackage.json`。
 - 用户手工加进 `manifest.json` 的同名依赖条目，包管理器不覆盖也不删除；共享依赖按引用计数回收，仅在最后一个使用者卸载且条目属自己写入时才移除。
