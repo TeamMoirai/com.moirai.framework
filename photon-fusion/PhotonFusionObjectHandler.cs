@@ -2,11 +2,10 @@
 using System.Collections.Generic;
 using Fusion;
 using UnityEngine.SceneManagement;
-// FUSION2 档里 System 与 UnityEngine 同时可见，裸 Object 会撞成 CS0104；_spawns 的键是 gameObject，取 Unity 侧
-using Object = UnityEngine.Object;
 #endif
 using System;
 using UnityEngine;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos
 {
@@ -22,7 +21,7 @@ namespace Moirai.Atropos
         #region 变量 [VARIABLES]
 
 #if FUSION2
-        [NonSerialized] private Dictionary<Object, NetworkObject> _spawns;
+        [NonSerialized] private Dictionary<UObject, NetworkObject> _spawns;
 #endif
 
         #endregion
@@ -49,7 +48,7 @@ namespace Moirai.Atropos
             return (T)Instantiate(original, position, rotation, parent, allowNetworked);
         }
 
-        public override void DestroyObject(UnityEngine.Object target, bool allowNetworked = true)
+        public override void DestroyObject(UObject target, bool allowNetworked = true)
         {
 #if FUSION2
            if (allowNetworked)
@@ -64,7 +63,7 @@ namespace Moirai.Atropos
             }
 #endif
 
-            UnityEngine.Object.Destroy(target);
+            UObject.Destroy(target);
         }
 
 #if FUSION2
@@ -96,7 +95,7 @@ namespace Moirai.Atropos
 
 #endif
 
-        private UnityEngine.Object Instantiate(UnityEngine.Object original, Vector3 position, Quaternion rotation, Transform parent, bool playerOwned = false, bool allowNetworked = true)
+        private UObject Instantiate(UObject original, Vector3 position, Quaternion rotation, Transform parent, bool playerOwned = false, bool allowNetworked = true)
         {
             
 #if FUSION2
@@ -117,7 +116,7 @@ namespace Moirai.Atropos
             }
 #endif
 
-            return UnityEngine.Object.Instantiate(original, position, rotation, parent);
+            return UObject.Instantiate(original, position, rotation, parent);
         }
 
         #endregion
