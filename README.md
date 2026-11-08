@@ -50,7 +50,7 @@ com.moirai.framework.plugin/
 
 1. **每个插件自带 `.asmdef`。** Unity 要求包内脚本关联程序集定义，缺失的脚本会静默不参与编译——不会报错，只会"功能不存在"。包管理器只校验并拒绝安装，不代为生成。
 2. **程序集名全局唯一。** 建议 `Moirai.Plugin.<Id>`。同名程序集在别的装配里平时完全隐形，只有同时引用双方的装配（通常是测试集）才报 CS0433。
-3. **插件目录内不要放 `package.json`。** Unity 只读分支根那一份；插件自带的那份是清单的干扰源。清单文件名固定为 `<id>.plugin.json`。
+3. **插件目录内不要放 `package.json`。** 分支根那一份只给包管理器读校验；插件目录里再放一份会与安装时生成的那份冲突。清单文件名固定为 `<id>.plugin.json`，安装时工具会在 `Packages/<分支包名>.<id>/package.json` 生成供 Unity 识别的嵌入包清单。
 4. **`.meta` 与源文件一起提交。** GUID 由 `.meta` 携带，缺了会在别人机器上重新生成，序列化引用随即断链。
 5. **`minUnityVersion` 与 `minFrameworkVersion` 会被真比较**，任一不满足即拒绝安装；**`versionOperator` 会被真解析**，只认 `>=`、`>`、`=`、`<=`、`<`。
 6. **上限 `maxUnityVersion` / `maxFrameworkVersion` 可写可空**：留空=无限制，写了就是"不再提供的第一个版本"，区间按 `[min, max)` 判（等于上限即已停止提供）。版本号一律写**编辑器内部号**（Unity 6.3 = `6000.3.0`）。上限不高于地板属空区间，整条清单判非。给"有生命周期的插件"用：官方弃用的包自己声明停止的那一档，不必让框架去记。
@@ -92,7 +92,8 @@ com.moirai.framework.plugin/
 
 ## 安装与卸载的落盘约定
 
-- 安装 = 只把勾选的 `<id>/` 从分支取到本地工作树，未勾选的插件内容不落盘、不下载。
-- 已装状态与 UPM 依赖归属记在 `ProjectSettings/MoiraiPackageManager.json`。
+- 刷新 = 在工程 `Library/<分支包名>/` 建检出并扫描，清单结果只缓存进 `ProjectSettings/MoiraiFrameworkPackage.json` 的 `catalogCache`；未勾选的插件内容不落盘、不下载。
+- 安装 = 只把勾选的 `<id>/` 从检出复制到工程 `Packages/<分支包名>.<id>/`，并生成一份最小 `package.json` 供 Unity 当嵌入包加载。
+- 已装状态与 UPM 依赖归属记在 `ProjectSettings/MoiraiFrameworkPackage.json`。
 - 用户手工加进 `manifest.json` 的同名依赖条目，包管理器不覆盖也不删除；共享依赖按引用计数回收，仅在最后一个使用者卸载且条目属自己写入时才移除。
 - 卸载某个仍被在场插件依赖的包，会在弹窗里先问。
