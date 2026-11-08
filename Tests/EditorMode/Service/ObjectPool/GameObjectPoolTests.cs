@@ -7,7 +7,7 @@ using Moirai.Atropos.ObjectPool;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
-using Object = UnityEngine.Object;
+using UObject = UnityEngine.Object;
 using Mp = Moirai.Atropos.MemoryPool;
 using static Moirai.Atropos.LogHandler;
 
@@ -140,13 +140,13 @@ namespace Service.GameObjectPool
 
             if (_root != null)
             {
-                Object.DestroyImmediate(_root.gameObject);
+                UObject.DestroyImmediate(_root.gameObject);
                 _root = null;
             }
 
             if (_loader != null && _loader.Prefab != null)
             {
-                Object.DestroyImmediate(_loader.Prefab);
+                UObject.DestroyImmediate(_loader.Prefab);
                 _loader = null;
             }
         }
@@ -633,7 +633,7 @@ namespace Service.GameObjectPool
             }
             finally
             {
-                Object.DestroyImmediate(prefab);
+                UObject.DestroyImmediate(prefab);
             }
         }
 
@@ -657,7 +657,7 @@ namespace Service.GameObjectPool
             }
             finally
             {
-                Object.DestroyImmediate(prefab);
+                UObject.DestroyImmediate(prefab);
             }
         }
 
@@ -683,7 +683,7 @@ namespace Service.GameObjectPool
             }
             finally
             {
-                Object.DestroyImmediate(prefab);
+                UObject.DestroyImmediate(prefab);
             }
         }
 
@@ -781,7 +781,7 @@ namespace Service.GameObjectPool
             Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
             Assert.IsTrue(pool.TryBindLease(slotIndex, out uint generation, out _, out _));
 
-            Object.DestroyImmediate(instance);
+            UObject.DestroyImmediate(instance);
 
             Assert.DoesNotThrow(() => pool.TryRelease(slotIndex, generation));
             Assert.AreEqual(0, pool.ActiveCount);
@@ -792,7 +792,7 @@ namespace Service.GameObjectPool
         {
             RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky);
             GameObject first = SpawnOne(pool);
-            Object.DestroyImmediate(first);
+            UObject.DestroyImmediate(first);
 
             GameObject second = pool.Spawn(null);
 
@@ -807,7 +807,7 @@ namespace Service.GameObjectPool
             GameObject instance = SpawnOne(pool);
             Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
 
-            Object.DestroyImmediate(instance);
+            UObject.DestroyImmediate(instance);
             pool.ExecuteMaintenance(Time.time, true);
 
             Assert.IsFalse(_registry.TryResolve(instance, out _, out _), "destroyed instance must leave registry");
@@ -819,7 +819,7 @@ namespace Service.GameObjectPool
         {
             RuntimeGameObjectPool pool = CreatePool(softCapacity: 1, hardCapacity: 1);
             GameObject first = SpawnOne(pool);
-            Object.DestroyImmediate(first);
+            UObject.DestroyImmediate(first);
 
             // 活跃实例外部销毁占住硬顶：Spawn 撞顶时先 sweep 自愈再重试分配。
             GameObject second = pool.Spawn(null);
@@ -837,7 +837,7 @@ namespace Service.GameObjectPool
             Assert.AreEqual(1, pool.TotalCount);
 
             // 全活跃 + Sticky 无自发到期维护：兜底清扫必须已排期，而非永挂 MaxValue。
-            Object.DestroyImmediate(instance);
+            UObject.DestroyImmediate(instance);
             Assert.Less(pool.NextMaintenanceAt, float.MaxValue, "zombie sweep must be scheduled");
 
             _scheduler.ProcessDue(pool.NextMaintenanceAt);
@@ -868,7 +868,7 @@ namespace Service.GameObjectPool
                 }
                 finally
                 {
-                    Object.DestroyImmediate(prefab);
+                    UObject.DestroyImmediate(prefab);
                 }
             }
             finally
@@ -914,7 +914,7 @@ namespace Service.GameObjectPool
             }
             finally
             {
-                Object.DestroyImmediate(prefab);
+                UObject.DestroyImmediate(prefab);
             }
         }
 
@@ -945,7 +945,7 @@ namespace Service.GameObjectPool
             }
             finally
             {
-                Object.DestroyImmediate(prefab);
+                UObject.DestroyImmediate(prefab);
             }
         }
 
@@ -968,7 +968,7 @@ namespace Service.GameObjectPool
             }
             finally
             {
-                Object.DestroyImmediate(prefab);
+                UObject.DestroyImmediate(prefab);
             }
         }
 
@@ -1018,7 +1018,7 @@ namespace Service.GameObjectPool
             RuntimeGameObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             FaultyPoolable poolable = instance.GetComponent<FaultyPoolable>();
-            poolable.OnDespawned = () => Object.DestroyImmediate(instance);
+            poolable.OnDespawned = () => UObject.DestroyImmediate(instance);
 
             // 回归：ParkInactive 曾无条件对已销毁实例的 Transform 调 SetParent。
             Assert.DoesNotThrow(() => DespawnOne(pool, instance));
@@ -1039,7 +1039,7 @@ namespace Service.GameObjectPool
             GameObject survivor = SpawnOne(pool);
             GameObject selfDestructive = SpawnOne(pool);
             selfDestructive.GetComponent<FaultyPoolable>().OnDespawned =
-                () => Object.DestroyImmediate(selfDestructive);
+                () => UObject.DestroyImmediate(selfDestructive);
 
             DespawnOne(pool, survivor);
             DespawnOne(pool, selfDestructive);
@@ -1220,7 +1220,7 @@ namespace Service.GameObjectPool
             DespawnOne(pool, survivor);
             DespawnOne(pool, destroyed);
 
-            Object.DestroyImmediate(destroyed);
+            UObject.DestroyImmediate(destroyed);
             GameObject reused = pool.Spawn(null);
 
             // 回归：弹出尾部后惰性清扫曾对同一槽位二次 RemoveFromInactive，

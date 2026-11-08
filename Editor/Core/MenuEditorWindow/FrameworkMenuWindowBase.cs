@@ -3,7 +3,7 @@ using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.MenuEditorWindow
 {
     /// <summary>
     /// Odin 菜单窗口共享骨架：信息头样式、域重载建树守护、防抖重建、异步装载接入（冷装载遮罩、完成裁决）与工具栏按钮助手。
