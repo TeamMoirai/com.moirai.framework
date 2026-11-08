@@ -12,7 +12,7 @@ namespace Moirai.Atropos.PackageManager
     /// 装卸编排：把包源层、发现层、规划层与账本按固定时序串起来。
     /// </summary>
     /// <remarks>
-    /// 检出落在 <c>Library/</c>，只是刷新与取内容的中间层；安装把插件从检出复制到 <c>Packages/&lt;检出目录名&gt;.&lt;id&gt;/</c>，
+    /// 检出落在 <c>Library/MoiraiCache/</c>，只是刷新与取内容的中间层；安装把插件从检出复制到 <c>Packages/&lt;检出目录名&gt;.&lt;id&gt;/</c>，
     /// 并补一份最小的 <c>package.json</c> 让 Unity 把它当嵌入包加载。<br />
     /// 时序：建检出 → 摆正分支 → fetch → 再摆正（fetch 后本地分支才看得见新提交）→ 列树 → 建目录 → 规划，
     /// 规划判出冲突或目标目录归属不明即整批中止，此刻还没写过任何东西。<br />
@@ -57,17 +57,16 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
-        /// 按一套包源配置建一个编排器：检出落 <c>Library/</c>，安装与工程 manifest 在 <c>Packages/</c>。
+        /// 按一套包源配置建一个编排器：检出落 <c>Library/MoiraiCache/</c>，安装与工程 manifest 在 <c>Packages/</c>。
         /// </summary>
         internal static PluginInstaller Create(PackageManagerSettingsData settings,
             PackageManagerWindowBase.PackageManagerProfile profile, PackageManagerStateRegistry stateRegistry)
         {
             if (profile == null) throw new ArgumentNullException(nameof(profile));
 
-            string projectRoot = Directory.GetCurrentDirectory();
-            string packagesRoot = Path.Combine(projectRoot, "Packages");
+            string packagesRoot = Path.Combine(Directory.GetCurrentDirectory(), "Packages");
             return new PluginInstaller(settings,
-                Path.Combine(projectRoot, "Library", profile.WorkspaceFolderName),
+                PackageManagerStateRegistry.ResolveDefaultWorkspacePath(profile.WorkspaceFolderName),
                 packagesRoot,
                 Path.Combine(packagesRoot, "manifest.json"), stateRegistry, profile.HostPackageType);
         }
@@ -180,7 +179,7 @@ namespace Moirai.Atropos.PackageManager
                 report.Note($"已取 {(_settings.branch ?? string.Empty)} 分支头");
             }
 
-            // 先列树、把根文件与清单一次补齐，再摆正分支：checkout 只物化根文件，正文已在本地就不会逐份联网
+            // 先列树、把根文件与清单一次预取，再摆正分支：摆正只物化勾选目录，正文已在本地就不会逐份联网
             string remoteReference = "refs/remotes/origin/" + _source.Branch;
             if (!_source.TryListBlobs(remoteReference, out List<PluginPackageSource.TreeBlob> blobs, out reason))
             {
@@ -247,7 +246,7 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
-        /// 浏览一轮要预取的对象：根文件（cone 检出总会物化）与各份清单。
+        /// 浏览一轮要预取的对象：根文件（供包名校验，不物化到工作树）与各份清单。
         /// </summary>
         private static List<string> CollectBrowseObjectIds(List<PluginPackageSource.TreeBlob> blobs,
             List<string> manifestPaths, Dictionary<string, string> oidByPath)

@@ -154,7 +154,8 @@ namespace Moirai.Atropos
             Type[] compiled = CompiledCandidates(baseType);
 
             PackageManagerWindowBase.PackageManagerProfile profile = FrameworkPackageProfile.Instance;
-            var registry = PackageManagerStateRegistry.Create(profile.StateFileName, profile.CreateDefaultSettings);
+            var registry = PackageManagerStateRegistry.Create(profile.StateFileName, profile.WorkspaceFolderName,
+                profile.CreateDefaultSettings);
 
             PackageManagerStateData state = registry.Load();
             PackageManagerCacheData cache = registry.LoadCache();

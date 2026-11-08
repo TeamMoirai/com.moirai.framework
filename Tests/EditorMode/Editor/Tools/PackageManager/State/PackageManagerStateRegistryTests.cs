@@ -11,20 +11,20 @@ namespace Tools.PackageManager
     /// </summary>
     internal sealed class PackageManagerStateRegistryTests
     {
-        private const string ManifestWithUserEntry = @"{
+        private const string MANIFEST_WITH_USER_ENTRY = @"{
   ""dependencies"": {
     ""com.unity.cinemachine"": ""3.1.7"",
     ""com.cysharp.unitask"": ""2.5.11""
   }
 }";
 
-        private const string ManifestClean = @"{
+        private const string MANIFEST_CLEAN = @"{
   ""dependencies"": {
     ""com.unity.cinemachine"": ""3.1.7""
   }
 }";
 
-        private const string DefaultRepoUrl = "https://example.test/moirai.git";
+        private const string DEFAULT_REPO_URL = "https://example.test/moirai.git";
 
         private string _statePath;
         private string _cachePath;
@@ -46,7 +46,7 @@ namespace Tools.PackageManager
         {
             return new PackageManagerSettingsData
             {
-                repoUrl = DefaultRepoUrl,
+                repoUrl = DEFAULT_REPO_URL,
                 branch = "plugin",
                 gitPath = "git"
             };
@@ -82,7 +82,7 @@ namespace Tools.PackageManager
             Assert.IsNotNull(state.settings);
             Assert.AreEqual("plugin", state.settings.branch);
             Assert.AreEqual("git", state.settings.gitPath);
-            Assert.AreEqual(DefaultRepoUrl, state.settings.repoUrl);
+            Assert.AreEqual(DEFAULT_REPO_URL, state.settings.repoUrl);
         }
 
         /// <summary>两套包源各持一份账本：同一工程里两份管理器并存时不得互相读写对方的已装记录。</summary>
@@ -165,6 +165,18 @@ namespace Tools.PackageManager
             Assert.IsFalse(_registry.TryGetCachedCatalog(_registry.LoadCache(), NewState().settings, out _, out _));
         }
 
+        /// <summary>检出与刷新缓存统一落 <c>Library/MoiraiCache/</c>，缓存名取检出目录名而不是账本文件名。</summary>
+        [Test]
+        public void LocalCacheLayout_UsesWorkspaceFolderNameUnderMoiraiCache()
+        {
+            string projectRoot = Directory.GetCurrentDirectory();
+
+            Assert.AreEqual(Path.Combine(projectRoot, "Library", "MoiraiCache", "com.moirai.framework.plugin"),
+                PackageManagerStateRegistry.ResolveDefaultWorkspacePath("com.moirai.framework.plugin"));
+            Assert.AreEqual(Path.Combine(projectRoot, "Library", "MoiraiCache", "com.moirai.gameplay.plugin.cache.json"),
+                PackageManagerStateRegistry.ResolveDefaultCachePath("com.moirai.gameplay.plugin"));
+        }
+
         private static PluginManifest Manifest(string id, params string[] tags)
         {
             return new PluginManifest
@@ -212,7 +224,7 @@ namespace Tools.PackageManager
         {
             PackageManagerStateData state = NewState();
 
-            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, ManifestClean,
+            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, MANIFEST_CLEAN,
                 Upm("com.cysharp.zstring", "2.6.0"), "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.Added, outcome);
@@ -227,11 +239,11 @@ namespace Tools.PackageManager
         {
             PackageManagerStateData state = NewState();
 
-            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, ManifestWithUserEntry,
+            UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, MANIFEST_WITH_USER_ENTRY,
                 Upm("com.cysharp.unitask", "9.9.9"), "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.KeptUserEntry, outcome);
-            Assert.AreEqual(ManifestWithUserEntry, newText, "用户写的行一个字都不许动");
+            Assert.AreEqual(MANIFEST_WITH_USER_ENTRY, newText, "用户写的行一个字都不许动");
             Assert.IsTrue(state.upmOwnership[0].preexisting);
             Assert.AreEqual("2.5.11", state.upmOwnership[0].originalValue);
         }
@@ -240,7 +252,7 @@ namespace Tools.PackageManager
         public void RecordUpmOwner_SecondOwner_CountsBothWithoutSecondWrite()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string afterFirst);
 
             UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, afterFirst,
@@ -255,7 +267,7 @@ namespace Tools.PackageManager
         public void RecordUpmOwner_SameOwnerTwice_DoesNotDuplicateOwnerList()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string afterFirst);
             _registry.RecordUpmOwner(state, afterFirst, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out _);
@@ -267,7 +279,7 @@ namespace Tools.PackageManager
         public void RecordUpmOwner_LowerRequirement_DoesNotDowngradeWrittenVersion()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string afterFirst);
 
             UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, afterFirst,
@@ -282,7 +294,7 @@ namespace Tools.PackageManager
         public void RecordUpmOwner_HigherRequirement_RewritesOwnedLine()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.5.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.5.0"),
                 "blackboard", out string afterFirst);
 
             UpmEntryOutcome outcome = _registry.RecordUpmOwner(state, afterFirst,
@@ -300,7 +312,7 @@ namespace Tools.PackageManager
         public void ReleaseUpmOwner_PluginNotRecordedAsOwner_LeavesLedgerAndLine()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.6.0"),
                 "skill-tree", out string text);
 
             UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, text,
@@ -316,7 +328,7 @@ namespace Tools.PackageManager
         public void ReleaseUpmOwner_LedgerWithNoOwners_LeavesLineAlone()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.6.0"),
                 "skill-tree", out string text);
             state.upmOwnership[0].owners.Clear();
 
@@ -332,7 +344,7 @@ namespace Tools.PackageManager
         public void FindOwnership_ReturnsRecordForPackageIdAndNullOtherwise()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out _);
 
             UpmOwnershipData record = _registry.FindOwnership(state, "com.cysharp.zstring");
@@ -345,7 +357,7 @@ namespace Tools.PackageManager
         public void ReleaseUpmOwner_OtherOwnerRemains_KeepsEntry()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string text);
             _registry.RecordUpmOwner(state, text, Upm("com.cysharp.zstring", "2.6.0"),
                 "skill-tree", out text);
@@ -361,7 +373,7 @@ namespace Tools.PackageManager
         public void ReleaseUpmOwner_LastOwnerRemovesOwnedEntry()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestClean, Upm("com.cysharp.zstring", "2.6.0"),
+            _registry.RecordUpmOwner(state, MANIFEST_CLEAN, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out string text);
 
             UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, text,
@@ -376,7 +388,7 @@ namespace Tools.PackageManager
         public void ReleaseUpmOwner_PreexistingEntrySurvivesLastOwner()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestWithUserEntry, Upm("com.cysharp.unitask", "2.5.11"),
+            _registry.RecordUpmOwner(state, MANIFEST_WITH_USER_ENTRY, Upm("com.cysharp.unitask", "2.5.11"),
                 "blackboard", out string text);
 
             UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, text,
@@ -391,18 +403,18 @@ namespace Tools.PackageManager
         public void ReleaseUpmOwner_UnknownPackage_ReturnsNotFound()
         {
             PackageManagerStateData state = NewState();
-            UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, ManifestClean,
+            UpmEntryOutcome outcome = _registry.ReleaseUpmOwner(state, MANIFEST_CLEAN,
                 "com.nope", "blackboard", out string newText);
 
             Assert.AreEqual(UpmEntryOutcome.NotFound, outcome);
-            Assert.AreEqual(ManifestClean, newText);
+            Assert.AreEqual(MANIFEST_CLEAN, newText);
         }
 
         [Test]
         public void SaveThenLoad_RoundTripsOwnershipAndPreexistingFlag()
         {
             PackageManagerStateData state = NewState();
-            _registry.RecordUpmOwner(state, ManifestWithUserEntry, Upm("com.cysharp.unitask", "2.5.11"),
+            _registry.RecordUpmOwner(state, MANIFEST_WITH_USER_ENTRY, Upm("com.cysharp.unitask", "2.5.11"),
                 "blackboard", out string text);
             _registry.RecordUpmOwner(state, text, Upm("com.cysharp.zstring", "2.6.0"),
                 "blackboard", out text);

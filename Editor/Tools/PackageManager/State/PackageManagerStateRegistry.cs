@@ -9,7 +9,8 @@ namespace Moirai.Atropos.PackageManager
     /// </summary>
     /// <remarks>
     /// 一个实例绑定一份状态文件、一份本机缓存文件与一套缺省设置；不同包管理器各持一份，互不覆盖。<br />
-    /// 状态账本默认落 <c>ProjectSettings/</c>，刷新缓存默认落 <c>Library/MoiraiPackageManager/</c>；
+    /// 状态账本默认落 <c>ProjectSettings/</c>；检出与刷新缓存统一落 <c>Library/MoiraiCache/</c>，
+    /// 缓存文件按检出目录名命名（<c>&lt;workspaceFolderName&gt;.cache.json</c>）；
     /// 卸载与回收的全部依据都来自状态账本，不靠扫描工作树反推。<br />
     /// 记账项一律按 <c>id</c> / <c>packageId</c> 去重（<see cref="UpsertInstalled"/>、<see cref="RecordUpmOwner"/>），重复写入覆盖旧值而非追加。<br />
     /// 读到损坏的状态文件时把原文另存为 <c>.corrupt-&lt;ticks&gt;</c> 再回空态，绝不就地覆写。<br />
@@ -18,7 +19,7 @@ namespace Moirai.Atropos.PackageManager
     internal sealed class PackageManagerStateRegistry
     {
         private const string CACHE_FILE_SUFFIX = ".cache.json";
-        private const string CACHE_DIRECTORY_NAME = "MoiraiPackageManager";
+        private const string CACHE_DIRECTORY_NAME = "MoiraiCache";
 
         private readonly string _statePath;
         private readonly string _cachePath;
@@ -39,34 +40,51 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
-        /// 按工程布局建一份账本：设置与已装账本在 <c>ProjectSettings/</c>，刷新缓存落 <c>Library/</c>。
+        /// 按工程布局建一份账本：状态账本在 <c>ProjectSettings/</c>，检出与刷新缓存落 <c>Library/MoiraiCache/</c>。
         /// </summary>
-        internal static PackageManagerStateRegistry Create(string fileName, Func<PackageManagerSettingsData> createDefaultSettings)
+        internal static PackageManagerStateRegistry Create(string stateFileName, string workspaceFolderName,
+            Func<PackageManagerSettingsData> createDefaultSettings)
         {
-            return new PackageManagerStateRegistry(ResolveDefaultPath(fileName), ResolveDefaultCachePath(fileName),
-                createDefaultSettings);
+            return new PackageManagerStateRegistry(ResolveDefaultPath(stateFileName),
+                ResolveDefaultCachePath(workspaceFolderName), createDefaultSettings);
         }
 
         /// <summary>
-        /// 工程默认状态文件路径：<c>ProjectSettings/&lt;fileName&gt;</c>。
+        /// 工程默认状态文件路径：<c>ProjectSettings/&lt;stateFileName&gt;</c>。
         /// </summary>
-        internal static string ResolveDefaultPath(string fileName)
+        internal static string ResolveDefaultPath(string stateFileName)
         {
-            if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("状态文件名不能为空", nameof(fileName));
-            return Path.Combine(Directory.GetCurrentDirectory(), "ProjectSettings", fileName);
+            if (string.IsNullOrEmpty(stateFileName)) throw new ArgumentException("状态文件名不能为空", nameof(stateFileName));
+            return Path.Combine(Directory.GetCurrentDirectory(), "ProjectSettings", stateFileName);
         }
 
         /// <summary>
-        /// 工程默认本机缓存路径：<c>Library/MoiraiPackageManager/&lt;stem&gt;.cache.json</c>。
+        /// 工程默认检出目录：<c>Library/MoiraiCache/&lt;workspaceFolderName&gt;/</c>。
         /// </summary>
-        internal static string ResolveDefaultCachePath(string fileName)
+        internal static string ResolveDefaultWorkspacePath(string workspaceFolderName)
         {
-            if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("状态文件名不能为空", nameof(fileName));
+            return Path.Combine(ResolveCacheRootPath(), RequireFolderName(workspaceFolderName));
+        }
 
-            string stem = fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
-                ? fileName.Substring(0, fileName.Length - 5)
-                : fileName;
-            return Path.Combine(Directory.GetCurrentDirectory(), "Library", CACHE_DIRECTORY_NAME, stem + CACHE_FILE_SUFFIX);
+        /// <summary>
+        /// 工程默认本机缓存路径：<c>Library/MoiraiCache/&lt;workspaceFolderName&gt;.cache.json</c>。
+        /// </summary>
+        internal static string ResolveDefaultCachePath(string workspaceFolderName)
+        {
+            return Path.Combine(ResolveCacheRootPath(), RequireFolderName(workspaceFolderName) + CACHE_FILE_SUFFIX);
+        }
+
+        private static string ResolveCacheRootPath()
+        {
+            return Path.Combine(Directory.GetCurrentDirectory(), "Library", CACHE_DIRECTORY_NAME);
+        }
+
+        private static string RequireFolderName(string workspaceFolderName)
+        {
+            if (string.IsNullOrEmpty(workspaceFolderName))
+                throw new ArgumentException("检出目录名不能为空", nameof(workspaceFolderName));
+
+            return workspaceFolderName;
         }
 
         /// <summary>当前状态文件的落盘路径。</summary>

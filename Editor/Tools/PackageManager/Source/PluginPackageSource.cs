@@ -6,17 +6,23 @@ using System.Text;
 namespace Moirai.Atropos.PackageManager
 {
     /// <summary>
-    /// 分支作包源的 git 侧：部分克隆、cone 稀疏检出与只读取文。
+    /// 分支作包源的 git 侧：部分克隆、按目录的稀疏检出与只读取文。
     /// </summary>
     /// <remarks>
     /// 读侧一律走 <c>HEAD</c>：fetch 之后要再摆正一次分支才看得见新提交，编排层的顺序按此排。<br />
     /// 落点已在但不是工作树时判红停手，绝不就地 <c>git init</c>，也绝不删用户目录。<br />
     /// 进 git 的目录名先过 <see cref="PluginManifest.IsValidId"/>，树路径先过 <see cref="IsSafeTreePath"/>：两处都是注入面。<br />
     /// 稀疏检出的"既不下载"只在真远端可判：本地 <c>file://</c> 夹具会报 "filtering not recognized by server" 并回全量 blob，
-    /// 因此这里能判的是勾选外的目录不物化，以及部分克隆过滤器已写进配置。
+    /// 因此这里能判的是勾选外的目录不物化，以及部分克隆过滤器已写进配置。<br />
+    /// 稀疏集按目录给模式（非 cone）：分支根的散文件——开发用的说明与 <c>.meta</c>——不物化到工作树，
+    /// 需要根 <c>package.json</c> 时走 blob 读取而不是读盘。<br />
+    /// 旧检出可能是 cone 模式（cone 会强制物化根文件），建检出时按现有勾选就地换成按目录模式。
     /// </remarks>
     internal sealed class PluginPackageSource
     {
+        // 非 cone 模式下空模式表等于"全选"：空勾选集用一个匹配不到任何路径的模式钉住
+        private const string NOTHING_PATTERN = "/.moirai-no-selection/";
+
         private const int CLONE_TIMEOUT_MILLISECONDS = 180000;
         private const int FETCH_TIMEOUT_MILLISECONDS = 180000;
         private const int QUERY_TIMEOUT_MILLISECONDS = 60000;
@@ -131,7 +137,7 @@ namespace Moirai.Atropos.PackageManager
         internal bool IsGitWorkspace => WorkspaceExists && Directory.Exists(Path.Combine(_workingDirectory, ".git"));
 
         /// <summary>
-        /// 按需建检出：部分克隆 + 不物化 + 单分支，cone 初始为空集。
+        /// 按需建检出：部分克隆 + 不物化 + 单分支，稀疏集初始钉成空集。
         /// </summary>
         internal bool EnsureClone(out string failureReason)
         {
@@ -139,8 +145,8 @@ namespace Moirai.Atropos.PackageManager
             {
                 if (IsGitWorkspace)
                 {
-                    failureReason = null;
-                    return true;
+                    // 旧检出可能是 cone 模式：它强制物化分支根的散文件，这里按现有勾选就地换成按目录模式
+                    return MigrateConeSparseCheckout(out failureReason);
                 }
 
                 failureReason = $"落点目录已存在但不是 git 工作树，工具不会就地 init 也不会删除：{_workingDirectory}";
@@ -172,15 +178,51 @@ namespace Moirai.Atropos.PackageManager
                 return false;
             }
 
-            GitRunResult cone = RunCone("sparse-checkout init --cone", out string coneReason);
-            if (cone.Ok)
+            GitRunResult init = RunSparse("sparse-checkout init --no-cone", out string initReason);
+            if (!init.Ok)
+            {
+                failureReason = initReason;
+                return false;
+            }
+
+            // 空稀疏集也得显式钉住：非 cone 模式下空模式表等于全选，根文件会随 checkout 落盘
+            return ApplySparsePaths(Array.Empty<string>(), out failureReason);
+        }
+
+        /// <summary>
+        /// 把旧检出的 cone 稀疏集换成按目录的稀疏集：cone 会强制物化分支根的散文件（说明与 <c>.meta</c>）。
+        /// </summary>
+        /// <remarks>只沿用 cone 模式里勾选的目录名；撤下根文件若会覆写手改，git 自己会拒绝，不静默丢内容。</remarks>
+        private bool MigrateConeSparseCheckout(out string failureReason)
+        {
+            GitRunResult cone = RunQuery("config --get core.sparseCheckoutCone", out string value, out _);
+            if (!cone.Ok || !string.Equals(value.Trim(), "true", StringComparison.OrdinalIgnoreCase))
             {
                 failureReason = null;
                 return true;
             }
 
-            failureReason = coneReason;
-            return false;
+            return ApplySparsePaths(SelectedIdsInConePatterns(), out failureReason);
+        }
+
+        /// <summary>从 cone 模式的模式表里取勾选的目录名；cone 的 <c>/*</c> 与 <c>!/*/</c> 落不进来。</summary>
+        private List<string> SelectedIdsInConePatterns()
+        {
+            var ids = new List<string>();
+            string path = Path.Combine(_workingDirectory, ".git", "info", "sparse-checkout");
+            if (!File.Exists(path)) return ids;
+
+            List<string> lines = SplitLines(File.ReadAllText(path));
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string pattern = lines[i].Trim();
+                if (pattern.Length < 3 || pattern[0] != '/' || pattern[pattern.Length - 1] != '/') continue;
+
+                string id = pattern.Substring(1, pattern.Length - 2);
+                if (PluginManifest.IsValidId(id)) ids.Add(id);
+            }
+
+            return ids;
         }
 
         /// <summary>
@@ -695,14 +737,14 @@ namespace Moirai.Atropos.PackageManager
                 quoted.Add(GitProcessUtility.Quote(paths[i]));
             }
 
-            GitRunResult restored = RunCone(
+            GitRunResult restored = RunSparse(
                 $"restore --source={GitProcessUtility.Quote(revision)} --worktree -- " + string.Join(" ", quoted),
                 out failureReason);
             return restored.Ok;
         }
 
         /// <summary>
-        /// 把 cone 勾选集换成这批目录名，只物化它们与根文件。
+        /// 把稀疏勾选集换成这批插件目录：只物化这些目录，分支根的散文件（说明与 <c>.meta</c>）一律不进工作树。
         /// </summary>
         internal bool ApplySparsePaths(IReadOnlyList<string> ids, out string failureReason)
         {
@@ -722,12 +764,13 @@ namespace Moirai.Atropos.PackageManager
                     return false;
                 }
 
-                quoted.Add(GitProcessUtility.Quote(id));
+                // 前导斜杠把模式钉在仓库根：不带它会在任意深度命中同名目录
+                quoted.Add(GitProcessUtility.Quote("/" + id + "/"));
             }
 
             string arguments = quoted.Count == 0
-                ? "sparse-checkout set --cone"
-                : "sparse-checkout set --cone " + string.Join(" ", quoted);
+                ? "sparse-checkout set --no-cone " + GitProcessUtility.Quote(NOTHING_PATTERN)
+                : "sparse-checkout set --no-cone " + string.Join(" ", quoted);
 
             GitRunResult result = RunQuery(arguments, out _, out _);
             failureReason = result.Ok ? null : $"设置勾选集失败：{result.FailureReason()}";
@@ -790,7 +833,7 @@ namespace Moirai.Atropos.PackageManager
             return result;
         }
 
-        private GitRunResult RunCone(string arguments, out string failureReason)
+        private GitRunResult RunSparse(string arguments, out string failureReason)
         {
             GitRunResult result = GitProcessUtility.Run(_gitPath, _workingDirectory, arguments, QUERY_TIMEOUT_MILLISECONDS);
             failureReason = result.Ok ? null : $"{arguments} 失败：{result.FailureReason()}";
