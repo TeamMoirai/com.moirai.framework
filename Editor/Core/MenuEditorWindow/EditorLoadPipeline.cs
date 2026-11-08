@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.MenuEditorWindow
 {
     /// <summary>
     /// 编辑器窗口数据装载管线：即时步、主线程分帧切片步、后台任务步顺序执行，带取消、进度计数与阶段标签。

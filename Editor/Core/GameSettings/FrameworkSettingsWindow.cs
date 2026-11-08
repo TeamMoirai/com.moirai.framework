@@ -4,13 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using Moirai.Atropos.MenuEditorWindow;
 using Sirenix.OdinInspector;
 using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.FrameworkSetting
 {
     /// <summary>
     /// 框架配置统一管理窗口（Odin 实现）：自动发现所有 <c>FrameworkSettings&lt;T&gt;</c> 子类，侧边栏为 Odin 菜单树，内容区由 Odin 原生管线绘制。

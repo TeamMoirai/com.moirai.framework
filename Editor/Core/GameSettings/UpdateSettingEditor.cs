@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using HybridCLR.Editor.Settings;
 
-namespace Moirai.Atropos.Editor.GameSettings
+namespace Moirai.Atropos.GameSettings
 {
     [CustomEditor(typeof(UpdateSettings), true)]
     public class UpdateSettingEditor : UnityEditor.Editor
