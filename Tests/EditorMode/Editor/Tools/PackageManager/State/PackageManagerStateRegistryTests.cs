@@ -27,15 +27,18 @@ namespace Tools.PackageManager
         private const string DefaultRepoUrl = "https://example.test/moirai.git";
 
         private string _statePath;
+        private string _cachePath;
         private PackageManagerStateRegistry _registry;
 
         [SetUp]
         public void SetUp()
         {
             _statePath = Path.Combine(Path.GetTempPath(), $"pm-state-{Guid.NewGuid():N}.json");
-            _registry = new PackageManagerStateRegistry(_statePath, DefaultSettings);
+            _cachePath = Path.Combine(Path.GetTempPath(), $"pm-cache-{Guid.NewGuid():N}.json");
+            _registry = new PackageManagerStateRegistry(_statePath, _cachePath, DefaultSettings);
 
             Assert.IsFalse(File.Exists(_statePath), "夹具起点必须没有状态文件");
+            Assert.IsFalse(File.Exists(_cachePath), "夹具起点必须没有缓存文件");
             Assert.IsNull(_registry.FindInstalled(_registry.Load(), "blackboard"));
         }
 
@@ -52,8 +55,14 @@ namespace Tools.PackageManager
         [TearDown]
         public void TearDown()
         {
-            if (File.Exists(_statePath)) File.Delete(_statePath);
-            foreach (string leftover in Directory.GetFiles(Path.GetTempPath(), Path.GetFileName(_statePath) + ".corrupt-*"))
+            DeleteWithCorruptCopies(_statePath);
+            DeleteWithCorruptCopies(_cachePath);
+        }
+
+        private static void DeleteWithCorruptCopies(string path)
+        {
+            if (File.Exists(path)) File.Delete(path);
+            foreach (string leftover in Directory.GetFiles(Path.GetTempPath(), Path.GetFileName(path) + ".corrupt-*"))
             {
                 File.Delete(leftover);
             }
@@ -81,10 +90,11 @@ namespace Tools.PackageManager
         public void TwoRegistriesWithDifferentPaths_KeepIndependentLedgers()
         {
             string otherPath = Path.Combine(Path.GetTempPath(), $"pm-state-{Guid.NewGuid():N}.json");
+            string otherCachePath = Path.Combine(Path.GetTempPath(), $"pm-cache-{Guid.NewGuid():N}.json");
 
             try
             {
-                var other = new PackageManagerStateRegistry(otherPath, DefaultSettings);
+                var other = new PackageManagerStateRegistry(otherPath, otherCachePath, DefaultSettings);
 
                 PackageManagerStateData mine = _registry.Load();
                 _registry.UpsertInstalled(mine, new InstalledPluginData { id = "blackboard", version = "0.1.0" });
@@ -95,33 +105,39 @@ namespace Tools.PackageManager
             }
             finally
             {
-                if (File.Exists(otherPath)) File.Delete(otherPath);
+                DeleteWithCorruptCopies(otherPath);
+                DeleteWithCorruptCopies(otherCachePath);
             }
         }
 
         [Test]
         public void StampFetch_RecordsParseableTime()
         {
-            PackageManagerStateData state = NewState();
-            Assert.IsTrue(string.IsNullOrEmpty(state.settings.lastFetchAt));
+            PackageManagerCacheData cache = _registry.LoadCache();
+            Assert.IsTrue(string.IsNullOrEmpty(cache.lastFetchAt));
 
-            _registry.StampFetch(state);
+            _registry.StampFetch(cache);
+            _registry.SaveCache(cache);
 
-            Assert.IsTrue(DateTime.TryParse(state.settings.lastFetchAt, out _), state.settings.lastFetchAt);
+            PackageManagerCacheData reloaded = _registry.LoadCache();
+            Assert.IsTrue(DateTime.TryParse(reloaded.lastFetchAt, out _), reloaded.lastFetchAt);
         }
 
         [Test]
         public void CachedCatalog_SurvivesSaveAndLoad()
         {
             PackageManagerStateData state = NewState();
+            PackageManagerCacheData cache = _registry.LoadCache();
             var catalog = new PluginCatalogResult();
             catalog.AddManifest(Manifest("zlogger", "ZLOGGER_INSTALLED"));
-            _registry.CacheCatalog(state, catalog, "abc1234");
-            _registry.Save(state);
+            _registry.CacheCatalog(cache, state.settings, catalog, "abc1234");
+            _registry.SaveCache(cache);
 
-            PackageManagerStateData reloaded = _registry.Load();
+            PackageManagerCacheData reloadedCache = _registry.LoadCache();
+            PackageManagerStateData reloadedState = _registry.Load();
 
-            Assert.IsTrue(_registry.TryGetCachedCatalog(reloaded, out List<PluginManifest> manifests, out string headCommit));
+            Assert.IsTrue(_registry.TryGetCachedCatalog(reloadedCache, reloadedState.settings,
+                out List<PluginManifest> manifests, out string headCommit));
             Assert.AreEqual(1, manifests.Count);
             Assert.AreEqual("zlogger", manifests[0].id);
             Assert.AreEqual(1, manifests[0].tags.Length);
@@ -133,19 +149,20 @@ namespace Tools.PackageManager
         public void TryGetCachedCatalog_ChangedBranch_ReturnsFalse()
         {
             PackageManagerStateData state = NewState();
+            PackageManagerCacheData cache = _registry.LoadCache();
             var catalog = new PluginCatalogResult();
             catalog.AddManifest(Manifest("zlogger", "ZLOGGER_INSTALLED"));
-            _registry.CacheCatalog(state, catalog, "abc1234");
+            _registry.CacheCatalog(cache, state.settings, catalog, "abc1234");
 
             state.settings.branch = "another-branch";
 
-            Assert.IsFalse(_registry.TryGetCachedCatalog(state, out _, out _));
+            Assert.IsFalse(_registry.TryGetCachedCatalog(cache, state.settings, out _, out _));
         }
 
         [Test]
         public void TryGetCachedCatalog_NoCache_ReturnsFalse()
         {
-            Assert.IsFalse(_registry.TryGetCachedCatalog(NewState(), out _, out _));
+            Assert.IsFalse(_registry.TryGetCachedCatalog(_registry.LoadCache(), NewState().settings, out _, out _));
         }
 
         private static PluginManifest Manifest(string id, params string[] tags)
