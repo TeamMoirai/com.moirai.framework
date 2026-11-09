@@ -10,7 +10,7 @@
 3. 先检索后动手：客户端提供 CodeGraph MCP 时，符号/调用链检索优先走它；没有就用本仓搜索工具。
    禁止凭空猜测项目内的函数、路径与接口定义，一切以检索到的真实代码为准。
 4. 源码用代码编辑工具改；Unity 对象、序列化、资源数据库与 Editor 生命周期走本仓既有通道
-   （测试桥/状态桥/Editor 脚本），不手改 Scene/Prefab YAML、GUID 或 `.meta` 代替资源数据库操作。
+   （pipeline 的 `unity` 命令/Editor 脚本），不手改 Scene/Prefab YAML、GUID 或 `.meta` 代替资源数据库操作。
 5. 闭环：需求确认 → 读源码与技能 → 实现 → 验证 → 审查 → 证据交付。
 6. 交付说明变更、实际执行的验证、剩余风险与阻塞。没有证据的检查不得标成通过。
 
@@ -44,7 +44,7 @@
 - 普通源码修改按用户任务实施；Unity 写入先预览具体目标与范围，再集中确认。
 - 删除、覆盖、包依赖/项目设置变更、平台切换、真实构建须单独明确授权；计划获准不等于获准发布。
 - 不自动安装或升级工具，不提交、推送、上传、签名或发布，不修改用户级技能配置。
-- 共享文档（本档、`README.md` 等）改前先过 dirty 门；共享编辑器投单前先查状态桥。
+- 共享文档（本档、`README.md` 等）改前先过 dirty 门；共享编辑器投单前先查 `unity command test status`。
 - 禁碰路径与失效方式见 `.claude/skills/moirai-plugin-conventions/references/gates/forbidden-paths.md`。
 
 ## 验证入口
@@ -117,9 +117,9 @@ com.moirai.framework.plugin/
 |---|---|
 | 命名、结构、领域模板、热路径与引擎约束 | `.claude/skills/moirai-plugin-conventions/references/coding.md` |
 | 测试装配与替代判据 | `.claude/skills/moirai-plugin-conventions/references/testing.md` |
-| 编译、测试桥与新鲜度口径 | `.claude/skills/moirai-plugin-conventions/references/verification.md` |
+| 编译、pipeline 测试通道与新鲜度口径 | `.claude/skills/moirai-plugin-conventions/references/verification.md` |
 | 提交、文档、版本与发版 | `.claude/skills/moirai-plugin-conventions/references/release.md` |
 | 符号真名 | `.claude/skills/moirai-plugin-conventions/references/gates/symbol-truth.md` |
-| 桥协议字面量 | `.claude/skills/moirai-plugin-conventions/references/gates/bridge-protocol.md` |
+| 宿主编辑器 pipeline 协议字面量 | `.claude/skills/moirai-plugin-conventions/references/gates/bridge-protocol.md` |
 | 禁碰路径与静默断裂面 | `.claude/skills/moirai-plugin-conventions/references/gates/forbidden-paths.md` |
 | `.meta` 成对 | `.claude/skills/moirai-plugin-conventions/references/gates/metas-pairing.md` |
