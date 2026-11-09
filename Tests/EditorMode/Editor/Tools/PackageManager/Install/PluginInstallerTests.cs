@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Moirai.Atropos.PackageManager;
 using NUnit.Framework;
@@ -94,8 +95,14 @@ namespace Tools.PackageManager
 
                 PluginInstaller installer = NewInstaller(sourceRepo, workspace);
 
+                var progress = new List<KeyValuePair<float, string>>();
+                installer.Progress = (value, stage) => progress.Add(new KeyValuePair<float, string>(value, stage));
+
                 var install = installer.Install(PLUGIN_ID, false);
                 Assert.IsTrue(install.Ok, install.FailureReason);
+                Assert.IsNotEmpty(progress, "安装应逐阶段上报进度，否则窗口只能干等");
+                Assert.AreEqual(1f, progress[progress.Count - 1].Key, 1e-6f, "末次进度必须是 1，进度条才收得掉");
+                Assert.IsTrue(progress.TrueForAll(item => item.Key >= 0f && item.Key <= 1f), "进度值必须落在 0..1");
 
                 string installed = Path.Combine(installRoot, PLUGIN_FOLDER + "." + PLUGIN_ID);
                 Assert.IsTrue(Directory.Exists(installed), "安装目录应落在 Packages 下");

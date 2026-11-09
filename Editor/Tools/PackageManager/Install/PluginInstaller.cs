@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos;
 using UnityEditor;
 using UnityEngine;
 using PackageInfo = UnityEditor.PackageManager.PackageInfo;
@@ -76,6 +76,16 @@ namespace Moirai.Atropos.PackageManager
 
         /// <summary>本轮 fetch 是否真到了远端；没到就不该记"上次刷新"时刻。</summary>
         internal bool LastFetchReachedRemote => _lastFetchReachedRemote;
+
+        /// <summary>
+        /// 安装各阶段的进度回调（0..1 + 当前阶段文案）；窗口用它边装边画进度，用例留空即不报。
+        /// </summary>
+        internal Action<float, string> Progress { get; set; }
+
+        private void ReportProgress(float value, string stage)
+        {
+            Progress?.Invoke(value, stage);
+        }
 
         /// <summary>
         /// 取当前编辑器版本，形状不符时回最低地板并交出原因。
@@ -301,12 +311,15 @@ namespace Moirai.Atropos.PackageManager
             IReadOnlyList<string> removeFirstIds = null, string revision = null, string revisionVersion = null)
         {
             var report = new PluginInstallReport();
+            ReportProgress(0.02f, "检查检出与工作树");
             if (!GateCleanWorktree(report)) return report;
 
             if (!TryGetEngineVersion(out PluginVersion unityVersion, out string versionReason)) report.Note(versionReason);
             if (!TryGetHostPackageVersion(_hostPackageType, out PluginVersion hostVersion, out string frameworkReason)) report.Note(frameworkReason);
+            ReportProgress(0.08f, "扫分支与取目录");
             if (!TryBrowse(report, out PluginCatalogResult catalog, out string headCommit)) return report;
 
+            ReportProgress(0.4f, "规划依赖闭包");
             PackageManagerStateData state = _stateRegistry.Load();
             List<string> installedIds = InstalledIds(state);
 
@@ -336,6 +349,7 @@ namespace Moirai.Atropos.PackageManager
             List<string> selectedIds = Union(installedIds, plan);
 
             // 干净更新：先清目录，随后物化时按分支头重新落一遍，清掉新版本不再产出的文件
+            ReportProgress(0.45f, "清理与物化插件目录");
             RemoveFolders(removeFirstIds, report);
             if (!report.Ok) return report;
 
@@ -360,6 +374,7 @@ namespace Moirai.Atropos.PackageManager
                 return report;
             }
 
+            ReportProgress(0.6f, "复制到 Packages");
             if (!CopyInstalledFolders(plan, out string copyReason))
             {
                 report.Fail(copyReason);
@@ -368,6 +383,7 @@ namespace Moirai.Atropos.PackageManager
 
             report.Note($"已落盘 {plan.ToInstall.Count} 个包到 Packages/");
 
+            ReportProgress(0.8f, "写工程 manifest 与脚本宏");
             if (!WriteProjectManifest(state, plan, report, out string manifestReason))
             {
                 report.Fail(manifestReason);
@@ -399,7 +415,9 @@ namespace Moirai.Atropos.PackageManager
             _stateRegistry.Save(state);
             report.Note("状态账本已落盘");
 
+            ReportProgress(0.95f, "刷新资源");
             AssetDatabase.Refresh();
+            ReportProgress(1f, "完成");
             return report;
         }
 
