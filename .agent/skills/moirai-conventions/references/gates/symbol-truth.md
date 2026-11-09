@@ -1,7 +1,7 @@
 # 符号真名口径
 
-执行体是 `.claude/skills/moirai-conventions/scripts/check_config_surface.py` 的 C 段，登记表与排除表在同目录的
-`.claude/skills/moirai-conventions/scripts/config-surface-debt.json`。量具是本地脚本，不需要开着的编辑器。
+执行体是 `.agent/skills/moirai-conventions/scripts/check_config_surface.py` 的 C 段，登记表与排除表在同目录的
+`.agent/skills/moirai-conventions/scripts/config-surface-debt.json`。量具是本地脚本，不需要开着的编辑器。
 本块只述口径与修法优先级，不放第二份实现——判据形状要变时改那个脚本，本块跟着改述；只改本层就是话与牙没对上号。
 
 ## 判据口径
@@ -33,7 +33,7 @@
 
 ## 射程边界
 
-**文件射程**：执行体的候选集只从 `.claude/commands` 目录下递归取的 `.md`。`CLAUDE.md`、本层四块与其它 skill 都不在正向扫描之内
+**文件射程**：执行体的候选集只从 `.agent/commands` 目录下递归取的 `.md`。`AGENT.md`、本层四块与其它 skill 都不在正向扫描之内
 ——本层里写错的符号没有守卫替你报错，只有读的人会发现，落笔前自己读到声明处。
 
 **段射程**：正向抽取同时覆盖行内反引号段与 ``` 围栏代码块里的每一行，两者走同一条过滤链——往骨架代码块里塞一个本包无声明的类型名会打红。
@@ -97,7 +97,7 @@
 本地脚本一趟跑完配置层的全部判据段，不需要开着的编辑器，也不走 pipeline 测试通道：
 
 ```bash
-python .claude/skills/moirai-conventions/scripts/check_config_surface.py
+python .agent/skills/moirai-conventions/scripts/check_config_surface.py
 echo "exit=$?"
 ```
 
@@ -108,7 +108,7 @@ echo "exit=$?"
 | 2 | 量不出来：`MEASURE-FAIL` 行给原因（目录取不到、登记表读不动、声明集自检不过）——绝不等于合格 |
 
 判据段的分段标签、段数与每段标题都由量具当场打出，本层不复述清单也不写死计数——加一段判据时抄进来的名单必然漂。
-需要开着的编辑器的其它判据仍走 `.claude/skills/moirai-conventions/references/gates/bridge-protocol.md` 的 pipeline 通道形状。
+需要开着的编辑器的其它判据仍走 `.agent/skills/moirai-conventions/references/gates/bridge-protocol.md` 的 pipeline 通道形状。
 
 A/B 证伪（没做过证伪就不许声称判据能判假）：往任一命令文件的围栏代码块里加一行只含 `EventSystem` 的语句，
 重跑必须打红并点名该文件；验完删净探针行，再跑一次确认回到退出码 0，并核 `git diff --numstat` 对该文件为空。

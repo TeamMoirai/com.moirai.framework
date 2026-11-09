@@ -1,4 +1,4 @@
-# Moirai Framework - Claude Code 配置
+# Moirai Framework - AI 协作配置
 
 ## 项目概述
 
@@ -76,7 +76,7 @@ com.moirai.framework/
 
 ## 编码规范
 
-细则（`### 命名规范`、`### XML 文档注释` 及其分级条款）的权威落点在 `.claude/skills/moirai-conventions/references/coding.md`，本文不复述第二套。
+细则（`### 命名规范`、`### XML 文档注释` 及其分级条款）的权威落点在 `.agent/skills/moirai-conventions/references/coding.md`，本文不复述第二套。
 
 执行等级只有一个含义：Mandatory 违反要打回，Prefer 性能敏感区必须、非热路径可放宽，Reference 逐步优化遗留。
 
@@ -86,15 +86,15 @@ com.moirai.framework/
 
 细则（分层与归属、命名与结构、夹具与隔离、确定性、反射政策、日志断言、基准、公共 API 变更口径、覆盖率与出口准则、可执行守卫）
 
-的权威落点在 `.claude/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
+的权威落点在 `.agent/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
 
 ## AI 测试流程
 
-六步流程与两条验证环路（pipeline 测试通道、pipeline 状态通道）的权威落点在 `.claude/skills/moirai-conventions/references/verification.md`。
+六步流程与两条验证环路（pipeline 测试通道、pipeline 状态通道）的权威落点在 `.agent/skills/moirai-conventions/references/verification.md`。
 
 三行硬条件：一次只投一单（`test status` 为 `no_tests`）；结论取 `summary.total/failed` 计数；0 失败才算通过。
 
-## Claude Code Skills
+## AI Skills
 
 项目提供以下 Skills（通过 `/` 命令调用）：
 
@@ -112,9 +112,9 @@ com.moirai.framework/
 | `/optimize` | 性能优化 |
 | `/migrate` | 代码迁移 |
 
-### 自动触发的技能（Agent Skills，`.claude/skills/`）
+### 自动触发的技能（Agent Skills，`.agent/skills/`）
 
-上表是显式 `/` 命令；`.claude/skills/` 下有技能，由 Claude 按各自 `SKILL.md` 的 `description` 自动选用。
+上表是显式 `/` 命令；`.agent/skills/` 下有技能，由 AI 按各自 `SKILL.md` 的 `description` 自动选用。
 下面的两个是本仓自建，各自带 `references/`（按需加载）与 `scripts/`：
 
 | 技能 | 管什么 |
@@ -124,11 +124,11 @@ com.moirai.framework/
 
 两份知识都以"先量装机版读数再下笔"为前提——官方文档站描述最新版，dll 里自带的模板原文也不是可编译证据。
 
-**SKILL.md 头部规范（各技能统一，基线 = `.claude/skills/yaml-editing/SKILL.md`）**：骨架固定为 frontmatter →
+**SKILL.md 头部规范（各技能统一，基线 = `.agent/skills/yaml-editing/SKILL.md`）**：骨架固定为 frontmatter →
 （仅面向可调用命令面的技能带一段中性引导块）→ `## Triggers` → `# H1`。`## Triggers` 是入口索引而非正文，
 写成英文 2–4 条 + 一条中文合并条目（用「、」分隔、不加「触发词：」前缀）；触发信息不在 `description` 里重复，
 `description` 统一英文、命令/工具型追加 `Use when …`。跨文件指针一律用包根为基座的反引号全路径（形态见
-`.claude/skills/moirai-conventions/SKILL.md` 的指针形态节），不写指向本包不存在文件的相对链接。
+`.agent/skills/moirai-conventions/SKILL.md` 的指针形态节），不写指向本包不存在文件的相对链接。
 
 ## 开发流程
 
@@ -154,7 +154,7 @@ com.moirai.framework/
 
 ### 4. 提交时的文档与 CHANGELOG
 
-提交、文档与 CHANGELOG、发版与 PR 的权威落点在 `.claude/skills/moirai-conventions/references/release.md`。
+提交、文档与 CHANGELOG、发版与 PR 的权威落点在 `.agent/skills/moirai-conventions/references/release.md`。
 
 口径：只写净结果与现行事实，破坏性变更前置 ⚠ 给迁移口径，版本号与 Release 由工作流写入。
 

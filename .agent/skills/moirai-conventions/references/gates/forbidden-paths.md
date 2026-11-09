@@ -7,7 +7,7 @@
 | 路径 | 失效方式 |
 |---|---|
 | 技能目录 `odin-inspector`、`odin-validator` | 属别的会话的在途产物：没进版本库，`git add` 其路径会把别人没写完的内容一并提交，事后也分不出是谁的。这条规则不需要指针支撑——不得 `git add` 别人的路径 |
-| `CLAUDE.md` | 上面可能挂着别人的未提交 hunk。改它之前过这道门：`git diff --numstat HEAD -- CLAUDE.md` **必须输出空**；非空即停手回报 BLOCKED 并附原文，不许手删别人的行、不许 `git add -p`、不许「先提交再说」 |
+| `AGENT.md` | 上面可能挂着别人的未提交 hunk。改它之前过这道门：`git diff --numstat HEAD -- AGENT.md` **必须输出空**；非空即停手回报 BLOCKED 并附原文，不许手删别人的行、不许 `git add -p`、不许「先提交再说」 |
 | 三份既有守卫 `Tests/EditorMode/Policy/ReflectionPolicyGuardTests.cs`、`Tests/EditorMode/Policy/CoreDependencyRatchetTests.cs`、`Tests/EditorMode/Policy/TestLogChannelPolicyGuardTests.cs` | 只读参考。为了让自己的文件过关而改别人的判据或白名单，等于把守卫拆了 |
 
 ## asmref 射程（删一下就让一片脚本失去引用）
@@ -54,7 +54,7 @@
 
 ## 这条边界要说清：档位判据挡不住写
 
-`.claude/skills/moirai-conventions/scripts/check_config_surface.py` 的 B 段判「只读档位不该声明写权限」时，
+`.agent/skills/moirai-conventions/scripts/check_config_surface.py` 的 B 段判「只读档位不该声明写权限」时，
 只认量具 `WRITE_TOOLS` 里的工具名整词（`Edit`、`Write`、`MultiEdit`、`NotebookEdit`）——值先按空白与逗号切词，
 切出的 chunk 再剥掉反引号、引号与 `[]`/`{}`，所以 `allowed-tools` 的**一行式逗号**与 **YAML 清单**两种已知书写都切得出来，
 值为空按缺键算。不属于这两种书写的值形态（YAML flow sequence `allowed-tools: [Read, Edit]`、折叠/字面标量

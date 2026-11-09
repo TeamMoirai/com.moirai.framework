@@ -113,13 +113,13 @@
     }
   },
   "layer_isolation": {
-    ".claude/skills/moirai-conventions/references/gates/metas-pairing.md|docs/": {
+    ".agent/skills/moirai-conventions/references/gates/metas-pairing.md|docs/": {
       "reason": "该块第 17 行的表格行在叙述「docs/ 被包根 .gitignore 的 [Dd]ocs/ 排除」这条事实，不是把读者指向一份底稿。F 段按形态判，分不清「指过去」与「点名它」，故逐条登记而非给判据开例外。清它的形状：把被禁根段改成不带反引号的散文或裸名列表——加表内例外就等于没人替你报新违例。"
     },
-    ".claude/skills/moirai-conventions/references/gates/metas-pairing.md|.superpowers/": {
+    ".agent/skills/moirai-conventions/references/gates/metas-pairing.md|.superpowers/": {
       "reason": "该块第 23 行「那种路径连 git check-ignore 都不命中」在点名 .superpowers/ 这层本身，同上一条同形登记。"
     },
-    ".claude/skills/moirai-conventions/references/gates/metas-pairing.md|.superpowers/sdd/.gitignore": {
+    ".agent/skills/moirai-conventions/references/gates/metas-pairing.md|.superpowers/sdd/.gitignore": {
       "reason": "该块第 22 行在说明挡 .superpowers/sdd/** 出去的是该目录自己的 .gitignore，指的是这个文件确实存在的那条配置，不是文档指针；同上一条同形登记。"
     }
   }

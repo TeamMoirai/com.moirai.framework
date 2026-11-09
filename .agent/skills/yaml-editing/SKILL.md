@@ -19,8 +19,8 @@ Advisory module. This is operational guidance for directly editing Unity seriali
 
 **Prefer a live Editor first.** For normal object/asset work, drive the running Editor — it keeps serialization valid for you:
 
-- A running Editor over MCP tools → `.claude/skills/unity-mcp/SKILL.md`
-- A running Editor over the CLI (`unity status` / `unity command`) → `.claude/skills/unity-cli/SKILL.md`
+- A running Editor over MCP tools → `.agent/skills/unity-mcp/SKILL.md`
+- A running Editor over the CLI (`unity status` / `unity command`) → `.agent/skills/unity-cli/SKILL.md`
 - A project script run inside the Editor (`run_script` / `eval`) → the same skill
 
 **Only hand-edit YAML when none of them can reach**, i.e. one of:
@@ -86,6 +86,6 @@ If none of these apply, stop and use the live Editor. Do **not** hand-edit YAML 
 
 ## Routing
 
-- If the live Editor can do it, drive the Editor — `.claude/skills/unity-mcp/SKILL.md`, `.claude/skills/unity-cli/SKILL.md` — and do not hand-edit.
+- If the live Editor can do it, drive the Editor — `.agent/skills/unity-mcp/SKILL.md`, `.agent/skills/unity-cli/SKILL.md` — and do not hand-edit.
 - GUID health audit / pseudo-GUID detection / uuid4 repair → the `.meta / GUID safety` scenario above.
-- After editing skill docs or for doc/code consistency → run `.claude/skills/moirai-conventions/scripts/check_config_surface.py`（指针形态与符号真名判据）.
+- After editing skill docs or for doc/code consistency → run `.agent/skills/moirai-conventions/scripts/check_config_surface.py`（指针形态与符号真名判据）.
