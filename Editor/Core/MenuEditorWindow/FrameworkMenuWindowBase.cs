@@ -125,12 +125,14 @@ namespace Moirai.Atropos.MenuEditorWindow
         }
 
         /// <summary>重建菜单树：前后回调交子类缓存/恢复选中。</summary>
+        /// <remarks>重建后主动请绘：选中项被筛掉时不会触发选中变更事件，不请绘就停在旧树上。</remarks>
         protected void RebuildTreePreservingSelection()
         {
             object selection = MenuTree?.Selection.SelectedValue;
             OnBeforeTreeRebuild(selection);
             ForceMenuTreeRebuild();
             OnAfterTreeRebuild(selection);
+            Repaint();
         }
 
         /// <summary>按值在树中选中条目，走 Odin 侧边栏点击同一条选中路径。</summary>

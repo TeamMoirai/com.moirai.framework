@@ -832,13 +832,14 @@ namespace Moirai.Atropos.PackageManager
             [BoxGroup("标签"), ShowInInspector, LabelText("标签")]
             internal string TagsText => Join(_manifest.tags);
 
-            [BoxGroup("依赖"), ShowInInspector, LabelText("包间依赖")]
+            // 依赖三条都画成多行只读文本：一条一行，宽度不够自动折行（DisplayAsString 的无参重载是裁切溢出）
+            [BoxGroup("依赖"), ShowInInspector, LabelText("包间依赖"), DisplayAsString(false)]
             internal string DependenciesText => DescribeDependencies(_manifest);
 
-            [BoxGroup("依赖"), ShowInInspector, LabelText("外部依赖")]
+            [BoxGroup("依赖"), ShowInInspector, LabelText("外部依赖"), DisplayAsString(false)]
             internal string UpmText => DescribeUpm(_manifest);
 
-            [BoxGroup("依赖"), ShowInInspector, LabelText("归属台账")]
+            [BoxGroup("依赖"), ShowInInspector, LabelText("归属台账"), DisplayAsString(false)]
             internal string UpmOwnershipText => _window.DescribeUpmOwnership(_manifest);
 
             [BoxGroup("操作"), ShowInInspector, LabelText("安装版本"), ValueDropdown(nameof(VersionOptions))]
@@ -1051,7 +1052,7 @@ namespace Moirai.Atropos.PackageManager
                               $"（{_window?.DescribeInstalled(dependency.id)}）");
                 }
 
-                return string.Join("；", parts);
+                return string.Join("\n", parts);
             }
 
             private static string DescribeUpm(PluginManifest manifest)
@@ -1061,7 +1062,7 @@ namespace Moirai.Atropos.PackageManager
 
                 var parts = new List<string>();
                 for (int i = 0; i < dependencies.Length; i++) parts.Add($"{dependencies[i].id} {dependencies[i].version}");
-                return string.Join("，", parts);
+                return string.Join("\n", parts);
             }
         }
 
