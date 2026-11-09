@@ -1,6 +1,6 @@
 ---
 name: gate:policy
-description: 只读跑本包结构判据：.meta 成对、asmref/asmdef 指向、禁碰面与 .claude 指针存在性
+description: 只读跑本包结构判据：.meta 成对、asmref/asmdef 指向、禁碰面与 .agent 指针存在性
 when_to_use: 改完程序集/目录/metas 或提交前做本地结构自查时
 argument-hint: [无参数]
 arguments: []
@@ -18,7 +18,7 @@ allowed-tools: Read, Grep, Glob, Bash(python:*), Bash(git status:*), Bash(git di
 1. `.meta` 成对：对 ['Editor'] 逐树比较「源文件 → 期望 meta」与「实际 meta」。
 2. asmdef/asmref：本包没有 asmdef/asmref；报告固定写“asmdef：无”。检查 `Editor/FrameworkInstallerWindow.cs` 与 `.meta` 成对、文件首行 `#if UNITY_EDITOR`。。
 3. 禁碰面：`git status --porcelain` 里出现 宿主 `ProjectSettings/`、`Packages/manifest.json`、`.github/` 时逐条报。
-4. 指针存在性：抽取 `.claude/**/*.md` 与 `CLAUDE.md` 里的包根相对路径，去掉 `:行号` 后缀后逐条检查。
+4. 指针存在性：抽取 `.agent/**/*.md` 与 `AGENT.md` 里的包根相对路径，去掉 `:行号` 后缀后逐条检查。
 5. 版本归属：比较工作树 `package.json` 的 `version` 与 `git show HEAD:package.json`。
 
 ## 可执行片段
@@ -52,9 +52,9 @@ for line in out.splitlines():
         print("[forbidden]", line)
 
 pat = re.compile(r"`([^`\n]+)`")
-roots = "Editor/", ".claude/", "README.md", "README_EN.md", "package.json", "CLAUDE.md"
+roots = "Editor/", ".agent/", "README.md", "README_EN.md", "package.json", "AGENT.md"
 missing = []
-for md in list(ROOT.rglob(".claude/**/*.md")) + [ROOT / "CLAUDE.md"]:
+for md in list(ROOT.rglob(".agent/**/*.md")) + [ROOT / "AGENT.md"]:
     if not md.exists():
         continue
     for token in pat.findall(md.read_text(encoding="utf-8")):

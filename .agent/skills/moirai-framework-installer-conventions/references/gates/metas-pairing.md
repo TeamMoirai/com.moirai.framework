@@ -4,7 +4,7 @@
 - 新增 `.cs` 时**不要手写 `.meta`**：让编辑器导入时生成，再把源文件与 `.meta` 同笔提交。
 - 删除源文件时同笔删除对应 `.meta`。
 - 不要复制或复用其他文件的 `.meta`；GUID 必须唯一。
-- `.claude/**` 以点开头，Unity 不导入，不需要 `.meta`。`CLAUDE.md` 需要 `CLAUDE.md.meta`。
+- `.agent/**` 以点开头，Unity 不导入，不需要 `.meta`。`AGENT.md` 需要 `AGENT.md.meta`。
 
 ## 自查片段
 

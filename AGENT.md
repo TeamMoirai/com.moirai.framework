@@ -1,4 +1,4 @@
-# Moirai Framework Installer - Claude Code 配置
+# Moirai Framework Installer - AI 协作配置
 
 本包（`com.moirai.framework.installer`）是 Moirai 系列里的 UPM 包，版本 `1.0.0`，Unity `2022.3`。本文件是本包自持的硬约束入口：只登记现行事实、摘要与指针，细则权威落点见文末「细则在哪」。
 
@@ -46,7 +46,7 @@ com.moirai.framework.installer/
 
 ## 编码规范
 
-细则在 `.claude/skills/moirai-framework-installer-conventions/references/coding.md`，此处只登记打回档：
+细则在 `.agent/skills/moirai-framework-installer-conventions/references/coding.md`，此处只登记打回档：
 
 - **Mandatory：** 编辑器脚本整文件 `#if UNITY_EDITOR` 守卫；不新增 asmdef（安装器靠宿主预定义编辑器程序集）；写 `Packages/manifest.json` 前先读再改，保留用户已有条目；模板复制不覆盖用户改动；安装状态读写保持向后兼容。
 - **Prefer：** 私有字段 `_camelCase`（如 `_registryResolveRequest`）；常量 `UPPER_SNAKE`；菜单路径与状态文件路径集中在类顶常量；UI 文案跟随 README 中英双语。
@@ -58,13 +58,13 @@ com.moirai.framework.installer/
 
 ## AI 测试流程
 
-细则在 `.claude/skills/moirai-framework-installer-conventions/references/verification.md`，协议字面量在 `.claude/skills/moirai-framework-installer-conventions/references/gates/bridge-protocol.md`。连接 Unity 只走 pipeline（Unity 6 装 registry 版 `com.unity.pipeline`；Unity 2022 通过 MoiraiFrameworkPackage 安装兼容版）。
+细则在 `.agent/skills/moirai-framework-installer-conventions/references/verification.md`，协议字面量在 `.agent/skills/moirai-framework-installer-conventions/references/gates/bridge-protocol.md`。连接 Unity 只走 pipeline（Unity 6 装 registry 版 `com.unity.pipeline`；Unity 2022 通过 MoiraiFrameworkPackage 安装兼容版）。
 
 - 安装器的行为依赖宿主工程的 Package Manager 与 ProjectSettings；编译门只能证明脚本编过，不能证明安装流程正确。
 - 本包无测试装配
 - 增删 `.cs` 后让一次 `unity recompile`（含 asset refresh）落地即可；pipeline 不可用时等一次真正的导入 + 域重载，不绕道、不用 batchmode 开同一工程。
 
-## Claude Code 命令
+## AI 命令
 
 | 入口 | 用途 |
 |---|---|
@@ -113,11 +113,11 @@ com.moirai.framework.installer/
 
 | 主题 | 权威落点 |
 |---|---|
-| 命名、结构、领域模板、热路径与引擎约束 | `.claude/skills/moirai-framework-installer-conventions/references/coding.md` |
-| 测试装配与替代判据 | `.claude/skills/moirai-framework-installer-conventions/references/testing.md` |
-| 编译、pipeline 协议与新鲜度口径 | `.claude/skills/moirai-framework-installer-conventions/references/verification.md` |
-| 提交、文档、版本与发版 | `.claude/skills/moirai-framework-installer-conventions/references/release.md` |
-| 符号真名 | `.claude/skills/moirai-framework-installer-conventions/references/gates/symbol-truth.md` |
-| 宿主编辑器 pipeline 协议字面量 | `.claude/skills/moirai-framework-installer-conventions/references/gates/bridge-protocol.md` |
-| 禁碰路径与静默断裂面 | `.claude/skills/moirai-framework-installer-conventions/references/gates/forbidden-paths.md` |
-| `.meta` 成对 | `.claude/skills/moirai-framework-installer-conventions/references/gates/metas-pairing.md` |
+| 命名、结构、领域模板、热路径与引擎约束 | `.agent/skills/moirai-framework-installer-conventions/references/coding.md` |
+| 测试装配与替代判据 | `.agent/skills/moirai-framework-installer-conventions/references/testing.md` |
+| 编译、pipeline 协议与新鲜度口径 | `.agent/skills/moirai-framework-installer-conventions/references/verification.md` |
+| 提交、文档、版本与发版 | `.agent/skills/moirai-framework-installer-conventions/references/release.md` |
+| 符号真名 | `.agent/skills/moirai-framework-installer-conventions/references/gates/symbol-truth.md` |
+| 宿主编辑器 pipeline 协议字面量 | `.agent/skills/moirai-framework-installer-conventions/references/gates/bridge-protocol.md` |
+| 禁碰路径与静默断裂面 | `.agent/skills/moirai-framework-installer-conventions/references/gates/forbidden-paths.md` |
+| `.meta` 成对 | `.agent/skills/moirai-framework-installer-conventions/references/gates/metas-pairing.md` |

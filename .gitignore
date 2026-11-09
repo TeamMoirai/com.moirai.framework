@@ -93,7 +93,8 @@ Thumbs.db
 # ============ #
 
 # Claude Code
-.claude/settings.local.json
+CLAUDE.md*
+.claude/
 
 # Tuanjie Codely
 CODELY.md*

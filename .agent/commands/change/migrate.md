@@ -26,7 +26,7 @@ allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git 
 | 声明 | <类型/成员/字段>（文件:行号） | 已改 |
 | 同程序集调用点 | <文件:行号> … | 已改 |
 | 资产/场景/预制 | <路径>（引用形态） | 已迁移/未取证 |
-| 文档 | README / .claude | 已同步 |
+| 文档 | README / .agent | 已同步 |
 | asmdef/asmref | 引用、versionDefines、asmref 目标 | 已核对 |
 ```
 

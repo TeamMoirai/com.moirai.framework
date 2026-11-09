@@ -9,7 +9,7 @@ allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git 
 
 ## 判据
 
-- 三档定义与细则只在 `.claude/skills/moirai-framework-installer-conventions/references/coding.md` 存一份；本命令不复述第二套。
+- 三档定义与细则只在 `.agent/skills/moirai-framework-installer-conventions/references/coding.md` 存一份；本命令不复述第二套。
 - 每条结论必须给 `文件:行号` 与判据出处；给不出的写"未取证"。
 - 本包私有字段用 `_camelCase`、常量 `UPPER_SNAKE`；不要按其他包的 `m_` 口径报违例。
 - 宿主 `Packages/manifest.json`、`ProjectSettings/` 与框架包 `Templates~` 不在重构射程。

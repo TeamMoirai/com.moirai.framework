@@ -1,6 +1,6 @@
 ---
 name: gate:docs
-description: 只读核对 README/文档、包版本、程序集事实与 .claude 指针是否和树一致
+description: 只读核对 README/文档、包版本、程序集事实与 .agent 指针是否和树一致
 when_to_use: 改完公共 API、程序集引用、目录或 AI 约定文档后
 argument-hint: [无参数]
 arguments: []
@@ -21,7 +21,7 @@ allowed-tools: Read, Grep, Glob, Bash(python:*), Bash(git status:*), Bash(git di
 | 文档存在性 | README/README_EN 存在且安装步骤与脚本常量一致 |
 | 包版本 | `package.json.version` 与 HEAD 一致 |
 | 程序集事实 | 文档里的 asmdef/程序集名与盘上一致 |
-| 指针 | `.claude` 与 `CLAUDE.md` 里的包根相对路径逐条存在 |
+| 指针 | `.agent` 与 `AGENT.md` 里的包根相对路径逐条存在 |
 | 虚假声明 | 不得出现"CI 已跑测试""覆盖率达标""CHANGELOG 已同步""PlayMode 回归" |
 
 ## 可执行片段
