@@ -249,8 +249,8 @@ namespace Moirai.Atropos.PackageManager
                 QueueTreeRebuild();
             }
 
-            string updateLabel = _updatableIds.Count > 0 ? $"Update All ({_updatableIds.Count})" : "Update All";
-            if (ToolbarButton(updateLabel, 110f)) UpdateAll();
+            // 没有可更新项就不占这一格：按钮本身也点不出动作
+            if (_updatableIds.Count > 0 && ToolbarButton($"Update All ({_updatableIds.Count})", 110f)) UpdateAll();
 
             if (_settingsFace)
             {
@@ -727,8 +727,29 @@ namespace Moirai.Atropos.PackageManager
                 for (int i = 0; i < report.Notes.Count; i++) Debug.Log(Profile.LogPrefix + " " + report.Notes[i]);
             }
 
+            RefreshLocalState();
             SetMessage(successText + "　" + report.Summary(), MessageType.Info);
             Repaint();
+        }
+
+        /// <summary>
+        /// 装卸成功后按本机账本重算一遍：重读状态、重算可更新集、用手里的目录重建行。
+        /// </summary>
+        /// <remarks>不走网络，也不等域重载：否则列表会停在旧读数上继续显示"可升级"。</remarks>
+        private void RefreshLocalState()
+        {
+            _state = _stateRegistry.Load();
+            _installer = PluginInstaller.Create(_state.settings, Profile, _stateRegistry);
+            _status = PackageManagerSourceStatus.Capture(_state.settings, _cache, _installer.Source);
+            _settingsModel = new SourceSettingsModel(this, _state.settings);
+
+            _updatableIds = new List<string>();
+            if (_installer.TryCollectUpdatable(_state, out List<string> updatable, out _)) _updatableIds = updatable;
+
+            if (_catalog != null) RebuildEntries(_catalog, _status.HeadCommit);
+            else ApplyCachedCatalog();
+
+            QueueTreeRebuild();
         }
 
         private static List<string> ReportConflicts(PluginInstallReport report)
