@@ -18,11 +18,17 @@ namespace Moirai.Atropos.PackageManager
     /// 源设置住独立设置面（工具栏 <c>Settings</c> 进、<c>返回列表</c> 出），默认视图的树里没有它。<br />
     /// 开窗先用上次扫分支的缓存铺列表，随后自动在后台重扫：缓存上屏即视作数据就绪，冷装载遮罩只在首次开窗（无缓存）时出现。<br />
     /// 现场读数全部在 OnEnable 重取：装与卸都会以 <c>AssetDatabase.Refresh()</c> 收尾，内存态进度活不过域重载。<br />
-    /// 装卸动作成功后不重扫——域重载完窗口会被重建，那时再取一次才是准的。
+    /// 装卸动作成功后不重扫，只按本机账本重算：账本落盘后、刷新触发重编译之前先把列表与详情就地换到新状态。
     /// </remarks>
     public abstract partial class PackageManagerWindowBase : FrameworkMenuWindowBase
     {
         private const float MENU_WIDTH_PIXELS = 200f;
+
+        // 编排层在"刷新资源"这一步回报 0.95：账本已落盘、AssetDatabase.Refresh 还没开始
+        private const float LOCAL_STATE_REFRESH_PROGRESS = 0.95f;
+
+        // 进度弹窗收起后，动作期间点下的鼠标事件往往这时才被派发：留一小段输入冷却再恢复
+        private const double MUTATION_INPUT_GRACE_SECONDS = 0.5d;
 
         private static readonly string[] FILTER_LABELS = { "全部", "未安装", "可升级" };
 
@@ -57,6 +63,12 @@ namespace Moirai.Atropos.PackageManager
         private string _filter = string.Empty;
         private EntryFilterMode _filterMode;
         private int _visibleEntryCount;
+
+        // 装卸在途：进度弹窗会继续派发输入，不锁整窗就可能在动作里再点一次（并叠加第二趟安装）
+        private bool _mutating;
+
+        // 动作结束后再锁一小段时钟：动作期间点下的那些点击事件要等弹窗收起才被派发
+        private double _inputLockedUntil;
 
         // 版本历史一问一次：值在下拉打开时才去取（每个候选一条 git）；扫分支换了头就整体作废
         private readonly Dictionary<string, List<PluginVersionRevision>> _versionHistory = new Dictionary<string, List<PluginVersionRevision>>(StringComparer.Ordinal);
@@ -211,13 +223,30 @@ namespace Moirai.Atropos.PackageManager
             }
         }
 
+        /// <summary>装卸在途或收尾冷却中：窗口整体锁输入。</summary>
+        private bool IsInputLocked => _mutating || EditorApplication.timeSinceStartup < _inputLockedUntil;
+
         protected override void OnImGUI()
         {
-            DrawToolbar();
-            DrawSourceStrip();
-            base.OnImGUI();
-            DrawMessage();
-            DrawRefreshStatus();
+            bool locked = IsInputLocked;
+
+            // 冷却期把点击事件直接吃掉：GUI.enabled 只管按钮，树上的选中也要一并挡住
+            if (locked && Event.current != null)
+            {
+                EventType type = Event.current.type;
+                if (type == EventType.MouseDown || type == EventType.MouseUp || type == EventType.MouseDrag)
+                    Event.current.Use();
+            }
+
+            // 装卸是同步长动作：整窗（工具栏、树、详情、设置面）一起禁输入，避免在动作里再点一次
+            using (new EditorGUI.DisabledScope(locked))
+            {
+                DrawToolbar();
+                DrawSourceStrip();
+                base.OnImGUI();
+                DrawMessage();
+                DrawRefreshStatus();
+            }
         }
 
         private void DrawToolbar()
@@ -565,11 +594,52 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
+        /// 装卸是同步的，编辑器会被占住一段时间；进度条把当前阶段摆出来，至少能看清卡在哪一步。
+        /// </summary>
+        /// <remarks>动作在途时再来一次直接判空：进度弹窗会继续派发输入，不禁用就可能叠第二趟。</remarks>
+        private PluginInstallReport RunWithProgress(string title, Func<PluginInstallReport> action)
+        {
+            if (IsInputLocked) return null;
+
+            PluginInstaller installer = _installer;
+            bool localStateRefreshed = false;
+            _mutating = true;
+            try
+            {
+                installer.Progress = (value, stage) =>
+                {
+                    // 账本已落盘、刷新还没开始：先把列表与详情摆到新状态，
+                    // 否则刷新触发的重编译期间窗口会一直停在"未安装"的样子
+                    if (!localStateRefreshed && value >= LOCAL_STATE_REFRESH_PROGRESS)
+                    {
+                        localStateRefreshed = true;
+                        RefreshLocalState();
+                    }
+
+                    EditorUtility.DisplayProgressBar(title, stage, value);
+                };
+                return action();
+            }
+            finally
+            {
+                installer.Progress = null;
+                EditorUtility.ClearProgressBar();
+                _mutating = false;
+
+                // 动作期间点下的点击事件要等进度弹窗收起才派发：再锁半秒，别让它们变成第二趟
+                _inputLockedUntil = EditorApplication.timeSinceStartup + MUTATION_INPUT_GRACE_SECONDS;
+                Repaint();
+            }
+        }
+
+        /// <summary>
         /// 装单个包，依赖闭包由规划层带出。
         /// </summary>
         private void InstallRequested(string pluginId, bool force)
         {
-            PluginInstallReport report = _installer.Install(pluginId, force);
+            PluginInstallReport report = RunWithProgress($"安装 {pluginId}", () => _installer.Install(pluginId, force));
+            if (report == null) return;
+
             AfterMutation(report, $"装了 {pluginId}");
         }
 
@@ -578,6 +648,8 @@ namespace Moirai.Atropos.PackageManager
         /// </summary>
         private void UninstallRequested(string pluginId)
         {
+            if (IsInputLocked) return;
+
             if (!InstalledIdSet().Contains(pluginId))
             {
                 SetMessage($"{pluginId} 不在账本里", MessageType.Warning);
@@ -618,6 +690,8 @@ namespace Moirai.Atropos.PackageManager
 
         private void UpdateAll()
         {
+            if (IsInputLocked) return;
+
             if (_updatableIds.Count == 0)
             {
                 SetMessage("没有可更新的包。", MessageType.Info);
@@ -646,7 +720,9 @@ namespace Moirai.Atropos.PackageManager
             string skippedNote = skipped.Count == 0
                 ? string.Empty
                 : $"，跳过 {skipped.Count} 个装不了的：{string.Join("；", skipped)}";
-            PluginInstallReport report = _installer.Install(allowed, true);
+            PluginInstallReport report = RunWithProgress($"更新 {allowed.Count} 个{BranchEntryNoun}", () => _installer.Install(allowed, true));
+            if (report == null) return;
+
             AfterMutation(report, $"更新了 {report.TouchedPluginIds.Count} 个" + skippedNote);
         }
 
@@ -683,7 +759,9 @@ namespace Moirai.Atropos.PackageManager
         /// </summary>
         private void InstallVersionRequested(string pluginId, string revision, string version)
         {
-            PluginInstallReport report = _installer.InstallAtRevision(pluginId, revision, version);
+            PluginInstallReport report = RunWithProgress($"安装 {pluginId} {version}", () => _installer.InstallAtRevision(pluginId, revision, version));
+            if (report == null) return;
+
             AfterMutation(report, $"装了 {pluginId} 的历史版本 {version}");
         }
 
@@ -705,12 +783,14 @@ namespace Moirai.Atropos.PackageManager
         /// </summary>
         private void UpdateRequested(string pluginId, bool removeFirst)
         {
-            PluginInstallReport report = _installer.Install(pluginId, true, removeFirst);
+            PluginInstallReport report = RunWithProgress($"更新 {pluginId}", () => _installer.Install(pluginId, true, removeFirst));
+            if (report == null) return;
+
             AfterMutation(report, $"更新了 {pluginId}");
         }
 
         /// <summary>
-        /// 装卸后的统一收尾：报告失败就停在原状，成功则等域重载重建。
+        /// 装卸后的统一收尾：报告失败就停在原状；成功则按账本立即重算（域重载后还会再取一次现场读数）。
         /// </summary>
         private void AfterMutation(PluginInstallReport report, string successText)
         {
@@ -746,10 +826,64 @@ namespace Moirai.Atropos.PackageManager
             _updatableIds = new List<string>();
             if (_installer.TryCollectUpdatable(_state, out List<string> updatable, out _)) _updatableIds = updatable;
 
-            if (_catalog != null) RebuildEntries(_catalog, _status.HeadCommit);
+            if (_catalog != null) RefreshEntryStates(_catalog);
             else ApplyCachedCatalog();
 
             QueueTreeRebuild();
+            Repaint();
+        }
+
+        /// <summary>
+        /// 目录没变时只就地换每行的本机读数与图标：Odin 树持有这些条目对象，
+        /// 整表换新要等一次重建才上屏，而刷新触发的重编译可能把那次重建一直压到域重载。
+        /// </summary>
+        private void RefreshEntryStates(PluginCatalogResult catalog)
+        {
+            PluginInstaller.TryGetEngineVersion(out PluginVersion unityVersion, out _);
+            PluginInstaller.TryGetHostPackageVersion(Profile.HostPackageType, out PluginVersion hostVersion, out _);
+            HashSet<string> installedIds = InstalledIdSet();
+
+            bool missing = _entries.Count != catalog.Manifests.Count;
+            for (int i = 0; i < catalog.Manifests.Count; i++)
+            {
+                PluginManifest manifest = catalog.Manifests[i];
+                InstallPlan probe = InstallPlanner.Plan(catalog.Manifests, installedIds, new[] { manifest.id },
+                    Array.Empty<string>(), unityVersion, hostVersion);
+
+                PluginEntry entry = FindEntry(manifest.id);
+                if (entry == null)
+                {
+                    missing = true;
+                    continue;
+                }
+
+                entry.ApplyLocalState(InstalledVersionOf(manifest.id), _updatableIds.Contains(manifest.id),
+                    DescribeBlocker(probe), IsOutOfSupportOnly(probe));
+            }
+
+            // 目录与条目对不上（例如扫描刚换了头）就退回整表重建
+            if (missing)
+            {
+                RebuildEntries(catalog, _status.HeadCommit);
+                return;
+            }
+
+            RefreshEntryIcons();
+        }
+
+        /// <summary>把就地更新后的状态图标写回已有叶子：列表结构不动，只换图标与颜色。</summary>
+        private void RefreshEntryIcons()
+        {
+            OdinMenuTree tree = MenuTree;
+            if (tree == null) return;
+
+            foreach (OdinMenuItem item in tree.EnumerateTree())
+            {
+                if (!(item.Value is PluginEntry entry)) continue;
+
+                item.SdfIcon = entry.StatusIcon ?? SdfIconType.None;
+                if (entry.StatusIcon.HasValue) item.SdfIconColor = entry.StatusIconColor;
+            }
         }
 
         private static List<string> ReportConflicts(PluginInstallReport report)
@@ -787,11 +921,13 @@ namespace Moirai.Atropos.PackageManager
         {
             [NonSerialized] private readonly PackageManagerWindowBase _window;
             [NonSerialized] private readonly PluginManifest _manifest;
-            [NonSerialized] private readonly string _installedVersion;
-            [NonSerialized] private readonly bool _updateAvailable;
             [NonSerialized] private readonly string _headCommit;
-            [NonSerialized] private readonly string _blocker;
-            [NonSerialized] private readonly bool _outOfSupport;
+
+            // 本机读数可在原位刷新：Odin 树持有条目对象，整表换新要等一次重建才上屏
+            [NonSerialized] private string _installedVersion;
+            [NonSerialized] private bool _updateAvailable;
+            [NonSerialized] private string _blocker;
+            [NonSerialized] private bool _outOfSupport;
 
             internal PluginEntry(PackageManagerWindowBase window, PluginManifest manifest, string installedVersion,
                 bool updateAvailable, string headCommit, string blocker, bool outOfSupport)
@@ -804,6 +940,17 @@ namespace Moirai.Atropos.PackageManager
                 _blocker = blocker;
                 _outOfSupport = outOfSupport;
                 SelectedVersion = manifest.version;
+            }
+
+            /// <summary>
+            /// 就地换本机读数：目录没变时树里的对象不换，改完就能在下一帧看到新图标与动作。
+            /// </summary>
+            internal void ApplyLocalState(string installedVersion, bool updateAvailable, string blocker, bool outOfSupport)
+            {
+                _installedVersion = installedVersion;
+                _updateAvailable = updateAvailable;
+                _blocker = blocker;
+                _outOfSupport = outOfSupport;
             }
 
             [BoxGroup("概况"), ShowInInspector, LabelText("$EntryLabel")]
