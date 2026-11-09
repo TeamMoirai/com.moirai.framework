@@ -311,8 +311,7 @@ namespace Moirai.Atropos.PackageManager
             IReadOnlyList<string> removeFirstIds = null, string revision = null, string revisionVersion = null)
         {
             var report = new PluginInstallReport();
-            ReportProgress(0.02f, "检查检出与工作树");
-            if (!GateCleanWorktree(report)) return report;
+            ReportProgress(0.02f, "检查检出");
 
             if (!TryGetEngineVersion(out PluginVersion unityVersion, out string versionReason)) report.Note(versionReason);
             if (!TryGetHostPackageVersion(_hostPackageType, out PluginVersion hostVersion, out string frameworkReason)) report.Note(frameworkReason);
@@ -427,8 +426,6 @@ namespace Moirai.Atropos.PackageManager
         internal PluginInstallReport Uninstall(string pluginId, bool cascadeDependents)
         {
             var report = new PluginInstallReport();
-            if (!GateCleanWorktree(report)) return report;
-
             PackageManagerStateData state = _stateRegistry.Load();
 
             InstalledPluginData entry = _stateRegistry.FindInstalled(state, pluginId);
@@ -525,27 +522,6 @@ namespace Moirai.Atropos.PackageManager
 
             AssetDatabase.Refresh();
             return report;
-        }
-
-        /// <summary>
-        /// 落点工作树脏 ⇒ 拒绝任何会覆写文件的装卸：不擅自处置用户手改。
-        /// </summary>
-        private bool GateCleanWorktree(PluginInstallReport report)
-        {
-            if (!_source.IsGitWorkspace) return true;
-            if (!_source.TryDescribeHead(out _, out bool isDirty, out string reason))
-            {
-                report.Fail(reason);
-                return false;
-            }
-
-            if (isDirty)
-            {
-                report.Fail($"落点工作树有未提交改动：{_source.WorkingDirectory}　工具不覆盖手改，请先提交或还原再装卸");
-                return false;
-            }
-
-            return true;
         }
 
         /// <summary>
