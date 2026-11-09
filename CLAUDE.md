@@ -23,7 +23,7 @@ com.moirai.framework/
 │   │   │                     # Events / GameApp / GameProfiler / FrameworkSettings / Graphics /
 │   │   │                     # MemoryPool / Obfuz / SettingPersistence / Singleton / Tasks
 │   │   └── Utilities/        # 横切工具，一个关注点一个子目录（Algorithm / Json / GameLog / Tween …）
-│   └── Services/             # 各功能服务（13 个模块，每个服务一份文档，见 Documentation~）
+│   └── Services/             # 各功能服务（每个服务一份文档，见 Documentation~）
 │       └── <Module>/         # 模块根平铺门面四件套 + 封闭角色档（见《目录与文件》）
 ├── Editor/                   # 编辑器代码（Core / Services / Tools / Utilities）
 ├── Tests/                    # EditorMode / PlayMode / Player 三套测试
@@ -124,7 +124,7 @@ com.moirai.framework/
 
 两份知识都以"先量装机版读数再下笔"为前提——官方文档站描述最新版，dll 里自带的模板原文也不是可编译证据。
 
-**SKILL.md 头部规范（10 个技能统一，基线 = `.claude/skills/yaml-editing/SKILL.md`）**：骨架固定为 frontmatter →
+**SKILL.md 头部规范（各技能统一，基线 = `.claude/skills/yaml-editing/SKILL.md`）**：骨架固定为 frontmatter →
 （仅面向可调用命令面的技能带一段中性引导块）→ `## Triggers` → `# H1`。`## Triggers` 是入口索引而非正文，
 写成英文 2–4 条 + 一条中文合并条目（用「、」分隔、不加「触发词：」前缀）；触发信息不在 `description` 里重复，
 `description` 统一英文、命令/工具型追加 `Use when …`。跨文件指针一律用包根为基座的反引号全路径（形态见
@@ -168,8 +168,8 @@ com.moirai.framework/
 ### 可选依赖（`*_INSTALLED` 宏门控，未装也能编译）
 - **HybridCLR** - 热更新（`HYBRIDCLR_INSTALLED`）
 - **R3** - 响应式编程（`R3_INSTALLED`）
-- 其余可选包见 Runtime asmdef 的 9 条 versionDefines（Unity UI 两档/Mathematics/Newtonsoft.Json/TextMeshPro/Timeline/R3/HybridCLR/Obfuz）。asmdef 对未安装包的 GUID 引用按 Unity 惯例静默跳过（Runtime 11 引用中 3 个 Client 未装而照常编译）——引用缺失不报错，缺的是宏。
-- **三方兼容后端整批不在框架里**：日志（Serilog / Unity Logging / ZLogger）、字符串（ZString / Newtonsoft.Json）、补间（LitMotion / PrimeTween）、对象（Photon Fusion）、资源（Addressables）、音频（FMOD / Wwise）、存档（MemoryPack / MessagePack / protobuf-net / Unity Cloud Save）——15 支插件目录各发行一支，程序集 `Moirai.Plugin.*`，框架只留默认/内置后端；装了对应插件才会出现在 settings 的 Provider 下拉里。门控宏分两档：`ZSTRING_INSTALLED`/`LITMOTION_INSTALLED`/`ADDRESSABLES_INSTALLED`/`UNITY_LOGGING_INSTALLED`/`UNITY_CLOUD_SAVE_INSTALLED`/`ZLOGGER_INSTALLED` 由插件的 versionDefines 定义，`SERILOG_INSTALLED`/`FMOD_INSTALLED`/`WWISE_INSTALLED`/`FUSION2`/`PRIME_TWEEN_INSTALLED`/`MEMORYPACK_INSTALLED`/`MESSAGEPACK_INSTALLED`/`PROTOBUF_INSTALLED` 是工程侧手写档（`PRIME_TWEEN_INSTALLED` 手写的原因：插件目录里那份经 `.asmref` 编进 `PrimeTween.Runtime` 的扩展看不见本插件 asmdef 的宏）。两处例外：`com.unity.nuget.newtonsoft-json` 仍是 `package.json` 硬依赖且 `NEWTONSOFT_JSON_INSTALLED` 仍留在框架 asmdef（事件基类 `[JsonIgnore]`、任务基类、事件调试器与存档迁移的 JSON 改写都无守卫地用它，外置的只是 `JsonHandler` 实现类）；`com.tuyoogame.yooasset` 同理，YooAsset 是资源默认后端、不发行插件。
+- 其余可选包见 Runtime asmdef 的 versionDefines（Unity UI 两档/Mathematics/Newtonsoft.Json/TextMeshPro/Timeline/R3/HybridCLR/Obfuz）。asmdef 对未安装包的 GUID 引用按 Unity 惯例静默跳过（部分引用在 Client 未装而照常编译）——引用缺失不报错，缺的是宏。
+- **三方兼容后端整批不在框架里**：日志（Serilog / Unity Logging / ZLogger）、字符串（ZString / Newtonsoft.Json）、补间（LitMotion / PrimeTween）、对象（Photon Fusion）、资源（Addressables）、音频（FMOD / Wwise）、存档（MemoryPack / MessagePack / protobuf-net / Unity Cloud Save）——插件目录各发行一支，程序集 `Moirai.Plugin.*`，框架只留默认/内置后端；装了对应插件才会出现在 settings 的 Provider 下拉里。门控宏分两档：`ZSTRING_INSTALLED`/`LITMOTION_INSTALLED`/`ADDRESSABLES_INSTALLED`/`UNITY_LOGGING_INSTALLED`/`UNITY_CLOUD_SAVE_INSTALLED`/`ZLOGGER_INSTALLED` 由插件的 versionDefines 定义，`SERILOG_INSTALLED`/`FMOD_INSTALLED`/`WWISE_INSTALLED`/`FUSION2`/`PRIME_TWEEN_INSTALLED`/`MEMORYPACK_INSTALLED`/`MESSAGEPACK_INSTALLED`/`PROTOBUF_INSTALLED` 是工程侧手写档（`PRIME_TWEEN_INSTALLED` 手写的原因：插件目录里那份经 `.asmref` 编进 `PrimeTween.Runtime` 的扩展看不见本插件 asmdef 的宏）。两处例外：`com.unity.nuget.newtonsoft-json` 仍是 `package.json` 硬依赖且 `NEWTONSOFT_JSON_INSTALLED` 仍留在框架 asmdef（事件基类 `[JsonIgnore]`、任务基类、事件调试器与存档迁移的 JSON 改写都无守卫地用它，外置的只是 `JsonHandler` 实现类）；`com.tuyoogame.yooasset` 同理，YooAsset 是资源默认后端、不发行插件。
 
 ### 开发工具
 - **Odin Inspector** - 编辑器增强

@@ -164,7 +164,6 @@ public class NewUI : UGUIWindow
 - **变更说明**：[说明]
 
 ### 迁移统计
-- 文件数量：{file_count}
 - 代码行数：{line_count}
 - 迁移时间：{time}
 

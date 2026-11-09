@@ -132,7 +132,7 @@ namespace Moirai.Atropos.Debugger
             _activeWindow = ResolveActivation(Internal_ActiveWindowTypeOverride ?? DebuggerServiceSettings.ActiveWindowType);
             if (_activeWindow)
             {
-                // 内置窗口随激活门控：从不打开的构建里不该付 27 个窗体的构造与 Initialize
+                // 内置窗口随激活门控：从不打开的构建里不该付全部窗体的构造与 Initialize
                 EnsureBuiltInWindowsRegistered();
                 // 日志捕获随激活门控——AlwaysClose（生产）下不订阅日志回调、不驻留环形缓冲
                 _logCapture.Start();

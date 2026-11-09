@@ -30,16 +30,6 @@
 - 结论依赖**托管分配计量** → L3（编辑器 Mono 的 `GC.GetAllocatedBytesForCurrentThread()` 恒返回 0，见下文《0-GC 验收》）。
 - 只是"想知道现在有多快" → L4，且必须 `[Explicit]`。
 
-### 当前分布（2026-10-10 复算，测试方法数口径）
-
-| 层 | 文件 | 用例 |
-|---|---|---|
-| L1 | 180（含支撑文件） | 2215 |
-| L2 | 23（测试 15：Audio×11 + Kernel + Tasks + Timer + Scene；其余为支撑/host） | 122（另 1 格 skipped） |
-| L3 | 10 | 28 |
-
-「用例」列取当日整趟运行回执（含 `[TestCase]` 展开），复现口径是运行 `run g-l1-1 | passed 2215 | failed 0`、`run g-l2-1 | passed 122 | failed 0 | skipped 1`；按源码声明数另用 `grep -rh '\[Test' Tests/<层> --include=*.cs | grep -c '^\s*\[Test\]'`（该口径不含 `[TestCase]` 行，故比回执小）。
-
 ## 覆盖目标
 
 按「用例价值判据」（删掉这格缺陷能不能回来）滚动补齐，不追覆盖率数字。当前缺口账本（2026-09-27）：
@@ -392,13 +382,13 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 **反膨胀原则**（存量不追改、增量强制）：
 
 - 存量方法名不批量改三段式；新增用例必须三段式。
-- 夹具基座的触发条件 = 同模块 ≥2 个文件共享 setup；不 blanket 建基座、不 blanket 给 83 个 SetUp 加断言。
+- 夹具基座的触发条件 = 同模块 ≥2 个文件共享 setup；不 blanket 建基座、不 blanket 给 SetUp 加断言。
 - 每个新增用例必须映射「契约 / 风险 / 回归锁」之一，无映射不写；新测试文件 ≤8 格，断言行为不断言实现。
 - 重复的断言/理由文本抽共享 const 单点维护：同程序集进 `Support/`（如 `AudioGroupIgnoreReasons` 的探测能力与恢复条件句式），跨程序集不可共享时单文件抽私有 const——口径一处改、处处新，不得逐字复制同一段理由文本。
 
 **教训账本**（踩过即入规）：
 
-- 「孤儿 partial」判定必须先排除**源生成器喂养的类**——SaveFieldCapturerGenerator 编译期注入第二分部，grep 不可见（2026-09-27 审计 A-18 假阳性，执行 8 处后当场撤销）。
+- 「孤儿 partial」判定必须先排除**源生成器喂养的类**——SaveFieldCapturerGenerator 编译期注入第二分部，grep 不可见（2026-09-27 审计 A-18 假阳性，执行后当场撤销）。
 - `GetAllTimers(null)` 按契约返回 0——不是计数通道，活跃数走 `GetStatistics`。
 - C# 9 不缓存方法组转换：基准与热路径的回调必须缓存为静态字段。
 - 跨程序集测试支撑不可共享（asmdef 拓扑），复制属可接受形态（如 Player 版 AudioCacheTestSupport）。
