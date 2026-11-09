@@ -15,7 +15,7 @@
 
 ### 证据交付格式
 交付四件：变更内容、实际执行的验证（命令与退出码/读数行原文）、剩余风险与阻塞、未执行的检查及原因。
-**没有证据的检查不得标成通过**；「工具调用返回成功」不等于结论，结论取落盘报告（见下文测试桥与判绿门禁）。
+**没有证据的检查不得标成通过**；「工具调用返回成功」不等于结论，结论取回执的 `Summary` 与 `Results[]`（见下文 pipeline 测试通道与判绿门禁）。
 
 ### 清退纪律
 工具、通道或入口档退出使用时，同轮清掉它们的引用面与场景（TEngine 工作流同款口径：
@@ -27,38 +27,37 @@
 
 ## 编译门
 
-1. 读宿主 `Client/Temp/MoiraiEditorState.json`，确认 `isCompiling`、`isUpdating`、`isChangingPlayMode` 全为 false。
-2. 需要重编时写 `Client/Temp/MoiraiEditorCommand.json`：`{"id":"<唯一串>","action":"recompile"}`，回执读 `MoiraiEditorCommand.result.json`；`action` 白名单只有 `focus` / `refresh` / `recompile`。
-3. 判绿要同时满足：`consoleErrors == 0`；`Library/ScriptAssemblies/Moirai.Plugin.<名>.dll` 的 mtime 越过本次改动时刻；`domainSeq` 有推进。
-4. 增删 `.cs` 时先 `refresh` 再 `recompile`。
-5. 测试请求必须按插件选择真实存在的装配（如 `Moirai.Plugin.MessagePack.Tests`）；没有测试装配的插件不得编造装配名。
+1. 先判活：`unity status` 的 `status` 为 `ready`，`unity command editor status` 的 `compiling`、`domainReloadInProgress` 全为 false。
+2. 触发编译：`unity recompile --project-path 'P' --timeout 420 --format json`（含 asset refresh）；退出码 `0` 编过 / `6` 编译报错 / `7` 连不到编辑器。结论以 `unity command script recompile_status` 的 `{status, failed, errors[], compilationFailed}` 为准，`exit=6` 单独不构成结论。
+3. 判绿要同时满足：`script recompile_status` 的 `failed:false` 且 `errors:[]`；`Library/ScriptAssemblies/Moirai.Plugin.<名>.dll` 的 mtime 越过本次改动时刻；`unity status` 的 `codeLoadCount` 有推进。
+4. 不要再叠发 `script recompile`：`unity recompile` 已含刷新与编译。
+5. 测试必须按插件选择真实存在的装配（如 `Moirai.Plugin.MessagePack.Tests`）；没有测试装配的插件不得编造装配名。
 
 ## 测试门
 
-只有 6 个插件有测试装配：`Moirai.Plugin.Addressables.Tests`、`Moirai.Plugin.Fmod.Tests`、`Moirai.Plugin.MemoryPack.Tests`、`Moirai.Plugin.MessagePack.Tests`、`Moirai.Plugin.Protobuf.Tests`、`Moirai.Plugin.Wwise.Tests`。其余插件不投测试请求。
+只有 6 个插件有测试装配：`Moirai.Plugin.Addressables.Tests`、`Moirai.Plugin.Fmod.Tests`、`Moirai.Plugin.MemoryPack.Tests`、`Moirai.Plugin.MessagePack.Tests`、`Moirai.Plugin.Protobuf.Tests`、`Moirai.Plugin.Wwise.Tests`。其余插件不投测试。
 
-请求示例：
-
-```json
-{"id":"plugin-<唯一串>","mode":"EditMode","output":"Temp/MoiraiTestResult-<唯一串>.json","assemblies":["Moirai.Plugin.MessagePack.Tests"],"tests":[],"timeoutSeconds":600}
+```bash
+unity command test run --project-path 'P' --mode editor --filter-type assembly --filter "Moirai.Plugin.MessagePack.Tests" --detach --format json
+unity job wait <job-id> --project-path 'P' --timeout 600 --poll-interval 5000 --format json
 ```
 
-- 投单后只轮询 `output`、`output.done`、`output.progress`；不要再读 `MoiraiTestRequest.json`。
-- 只认内容等于本次 `id` 的 `.done`；结论取 `output` 首行，`failed == 0` 才算通过，`skipped` 不计通过，`ABORTED` 按未收口处理。
-- 并行会话用带 `plugin` 前缀的唯一 `id`，不复用别人的 `tag`/输出路径。
+- 结论取 `data.result.Summary` 与 `Results[]`：`Failed == 0` 且 `Total` 等于预期格数才算通过。
+- `Skipped`/`Inconclusive` 不计通过；`Total 0` 不报错但也不是绿——先读计数再谈结论。
+- 长单用 `--detach` 回 `jobId`，再 `unity job wait` 收口；前台直跑会被 CLI 的 30 秒命令超时打断。
 
 ## 新鲜度三段
 
 | 段 | 本包能不能取到 | 写法 |
 |---|---|---|
 | 源树 mtime → 归属产物 mtime | 能 | 比源文件与 `Library/ScriptAssemblies/Moirai.Plugin.<名>.dll` |
-| `domainSeq` 是否推进 | 能 | 投命令前后各读一次状态桥 |
-| `domainDllUnix` 是否等于本次所投程序集产物 mtime | **不能** | 状态桥只跟踪框架四份程序集；按"未取证"写 |
+| `codeLoadCount` 是否推进 | 能 | 改动前后各读一次 `unity status` |
+| 产物是否覆盖本插件 | 能 | 直接比 `Moirai.Plugin.<名>.dll` 的 mtime；不拿框架读数冒充 |
 
 ## 不许做的验证捷径
 
 - 不用 `-batchmode` 另开同一工程（会与活动编辑器争锁）。
 - 不把"工具调用返回成功"当编译/测试通过。
 - 不在编译失败时用"上次的绿"当本轮结论。
-- 不向桥请求不存在的测试程序集。
+- 不向 pipeline 请求不存在的测试程序集。
 - 不把人工点验写成回归。

@@ -18,7 +18,7 @@ description: Moirai Framework Plugins（com.moirai.framework.plugin）的规范�
 
 ## 判据口径（按执行体）
 
-执行体在别处（宿主编辑器的文件桥、编译产物、仓库内的 asmdef/asmref 与 `.meta`）。本层只述口径、射程边界与修法优先级；判据形状要变时改执行体，本层跟着改述。
+执行体在别处（宿主编辑器的 pipeline 通道、编译产物、仓库内的 asmdef/asmref 与 `.meta`）。本层只述口径、射程边界与修法优先级；判据形状要变时改执行体，本层跟着改述。
 
 | 什么时候读 | 块 |
 |---|---|
