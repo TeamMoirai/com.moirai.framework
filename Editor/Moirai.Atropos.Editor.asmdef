@@ -23,11 +23,6 @@
     "versionDefines": [
         {
             "name": "com.unity.ugui",
-            "expression": "1.0.0",
-            "define": "UNITY_UGUI_INSTALLED"
-        },
-        {
-            "name": "com.unity.ugui",
             "expression": "2.0.0",
             "define": "UNITY_UGUI2_INSTALLED"
         },

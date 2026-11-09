@@ -24,11 +24,6 @@
     "versionDefines": [
         {
             "name": "com.unity.ugui",
-            "expression": "1.0.0",
-            "define": "UNITY_UGUI_INSTALLED"
-        },
-        {
-            "name": "com.unity.ugui",
             "expression": "2.0.0",
             "define": "UNITY_UGUI2_INSTALLED"
         },
@@ -56,11 +51,6 @@
             "name": "com.cysharp.r3",
             "expression": "1.0.0",
             "define": "R3_INSTALLED"
-        },
-        {
-            "name": "com.code-philosophy.hybridclr",
-            "expression": "2.0.0",
-            "define": "HYBRIDCLR_INSTALLED"
         },
         {
             "name": "com.code-philosophy.obfuz",
