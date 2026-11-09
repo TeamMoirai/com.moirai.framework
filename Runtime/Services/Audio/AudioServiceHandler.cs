@@ -86,6 +86,16 @@ namespace Moirai.Atropos.Audio
         public abstract void SetTrackVolume(EAudioTrack track, float volume);
 
         /// <summary>
+        /// 获取指定音轨的音高倍率（运行期，默认 1）。
+        /// </summary>
+        public abstract float GetTrackPitch(EAudioTrack track);
+
+        /// <summary>
+        /// 设置指定音轨的音高倍率，并让该音轨上正在播放的声部按新倍率重算音高。
+        /// </summary>
+        public abstract void SetTrackPitch(EAudioTrack track, float pitch);
+
+        /// <summary>
         /// 获取指定音轨的静音状态。
         /// </summary>
         public abstract bool GetTrackMute(EAudioTrack track);

@@ -61,6 +61,7 @@ namespace Moirai.Atropos.Audio
         // 在播 clip 的托管镜像：并发计数/按 clip 遍历按它预过滤，免逐声部原生读（BeginPlayback 写、EnterEndState 清）
         private AudioClip _clip;
         private float _volume = 1f;
+        private float _basePitch = AudioGroupConfig.DEFAULT_PITCH;
         private float _fadeInInitialVolume;
         private float _fadeInDuration = 1f;
         private TweenEase _fadeInTweenEase;
@@ -110,6 +111,29 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>音频代理辅助器的当前声源（若指定 <see cref="AudioPlayOptions.RecycleAudioSource"/> 则优先使用）。</summary>
         public AudioSource AudioResource => _recycleSource != null ? _recycleSource : _audioSource;
+
+        /// <summary>当前音轨的音高倍率（默认 1）。</summary>
+        private float CurrentTrackPitch => _audioHandler?.GetTrackPitch(_hot.Track) ?? AudioGroupConfig.DEFAULT_PITCH;
+
+        /// <summary>
+        /// 设置该声部自身的基础音高（不含音轨倍率），并按当前音轨倍率重算实际音高。
+        /// </summary>
+        public void SetPitch(float basePitch)
+        {
+            _basePitch = basePitch;
+            RefreshTrackPitch();
+        }
+
+        /// <summary>
+        /// 音轨倍率变化后，按基础音高重算实际音高。
+        /// </summary>
+        internal void RefreshTrackPitch()
+        {
+            AudioSource source = AudioResource;
+            if (source == null) return;
+
+            source.pitch = _basePitch * CurrentTrackPitch;
+        }
 
         /// <summary>当前优先级（0 最高，255 最低）。用于 Voice Stealing。</summary>
         public int Priority => _priority;
@@ -475,7 +499,8 @@ namespace Moirai.Atropos.Audio
             }
 
             _clip = clip;
-            source.pitch = _hot.Pitch;
+            _basePitch = _hot.Pitch;
+            source.pitch = _basePitch * CurrentTrackPitch;
             source.priority = _hot.Priority;
             source.clip = clip;
             source.loop = _loop;

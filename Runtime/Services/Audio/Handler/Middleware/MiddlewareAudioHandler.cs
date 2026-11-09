@@ -124,6 +124,7 @@ namespace Moirai.Atropos.Audio.Middleware
         [NonSerialized] private bool _masterMute;
         [NonSerialized] private float[] _trackVolumes;
         [NonSerialized] private bool[] _trackMutes;
+        [NonSerialized] private float[] _trackPitches;
         // 音轨暂停标记 _pausedTracks 已上移到契约（数组仍在这里的 EnsureTrackArrays 懒建）
 
         [Header("事件映射表 [Event Map]")]
@@ -173,8 +174,13 @@ namespace Moirai.Atropos.Audio.Middleware
             int count = Enum.GetValues(typeof(EAudioTrack)).Length;
             _trackVolumes = new float[count];
             _trackMutes = new bool[count];
+            _trackPitches = new float[count];
             _pausedTracks = new bool[count];
-            for (int i = 0; i < count; i++) _trackVolumes[i] = 1f;
+            for (int i = 0; i < count; i++)
+            {
+                _trackVolumes[i] = 1f;
+                _trackPitches[i] = AudioGroupConfig.DEFAULT_PITCH;
+            }
         }
 
         #region 处理器属性 [PROPERTIES]
@@ -300,6 +306,26 @@ namespace Moirai.Atropos.Audio.Middleware
             if (index < 0 || index >= _trackVolumes.Length) return;
             _trackVolumes[index] = Mathf.Clamp(volume, 0f, AudioGroupConfig.MAXIMAL_VOLUME);
             ApplyTrackBus(track);
+        }
+
+        /// <inheritdoc />
+        public override float GetTrackPitch(EAudioTrack track)
+        {
+            if (_engineUnavailable) return AudioGroupConfig.DEFAULT_PITCH;
+            EnsureTrackArrays();
+            int index = (int)track;
+            return index >= 0 && index < _trackPitches.Length ? _trackPitches[index] : AudioGroupConfig.DEFAULT_PITCH;
+        }
+
+        /// <inheritdoc />
+        /// <remarks>中间件后端只对之后播放的事件生效；已在播事件无法通过桥接接口改音高。</remarks>
+        public override void SetTrackPitch(EAudioTrack track, float pitch)
+        {
+            if (_engineUnavailable) return;
+            EnsureTrackArrays();
+            int index = (int)track;
+            if (index < 0 || index >= _trackPitches.Length) return;
+            _trackPitches[index] = Mathf.Clamp(pitch, AudioGroupConfig.MINIMAL_PITCH, AudioGroupConfig.MAXIMAL_PITCH);
         }
 
         /// <inheritdoc />
@@ -690,7 +716,7 @@ namespace Moirai.Atropos.Audio.Middleware
             Vector3? pos = cold != null && cold.Spatial.SpatialBlend > 0.5f ? cold.Location : (Vector3?)null;
             AudioPlayColdParamsPool.Release(cold);
 
-            ulong instanceId = _bridge.PlayEvent(eventPath, request.Volume, request.Pitch, request.Loop, pos);
+            ulong instanceId = _bridge.PlayEvent(eventPath, request.Volume, request.Pitch * GetTrackPitch(request.Track), request.Loop, pos);
             if (instanceId == 0UL)
             {
                 // SDK 侧播放失败只给一个 0，不留痕就等于线上「这个音效偶尔不响」永远无从归因：

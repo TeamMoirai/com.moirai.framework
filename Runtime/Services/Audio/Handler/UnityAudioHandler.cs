@@ -189,6 +189,38 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
+        public override float GetTrackPitch(EAudioTrack track)
+        {
+            if (_unityAudioDisabled) return AudioGroupConfig.DEFAULT_PITCH;
+            return FindConfig(track)?.Pitch ?? AudioGroupConfig.DEFAULT_PITCH;
+        }
+
+        /// <inheritdoc />
+        public override void SetTrackPitch(EAudioTrack track, float pitch)
+        {
+            if (_unityAudioDisabled) return;
+            var config = FindConfig(track);
+            if (config == null) return;
+
+            config.Pitch = pitch;
+            ApplyTrackPitch(track);
+        }
+
+        /// <summary>
+        /// 让指定音轨上正在播放的声部按各自的基础音高新倍率重算音高。
+        /// </summary>
+        private void ApplyTrackPitch(EAudioTrack track)
+        {
+            AudioCategory category = FindCategory(track);
+            if (category?.AudioAgents == null) return;
+
+            for (int i = 0; i < category.AudioAgents.Count; i++)
+            {
+                category.AudioAgents[i]?.RefreshTrackPitch();
+            }
+        }
+
+        /// <inheritdoc />
         public override bool GetTrackMute(EAudioTrack track)
         {
             if (_unityAudioDisabled) return false;
