@@ -13,7 +13,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.TextCore;
 
-namespace Moirai.Atropos.Editor.Input.Prompts
+namespace Moirai.Atropos.Input.Prompts
 {
     [CustomEditor(typeof(GlyphCollection))]
     public class GlyphCollectionEditor : OdinEditor

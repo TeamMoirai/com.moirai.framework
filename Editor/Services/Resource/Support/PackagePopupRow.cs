@@ -2,7 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Resource.Editor
+namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 资源包名下拉行的唯一构建器：清单取自 <see cref="ResourcePackageBridge.GetPackageNames"/>（按域缓存），

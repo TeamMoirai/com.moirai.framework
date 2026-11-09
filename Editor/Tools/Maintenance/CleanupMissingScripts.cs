@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 清理所选 GameObjects 上所有缺失的脚本。

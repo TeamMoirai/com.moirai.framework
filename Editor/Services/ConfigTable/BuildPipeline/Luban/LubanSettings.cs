@@ -2,11 +2,11 @@
 using System;
 using Sirenix.OdinInspector;
 using System.IO;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.ConfigTable
+namespace Moirai.Atropos.ConfigTable.Luban
 {
     [FrameworkSetting("[框架]Luban 配置", "配置表导出与代码生成路径", -509,
         "Assets/Settings/Framework/Editor/")]

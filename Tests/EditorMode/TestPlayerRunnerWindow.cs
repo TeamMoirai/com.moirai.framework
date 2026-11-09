@@ -9,7 +9,7 @@ using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Moirai.Atropos.Editor.Testing
+namespace Moirai.Atropos.Testing
 {
     /// <summary>
     /// Test Player Runner：收拢「在 Player 里跑测试」的启动参数并一键发起的编辑器窗口。

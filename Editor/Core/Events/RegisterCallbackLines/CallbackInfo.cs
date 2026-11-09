@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 已注册回调列表中的回调行，表示某元素注册的一种事件类型。

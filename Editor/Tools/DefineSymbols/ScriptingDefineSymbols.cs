@@ -6,7 +6,7 @@ using UnityEditor;
 using UnityEditor.Build;
 #endif
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 脚本宏定义操作类。

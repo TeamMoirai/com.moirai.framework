@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Resource;
-using Moirai.Atropos.Resource.Editor;
+using Moirai.Atropos.Resource.YooAsset;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;

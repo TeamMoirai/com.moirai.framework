@@ -7,7 +7,7 @@ using Moirai.Atropos.Save;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor.Save
+namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档模式快照导出器：扫描全部 <see cref="SaveDataAttribute"/> 二进制后端类型，按分析器同款规则提取成员键序号，写出项目根目录 <c>.SaveSchemaSnapshot</c>。

@@ -1,6 +1,6 @@
 using UnityEditor;
 
-namespace Moirai.Atropos.Localization.Editor
+namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 项目资产变更（含 Luban 转表回写、表格字节重导）后丢弃本地化编辑器预览缓存。

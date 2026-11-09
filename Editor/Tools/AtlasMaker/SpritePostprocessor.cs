@@ -5,7 +5,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.AtlasMaker
 {
     public class SpritePostprocessor : AssetPostprocessor
     {

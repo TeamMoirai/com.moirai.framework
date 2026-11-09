@@ -3,7 +3,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace Moirai.Atropos.Resource.Editor
+namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 构建期设置自检：出包前复用运行期那份「只报不改」的判据 <see cref="ResourceServiceSettings.GetConfigurationIssues"/>，配置有问题时报出。
@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Resource.Editor
     public class ResourceSettingsBuildValidator : IPreprocessBuildWithReport
     {
         /// <summary>开严开关：CI 上想让坏配置直接挡包时设成 1。</summary>
-        public const string StrictEnvironmentVariable = "MOIRAI_RESOURCE_SETTINGS_STRICT";
+        public const string STRICT_ENVIRONMENT_VARIABLE = "MOIRAI_RESOURCE_SETTINGS_STRICT";
 
         /// <summary>排在资源清单生成之后：那条会写 StreamingAssets，配置问题该在产物落盘后再报。</summary>
         public int callbackOrder => 100;
@@ -43,7 +43,7 @@ namespace Moirai.Atropos.Resource.Editor
             if (IsStrictMode())
             {
                 throw new BuildFailedException(
-                    $"ResourceServiceSettings has {count} configuration issue(s) and {StrictEnvironmentVariable} is set; " +
+                    $"ResourceServiceSettings has {count} configuration issue(s) and {STRICT_ENVIRONMENT_VARIABLE} is set; " +
                     "see the warnings above.");
             }
         }
@@ -61,7 +61,7 @@ namespace Moirai.Atropos.Resource.Editor
 
         private static bool IsStrictMode()
         {
-            string value = Environment.GetEnvironmentVariable(StrictEnvironmentVariable);
+            string value = Environment.GetEnvironmentVariable(STRICT_ENVIRONMENT_VARIABLE);
             return !string.IsNullOrEmpty(value) && value != "0";
         }
     }

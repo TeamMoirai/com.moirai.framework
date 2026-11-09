@@ -3,7 +3,7 @@ using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Resource.Editor
+namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 为 <see cref="ResourcePackageDropdownAttribute"/> 提供绘制：单行「包名下拉」，显示行统一由 <see cref="ResourcePackagePopup"/> 构建，

@@ -12,7 +12,7 @@ using Obfuz.Settings;
 using Obfuz4HybridCLR;
 #endif
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.HybridCLR
 {
     public static class BuildDLLCommand
     {

@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Text;
 using Moirai.Atropos.Save;
 
-namespace Moirai.Atropos.Editor.Save
+namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// KVT 结构化预览格式化器：把键值捕获字节解析为缩进树文本（存档浏览器预览面板用）。

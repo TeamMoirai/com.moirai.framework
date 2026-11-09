@@ -8,7 +8,7 @@ using UnityEditor.UIElements;
 using Toolbar = UnityEditor.UIElements.Toolbar;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 事件协调器下拉选项抽象接口，用于在调试器工具栏中呈现可选的事件协调器。

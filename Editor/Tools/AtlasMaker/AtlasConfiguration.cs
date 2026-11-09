@@ -1,8 +1,7 @@
-﻿#if UNITY_EDITOR
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.AtlasMaker
 {
     [FilePath("ProjectSettings/AtlasConfiguration.asset", FilePathAttribute.Location.ProjectFolder)]
     public class AtlasConfiguration : ScriptableSingleton<AtlasConfiguration>
@@ -55,4 +54,3 @@ namespace Moirai.Atropos.Editor
         }
     }
 }
-#endif

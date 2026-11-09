@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 已注册回调列表中的代码行，记录回调注册点的源文件、行号与高亮状态。

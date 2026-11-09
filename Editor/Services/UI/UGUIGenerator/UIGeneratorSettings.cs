@@ -4,7 +4,7 @@ using Moirai.Atropos.Attributes;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace Moirai.Atropos.UI.Editor
+namespace Moirai.Atropos.UGUIGenerator
 {
     [FrameworkSetting("[框架]UGUI组件生成", "自动生成组件绑定代码设置", -459,
         "Assets/Settings/Framework/Editor/")]
@@ -161,12 +161,12 @@ namespace Moirai.Atropos.UI.Editor
                 // ReSharper disable once StringLiteralTypo
                 new UIElementRegexData("Pbar", "Moirai.Clotho.UI.ProgressBar"),
 
-#if MOIRAI_CLOTHO_UIPRO
+#if MOIRAI_UGUI_PRO_INSTALLED
                 // ReSharper disable once StringLiteralTypo
-                new UIElementRegexData("Crsl","Moirai.Clotho.UIPro.Carousel"),
+                new UIElementRegexData("Crsl","Moirai.Clotho.UGUIPro.Carousel"),
                 // ReSharper disable once StringLiteralTypo
-                new UIElementRegexData("ListCrsl","Moirai.Clotho.UIPro.ListCarousel"),
-                new UIElementRegexData("SlideTog","Moirai.Clotho.UIPro.SlideToggle"),
+                new UIElementRegexData("ListCrsl","Moirai.Clotho.UGUIPro.ListCarousel"),
+                new UIElementRegexData("SlideTog","Moirai.Clotho.UGUIPro.SlideToggle"),
 #endif
 
                 // ----- 框架组件 - Juice -----
@@ -190,9 +190,9 @@ namespace Moirai.Atropos.UI.Editor
                 new UIEventBindingConfig("Moirai.Clotho.UI.ButtonSuper", "onClick", "Click", ""),
                 new UIEventBindingConfig("Moirai.Clotho.UI.UIMenu", "onValueChanged", "Change", "(int index)"),
                 new UIEventBindingConfig("Moirai.Clotho.UI.UIMenuItem", "onSubmit", "Submit", ""),
-#if MOIRAI_CLOTHO_UIPRO
-                new UIEventBindingConfig("Moirai.Clotho.UIPro.ListCarousel", "onValueChanged", "Change", "(int index)"),
-                new UIEventBindingConfig("Moirai.Clotho.UIPro.SlideToggle", "onValueChanged", "Change", "(bool isOn)"),
+#if MOIRAI_UGUI_PRO_INSTALLED
+                new UIEventBindingConfig("Moirai.Clotho.UGUIPro.ListCarousel", "onValueChanged", "Change", "(int index)"),
+                new UIEventBindingConfig("Moirai.Clotho.UGUIPro.SlideToggle", "onValueChanged", "Change", "(bool isOn)"),
 #endif
             };
         }

@@ -2,13 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using Moirai.Atropos.Save;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Editor.Save
+namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 资产引用收集器：扫描已打开场景中的 <see cref="SaveComponent"/>，把资产引用字段当前引用的资产登记进 <see cref="SaveAssetCatalog"/>。

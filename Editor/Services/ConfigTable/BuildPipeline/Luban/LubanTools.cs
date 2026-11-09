@@ -1,9 +1,9 @@
-using Moirai.Atropos.Editor;
+using Moirai.Atropos;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.ConfigTable.Editor
+namespace Moirai.Atropos.ConfigTable.Luban
 {
     public static class LubanTools
     {

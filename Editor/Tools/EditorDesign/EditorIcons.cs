@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 编辑器图标浏览器：列出 Unity 内置图标，支持搜索过滤，并给出选中图标的 <c>EditorGUIUtility.IconContent("名")</c> 取用串。

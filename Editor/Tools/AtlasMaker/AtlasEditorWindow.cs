@@ -1,9 +1,8 @@
-﻿#if UNITY_EDITOR
-using System;
+﻿using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.AtlasMaker
 {
     public class AtlasConfigWindow : EditorWindow
     {
@@ -368,4 +367,3 @@ namespace Moirai.Atropos.Editor
         }
     }
 }
-#endif

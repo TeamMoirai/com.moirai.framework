@@ -4,7 +4,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace Moirai.Atropos.Save.Editor
+namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 构建期存档配置自检：出包前复用运行期判据，报出占位密钥与解析不到的默认序列化后端。
@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Save.Editor
     public class SaveSettingsBuildValidator : IPreprocessBuildWithReport
     {
         /// <summary>开严开关：CI 上想让配置瑕疵直接挡包时设成 1。</summary>
-        public const string StrictEnvironmentVariable = "MOIRAI_SAVE_SETTINGS_STRICT";
+        public const string STRICT_ENVIRONMENT_VARIABLE = "MOIRAI_SAVE_SETTINGS_STRICT";
 
         /// <summary>排在资源清单生成之后：配置问题该在产物落盘后再报。</summary>
         public int callbackOrder => 100;
@@ -43,7 +43,7 @@ namespace Moirai.Atropos.Save.Editor
             if (IsStrictMode())
             {
                 throw new BuildFailedException($"SaveServiceSettings has unresolved configuration and " +
-                    $"{StrictEnvironmentVariable} is set; {detail}");
+                    $"{STRICT_ENVIRONMENT_VARIABLE} is set; {detail}");
             }
         }
 
@@ -72,11 +72,11 @@ namespace Moirai.Atropos.Save.Editor
         }
 
         /// <summary>
-        /// 是否开严。读取 <see cref="StrictEnvironmentVariable"/>，缺省为关。
+        /// 是否开严。读取 <see cref="STRICT_ENVIRONMENT_VARIABLE"/>，缺省为关。
         /// </summary>
         internal static bool IsStrictMode()
         {
-            string value = Environment.GetEnvironmentVariable(StrictEnvironmentVariable);
+            string value = Environment.GetEnvironmentVariable(STRICT_ENVIRONMENT_VARIABLE);
             return !string.IsNullOrEmpty(value) && value != "0";
         }
 

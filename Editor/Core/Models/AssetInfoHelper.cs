@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEditor;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 编辑器用。

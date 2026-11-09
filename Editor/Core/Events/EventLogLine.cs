@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 事件日志中的一行，记录单个事件的行号、时间戳、事件名、目标对象及原始事件数据。

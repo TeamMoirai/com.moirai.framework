@@ -7,7 +7,7 @@ using UnityEngine;
 using YooAsset;
 using YooAsset.Editor;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 打包配置（AssetBundle + Player）。

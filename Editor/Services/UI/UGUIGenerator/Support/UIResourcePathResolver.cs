@@ -1,10 +1,9 @@
 using System;
 using System.IO;
 using Moirai.Atropos.Resource;
-using Moirai.Atropos.Resource.Editor;
 using UnityEngine;
 
-namespace Moirai.Atropos.UI.Editor
+namespace Moirai.Atropos.UGUIGenerator
 {
     /// <summary>
     /// 资源路径解析器接口，定义UI资源路径的解析规则。

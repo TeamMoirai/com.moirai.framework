@@ -3,7 +3,7 @@ using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Localization.Editor
+namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 本地化组件的 Inspector 预览：在 ID 字段下方显示按预览语言解析出的译文、资源地址与该地址指向的资产。

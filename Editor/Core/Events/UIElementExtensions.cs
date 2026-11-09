@@ -1,7 +1,7 @@
 using System;
 using UnityEngine.UIElements;
 
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 表示未找到指定名称的 VisualElement 时抛出的异常。

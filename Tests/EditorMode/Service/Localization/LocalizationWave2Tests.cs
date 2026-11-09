@@ -448,17 +448,17 @@ namespace Service.Localization
         {
             try
             {
-                Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.BakeLanguage("French");
-                Assert.AreEqual("fr", Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.GetBakedLanguageCode(),
+                Moirai.Atropos.Localization.LocalizationBuildBaker.BakeLanguage("French");
+                Assert.AreEqual("fr", Moirai.Atropos.Localization.LocalizationBuildBaker.GetBakedLanguageCode(),
                     "烘焙按语言 Code 落盘，与运行期消费面一致");
 
-                Assert.IsTrue(Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.ClearBaked());
-                Assert.IsNull(Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.GetBakedLanguageCode());
-                Assert.IsFalse(Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.ClearBaked(), "重复清除应返回 false");
+                Assert.IsTrue(Moirai.Atropos.Localization.LocalizationBuildBaker.ClearBaked());
+                Assert.IsNull(Moirai.Atropos.Localization.LocalizationBuildBaker.GetBakedLanguageCode());
+                Assert.IsFalse(Moirai.Atropos.Localization.LocalizationBuildBaker.ClearBaked(), "重复清除应返回 false");
             }
             finally
             {
-                Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.ClearBaked();
+                Moirai.Atropos.Localization.LocalizationBuildBaker.ClearBaked();
             }
         }
 
@@ -466,7 +466,7 @@ namespace Service.Localization
         public void BakeLanguage_UnknownCode_Throws()
         {
             Assert.Throws<System.ArgumentException>(() =>
-                Moirai.Atropos.Localization.Editor.LocalizationBuildBaker.BakeLanguage("klingon"));
+                Moirai.Atropos.Localization.LocalizationBuildBaker.BakeLanguage("klingon"));
         }
 
         #endregion

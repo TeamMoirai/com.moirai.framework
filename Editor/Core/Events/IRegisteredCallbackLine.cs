@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 已注册回调列表的行类型。

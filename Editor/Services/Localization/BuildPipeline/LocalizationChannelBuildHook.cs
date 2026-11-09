@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 
-namespace Moirai.Atropos.Localization.Editor
+namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 构建期渠道语言烘焙钩子：出包前读取命令行参数 <c>localizationLanguage</c>，非空即按值烘焙 <c>LocalizationBuildConfig</c>，缺省不动现有烘焙产物。

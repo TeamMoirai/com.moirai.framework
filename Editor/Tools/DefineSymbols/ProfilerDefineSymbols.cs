@@ -1,6 +1,6 @@
 ﻿using UnityEditor;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// Profiler分析器宏定义操作类。

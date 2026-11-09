@@ -5,7 +5,7 @@ using Moirai.Atropos.Save;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor.Save
+namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// SaveComponent 编辑器：为每个目标绑定展示其组件类型上全部 <see cref="SaveFieldAttribute"/> 标注字段（含私有），勾选结果写回绑定配置。
