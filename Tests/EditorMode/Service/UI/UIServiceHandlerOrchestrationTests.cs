@@ -916,7 +916,7 @@ namespace Service.UI
         /// </summary>
         /// <remarks>
         /// 这一格把「新立一轨不许自带一份存储」升成派生类清单：新增处理器没进构造清单就红在这里，判据只遍历 API 形状取派生类、经既有的 internal 门缝取引用， <br />
-        /// 不反射读写字段（房内口径见 <c>CLAUDE.md</c>「测试可见性」）。 <br />
+        /// 不反射读写字段（房内口径见 <c>AGENT.md</c>「测试可见性」）。 <br />
         /// 清单就是运行时装配里那两个具体派生类：内建两支后端各一个，槽位收的也是这两个的类型。 <br />
         /// 「不许自带第二份持有者」那一半原本由这里比引用，<c>Ledger</c> 改成现读之后那一比恒真（两边都是门面那一位）， <br />
         /// 有牙的版本挪到 <c>SharedStack_HandlerBornBeforeStorageRenewal_ReadsTheCurrentStack</c>：那一格先换掉存储再认领，快照与现读在那一档分得出。

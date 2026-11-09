@@ -5,7 +5,7 @@
 ## 开发流程
 
 1. Fork / 拉取仓库，从 `master` 切出功能分支。
-2. 模块文档只有中文一份，落在 `Documentation~/<模块>.md`；公共 API 变更同步对应那一篇（口径见 `.claude/skills/moirai-conventions/references/release.md`）。
+2. 模块文档只有中文一份，落在 `Documentation~/<模块>.md`；公共 API 变更同步对应那一篇（口径见 `.agent/skills/moirai-conventions/references/release.md`）。
 3. 变更记入 [CHANGELOG.md](CHANGELOG.md) 的 `[Unreleased]` 段——格式遵循 Keep a Changelog，只记尚未发行的净结果，具体排版规则见该文件头部说明。
 4. 提交信息格式为 `类型(范围): 摘要`，如 `feat(save): ...`、`fix(json): ...`、`docs(ui): ...`、`refactor(resource): ...`。
 5. 提交前跑测试（见 [Testing 文档](Documentation~/Testing.md)），确认既有用例不红。
