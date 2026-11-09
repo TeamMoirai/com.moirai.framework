@@ -247,16 +247,10 @@ namespace Moirai.Atropos.PackageManager
                 return false;
             }
 
-            // checkout -B 会把本地分支强行挪到 origin 那份：未推送的本地提交会从分支上掉下去
-            // （工作树却是干净的，脏树门禁拦不住它）。落点同时也是插件作者的提交现场，故先问一句。
-            if (!IsLocalBranchAheadOfOrigin(out string aheadReason))
-            {
-                failureReason = aheadReason;
-                return false;
-            }
-
+            // 检出只是远端分支的缓存：一律强制摆正到 origin 那份。
+            // 本地未推送的提交与未提交改动直接丢弃（-f 连同挡路的未跟踪文件一起覆盖），冲突时就地重置，不询问。
             GitRunResult checkout = RunQuery(
-                $"checkout -B {GitProcessUtility.Quote(_branch)} {GitProcessUtility.Quote("refs/remotes/origin/" + _branch)}",
+                $"checkout -f -B {GitProcessUtility.Quote(_branch)} {GitProcessUtility.Quote("refs/remotes/origin/" + _branch)}",
                 out _, out _);
             if (!checkout.Ok)
             {
@@ -266,37 +260,6 @@ namespace Moirai.Atropos.PackageManager
 
             failureReason = null;
             return true;
-        }
-
-        /// <summary>本地分支是否领先 origin（有未推送提交）；领先即拒绝摆正，绝不静默丢提交。</summary>
-        private bool IsLocalBranchAheadOfOrigin(out string failureReason)
-        {
-            GitRunResult head = RunQuery("rev-parse --verify --quiet HEAD", out _, out _);
-            if (!head.Ok)
-            {
-                failureReason = null;
-                return true;
-            }
-
-            GitRunResult ahead = RunQuery($"rev-list --count refs/remotes/origin/{_branch}..HEAD",
-                out string countText, out _);
-            if (!ahead.Ok)
-            {
-                failureReason = null;
-                return true;
-            }
-
-            int count = 0;
-            int.TryParse(countText.Trim(), out count);
-            if (count <= 0)
-            {
-                failureReason = null;
-                return true;
-            }
-
-            failureReason = $"落点分支 '{_branch}' 有 {count} 次未推送的提交，摆正分支会把它们从分支上挪走：" +
-                            $"{_workingDirectory}　先推送或另挪分支再装卸";
-            return false;
         }
 
         /// <summary>
@@ -309,28 +272,6 @@ namespace Moirai.Atropos.PackageManager
             GitRunResult result = RunQuery($"fetch --filter=blob:none origin {GitProcessUtility.Quote(_branch)}", out _, out _);
             failureReason = result.Ok ? null : $"fetch 失败：{result.FailureReason()}";
             return result.Ok;
-        }
-
-        /// <summary>
-        /// 报 HEAD 所在分支与工作树脏否；分离头指针时分支名为空。
-        /// </summary>
-        internal bool TryDescribeHead(out string headBranch, out bool isDirty, out string failureReason)
-        {
-            headBranch = null;
-
-            GitRunResult symbolic = RunQuery("symbolic-ref --short -q HEAD", out string symbolicText, out _);
-            if (symbolic.Ok) headBranch = symbolicText.Trim();
-            // 分离头指针时 symbolic-ref 以非零退出，这是已知形状而不是故障。
-
-            return TryReadDirty(out isDirty, out failureReason);
-        }
-
-        private bool TryReadDirty(out bool isDirty, out string failureReason)
-        {
-            GitRunResult status = RunQuery("status --porcelain", out string text, out _);
-            isDirty = status.Ok && text.Length > 0;
-            failureReason = status.Ok ? null : $"读工作树状态失败：{status.FailureReason()}";
-            return status.Ok;
         }
 
         /// <summary>

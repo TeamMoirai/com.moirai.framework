@@ -492,29 +492,34 @@ namespace Tools.PackageManager
         }
 
         [Test]
-        public void EnsureBranchAttached_UnpushedLocalCommit_RefusesInsteadOfRewinding()
+        public void EnsureBranchAttached_UnpushedLocalCommit_ResetsToRemote()
         {
             PluginPackageSource source = CloneAndAttach();
             Assert.IsTrue(source.ApplySparsePaths(new[] { "blackboard" }, out string sparseReason), sparseReason);
 
             string authored = Path.Combine(_workspace, "blackboard", "AuthorWork.cs");
-            File.WriteAllText(authored, "// 插件作者在本地的提交内容\n");
+            File.WriteAllText(authored, "// 本地提交的内容\n");
             RunInWorkspace("add -A");
             RunInWorkspace("-c user.email=author@test -c user.name=author commit -qm \"author local commit\"");
 
             Assert.AreEqual(1, CountAheadOfOrigin(), "夹具自己要先真有一条未推送提交");
-            GitRunResult status = GitProcessUtility.Run(null, _workspace, "status --porcelain", 60000);
-            AssertIsEmpty(status.StandardOutput, "工作树必须干净，否则先被脏树门禁兜住，测不到这条");
 
-            Assert.IsFalse(source.EnsureBranchAttached(out string attachReason), "未推送的提交不许被 checkout -B 挪走");
-            StringAssert.Contains("未推送", attachReason);
-            Assert.AreEqual(1, CountAheadOfOrigin(), "分支不许被重置回 origin");
-            Assert.IsTrue(File.Exists(authored), "作者写的那份文件得还在");
+            Assert.IsTrue(source.EnsureBranchAttached(out string attachReason), attachReason);
+            Assert.AreEqual(0, CountAheadOfOrigin(), "落点以远端为准：本地提交要被重置掉");
+            Assert.IsFalse(File.Exists(authored), "本地提交带来的文件要随重置撤下");
         }
 
-        private static void AssertIsEmpty(string text, string message)
+        [Test]
+        public void EnsureBranchAttached_DirtyWorktree_DiscardsLocalEdits()
         {
-            Assert.AreEqual(string.Empty, text.Trim(), message);
+            PluginPackageSource source = CloneAndAttach();
+            Assert.IsTrue(source.ApplySparsePaths(new[] { "blackboard" }, out string sparseReason), sparseReason);
+
+            string code = Path.Combine(_workspace, "blackboard", "Code.cs");
+            File.WriteAllText(code, "// 手改的内容\n");
+
+            Assert.IsTrue(source.EnsureBranchAttached(out string attachReason), attachReason);
+            Assert.AreEqual("// blackboard", File.ReadAllText(code).Trim(), "工作树的手改要被远端内容覆盖");
         }
 
         private PluginPackageSource NewSource()

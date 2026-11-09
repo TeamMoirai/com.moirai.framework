@@ -20,37 +20,14 @@ namespace Moirai.Atropos.PackageManager
         /// <summary>检出（clone）目录。</summary>
         internal string WorkspacePath { get; private set; }
 
-        /// <summary>落点目录存在。</summary>
-        internal bool WorkspacePresent { get; private set; }
-
-        /// <summary>落点是 git 工作树。</summary>
-        internal bool IsGitWorkspace { get; private set; }
-
         /// <summary>HEAD 的提交号，取不到时为空。</summary>
         internal string HeadCommit { get; private set; }
-
-        /// <summary>HEAD 所在分支名，分离头指针时为空。</summary>
-        internal string HeadBranch { get; private set; }
-
-        /// <summary>工作树相对索引有改动。</summary>
-        internal bool IsDirty { get; private set; }
 
         /// <summary>账本里记的上次 fetch 时间。</summary>
         internal string LastFetchAt { get; private set; }
 
         /// <summary>取读数过程中的失败原因。</summary>
         internal string FailureReason { get; private set; }
-
-        /// <summary>工作树形态的一词描述。</summary>
-        internal string WorktreeShape
-        {
-            get
-            {
-                if (!IsGitWorkspace) return "不是工作树";
-                if (string.IsNullOrEmpty(HeadBranch)) return "分离头指针";
-                return HeadBranch + (IsDirty ? "（脏）" : string.Empty);
-            }
-        }
 
         /// <summary>
         /// 就地取一遍读数，不联网。
@@ -72,11 +49,10 @@ namespace Moirai.Atropos.PackageManager
                 return status;
             }
 
-            status.WorkspacePresent = source.WorkspaceExists;
-            status.IsGitWorkspace = source.IsGitWorkspace;
-            if (!status.IsGitWorkspace)
+            bool workspacePresent = source.WorkspaceExists;
+            if (!source.IsGitWorkspace)
             {
-                status.FailureReason = status.WorkspacePresent
+                status.FailureReason = workspacePresent
                     ? "落点目录已存在但不是 git 工作树"
                     : "落点还没建检出，点 Refresh 由工具建";
                 return status;
@@ -84,14 +60,6 @@ namespace Moirai.Atropos.PackageManager
 
             source.TryHeadCommit(out string headCommit, out _);
             status.HeadCommit = headCommit;
-            if (!source.TryDescribeHead(out string headBranch, out bool dirty, out string reason))
-            {
-                status.FailureReason = reason;
-                return status;
-            }
-
-            status.HeadBranch = headBranch;
-            status.IsDirty = dirty;
             return status;
         }
     }
