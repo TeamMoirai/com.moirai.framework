@@ -45,8 +45,18 @@ namespace Moirai.Atropos.Audio
         /// <summary>扩展硬上限的绝对天花板：配置再大也不越过它（要更多声部应改 <see cref="MaxChannel"/>，而非拆掉保险）。</summary>
         public const int HARD_CHANNEL_CEILING_MAX = 128;
 
+        /// <summary>音轨音高倍率下限。</summary>
+        public const float MINIMAL_PITCH = 0.01f;
+
+        /// <summary>音轨音高倍率上限。</summary>
+        public const float MAXIMAL_PITCH = 3f;
+
+        /// <summary>音轨音高倍率默认值（1 = 原始音高）。</summary>
+        public const float DEFAULT_PITCH = 1f;
+
         private bool _isMuted;
         private float _volume;
+        private float _pitch = DEFAULT_PITCH;
 
         // 缓存设置键 / 混音器参数名，避免属性访问与音量应用时反复分配字符串
         private string _muteSettingKey;
@@ -123,6 +133,16 @@ namespace Moirai.Atropos.Audio
 
         /// <summary>预设同时播放的最大数量。</summary>
         public int MaxChannel => m_MaxChannel;
+
+        /// <summary>
+        /// 当前音轨的音高倍率（运行期，不写入设置）。
+        /// </summary>
+        /// <remarks>最终音高 = 每个声部自己的音高 × 所属音轨的音高倍率。修改后由处理器通知该音轨上正在播放的声部重算。</remarks>
+        public float Pitch
+        {
+            get => _pitch;
+            set => _pitch = Mathf.Clamp(value, MINIMAL_PITCH, MAXIMAL_PITCH);
+        }
 
         /// <summary>当没有可用的Agent时，是否可拓展。</summary>
         public bool CanExpand => m_CanExpand;

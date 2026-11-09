@@ -63,10 +63,17 @@ namespace Moirai.Atropos.Audio
             pooled.name = name;
             pooled.playOnAwake = false;
             pooled.Stop();
+            pooled.resource = null;
+            if (pooled.clip != null)
+            {
+                pooled.timeSamples = 0;
+            }
             pooled.clip = null;
+            pooled.enabled = true;
             pooled.volume = 1f;
             pooled.loop = false;
             pooled.mute = false;
+            pooled.pitch = 1f;
 
             // 复位遮挡低通：AudioOcclusionHrtf 挂载的滤镜不会随播放结束移除，
             // 不复位会让复用宿主继承上一次的截止频率（起播瞬间的闷声毛刺）。

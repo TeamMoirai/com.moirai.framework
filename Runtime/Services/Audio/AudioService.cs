@@ -187,6 +187,36 @@ namespace Moirai.Atropos.Audio
         public static void SetTrackVolume(EAudioTrack track, float volume) => s_Handler?.SetTrackVolume(track, volume);
 
         /// <summary>
+        /// 获取指定音轨的音高倍率（运行期，默认 1）。
+        /// </summary>
+        public static float GetTrackPitch(EAudioTrack track) => s_Handler?.GetTrackPitch(track) ?? AudioGroupConfig.DEFAULT_PITCH;
+
+        /// <summary>
+        /// 设置指定音轨的音高倍率，正在播放的声部会按新倍率重算音高。
+        /// </summary>
+        public static void SetTrackPitch(EAudioTrack track, float pitch) => s_Handler?.SetTrackPitch(track, pitch);
+
+        /// <summary>
+        /// 把所有音轨的音高倍率重置为 1。
+        /// </summary>
+        public static void ResetAllTrackPitches()
+        {
+            var handler = s_Handler;
+            if (handler == null) return;
+
+            var tracks = (EAudioTrack[])Enum.GetValues(typeof(EAudioTrack));
+            for (int i = 0; i < tracks.Length; i++)
+            {
+                handler.SetTrackPitch(tracks[i], AudioGroupConfig.DEFAULT_PITCH);
+            }
+        }
+
+        /// <summary>
+        /// 设置指定句柄声部的基础音高（不含音轨倍率），并按当前音轨倍率重算实际音高。
+        /// </summary>
+        public static void SetPitch(ulong handle, float pitch) => s_Handler?.GetAgentByHandle(handle)?.SetPitch(pitch);
+
+        /// <summary>
         /// 获取指定音轨的静音状态。
         /// </summary>
         public static bool GetTrackMute(EAudioTrack track) => s_Handler?.GetTrackMute(track) ?? false;

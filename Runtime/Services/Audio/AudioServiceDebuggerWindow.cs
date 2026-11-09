@@ -114,6 +114,10 @@ namespace Moirai.Atropos.Audio
                 () => AudioService.GetTrackVolume(track),
                 value => AudioService.SetTrackVolume(track, value));
 
+            AddTrackPitchRow(card, track + " Pitch",
+                () => AudioService.GetTrackPitch(track),
+                value => AudioService.SetTrackPitch(track, value));
+
             VisualElement actionRow = DebuggerUI.CreateToolbarRow();
             actionRow.style.marginRight = 0f;
 
@@ -179,6 +183,28 @@ namespace Moirai.Atropos.Audio
                 setter(PercentToVolume(evt.newValue));
                 valueLabel.text = FormatPercent(evt.newValue);
             });
+
+            row.Add(slider);
+            row.Add(valueLabel);
+            card.Add(row);
+        }
+
+        /// <summary>音轨音高行：Slider 0.01~3，显示为倍率。</summary>
+        private static void AddTrackPitchRow(VisualElement card, string label, Func<float> getter, Action<float> setter)
+        {
+            VisualElement row = CreateVolumeRow(label);
+
+            Label valueLabel = new Label(StringUtility.Format("x{0:F2}", getter()));
+            valueLabel.AddToClassList("dbg-slider-value");
+
+            Slider slider = DebuggerUI.CreateSlider(AudioGroupConfig.MINIMAL_PITCH, AudioGroupConfig.MAXIMAL_PITCH, getter(), value =>
+            {
+                setter(value);
+                valueLabel.text = StringUtility.Format("x{0:F2}", value);
+            });
+            slider.style.flexGrow = 1f;
+            slider.style.minHeight = 24f;
+            slider.RegisterValueChangedCallback(evt => valueLabel.text = StringUtility.Format("x{0:F2}", evt.newValue));
 
             row.Add(slider);
             row.Add(valueLabel);
