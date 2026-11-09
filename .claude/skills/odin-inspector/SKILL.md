@@ -109,8 +109,8 @@ namespace Sirenix.OdinInspector.Editor.Drawers
 
 ## 验证
 
-- **编译**：`unity_editor.refresh` → 读 Console error；或 shell 轮询 `Library/ScriptAssemblies/*.dll` 时间戳。
-- **状态（首选）**：`exec_editor_script` 打开窗口后反射读 `menuTree`、条目数、选中项 `.Value` 等，返回结构化事实。
+- **编译**：`unity recompile` → 读 `script recompile_status` 与 `console status`；或 shell 轮询 `Library/ScriptAssemblies/*.dll` 时间戳。
+- **状态（首选）**：`unity command eval` 打开窗口后反射读 `menuTree`、条目数、选中项 `.Value` 等，返回结构化事实。
 - **视觉**：`unity_screenshot` **不覆盖 EditorWindow**（仅 GameView/SceneView）。Odin 窗口视觉门禁用项目记忆中的 PowerShell P/Invoke 工作流（EnumWindows + SetForegroundWindow + CopyFromScreen 存 PNG 后 read_file 查看）；排查渲染问题用「最小探针窗口 + 二分 override」法。
 
 ## 官方资源

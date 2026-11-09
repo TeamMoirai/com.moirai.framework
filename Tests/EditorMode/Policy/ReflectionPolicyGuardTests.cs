@@ -13,7 +13,7 @@ namespace Policy
     /// <remarks>
     /// 《测试规范》规定测试不得用反射读写字段：反射把字段名变成测试依赖，改名不报编译错、只在运行期取字段得到 null 后 NRE；需要触达的成员应放宽为 <c>internal</c>（编译器把关）。 <br />
     /// 白名单三类正当用途：① 行为契约守卫（断成员标注 / 触达条件编译成员，只能反射）；② 唤起 Unity 生命周期回调（<c>Awake</c>/<c>OnEnable</c>/<c>OnInit</c>/<c>OnValidate</c>， <br />
-    /// EditMode 不自动跑）；③ 产码字段探针；另有两个基础设施桥需探 Unity/UTF 内部成员。 <br />
+    /// EditMode 不自动跑）；③ 产码字段探针。 <br />
     /// 白名单双向断言：未登记的不得出现该模式，已登记的必须仍存在且仍命中，否则名单腐烂。结构与 <see cref="TestLogChannelPolicyGuardTests"/> 同构。
     /// </remarks>
     [TestFixture]
@@ -28,11 +28,6 @@ namespace Policy
         /// <summary>允许使用非公开反射的文件（相对 <c>Tests/</c>，正斜杠分隔）及其归类。</summary>
         private static readonly Dictionary<string, string> Allowlist = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            // ── 基础设施桥（探 Unity / Unity Test Framework 内部成员，非测试夹具） ──
-            ["EditorMode/EditorStateBridge.cs"] = "桥：探 ConsoleWindow.GetCountsByType 与 TestRunnerApi.IsRunActive",
-            ["EditorMode/TestRequestRunner.cs"] = "桥：探 TestRunnerApi.IsRunning / IsRunActive",
-            ["EditorMode/TestPlayerRunnerWindow.cs"] = "测试工具窗：探 TestRunnerApi.IsRunning / IsRunActive（与测试桥同款探针）",
-
             // ── ① 行为契约守卫 ──
             ["EditorMode/Core/GameApp/PlayerLoopDriverTests.cs"] = "行为契约守卫：读私有静态入口的 [RuntimeInitializeOnLoadMethod] 属性",
             ["EditorMode/Service/Resource/AddressableHandlerFailFastTests.cs"] = "行为契约守卫：遍历方法集断言 fail-fast 面",

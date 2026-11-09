@@ -10,8 +10,7 @@
   1  跑过了，有违例（逐条点名并给出处）
   2  量不出来（目录取不到、登记表读不动、声明集自检不过、解析不出内容）——绝不等于合格
 
-家规与 `Tests/Coverage/coverage-gate.ps1` 同源：看不见配置不等于配置合格；判据一趟都没跑成的状态
-必须自己说话。
+家规：看不见配置不等于配置合格；判据一趟都没跑成的状态必须自己说话。
 
 用法：
     python .claude/skills/moirai-conventions/scripts/check_config_surface.py
@@ -103,7 +102,7 @@ NON_LITERAL_CHARS = set("*?<>{}|[]$ \t\"'")
 # 只活在检出环境的层：随包发行的文档里出现这些根段的路径指针，在别人机器上必悬空。
 # 它们故意不在 POINTER_ROOTS 里——用 POINTER_ROOTS 过滤就等于永远看不见要抓的东西。
 # 运行期产物（外层工程的 Temp、Library、obj）不在本表：与判据 E 同口径，干净检出上它们本就不存在，
-# 受检就是假红，而文档里点名 `Temp/MoiraiEditorState.json` 这类桥文件是正当用法
+# 受检就是假红，而文档里点名 `unity status` 的读数字段这类运行期口径是正当用法
 IGNORED_ROOTS = ("docs/", ".superpowers/", ".codely-cli/")
 # 判据 F 的射程 = 随包发行面。未入库的在途产物不判（与判据 E 同理由）
 SHIPPED_SURFACES = ("Documentation~/", "README.md", "CONTRIBUTING.md",

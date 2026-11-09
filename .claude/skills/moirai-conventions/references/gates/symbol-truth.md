@@ -94,7 +94,7 @@
 
 ## 复现
 
-本地脚本一趟跑完配置层的全部判据段，不需要开着的编辑器，也不走测试桥：
+本地脚本一趟跑完配置层的全部判据段，不需要开着的编辑器，也不走 pipeline 测试通道：
 
 ```bash
 python .claude/skills/moirai-conventions/scripts/check_config_surface.py
@@ -108,7 +108,7 @@ echo "exit=$?"
 | 2 | 量不出来：`MEASURE-FAIL` 行给原因（目录取不到、登记表读不动、声明集自检不过）——绝不等于合格 |
 
 判据段的分段标签、段数与每段标题都由量具当场打出，本层不复述清单也不写死计数——加一段判据时抄进来的名单必然漂。
-需要开着的编辑器的其它判据仍走 `.claude/skills/moirai-conventions/references/gates/bridge-protocol.md` 的桥形状。
+需要开着的编辑器的其它判据仍走 `.claude/skills/moirai-conventions/references/gates/bridge-protocol.md` 的 pipeline 通道形状。
 
 A/B 证伪（没做过证伪就不许声称判据能判假）：往任一命令文件的围栏代码块里加一行只含 `EventSystem` 的语句，
 重跑必须打红并点名该文件；验完删净探针行，再跑一次确认回到退出码 0，并核 `git diff --numstat` 对该文件为空。

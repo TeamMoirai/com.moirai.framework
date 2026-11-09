@@ -49,7 +49,7 @@ unity command editor_play --project-path /path/to/MyProject
 
 A `unity status` instance's `project` field is what `--project-path` takes. For `unity command`/`list`/`job`/`mcp`, matching no running project fails with `AMBIGUOUS_EDITOR` and lists the candidates. [Details](references/integration-advanced.md#targeting-one-of-several-running-editors).
 
-Requires the project's `com.unity.pipeline` package (Unity 6.0+) — add it once with `unity pipeline install`. Full details — launching a headless Editor to drive, `unity list` tool discovery, and authoring custom `[CliCommand]` tools — are in [integration-advanced.md](references/integration-advanced.md).
+Requires the project's `com.unity.pipeline` package — on Unity 6.0+ add it once with `unity pipeline install`; **on Unity 2022 install the compatible pipeline through MoiraiFrameworkPackage** (the framework package manager, `Tools/Moirai/Framework Package Manager`). Full details — launching a headless Editor to drive, `unity list` tool discovery, and authoring custom `[CliCommand]` tools — are in [integration-advanced.md](references/integration-advanced.md).
 
 The package also ships a deeper `unity-pipeline` agent skill, invisible to clients inside `Library/PackageCache` — run `unity skill install <client> --local` once in a project with the package to mirror it beside this skill.
 
@@ -355,7 +355,8 @@ unity projects create "MyGame" --path ~/UnityProjects \
 # 5. Add the Pipeline package BEFORE the first open. `unity command`, `unity status` and
 #    `unity command eval` all need it, and templates don't include it. The Editor reads
 #    Packages/manifest.json when it loads the project, so installing first means the package
-#    is live from the first open.
+#    is live from the first open. On Unity 2022 install the compatible pipeline through
+#    MoiraiFrameworkPackage (Tools/Moirai/Framework Package Manager) instead.
 unity pipeline install --project-path ~/UnityProjects/MyGame
 
 # 6. Open the project and wait until its Editor is ready to take commands. Run from inside the

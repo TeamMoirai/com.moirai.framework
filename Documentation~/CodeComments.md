@@ -104,19 +104,18 @@
 
 ### 类级：协议契约进 `remarks`
 
-❌ 反例（`Tests/EditorMode/TestRequestRunner.cs` 32 行 summary：背景 / 跨域重载 / 协议四文件 / 调用方义务 / 接单门 / 孤儿单 / 归属说明）。
+❌ 反例（把背景 / 跨域重载 / 协议四文件 / 调用方义务 / 接单门 / 孤儿单 / 归属说明全塞进 32 行 summary）。
 
 ✅ 正例：
 
 ```csharp
 /// <summary>
-/// 请求式测试驱动：轮询工程 <c>Temp/</c> 下的请求文件跑一轮 Test Runner，进度与结果回写指定路径。
+/// 请求式状态驱动：把编辑器当前状态压成一份快照交给调用方。
 /// </summary>
 /// <remarks>
-/// 住测试程序集（<c>UNITY_INCLUDE_TESTS</c> 门控），不进玩家包。<br />
-/// 协议：请求 <c>Temp/MoiraiTestRequest.json</c>（读到即删）、取消 <c>…cancel.json</c>、进度 <c>{output}.progress</c>、结果 <c>{output}</c> 与配对标记 <c>.done</c>。<br />
-/// 调用方必须自带唯一 id 并只认配对的 <c>.done</c>；<c>assemblies</c> 与 <c>tests</c> 全空直接拒绝。<br />
-/// 编译、导入、切 PlayMode 或已有 run 在跑时不接单；域重载后按作业 guid 判活，判不了即按 ABORTED 收口。
+/// 住 Editor 程序集，不进玩家包。<br />
+/// 字段口径：<c>status</c> 为连接态、<c>compiling</c>/<c>domainReloadInProgress</c> 为忙碌位、<c>codeLoadCount</c> 判域重载。<br />
+/// 心跳陈旧几秒即主线程没在跑 update；判活以 <c>lastHeartbeat</c> 为准，不要只看单次命令是否返回。
 /// </remarks>
 ```
 

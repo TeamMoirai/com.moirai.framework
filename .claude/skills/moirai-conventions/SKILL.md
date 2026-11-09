@@ -19,10 +19,10 @@ description: Moirai Framework convention layer — the single authoritative home
 |---|---|---|
 | 写/改本包生产代码前的命名、结构、热路径与引擎约束 | `.claude/skills/moirai-conventions/references/coding.md` | 无：靠评审与编译器，命名面部分落在 `.claude/skills/moirai-conventions/scripts/check_config_surface.py` 的 C 段 |
 | 写用例、选分层、建夹具、放可见性、维护守卫与覆盖率基线 | `.claude/skills/moirai-conventions/references/testing.md` | 无：由 `Tests/EditorMode/**` 的用例与守卫承担 |
-| 决定"要不要写测试、按什么顺序写、怎么算判绿" | `.claude/skills/moirai-conventions/references/verification.md` | 无：对错由桥落盘的报告当场见分晓 |
+| 决定"要不要写测试、按什么顺序写、怎么算判绿" | `.claude/skills/moirai-conventions/references/verification.md` | 无：对错由 pipeline 回执的 `Summary` 当场见分晓 |
 | 提交、文档与 CHANGELOG、版本号与 PR 收尾 | `.claude/skills/moirai-conventions/references/release.md` | 无：靠工作流与人工自查承担 |
 | 核对命令正文里的框架符号是否真存在 | `.claude/skills/moirai-conventions/references/gates/symbol-truth.md` | 有：`.claude/skills/moirai-conventions/scripts/check_config_surface.py` 的 C 段 |
-| 投单取回执的可执行片段 | `.claude/skills/moirai-conventions/references/gates/bridge-protocol.md` | 无：对错由桥落盘的报告当场见分晓 |
+| 投单取回执的可执行片段 | `.claude/skills/moirai-conventions/references/gates/bridge-protocol.md` | 无：对错由 pipeline 回执的 `Summary` 当场见分晓 |
 | 动手前确认路径能不能碰 | `.claude/skills/moirai-conventions/references/gates/forbidden-paths.md` | 无：靠权限 deny 与命令正文承担 |
 | 新增/搬动源文件的 `.meta` 成对 | `.claude/skills/moirai-conventions/references/gates/metas-pairing.md` | 无：靠该块自带的 shell 片段自查 |
 
@@ -31,7 +31,7 @@ description: Moirai Framework convention layer — the single authoritative home
 **上表的块与量具的段不是一一对应**：有的段没有独立细则块可指，也有块的规矩一部分落在权限 deny 与人工自查上、并不只由某一段管——
 别把「上表没列这一段」读成「那段不存在」，也别把「这段绿了」读成「这个主题有人替你守着」（各段管到哪一层，写在该段自己的射程边界里）。
 其余三块「本层写了」不等于「有人会替你报错」：
-`forbidden-paths` 靠权限 deny 与命令正文承担，`metas-pairing` 靠该块自带的 shell 片段自查，`bridge-protocol` 的形状对不对由桥落盘的报告当场见分晓。
+`forbidden-paths` 靠权限 deny 与命令正文承担，`metas-pairing` 靠该块自带的 shell 片段自查，`bridge-protocol` 的形状对不对由 pipeline 回执的 `Summary` 当场见分晓。
 判据形状要变时改执行体，本层跟着改述；只改本层就是话与牙没对上号。
 
 **指针形态（全层统一）**：跨文件指针一律写成反引号内、以包根为基座的全路径，例

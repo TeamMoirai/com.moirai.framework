@@ -90,9 +90,9 @@ com.moirai.framework/
 
 ## AI 测试流程
 
-六步流程与两条验证环路（测试桥、编辑器状态桥）的权威落点在 `.claude/skills/moirai-conventions/references/verification.md`。
+六步流程与两条验证环路（pipeline 测试通道、pipeline 状态通道）的权威落点在 `.claude/skills/moirai-conventions/references/verification.md`。
 
-三行硬条件：只认内容等于本次 `id` 的配对完成标记；结论取落盘报告首行计数；0 失败才算通过。
+三行硬条件：一次只投一单（`test status` 为 `no_tests`）；结论取 `summary.total/failed` 计数；0 失败才算通过。
 
 ## Claude Code Skills
 

@@ -146,31 +146,37 @@
 
 
 
-### 覆盖率与出口准则
+### 覆盖率（只针对 Runtime 公共 API）
 
+工具 `com.unity.testtools.codecoverage`（Client `Packages/manifest.json` 已列 `1.3.0`）。覆盖范围**只算 Runtime 装配 `Moirai.Atropos` 的公共 API 调用路径**：assemblyFilters `+Moirai.Atropos`，排除 `Moirai.Atropos.Editor`、`Moirai.Atropos.Tests.*`、`SourceGenerators` 与生成代码；Editor 工具、测试夹具、示例不进覆盖率。
 
+两种跑法（GUI 编辑器开着时只能用第一种）：
 
-工具 `com.unity.testtools.codecoverage`（**2026-09-28 口径：Client 现未装该包**——覆盖率门须装包后才可执行；基线缺失情况已记入 Testing.md 治理账本）；assemblyFilters `+Moirai.Atropos`，排除 `Moirai.Atropos.Editor`/`Moirai.Atropos.Tests.*`/生成代码；报告落盘 `Tests/Coverage/`。
+1. **编辑器**：`Window > Analysis > Code Coverage` 打开覆盖率窗口 → 在 Test Runner 里跑 L1（或按夹具过滤跑）→ 报告落 `TestResults/Coverage/`。
+2. **CLI**（GUI 编辑器必须先关，工程锁互斥）：
 
-
+```bash
+Unity -batchmode -projectPath "E:/Workspace/Unity/Game Dev Tools/Client" \
+  -runTests -testPlatform EditMode \
+  -enableCodeCoverage -coverageResultsPath TestResults/Coverage \
+  -coverageOptions "generateHtmlReport;assemblyFilters:+Moirai.Atropos,-Moirai.Atropos.Editor,-Moirai.Atropos.Tests.*"
+```
 
 | 档 | 范围 | 行覆盖 | 分支覆盖 |
-
 |---|---|---|---|
-
 | 核心服务 | Resource/Save/Audio/UI/Kernel | ≥ 80% | ≥ 70% |
-
 | 其余服务 | ConfigTable/Debugger/Input/Localization/ObjectPool/Procedure/Scene/Timer | ≥ 70% | — |
 
-| Editor 工具与生成代码 | `Moirai.Atropos.Editor`、SourceGenerators | ≥ 50% | — |
+读法：
+
+- 只把 Runtime 公共 API 的读数当判据。程序集过滤没有 public/internal 粒度，内部实现会混在同一份数字里——**别把整装配的百分比读成"公共 API 已全覆盖"**。
+- 覆盖率是**找空洞的工具，不是质量指标**；评审用例看断言强度，不看百分比。新代码不得让所在模块覆盖率下降。
+- 报告是当次产物，落 `TestResults/Coverage/`，不入版本控制。
+- 覆盖率**不作为发布出口门禁**（2026-11-09 起 `Tests/Coverage/` 与 CI coverage 作业已删）；它只用于回答"Runtime 公共 API 哪条路径没被测到"。
 
 
 
-覆盖率是**找空洞的工具，不是质量指标**；评审用例看断言强度，不看百分比。新代码不得让所在模块覆盖率下降。
-
-
-
-**发布出口五门**（缺一不可）：编译 0 error → L1 全量 0 失败 → L2 全量 0 失败 → L3 `Run all in Player` 0 失败 → 覆盖率不低于分级阈值与上一版基线。2026-09-28 起 L2 套件包含 `Tests/Player` 的 0-GC 计量格真跑，其红同打穿 L2 门与 L3 门——两门不再互斥。**基线必须绿**——套件有红时"全绿"信号失效，必须先修红再继续开发。
+**发布出口四门**（缺一不可）：编译 0 error → L1 全量 0 失败 → L2 全量 0 失败 → L3 `Run all in Player` 0 失败。2026-09-28 起 L2 套件包含 `Tests/Player` 的 0-GC 计量格真跑，其红同打穿 L2 门与 L3 门——两门不再互斥。**基线必须绿**——套件有红时"全绿"信号失效，必须先修红再继续开发。
 
 
 
