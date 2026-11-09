@@ -15,6 +15,8 @@
 
 ## 核心类型
 
+命名空间：`Moirai.Atropos.ConfigTable`
+
 | 类/接口 | 说明 |
 |---------|------|
 | `Moirai.Atropos.ConfigTable.ConfigTableService` | 配置表静态外观（`[ProviderHandlerHost]`）：`GetAllLocalizedStrings`、`GetLocalizationLanguageCodes`、`SupportsPerLanguageLocalizationLoad`、`GetLocalizedStringsByLanguage`、`LoadSpriteByID`、`GetUIWindowLocation`；查询 API 经 `s_Handler?.` 转发（未就绪时静默降级为 null / 空集，按语言取列的开关降级为 `false`），处理器懒加载优先从 settings 取、再回退默认工厂，两者都取不到才抛异常 |

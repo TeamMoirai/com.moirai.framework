@@ -1,4 +1,4 @@
-# JsonUtility
+# JsonUtility JSON 工具
 
 > 框架的 JSON 序列化/反序列化外观，提供可插拔的 Handler 架构，支持字符串与字节两种通路。
 
@@ -77,7 +77,7 @@ public class PlayerData
 
 后端一律在 settings 里选，不在游戏代码里 `new`：`Tools/Framework Settings` 打开 `GameAppSettings`，把「JSON 后端」下拉切到目标实现即可。
 
-- 下拉里的 Newtonsoft 那一项来自 `plugin` 分支的 `newtonsoft-json` 插件（经 `Tools/Moirai/Package Manager` 安装）；没装插件时它不存在，下拉只有框架内置的 `DefaultJsonHandler`。
+- 下拉里的 Newtonsoft 那一项来自 `plugin` 分支的 `newtonsoft-json` 插件（经 `Tools/Moirai/Framework Package Manager` 安装）；没装插件时它不存在，下拉只有框架内置的 `DefaultJsonHandler`。
 - 该字段是 `[SerializeReference]`，切换会改变资产里的 `asm:` 归属，切完需保存资产。
 - 插件搬走的只是 `JsonHandler` 实现类：`com.unity.nuget.newtonsoft-json` 本身仍是框架 `package.json` 的硬依赖（事件基类的 `[JsonIgnore]`、任务基类、事件调试器与存档迁移的 JSON 改写都在无守卫地用它），不要把它当可选包摘掉。
 

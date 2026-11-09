@@ -1,4 +1,4 @@
-# PlayerLoop 逻辑驱动
+# PlayerLoopDriver 逻辑驱动
 
 > 剥离 MonoBehaviour 的游戏帧逻辑驱动：由 Unity PlayerLoop 直接回调，订阅不随场景/宿主销毁而丢失。
 
@@ -130,4 +130,4 @@ GameApp.AddUpdateHandler(system);
 - **自动刷新**：按可设间隔重扫循环并统计
 
 ---
-[« 返回文档索引](Index.md) · [GameApp](GameApp.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [GameApp](GameApp.md)

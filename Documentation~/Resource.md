@@ -111,7 +111,6 @@ m_Icon.SetSprite(targetImage, cancellationToken: this.GetCancellationTokenOnDest
 
 检视面为属性驱动：引用行显示按 GUID + 子图名解析到的精灵（拖入即写回 GUID 并按导入器模式捕子图名——Multiple 记名、Single/Polygon 留空），包名行由 `[ResourcePackageDropdown]` 接管，`Config` 模式以 `[ShowIf]` 显隐配置表 ID。`DataSave/DataLoad` 存档块自带版本号（版本 + 打包方式 + GUID/包名/子图名/配置表 ID）。
 
-
 ### Lease API（自持所有权时用）
 
 Lease API 通过 `IDisposable` 提供显式所有权与自动释放：
@@ -494,7 +493,7 @@ using var lease = ResourceService.LoadLeaseAsync<GameObject>("path").GetAwaiter(
 
 ## 注意事项
 
-- **Addressables 后端是插件，不在框架里：** 实验性的 Addressables 后端由 `plugin` 分支的 `addressables` 插件发行（程序集 `Moirai.Plugin.Addressables`，目录 `addressables/`），经 `Tools/Moirai/Package Manager` 装上后才会出现在 `ResourceServiceSettings` 的 Provider 下拉里；没装时框架只有内置的 `YooAssetHandler`。它住在装配外，却与 `YooAssetHandler` 经共同基类 `ResourceRecordHostHandler` 共用同一套记录内核（`ResourceRecordStore`），异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均已对齐。内核类型保持 `Moirai.Atropos` 的 `internal`：宿主基类开出一组 `protected internal` 派生接缝供装配外的派生后端取用内核能力，因此独立程序集既不要求 `InternalsVisibleTo`，也不把内核或宿主基类扩成 `public`；门控宏 `ADDRESSABLES_INSTALLED` 由插件自己 asmdef 的 versionDefines 定义（框架 asmdef 已不再持有该条），插件不在场时整支后端根本不存在。
+- **Addressables 后端是插件，不在框架里：** 实验性的 Addressables 后端由 `plugin` 分支的 `addressables` 插件发行（程序集 `Moirai.Plugin.Addressables`，目录 `addressables/`），经 `Tools/Moirai/Framework Package Manager` 装上后才会出现在 `ResourceServiceSettings` 的 Provider 下拉里；没装时框架只有内置的 `YooAssetHandler`。它住在装配外，却与 `YooAssetHandler` 经共同基类 `ResourceRecordHostHandler` 共用同一套记录内核（`ResourceRecordStore`），异步租约 / 绑定 / 预制体实例化 / 图集子精灵 / 场景加载 / 缓存维护与低内存回收均已对齐。内核类型保持 `Moirai.Atropos` 的 `internal`：宿主基类开出一组 `protected internal` 派生接缝供装配外的派生后端取用内核能力，因此独立程序集既不要求 `InternalsVisibleTo`，也不把内核或宿主基类扩成 `public`；门控宏 `ADDRESSABLES_INSTALLED` 由插件自己 asmdef 的 versionDefines 定义（框架 asmdef 已不再持有该条），插件不在场时整支后端根本不存在。
 - **Addressables 的同步族与下载族抛错：** `LoadLease<T>` / `AcquireDirect` / `AcquireBinding` / `AcquirePrefabSourceLease` / 同步 `LoadGameObject` 一律抛 `GameException`——Addressables 没有同步加载 API，返回 `null` 只会把错误推到后面的空引用上。`RequestPackageVersion` / `LoadPackageManifestAsync` / `CreateResourceDownloader` / `GetDownloadSize` 同理：它的更新流程是 Check→Update 两步式，`DownloadStatus` 也没有 `TotalDownloadCount` 与 `FailedFiles` 的对应项。
 - **Addressables 的降级查询：** `IsNeedDownloadFromRemote` 恒为 `false`、`GetPackageVersion` 恒为空串、`GetAssetInfo` 恒为 `default`、按标签的 `GetAssetInfos` 恒为空数组（对应能力只有异步版本，或 `IResourceLocation` 根本不带标签与体积）。`HasAsset` 只要地址可定位就报 `AssetOnDisk`，区分不出"需远端下载"（`AssetOnline` 永不出现）；图集子精灵仅支持 `SpriteAtlas` 形态的地址。非强制档的 `UnloadUnusedAssets()` 在这一后端不做任何事（YooAsset 那一档推进的是 bundle 卸载操作，没有对应物），强制档与低内存回收走的是记录释放。生产环境请使用 `YooAssetHandler`。
 - **Lease API：** `ResourceAssetLease<T>` 是 `struct` —— 务必调用 `Dispose`（使用 `using` 语句）。Dispose 后 `IsValid` 返回 `false`，`Asset` 为 `null`。

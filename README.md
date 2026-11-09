@@ -41,8 +41,6 @@ Moirai Framework
   - [服务系统](#%E6%9C%8D%E5%8A%A1%E7%B3%BB%E7%BB%9F)
   - [启动流程](#%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B)
 - [📚 文档](#-%E6%96%87%E6%A1%A3)
-  - [功能服务](#%E5%8A%9F%E8%83%BD%E6%9C%8D%E5%8A%A1)
-  - [核心工具](#%E6%A0%B8%E5%BF%83%E5%B7%A5%E5%85%B7)
 - [🛠️ 编辑器工具](#-%E7%BC%96%E8%BE%91%E5%99%A8%E5%B7%A5%E5%85%B7)
 - [🤝 贡献与支持](#-%E8%B4%A1%E7%8C%AE%E4%B8%8E%E6%94%AF%E6%8C%81)
   - [🌟 生态依赖](#-%E7%94%9F%E6%80%81%E4%BE%9D%E8%B5%96)
@@ -96,7 +94,7 @@ com.moirai.framework/
 ├── SourceGenerators/           # 预编译源生成器（ProviderHandlerHost / SaveServiceCodegen / ServiceDependency）
 ├── Templates~/                 # 项目初始模板（@Requirements / Config / HybridTemplate / NormalTemplate）
 ├── Documentation~/             # 服务文档（一个服务一份）
-└── Tests/                      # 单元测试（EditorMode / PlayMode / Player / Coverage）
+└── Tests/                      # 单元测试（EditorMode / PlayMode / Player）
 ```
 
 ### 服务系统
@@ -141,83 +139,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 ## 📚 文档
 
-每篇服务文档包含核心特性、核心类型、快速上手与进阶用法：
-
-- 文档索引：**[Documentation~/Index.md](Documentation~/Index.md)**
-
-### 功能服务
-
-| 服务 | 说明 | 文档 |
-|------|------|------|
-| **Kernel** | 服务系统基座：`ServiceWorld` 服务世界、`GameServices` 注册/查找/作用域、`[ServiceDependency]` 依赖拓扑初始化 | [Core.md](Documentation~/Core.md) |
-| **Resource** | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 | [Resource.md](Documentation~/Resource.md) |
-| **UI** | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 | [UI.md](Documentation~/UI.md) |
-| **Audio** | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、句柄控制 | [Audio.md](Documentation~/Audio.md) |
-| **Localization** | 本地化：文本/图片/音频/Timeline 多类型注入、Google 翻译集成 | [Localization.md](Documentation~/Localization.md) |
-| **ConfigTable** | Luban 配置表集成：表加载与懒加载访问、转表工具链 | [ConfigTable.md](Documentation~/ConfigTable.md) |
-| **Procedure** | 游戏流程管理：启动链、可配置流程、自包含状态机 | [Procedure.md](Documentation~/Procedure.md) |
-| **Input** | 多平台输入抽象：Input System / 旧版输入 / 移动端 UI 触控、按键提示 | [Input.md](Documentation~/Input.md) |
-| **Save** | 可插拔存档系统：单文件多数据块容器、内置 JSON 序列化（MessagePack/MemoryPack/Protobuf 由 `plugin` 分支插件提供）、AES 加密与 GZip 压缩、文件级版本迁移总线、无代码组件保存（SourceGenerator）、云同步（REST 内置、UGS 由插件提供） | [Save.md](Documentation~/Save.md) |
-| **Scene** | 场景管理：基于 YooAsset SceneHandle 的异步加载/激活/卸载 | [Scene.md](Documentation~/Scene.md) |
-| **Timer** | 双引擎计时器：四级时间轮（按秒）+ 帧计时（按帧）、版本化句柄、预热、统计 | [Timer.md](Documentation~/Timer.md) |
-| **ObjectPool** | 服务级对象池：单次/多次 Spawn 池、GameObject 池 | [ObjectPool.md](Documentation~/ObjectPool.md) |
-| **Debugger** | 运行时调试器：可注册调试窗口、日志回放 | [Debugger.md](Documentation~/Debugger.md) |
-
-### 核心工具
-
-| 工具 | 说明 | 文档 |
-|------|------|------|
-| **Attributes** | ~20 个自定义属性绘制器 + Odin 扩展（条件显示、Inspector 按钮、Layer/Tag/资源路径选择、ProviderDropdown 等） | — |
-| **Events** | 移植自 UIElements 的池化冒泡事件系统：零 GC、TrickleDown → BubbleUp、`StopPropagation()` / `PreventDefault()`、可视化调试窗口 | — |
-| **Singleton** | 单例家族：纯 C#（volatile 双检锁）/ MonoBehaviour（主线程物化）/ 注册式，线程规则 fail-fast | [Singleton.md](Documentation~/Singleton.md) |
-| **MemoryPool** | 零 GC 页式内存池：非托管元数据、EWMA 自适应水位线、阶段预算 | [MemoryPool.md](Documentation~/MemoryPool.md) |
-| **GameApp** | Unity 生命周期代理：协程托管、帧更新注入、引擎事件注入、游戏速度/暂停控制 | [GameApp.md](Documentation~/GameApp.md) |
-| **PlayerLoopDriver** | 剥离 Mono 的 PlayerLoop 逻辑驱动：零分配 Handler、注入/恢复、编辑器可视化 | [PlayerLoopDriver.md](Documentation~/PlayerLoopDriver.md) |
-| **GameLog** | 日志系统：运行时级别过滤、可插拔后端（框架内置 Default；Serilog / Unity Logging / ZLogger 各由 `plugin` 分支的同名插件提供，装上才进 Provider 下拉）、T4 生成的格式化重载、拦截 Unity 原生 `Debug.Log` | — |
-| **GameTime** | 轻量时间访问器，每帧采样一次，避免频繁调用 `Time.deltaTime` | — |
-| **GameProfiler** | 条件编译的性能采样（`PROFILER_ENABLE` 宏），宏关闭时零开销 | — |
-| **GameSettings** | 框架设置 / 画面设置 / 更新设置（菜单 `Tools/Framework Settings`） | — |
-| **GameException** | 自定义游戏异常：错误码 + 上下文信息 | — |
-| **ToolRegistry** | 高性能组件注册/查找：O(1) 查找、场景感知清理、零 GC 批量查询、线程安全 | — |
-| **Obfuz** | [Obfuz](https://github.com/focus-creative-games/obfuz) 代码混淆集成：程序集加载后自动初始化加密虚拟机 | — |
-| **DataStructure** | `IOCContainer` / `PriorityQueue<T>` / `SparseArray<T>` / `SerializableDictionary<K,V>` / `ShuffleBag<T>` 等 12 个 | — |
-| **Extensions/R3** | R3 响应式扩展 + UGUI 绑定：`OnClickAsObservable()`、`ReactiveProperty` 双向绑定 | — |
-| **StringUtility** | 字符串格式化与构建：可插拔 Handler、池化 StringBuilder、三种使用模式 | [StringUtility.md](Documentation~/StringUtility.md) |
-| **JsonUtility** | JSON 序列化/反序列化：可插拔 Handler、字节快速通路、允许列表成员筛选 | [JsonUtility.md](Documentation~/JsonUtility.md) |
-| **ObjectUtility** | 对象实例化/销毁：可插拔 Handler（框架内置单机；Photon Fusion 联网感知由 `plugin` 分支的 `photon-fusion` 插件提供） | [ObjectUtility.md](Documentation~/ObjectUtility.md) |
-| **TweenUtility** | 缓动系统：可插拔引擎（框架内置自研；PrimeTween / LitMotion 由 `plugin` 分支同名插件提供）、贝塞尔路径、统一缓动参数 | [TweenUtility.md](Documentation~/TweenUtility.md) |
-
-<details>
-<summary>Utility — 全部工具类一览</summary>
-
-| 工具 | 说明 |
-|------|------|
-| `AlgorithmUtility` | 算法工具 |
-| `AssemblyUtility` | 程序集工具 |
-| `ColorsUtility` | 颜色工具 |
-| `CommandLineUtility` | 命令行解析 |
-| `ConverterUtility` | 类型转换 |
-| `CoroutineUtility` | 协程工具 |
-| `DebugDrawUtility` | 调试绘制 |
-| `DiagnosticsUtility` | 诊断工具 |
-| `EncryptionUtility` | 加密工具 |
-| `FileUtility` | 文件操作 |
-| `HttpUtility` | HTTP 请求（支持 UniTask） |
-| `JsonUtility` | JSON 序列化/反序列化，[文档](Documentation~/JsonUtility.md) |
-| `MainThreadDispatcher` | 主线程调度 |
-| `MarshalUtility` | 非托管内存操作 |
-| `MaterialUtility` | 材质工具 |
-| `MathsUtility` | 数学工具（含 Unity.Mathematics 集成） |
-| `ObjectUtility` | 对象实例化/销毁，[文档](Documentation~/ObjectUtility.md) |
-| `PathUtility` | 路径工具 |
-| `ReflectionUtility` | 反射工具 |
-| `StringUtility` | 字符串格式化与构建，[文档](Documentation~/StringUtility.md) |
-| `ToolRegistry` | 组件注册表 |
-| `TweenUtility` | 缓动系统（含贝塞尔路径），[文档](Documentation~/TweenUtility.md) |
-| `UniParallel` | UniTask 并行任务收集器（等待全部完成） |
-| `UnityUtility` | Unity 通用工具 |
-
-</details>
+完整文档目录（安装、功能服务、核心工具、工程规范，共 26 篇）见 **[Documentation~/Index.md](Documentation~/Index.md)**。
 
 ---
 

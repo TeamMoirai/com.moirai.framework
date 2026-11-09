@@ -1,4 +1,4 @@
-# StringUtility
+# StringUtility 字符串工具
 
 > 框架的字符串格式化与构建外观，提供可插拔的 Handler 架构，内置池化字符串构建器以减少 GC。
 
@@ -96,7 +96,7 @@ StringUtility.Replace("Hello", "l", "x", 0, 3);      // "Hexlo"（指定范围�
 
 后端一律在 settings 里选，不在游戏代码里 `new`：`Tools/Framework Settings` 打开 `GameAppSettings`，把「字符串后端」下拉切到目标实现即可。
 
-- 下拉里的 ZString 那一项来自 `plugin` 分支的 `zstring` 插件（经 `Tools/Moirai/Package Manager` 安装）；没装插件时它根本不存在，下拉只有框架内置的 `DefaultStringHandler`。
+- 下拉里的 ZString 那一项来自 `plugin` 分支的 `zstring` 插件（经 `Tools/Moirai/Framework Package Manager` 安装）；没装插件时它根本不存在，下拉只有框架内置的 `DefaultStringHandler`。
 - 该字段是 `[SerializeReference]`，切换会改变资产里的 `asm:` 归属，切完需保存资产；运行时由 `GameAppSettings.Initiation` 生效，无需改代码。
 - 换回默认即选 `DefaultStringHandler`。
 

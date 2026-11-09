@@ -2,11 +2,17 @@
 
 > Unity 全平台商业化游戏框架——服务化架构、高性能异步、热更新就绪。
 
-欢迎使用 Moirai Framework。本文档集覆盖框架全部功能服务与核心工具，每篇文档包含核心特性、核心类型、快速上手与进阶用法。
+欢迎使用 Moirai Framework。本索引覆盖安装、功能服务、核心工具与工程规范；模块文档统一按「核心特性 → 核心类型 → 快速上手 → 进阶用法 → 注意事项」组织，规范类文档按主题分节。
 
-- 项目主页与安装指南见 [主 README](../README.md)
+- 项目主页与安装入口见 [主 README](../README.md)
 
 ---
+
+## 开始使用
+
+| 文档 | 说明 |
+|------|------|
+| [Install](Install.md) | 安装与运行：三种安装方式、初始设置、编辑器与打包运行流程 |
 
 ## 功能服务
 
@@ -15,7 +21,7 @@
 | [Core](Core.md) | 服务系统基座：`ServiceWorld` 服务世界、`GameServices` 注册/查找/作用域、`[ServiceDependency]` 依赖拓扑初始化 |
 | [Resource](Resource.md) | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 |
 | [UI](UI.md) | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 |
-| [UI 载荷迁移](UIMigration.md) | UI 硬切迁移：DTO 与基类换形、写点两种去向（静态腿 / 动态腿 `UIPayload`）、行为变更三条 |
+| [UIMigration](UIMigration.md) | UI 载荷迁移：DTO 与基类换形、写点两种去向（静态腿 / 动态腿 `UIPayload`）、行为变更四条 |
 | [Audio](Audio.md) | 音频系统：分类管理、AudioAgent 代理播放、混音器、淡入淡出、句柄控制 |
 | [Localization](Localization.md) | 本地化：文本/图片/音频/Timeline 多类型注入、Google 翻译集成 |
 | [ConfigTable](ConfigTable.md) | Luban 配置表集成：表加载与懒加载访问、转表工具链 |
@@ -39,15 +45,14 @@
 | [JsonUtility](JsonUtility.md) | JSON 序列化/反序列化：可插拔 Handler、字节快速通路 |
 | [ObjectUtility](ObjectUtility.md) | 对象实例化/销毁：可插拔 Handler、联网感知 |
 | [TweenUtility](TweenUtility.md) | 缓动动画：可插拔引擎（自研/PrimeTween/LitMotion）、统一缓动参数 |
-| [Testing](Testing.md) | 测试规范：分层归属、用例规范、运行通道、覆盖率门禁、发布出口准则 |
-| [PackageManager](PackageManager.md) | 分支作包源的插件包管理器：按目录稀疏检出装卸、外部依赖归属台账、依赖闭包规划 |
 
-## 开发规范
+## 工程与规范
 
 | 文档 | 说明 |
 |------|------|
-| [CodeComments](CodeComments.md) | XML 文档注释规范：`summary` 一句话、`remarks` 放调用方不变量、叙述禁入、`example` 用法示例 |
+| [Testing](Testing.md) | 测试规范：分层归属、用例规范、运行通道、覆盖率统计（只针对 Runtime 公共 API，非发布门禁）、发布出口准则 |
+| [PackageManager](PackageManager.md) | 分支作包源的插件包管理器：按目录稀疏检出装卸、外部依赖归属台账、依赖闭包规划 |
+| [CodeComments](CodeComments.md) | 文档注释规范：`summary` 一句话、`remarks` 放调用方不变量、叙述禁入、`example` 用法示例 |
 
 ---
-
 [« 返回主 README](../README.md)

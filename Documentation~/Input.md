@@ -16,6 +16,8 @@
 
 ## 核心类型
 
+命名空间：`Moirai.Atropos.Input`（按键提示在 `Moirai.Atropos.Input.Prompts`）
+
 | 类/接口 | 说明 |
 |---------|------|
 | `Moirai.Atropos.Input.InputService` | 输入服务静态外观（`[ProviderHandlerHost]`），全部轮询 API 为静态方法，经 `Handler` 属性转发；降级契约——未注册/未初始化时返回安全默认值（false/0/zero），不抛异常 |

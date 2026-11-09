@@ -1,8 +1,8 @@
 # Scene 服务
 
-> 基于资源系统（ResourceService）场景加载管线的主/子场景管理服务，自动适配 YooAsset、Addressable 等资源后端，提供异步加载、挂起激活、进度回调与子场景卸载能力。
+> 基于资源系统（ResourceService）场景加载管线的主/子场景管理服务，经资源系统适配 YooAsset（内置）与 Addressables（插件）等资源后端，提供异步加载、挂起激活、进度回调与子场景卸载能力。
 
-场景服务（`Moirai.Atropos.Scene`）的默认后端 `DefaultSceneHandler` 通过 `ResourceService.LoadSceneAsync` 加载场景，资源系统按当前配置的后端（YooAsset、Addressable 等）自动应用对应适配器，产出统一的 `ResourceSceneHandle` 句柄。场景服务区分主场景（`LoadSceneMode.Single`，同时只能存在一个）与子场景（`LoadSceneMode.Additive`，可叠加多个）。支持加载到 90% 时挂起、就绪后统一激活的平滑切换模式，并在主场景加载完成后可选触发资源回收。通过 `SceneService` 静态访问器使用。
+场景服务（`Moirai.Atropos.Scene`）的默认后端 `DefaultSceneHandler` 通过 `ResourceService.LoadSceneAsync` 加载场景，资源系统按当前配置的后端（YooAsset 内置；Addressables 由 `addressables` 插件提供）自动应用对应适配器，产出统一的 `ResourceSceneHandle` 句柄。场景服务区分主场景（`LoadSceneMode.Single`，同时只能存在一个）与子场景（`LoadSceneMode.Additive`，可叠加多个）。支持加载到 90% 时挂起、就绪后统一激活的平滑切换模式，并在主场景加载完成后可选触发资源回收。通过 `SceneService` 静态访问器使用。
 
 ## 核心特性
 
@@ -15,15 +15,17 @@
 - 双标识查询：查询/激活/卸载接口同时接受资源地址与场景短名（短名碰撞时后注册者覆盖并告警）
 - 取消语义：`LoadSceneAsync` 的 `CancellationToken` 仅放弃等待（底层加载不可中止），登记与事件由处理器在加载真正结束时收尾
 - 多资源包支持：回调式 `LoadScene` 可指定 `packageName` 从指定资源包加载
-- 资源后端自适应：场景加载经 `ResourceService` 管线，切换 YooAsset / Addressable 后端无需修改场景代码
+- 资源后端自适应：场景加载经 `ResourceService` 管线，切换 YooAsset / Addressables 后端无需修改场景代码（Addressables 需先装 `addressables` 插件）
 
 ## 核心类型
+
+命名空间：`Moirai.Atropos.Scene`（场景句柄在 `Moirai.Atropos.Resource`）
 
 | 类/接口 | 说明 |
 |---------|------|
 | `Moirai.Atropos.Scene.SceneService` | 场景服务静态外观（`[ProviderHandlerHost]`）。未注册时外观调用静默降级（查询返回默认值、加载返回无效场景）；`Handler` 属性懒加载从 `SceneServiceSettings` 创建处理器，配置为空时回退默认实现 `DefaultSceneHandler` |
 | `Moirai.Atropos.Scene.SceneServiceHandler` | 处理器抽象基类，定义后端契约；默认实现 `DefaultSceneHandler` 经 `ResourceService` 加载并管理主/子场景 |
-| `Moirai.Atropos.Resource.ResourceSceneHandle` | 资源系统场景句柄抽象，由资源后端（YooAsset / Addressable）适配实现，承载加载进度、激活、解除挂起与卸载 |
+| `Moirai.Atropos.Resource.ResourceSceneHandle` | 资源系统场景句柄抽象，由资源后端（内置 YooAsset，或插件提供的 Addressables）适配实现，承载加载进度、激活、解除挂起与卸载 |
 
 ## 快速上手
 

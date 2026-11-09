@@ -1,4 +1,4 @@
-# ObjectUtility
+# ObjectUtility 对象工具
 
 > 框架的对象实例化/销毁外观，提供可插拔的 Handler 架构，支持单机与联网两种模式。
 
@@ -46,7 +46,7 @@ ObjectUtility.DestroyObject(go, allowNetworked: false);
 
 ### 联网场景（Fusion）
 
-联网后端不在框架里：先用 `Tools/Moirai/Package Manager` 装上 `plugin` 分支的 `photon-fusion` 插件（Fusion SDK 走 Photon 自己的发行渠道，接入后需在脚本后端宏里定义 `FUSION2`），再到 `GameAppSettings` 的「对象后端」下拉里选中它——下拉里那一列只在插件在场时出现，后端一律不在游戏代码里 `new`。切换完成后调用方写法不变：
+联网后端不在框架里：先用 `Tools/Moirai/Framework Package Manager` 装上 `plugin` 分支的 `photon-fusion` 插件（Fusion SDK 走 Photon 自己的发行渠道，接入后需在脚本后端宏里定义 `FUSION2`），再到 `GameAppSettings` 的「对象后端」下拉里选中它——下拉里那一列只在插件在场时出现，后端一律不在游戏代码里 `new`。切换完成后调用方写法不变：
 
 ```csharp
 // 实例化为网络对象（playerOwned 标记归属）
