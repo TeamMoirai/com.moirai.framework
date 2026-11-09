@@ -24,7 +24,7 @@ Unity 给每个参与导入的资产写一份同名 `.meta`（里面是 GUID 与
 于是风险方向是「未被忽略的会话底稿被 `git add -A` 一并收进提交」，而不是「它已被忽略、随便扫」。
 它作为会话底稿不入库靠的是提交纪律：`git add` 只逐个点具体路径，禁 `git add -A`、禁 `git add .`。
 
-`.cs.meta` 的 GUID **由 Unity 生成**：新增 `.cs` 只写源文件，经命令桥投 `refresh` 等它落地 `.meta`
+`.cs.meta` 的 GUID **由 Unity 生成**：新增 `.cs` 只写源文件，让一次 `unity recompile`（含 asset refresh）落地 `.meta`
 （投递与回执形状见 `.claude/skills/moirai-conventions/references/gates/bridge-protocol.md`），再连 `.meta` 一起提交。
 手写 `.meta` 的两条风险：GUID 撞车会静默断掉所有引用它的人；内容形状与同目录既有 meta 不一致（本仓有只带 `fileFormatVersion` + `guid` 两行的 meta，属正常形态，不是缺陷）。
 

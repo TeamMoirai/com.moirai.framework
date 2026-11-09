@@ -55,8 +55,6 @@
 Tests/
 ├── EditorMode/                  # L1
 │   ├── Moirai.Atropos.Tests.EditorMode.asmdef
-│   ├── TestRequestRunner.cs     # 测试桥（基础设施，非用例）
-│   ├── EditorStateBridge.cs     # 编辑器状态桥（基础设施，非用例）
 │   ├── Core/                    # 对应 Runtime/Core/<模块>
 │   │   ├── MemoryPool/
 │   │   ├── Singleton/
@@ -77,7 +75,7 @@ Tests/
 规则：
 
 - **测试树镜像到模块档为止**：`Runtime/Services/<模块>/…` 的用例落 `Tests/EditorMode/Service/<模块>/`，`Runtime/Core/<功能组>/…` 落 `Tests/EditorMode/Core/<功能组>/`。生产侧的角色档目录名（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）**不在测试树里复刻**——目录归位那一轮没有搬动 `Tests/**`，两侧同形只到模块/功能档，按生产侧档名去测试树找目录会找不到。
-- 基础设施（桥、Bootstrap、共享支撑）与被测模块无关的，放测试根目录或就近的模块目录。
+- 基础设施（夹具、Bootstrap、共享支撑）与被测模块无关的，放测试根目录或就近的模块目录。
 - 一个被测类型可以有多个用例文件（按行为簇拆分），但**一个文件只放一个公开测试类**（与"一文件一顶层类"一致）；夹具基座与测试专用类型是例外，见《夹具与隔离》。
 
 ## 命名规范
@@ -236,7 +234,7 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 `Moirai.Atropos.Tests.Player` 的 `defineConstraints` 是 `["UNITY_INCLUDE_TESTS"]`——**编辑器里编译、可见**；0-GC 计量格经 GC.Alloc 采样能力探针决定真跑或整组 Ignore（可见不是死格、Ignore 不是假绿）。实证前提（2026-09-28，StandaloneOSX 双后端）：
 
 1. **玩家测试收录以编辑器可见性为前提**：UTF 玩家测试运行（GUI 与 CLI 同机制，构建带 `BuildOptions.IncludeTestAssemblies`）只收录编辑器可见的测试程序集——`!UNITY_EDITOR` 约束的程序集永远不进玩家测试包。「编辑器不编译 + Run all in Player」的组合在任何环境都不执行。
-2. **发起通道三选一**：Test Runner 窗口 PlayMode 页签 → `Run all in Player`（可用搜索框把范围缩到目标夹具，结论以玩家侧报告为准）；本包 `Window/General/Test Player Runner` 窗口（参数化一键发起：目标平台/过滤/心跳超时/报告路径 + CLI 等价命令复制，报告自动落盘）；或 CLI `Unity -batchmode -projectPath <工程> -runTests -testPlatform StandaloneOSX -testResults <xml> -logFile <log>`（退出码 0=全过 / 2=测试失败 / 3=RunError / 4=平台名错；前提是 GUI 编辑器已关——工程锁互斥）。三条通道走同一 `PlayerLauncher` 机制。
+2. **发起通道二选一**：Test Runner 窗口 PlayMode 页签 → `Run all in Player`（可用搜索框把范围缩到目标夹具，结论以玩家侧报告为准）；或 CLI `Unity -batchmode -projectPath <工程> -runTests -testPlatform StandaloneOSX -testResults <xml> -logFile <log>`（退出码 0=全过 / 2=测试失败 / 3=RunError / 4=平台名错；前提是 GUI 编辑器已关——工程锁互斥）。两条通道走同一 `PlayerLauncher` 机制。
 3. **不要自己 `BuildPipeline.BuildPlayer` 搭测试玩家**。玩家里的测试入口不是 `-runTests` 参数，而是构建期注入的引导场景（`CreateBootstrapSceneTask` 生成挂 `PlaymodeTestsController` 的 `Assets/InitTestScene<guid>.unity`）；手搓玩家没有这个场景，`-runTests` 什么也不会发生。且玩家**自己不写结果 XML**——结果经 `RemoteTestResultSender` 走 PlayerConnection 回传编辑器，由编辑器落盘（CLI 模式由 UTF 写入 `-testResults`）。
 4. **`Tests/Player/PlayerTestBootstrap.cs` 是必需前置**：玩家默认自动启动框架（`GameApp.AutoBoot` 默认 true），测试玩家跑的是空场景，UI 后端等不到 `UIRootBinding` 登记，启动链在 `UGUIHandler` 报出「UI 根尚未绑定」后停住，测试运行永远轮不到。Bootstrap 在 `AfterAssembliesLoaded` 把 `AutoBoot` 置 false——**仅玩家域生效（`#if !UNITY_EDITOR`）**，编辑器 PlayMode 测试域依赖自动启动链（L2 门禁前提），绝不能在编辑器里掐。
 5. **0-GC 真计量走 GC.Alloc 采样**：`AllocationCapture` 以 `GC.Alloc` 采样事件数计量（UTF 官方 AllocatingGCMemory 同机制、同款 API）；采样探不到的运行时整组 Ignore。字节口径 GC 计数 API 在 Unity 内无实现（`GetAllocatedBytesForCurrentThread` 在编辑器 Mono、Mono 玩家、IL2CPP 玩家三处实测恒 0，`GetTotalAllocatedBytes` 在 Unity profile 不存在）。Standalone 测试玩家后端按发布目标取——IL2CPP 增量缓存已建，改一个程序集后的测试玩家构建约 3.5 分钟。
@@ -252,7 +250,7 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 
 **所有基准住 `Tests/`（KernelBenchmark 范式：`[Explicit]` NUnit，目录镜像被测模块），跑完经 `BenchmarkReport` 输出 XML 到统一文件夹 `<工程根>/Benchmarks/<name>-benchmark.xml`**（`MOIRAI_BENCH_XML` 环境变量可覆盖；编辑器经 `Application.dataPath` 父目录推工程根——`temporaryCachePath` 在 Unity 6 编辑器指系统临时目录，推不出工程根）。
 
-- 一律 `[Explicit]`，**不随常规套件跑**；经测试桥按名显式执行。基准数值受机器负载影响，混进回归套件只会制造噪音。
+- 一律 `[Explicit]`，**不随常规套件跑**；经 pipeline 按名显式执行（`unity command test run --include-explicit`）。基准数值受机器负载影响，混进回归套件只会制造噪音。
 - **双通道基准**（需 Debugger 窗口也能跑的，如 MemoryPool/Timer）：矩阵核心（`XxxBenchmarkRunner`，public static，**住运行程序集**——运行时调试器窗口够不到测试程序集）+ Debugger 窗口基准区（Run/Export 按钮）+ Tests `[Explicit]` 薄壳（调 `Runner.Run()` 后写 XML）——两个入口跑同一份矩阵代码。同步矩阵直驱隔离 handler（不依赖门面懒加载的活服务世界）；依赖真实帧的 fire/burst 用例住 PlayMode `[Explicit]` `[UnityTest]`。
 - 软校验口径：矩阵内不变量命中只累加 `failures` 计数并 LogWarning，不抛出——正确性回归归测试族，基准是测量不是验收。
 - **性能结论必须用同一工具、同一数据做 before/after A/B 实测**（跨工具数据不可比）。编辑器 Mono 基准有 ±2× 噪声，只做同轮内比较。
@@ -268,36 +266,50 @@ long allocs = AllocationCapture.MeasureManaged("cached-play-stop", 200,
 
 ## 覆盖率与门禁
 
-工具：`com.unity.testtools.codecoverage`（1.3.0）。**运行配方（编辑器窗口 / batchmode CLI）、过滤口径与门禁脚本见 [`Tests/Coverage/README.md`](../Tests/Coverage/README.md)**，本节只写判定口径。
+工具：`com.unity.testtools.codecoverage`（Client `Packages/manifest.json` 已列 `1.3.0`）。**覆盖范围只针对 Runtime 公共 API**：只统计 `Moirai.Atropos` 装配的公共 API 调用路径，Editor 工具、测试夹具与生成代码不进覆盖率。
 
-CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 EditMode，再用 `Tests/Coverage/coverage-gate.ps1` 判定；脚本读不到报告、XML 结构不认识、没有任何 class 行，一律非零退出——**「测不出来」不等于「达标」**。测试与 PlayMode 回归见 `.github/workflows/tests.yaml`，`.meta` 完整性见 `.github/workflows/metas.yaml`（三者均仅 `pull_request` 触发）。
+测试与 PlayMode 回归见 `.github/workflows/tests.yaml`，`.meta` 完整性见 `.github/workflows/metas.yaml`（两者均仅 `pull_request` 触发）。
 
 > 本仓库是 UPM 包，没有 `ProjectSettings/`，Unity 测试必须在**宿主工程**里跑；workflow 因此 checkout 宿主工程仓库（`HOST_REPOSITORY`）再执行。接入时需按实际情况调整该值并配置 `HOST_REPO_TOKEN`。
+
+### 运行方式
+
+GUI 编辑器开着时用编辑器窗口；关掉后用 CLI（工程锁互斥，两者不能同时跑）。
+
+```bash
+# 编辑器：Window > Analysis > Code Coverage 打开覆盖率窗口，再在 Test Runner 里跑 L1
+# CLI（GUI 编辑器必须先关）：
+Unity -batchmode -projectPath "E:/Workspace/Unity/Game Dev Tools/Client" \
+  -runTests -testPlatform EditMode \
+  -enableCodeCoverage -coverageResultsPath TestResults/Coverage \
+  -coverageOptions "generateHtmlReport;assemblyFilters:+Moirai.Atropos,-Moirai.Atropos.Editor,-Moirai.Atropos.Tests.*"
+```
 
 ### 配置口径
 
 - **assemblyFilters**：`+Moirai.Atropos`；`-Moirai.Atropos.Editor`、`-Moirai.Atropos.Tests.*`、`-*.Generated`、`-Moirai.Atropos.SourceGenerators.*`。
 - 开启 `GenerateAdditionalMetrics`（分支/复杂度）。
-- 报告落盘 `Tests/Coverage/`（`baseline-<date>.md` 记录基线，`latest/` 为当次产物，`latest/` 不入版本控制）。
+- 报告落盘 `TestResults/Coverage/`（当次产物，不入版本控制）。
 
-### 分级阈值（2026-09-24 定）
+### 分级阈值（2026-09-24 定，仅覆盖 Runtime）
 
 | 模块档 | 范围 | 行覆盖 | 分支覆盖 |
 |---|---|---|---|
 | **核心服务** | Resource / Save / Audio / UI / Kernel | ≥ 80% | ≥ 70% |
 | **其余服务** | ConfigTable / Debugger / Input / Localization / ObjectPool / Procedure / Scene / Timer | ≥ 70% | — |
-| **Editor 工具与生成代码** | `Moirai.Atropos.Editor`、SourceGenerators | ≥ 50% | — |
 
 说明：
 
 - 阈值是**下限**，不是目标。核心服务应当显著高于 80%。
 - **覆盖率是发现空洞的工具，不是质量指标**。100% 行覆盖 + 全是 `Assert.IsNotNull` 的用例，价值为零。评审用例看断言强度，不看百分比。
-- 新代码不得让所在模块的覆盖率**下降**（CI 上对比基线）。
-- 差距表（当前基线 → 目标）随基线报告一起维护。
+- 只把 Runtime 公共 API 的读数当判据。程序集过滤没有 public/internal 粒度，内部实现会混在同一份数字里——**别把整装配的百分比读成"公共 API 已全覆盖"**。
+- 新代码不得让所在模块的覆盖率**下降**（当前无 CI 对比，按本地报告比对上一版）。
+- 差距表（当前基线 → 目标）随本地分析报告维护。
+- 覆盖率**不作为发布出口门禁**（2026-11-09 起 `Tests/Coverage/` 与 CI coverage 作业已删）；它只用于回答"Runtime 公共 API 哪条路径没被测到"。
 
 ## 发布出口准则
 
-一次发布必须**五门全绿**，缺一不可：
+一次发布必须**四门全绿**，缺一不可：
 
 | 门 | 判据 |
 |---|---|
@@ -305,38 +317,50 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 | 2. L1 回归 | `Moirai.Atropos.Tests.EditorMode` 全量 0 失败 |
 | 3. L2 回归 | `Moirai.Atropos.Tests.PlayMode` 全量 0 失败 |
 | 4. L3 验收 | `Run all in Player` 报告 0 失败（含 0-GC 组） |
-| 5. 覆盖率 | 各模块不低于分级阈值，且不低于上一版基线 |
 
 **基线必须绿。** 任何时刻若全量套件有红，"全绿"这个信号就失效了，必须先修红再继续开发。既有断裂确认为非本次引入的，记录在案并给出修复计划——但不能长期留在套件里。
 
 ## 运行通道
 
-### 通道一：测试桥（首选，EditMode / PlayMode）
+### 通道一：pipeline（唯一连接方式，EditMode / PlayMode）
 
-`Tests/EditorMode/TestRequestRunner.cs` 是测试程序集内的调试桥，轮询工程根目录下的 `Temp/MoiraiTestRequest.json`（随工程，非包内），单向文件协议，调用方只轮询：
+连接与命令都走 `unity` CLI + Unity 侧 `com.unity.pipeline` 包：Unity 6 直接装 registry 版；**Unity 2022 通过 MoiraiFrameworkPackage 安装兼容版 pipeline**（框架包管理器 `Tools/Moirai/Framework Package Manager`）。命令名与参数以 `unity command` 的现读和 `unity <命令> -h` 为准。
 
-```json
-{"id":"<唯一串>","mode":"EditMode","output":"<绝对路径>/report.txt","timeoutSeconds":180,
- "assemblies":["Moirai.Atropos.Tests.EditorMode"],"tests":["<命名空间.类名.方法名>"]}
+```bash
+unity status --project-path "E:/Workspace/Unity/Game Dev Tools/Client" --format json
+unity command test run --mode editor --filter "<命名空间.类名.方法名>" --filter-type testName --timeout 180 --format json
+unity command test run --mode playmode --filter "Moirai.Atropos.Tests.PlayMode" --filter-type assembly --async-tests --format json
+unity command test status --project-path "E:/Workspace/Unity/Game Dev Tools/Client" --format json
 ```
 
-产物：
+参数：
 
-| 文件 | 内容 |
+| 参数 | 取值 |
 |---|---|
-| `report.txt` | `run <id> \| passed N \| failed N \| skipped N \| 耗时`，后附逐格失败详情 |
-| `report.txt.progress` | 正在跑的用例全名（可判卡死；收口时删除） |
-| `report.txt.done` | 内容是请求里的 `id` |
+| `mode` | `all` / `editor` / `playmode`（缺省 `all`） |
+| `filter` | 名字片段，大小写不敏感的**部分匹配**（不是正则） |
+| `filter-type` | `testName` / `assembly` / `category`（缺省 `testName`） |
+| `include-explicit` | 跑 `[Explicit]` 基准时必须显式带上 |
+| `async-tests` | 立即返回，靠 `test status` 轮询；PlayMode 会触发域重载，用这一档 |
+| `timeout` | 秒，缺省 600（编译、导入与域重载的等待计入） |
+
+回执：
+
+| 字段 | 读法 |
+|---|---|
+| `summary.total` / `passed` / `failed` / `skipped` / `inconclusive` | 计数并排读；`inconclusive` 是跑了但没给出判决 |
+| `results[]` | 逐格结果，失败条目带消息与堆栈 |
+| `duration` | 本次墙钟秒数 |
+| `mode` / `filterApplied` | 回显本次实际跑的套件与过滤条件，确认没文不对题 |
+| `status` | `test status` 的 `no_tests` 表示当前没有在跑的作业 |
 
 纪律：
 
-- **必须自带唯一 `id` 并只认配对的 `.done`**，否则会把上一轮的旧报告当成这次的结论。
-- **`assemblies` 与 `tests` 均为空的请求会被直接拒绝**——空过滤器会让 Test Runner 重跑"上一次在窗口里选择"的用例集，看似成功实则文不对题。
-- 前提是该程序集已编译过一次且编辑器有过一次 `update`。正在编译、正在导入、正在切 PlayMode、或编辑器里有任意 run 在跑（含窗口手动发起）时不接新单——**请求文件留着，空闲后自动消费**。
-- `timeoutSeconds` 是墙钟上限（编译、导入、域重载的等待都计入）；超时按 ABORTED 收口，报告附带已收集的 `collected passed/failed/skipped`。**ABORTED 报告里已跑完的格子不白跑**，可用于归因。
-- **取消在途单**：往工程根目录下的 `Temp/MoiraiTestRequest.cancel.json` 写要取消的请求 `id`。UTF 取消后不再送达 `RunFinished`，受理即由驱动收口。
+- **先读 `summary.total`**：圈漏了不会报错，只会是 `total 0`；空 `filter` 等于跑整个套件。
+- **一次只跑一单**：`test status` 报在跑时不要再投，会叠加。取消用 `unity command test cancel`。
+- **超时 ≠ 失败**：`timeout` 到点只说明编辑器忙或还没跑完，读已收集的 `summary`；不要重复投单。
 
-### 通道二：`TestRunnerApi` 直跑（桥不可用时的备选）
+### 通道二：`TestRunnerApi` 直跑（pipeline 不可用时的备选）
 
 在编辑器脚本内直接 `ScriptableObject.CreateInstance<TestRunnerApi>()` + `ICallbacks` 宿主。要点：
 
@@ -344,26 +368,26 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 - `Filter` 必须显式设 `testMode`，否则默认走 PlayMode 流程并触发域重载，中断调用方脚本且结果全空。
 - 统计要对 `ITestResultAdaptor` 的 `Children` **手工递归**（根节点没有 `TestCount`），且失败态字符串不保证是官方 `"Failed"`，按 `Fail`/`Error`/`Cancel`/`Inconclusive` 关键字宽匹配归类。
 
-### 通道三：编辑器状态桥（判活、刷新与驱动编译）
+### 通道三：状态判活与驱动编译
 
-`Tests/EditorMode/EditorStateBridge.cs` 把编辑器状态每 ~1s 覆写到工程根目录下的 `Temp/MoiraiEditorState.json`。用途：
+`unity status` 取代过去的状态文件快照：
 
-- **判活**：`now - unix` 大到几秒即主线程没在跑 `update`（导入中、域重载中、被原生模态框挡住）。
-- **判新域**：`domainSeq` 递增即域重载真发生过。
-- **判新鲜度（兼判「编译完成」）**：逐源树比 `assemblies[].unix` 是否越过自己的改动时刻（`Runtime/**` → `Moirai.Atropos`、`Tests/EditorMode/**` → `.Tests.EditorMode`）。**还要比 `assemblies[]` 与 `domainDllUnix`：不相等就是"dll 已被后台代编换掉、而这个域还没重载"**——此时跑的还是旧代码，发 `recompile`。**编译完成 = `isCompiling` 为 false 且改动源树那份 `assemblies[].unix` 已越过自己的改动时刻**；本桥只跟踪四份 `Moirai.Atropos*` 产物，其余包（如玩法包 `Moirai.Clotho`）直接比对它自己的 dll mtime。
-- **投测试单前**：`testRunActive` 为 0 且 `isCompiling`/`isUpdating`/`isChangingPlayMode` 皆 false 才是接单窗口。这个编辑器是共享的，别的会话随时可能占住它。
+- **判活**：`status` 为 `ready`，`lastHeartbeat` 陈旧几秒即主线程没在跑 `update`（导入中、域重载中、被原生模态框挡住 `dialog` 非空）。
+- **判新域**：`codeLoadCount` 递增即脚本重载真发生过；重启后回到 1。
+- **判空闲**：`compiling`、`domainReloadInProgress` 皆 false，且 `unity command test status` 返回 `no_tests`。
+- **判新鲜度（兼判「编译完成」）**：`unity command script recompile_status` 为 `completed` / `up_to_date`，且 `unity status` 的 `codeLoadCount` 已推进过；`failed` / `compilationFailed` / `errors` 给出编译结论，`unity command console status` 的 `groundTruth.compilationFailed` 同源复核。
+- **启动前置**：工程有编译错误时编辑器以 Safe Mode 启动、pipeline 不加载，`unity status` 连不上；用 `unity pipeline list` 确认后修编译错误并重启 Unity。
 
-**动作通道（用它驱动编译，别只靠聚焦窗口）**：往工程根目录下的 `Temp/MoiraiEditorCommand.json` 投单，格式 `{"id":"<唯一串>","action":"focus|refresh|recompile"}`；写入须先落临时名再原子改名，避免半截 JSON 被消费掉。
+**动作通道（用它驱动编译，别只靠聚焦窗口）**：
 
-| action | 语义 | 拒绝条件 |
-|---|---|---|
-| `focus` | 把编辑器顶到系统前台（仅 Windows：`AttachThreadInput` + `SetForegroundWindow`） | 无 |
-| `refresh` | `AssetDatabase.Refresh()`（等价 `Ctrl+R`）；磁盘上有改动的 `.cs` 时它自己就会起编译 | 正在编译 / 正在导入 |
-| `recompile` | `CompilationPipeline.RequestScriptCompilation()`，跳过磁盘检测强制重编并重载域 | 正在编译 / 正在导入；播放或暂停中 |
+| 动作 | 语义 |
+|---|---|
+| `unity command script recompile` | 跳过磁盘检测强制重编并重载域；成功后发起请求等不到返回是正常形态，结论去 `script recompile_status` 读 |
+| AssetDatabase 刷新 | `autoRefresh` 为 `enabled` 时磁盘上的 `.cs` 改动会自己编译——这时**不要叠 `recompile`**，会重入编译管线、和 Bee 抢同一份在途构建 |
+| `unity command editor focus` | 只把编辑器顶到前台，**不等于编译**；判「在不在编译」看 `unity status`，不要依赖窗口焦点 |
 
-- **回执**：`Temp/MoiraiEditorCommand.result.json` 配 `.done`（内容是请求 `id`，只认与本次配对的 `.done`）。回执只答"命令有没有被执行"，效果一律回状态文件读。`refresh`/`recompile` 的回执会写两遍——受理一遍、结论覆写一遍：动作本身可能当场把本域拆走（编译与域重载就是这次调用发起的），读到"已受理"停在原地是正常形态，去看状态文件。
-- **`refresh` 与 `recompile` 不要叠发**：磁盘上有改动时 `refresh` 自己就会起编译，再叠一次 `recompile` 会重入编译管线、和 Bee 抢同一份在途构建（要跳过磁盘检测强制重编时才用 `recompile`）。
-- **实测（2026-10-11）**：`open -a` 聚焦脉冲连续多次不触发自动刷新（等五分钟没有新 `*** Tundra build` 行），改发 `refresh` 后编译立刻开始（`domainSeq` 8→9、`consoleErrors` 0、dll 更新）。**判"编辑器在不在编译"以状态桥为准，不要依赖窗口焦点。**
+- **编译失败正文**：`unity command console get --level error`，或去 `Editor.log`（Windows `%LOCALAPPDATA%\Unity\Editor\Editor.log`）。
+- **多个编辑器**：`unity status` 的 `projectPath` 就是 `--project-path` 该给的值；匹配不上会报 `AMBIGUOUS_EDITOR`。
 
 ### 通道四：Test Runner 窗口（L3 唯一通道）
 
@@ -408,7 +432,7 @@ CI 侧由 `.github/workflows/coverage.yaml` 执行同一套：插桩跑一轮 Ed
 | 改字段名后用例 NRE | 用例用反射读字段 | 改 `internal`，别用反射 |
 | 用例红了但代码没动 | 并行会话改了 API | 先 `git diff` 排除并行改动，再归因 |
 | Inspector 下拉框出现陌生 Handler | 测试里建了 `[SerializeReference]` 基类的子类 | 删除该类型，改用内置实现 + 事件回调 |
-| 改了 `.cs` 编辑器迟迟不编译 | 窗口焦点脉冲不可靠（失焦时自动刷新不触发） | 投 `refresh` 命令驱动编译（通道三），别只靠聚焦窗口 |
+| 改了 `.cs` 编辑器迟迟不编译 | 窗口焦点脉冲不可靠（失焦时自动刷新不触发） | 跑 `unity recompile` 驱动编译（通道三），别只靠聚焦窗口 |
 
 ---
 
