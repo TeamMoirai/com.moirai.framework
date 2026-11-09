@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     public class GUIStyleViewer : EditorWindow
     {

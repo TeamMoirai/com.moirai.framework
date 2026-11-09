@@ -5,7 +5,7 @@ using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 #endif
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.Tween
 {
     [CustomPropertyDrawer(typeof(TweenEase))]
     public class TweenDrawer : PropertyDrawer

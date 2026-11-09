@@ -2,7 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Localization.Editor
+namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 渠道默认语言烘焙窗口（菜单：Tools/Config/烘焙渠道默认语言），下拉选配置表导出的语言一键烘焙到 <c>Assets/Resources/LocalizationBuildConfig.asset</c>。

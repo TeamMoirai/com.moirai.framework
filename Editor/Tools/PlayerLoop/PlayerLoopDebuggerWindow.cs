@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityPlayerLoop = UnityEngine.LowLevel.PlayerLoop;
 
-namespace Moirai.Atropos.Editor.PlayerLoopDebug
+namespace Moirai.Atropos.PlayerLoopDebug
 {
     /// <summary>
     /// PlayerLoop 结构可视化窗口（Odin 实现）：展示注入状态、三阶段订阅统计，以及可折叠 / 可过滤的循环树。

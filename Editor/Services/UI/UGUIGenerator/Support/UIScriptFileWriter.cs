@@ -4,7 +4,7 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.UI.Editor
+namespace Moirai.Atropos.UGUIGenerator
 {
     /// <summary>
     /// 脚本文件写入器。

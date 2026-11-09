@@ -3,7 +3,7 @@ using System.Collections;
 using System.Reflection;
 using UnityEditor;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     public static class ReflectionEditorUtility
     {

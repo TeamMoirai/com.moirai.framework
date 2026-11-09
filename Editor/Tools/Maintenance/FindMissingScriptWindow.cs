@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     public class FindMissingScriptWindow : EditorWindow
     {

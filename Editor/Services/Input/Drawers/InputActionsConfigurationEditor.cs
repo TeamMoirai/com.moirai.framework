@@ -3,10 +3,9 @@ using UnityEditor;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Moirai.Atropos.Input;
 using Sirenix.OdinInspector.Editor;
 
-namespace Moirai.Atropos.Editor.Input
+namespace Moirai.Atropos.Input
 {
     [CustomEditor(typeof(InputActionsConfiguration))]
     public class InputActionsConfigurationEditor : OdinEditor

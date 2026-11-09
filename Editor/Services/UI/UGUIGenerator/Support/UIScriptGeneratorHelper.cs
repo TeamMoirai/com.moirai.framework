@@ -8,7 +8,7 @@ using UnityEditor.Callbacks;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace Moirai.Atropos.UI.Editor
+namespace Moirai.Atropos.UGUIGenerator
 {
     /// <summary>
     /// UI脚本生成器辅助类，提供脚本生成的核心编排逻辑。

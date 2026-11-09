@@ -1,11 +1,11 @@
 using System;
-using Moirai.Atropos.Editor;
+using Moirai.Atropos;
 using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Resource.Editor
+namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// <see cref="AssetReference"/> 的 Odin 绘制器，单行绘制：对象字段选中即写回 GUID、

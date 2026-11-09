@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
-namespace Moirai.Atropos.UI.Editor
+namespace Moirai.Atropos.UGUIGenerator
 {
     /// <summary>
     /// 标识符格式化器接口，定义变量名和类名的格式化规则。

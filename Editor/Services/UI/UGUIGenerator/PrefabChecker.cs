@@ -2,7 +2,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace Moirai.Atropos.UI.Editor
+namespace Moirai.Atropos.UGUIGenerator
 {
     /// <summary>
     /// Prefab检查工具，提供Prefab状态判断方法。

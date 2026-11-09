@@ -1,6 +1,6 @@
 ﻿using UnityEditor;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// <see cref="DebugDrawUtility"/> 宏定义

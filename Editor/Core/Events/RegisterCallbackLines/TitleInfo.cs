@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 已注册回调列表中的分组标题行，按发送事件的元素分组。

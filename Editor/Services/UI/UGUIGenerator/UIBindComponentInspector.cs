@@ -1,7 +1,8 @@
+using Moirai.Atropos.UI;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.UI.Editor
+namespace Moirai.Atropos.UGUIGenerator
 {
     [CustomEditor(typeof(UIBindComponent), true)]
     public class UIBindComponentInspector : UnityEditor.Editor

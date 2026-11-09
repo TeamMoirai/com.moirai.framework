@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using ToggleEvent = UnityEngine.UIElements.ChangeEvent<bool>;
 
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 事件类型过滤下拉列表中的单个选项，含显示名称、所属分组与事件类型标识。

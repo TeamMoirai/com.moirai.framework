@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 打开文件夹相关的实用函数。

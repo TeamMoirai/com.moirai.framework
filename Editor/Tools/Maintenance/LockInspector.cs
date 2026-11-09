@@ -3,7 +3,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 锁定 Inspector 面板，再次按下相同快捷键即解锁（快捷键 <c>Ctrl</c> / <c>Cmd</c> + <c>L</c>）。

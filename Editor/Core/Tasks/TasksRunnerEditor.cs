@@ -1,6 +1,7 @@
 using UnityEditor;
 using UnityEngine;
-namespace Moirai.Atropos.Tasks.Editor
+
+namespace Moirai.Atropos.Tasks
 {
     [CustomEditor(typeof(TaskRunner))]
     public class TaskRunnerEditor : UnityEditor.Editor

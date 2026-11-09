@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Moirai.Atropos.AtlasMaker;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,11 +11,11 @@ using UnityEngine.U2D;
 using UnityEngine.UI;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.AtlasRefWindow
 {
     internal sealed class AtlasRefWindow : EditorWindow
     {
-        private const string DEFAULT_UI_PREFAB_FOLDER_PATH = "Assets/AssetRaw/UI";
+        private const string DEFAULT_UI_PREFAB_FOLDER_PATH = "Assets/AssetRaw/Default/UI";
         private const float OBJECT_COLUMN_WIDTH = 210f;
         private const float COUNT_COLUMN_WIDTH = 90f;
         private const float ACTION_BUTTON_WIDTH = 110f;

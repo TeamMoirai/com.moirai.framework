@@ -14,7 +14,7 @@ using Newtonsoft.Json.Linq;
 using System.Text;
 using Newtonsoft.Json;
 
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 事件调试器窗口（Window/Event Debugger），基于 <see cref="EventsDebuggerImpl"/> 展示与调试事件派发。

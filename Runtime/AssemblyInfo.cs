@@ -13,7 +13,7 @@ using Unity.IL2CPP.CompilerServices;
 
 [assembly: InternalsVisibleTo("Moirai.Clotho")]
 [assembly: InternalsVisibleTo("Moirai.Clotho.CharacterControllerPro")]
-[assembly: InternalsVisibleTo("Moirai.Clotho.UIPro")]
+[assembly: InternalsVisibleTo("Moirai.Clotho.UGUIPro")]
 
 [assembly: InternalsVisibleTo("Moirai.Lachesis")]
 

@@ -1,5 +1,4 @@
-﻿#if UNITY_EDITOR
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,7 +8,7 @@ using UnityEngine;
 using UnityEngine.U2D;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos.AtlasMaker
 {
     public static class EditorSpriteSaveInfo
     {
@@ -815,4 +814,3 @@ namespace Moirai.Atropos.Editor
         }
     }
 }
-#endif

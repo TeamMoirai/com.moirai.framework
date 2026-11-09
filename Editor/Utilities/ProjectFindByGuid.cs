@@ -6,7 +6,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     public class ProjectFindByGuid
     {

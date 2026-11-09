@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Moirai.Atropos.Events.Editor
+namespace Moirai.Atropos.Events
 {
     /// <summary>
     /// 事件日志，按顺序保存事件调试器记录的 <see cref="EventLogLine"/> 行。

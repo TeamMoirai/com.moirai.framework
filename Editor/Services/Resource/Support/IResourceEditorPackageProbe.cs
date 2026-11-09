@@ -1,4 +1,4 @@
-namespace Moirai.Atropos.Resource.Editor
+namespace Moirai.Atropos.Resource
 {
     /// <summary>
     /// 后端在编辑器侧提供的两项读数：资源包名清单与默认包寻址位。

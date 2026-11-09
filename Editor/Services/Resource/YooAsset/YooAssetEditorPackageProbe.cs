@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Moirai.Atropos.Resource;
 using UnityEditor;
 using YooAsset.Editor;
 
-namespace Moirai.Atropos.Resource.Editor
+namespace Moirai.Atropos.Resource.YooAsset
 {
     /// <summary>
     /// YooAsset 在编辑器侧的包名与寻址位探针：读收集器设置，并只认领自己的后端实例。

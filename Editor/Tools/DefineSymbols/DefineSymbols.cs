@@ -1,4 +1,4 @@
-﻿namespace Moirai.Atropos.Editor
+﻿namespace Moirai.Atropos
 {
     public static class DefineSymbols
     {

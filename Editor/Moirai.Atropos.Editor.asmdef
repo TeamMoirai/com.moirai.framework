@@ -50,6 +50,11 @@
             "name": "com.code-philosophy.obfuz4hybridclr",
             "expression": "1.0.0",
             "define": "OBFUZ4HYBRIDCLR_INSTALLED"
+        },
+        {
+            "name": "com.moirai.gameplay.plugin.ugui-pro",
+            "expression": "0.0.1",
+            "define": "MOIRAI_UGUI_PRO_INSTALLED"
         }
     ],
     "noEngineReferences": false

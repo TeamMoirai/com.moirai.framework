@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Moirai.Atropos.UI;
 using UnityEngine;
 
-namespace Moirai.Atropos.UI.Editor
+namespace Moirai.Atropos.UGUIGenerator
 {
     /// <summary>
     /// 绑定数据收集器，负责从UI层级结构中收集组件绑定信息。

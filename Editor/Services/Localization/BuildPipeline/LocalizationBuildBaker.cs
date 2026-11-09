@@ -2,7 +2,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Localization.Editor
+namespace Moirai.Atropos.Localization
 {
     /// <summary>
     /// 渠道默认语言烘焙器：把 <c>LocalizationBuildConfig</c> 写进 <c>Assets/Resources/</c>，随包分发。

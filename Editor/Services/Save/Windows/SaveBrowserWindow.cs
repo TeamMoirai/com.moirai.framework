@@ -10,7 +10,7 @@ using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor.Save
+namespace Moirai.Atropos.Save
 {
     /// <summary>
     /// 存档浏览器编辑器窗口（Odin 原生实现）：左侧菜单树（文件夹 → 槽位，含健康状态图标），右侧由 Odin 属性树绘制选中节点详情。

@@ -8,7 +8,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     /// <summary>
     /// 打包工具窗口：左侧预设列表 + 右侧配置详情，UI Toolkit 布局。

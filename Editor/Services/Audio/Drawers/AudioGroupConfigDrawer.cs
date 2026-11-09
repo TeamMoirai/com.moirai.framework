@@ -1,7 +1,7 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Audio.Editor
+namespace Moirai.Atropos.Audio
 {
     [CustomPropertyDrawer(typeof(AudioGroupConfig))]
     public class AudioGroupConfigDrawer : PropertyDrawer

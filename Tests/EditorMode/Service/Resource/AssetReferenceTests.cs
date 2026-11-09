@@ -1,6 +1,5 @@
 using System;
 using Moirai.Atropos.Resource;
-using Moirai.Atropos.Resource.Editor;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;

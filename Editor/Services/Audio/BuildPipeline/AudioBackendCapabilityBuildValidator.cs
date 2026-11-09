@@ -5,7 +5,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace Moirai.Atropos.Audio.Editor
+namespace Moirai.Atropos.Audio
 {
     /// <summary>
     /// 构建期音频后端能力自检：出包前把播放选项资产里「用到了当前选定后端不消费的能力」逐条报出来。

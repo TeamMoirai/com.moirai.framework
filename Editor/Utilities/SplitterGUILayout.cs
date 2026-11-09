@@ -4,7 +4,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace Moirai.Atropos.Editor
+namespace Moirai.Atropos
 {
     // reflection call of UnityEditor.SplitterGUILayout
     public static class SplitterGUILayout
