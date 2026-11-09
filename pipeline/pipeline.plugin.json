@@ -1,6 +1,6 @@
 {
   "id": "pipeline",
-  "name": "Unity Pipeline 编辑器命令通道",
+  "name": "Unity Pipeline",
   "function": "AI 辅助",
   "description": "把 Unity Pipeline（编辑器/运行侧 HTTP 命令服务）以 Unity 2022.3 兼容形态纳入包管理器：装后 2022.x 的 Moirai 工程可被 unity CLI 驱动做查询、跑测、构建预检。形状＝官方 com.unity.pipeline 0.10.0-exp.1 加 16 档 2022 兼容差异（PhysicsMaterial/rawRenderQueue/Console 计数/legacy analytics/TestRunnerApi/Game view 重绘 的版本门控，及 5 枚 Roslyn dll 的 PluginImporter v2 meta），命令组/名/参数逐字保留、装配名与命名空间保留 Unity.Pipeline.* 不改名。Unity 6.x 已能从官方 registry 装同名包且与本插件装配重名，故本插件设 maxUnityVersion=6000.0.0 在 6.x 整批拒装——即 2022.x 用这枚、6.x 用官方包，二者不同框。前置：安装器按 upmDependencies 写入 com.unity.nuget.mono-cecil 与 newtonsoft-json；缺则 CodeGen/Runtime 装配编不过。许可为 Unity Terms of Service（非 MIT），二次分发口径见框架侧交接。",
   "author": "Team Moirai",
