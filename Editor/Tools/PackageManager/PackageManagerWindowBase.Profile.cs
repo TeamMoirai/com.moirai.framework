@@ -61,6 +61,9 @@ namespace Moirai.Atropos.PackageManager
             /// <summary>设置面里源设置节点与工具栏设置面的称法。</summary>
             public string SourceNodeName { get; set; } = "分支包源";
 
+            /// <summary>设置面里开发工具节点的称法（反向同步与本地开发）。</summary>
+            public string DevToolsNodeName { get; set; } = "开发工具";
+
             /// <summary>清单未写 <c>function</c> 时的分组名。</summary>
             public string UngroupedNodeName { get; set; } = "未分组";
 

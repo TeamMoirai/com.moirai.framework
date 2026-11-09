@@ -665,7 +665,7 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>某个插件在工程里的安装目录：<c>Packages/&lt;检出目录名&gt;.&lt;id&gt;/</c>。</summary>
-        private string InstallFolderPath(string pluginId)
+        internal string InstallFolderPath(string pluginId)
         {
             return Path.Combine(_installRootPath, new DirectoryInfo(_sourceRootPath).Name + INSTALL_FOLDER_SEPARATOR + pluginId);
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Moirai.Atropos.MenuEditorWindow;
 using Sirenix.OdinInspector;
 using Sirenix.OdinInspector.Editor;
@@ -30,6 +31,9 @@ namespace Moirai.Atropos.PackageManager
         // 进度弹窗收起后，动作期间点下的鼠标事件往往这时才被派发：留一小段输入冷却再恢复
         private const double MUTATION_INPUT_GRACE_SECONDS = 0.5d;
 
+        // 反向同步前只问一次"是不是 git 工作树"，读不通就停手
+        private const int SYNC_GIT_QUERY_TIMEOUT_MILLISECONDS = 30000;
+
         private static readonly string[] FILTER_LABELS = { "全部", "未安装", "可升级" };
 
         // 状态图标颜色：已装绿、可升级蓝、有拦路红、超出支持范围黄
@@ -46,6 +50,13 @@ namespace Moirai.Atropos.PackageManager
             Upgradable = 2
         }
 
+        /// <summary>设置面左树里的页签。</summary>
+        private enum SettingsNode
+        {
+            Source = 0,
+            DevTools = 1
+        }
+
         private PackageManagerProfile _profile;
         private PackageManagerStateRegistry _stateRegistry;
         private PackageManagerStateData _state;
@@ -54,6 +65,8 @@ namespace Moirai.Atropos.PackageManager
         private PackageManagerSourceStatus _status;
         private PluginCatalogResult _catalog;
         private SourceSettingsModel _settingsModel;
+        private DevToolsModel _devToolsModel;
+        private SettingsNode _settingsNode;
         private readonly List<PluginEntry> _entries = new List<PluginEntry>();
         private string _message = "开窗先用上次扫分支的缓存铺列表，随后自动在后台重扫。";
         private MessageType _messageType = MessageType.Info;
@@ -151,6 +164,7 @@ namespace Moirai.Atropos.PackageManager
             _installer = PluginInstaller.Create(_state.settings, Profile, _stateRegistry);
             _status = PackageManagerSourceStatus.Capture(_state.settings, _cache, _installer.Source);
             _settingsModel = new SourceSettingsModel(this, _state.settings);
+            _devToolsModel = new DevToolsModel(this);
             _entries.Clear();
             _catalog = null;
             _updatableIds = new List<string>();
@@ -163,10 +177,11 @@ namespace Moirai.Atropos.PackageManager
             ApplyMenuStyle(tree);
             tree.DefaultMenuStyle.SetHeight(24);
 
-            // 源设置只在设置面里出现：默认视图的树只列可装包
+            // 源设置与开发工具只在设置面里出现：默认视图的树只列可装包
             if (_settingsFace)
             {
                 tree.Add(Profile.SourceNodeName, _settingsModel);
+                tree.Add(Profile.DevToolsNodeName, _devToolsModel);
                 return tree;
             }
 
@@ -200,8 +215,19 @@ namespace Moirai.Atropos.PackageManager
 
         protected override void OnBeforeTreeRebuild(object previousSelection)
         {
-            // 只记条目：设置面里选中项是源设置本身，别让它把待恢复的条目覆盖掉
-            if (previousSelection is PluginEntry entry) _selectedEntryId = entry.EntryId;
+            // 只记条目：设置面里选中项是设置模型本身，别让它把待恢复的条目覆盖掉
+            if (previousSelection is PluginEntry entry)
+            {
+                _selectedEntryId = entry.EntryId;
+            }
+            else if (previousSelection is DevToolsModel)
+            {
+                _settingsNode = SettingsNode.DevTools;
+            }
+            else if (previousSelection is SourceSettingsModel)
+            {
+                _settingsNode = SettingsNode.Source;
+            }
         }
 
         protected override void OnAfterTreeRebuild(object previousSelection)
@@ -209,7 +235,7 @@ namespace Moirai.Atropos.PackageManager
             // 同步选中：设置面/原条目当场落在新树上，不等 Odin 的下一拍延迟匹配
             if (_settingsFace)
             {
-                SelectMenuItemWithValue(_settingsModel);
+                SelectMenuItemWithValue(_settingsNode == SettingsNode.DevTools ? (object)_devToolsModel : _settingsModel);
                 return;
             }
 
@@ -415,6 +441,7 @@ namespace Moirai.Atropos.PackageManager
             // 缓存会被并行会话改写，落盘前重读一遍再写；账本这次不碰
             PackageManagerCacheData latestCache = _stateRegistry.LoadCache();
             latestCache.lastFetchAt = _cache.lastFetchAt;
+            latestCache.reverseSyncFolder = _cache.reverseSyncFolder;
             _stateRegistry.CacheCatalog(latestCache, _state.settings, catalog, _scanHeadCommit);
             _stateRegistry.SaveCache(latestCache);
             _cache = latestCache;
@@ -813,6 +840,116 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
+        /// 把已装插件的改动反向写回本地 git 工作树：每个插件落到目标目录下的 <c>&lt;id&gt;/</c>。
+        /// </summary>
+        /// <remarks>目标必须是 git 工作树；同步按镜像走，目标里多出的文件会删掉，安装生成的根 <c>package.json</c> 不参与。</remarks>
+        private void SyncRequested()
+        {
+            if (IsInputLocked) return;
+
+            string targetRoot = _cache?.reverseSyncFolder;
+            if (string.IsNullOrEmpty(targetRoot))
+            {
+                SetMessage($"先在「{Profile.DevToolsNodeName}」里设置反向同步文件夹。", MessageType.Warning);
+                return;
+            }
+
+            if (!Directory.Exists(targetRoot))
+            {
+                SetMessage($"反向同步文件夹不存在：{targetRoot}", MessageType.Error);
+                return;
+            }
+
+            if (!TryValidateSyncWorktree(targetRoot, out string gitReason))
+            {
+                SetMessage(gitReason, MessageType.Error);
+                return;
+            }
+
+            var ids = new List<string>();
+            List<InstalledPluginData> installed = _state?.installed;
+            for (int i = 0; installed != null && i < installed.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(installed[i]?.id)) ids.Add(installed[i].id);
+            }
+
+            if (ids.Count == 0)
+            {
+                SetMessage($"账本里还没有已装{EntryNoun}，没有可同步的内容。", MessageType.Info);
+                return;
+            }
+
+            string body = $"目标：{targetRoot}\n\n" +
+                          $"把 {ids.Count} 个已装{EntryNoun}的目录写回目标下的 <id>/：覆盖同名文件、删除多出的文件；" +
+                          "安装时生成的根 package.json 及其 .meta 不参与。";
+            if (!EditorUtility.DisplayDialog($"同步 {ids.Count} 个{EntryNoun}到本地 git", body, "继续", "取消")) return;
+
+            var reports = new List<PluginSyncReport>(ids.Count);
+            _mutating = true;
+            try
+            {
+                for (int i = 0; i < ids.Count; i++)
+                {
+                    EditorUtility.DisplayProgressBar($"同步{EntryNoun}",
+                        $"{ids[i]}（{i + 1}/{ids.Count}）", (i + 1f) / ids.Count);
+                    reports.Add(PluginFolderSync.Sync(ids[i], _installer.InstallFolderPath(ids[i]), targetRoot));
+                }
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+                _mutating = false;
+                _inputLockedUntil = EditorApplication.timeSinceStartup + MUTATION_INPUT_GRACE_SECONDS;
+                Repaint();
+            }
+
+            int succeeded = 0;
+            string firstFailure = null;
+            for (int i = 0; i < reports.Count; i++)
+            {
+                PluginSyncReport report = reports[i];
+                for (int j = 0; j < report.Notes.Count; j++) Debug.Log(Profile.LogPrefix + " " + report.Notes[j]);
+
+                if (report.Ok)
+                {
+                    succeeded++;
+                    Debug.Log(Profile.LogPrefix + $" 同步 {report.PluginId}：{report.Summary()}");
+                    continue;
+                }
+
+                if (firstFailure == null) firstFailure = $"{report.PluginId}：{report.FailureReason}";
+            }
+
+            if (succeeded == reports.Count)
+            {
+                SetMessage($"已同步 {succeeded} 个{EntryNoun}到 {targetRoot}", MessageType.Info);
+            }
+            else
+            {
+                SetMessage($"同步完成：成功 {succeeded}，失败 {reports.Count - succeeded}。{firstFailure}", MessageType.Error);
+            }
+
+            Repaint();
+        }
+
+        /// <summary>目标目录是不是本地 git 工作树；读不通时把 git 的原因一并交回。</summary>
+        private bool TryValidateSyncWorktree(string folder, out string failureReason)
+        {
+            GitRunResult result = GitProcessUtility.Run(_state.settings.gitPath, folder,
+                "rev-parse --is-inside-work-tree", SYNC_GIT_QUERY_TIMEOUT_MILLISECONDS);
+            if (result.Ok && string.Equals(result.StandardOutput.Trim(), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                failureReason = null;
+                return true;
+            }
+
+            failureReason = result.Ok
+                ? $"反向同步文件夹不是 git 工作树：{folder}"
+                : $"反向同步文件夹读不成 git 工作树：{folder}（{result.FailureReason()}）";
+            return false;
+        }
+
+        /// <summary>
         /// 装卸成功后按本机账本重算一遍：重读状态、重算可更新集、用手里的目录重建行。
         /// </summary>
         /// <remarks>不走网络，也不等域重载：否则列表会停在旧读数上继续显示"可升级"。</remarks>
@@ -822,6 +959,7 @@ namespace Moirai.Atropos.PackageManager
             _installer = PluginInstaller.Create(_state.settings, Profile, _stateRegistry);
             _status = PackageManagerSourceStatus.Capture(_state.settings, _cache, _installer.Source);
             _settingsModel = new SourceSettingsModel(this, _state.settings);
+            _devToolsModel = new DevToolsModel(this);
 
             _updatableIds = new List<string>();
             if (_installer.TryCollectUpdatable(_state, out List<string> updatable, out _)) _updatableIds = updatable;
@@ -1231,6 +1369,152 @@ namespace Moirai.Atropos.PackageManager
                 var parts = new List<string>();
                 for (int i = 0; i < dependencies.Length; i++) parts.Add($"{dependencies[i].id} {dependencies[i].version}");
                 return string.Join("\n", parts);
+            }
+        }
+
+        /// <summary>
+        /// 开发工具页：反向同步落点，以及把已装插件写回本地 git 的动作。
+        /// </summary>
+        [Serializable]
+        private sealed class DevToolsModel
+        {
+            [NonSerialized] private readonly PackageManagerWindowBase _window;
+
+            internal DevToolsModel(PackageManagerWindowBase window)
+            {
+                _window = window;
+            }
+
+            [ShowInInspector, LabelText("说明"), DisplayAsString(false)]
+            internal string Description =>
+                "把 Packages 下已装插件的改动反向写回本地 git 工作树：目标目录下的 <id>/ 等于分支里的插件目录。" +
+                "同步按镜像走，覆盖同名文件并删除多出的文件；安装时生成的根 package.json 及其 .meta 不参与。" +
+                "同步落点里的 ~ 表示省略的工程绝对路径前缀，箭头后是相对项目 Assets 的路径。";
+
+            [ShowInInspector, LabelText("反向同步文件夹")]
+            [FolderPath(AbsolutePath = true)]
+            [Tooltip("本地 git 工作树根目录；同步时把已装插件的改动写到它下面的 <id>/。")]
+            internal string ReverseSyncFolder
+            {
+                get => _window?._cache?.reverseSyncFolder;
+                set { if (_window?._cache != null) _window._cache.reverseSyncFolder = value; }
+            }
+
+            [ShowInInspector, LabelText("已装插件"), DisplayAsString(false)]
+            internal string InstalledSummary => DescribeInstalled();
+
+            [ShowInInspector, LabelText("同步落点"), DisplayAsString(false)]
+            internal string SyncTargets => DescribeTargets();
+
+            [Button("保存设置")]
+            private void Save()
+            {
+                PackageManagerWindowBase window = _window;
+                if (window == null) return;
+
+                window._stateRegistry.SaveCache(window._cache);
+                window.QueueTreeRebuild();
+                window.SetMessage("同步设置已写入本机缓存。", MessageType.Info);
+            }
+
+            [Button("同步全部已装插件", ButtonSizes.Large)]
+            private void SyncAll() => _window?.SyncRequested();
+
+            private string DescribeInstalled()
+            {
+                List<InstalledPluginData> installed = _window?._state?.installed;
+                if (installed == null || installed.Count == 0) return "账本里还没有已装插件。";
+
+                var parts = new List<string>(installed.Count);
+                for (int i = 0; i < installed.Count; i++)
+                {
+                    InstalledPluginData entry = installed[i];
+                    if (entry == null || string.IsNullOrEmpty(entry.id)) continue;
+
+                    parts.Add(string.IsNullOrEmpty(entry.version) ? entry.id : entry.id + " " + entry.version);
+                }
+
+                return parts.Count == 0 ? "账本里还没有已装插件。" : string.Join("\n", parts);
+            }
+
+            private string DescribeTargets()
+            {
+                string root = _window?._cache?.reverseSyncFolder;
+                if (string.IsNullOrEmpty(root)) return "先设置反向同步文件夹。";
+
+                List<InstalledPluginData> installed = _window?._state?.installed;
+                if (installed == null || installed.Count == 0) return "—";
+
+                var parts = new List<string>(installed.Count);
+                for (int i = 0; i < installed.Count; i++)
+                {
+                    InstalledPluginData entry = installed[i];
+                    if (entry == null || string.IsNullOrEmpty(entry.id)) continue;
+
+                    string source = _window?._installer?.InstallFolderPath(entry.id) ?? "<未就绪>";
+                    parts.Add($"{entry.id}：{CollapseToPackages(source)} → {DescribeTargetPath(root, entry.id)}");
+                }
+
+                return parts.Count == 0 ? "—" : string.Join("\n", parts);
+            }
+
+            /// <summary>把安装目录收敛成从 <c>Packages/</c> 起的形状：前面的工程绝对路径用 ~ 省略。</summary>
+            private static string CollapseToPackages(string path)
+            {
+                string normalized = (path ?? string.Empty).Replace('\\', '/');
+                int index = normalized.LastIndexOf("/Packages/", StringComparison.OrdinalIgnoreCase);
+                return index < 0 ? normalized : "~" + normalized.Substring(index);
+            }
+
+            /// <summary>同步落点相对项目 <c>Assets/</c> 的路径；路径形状不合法时退回插件目录名。</summary>
+            private static string DescribeTargetPath(string root, string pluginId)
+            {
+                try
+                {
+                    return RelativeToAssets(Path.Combine(root, pluginId));
+                }
+                catch (Exception)
+                {
+                    return pluginId + "/";
+                }
+            }
+
+            /// <summary>从项目 <c>Assets/</c> 出发表示目标路径；跨盘符时交出绝对路径。</summary>
+            private static string RelativeToAssets(string path)
+            {
+                string assetsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Assets"))
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string fullPath = Path.GetFullPath(path)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                string[] baseParts = assetsRoot.Replace('\\', '/').Split('/');
+                string[] targetParts = fullPath.Replace('\\', '/').Split('/');
+
+                // 不同盘符算不出相对路径，原样交出绝对路径
+                if (!string.Equals(baseParts[0], targetParts[0], StringComparison.OrdinalIgnoreCase))
+                {
+                    return fullPath.Replace('\\', '/');
+                }
+
+                int common = 0;
+                while (common < baseParts.Length && common < targetParts.Length
+                       && string.Equals(baseParts[common], targetParts[common], StringComparison.OrdinalIgnoreCase))
+                {
+                    common++;
+                }
+
+                var parts = new List<string>(baseParts.Length + targetParts.Length);
+                for (int i = common; i < baseParts.Length; i++)
+                {
+                    if (baseParts[i].Length > 0) parts.Add("..");
+                }
+
+                for (int i = common; i < targetParts.Length; i++)
+                {
+                    if (targetParts[i].Length > 0) parts.Add(targetParts[i]);
+                }
+
+                return parts.Count == 0 ? "." : string.Join("/", parts);
             }
         }
 
