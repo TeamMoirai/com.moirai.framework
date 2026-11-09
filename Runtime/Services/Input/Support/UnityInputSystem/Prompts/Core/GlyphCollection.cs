@@ -19,13 +19,22 @@ namespace Moirai.Atropos.Input.Prompts
         [ListDrawerSettings(ShowFoldout = false, ShowPaging = false)]
         [SerializeField] private GlyphMap[] m_PromptMaps = Array.Empty<GlyphMap>();
         
-        [HideLabel, BoxGroup("Disconnect Glyph")]
+        /// <!-- 未连接图标 -->
+        private const string DISCONNECT_GLYPH_GROUP = "未连接图标 [Disconnect Glyph]";
+
+        /// <!-- 动作缺失图标 -->
+        private const string NULL_GLYPH_GROUP = "动作缺失图标 [Null Glyph]";
+
+        /// <!-- 未绑定图标 -->
+        private const string UNBOUND_GLYPH_GROUP = "未绑定图标 [Unbound Glyph]";
+
+        [HideLabel, BoxGroup(DISCONNECT_GLYPH_GROUP)]
         [Tooltip("指定设备未连接时,显示的图标")]
         [SerializeField] private PromptGlyph m_DisconnectGlyph;
-        [HideLabel, BoxGroup("Null Glyph")]
+        [HideLabel, BoxGroup(NULL_GLYPH_GROUP)]
         [Tooltip("InputSystem 不存在指定 action 时,显示的图标")]
         [SerializeField] private PromptGlyph m_NullGlyph;
-        [HideLabel, BoxGroup("Unbound Glyph")]
+        [HideLabel, BoxGroup(UNBOUND_GLYPH_GROUP)]
         [Tooltip("当 action 有效，但该 action 的没有输入提示时的图标")]
         [SerializeField] private PromptGlyph m_UnboundGlyph;
         

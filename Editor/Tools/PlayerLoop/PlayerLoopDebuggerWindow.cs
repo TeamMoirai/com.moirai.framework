@@ -33,6 +33,24 @@ namespace Moirai.Atropos.PlayerLoopDebug
         private const float FOLDOUT_WIDTH = 15f;
         private const float BADGE_WIDTH = 48f;
 
+        /// <!-- 过滤 -->
+        private const string FILTER_GROUP = "过滤 [Filter]";
+
+        /// <!-- 刷新 -->
+        private const string REFRESH_GROUP = "刷新 [Refresh]";
+
+        /// <!-- 状态 -->
+        private const string STATUS_GROUP = "状态 [Status]";
+
+        /// <!-- 阶段 -->
+        private const string STAGES_GROUP = "阶段 [Stages]";
+
+        /// <!-- 注入操作 -->
+        private const string INJECTION_ACTIONS_GROUP = "注入操作 [Injection Actions]";
+
+        /// <!-- 树操作 -->
+        private const string TREE_ACTIONS_GROUP = "树操作 [Tree Actions]";
+
         private static readonly Color s_MoiraiColor = new Color(0.32f, 0.72f, 0.42f);
         private static readonly Color s_PumpColor = new Color(0.30f, 0.55f, 0.92f);
         private static readonly Color s_MissingColor = new Color(0.92f, 0.60f, 0.22f);
@@ -115,17 +133,17 @@ namespace Moirai.Atropos.PlayerLoopDebug
         private int _visibleCount;
         private double _nextAutoRefreshTime;
 
-        [BoxGroup("过滤"), ShowInInspector, HideLabel, Delayed,
+        [BoxGroup(FILTER_GROUP), ShowInInspector, HideLabel, Delayed,
             PropertyTooltip("按类型名子串过滤，留空显示全树"), OnValueChanged(nameof(RecomputeVisibility))]
         private string _filter = string.Empty;
 
-        [BoxGroup("过滤"), ToggleLeft, LabelText("仅显示注入点（Moirai 与第三方 Pump）"), OnValueChanged(nameof(RecomputeVisibility))]
+        [BoxGroup(FILTER_GROUP), ToggleLeft, LabelText("仅显示注入点（Moirai 与第三方 Pump）"), OnValueChanged(nameof(RecomputeVisibility))]
         private bool _markersOnly;
 
-        [BoxGroup("刷新"), ToggleLeft, LabelText("自动刷新"), OnValueChanged(nameof(SaveSessionState))]
+        [BoxGroup(REFRESH_GROUP), ToggleLeft, LabelText("自动刷新"), OnValueChanged(nameof(SaveSessionState))]
         private bool _autoRefresh;
 
-        [BoxGroup("刷新"), ShowIf(nameof(_autoRefresh)), Delayed, LabelText("间隔（秒）"), OnValueChanged(nameof(SaveSessionState))]
+        [BoxGroup(REFRESH_GROUP), ShowIf(nameof(_autoRefresh)), Delayed, LabelText("间隔（秒）"), OnValueChanged(nameof(SaveSessionState))]
         private double _autoInterval = 0.5d;
 
         #endregion
@@ -181,28 +199,28 @@ namespace Moirai.Atropos.PlayerLoopDebug
 
         #region Odin 面板 [ODIN PANEL]
 
-        [BoxGroup("状态"), InfoBox("$StatusHint", InfoMessageType.Warning, nameof(HasStatusHint)),
+        [BoxGroup(STATUS_GROUP), InfoBox("$StatusHint", InfoMessageType.Warning, nameof(HasStatusHint)),
             ShowInInspector, ReadOnly, LabelText("注入 [Injected]")]
         private string InjectionLabel =>
             $"{MarkerCount}/3 标记在位 · IsInjected={PlayerLoopInjector.IsInjected}";
 
-        [BoxGroup("状态"), ShowInInspector, ReadOnly, LabelText("驱动 [Driver]"), GUIColor(nameof(DriverColor))]
+        [BoxGroup(STATUS_GROUP), ShowInInspector, ReadOnly, LabelText("驱动 [Driver]"), GUIColor(nameof(DriverColor))]
         private string DriverLabel => PlayerLoopDriver.IsShutdown ? "Shutdown" : "Driving";
 
-        [BoxGroup("状态"), ShowInInspector, ReadOnly, LabelText("模式 [Mode]")]
+        [BoxGroup(STATUS_GROUP), ShowInInspector, ReadOnly, LabelText("模式 [Mode]")]
         private string ModeLabel => EditorApplication.isPlaying ? "Play" : "Edit";
 
-        [BoxGroup("状态"), ShowInInspector, ReadOnly, LabelText("帧时钟 [GameTime]")]
+        [BoxGroup(STATUS_GROUP), ShowInInspector, ReadOnly, LabelText("帧时钟 [GameTime]")]
         private string GameClockLabel =>
             $"frame {GameTime.frameCount} · Δ {GameTime.deltaTime:0.000} · time {GameTime.time:0.0}";
 
-        [BoxGroup("状态"), ShowInInspector, ReadOnly, LabelText("引擎时钟 [Time]")]
+        [BoxGroup(STATUS_GROUP), ShowInInspector, ReadOnly, LabelText("引擎时钟 [Time]")]
         private string EngineClockLabel => $"frame {Time.frameCount} · Δ {Time.deltaTime:0.000}";
 
-        [BoxGroup("状态"), ShowInInspector, ReadOnly, LabelText("循环规模 [Systems]")]
+        [BoxGroup(STATUS_GROUP), ShowInInspector, ReadOnly, LabelText("循环规模 [Systems]")]
         private string SystemCountLabel => $"{_totalSystems} 个系统 · 第三方 Pump {_pumpCount} 个";
 
-        [BoxGroup("阶段"), ShowInInspector, HideLabel, TableList(
+        [BoxGroup(STAGES_GROUP), ShowInInspector, HideLabel, TableList(
             AlwaysExpanded = true, IsReadOnly = true, ShowIndexLabels = false,
             MinScrollViewHeight = 82, MaxScrollViewHeight = 150)]
         private List<StageRow> Stages => _stages;
@@ -226,41 +244,41 @@ namespace Moirai.Atropos.PlayerLoopDebug
             }
         }
 
-        [Button("Refresh"), ButtonGroup("注入操作"), PropertyOrder(1)]
+        [Button("Refresh"), ButtonGroup(INJECTION_ACTIONS_GROUP), PropertyOrder(1)]
         private void RefreshClicked()
         {
             Refresh();
             Repaint();
         }
 
-        [Button("Ensure Injected"), ButtonGroup("注入操作"), GUIColor(0.36f, 0.68f, 1.00f)]
+        [Button("Ensure Injected"), ButtonGroup(INJECTION_ACTIONS_GROUP), GUIColor(0.36f, 0.68f, 1.00f)]
         private void EnsureInjectedClicked()
         {
             PlayerLoopInjector.EnsureInjected();
             Refresh();
         }
 
-        [Button("Reinject"), ButtonGroup("注入操作"), GUIColor(0.36f, 0.68f, 1.00f)]
+        [Button("Reinject"), ButtonGroup(INJECTION_ACTIONS_GROUP), GUIColor(0.36f, 0.68f, 1.00f)]
         private void ReinjectClicked()
         {
             PlayerLoopInjector.Reinject();
             Refresh();
         }
 
-        [Button("Restore Default"), ButtonGroup("注入操作"), GUIColor(0.92f, 0.60f, 0.22f)]
+        [Button("Restore Default"), ButtonGroup(INJECTION_ACTIONS_GROUP), GUIColor(0.92f, 0.60f, 0.22f)]
         private void RestoreDefaultClicked()
         {
             PlayerLoopInjector.RestoreDefault();
             Refresh();
         }
 
-        [Button("Expand All"), ButtonGroup("树操作"), PropertyOrder(2)]
+        [Button("Expand All"), ButtonGroup(TREE_ACTIONS_GROUP), PropertyOrder(2)]
         private void ExpandAll() => SetAllExpanded(true);
 
-        [Button("Collapse All"), ButtonGroup("树操作")]
+        [Button("Collapse All"), ButtonGroup(TREE_ACTIONS_GROUP)]
         private void CollapseAll() => SetAllExpanded(false);
 
-        [Button("Locate Moirai"), ButtonGroup("树操作"), GUIColor(0.32f, 0.72f, 0.42f)]
+        [Button("Locate Moirai"), ButtonGroup(TREE_ACTIONS_GROUP), GUIColor(0.32f, 0.72f, 0.42f)]
         private void LocateMoirai()
         {
             _filter = string.Empty;

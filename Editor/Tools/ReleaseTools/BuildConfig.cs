@@ -19,31 +19,40 @@ namespace Moirai.Atropos
     {
         #region 基础设置 [BASIC]
 
-        [FoldoutGroup("基础设置", true, 0)]
+        /// <!-- 基础设置 -->
+        private const string BASIC_GROUP = "基础设置 [Basic]";
+
+        /// <!-- 基础设置/版本行 -->
+        private const string VERSION_ROW_GROUP = BASIC_GROUP + "/VersionRow";
+
+        /// <!-- 基础设置/输出行 -->
+        private const string OUTPUT_ROW_GROUP = BASIC_GROUP + "/OutputRow";
+
+        [FoldoutGroup(BASIC_GROUP, true, 0)]
         [InfoBox("选择构建目标平台和基础参数。AB输出目录支持相对路径（相对于项目根目录）。")]
         [LabelText("目标平台")]
         [ValueDropdown(nameof(PlatformChoices))]
         [SerializeField] internal BuildTarget m_BuildTarget;
 
-        [FoldoutGroup("基础设置")]
+        [FoldoutGroup(BASIC_GROUP)]
         [LabelText("构建管线")]
         [ValueDropdown(nameof(PipelineChoices))]
         [SerializeField] internal EBuildPipeline m_BuildPipeline = EBuildPipeline.ScriptableBuildPipeline;
 
-        [FoldoutGroup("基础设置")]
+        [FoldoutGroup(BASIC_GROUP)]
         [LabelText("压缩方式")]
         [ValueDropdown(nameof(CompressChoices))]
         [SerializeField] internal ECompressOption m_CompressOption = ECompressOption.LZ4;
 
-        [FoldoutGroup("基础设置")]
+        [FoldoutGroup(BASIC_GROUP)]
         [ProviderDropdown(label: "加密方式")]
         [SerializeReference] internal YooAssetEncryptorHandler m_EncryptorHandler;
 
         private string _packageVersion = "";
 
         /// <summary>资源版本号。</summary>
-        [FoldoutGroup("基础设置")]
-        [HorizontalGroup("基础设置/VersionRow")]
+        [FoldoutGroup(BASIC_GROUP)]
+        [HorizontalGroup(VERSION_ROW_GROUP)]
         [PropertyOrder(1)]
         [LabelText("资源版本号")]
         [ShowInInspector]
@@ -53,8 +62,8 @@ namespace Moirai.Atropos
             set => _packageVersion = value;
         }
 
-        [FoldoutGroup("基础设置")]
-        [HorizontalGroup("基础设置/OutputRow")]
+        [FoldoutGroup(BASIC_GROUP)]
+        [HorizontalGroup(OUTPUT_ROW_GROUP)]
         [PropertyOrder(3)]
         [LabelText("AB输出目录")]
         // ReSharper disable once InconsistentNaming
@@ -64,12 +73,15 @@ namespace Moirai.Atropos
 
         #region 最小包设置 [MINIMAL PACKAGE]
 
-        [FoldoutGroup("最小包设置", true, 10)]
+        /// <!-- 最小包设置 -->
+        private const string MINIMAL_PACKAGE_GROUP = "最小包设置 [Minimal Package]";
+
+        [FoldoutGroup(MINIMAL_PACKAGE_GROUP, true, 10)]
         [LabelText("启用最小包模式")]
         [Tooltip("构建后删除 StreamingAssets 中的 .bundle 文件")]
         [SerializeField] internal bool m_MinimalPackage;
 
-        [FoldoutGroup("最小包设置")]
+        [FoldoutGroup(MINIMAL_PACKAGE_GROUP)]
         [ShowIf(nameof(m_MinimalPackage))]
         [InfoBoxBelow("$" + nameof(MinimalHelpText))]
         [LabelText("保留Tag(逗号分隔)")]
@@ -95,32 +107,35 @@ namespace Moirai.Atropos
 
         #region 高级设置 [ADVANCED]
 
-        [FoldoutGroup("高级设置", false, 20)]
+        /// <!-- 高级设置 -->
+        private const string ADVANCED_GROUP = "高级设置 [Advanced]";
+
+        [FoldoutGroup(ADVANCED_GROUP, false, 20)]
         [LabelText("启用共享资源打包")]
         [Tooltip("自动提取共享资源到独立bundle")]
         [SerializeField] internal bool m_EnableSharePackRule = true;
 
-        [FoldoutGroup("高级设置")]
+        [FoldoutGroup(ADVANCED_GROUP)]
         [LabelText("使用资源依赖数据库")]
         [Tooltip("提高打包速度")]
         [SerializeField] internal bool m_UseAssetDependencyDB = true;
 
-        [FoldoutGroup("高级设置")]
+        [FoldoutGroup(ADVANCED_GROUP)]
         [LabelText("清理构建缓存(禁用增量构建)")]
         [Tooltip("全量重新构建")]
         [SerializeField] internal bool m_ClearBuildCache;
 
-        [FoldoutGroup("高级设置")]
+        [FoldoutGroup(ADVANCED_GROUP)]
         [LabelText("验证构建结果")]
         [Tooltip("构建后验证资源完整性")]
         [SerializeField] internal bool m_VerifyBuildingResult = true;
 
-        [FoldoutGroup("高级设置")]
+        [FoldoutGroup(ADVANCED_GROUP)]
         [LabelText("内置文件拷贝")]
         [ValueDropdown(nameof(CopyOptionChoices))]
         [SerializeField] internal EBundledCopyOption m_BundledCopyOption = EBundledCopyOption.ClearAndCopyAll;
 
-        [FoldoutGroup("高级设置")]
+        [FoldoutGroup(ADVANCED_GROUP)]
         [LabelText("文件名风格")]
         [ValueDropdown(nameof(FileNameStyleChoices))]
         [SerializeField] internal EFileNameStyle m_FileNameStyle = EFileNameStyle.BundleName_HashName;
@@ -129,7 +144,10 @@ namespace Moirai.Atropos
 
         #region 热更DLL设置 [HOTFIX DLL]
 
-        [FoldoutGroup("热更DLL设置", true, 30)]
+        /// <!-- 热更DLL设置 -->
+        private const string HOTFIX_DLL_GROUP = "热更DLL设置 [Hotfix DLL]";
+
+        [FoldoutGroup(HOTFIX_DLL_GROUP, true, 30)]
         [LabelText("构建前编译热更DLL")]
         [Tooltip("执行 BuildDLLCommand.BuildAndCopyDlls")]
         [SerializeField] internal bool m_BuildHotFixDll = true;
@@ -138,19 +156,25 @@ namespace Moirai.Atropos
 
         #region 打包Player设置 [PLAYER BUILD]
 
-        [FoldoutGroup("打包Player设置", false, 40)]
+        /// <!-- 打包Player设置 -->
+        private const string PLAYER_BUILD_GROUP = "打包Player设置 [Player Build]";
+
+        /// <!-- 打包Player设置/输出行 -->
+        private const string PLAYER_OUTPUT_ROW_GROUP = PLAYER_BUILD_GROUP + "/PlayerOutputRow";
+
+        [FoldoutGroup(PLAYER_BUILD_GROUP, false, 40)]
         [LabelText("构建Player")]
         [Tooltip("构建可执行程序(exe/apk/ipa)")]
         [SerializeField] internal bool m_BuildPlayer;
 
-        [FoldoutGroup("打包Player设置")]
+        [FoldoutGroup(PLAYER_BUILD_GROUP)]
         [ShowIf(nameof(m_BuildPlayer))]
         [LabelText("Player平台")]
         [ValueDropdown(nameof(PlatformChoices))]
         [SerializeField] internal BuildTarget m_PlayerPlatform;
 
-        [FoldoutGroup("打包Player设置")]
-        [HorizontalGroup("打包Player设置/PlayerOutputRow")]
+        [FoldoutGroup(PLAYER_BUILD_GROUP)]
+        [HorizontalGroup(PLAYER_OUTPUT_ROW_GROUP)]
         [ShowIf(nameof(m_BuildPlayer))]
         [LabelText("输出路径")]
         [SerializeField] internal string m_PlayerOutputPath = "";
@@ -202,7 +226,7 @@ namespace Moirai.Atropos
 
         #region 编辑器操作 [EDITOR ACTIONS]
 
-        [HorizontalGroup("基础设置/VersionRow", Width = 50f, MarginLeft = 4)]
+        [HorizontalGroup(VERSION_ROW_GROUP, Width = 50f, MarginLeft = 4)]
         [PropertyOrder(2)]
         [Button("自动")]
         private void ApplyDefaultPackageVersion()
@@ -210,7 +234,7 @@ namespace Moirai.Atropos
             PackageVersion = GetDefaultPackageVersion();
         }
 
-        [HorizontalGroup("基础设置/OutputRow", Width = 50f, MarginLeft = 4)]
+        [HorizontalGroup(OUTPUT_ROW_GROUP, Width = 50f, MarginLeft = 4)]
         [PropertyOrder(4)]
         [Button("浏览")]
         private void BrowseOutputRoot()
@@ -224,7 +248,7 @@ namespace Moirai.Atropos
             EditorUtility.SetDirty(this);
         }
 
-        [HorizontalGroup("打包Player设置/PlayerOutputRow", Width = 50f, MarginLeft = 4)]
+        [HorizontalGroup(PLAYER_OUTPUT_ROW_GROUP, Width = 50f, MarginLeft = 4)]
         [PropertyOrder(1)]
         [ShowIf(nameof(m_BuildPlayer))]
         [Button("浏览")]

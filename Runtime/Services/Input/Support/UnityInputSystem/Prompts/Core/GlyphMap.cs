@@ -14,13 +14,16 @@ namespace Moirai.Atropos.Input.Prompts
     [Serializable]
     public class PromptGlyph
     {
+        /// <!-- 绑定 -->
+        internal const string BINDING_GROUP = "Binding";
+
         [TableColumnWidth(57, Resizable = false)]
         [PreviewField(Alignment = ObjectFieldAlignment.Left)]
         [SerializeField] private Sprite m_Icon;
         /// <summary>对应的图标。假设 TMP Sprite 资源和 Sprite 已同步并且有相同的名称。</summary>
         public Sprite Icon => m_Icon;
 
-        [VerticalGroup("Binding"), LabelText("Sprite Sheet Name")]
+        [VerticalGroup(BINDING_GROUP), LabelText("Sprite Sheet Name")]
         [ReadOnly]
         [SerializeField] private string m_TextMeshSpriteSheetName;
         /// <summary>包含此字形的 text mesh sprite sheet 的名称。</summary>
@@ -34,7 +37,7 @@ namespace Moirai.Atropos.Input.Prompts
     public class ActionGlyph : PromptGlyph
     {
         [Tooltip("动作绑定的完整路径，例如 \"<Gamepad>/leftStick\"")]
-        [VerticalGroup("Binding"), LabelText("Binding Path")]
+        [VerticalGroup(BINDING_GROUP), LabelText("Binding Path")]
         [SerializeField] private string m_ActionBindingPath;
         /// <summary>动作绑定的完整路径，例如 <![CDATA["<Gamepad>/leftStick"]]>。</summary>
         /// <remarks>详情可见 - https://docs.unity3d.com/Packages/com.unity.inputsystem@1.5/manual/ActionBindings.html</remarks>
