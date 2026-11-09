@@ -1068,6 +1068,18 @@ namespace Moirai.Atropos.PackageManager
         [Serializable]
         private sealed class PluginEntry
         {
+            /// <!-- 概况 -->
+            private const string OVERVIEW_GROUP = "概况 [Overview]";
+
+            /// <!-- 标签 -->
+            private const string TAGS_GROUP = "标签 [Tags]";
+
+            /// <!-- 依赖 -->
+            private const string DEPENDENCIES_GROUP = "依赖 [Dependencies]";
+
+            /// <!-- 操作 -->
+            private const string OPERATIONS_GROUP = "操作 [Actions]";
+
             [NonSerialized] private readonly PackageManagerWindowBase _window;
             [NonSerialized] private readonly PluginManifest _manifest;
             [NonSerialized] private readonly string _headCommit;
@@ -1102,24 +1114,24 @@ namespace Moirai.Atropos.PackageManager
                 _outOfSupport = outOfSupport;
             }
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("$EntryLabel")]
+            [BoxGroup(OVERVIEW_GROUP), ShowInInspector, LabelText("$EntryLabel")]
             internal string DisplayName => string.IsNullOrEmpty(_manifest.name) ? _manifest.id : _manifest.name;
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("分组")]
+            [BoxGroup(OVERVIEW_GROUP), ShowInInspector, LabelText("分组")]
             internal string GroupName => string.IsNullOrEmpty(_manifest.function)
                 ? (_window != null ? _window.UngroupedNodeName : "未分组")
                 : _manifest.function;
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("状态")]
+            [BoxGroup(OVERVIEW_GROUP), ShowInInspector, LabelText("状态")]
             internal string StatusText => DescribeStatus();
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("分支版本")]
+            [BoxGroup(OVERVIEW_GROUP), ShowInInspector, LabelText("分支版本")]
             internal string Version => _manifest.version;
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("Unity 区间")]
+            [BoxGroup(OVERVIEW_GROUP), ShowInInspector, LabelText("Unity 区间")]
             internal string UnityRange => DescribeRange("Unity", _manifest.minUnityVersion, _manifest.maxUnityVersion);
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("$HostRangeLabel")]
+            [BoxGroup(OVERVIEW_GROUP), ShowInInspector, LabelText("$HostRangeLabel")]
             internal string HostRange => DescribeRange(_window != null ? _window.HostLabel : "框架",
                 _manifest.minFrameworkVersion, _manifest.maxFrameworkVersion);
 
@@ -1138,32 +1150,32 @@ namespace Moirai.Atropos.PackageManager
                 return string.IsNullOrEmpty(ceiling) ? text : $"{text}，{ceiling} 起不再提供";
             }
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("分支头")]
+            [BoxGroup(OVERVIEW_GROUP), ShowInInspector, LabelText("分支头")]
             internal string HeadCommit => ShortSha(_headCommit);
 
-            [BoxGroup("概况"), ShowInInspector, LabelText("来源路径")]
+            [BoxGroup(OVERVIEW_GROUP), ShowInInspector, LabelText("来源路径")]
             internal string SourcePath => string.IsNullOrEmpty(_manifest.SourceTreePath)
                 ? _manifest.id + "/" + _manifest.id + PluginManifest.MANIFEST_SUFFIX
                 : _manifest.SourceTreePath;
 
-            [BoxGroup("标签"), ShowInInspector, LabelText("标签")]
+            [BoxGroup(TAGS_GROUP), ShowInInspector, LabelText("标签")]
             internal string TagsText => Join(_manifest.tags);
 
             // 依赖三条都画成多行只读文本：一条一行，宽度不够自动折行（DisplayAsString 的无参重载是裁切溢出）
-            [BoxGroup("依赖"), ShowInInspector, LabelText("包间依赖"), DisplayAsString(false)]
+            [BoxGroup(DEPENDENCIES_GROUP), ShowInInspector, LabelText("包间依赖"), DisplayAsString(false)]
             internal string DependenciesText => DescribeDependencies(_manifest);
 
-            [BoxGroup("依赖"), ShowInInspector, LabelText("外部依赖"), DisplayAsString(false)]
+            [BoxGroup(DEPENDENCIES_GROUP), ShowInInspector, LabelText("外部依赖"), DisplayAsString(false)]
             internal string UpmText => DescribeUpm(_manifest);
 
-            [BoxGroup("依赖"), ShowInInspector, LabelText("归属台账"), DisplayAsString(false)]
+            [BoxGroup(DEPENDENCIES_GROUP), ShowInInspector, LabelText("归属台账"), DisplayAsString(false)]
             internal string UpmOwnershipText => _window.DescribeUpmOwnership(_manifest);
 
-            [BoxGroup("操作"), ShowInInspector, LabelText("安装版本"), ValueDropdown(nameof(VersionOptions))]
+            [BoxGroup(OPERATIONS_GROUP), ShowInInspector, LabelText("安装版本"), ValueDropdown(nameof(VersionOptions))]
             [Tooltip("默认分支头那一条；选历史版本后用「安装所选版本」——先清目录再按那次修订物化，因此可以降级。")]
             internal string SelectedVersion { get; set; }
 
-            [BoxGroup("操作"), ShowInInspector, LabelText("更新前先清目录")]
+            [BoxGroup(OPERATIONS_GROUP), ShowInInspector, LabelText("更新前先清目录")]
             [Tooltip("默认勾上：更新或重装前先删掉包目录再重新物化，清掉分支上已删除的文件。")]
             internal bool RemoveBeforeUpdate { get; set; } = true;
 
@@ -1228,26 +1240,26 @@ namespace Moirai.Atropos.PackageManager
             /// <summary>不能装时给操作区那一行的正文；能装时为空、整行不画。</summary>
             private string VersionBlockerBody => CanInstall ? string.Empty : _blocker;
 
-            [BoxGroup("操作"), Button("安装", ButtonSizes.Large)]
+            [BoxGroup(OPERATIONS_GROUP), Button("安装", ButtonSizes.Large)]
             [HideIf(nameof(IsInstalled))]
             [EnableIf(nameof(CanInstall))]
             private void Install() => _window?.InstallRequested(_manifest.id, false);
 
-            [BoxGroup("操作"), Button("更新到分支版本", ButtonSizes.Large)]
+            [BoxGroup(OPERATIONS_GROUP), Button("更新到分支版本", ButtonSizes.Large)]
             [ShowIf(nameof(UpdateAvailable))]
             [EnableIf(nameof(CanInstall))]
             private void UpdateToBranch() => _window?.UpdateRequested(_manifest.id, RemoveBeforeUpdate);
 
-            [BoxGroup("操作"), Button("重装（忽略已装判定）", ButtonSizes.Large)]
+            [BoxGroup(OPERATIONS_GROUP), Button("重装（忽略已装判定）", ButtonSizes.Large)]
             [ShowIf(nameof(IsInstalled))]
             [EnableIf(nameof(CanInstall))]
             private void Reinstall() => _window?.InstallRequested(_manifest.id, true, RemoveBeforeUpdate);
 
-            [BoxGroup("操作"), Button("卸载")]
+            [BoxGroup(OPERATIONS_GROUP), Button("卸载")]
             [ShowIf(nameof(IsInstalled))]
             private void Uninstall() => _window?.UninstallRequested(_manifest.id);
 
-            [BoxGroup("操作"), Button("安装所选版本", ButtonSizes.Large)]
+            [BoxGroup(OPERATIONS_GROUP), Button("安装所选版本", ButtonSizes.Large)]
             [ShowIf(nameof(SelectedVersionDiffersFromHead))]
             [EnableIf(nameof(CanInstall))]
             private void InstallSelectedVersion()
@@ -1266,7 +1278,7 @@ namespace Moirai.Atropos.PackageManager
             /// 装不了的成因：✕ 图标加原因，排在动作按钮之后；能装时整行不画。
             /// </summary>
             /// <remarks>卸载不在拦的范围里——版本过档了也得让人把已装的拆掉，所以那一颗按钮不接 <see cref="CanInstall"/>。</remarks>
-            [BoxGroup("操作"), ShowInInspector, LabelText("不能安装的原因"), PropertyOrder(100)]
+            [BoxGroup(OPERATIONS_GROUP), ShowInInspector, LabelText("不能安装的原因"), PropertyOrder(100)]
             [HideIf(nameof(CanInstall))]
             internal string InstallBlocker => "✕ " + VersionBlockerBody;
 
