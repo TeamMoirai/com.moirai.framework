@@ -569,10 +569,10 @@ namespace Moirai.Atropos.PackageManager
         /// <summary>
         /// 取某修订下该插件目录的 tree 哈希。
         /// </summary>
+        /// <remarks>取整个目录而非只取清单：分支上删掉一个源文件时清单往往没变，只比清单会漏判"可更新"。</remarks>
         internal bool TryTreeHashOf(string pluginId, string revision, out string hash, out string failureReason)
         {
-            string treePath = pluginId + "/" + pluginId + PluginManifest.MANIFEST_SUFFIX;
-            return _source.TryTreeHash(treePath, revision, out hash, out failureReason);
+            return _source.TryTreeHash(pluginId, revision, out hash, out failureReason);
         }
 
         /// <summary>

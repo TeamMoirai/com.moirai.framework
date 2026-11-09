@@ -660,11 +660,12 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
-        /// 装单个包，依赖闭包由规划层带出。
+        /// 装单个包，依赖闭包由规划层带出；<paramref name="removeFirst"/> 为真时先清掉它的安装目录。
         /// </summary>
-        private void InstallRequested(string pluginId, bool force)
+        /// <remarks>目标目录不会被复制步骤清空：不先删，分支上已删掉的文件会随合并复制留在包里。</remarks>
+        private void InstallRequested(string pluginId, bool force, bool removeFirst = false)
         {
-            PluginInstallReport report = RunWithProgress($"安装 {pluginId}", () => _installer.Install(pluginId, force));
+            PluginInstallReport report = RunWithProgress($"安装 {pluginId}", () => _installer.Install(pluginId, force, removeFirst));
             if (report == null) return;
 
             AfterMutation(report, $"装了 {pluginId}");
@@ -747,7 +748,17 @@ namespace Moirai.Atropos.PackageManager
             string skippedNote = skipped.Count == 0
                 ? string.Empty
                 : $"，跳过 {skipped.Count} 个装不了的：{string.Join("；", skipped)}";
-            PluginInstallReport report = RunWithProgress($"更新 {allowed.Count} 个{BranchEntryNoun}", () => _installer.Install(allowed, true));
+
+            // 批量更新逐条按各自的「更新前先清目录」取舍；不清的包会把分支上已删掉的文件留在安装目录里
+            var removeFirst = new List<string>();
+            for (int i = 0; i < allowed.Count; i++)
+            {
+                PluginEntry entry = FindEntry(allowed[i]);
+                if (entry != null && entry.RemoveBeforeUpdate) removeFirst.Add(allowed[i]);
+            }
+
+            PluginInstallReport report = RunWithProgress($"更新 {allowed.Count} 个{BranchEntryNoun}",
+                () => _installer.Install(allowed, true, removeFirst));
             if (report == null) return;
 
             AfterMutation(report, $"更新了 {report.TouchedPluginIds.Count} 个" + skippedNote);
@@ -1153,8 +1164,8 @@ namespace Moirai.Atropos.PackageManager
             internal string SelectedVersion { get; set; }
 
             [BoxGroup("操作"), ShowInInspector, LabelText("更新前先清目录")]
-            [Tooltip("勾上则先删掉包目录再按分支头重新物化：清掉新版本不再产出的文件。")]
-            internal bool RemoveBeforeUpdate { get; set; }
+            [Tooltip("默认勾上：更新或重装前先删掉包目录再重新物化，清掉分支上已删除的文件。")]
+            internal bool RemoveBeforeUpdate { get; set; } = true;
 
             internal string EntryId => _manifest.id;
 
@@ -1230,7 +1241,7 @@ namespace Moirai.Atropos.PackageManager
             [BoxGroup("操作"), Button("重装（忽略已装判定）", ButtonSizes.Large)]
             [ShowIf(nameof(IsInstalled))]
             [EnableIf(nameof(CanInstall))]
-            private void Reinstall() => _window?.InstallRequested(_manifest.id, true);
+            private void Reinstall() => _window?.InstallRequested(_manifest.id, true, RemoveBeforeUpdate);
 
             [BoxGroup("操作"), Button("卸载")]
             [ShowIf(nameof(IsInstalled))]
