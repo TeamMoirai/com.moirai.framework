@@ -42,6 +42,8 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 
 ## 核心类型
 
+命名空间：`Moirai.Atropos.UI`（适配器扩展在 `Moirai.Atropos.UI.Adapter`）
+
 | 类/接口 | 说明 |
 |---------|------|
 | `Moirai.Atropos.UI.UIService` | UI 服务静态外观，通用 API 全在此：Type 形打开、关闭/隐藏/查询、模态租约、安全区广播；静态属性 `IsValid`（任一轨驱动者就位即真）、`CurrentModal`，轨专有查询 `UIRoot` / `UICamera`（只由 uGUI 轨回答，未启用答 `null`） |

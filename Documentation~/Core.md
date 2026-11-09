@@ -122,7 +122,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 关闭幂等：对已关闭的服务再次驱动关闭不会重复执行 `OnShutdown()`。
 
-### 依赖声明 [DEPENDENCY DECLARATION]
+### 依赖声明
 
 服务依赖通过 `[ServiceDependency(typeof(...))]` 特性声明（单特性多类型，类似 `RequireComponent`）。世界初始化的拓扑排序据此排序并校验——**初始化顺序由声明决定，与注册顺序无关**：
 
@@ -160,7 +160,7 @@ public class BattleService : ServiceBase
 }
 ```
 
-### 统一服务查找 [UNIFIED SERVICE LOOKUP]
+### 统一服务查找
 
 动态服务查找的唯一入口是 `GameServices` 静态外观——服务类内部与非服务代码使用同一组方法，无需注入任何提供者：
 
@@ -182,11 +182,11 @@ await GameServices.Default.InitializeAsync();                    // 按 [Service
 
 内置服务经服务类上的 `[AutoRegisterService]` 特性进入注册清单：源生成器收集标记类型并生成程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)`（实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MIRAI203/204/205 报错）。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。各服务外观的懒加载路径（`GetHandlerFromSettings` 首行）仍调用 `GameServices.EnsureRegistered<T>()` 作兜底——组合根尚未跑到就被访问服务时也能完成注册（关闭态会被显式阻断，见「懒加载自动注册」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
 
-### 处理器异步生命周期 [HANDLER ASYNC LIFECYCLE]
+### 处理器异步生命周期
 
 处理器（`XxxHandler : FrameworkHandler`）支持异步生命周期：覆写 `OnInitAsync()` / `OnShutdownAsync()`，由 `GameAppSettings.Initiation` 在同步初始化后显式驱动。
 
-### 服务事件 [SERVICE EVENTS]
+### 服务事件
 
 服务生命周期通知统一经 `IServiceInterceptor`：
 
@@ -203,7 +203,7 @@ public sealed class ServiceAuditInterceptor : IServiceInterceptor
 // 注册：GameServices.AddInterceptor(new ServiceAuditInterceptor());
 ```
 
-### MonoBehaviour 服务 [MONO SERVICE]
+### MonoBehaviour 服务
 
 继承 `ServiceMono<TScope>`（`TScope` 为作用域标记：`AppScope` / `SceneScope` / `GameplayScope`），`Awake` 自动注册到对应作用域，`OnDestroy` 自动注销：
 
@@ -224,7 +224,7 @@ public class MyMonoService : ServiceMono<AppScope>
 
 > **注意**：MonoBehaviour 服务不可实现 `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` / `IServiceGizmoDrawable`——分别由 Unity 自身的 `Update()` / `FixedUpdate()` / `LateUpdate()` / `OnDrawGizmos()` 驱动；实现其中任一个都会在注册时抛 `GameException`（Gizmo 尤其没有退路：Unity 对组件上的 `OnDrawGizmos` 魔法方法是无条件调用的，容器再驱动一次就是双份绘制）。
 
-### 服务拦截器 [SERVICE INTERCEPTORS (AOP)]
+### 服务拦截器（AOP）
 
 ```csharp
 public class ProfilingInterceptor : IServiceInterceptor
@@ -281,7 +281,7 @@ public class BattleService : ServiceBase
 }
 ```
 
-### 运行时服务注册 [RUNTIME SERVICE REGISTRATION]
+### 运行时服务注册
 
 动态增删单个服务（Mod 系统、DLC 热加载等场景）：
 
@@ -303,7 +303,7 @@ GameServices.UnregisterService<BuffService>(EServiceScopeKind.Gameplay);
 
 > `EDeferMode` 只对**世界已初始化**的运行时路径生效：迭代中（Tick 内）调用默认延迟到本轮迭代结束后执行（`EDeferMode.Defer`），传入 `EDeferMode.Throw` 则立即抛异常（fail-fast）。世界尚未初始化时服务只是入挂起图、不参与轮询列表，不存在迭代冲突，该参数被忽略。RegisterService 的契约类型 = `typeof(T)` 具体类型，解析也必须用同一类型 `GetRequiredService<T>()`。初始化进行中两类变更操作（注销、关闭作用域）一律 fail-fast。
 
-#### 重复契约策略 [DUPLICATE CONTRACT POLICY]
+#### 重复契约策略
 
 同作用域内已占用契约再次显式注册**不同实例**时，按 `GameServices.DuplicateContractPolicy` 处置：
 
@@ -320,7 +320,7 @@ GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
 
 > 同实例重复注册始终幂等返回既有实例；已占用契约再次注册**同一实例**的其他契约走多契约绑定路径，不受本策略影响。`Warn`/`Skip` 下**被丢弃的那个实例不会被框架关闭**——它从未入图，框架无从接管其生命周期。
 
-### 懒加载自动注册 [LAZY SELF REGISTRATION]
+### 懒加载自动注册
 
 服务实例没有集中工厂表。每个 ProviderHandlerHost 服务外观的懒加载路径
 （`GetHandlerFromSettings` 首行）调用 `GameServices.EnsureRegistered<T>()`——服务在未注册状态下被外观访问时，
@@ -335,7 +335,7 @@ ObjectPoolService.Spawn(...); // ObjectPoolService 由此注册进 App 作用域
 - 关闭态阻断懒加载复活：`GameApp` 已 `Shutdown` 时 `EnsureRegistered` 抛 `GameException`，显式 `RegisterService` 是重建世界的唯一路径
 - 组合根已显式注册全部内置服务，本路径现为兜底与项目侧服务的便捷入口
 
-### 异步关闭 [ASYNC SHUTDOWN]
+### 异步关闭
 
 实现 `IAsyncShutdownService` 的服务在异步关闭管线中按**逆激活序**（= 逆初始化序）先执行 `OnShutdownAsync()`，再执行同步 `OnShutdown()`：
 

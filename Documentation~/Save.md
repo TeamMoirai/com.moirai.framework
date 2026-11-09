@@ -6,7 +6,7 @@ Save 服务（`SaveService`）提供 AAA 级存档基础设施：**四种可插�
 
 ## 架构
 
-```
+```text
 SaveService（静态外观，写路径未就绪抛 GameException，读路径降级）
 ├── 存储管线（[SerializeReference] 可切换）
 │     PlainSaveHandler        明文直通
@@ -29,7 +29,7 @@ SaveService（静态外观，写路径未就绪抛 GameException，读路径降�
 
 ## 文件格式
 
-```
+```text
 [32B 明文头 "MRSA"][载荷]
 头：[4B 魔数][4B 格式版本=2][8B UTC ticks][4B 载荷长][4B 载荷 CRC32][4B 压缩提供方 ID][4B 标志]
 载荷 = Compress?(Container)；加密处理器下再包 [16B IV][AES-256-CBC][32B HMAC]

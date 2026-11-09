@@ -95,7 +95,7 @@ ProcedureService.ChangeState<ProcedurePreload>();
 
 `Templates~/@Requirements/Scripts/GameBase/Procedure` 提供了完整的启动流程模板，典型链路为：
 
-```
+```text
 ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResources
 -> ProcedureCreateDownloader -> ProcedureDownloadFile -> ProcedureDownloadOver
 -> ProcedureClearCache -> ProcedureLoadAssembly -> ProcedurePreload -> ProcedurePrepare4Entrance

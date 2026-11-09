@@ -1,7 +1,6 @@
-﻿# ObjectPool 对象池服务
+# ObjectPool 对象池服务
 
-> 通用池 + GameObject 特化、共享内核 + 双外观的单模块对象池架构。
-> 共享内核提供分页槽位存储、开放寻址哈希与最小堆维护调度；两个外观分别面向任意 CLR 对象与 Unity GameObject。
+> 通用池 + GameObject 特化、共享内核 + 双外观的单模块对象池架构；共享内核提供分页槽位存储、开放寻址哈希与最小堆维护调度，两个外观分别面向任意 CLR 对象与 Unity GameObject。
 
 服务分为两套独立外观，按池化对象类型选择：
 
@@ -15,7 +14,7 @@
 
 ## 架构
 
-```
+```text
 Runtime/Services/Pooling/
 ├── Internal/                 # 两支池共享的机制件（R3：多服务模块先按服务分档，共享件留在模块顶层 Internal/）
 │   ├── PoolSlotStorage.cs    # 分页槽位存储（128 槽/页 + 页级 free stack）
@@ -82,7 +81,7 @@ Runtime/Services/Pooling/
 | `GetAllObjectPools(bool sort, ObjectPoolBase[])` | 通用池调试导出（`GetAllObjectInfos` 为 internal，仅供 Debugger 窗口） |
 | Debugger 窗口 | `Profiler/Object Pool`（通用池）、`Profiler/GameObject Pool`（GO 池） |
 
-## 快速开始
+## 快速上手
 
 ### 1. 通用池（纯 C# 对象）
 
@@ -203,7 +202,7 @@ await GameObjectPoolService.WarmupAsync("Assets/Bundles/Prefabs/Bullet", 20, can
 await GameObjectPoolService.WarmupAsync(vfxPrefab, 8, cancellationToken);
 ```
 
-## 高级用法
+## 进阶用法
 
 ### 租约：PooledGameObject / PooledComponent
 

@@ -46,7 +46,7 @@ Runtime/Services/Audio/
 | `fmod` | `FMOD_INSTALLED`（手写档，需自己在 Scripting Define Symbols 里定义） | 真 SDK 桥 → 插件的 FMOD 后端 | 退化到插件自带的 FMOD 桩桥（可跑通契约与压测，不出声） |
 | `wwise` | `WWISE_INSTALLED`（同上，手写档） | 真 SDK 桥 → 插件的 Wwise 后端 | 退化到插件自带的 Wwise 桩桥 |
 
-两支 SDK 后端不在框架里：先用 `Tools/Moirai/Package Manager` 装上 `plugin` 分支对应的 `fmod` / `wwise` 插件，它们才会进 `AudioServiceSettings` 的 Provider 下拉——插件不在场时下拉里只有框架内置的 Unity 后端。后端一律经 settings 选，不在游戏代码里 `new`。桥接契约为 `IAudioMiddlewareBridge`（Play/Stop/Pause/Bus/IsPlaying）。
+两支 SDK 后端不在框架里：先用 `Tools/Moirai/Framework Package Manager` 装上 `plugin` 分支对应的 `fmod` / `wwise` 插件，它们才会进 `AudioServiceSettings` 的 Provider 下拉——插件不在场时下拉里只有框架内置的 Unity 后端。后端一律经 settings 选，不在游戏代码里 `new`。桥接契约为 `IAudioMiddlewareBridge`（Play/Stop/Pause/Bus/IsPlaying）。
 
 #### 事件映射表
 
@@ -132,7 +132,7 @@ AudioService.Stop(h2, fadeoutDuration: 0.2f);
 ### 中间件后端
 
 ```csharp
-// 1) 经 Tools/Moirai/Package Manager 装上 plugin 分支的 fmod 或 wwise 插件
+// 1) 经 Tools/Moirai/Framework Package Manager 装上 plugin 分支的 fmod 或 wwise 插件
 //    （两者的 SDK 都不在 UPM 渠道，需先自行导入官方 Unity 集成包）
 // 2) Player Settings → Scripting Define Symbols 定义 FMOD_INSTALLED 或 WWISE_INSTALLED
 //    未定义时插件后端退化为自带桩桥：契约照跑、不出声，用于 CI 与压测
@@ -232,39 +232,39 @@ AudioService.ResetMixSnapshot(0.25f);
 
 ## 配置说明
 
-- AudioMixer 分组需暴露 `{分组名}Volume` 参数；`m_MixerValuesMultiplier` 默认 20  
-- `AudioGroupConfig.MaxChannel` / `CanExpand` 控制通道；扩展受同一条轨的 `MaxChannelCeiling` 限制（缺省 32、绝对上限 128，按平台预算分轨配；预置槽位不受它约束）  
-- 主音量走 `AudioListener.volume`；音轨走 Mixer 参数  
-- `ClipCacheCapacity`（默认 128）/ `ClipCacheTtl`（默认 30 秒，`0` 关闭按时间驱逐）/ `DefaultClipCachePolicy`（默认 `Ttl`）三项在 `AudioServiceSettings` 的「Clip 缓存」组内配置，`Initialize` 时下发给缓存  
-- `AutoDuckingOnVoice`（默认关闭）在「自动 Ducking」组内；开启前先在 `MixSnapshots` 注册 `Dialogue` 快照  
+- AudioMixer 分组需暴露 `{分组名}Volume` 参数；`m_MixerValuesMultiplier` 默认 20
+- `AudioGroupConfig.MaxChannel` / `CanExpand` 控制通道；扩展受同一条轨的 `MaxChannelCeiling` 限制（缺省 32、绝对上限 128，按平台预算分轨配；预置槽位不受它约束）
+- 主音量走 `AudioListener.volume`；音轨走 Mixer 参数
+- `ClipCacheCapacity`（默认 128）/ `ClipCacheTtl`（默认 30 秒，`0` 关闭按时间驱逐）/ `DefaultClipCachePolicy`（默认 `Ttl`）三项在 `AudioServiceSettings` 的「Clip 缓存」组内配置，`Initialize` 时下发给缓存
+- `AutoDuckingOnVoice`（默认关闭）在「自动 Ducking」组内；开启前先在 `MixSnapshots` 注册 `Dialogue` 快照
 
 ## 注意事项
 
-- `Play` 返回 `0UL` 表示失败（无通道、音轨未配置、音轨暂停中、后端未初始化等）  
-- 暂停的音轨会拦截新播放；`MasterVolume` getter 始终返回未静音的设置值（两后端语义一致）  
-- 后端整体失效时音量面统一读 0、写无效：Unity 侧指编辑器菜单关掉的音频（`AudioSettings.unityAudioDisabled`，玩家构建恒为 false），中间件侧指桥接 `Initialize` 明确失败（本次运行不自愈，恢复要重启进程）。**「桥接还没建起来」不算失效**——启动中间态里 getter 必须照实报设置值，否则初始化完成前打开设置面板会把滑杆读成 0，用户一动就把 0 写回并持久化。禁用态下 `FadeMasterTrack` / `FadeTrack` 也不排程（`SoundIsFadingOut` 因此不会报着一个正在进行的、永远不会响的过渡）  
-- 音轨暂停标记由契约持有（`_pausedTracks`），但**数组的建立与释放仍按后端各自的时机**：Unity 侧在后端 `Initialize` 之前调 `PauseTrack` 不会记上（也不报错），关停后标记全部作废。要在启动期就静音某条音轨，请配 `AudioServiceSettings` 而不是等 `PauseTrack`  
-- 中间件后端 `GetAgentByHandle` / `ForEachAgentByID` 返回空——无 Unity `AudioSource` Agent，请用句柄 API；不支持 InitialDelay / PlaybackDuration / Solo  
-- 各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）  
-- 无可用通道的告警按轨节流（3 秒）降级为 Warning  
-- 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进  
-- Master / 音轨过渡由契约基类实现（两后端同一条路）：`duration <= 0` 等价于直接赋值且不排过渡；`StopFadeMasterTrack` / `StopFadeTrack` **只撤过渡、不还原已写出去的音量**（停在哪儿就是哪儿）；对同一总线重复请求过渡是顶掉前一条而非叠加  
-- 路径播放 `Play(path, ...)` 默认异步加载（`bAsync = true`）；同步加载阻塞主线程，仅限启动期/预加载显式使用  
-- 路径播放一律经 Clip 缓存，默认策略 `Ttl`：一次性的冷门音效想「用完立刻卸载」请显式设 `AudioPlayOptions.CachePolicy = None`  
-- 加载失败的地址进入 5 秒冷却（`Configure` 的 `failureCooldownSeconds` 可调，`0` 关闭）：否则一个写错的事件地址被高频触发时会每次都重穿资源层。`ClearClipCache(force: true)` 会连冷却一起重置  
-- 播放入口只在开发构建断言主线程（句柄表与缓存的 LRU/引用计数无跨线程保护）；后台线程里请经 `MainThreadDispatcher.Post` 转投。租约来源若从非主线程回调，缓存会转投主线程处理，转投失败则就地归还租约并报错，绝不跨线程改结构  
-- 服务 `Tick` 在音频内部做故障隔离：某处抛异常只会被退避上报（同位置 5 秒内不重复打印），不会把音频踢出轮询，也不会连带冻住同帧的其它服务  
-- 切后台时冻结 `AudioListener.pause`（保留各 `AudioSource` 播放位置），回前台解冻；不订阅 `OnApplicationFocus`（桌面切窗不应静音）。在后台被关停也会补一次解冻，不留全局静音状态  
-- `AssetHandlePool` 现在是 Clip 缓存的只读视图（契约成员类型为 `IReadOnlyDictionary`）：租约由缓存持有，外部既改不动记账也释放不了租约  
-- 自然结束计时按未缩放真实时间推进（`AudioSource` 不受 `timeScale` 影响）：`timeScale = 0` 时非循环音仍会真实播完并自动释放句柄  
-- `Stop(handle, fadeoutDuration)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加  
-- 整景切换（`Single`）自动 `StopAllButPersistent`；**Additive（叠加/流式分区）加载永不自动停音**——叠加加载没有"停掉全部非持久音"的合理用例，需要收口的游戏流程请在自己明确的切换点显式调 `StopAllButPersistent`；跨场景音频设 `Persistent = true`  
-- `BgmPlaylist` 分层 ID：**正数 = 显式分层，两个实例填同一正数 ID 属配置错误，按 fail-fast 报 Error 且后者不播放**（不静默改派）；`0` = 按实例自动分配（负区间保留，永不与显式值冲突）。负数显式 ID 同样报错——它属于自动分配保留区间  
-- `AudioPlayOptionsSO` 的「时间」参数（`PlaybackTime` / `PlaybackDuration`，含随机区间）随每次 `Play` 实际生效；`MaximumConcurrentInstances` / `DoNotPlayIfClipAlreadyPlaying` 作用于**本次候选 clip**（随机曲集下不是上一曲）  
-- 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`  
-- 游戏内调试器 `Profiler/Audio` 除音量/音轨控制外，还显示 Clip 缓存条目/容量、在途、常驻、失败冷却、当前混音快照与 Ducking 占用，并提供清空缓存按钮——排查"音效没出来"先看这里  
-- 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`  
-- `Play(clip, in AudioPlayRequest, cold)`：`cold` 传 null 时零堆对象，且**不写 AudioSource 空间整形**——声源与 Agent 一对一，宿主池复位只覆盖音量/循环/静音与遮挡滤镜，故声像/衰减曲线/多普勒保持该声源此前的值。每次都要带整形（或淡入/延迟/起播点/截取时长）请走 `AudioPlayOptions` 门面，由框架按次取还池实例；`cold` 非 null 即所有权转移，调用方不得再使用或自行归还，也不可在上一次播放结束前重复投递同一实例  
+- `Play` 返回 `0UL` 表示失败（无通道、音轨未配置、音轨暂停中、后端未初始化等）
+- 暂停的音轨会拦截新播放；`MasterVolume` getter 始终返回未静音的设置值（两后端语义一致）
+- 后端整体失效时音量面统一读 0、写无效：Unity 侧指编辑器菜单关掉的音频（`AudioSettings.unityAudioDisabled`，玩家构建恒为 false），中间件侧指桥接 `Initialize` 明确失败（本次运行不自愈，恢复要重启进程）。**「桥接还没建起来」不算失效**——启动中间态里 getter 必须照实报设置值，否则初始化完成前打开设置面板会把滑杆读成 0，用户一动就把 0 写回并持久化。禁用态下 `FadeMasterTrack` / `FadeTrack` 也不排程（`SoundIsFadingOut` 因此不会报着一个正在进行的、永远不会响的过渡）
+- 音轨暂停标记由契约持有（`_pausedTracks`），但**数组的建立与释放仍按后端各自的时机**：Unity 侧在后端 `Initialize` 之前调 `PauseTrack` 不会记上（也不报错），关停后标记全部作废。要在启动期就静音某条音轨，请配 `AudioServiceSettings` 而不是等 `PauseTrack`
+- 中间件后端 `GetAgentByHandle` / `ForEachAgentByID` 返回空——无 Unity `AudioSource` Agent，请用句柄 API；不支持 InitialDelay / PlaybackDuration / Solo
+- 各工厂方法与重载的 `DoNotAutoRecycle` 默认统一为 true（不抢占未播完的通道）
+- 无可用通道的告警按轨节流（3 秒）降级为 Warning
+- 手动 `FadeAudio` / 快照过渡依赖服务 `Tick` 推进
+- Master / 音轨过渡由契约基类实现（两后端同一条路）：`duration <= 0` 等价于直接赋值且不排过渡；`StopFadeMasterTrack` / `StopFadeTrack` **只撤过渡、不还原已写出去的音量**（停在哪儿就是哪儿）；对同一总线重复请求过渡是顶掉前一条而非叠加
+- 路径播放 `Play(path, ...)` 默认异步加载（`bAsync = true`）；同步加载阻塞主线程，仅限启动期/预加载显式使用
+- 路径播放一律经 Clip 缓存，默认策略 `Ttl`：一次性的冷门音效想「用完立刻卸载」请显式设 `AudioPlayOptions.CachePolicy = None`
+- 加载失败的地址进入 5 秒冷却（`Configure` 的 `failureCooldownSeconds` 可调，`0` 关闭）：否则一个写错的事件地址被高频触发时会每次都重穿资源层。`ClearClipCache(force: true)` 会连冷却一起重置
+- 播放入口只在开发构建断言主线程（句柄表与缓存的 LRU/引用计数无跨线程保护）；后台线程里请经 `MainThreadDispatcher.Post` 转投。租约来源若从非主线程回调，缓存会转投主线程处理，转投失败则就地归还租约并报错，绝不跨线程改结构
+- 服务 `Tick` 在音频内部做故障隔离：某处抛异常只会被退避上报（同位置 5 秒内不重复打印），不会把音频踢出轮询，也不会连带冻住同帧的其它服务
+- 切后台时冻结 `AudioListener.pause`（保留各 `AudioSource` 播放位置），回前台解冻；不订阅 `OnApplicationFocus`（桌面切窗不应静音）。在后台被关停也会补一次解冻，不留全局静音状态
+- `AssetHandlePool` 现在是 Clip 缓存的只读视图（契约成员类型为 `IReadOnlyDictionary`）：租约由缓存持有，外部既改不动记账也释放不了租约
+- 自然结束计时按未缩放真实时间推进（`AudioSource` 不受 `timeScale` 影响）：`timeScale = 0` 时非循环音仍会真实播完并自动释放句柄
+- `Stop(handle, fadeoutDuration)` 与 `FadeAudio(handle, ...)` 互斥接管同句柄音量（后调用者取消前者），请勿混用叠加
+- 整景切换（`Single`）自动 `StopAllButPersistent`；**Additive（叠加/流式分区）加载永不自动停音**——叠加加载没有"停掉全部非持久音"的合理用例，需要收口的游戏流程请在自己明确的切换点显式调 `StopAllButPersistent`；跨场景音频设 `Persistent = true`
+- `BgmPlaylist` 分层 ID：**正数 = 显式分层，两个实例填同一正数 ID 属配置错误，按 fail-fast 报 Error 且后者不播放**（不静默改派）；`0` = 按实例自动分配（负区间保留，永不与显式值冲突）。负数显式 ID 同样报错——它属于自动分配保留区间
+- `AudioPlayOptionsSO` 的「时间」参数（`PlaybackTime` / `PlaybackDuration`，含随机区间）随每次 `Play` 实际生效；`MaximumConcurrentInstances` / `DoNotPlayIfClipAlreadyPlaying` 作用于**本次候选 clip**（随机曲集下不是上一曲）
+- 句柄由服务自动释放，无需（也不应长期）手动 `ReleaseHandle`
+- 游戏内调试器 `Profiler/Audio` 除音量/音轨控制外，还显示 Clip 缓存条目/容量、在途、常驻、失败冷却、当前混音快照与 Ducking 占用，并提供清空缓存按钮——排查"音效没出来"先看这里
+- 冷路径 API（`PlayFade` / `StopByID`）允许 lambda；热路径用 16B `AudioPlayRequest`
+- `Play(clip, in AudioPlayRequest, cold)`：`cold` 传 null 时零堆对象，且**不写 AudioSource 空间整形**——声源与 Agent 一对一，宿主池复位只覆盖音量/循环/静音与遮挡滤镜，故声像/衰减曲线/多普勒保持该声源此前的值。每次都要带整形（或淡入/延迟/起播点/截取时长）请走 `AudioPlayOptions` 门面，由框架按次取还池实例；`cold` 非 null 即所有权转移，调用方不得再使用或自行归还，也不可在上一次播放结束前重复投递同一实例
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../README.md) · [Resource](Resource.md) · [UI](UI.md)

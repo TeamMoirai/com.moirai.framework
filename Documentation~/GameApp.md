@@ -23,6 +23,8 @@
 
 ## 核心类型
 
+命名空间：`Moirai.Atropos`
+
 | 类/接口 | 说明 |
 |---------|------|
 | `GameApp` | 框架入口静态外观：生命周期、协程、订阅 API（无 Mono 成员） |
@@ -110,4 +112,4 @@ GameApp.AddDestroyListener(OnShutdown);
 - 退出 Play 时只摘除本框架注入的三个 PlayerLoop 系统，UniTask 等第三方注入原样保留；再次进入 Play 由 `GameApp.Initialize` 重新注入。
 
 ---
-[« 返回文档索引](Index.md) · [PlayerLoopDriver](PlayerLoopDriver.md) · [Core](Core.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [PlayerLoopDriver](PlayerLoopDriver.md) · [Core](Core.md)

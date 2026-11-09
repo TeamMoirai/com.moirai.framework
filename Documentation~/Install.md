@@ -2,16 +2,12 @@
 
 > 从环境要求到第一次跑起来：三种安装方式、初始设置与编辑器/打包运行流程。
 
----
-
 ## 环境要求
 
-- **Unity 版本**: 2022.3.x（推荐）或更高
-- **开发环境**: .NET 4.x
-- **依赖插件**: [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
-- **支持平台**: Windows、OSX、Android、iOS、WebGL、微信小游戏
-
----
+- **Unity 版本**：2022.3.x（推荐）或更高
+- **开发环境**：.NET 4.x
+- **依赖插件**：[Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
+- **支持平台**：Windows、OSX、Android、iOS、WebGL、微信小游戏
 
 ## 下载安装
 
@@ -74,8 +70,6 @@
 
 2. 参见 **[方式二第 3 步](#manual-import)**，将 `Templates~/@Requirements` 内容复制进工程。
 
----
-
 ## 初始设置
 
 ### 场景打包
@@ -90,8 +84,6 @@
 - 在 `Tools/Framework Settings` 窗口选择 `[框架]Luban 配置`，点击 `生成 Config 到指定目录`。
 - 初次生成时，导出前先执行 **build-luban** 编译（脚本位于模板 `Config/` 目录），或自行导入 Luban 至配置表根目录。
 - 如果移动了配置表目录，需在 `Tools/Framework Settings` 的 `[框架]Luban 配置` 中手动更新——`重定向 Config 目录`。
-
----
 
 ## 运行
 
@@ -108,9 +100,9 @@
 5. 运行菜单 `YooAsset/Bundle Builder` 构建 AssetBundle（YooAsset 包菜单）
 6. 打开 Build Settings，点击 `Build And Run`
 
-> 💡 **提示**: 遇到问题请查看 [HybridCLR 常见错误](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors)
+> **提示**：遇到问题请查看 [HybridCLR 常见错误](https://hybridclr.doc.code-philosophy.com/docs/help/commonerrors)。
 
-完整启动链与各阶段的可配置项见 [Procedure 服务文档](Procedure.md)。
+完整启动链与各阶段的可配置项见 [Procedure 服务](Procedure.md)。
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../README.md)

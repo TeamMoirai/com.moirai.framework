@@ -117,4 +117,4 @@ UIWindow win = await UIService.ShowUIAsyncAwait(type, windowId, UIPayload.From(d
 - 绑不上的三档都有明确指认：漏换基类 → 泛型约束绑不上（编译期）或被塞非空载荷时 `GameException`（运行期，文案带窗口类名）；槽型不符 → `GameException`（带期望与实际类型名）；把 `in` 实参写给等待腿 → 那一支本就是普通形参，按签名传即可
 
 ---
-[« 返回文档索引](Index.md) · [UI 服务](UI.md) · [主 README](../README.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [UI 服务](UI.md)

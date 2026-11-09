@@ -51,7 +51,7 @@
 
 ## 目录结构
 
-```
+```text
 Tests/
 ├── EditorMode/                  # L1
 │   ├── Moirai.Atropos.Tests.EditorMode.asmdef
@@ -435,5 +435,4 @@ unity command test status --project-path "E:/Workspace/Unity/Game Dev Tools/Clie
 | 改了 `.cs` 编辑器迟迟不编译 | 窗口焦点脉冲不可靠（失焦时自动刷新不触发） | 跑 `unity recompile` 驱动编译（通道三），别只靠聚焦窗口 |
 
 ---
-
-[« 返回文档索引](Index.md) · [Core](Core.md) · [Debugger](Debugger.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [Core](Core.md) · [Debugger](Debugger.md)
