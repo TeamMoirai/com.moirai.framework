@@ -80,12 +80,11 @@
 
 装卸规则的可判部分全部收在 L1（EditMode）：版本值类型与运算符、清单校验、工程 `manifest.json` 的行级增删、状态账本与归属计数、依赖闭包与拓扑、树路径到目录的发现、以及 git 层的克隆/摆正/稀疏物化与清单历史（列历史、按修订取文、按修订物化；跑在临时 `file://` 夹具上）。
 
-读数按属性就能数出来，再由编辑器实证：本模块一趟全量 **210 格**（17 个参数化方法共带 80 行 `[TestCase]`）。编辑器实测 `passed 210 | failed 0 | skipped 0`（152s，先过 `GATE OK` 的空闲与逐装配新鲜度门）。
+读数按属性就能数出来，再由编辑器实证。编辑器实测 `failed 0 | skipped 0`（先过 `GATE OK` 的空闲与逐装配新鲜度门）。
 
 ```bash
 # 逐文件抽取再合并：pm-names.sh 一次只吃一个文件，多传（如直接喂 glob）会当场判非而不是静默少抽
 for f in Tests/EditorMode/Editor/Tools/PackageManager/*/*Tests.cs; do bash "$LOCALAPPDATA/pm-names.sh" "$f"; done | sort -u > names.txt
-wc -l < names.txt                       # 应为 142
 bash "$LOCALAPPDATA/pm-gate.sh" pm refresh
-bash "$LOCALAPPDATA/pm-test.sh" pm names.txt   # 首行应为 passed 206 | failed 0
+bash "$LOCALAPPDATA/pm-test.sh" pm names.txt   # 首行应为 failed 0
 ```

@@ -139,9 +139,9 @@ bool closed = UIService.TryCloseTopWindow();
 
 ## 开窗腿签名
 
-一轨 8 支 = 无载荷 4 支 + 带载荷 4 支，两支后端同名重载靠窗口基类约束分辨而不是形参个数；UI Toolkit 腿每支在标识之后多收一个 `PanelSettings panelSettings = null`（窗口级面板配置，`null` 时该窗回共享那一份）。`Type` 形入口另有动态 3 支，全局另有导航 2 成员与取窗 3 支。
+每轨的开窗腿按无载荷 / 带载荷成对，两支后端同名重载靠窗口基类约束分辨而不是形参个数；UI Toolkit 腿每支在标识之后多收一个 `PanelSettings panelSettings = null`（窗口级面板配置，`null` 时该窗回共享那一份）。`Type` 形入口另有动态腿，全局另有导航与取窗成员。
 
-### 每轨 8 支（uGUI 轨签名；UITK 轨同形多一个 `panelSettings`）
+### 每轨开窗腿（uGUI 轨签名；UITK 轨同形多一个 `panelSettings`）
 
 | 腿 | 签名 | 交回 |
 |---|---|---|
@@ -158,7 +158,7 @@ bool closed = UIService.TryCloseTopWindow();
 - UITK 带载荷腿的 `panelSettings` 排在载荷之后、`ct` 之前，载荷跟在标识之后——错位守卫有格钉着
 - 每支腿先过认领门：本轨没启用（槽位空着）当场抬错，不静默落空也不替本轨造一个驱动者
 
-### 动态 3 支（`Type` 形入口，载荷走 `UIPayload`）
+### 动态入口（`Type` 形，载荷走 `UIPayload`）
 
 | 腿 | 签名 | 交回 |
 |---|---|---|
@@ -168,7 +168,7 @@ bool closed = UIService.TryCloseTopWindow();
 
 认轨判据在各轨自述的窗口基类上：认不出轨当场抬错，认出来却没人认领驱动那一档也当场抬错——不把窗口推进栈再等装载静默失败。这一张形参表不带窗口级 `panelSettings`（那是 UITK 泛型腿多出的那个），Type 形入口的该位恒为 `null`。
 
-### 导航 2 成员与取窗 3 支
+### 导航与取窗成员
 
 | 成员 | 签名 | 语义 |
 |---|---|---|

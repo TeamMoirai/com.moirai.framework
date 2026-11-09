@@ -136,7 +136,6 @@ MethodName_Scenario_ExpectedBehavior
 ### 测试信息
 - 测试文件：{test_file}
 - 测试类型：{test_type}
-- 测试数量：{test_count}
 
 ### 测试结果
 - ✅ 通过：{pass_count}

@@ -20,8 +20,8 @@ namespace Policy
     /// 两个层级壳，壳一没，「Core 不依赖服务层」在仓里就再没有目录名可以承载，本文件是它唯一的机械判据（<c>Runtime</c> 只有一枚 asmdef，
     /// <see cref="CoreDependencyRatchetTests"/> 之外没有任何编译期边界）。而 using 扫描看不见同命名空间/全限定写法：<c>GameApp.cs</c> 就在
     /// <c>namespace Moirai.Atropos</c> 里裸用 <c>GameServices</c> 与 <c>EServiceScopeKind</c>，一行 using 都没有。 <br />
-    /// 容器豁免：<c>Runtime/Services/Kernel/**</c>（<c>GameServices</c>/<c>ServiceWorld</c>/<c>IService</c>/<c>ServiceBase</c>/<c>ServiceMono</c> 等 16 个 <c>.cs</c>，
-    /// 枚数钉在 <see cref="ContainerKernel_FileSet_IsExactlyTheRoster"/> 的名册上）是依赖注入容器本身，Core 的启动路径必须能碰它，所以整目录不进判据词表；
+    /// 容器豁免：<c>Runtime/Services/Kernel/**</c>（<c>GameServices</c>/<c>ServiceWorld</c>/<c>IService</c>/<c>ServiceBase</c>/<c>ServiceMono</c> 等 <c>.cs</c>，
+    /// 名册钉在 <see cref="ContainerKernel_FileSet_IsExactlyTheRoster"/> 上）是依赖注入容器本身，Core 的启动路径必须能碰它，所以整目录不进判据词表；
     /// 被禁的是 Kernel 之外的「功能服务」（Timer/Resource/Save/Scene/UI…）。这条豁免按<b>目录形状</b>生效，所以它自带一个镜像盲点，见 ⑧。 <br />
     /// 词表由扫描自身推导：<c>Runtime/Services</c> 下（容器除外）在命名空间层级声明的类型名，减去 <c>Runtime/Core</c> 侧同层同名声明的名字——
     /// 后者是 partial 类跨目录拆开的情形（实测只有 <c>CommandLineUtility</c>：Core 的 <c>Runtime/Core/Utilities/CommandLine/CommandLineUtility.cs</c>
@@ -243,7 +243,7 @@ namespace Policy
         }
 
         /// <summary>
-        /// 容器豁免目录的名册（相对包根、正斜杠）：<c>Runtime/Services/Kernel/**</c> 下的 <c>.cs</c> 今天就是这 16 枚，一枚不多一枚不少。
+        /// 容器豁免目录的名册（相对包根、正斜杠）：<c>Runtime/Services/Kernel/**</c> 下的 <c>.cs</c> 就是下面列出的这些文件，多一个少一个都判红。
         /// </summary>
         /// <remarks>
         /// 只列 <c>.cs</c> 是因为它恰好等于判据词表的输入集（<see cref="EnumerateSources"/> 只收 <c>*.cs</c>）；
