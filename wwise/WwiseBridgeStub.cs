@@ -26,6 +26,13 @@ namespace Moirai.Atropos.Audio.Wwise
 
         public int PlayCount { get; private set; }
 
+        /// <summary>实例收到的音高（键为桩侧 instanceId）：PlayEvent 记起播合成值，<see cref="SetInstancePitch"/> 覆写。</summary>
+        public readonly System.Collections.Generic.Dictionary<ulong, float> InstancePitches =
+            new System.Collections.Generic.Dictionary<ulong, float>();
+
+        /// <summary>实时改音高的触达次数（不含 PlayEvent 记的起播值）。</summary>
+        public int PitchCount { get; private set; }
+
         public bool Initialize(Transform instanceRoot)
         {
             _busVolumes["bus:/Master"] = 1f;
@@ -43,6 +50,7 @@ namespace Moirai.Atropos.Audio.Wwise
         {
             _instances.Clear();
             _busVolumes.Clear();
+            InstancePitches.Clear();
         }
 
         public void Update(float unscaledDeltaTime)
@@ -60,6 +68,7 @@ namespace Moirai.Atropos.Audio.Wwise
                 Loop = loop,
                 Playing = true,
             };
+            InstancePitches[id] = pitch;
             PlayCount++;
             return id;
         }
@@ -89,6 +98,14 @@ namespace Moirai.Atropos.Audio.Wwise
                 inst.Volume = Mathf.Clamp01(volume);
                 _instances[instanceId] = inst;
             }
+        }
+
+        /// <inheritdoc />
+        /// <remarks>实时音高在桩里只记账：覆写 <see cref="InstancePitches"/>，累计 <see cref="PitchCount"/> 供断言。</remarks>
+        public void SetInstancePitch(ulong instanceId, float pitch)
+        {
+            InstancePitches[instanceId] = pitch;
+            PitchCount++;
         }
 
         public void SetBusVolume(string busPath, float volume)
