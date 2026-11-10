@@ -82,6 +82,10 @@ namespace Moirai.Atropos.PackageManager
         /// </summary>
         internal Action<float, string> Progress { get; set; }
 
+        /// <summary>同名目录已存在又不在账本上时，把覆盖不覆盖交给谁拍板：返回 true 即先删掉这些目录再物化。</summary>
+        /// <remarks>编排层不自建对话框，也不替用户默认批出去——没挂口子一律判拒，用例各挂一条恒真与恒假回调即可判定两翼。</remarks>
+        internal Func<IReadOnlyList<string>, bool> ConfirmOverwriteForeignFolders { get; set; }
+
         private void ReportProgress(float value, string stage)
         {
             Progress?.Invoke(value, stage);
@@ -339,7 +343,7 @@ namespace Moirai.Atropos.PackageManager
                 return report;
             }
 
-            if (!ValidateInstallTargets(plan, installedIds, out string targetReason))
+            if (!ValidateInstallTargets(plan, installedIds, out IReadOnlyList<string> overwriteIds, out string targetReason))
             {
                 report.Fail(targetReason);
                 return report;
@@ -347,9 +351,9 @@ namespace Moirai.Atropos.PackageManager
 
             List<string> selectedIds = Union(installedIds, plan);
 
-            // 干净更新：先清目录，随后物化时按分支头重新落一遍，清掉新版本不再产出的文件
+            // 干净更新：先清目录（含刚批准要顶掉的外来同名目录），随后物化时按分支头重新落一遍，清掉新版本不再产出的文件
             ReportProgress(0.45f, "清理与物化插件目录");
-            RemoveFolders(removeFirstIds, report);
+            RemoveFolders(MergeIds(removeFirstIds, overwriteIds), report);
             if (!report.Ok) return report;
 
             if (!_source.ApplySparsePaths(selectedIds, out string sparseReason))
@@ -671,11 +675,18 @@ namespace Moirai.Atropos.PackageManager
         }
 
         /// <summary>
-        /// 安装目标目录先过一遍：同名目录若不是本账本装的，拒绝覆盖。
+        /// 安装目标目录先过一遍：已存在又不在账本上的同名目录逐个交出去批，批下来的进先删后装的名单。
         /// </summary>
-        /// <remarks>检出住在 Library，目标住在 Packages；后者可能有用户手放的同名包，不能拿安装去顶掉。</remarks>
-        private bool ValidateInstallTargets(InstallPlan plan, List<string> installedIds, out string failureReason)
+        /// <remarks>检出住在 Library，目标住在 Packages；后者可能有用户手放的同名包，工具不擅自顶掉，也不擅自拒绝——交 <see cref="ConfirmOverwriteForeignFolders"/> 决策。<br />
+        /// 批不下来的整批中止，此刻还没碰过盘；批下来的连同 <paramref name="overwriteIds"/> 一起交给调用段去删。<br />
+        /// 目标位上是个文件时不给过：清目录只删目录，删完照样建不出包。</remarks>
+        private bool ValidateInstallTargets(InstallPlan plan, List<string> installedIds,
+            out IReadOnlyList<string> overwriteIds, out string failureReason)
         {
+            overwriteIds = null;
+            var foreignIds = new List<string>();
+            var foreignFolders = new List<string>();
+
             for (int i = 0; i < plan.ToInstall.Count; i++)
             {
                 string id = plan.ToInstall[i].id;
@@ -687,15 +698,45 @@ namespace Moirai.Atropos.PackageManager
                     return false;
                 }
 
-                if (Directory.Exists(folder) && !installedIds.Contains(id))
-                {
-                    failureReason = $"{folder} 已存在且不在账本里，工具不覆盖不是自己装的目录";
-                    return false;
-                }
+                if (!Directory.Exists(folder) || installedIds.Contains(id)) continue;
+
+                foreignIds.Add(id);
+                foreignFolders.Add(folder);
             }
 
+            if (foreignFolders.Count == 0)
+            {
+                failureReason = null;
+                return true;
+            }
+
+            if (ConfirmOverwriteForeignFolders == null || !ConfirmOverwriteForeignFolders(foreignFolders))
+            {
+                failureReason = $"这 {foreignFolders.Count} 个目录已存在且不在账本里，覆盖没批下来，整批中止："
+                    + string.Join("、", foreignFolders);
+                return false;
+            }
+
+            overwriteIds = foreignIds;
             failureReason = null;
             return true;
+        }
+
+        /// <summary>把批下来要顶掉的那批并进先删名单，已在前面的不重复删。</summary>
+        private static List<string> MergeIds(IReadOnlyList<string> first, IReadOnlyList<string> second)
+        {
+            var merged = new List<string>();
+            for (int i = 0; first != null && i < first.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(first[i])) merged.Add(first[i]);
+            }
+
+            for (int i = 0; second != null && i < second.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(second[i]) && !merged.Contains(second[i])) merged.Add(second[i]);
+            }
+
+            return merged;
         }
 
         /// <summary>
