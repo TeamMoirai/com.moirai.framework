@@ -13,6 +13,19 @@ namespace Moirai.Atropos.Resource
         private static ResourceServiceHandler s_Handler;
         private static IResourceBindingService s_BindingService;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>缓存对归零后由 <see cref="TryGetResourceService"/> 首次取用重新解析（处理器或绑定服务失效时它本就按同口径自愈）。</remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_Handler = null;
+            s_BindingService = null;
+        }
+#endif
+
         #endregion
 
         #region 私有方法 [PRIVATE METHODS]

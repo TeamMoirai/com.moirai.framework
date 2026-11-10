@@ -48,6 +48,22 @@ namespace Moirai.Atropos.Save
         /// <summary>同步镜像读告警去重标志（会话级——一次告警足够让调用方改用异步裁决读）。</summary>
         private static bool s_WarnedSyncMirrorRead;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>
+        /// 告警去重位归零，并顺带清空全部静态存档事件订阅（<see cref="UnsubscribeAll"/> 覆盖九个事件，
+        /// 见 SaveService.Events 分部）：订阅生命周期自负盈亏，关闭域重载时上一会话的订阅者不得跨会话残留重复收报。
+        /// </remarks>
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_WarnedSyncMirrorRead = false;
+            UnsubscribeAll();
+        }
+#endif
+
         /// <summary>
         /// 存储后端同步读非权威（云镜像）时对同步裸名读 API 发出会话级一次性告警。
         /// </summary>

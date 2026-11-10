@@ -16,6 +16,18 @@ namespace Moirai.Atropos
         private static IntPtr s_CachedHGlobalPtr = IntPtr.Zero;
         private static int s_CachedHGlobalSize = 0;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>经 <see cref="FreeCachedHGlobal"/> 释放：把上一会话缓存的非托管 HGlobal 还给进程，避免跨会话驻留；幂等（指针为 Zero 时是空操作）且持锁线程安全。</remarks>
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            FreeCachedHGlobal();
+        }
+#endif
+
         /// <summary>获取缓存的从进程的非托管内存中分配的内存的大小。</summary>
         public static int CachedHGlobalSize => s_CachedHGlobalSize;
 

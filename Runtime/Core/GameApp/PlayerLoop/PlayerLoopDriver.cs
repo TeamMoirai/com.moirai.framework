@@ -192,13 +192,14 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// SubsystemRegistration：仅复位驱动开关。
+        /// SubsystemRegistration：仅复位驱动开关与熔断阈值。
         /// </summary>
-        /// <remarks>不在此清空订阅：同阶段初始化顺序未定义，清空可能抹掉已先注册的订阅。</remarks>
+        /// <remarks>不在此清空订阅：同阶段初始化顺序未定义，清空可能抹掉已先注册的订阅；订阅表由 <see cref="Shutdown"/> 的优雅路径清空。</remarks>
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetOnDomainReload()
         {
             s_IsShutdown = true;
+            s_FailureTripThreshold = DEFAULT_FAILURE_TRIP_THRESHOLD; // 用户调过的阈值不跨会话残留
             s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
         }
 

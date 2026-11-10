@@ -33,6 +33,24 @@ namespace Moirai.Atropos.Resource
         private static float s_LastUnloadElapsedSeconds;
         private static float s_LastGCCollectElapsedSeconds = float.MaxValue;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>归位口径与 <see cref="OnShutdown"/> 的驱动状态段一致（含 GC 节流时间戳复位到 <see cref="float.MaxValue"/>），兜底未经正常关停的异常退出。</remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_ForceUnloadUnusedAssets = false;
+            s_ForceSystemUnloadUnusedAssets = false;
+            s_PreorderUnloadUnusedAssets = false;
+            s_PerformGCCollect = false;
+            s_AsyncOperation = null;
+            s_LastUnloadElapsedSeconds = 0f;
+            s_LastGCCollectElapsedSeconds = float.MaxValue;
+        }
+#endif
+
         #endregion
 
         #region 生命周期 [LIFECYCLE]

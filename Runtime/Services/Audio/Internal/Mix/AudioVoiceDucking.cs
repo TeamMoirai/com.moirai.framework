@@ -14,6 +14,18 @@ namespace Moirai.Atropos.Audio
         private static bool _ducked;
         private static EMixSnapshot _beforeDuck = EMixSnapshot.Default;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>复用服务重启的清账逻辑 <see cref="Reset"/>（_ducked 归 false、_beforeDuck 归 Default），不另写第二份字段归位。</remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            Reset();
+        }
+#endif
+
         /// <summary>
         /// 由后端 Tick 驱动。
         /// </summary>

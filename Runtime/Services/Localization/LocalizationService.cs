@@ -137,6 +137,22 @@ namespace Moirai.Atropos.Localization
         /// <summary>最近一次检测链读数的来路（诊断与日志用；还没走过检测链时为空）。</summary>
         internal static string LastLanguageSource { get; private set; }
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>
+        /// 检测链来路归 null（下次走检测链重新记录），一次性日志闸门经 <see cref="ResetOneShotLogs"/> 归位——
+        /// Helper 与本文件是同一个 partial 类，闸门复位不必另起一份字段赋值。
+        /// </remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            LastLanguageSource = null;
+            ResetOneShotLogs();
+        }
+#endif
+
         /// <summary>
         /// 走一遍检测链取「用户要哪门语言」，并把来路记进 <see cref="LastLanguageSource"/>。
         /// </summary>

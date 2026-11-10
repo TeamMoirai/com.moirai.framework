@@ -45,6 +45,12 @@ namespace Moirai.Atropos
         private static void CaptureMainThreadId()
         {
             s_MainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+
+#if UNITY_EDITOR
+            // 关闭 Domain Reload 时，异常退出可能让上一会话的服务世界残留；进 Play 时丢弃，
+            // 由启动流程经 Default 重建（优雅退出路径本就在 GameServices.Shutdown 置空）。
+            s_World = null;
+#endif
         }
 
         /// <summary>

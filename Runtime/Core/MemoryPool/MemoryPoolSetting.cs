@@ -92,8 +92,13 @@ namespace Moirai.Atropos
             MemoryPoolRegistry.RefreshThreadGuard();
             MemoryPoolRegistry.Phase = EMemoryPoolPhase.Boot;
 
+            // 无域重载时本钩子每次进 Play 都重跑，而异常退出会跳过 OnShutdown 的摘除路径——
+            // 先 -= 再 += 保证幂等，避免静态事件订阅跨会话累积（TickAll 每帧跑两遍即由此而来）
+            Application.lowMemory -= OnLowMemory;
             Application.lowMemory += OnLowMemory;
+            Application.focusChanged -= OnFocusChanged;
             Application.focusChanged += OnFocusChanged;
+            GameApp.RemoveDestroyListener(OnShutdown);
             GameApp.AddDestroyListener(OnShutdown);
 
             GameApp.AddUpdateListener(OnUpdate);

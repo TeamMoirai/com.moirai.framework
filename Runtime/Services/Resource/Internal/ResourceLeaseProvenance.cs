@@ -143,6 +143,20 @@ namespace Moirai.Atropos.Resource
             UnloadDropped = 0;
         }
 
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>
+        /// 采集开关复位到声明默认（false），卸载账经 <see cref="ClearUnload"/> 清空（含截断计数）。 <br />
+        /// 本文件整体已包在 <c>UNITY_EDITOR</c> 内，无需再套条件编译。
+        /// </remarks>
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            Enabled = false;
+            ClearUnload();
+        }
+
         private static bool IsInternalFrame(string typeName, Type declaringType)
         {
             if (string.IsNullOrEmpty(typeName))

@@ -29,6 +29,19 @@ namespace Moirai.Atropos.Procedure
         /// <summary>Tick 懒加载重绑只告警一次（域重载后静态位自动复位，每个会话至多一次）。</summary>
         private static bool s_WarnedLazyRebind;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>关掉域重载后静态位不再自动复位：告警闸门归零、切换广播摘掉上一会话的订阅者，其余静态位由懒加载/认领路径每会话重建。</remarks>
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_WarnedLazyRebind = false;
+            onProcedureChanged = null;
+        }
+#endif
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>

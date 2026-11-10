@@ -18,6 +18,22 @@ namespace Moirai.Atropos.Audio
         // 命中即免每次取用宿主的 GetComponent 查找；未挂载过的宿主仍走一次查找（负结果不稳定，不缓存）
         private static readonly Dictionary<AudioSource, AudioLowPassFilter> s_LowPassFilters = new Dictionary<AudioSource, AudioLowPassFilter>();
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>
+        /// 经 <see cref="Clear"/> 走既定清空路径，幂等：上一会话的宿主与 <c>[Warmup]</c> 根随退出播放销毁，对已销毁对象的 Destroy 是空操作， <br />
+        /// s_PoolRoot 随之置 null（引用若已被销毁本就是假空，<see cref="EnsurePoolRoot"/> 会按需自愈重建）。 <br />
+        /// s_LowPassFilters 的键是上一局的 AudioSource，必须一并清掉，否则跨会话字典只增不减。
+        /// </remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            Clear();
+        }
+#endif
+
         /// <summary>当前栈池缓存数量（诊断用）。</summary>
         public static int StackCount => s_Stack.Count;
         

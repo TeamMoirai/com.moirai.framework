@@ -64,6 +64,21 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         public static PanelSettings SharedPanelSettings { get; set; }
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>
+        /// 共享面板配置没有惰性重建路径（取用即裸读，写入归项目侧与 UI Toolkit 后端的资产引用）： <br />
+        /// 置空后依赖下一会话项目侧的启动赋值重新写入；未重写前装载面板按「两者都未写入」的既定口径当场拒开并报 Error，不会拿到裸面板。
+        /// </remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            SharedPanelSettings = null;
+        }
+#endif
+
         /// <summary>本窗口自己的 <see cref="PanelSettings"/>：装载本窗的面板时用它，为空时才回 <see cref="SharedPanelSettings"/>。</summary>
         /// <remarks>
         /// 来路两条：UI Toolkit 腿带 <c>panelSettings</c> 实参时，由本轨在开窗支路里、面板装载之前经交接钩子写进来；项目侧也可以在自己窗口类的构造里直接给。 <br />

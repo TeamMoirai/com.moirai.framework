@@ -221,6 +221,18 @@ namespace Moirai.Atropos.Audio
     {
         private static AudioOcclusionHrtf s_Active;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>摘掉上一会话的遮挡管理器引用：新会话由各 <see cref="AudioOcclusionHrtf"/> 实例经 <see cref="Register"/> 重新登记。</remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_Active = null;
+        }
+#endif
+
         public static AudioOcclusionHrtf Active => s_Active;
 
         public static void Register(AudioOcclusionHrtf handler) => s_Active = handler;

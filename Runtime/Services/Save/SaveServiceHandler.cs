@@ -49,6 +49,22 @@ namespace Moirai.Atropos.Save
         /// <summary>存档根路径覆盖点（仅供测试注入；非 null 时优先于 persistentDataPath）。</summary>
         [NonSerialized] internal static string s_OverrideBasePath;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>
+        /// 只清两份路径缓存：根路径由主线程首次解析重建，测试覆盖点不得跨会话泄漏（上一场测试的注入会污染下一场的落盘位置）。 <br />
+        /// s_PathSeparators / s_InvalidFileNameChars / s_ReservedDeviceNames 为不可变只读集，无需归位。
+        /// </remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_BasePath = null;
+            s_OverrideBasePath = null;
+        }
+#endif
+
         [Tooltip("存储后端：存档 IO 的下沉目标（默认本地文件；云存档等自定义后端继承 SaveStorageBackend 接入）。置空时回退本地文件后端。")]
         [ProviderDropdown]
         [SerializeReference] private SaveStorageBackend m_StorageBackend = new FileSaveStorageBackend();
