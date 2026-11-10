@@ -14,7 +14,8 @@ namespace Moirai.Atropos.Audio.Wwise
     /// 3D 发声体按实例租用池化 GameObject（Wwise 持续跟发射体位置，单发射体会让并发 3D 串位），位置在 PostEvent 时固定。 <br />
     /// 能力接口：<see cref="IAudioMiddlewareBankControl"/>（SoundBank）与 <see cref="IAudioMiddlewareRtpcControl"/>（RTPC）。 <br />
     /// 整文件受 <c>WWISE_INSTALLED</c> 编译保护， <br />
-    /// 调用的标准 Wwise Unity API 为 <c>AkSoundEngine.LoadBank</c> / <c>UnloadBank</c> / <c>SetRTPCValue</c>。
+    /// 调用的标准 Wwise Unity API 为 <c>AkSoundEngine.LoadBank</c> / <c>UnloadBank</c> / <c>SetRTPCValue</c> / <br />
+    /// <c>SetRTPCValue("Pitch", …)</c>（在播实例实时音高，按 playingID 作用域）。
     /// </remarks>
     internal sealed class WwiseBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {
@@ -127,6 +128,18 @@ namespace Moirai.Atropos.Audio.Wwise
         {
             if (!_handleToPlayingId.TryGetValue(instanceId, out var playingId)) return;
             AkSoundEngine.SetRTPCValue("Volume", Mathf.Clamp01(volume), playingId);
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// 与 <see cref="SetInstanceVolume"/> 同一 playingID 作用域写 "Pitch" RTPC（Wwise 工程侧需有同名 RTPC 承接）； <br />
+        /// 与 <c>PlayEvent</c> 不同，这里不做「值≈1 就跳过」的省略——实时改音高必须能把旧值拉回 1； <br />
+        /// 映射不到的已结束实例直接忽略。
+        /// </remarks>
+        public void SetInstancePitch(ulong instanceId, float pitch)
+        {
+            if (!_handleToPlayingId.TryGetValue(instanceId, out var playingId)) return;
+            AkSoundEngine.SetRTPCValue("Pitch", pitch, playingId);
         }
 
         public void SetBusVolume(string busPath, float volume)
