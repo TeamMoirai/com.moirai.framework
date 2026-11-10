@@ -3,7 +3,7 @@
 """`.agent/` 配置层量具。
 
 跑什么：`.agent/commands/**` 的装配存在性、frontmatter 齐备与档位写权限、命令正文的框架符号真名、
-`AGENT.md` 命令表与命令文件的双向对账、交付文档里的指针是否悬空、随包发行面的层隔离方向。
+`AGENTS.md` 命令表与命令文件的双向对账、交付文档里的指针是否悬空、随包发行面的层隔离方向。
 
 退出码三档，彼此可区分：
   0  各段判据全部真跑过且无违例（段数由本次输出自己数得出，不在文案里写死）
@@ -837,26 +837,26 @@ def parse_claude_command_table(text, reading):
         if cells and COMMAND_ROW_RE.match(cells[0]):
             names.add(cells[0][1:])
     if not names:
-        reading.cannot_measure("AGENT.md 里解析出 0 条命令表项 —— 看不见内容不等于内容合格")
+        reading.cannot_measure("AGENTS.md 里解析出 0 条命令表项 —— 看不见内容不等于内容合格")
         return None
     return names
 
 
 def judge_doc_ledger(root, command_files, reading):
-    claude_path = os.path.join(root, "AGENT.md")
+    claude_path = os.path.join(root, "AGENTS.md")
     if not os.path.isfile(claude_path):
-        reading.cannot_measure("AGENT.md 取不到: %s" % claude_path)
+        reading.cannot_measure("AGENTS.md 取不到: %s" % claude_path)
         return
     table = parse_claude_command_table(read_text(claude_path), reading)
     if table is None:
         return
     files = {os.path.basename(p)[:-3] for p in command_files}
-    reading.note("AGENT.md 命令表 %d 条 ↔ `.agent/commands` 文件 %d 个，双向等价要求不多不少"
+    reading.note("AGENTS.md 命令表 %d 条 ↔ `.agent/commands` 文件 %d 个，双向等价要求不多不少"
                  % (len(table), len(files)))
     for name in sorted(table - files):
-        reading.violate("AGENT.md 命令表列了 `/%s`，`.agent/commands` 下没有对应文件" % name)
+        reading.violate("AGENTS.md 命令表列了 `/%s`，`.agent/commands` 下没有对应文件" % name)
     for name in sorted(files - table):
-        reading.violate("`%s.md` 存在却没进 AGENT.md 命令表" % name)
+        reading.violate("`%s.md` 存在却没进 AGENTS.md 命令表" % name)
 
 
 # ---------------------------------------------------------------- 判据 E：指针不悬空
@@ -880,7 +880,7 @@ def pointer_targets(text):
 
 
 def judge_pointers(root, tracked, reading):
-    """扫描范围 = tracked 的 `AGENT.md` 与 `.agent/skills/**/*.md`。
+    """扫描范围 = tracked 的 `AGENTS.md` 与 `.agent/skills/**/*.md`。
 
     未入库的在途产物不在范围内：别人的活没落位不该把本判据打成红，
     而指针目标必须是 tracked，否则 fresh clone 上必悬空。
@@ -889,11 +889,11 @@ def judge_pointers(root, tracked, reading):
     if not tracked_set:
         return  # tracked 清单取不到时这一类判据没跑成，原因已由调用方记在 E 段
     scan_files = [rel for rel in sorted(tracked_set)
-                  if rel == "AGENT.md" or (rel.startswith(".agent/skills/") and rel.endswith(".md"))]
+                  if rel == "AGENTS.md" or (rel.startswith(".agent/skills/") and rel.endswith(".md"))]
     if not any(rel.startswith(".agent/skills/") for rel in tracked_set):
         reading.cannot_measure("tracked 清单里没有 `.agent/skills/**/*.md` —— 看不见文档不等于文档没有指针")
-    if "AGENT.md" not in tracked_set:
-        reading.cannot_measure("`AGENT.md` 不在 tracked 清单里 —— 命令表对账与指针判据都缺对象")
+    if "AGENTS.md" not in tracked_set:
+        reading.cannot_measure("`AGENTS.md` 不在 tracked 清单里 —— 命令表对账与指针判据都缺对象")
     checked = 0
     hit_count = 0
     for rel in scan_files:
@@ -910,7 +910,7 @@ def judge_pointers(root, tracked, reading):
             hit = target in tracked_set or any(p.startswith(target + "/") for p in tracked_set)
             if not hit:
                 reading.violate("%s 指向未入库或已不存在的目标: `%s`" % (rel, token))
-    reading.note("受检文档 %d 份（tracked 的 `AGENT.md` + `.agent/skills/**/*.md`），"
+    reading.note("受检文档 %d 份（tracked 的 `AGENTS.md` + `.agent/skills/**/*.md`），"
                  "字面路径指针 %d 条逐条按包根核 tracked" % (checked, hit_count))
 
 

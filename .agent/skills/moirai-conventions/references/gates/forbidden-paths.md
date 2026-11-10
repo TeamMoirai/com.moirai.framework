@@ -7,7 +7,7 @@
 | 路径 | 失效方式 |
 |---|---|
 | 技能目录 `odin-inspector`、`odin-validator` | 属别的会话的在途产物：没进版本库，`git add` 其路径会把别人没写完的内容一并提交，事后也分不出是谁的。这条规则不需要指针支撑——不得 `git add` 别人的路径 |
-| `AGENT.md` | 上面可能挂着别人的未提交 hunk。改它之前过这道门：`git diff --numstat HEAD -- AGENT.md` **必须输出空**；非空即停手回报 BLOCKED 并附原文，不许手删别人的行、不许 `git add -p`、不许「先提交再说」 |
+| `AGENTS.md` | 上面可能挂着别人的未提交 hunk。改它之前过这道门：`git diff --numstat HEAD -- AGENTS.md` **必须输出空**；非空即停手回报 BLOCKED 并附原文，不许手删别人的行、不许 `git add -p`、不许「先提交再说」 |
 | 三份既有守卫 `Tests/EditorMode/Policy/ReflectionPolicyGuardTests.cs`、`Tests/EditorMode/Policy/CoreDependencyRatchetTests.cs`、`Tests/EditorMode/Policy/TestLogChannelPolicyGuardTests.cs` | 只读参考。为了让自己的文件过关而改别人的判据或白名单，等于把守卫拆了 |
 
 ## asmref 射程（删一下就让一片脚本失去引用）
