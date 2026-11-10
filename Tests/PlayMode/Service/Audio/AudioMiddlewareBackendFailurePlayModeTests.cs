@@ -52,6 +52,7 @@ namespace Service.Audio
             public void StopInstance(ulong instanceId) => Touch(nameof(StopInstance));
             public void SetPaused(ulong instanceId, bool paused) => Touch(nameof(SetPaused));
             public void SetInstanceVolume(ulong instanceId, float volume) => Touch(nameof(SetInstanceVolume));
+            public void SetInstancePitch(ulong instanceId, float pitch) => Touch(nameof(SetInstancePitch));
             public void SetBusVolume(string busPath, float volume) => Touch(nameof(SetBusVolume));
             public float GetBusVolume(string busPath)
             {

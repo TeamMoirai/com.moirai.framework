@@ -50,6 +50,15 @@ namespace Moirai.Atropos.Audio.Middleware
         void SetInstanceVolume(ulong instanceId, float volume);
 
         /// <summary>
+        /// 设置实例实际音高（合成值 = 基础音高 × 所属音轨倍率）。
+        /// </summary>
+        /// <remarks>
+        /// 实例级控制，与 <see cref="SetInstanceVolume"/> 同级必选：桩桥记账、SDK 桥实时改 <br />
+        /// （FMOD <c>EventInstance.setPitch</c> / Wwise Pitch RTPC 都支持在播中修改）；映射不到的已结束实例直接忽略。
+        /// </remarks>
+        void SetInstancePitch(ulong instanceId, float pitch);
+
+        /// <summary>
         /// 设置总线线性音量（busPath 如 bus:/Master）。
         /// </summary>
         void SetBusVolume(string busPath, float volume);

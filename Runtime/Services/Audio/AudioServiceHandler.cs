@@ -238,6 +238,15 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public abstract void Stop(ulong handle, float fadeoutDuration = 0f);
 
+        /// <summary>
+        /// 设置指定句柄声部的基础音高（不含音轨倍率），并按当前音轨倍率重算实际音高。
+        /// </summary>
+        /// <remarks>
+        /// 默认经 <see cref="GetAgentByHandle"/> 走 Unity Agent；中间件后端覆写为按声部表直推原生实例。 <br />
+        /// 未知句柄为空操作；值不夹取，与 <c>AudioAgent.SetPitch</c> 的直通语义一致。
+        /// </remarks>
+        public virtual void SetVoicePitch(ulong handle, float pitch) => GetAgentByHandle(handle)?.SetPitch(pitch);
+
         #endregion 音频控制 [AUDIO CONTROLS]
 
         #region 获取 [FIND]

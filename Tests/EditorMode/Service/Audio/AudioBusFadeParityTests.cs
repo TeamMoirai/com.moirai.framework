@@ -44,6 +44,7 @@ namespace Service.Audio
             public void StopInstance(ulong instanceId) { }
             public void SetPaused(ulong instanceId, bool paused) { }
             public void SetInstanceVolume(ulong instanceId, float volume) { }
+            public void SetInstancePitch(ulong instanceId, float pitch) { }
             public bool IsPlaying(ulong instanceId) => true;
             public string GetEventPathFromClip(AudioClip clip)
                 => clip == null || string.IsNullOrEmpty(clip.name) ? null : "event:/" + clip.name;

@@ -67,6 +67,7 @@ namespace Service.Audio
             }
 
             public void SetInstanceVolume(ulong instanceId, float volume) { }
+            public void SetInstancePitch(ulong instanceId, float pitch) { }
             public void SetBusVolume(string busPath, float volume) { }
             public float GetBusVolume(string busPath) => 1f;
 
