@@ -36,6 +36,8 @@ Moirai Framework
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 📚 目录
 
+- [📖 简介](#-%E7%AE%80%E4%BB%8B)
+  - [✨ 核心特性](#-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7)
 - [🚀 快速开始](#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)
 - [🏗️ 架构](#-%E6%9E%B6%E6%9E%84)
   - [服务系统](#%E6%9C%8D%E5%8A%A1%E7%B3%BB%E7%BB%9F)
@@ -88,10 +90,10 @@ com.moirai.framework/
 │       ├── Scene/              # 场景管理
 │       ├── Timer/              # 计时器（时间轮 + 帧计时双引擎）
 │       └── UI/                 # UI 框架（窗口/控件/层）
-├── Editor/                     # 编辑器工具集（Foundation / Services / Tools / Utilities；Services 用五档 Drawers / Windows / BuildPipeline / Generator / Support）
+├── Editor/                     # 编辑器工具集（Core / Services / Tools / Utilities；Services 按服务分目录，模块内按需分 Drawers / Windows / BuildPipeline / Support 等档）
 ├── Plugins/                    # 第三方库
 ├── Samples~/                   # 示例
-├── SourceGenerators/           # 预编译源生成器（ProviderHandlerHost / SaveServiceCodegen / ServiceDependency）
+├── SourceGenerators/           # 预编译源生成器与分析器（ProviderHandlerHost / SaveServiceCodegen / ServiceDependency / UIWindowCodegen / HotPathAnalyzer）
 ├── Templates~/                 # 项目初始模板（@Requirements / Config / HybridTemplate / NormalTemplate）
 ├── Documentation~/             # 服务文档（一个服务一份）
 └── Tests/                      # 单元测试（EditorMode / PlayMode / Player）
@@ -104,7 +106,7 @@ com.moirai.framework/
 ```csharp
 // 服务访问 — 各服务提供静态外观（ProviderHandlerHost 源生成），内部懒加载
 ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
-UIService.ShowUI<MainWindow>();
+UIService.ShowUI<MainWindow>("MainWindow");
 TimerService.Delay(1f, () => Debug.Log("1s"));
 
 // 动态服务查找
@@ -155,8 +157,10 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | Framework Settings | 框架设置窗口：音频组、Luban、流程、更新设置（`Tools/Framework Settings`） |
 | HybridCLR | 热更新宏定义与热更 DLL 构建命令（`HybridCLR/Define Symbols`、`HybridCLR/Build`） |
 | Inspector | Asset / Core 组件自定义 Inspector |
+| Input Service | 输入动作配置编辑器、按键图标集合编辑器 |
 | Luban Tools | Luban 配置表生成、表格目录直达（`Tools/Config`） |
 | Maintenance | 清理空文件夹、查找丢失脚本、预制体查找器、分组选择、锁定 Inspector |
+| Package Manager | 分支作包源的插件包管理器：按目录稀疏检出装卸、依赖闭包规划（`Tools/Moirai/Framework Package Manager`） |
 | PlayerLoop Debugger | PlayerLoop 注入状态可视化（`Window/PlayerLoop Debugger`） |
 | Reference Finder | 资源依赖/引用树视图（`Tools/资产相关/查找资产引用`） |
 | Release Tools | 构建流水线窗口、一键打包 Android / iOS / Windows / AssetBundle（`Tools/Build`） |
@@ -164,7 +168,6 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | Tasks Editor | 任务运行器编辑器 |
 | Tween | 缓动属性绘制器 |
 | UI Service | UI 绑定代码自动生成（`GameObject/ScriptGenerator`）、组件 Inspector |
-| Input Service | 输入动作配置编辑器、按键图标集合编辑器 |
 | Utility | 命令行读取、Shell 调用等 |
 | YooAsset | 构建缓存清理、内置目录/补丁包工具、自定义构建管线、Shader 变体收集 |
 
@@ -187,6 +190,8 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 ### 👥 贡献者
 
 [![Contributors](https://contrib.rocks/image?repo=TeamMoirai/com.moirai.framework)](https://github.com/TeamMoirai/com.moirai.framework/graphs/contributors)
+
+---
 
 ## 📄 许可证
 
