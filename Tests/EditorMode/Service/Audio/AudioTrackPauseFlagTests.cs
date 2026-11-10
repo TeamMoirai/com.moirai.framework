@@ -34,6 +34,7 @@ namespace Service.Audio
             public void StopInstance(ulong instanceId) { }
             public void SetPaused(ulong instanceId, bool paused) { }
             public void SetInstanceVolume(ulong instanceId, float volume) { }
+            public void SetInstancePitch(ulong instanceId, float pitch) { }
             public void SetBusVolume(string busPath, float volume) { }
             public float GetBusVolume(string busPath) => 1f;
             public bool IsPlaying(ulong instanceId) => true;

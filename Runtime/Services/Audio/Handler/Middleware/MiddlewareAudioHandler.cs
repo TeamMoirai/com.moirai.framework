@@ -37,6 +37,8 @@ namespace Moirai.Atropos.Audio.Middleware
             public bool Persistent;
             public byte Priority = 128;
             public EAudioTrack Track;
+            /// <summary>本声部的基础音高（不含音轨倍率）：Play 写入、<see cref="SetVoicePitch"/> 改写，实时推播按它重算。</summary>
+            public float BasePitch = AudioGroupConfig.DEFAULT_PITCH;
             public bool Paused;
             public bool Playing;
 
@@ -69,6 +71,7 @@ namespace Moirai.Atropos.Audio.Middleware
                 Persistent = false;
                 Priority = 128;
                 Track = default;
+                BasePitch = AudioGroupConfig.DEFAULT_PITCH;
                 Paused = false;
                 Playing = false;
             }
@@ -318,7 +321,10 @@ namespace Moirai.Atropos.Audio.Middleware
         }
 
         /// <inheritdoc />
-        /// <remarks>中间件后端只对之后播放的事件生效；已在播事件无法通过桥接接口改音高。</remarks>
+        /// <remarks>
+        /// 倍率本地存档后即时推播：该音轨上仍在播的声部按「各自基础音高 × 新倍率」重算，
+        /// 经 <see cref="IAudioMiddlewareBridge.SetInstancePitch"/> 写给原生实例（FMOD setPitch / Wwise Pitch RTPC 都支持实时改）。
+        /// </remarks>
         public override void SetTrackPitch(EAudioTrack track, float pitch)
         {
             if (_engineUnavailable) return;
@@ -326,6 +332,15 @@ namespace Moirai.Atropos.Audio.Middleware
             int index = (int)track;
             if (index < 0 || index >= _trackPitches.Length) return;
             _trackPitches[index] = Mathf.Clamp(pitch, AudioGroupConfig.MINIMAL_PITCH, AudioGroupConfig.MAXIMAL_PITCH);
+
+            if (_bridge == null) return;
+
+            foreach (var slot in _handles.Slots)
+            {
+                var voice = slot.Voice;
+                if (voice == null || !voice.Playing || voice.Track != track) continue;
+                _bridge.SetInstancePitch(voice.InstanceId, voice.BasePitch * _trackPitches[index]);
+            }
         }
 
         /// <inheritdoc />
@@ -735,6 +750,7 @@ namespace Moirai.Atropos.Audio.Middleware
             voice.Persistent = request.Persistent;
             voice.Priority = request.Priority;
             voice.Track = request.Track;
+            voice.BasePitch = request.Pitch;
             voice.Playing = true;
 
             // 句柄由注册表分配（低 20 位槽、高位代次），声部侧句柄与槽位都由 Bind 单点写
@@ -796,6 +812,21 @@ namespace Moirai.Atropos.Audio.Middleware
             voice.Playing = false;
             _bridge?.StopInstance(voice.InstanceId);
             ReleaseHandle(handle);
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// 中间件无 Unity Agent，按句柄查声部表后直推原生实例：更新基础音高，并把
+        /// 「基础音高 × 当前音轨倍率」经 <see cref="IAudioMiddlewareBridge.SetInstancePitch"/> 写给在播实例。
+        /// </remarks>
+        public override void SetVoicePitch(ulong handle, float pitch)
+        {
+            if (!_handles.TryGet(handle, out var voice)) return;
+
+            voice.BasePitch = pitch;
+            if (!voice.Playing || _bridge == null) return;
+
+            _bridge.SetInstancePitch(voice.InstanceId, pitch * GetTrackPitch(voice.Track));
         }
 
         #endregion 音频控制 [AUDIO CONTROLS]

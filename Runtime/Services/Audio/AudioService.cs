@@ -227,7 +227,8 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 设置指定句柄声部的基础音高（不含音轨倍率），并按当前音轨倍率重算实际音高。
         /// </summary>
-        public static void SetPitch(ulong handle, float pitch) => s_Handler?.GetAgentByHandle(handle)?.SetPitch(pitch);
+        /// <remarks>Unity 后端走 Agent；中间件后端按声部表直推原生实例（桥接 <see cref="Middleware.IAudioMiddlewareBridge.SetInstancePitch"/>）。</remarks>
+        public static void SetPitch(ulong handle, float pitch) => s_Handler?.SetVoicePitch(handle, pitch);
 
         /// <summary>
         /// 获取指定音轨的静音状态。
