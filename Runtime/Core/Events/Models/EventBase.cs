@@ -465,7 +465,7 @@ namespace Moirai.Atropos.Events
         {
             s_Pool.CreateFunc = createMethod;
         }
-        // internal：引用计数守卫用例需直读（private→internal 走 InternalsVisibleTo 测试接缝，见 AGENT.md 测试可见性）
+        // internal：引用计数守卫用例需直读（private→internal 走 InternalsVisibleTo 测试接缝，见 AGENTS.md 测试可见性）
         internal int m_RefCount;
 
         // ReSharper disable once ConvertConstructorToMemberInitializers

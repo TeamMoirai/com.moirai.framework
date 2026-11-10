@@ -149,7 +149,7 @@ namespace Moirai.Atropos.Tasks
                 }
                 catch (System.Exception ex)
                 {
-                    // 每帧轮询的异常隔离（AGENT.md 明文允许的例外：订阅/任务抛出不得截断同帧其余项）。
+                    // 每帧轮询的异常隔离（AGENTS.md 明文允许的例外：订阅/任务抛出不得截断同帧其余项）。
                     // 先 Stop 再报：毒任务由此落到下面的收尾循环被摘除 Dispose，
                     // 开发期上抛让缺陷当场可见，发布期隔离续跑。
                     task.Stop();

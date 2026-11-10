@@ -51,6 +51,6 @@ UIService.CloseUI<<UI_NAME>>();    // 关闭，是否留缓存实例由 WindowAt
 - `[Window]` 决定层级（`Bottom=0` / `UI=1` / `Popup=2` / `Tips=3` / `System=4`）、是否全屏、自动隐藏与缓存时长；查询走 `UIService.HasWindow<T>` / `GetWindow<T>` / `GetTopWindow()`。
 - 组件引用不手写 `transform.Find`：在层级里挂 `UIBindComponent`，用右键菜单 `GameObject/ScriptGenerator/生成绑定代码` 生成字段，值在 `BindMemberProperty()` 里落地（发射器实现见 `Editor/Services/UI/Generator/Support/UICodeEmitter.cs`）。
 - 模态与交互压制读 `UIService.CurrentModal` / `IsBlockedByModal(GameObject)`，不要另立一套"锁屏"标志。
-- 动到 UI 公开面时同步 `Documentation~/UI.md` 与 `CHANGELOG.md`，口径见 `AGENT.md` 的「提交时的文档与 CHANGELOG」。
+- 动到 UI 公开面时同步 `Documentation~/UI.md` 与 `CHANGELOG.md`，口径见 `AGENTS.md` 的「提交时的文档与 CHANGELOG」。
 
 请告诉我要创建什么界面，我按上面的形状生成窗口类与预制体侧的绑定清单。
