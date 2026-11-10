@@ -645,11 +645,13 @@ namespace Moirai.Atropos.PackageManager
 
                     EditorUtility.DisplayProgressBar(title, stage, value);
                 };
+                installer.ConfirmOverwriteForeignFolders = ConfirmOverwriteForeignFolders;
                 return action();
             }
             finally
             {
                 installer.Progress = null;
+                installer.ConfirmOverwriteForeignFolders = null;
                 EditorUtility.ClearProgressBar();
                 _mutating = false;
 
@@ -657,6 +659,18 @@ namespace Moirai.Atropos.PackageManager
                 _inputLockedUntil = EditorApplication.timeSinceStartup + MUTATION_INPUT_GRACE_SECONDS;
                 Repaint();
             }
+        }
+
+        /// <summary>
+        /// 同名目录已存在又不在账本上：一次列全交用户决定顶不顶，选不覆盖即由编排层整批中止。
+        /// </summary>
+        /// <remarks>问的这几拍先把进度条收掉——它压在模态框上会挡住点击；答完编排层的下一段进度自己把它挂回来，中止则直接走到收尾的 ClearProgressBar。</remarks>
+        private bool ConfirmOverwriteForeignFolders(IReadOnlyList<string> folders)
+        {
+            EditorUtility.ClearProgressBar();
+            return EditorUtility.DisplayDialog($"这些目录不是本工具装的（{folders.Count} 个）",
+                string.Join("\n", folders) + "\n\n\n状态账本里没有这些包。选「覆盖」先整份删掉它们再按分支重新物化，里头的改动不会保留；选「不覆盖」整批中止，盘上原样。",
+                "覆盖", "不覆盖");
         }
 
         /// <summary>
@@ -749,7 +763,7 @@ namespace Moirai.Atropos.PackageManager
                 ? string.Empty
                 : $"，跳过 {skipped.Count} 个装不了的：{string.Join("；", skipped)}";
 
-            // 批量更新逐条按各自的「更新前先清目录」取舍；不清的包会把分支上已删掉的文件留在安装目录里
+            // 批量更新逐条按各自的「安装/更新前先清目录」取舍；不清的包会把分支上已删掉的文件留在安装目录里
             var removeFirst = new List<string>();
             for (int i = 0; i < allowed.Count; i++)
             {
@@ -1175,8 +1189,8 @@ namespace Moirai.Atropos.PackageManager
             [Tooltip("默认分支头那一条；选历史版本后用「安装所选版本」——先清目录再按那次修订物化，因此可以降级。")]
             internal string SelectedVersion { get; set; }
 
-            [BoxGroup(OPERATIONS_GROUP), ShowInInspector, LabelText("更新前先清目录")]
-            [Tooltip("默认勾上：更新或重装前先删掉包目录再重新物化，清掉分支上已删除的文件。")]
+            [BoxGroup(OPERATIONS_GROUP), ShowInInspector, LabelText("安装/更新前先清目录")]
+            [Tooltip("默认勾上：安装、更新与重装前先删掉包目录再重新物化，清掉分支上已删除的文件；同名目录不在账本里时会弹窗问一次顶不顶。")]
             internal bool RemoveBeforeUpdate { get; set; } = true;
 
             internal string EntryId => _manifest.id;
@@ -1243,7 +1257,7 @@ namespace Moirai.Atropos.PackageManager
             [BoxGroup(OPERATIONS_GROUP), Button("安装", ButtonSizes.Large)]
             [HideIf(nameof(IsInstalled))]
             [EnableIf(nameof(CanInstall))]
-            private void Install() => _window?.InstallRequested(_manifest.id, false);
+            private void Install() => _window?.InstallRequested(_manifest.id, false, RemoveBeforeUpdate);
 
             [BoxGroup(OPERATIONS_GROUP), Button("更新到分支版本", ButtonSizes.Large)]
             [ShowIf(nameof(UpdateAvailable))]

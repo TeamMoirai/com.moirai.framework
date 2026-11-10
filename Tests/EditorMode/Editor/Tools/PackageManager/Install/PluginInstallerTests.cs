@@ -7,12 +7,13 @@ using NUnit.Framework;
 namespace Tools.PackageManager
 {
     /// <summary>
-    /// 编排层的用例集：引擎版本号取段，以及扫分支在远端缺席与清单坏掉时的行为。
+    /// 编排层的用例集：引擎版本号取段，扫分支在远端缺席与清单坏掉时的行为，以及同名外来目录按清目录勾选的两种取舍。
     /// </summary>
     internal sealed class PluginInstallerTests
     {
         private const string PLUGIN_ID = "blackboard";
         private const string PLUGIN_FOLDER = "com.moirai.framework.plugin";
+        private const string FOREIGN_FILE = "hand-written.txt";
 
         private const string GOOD_MANIFEST =
             "{\"id\":\"blackboard\",\"name\":\"Blackboard\",\"function\":\"Data\",\"description\":\"d\"," +
@@ -122,6 +123,63 @@ namespace Tools.PackageManager
         }
 
         [Test]
+        public void Install_ForeignTargetFolderWithoutClean_KeepsItAndRejects()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "pm-installer-" + Guid.NewGuid().ToString("N"));
+            string sourceRepo = Path.Combine(root, "src");
+            string workspace = Path.Combine(root, "Library", PLUGIN_FOLDER);
+            string installRoot = Path.Combine(root, "Packages");
+            string installed = Path.Combine(installRoot, PLUGIN_FOLDER + "." + PLUGIN_ID);
+
+            try
+            {
+                BuildSourceRepo(sourceRepo, GOOD_MANIFEST);
+                PreparePackages(installRoot);
+                WriteForeignFolder(installed);
+
+                PluginInstallReport report = NewInstaller(sourceRepo, workspace).Install(PLUGIN_ID, false);
+
+                Assert.IsFalse(report.Ok, "没勾清目录，不该顶掉不是自己装的同名目录");
+                StringAssert.Contains("不在账本里", report.FailureReason);
+                Assert.IsTrue(File.Exists(Path.Combine(installed, FOREIGN_FILE)), "整批中止不该碰过盘");
+                Assert.IsFalse(File.Exists(Path.Combine(installed, "package.json")), "判拒的不该落进半个包");
+            }
+            finally
+            {
+                ForceDelete(root);
+            }
+        }
+
+        [Test]
+        public void Install_ForeignTargetFolderWithClean_OverwritesIt()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "pm-installer-" + Guid.NewGuid().ToString("N"));
+            string sourceRepo = Path.Combine(root, "src");
+            string workspace = Path.Combine(root, "Library", PLUGIN_FOLDER);
+            string installRoot = Path.Combine(root, "Packages");
+            string installed = Path.Combine(installRoot, PLUGIN_FOLDER + "." + PLUGIN_ID);
+
+            try
+            {
+                BuildSourceRepo(sourceRepo, GOOD_MANIFEST);
+                PreparePackages(installRoot);
+                WriteForeignFolder(installed);
+
+                PluginInstallReport report = NewInstaller(sourceRepo, workspace).Install(PLUGIN_ID, false, true);
+
+                Assert.IsTrue(report.Ok, report.FailureReason);
+                StringAssert.Contains("已清掉 " + PLUGIN_ID, string.Join(" | ", report.Notes), "先删同名目录要留得下读数");
+                Assert.IsFalse(File.Exists(Path.Combine(installed, FOREIGN_FILE)), "勾了清目录就要整份删掉再物化");
+                Assert.IsTrue(File.Exists(Path.Combine(installed, PLUGIN_ID + PluginManifest.MANIFEST_SUFFIX)));
+                Assert.IsTrue(File.Exists(Path.Combine(installed, "package.json")));
+            }
+            finally
+            {
+                ForceDelete(root);
+            }
+        }
+
+        [Test]
         public void TryBrowse_BrokenManifest_ReportsPerFileAndKeepsBrowseWorking()
         {
             string root = Path.Combine(Path.GetTempPath(), "pm-installer-" + Guid.NewGuid().ToString("N"));
@@ -167,6 +225,20 @@ namespace Tools.PackageManager
             string installRoot = Path.Combine(Directory.GetParent(workspace).Parent.FullName, "Packages");
             return new PluginInstaller(settings, workspace, installRoot, Path.Combine(installRoot, "manifest.json"),
                 registry, typeof(PluginInstaller));
+        }
+
+        /// <summary>搭一个空的 Packages 落点：Unity 认包要有目录，工程 manifest 得在场。</summary>
+        private static void PreparePackages(string installRoot)
+        {
+            Directory.CreateDirectory(installRoot);
+            File.WriteAllText(Path.Combine(installRoot, "manifest.json"), "{\"dependencies\":{}}");
+        }
+
+        /// <summary>放一个不是本工具装的同名目录：里面只有一个账本外的文件。</summary>
+        private static void WriteForeignFolder(string folder)
+        {
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, FOREIGN_FILE), "不是本工具装的");
         }
 
         private static void BuildSourceRepo(string sourceRepo, string manifestJson)
