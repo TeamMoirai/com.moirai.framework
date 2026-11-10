@@ -24,6 +24,7 @@
 *.csproj
 *.exe
 *.ini
+*.ini.meta
 *.log
 *.map
 # *.mdb
@@ -68,7 +69,6 @@ Thumbs.db
 [Hh]ybridCLRData.meta
 [Dd]ocs/
 [Dd]ocs.meta
-[Ss]creenshots/
 
 # Build
 [Bb]uild/
@@ -87,19 +87,16 @@ Thumbs.db
 # SourceGenerator
 !**/Source~/**/*.csproj
 !**/Source~/**/*.sln
+**/Source~/**/bin/
 
 # ============ #
 # AI generated #
 # ============ #
-# Tuanjie Codely
-CODELY.md*
-.com-unity-codely.json
-.codelyignore
-.codely-cli/
-.codely.packages/
 
 # Claude Code
-.claude/settings.local.json
+CLAUDE.md*
+.claude/
 
-# Qoder
-.qoder/
+# Tuanjie Codely
+CODELY.md*
+.codely-cli/

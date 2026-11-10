@@ -1,15 +1,26 @@
 # Moirai Framework Plugins
 
-这是 `com.moirai.framework` 的 `plugin` 分支，与 `master`、`installer` 无共同历史，只作插件目录（catalog）分发通道，由框架内的 **包管理器** 窗口消费。
+![Branch](https://img.shields.io/badge/branch-plugin-2ea44f)
+![Unity](https://img.shields.io/badge/Unity-2022.3%2B-000000?logo=unity&logoColor=white)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-[English](README_EN.md)
+这是 `com.moirai.framework` 的 `plugin` 分支，与 `master`、`installer` 无共同历史，只作插件目录（catalog）分发通道，由框架内的**包管理器**窗口消费。
+
+## 目录
+
+- [目录形状](#目录形状)
+- [当前插件清单](#当前插件清单)
+- [插件作者必须遵守](#插件作者必须遵守)
+- [清单字段](#清单字段)
+- [安装与卸载的落盘约定](#安装与卸载的落盘约定)
 
 ## 目录形状
 
 ```
 com.moirai.framework.plugin/
-├── package.json              # 给 Unity 读的那一份，由包管理器维护
-├── README.md / README_EN.md
+├── package.json              # 分支自身的包元数据，只给包管理器读校验
+├── README.md / AGENTS.md
 └── <id>/                     # 一个插件一个顶层目录，扁平不嵌套
     ├── <id>.plugin.json      # 该插件的清单，只给包管理器解析
     ├── *.asmdef              # 必需，见下
@@ -17,32 +28,36 @@ com.moirai.framework.plugin/
 ```
 
 顶层目录一律扁平，按 `<id>` 命名；**不**再套功能层级。功能归类写在清单的 `function` 字段里，由窗口在菜单树上分组。
+特例：`pipeline` 是 vendored 进来的官方 Unity Pipeline 全包，保留其自带的 `package.json`、多级子目录结构与 `Unity.Pipeline.*` 装配名。
 
 ## 当前插件清单
 
-除 `zlogger` 外，其余全部自 `com.moirai.framework` 迁出：类型名与命名空间逐字不变，
-框架侧只留默认/内置后端。装好插件后在对应 settings 的 Provider 下拉里重选后端。
+除 `pipeline`（vendored 自官方 `com.unity.pipeline`）外，其余各支全部自 `com.moirai.framework` 迁出：类型名与命名空间逐字不变，框架侧只留默认/内置后端。装好插件后在对应 settings 的 Provider 下拉里重选后端。
 
-| 分组 | 插件 id | 程序集 | 宏 | UPM 依赖 |
-|---|---|---|---|---|
-| 字符串 | `newtonsoft-json` | `Moirai.Plugin.NewtonsoftJson` | `NEWTONSOFT_JSON_INSTALLED（自动）` | com.unity.nuget.newtonsoft-json 3.2.2 |
-| 字符串 | `zstring` | `Moirai.Plugin.ZString` | `ZSTRING_INSTALLED（自动）` | com.cysharp.zstring 2.6.0 |
-| 存档 | `memorypack` | `Moirai.Plugin.MemoryPack` | `手写宏（见 description）` | — |
-| 存档 | `messagepack` | `Moirai.Plugin.MessagePack` | `手写宏（见 description）` | — |
-| 存档 | `protobuf` | `Moirai.Plugin.Protobuf` | `手写宏（见 description）` | — |
-| 存档 | `unity-cloud-save` | `Moirai.Plugin.UnityCloudSave` | `UNITY_CLOUD_SAVE_INSTALLED（自动）` | — |
-| 对象 | `photon-fusion` | `Moirai.Plugin.PhotonFusion` | `手写宏（见 description）` | — |
-| 日志 | `serilog` | `Moirai.Plugin.Serilog` | `手写宏（见 description）` | — |
-| 日志 | `unity-logging` | `Moirai.Plugin.UnityLogging` | `UNITY_LOGGING_INSTALLED（自动）` | com.unity.logging 1.3.10 |
-| 日志 | `zlogger` | `Moirai.Plugin.ZLogger` | `ZLOGGER_INSTALLED（自动）` | com.cysharp.zlogger 2.5.10 |
-| 补间 | `litmotion` | `Moirai.Plugin.LitMotion` | `LITMOTION_INSTALLED（自动）` | com.annulusgames.lit-motion 1.0.0、com.cysharp.unitask 2.5.11 |
-| 补间 | `primetween` | `Moirai.Plugin.PrimeTween` | 手写宏 `PRIME_TWEEN_INSTALLED` | com.kyrylokuzyk.primetween 1.4.11 |
-| 资源 | `addressables` | `Moirai.Plugin.Addressables` | `ADDRESSABLES_INSTALLED（自动）` | com.unity.addressables 2.10.3 |
-| 音频 | `fmod` | `Moirai.Plugin.Fmod` | `手写宏（见 description）` | — |
-| 音频 | `wwise` | `Moirai.Plugin.Wwise` | `手写宏（见 description）` | — |
+下表按清单的 `function` 字段分组，覆盖全部 16 个插件目录：
+
+| 分组 | 插件 id | 程序集 | 宏 | UPM 依赖 | 停止提供（`maxUnityVersion`） |
+|---|---|---|---|---|---|
+| 字符串 | `newtonsoft-json` | `Moirai.Plugin.NewtonsoftJson` | `NEWTONSOFT_JSON_INSTALLED`（自动） | com.unity.nuget.newtonsoft-json 3.2.2 | — |
+| 字符串 | `zstring` | `Moirai.Plugin.ZString` | `ZSTRING_INSTALLED`（自动） | com.cysharp.zstring 2.6.0 | — |
+| 存档 | `memorypack` | `Moirai.Plugin.MemoryPack` | `MEMORYPACK_INSTALLED`（手写） | — | — |
+| 存档 | `messagepack` | `Moirai.Plugin.MessagePack` | `MESSAGEPACK_INSTALLED`（手写） | — | — |
+| 存档 | `protobuf` | `Moirai.Plugin.Protobuf` | `PROTOBUF_INSTALLED`（手写） | — | — |
+| 存档 | `unity-cloud-save` | `Moirai.Plugin.UnityCloudSave` | `UNITY_CLOUD_SAVE_INSTALLED`（自动） | — | — |
+| 对象 | `photon-fusion` | `Moirai.Plugin.PhotonFusion` | `FUSION2`（手写） | — | — |
+| 日志 | `serilog` | `Moirai.Plugin.Serilog` | `SERILOG_INSTALLED`（手写） | — | — |
+| 日志 | `unity-logging` | `Moirai.Plugin.UnityLogging` | `UNITY_LOGGING_INSTALLED`（自动） | com.unity.logging 1.3.10 | `6000.3.0`（Unity 6.3 起停供） |
+| 日志 | `zlogger` | `Moirai.Plugin.ZLogger` | `ZLOGGER_INSTALLED`（自动） | com.cysharp.zlogger 2.5.10 | — |
+| 补间 | `litmotion` | `Moirai.Plugin.LitMotion` | `LITMOTION_INSTALLED`（自动） | com.annulusgames.lit-motion 1.0.0、com.cysharp.unitask 2.5.11 | — |
+| 补间 | `primetween` | `Moirai.Plugin.PrimeTween` | `PRIME_TWEEN_INSTALLED`（手写） | com.kyrylokuzyk.primetween 1.4.11 | — |
+| 资源 | `addressables` | `Moirai.Plugin.Addressables` | `ADDRESSABLES_INSTALLED`（自动） | com.unity.addressables 2.10.3 | — |
+| 音频 | `fmod` | `Moirai.Plugin.Fmod` | `FMOD_INSTALLED`（手写） | — | — |
+| 音频 | `wwise` | `Moirai.Plugin.Wwise` | `WWISE_INSTALLED`（手写） | — | — |
+| AI 辅助 | `pipeline` | `Unity.Pipeline.*`（5 个装配） | — | com.unity.nuget.mono-cecil 1.11.6、com.unity.nuget.newtonsoft-json 3.0.2 | `6000.0.0`（Unity 6.x 整批拒装，改用官方注册表同名包） |
 
 「手写宏」那几支的依赖来自 NuGetForUnity 或厂商 SDK（不在 UPM 里），前置逐步写在各自清单的 `description`；`primetween` 是唯一的例外——它的包在 UPM 里，宏却必须手写在工程侧：插件目录里那份经 `.asmref` 编进第三方 `PrimeTween.Runtime` 的扩展看不见插件 asmdef 的 versionDefines，只有工程级宏能同时喂到两边；
 宏没定义时后端整文件被预处理裁掉，下拉里就不会出现它。
+
 音频两支（`fmod`/`wwise`）的 `.asmdef` 只引框架：装上 FMOD / Wwise 集成后还要把它们的程序集（如 `FMODUnity`、`Ak.*`）加进 `references`，
 本目录无法读到那些装配的 GUID，所以没有预先写死。
 
