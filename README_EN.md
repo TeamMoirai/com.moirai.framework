@@ -1,26 +1,46 @@
 # Moirai Framework Installer
 
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](package.json)
+[![Unity](https://img.shields.io/badge/Unity-2022.3%2B-blue.svg)](https://unity.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/license/MIT)
 [![README](https://img.shields.io/badge/README-中文-red)](https://github.com/TeamMoirai/com.moirai.framework/blob/installer/README.md)
 
-A lightweight, zero-dependency Unity Editor tool that provides a guided installation workflow for the [Moirai Framework](https://github.com/TeamMoirai/com.moirai.framework).
+A lightweight, zero-dependency Unity Editor tool that provides a guided installation workflow for the [Moirai Framework](https://github.com/TeamMoirai/com.moirai.framework). All logic lives in a single editor script, `Editor/FrameworkInstallerWindow.cs` (namespace `Moirai.Atropos.Installer.Editor`).
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Environment Check](#environment-check)
+  - [Install Core](#install-core)
+  - [Choose a Template](#choose-a-template)
+  - [Install a Template](#install-a-template)
+- [Install State](#install-state)
+- [Project Structure After Installation](#project-structure-after-installation)
+- [Core Framework Dependencies](#core-framework-dependencies)
+- [Menu Reference](#menu-reference)
+- [License](#license)
+- [Links](#links)
 
 ## Overview
 
 The installer automates the entire framework setup process through a single editor window:
 
-1. **Registry Bootstrap** — Automatically configures the OpenUPM scoped registry in your project's `manifest.json`
+1. **Registry Bootstrap** — Writes or completes the OpenUPM scoped registry in your project's `Packages/manifest.json`, preserving existing entries
 2. **Core Installation** — Installs the `com.moirai.framework` package via Unity Package Manager
 3. **Template Import** — Copies a project template (Normal or Hybrid) into your `Assets/` folder
-4. **Environment Configuration** — Sets scripting defines, player settings, and build target options
+4. **Environment Configuration** — Applies scripting defines and Player Settings
 
 ## Requirements
 
 - **Unity** 2022.3 or newer
-- **Internet access** (for OpenUPM package resolution)
+- **Internet access** (for OpenUPM and GitHub package resolution)
 
 ## Installation
 
-Add the installer to your project by adding the following entry to your `Packages/manifest.json`:
+This package is hosted on the `installer` branch of the [com.moirai.framework repository](https://github.com/TeamMoirai/com.moirai.framework). Add the following entry to your project's `Packages/manifest.json`:
 
 ```json
 {
@@ -30,53 +50,70 @@ Add the installer to your project by adding the following entry to your `Package
 }
 ```
 
+The installer itself has no UPM dependencies (the `dependencies` field in its `package.json` is empty).
+
 ## Usage
 
 Open the installer window via the Unity menu:
 
 ```
-Tools > Settings > Install Framework
+Tools > Install Framework
 ```
 
-### Step 1: Environment Check
+### Environment Check
 
 The window displays a dashboard with green/red status indicators for:
 
 | Check | Description |
 |-------|-------------|
-| OpenUPM Registry | Scoped registry configured in `manifest.json` |
-| Unity Version | Unity 2022.3+ detected |
+| OpenUPM Registry | `https://package.openupm.com` with scopes `com.cysharp`, `com.tuyoogame`, `com.moirai` fully configured |
+| Unity Version | Unity 2022.3 or newer detected |
 | Core Package | `com.moirai.framework` installed |
-| URP Package | Universal Render Pipeline installed |
-| HybridCLR | HybridCLR package installed (Hybrid template only) |
+| URP Package | `com.unity.render-pipelines.universal` installed (required before installing templates) |
+| HybridCLR Package | `com.code-philosophy.hybridclr` installed (Hybrid template only) |
 | Installer State | Current project state (NotInstalled / Custom / Normal / Hybrid) |
+| State Source | State file, compatibility fallback, or default |
+| Template Folders | `@Requirements`, `NormalTemplate`, `HybridTemplate` present in the framework package |
 
-### Step 2: Install Core
+The first time the window opens, it automatically writes or completes the OpenUPM scoped registry. If the registry changed, the installer waits for the Package Manager to re-resolve before showing the dashboard.
 
-Click **Install Core** to install `com.moirai.framework` via UPM. The installer monitors the async operation and updates the UI on completion.
+### Install Core
 
-### Step 3: Choose a Template
+Click **Install Core** to install `com.moirai.framework` via UPM. The installer monitors the async operation and updates the UI on completion. Templates can only be selected after the core package is installed.
+
+### Choose a Template
 
 Two templates are available:
 
 #### Normal Template
 
-Standalone framework template for standard projects.
+Standalone framework template for standard projects. Copies `@Requirements` (launcher, hot-update entry, config code, and other shared content) plus `NormalTemplate` (example scene, config tables, and UI examples).
 
-- Scripting defines: `ENABLE_LOG`
 - Player settings: `allowUnsafeCode = true`
+- Scripting defines: the installer adds no extra defines
 
 #### Hybrid Template
 
 Hot-update template for projects using [HybridCLR](https://github.com/focus-creative-games/hybridclr).
 
-- Scripting defines: `ENABLE_LOG`, `ENABLE_HYBRIDCLR`
-- Player settings: `allowUnsafeCode = true`, IL2CPP backend, .NET Framework 4.6, incremental GC disabled
+- Scripting define: the installer adds `ENABLE_HYBRIDCLR`
+- Player settings: `allowUnsafeCode = true`, IL2CPP backend, .NET Framework API compatibility level, incremental GC disabled (a confirmation dialog appears during installation — apply automatically or configure manually)
 - **Requires:** HybridCLR package installed
 
-### Step 4: Install Template
+A project initialized with the Normal template can be upgraded to the Hybrid template once the HybridCLR package is installed (the button then reads **Upgrade Template**). Template installation never overwrites existing files.
 
-Click **Install Template** to copy the selected template into your project. Existing files are preserved — the installer will skip files that already exist and log warnings.
+### Install a Template
+
+Click **Install Template** to copy the selected template into your project:
+
+1. `@Requirements` (shared by both templates) is copied first, followed by the selected template folder
+2. Existing files are preserved — the installer skips them and logs warnings
+3. Afterwards it applies Player Settings and scripting defines, saves the install state, and refreshes the AssetDatabase
+
+The action bar also provides:
+
+- **Use Custom** — Marks the project as custom (no template required); only available in the NotInstalled state
+- **Refresh Check** — Manually refresh the environment check at any time
 
 ## Install State
 
@@ -86,7 +123,7 @@ The installer persists its state to:
 ProjectSettings/MoiraiFrameworkInstaller.json
 ```
 
-This file records the installer state, template type, Unity version, and timestamp. On subsequent opens, the installer validates the persisted state against actual filesystem markers to ensure consistency.
+This file records the installer state, template type, Unity version, project path, and update timestamp. On subsequent opens, the installer validates the persisted state against actual filesystem markers (such as `Assets/Scripts/GameProto/Gen` and `Assets/HybridCLRGenerate`), falling back from Hybrid → Normal → NotInstalled on mismatch so the state always matches the project content.
 
 ## Project Structure After Installation
 
@@ -94,17 +131,21 @@ After installation, your project will have the following structure (varies by te
 
 ```
 Assets/
-├── Bundles/                    # Asset bundle output
-├── YooAsset/                   # YooAsset configuration
+├── AssetRaw/                    # YooAsset raw assets (scenes, config tables, UI, etc.)
+├── Prefabs/                     # CameraRig / GameEntry / UIRoot
+├── Resources/                   # Built-in text and loading UI
+├── Scenes/                      # Startup scene main.unity
 ├── Scripts/
-│   └── Runtime/
-│       ├── HotfixEntry.cs      # Hot-update entry point
-│       └── GameLogic.Runtime.asmdef
-└── ...
+│   ├── GameBase/                # Startup flow (Launcher / Procedure, non-hot-update)
+│   ├── GameLib/                 # Framework glue layer (Moirai.GameLib.asmdef)
+│   ├── GameLogic/               # Hot-update entry HotfixEntry.cs (Moirai.GameLogic.asmdef)
+│   └── GameProto/               # Luban config code (Moirai.GameProto.asmdef)
+└── Settings/
+    ├── Framework/               # Framework AudioMixer and other settings
+    └── YooAsset/                # YooAsset collector and scanner settings
 
 Packages/
-├── com.moirai.framework/       # Core framework (installed via UPM)
-└── ...
+└── com.moirai.framework/        # Core framework (installed via UPM)
 
 ProjectSettings/
 └── MoiraiFrameworkInstaller.json  # Installer state
@@ -112,12 +153,12 @@ ProjectSettings/
 
 ## Core Framework Dependencies
 
-The `com.moirai.framework` package pulls in the following dependencies automatically:
+The `com.moirai.framework` package pulls in the following dependencies automatically (see the framework package's `package.json` for the authoritative list):
 
 | Package | Version |
 |---------|---------|
 | `com.cysharp.unitask` | 2.5.11 |
-| `com.tuyoogame.yooasset` | 2.3.19 |
+| `com.tuyoogame.yooasset` | 3.0.6 |
 | `com.unity.scriptablebuildpipeline` | 1.21.5 |
 | `com.unity.nuget.newtonsoft-json` | 3.2.1 |
 | `com.unity.collections` | 2.2.1 |
@@ -128,11 +169,11 @@ The `com.moirai.framework` package pulls in the following dependencies automatic
 
 | Menu Item | Description |
 |-----------|-------------|
-| `Tools > Settings > Install Framework` | Opens the installer window |
+| `Tools > Install Framework` | Opens the installer window |
 
 ## License
 
-[MIT](LICENSE)
+MIT (see the `license` field in `package.json`)
 
 ## Links
 
