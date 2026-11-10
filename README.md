@@ -36,8 +36,6 @@ Moirai Framework
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## 📚 目录
 
-- [📖 简介](#-%E7%AE%80%E4%BB%8B)
-  - [✨ 核心特性](#-%E6%A0%B8%E5%BF%83%E7%89%B9%E6%80%A7)
 - [🚀 快速开始](#-%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)
 - [🏗️ 架构](#-%E6%9E%B6%E6%9E%84)
   - [服务系统](#%E6%9C%8D%E5%8A%A1%E7%B3%BB%E7%BB%9F)
