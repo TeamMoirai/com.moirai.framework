@@ -20,7 +20,7 @@
 ```
 com.moirai.framework.installer/
 ├── Editor/FrameworkInstallerWindow.cs   # 唯一脚本（#if UNITY_EDITOR）
-├── README.md / README_EN.md
+├── README.md
 └── package.json
 ```
 

@@ -3,7 +3,6 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](package.json)
 [![Unity](https://img.shields.io/badge/Unity-2022.3%2B-blue.svg)](https://unity.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/license/MIT)
-[![README](https://img.shields.io/badge/README-English-red)](https://github.com/TeamMoirai/com.moirai.framework/blob/installer/README_EN.md)
 
 轻量、零依赖的 Unity 编辑器工具，为 [Moirai Framework](https://github.com/TeamMoirai/com.moirai.framework) 提供一键式引导安装流程。全部逻辑位于单一编辑器脚本 `Editor/FrameworkInstallerWindow.cs`（命名空间 `Moirai.Atropos.Installer.Editor`）。
 

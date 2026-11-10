@@ -10,7 +10,7 @@ allowed-tools: Read, Grep, Glob, Bash(python:*), Bash(git status:*), Bash(git di
 ## 判据
 
 - 文档只登记现行事实：不写迁移史、不写"已移除/旧版"叙事（迁移口径进 Release 正文）。
-- 本包文档是 `README.md`/`README_EN.md` 与 `package.json`；它与代码不一致时报告漂移，不按文档反推代码。
+- 本包文档是 `README.md` 与 `package.json`；它与代码不一致时报告漂移，不按文档反推代码。
 - 本包无测试装配；本包没有 CI 工作流，不跑测试、不产生覆盖率。；本包没有 CHANGELOG 文件；版本以 `package.json` 为准。。
 - 只读：不改 README、不改版本号。
 
@@ -18,7 +18,7 @@ allowed-tools: Read, Grep, Glob, Bash(python:*), Bash(git status:*), Bash(git di
 
 | 项 | 判据 |
 |---|---|
-| 文档存在性 | README/README_EN 存在且安装步骤与脚本常量一致 |
+| 文档存在性 | README 存在且安装步骤与脚本常量一致 |
 | 包版本 | `package.json.version` 与 HEAD 一致 |
 | 程序集事实 | 文档里的 asmdef/程序集名与盘上一致 |
 | 指针 | `.agent` 与 `AGENTS.md` 里的包根相对路径逐条存在 |

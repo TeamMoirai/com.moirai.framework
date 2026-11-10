@@ -52,7 +52,7 @@ for line in out.splitlines():
         print("[forbidden]", line)
 
 pat = re.compile(r"`([^`\n]+)`")
-roots = "Editor/", ".agent/", "README.md", "README_EN.md", "package.json", "AGENTS.md"
+roots = "Editor/", ".agent/", "README.md", "package.json", "AGENTS.md"
 missing = []
 for md in list(ROOT.rglob(".agent/**/*.md")) + [ROOT / "AGENTS.md"]:
     if not md.exists():

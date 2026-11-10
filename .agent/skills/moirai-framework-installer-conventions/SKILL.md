@@ -36,4 +36,4 @@ description: Moirai Framework Installer（com.moirai.framework.installer）的�
 - 本包无测试装配
 - 本包没有 CI 工作流，不跑测试、不产生覆盖率。
 - 本包没有 CHANGELOG 文件；版本以 `package.json` 为准。
-- `README.md`/`README_EN.md` 描述环境检查、核心包安装、模板选择与安装状态；没有 Documentation~。
+- `README.md` 描述环境检查、核心包安装、模板选择与安装状态；没有 Documentation~。
