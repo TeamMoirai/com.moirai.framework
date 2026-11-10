@@ -144,6 +144,12 @@ namespace Moirai.Atropos
         private static void InitializeMainThreadOnLoad()
         {
             s_MainThreadId = Thread.CurrentThread.ManagedThreadId;
+
+            // 句柄表 / 活跃表 / s_NextPoolId 有意保留：句柄键是域内稳定的 TypeHandle，
+            // 关闭 Domain Reload 时 MemoryPool<T> 的静态构造器不会重跑，池及其原生元数据按设计跨会话存活
+            // （DomainUnload 统一释放），复位表反而造成 ID 断层与悬空句柄。
+            // 仅复位回调重入深度：上一会话回调链异常逃逸（未经 finally 配对）会永久触发 ThrowIfInCallback。
+            s_CallbackDepth = 0;
         }
 
         private static void ReleaseNativeOnDomainUnload(object sender, EventArgs e)

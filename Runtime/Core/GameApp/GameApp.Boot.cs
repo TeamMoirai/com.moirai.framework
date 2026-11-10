@@ -17,6 +17,25 @@ namespace Moirai.Atropos
         /// </remarks>
         public static bool AutoBoot { get; set; } = true;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置启动控制面静态状态：兼容关闭 Domain Reload 的编辑器工作流。
+        /// </summary>
+        /// <remarks>
+        /// <see cref="AutoBoot"/> 复位为声明默认值（声明处初始化在无域重载下不会重跑）； <br />
+        /// 组合根与启动失败广播在 Shutdown 之外无清空路径，异常退出时订阅者会跨 Play 会话残留并重复回调，此处整批摘除。 <br />
+        /// 仅编辑器生效，避免与用户在更早钩子里写入的 <see cref="AutoBoot"/> 竞争。
+        /// </remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetBootStatics()
+        {
+            AutoBoot = true;
+
+            onServicesComposing = null;
+            onBootFailed = null;
+        }
+#endif
+
         /// <summary>
         /// 启动框架：生命周期初始化 + 组合根。
         /// </summary>

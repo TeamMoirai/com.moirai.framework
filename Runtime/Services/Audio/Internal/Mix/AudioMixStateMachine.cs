@@ -310,6 +310,18 @@ namespace Moirai.Atropos.Audio
     {
         private static AudioMixStateMachine s_StateMachine;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>状态机由 <see cref="Initialize"/> 每会话重建，这里只摘掉上一会话的实例引用；查询/请求门在空引用时已按默认值降级，无其它初始化时序依赖。</remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_StateMachine = null;
+        }
+#endif
+
         /// <summary>
         /// 初始化混音状态机（OnInit 时由 <c>AudioService</c> 调用，或游戏侧手动）。
         /// </summary>

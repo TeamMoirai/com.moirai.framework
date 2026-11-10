@@ -154,6 +154,27 @@ namespace Moirai.Atropos.Save
             s_CurrentVersion = 0;
         }
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>
+        /// 只清会话级状态（已迁移路径缓存与当前版本），口径是 <see cref="ResetForTests"/> 的会话子集。 <br />
+        /// <see cref="s_Migrators"/> 有意保留：迁移器经生成的 <c>[ModuleInitializer]</c>（SaveMigratorModuleInit）注册，每个域只运行一次，
+        /// 关闭域重载后第二会话不会重跑——清了会让迁移总线在后续会话拿到空注册表，静默跳过迁移链。
+        /// </remarks>
+        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            lock (s_SessionLock)
+            {
+                s_MigratedPaths.Clear();
+            }
+
+            s_CurrentVersion = 0;
+        }
+#endif
+
         /// <summary>
         /// 会话缓存命中判定（须在 <see cref="s_SessionLock"/> 内调用）：路径已标记且文件写入时间未变。
         /// </summary>

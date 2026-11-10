@@ -36,6 +36,19 @@ namespace Moirai.Atropos.Save
         /// <summary>上次解析所用的配置名；解析失败同样记账，免得每读一次就重报 Fatal 并新建实例。</summary>
         private static string s_ResolvedTypeName;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>序列化器缓存按配置名配对生效，归零后由 <see cref="DefaultSerializer"/> 首次读取时重新解析，防止跨会话引用旧配置名解析出的实例。</remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_DefaultSerializer = null;
+            s_ResolvedTypeName = null;
+        }
+#endif
+
         /// <summary>默认序列化后端实例（按配置名缓存；解析后确保该 ID 在 <see cref="SaveSerializerRegistry"/> 有主）。</summary>
         /// <remarks>
         /// 仅主线程触达：<see cref="FrameworkSettings{T}.Instance"/> 走 <c>Resources.Load</c>，工作线程调用即崩； <br />

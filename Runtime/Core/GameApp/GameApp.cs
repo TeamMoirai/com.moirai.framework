@@ -148,6 +148,30 @@ namespace Moirai.Atropos
 
         #region 生命周期 [LIFECYCLE]
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置本类静态状态：兼容关闭 Domain Reload 的编辑器工作流。
+        /// </summary>
+        /// <remarks>
+        /// 运行态字段在 <see cref="Initialize"/> 里由 <see cref="SeedRuntimeFromEngine"/> 重新播种，此处仅归位声明默认值， <br />
+        /// 避免异常退出（未经 <see cref="Shutdown"/>）时 <see cref="IsShutdown"/> 与生命周期广播跨 Play 会话残留。 <br />
+        /// 仅编辑器生效：Player 构建进程生命周期与会话一致，且不得与用户在更早钩子里写入的 <c>AutoBoot</c> 等配置竞争。
+        /// </remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_FrameRate = 0;
+            s_GameSpeed = 1f;
+            s_RunInBackground = false;
+            s_NeverSleep = false;
+            s_PauseDepth = 0;
+            IsShutdown = true;
+
+            onApplicationFocus = null;
+            onApplicationQuit = null;
+        }
+#endif
+
         internal static void Initialize()
         {
             if (!IsShutdown) return;

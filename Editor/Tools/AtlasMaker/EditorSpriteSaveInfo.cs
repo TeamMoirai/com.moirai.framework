@@ -13,10 +13,10 @@ namespace Moirai.Atropos.AtlasMaker
     public static class EditorSpriteSaveInfo
     {
         private const string ATLAS_CONFIG_PATH = "ProjectSettings/AtlasConfiguration.asset";
-        private static readonly HashSet<string> _dirtyAtlasNames = new HashSet<string>();
-        private static readonly Dictionary<string, List<string>> _atlasMap = new Dictionary<string, List<string>>();
-        private static bool _initialized;
-        private static bool _isInScanExistingSprites;
+        private static readonly HashSet<string> s_DirtyAtlasNames = new HashSet<string>();
+        private static readonly Dictionary<string, List<string>> s_AtlasMap = new Dictionary<string, List<string>>();
+        private static bool s_Initialized;
+        private static bool s_IsInScanExistingSprites;
 
         private static AtlasConfiguration Config => AtlasConfiguration.instance;
 
@@ -27,11 +27,32 @@ namespace Moirai.Atropos.AtlasMaker
             Initialize();
         }
 
+        /// <summary>
+        /// 编辑器程序集没有可靠的 <c>RuntimeInitializeOnLoadMethod</c>：借播放状态切换清掉上一会话的会话标志。
+        /// </summary>
+        /// <remarks>关闭 Domain Reload 时静态位跨 Play 会话存活：进出播放各清一次扫描/初始化位，防上一场的标志泄漏进下一场；先摘后挂防重订阅（本方法每次域加载都会执行）。</remarks>
+        [InitializeOnLoadMethod]
+        private static void InitializeEditorStatics()
+        {
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+        }
+
+        private static void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.EnteredPlayMode
+                || state == PlayModeStateChange.EnteredEditMode)
+            {
+                s_IsInScanExistingSprites = false;
+                s_Initialized = false;
+            }
+        }
+
         private static void Initialize()
         {
-            if (_initialized) return;
+            if (s_Initialized) return;
             ScanExistingSprites(false);
-            _initialized = true;
+            s_Initialized = true;
         }
 
         [MenuItem("Tools/图集工具/立即重新生成变动的图集数据")]
@@ -45,7 +66,7 @@ namespace Moirai.Atropos.AtlasMaker
         /// </summary>
         public static void ForceGenerateAll(bool forceAll)
         {
-            _isInScanExistingSprites = true;
+            s_IsInScanExistingSprites = true;
 
             try
             {
@@ -56,9 +77,9 @@ namespace Moirai.Atropos.AtlasMaker
 
                 EditorUtility.DisplayProgressBar("生成图集", "分析变更...", 0.4f);
                 int current = 0;
-                int total = _atlasMap.Count;
+                int total = s_AtlasMap.Count;
 
-                foreach (var item in _atlasMap)
+                foreach (var item in s_AtlasMap)
                 {
                     current++;
 
@@ -70,18 +91,18 @@ namespace Moirai.Atropos.AtlasMaker
 
                     if (forceAll || NeedsAtlasUpdate(item.Key, item.Value))
                     {
-                        _dirtyAtlasNames.Add(item.Key);
+                        s_DirtyAtlasNames.Add(item.Key);
                     }
                 }
 
                 EditorUtility.DisplayProgressBar("生成图集", "生成图集文件...", 0.6f);
                 ProcessDirtyAtlases();
-                DeleteStaleAtlases(_atlasMap.Keys);
+                DeleteStaleAtlases(s_AtlasMap.Keys);
             }
             finally
             {
                 EditorUtility.ClearProgressBar();
-                _isInScanExistingSprites = false;
+                s_IsInScanExistingSprites = false;
             }
         }
 
@@ -159,7 +180,7 @@ namespace Moirai.Atropos.AtlasMaker
                 return;
             }
 
-            if (_atlasMap.TryGetValue(atlasName, out var atlasList))
+            if (s_AtlasMap.TryGetValue(atlasName, out var atlasList))
             {
                 atlasList.Remove(assetPath);
             }
@@ -184,10 +205,10 @@ namespace Moirai.Atropos.AtlasMaker
                 return null;
             }
 
-            if (!_atlasMap.TryGetValue(atlasName, out var atlasList))
+            if (!s_AtlasMap.TryGetValue(atlasName, out var atlasList))
             {
                 atlasList = new List<string>();
-                _atlasMap[atlasName] = atlasList;
+                s_AtlasMap[atlasName] = atlasList;
             }
 
             if (!atlasList.Contains(assetPath))
@@ -242,7 +263,7 @@ namespace Moirai.Atropos.AtlasMaker
                 {
                     var parentAtlasName = GetAtlasNameForDirectory(tempCurrentPath);
 
-                    if (!string.IsNullOrEmpty(parentAtlasName) && _atlasMap.ContainsKey(parentAtlasName))
+                    if (!string.IsNullOrEmpty(parentAtlasName) && s_AtlasMap.ContainsKey(parentAtlasName))
                     {
                         MarkDirty(parentAtlasName, isCreateNew);
                     }
@@ -254,9 +275,9 @@ namespace Moirai.Atropos.AtlasMaker
 
         private static void OnUpdate()
         {
-            if (_isInScanExistingSprites) return;
+            if (s_IsInScanExistingSprites) return;
 
-            if (_dirtyAtlasNames.Count > 0)
+            if (s_DirtyAtlasNames.Count > 0)
             {
                 ProcessDirtyAtlases();
             }
@@ -264,10 +285,10 @@ namespace Moirai.Atropos.AtlasMaker
 
         private static void ProcessDirtyAtlases()
         {
-            string[] atlasNames = _dirtyAtlasNames.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+            string[] atlasNames = s_DirtyAtlasNames.OrderBy(name => name, StringComparer.Ordinal).ToArray();
             int totalCount = atlasNames.Length;
             int processedCount = 0;
-            bool showProgress = totalCount > 3 && _isInScanExistingSprites;
+            bool showProgress = totalCount > 3 && s_IsInScanExistingSprites;
 
             try
             {
@@ -281,7 +302,7 @@ namespace Moirai.Atropos.AtlasMaker
                     }
 
                     GenerateAtlas(atlasName);
-                    _dirtyAtlasNames.Remove(atlasName);
+                    s_DirtyAtlasNames.Remove(atlasName);
                 }
             }
             finally
@@ -420,7 +441,7 @@ namespace Moirai.Atropos.AtlasMaker
 
         private static List<Sprite> LoadValidSprites(string atlasName)
         {
-            if (_atlasMap.TryGetValue(atlasName, out List<string> spriteList))
+            if (s_AtlasMap.TryGetValue(atlasName, out List<string> spriteList))
             {
                 var allSprites = new List<Sprite>();
 
@@ -721,7 +742,7 @@ namespace Moirai.Atropos.AtlasMaker
                 return;
             }
 
-            _dirtyAtlasNames.Add(atlasName);
+            s_DirtyAtlasNames.Add(atlasName);
         }
 
         private static bool NeedsAtlasUpdate(string atlasName, IReadOnlyCollection<string> spritePaths)
@@ -809,8 +830,8 @@ namespace Moirai.Atropos.AtlasMaker
 
         public static void ClearCache()
         {
-            _dirtyAtlasNames.Clear();
-            _atlasMap.Clear();
+            s_DirtyAtlasNames.Clear();
+            s_AtlasMap.Clear();
         }
     }
 }

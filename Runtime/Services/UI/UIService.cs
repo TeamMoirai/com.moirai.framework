@@ -158,6 +158,11 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 免域重载复位：处理器槽与共享持有者都是静态位，跨 Play 会话残留会把上一轮的栈漏给下一轮。
         /// </summary>
+        /// <remarks>
+        /// s_UGUIHandler / s_UITKHandler 经 <see cref="onDetachTrackSlots"/> 广播在 <see cref="Internal_ResetHandlerSlots"/> 内一并摘除，无需单独归位。 <br />
+        /// s_Tracks 有意保留不清：目录只由各轨 partial 的静态字段初始化器登记（每域仅一次），关闭域重载后第二会话不会重跑，
+        /// 清空会让目录永久为空；轨内跨会话的残留认领已由 <see cref="UITrack.ClearClaim"/> 归位。
+        /// </remarks>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetHandlerSlotsOnDomainReload()
         {

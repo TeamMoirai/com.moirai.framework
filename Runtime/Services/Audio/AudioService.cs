@@ -24,6 +24,19 @@ namespace Moirai.Atropos.Audio
         /// <summary>前后台切换订阅句柄（注销只能靠它，lambda 事后摘不掉）。</summary>
         private static GameApp.Subscription s_PauseSubscription;
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>兜底未经 <see cref="OnShutdown"/> 的异常退出：<see cref="GameApp.Subscription.Dispose"/> 幂等，先注销再置空。</remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_PauseSubscription?.Dispose();
+            s_PauseSubscription = null;
+        }
+#endif
+
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>

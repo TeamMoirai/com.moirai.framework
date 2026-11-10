@@ -260,6 +260,22 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        /// <para>框架内部门面与测试用它做无损换入换出，用完请把原值换回去。</para>");
             sb.AppendLine("        /// </summary>");
             sb.AppendLine($"        internal static {info.HandlerTypeName} Internal_UseHandler({info.HandlerTypeName} next) => Interlocked.Exchange(ref s_Handler, next);");
+
+            // 关闭 Domain Reload 的编辑器工作流下，静态 s_Handler 会跨 Play 会话残留并指向上一局已销毁的
+            // Unity 对象；优雅退出路径由各服务 OnShutdown 置空兜底，这里覆盖异常退出等未经关停的场景。
+            // 仅编辑器生效：Player 构建进程生命周期与会话一致，不存在残留窗口。
+            sb.AppendLine();
+            sb.AppendLine("#if UNITY_EDITOR");
+            sb.AppendLine("        /// <summary>");
+            sb.AppendLine("        /// 编辑器兼容：进入 Play 时清空上一会话残留的处理器引用（关闭 Domain Reload 工作流）。");
+            sb.AppendLine("        /// </summary>");
+            sb.AppendLine("        [global::UnityEngine.RuntimeInitializeOnLoadMethod(global::UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]");
+            sb.AppendLine("        private static void ResetGeneratedStatics()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            s_Handler = null;");
+            sb.AppendLine("            s_InitializingHandler = false;");
+            sb.AppendLine("        }");
+            sb.AppendLine("#endif");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 

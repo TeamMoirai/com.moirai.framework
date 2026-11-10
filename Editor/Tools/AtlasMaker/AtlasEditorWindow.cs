@@ -23,7 +23,7 @@ namespace Moirai.Atropos.AtlasMaker
         private bool _showSourceAtlasRootPath = false;
         private bool _showExcludeAtlasPath = false;
 
-        private static readonly string[] SPRITE_PACKER_MODE_NAMES =
+        private static readonly string[] s_SpritePackerModeNames =
         {
             "Disabled",
             "Sprite Atlas V1 - Enabled For Builds",
@@ -36,7 +36,7 @@ namespace Moirai.Atropos.AtlasMaker
 #endif
         };
 
-        private static readonly int[] SPRITE_PACKER_MODE_VALUES =
+        private static readonly int[] s_SpritePackerModeValues =
         {
             (int)SpritePackerMode.Disabled,
             (int)SpritePackerMode.BuildTimeOnlyAtlas,
@@ -47,7 +47,7 @@ namespace Moirai.Atropos.AtlasMaker
 #endif
         };
 
-        private static readonly string[] TEXTURE_COMPRESSION_NAMES =
+        private static readonly string[] s_TextureCompressionNames =
         {
             "None",
             "Low Quality",
@@ -55,7 +55,7 @@ namespace Moirai.Atropos.AtlasMaker
             "High Quality"
         };
 
-        private static readonly int[] TEXTURE_COMPRESSION_VALUES =
+        private static readonly int[] s_TextureCompressionValues =
         {
             (int)TextureImporterCompression.Uncompressed,
             (int)TextureImporterCompression.CompressedLQ,
@@ -107,7 +107,7 @@ namespace Moirai.Atropos.AtlasMaker
 
             var compressionContent = new GUIContent(" Compression", EditorGUIUtility.IconContent("Texture Icon").image);
             var textureCompressionValue = DrawIntPopup(compressionContent, (int)config.m_TextureCompression,
-                TEXTURE_COMPRESSION_NAMES, TEXTURE_COMPRESSION_VALUES);
+                s_TextureCompressionNames, s_TextureCompressionValues);
             config.m_TextureCompression = (TextureImporterCompression)textureCompressionValue;
             EditorGUILayout.EndVertical();
             EditorGUILayout.Space();
@@ -240,7 +240,7 @@ namespace Moirai.Atropos.AtlasMaker
             var spritePackerModeContent = new GUIContent(" Sprite Packer Mode",
                 EditorGUIUtility.IconContent("SpriteAtlas Icon").image);
             var spritePackerModeValue = DrawIntPopup(spritePackerModeContent, (int)EditorSettings.spritePackerMode,
-                SPRITE_PACKER_MODE_NAMES, SPRITE_PACKER_MODE_VALUES);
+                s_SpritePackerModeNames, s_SpritePackerModeValues);
             var spritePackerMode = (SpritePackerMode)spritePackerModeValue;
             if (spritePackerMode != EditorSettings.spritePackerMode)
             {
