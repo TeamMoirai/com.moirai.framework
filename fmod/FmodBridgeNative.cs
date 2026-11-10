@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Audio.Fmod
     /// 能力接口：<see cref="IAudioMiddlewareBankControl"/>（Studio bank）与 <see cref="IAudioMiddlewareRtpcControl"/>（event parameter）。 <br />
     /// 整文件受 <c>FMOD_INSTALLED</c> 编译保护， <br />
     /// 调用的标准 FMOD Unity API 为 <c>RuntimeManager.LoadBank</c> / <c>StudioSystem.loadBankFile</c> / <c>Bank.unload</c> / <br />
-    /// <c>setParameterByName</c>。
+    /// <c>setParameterByName</c> / <c>EventInstance.setPitch</c>（在播实例实时音高）。
     /// </remarks>
     internal sealed class FmodBridgeNative : IAudioMiddlewareBridge, IAudioMiddlewareBankControl, IAudioMiddlewareRtpcControl
     {
@@ -87,6 +87,17 @@ namespace Moirai.Atropos.Audio.Fmod
         {
             var instance = new FMOD.Studio.EventInstance((IntPtr)instanceId);
             if (instance.isValid()) instance.setVolume(Mathf.Clamp01(volume));
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// FMOD 的 <c>EventInstance.setPitch</c> 支持在播中实时修改，音轨倍率与单声部音高因此即时生效； <br />
+        /// 下限与 <c>PlayEvent</c> 同一口径（0.01），映射不到的已结束实例直接忽略。
+        /// </remarks>
+        public void SetInstancePitch(ulong instanceId, float pitch)
+        {
+            var instance = new FMOD.Studio.EventInstance((IntPtr)instanceId);
+            if (instance.isValid()) instance.setPitch(Mathf.Max(0.01f, pitch));
         }
 
         public void SetBusVolume(string busPath, float volume)
