@@ -22,6 +22,14 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         public static void InjectConfigTableHandler<T>() where T : ConfigTableServiceHandler, new()
         {
+            // 导入窗口内设置资产可能还没进资产库，Instance 按「暂不可用」回 null（见 FrameworkSettings.Loader）。
+            // 本钩子每次脚本重载都跑，本次跳过不算丢注入，下一次补上。
+            if (Instance is null)
+            {
+                Debug.LogWarning($"ConfigTableServiceSettings 资产当前不可用，本次跳过 {typeof(T).Name} 的处理器注入，下次脚本重载重试。");
+                return;
+            }
+
             if (ConfigTableServiceHandler is null or DefaultConfigTableHandler)
             {
                 ConfigTableServiceHandler = new T();
