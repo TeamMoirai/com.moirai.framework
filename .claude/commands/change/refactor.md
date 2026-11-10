@@ -23,7 +23,7 @@ allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git diff:*), Bash(git 
 3. 设计最小结构：优先移动/提取，不引入只转发一层的包装。
 4. 分步执行，每步可编译；搬文件用 `git mv`，同步 asmref 覆盖关系。
 5. 跑编译门与相关测试；机械更新路径/类型名，不改断言。
-6. 若路径变化，更新 `.claude/` 指针与 `CLAUDE.md` 摘要。
+6. 若路径变化，更新 `.claude/` 指针与 `AGENTS.md` 摘要。
 
 ## 输出
 
