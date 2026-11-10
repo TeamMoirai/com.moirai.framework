@@ -24,6 +24,7 @@
 *.csproj
 *.exe
 *.ini
+*.ini.meta
 *.log
 *.map
 # *.mdb
