@@ -74,13 +74,14 @@ namespace Moirai.Atropos
 
         private void OnValidate()
         {
-            NormalizeSettings();
+            // 归一手头这份资产：OnValidate 跑在导入期，那时无效实例会按「暂不可用」回 null
+            NormalizeSettings(this);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void OnInit()
         {
-            NormalizeSettings();
+            NormalizeSettings(Instance);
             MemoryPool.ShortDecayStartFrames = Instance.m_ShortDecayStartFrames;
             MemoryPool.LongDecayStartFrames = Instance.m_LongDecayStartFrames;
             MemoryPool.UnscheduleIdleFrames = Instance.m_UnscheduleIdleFrames;
@@ -143,18 +144,18 @@ namespace Moirai.Atropos
 
         #region 私有方法 [PRIVATE METHODS]
 
-        private static void NormalizeSettings()
+        private static void NormalizeSettings(MemoryPoolSetting target)
         {
-            Instance.m_ShortDecayStartFrames = Mathf.Max(0, Instance.m_ShortDecayStartFrames);
-            Instance.m_LongDecayStartFrames = Mathf.Max(Instance.m_ShortDecayStartFrames, Instance.m_LongDecayStartFrames);
-            Instance.m_ZeroFreeReserveStartFrames = Mathf.Max(Instance.m_LongDecayStartFrames, Instance.m_ZeroFreeReserveStartFrames);
-            Instance.m_UnscheduleIdleFrames = Mathf.Max(Instance.m_ZeroFreeReserveStartFrames, Instance.m_UnscheduleIdleFrames);
-            Instance.m_AutoTrimNativeMetadataFrames = Instance.m_AutoTrimNativeMetadataFrames < 0
+            target.m_ShortDecayStartFrames = Mathf.Max(0, target.m_ShortDecayStartFrames);
+            target.m_LongDecayStartFrames = Mathf.Max(target.m_ShortDecayStartFrames, target.m_LongDecayStartFrames);
+            target.m_ZeroFreeReserveStartFrames = Mathf.Max(target.m_LongDecayStartFrames, target.m_ZeroFreeReserveStartFrames);
+            target.m_UnscheduleIdleFrames = Mathf.Max(target.m_ZeroFreeReserveStartFrames, target.m_UnscheduleIdleFrames);
+            target.m_AutoTrimNativeMetadataFrames = target.m_AutoTrimNativeMetadataFrames < 0
                 ? -1
-                : Mathf.Max(Instance.m_ZeroFreeReserveStartFrames, Instance.m_AutoTrimNativeMetadataFrames);
-            Instance.m_SoftFreeReserveLimit = Mathf.Max(MemoryPool.MINIMUM_FREE_RESERVE_LIMIT, Instance.m_SoftFreeReserveLimit);
-            Instance.m_HardFreeReserveLimit = Mathf.Max(Instance.m_SoftFreeReserveLimit, Instance.m_HardFreeReserveLimit);
-            Instance.m_DefaultLiveLimit = Mathf.Max(0, Instance.m_DefaultLiveLimit);
+                : Mathf.Max(target.m_ZeroFreeReserveStartFrames, target.m_AutoTrimNativeMetadataFrames);
+            target.m_SoftFreeReserveLimit = Mathf.Max(MemoryPool.MINIMUM_FREE_RESERVE_LIMIT, target.m_SoftFreeReserveLimit);
+            target.m_HardFreeReserveLimit = Mathf.Max(target.m_SoftFreeReserveLimit, target.m_HardFreeReserveLimit);
+            target.m_DefaultLiveLimit = Mathf.Max(0, target.m_DefaultLiveLimit);
         }
 
         #endregion
