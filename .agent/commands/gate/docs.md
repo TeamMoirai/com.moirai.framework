@@ -21,7 +21,7 @@ allowed-tools: Read, Grep, Glob, Bash(python:*), Bash(git status:*), Bash(git di
 | 文档存在性 | README/README_EN 存在且安装步骤与脚本常量一致 |
 | 包版本 | `package.json.version` 与 HEAD 一致 |
 | 程序集事实 | 文档里的 asmdef/程序集名与盘上一致 |
-| 指针 | `.agent` 与 `AGENT.md` 里的包根相对路径逐条存在 |
+| 指针 | `.agent` 与 `AGENTS.md` 里的包根相对路径逐条存在 |
 | 虚假声明 | 不得出现"CI 已跑测试""覆盖率达标""CHANGELOG 已同步""PlayMode 回归" |
 
 ## 可执行片段
