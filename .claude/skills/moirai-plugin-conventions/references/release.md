@@ -10,7 +10,7 @@
 |---|---|
 | `README.md`/`README_EN.md` | 新增/删除插件、清单字段变化时 |
 | 各插件 manifest | 插件版本、依赖、地板版本变化时 |
-| `CLAUDE.md` 与 `.claude/` | 规范变化时只改权威层 |
+| `AGENTS.md` 与 `.claude/` | 规范变化时只改权威层 |
 
 ## 提交纪律
 

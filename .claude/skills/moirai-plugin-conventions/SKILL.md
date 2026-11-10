@@ -1,11 +1,11 @@
 ---
 name: moirai-plugin-conventions
-description: Moirai Framework Plugins（com.moirai.framework.plugin）的规范知识层。写或改本包代码、跑验证与发版收尾时按需加载对应细则块；主文档 CLAUDE.md 只留硬约束摘要与指针。
+description: Moirai Framework Plugins（com.moirai.framework.plugin）的规范知识层。写或改本包代码、跑验证与发版收尾时按需加载对应细则块；主文档 AGENTS.md 只留硬约束摘要与指针。
 ---
 
 # Moirai Framework Plugins 规范知识层
 
-细则在本层只存一份，权威位置就是下表「块」列出的文件。`CLAUDE.md` 与命令正文里同主题只保留摘要与指向本层的指针；同一段话在两边各写一遍即视为缺陷。
+细则在本层只存一份，权威位置就是下表「块」列出的文件。`AGENTS.md` 与命令正文里同主题只保留摘要与指向本层的指针；同一段话在两边各写一遍即视为缺陷。
 
 ## 规范细则（按主题）
 
