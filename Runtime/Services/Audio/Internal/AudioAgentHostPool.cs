@@ -78,13 +78,22 @@ namespace Moirai.Atropos.Audio
 
             pooled.name = name;
             pooled.playOnAwake = false;
+            
             pooled.Stop();
-            pooled.resource = null;
+// #if UNITY_2023_2_OR_NEWER
+//             if (pooled.resource != null)
+//             {
+//                 pooled.timeSamples = 0;
+//                 pooled.resource = null;
+//             }
+// #else
             if (pooled.clip != null)
             {
                 pooled.timeSamples = 0;
+                pooled.clip = null;
             }
-            pooled.clip = null;
+// #endif
+
             pooled.enabled = true;
             pooled.volume = 1f;
             pooled.loop = false;
