@@ -63,22 +63,16 @@ Thumbs.db
 # ===================================== #
 # Local data #
 # ===================================== #
-[Bb]enchmarks/
-[Bb]enchmarks.meta
-[Hh]ybridCLRData/
-[Hh]ybridCLRData.meta
+# 仅忽略仓库根目录下的本地数据，不影响子目录同名内容
+/[Bb]enchmarks/
+/[Bb]uilds/
+/[Bb]undles/
+/[Hh]ybridCLRData/
+/[Ss]andbox/
+/[Ss]creenshots/
+
 [Dd]ocs/
 [Dd]ocs.meta
-
-# Build
-[Bb]uild/
-[Bb]uilds/
-
-# Bundles
-[Bb]undles/
-
-# Sandbox
-[Ss]andbox/
 
 # Samples
 [Ss]amples/
