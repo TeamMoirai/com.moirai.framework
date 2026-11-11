@@ -275,6 +275,8 @@ namespace Moirai.Atropos.AtlasMaker
             EditorGUILayout.BeginVertical("box");
             var labelGUIContent = new GUIContent(" 高级设置", EditorGUIUtility.IconContent("ToolHandleGlobal").image);
             GUILayout.Label(labelGUIContent, EditorStyles.boldLabel, GUILayout.ExpandWidth(true), GUILayout.Height(20));
+            var autoScanContent = new GUIContent(" 自动扫图集", EditorGUIUtility.IconContent("Refresh").image);
+            config.m_EnableAutoScan = EditorGUILayout.Toggle(autoScanContent, config.m_EnableAutoScan);
             var autoGenerateContent = new GUIContent(" 自动生成", EditorGUIUtility.IconContent("PlayButton").image);
             config.m_AutoGenerate = EditorGUILayout.Toggle(autoGenerateContent, config.m_AutoGenerate);
             var enableLoggingContent =

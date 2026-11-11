@@ -36,6 +36,8 @@ namespace Moirai.Atropos.AtlasMaker
         [Range(0, 100)]
         [SerializeField] internal int m_CompressionQuality = 50;
 
+        [Tooltip("自动扫图集：关闭后编辑器装载与资源导入触发的图集行为全部跳过，只保留手动生成")]
+        [SerializeField] internal bool m_EnableAutoScan = false;
         [SerializeField] internal bool m_AutoGenerate = true;
         [SerializeField] internal bool m_EnableLogging = true;
         [SerializeField] internal bool m_EnableV2 = true;
