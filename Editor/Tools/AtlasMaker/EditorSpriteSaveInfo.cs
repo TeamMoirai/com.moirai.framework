@@ -51,6 +51,7 @@ namespace Moirai.Atropos.AtlasMaker
         private static void Initialize()
         {
             if (s_Initialized) return;
+            if (!Config.m_EnableAutoScan) return;
             ScanExistingSprites(false);
             s_Initialized = true;
         }
@@ -152,6 +153,8 @@ namespace Moirai.Atropos.AtlasMaker
 
         public static void OnImportSprite(string assetPath, bool isCreateNew = false)
         {
+            if (!Config.m_EnableAutoScan) return;
+
             string atlasName = AddSpriteToMap(assetPath);
 
             if (string.IsNullOrEmpty(atlasName))
@@ -166,6 +169,8 @@ namespace Moirai.Atropos.AtlasMaker
 
         public static void OnDeleteSprite(string assetPath, bool isCreateNew = true)
         {
+            if (!Config.m_EnableAutoScan) return;
+
             assetPath = assetPath.Replace("\\", "/");
 
             if (!ShouldProcess(assetPath))
@@ -242,6 +247,8 @@ namespace Moirai.Atropos.AtlasMaker
 
         public static void MarkParentAtlasesDirty(string assetPath, bool isCreateNew)
         {
+            if (!Config.m_EnableAutoScan) return;
+
             var currentPath = Path.GetDirectoryName(assetPath)?.Replace("\\", "/");
 
             if (string.IsNullOrEmpty(currentPath)) return;
@@ -275,6 +282,7 @@ namespace Moirai.Atropos.AtlasMaker
 
         private static void OnUpdate()
         {
+            if (!Config.m_EnableAutoScan) return;
             if (s_IsInScanExistingSprites) return;
 
             if (s_DirtyAtlasNames.Count > 0)
