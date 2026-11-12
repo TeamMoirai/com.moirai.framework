@@ -103,7 +103,7 @@ com.moirai.framework.installer/
 
 ### 4. 提交纪律
 
-中文 conventional commits、按显式路径暂存、提交后 `git show --name-only` 复核；本包没有发版工作流；`package.json` 版本 1.0.0 由发布动作维护，日常提交不碰 `version`。
+提交信息两段式：subject 一行 `type(scope): 中文摘要` + 至多 3 行细则（细则落点 release.md）；按显式路径暂存、提交后 `git show --name-only` 复核；本包没有发版工作流；`package.json` 版本 1.0.0 由发布动作维护，日常提交不碰 `version`。
 
 ## 依赖项
 
