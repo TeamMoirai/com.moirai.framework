@@ -14,7 +14,7 @@
 
 ## 提交纪律
 
-- 中文 conventional commits：`type(scope): 一句净结果`。
+- 提交信息两段式：subject 一行 `type(scope): 中文摘要` 说清净结果（沿用 Conventional Commits 类型 feat/fix/refactor/chore/docs/test/perf），正文至多 **3 行细则**——只收「为什么改 / 边界与不变式 / 未验证事项与收口指针」，条目化优先；逐文件流水账与 CHANGELOG 内容不进正文。
 - 只写现行事实与净结果；不写重构过程、不写参考工程名。
 - 按显式路径暂存；共享工作树可能有别人的未提交改动，禁止 `git add -A` / `git add .`。
 - 提交后 `git show --name-only` 复核暂存集。
