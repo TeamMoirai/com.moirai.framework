@@ -156,7 +156,7 @@ com.moirai.framework/
 
 提交、文档与 CHANGELOG、发版与 PR 的权威落点在 `.agent/skills/moirai-conventions/references/release.md`。
 
-口径：只写净结果与现行事实，破坏性变更前置 ⚠ 给迁移口径，版本号与 Release 由工作流写入。
+口径：提交信息 = `type(scope): 中文摘要` + 至多 3 行细则；CHANGELOG 只写净结果与现行事实，破坏性变更前置 ⚠ 给迁移口径，版本号与 Release 由工作流写入。
 
 ## 依赖项
 
