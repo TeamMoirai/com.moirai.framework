@@ -111,6 +111,10 @@ com.moirai.framework.plugin/
 
 根 `package.json` 的 `dependencies` 为空；每个插件在自身 manifest 的 `upmDependencies` 声明 UPM 依赖，外部 SDK 由使用方另行安装。
 
+## 提交纪律
+
+提交信息两段式：subject 一行 `type(scope): 中文摘要` + 至多 3 行细则（细则落点 `.claude/skills/moirai-plugin-conventions/references/release.md`）；按显式路径暂存，提交后 `git show --name-only` 复核。
+
 ## 细则在哪
 
 | 主题 | 权威落点 |
