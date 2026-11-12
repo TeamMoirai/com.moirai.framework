@@ -32,6 +32,8 @@ namespace Moirai.Atropos.Events
         
         protected virtual void Update()
         {
+            if (EventDispatcher == null) return; // 跨场景存活而依赖已销毁时跳过，避免每帧刷空引用
+
             DispatchStatus = MonoDispatchType.Update;
             DrainQueue(DispatchStatus);
             EventDispatcher.PushDispatcherContext();
