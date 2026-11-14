@@ -24,6 +24,10 @@
 - `ProviderHandlerHost` 的处理器改为初始化成功后才发布：并发读不再取到半初始化实例，`OnInit` 抛错不再把污染实例永久留在缓存里（下次访问重试），同宿主初始化期递归取用改为明确报错而非栈溢出
 - 后端切换赋值时，同一实例重复赋值幂等；新实例初始化失败则保留并继续服务旧实例，成功替换才关停旧实例一次
 
+#### Editor
+
+- `ProviderDropdown` 集合字段（数组 / `List<T>`，元素为 `[SerializeReference]`）由特性抽屉整体接管：字段行与全部子元素包在一层分组 box 里标示从属关系（同 Odin 分组盒），字段行整行点击收展、展开箭头紧贴字段标签左侧（同 Unity / Odin foldout 样式），右侧 `+` 弹同一类型弹窗新增元素，子元素以浅黑底色的 box 包裹（同 Odin 元素盒观感，与字段背景区分），行尾 `✕` 竖条纵贯元素盒高度且图标纵向居中（同 Odin 列表删除条）；非 managed reference 元素与只读集合维持 Odin 原生列表 UI
+
 #### Input
 
 - `InputServiceHandler.SetUIModal` 由 `internal abstract` 改为对派生方开放，非友元程序集的自定义输入后端现可按 `protected` 覆写实现（此前无法完成该契约）

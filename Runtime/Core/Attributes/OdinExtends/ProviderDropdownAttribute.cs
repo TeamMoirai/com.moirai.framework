@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 引用模式（推荐）：配合 <see cref="SerializeReference"/>，字段为抽象类，选中后直接存实例并展开编辑子字段。 <br />
     /// 类型名模式：字段为 <c>string</c>，存类型全名，运行时经 <c>ReflectionUtility.ResolveImplType&lt;T&gt;</c> 创建实例，适用于接口类型。 <br />
-    /// 数组 / <c>List&lt;T&gt;</c> 字段同样适用：每个元素各自获得下拉与子属性展开；集合的增删 / 重排由 Inspector 默认列表 UI 承担；<c>Label</c> 随特性逐元素下传。 <br />
+    /// 数组 / <c>List&lt;T&gt;</c> 字段同样适用（元素为 managed reference 时）：集合字段行与全部子元素包在一层分组 box 里标示从属关系（同 Odin 分组盒），字段行整行点击展开收起、展开箭头紧贴字段标签左侧，右侧 <c>+</c> 弹同一类型菜单新增元素；每个子元素以浅黑底色的 box 包裹（同 Odin 元素盒观感），行尾 ✕ 竖条纵贯元素盒高度、图标纵向居中（同 Odin 列表删除条）；非 managed reference 元素（string / 普通 PPtr）与只读集合交回 Odin 原生列表 UI；<c>Label</c> 随特性逐元素下传。 <br />
     /// 候选实现类可标注 <see cref="ProviderDisplayAttribute"/> 提供显示元数据：<c>Title</c> 替换下拉行与选中态的类型名，<c>Description</c> 在下拉详情面板置顶优先显示。
     /// </remarks>
     /// <example>
