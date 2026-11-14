@@ -13,13 +13,15 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// <see cref="ProviderDropdownAttribute"/> 的 Drawer：接管下拉行绘制与子属性展开，是 Odin 下该特性的唯一实现。
+    /// 子属性优先交由 Odin PropertyTree 绘制，实现类字段上的 Odin 特性据此生效；优先级 super=1，
+    /// 优先于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)。
+    /// 主路径走 Unity SerializedProperty，解析失败或纯 Odin 宿主时退化为值条目路径（<see cref="DrawValueEntryFallback"/>），
+    /// 不回退 Odin 默认 managed-reference 绘制；Odin 未解析出子属性时子属性区回退 Unity 序列化绘制。
     /// </summary>
     /// <remarks>
-    /// 子属性优先交由 Odin PropertyTree 绘制，实现类字段上的 Odin 特性据此生效，无需手加 <c>[DrawWithUnity]</c>。<br />
-    /// 优先级 super=1，优先于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)。<br />
-    /// 主路径走 Unity SerializedProperty；<c>UnityPropertyPath</c> 解析失败或纯 Odin 宿主时退化为值条目路径（<see cref="DrawValueEntryFallback"/>），不回退 Odin 默认 managed-reference 绘制。<br />
-    /// Odin 未解析出子属性时，子属性区回退 Unity 序列化绘制。<br />
-    /// 集合字段（元素为 managed reference）整体接管为类型列表 UI：分组 box 包裹字段行与全部子元素；行首箭头 + 整行点击收展，右侧 <c>+</c> 弹类型弹窗新增；子元素以浅黑底色盒包裹、行尾 ✕ 竖条删除；结构变更经 <see cref="ICollectionResolver"/> Queue API + <see cref="PropertyTree.DelayActionUntilRepaint"/> 延迟应用。<br />
+    /// 集合字段（元素为 managed reference）整体接管为类型列表 UI：分组 box 包裹字段行与全部子元素；行首箭头 +
+    /// 整行点击收展，右侧 <c>+</c> 弹类型弹窗新增；子元素以浅黑底色盒包裹、行尾 ✕ 竖条删除；结构变更经
+    /// <see cref="ICollectionResolver"/> Queue API + <see cref="PropertyTree.DelayActionUntilRepaint"/> 延迟应用。
     /// 非 managed reference 元素与只读集合不接管，交回 Odin 原生列表 UI。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]
@@ -35,6 +37,14 @@ namespace Moirai.Atropos
 
         /// <summary>当前正在绘制子元素列表的 managed collection 根属性；元素行据此判定自己是否附 ✕ 删除竖条。</summary>
         private static InspectorProperty s_ManagedCollectionScope;
+
+        /// <summary>实例内缓存的 foldout 键与计数标签，避免每帧字符串拼接与重复测量。</summary>
+        private string _unityFoldKey;
+        private string _odinFoldKey;
+        private string _rootFoldKey;
+        private int _countCache = -1;
+        private GUIContent _countLabel;
+        private float _countWidth = -1f;
 
         #region 类型菜单缓存 [TYPE MENU CACHE]
 
@@ -215,12 +225,9 @@ namespace Moirai.Atropos
                     : cache.IndexOfType(property.managedReferenceValue.GetType());
 
         /// <summary>
-        /// 类型名模式下，配置值不在候选列表内（手输错、类改名、依赖被摘）时给出原样显示的文字。
+        /// 类型名模式下配置值不在候选内（手输错、类改名）时的原样显示文字；只改显示不改选中。
+        /// 未知名解析为 0，ShowNone=false 时 0 映射到本地首项，不覆写会把配错显示成已选中首项。
         /// </summary>
-        /// <remarks>
-        /// 未知名解析成索引 0，而 <c>ShowNone=false</c> 时 0 会被映射到本地首项——不覆写就会把配错显示成"已选中第一个实现"。 <br />
-        /// 只改显示，不改选中：点开后仍是原候选，重写一次即修正。
-        /// </remarks>
         private static GUIContent UnknownNameLabel(TypeMenuCache cache, string configuredName) =>
             !string.IsNullOrEmpty(configuredName) && cache.IndexOfName(configuredName) == 0
                 ? new GUIContent($"{configuredName}（未识别）")
@@ -318,12 +325,13 @@ namespace Moirai.Atropos
         /// <paramref name="currentOverride"/> 只覆写显示文字。
         /// </summary>
         /// <returns>foldout 展开状态（string 模式恒为 true）。</returns>
-        private static bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
+        private bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
             ProviderOptions options, bool reserveFoldout, Action<SerializedProperty, int> applySelection,
             GUIContent currentOverride = null)
         {
             int cacheIndex = FindCurrentIndex(options.Cache, property);
-            return DrawRowCore(position, label, options, reserveFoldout, FoldoutKey(property),
+            _unityFoldKey ??= FoldoutKey(property);
+            return DrawRowCore(position, label, options, reserveFoldout, _unityFoldKey,
                 options.CacheToLocal(cacheIndex), i => applySelection(property, options.LocalToCache(i)),
                 currentOverride);
         }
@@ -535,55 +543,59 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 集合宿主下的元素行：元素盒包裹头行与子属性，右侧 ✕ 竖条（ExpandHeight）纵贯盒高、图标纵向居中；
-        /// 删除经 <see cref="QueueRemoveSelf"/> 延迟应用。
+        /// 集合宿主下的元素行（Unity 属性路径）：头行与子属性绘制委托给 <see cref="DrawElementBox"/>。
         /// </summary>
         private void DrawManagedElement(SerializedProperty prop, GUIContent rowLabel, ProviderOptions opts,
             bool hasChildren, bool hasOdinChildren)
         {
-            bool removable = CanRemoveElement();
+            DrawElementBox(
+                () =>
+                {
+                    Rect row = EditorGUILayout.GetControlRect(
+                        true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+                    return DrawRow(row, prop, rowLabel ?? GUIContent.none, opts, hasChildren,
+                        (p, i) =>
+                        {
+                            ApplySelectionWithUndo(p, i, opts.Cache);
+                            Property.Update(true); // 类型切换后重解析值与子属性
+                            GUI.changed = true;
+                        });
+                },
+                hasChildren ? (Action)(() =>
+                {
+                    if (hasOdinChildren) DrawChildrenWithOdin(false);
+                    else
+                    {
+                        // Odin 未解析出子属性：回退 Unity 序列化绘制（盒内不叠盒）
+                        Rect boxRect = EditorGUILayout.GetControlRect(
+                            true, GetChildrenHeight(prop), GUILayout.ExpandWidth(true));
+                        DrawChildren(boxRect, prop, false);
+                    }
+                }) : null);
+        }
 
+        /// <summary>
+        /// 子元素盒骨架：左列元素盒（头行 + 展开的子属性），右列 ✕ 竖条撑满同行高度；
+        /// <paramref name="drawHeader"/> 返回展开状态，为真且 <paramref name="drawChildren"/> 非空时绘制子属性。
+        /// </summary>
+        private void DrawElementBox(Func<bool> drawHeader, Action drawChildren)
+        {
             using (new EditorGUILayout.HorizontalScope())
             {
                 using (var boxScope = new EditorGUILayout.VerticalScope(ElementBoxStyle))
                 {
                     DrawElementBoxBackground(boxScope.rect);
-                    Rect row = EditorGUILayout.GetControlRect(
-                        true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-                    bool open = DrawRow(row, prop, rowLabel ?? GUIContent.none, opts,
-                        hasChildren, (p, i) =>
-                        {
-                            ApplySelectionWithUndo(p, i, opts.Cache);
-                            Property.Update(true); // 类型切换后强制重解析值与子属性
-                            GUI.changed = true;
-                        });
-
-                    if (hasChildren && open)
-                    {
-                        if (hasOdinChildren)
-                        {
-                            DrawChildrenWithOdin(false);
-                        }
-                        else
-                        {
-                            // Odin 未解析出子属性：回退 Unity 序列化绘制（元素盒内不再叠盒）
-                            Rect boxRect = EditorGUILayout.GetControlRect(
-                                true, GetChildrenHeight(prop), GUILayout.ExpandWidth(true));
-                            DrawChildren(boxRect, prop, false);
-                        }
-                    }
+                    if (drawHeader() && drawChildren != null) drawChildren();
                 }
 
-                if (removable)
+                if (!CanRemoveElement()) return;
+                GUILayout.Space(BUTTON_GAP);
+                Rect strip = EditorGUILayout.GetControlRect(
+                    GUILayout.Width(EditorGUIUtility.singleLineHeight), GUILayout.ExpandHeight(true));
+                if (DrawRemoveStripButton(strip))
                 {
-                    GUILayout.Space(BUTTON_GAP);
-                    Rect strip = EditorGUILayout.GetControlRect(
-                        GUILayout.Width(EditorGUIUtility.singleLineHeight), GUILayout.ExpandHeight(true));
-                    if (DrawRemoveStripButton(strip))
-                    {
-                        QueueRemoveSelf();
-                        GUI.changed = true;
-                    }
+                    QueueRemoveSelf();
+                    GUI.changed = true;
                 }
             }
         }
@@ -607,7 +619,8 @@ namespace Moirai.Atropos
                 ? new GUIContent(Attribute.Label) : (label ?? GUIContent.none);
 
             // foldout 键：无 Unity ID 可用，改用 Odin 树哈希 + 属性路径
-            string foldKey = "odin|" + Property.Tree.GetHashCode() + "|" + Property.Path;
+            _odinFoldKey ??= "odin|" + Property.Tree.GetHashCode() + "|" + Property.Path;
+            string foldKey = _odinFoldKey;
 
             if (valueEntry.TypeOfValue == typeof(string))
             {
@@ -627,35 +640,17 @@ namespace Moirai.Atropos
             // 集合宿主下的元素行：与 Unity 路径同款元素盒结构
             if (s_ManagedCollectionScope == Property.Parent)
             {
-                bool removable = CanRemoveElement();
-
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    using (var boxScope = new EditorGUILayout.VerticalScope(ElementBoxStyle))
+                DrawElementBox(
+                    () =>
                     {
-                        DrawElementBoxBackground(boxScope.rect);
                         Rect row = EditorGUILayout.GetControlRect(
                             true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
                         int currentCacheIndex = valueEntry.WeakSmartValue == null
                             ? 0 : cache.IndexOfType(valueEntry.WeakSmartValue.GetType());
-                        bool open = DrawRowCore(row, rowLabel, opts, hasChildren, foldKey,
+                        return DrawRowCore(row, rowLabel, opts, hasChildren, foldKey,
                             opts.CacheToLocal(currentCacheIndex), i => ApplyValue(opts, opts.LocalToCache(i)));
-
-                        if (hasChildren && open) DrawChildrenWithOdin(false);
-                    }
-
-                    if (removable)
-                    {
-                        GUILayout.Space(BUTTON_GAP);
-                        Rect strip = EditorGUILayout.GetControlRect(
-                            GUILayout.Width(EditorGUIUtility.singleLineHeight), GUILayout.ExpandHeight(true));
-                        if (DrawRemoveStripButton(strip))
-                        {
-                            QueueRemoveSelf();
-                            GUI.changed = true;
-                        }
-                    }
-                }
+                    },
+                    hasChildren ? (Action)(() => DrawChildrenWithOdin(false)) : null);
                 return;
             }
 
@@ -767,9 +762,17 @@ namespace Moirai.Atropos
             bool canAdd = !resolver.IsReadOnly && cache.Types.Length > 0;
 
             float lineH = EditorGUIUtility.singleLineHeight;
-            string countText = GetCollectionCountText(prop);
+
+            // 计数标签缓存：元素数变化时重建
+            int count = prop != null ? prop.arraySize : Property.Children.Count;
+            if (_countLabel == null || _countCache != count)
+            {
+                _countCache = count;
+                _countLabel = new GUIContent(FormatCount(count));
+                _countWidth = EditorStyles.miniLabel != null ? EditorStyles.miniLabel.CalcSize(_countLabel).x : 0f;
+            }
             GUIStyle countStyle = EditorStyles.miniLabel; // 域重载早期可能为 null，为空本帧跳过
-            float countW = countStyle != null ? countStyle.CalcSize(new GUIContent(countText)).x : 0f;
+            float countW = countStyle != null ? _countWidth : 0f;
 
             // 分组外框包裹字段行与全部子元素，标示从属关系
             using (var groupBox = new EditorGUILayout.VerticalScope(CollectionBoxStyle))
@@ -781,13 +784,13 @@ namespace Moirai.Atropos
                 Rect labelRect = new Rect(arrowRect.xMax + 6, row.y,
                     row.width - FOLDOUT_W - 6 - lineH - COUNT_GAP - countW, row.height);
 
-                string foldKey = RootFoldoutKey(prop, Property);
-                DrawFoldoutArrow(arrowRect, foldKey, false);
-                bool open = GetFoldout(foldKey, false);
+                _rootFoldKey ??= RootFoldoutKey(prop, Property);
+                DrawFoldoutArrow(arrowRect, _rootFoldKey, false);
+                bool open = GetFoldout(_rootFoldKey, false);
 
                 bool hasLabelText = rowLabel != null && !string.IsNullOrEmpty(rowLabel.text);
                 if (hasLabelText) GUI.Label(labelRect, rowLabel, EditorStyles.label);
-                if (countW > 0) GUI.Label(countRect, countText, countStyle);
+                if (countW > 0) GUI.Label(countRect, _countLabel, countStyle);
 
                 bool prevEnabled = GUI.enabled;
                 GUI.enabled &= canAdd;
@@ -808,12 +811,12 @@ namespace Moirai.Atropos
                 if (Event.current.type == EventType.MouseDown && Event.current.button == 0
                     && row.Contains(Event.current.mousePosition) && !plusRect.Contains(Event.current.mousePosition))
                 {
-                    SetFoldout(foldKey, !open);
+                    SetFoldout(_rootFoldKey, !open);
                     Event.current.Use();
                     GUIHelper.RequestRepaint();
                 }
 
-                if (!GetFoldout(foldKey, false)) return;
+                if (!GetFoldout(_rootFoldKey, false)) return;
 
                 EditorGUILayout.Space(5); // 字段行与首个子元素的间距
 
@@ -836,10 +839,6 @@ namespace Moirai.Atropos
                 }
             }
         }
-
-        /// <summary>集合元素计数：Unity 路径取 <c>arraySize</c>，值条目路径取 Odin 子属性数。</summary>
-        private string GetCollectionCountText(SerializedProperty prop) =>
-            prop != null ? FormatCount(prop.arraySize) : FormatCount(Property.Children.Count);
 
         private static string FormatCount(int count) => count == 1 ? "1 item" : count + " items";
 
