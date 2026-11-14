@@ -15,14 +15,12 @@ namespace Moirai.Atropos
     /// <see cref="ProviderDropdownAttribute"/> 的 Drawer：接管下拉行绘制与子属性展开，是 Odin 下该特性的唯一实现。
     /// </summary>
     /// <remarks>
-    /// 子属性优先交由 Odin PropertyTree 绘制，实现类字段上的 Odin 特性（<c>[ValueDropdown]</c>、<c>[LabelText]</c>、<c>[InfoBox]</c> 等）据此生效，无需再手加 <c>[DrawWithUnity]</c>。<br />
-    /// 优先级 super=1，优先于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)，始终接管绘制。<br />
-    /// 优先走 Unity SerializedProperty 路径；<c>UnityPropertyPath</c> 解析失败或纯 Odin 宿主（无 SerializedObject）时退化为 Odin 值条目路径（<see cref="DrawValueEntryFallback"/>）。<br />
-    /// 不回退 Odin 默认 managed-reference 绘制。<br />
-    /// Odin 未解析出子属性时（如未启用多态序列化后端），子属性区回退为 Unity 序列化绘制。<br />
-    /// 展开收起箭头统一置于行首左侧（同 Unity / Odin foldout 样式）。<br />
-    /// 集合字段（数组 / <c>List&lt;T&gt;</c>，元素为 managed reference）整体接管为类型列表 UI：外层分组 box 包裹字段行与全部子元素，标示从属关系（同 Odin 分组盒）；字段行整行点击展开收起、展开箭头紧贴字段标签左侧（不与全局箭头列对齐），右侧 <c>+</c> 弹同一类型弹窗新增元素；每个子元素以浅黑底色的 box 包裹（同 Odin 元素盒观感，与字段背景区分），行尾 ✕ 竖条纵贯元素盒高度、图标纵向居中（同 Odin 列表删除条）；结构变更经 <see cref="ICollectionResolver"/> 的 Queue API 提交、<see cref="PropertyTree.DelayActionUntilRepaint"/> 延迟到绘制帧结束后由 <see cref="IApplyableResolver.ApplyChanges"/> 应用。<br />
-    /// 非 managed reference 元素的集合（string 元素、普通 PPtr 元素）与只读集合（如定长数组）不接管，<see cref="CallNextDrawer"/> 交回 Odin 原生列表 UI。
+    /// 子属性优先交由 Odin PropertyTree 绘制，实现类字段上的 Odin 特性据此生效，无需手加 <c>[DrawWithUnity]</c>。<br />
+    /// 优先级 super=1，优先于 Odin 默认 managed reference drawer 与 DrawWithUnity(10000)。<br />
+    /// 主路径走 Unity SerializedProperty；<c>UnityPropertyPath</c> 解析失败或纯 Odin 宿主时退化为值条目路径（<see cref="DrawValueEntryFallback"/>），不回退 Odin 默认 managed-reference 绘制。<br />
+    /// Odin 未解析出子属性时，子属性区回退 Unity 序列化绘制。<br />
+    /// 集合字段（元素为 managed reference）整体接管为类型列表 UI：分组 box 包裹字段行与全部子元素；行首箭头 + 整行点击收展，右侧 <c>+</c> 弹类型弹窗新增；子元素以浅黑底色盒包裹、行尾 ✕ 竖条删除；结构变更经 <see cref="ICollectionResolver"/> Queue API + <see cref="PropertyTree.DelayActionUntilRepaint"/> 延迟应用。<br />
+    /// 非 managed reference 元素与只读集合不接管，交回 Odin 原生列表 UI。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]
     internal sealed class ProviderDropdownDrawer : OdinAttributeDrawer<ProviderDropdownAttribute>
@@ -249,14 +247,13 @@ namespace Moirai.Atropos
 
         private static void SetFoldout(string key, bool value) => s_Foldouts[key] = value;
 
-        /// <summary>内置 inspector 折叠三角图标（按需取一次；暗色主题缺 d_ 变体时 IconContent 自动回退）。</summary>
+        /// <summary>内置 inspector 折叠三角图标（按需取一次）。</summary>
         private static Texture s_ArrowCollapsed;
         private static Texture s_ArrowExpanded;
 
         /// <summary>
-        /// 行首左置展开箭头：点击箭头矩形切换展开状态，绘制 Unity 内置 inspector 折叠三角（<c>IN foldout</c> / <c>IN foldout on</c>）。 <br />
-        /// 不用 <c>EditorGUI.Foldout</c>——hierarchyMode（Inspector）下其绘制区会按 <c>indent</c> 右移、点击区按
-        /// foldout/label padding 差值左移，传窄 rect 时可见三角落在可点击区之外（嵌套行点击收起不生效的根因）。
+        /// 行首展开箭头：点击切换并绘制内置 inspector 折叠三角。不用 <c>EditorGUI.Foldout</c>——
+        /// hierarchyMode 下其绘制区与点击区几何错位，窄 rect 时可见三角落在点击区外（嵌套行收起失效的根因）。
         /// </summary>
         private static void DrawFoldoutArrow(Rect arrowRect, string foldKey, bool defaultExpanded)
         {
@@ -317,13 +314,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 绘制下拉行：标签 + popup 按钮（引用模式且需展开子属性时行首左置 foldout 箭头），串行化属性路径与值条目路径共用。
+        /// 绘制下拉行（SerializedProperty 驱动）：<paramref name="applySelection"/> 收到缓存索引（0=None），
+        /// <paramref name="currentOverride"/> 只覆写显示文字。
         /// </summary>
         /// <returns>foldout 展开状态（string 模式恒为 true）。</returns>
-        /// <remarks>
-        /// <paramref name="applySelection"/> 收到的是缓存索引（<c>0</c>=None，<c>1..n</c>=类型）。 <br />
-        /// <paramref name="currentOverride"/> 只用于覆盖按钮上的显示文字，选中逻辑仍走本地索引。
-        /// </remarks>
         private static bool DrawRow(Rect position, SerializedProperty property, GUIContent label,
             ProviderOptions options, bool reserveFoldout, Action<SerializedProperty, int> applySelection,
             GUIContent currentOverride = null)
@@ -335,14 +329,10 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 下拉行核心绘制（不依赖 SerializedProperty）：供串行化属性路径与值条目回退路径共用，保证两种驱动下行内交互一致。
+        /// 下拉行核心绘制（不依赖 SerializedProperty），两条驱动路径共用；索引均为本地索引。
+        /// 展开箭头行首左置并跟随字段缩进；箭头与标签区点击收展（同 Unity foldout），popup 区点击归类型切换；
+        /// 标签为空时跳过 <c>PrefixLabel</c>，字段区占满整行。
         /// </summary>
-        /// <remarks>
-        /// <paramref name="currentLocalIndex"/> 与 <paramref name="onSelectedLocal"/> 均为本地索引。 <br />
-        /// 展开箭头统一置于行首左侧（同 Unity / Odin foldout 样式）；popup 按钮占标签后的剩余宽度，下拉小箭头由 <c>EditorStyles.popup</c> 自绘。 <br />
-        /// 有展开箭头的行，箭头与标签区（箭头右侧到字段控件之前）点击均可切换收展——同 Unity foldout 的标签点击行为；popup 区点击归类型切换。 <br />
-        /// 标签为空（集合元素行、<c>[HideLabel]</c> 等）时跳过 <c>PrefixLabel</c>，字段区占满整行——<c>PrefixLabel</c> 对空标签仍会预留默认标签列。
-        /// </remarks>
         private static bool DrawRowCore(Rect position, GUIContent label, ProviderOptions options, bool reserveFoldout,
             string foldKey, int currentLocalIndex, Action<int> onSelectedLocal, GUIContent currentOverride = null)
         {
@@ -354,10 +344,7 @@ namespace Moirai.Atropos
             bool open = true;
             if (reserveFoldout)
             {
-                // 展开箭头跟随字段缩进：偏移量与 PrefixLabel 的标签偏移（totalPosition.x + indent，
-                // indent = indentLevel × 18，kIndentPerLevel 为 internal）同源——箭头右缘正好贴住标签左缘
-                // （PrefixLabel 会再把标签右移 indent，content 保持原位正好抵消），同 Unity Foldout 的
-                // drawRect.x + indent 行为；手绘三角 + 精确点击区（见 DrawFoldoutArrow）
+                // 箭头偏移与 PrefixLabel 的标签偏移同源（indentLevel × 18），右缘正好贴住标签左缘
                 arrowRect = new Rect(position.x + EditorGUI.indentLevel * 18f, position.y, FOLDOUT_W, lineH);
                 DrawFoldoutArrow(arrowRect, foldKey, true);
                 open = GetFoldout(foldKey);
@@ -370,8 +357,7 @@ namespace Moirai.Atropos
 
             if (reserveFoldout)
             {
-                // 行首（缩进空隙 + 箭头 + 标签，到字段控件之前）点击同样切换收展，与 Unity foldout / 集合根行行为一致；
-                // 箭头区点击已由 DrawFoldoutArrow 消费、popup 区点击归类型切换，均不会重复进入这里
+                // 行首到字段控件之前点击收展；箭头区已被 DrawFoldoutArrow 消费，popup 区归类型切换
                 Rect labelClickRect = new Rect(position.x, position.y,
                     Mathf.Max(0f, fieldRect.x - position.x), lineH);
                 if (Event.current.type == EventType.MouseDown && Event.current.button == 0
@@ -394,7 +380,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 绘制子属性盒（Unity 序列化回退路径）：unity-box 背景 + PAD 内边距内逐个绘制子属性；<paramref name="drawBox"/> 为 false 时仅绘制内容（元素盒内嵌套场景）。
+        /// 绘制子属性盒（Unity 序列化回退路径）；<paramref name="drawBox"/> 为 false 时不叠盒背景（元素盒内嵌套场景）。
         /// </summary>
         private static void DrawChildren(Rect rect, SerializedProperty property, bool drawBox = true)
         {
@@ -442,7 +428,7 @@ namespace Moirai.Atropos
             padding = new RectOffset((int)PAD, (int)PAD, (int)PAD, (int)PAD)
         };
 
-        /// <summary>集合子元素的元素盒样式：unity-box 背景 + PAD 内边距，上下小间距分隔字段行与相邻元素。</summary>
+        /// <summary>元素盒样式：unity-box + PAD 内边距，上下 3px 间距分隔字段行与相邻元素。</summary>
         private static GUIStyle s_ElementBoxStyle;
 
         private static GUIStyle ElementBoxStyle => s_ElementBoxStyle ??= new GUIStyle(GUI.skin.box)
@@ -451,7 +437,7 @@ namespace Moirai.Atropos
             margin = new RectOffset(0, 0, 3, 3)
         };
 
-        /// <summary>集合分组外框样式：unity-box 背景 + 内边距，包裹字段行与全部子元素，标示从属关系（同 Odin 分组盒）。</summary>
+        /// <summary>集合分组外框样式：包裹字段行与全部子元素，标示从属关系。</summary>
         private static GUIStyle s_CollectionBoxStyle;
 
         private static GUIStyle CollectionBoxStyle => s_CollectionBoxStyle ??= new GUIStyle(GUI.skin.box)
@@ -461,13 +447,9 @@ namespace Moirai.Atropos
         };
 
         /// <summary>
-        /// 元素盒底色：统一浅黑叠加（同 Odin 元素盒观感），使元素盒整体比字段背景暗一档—— <br />
-        /// 无论元素个数奇偶，都能与下方字段区分开；相邻元素靠盒边框与间距区分，不做斑马纹。
+        /// 元素盒底色：统一浅黑叠加，比字段背景暗一档（元素个数奇偶均可区分）；
+        /// 须在盒 rect 定稿后的 Repaint 帧绘制，天然垫在盒背景与内容之间。
         /// </summary>
-        /// <remarks>
-        /// 须在 <c>Event.current.type == Repaint</c> 且盒 rect 已定稿时绘制：绘制顺序在 <c>BeginVertical</c> 的盒背景之后、
-        /// 后续内容控件之前，天然构成「背景 → 叠加色 → 内容」的层序。
-        /// </remarks>
         private static void DrawElementBoxBackground(Rect boxRect)
         {
             if (Event.current.type != EventType.Repaint) return;
@@ -496,7 +478,7 @@ namespace Moirai.Atropos
             TypeMenuCache cache = TypeMenuCache.Get(Attribute.BaseType ?? Property.BaseValueEntry.BaseValueType);
             var opts = new ProviderOptions(cache, Attribute.ShowNone);
 
-            // 行标签：特性 Label 覆写优先，否则沿用 Odin 标签（已含 [LabelText]/[Tooltip] 等处理）
+            // 行标签：特性 Label 覆写优先，否则沿用 Odin 标签
             GUIContent rowLabel = !string.IsNullOrEmpty(Attribute.Label) ? new GUIContent(Attribute.Label) : label;
 
             // string 模式：单行 popup，无 foldout
@@ -514,8 +496,7 @@ namespace Moirai.Atropos
                 return;
             }
 
-            // 引用模式：foldout 可见性取 Odin 子属性（State.Visible 已处理 [HideInInspector]/[Hidden] 等），
-            // 与 Unity 可见性取并集，任一存在可显示子属性即展示箭头
+            // 引用模式：子属性可见性取 Odin 与 Unity 的并集，任一侧存在即展示箭头
             bool hasOdinChildren = HasVisibleOdinChildren();
             bool hasChildren = prop.managedReferenceValue != null
                 && (hasOdinChildren || HasVisibleChildren(prop));
@@ -554,12 +535,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 集合宿主下的元素行：元素盒（box）包裹头行与子属性，右侧 ✕ 竖条纵贯盒高、图标纵向居中（同 Odin 列表删除条）。
+        /// 集合宿主下的元素行：元素盒包裹头行与子属性，右侧 ✕ 竖条（ExpandHeight）纵贯盒高、图标纵向居中；
+        /// 删除经 <see cref="QueueRemoveSelf"/> 延迟应用。
         /// </summary>
-        /// <remarks>
-        /// 双列 GUILayout 结构：左列元素盒（头行 + 展开的子属性），右列 ✕ 竖条经 <c>ExpandHeight</c> 撑满同行高度。 <br />
-        /// 删除经 <see cref="QueueRemoveSelf"/> 延迟应用，不在布局中途改树。
-        /// </remarks>
         private void DrawManagedElement(SerializedProperty prop, GUIContent rowLabel, ProviderOptions opts,
             bool hasChildren, bool hasOdinChildren)
         {
@@ -611,8 +589,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 值条目驱动回退路径：无法取得 Unity SerializedProperty（路径解析失败 / 纯 Odin 宿主）时，行读取与写入改走 Odin <see cref="InspectorProperty.ValueEntry"/>， <br />
-        /// 子内容仍由 Odin PropertyTree 绘制。
+        /// 值条目驱动回退路径：无 Unity SerializedProperty 时行读写改走 <see cref="InspectorProperty.ValueEntry"/>，子内容仍由 Odin 绘制。
         /// </summary>
         private void DrawValueEntryFallback(GUIContent label)
         {
@@ -629,7 +606,7 @@ namespace Moirai.Atropos
             GUIContent rowLabel = !string.IsNullOrEmpty(Attribute.Label)
                 ? new GUIContent(Attribute.Label) : (label ?? GUIContent.none);
 
-            // foldout 键：无 Unity ID 可用，改用 Odin 树 + 属性路径（保持稳定且与其他路径互不干扰）
+            // foldout 键：无 Unity ID 可用，改用 Odin 树哈希 + 属性路径
             string foldKey = "odin|" + Property.Tree.GetHashCode() + "|" + Property.Path;
 
             if (valueEntry.TypeOfValue == typeof(string))
@@ -647,7 +624,7 @@ namespace Moirai.Atropos
             bool hasOdinChildren = HasVisibleOdinChildren();
             bool hasChildren = valueEntry.WeakSmartValue != null && hasOdinChildren;
 
-            // 集合宿主下的元素行：与 Unity 路径同款元素盒结构（无 SerializedProperty 也能经 resolver 删除）
+            // 集合宿主下的元素行：与 Unity 路径同款元素盒结构
             if (s_ManagedCollectionScope == Property.Parent)
             {
                 bool removable = CanRemoveElement();
@@ -729,9 +706,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 子属性交由 Odin PropertyTree 绘制，子字段上的 Odin 特性（ValueDropdown 等）正常生效。
+        /// 子属性交由 Odin PropertyTree 绘制，子字段上的 Odin 特性正常生效；
+        /// <paramref name="drawInBox"/> 为 false 时不叠盒背景（元素盒内嵌套场景）。
         /// </summary>
-        /// <param name="drawInBox">false 时不叠 box 背景（集合元素盒内嵌套场景，元素盒本身已是容器）。</param>
         private void DrawChildrenWithOdin(bool drawInBox = true)
         {
             EditorGUILayout.VerticalScope scope = drawInBox
@@ -762,16 +739,10 @@ namespace Moirai.Atropos
         #region 集合绘制 [COLLECTION DRAWING]
 
         /// <summary>
-        /// 集合根（数组 / <c>List&lt;T&gt;</c>）整体接管：根行 = 行首左置展开箭头 + 标签 + 元素计数 + 「+」新增按钮，
-        /// 整行点击展开收起，元素行以元素盒包裹并附 ✕ 删除竖条。
+        /// 集合根整体接管：根行 = 箭头 + 标签 + 计数 + 「+」，整行点击收展；子元素盒 + ✕ 删除。
+        /// 候选基类取 <see cref="ICollectionResolver.ElementType"/>（集合根的 managedReferenceValue 不可读，读即抛异常）；
+        /// 增删经 Queue API + <see cref="PropertyTree.DelayActionUntilRepaint"/> 延迟应用，避免布局中途改树。
         /// </summary>
-        /// <remarks>
-        /// 候选基类取 <see cref="ICollectionResolver.ElementType"/>（绝不读集合根的 <c>managedReferenceValue</c>——数组属性上该读取直接抛异常）。 <br />
-        /// 新增 / 删除经 <see cref="ICollectionResolver"/> 的 Queue API（多对象编辑逐父对象各一份槽位）提交，与 Odin 原生
-        /// CollectionDrawer / AssetListAttributeDrawer 同款姿势；<see cref="PropertyTree.DelayActionUntilRepaint"/> 延迟到当前绘制帧
-        /// 结束后 <see cref="IApplyableResolver.ApplyChanges"/> 应用，避免布局中途改树使兄弟行属性路径失效。 <br />
-        /// 非 managed reference 元素或只读集合（定长数组）不接管，交回 Odin 原生列表 UI。
-        /// </remarks>
         private void DrawCollectionProperty(GUIContent label)
         {
             var resolver = Property.ChildResolver as ICollectionResolver;
@@ -785,8 +756,7 @@ namespace Moirai.Atropos
             if (prop != null && prop.arraySize > 0
                 && prop.GetArrayElementAtIndex(0).propertyType != SerializedPropertyType.ManagedReference)
             {
-                // 非 SerializeReference 集合（普通 PPtr 元素等）：特性语义不适用，交回 Odin 原生列表 UI
-                CallNextDrawer(label);
+                CallNextDrawer(label); // 非 SerializeReference 集合（普通 PPtr 等），特性语义不适用
                 return;
             }
 
@@ -798,19 +768,16 @@ namespace Moirai.Atropos
 
             float lineH = EditorGUIUtility.singleLineHeight;
             string countText = GetCollectionCountText(prop);
-            GUIStyle countStyle = EditorStyles.miniLabel; // 域重载早期可能为 null（odin4-pitfalls #5），为空本帧跳过
+            GUIStyle countStyle = EditorStyles.miniLabel; // 域重载早期可能为 null，为空本帧跳过
             float countW = countStyle != null ? countStyle.CalcSize(new GUIContent(countText)).x : 0f;
 
-            // 集合分组外框：字段行 + 全部子元素包在一层 box 里，标示从属关系（同 Odin 分组盒），
-            // 也避免集合内容与下一个字段混在一起
+            // 分组外框包裹字段行与全部子元素，标示从属关系
             using (var groupBox = new EditorGUILayout.VerticalScope(CollectionBoxStyle))
             {
                 Rect row = EditorGUILayout.GetControlRect(false, lineH, GUILayout.ExpandWidth(true));
-                Rect plusRect = new Rect(row.xMax - lineH, row.y, lineH, lineH); // ＋ 按钮取行高正方形（同 Odin 图标按钮）
+                Rect plusRect = new Rect(row.xMax - lineH, row.y, lineH, lineH); // 行高正方形
                 Rect countRect = new Rect(plusRect.x - COUNT_GAP - countW, row.y, countW, lineH);
                 Rect arrowRect = new Rect(row.x, row.y, FOLDOUT_W, lineH);
-                // 箭头紧贴字段标签左侧（标签自然缩进由外框承担），中间留小间距；不用 PrefixLabel——
-                // 其层级偏移会把标签推离箭头，导致箭头与标签脱节
                 Rect labelRect = new Rect(arrowRect.xMax + 6, row.y,
                     row.width - FOLDOUT_W - 6 - lineH - COUNT_GAP - countW, row.height);
 
@@ -827,7 +794,7 @@ namespace Moirai.Atropos
                 DrawIconButtonFrame(plusRect);
                 if (SirenixEditorGUI.SDFIconButton(plusRect, SdfIconType.Plus, SirenixGUIStyles.IconButton))
                 {
-                    // 与单元素同一类型弹窗；选中即新增（(None) 项 = 取消）
+                    // 同一类型弹窗，选中即新增（(None) = 取消）
                     ShowDropdown(plusRect, opts, -1, localIndex =>
                     {
                         int cacheIndex = opts.LocalToCache(localIndex);
@@ -837,7 +804,7 @@ namespace Moirai.Atropos
                 }
                 GUI.enabled = prevEnabled;
 
-                // 整行点击展开收起（＋ 按钮区域的 MouseDown 已被控件自身消费，不会进入这里）
+                // 整行点击收展（＋ 区域的 MouseDown 已被控件消费）
                 if (Event.current.type == EventType.MouseDown && Event.current.button == 0
                     && row.Contains(Event.current.mousePosition) && !plusRect.Contains(Event.current.mousePosition))
                 {
@@ -848,9 +815,9 @@ namespace Moirai.Atropos
 
                 if (!GetFoldout(foldKey, false)) return;
 
-                EditorGUILayout.Space(5); // 字段行与首个子元素之间留出呼吸间距
+                EditorGUILayout.Space(5); // 字段行与首个子元素的间距
 
-                // 元素行逐个交回 Odin：元素经 resolver 特性透传仍由本类单元素模式绘制，并按 scope 附元素盒与 ✕ 竖条
+                // 元素经 resolver 特性透传仍由本类单元素模式绘制，按 scope 附元素盒与 ✕
                 var children = Property.Children;
                 var prevScope = s_ManagedCollectionScope;
                 s_ManagedCollectionScope = Property;
@@ -876,9 +843,7 @@ namespace Moirai.Atropos
 
         private static string FormatCount(int count) => count == 1 ? "1 item" : count + " items";
 
-        /// <summary>
-        /// 经类型弹窗新增元素：每个选中父对象各建一个新实例，Queue → Apply 延迟到本帧绘制结束后执行。
-        /// </summary>
+        /// <summary>新增元素：逐选中父对象各建独立实例，Queue → Apply 延迟到本帧绘制结束后执行。</summary>
         private void QueueAddElement(Type elementType, ICollectionResolver resolver)
         {
             int parentCount = Property.ValueEntry.ValueCount;
@@ -897,9 +862,7 @@ namespace Moirai.Atropos
             });
         }
 
-        /// <summary>
-        /// 元素行 ✕ 删除：经 <see cref="IOrderedCollectionResolver.QueueRemoveAt(int)"/> 删除所有选中对象的同位元素，延迟到本帧绘制结束后应用。
-        /// </summary>
+        /// <summary>元素行 ✕ 删除：按位删除所有选中对象的同位元素，延迟到本帧绘制结束后应用。</summary>
         private void QueueRemoveSelf()
         {
             InspectorProperty parent = Property.Parent;
@@ -923,10 +886,7 @@ namespace Moirai.Atropos
             return !resolver.IsReadOnly && Property.Index >= 0;
         }
 
-        /// <summary>
-        /// 图标按钮外框：1px 边框 + 微弱底色，标示按钮命中区大小（同 Odin 带框图标按钮观感）。 <br />
-        /// 不用带背景的按钮样式——<c>IconButton</c> 等样式的背景贴图在托管侧不可见，边框自绘以保证两种主题一致。
-        /// </summary>
+        /// <summary>图标按钮外框：1px 边框 + 微弱底色，标示命中区（按钮样式背景贴图托管侧不可见，故自绘）。</summary>
         private static void DrawIconButtonFrame(Rect rect)
         {
             if (Event.current.type != EventType.Repaint) return;
@@ -940,10 +900,7 @@ namespace Moirai.Atropos
             EditorGUI.DrawRect(new Rect(rect.xMax - 1, rect.y, 1, rect.height), line);
         }
 
-        /// <summary>
-        /// ✕ 删除竖条按钮：行高正方形图标按钮，在纵贯条内纵向居中，带外框标示按钮大小（同 Odin 带框图标按钮观感）。 <br />
-        /// SDFIconButton 会把图标缩放到 rect 尺寸——直接传整条 rect 会把图标放大到整个元素盒高度，故须约束单行正方形。
-        /// </summary>
+        /// <summary>✕ 竖条按钮：行高正方形、纵向居中（SDFIconButton 会把图标缩放到 rect 尺寸，不能传整条竖条）。</summary>
         private static bool DrawRemoveStripButton(Rect strip)
         {
             float size = EditorGUIUtility.singleLineHeight;
@@ -952,9 +909,7 @@ namespace Moirai.Atropos
             return SirenixEditorGUI.SDFIconButton(iconRect, SdfIconType.X, SirenixGUIStyles.IconButton);
         }
 
-        /// <summary>
-        /// 取集合根的 Unity SerializedProperty；<c>UnityPropertyPath</c> 解析失败（4.0.x 偶发）时返回 null，退化值条目路径。
-        /// </summary>
+        /// <summary>取集合根的 Unity SerializedProperty；解析失败（4.0.x 偶发）返回 null，退化值条目路径。</summary>
         private SerializedProperty TryGetUnityProperty()
         {
             try
