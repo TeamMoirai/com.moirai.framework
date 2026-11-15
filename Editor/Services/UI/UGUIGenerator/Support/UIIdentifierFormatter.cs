@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -75,7 +75,17 @@ namespace Moirai.Atropos.UGUIGenerator
         /// <inheritdoc/>
         public string GetClassName(GameObject targetObject)
         {
-            var objectName = NormalizeIdentifier(targetObject.name);
+            // Widget 多实例根节点语法为 {ClassName}@{InstanceTag}：类名取 @ 前段，
+            // 实例段只用于 window 侧字段区分（见 UIBindDataCollector.CollectWidget）。
+            // 窗口根名不含 @，本拆分对其无影响。
+            var rawName = targetObject.name;
+            var endNameIndex = rawName.IndexOf(UIGeneratorSettings.ComCheckEndName, StringComparison.Ordinal);
+            if (endNameIndex >= 0)
+            {
+                rawName = rawName.Substring(0, endNameIndex);
+            }
+
+            var objectName = NormalizeIdentifier(rawName);
             var className = $"{objectName}";
             return MakeSafeIdentifier(string.IsNullOrEmpty(className) ? "View" : className);
         }

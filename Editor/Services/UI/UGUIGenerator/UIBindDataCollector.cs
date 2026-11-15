@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Moirai.Atropos.UI;
@@ -181,7 +181,11 @@ namespace Moirai.Atropos.UGUIGenerator
                 return;
             }
 
-            var keyName = GetPrivateComponentName(string.Empty, node.name, EBindType.Widget);
+            // Widget 多实例根节点语法 {ClassName}@{InstanceTag}：字段名 = m_{类名}{实例段}，
+            // 同类多实例各自拿到独立字段（如 m_TotemEnergyWidget0/1/2）；无 @ 的单实例走原名。
+            var endNameIndex = node.name.IndexOf(UIGeneratorSettings.ComCheckEndName, StringComparison.Ordinal);
+            var classPrefix = endNameIndex >= 0 ? node.name.Substring(0, endNameIndex) : string.Empty;
+            var keyName = GetPrivateComponentName(classPrefix, node.name, EBindType.Widget);
             if (bindData.Exists(data => data.Name == keyName))
             {
                 Debug.LogError($"Duplicate key found: {keyName}");
