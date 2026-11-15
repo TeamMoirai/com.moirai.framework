@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngineInternal;
@@ -236,35 +236,6 @@ namespace Moirai.Atropos
             }
         }
         
-        /// <summary>
-        /// 根据名字找到子节点，主要用于dummy接口。
-        /// </summary>
-        /// <param name="transform">位置组件。</param>
-        /// <param name="name">子节点名字。</param>
-        /// <returns>位置组件。</returns>
-        public static Transform FindChildByName(this Transform transform, string name)
-        {
-            if (transform == null)
-            {
-                return null;
-            }
 
-            for (int i = 0; i < transform.childCount; i++)
-            {
-                var childTrans = transform.GetChild(i);
-                if (childTrans.name == name)
-                {
-                    return childTrans;
-                }
-
-                var find = FindChildByName(childTrans, name);
-                if (find != null)
-                {
-                    return find;
-                }
-            }
-
-            return null;
-        }
     }
 }

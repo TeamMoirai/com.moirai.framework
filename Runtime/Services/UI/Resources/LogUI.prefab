@@ -1,4 +1,4 @@
-%YAML 1.1
+﻿%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!1 &2683445925571829816
 GameObject:
@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 2683445925571829817}
   - component: {fileID: 2683445925571829820}
   - component: {fileID: 2683445925571829822}
+  - component: {fileID: 2683445925571829830}
   m_Layer: 5
   m_Name: LogUI
   m_TagString: Untagged
@@ -91,7 +92,7 @@ GameObject:
   - component: {fileID: 2683445926897574339}
   - component: {fileID: 2683445926897574338}
   m_Layer: 5
-  m_Name: m_textError
+  m_Name: Text@LogError
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -248,7 +249,7 @@ GameObject:
   - component: {fileID: 5643637730633076069}
   - component: {fileID: 6030240422437967231}
   m_Layer: 5
-  m_Name: m_btnClose
+  m_Name: Btn@LogClose
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -356,3 +357,17 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &2683445925571829830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2683445925571829816}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 222ae5a1b3a3dd4d6fb81ef8be31a211, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  m_TextLogError: {fileID: 2683445926897574338}
+  m_BtnLogClose: {fileID: 6030240422437967231}

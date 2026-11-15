@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
@@ -8,11 +8,21 @@
 
 ### Added
 
+#### UI
+
+- Widget 绑定纳入 UI 生成器产线：widget 根节点语法 `{WidgetClassName}@{InstanceTag}`（类名取 @ 前段，多实例共享一个类与一份 `<Class>.g.cs`；window 收集器在 widget 根停递归，只拿到 widget-typed 字段 `m_{Class}{Instance}`），生成与多实例回绑流程见包根 `.agent/commands/new-ui.md` 的「Widget 控件（可复用组件）」
+
 #### Editor
+
+- `UIBindDataCollector.CollectWidget` 对 `@` 分隔的 widget 根节点改按「@ 前段作类名 + 全名后段作实例段」派生字段名（`m_{Class}{Instance}`），无 `@` 的单实例命名不变；`UIIdentifierFormatter.GetClassName` 同口径取 @ 前段
 
 - 抽出 `PackageManagerWindowBase` 及其嵌套 `PackageManagerProfile`：菜单树、详情面、版本历史与装卸编排收进基类，派生包只需给出窗口标题、状态文件、检出落点、源缺省、宿主包类型与界面文案，即可在同一工程里管理另一条分支上的可安装包；`PackageManagerWindow` 改为框架插件源的首个实现，状态账本与宿主版本量取目标按包源注入
 
 ### Changed
+
+#### UI
+
+- ⚠ 删除按名/按路径查找 API：`UIBase.FindChild` / `UIBase.FindChildComponent<T>`（含 `Transform` 重载）与 `GameObjectExtensions.FindChildByName` 不再存在——窗口与 Widget 的节点引用一律走 `UIBindComponent` binder 生成面（框架内置 `LogUI` 已迁序列化 binder `LogUIBinder`）；迁移口径见 `.agent/commands/new-ui.md`
 
 #### Audio
 

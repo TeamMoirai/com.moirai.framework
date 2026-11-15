@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 #if ENABLE_OBFUZ
@@ -290,51 +290,5 @@ namespace Moirai.Atropos.UI
             return UpdateCore();
         }
 
-        #region 查找子物体组件 [FIND CHILD COMPONENT]
-
-        public Transform FindChild(string path)
-        {
-            return FindChildImp(rectTransform, path);
-        }
-
-        public Transform FindChild(Transform trans, string path)
-        {
-            return FindChildImp(trans, path);
-        }
-
-        public T FindChildComponent<T>(string path) where T : Component
-        {
-            return FindChildComponentImp<T>(rectTransform, path);
-        }
-
-        public T FindChildComponent<T>(Transform trans, string path) where T : Component
-        {
-            return FindChildComponentImp<T>(trans, path);
-        }
-
-        /// <summary>
-        /// 查找子节点。
-        /// </summary>
-        /// <param name="transform">位置组件。</param>
-        /// <param name="path">子节点路径。</param>
-        /// <returns>位置组件。</returns>
-        private static Transform FindChildImp(Transform transform, string path)
-        {
-            var findTrans = transform.Find(path);
-            return findTrans != null ? findTrans : null;
-        }
-
-        private static T FindChildComponentImp<T>(Transform transform, string path) where T : Component
-        {
-            var findTrans = transform.Find(path);
-            if (findTrans != null)
-            {
-                return findTrans.gameObject.GetComponent<T>();
-            }
-
-            return null;
-        }
-
-        #endregion
     }
 }

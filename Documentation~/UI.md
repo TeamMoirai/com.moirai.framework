@@ -1,4 +1,4 @@
-# UI 服务
+﻿# UI 服务
 
 > 多后端栈式窗口管理框架（uGUI / UI Toolkit / 自定义后端），提供窗口生命周期、层级深度排序、模态遮挡、Widget 子控件与多分辨率适配能力。
 
@@ -272,7 +272,7 @@ bool blocked = UIService.IsBlockedByModal(gameObject);
 
 ### Widget 子控件
 
-Widget 复用窗口的生命周期方法，由所属窗口驱动更新。在窗口/Widget 内通过 `UIWidget` 的工厂方法创建：
+Widget 复用窗口的生命周期方法，由所属窗口驱动更新；节点引用与窗口同走 Binder 生成链路——widget 根节点命名 `{WidgetClassName}@{InstanceTag}`（类名取 @ 前段，多实例共享一个类；window 收集器在 widget 根停递归，只拿到 widget-typed 字段），内部节点 `{Com}@{Suffix}` / `*Com@Group*N` 进 widget 自己的 binder；生成与多实例回绑流程见包根 `.agent/commands/new-ui.md` 的「Widget 控件（可复用组件）」。按名/按路径查找 API（`FindChild`/`FindChildComponent`/`FindChildByName`）已删除弃用。在窗口/Widget 内通过 `UIWidget` 的工厂方法创建：
 
 ```csharp
 // 在窗口内已有节点上创建

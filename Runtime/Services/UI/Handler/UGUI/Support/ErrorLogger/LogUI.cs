@@ -14,8 +14,15 @@ namespace Moirai.Atropos.UI
         private Button _btnClose;
         protected override void ScriptGenerator()
         {
-            _textError = FindChildComponent<Text>("m_textError");
-            _btnClose = FindChildComponent<Button>("m_btnClose");
+            var binder = gameObject.GetComponent<LogUIBinder>();
+            if (binder == null)
+            {
+                LogUtility.Error($"根物体: {gameObject.name} 缺少组件 LogUIBinder, 请检查！！！");
+                return;
+            }
+
+            _textError = binder.TextLogError;
+            _btnClose = binder.BtnLogClose;
             _btnClose.onClick.AddListener(OnClickCloseBtn);
         }
         #endregion
