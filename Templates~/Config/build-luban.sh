@@ -52,5 +52,22 @@ fi
 [ -d Luban ] && rm -rf Luban
 
 # Step 4: Build
-echo "[INFO] Building Luban ..."
-dotnet build "$LUBAN_DIR/src/Luban/Luban.csproj" -c Release -o Luban
+# 通过 msbuild 属性把多语言插件（Extensions/Moirai.Luban.Localization）作为 ProjectReference
+# 注入 Luban 主程序构建：插件 dll 随构建产出并登记进 Luban.deps.json，运行期的 Assembly.Load
+# 才能解析到（.NET Core 只按 deps.json 探测，事后拷 dll 不会生效）。Luban 源码零修改。
+echo "[INFO] Building Luban (with Moirai localization plugin) ..."
+dotnet build "$LUBAN_DIR/src/Luban/Luban.csproj" -c Release -o Luban \
+    "-p:CustomAfterMicrosoftCommonTargets=$(pwd)/Extensions/Moirai.Luban.Localization/LubanHost.targets" \
+    "-p:MoiraiLocalizationProject=$(pwd)/Extensions/Moirai.Luban.Localization/Moirai.Luban.Localization.csproj" \
+    "-p:LubanCoreProject=$(pwd)/$LUBAN_DIR/src/Luban.Core/Luban.Core.csproj"
+
+echo "[INFO] Verifying plugin was emitted ..."
+[ -f "Luban/Moirai.Luban.Localization.dll" ] || {
+    echo "[ERROR] 插件 dll 未随 Luban 构建产出：Luban/Moirai.Luban.Localization.dll 不存在。" >&2
+    exit 1
+}
+grep -q "Moirai.Luban.Localization" Luban/Luban.deps.json || {
+    echo "[ERROR] Luban.deps.json 未登记插件程序集，运行期将无法加载。" >&2
+    exit 1
+}
+echo "[INFO] Plugin Moirai.Luban.Localization emitted and registered in Luban.deps.json."

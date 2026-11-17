@@ -1,0 +1,8 @@
+<Project>
+  <!-- 构建 Luban 主程序时把多语言插件作为 ProjectReference 注入，
+       插件 dll 会随构建产出并登记进 Luban.deps.json，启动时的 Assembly.Load 才能解析到。
+       仅通过 msbuild 属性注入，不修改 Luban 源码。 -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Luban' and '$(MoiraiLocalizationProject)' != ''">
+    <ProjectReference Include="$(MoiraiLocalizationProject)" />
+  </ItemGroup>
+</Project>
