@@ -11,7 +11,7 @@ using static Moirai.Atropos.LogHandler;
 namespace Policy
 {
     /// <summary>
-    /// Core→功能服务依赖棘轮门禁：<c>Runtime/Core/**</c> 不得使用 <c>Runtime/Services/**</c>（<c>Runtime/Services/Kernel/**</c> 容器除外）
+    /// Core→功能服务依赖棘轮门禁：<c>Runtime/Core/**</c> 不得使用 <c>Runtime/Services/**</c>（<c>Runtime/Kernel/**</c> 容器除外）
     /// 在命名空间层级声明的类型，按「类型名整词使用」判定，与消费方的目录、与 <c>using</c> 写法都无关；允许清单是双向棘轮。
     /// 判的是「Core 里有没有在服务层类型」这条<b>使用</b>边，不是服务代码住在哪个目录（见盲点 ⑦）。
     /// </summary>
@@ -20,7 +20,7 @@ namespace Policy
     /// 两个层级壳，壳一没，「Core 不依赖服务层」在仓里就再没有目录名可以承载，本文件是它唯一的机械判据（<c>Runtime</c> 只有一枚 asmdef，
     /// <see cref="CoreDependencyRatchetTests"/> 之外没有任何编译期边界）。而 using 扫描看不见同命名空间/全限定写法：<c>GameApp.cs</c> 就在
     /// <c>namespace Moirai.Atropos</c> 里裸用 <c>GameServices</c> 与 <c>EServiceScopeKind</c>，一行 using 都没有。 <br />
-    /// 容器豁免：<c>Runtime/Services/Kernel/**</c>（<c>GameServices</c>/<c>ServiceWorld</c>/<c>IService</c>/<c>ServiceBase</c>/<c>ServiceMono</c> 等 <c>.cs</c>，
+    /// 容器豁免：<c>Runtime/Kernel/**</c>（<c>GameServices</c>/<c>ServiceWorld</c>/<c>IService</c>/<c>ServiceBase</c>/<c>ServiceMono</c> 等 <c>.cs</c>，
     /// 名册钉在 <see cref="ContainerKernel_FileSet_IsExactlyTheRoster"/> 上）是依赖注入容器本身，Core 的启动路径必须能碰它，所以整目录不进判据词表；
     /// 被禁的是 Kernel 之外的「功能服务」（Timer/Resource/Save/Scene/UI…）。这条豁免按<b>目录形状</b>生效，所以它自带一个镜像盲点，见 ⑧。 <br />
     /// 词表由扫描自身推导：<c>Runtime/Services</c> 下（容器除外）在命名空间层级声明的类型名，减去 <c>Runtime/Core</c> 侧同层同名声明的名字——
@@ -49,8 +49,8 @@ namespace Policy
     /// 文本上 <c>UI.UIWindow</c> 与真成员访问无从区分，故按看不见如实登记，不冒充检测力（探针实测：同一次运行里裸名 <c>SaveKeyValueWriter</c> 进了站点清单，
     /// <c>UI.UIWindow</c> 没进）。今天 Core 树里这种写法 0 处，是潜在洞、不是现役洞；
     /// ⑦ 把<b>没人引用</b>的服务文件整份搬进 <c>Runtime/Core</c> 不弄红本门禁（见上文，目录归属由搬运批次自己的出口验收判，不由这里判）；
-    /// ⑧ <b>⑦ 的镜像形态：把功能服务文件搬进豁免目录 <c>Runtime/Services/Kernel/</c> 也不弄红词表判据</b>——<c>Scan()</c> 是在<b>造词表的途中</b>按
-    /// <c>IsUnder(relative, CONTAINER_ROOT)</c> 整份跳过文件的，所以 <c>git mv Runtime/Services/Scene/SceneService.cs Runtime/Services/Kernel/SceneService.cs</c>
+    /// ⑧ <b>⑦ 的镜像形态：把功能服务文件搬进豁免目录 <c>Runtime/Kernel/</c> 也不弄红词表判据</b>——<c>Scan()</c> 是在<b>造词表的途中</b>按
+    /// <c>IsUnder(relative, CONTAINER_ROOT)</c> 整份跳过文件的，所以 <c>git mv Runtime/Services/Scene/SceneService.cs Runtime/Kernel/SceneService.cs</c>
     /// 这种「只换目录、内容零改动、命名空间不动」的搬运会把 <c>SceneService</c> 从判据词表里整个摘掉（它在 Core 侧 0 处取用、也不在允许清单里，
     /// 所以三条判据断言照旧读绿，能红的只有下面那条名册断言），
     /// 此后 Core 爱怎么用它就怎么用——豁免面就这一枚 <c>git mv</c> 的宽度，而且仓里原本没有任何东西约束「什么可以声明在 <c>Kernel/</c> 里」。
@@ -77,7 +77,7 @@ namespace Policy
         private const string SERVICES_ROOT = "Runtime/Services";
 
         /// <summary>容器目录（相对包根）：依赖注入容器本身，Core 启动路径按构造必须能碰，整目录豁免。</summary>
-        private const string CONTAINER_ROOT = "Runtime/Services/Kernel";
+        private const string CONTAINER_ROOT = "Runtime/Kernel";
 
         /// <summary>根命名空间：Core 的文件都住在它的子树里，所以它声明的类型无需 using 即可裸用。</summary>
         private const string ROOT_NAMESPACE = "Moirai.Atropos";
@@ -107,7 +107,7 @@ namespace Policy
         /// 纯改名（叶子文件换个名，如 <c>DelayTask.cs</c> 换成 <c>DelayTask.Delay.cs</c>）就同时打红两条——① 把改名后的文件报成新站点，
         /// ② 报旧条目不再命中，而这一批什么都没引用，要改的是那条键的<b>文件名</b>列。真新增一条使用边只打红 ①，且 ① 正文给的
         /// <c>文件:行</c> 指向一条此前不存在的使用边，两种成因据此区分。只换目录不换文件名的纯搬运（git mv、命名空间不动）弄不红它——<b>前提是该搬运不跨豁免目录、
-        /// 也不进出参与导入的目录</b>：把服务文件搬进 <c>Runtime/Services/Kernel/</c> 会让它整个从词表消失，那是另一码事（见盲点 ⑧ 与 <see cref="ContainerKernel_FileSet_IsExactlyTheRoster"/>）。
+        /// 也不进出参与导入的目录</b>：把服务文件搬进 <c>Runtime/Kernel/</c> 会让它整个从词表消失，那是另一码事（见盲点 ⑧ 与 <see cref="ContainerKernel_FileSet_IsExactlyTheRoster"/>）。
         /// 但「把服务代码搬进 Core」本身不必然弄红它，见文件头盲点 ⑦。
         /// 确属正当的新站点必须在此登记「文件名 + 类型名」并写明为什么解不开，同时在提交信息里说明。
         /// </remarks>
@@ -243,7 +243,7 @@ namespace Policy
         }
 
         /// <summary>
-        /// 容器豁免目录的名册（相对包根、正斜杠）：<c>Runtime/Services/Kernel/**</c> 下的 <c>.cs</c> 就是下面列出的这些文件，多一个少一个都判红。
+        /// 容器豁免目录的名册（相对包根、正斜杠）：<c>Runtime/Kernel/**</c> 下的 <c>.cs</c> 就是下面列出的这些文件，多一个少一个都判红。
         /// </summary>
         /// <remarks>
         /// 只列 <c>.cs</c> 是因为它恰好等于判据词表的输入集（<see cref="EnumerateSources"/> 只收 <c>*.cs</c>）；
@@ -252,26 +252,26 @@ namespace Policy
         /// </remarks>
         private static readonly string[] ContainerKernelFileRoster =
         {
-            "Runtime/Services/Kernel/GameServices.cs",
-            "Runtime/Services/Kernel/GameServices.DiagnosticInfo.cs",
-            "Runtime/Services/Kernel/Internal/ContractHandleComparer.cs",
-            "Runtime/Services/Kernel/Internal/IServiceLifecycle.cs",
-            "Runtime/Services/Kernel/Internal/ReferenceComparer.cs",
-            "Runtime/Services/Kernel/Internal/ServicePriorityOrder.cs",
-            "Runtime/Services/Kernel/Internal/ServiceScope.cs",
-            "Runtime/Services/Kernel/Internal/ServiceWorld.cs",
-            "Runtime/Services/Kernel/Internal/TopologySorter.cs",
-            "Runtime/Services/Kernel/Models/AutoRegisterServiceAttribute.cs",
-            "Runtime/Services/Kernel/Models/EDuplicateContractPolicy.cs",
-            "Runtime/Services/Kernel/Models/IService.cs",
-            "Runtime/Services/Kernel/Models/IServiceInterceptor.cs",
-            "Runtime/Services/Kernel/Models/ServiceDependencyAttribute.cs",
-            "Runtime/Services/Kernel/Objects/ServiceBase.cs",
-            "Runtime/Services/Kernel/Objects/ServiceMono.cs",
+            "Runtime/Kernel/GameServices.cs",
+            "Runtime/Kernel/GameServices.DiagnosticInfo.cs",
+            "Runtime/Kernel/Internal/ContractHandleComparer.cs",
+            "Runtime/Kernel/Internal/IServiceLifecycle.cs",
+            "Runtime/Kernel/Internal/ReferenceComparer.cs",
+            "Runtime/Kernel/Internal/ServicePriorityOrder.cs",
+            "Runtime/Kernel/Internal/ServiceScope.cs",
+            "Runtime/Kernel/Internal/ServiceWorld.cs",
+            "Runtime/Kernel/Internal/TopologySorter.cs",
+            "Runtime/Kernel/Models/AutoRegisterServiceAttribute.cs",
+            "Runtime/Kernel/Models/EDuplicateContractPolicy.cs",
+            "Runtime/Kernel/Models/IService.cs",
+            "Runtime/Kernel/Models/IServiceInterceptor.cs",
+            "Runtime/Kernel/Models/ServiceDependencyAttribute.cs",
+            "Runtime/Kernel/Objects/ServiceBase.cs",
+            "Runtime/Kernel/Objects/ServiceMono.cs",
         };
 
         /// <summary>
-        /// 第四条（豁免面不许被暗中扩大）：<c>Runtime/Services/Kernel/**</c> 下的 <c>.cs</c> 文件集合必须与 <see cref="ContainerKernelFileRoster"/> <b>集合相等</b>。
+        /// 第四条（豁免面不许被暗中扩大）：<c>Runtime/Kernel/**</c> 下的 <c>.cs</c> 文件集合必须与 <see cref="ContainerKernelFileRoster"/> <b>集合相等</b>。
         /// </summary>
         /// <remarks>
         /// 这条存在的理由是盲点 ⑧：<c>Scan()</c> 是在造词表的<b>途中</b>按目录前缀跳过 <c>CONTAINER_ROOT</c> 的，所以「往 <c>Kernel/</c> 里放一枚功能服务文件」

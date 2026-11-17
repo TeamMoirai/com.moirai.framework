@@ -53,7 +53,7 @@ com.moirai.framework/
 - **TimerService** - 定时器
 - **UIService** - UI 框架
 
-服务注册与生命周期由 `Runtime/Services/Kernel` 承接：门面 `GameServices.cs`（+ `GameServices.DiagnosticInfo.cs`）、容器与轮询 `Internal/ServiceScope.cs`、服务基类 `Objects/ServiceBase.cs`。
+服务注册与生命周期由 `Runtime/Kernel` 承接：门面 `GameServices.cs`（+ `GameServices.DiagnosticInfo.cs`）、容器与轮询 `Internal/ServiceScope.cs`、服务基类 `Objects/ServiceBase.cs`。
 
 ### Core 系统
 按功能分组平铺在 `Runtime/Core/<功能>/`（没有 `Foundation/`、`Infrastructure/` 层级壳，也不用服务层的角色档）：
