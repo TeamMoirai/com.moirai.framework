@@ -94,14 +94,6 @@ namespace Service.Kernel
         }
 
         [Test]
-        public void ObjectPool_FacadeDegradesGracefully()
-        {
-            Assert.IsFalse(OPo.ObjectPoolService.IsValid);
-            Assert.AreEqual(0, OPo.ObjectPoolService.Count);
-            Assert.DoesNotThrow(() => OPo.ObjectPoolService.ReleaseAllUnused());
-        }
-
-        [Test]
         public void GameObjectPool_FacadeDegradesGracefully()
         {
             Assert.IsFalse(OPo.GameObjectPoolService.IsValid);
@@ -162,13 +154,12 @@ namespace Service.Kernel
 
         #region ② ServiceDependency 声明完整性静态分析 [DEPENDENCY STATIC ANALYSIS]
 
-        /// <summary>框架全部 App 服务实现类型（组合根 13 项——静态分析目标集）。</summary>
+        /// <summary>框架全部 App 服务实现类型（组合根 12 项——静态分析目标集）。</summary>
         private static readonly Type[] FrameworkServices =
         {
             typeof(Dbg.DebuggerService),
             typeof(Res.ResourceService),
             typeof(Tim.TimerService),
-            typeof(OPo.ObjectPoolService),
             typeof(OPo.GameObjectPoolService),
             typeof(Loc.LocalizationService),
             typeof(UIm.UIService),
@@ -252,7 +243,7 @@ namespace Service.Kernel
                 [typeof(Tim.TimerService)] = true,
                 [typeof(Loc.LocalizationService)] = true,
                 [typeof(Proc.ProcedureService)] = true,
-                // 显式豁免：ConfigTable（无轮询状态）、Input/Save/Scene/ObjectPool×2（无调试面板）
+                // 显式豁免：ConfigTable（无轮询状态）、Input/Save/Scene/GameObjectPool（无调试面板）
             };
 
             foreach (var pair in mustDeclare)

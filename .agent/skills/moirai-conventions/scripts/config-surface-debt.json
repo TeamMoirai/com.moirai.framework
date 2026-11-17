@@ -58,11 +58,11 @@
       },
       "add-event.md|Service": {
         "class": "A",
-        "reason": "第 4 节示例 `public class SomeService : Service` 的基类名在本包查无声明。清它靠的是把示例改成本包真名：服务基类 `ServiceBase`（`Runtime/Services/Kernel/Objects/ServiceBase.cs`）。该节自述只用于包外的纯 C# 场景，所以先登记不顺手改正文。"
+        "reason": "第 4 节示例 `public class SomeService : Service` 的基类名在本包查无声明。清它靠的是把示例改成本包真名：服务基类 `ServiceBase`（`Runtime/Kernel/Objects/ServiceBase.cs`）。该节自述只用于包外的纯 C# 场景，所以先登记不顺手改正文。"
       },
       "migrate.md|Service": {
         "class": "A",
-        "reason": "服务系统迁移一节的新代码 `[Service] public class NewService : Service` 里，特性名与基类名都在本包查无声明。清它靠的是改用真名 `ServiceBase` 与 `[AutoRegisterService]`（`Runtime/Services/Kernel/Objects/ServiceBase.cs`、`Runtime/Services/Kernel/Models/AutoRegisterServiceAttribute.cs`）。"
+        "reason": "服务系统迁移一节的新代码 `[Service] public class NewService : Service` 里，特性名与基类名都在本包查无声明。清它靠的是改用真名 `ServiceBase` 与 `[AutoRegisterService]`（`Runtime/Kernel/Objects/ServiceBase.cs`、`Runtime/Kernel/Models/AutoRegisterServiceAttribute.cs`）。"
       },
       "migrate.md|EventSystem": {
         "class": "A",
