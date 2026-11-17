@@ -7,6 +7,8 @@ REM   gen.bat server                 server tables (no l10n, so no variants)
 REM   gen.bat all                    client + server
 REM   gen.bat client --format=json   this run only: json route (default: bin)
 REM   gen.bat client --load=eager    this run only: builtin templates (default: lazy)
+REM   gen.bat client --check         check mode: nothing is written for real; the plugin
+REM                                  byte-compares staged output with committed output (CI)
 REM   gen.bat --help                 usage, printed by gen.sh itself
 REM
 REM Keep this file ASCII-only: cmd.exe decodes a BOM-less .bat with the console codepage,

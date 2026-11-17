@@ -6,3 +6,7 @@ Luban/
 
 # 转表中间产物：gen.sh 每次按 config.ini 的 L10N_LANGUAGES 重生成变体声明 xml
 Temp/
+
+# 插件构建中间产物（Moirai.Luban.Localization）
+Extensions/*/[Bb]in/
+Extensions/*/obj/
