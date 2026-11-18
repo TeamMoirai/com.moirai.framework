@@ -32,9 +32,9 @@ namespace Moirai.Atropos.Resource
         [BoxGroup(BASE_GROUP)]
         [InfoBox("默认使用内置资源后端。可替换为自定义资源后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private ResourceServiceHandler m_ResourceServiceHandler = ResourceService.CreateDefaultHandler();
+        [SerializeReference] private IResourceService m_ResourceServiceHandler = ResourceService.CreateDefaultHandler();
         /// <summary>资源处理器（后端）。</summary>
-        public static ResourceServiceHandler ResourceServiceHandler => Instance.m_ResourceServiceHandler;
+        public static IResourceService ResourceServiceHandler => Instance.m_ResourceServiceHandler;
         
         #region GC 与卸载 [GC AND UNLOAD]
 

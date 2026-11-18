@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Audio
     /// </remarks>
     public class AudioAgent : IAudioVoiceRef
     {
-        private AudioServiceHandler _audioHandler;
+        private IAudioService _audioHandler;
         private AudioAssetData _audioAssetData;
         private AudioClipCache _clipCache;
 

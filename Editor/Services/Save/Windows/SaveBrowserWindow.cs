@@ -652,7 +652,7 @@ namespace Moirai.Atropos.Save
         {
             base.OnEnable();
             // 读取走设置配置的处理器（含解密链/存储后端/压缩配置，与运行时一致）——明文回退仅在未配置时兜底；加密档须用同一密钥材料方能预览
-            _handler = SaveServiceSettings.SaveServiceHandler ?? SaveService.CreateDefaultHandler();
+            _handler = (SaveServiceSettings.SaveServiceHandler ?? SaveService.CreateDefaultHandler()) as SaveServiceHandler;
             _autoRefresh = SessionState.GetBool(SESSION_AUTO_REFRESH, false);
             _sortMode = (SlotSortMode)SessionState.GetInt(SESSION_SORT_MODE, (int)SlotSortMode.TimeDesc);
             _prettyJson = SessionState.GetBool(SESSION_PRETTY_JSON, true);
@@ -1701,7 +1701,7 @@ namespace Moirai.Atropos.Save
 
         private void UpdatePipelineText()
         {
-            SaveServiceHandler handler = SaveServiceSettings.SaveServiceHandler;
+            var handler = SaveServiceSettings.SaveServiceHandler as SaveServiceHandler;
             string handlerName = handler?.GetType().Name ?? "PlainSaveHandler";
             string compression = handler != null && handler.CompressionProvider != null ? handler.CompressionProvider.GetType().Name : "不压缩";
             string backend = ShortBackendName(SaveServiceSettings.DefaultBackend);

@@ -10,13 +10,13 @@ namespace Service.Localization
     /// </summary>
     /// <remarks>
     /// 「未自报即只剩哨兵」那一格用包内兜底后端 <c>DefaultConfigTableHandler</c> 造：本装配不建
-    /// <see cref="ConfigTableServiceHandler"/> 子类，那类经 [SerializeReference] 进生产资产的 Inspector 下拉。
+    /// <see cref="IConfigTableService"/> 实现类，那类经 [SerializeReference] 进生产资产的 Inspector 下拉。
     /// </remarks>
     [TestFixture]
     public sealed class LocalizationExportedLanguageTests
     {
-        private ConfigTableServiceHandler _savedConfigTableHandler;
-        private LocalizationServiceHandler _savedFacadeHandler;
+        private IConfigTableService _savedConfigTableHandler;
+        private ILocalizationService _savedFacadeHandler;
         private string _savedEditorLanguage;
 
         [SetUp]

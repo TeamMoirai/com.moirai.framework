@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Debugger
     /// 外观方法经 <c>s_Handler</c> 直接转发，未注册时静默降级为默认值；<c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
-    [ProviderHandlerHost(typeof(DebuggerServiceHandler), typeof(DefaultDebuggerHandler))]
+    [ProviderHandlerHost(typeof(IDebuggerService), typeof(DefaultDebuggerHandler))]
     public partial class DebuggerService : ServiceBase, IServiceTickable
     {
         #region 生命周期 [LIFECYCLE]
@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Debugger
         /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static DebuggerServiceHandler GetHandlerFromSettings()
+        private static IDebuggerService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<DebuggerService>();
             return DebuggerServiceSettings.DebuggerServiceHandler;
@@ -54,7 +54,8 @@ namespace Moirai.Atropos.Debugger
         {
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>

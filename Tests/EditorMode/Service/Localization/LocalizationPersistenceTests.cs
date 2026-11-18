@@ -18,7 +18,7 @@ namespace Service.Localization
     {
         private string _savedEditorLanguage;
         private SettingHandler _savedSettingHandler;
-        private LocalizationServiceHandler _savedL10nHandler;
+        private ILocalizationService _savedL10nHandler;
         private RecordingSettingHandler _recording;
 
         [SetUp]

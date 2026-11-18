@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Audio
     [Serializable]
     public class AudioCategory
     {
-        private readonly AudioServiceHandler _handler;
+        private readonly IAudioService _handler;
         private readonly AudioGroupConfig _audioGroupConfig;
         private int _maxChannel;
         // 无可用通道告警的最小间隔（秒），防止满载时刷屏
@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Audio
         private float _lastNoChannelLogAt;
 
         /// <summary>所属音频处理器（Agent 绑定用，勿用全局 AudioService.Handler）。</summary>
-        internal AudioServiceHandler Handler => _handler;
+        internal IAudioService Handler => _handler;
 
         #region 构造函数 [CONSTRUCTORS]
 
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="handler">音频处理器。</param>
         /// <param name="audioGroupConfig">音频轨道组配置。</param>
         /// <exception cref="ArgumentNullException">handler 或 audioGroupConfig 为 null。</exception>
-        internal AudioCategory(AudioServiceHandler handler, AudioGroupConfig audioGroupConfig)
+        internal AudioCategory(IAudioService handler, AudioGroupConfig audioGroupConfig)
         {
             // Fail-Fast：配置缺失时构造期即抛，避免后续 NRE 链
             if (handler == null) throw new ArgumentNullException(nameof(handler));

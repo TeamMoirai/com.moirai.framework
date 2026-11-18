@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Scene
     /// 场景短名须尽量全局唯一：碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。
     /// </remarks>
     [AutoRegisterService]
-    [ProviderHandlerHost(typeof(SceneServiceHandler), typeof(DefaultSceneHandler))]
+    [ProviderHandlerHost(typeof(ISceneService), typeof(DefaultSceneHandler))]
     [ServiceDependency(typeof(ResourceService))]
     public partial class SceneService : ServiceBase
     {
@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Scene
         /// 幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static SceneServiceHandler GetHandlerFromSettings()
+        private static ISceneService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<SceneService>();
             return SceneServiceSettings.SceneServiceHandler;
@@ -63,7 +63,8 @@ namespace Moirai.Atropos.Scene
             onMainSceneChanged = null;
             onSubSceneLoaded = null;
             onSubSceneUnloaded = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         #endregion

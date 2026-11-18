@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Localization
     /// 默认整批加载、全语言常驻；数据源自报支持按语言取列时转为列模式，常驻与取值都只有当前语言列。
     /// </remarks>
     [Serializable]
-    public abstract class LocalizationServiceHandler : FrameworkHandler
+    public abstract class LocalizationServiceHandler : FrameworkHandler, ILocalizationService
     {
         // 本地化器列表
         [NonSerialized] internal readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
@@ -130,10 +130,10 @@ namespace Moirai.Atropos.Localization
         }
 
         /// <summary>数据是否已加载完成（<c>ToLanguage</c> 的「支持性」判定在未加载时退化为身份解析）。</summary>
-        internal bool IsDataLoaded => _dataLoaded;
+        public bool IsDataLoaded => _dataLoaded;
 
         /// <summary>当前语言是否从右向左书写（未就绪为 <c>false</c>）。</summary>
-        internal bool IsCurrentLanguageRightToLeft => _currentLanguage?.IsRightToLeft ?? false;
+        public bool IsCurrentLanguageRightToLeft => _currentLanguage?.IsRightToLeft ?? false;
 
         /// <summary>
         /// 语言是否在当前批内（调用方须已确认数据加载完成，见 <see cref="IsDataLoaded"/>）。

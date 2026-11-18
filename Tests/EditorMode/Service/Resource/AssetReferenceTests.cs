@@ -15,7 +15,7 @@ namespace Service.Resource
     /// </remarks>
     public sealed class AssetReferenceTests
     {
-        private ResourceServiceHandler _savedHandler;
+        private IResourceService _savedHandler;
 
         [SetUp]
         public void SetUp()

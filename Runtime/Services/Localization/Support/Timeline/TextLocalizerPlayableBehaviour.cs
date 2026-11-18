@@ -1,4 +1,4 @@
-﻿#if TIMELINE_INSTALLED
+#if TIMELINE_INSTALLED
 using UnityEngine.Playables;
 
 namespace Moirai.Atropos.Localization

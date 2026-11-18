@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Procedure
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
-    [ProviderHandlerHost(typeof(ProcedureServiceHandler), typeof(DefaultProcedureHandler))]
+    [ProviderHandlerHost(typeof(IProcedureService), typeof(DefaultProcedureHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {
         private static readonly ProcedureBase[] s_EmptyProcedures = new ProcedureBase[0];
@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Procedure
         /// 幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static ProcedureServiceHandler GetHandlerFromSettings()
+        private static IProcedureService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<ProcedureService>();
             return ProcedureServiceSettings.ProcedureServiceHandler;
@@ -80,7 +80,8 @@ namespace Moirai.Atropos.Procedure
         {
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>
@@ -280,7 +281,7 @@ namespace Moirai.Atropos.Procedure
         /// <summary>
         /// 获取处理器；缺失时告警（引导时序错误须在控制台显式暴露，而非静默丢调用）。
         /// </summary>
-        private static bool TryGetHandler(string apiName, out ProcedureServiceHandler handler)
+        private static bool TryGetHandler(string apiName, out IProcedureService handler)
         {
             handler = s_Handler;
             if (handler != null)
@@ -299,7 +300,7 @@ namespace Moirai.Atropos.Procedure
         /// <remarks>
         /// <see cref="Initialize"/> / <see cref="RestartProcedure"/> 不走本守卫——二者是引导/重建入口。
         /// </remarks>
-        private static bool TryGetReadyHandler(string apiName, out ProcedureServiceHandler handler)
+        private static bool TryGetReadyHandler(string apiName, out IProcedureService handler)
         {
             if (!TryGetHandler(apiName, out handler))
             {

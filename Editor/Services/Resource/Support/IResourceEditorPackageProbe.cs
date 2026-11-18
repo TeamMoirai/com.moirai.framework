@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Resource
     public interface IResourceEditorPackageProbe
     {
         /// <summary>这份探针是否适用于当前后端实例。不认领时桥退回空数组，绝不拿别人的清单冒名。</summary>
-        bool AppliesTo(ResourceServiceHandler handler);
+        bool AppliesTo(IResourceService handler);
 
         /// <summary>收集器里配好的资源包名清单。</summary>
         string[] PackageNames();

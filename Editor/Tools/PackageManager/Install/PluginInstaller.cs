@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Moirai.Atropos;
 using UnityEditor;
 using UnityEngine;
@@ -343,7 +344,8 @@ namespace Moirai.Atropos.PackageManager
                 return report;
             }
 
-            if (!ValidateInstallTargets(plan, installedIds, out IReadOnlyList<string> overwriteIds, out string targetReason))
+            if (!ValidateInstallTargets(plan, installedIds, removeFirstIds,
+                out IReadOnlyList<string> overwriteIds, out string targetReason))
             {
                 report.Fail(targetReason);
                 return report;
@@ -678,9 +680,11 @@ namespace Moirai.Atropos.PackageManager
         /// 安装目标目录先过一遍：已存在又不在账本上的同名目录逐个交出去批，批下来的进先删后装的名单。
         /// </summary>
         /// <remarks>检出住在 Library，目标住在 Packages；后者可能有用户手放的同名包，工具不擅自顶掉，也不擅自拒绝——交 <see cref="ConfirmOverwriteForeignFolders"/> 决策。<br />
+        /// 勾了「先清目录」的插件（<paramref name="removeFirstIds"/> 点名的）视同已批：目录本来就要整份删掉，再问一遍覆盖是重复决策。<br />
         /// 批不下来的整批中止，此刻还没碰过盘；批下来的连同 <paramref name="overwriteIds"/> 一起交给调用段去删。<br />
         /// 目标位上是个文件时不给过：清目录只删目录，删完照样建不出包。</remarks>
         private bool ValidateInstallTargets(InstallPlan plan, List<string> installedIds,
+            IReadOnlyList<string> removeFirstIds,
             out IReadOnlyList<string> overwriteIds, out string failureReason)
         {
             overwriteIds = null;
@@ -710,16 +714,44 @@ namespace Moirai.Atropos.PackageManager
                 return true;
             }
 
-            if (ConfirmOverwriteForeignFolders == null || !ConfirmOverwriteForeignFolders(foreignFolders))
+            // 先清目录的批要先落：这些 id 的外来目录跟着 removeFirstIds 一起进先删名单，不重复走确认
+            var approvedIds = new List<string>();
+            var pendingIds = new List<string>();
+            var pendingFolders = new List<string>();
+            for (int i = 0; i < foreignIds.Count; i++)
             {
-                failureReason = $"这 {foreignFolders.Count} 个目录已存在且不在账本里，覆盖没批下来，整批中止："
-                    + string.Join("、", foreignFolders);
+                if (removeFirstIds != null && ContainsId(removeFirstIds, foreignIds[i]))
+                    approvedIds.Add(foreignIds[i]);
+                else
+                {
+                    pendingIds.Add(foreignIds[i]);
+                    pendingFolders.Add(foreignFolders[i]);
+                }
+            }
+
+            if (pendingFolders.Count > 0
+                && (ConfirmOverwriteForeignFolders == null || !ConfirmOverwriteForeignFolders(pendingFolders)))
+            {
+                failureReason = $"这 {pendingFolders.Count} 个目录已存在且不在账本里，覆盖没批下来，整批中止："
+                    + string.Join("、", pendingFolders);
                 return false;
             }
 
-            overwriteIds = foreignIds;
+            approvedIds.AddRange(pendingIds);
+            overwriteIds = approvedIds;
             failureReason = null;
             return true;
+        }
+
+        /// <summary>只读列表的按值包含判定；本文件不引 Linq，<see cref="MergeIds"/> 同款手写遍历。</summary>
+        private static bool ContainsId(IReadOnlyList<string> ids, string id)
+        {
+            for (int i = 0; ids != null && i < ids.Count; i++)
+            {
+                if (string.Equals(ids[i], id, StringComparison.Ordinal)) return true;
+            }
+
+            return false;
         }
 
         /// <summary>把批下来要顶掉的那批并进先删名单，已在前面的不重复删。</summary>

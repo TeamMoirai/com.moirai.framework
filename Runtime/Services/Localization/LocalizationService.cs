@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Localization
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService), typeof(ConfigTableService))]
-    [ProviderHandlerHost(typeof(LocalizationServiceHandler), typeof(ConfigTableLocalizationHandler))]
+    [ProviderHandlerHost(typeof(ILocalizationService), typeof(ConfigTableLocalizationHandler))]
     public partial class LocalizationService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <remarks>先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），使懒加载主路径首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static LocalizationServiceHandler GetHandlerFromSettings()
+        private static ILocalizationService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<LocalizationService>();
             var handler = LocalizationServiceSettings.LocalizationServiceHandler;
@@ -63,7 +63,8 @@ namespace Moirai.Atropos.Localization
         {
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：引擎基座继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
 
             if (handler != null) handler.onLanguageChanged -= onLanguageChanged;
             onLanguageChanged = null;
@@ -211,11 +212,11 @@ namespace Moirai.Atropos.Localization
         private static void HandPreferenceToHandler() => HandPreferenceTo(s_Handler);
 
         /// <summary>把检测链读数交给指定处理器实例；交接给谁与「当前注册的是谁」是两件事，懒加载途中要交给刚拿到的那份。</summary>
-        private static void HandPreferenceTo(LocalizationServiceHandler handler)
+        private static void HandPreferenceTo(ILocalizationService handler)
         {
             var (raw, source) = CapturePreference();
             // 来路在没有注册处理器时同样要记：诊断问的是「检测链这次读到了什么」，不是「谁在用」
-            if (handler != null) handler.ApplyPreference(raw, source);
+            if (handler is LocalizationServiceHandler engine) engine.ApplyPreference(raw, source);
         }
 
         /// <summary>编辑器侧改了「编辑器语言」后代当前处理器交接一次；设置类不该自己碰注册的处理器。</summary>
@@ -321,9 +322,9 @@ namespace Moirai.Atropos.Localization
         /// 持久化政策的写入点只有服务这一处：直接调处理器的代码换语言但不改配置项，
         /// 首启检测链给的语言也没有写入路径，不会被固化成用户选择。
         /// </remarks>
-        private static void PersistAcceptedLanguage(LocalizationServiceHandler handler)
+        private static void PersistAcceptedLanguage(ILocalizationService handler)
         {
-            var accepted = handler.LastAcceptedLanguage;
+            var accepted = (handler as LocalizationServiceHandler)?.LastAcceptedLanguage;
             if (accepted != null) LocalizationSettingsPolicy.Save(accepted.Code);
         }
 

@@ -265,9 +265,9 @@ namespace Moirai.Atropos.Localization
         {
             get
             {
-                if (s_Handler != null) return s_Handler;
+                if (s_Handler != null) return s_Handler as LocalizationServiceHandler;
 #if UNITY_EDITOR
-                return LocalizationServiceSettings.LocalizationServiceHandler;
+                return LocalizationServiceSettings.LocalizationServiceHandler as LocalizationServiceHandler;
 #else
                 return null;
 #endif
@@ -298,7 +298,7 @@ namespace Moirai.Atropos.Localization
 
             var handler = s_Handler;
             // 「是否支持」的判定实现只有一份：交给已注册的那个处理器按自己的语言批判
-            if (onlySupported && handler != null) return handler.ResolvePreference(str);
+            if (onlySupported && handler is LocalizationServiceHandler engine) return engine.ResolvePreference(str);
 
             return TryGetBuiltInLanguage(str, out var language) ? language : DefaultLanguage;
         }

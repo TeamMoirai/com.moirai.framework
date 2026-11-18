@@ -49,7 +49,7 @@ namespace Moirai.Atropos.Debugger
 
         private static void UnloadUnusedAssets(bool garbageCollect)
         {
-            ResourceServiceHandler resourceService = ResourceService.Handler;
+            IResourceService resourceService = ResourceService.Handler;
             if (resourceService == null)
             {
                 LogUtility.Warning("ResourceService is not initialized.");

@@ -31,7 +31,7 @@ namespace Moirai.Atropos.Resource.YooAsset
         }
 
         /// <inheritdoc />
-        public bool AppliesTo(ResourceServiceHandler handler) => handler is YooAssetHandler;
+        public bool AppliesTo(IResourceService handler) => handler is YooAssetHandler;
 
         /// <inheritdoc />
         public string[] PackageNames()

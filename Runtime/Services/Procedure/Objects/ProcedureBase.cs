@@ -6,9 +6,9 @@
     public abstract class ProcedureBase
     {
         /// <summary>流程处理器引用，由 <see cref="ProcedureServiceHandler.Initialize"/> 时注入。</summary>
-        internal ProcedureServiceHandler Owner { get; private set; }
+        internal IProcedureService Owner { get; private set; }
 
-        internal void SetOwner(ProcedureServiceHandler owner) => Owner = owner;
+        internal void SetOwner(IProcedureService owner) => Owner = owner;
 
         /// <summary>
         /// 流程初始化时调用。
@@ -59,7 +59,7 @@
             if (Owner == null)
             {
                 throw new GameException(
-                    "Procedure is not registered in a ProcedureServiceHandler — ChangeState is unavailable before Initialize.");
+                    "Procedure is not registered in an IProcedureService backend — ChangeState is unavailable before Initialize.");
             }
 
             Owner.ChangeState<T>();

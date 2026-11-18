@@ -37,7 +37,7 @@ namespace Moirai.Atropos.Resource
     /// <typeparam name="T">资源类型。</typeparam>
     public struct ResourceAssetLease<T> : IDisposable where T : UnityEngine.Object
     {
-        private ResourceServiceHandler _handler;
+        private IResourceService _handler;
         private ResourceLeaseHandle _handle;
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace Moirai.Atropos.Resource
         /// <param name="handler">资源处理器。</param>
         /// <param name="handle">租约句柄。</param>
         /// <param name="asset">资源对象。</param>
-        public ResourceAssetLease(ResourceServiceHandler handler, ResourceLeaseHandle handle, T asset)
+        public ResourceAssetLease(IResourceService handler, ResourceLeaseHandle handle, T asset)
         {
             _handler = handler;
             _handle = handle;

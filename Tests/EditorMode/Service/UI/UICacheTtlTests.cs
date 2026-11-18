@@ -1,3 +1,4 @@
+using Moirai.Atropos;
 using Moirai.Atropos.Timer;
 using Moirai.Atropos.UI;
 using NUnit.Framework;
@@ -68,8 +69,8 @@ namespace Service.UI
     public sealed class UICacheTtlTests
     {
         private UIWindowLedger _ledger;
-        private TimerServiceHandler _timerHandler;
-        private TimerServiceHandler _savedTimerHandler;
+        private ITimerService _timerHandler;
+        private ITimerService _savedTimerHandler;
 
         // EditMode 不注册计时后端：静态门面的 Delay 恒回 0 句柄，换一支真空轮进去再原样归还，句柄才有真假可判
         [SetUp]
@@ -77,7 +78,7 @@ namespace Service.UI
         {
             _ledger = new UIWindowLedger();
             _timerHandler = new DefaultTimerHandler();
-            _timerHandler.Internal_Init();
+            ((FrameworkHandler)_timerHandler).Internal_Init();
             _savedTimerHandler = TimerService.Internal_UseHandler(_timerHandler);
         }
 
@@ -85,7 +86,7 @@ namespace Service.UI
         public void TearDown()
         {
             TimerService.Internal_UseHandler(_savedTimerHandler);
-            _timerHandler.Internal_Shutdown();
+            ((FrameworkHandler)_timerHandler).Internal_Shutdown();
             _timerHandler = null;
             _savedTimerHandler = null;
             _ledger = null;

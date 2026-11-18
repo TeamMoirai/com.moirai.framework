@@ -41,13 +41,13 @@ namespace Moirai.Atropos.ObjectPool
         #region 字段 [FIELDS]
 
         private readonly Dictionary<int, List<ResourceAssetLease<GameObject>>> _leases = new Dictionary<int, List<ResourceAssetLease<GameObject>>>(16);
-        private ResourceServiceHandler _resource;
+        private IResourceService _resource;
 
         #endregion
 
         #region 属性 [PROPERTIES]
 
-        private ResourceServiceHandler Resource
+        private IResourceService Resource
         {
             get
             {

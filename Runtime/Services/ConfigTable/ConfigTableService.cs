@@ -16,7 +16,7 @@ namespace Moirai.Atropos.ConfigTable
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(ResourceService))]
-    [ProviderHandlerHost(typeof(ConfigTableServiceHandler), typeof(DefaultConfigTableHandler))]
+    [ProviderHandlerHost(typeof(IConfigTableService), typeof(DefaultConfigTableHandler))]
     public partial class ConfigTableService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
@@ -26,7 +26,7 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <remarks>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static ConfigTableServiceHandler GetHandlerFromSettings()
+        private static IConfigTableService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<ConfigTableService>();
             return ConfigTableServiceSettings.ConfigTableServiceHandler;
@@ -55,7 +55,8 @@ namespace Moirai.Atropos.ConfigTable
         {
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         #endregion
@@ -113,7 +114,7 @@ namespace Moirai.Atropos.ConfigTable
         /// 不装进 <c>s_Handler</c>、不调 <c>Internal_Init</c>，预览因此不需要服务世界。 <br />
         /// 运行期一族静态查询读 <c>s_Handler</c>、非播放态恒为空，预览不可走它们（会把已生成的工程报成"表未生成"）。
         /// </remarks>
-        private static ConfigTableServiceHandler PreviewHandler
+        private static IConfigTableService PreviewHandler
             => s_Handler ?? ConfigTableServiceSettings.ConfigTableServiceHandler;
 
         /// <summary>

@@ -17,13 +17,13 @@ namespace Service.ConfigTable
     /// </summary>
     /// <remarks>
     /// 钉三件事：外观在无后端时的降级值、默认后端的兜底语义、服务依赖声明的存在性。 <br />
-    /// 本组不建自定义 Handler 子类：<see cref="ConfigTableServiceHandler"/> 是 [Serializable] 框架基类，经 [SerializeReference] 用在设置资产里，
+    /// 本组不建自定义 Handler 子类：<see cref="IConfigTableService"/> 契约实现经 [SerializeReference] 用在设置资产里，经 [SerializeReference] 用在设置资产里，
     /// 测试程序集里的派生类会污染生产资产的 Inspector 下拉框；需要「已安装后端」的场景直接用包内默认实现 <c>DefaultConfigTableHandler</c>（internal）。
     /// </remarks>
     [TestFixture]
     public sealed class ConfigTableServiceContractTests
     {
-        private ConfigTableServiceHandler _savedHandler;
+        private IConfigTableService _savedHandler;
 
         [SetUp]
         public void SetUp()
@@ -165,9 +165,11 @@ namespace Service.ConfigTable
         {
             var defaultHandler = new DefaultConfigTableHandler();
 
-            Assert.IsFalse(defaultHandler.SupportsPerLanguageLocalizationLoad,
+            // DIM 成员只能经接口访问：经契约面验证默认实现
+            IConfigTableService contract = defaultHandler;
+            Assert.IsFalse(contract.SupportsPerLanguageLocalizationLoad,
                 "未覆写的后端必须留在整批路径。");
-            Assert.IsNull(defaultHandler.GetLocalizedStringsByLanguage("en"),
+            Assert.IsNull(contract.GetLocalizedStringsByLanguage("en"),
                 "未覆写的取列实现必须回 null（视为未就绪），不得回空字典冒充已加载的空列。");
         }
 

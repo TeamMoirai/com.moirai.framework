@@ -21,16 +21,17 @@ namespace Moirai.Atropos.Scene
     /// </remarks>
     [ProviderDisplay(title: "默认场景（资源管线）", description: "主/子场景走资源系统管线（共享包管理与引用计数），挂起加载须最终 UnSuspend")]
     [Serializable]
-    internal sealed class DefaultSceneHandler : SceneServiceHandler
+    internal sealed class DefaultSceneHandler :
+    FrameworkHandler, ISceneService
     {
         /// <summary>场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。</summary>
         [NonSerialized] private readonly SceneRegistry _registry = new SceneRegistry();
 
         /// <summary>当前主场景名称（场景短名）。</summary>
-        public override string CurrentMainSceneName => _registry.CurrentMainSceneName;
+        public string CurrentMainSceneName => _registry.CurrentMainSceneName;
 
         /// <summary>已完成加载的子场景资源地址快照（不含加载中的子场景）。</summary>
-        public override IReadOnlyCollection<string> LoadedSubSceneLocations => _registry.SnapshotLoadedSubScenes();
+        public IReadOnlyCollection<string> LoadedSubSceneLocations => _registry.SnapshotLoadedSubScenes();
 
         /// <summary>
         /// 处理器初始化。取当前激活场景作为初始主场景。
@@ -92,7 +93,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="packageName">资源包名称（空串使用默认包）。</param>
         /// <param name="cancellationToken">取消令牌——放弃等待语义，不中止底层加载。</param>
         /// <returns>加载完成的场景。</returns>
-        public override UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority,
+        public UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority,
             Action<float> progressCallBack, string packageName, CancellationToken cancellationToken)
         {
             // 直通返回内部任务，避免外层 async 多分配一个状态机
@@ -112,7 +113,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="priority">加载优先级。</param>
         /// <param name="callBack">加载完成回调。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
-        public override void LoadScene(string location, string packageName, LoadSceneMode sceneMode,
+        public void LoadScene(string location, string packageName, LoadSceneMode sceneMode,
             bool suspendLoad, uint priority, Action<UnityEngine.SceneManagement.Scene> callBack, Action<float> progressCallBack)
         {
             LoadSceneCallbackInternal(location, packageName ?? string.Empty, sceneMode, suspendLoad, priority, callBack, progressCallBack).Forget();
@@ -396,7 +397,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否激活成功。</returns>
-        public override bool ActivateScene(string location)
+        public bool ActivateScene(string location)
         {
             if (string.IsNullOrEmpty(location))
             {
@@ -429,7 +430,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否取消成功。</returns>
-        public override bool UnSuspend(string location)
+        public bool UnSuspend(string location)
         {
             if (string.IsNullOrEmpty(location))
             {
@@ -458,7 +459,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否为主场景。</returns>
-        public override bool IsMainScene(string location)
+        public bool IsMainScene(string location)
         {
             return _registry.IsMainScene(location);
         }
@@ -473,7 +474,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <returns>是否卸载成功。</returns>
-        public override UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack)
+        public UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack)
         {
             if (!TryBeginUnload(location, out var pending))
             {
@@ -492,7 +493,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <param name="callBack">卸载完成回调（参数为是否卸载成功）。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
-        public override void Unload(string location, Action<bool> callBack, Action<float> progressCallBack)
+        public void Unload(string location, Action<bool> callBack, Action<float> progressCallBack)
         {
             if (!TryBeginUnload(location, out var pending))
             {
@@ -622,7 +623,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否已登记。</returns>
-        public override bool IsContainScene(string location)
+        public bool IsContainScene(string location)
         {
             return _registry.IsContainScene(location);
         }

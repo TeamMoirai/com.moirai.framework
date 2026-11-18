@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using UnityEngine;
 
@@ -79,7 +79,7 @@ namespace Moirai.Atropos.Localization
                 if (!IsValid) return EPreviewResolveStatus.Unavailable;
 
                 language = CurrentLanguage;
-                text = s_Handler.PeekText(id, language);
+                text = s_Handler is LocalizationServiceHandler engine ? engine.PeekText(id, language) : null;
                 if (text != null) return EPreviewResolveStatus.Resolved;
 
                 // PeekText 不计缺译；Has 只断言词条存在，用来拆开「没这条」与「这格没翻」

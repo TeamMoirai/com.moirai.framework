@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Input
     /// </remarks>
     [ProviderDisplay(title: "Input Manager（旧版）", description: "映射 Project Settings 轴/键名；无动作分组，仅全局门控")]
     [Serializable]
-    internal sealed class UnityInputManagerHandler : InputServiceHandler
+    internal sealed class UnityInputManagerHandler : FrameworkHandler, IInputService
     {
         private struct Vector2Action
         {
@@ -43,25 +43,25 @@ namespace Moirai.Atropos.Input
         private readonly Dictionary<string, bool> _registeredButtons = new Dictionary<string, bool>();
         private readonly Dictionary<string, bool> _registeredAxes = new Dictionary<string, bool>();
 
-        public override bool Enabled
+        public bool Enabled
         {
             get => _state.Enabled;
             set => _state.Enabled = value;
         }
 
-        public override bool LockPlayerController
+        public bool LockPlayerController
         {
             get => _state.LockPlayerController;
             set => _state.LockPlayerController = value;
         }
 
-        public override bool PreventInteractionUI
+        public bool PreventInteractionUI
         {
             get => _state.PreventInteractionUI;
             set => _state.PreventInteractionUI = value;
         }
 
-        protected internal override void SetUIModal(bool hasModal)
+        public void SetUIModal(bool hasModal)
         {
             _state.SetUIModal(hasModal);
         }
@@ -79,27 +79,27 @@ namespace Moirai.Atropos.Input
             _registeredAxes.Clear();
         }
 
-        public override bool GetButtonDown(string actionName, string actionGroup = "")
+        public bool GetButtonDown(string actionName, string actionGroup = "")
         {
             return _state.Enabled && IsRegisteredButton(actionName) && UnityEngine.Input.GetButtonDown(actionName);
         }
 
-        public override bool GetButtonUp(string actionName, string actionGroup = "")
+        public bool GetButtonUp(string actionName, string actionGroup = "")
         {
             return _state.Enabled && IsRegisteredButton(actionName) && UnityEngine.Input.GetButtonUp(actionName);
         }
 
-        public override bool GetBool(string actionName, string actionGroup = "")
+        public bool GetBool(string actionName, string actionGroup = "")
         {
             return _state.Enabled && IsRegisteredButton(actionName) && UnityEngine.Input.GetButton(actionName);
         }
 
-        public override float GetFloat(string actionName, string actionGroup = "")
+        public float GetFloat(string actionName, string actionGroup = "")
         {
             return _state.Enabled && IsRegisteredAxis(actionName) ? UnityEngine.Input.GetAxisRaw(actionName) : 0f;
         }
 
-        public override Vector2 GetVector2(string actionName, string actionGroup = "")
+        public Vector2 GetVector2(string actionName, string actionGroup = "")
         {
             if (!_state.Enabled) return Vector2.zero;
 
@@ -119,7 +119,7 @@ namespace Moirai.Atropos.Input
             return new Vector2(x, y);
         }
 
-        public override bool GetMouseButtonPressed(EMouseButton button)
+        public bool GetMouseButtonPressed(EMouseButton button)
         {
             switch (button)
             {
@@ -132,7 +132,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public override bool GetMouseButtonDown(EMouseButton button)
+        public bool GetMouseButtonDown(EMouseButton button)
         {
             switch (button)
             {
@@ -145,7 +145,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public override bool GetMouseButtonUp(EMouseButton button)
+        public bool GetMouseButtonUp(EMouseButton button)
         {
             switch (button)
             {
@@ -158,17 +158,17 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public override Vector2 GetMousePosition()
+        public Vector2 GetMousePosition()
         {
             return UnityEngine.Input.mousePosition;
         }
 
-        public override Vector2 GetScrollDelta()
+        public Vector2 GetScrollDelta()
         {
             return UnityEngine.Input.mouseScrollDelta;
         }
 
-        public override void ResetAllInputStates()
+        public void ResetAllInputStates()
         {
             UnityEngine.Input.ResetInputAxes();
         }

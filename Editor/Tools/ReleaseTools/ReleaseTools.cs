@@ -510,7 +510,7 @@ namespace Moirai.Atropos
         /// </remarks>
         private static string GetDefaultPackageName()
         {
-            ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
+            IResourceService handler = ResourceServiceSettings.ResourceServiceHandler;
             string packageName = handler != null ? handler.DefaultPackageName : null;
             if (string.IsNullOrEmpty(packageName))
             {

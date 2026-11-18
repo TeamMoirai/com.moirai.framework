@@ -16,8 +16,13 @@ namespace Attributes
 
         private sealed class LiveProvider : FakeBase { }
 
+        /// <summary>
+        /// <paramref name="providerBase"/> 缺省时取 <see cref="FakeBase"/> 的运行时全名：
+        /// 硬编码字符串会随本测试类的命名空间改名而静默失配（<see cref="ProviderCatalogIndex.Build"/> 按
+        /// <c>baseType.FullName</c> 逐字比对，失配即整片清单行铺不出来），从类型上取就不怕搬家。
+        /// </summary>
         private static PluginManifest Manifest(string id, string name, string providerType,
-            string providerBase = "Editor.Core.Attributes.ProviderCatalogIndexTests+FakeBase",
+            string providerBase = null,
             string title = "样例后端", string requiresUpm = "com.example.sdk")
         {
             return new PluginManifest
@@ -32,7 +37,7 @@ namespace Attributes
                 {
                     new PluginProvider
                     {
-                        providerBase = providerBase,
+                        providerBase = providerBase ?? typeof(FakeBase).FullName,
                         providerType = providerType,
                         title = title,
                         requiresUpm = requiresUpm
