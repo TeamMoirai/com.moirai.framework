@@ -33,6 +33,10 @@
 
 - `ProviderHandlerHost` 的处理器改为初始化成功后才发布：并发读不再取到半初始化实例，`OnInit` 抛错不再把污染实例永久留在缓存里（下次访问重试），同宿主初始化期递归取用改为明确报错而非栈溢出
 - 后端切换赋值时，同一实例重复赋值幂等；新实例初始化失败则保留并继续服务旧实例，成功替换才关停旧实例一次
+- `MainThreadDispatcher.Send<TState>(state, action)`：状态化 Send——已在主线程同步直调（零分配、异常直抛调用方），后台复用 `Post<TState>` 池化工作项（稳态零分配），与 `Post<TState>`/`Send(Action)` 语义对称
+- `MainThreadDispatcher` 停机改为主线程优雅排水：已入队任务在 `BeginShutdown` 内联执行完毕（存档落盘回执等停机收尾不再被静默截杀），挂起可等待操作的取消语义不变；非主线程停机维持丢弃并告警
+- `MainThreadDispatcher` 任务异常与 `PlayerLoopDriver` 订户策略对齐：开发构建 Fatal 后上抛中止本次泵（fail-fast），发布构建隔离续跑并对连续失败 300 次告警一次（任一任务成功归零重计）
+- `MainThreadDispatcher` 入队路径零分配收尾：`Post(IEnumerator)` 改经池化工作项 + 静态 lambda 转发（稳态零闭包分配），取消注册改用 `CancellationToken.Register` 状态重载，泵内毫秒换算提为静态字段
 
 #### Editor
 
