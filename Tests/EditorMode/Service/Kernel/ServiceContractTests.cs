@@ -9,7 +9,7 @@ using Inp = Moirai.Atropos.Input;
 using Loc = Moirai.Atropos.Localization;
 using OPo = Moirai.Atropos.ObjectPool;
 using Proc = Moirai.Atropos.Procedure;
-using Res = Moirai.Atropos.Resource;
+using Res = Moirai.Atropos.Asset;
 using Sav = Moirai.Atropos.Save;
 using Scn = Moirai.Atropos.Scene;
 using Tim = Moirai.Atropos.Timer;
@@ -114,8 +114,8 @@ namespace Service.Kernel
         [Test]
         public void Resource_FacadeDegradesGracefully()
         {
-            Assert.IsFalse(Res.ResourceService.IsValid);
-            Assert.DoesNotThrow(() => Res.ResourceService.OnLowMemory());
+            Assert.IsFalse(Res.AssetService.IsValid);
+            Assert.DoesNotThrow(() => Res.AssetService.OnLowMemory());
         }
 
         [Test]
@@ -158,7 +158,7 @@ namespace Service.Kernel
         private static readonly Type[] FrameworkServices =
         {
             typeof(Dbg.DebuggerService),
-            typeof(Res.ResourceService),
+            typeof(Res.AssetService),
             typeof(Tim.TimerService),
             typeof(OPo.GameObjectPoolService),
             typeof(Loc.LocalizationService),
@@ -181,8 +181,8 @@ namespace Service.Kernel
                 {
                     foreach (Type dep in attr.DependencyTypes)
                     {
-                        Assert.IsTrue(typeof(IService).IsAssignableFrom(dep),
-                            $"{serviceType.Name} 声明的依赖 {dep.Name} 必须实现 IService");
+                        Assert.IsTrue(typeof(IService).IsAssignableFrom(dep) || dep.IsInterface,
+                            $"{serviceType.Name} 声明的依赖 {dep.Name} 必须实现 IService 或是 [ProviderHandlerHost] 自报的契约接口（Phase 2 注入互调）");
                     }
                 }
             }
@@ -239,7 +239,7 @@ namespace Service.Kernel
             var mustDeclare = new Dictionary<Type, bool>
             {
                 [typeof(Aud.AudioService)] = true,
-                [typeof(Res.ResourceService)] = true,
+                [typeof(Res.AssetService)] = true,
                 [typeof(Tim.TimerService)] = true,
                 [typeof(Loc.LocalizationService)] = true,
                 [typeof(Proc.ProcedureService)] = true,
@@ -248,8 +248,8 @@ namespace Service.Kernel
 
             foreach (var pair in mustDeclare)
             {
-                Assert.IsTrue(DeclaresDependency(pair.Key, typeof(Dbg.DebuggerService)),
-                    $"{pair.Key.Name} OnInit 注册调试面板，必须声明 [ServiceDependency(typeof(DebuggerService))]");
+                Assert.IsTrue(DeclaresDependency(pair.Key, typeof(Dbg.IDebuggerService)),
+                    $"{pair.Key.Name} OnInit 注册调试面板，必须声明 [ServiceDependency(typeof(IDebuggerService))]");
             }
         }
 

@@ -20,7 +20,7 @@ namespace Service.Save
     /// </summary>
     /// <remarks>
     /// 独立夹具：执行模型统一为 <c>[UnityTest]</c> 协程 + <c>WaitForTask</c>，避免与 <c>async Task</c> 用例混跑的线程归属与事件派发串扰。 <br />
-    /// 模板加载器注入假实现（绕开 ResourceService/EditMode 限制）；全流程真实文件 IO（<c>s_OverrideBasePath</c> 指向临时目录）； <br />
+    /// 模板加载器注入假实现（绕开 AssetService/EditMode 限制）；全流程真实文件 IO（<c>s_OverrideBasePath</c> 指向临时目录）； <br />
     /// 外观处理器经 <see cref="SetFacadeHandler"/> 反射注入（生成的 Handler 属性 setter 拒绝 null）。
     /// </remarks>
     public class SaveEntityIncrementalTests

@@ -46,7 +46,7 @@
 
 - 用例方法 `场景_条件_期望` 三段式（`RetainRelease_CycleAllocatesZeroBytes`）。
 
-- 命名空间用**短名**（`Service.Audio`、`Core.MemoryPool`、`Utility`），不带 `Moirai` 根；引用框架子命名空间类型**必须 `using` 别名**（`using Res = Moirai.Atropos.Resource;`），禁止裸限定名（会撞全局命名空间或 `UnityEngine` 类型，报 CS0246/CS0426）。
+- 命名空间用**短名**（`Service.Audio`、`Core.MemoryPool`、`Utility`），不带 `Moirai` 根；引用框架子命名空间类型**必须 `using` 别名**（`using Res = Moirai.Atropos.Asset;`），禁止裸限定名（会撞全局命名空间或 `UnityEngine` 类型，报 CS0246/CS0426）。
 
 - 测试树**镜像到模块档为止**：`Runtime/Services/<Module>/…` 的用例落 `Tests/EditorMode/Service/<Module>/`，`Runtime/Core/<功能>/…` 落 `Tests/EditorMode/Core/<功能>/`。服务层内部的**角色档（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）不在测试树里复刻**——本轮目录归位没有搬动 `Tests/**`，两侧同形只到模块/功能档，别按生产侧档名去测试树找目录。按 R3 分过服务档的模块连**模块档名**也不镜像：`Runtime/Services/Pooling/**` 的用例在 `Tests/EditorMode/Service/ObjectPool/`（测试树里没有 `Service/Pooling/` 这一目），池的用例按池找，不按模块名找。一个文件一个公开测试类；测试专用类型一律 `internal`。
 

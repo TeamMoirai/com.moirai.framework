@@ -1,8 +1,9 @@
 using System.Collections.Generic;
-using Core.SettingPersistence;
+using GameSettings;
 using Moirai.Atropos;
 using Moirai.Atropos.Localization;
 using NUnit.Framework;
+using Settings = Moirai.Atropos.GameSettings;
 
 namespace Service.Localization
 {
@@ -17,7 +18,7 @@ namespace Service.Localization
     public sealed class LocalizationPersistenceTests
     {
         private string _savedEditorLanguage;
-        private SettingHandler _savedSettingHandler;
+        private GameSettingHandler _savedSettingHandler;
         private ILocalizationService _savedL10nHandler;
         private RecordingSettingHandler _recording;
 
@@ -25,17 +26,17 @@ namespace Service.Localization
         public void SetUp()
         {
             _savedEditorLanguage = LocalizationServiceSettings.EditorLanguage;
-            _savedSettingHandler = SettingUtility.Internal_PeekHandler();
+            _savedSettingHandler = Settings.Internal_PeekHandler();
             _savedL10nHandler = LocalizationService.Internal_PeekHandler();
             _recording = new RecordingSettingHandler();
-            SettingUtility.Internal_UseHandler(_recording);
+            Settings.Internal_UseHandler(_recording);
         }
 
         [TearDown]
         public void TearDown()
         {
             LocalizationService.Internal_UseHandler(_savedL10nHandler);
-            SettingUtility.Internal_UseHandler(_savedSettingHandler);
+            Settings.Internal_UseHandler(_savedSettingHandler);
             LocalizationServiceSettings.EditorLanguage = _savedEditorLanguage;
         }
 

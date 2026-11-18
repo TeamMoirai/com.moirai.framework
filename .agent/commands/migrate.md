@@ -97,8 +97,8 @@ var instance = Instantiate(prefab);
 Destroy(instance);
 
 // 新代码
-var instance = await ResourceService.LoadGameObjectAsync("UI/MainMenu");
-// 生命周期绑定到 ResourceOwner 上时，租约随 Owner 一起回收；手动取用则显式 Release
+var instance = await AssetService.LoadGameObjectAsync("UI/MainMenu");
+// 生命周期绑定到 AssetOwner 上时，租约随 Owner 一起回收；手动取用则显式 Release
 ```
 
 ### 4. UI 系统迁移

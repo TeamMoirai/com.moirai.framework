@@ -36,9 +36,9 @@ com.moirai.framework/
 - **DebuggerService** - 调试工具
 - **InputService** - 输入系统
 - **LocalizationService** - 本地化
-- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 ResourceService）；C# 对象池在 Core/MemoryPool，不设服务
+- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 AssetService）；C# 对象池在 Core/MemoryPool，不设服务
 - **ProcedureService** - 流程管理
-- **ResourceService** - 资源管理
+- **AssetService** - 资源管理
 - **SaveService** - 存档系统
 - **SceneService** - 场景管理
 - **TimerService** - 定时器

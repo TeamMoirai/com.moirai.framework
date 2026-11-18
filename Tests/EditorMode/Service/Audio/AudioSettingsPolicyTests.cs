@@ -1,6 +1,7 @@
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
+using Settings = Moirai.Atropos.GameSettings;
 
 namespace Service.Audio
 {
@@ -80,7 +81,7 @@ namespace Service.Audio
         public void LegacyOutOfRangeStoredValue_IsClampedOnRead()
         {
             // 直接写一个越界值绕开政策的写入侧：读回来必须落回契约值域（Unity 后端此前不钳，这一格钉住统一后的口径）
-            SettingUtility.SetFloat(AudioSettingsPolicy.MasterVolumeKey, 10f);
+            Settings.SetFloat(AudioSettingsPolicy.MasterVolumeKey, 10f);
 
             Assert.AreEqual(1f, AudioSettingsPolicy.LoadVolume(AudioSettingsPolicy.MasterVolumeKey, 1f), 1e-6f,
                 "越界存量一律钳回 0..1");

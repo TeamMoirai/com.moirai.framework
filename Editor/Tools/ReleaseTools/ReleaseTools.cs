@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -278,7 +278,7 @@ namespace Moirai.Atropos
             buildParameters.FileNameStyle = EFileNameStyle.BundleName_HashName;
             buildParameters.BundledCopyOption = EBundledCopyOption.ClearAndCopyAll;
             buildParameters.BundledCopyParams = string.Empty;
-            buildParameters.BundleEncryptor = GetBundleEncryptorFromResourceServiceDriver();
+            buildParameters.BundleEncryptor = GetBundleEncryptorFromAssetServiceDriver();
             buildParameters.ClearBuildCacheFiles = false;
             buildParameters.UseAssetDependencyDB = true;
 
@@ -504,18 +504,18 @@ namespace Moirai.Atropos
         /// 读取资源服务配置中的默认包名。
         /// </summary>
         /// <remarks>
-        /// 必须与运行期同源（<see cref="ResourceServiceHandler.DefaultPackageName"/>）。
+        /// 必须与运行期同源（<see cref="AssetServiceHandler.DefaultPackageName"/>）。
         /// 此处曾经硬编码 "DefaultPackage"，而运行期默认是 "Default"：采集配置里没有该包时，
         /// YooAsset 会在 <c>BundleCollectorSetting.GetPackage</c> 抛 <c>Package not found</c>，构建直接失败。
         /// </remarks>
         private static string GetDefaultPackageName()
         {
-            IResourceService handler = ResourceServiceSettings.ResourceServiceHandler;
+            IAssetService handler = AssetServiceSettings.AssetServiceHandler;
             string packageName = handler != null ? handler.DefaultPackageName : null;
             if (string.IsNullOrEmpty(packageName))
             {
                 throw new UnityEditor.Build.BuildFailedException(
-                    "无法确定 YooAsset 包名：ResourceServiceSettings 未配置资源处理器，或默认包名为空。" +
+                    "无法确定 YooAsset 包名：AssetServiceSettings 未配置资源处理器，或默认包名为空。" +
                     "请在「[服务]资源设置」中指定资源包名后重试。");
             }
 
@@ -530,19 +530,19 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 从 ResourceServiceHandler 获取对应的加密服务。
+        /// 从 AssetServiceHandler 获取对应的加密服务。
         /// </summary>
-        private static IBundleEncryptor GetBundleEncryptorFromResourceServiceDriver()
+        private static IBundleEncryptor GetBundleEncryptorFromAssetServiceDriver()
         {
-            var handler = ResourceServiceSettings.ResourceServiceHandler;
+            var handler = AssetServiceSettings.AssetServiceHandler;
             var encryptorHandler = handler is YooAssetHandler yooHandler ? yooHandler.EncryptorHandler : null;
             if (encryptorHandler == null)
             {
-                Debug.LogWarning("[BuildInternal] EncryptorHandler not configured in ResourceServiceSettings");
+                Debug.LogWarning("[BuildInternal] EncryptorHandler not configured in AssetServiceSettings");
                 return null;
             }
 
-            Debug.Log($"[BuildInternal] Use EncryptorHandler from ResourceServiceSettings: {encryptorHandler?.GetType().Name ?? "None"}");
+            Debug.Log($"[BuildInternal] Use EncryptorHandler from AssetServiceSettings: {encryptorHandler?.GetType().Name ?? "None"}");
 
             return encryptorHandler?.CreateEncryptor();
         }

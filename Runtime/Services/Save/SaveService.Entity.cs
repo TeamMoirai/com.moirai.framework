@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Save
     /// <see cref="InstantiatePersistentAsync"/> 登记， <br />
     /// 销毁经 <see cref="DestroyPersistent"/> 标记；<see cref="SaveEntitiesAsync"/> 写入实体表与差分块， <br />
     /// <see cref="RestoreEntitiesAsync"/> 按档案状态整体重建实体（DestroyUnwanted → SpawnMissing → RestoreAll）。
-    /// 预制体须在 <see cref="SaveServiceSettings.PrefabRegistry"/> 登记（稳定键 → ResourceService 定位串）； <br />
+    /// 预制体须在 <see cref="SaveServiceSettings.PrefabRegistry"/> 登记（稳定键 → AssetService 定位串）； <br />
     /// 实体数据块与预制体模板基准差分后仅写变动字段（恢复 = 实例化模板默认值 + 应用差分）。 <br />
     /// 实体块（<c>entity:</c> 前缀）由本分部独占管理，组件存取 API（<c>SaveComponentsAsync</c>/<c>LoadComponentsAsync</c>）跳过。
     /// </remarks>

@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 
 namespace Moirai.Atropos.UGUIGenerator
@@ -88,8 +88,8 @@ namespace Moirai.Atropos.UGUIGenerator
         private static string GetAssetBundlePath(string assetPath, UIScriptGenerateData scriptGenerateData, string defaultPath)
         {
             // 默认包的寻址位由跟着后端走的探针自报（读不到即没开），框架侧只留这条判定
-            IResourceService handler = ResourceServiceSettings.ResourceServiceHandler;
-            if (ResourcePackageBridge.DefaultPackageIsAddressable(handler))
+            IAssetService handler = AssetServiceSettings.AssetServiceHandler;
+            if (AssetPackageBridge.DefaultPackageIsAddressable(handler))
             {
                 return defaultPath;
             }

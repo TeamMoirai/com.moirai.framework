@@ -14,7 +14,7 @@ namespace Service.UI
     /// ② <c>Visible</c> / <c>Depth</c> / <c>Interactable</c> 以<b>意图</b>为准——同值二次赋值不再重复调钩子。旧实现是拿 <c>canvas.sortingOrder</c> 与实际 Unity layer 相比， <br />
     /// 那是后端内部事实而非契约（改判 R1 ①），差异另在 <c>UGUIWindowTests</c> 里按现状登记； <br />
     /// ③ 排序刷新（<c>_OnSortDepth</c> / <c>_isSortingOrderDirty</c>）仍由基类决策，脏位在 <c>Visible</c> 转真时结算。 <br />
-    /// 探针窗口覆写钩子并记录调用序，夹具不建 Canvas、不碰 <c>ResourceService</c>：本文件只测「基类在何时叫了什么钩子」，面板落地细节归 <c>UGUIWindowTests</c>。
+    /// 探针窗口覆写钩子并记录调用序，夹具不建 Canvas、不碰 <c>AssetService</c>：本文件只测「基类在何时叫了什么钩子」，面板落地细节归 <c>UGUIWindowTests</c>。
     /// </remarks>
     [TestFixture]
     public sealed class UIWindowPanelHookTests

@@ -1,6 +1,6 @@
 using System;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Localization
@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Localization
 #endif
     {
         // 当前语言图片资源的租约：持有引用防止资源在显示期间被周期性 UnloadUnusedAssets 回收
-        private ResourceAssetLease<UObject> _currentLease;
+        private AssetLease<UObject> _currentLease;
         // 加载版本号：语言快速连续切换或销毁时丢弃过期的异步加载结果
         private int _loadVersion;
 
@@ -102,7 +102,7 @@ namespace Moirai.Atropos.Localization
         private async UniTaskVoid ApplyFromResource(string location)
         {
             var version = ++_loadVersion;
-            var lease = await ResourceService.LoadLeaseAsync<UObject>(location);
+            var lease = await AssetService.LoadLeaseAsync<UObject>(location);
 
             // 加载期间发生了更新的切换或已销毁，丢弃过期结果
             if (version != _loadVersion)

@@ -1,7 +1,7 @@
 ﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.GameMain.UI;
 
 namespace Moirai.GameMain
@@ -14,7 +14,7 @@ namespace Moirai.GameMain
     {
         public override bool UseNativeDialog { get; }
 
-        private IResourceDownloader _downloader;
+        private IAssetDownloader _downloader;
         private float _lastUpdateDownloadedSize;
         private float _totalSpeed;
         private int _speedSampleCount;
@@ -45,7 +45,7 @@ namespace Moirai.GameMain
 
         private async UniTaskVoid BeginDownload()
         {
-            _downloader = ResourceService.CreateResourceDownloader();
+            _downloader = AssetService.CreateAssetDownloader();
 
             _downloader.BeginDownload();
             while (!_downloader.IsDone)

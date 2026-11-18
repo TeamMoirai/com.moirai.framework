@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 using UnityEngine.UI;
 using UObject = UnityEngine.Object;
@@ -53,7 +53,7 @@ namespace Moirai.Atropos.UI
         {
             if (!fromResources)
             {
-                return BindPanel(ResourceService.LoadGameObject(assetLocation, parent: UIService.UIRoot));
+                return BindPanel(AssetService.LoadGameObject(assetLocation, parent: UIService.UIRoot));
             }
 
             return BindPanel(UObject.Instantiate(Resources.Load<GameObject>(assetLocation), UIService.UIRoot));
@@ -68,7 +68,7 @@ namespace Moirai.Atropos.UI
                 return LoadPanel(assetLocation, true);
             }
 
-            var uiInstance = await ResourceService.LoadGameObjectAsync(assetLocation, parent: UIService.UIRoot, cancellationToken: ct);
+            var uiInstance = await AssetService.LoadGameObjectAsync(assetLocation, parent: UIService.UIRoot, cancellationToken: ct);
             return BindPanel(uiInstance);
         }
 

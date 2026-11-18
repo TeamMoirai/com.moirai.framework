@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Moirai.Atropos;
 using Moirai.Atropos.ConfigTable;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
@@ -208,7 +208,7 @@ namespace Service.ConfigTable
         /// </summary>
         /// <remarks>配置表后端（游戏侧 Luban 处理器）经资源系统装载表字节；依赖缺失时本地化先于资源初始化读表即失败，并停在半初始化态持续报 NRE。</remarks>
         [Test]
-        public void Service_DeclaresResourceDependency()
+        public void Service_DeclaresAssetDependency()
         {
             ServiceDependencyAttribute[] declared = typeof(ConfigTableService)
                 .GetCustomAttributes(typeof(ServiceDependencyAttribute), false)
@@ -218,8 +218,8 @@ namespace Service.ConfigTable
             Assert.IsNotEmpty(declared, "ConfigTableService 必须声明服务依赖（首读表依赖资源系统就绪）。");
 
             Type[] dependencies = declared.SelectMany(attribute => attribute.DependencyTypes).ToArray();
-            CollectionAssert.Contains(dependencies, typeof(ResourceService),
-                "配置表首读表经资源系统装载，ResourceService 依赖必须显式声明。");
+            CollectionAssert.Contains(dependencies, typeof(IAssetService),
+                "配置表首读表经资源系统装载，IAssetService 契约依赖必须显式声明（Phase 2 注入互调）。");
         }
 
         [Test]

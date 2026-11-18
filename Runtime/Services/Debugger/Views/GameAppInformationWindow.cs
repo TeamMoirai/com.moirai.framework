@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Debugger
         private void BuildSettingStore(VisualElement root)
         {
             VisualElement card = AddSection(root, "SETTING STORE");
-            int count = SettingUtility.Count;
+            int count = GameSettings.Count;
             if (count < 0)
             {
                 card.Add(DebuggerUI.CreateHintLabel("<Unknown>"));
@@ -86,18 +86,18 @@ namespace Moirai.Atropos.Debugger
             AddRow(card, "Count", count.ToString());
             if (count > 0)
             {
-                string[] settingNames = SettingUtility.GetAllSettingNames();
+                string[] settingNames = GameSettings.GetAllSettingNames();
                 for (int i = 0; i < settingNames.Length; i++)
                 {
-                    AddRow(card, settingNames[i], SettingUtility.GetString(settingNames[i]));
+                    AddRow(card, settingNames[i], GameSettings.GetString(settingNames[i]));
                 }
             }
 
             VisualElement buttonRow = DebuggerUI.CreateToolbarRow();
-            buttonRow.Add(DebuggerUI.CreateActionButton("Save Settings", () => SettingUtility.Save(), DebuggerUI.EButtonStyle.Positive));
+            buttonRow.Add(DebuggerUI.CreateActionButton("Save Settings", () => GameSettings.Save(), DebuggerUI.EButtonStyle.Positive));
             buttonRow.Add(DebuggerUI.CreateActionButton("Remove All Settings", () =>
             {
-                SettingUtility.RemoveAllSettings();
+                GameSettings.RemoveAllSettings();
                 Rebuild();
             }, DebuggerUI.EButtonStyle.Danger));
             card.Add(buttonRow);

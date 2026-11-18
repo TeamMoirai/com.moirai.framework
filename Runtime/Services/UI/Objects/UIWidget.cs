@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
@@ -77,7 +77,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         public bool CreateByPath(string resPath, UIBase parentUI, Transform parentTrans = null, bool visible = true)
         {
-            GameObject goInst = ResourceService.LoadGameObject(resPath, parent: parentTrans);
+            GameObject goInst = AssetService.LoadGameObject(resPath, parent: parentTrans);
             if (goInst == null)
             {
                 return false;

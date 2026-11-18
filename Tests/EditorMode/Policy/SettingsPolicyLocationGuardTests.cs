@@ -8,7 +8,7 @@ using UnityEditor.PackageManager;
 namespace Policy
 {
     /// <summary>
-    /// 设置读写落点守卫：设置键名的拼装只允许出现在对应模块的政策文件里，后端不碰 <c>SettingUtility</c>。
+    /// 设置读写落点守卫：设置键名的拼装只允许出现在对应模块的政策文件里，后端不碰 <c>GameSettings</c>。
     /// </summary>
     /// <remarks>
     /// 两条判据各管一个失效面：键名规则按<strong>键名空间</strong>判——轨级音量键的第二份拼装藏在 <c>Models/AudioGroupConfig.cs</c> 这类不叫 <c>*Handler.cs</c> 的文件里，
@@ -20,11 +20,11 @@ namespace Policy
     [TestFixture]
     public sealed class SettingsPolicyLocationGuardTests
     {
-        // 设置模块自己的后端文件：它们本来就该碰 SettingUtility
+        // 设置模块自己的后端文件：它们本来就该碰 GameSettings
         private static readonly string[] SettingsBackendFiles =
         {
-            "SettingHandler.cs", "SettingUtility.cs", "DefaultSettingHandler.cs",
-            "DefaultSettingHandler.Serializer.cs", "DefaultSettingHandler.Settings.cs", "PlayerPrefsSettingHandler.cs"
+            "GameSettingHandler.cs", "GameSettings.cs", "PersistentSettingHandler.cs",
+            "PersistentSettingHandler.Serializer.cs", "PersistentSettingHandler.Settings.cs", "PlayerPrefsSettingHandler.cs"
         };
 
         // 键名空间规则：一条键只允许在一个政策文件里被拼出来
@@ -61,7 +61,7 @@ namespace Policy
         {
             string[] offenders = Directory.GetFiles(ResolveRuntimeRoot(), "*Handler.cs", SearchOption.AllDirectories)
                 .Where(f => !SettingsBackendFiles.Contains(Path.GetFileName(f)))
-                .Where(f => StripLineComments(File.ReadAllText(f)).Contains("SettingUtility.", StringComparison.Ordinal))
+                .Where(f => StripLineComments(File.ReadAllText(f)).Contains("GameSettings.", StringComparison.Ordinal))
                 .Select(Path.GetFileName)
                 .ToArray();
 

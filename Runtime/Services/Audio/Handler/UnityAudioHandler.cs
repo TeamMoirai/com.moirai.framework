@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
@@ -463,7 +463,7 @@ namespace Moirai.Atropos.Audio
 
             // Clip 缓存：容量/TTL/默认策略来自 Settings，租约来源经窄接缝转发到资源后端
             _clipCache.Configure(
-                new ResourceClipLeaseSource(),
+                new AssetClipLeaseSource(),
                 AudioServiceSettings.ClipCacheCapacity,
                 AudioServiceSettings.ClipCacheTtl,
                 AudioServiceSettings.DefaultClipCachePolicy);

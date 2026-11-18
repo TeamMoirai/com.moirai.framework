@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos.Scene
@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Scene
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(ISceneService), typeof(DefaultSceneHandler))]
-    [ServiceDependency(typeof(ResourceService))]
+    [ServiceDependency(typeof(AssetService))]
     public partial class SceneService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]

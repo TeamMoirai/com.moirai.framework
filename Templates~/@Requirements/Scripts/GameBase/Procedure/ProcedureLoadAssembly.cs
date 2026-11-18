@@ -4,7 +4,7 @@ using System.IO;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 #if ENABLE_HYBRIDCLR
 using HybridCLR;
@@ -61,7 +61,7 @@ namespace Moirai.GameMain
                 _loadMetadataAssemblyComplete = true;
             }
 
-            if (!UpdateSettings.Enable || ResourceService.PlayMode == EResourcePlayMode.EditorSimulate)
+            if (!UpdateSettings.Enable || AssetService.PlayMode == EAssetPlayMode.EditorSimulate)
             {
                 _mainLogicAssembly = GetMainLogicAssembly();
             }
@@ -83,7 +83,7 @@ namespace Moirai.GameMain
 
                         LogUtility.Debug("LoadAsset: [ {0} ]", assetLocation);
                         _loadAssetCount++;
-                        var lease = await ResourceService.LoadLeaseAsync<TextAsset>(assetLocation);
+                        var lease = await AssetService.LoadLeaseAsync<TextAsset>(assetLocation);
                         try
                         {
                             LoadAssetSuccess(lease.Asset);
@@ -250,7 +250,7 @@ namespace Moirai.GameMain
 
                 LogUtility.Debug("LoadMetadataAsset: [ {0} ]", assetLocation);
                 _loadMetadataAssetCount++;
-                var metaLease = ResourceService.LoadLease<TextAsset>(assetLocation);
+                var metaLease = AssetService.LoadLease<TextAsset>(assetLocation);
                 try
                 {
                     LoadMetadataAssetSuccess(metaLease.Asset);

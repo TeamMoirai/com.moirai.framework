@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.Atropos.Scene;
 using NUnit.Framework;
 using UnityEngine;
@@ -29,7 +29,7 @@ namespace Service.Scene
         /// <remarks>
         /// 推进绑在 <see cref="IsDone"/> 上（等待循环每轮恰好读一次它），使回报序列与跑了多少帧、也与一轮里 <see cref="Progress"/> 被读几次都无关。
         /// </remarks>
-        private sealed class ScriptedSceneHandle : ResourceSceneHandle
+        private sealed class ScriptedSceneHandle : AssetSceneHandle
         {
             private readonly float[] _script;
             private int _polls;
@@ -56,7 +56,7 @@ namespace Service.Scene
             public override UnityEngine.SceneManagement.Scene SceneObject => default;
             public override bool UnSuspend() => true;
             public override bool ActivateScene() => true;
-            public override IResourceOperation UnloadAsync() => null;
+            public override IAssetOperation UnloadAsync() => null;
             public override void Release() { }
         }
 

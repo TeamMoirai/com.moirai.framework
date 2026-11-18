@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Sirenix.OdinInspector;
 using UnityEditor;
 using UnityEngine;

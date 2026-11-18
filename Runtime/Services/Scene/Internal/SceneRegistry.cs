@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos.Scene
@@ -73,7 +73,7 @@ namespace Moirai.Atropos.Scene
         internal readonly struct SubSceneEntry
         {
             /// <summary>资源系统场景句柄。</summary>
-            internal readonly ResourceSceneHandle Handle;
+            internal readonly AssetSceneHandle Handle;
 
             /// <summary>归一化场景短名（加载完成前为空串）。</summary>
             internal readonly string SceneName;
@@ -84,7 +84,7 @@ namespace Moirai.Atropos.Scene
             /// <summary>
             /// 创建子场景登记项。
             /// </summary>
-            internal SubSceneEntry(ResourceSceneHandle handle, string sceneName, ESubSceneState state)
+            internal SubSceneEntry(AssetSceneHandle handle, string sceneName, ESubSceneState state)
             {
                 Handle = handle;
                 SceneName = sceneName;
@@ -107,12 +107,12 @@ namespace Moirai.Atropos.Scene
             internal readonly string SceneName;
 
             /// <summary>资源系统场景句柄。</summary>
-            internal readonly ResourceSceneHandle Handle;
+            internal readonly AssetSceneHandle Handle;
 
             /// <summary>
             /// 创建待执行卸载解析结果。
             /// </summary>
-            internal PendingUnload(string location, string sceneName, ResourceSceneHandle handle)
+            internal PendingUnload(string location, string sceneName, AssetSceneHandle handle)
             {
                 Location = location;
                 SceneName = sceneName;
@@ -122,8 +122,8 @@ namespace Moirai.Atropos.Scene
 
         private string _currentMainSceneName = string.Empty;
         private string _currentMainSceneLocation = string.Empty;
-        private ResourceSceneHandle _mainSceneHandle;
-        private ResourceSceneHandle _mainSceneLoadingHandle;
+        private AssetSceneHandle _mainSceneHandle;
+        private AssetSceneHandle _mainSceneLoadingHandle;
         private string _mainSceneLoadingLocation = string.Empty;
 
         private readonly Dictionary<string, SubSceneEntry> _subScenes = new Dictionary<string, SubSceneEntry>();
@@ -137,10 +137,10 @@ namespace Moirai.Atropos.Scene
         internal string CurrentMainSceneLocation => _currentMainSceneLocation;
 
         /// <summary>当前主场景句柄（Single 模式加载完成，被替换时释放引用计数）。</summary>
-        internal ResourceSceneHandle MainSceneHandle => _mainSceneHandle;
+        internal AssetSceneHandle MainSceneHandle => _mainSceneHandle;
 
         /// <summary>主场景在途加载句柄（Single 发起后、收尾前；含挂起待激活）。非空即表示主场景加载互斥中。</summary>
-        internal ResourceSceneHandle MainLoadingHandle => _mainSceneLoadingHandle;
+        internal AssetSceneHandle MainLoadingHandle => _mainSceneLoadingHandle;
 
         /// <summary>主场景在途加载的资源地址。</summary>
         internal string MainLoadingLocation => _mainSceneLoadingLocation;
@@ -223,7 +223,7 @@ namespace Moirai.Atropos.Scene
         /// <summary>
         /// 登记主场景在途加载（Single 发起后调用）。
         /// </summary>
-        internal void RegisterMainInFlight(string location, ResourceSceneHandle handle)
+        internal void RegisterMainInFlight(string location, AssetSceneHandle handle)
         {
             _mainSceneLoadingHandle = handle;
             _mainSceneLoadingLocation = location;
@@ -232,7 +232,7 @@ namespace Moirai.Atropos.Scene
         /// <summary>
         /// 前置登记子场景在途加载（Additive 发起后调用；挂起加载的场景在 UnSuspend 之后才会完成加载）。
         /// </summary>
-        internal void RegisterSubInFlight(string location, ResourceSceneHandle handle)
+        internal void RegisterSubInFlight(string location, AssetSceneHandle handle)
         {
             _subScenes[location] = new SubSceneEntry(handle, string.Empty, ESubSceneState.Loading);
         }
@@ -265,7 +265,7 @@ namespace Moirai.Atropos.Scene
         /// 完成主场景加载——在途迁入已完成，替换当前主场景句柄。
         /// </summary>
         /// <returns>被替换的前一个主场景句柄（调用方负责释放引用计数）；无则返回 <c>null</c>。</returns>
-        internal ResourceSceneHandle CompleteMainLoad(string location, string sceneName, ResourceSceneHandle handle)
+        internal AssetSceneHandle CompleteMainLoad(string location, string sceneName, AssetSceneHandle handle)
         {
             AbandonLoad(location, LoadSceneMode.Single);
 
@@ -471,7 +471,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="mainLoadingHandle">主场景在途句柄（调用方负责释放）。</param>
         /// <param name="mainHandle">主场景已完成句柄（调用方负责释放）。</param>
         /// <returns>全部子场景登记项快照（调用方按状态决定卸载或释放）。</returns>
-        internal List<SubSceneEntry> Shutdown(out ResourceSceneHandle mainLoadingHandle, out ResourceSceneHandle mainHandle)
+        internal List<SubSceneEntry> Shutdown(out AssetSceneHandle mainLoadingHandle, out AssetSceneHandle mainHandle)
         {
             mainLoadingHandle = _mainSceneLoadingHandle;
             mainHandle = _mainSceneHandle;

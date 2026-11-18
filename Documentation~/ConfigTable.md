@@ -84,7 +84,7 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 
 - 生成代码为转表产物，手动修改会在下次转表时被覆盖；定制逻辑应写在业务侧或修改 `Templates` 模板
 - 懒加载把"表读不到"的报错时机从启动期移到首次访问：缺 `.bytes`/`.json` 或资源系统未就绪时，异常在那张表第一次被取时才抛（`Config asset is missing` / `not loadable yet`），启动期不再一次性暴露所有配表问题。排查时按访问顺序看，不要按转表顺序看
-- 配置数据按 PRELOAD 预加载标签打包，运行时经 `ResourceService` 加载，需确保资源系统已就绪。收集规则是递归的，`Table/<语言码>/` 同样继承 PRELOAD——按语言分份省下的是解析与词条常驻，资产字节仍在启动期全部解码；要连字节一起按语言走，需要先把这些子目录摘出 PRELOAD 并给按语言取列补异步实现
+- 配置数据按 PRELOAD 预加载标签打包，运行时经 `AssetService` 加载，需确保资源系统已就绪。收集规则是递归的，`Table/<语言码>/` 同样继承 PRELOAD——按语言分份省下的是解析与词条常驻，资产字节仍在启动期全部解码；要连字节一起按语言走，需要先把这些子目录摘出 PRELOAD 并给按语言取列补异步实现
 - 未安装游戏侧处理器时 `ConfigTableService.GetAllLocalizedStrings()` 由 `DefaultConfigTableHandler` 返回空结果并记录错误，[Localization](Localization.md) 服务会因此加载失败
 - 修改 `m_ClientDataOutPutPath` / `m_ClientCodeOutPutPath` 后必须手动执行「更新配置路径」，否则 `config.ini` 仍指向旧目录
 - 配置根目录位于 Assets 内时会自动加 `~` 后缀（如 `Assets/Config~`），Unity 不会导入该目录，转表脚本仍可正常访问
