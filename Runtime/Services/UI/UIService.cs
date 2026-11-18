@@ -23,7 +23,7 @@ namespace Moirai.Atropos.UI
     /// 关停按自报档位升序逐轨收口，uGUI 最后收。线程契约：仅主线程；不声明 <c>[ProviderHandlerHost]</c>，<see cref="IsValid"/> 与归零门手写在本文件。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(DebuggerService), typeof(AssetService), typeof(TimerService), typeof(InputService))]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(ITimerService), typeof(IInputService))]
     public sealed partial class UIService : ServiceBase, IServiceTickable
     {
         #region 处理器持有 [HANDLER HOSTING]

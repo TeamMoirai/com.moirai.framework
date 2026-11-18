@@ -14,7 +14,7 @@ namespace Moirai.Atropos
     /// 重复注册自动销毁 GameObject（同契约幂等）。
     /// </remarks>
     /// <typeparam name="TScope">作用域标记类型。</typeparam>
-    public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle
+    public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle, IServiceContextAware
         where TScope : IServiceScope, new()
     {
         /// <summary>本实例是否已完成作用域注册——未注册的重复副本在 OnDestroy 中不得触碰注册表。</summary>
@@ -28,6 +28,15 @@ namespace Moirai.Atropos
 
         /// <summary>所属作用域种类。</summary>
         public virtual EServiceScopeKind Scope => ScopeKindCache<TScope>.Kind;
+
+        #region 上下文注入 [CONTEXT INJECTION]
+
+        /// <summary>服务上下文（容器在注册入图时经 <see cref="IServiceContextAware"/> 注入；派生在 <see cref="OnInit"/> 中按契约接口解析依赖）。</summary>
+        protected IServiceContext Context { get; private set; }
+
+        void IServiceContextAware.SetContext(IServiceContext context) => Context = context;
+
+        #endregion 上下文注入 [CONTEXT INJECTION]
 
         #region 生命周期 [LIFECYCLE]
 

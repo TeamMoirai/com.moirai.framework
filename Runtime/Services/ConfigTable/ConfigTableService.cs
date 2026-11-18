@@ -15,7 +15,7 @@ namespace Moirai.Atropos.ConfigTable
     /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成，线程安全懒加载。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(AssetService))]
+    [ServiceDependency(typeof(IAssetService))]
     [ProviderHandlerHost(typeof(IConfigTableService), typeof(DefaultConfigTableHandler))]
     public partial class ConfigTableService : ServiceBase
     {

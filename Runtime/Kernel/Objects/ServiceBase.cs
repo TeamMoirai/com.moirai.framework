@@ -9,8 +9,7 @@ namespace Moirai.Atropos
     /// 依赖通过 <c>[ServiceDependency]</c> 特性声明，世界初始化时按依赖图拓扑排序驱动 <see cref="OnInit"/>。 <br />
     /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。
     /// </remarks>
-    public abstract class ServiceBase : IService, IServiceLifecycle
-    {
+    public abstract class ServiceBase : IService, IServiceLifecycle, IServiceContextAware {
         #region 属性 [PROPERTIES]
 
         /// <summary>轮询优先级（降序：数值越大越先 Tick，同值按注册先后）。</summary>
@@ -31,6 +30,15 @@ namespace Moirai.Atropos
         public abstract void OnShutdown();
 
         #endregion
+
+        #region 上下文注入 [CONTEXT INJECTION]
+
+        /// <summary>服务上下文（容器在注册入图时经 <see cref="IServiceContextAware"/> 注入；派生在 <see cref="OnInit"/> 中按契约接口解析依赖）。</summary>
+        protected IServiceContext Context { get; private set; }
+
+        void IServiceContextAware.SetContext(IServiceContext context) => Context = context;
+
+        #endregion 上下文注入 [CONTEXT INJECTION]
 
         #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
 
