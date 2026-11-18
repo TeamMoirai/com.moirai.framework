@@ -157,10 +157,10 @@ namespace Utility
 
         #endregion
 
-        #region 异常隔离 [Exception Isolation]
+        #region 异常分级 [Exception Policy]
 
         [Test]
-        public void Pump_ExceptionInAction_IsolatedAndSubsequentActionsStillRun()
+        public void Pump_ExceptionInAction_RethrowsInEditor_NextPumpStillRunsSubsequentActions()
         {
             // Pump 异常路径经 LogUtility 的 Fatal(ex) → Debug.LogException（LogType.Exception）
             UtfLogExpect.Exception();
@@ -169,13 +169,13 @@ namespace Utility
             MainThreadDispatcher.Post(() => throw new InvalidOperationException("boom"));
             MainThreadDispatcher.Post(() => afterCount++);
 
-            // LogUtility 的 Error 在编辑器中可能耗尽单帧预算，按消费方帧循环语义排空
-            for (int guard = 0; guard < 10 && MainThreadDispatcher.PendingCount > 0; guard++)
-            {
-                MainThreadDispatcher.Pump();
-            }
+            // 编辑器（开发档）fail-fast：Fatal 后上抛中止本次泵——与 PlayerLoopDriver.DriveUpdate 的订户策略同构
+            Assert.Throws<InvalidOperationException>(() => MainThreadDispatcher.Pump());
+            Assert.AreEqual(0, afterCount, "上抛中止本次泵，后续任务推迟到下次泵");
 
-            Assert.AreEqual(1, afterCount, "单个任务异常不应毒化后续任务");
+            // 毒任务已随上抛消费（先出队后执行），不阻塞后续泵
+            MainThreadDispatcher.Pump();
+            Assert.AreEqual(1, afterCount, "后续任务在下次泵照常执行");
             Assert.AreEqual(0, MainThreadDispatcher.PendingCount);
         }
 
@@ -198,6 +198,14 @@ namespace Utility
             // 主线程快速路径同步执行，异常直接抛给调用方（语义与 Send 文档一致）
             Assert.Throws<InvalidOperationException>(() =>
                 MainThreadDispatcher.Send(() => throw new InvalidOperationException("direct")));
+        }
+
+        [Test]
+        public void Send_TState_OnMainThread_ExceptionPropagatesToCaller()
+        {
+            // 状态化 Send 的主线程快速路径与 Send(Action) 同语义：异常直接抛给调用方
+            Assert.Throws<InvalidOperationException>(() =>
+                MainThreadDispatcher.Send<int>(1, _ => throw new InvalidOperationException("direct")));
         }
 
         #endregion
@@ -288,6 +296,32 @@ namespace Utility
             Assert.AreEqual(1, executed);
         }
 
+        [Test]
+        public void Send_TState_OnMainThread_ExecutesImmediatelyWithoutQueueing()
+        {
+            string received = null;
+            MainThreadDispatcher.Send("payload-42", state => received = state);
+
+            Assert.AreEqual("payload-42", received, "主线程快速路径应同步交付状态");
+            Assert.AreEqual(0, MainThreadDispatcher.PendingCount, "不应入队");
+        }
+
+        [Test]
+        public void Send_TState_FromBackgroundThread_FallsBackToQueue()
+        {
+            int executed = 0;
+            int delivered = 0;
+            var worker = Task.Run(() => MainThreadDispatcher.Send(42, state => { executed++; delivered = state; }));
+
+            Assert.IsTrue(worker.Wait(2000));
+            Assert.AreEqual(0, executed, "后台线程 Send 不应同步执行");
+            Assert.AreEqual(1, MainThreadDispatcher.PendingCount);
+
+            MainThreadDispatcher.Pump();
+            Assert.AreEqual(1, executed, "泵后应恰好执行一次");
+            Assert.AreEqual(42, delivered, "排队路径必须原样交付状态");
+        }
+
         #endregion
 
         #region 参数校验 [Argument Validation]
@@ -305,6 +339,12 @@ namespace Utility
         }
 
         [Test]
+        public void Send_TState_NullAction_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() => MainThreadDispatcher.Send<int>(1, null));
+        }
+
+        [Test]
         public void PostAsync_NullFunc_Throws()
         {
             Assert.Throws<ArgumentNullException>(() => MainThreadDispatcher.PostAsync((Func<int>)null));
@@ -315,20 +355,36 @@ namespace Utility
         #region 关闭语义 [Shutdown Semantics]
 
         [Test]
-        public void BeginShutdown_DropsPendingAndLogsCount()
+        public void BeginShutdown_DrainsPendingOnMainThread_ActionsExecuteInsteadOfDropped()
+        {
+            // 排水中的毒任务经 Fatal 记录后收敛，不截断停机收尾
+            UtfLogExpect.Exception();
+
+            int executed = 0;
+            MainThreadDispatcher.Post(() => executed++);
+            MainThreadDispatcher.Post(() => throw new InvalidOperationException("drain boom"));
+            MainThreadDispatcher.Post(() => executed++);
+
+            MainThreadDispatcher.BeginShutdown();
+
+            Assert.AreEqual(2, executed, "主线程停机应优雅排水：已入队任务内联执行而非丢弃（毒任务不截断排水）");
+            Assert.AreEqual(0, MainThreadDispatcher.PendingCount);
+            Assert.AreEqual(0, CountLogCaptured(ELogLevel.Warning, "pending action(s) dropped"), "主线程停机不应有丢弃告警");
+        }
+
+        [Test]
+        public void BeginShutdown_FromBackgroundThread_DropsPendingWithWarning()
         {
             UtfLogExpect.Warning();
 
             int executed = 0;
             MainThreadDispatcher.Post(() => executed++);
-            MainThreadDispatcher.Post(() => executed++);
 
-            MainThreadDispatcher.BeginShutdown();
+            // 防御路径：非主线程停机无法安全内联执行，丢弃并告警（正常生命周期不经过）
+            Task.Run(() => MainThreadDispatcher.BeginShutdown()).Wait(2000);
 
-            Assert.AreEqual(0, executed, "积压任务应被丢弃而非执行");
-            Assert.AreEqual(0, MainThreadDispatcher.PendingCount);
-            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "2 pending action(s) dropped"),
-                "丢弃计数告警应恰好出现一次（MainThreadDispatcher shutdown: 2 pending action(s) dropped）");
+            Assert.AreEqual(0, executed, "非主线程停机不能内联执行积压任务");
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Warning, "pending action(s) dropped"), "丢弃应告警一次");
         }
 
         [Test]

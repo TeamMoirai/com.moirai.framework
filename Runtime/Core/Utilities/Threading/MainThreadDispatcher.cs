@@ -16,12 +16,13 @@ namespace Moirai.Atropos
     /// <remarks>
     /// 任务存于无锁队列、由主线程泵按序执行（播放模式 <see cref="Update"/>，编辑模式 <see cref="UnityEditor.EditorApplication.update"/>）； <br />
     /// 静态 <c>Post/Send</c>（含 <see cref="Post(IEnumerator)"/>，依赖 <c>StartCoroutine</c>、仅播放模式）可任意线程调用，入队不触碰 Unity API，任务在主线程串行执行、 <br />
-    /// 异常隔离记录；新代码一律使用静态 API。 <br />
+    /// 异常分级：开发档 Fatal 后上抛中止本次泵（fail-fast），发布档隔离续跑并对连续失败告警；新代码一律使用静态 API。 <br />
     /// 可等待 API（<c>PostAsync/SendAsync</c>）基于池化 <see cref="AutoResetUniTaskCompletionSource{T}"/>：稳态每次 2 次堆分配、主线程快速路径零分配； <br />
     /// 停机（<see cref="BeginShutdown"/>）统一取消挂起任务，等待方收到携带调用方令牌的 <see cref="OperationCanceledException"/>，不会永久挂起。
     /// <c>CancellationToken</c> 取消的是「等待」：任务未执行则跳过、执行中则运行完毕并放弃结果，任务自身抛 OCE 亦按取消处理；泵每帧受 <see cref="MAX_TIME_BUDGET_MS"/> 预算约束。
+    /// 停机在主线程走优雅排水：已入队任务内联执行完毕（副作用照常完成，如存档落盘回执），等待方仍按取消终结，见 <see cref="BeginShutdown"/>。
     /// 队列无上限、入队永不阻塞或拒绝（停机除外），积压超 <see cref="BACKLOG_WARN_THRESHOLD"/> 仅告警，调用方须自行限流；实例在 <c>BeforeSceneLoad</c> 于主线程物化， <br />
-    /// 勿在此之前启动访问本类的后台线程。
+    /// 勿在此之前启动访问本类的后台线程。编辑器暂停（<c>isPaused</c>）期间实例 <c>Update</c> 停摆、泵不运行——后台任务与等待方冻结至解除暂停。
     /// </remarks>
     public class MainThreadDispatcher : SingletonMono_Persistent<MainThreadDispatcher>
     {
@@ -38,11 +39,27 @@ namespace Moirai.Atropos
         private const int BACKLOG_CLEAR_THRESHOLD = 512;
 
         /// <summary>积压采样掩码：每 256 次入队采样一次队列深度（ConcurrentQueue.Count 非零成本，避免高频路径每次读取）。
-        /// 计数器 int 溢出不影响采样节奏：补码自增保持低 8 位连续跨越符号边界，采样周期严格保持 256。</summary>
+        /// 计数器 int 溢出不影响采样节奏：补码自增保持低 8 位连续跨越符号边界；非原子自增的并发丢失仅让采样点偶发后移，诊断用途可接受。</summary>
         private const int BACKLOG_SAMPLE_MASK = 0xFF;
+
+        /// <summary>任务异常分级策略：开发期（编辑器 / Development Build）Fatal 后上抛中止本次泵（fail-fast），发布期隔离续跑。</summary>
+        /// <remarks><c>const</c> 门控，发布构建裁掉死分支，零运行时成本。与 <see cref="PlayerLoopDriver"/> 的订户异常策略同构。</remarks>
+        private const bool RETHROW_TASK_EXCEPTIONS =
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            true;
+#else
+            false;
+#endif
+
+        /// <summary>发布期连续失败告警阈值。调度器的队列任务无订户身份可摘（与 PlayerLoopDriver 熔断同值但仅告警诊断）。</summary>
+        /// <remarks>计数在任一任务成功时归零，恰好达阈值告警一次（每个连续失败幕一条），避免毒任务逐帧刷爆日志。</remarks>
+        private const int TASK_FAILURE_WARN_THRESHOLD = 300;
 
         private static readonly ConcurrentQueue<Action> s_PendingQueue = new ConcurrentQueue<Action>();
         private static readonly ProfilerMarker s_PumpMarker = new ProfilerMarker("MainThreadDispatcher.Pump");
+
+        /// <summary>Stopwatch 刻度 → 毫秒换算系数（进程内恒定，静态缓存避免泵内逐任务除法）。</summary>
+        private static readonly double s_MsPerTick = 1000.0 / Stopwatch.Frequency;
 
         /// <summary>挂起的可等待操作（PostAsync/SendAsync）取消句柄注册表。</summary>
         /// <remarks>
@@ -52,7 +69,8 @@ namespace Moirai.Atropos
 
         private static int s_MainThreadId;       // 仅在主线程生命周期钩子中写入
         private static bool s_RejectNewWork;     // Volatile.Read/Write
-        private static int s_EnqueueCounter;     // Interlocked.Increment
+        private static int s_EnqueueCounter;     // 非原子自增：竞态只让采样点偶发后移，诊断用途可接受
+        private static int s_ConsecutiveTaskFailures; // 仅泵（主线程）读写，普通 int 无需原子
         private static bool s_BacklogWarned;     // Volatile.Read/Write（诊断标志，与 s_RejectNewWork 对齐标准）
 
         // s_ShuttingDown — 基类 SingletonMono<T> 的静态退出标记（声明于基类，控制 Instance getter 在退出期返回 null）；
@@ -80,9 +98,15 @@ namespace Moirai.Atropos
             /// 以句柄存储的调用方令牌取消完成源。
             /// </summary>
             /// <remarks><b>必须保持非阻塞</b>：本方法会在 CancellationToken 回调线程上执行（可能是线程池线程），
-            /// 而调用方任务终结时的 <c>registration.Dispose()</c>（按 .NET 契约会等待执行中的回调）可能在主线程等待其返回——。 <br />
-            /// 一旦加入重逻辑（锁、IO、同步等待），主线程将被拖住。此处仅允许 TrySetCanceled 级别的非阻塞操作。</remarks>
+            /// 而调用方任务终结时的 <c>registration.Dispose()</c>（按 .NET 契约会等待执行中的回调）可能在主线程等待其返回。 <br />
+            /// 一旦加入重逻辑（锁、IO、同步等待），主线程将被拖住；此处仅允许 TrySetCanceled 级别的非阻塞操作。</remarks>
             public abstract void Cancel();
+
+            /// <summary>
+            /// 以指定令牌就地取消完成源（失败路径共用入口——令牌随调用携带，供基类引用的 <c>AbandonAwaiter</c> 等清扫路径调用）。
+            /// </summary>
+            /// <remarks>幂等由完成源 version 护栏仲裁（后到者无副作用）；非阻塞契约同 <see cref="Cancel"/>。</remarks>
+            public abstract bool TrySetCanceled(CancellationToken cancellationToken);
         }
 
         private sealed class AwaiterHandle<T> : AwaiterHandle
@@ -105,7 +129,7 @@ namespace Moirai.Atropos
 
             public bool TrySetException(Exception exception) => _source.TrySetException(exception);
 
-            public bool TrySetCanceled(CancellationToken cancellationToken = default)
+            public override bool TrySetCanceled(CancellationToken cancellationToken = default)
                 => _source.TrySetCanceled(cancellationToken != default ? cancellationToken : _token);
 
             public override void Cancel() => TrySetCanceled();
@@ -155,6 +179,7 @@ namespace Moirai.Atropos
             s_MainThreadId = Thread.CurrentThread.ManagedThreadId;
             s_BacklogWarned = false;
             s_EnqueueCounter = 0;
+            s_ConsecutiveTaskFailures = 0;
             s_ShuttingDown = false; // 同步复位基类退出标记，避免关闭 Domain Reload 时 Instance 被旧标记拒绝
 
             CancelAllAwaiters(); // 异常退出（如编辑器崩溃恢复）未经 BeginShutdown 的场景：终结残留的可等待任务
@@ -189,21 +214,45 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 停止接受新任务，取消所有挂起的可等待操作并清空积压队列（幂等）。应用退出或实例被销毁时调用。
+        /// 停止接受新任务，取消所有挂起的可等待操作并排空积压队列（幂等）。应用退出或实例被销毁时调用。
         /// </summary>
+        /// <remarks>
+        /// 主线程停机走优雅排水：已入队任务内联执行完毕（副作用照常完成——存档落盘回执等停机收尾不被静默截杀），而非丢弃。 <br />
+        /// 等待方语义不变：取消先于排水，排水执行的任务其完成源已被终结，version 护栏令 <c>TrySet*</c> 判负，等待方仍观察到一致的停机取消。 <br />
+        /// 排水异常就地收敛（Fatal 记录后继续），单个毒任务不得截断停机收尾。非主线程停机（防御路径，正常生命周期不经过）
+        /// 无法安全内联执行，积压任务丢弃并告警。本方法不假设与 <c>GameServices</c> 停机的先后次序——任一次序下副作用均不丢失。
+        /// </remarks>
         internal static void BeginShutdown()
         {
             Volatile.Write(ref s_RejectNewWork, true);
 
-            // 先取消挂起的可等待操作：被丢弃的闭包内的完成源若不终结，await 方将永久挂起
+            // 先取消挂起的可等待操作：等待方终结先于排水；被丢弃的闭包内的完成源若不终结，await 方将永久挂起
             CancelAllAwaiters();
 
-            int dropped = 0;
-            while (s_PendingQueue.TryDequeue(out _)) dropped++;
-
-            if (dropped > 0)
+            if (IsMainThread)
             {
-                LogUtility.Warning("MainThreadDispatcher shutdown: {0} pending action(s) dropped.", dropped);
+                // 优雅排水：排空为止（无预算——停机收尾的任务量以服务 flush 入队为界，量小且必须完成）
+                while (s_PendingQueue.TryDequeue(out Action action))
+                {
+                    try
+                    {
+                        Execute(action);
+                    }
+                    catch (Exception)
+                    {
+                        // 开发档的 rethrow 在此收敛：Fatal 已由 Execute 记录，排水必须继续
+                    }
+                }
+            }
+            else
+            {
+                int dropped = 0;
+                while (s_PendingQueue.TryDequeue(out _)) dropped++;
+
+                if (dropped > 0)
+                {
+                    LogUtility.Warning("MainThreadDispatcher shutdown: {0} pending action(s) dropped.", dropped);
+                }
             }
         }
 
@@ -265,7 +314,7 @@ namespace Moirai.Atropos
 
                     if (s_PendingQueue.IsEmpty) break;
 
-                    double elapsedMs = (Stopwatch.GetTimestamp() - startTimestamp) * 1000.0 / Stopwatch.Frequency;
+                    double elapsedMs = (Stopwatch.GetTimestamp() - startTimestamp) * s_MsPerTick;
                     if (elapsedMs >= MAX_TIME_BUDGET_MS) break; // 预算耗尽，余量推迟到下一帧
                 }
 
@@ -280,15 +329,39 @@ namespace Moirai.Atropos
             }
         }
 
+        /// <summary>
+        /// 执行单个队列任务：Fatal 记录后按分级策略处置——开发档上抛（fail-fast，中止本次泵），发布档隔离续跑。
+        /// </summary>
+        /// <remarks>发布档的连续失败由 <see cref="RecordConsecutiveTaskFailure"/> 告警一次每幕，避免毒任务逐帧刷爆日志；
+        /// 排水路径（<see cref="BeginShutdown"/>）在本方法外收敛 rethrow，保证停机收尾完整。</remarks>
         private static void Execute(Action action)
         {
             try
             {
                 action?.Invoke();
+                s_ConsecutiveTaskFailures = 0;
             }
             catch (Exception ex)
             {
                 LogUtility.Fatal(ex);
+                // 局部变量阻断编译期可达性折叠——避免发布构建下 throw 后的计数调用触发 CS0162（零运行时差异）
+                bool rethrow = RETHROW_TASK_EXCEPTIONS;
+                if (rethrow) throw;
+                RecordConsecutiveTaskFailure();
+            }
+        }
+
+        /// <summary>
+        /// 发布档记录一次任务失败；连续失败达 <see cref="TASK_FAILURE_WARN_THRESHOLD"/> 时告警一次（任一任务成功即归零重计）。
+        /// </summary>
+        private static void RecordConsecutiveTaskFailure()
+        {
+            int failures = ++s_ConsecutiveTaskFailures;
+            if (failures == TASK_FAILURE_WARN_THRESHOLD)
+            {
+                LogUtility.Warning(
+                    "MainThreadDispatcher tasks have failed {0} time(s) consecutively; a producer may be poisoning the queue.",
+                    TASK_FAILURE_WARN_THRESHOLD);
             }
         }
 
@@ -300,12 +373,13 @@ namespace Moirai.Atropos
         /// 将协程加入队列，在下次主线程泵时启动。
         /// </summary>
         /// <param name="routine">将在主线程执行的协程。</param>
-        /// <remarks>任意线程可调用；仅支持播放模式（依赖 <c>StartCoroutine</c>）。<see cref="SingletonMono{T}.Instance"/> 延迟到泵内（主线程）才解析。</remarks>
+        /// <remarks>任意线程可调用；仅支持播放模式（依赖 <c>StartCoroutine</c>）。<see cref="SingletonMono{T}.Instance"/> 延迟到泵内（主线程）才解析。 <br />
+        /// 经池化工作项 + 静态 lambda（编译器缓存）转发，稳态零闭包分配。</remarks>
         public static void Post(IEnumerator routine)
         {
             if (routine == null) throw new ArgumentNullException(nameof(routine));
 
-            Post(() => Instance.StartCoroutine(routine));
+            Post(routine, static r => Instance.StartCoroutine(r));
         }
 
         /// <summary>
@@ -333,8 +407,8 @@ namespace Moirai.Atropos
 
             s_PendingQueue.Enqueue(action);
 
-            // 采样式积压监控
-            if ((Interlocked.Increment(ref s_EnqueueCounter) & BACKLOG_SAMPLE_MASK) == 0 &&
+            // 采样式积压监控（计数非原子自增：纯诊断，竞态丢失只让采样点偶发后移）
+            if ((++s_EnqueueCounter & BACKLOG_SAMPLE_MASK) == 0 &&
                 !Volatile.Read(ref s_BacklogWarned) &&
                 s_PendingQueue.Count > BACKLOG_WARN_THRESHOLD)
             {
@@ -448,9 +522,7 @@ namespace Moirai.Atropos
             if (!TryBeginAwaiter(handle, cancellationToken, out CancellationTokenRegistration registration) ||
                 !TryPost(WrappedAction))
             {
-                s_PendingAwaiters.TryRemove(handle, out _);
-                registration.Dispose();
-                handle.TrySetCanceled(cancellationToken); // 调度器已停机：取消而非挂起
+                AbandonAwaiter(handle, registration, cancellationToken); // 调度器已停机：取消而非挂起
             }
 
             return coreTask.AsUniTask();
@@ -501,9 +573,7 @@ namespace Moirai.Atropos
             if (!TryBeginAwaiter(handle, cancellationToken, out CancellationTokenRegistration registration) ||
                 !TryPost(WrappedAction))
             {
-                s_PendingAwaiters.TryRemove(handle, out _);
-                registration.Dispose();
-                handle.TrySetCanceled(cancellationToken);
+                AbandonAwaiter(handle, registration, cancellationToken);
             }
 
             return coreTask;
@@ -552,9 +622,7 @@ namespace Moirai.Atropos
             if (!TryBeginAwaiter(handle, cancellationToken, out CancellationTokenRegistration registration) ||
                 !TryPost(WrappedAction))
             {
-                s_PendingAwaiters.TryRemove(handle, out _);
-                registration.Dispose();
-                handle.TrySetCanceled(cancellationToken);
+                AbandonAwaiter(handle, registration, cancellationToken);
                 return coreTask.AsUniTask();
             }
 
@@ -610,9 +678,7 @@ namespace Moirai.Atropos
             if (!TryBeginAwaiter(handle, cancellationToken, out CancellationTokenRegistration registration) ||
                 !TryPost(WrappedAction))
             {
-                s_PendingAwaiters.TryRemove(handle, out _);
-                registration.Dispose();
-                handle.TrySetCanceled(cancellationToken);
+                AbandonAwaiter(handle, registration, cancellationToken);
                 return coreTask;
             }
 
@@ -651,6 +717,17 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 遗弃可等待操作：摘出停机注册表、释放令牌注册项并就地取消完成源（四个 <c>PostAsync</c> 重载共用的失败路径）。
+        /// </summary>
+        /// <remarks>三步均为幂等安全操作：与 <see cref="BeginShutdown"/> / 令牌回调并发时由完成源 version 护栏仲裁，后到者无副作用。</remarks>
+        private static void AbandonAwaiter(AwaiterHandle handle, CancellationTokenRegistration registration, CancellationToken token)
+        {
+            s_PendingAwaiters.TryRemove(handle, out _);
+            registration.Dispose();
+            handle.TrySetCanceled(token);
+        }
+
+        /// <summary>
         /// 注册可等待操作的取消句柄：登记到停机注册表并挂接调用方令牌。
         /// </summary>
         /// <param name="registration">输出的令牌注册项（任务终结时由调用方 Dispose）。</param>
@@ -671,7 +748,8 @@ namespace Moirai.Atropos
 
             if (cancellationToken.CanBeCanceled)
             {
-                registration = cancellationToken.Register(() => handle.Cancel()); // Cancel() 回退到句柄存储的调用方令牌
+                // 状态重载（netstandard2.1 可用）+ 静态 lambda（编译器缓存）：注册路径零闭包分配
+                registration = cancellationToken.Register(static h => ((AwaiterHandle)h).Cancel(), handle);
             }
 
             return true;
@@ -716,6 +794,29 @@ namespace Moirai.Atropos
 
             if (IsMainThread) action();
             else Post(action);
+        }
+
+        /// <summary>
+        /// 在主线程上执行「状态 + 处理器」：已在主线程则同步执行（异常直接抛给调用方），否则下次主线程泵时执行（异常被隔离并记录）。
+        /// </summary>
+        /// <typeparam name="TState">状态类型。</typeparam>
+        /// <param name="state">随调用携带的状态（排队路径下工作项归还池时清空——引用类型状态不滞留）。</param>
+        /// <param name="action">将在主线程执行的处理器。</param>
+        /// <remarks>
+        /// 主线程快速路径直调处理器，零分配；后台路径复用 <see cref="Post{TState}(TState, Action{TState})"/> 的池化工作项， <br />
+        /// 处理器经静态 lambda / 方法组的编译器缓存后稳态零分配，值类型状态经泛型工作项传递零装箱。任意线程可调用。
+        /// </remarks>
+        public static void Send<TState>(TState state, Action<TState> action)
+        {
+            if (action == null) throw new ArgumentNullException(nameof(action));
+
+            if (IsMainThread)
+            {
+                action(state);
+                return;
+            }
+
+            Post(state, action);
         }
 
         /// <summary>
