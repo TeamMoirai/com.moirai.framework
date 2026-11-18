@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Localization
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(DebuggerService), typeof(ConfigTableService))]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IConfigTableService))]
     [ProviderHandlerHost(typeof(ILocalizationService), typeof(ConfigTableLocalizationHandler))]
     public partial class LocalizationService : ServiceBase
     {
@@ -47,13 +47,17 @@ namespace Moirai.Atropos.Localization
         /// 触发 <c>Handler</c> 懒加载（可能首次读表），故 <see cref="ConfigTableService"/> 依赖必须显式声明，
         /// 否则初始化序会退化为注册序。调试器外观未就绪时静默跳过面板注册。
         /// </remarks>
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
         public override void OnInit()
         {
+            _debugger = Context.GetRequiredService<IDebuggerService>();
             var handler = Handler;
             HandPreferenceToHandler();
             handler.onLanguageChanged += onLanguageChanged;
             ReplayPendingLocalizers();
-            DebuggerService.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
+            _debugger.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
         }
 
         /// <summary>

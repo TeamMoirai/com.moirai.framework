@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Audio
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(IAudioService), typeof(UnityAudioHandler))]
-    [ServiceDependency(typeof(TimerService), typeof(DebuggerService), typeof(AssetService))]
+    [ServiceDependency(typeof(ITimerService), typeof(IDebuggerService), typeof(IAssetService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
         /// <summary>前后台切换订阅句柄（注销只能靠它，lambda 事后摘不掉）。</summary>
@@ -56,8 +56,16 @@ namespace Moirai.Atropos.Audio
         /// 初始化音频服务。由容器在构建期调用。
         /// </summary>
         /// <remarks>确保 <c>AudioService.Handler</c> 已赋值，并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>，未就绪时静默跳过）。</remarks>
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private ITimerService _timer;
+
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
         public override void OnInit()
         {
+            _timer = Context.GetRequiredService<ITimerService>();
+            _debugger = Context.GetRequiredService<IDebuggerService>();
             _ = Handler;
 
             // 预热 AudioSource 宿主栈池（配置在 AudioServiceSettings）
@@ -67,9 +75,9 @@ namespace Moirai.Atropos.Audio
             }
 
             // 加载音频设置：初始化当帧写 AudioMixer 不生效，排到下一帧再应用
-            TimerService.WaitFrame(1, LoadSettings);
+            _timer.WaitFrame(1, LoadSettings);
 
-            DebuggerService.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
+            _debugger.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
 
             // 移动端只有 OnApplicationPause 可靠（Focus 在桌面切窗时也会触发，不应据此静音）
             s_PauseSubscription ??= GameApp.AddOnApplicationPauseListener(HandleApplicationPause);
@@ -98,7 +106,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         public override void OnShutdown()
         {
-            DebuggerService.UnregisterDebuggerWindow("Profiler/Audio");
+            _debugger.UnregisterDebuggerWindow("Profiler/Audio");
 
             s_PauseSubscription?.Dispose();
             s_PauseSubscription = null;
@@ -244,7 +252,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 写入配置。
         /// </summary>
-        /// <remarks>如果需要保存，直接调用 <see cref="SettingUtility.Save"/></remarks>
+        /// <remarks>如果需要保存，直接调用 <see cref="GameSettings.Save"/></remarks>
         public static void SetSettings()
         {
             var handler = s_Handler;

@@ -17,7 +17,7 @@ namespace Moirai.Atropos.ObjectPool
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(IGameObjectPoolService), typeof(DefaultGameObjectPoolHandler))]
-    [ServiceDependency(typeof(DebuggerService), typeof(AssetService))]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService))]
     [UnityEngine.Scripting.Preserve]
     public partial class GameObjectPoolService : ServiceBase, IServiceTickable
     {

@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Save
     /// </example>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(ISaveService), typeof(PlainSaveHandler))]
-    [ServiceDependency(typeof(DebuggerService))]
+    [ServiceDependency(typeof(IDebuggerService))]
     public partial class SaveService : ServiceBase
     {
         /// <summary>便捷单对象 API 读写的保留数据块键。</summary>

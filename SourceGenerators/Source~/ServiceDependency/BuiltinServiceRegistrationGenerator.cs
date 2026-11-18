@@ -53,6 +53,7 @@ namespace Moirai.Atropos.SourceGenerators
 
         private const string AttributeFullyQualifiedName = "Moirai.Atropos.AutoRegisterServiceAttribute";
         private const string IServiceFullyQualifiedName = "Moirai.Atropos.IService";
+        private const string ProviderHandlerHostFullyQualifiedName = "Moirai.Atropos.ProviderHandlerHostAttribute";
 
         private static readonly string[] s_ScopeNames = { "App", "Scene", "Gameplay" };
 
@@ -136,10 +137,28 @@ namespace Moirai.Atropos.SourceGenerators
                 isValid = false;
             }
 
+            // 契约接口自报：[ProviderHandlerHost(typeof(I{Service}), ...)] 的第一参数——容器按该接口附加契约绑定（Phase 2 注入互调地基）
+            string? contractInterfaceFqn = null;
+            foreach (var classAttr in classSymbol.GetAttributes())
+            {
+                if (!SymbolEqualityComparer.Default.Equals(classAttr.AttributeClass,
+                        ctx.SemanticModel.Compilation.GetTypeByMetadataName(ProviderHandlerHostFullyQualifiedName)))
+                    continue;
+                if (classAttr.ConstructorArguments.Length == 0)
+                    continue;
+                var first = classAttr.ConstructorArguments[0];
+                if (first.Value is INamedTypeSymbol handlerContract && handlerContract.TypeKind == TypeKind.Interface)
+                {
+                    contractInterfaceFqn = handlerContract.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                }
+                break;
+            }
+
             return new ServiceRegistrationInfo(
                 classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 scopeValue,
                 isValid,
+                contractInterfaceFqn,
                 diagnostics.ToImmutable());
         }
 
@@ -209,13 +228,23 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        internal static void RegisterAll(ServiceWorld world)");
             sb.AppendLine("        {");
 
-            foreach (var info in infos)
+            for (var idx = 0; idx < infos.Count; idx++)
             {
-                sb.Append("            world.Register(EServiceScopeKind.");
+                var info = infos[idx];
+                sb.Append("            var __svc").Append(idx).Append(" = world.Register(EServiceScopeKind.");
                 sb.Append(s_ScopeNames[info.ScopeValue]);
                 sb.Append(", new ");
                 sb.Append(info.FullyQualifiedName);
                 sb.AppendLine("());");
+                if (!string.IsNullOrEmpty(info.ContractInterfaceFqn))
+                {
+                    // 契约接口附加绑定：同实例多契约（Phase 2 注入互调——[ServiceDependency] 可指接口）
+                    sb.Append("            world.Register(EServiceScopeKind.");
+                    sb.Append(s_ScopeNames[info.ScopeValue]);
+                    sb.Append(", typeof(");
+                    sb.Append(info.ContractInterfaceFqn);
+                    sb.Append("), __svc").Append(idx).AppendLine(");");
+                }
             }
 
             sb.AppendLine("        }");
@@ -230,17 +259,20 @@ namespace Moirai.Atropos.SourceGenerators
             public readonly string FullyQualifiedName;
             public readonly int ScopeValue;
             public readonly bool IsValid;
+            public readonly string? ContractInterfaceFqn;
             public readonly ImmutableArray<Diagnostic> Diagnostics;
 
             public ServiceRegistrationInfo(
                 string fullyQualifiedName,
                 int scopeValue,
                 bool isValid,
+                string? contractInterfaceFqn,
                 ImmutableArray<Diagnostic> diagnostics)
             {
                 FullyQualifiedName = fullyQualifiedName;
                 ScopeValue = scopeValue;
                 IsValid = isValid;
+                ContractInterfaceFqn = contractInterfaceFqn;
                 Diagnostics = diagnostics;
             }
         }

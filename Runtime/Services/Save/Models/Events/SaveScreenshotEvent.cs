@@ -1,4 +1,5 @@
 using Moirai.Atropos.Events;
+#pragma warning disable CS0618 // Phase 3 迁移窗口：Save 双通道收敛（任务 3.4）后移除
 
 namespace Moirai.Atropos.Save
 {

@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Procedure
     /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="GameException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(DebuggerService), typeof(AssetService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(UIService), typeof(ILocalizationService), typeof(ITimerService))]
     [ProviderHandlerHost(typeof(IProcedureService), typeof(DefaultProcedureHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {

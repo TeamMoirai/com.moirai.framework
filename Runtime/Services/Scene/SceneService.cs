@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Scene
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(ISceneService), typeof(DefaultSceneHandler))]
-    [ServiceDependency(typeof(AssetService))]
+    [ServiceDependency(typeof(IAssetService))]
     public partial class SceneService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]

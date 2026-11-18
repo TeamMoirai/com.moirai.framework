@@ -85,7 +85,7 @@ namespace Core.Graphics
     public sealed class GraphicsSettingsPersistenceTests
     {
         private static readonly string SourceRelativePath =
-            Path.Combine("Runtime", "Core", "Graphics", "GraphicsSettings.SaveLoad.cs");
+            Path.Combine("Runtime", "Core", "GameSettings", "Support", "Graphics", "GraphicsSettings.SaveLoad.cs");
 
         [Test]
         public void RemoveSettingClearsFourKeysWithoutFlushing()

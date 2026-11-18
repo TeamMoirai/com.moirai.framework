@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Timer
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(DebuggerService))]
+    [ServiceDependency(typeof(IDebuggerService))]
     [ProviderHandlerHost(typeof(ITimerService), typeof(DefaultTimerHandler))]
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]

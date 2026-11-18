@@ -14,7 +14,7 @@ namespace Moirai.Atropos
     /// 可实例化：<c>new ServiceWorld()</c> 构造隔离世界（测试并行/沙盒）；进程默认世界经 <see cref="GameServices"/> 静态投影访问。 <br />
     /// 线程契约：默认世界的调用一律经 <see cref="GameServices"/> 投影并在编辑器/开发构建断言主线程；本类自身不做线程断言（可实例化世界的一个既定用途是并行测试）。
     /// </remarks>
-    public sealed class ServiceWorld : IDisposable
+    public sealed class ServiceWorld : IDisposable, IServiceContext
     {
         #region 常量 [CONSTANTS]
 
@@ -295,6 +295,7 @@ namespace Moirai.Atropos
             if (targetScope.Contains(service))
             {
                 targetScope.BindAdditionalContractRuntime(contractType, service, deferMode);
+                (service as IServiceContextAware)?.SetContext(this);
                 return service;
             }
 
@@ -311,12 +312,14 @@ namespace Moirai.Atropos
                 }
 
                 targetScope.RegisterRuntime(contractType, service, deferMode);
+                (service as IServiceContextAware)?.SetContext(this);
                 return service;
             }
 
             // 两阶段第一阶段：仅入图——依赖校验推迟到 Initialize（拓扑排序时统一 fail-fast）
             // 先入作用域注册表（可能抛），成功后再挂起跟踪——避免半注册状态
             targetScope.RegisterDeferred(contractType, service, deferMode);
+            (service as IServiceContextAware)?.SetContext(this);
             TrackPending(contractType, service);
             return service;
         }
@@ -636,6 +639,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取服务（未找到返回 null）。按 Gameplay &gt; Scene &gt; App 优先级返回最优服务。
         /// </summary>
+        /// <inheritdoc />
         public T GetService<T>() where T : class
         {
             return TryGet(out T service) ? service : null;

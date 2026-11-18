@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Asset
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(IAssetService), typeof(YooAssetHandler))]
-    [ServiceDependency(typeof(DebuggerService))]
+    [ServiceDependency(typeof(IDebuggerService))]
     public partial class AssetService : ServiceBase, IServiceTickable
     {
         #region 驱动状态 [DRIVE STATE]
@@ -82,8 +82,12 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 初始化资源服务：触发 <see cref="Handler"/> 懒加载、注入配置并接线帧驱动，由容器在构建期调用。
         /// </summary>
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
         public override void OnInit()
         {
+            _debugger = Context.GetRequiredService<IDebuggerService>();
             _ = Handler;
 
             // 远程地址（更新系统单源）
@@ -109,7 +113,7 @@ namespace Moirai.Atropos.Asset
 
             Application.lowMemory += OnLowMemory;
 
-            DebuggerService.RegisterDebuggerWindow("Profiler/Resource", new AssetServiceDebuggerWindow());
+            _debugger.RegisterDebuggerWindow("Profiler/Resource", new AssetServiceDebuggerWindow());
         }
 
         /// <summary>

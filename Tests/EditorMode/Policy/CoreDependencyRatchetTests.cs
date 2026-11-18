@@ -264,6 +264,13 @@ namespace Policy
             "Runtime/Kernel/Models/AutoRegisterServiceAttribute.cs",
             "Runtime/Kernel/Models/EDuplicateContractPolicy.cs",
             "Runtime/Kernel/Models/IService.cs",
+            // Phase 2 注入互调：IServiceContext 是容器的公共解析面（ServiceWorld 实现）+ 服务基座注入面（IServiceContextAware），属容器组成部分
+            "Runtime/Kernel/Models/IServiceContext.cs",
+            // Phase 3 决策 B v4：IEventBus 是容器的跨系统通信面（struct 事件总线，EventBus 经容器注册驱动生命周期），与 IServiceContext 同属容器组成部分
+            "Runtime/Kernel/Events/IGameEvent.cs",
+            "Runtime/Kernel/Events/IEventBus.cs",
+            "Runtime/Kernel/Events/EventBus.cs",
+            "Runtime/Kernel/Events/EventChannel.cs",
             "Runtime/Kernel/Models/IServiceInterceptor.cs",
             "Runtime/Kernel/Models/ServiceDependencyAttribute.cs",
             "Runtime/Kernel/Objects/ServiceBase.cs",

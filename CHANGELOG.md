@@ -101,3 +101,45 @@
 #### Save
 
 - 新增唯一消费契约 `ISaveService`（28 个门面公共 API 收编，语义文档同源）：引擎基座 `SaveServiceHandler` 保留（2600+ 行共享实现豁免契约化），后端经派生基座落地；internal 协作面（存储后端选择/原始块读写/截图写入）不进公共契约，框架内部按引擎基座引用访问；`Settings` 字段、调试窗口与消费方测试签名按契约类型持有
+
+#### Localization
+
+- ⚠ 回滚 `Moirai.Atropos.L10n` 命名空间迁移：类型命名空间改回 `Moirai.Atropos.Localization`（`LocalizationServiceSettings.asset` 托管引用 ns 同步回迁，实例无损；下游 using 同步替换）；`ILocalizationService` 薄契约保留。顺带修复：反射守卫 Allowlist 两条 Resource 路径同步 Asset 目录更名（Resource→Asset 更名的遗留腐烂）
+
+#### Kernel / 注入互调（Phase 2 任务①）
+
+- `[ServiceDependency]` 依赖声明改指契约接口（20 处具体类依赖清零，`UIService` 双轨豁免保留具体类）：`BuiltinServiceRegistrationGenerator` 为带 `[ProviderHandlerHost]` 的服务生成契约接口附加绑定行（同实例多契约注册），`MIRAI201` 放宽为「实现 IService 或为 [ProviderHandlerHost] 自报的契约接口」（跨程序集契约接口收集）；容器注册键（具体类）不变，`EnsureRegistered<T>` 调用习惯零变更
+
+#### Kernel / 注入互调（Phase 2 任务②·基础设施）
+
+- 新增 `IServiceContext`（容器公共解析面：`GetRequiredService/GetService/TryGetService`，`ServiceWorld` 实现它）与 `IServiceContextAware`（注入标记）：容器在三条注册路径（两阶段入图/附加契约/运行时注册）注入上下文，`ServiceBase`/`ServiceMono` 暴露 `protected Context` 属性——派生服务在 `OnInit` 中按契约接口解析依赖，替代经静态门面的间接互调。决定记录：不改 `IService.OnInit/OnInitAsync` 签名（契约面含异步变体，改签名是三接口 breaking），采用注入接口加法演进
+- 注册期依赖校验失败回滚守卫测试（校验失败不残留契约条目/实现条目；Runtime 注册路径 throw-before-mutate 天然满足，测试固化）
+- 反射棘轮名册同步：`IServiceContext.cs` 入 ContainerKernelFileRoster（容器新组成部分）
+
+#### Kernel / 注入互调（Phase 2 任务②·消费改造）
+
+- AudioService（TimerService.WaitFrame / DebuggerService 注册注销调试窗）、AssetService（DebuggerService 注册）、LocalizationService（DebuggerService 注册）三服务的 IService 层互调点改为 `OnInit` 经上下文按契约接口解析依赖存字段、调用点走字段——替代经静态门面的间接互调；依赖契约由 `[ServiceDependency]` 声明经拓扑序保证先行就绪。Handler 层与深层组件的门面消费（UI 深层组件/扩展层/调试窗）属"组件→服务"消费，由任务③（门面静态→实例转发）自然收敛，本轮不动
+
+#### Kernel / IEventBus（Phase 3 任务 3.1）
+
+- 新增事件总线体系（决策 B v4）：`IGameEvent`（struct 约束标记）+ `IEventBus` 契约（`Subscribe` 返回可 Dispose 句柄 / `Publish(in evt)` in 参数零拷贝 / `BeginScope` 作用域批量退订）+ `EventBus` 默认实现（经 [AutoRegisterService] 注册，派生 ServiceBase 获得生命周期）
+- 发布期安全：派发前拷贝回调快照，发布期内的订阅不派发本次事件（下次发布生效）、退订排队至派发循环结束后应用
+- 异常分级：发布期逐回调隔离（Debug.LogException 记日志不中断其他订阅者）；Debugger 对接预留 `EventBusDiagnostics.OnPublished` 钩子
+- 作用域批量退订：`BeginScope` 登记作用域内全部订阅句柄，Dispose 批量退订（Scene/Gameplay 级清理防跨场景泄漏）
+- 不挪用 DOM 五阶段树形传播（留在 EventBase 服务 UI/Task）；`EventBase<T>` 池化 class 事件体系保留，垫片迁移（任务 3.2）后续落地
+- 8 个行为契约测试（订阅序/句柄退订/幂等/发布期安全/作用域/异常隔离/无订阅者 no-op）
+
+#### Events / 垫片（Phase 3 任务 3.2）
+
+- `EventManager` 三个静态消费入口（RegisterCallback/UnregisterCallback/SendEvent）标 `[System.Obsolete]`（Phase 3 迁移窗口，行为不变）——消息内写明迁移路径（IEventBus struct 事件）。决定记录：EventBase class 事件与 struct 总线形态不同，垫片是弃用提示而非转发（转发不可能行为等价）；下游迁移（3.3）时事件 class→struct 一并转换。框架内部消费点（Save 双通道 6 个事件模型文件）以 `#pragma warning disable CS0618` 抑制，任务 3.4 收敛后移除
+
+#### Kernel / IEventBus 静态化（用户架构指令落地）
+
+- **EventBus 去服务化，内核管线静态调用形态**：`public static class EventBus`——`EventBus.Subscribe/Publish/Unsubscribe/BeginScope` 直接静态调用（内核管线组件，不是容器服务）；移除 `[AutoRegisterService]` 与 ServiceBase 派生；`IEventBus` 实例契约接口删除（`EventDelegate` 委托与 `EventBusDiagnostics` 诊断钩子保留）
+- 分桶改泛型静态容器：`EventChannel<TEvent>.Instance`（JIT per-type 实例化，零字典查找）——发布快照/异常隔离/发布期退订排队语义不变；`ClearAllChannels` 保留注册表只清订阅（否则后续重置失去枚举入口）
+- 关 DR 兜底：`EventBus.ResetStaticsForPlayModeReset` 挂 `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]`（与门面 ResetStatics 同口径）；反射棘轮名册补 `EventChannel.cs`
+- 决定记录（同口径审计）：MemoryPool（static unsafe class）与 GameAppSettings 的 Utility 门面（StringUtility/VersionUtility/GameSettings/LogUtility/Tween 管理器等——静态类 + settings 注入可拔插 Handler）**本来就是静态调用形态**，无需改动；MainThreadDispatcher 核心静态、宿主单例留 Phase 4
+
+#### Kernel / IEventBus API 形态定稿（用户决策）
+
+- **对称 API 习惯**：`EventBus.Subscribe<T>(h)` / `EventBus.Unsubscribe<T>(h)` 成对直接调用（与原 EventManager 用法一致）；Subscribe 不返回句柄——`EventRuntimeHandle`、作用域批量退订（BeginScope）按用户决策移除；跨场景清理由订阅方在场景卸载回调中成对 Unsubscribe（原习惯）
