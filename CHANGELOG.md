@@ -51,3 +51,52 @@
 #### Kernel
 
 - `Runtime/Services/Kernel` 独立为根级 `Runtime/Kernel`：物理目录迁移，命名空间与公共 API 不变；Core 依赖棘轮豁免目录名册同步改判据（`ContainerKernelFileRoster` 已留账）
+
+### Changed
+
+#### Timer
+
+- ⚠ 删除 `TimerServiceHandler` 抽象基类：计时器后端改为直接实现唯一契约 `ITimerService`（`DefaultTimerHandler` 签名变为 `FrameworkHandler, ITimerService`，原 `internal override` 全部转 public）；自定义后端迁移口径 = 直接实现 `ITimerService` + 继承 `FrameworkHandler` 生命周期基座，`TimerServiceSettings.TimerServiceHandler`、`Internal_UseHandler` 等签名同步改按接口类型
+
+#### Editor
+
+- `[ProviderHandlerHost]` 源生成器支持接口契约：默认实现校验放宽为「实现处理器契约（继承类或实现接口）+ 继承 FrameworkHandler 生命周期基座」，生成代码的生命周期调用按基座强转；类契约宿主（Log/GameTime/Json 等 Utility 族）行为不变
+
+#### Audio
+
+- ⚠ 删除 `AudioServiceHandler` 抽象基类：音频后端改为直接实现唯一契约 `IAudioService`（`UnityAudioHandler`/`MiddlewareAudioHandler` 签名变为 `FrameworkHandler, IAudioService`）；原基类共享语义（总线 Fade 六方法、`SetVoicePitch`、音轨暂停标记越界守卫、场景切换停音判据）收进 internal `AudioBackendPolicy`（this + 自持调度表作参数的组合替代继承）；`AudioServiceSettings` 字段、`AudioCategory.Handler`、`AudioAgent._audioHandler` 等签名改按接口类型。自定义后端迁移口径 = 直接实现 `IAudioService` + 继承 `FrameworkHandler`；过渡调度表（internal `AudioFadeScheduler`）仍留在各后端自持
+
+### Fixed
+
+#### PackageManager
+
+- 勾选「安装/更新前先清目录」时，安装目标位上的外来同名目录视同已批准覆盖、随清目录一并先删再装；原实现仍走覆盖确认回调，回调缺席即整批中止，勾了清目录也装不下去。未勾清目录的拒绝路径行为不变
+
+#### Editor
+
+- `ProviderCatalogIndexTests` 归行判据夹具的 providerBase 默认值改取 `typeof(FakeBase).FullName` 运行时全名；原硬编码字符串随测试命名空间改名而静默失配，清单行整片铺不出来（3 个用例红）
+
+#### Editor
+
+- API Compatibility Level 切换为 .NET Standard 2.1：`IAudioService` 的可选能力/共享语义默认实现与 `ITimerService.GetLeftFrames/WaitAsync` 回收为接口默认方法（DIM），`UnityAudioHandler`/`MiddlewareAudioHandler`/`DefaultTimerHandler` 的显式补齐与纯默认转发行删除——DIM 仅在 .NET Standard 2.1 profile 下生效（.NET Framework 4.x profile 不支持）
+
+#### ConfigTable / Debugger / Scene
+
+- ⚠ 删除 `DebuggerServiceHandler`/`ConfigTableServiceHandler`/`SceneServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IDebuggerService`/`IConfigTableService`/`ISceneService`（`DefaultXxxHandler` 签名变为 `FrameworkHandler, I{Service}`）；`ConfigTableServiceSettings.InjectConfigTableHandler<T>` 泛型约束改 `where T : class, IConfigTableService, new()`（DIM 需 .NET Standard 2.1 API profile）。可选能力（按语言取列）走接口默认方法，自定义后端不覆写即回默认
+
+#### Input / Procedure / GameObjectPool
+
+- ⚠ 删除 `InputServiceHandler`/`ProcedureServiceHandler`/`GameObjectPoolServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IInputService`/`IProcedureService`/`IGameObjectPoolService`（3 个输入后端 UIMobile/UnityInputManager/UnityInputSystem 与 DefaultProcedureHandler/DefaultGameObjectPoolHandler 签名变为 `FrameworkHandler, I{Service}`）；`ProcedureServiceHandler` 的切换历史/广播承载收进 internal `ProcedureBackendPolicy`（后端自持状态 + 一行转发）；`GameObjectPoolService.TryResolveInstance` 因参数类型 internal 移入 internal `IGameObjectPoolInternals`；下游消费方（CharacterActions/PlayerActions）签名同步接口化。`UIServiceHandler` 保留——它是 uGUI/UITK 双轨并存的家族基座（多实例托管，非单选策略契约）
+
+#### Resource
+
+- 新增唯一契约接口 `IResourceService`（60 个公共契约成员收编，语义文档与门面同源）；`ResourceServiceHandler` 抽象基座保留并实现接口（abstract 成员满足契约义务，72 成员实现链零改动）——Resource 采用「契约接口 + 引擎基座」混合形态，addressables 等外部插件兼容性无损；internal `IResourceLeaseSource` 租约窄缝提取独立文件，internal `IResourceLeaseDiagnostics` 诊断附属接口（`GetLeaseSourceInfos` 显式实现，internal 参数类型不进公共契约）；`ResourceServiceSettings` 字段、`IPrefabLoader`/`OperationsWindow`/`ResourceBindingExtension`/编辑器包名桥与探针、消费方测试签名全部接口化
+
+#### Localization
+
+- ⚠ 命名空间 `Moirai.Atropos.Localization` 迁移为 `Moirai.Atropos.Localization`（类型与目录不变；`LocalizationServiceSettings.asset` 的托管引用 ns 已同步迁移，已配置的自定义后端实例无损；下游 using 需同步替换）
+- 新增唯一消费契约 `ILocalizationService`（门面公共 API 收编，语义文档同源）：引擎基座 `LocalizationServiceHandler` 保留（1500+ 行共享实现豁免契约化），后端经派生基座落地；internal 协作面（偏好解析/编辑器预览）不进公共契约，框架内部按引擎基座引用访问；`Settings` 字段与消费方测试签名按契约类型持有
+
+#### Save
+
+- 新增唯一消费契约 `ISaveService`（28 个门面公共 API 收编，语义文档同源）：引擎基座 `SaveServiceHandler` 保留（2600+ 行共享实现豁免契约化），后端经派生基座落地；internal 协作面（存储后端选择/原始块读写/截图写入）不进公共契约，框架内部按引擎基座引用访问；`Settings` 字段、调试窗口与消费方测试签名按契约类型持有

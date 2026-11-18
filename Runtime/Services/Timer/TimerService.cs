@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Timer
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(DebuggerService))]
-    [ProviderHandlerHost(typeof(TimerServiceHandler), typeof(DefaultTimerHandler))]
+    [ProviderHandlerHost(typeof(ITimerService), typeof(DefaultTimerHandler))]
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
@@ -31,8 +31,8 @@ namespace Moirai.Atropos.Timer
         /// <remarks>
         /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
         /// </remarks>
-        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static TimerServiceHandler GetHandlerFromSettings()
+        /// <returns>settings 中配置的后端；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static ITimerService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<TimerService>();
             return TimerServiceSettings.TimerServiceHandler;
@@ -57,7 +57,8 @@ namespace Moirai.Atropos.Timer
         {
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>

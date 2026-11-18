@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos;
 using Moirai.Atropos.Resource;
 using Moirai.Atropos.Resource.YooAsset;
 using NUnit.Framework;
@@ -15,7 +16,7 @@ namespace Tests.EditorMode.Service.Resource
     /// </summary>
     /// <remarks>
     /// 探针接管前后，包名清单的唯一来源仍是收集器配置：这里断的是行为不降级，而不是某个实现体在不在。<br />
-    /// 夹具 <see cref="UnrelatedHandler"/> 是本仓唯一的 <see cref="ResourceServiceHandler"/> 派生替身，
+    /// 夹具 <see cref="UnrelatedHandler"/> 是本仓唯一的 <see cref="IResourceService"/> 实现替身，
     /// 抽象面大是刻意的例外——它只为证明认领面存在，一切后端成员都不许被走到。
     /// </remarks>
     internal sealed class ResourceHandlerCapabilityTests
@@ -42,274 +43,274 @@ namespace Tests.EditorMode.Service.Resource
         }
 
         /// <summary>只用来占位的无关后端：不读盘、不装配，仅为证明认领面存在。</summary>
-        private sealed class UnrelatedHandler : ResourceServiceHandler
+        private sealed class UnrelatedHandler : FrameworkHandler, IResourceService
         {
             /// <summary>本夹具的每个后端成员都是不可达路径：走到即说明用例越过了认领面本身。</summary>
             private static AssertionException NotReached() =>
                 new AssertionException("UnrelatedHandler 只用于证明探针不认领，不该被调用任何后端成员");
 
-            public override string DefaultPackageName { get; set; }
-            public override string HostServerURL { get; set; }
-            public override string FallbackHostServerURL { get; set; }
-            public override EResourceLoadWayWebGL LoadResWayWebGL { get; set; }
-            public override string PackageVersion { get; set; }
-            public override bool AutoUnloadBundleWhenUnused { get; set; }
-            public override int DownloadingMaxNum { get; set; }
-            public override int FailedTryAgain { get; set; }
-            public override long Milliseconds { get; set; }
-            public override int AssetRecordCapacity { get; set; }
-            public override int AssetLeaseCapacity { get; set; }
-            public override int BindingOwnerCapacity { get; set; }
-            public override int BindingSlotCapacity { get; set; }
-            public override float IdleAssetExpireTime { get; set; }
-            public override int IdleAssetCapacity { get; set; }
+            public string DefaultPackageName { get; set; }
+            public string HostServerURL { get; set; }
+            public string FallbackHostServerURL { get; set; }
+            public EResourceLoadWayWebGL LoadResWayWebGL { get; set; }
+            public string PackageVersion { get; set; }
+            public bool AutoUnloadBundleWhenUnused { get; set; }
+            public int DownloadingMaxNum { get; set; }
+            public int FailedTryAgain { get; set; }
+            public long Milliseconds { get; set; }
+            public int AssetRecordCapacity { get; set; }
+            public int AssetLeaseCapacity { get; set; }
+            public int BindingOwnerCapacity { get; set; }
+            public int BindingSlotCapacity { get; set; }
+            public float IdleAssetExpireTime { get; set; }
+            public int IdleAssetCapacity { get; set; }
 
-            public override IResourceBindingService BindingService => throw NotReached();
-            public override string ApplicableGameVersion => throw NotReached();
-            public override int InternalResourceVersion => throw NotReached();
-            public override bool UpdatableWhilePlaying => throw NotReached();
+            public IResourceBindingService BindingService => throw NotReached();
+            public string ApplicableGameVersion => throw NotReached();
+            public int InternalResourceVersion => throw NotReached();
+            public bool UpdatableWhilePlaying => throw NotReached();
 
-            public override void Initialize()
+            public void Initialize()
             {
                 throw NotReached();
             }
 
-            public override UniTask<ResourcePackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false)
+            public UniTask<ResourcePackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false)
             {
                 throw NotReached();
             }
 
-            public override UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "")
+            public UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "")
             {
                 throw NotReached();
             }
 
-            public override string GetPackageVersion(string customPackageName = "")
+            public string GetPackageVersion(string customPackageName = "")
             {
                 throw NotReached();
             }
 
-            public override ResourcePackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
+            public ResourcePackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
             {
                 throw NotReached();
             }
 
-            public override void SetRemoteServicesUrl(string defaultHostServer, string fallbackHostServer)
+            public void SetRemoteServicesUrl(string defaultHostServer, string fallbackHostServer)
             {
                 throw NotReached();
             }
 
-            public override IResourceOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "")
+            public IResourceOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "")
             {
                 throw NotReached();
             }
 
-            public override IResourceDownloader CreateResourceDownloader(string customPackageName = "")
+            public IResourceDownloader CreateResourceDownloader(string customPackageName = "")
             {
                 throw NotReached();
             }
 
-            public override ResourceClearCacheResult StartClearCache(EResourceClearMode clearMode, string customPackageName = "")
+            public ResourceClearCacheResult StartClearCache(EResourceClearMode clearMode, string customPackageName = "")
             {
                 throw NotReached();
             }
 
-            public override void ClearAllBundleFiles(string customPackageName = "")
+            public void ClearAllBundleFiles(string customPackageName = "")
             {
                 throw NotReached();
             }
 
-            public override void OnLowMemory()
+            public void OnLowMemory()
             {
                 throw NotReached();
             }
 
-            public override void SetForceUnloadUnusedAssetsAction(Action<bool> action)
+            public void SetForceUnloadUnusedAssetsAction(Action<bool> action)
             {
                 throw NotReached();
             }
 
-            public override void UnloadUnusedAssets()
+            public void UnloadUnusedAssets()
             {
                 throw NotReached();
             }
 
-            public override void UnloadUnusedAssets(bool force)
+            public void UnloadUnusedAssets(bool force)
             {
                 throw NotReached();
             }
 
-            public override void ForceUnloadAllAssets()
+            public void ForceUnloadAllAssets()
             {
                 throw NotReached();
             }
 
-            public override void ForceUnloadUnusedAssets(bool performGCCollect)
+            public void ForceUnloadUnusedAssets(bool performGCCollect)
             {
                 throw NotReached();
             }
 
-            public override bool IsNeedDownloadFromRemote(string location, string packageName = "")
+            public bool IsNeedDownloadFromRemote(string location, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override long GetDownloadSize(string location, string packageName = "")
+            public long GetDownloadSize(string location, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override ResourceAssetInfoEntry[] GetAssetInfos(string tag, string packageName = "")
+            public ResourceAssetInfoEntry[] GetAssetInfos(string tag, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override ResourceAssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "")
+            public ResourceAssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override ResourceAssetInfoEntry GetAssetInfo(string location, string packageName = "")
+            public ResourceAssetInfoEntry GetAssetInfo(string location, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override EResourceHasAssetResult HasAsset(string location, string packageName = "")
+            public EResourceHasAssetResult HasAsset(string location, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override bool IsLocationValid(string location, string packageName = "")
+            public bool IsLocationValid(string location, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override bool TryGetLocationByGuid(string guid, out string location, string packageName = "")
+            public bool TryGetLocationByGuid(string guid, out string location, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override GameObject LoadGameObject(string location, Transform parent = null, string packageName = "")
+            public GameObject LoadGameObject(string location, Transform parent = null, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "")
+            public UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override ResourceSceneHandle LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "")
+            public ResourceSceneHandle LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "")
             {
                 throw NotReached();
             }
 
-            public override void WarmupResourceRecords(int assetCapacity, int leaseCapacity)
+            public void WarmupResourceRecords(int assetCapacity, int leaseCapacity)
             {
                 throw NotReached();
             }
 
-            public override ResourceLeaseHandle AcquireDirect(ResourceKey key)
+            public ResourceLeaseHandle AcquireDirect(ResourceKey key)
             {
                 throw NotReached();
             }
 
-            public override UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default)
+            public UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default)
             {
                 throw NotReached();
             }
 
-            public override void Release(ResourceLeaseHandle handle)
+            public void Release(ResourceLeaseHandle handle)
             {
                 throw NotReached();
             }
 
-            public override ResourceAssetLease<T> LoadLease<T>(ResourceKey key)
+            public ResourceAssetLease<T> LoadLease<T>(ResourceKey key) where T : UObject
             {
                 throw NotReached();
             }
 
-            public override ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")
+            public ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UObject
             {
                 throw NotReached();
             }
 
-            public override UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default)
+            public UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default) where T : UObject
             {
                 throw NotReached();
             }
 
-            public override UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
+            public UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UObject
             {
                 throw NotReached();
             }
 
-            public override bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
+            public bool TryGetLeaseAsset(ResourceLeaseHandle handle, out UObject asset)
             {
                 throw NotReached();
             }
 
-            public override ResourceLeaseHandle AcquireBinding(ResourceKey key)
+            public ResourceLeaseHandle AcquireBinding(ResourceKey key)
             {
                 throw NotReached();
             }
 
-            public override bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle)
+            public bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle)
             {
                 throw NotReached();
             }
 
-            public override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken)
+            public UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken)
             {
                 throw NotReached();
             }
 
-            public override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
+            public UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
             {
                 throw NotReached();
             }
 
-            public override bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
+            public bool TryGetSubSpriteAsset(ResourceLeaseHandle handle, string spriteName, out Sprite sprite)
             {
                 throw NotReached();
             }
 
-            public override bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
+            public bool TryGetLeaseAssetId(ResourceLeaseHandle handle, out int assetId)
             {
                 throw NotReached();
             }
 
-            public override void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
+            public void SetLeaseOptions(ResourceLeaseHandle handle, EResourceLeaseOption options)
             {
                 throw NotReached();
             }
 
-            public override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
+            public ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
             {
                 throw NotReached();
             }
 
-            public override UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken)
+            public UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken)
             {
                 throw NotReached();
             }
 
-            public override void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
+            public void ProcessResourceMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget)
             {
                 throw NotReached();
             }
 
-            public override int ReleaseAllUnusedAssetRecords()
+            public int ReleaseAllUnusedAssetRecords()
             {
                 throw NotReached();
             }
 
-            public override void ForceReleaseAllAssetRecords()
+            public void ForceReleaseAllAssetRecords()
             {
                 throw NotReached();
             }
 
-            public override int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount)
+            public int GetAssetInfos(ResourceAssetInfo[] results, int startIndex, int maxCount)
             {
                 throw NotReached();
             }

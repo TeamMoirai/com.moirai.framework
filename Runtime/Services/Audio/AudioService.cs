@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Audio
     /// Handler 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
-    [ProviderHandlerHost(typeof(AudioServiceHandler), typeof(UnityAudioHandler))]
+    [ProviderHandlerHost(typeof(IAudioService), typeof(UnityAudioHandler))]
     [ServiceDependency(typeof(TimerService), typeof(DebuggerService), typeof(ResourceService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
@@ -43,7 +43,7 @@ namespace Moirai.Atropos.Audio
         /// 从 <see cref="AudioServiceSettings"/> 解析音频处理器，并幂等确保服务已注册。
         /// </summary>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static AudioServiceHandler GetHandlerFromSettings()
+        private static IAudioService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<AudioService>();
             return AudioServiceSettings.AudioServiceHandler;
@@ -107,7 +107,8 @@ namespace Moirai.Atropos.Audio
 
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
 
             // 诊断状态跟着服务一起归零，避免重启后首帧异常被上一轮的退避窗口吞掉
             AudioFault.Reset();

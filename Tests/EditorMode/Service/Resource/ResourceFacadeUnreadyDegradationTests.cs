@@ -19,7 +19,7 @@ namespace Service.Resource
         [Test]
         public void ConfigSetters_WhenHandlerUnready_ThrowInsteadOfSilentDrop()
         {
-            ResourceServiceHandler saved = ResourceService.Internal_PeekHandler();
+            IResourceService saved = ResourceService.Internal_PeekHandler();
             ResourceService.Internal_UseHandler(null);
             try
             {
@@ -42,7 +42,7 @@ namespace Service.Resource
         [Test]
         public void GetAssetInfos_WhenHandlerUnready_ReturnsEmptyNotNull()
         {
-            ResourceServiceHandler saved = ResourceService.Internal_PeekHandler();
+            IResourceService saved = ResourceService.Internal_PeekHandler();
             ResourceService.Internal_UseHandler(null);
             try
             {

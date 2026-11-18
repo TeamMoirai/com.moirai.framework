@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Input
     // 依赖说明：订 UIService.onWindowShown/onWindowClosed 门面广播 + 读 UIService.CurrentModal——广播驱动软依赖，
     // 不做 [ServiceDependency] 硬声明（UI 侧对 Input 是静态调用硬依赖，双向硬声明会构成拓扑环）。
     [AutoRegisterService]
-    [ProviderHandlerHost(typeof(InputServiceHandler))]
+    [ProviderHandlerHost(typeof(IInputService))]
     public partial class InputService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
@@ -26,7 +26,7 @@ namespace Moirai.Atropos.Input
         /// 创建默认输入处理器（settings 未配置时的代码兜底，按编译符号选择输入后端）。
         /// </summary>
         /// <returns>默认输入处理器实例；无可用输入后端时返回 <c>null</c>。</returns>
-        internal static InputServiceHandler CreateDefaultHandler()
+        internal static IInputService CreateDefaultHandler()
         {
 #if ENABLE_INPUT_SYSTEM
             return new UnityInputSystemHandler();
@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Input
         /// </summary>
         /// <remarks>先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），使懒加载主路径首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static InputServiceHandler GetHandlerFromSettings()
+        private static IInputService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<InputService>();
             return InputServiceSettings.InputServiceHandler;
@@ -71,7 +71,8 @@ namespace Moirai.Atropos.Input
         {
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
 
             GameApp.onApplicationFocus -= ResetInput;
             UIService.onWindowShown -= RefreshUIModal;
@@ -125,7 +126,7 @@ namespace Moirai.Atropos.Input
         }
 
         /// <summary>获取当前输入处理器。</summary>
-        public static InputServiceHandler CurrentHandler => s_Handler;
+        public static IInputService CurrentHandler => s_Handler;
 
         #endregion
 

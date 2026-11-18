@@ -30,8 +30,8 @@ namespace Policy
         {
             // ── ① 行为契约守卫 ──
             ["EditorMode/Core/GameApp/PlayerLoopDriverTests.cs"] = "行为契约守卫：读私有静态入口的 [RuntimeInitializeOnLoadMethod] 属性",
-            ["EditorMode/Service/Resource/AddressableHandlerFailFastTests.cs"] = "行为契约守卫：遍历方法集断言 fail-fast 面",
-            ["EditorMode/Service/Resource/YooAssetHandlerSmokeTests.cs"] = "行为契约守卫：断言运行期数组字段带 [NonSerialized]",
+            ["EditorMode/Service/Asset/AddressableHandlerFailFastTests.cs"] = "行为契约守卫：遍历方法集断言 fail-fast 面",
+            ["EditorMode/Service/Asset/YooAssetHandlerSmokeTests.cs"] = "行为契约守卫：断言运行期数组字段带 [NonSerialized]",
 
             // ── ② 唤起 Unity 生命周期回调（EditMode 不自动执行） ──
             ["EditorMode/Core/Singleton/SingletonMonoTests.cs"] = "生命周期：Awake / OnDestroy",

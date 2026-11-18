@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Resource
     /// 「派生后端接缝」那组 <c>protected internal</c> 成员取用内核能力，签名里不出现内核类型。
     /// </remarks>
     [Serializable]
-    public abstract class ResourceRecordHostHandler : ResourceServiceHandler, IResourceRecordHost
+    public abstract class ResourceRecordHostHandler : ResourceServiceHandler, IResourceRecordHost, IResourceLeaseDiagnostics
     {
         #region 记录内核 [RECORD KERNEL]
 
@@ -335,6 +335,11 @@ namespace Moirai.Atropos.Resource
         internal sealed override int GetLeaseSourceInfos(ResourceLeaseSourceInfo[] results, int startIndex, int maxCount,
             out int outstandingCount, out int sourcedCount) =>
             Store.GetLeaseSourceInfos(results, startIndex, maxCount, out outstandingCount, out sourcedCount);
+
+        /// <inheritdoc />
+        int IResourceLeaseDiagnostics.GetLeaseSourceInfos(ResourceLeaseSourceInfo[] results, int startIndex, int maxCount,
+            out int outstandingCount, out int sourcedCount) =>
+            GetLeaseSourceInfos(results, startIndex, maxCount, out outstandingCount, out sourcedCount);
 #endif
 
         #endregion

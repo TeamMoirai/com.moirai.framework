@@ -10,13 +10,13 @@ namespace Moirai.Atropos.ObjectPool
     /// 基于 Unity 原生 Instantiate/Destroy 的默认 GameObject 池处理器。
     /// </summary>
     /// <remarks>
-    /// <see cref="GameObjectPoolServiceHandler"/> 的内置实现：分页槽位存储 + 代系句柄校验 + 共享最小堆维护调度，PoolCatalog 数据驱动配置；
+    /// <see cref="IGameObjectPoolService"/> 的内置实现：分页槽位存储 + 代系句柄校验 + 共享最小堆维护调度，PoolCatalog 数据驱动配置；
     /// 经 <see cref="GameObjectPoolServiceSettings"/> 序列化配置。
     /// </remarks>
     [ProviderDisplay(title: "默认 GameObject 池", description: "分页槽位 + 代系句柄校验 + 最小堆维护调度，PoolCatalog 数据驱动")]
     [Serializable]
     [UnityEngine.Scripting.Preserve]
-    internal sealed class DefaultGameObjectPoolHandler : GameObjectPoolServiceHandler
+    internal sealed class DefaultGameObjectPoolHandler : FrameworkHandler, IGameObjectPoolService, IGameObjectPoolInternals
     {
         #region 常量 [CONSTANTS]
 
@@ -148,7 +148,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="elapseSeconds">逻辑流逝时间。</param>
         /// <param name="realElapseSeconds">真实流逝时间。</param>
-        public override void Tick(float elapseSeconds, float realElapseSeconds)
+        public void Tick(float elapseSeconds, float realElapseSeconds)
         {
             _scheduler.ProcessDue(Time.time);
         }
@@ -163,7 +163,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>游戏对象。</returns>
-        public override GameObject Spawn(GameObjectPoolSource source, Transform parent)
+        public GameObject Spawn(GameObjectPoolSource source, Transform parent)
         {
             RuntimeGameObjectPool pool = ResolveSourcePool(source);
             return pool == null ? null : pool.Spawn(parent);
@@ -176,7 +176,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件。</returns>
-        public override T Spawn<T>(GameObjectPoolSource source, Transform parent)
+        public T Spawn<T>(GameObjectPoolSource source, Transform parent) where T : Component
         {
             GameObject instance = Spawn(source, parent);
             if (instance == null)
@@ -202,7 +202,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="instance">获取的游戏对象。</param>
         /// <returns>是否成功。</returns>
-        public override bool TrySpawn(GameObjectPoolSource source, Transform parent, out GameObject instance)
+        public bool TrySpawn(GameObjectPoolSource source, Transform parent, out GameObject instance)
         {
             instance = Spawn(source, parent);
             return instance != null;
@@ -215,7 +215,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>游戏对象。</returns>
-        public override async UniTask<GameObject> SpawnAsync(GameObjectPoolSource source, Transform parent, CancellationToken cancellationToken)
+        public async UniTask<GameObject> SpawnAsync(GameObjectPoolSource source, Transform parent, CancellationToken cancellationToken)
         {
             RuntimeGameObjectPool pool = ResolveSourcePool(source);
             return pool == null ? null : await pool.SpawnAsync(parent, cancellationToken);
@@ -229,7 +229,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件。</returns>
-        public override async UniTask<T> SpawnAsync<T>(GameObjectPoolSource source, Transform parent, CancellationToken cancellationToken)
+        public async UniTask<T> SpawnAsync<T>(GameObjectPoolSource source, Transform parent, CancellationToken cancellationToken) where T : Component
         {
             GameObject instance = await SpawnAsync(source, parent, cancellationToken);
             if (instance == null)
@@ -256,7 +256,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="location">资源地址。</param>
         /// <returns>预制体。</returns>
-        public override GameObject LoadPrefab(string location)
+        public GameObject LoadPrefab(string location)
         {
             RuntimeGameObjectPool pool = ResolvePool(location);
             return pool == null ? null : pool.LoadPrefab();
@@ -268,7 +268,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="location">资源地址。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>预制体。</returns>
-        public override async UniTask<GameObject> LoadPrefabAsync(string location, CancellationToken cancellationToken)
+        public async UniTask<GameObject> LoadPrefabAsync(string location, CancellationToken cancellationToken)
         {
             RuntimeGameObjectPool pool = ResolvePool(location);
             return pool == null ? null : await pool.LoadPrefabAsync(cancellationToken);
@@ -281,7 +281,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="count">预热数量。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>异步任务。</returns>
-        public override async UniTask WarmupAsync(GameObjectPoolSource source, int count, CancellationToken cancellationToken)
+        public async UniTask WarmupAsync(GameObjectPoolSource source, int count, CancellationToken cancellationToken)
         {
             RuntimeGameObjectPool pool = ResolveSourcePool(source);
             if (pool != null)
@@ -298,7 +298,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 回收游戏对象。仅外来（未注册）对象才会 Destroy；已注册但非 Active 的重复 Despawn 为安全 no-op。
         /// </summary>
         /// <param name="instance">游戏对象。</param>
-        public override void Despawn(GameObject instance)
+        public void Despawn(GameObject instance)
         {
             if (instance == null)
             {
@@ -334,7 +334,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 通过租约回收游戏对象。
         /// </summary>
         /// <param name="pooled">池化租约。</param>
-        public override void Despawn(PooledGameObject pooled)
+        public void Despawn(PooledGameObject pooled)
         {
             pooled?.Dispose();
         }
@@ -342,7 +342,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 尝试解析实例身份。
         /// </summary>
-        internal override bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex)
+        public bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex)
         {
             pool = null;
             slotIndex = -1;
@@ -353,7 +353,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 刷新指定来源的池。
         /// </summary>
         /// <param name="source">池化来源。</param>
-        public override void Flush(GameObjectPoolSource source)
+        public void Flush(GameObjectPoolSource source)
         {
             if (!source.IsValid)
             {
@@ -370,7 +370,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 刷新指定分组的所有池。
         /// </summary>
         /// <param name="group">分组名称。</param>
-        public override void FlushGroup(string group)
+        public void FlushGroup(string group)
         {
             string groupName = string.IsNullOrWhiteSpace(group) ? PoolEntry.DEFAULT_GROUP : group.Trim();
             for (int i = 0; i < _poolCount; i++)
@@ -386,7 +386,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 刷新所有池。
         /// </summary>
-        public override void FlushAll()
+        public void FlushAll()
         {
             for (int i = 0; i < _poolCount; i++)
             {
@@ -401,7 +401,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 获取调试摘要。
         /// </summary>
-        public override GameObjectPoolSummarySnapshot GetDebugSummary()
+        public GameObjectPoolSummarySnapshot GetDebugSummary()
         {
             int loadedPrefabCount = 0;
             int totalInstanceCount = 0;
@@ -438,7 +438,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 获取调试快照。
         /// </summary>
-        public override int GetDebugSnapshots(GameObjectPoolSnapshot[] snapshots)
+        public int GetDebugSnapshots(GameObjectPoolSnapshot[] snapshots)
         {
             if (snapshots == null || snapshots.Length == 0)
             {
@@ -469,7 +469,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 填充实例级调试快照。
         /// </summary>
-        public override void FillDebugInstances(GameObjectPoolSnapshot snapshot)
+        public void FillDebugInstances(GameObjectPoolSnapshot snapshot)
         {
             if (snapshot == null || string.IsNullOrEmpty(snapshot.location))
             {

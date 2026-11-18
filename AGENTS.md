@@ -2,22 +2,14 @@
 
 ## 项目概述
 
-**Moirai Framework** 是一个 Unity 游戏开发框架，提供服务化、高性能的开发解决方案。
-
-### 核心特性
-- 🚀 开箱即用 - 5 分钟快速上手
-- 🔥 高性能 - 基于 UniTask 的异步系统，零 GC 事件分发
-- 🧩 高内聚低耦合 - 服务化设计
-- 🔄 热更新支持 - 集成 HybridCLR
-- 📦 资源管理 - 集成 YooAsset
-- 📊 配置表系统 - 集成 Luban
-- 🎨 UI 框架 - 商业化 UI 开发流程
+**Moirai Framework** 是一个 Unity 游戏开发框架，提供服务化、高性能的开发解决方案。特性全景见 [README.md](README.md) 的「核心特性」，服务清单与目录口径见下文。
 
 ## 项目结构
 
 ```
 com.moirai.framework/
 ├── Runtime/                  # 运行时代码（Moirai.Atropos.asmdef）
+│   ├── Kernel/               # 服务注册与生命周期（门面 GameServices / 容器 ServiceScope / 基类 ServiceBase）
 │   ├── Core/                 # 核心系统，不依赖服务层；按功能分组平铺，不套服务层的角色档
 │   │   ├── <功能组>/         # Attributes / Constant / DataStructure / Extensions / GameException /
 │   │   │                     # Events / GameApp / GameProfiler / FrameworkSettings / Graphics /
@@ -44,8 +36,7 @@ com.moirai.framework/
 - **DebuggerService** - 调试工具
 - **InputService** - 输入系统
 - **LocalizationService** - 本地化
-- **ObjectPoolService** - 通用对象池（任意 ObjectBase 派生对象，opt-in 注册）
-- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 ResourceService）
+- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 ResourceService）；C# 对象池在 Core/MemoryPool，不设服务
 - **ProcedureService** - 流程管理
 - **ResourceService** - 资源管理
 - **SaveService** - 存档系统
@@ -84,9 +75,7 @@ com.moirai.framework/
 
 ## 测试规范
 
-细则（分层与归属、命名与结构、夹具与隔离、确定性、反射政策、日志断言、基准、公共 API 变更口径、覆盖率与出口准则、可执行守卫）
-
-的权威落点在 `.agent/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
+细则（分层与归属、命名与结构、夹具与隔离、确定性、反射政策、日志断言、基准、公共 API 变更口径、覆盖率与出口准则、可执行守卫）的权威落点在 `.agent/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
 
 ## AI 测试流程
 
@@ -198,7 +187,7 @@ com.moirai.framework/
 ## 注意事项
 
 1. **Unity 版本**：推荐 Unity 2022.3.x
-2. **.NET 版本**：Api Compatibility Level 为 .NET Framework（`apiCompatibilityLevel: 6`，等效 4.8），非 .NET Standard 2.1
+2. **.NET 版本**：API Compatibility Level 为 .NET Standard 2.1（`apiCompatibilityLevel: 6`）；服务契约依赖接口默认方法（DIM），.NET Framework 4.x profile 不支持
 3. **平台支持**：Windows、macOS（Standalone——L3 玩家验收基座，IL2CPP 实测）、Android、iOS、WebGL
 4. **热更新**：使用 HybridCLR 进行热更新
 5. **资源管理**：使用 YooAsset 管理资源
@@ -206,16 +195,16 @@ com.moirai.framework/
 ## 常见问题
 
 ### Q: 如何添加新服务？
-A: 使用 `/new-service` 命令，按照模板创建服务。
+A: 使用 `/new-service` 命令，按照模板创建服务；服务契约接口与 Handler 基座的口径见 [Core 文档](Documentation~/Core.md)。
 
 ### Q: 如何进行热更新？
-A: 参考 README 中的打包运行步骤。
+A: 见 [安装与运行](Documentation~/Install.md) 的打包运行流程；热更 DLL 构建命令在 `HybridCLR/Build` 菜单。
 
 ### Q: 如何优化性能？
-A: 使用 `/optimize` 命令分析和优化代码。
+A: hot-path 判据与优化手法见 `.agent/skills/moirai-conventions/references/coding.md`，可用 `/optimize` 辅助分析。
 
 ### Q: 如何修复 Bug？
-A: 使用 `/fix-bug` 命令分析和修复问题。
+A: 测试与判绿流程见 `.agent/skills/moirai-conventions/references/verification.md`，可用 `/fix-bug` 辅助定位。
 
 ## 相关资源
 

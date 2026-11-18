@@ -18,7 +18,7 @@ namespace Service.Localization
         private string _savedEditorLanguage;
         private string _savedLanguageCode;
         private bool _hadSavedLanguage;
-        private LocalizationServiceHandler _savedFacadeHandler;
+        private ILocalizationService _savedFacadeHandler;
 
         [SetUp]
         public void SetUp()

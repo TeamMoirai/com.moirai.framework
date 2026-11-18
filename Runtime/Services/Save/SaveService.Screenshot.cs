@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Save
 
             try
             {
-                await s_Handler.WriteScreenshotAsync(paths, pngBytes, cancellationToken);
+                await ((SaveServiceHandler)s_Handler).WriteScreenshotAsync(paths, pngBytes, cancellationToken);
             }
             catch (OperationCanceledException)
             {

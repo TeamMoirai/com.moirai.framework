@@ -108,7 +108,7 @@ namespace Service.Audio
         /// <summary>
         /// 「还没初始化」不等于「后端 inert」：桥接尚未建立的启动窗口里，音量面必须照实报设置值。
         /// </summary>
-        /// <remarks>inert 只应在初始化明确失败时成立（见 <see cref="AudioServiceHandler.IsBackendInert"/>），否则启动窗口内读到的 0 会被用户操作写回并持久化。</remarks>
+        /// <remarks>inert 只应在初始化明确失败时成立（见 <see cref="IAudioService.IsBackendInert"/>），否则启动窗口内读到的 0 会被用户操作写回并持久化。</remarks>
         [Test]
         public void NotYetInitializedBackend_StillReportsItsSettings()
         {

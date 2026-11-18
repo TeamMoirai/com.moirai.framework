@@ -112,7 +112,7 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务。</returns>
         public static async UniTask SaveEntitiesAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
-            SaveServiceHandler handler = RequireHandler();
+            var handler = (SaveServiceHandler)RequireHandler();
             await SaveEntityPersistence.WarmBaselinesAsync(cancellationToken);
             List<SaveBlockEntry> entries = SaveEntityPersistence.CaptureEntityEntries(fileName, folderName);
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
@@ -158,7 +158,7 @@ namespace Moirai.Atropos.Save
             }
 
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
-            Dictionary<string, byte[]> blocks = await s_Handler.ReadRawBlocksAsync(paths, cancellationToken);
+            Dictionary<string, byte[]> blocks = await ((SaveServiceHandler)s_Handler).ReadRawBlocksAsync(paths, cancellationToken);
 
             // 读档续体经 RunOnThreadPool(configureAwait:false) 完成——可能停留在线程池；
             // 恢复管线全程 Unity API（生成/销毁/变换写回/事件内联派发），须先切回主线程

@@ -200,7 +200,7 @@ namespace Moirai.Atropos.SourceGenerators
                 sb.AppendLine("                    s_InitializingHandler = true;");
                 sb.AppendLine("                    try");
                 sb.AppendLine("                    {");
-                sb.AppendLine("                        created.Internal_Init();");
+                sb.AppendLine("                        ((global::Moirai.Atropos.FrameworkHandler)created).Internal_Init();");
                 sb.AppendLine("                        s_Handler = created;");
                 sb.AppendLine("                        return created;");
                 sb.AppendLine("                    }");
@@ -237,14 +237,14 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("                    s_InitializingHandler = true;");
             sb.AppendLine("                    try");
             sb.AppendLine("                    {");
-            sb.AppendLine("                        value.Internal_Init();");
+            sb.AppendLine("                        ((global::Moirai.Atropos.FrameworkHandler)value).Internal_Init();");
             sb.AppendLine("                        s_Handler = value;");
             sb.AppendLine("                    }");
             sb.AppendLine("                    finally");
             sb.AppendLine("                    {");
             sb.AppendLine("                        s_InitializingHandler = false;");
             sb.AppendLine("                    }");
-            sb.AppendLine("                    previous?.Internal_Shutdown();");
+            sb.AppendLine("                ((global::Moirai.Atropos.FrameworkHandler)previous)?.Internal_Shutdown();");
             sb.AppendLine("                }");
             sb.AppendLine("            }");
             sb.AppendLine("        }");

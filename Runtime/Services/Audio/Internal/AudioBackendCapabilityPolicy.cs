@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Audio
                 Add(problems, assetPath, nameof(AudioPlayOptions.InitialDelay),
                     $"InitialDelay = {options.InitialDelay:0.###}s，后端 {capabilities.BackendName} 不消费它：这一声会立刻响，" +
                     "配好的起播延迟不会生效。改法：把该字段归 0，或换成消费它的音频后端（AudioServiceSettings → 音频处理器）；" +
-                    "后端确实支持时，在 AudioServiceHandler 上覆写 SupportsDelayedStart。");
+                    "后端确实支持时，在 IAudioService 上覆写 SupportsDelayedStart。");
             }
 
             if (!capabilities.SupportsPlaybackTrim && options.PlaybackTime > 0f)
@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Audio
                     $"PlaybackTime = {options.PlaybackTime:0.###}s，后端 {capabilities.BackendName} 不消费它：" +
                     "配好的起播位置不会生效，音频从自身开头播起。改法：把该字段归 0，" +
                     "或换成消费它的音频后端（AudioServiceSettings → 音频处理器）；后端确实支持时，" +
-                    "在 AudioServiceHandler 上覆写 SupportsPlaybackTrim。");
+                    "在 IAudioService 上覆写 SupportsPlaybackTrim。");
             }
 
             if (!capabilities.SupportsPlaybackTrim && options.PlaybackDuration > 0f)
@@ -51,7 +51,7 @@ namespace Moirai.Atropos.Audio
                     $"PlaybackDuration = {options.PlaybackDuration:0.###}s，后端 {capabilities.BackendName} 不消费它：" +
                     "提前结束与随之而来的淡出都不会发生，音频会按自身长度播完。改法：把该字段归 0，" +
                     "或换成消费它的音频后端（AudioServiceSettings → 音频处理器）；后端确实支持时，" +
-                    "在 AudioServiceHandler 上覆写 SupportsPlaybackTrim。");
+                    "在 IAudioService 上覆写 SupportsPlaybackTrim。");
             }
 
             if (!capabilities.SupportsSoloControl && options.SoloMode != EAudioSoloMode.None)
@@ -60,7 +60,7 @@ namespace Moirai.Atropos.Audio
                     $"SoloMode = {options.SoloMode}，后端 {capabilities.BackendName} 不消费它：开播时不会静音其他音轨/其他音频，" +
                     "AutoUnSoloOnEnd 同属独奏分支也不会兑现。改法：把该字段改回 None，" +
                     "或换成消费它的音频后端（AudioServiceSettings → 音频处理器）；后端确实支持时，" +
-                    "在 AudioServiceHandler 上覆写 SupportsSoloControl。");
+                    "在 IAudioService 上覆写 SupportsSoloControl。");
             }
         }
 

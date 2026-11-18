@@ -4,7 +4,7 @@ using UnityEditor;
 namespace Moirai.Atropos.Resource
 {
     /// <summary>
-    /// 资源包名清单的编辑器桥：传入 <see cref="ResourceServiceHandler"/> 取该后端可用的资源包名数组。
+    /// 资源包名清单的编辑器桥：传入 <see cref="IResourceService"/> 取该后端可用的资源包名数组。
     /// </summary>
     /// <remarks>
     /// 包名清单是编辑器侧数据（由跟着后端走的 <see cref="IResourceEditorPackageProbe"/> 提供），运行时无此需求， <br />
@@ -34,7 +34,7 @@ namespace Moirai.Atropos.Resource
         public static void RegisterEditorPackageProbe(IResourceEditorPackageProbe probe) => s_Probe = probe;
 
         /// <summary>当前后端的默认包是否开了寻址（探针不认领时 <c>false</c>）。</summary>
-        public static bool DefaultPackageIsAddressable(ResourceServiceHandler handler) =>
+        public static bool DefaultPackageIsAddressable(IResourceService handler) =>
             s_Probe != null && s_Probe.AppliesTo(handler) && s_Probe.DefaultPackageIsAddressable();
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Moirai.Atropos.Resource
                 return s_PackageNames;
             }
 
-            ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
+            IResourceService handler = ResourceServiceSettings.ResourceServiceHandler;
 
             // 「要不要接管包名行」由 Runtime 侧的处理器自报；「清单从哪读」由跟着后端走的探针自认领。
             // 编辑器装配既不许引用插件装配、也不许用 is 具体后端类型判它——会被静默裁成恒假。

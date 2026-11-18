@@ -12,9 +12,9 @@ namespace Moirai.Atropos.Save
     {
         [Tooltip("存储管线处理器（PlainSaveHandler / AESEncryptedSaveHandler）。存储后端/压缩提供方/迁移回写与密钥提供方均内嵌在处理器上配置，不在本设置平铺。")]
         [ProviderDropdown]
-        [SerializeReference] private SaveServiceHandler m_SaveServiceHandler = SaveService.CreateDefaultHandler();
+        [SerializeReference] private ISaveService m_SaveServiceHandler = SaveService.CreateDefaultHandler();
         /// <summary>存档处理器实例（由 Inspector 序列化配置，可替换存储管线策略）。</summary>
-        public static SaveServiceHandler SaveServiceHandler => Instance.m_SaveServiceHandler;
+        public static ISaveService SaveServiceHandler => Instance.m_SaveServiceHandler;
 
         /// <summary>配置自检：加密处理器的密钥是否仍是出厂占位值。</summary>
         /// <remarks>

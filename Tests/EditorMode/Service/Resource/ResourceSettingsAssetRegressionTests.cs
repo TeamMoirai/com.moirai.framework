@@ -37,7 +37,7 @@ namespace Service.Resource
                 return;
             }
 
-            ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
+            IResourceService handler = ResourceServiceSettings.ResourceServiceHandler;
             Assert.IsNotNull(handler,
                 "后端引用读成了 null——[SerializeReference] 记录的类型名在当前程序集里已经找不到，" +
                 "而 Unity 不会为这件事报任何错");

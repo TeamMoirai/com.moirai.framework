@@ -16,7 +16,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [AutoRegisterService]
-    [ProviderHandlerHost(typeof(GameObjectPoolServiceHandler), typeof(DefaultGameObjectPoolHandler))]
+    [ProviderHandlerHost(typeof(IGameObjectPoolService), typeof(DefaultGameObjectPoolHandler))]
     [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
     [UnityEngine.Scripting.Preserve]
     public partial class GameObjectPoolService : ServiceBase, IServiceTickable
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.ObjectPool
         /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static GameObjectPoolServiceHandler GetHandlerFromSettings()
+        private static IGameObjectPoolService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<GameObjectPoolService>();
             return GameObjectPoolServiceSettings.GameObjectPoolServiceHandler;
@@ -56,7 +56,8 @@ namespace Moirai.Atropos.ObjectPool
         {
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>
@@ -314,7 +315,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             pool = null;
             slotIndex = -1;
-            return s_Handler != null && s_Handler.TryResolveInstance(instance, out pool, out slotIndex);
+            return s_Handler is IGameObjectPoolInternals internals && internals.TryResolveInstance(instance, out pool, out slotIndex);
         }
 
         /// <summary>

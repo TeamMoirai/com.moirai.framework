@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Service.Audio
 {
     /// <summary>
-    /// 总线过渡对拍：Master / 音轨淡入淡出由 <see cref="AudioServiceHandler"/> 契约实现。
+    /// 总线过渡对拍：Master / 音轨淡入淡出由 <see cref="IAudioService"/> 契约实现。
     /// </summary>
     /// <remarks>
     /// 两个后端只在 <see cref="IAudioFadeTarget.ApplyFade"/> 的落点上分岔，用例量的就是这个落点。 <br />

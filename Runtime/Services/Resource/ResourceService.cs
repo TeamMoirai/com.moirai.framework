@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Resource
     /// 例外：<see cref="LoadSceneAsync"/> 未就绪时返回 <c>null</c>，是其消费者的既定契约。
     /// </remarks>
     [AutoRegisterService]
-    [ProviderHandlerHost(typeof(ResourceServiceHandler), typeof(YooAssetHandler))]
+    [ProviderHandlerHost(typeof(IResourceService), typeof(YooAssetHandler))]
     [ServiceDependency(typeof(DebuggerService))]
     public partial class ResourceService : ServiceBase, IServiceTickable
     {
@@ -60,10 +60,10 @@ namespace Moirai.Atropos.Resource
         /// </summary>
         /// <remarks>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static ResourceServiceHandler GetHandlerFromSettings()
+        private static IResourceService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<ResourceService>();
-            ResourceServiceHandler handler = ResourceServiceSettings.ResourceServiceHandler;
+            IResourceService handler = ResourceServiceSettings.ResourceServiceHandler;
             if (handler == null)
             {
                 // [SerializeReference] 类型名对不上时 Unity 只把字段还原成 null、不报错；
@@ -129,7 +129,8 @@ namespace Moirai.Atropos.Resource
 
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 消费契约按接口类型持有；生命周期关停按 FrameworkHandler 基座
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>
@@ -348,9 +349,9 @@ namespace Moirai.Atropos.Resource
         internal static int GetLeaseSourceInfos(ResourceLeaseSourceInfo[] results, int startIndex, int maxCount,
             out int outstandingCount, out int sourcedCount)
         {
-            if (s_Handler != null)
+            if (s_Handler is IResourceLeaseDiagnostics diagnostics)
             {
-                return s_Handler.GetLeaseSourceInfos(results, startIndex, maxCount, out outstandingCount, out sourcedCount);
+                return diagnostics.GetLeaseSourceInfos(results, startIndex, maxCount, out outstandingCount, out sourcedCount);
             }
 
             outstandingCount = 0;

@@ -11,8 +11,8 @@ namespace Moirai.Atropos.Input
                  "可以使用 InputActionsConfiguration 来桥接配置，避免陷入修改黑洞。", InfoMessageType.None)]
 
         [ProviderDropdown]
-        [SerializeReference] private InputServiceHandler m_InputServiceHandler = InputService.CreateDefaultHandler();
+        [SerializeReference] private IInputService m_InputServiceHandler = InputService.CreateDefaultHandler();
         /// <summary>当前输入处理器实例。</summary>
-        public static InputServiceHandler InputServiceHandler => Instance.m_InputServiceHandler;
+        public static IInputService InputServiceHandler => Instance.m_InputServiceHandler;
     }
 }

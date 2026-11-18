@@ -15,7 +15,7 @@ namespace Service.Localization
     [TestFixture]
     public sealed class LocalizationBoundaryC1Tests
     {
-        private LocalizationServiceHandler _savedFacadeHandler;
+        private ILocalizationService _savedFacadeHandler;
         private string _savedLanguageCode;
         private bool _hadSavedLanguage;
 

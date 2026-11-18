@@ -42,7 +42,7 @@ namespace Moirai.Atropos.Save
         {
             if (_pending.Count == 0) return;
 
-            SaveServiceHandler handler = SaveService.Internal_PeekHandler();
+            var handler = SaveService.Internal_PeekHandler() as SaveServiceHandler;
             if (handler == null) throw new GameException("SaveBlockBatch: SaveService handler is not ready.");
 
             List<SaveBlockEntry> entries = await UniTask.RunOnThreadPool(BuildEntries, cancellationToken: cancellationToken);

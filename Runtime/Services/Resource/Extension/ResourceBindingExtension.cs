@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Resource
     {
         #region 字段 [FIELDS]
 
-        private static ResourceServiceHandler s_Handler;
+        private static IResourceService s_Handler;
         private static IResourceBindingService s_BindingService;
 
 #if UNITY_EDITOR
@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Resource
 
         #region 私有方法 [PRIVATE METHODS]
 
-        private static bool TryGetResourceService(out ResourceServiceHandler handler,
+        private static bool TryGetResourceService(out IResourceService handler,
             out IResourceBindingService bindingService)
         {
             handler = s_Handler;

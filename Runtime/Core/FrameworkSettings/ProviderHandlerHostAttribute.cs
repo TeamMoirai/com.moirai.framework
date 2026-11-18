@@ -25,10 +25,10 @@ namespace Moirai.Atropos
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class ProviderHandlerHostAttribute : Attribute
     {
-        /// <summary>处理器类型，必须继承 <see cref="FrameworkHandler"/>。</summary>
+        /// <summary>处理器契约类型（类或接口）：生成代码的 <c>s_Handler</c>/<c>Handler</c> 等成员按此类型化。接口契约时，默认与配置实现须继承 <see cref="FrameworkHandler"/>（生命周期基座）。</summary>
         public Type HandlerType { get; }
 
-        /// <summary>声明的默认处理器类型：生成器据此生成 <c>CreateDefaultHandler</c>；null 表示不生成（手写工厂或 settings-only 宿主）。</summary>
+        /// <summary>声明的默认处理器类型：生成器据此生成 <c>CreateDefaultHandler</c>；须实现处理器契约（类契约继承、接口契约实现）且继承 <see cref="FrameworkHandler"/>；null 表示不生成（手写工厂或 settings-only 宿主）。</summary>
         public Type DefaultHandlerType { get; }
 
         /// <param name="handlerType">处理器类型。</param>

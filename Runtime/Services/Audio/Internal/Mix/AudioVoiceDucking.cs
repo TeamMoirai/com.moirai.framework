@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Audio
         /// 由后端 Tick 驱动。
         /// </summary>
         /// <remarks>需 <see cref="AudioServiceSettings.AutoDuckingOnVoice"/> 打开且混音快照里注册了 Dialogue，否则整条路径零成本。</remarks>
-        public static void Evaluate(AudioServiceHandler handler)
+        public static void Evaluate(IAudioService handler)
         {
             if (!AudioServiceSettings.AutoDuckingOnVoice)
             {

@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Save
     /// 读取失败返回 <c>default</c> 并记错误日志（错误判别用 Try* 族的 <see cref="SaveResult{T}"/>）；删除幂等——目标不存在视为成功。 <br />
     /// 实例由 <see cref="SaveServiceSettings"/> 序列化持有，经 <see cref="SaveService"/> 静态外观访问。
     /// </remarks>
-    public abstract class SaveServiceHandler : FrameworkHandler
+    public abstract class SaveServiceHandler : FrameworkHandler, ISaveService
     {
         /// <summary>存档数据根目录名（persistentDataPath 下）。</summary>
         public const string DATA_FOLDER_NAME = "Data";

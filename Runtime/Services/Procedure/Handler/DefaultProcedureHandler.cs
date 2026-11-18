@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Procedure
     /// </remarks>
     [ProviderDisplay(title: "默认流程机", description: "纯 C# 状态机：嵌套切换递归完成、切换环深度上限 fail-fast")]
     [Serializable]
-    internal sealed class DefaultProcedureHandler : ProcedureServiceHandler
+    internal sealed class DefaultProcedureHandler : FrameworkHandler, IProcedureService
     {
         /// <summary>单次调用栈内允许的最大切换深度（合法嵌套远低于此值，超出即判定为流程环）。</summary>
         private const int MaxTransitionDepth = 16;
@@ -25,11 +25,33 @@ namespace Moirai.Atropos.Procedure
         [NonSerialized] private bool _isStateReady;
         [NonSerialized] private int _transitionDepth;
 
+        #region 切换记录承载（原基类共享状态，[SerializeReference] 重建须懒初始化）
+
+        private const int TransitionHistoryCapacity = 32;
+
+        [NonSerialized] private List<ProcedureTransitionRecord> _transitionHistory;
+        [NonSerialized] private bool _isBroadcastingTransition;
+
+        private List<ProcedureTransitionRecord> TransitionHistoryList =>
+            _transitionHistory ??= new List<ProcedureTransitionRecord>(TransitionHistoryCapacity);
+
+        /// <inheritdoc />
+        public IReadOnlyList<ProcedureTransitionRecord> TransitionHistory => TransitionHistoryList;
+
+        private void RecordTransition(in ProcedureTransitionRecord record)
+            => ProcedureBackendPolicy.RecordTransition(TransitionHistoryList, ref _isBroadcastingTransition, record);
+
+        private void ClearTransitionHistory() => TransitionHistoryList.Clear();
+
+        private bool IsBroadcastingTransition => _isBroadcastingTransition;
+
+        #endregion 切换记录承载 [TRANSITION RECORDING]
+
         /// <summary>状态机是否已就绪（已 <see cref="Initialize"/> 且未关停）。</summary>
-        public override bool IsStateReady => _isStateReady;
+        public bool IsStateReady => _isStateReady;
 
         /// <summary>当前流程。</summary>
-        public override ProcedureBase CurrentProcedure
+        public ProcedureBase CurrentProcedure
         {
             get
             {
@@ -43,7 +65,7 @@ namespace Moirai.Atropos.Procedure
         }
 
         /// <summary>当前流程持续时间。</summary>
-        public override float CurrentProcedureTime
+        public float CurrentProcedureTime
         {
             get
             {
@@ -57,7 +79,7 @@ namespace Moirai.Atropos.Procedure
         }
 
         /// <summary>已注册的全部流程（未初始化时为空集）。</summary>
-        public override IReadOnlyCollection<ProcedureBase> Procedures =>
+        public IReadOnlyCollection<ProcedureBase> Procedures =>
             _states != null ? (IReadOnlyCollection<ProcedureBase>)_states.Values : EmptyProcedures;
 
         /// <summary>
@@ -132,7 +154,7 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="elapseSeconds">逻辑流逝时间。</param>
         /// <param name="realElapseSeconds">真实流逝时间。</param>
-        public override void Tick(float elapseSeconds, float realElapseSeconds)
+        public void Tick(float elapseSeconds, float realElapseSeconds)
         {
             if (!_isStateReady || _currentState == null)
             {
@@ -151,7 +173,7 @@ namespace Moirai.Atropos.Procedure
         /// 调用方应丢弃整批流程实例后重建传入。
         /// </remarks>
         /// <param name="procedures">流程管理器包含的流程。</param>
-        public override void Initialize(params ProcedureBase[] procedures)
+        public void Initialize(params ProcedureBase[] procedures)
         {
             if (procedures == null || procedures.Length < 1)
             {
@@ -197,7 +219,7 @@ namespace Moirai.Atropos.Procedure
         /// <c>OnEnter</c> 抛出时异常上抛并回滚到未启动态（当前流程置空，修复后可重新 StartProcedure）；若 <c>OnEnter</c> 内已完成嵌套重定向（当前流程不再是本流程），保留嵌套终态不回滚。
         /// </remarks>
         /// <param name="procedureType">要开始的流程类型。</param>
-        public override void StartProcedure(Type procedureType)
+        public void StartProcedure(Type procedureType)
         {
             ThrowIfBroadcastingTransition();
 
@@ -240,7 +262,7 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="procedureType">要检查的流程类型。</param>
         /// <returns>是否存在流程。</returns>
-        public override bool HasProcedure(Type procedureType)
+        public bool HasProcedure(Type procedureType)
         {
             if (!_isStateReady)
             {
@@ -258,7 +280,7 @@ namespace Moirai.Atropos.Procedure
         /// <c>OnLeave</c> 抛出不影响当前流程（仍指向切出流程）。
         /// </remarks>
         /// <param name="procedureType">要切换的状态类型。</param>
-        public override void ChangeState(Type procedureType)
+        public void ChangeState(Type procedureType)
         {
             ThrowIfBroadcastingTransition();
 
@@ -316,7 +338,7 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="procedureType">要获取的流程类型。</param>
         /// <returns>要获取的流程（不存在时为 null）。</returns>
-        public override ProcedureBase GetProcedure(Type procedureType)
+        public ProcedureBase GetProcedure(Type procedureType)
         {
             if (!_isStateReady)
             {
@@ -332,7 +354,7 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="procedures">新的流程。</param>
         /// <returns>是否重启成功。</returns>
-        public override bool RestartProcedure(params ProcedureBase[] procedures)
+        public bool RestartProcedure(params ProcedureBase[] procedures)
         {
             ThrowIfBroadcastingTransition();
 

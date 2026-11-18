@@ -18,7 +18,7 @@ namespace Service.Localization
         private static readonly Language Chinese = Language.ChineseSimplified;
 
         private L10nProbeHandler _handler;
-        private LocalizationServiceHandler _originalFacadeHandler;
+        private ILocalizationService _originalFacadeHandler;
         private GameObject _container;
 
         [SetUp]

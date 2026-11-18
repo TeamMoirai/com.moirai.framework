@@ -107,7 +107,7 @@ namespace Moirai.Atropos.Resource
     /// 资源系统场景句柄抽象（框架通用），封装一次场景加载操作及其生命周期。
     /// </summary>
     /// <remarks>
-    /// 由具体资源后端（YooAsset、Addressable 等）适配实现，<see cref="ResourceServiceHandler.LoadSceneAsync"/> 创建、 <br />
+    /// 由具体资源后端（YooAsset、Addressable 等）适配实现，<see cref="IResourceService.LoadSceneAsync"/> 创建、 <br />
     /// <see cref="ResourceService"/> 转发。
     /// 句柄失效安全：释放（<see cref="Release"/>）或卸载完成后访问属性返回默认值，不抛异常。
     /// </remarks>

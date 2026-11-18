@@ -20,12 +20,13 @@ namespace Moirai.Atropos.Audio
     /// </remarks>
     [ProviderDisplay(title: "Unity 音频", description: "默认：AudioSource/AudioMixer 直驱，无中间件依赖")]
     [Serializable]
-    internal sealed class UnityAudioHandler : AudioServiceHandler, IAudioFadeTarget
+    internal sealed class UnityAudioHandler : FrameworkHandler, IAudioService, IAudioFadeTarget
     {
         [NonSerialized] private AudioGroupConfig[] _audioGroupConfigs;
         [NonSerialized] private bool _unityAudioDisabled;
 
-        // 音轨暂停标记 _pausedTracks 已上移到契约（数组仍在这里的 Initialize/OnShutdown 建与散）
+        // 音轨暂停标记（原基类共享字段，数组仍在这里的 Initialize/OnShutdown 建与散；读写经 AudioBackendPolicy 越界守卫）
+        [NonSerialized] private bool[] _pausedTracks;
         // 音轨 -> Category 缓存，O(1) 数组直接访问
         [NonSerialized] private AudioCategory[] _categoryCache;
         // 音轨 -> AudioGroupConfig 缓存，O(1) 数组直接访问
@@ -34,37 +35,39 @@ namespace Moirai.Atropos.Audio
         [NonSerialized] internal readonly AudioHandleRegistry<AudioAgent> _handles = new AudioHandleRegistry<AudioAgent>();
         // Clip 缓存（Lease + LRU + TTL + Pin + lowMemory）——路径播放单一真相源
         [NonSerialized] private readonly AudioClipCache _clipCache = new AudioClipCache();
+        // 声部句柄与 Master/音轨总线伪句柄共用的过渡调度表（原基类共享字段）
+        [NonSerialized] internal readonly AudioFadeScheduler _fades = new AudioFadeScheduler();
 
         [NonSerialized] private AudioMixer _audioMixer;
         /// <inheritdoc />
-        public override AudioMixer AudioMixer => _audioMixer;
+        public AudioMixer AudioMixer => _audioMixer;
 
         [NonSerialized] private Transform _instanceRoot;
         // 是否由本后端把 AudioListener 挂起：关停时必须解冻，否则带着后台状态退出会留下全局静音
         [NonSerialized] private bool _pausedByFramework;
         /// <inheritdoc />
-        public override Transform InstanceRoot { get => _instanceRoot; set => _instanceRoot = value; }
+        public Transform InstanceRoot { get => _instanceRoot; set => _instanceRoot = value; }
 
         /// <summary>Clip 缓存（Agent 路径加载经此取租约）。</summary>
         internal AudioClipCache ClipCache => _clipCache;
 
         /// <inheritdoc />
         /// <remarks>Clip 缓存的只读投影；租约由缓存持有，外部无法经此视图改写记账或释放租约。</remarks>
-        public override IReadOnlyDictionary<string, object> AssetHandlePool => _clipCache.PoolReadOnly;
+        public IReadOnlyDictionary<string, object> AssetHandlePool => _clipCache.PoolReadOnly;
 
         #region 后端能力 [BACKEND CAPABILITIES]
 
         /// <inheritdoc />
         /// <remarks>消费点是 <see cref="AudioAgent"/> 的起播路径：正值走 <c>PlayDelayed</c>，且计入自然结束计时。</remarks>
-        protected internal override bool SupportsDelayedStart => true;
+        public bool SupportsDelayedStart => true;
 
         /// <inheritdoc />
         /// <remarks>消费点同上：严格大于 0 时用它压掉自然结束点，到点走淡出。</remarks>
-        protected internal override bool SupportsPlaybackTrim => true;
+        public bool SupportsPlaybackTrim => true;
 
         /// <inheritdoc />
         /// <remarks>消费点是 <see cref="AudioAgent"/> 的独奏分支：按轨或全轨静音其他音源，并挂自动取消独奏的定时。</remarks>
-        protected internal override bool SupportsSoloControl => true;
+        public bool SupportsSoloControl => true;
 
         #endregion 后端能力 [BACKEND CAPABILITIES]
 
@@ -74,15 +77,15 @@ namespace Moirai.Atropos.Audio
         /// <remarks>就是 <c>unityAudioDisabled</c> 本身。该字段只在 <c>#if UNITY_EDITOR</c> 内被赋值，
         /// 所以玩家构建里这条恒 false——它表达的是"开发者在编辑器菜单里关了音频"，不是设备故障。 <br />
         /// 其余 27 处 <c>_unityAudioDisabled</c> 短路仍直读字段：同文件里两种拼法并存比绕一层钩子更好读。</remarks>
-        internal override bool IsBackendInert => _unityAudioDisabled;
+        public bool IsBackendInert => _unityAudioDisabled;
 
         [NonSerialized] private AudioCategory[] _audioCategories;
         /// <inheritdoc />
-        public override AudioCategory[] AudioCategories => _audioCategories;
+        public AudioCategory[] AudioCategories => _audioCategories;
 
         [NonSerialized] private float _volume = 1f;
         /// <inheritdoc />
-        public override float MasterVolume
+        public float MasterVolume
         {
             get
             {
@@ -115,7 +118,7 @@ namespace Moirai.Atropos.Audio
 
         [NonSerialized] private bool _isMuted;
         /// <inheritdoc />
-        public override bool MasterMute
+        public bool MasterMute
         {
             get
             {
@@ -139,14 +142,14 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void SetMasterSettings()
+        public void SetMasterSettings()
         {
             AudioSettingsPolicy.SaveVolume(AudioSettingsPolicy.MasterVolumeKey, _volume);
             AudioSettingsPolicy.SaveMuted(AudioSettingsPolicy.MasterMutedKey, _isMuted);
         }
 
         /// <inheritdoc />
-        public override void LoadMasterSettings()
+        public void LoadMasterSettings()
         {
             _isMuted = AudioSettingsPolicy.LoadMuted(AudioSettingsPolicy.MasterMutedKey);
             _volume = AudioSettingsPolicy.LoadVolume(AudioSettingsPolicy.MasterVolumeKey, AudioSettingsPolicy.DefaultVolume);
@@ -155,7 +158,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void RemoveMasterSetting()
+        public void RemoveMasterSetting()
         {
             AudioSettingsPolicy.RemovePair(AudioSettingsPolicy.MasterMutedKey, AudioSettingsPolicy.MasterVolumeKey);
 
@@ -173,7 +176,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override float GetTrackVolume(EAudioTrack track)
+        public float GetTrackVolume(EAudioTrack track)
         {
             if (_unityAudioDisabled) return 0f;
             var config = FindConfig(track);
@@ -181,7 +184,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void SetTrackVolume(EAudioTrack track, float volume)
+        public void SetTrackVolume(EAudioTrack track, float volume)
         {
             if (_unityAudioDisabled) return;
             var config = FindConfig(track);
@@ -189,14 +192,14 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override float GetTrackPitch(EAudioTrack track)
+        public float GetTrackPitch(EAudioTrack track)
         {
             if (_unityAudioDisabled) return AudioGroupConfig.DEFAULT_PITCH;
             return FindConfig(track)?.Pitch ?? AudioGroupConfig.DEFAULT_PITCH;
         }
 
         /// <inheritdoc />
-        public override void SetTrackPitch(EAudioTrack track, float pitch)
+        public void SetTrackPitch(EAudioTrack track, float pitch)
         {
             if (_unityAudioDisabled) return;
             var config = FindConfig(track);
@@ -221,14 +224,14 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override bool GetTrackMute(EAudioTrack track)
+        public bool GetTrackMute(EAudioTrack track)
         {
             if (_unityAudioDisabled) return false;
             return FindConfig(track)?.Mute ?? false;
         }
 
         /// <inheritdoc />
-        public override void SetTrackMute(EAudioTrack track, bool mute)
+        public void SetTrackMute(EAudioTrack track, bool mute)
         {
             if (_unityAudioDisabled) return;
             var config = FindConfig(track);
@@ -305,7 +308,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void Tick(float elapseSeconds, float realElapseSeconds)
+        public void Tick(float elapseSeconds, float realElapseSeconds)
         {
             // 首帧后关闭阻塞加载窗口
             AudioBlockingLoadGate.Close();
@@ -350,7 +353,7 @@ namespace Moirai.Atropos.Audio
         /// <para>淡入淡出按未缩放真实时间推进，因此挂起期间开始的斜坡在恢复时会直接落到目标音量——
         /// 与"真实时间已经过去"一致，不做补帧。</para>。
         /// </remarks>
-        public override void OnApplicationPaused(bool paused)
+        public void OnApplicationPaused(bool paused)
         {
             if (_unityAudioDisabled) return;
 
@@ -361,7 +364,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 音轨上是否有 Agent 未回空闲（含加载中与淡出中——它们马上或仍在出声）。
         /// </summary>
-        internal override bool HasActiveAudioOn(EAudioTrack track)
+        public bool HasActiveAudioOn(EAudioTrack track)
         {
             var agents = FindCategory(track)?.AudioAgents;
             if (agents == null) return false;
@@ -376,7 +379,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void Restart()
+        public void Restart()
         {
             // 窗口重开要在 disabled 提前返回之前：停过一轮音频再启用时，启动期的同步加载才不会被误判成运行期而改异步
             AudioBlockingLoadGate.Open();
@@ -546,9 +549,9 @@ namespace Moirai.Atropos.Audio
         #region 播放音频 [PLAY AUDIO]
 
         /// <inheritdoc />
-        public override ulong Play(AudioClip clip, in AudioPlayOptions options)
+        public ulong Play(AudioClip clip, in AudioPlayOptions options)
         {
-            if (_unityAudioDisabled || IsTrackPaused(options.AudioTrack)) return 0UL;
+            if (_unityAudioDisabled || AudioBackendPolicy.IsTrackPaused(_pausedTracks, options.AudioTrack)) return 0UL;
 
             AudioCategory category = FindCategory(options.AudioTrack);
             if (category == null)
@@ -586,9 +589,9 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override ulong Play(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold)
+        public ulong Play(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold)
         {
-            if (_unityAudioDisabled || IsTrackPaused(request.Track))
+            if (_unityAudioDisabled || AudioBackendPolicy.IsTrackPaused(_pausedTracks, request.Track))
             {
                 AudioPlayColdParamsPool.Release(cold);
                 return 0UL;
@@ -631,9 +634,9 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override ulong Play(string path, in AudioPlayOptions options, bool bAsync)
+        public ulong Play(string path, in AudioPlayOptions options, bool bAsync)
         {
-            if (_unityAudioDisabled || IsTrackPaused(options.AudioTrack)) return 0UL;
+            if (_unityAudioDisabled || AudioBackendPolicy.IsTrackPaused(_pausedTracks, options.AudioTrack)) return 0UL;
 
             // 物理隔离：启动窗口关闭后阻塞加载强制改异步，防止运行时 IO 卡主线程
             if (!bAsync && !AudioBlockingLoadGate.IsOpen)
@@ -689,7 +692,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// Agent 进入 End 时回调——自动释放句柄，防止字典无界增长与旧句柄误用。
         /// </summary>
-        internal override void OnAgentPlaybackEnded(AudioAgent agent)
+        public void OnAgentPlaybackEnded(AudioAgent agent)
         {
             if (agent == null) return;
 
@@ -705,7 +708,7 @@ namespace Moirai.Atropos.Audio
         #region 音频控制 [AUDIO CONTROLS]
 
         /// <inheritdoc />
-        public override void Pause(ulong handle)
+        public void Pause(ulong handle)
         {
             if (_unityAudioDisabled) return;
             if (TryGetBoundAgent(handle, out var agent) && agent.IsPlaying)
@@ -713,7 +716,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void Unpause(ulong handle)
+        public void Unpause(ulong handle)
         {
             if (_unityAudioDisabled) return;
             if (TryGetBoundAgent(handle, out var agent) && agent.IsPaused)
@@ -721,7 +724,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void Stop(ulong handle, float fadeoutDuration = 0)
+        public void Stop(ulong handle, float fadeoutDuration = 0)
         {
             if (_unityAudioDisabled) return;
 
@@ -748,7 +751,7 @@ namespace Moirai.Atropos.Audio
         #region 获取 [FIND]
 
         /// <inheritdoc />
-        public override void ForEachAgentByID(int id, Action<AudioAgent> action)
+        public void ForEachAgentByID(int id, Action<AudioAgent> action)
         {
             var categories = _audioCategories;
             if (categories == null || action == null) return;
@@ -768,7 +771,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action)
+        public void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action)
         {
             if (clip == null || action == null) return;
 
@@ -791,11 +794,11 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void ForEachHandleByID(int id, Action<ulong> action)
+        public void ForEachHandleByID(int id, Action<ulong> action)
             => _handles.ForEachHandleByUser(id, action);
 
         /// <inheritdoc />
-        public override int CurrentlyPlayingCount(AudioClip clip)
+        public int CurrentlyPlayingCount(AudioClip clip)
         {
             if (clip == null) return 0;
 
@@ -823,7 +826,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override AudioAgent GetAgentByHandle(ulong handle)
+        public AudioAgent GetAgentByHandle(ulong handle)
         {
             // 世代校验：句柄必须仍是 Agent 当前绑定值
             return _handles.TryGet(handle, out var agent) && agent.CurrentHandle == handle ? agent : null;
@@ -836,21 +839,21 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override bool IsPlaying(ulong handle)
+        public bool IsPlaying(ulong handle)
         {
             var agent = GetAgentByHandle(handle);
             return agent != null && agent.IsPlaying;
         }
 
         /// <inheritdoc />
-        public override bool IsStopped(ulong handle)
+        public bool IsStopped(ulong handle)
         {
             var agent = GetAgentByHandle(handle);
             return agent == null || agent.IsFree;
         }
 
         /// <inheritdoc />
-        public override void ReleaseHandle(ulong handle)
+        public void ReleaseHandle(ulong handle)
         {
             if (handle == 0UL) return;
 
@@ -874,28 +877,28 @@ namespace Moirai.Atropos.Audio
         #region 音轨控制 [TRACK CONTROLS]
 
         /// <inheritdoc />
-        public override void PauseTrack(EAudioTrack track)
+        public void PauseTrack(EAudioTrack track)
         {
             if (_unityAudioDisabled) return;
 
-            SetTrackPaused(track, true);
+            AudioBackendPolicy.SetTrackPaused(_pausedTracks, track, true);
             FindCategory(track)?.PauseAll();
         }
 
         /// <inheritdoc />
-        public override void UnpauseTrack(EAudioTrack track)
+        public void UnpauseTrack(EAudioTrack track)
         {
             if (_unityAudioDisabled) return;
 
-            SetTrackPaused(track, false);
+            AudioBackendPolicy.SetTrackPaused(_pausedTracks, track, false);
             FindCategory(track)?.UnpauseAll();
         }
 
         /// <inheritdoc />
-        public override bool IsPaused(EAudioTrack track) => IsTrackPaused(track);
+        public bool IsPaused(EAudioTrack track) => AudioBackendPolicy.IsTrackPaused(_pausedTracks, track);
 
         /// <inheritdoc />
-        public override void StopTrack(EAudioTrack track, float fadeoutDuration)
+        public void StopTrack(EAudioTrack track, float fadeoutDuration)
         {
             if (_unityAudioDisabled) return;
 
@@ -907,7 +910,7 @@ namespace Moirai.Atropos.Audio
         #region 所有音频控制 [ALL AUDIO CONTROLS]
 
         /// <inheritdoc />
-        public override void PauseAll()
+        public void PauseAll()
         {
             if (_unityAudioDisabled) return;
 
@@ -920,7 +923,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void UnpauseAll()
+        public void UnpauseAll()
         {
             if (_unityAudioDisabled) return;
 
@@ -933,7 +936,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void StopAll(float fadeoutDuration = 0)
+        public void StopAll(float fadeoutDuration = 0)
         {
             if (_unityAudioDisabled) return;
 
@@ -946,7 +949,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void StopAllButPersistent(float fadeoutDuration = 0)
+        public void StopAllButPersistent(float fadeoutDuration = 0)
         {
             if (_unityAudioDisabled) return;
 
@@ -959,7 +962,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void StopAllLooping(float fadeoutDuration = 0)
+        public void StopAllLooping(float fadeoutDuration = 0)
         {
             if (_unityAudioDisabled) return;
 
@@ -972,7 +975,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void StopByID(int id, float fadeoutDuration = 0f)
+        public void StopByID(int id, float fadeoutDuration = 0f)
         {
             if (_unityAudioDisabled) return;
             // 冷路径：分层替换/UI；注册表快照迭代保证 Stop 内释放句柄不跳元素
@@ -984,7 +987,32 @@ namespace Moirai.Atropos.Audio
         #region 过渡 [FADES]
 
         /// <inheritdoc />
-        public override void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
+                // 原基类默认实现落点：共享语义收在 AudioBackendPolicy（this + 自持调度表作参数的组合替代继承）
+
+        /// <inheritdoc />
+        public void SetVoicePitch(ulong handle, float pitch) => AudioBackendPolicy.SetVoicePitch(this, handle, pitch);
+
+        /// <inheritdoc />
+        public void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
+            => AudioBackendPolicy.FadeMasterTrack(this, _fades, duration, initialVolume, finalVolume, tweenEase);
+
+        /// <inheritdoc />
+        public void StopFadeMasterTrack() => AudioBackendPolicy.StopFadeBus(_fades, AudioFadeScheduler.MASTER_FADE_HANDLE);
+
+        /// <inheritdoc />
+        public void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default)
+            => AudioBackendPolicy.FadeTrack(this, _fades, track, duration, initialVolume, finalVolume, tweenEase);
+
+        /// <inheritdoc />
+        public void StopFadeTrack(EAudioTrack track) => AudioBackendPolicy.StopFadeBus(_fades, AudioFadeScheduler.TrackFadeHandle((int)track));
+
+        /// <inheritdoc />
+        public void StopFadeAudio(ulong handle) => AudioBackendPolicy.StopFadeHandle(_fades, handle);
+
+        /// <inheritdoc />
+        public bool SoundIsFadingOut(ulong handle) => AudioBackendPolicy.SoundIsFadingOut(_fades, handle);
+
+public void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
             // 调度器接管音量：取消 Agent 内部淡入状态机，避免同句柄双写
             GetAgentByHandle(handle)?.CancelFadeIn();
@@ -1010,7 +1038,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void PlayFadeByID(int id, float duration, float finalVolume, TweenEase ease)
+        public void PlayFadeByID(int id, float duration, float finalVolume, TweenEase ease)
         {
             // 冷路径：UI 淡入淡出
             _handles.ForEachHandleByUser(id, handle =>
@@ -1023,7 +1051,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void StopFadeByID(int id)
+        public void StopFadeByID(int id)
             => _handles.ForEachHandleByUser(id, _fades.Stop);
 
         /// <summary>
@@ -1060,7 +1088,7 @@ namespace Moirai.Atropos.Audio
 
         /// <inheritdoc />
         /// <remarks>兼容旧 API：预加载 = Pin 常驻进 Clip 缓存。</remarks>
-        public override void PutInAudioPool(List<string> list)
+        public void PutInAudioPool(List<string> list)
         {
             if (_unityAudioDisabled || list == null) return;
 
@@ -1075,7 +1103,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void RemoveClipFromPool(List<string> list)
+        public void RemoveClipFromPool(List<string> list)
         {
             if (_unityAudioDisabled || list == null) return;
 
@@ -1086,18 +1114,18 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override void CleanAudioPool()
+        public void CleanAudioPool()
         {
             if (_unityAudioDisabled) return;
             _clipCache.ClearCache(force: true);
         }
 
         /// <inheritdoc />
-        public override bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin)
+        public bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin)
             => !_unityAudioDisabled && _clipCache.Preload(address, policy);
 
         /// <inheritdoc />
-        public override void PreloadAsync(string address, EAudioCachePolicy policy, Action<bool> completed = null)
+        public void PreloadAsync(string address, EAudioCachePolicy policy, Action<bool> completed = null)
         {
             if (_unityAudioDisabled)
             {
@@ -1109,11 +1137,11 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <inheritdoc />
-        public override bool UnloadClipCache(string address, bool force = false)
+        public bool UnloadClipCache(string address, bool force = false)
             => !_unityAudioDisabled && _clipCache.Unload(address, force);
 
         /// <inheritdoc />
-        public override void ClearClipCache(bool force = false)
+        public void ClearClipCache(bool force = false)
         {
             if (_unityAudioDisabled) return;
             _clipCache.ClearCache(force);
@@ -1128,10 +1156,10 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode loadSceneMode)
         {
-            if (!ShouldStopNonPersistentOnSceneLoad(loadSceneMode)) return;
+            if (!AudioBackendPolicy.ShouldStopNonPersistentOnSceneLoad(loadSceneMode)) return;
             StopAllButPersistent(fadeoutDuration: AudioAgent.FADEOUT_DEFAULT_DURATION);
         }
 
-        #endregion
+        #endregion 事件 [EVENTS]
     }
 }
