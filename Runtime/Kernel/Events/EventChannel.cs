@@ -123,7 +123,8 @@ namespace Moirai.Atropos
         {
             for (int i = 0; i < _handlers.Count; i++)
             {
-                if (ReferenceEquals(_handlers[i], handler))
+                // 值等价匹配（同方法同目标即相等）——方法组转委托每次生成新实例，引用比较永不匹配
+                if (Equals(_handlers[i], handler))
                 {
                     _handlers.RemoveAt(i);
                     return;

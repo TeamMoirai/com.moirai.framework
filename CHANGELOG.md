@@ -143,3 +143,15 @@
 #### Kernel / IEventBus API 形态定稿（用户决策）
 
 - **对称 API 习惯**：`EventBus.Subscribe<T>(h)` / `EventBus.Unsubscribe<T>(h)` 成对直接调用（与原 EventManager 用法一致）；Subscribe 不返回句柄——`EventRuntimeHandle`、作用域批量退订（BeginScope）按用户决策移除；跨场景清理由订阅方在场景卸载回调中成对 Unsubscribe（原习惯）
+
+#### Save / 双通道收敛（Phase 3 任务 3.4）
+
+- 6 个 Save 事件 struct 化（SaveBlockChanged/EntityRestored/Failed/Progress/Screenshot/SlotChanged）经静态总线发布；**静态 C# event 通道删除**（`SaveService.onXxx` 九事件——下游订阅面仅框架测试，收敛为总线单一入口）；`UnsubscribeAll` 一并移除（总线 `ResetStaticsForPlayModeReset` 兜底）
+- **总线退订匹配修复**：`EventChannel.UnsubscribeCore` 改 `Delegate.Equals` 值等价匹配（原 ReferenceEquals 在方法组形态下每次转换生成新实例永不匹配——退订失效致订阅泄漏计数累积）
+- 消费方迁移：Save 测试套（EventTests/Incremental/Persistence/Screenshot/MigrationBus）与 Assets 侧 SaveServiceTester——聚合事件订阅带 Kind/Operation 过滤桥方法（引用稳定）
+
+#### Events / 事件形态规范定稿（用户指令）
+
+- ⚠ Save 6 事件规范化为 **readonly struct 且载荷字段内联**（无 Args 孪生——订阅侧 `e.Args.X` 改读 `e.X`，Kind/Operation 枚举原地保留）；`Trigger` 静态便捷发布与 5 个 `SaveXxxArgs` 类型删除，发布走构造函数 + `EventBus.Publish(in evt)`；GetPooled/对象初始化器形态移除
+- **无参事件直接发布**：`EventBus.Publish<TEvent>()` 泛型无参重载（default 实例零构造）——`EventBus.Publish<EmptyArgsEvent>();`
+- Save 派发入口统一 `MainThreadDispatcher.Send(evt, static e => EventBus.Publish(in e))`：主线程内联直发、后台池化工作项入队——Raise* 手写 `IsMainThread` 分支与 `Publish*` 包装删除

@@ -1,67 +1,57 @@
-using Moirai.Atropos.Events;
-#pragma warning disable CS0618 // Phase 3 迁移窗口：Save 双通道收敛（任务 3.4）后移除
-
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 块变动类别（<see cref="SaveBlockChangedEvent.Kind"/>）。
+    /// 块保存/删除事件。
     /// </summary>
-    public enum ESaveBlockChangeKind
+    public readonly struct SaveBlockChangedEvent : IGameEvent
     {
-        /// <summary>块已保存。</summary>
-        Saved = 0,
+        /// <summary>
+        /// 块变动类别。
+        /// </summary>
+        public enum ESaveBlockChangeKind
+        {
+            /// <summary>块已保存。</summary>
+            Saved = 0,
 
-        /// <summary>块已删除。</summary>
-        Deleted,
-    }
+            /// <summary>块已删除。</summary>
+            Deleted,
+        }
 
-    /// <summary>
-    /// 块保存/删除的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.onBlockSaved"/>/<see cref="SaveService.onBlockDeleted"/> <br />
-    /// 二选一订阅）。
-    /// </summary>
-    public class SaveBlockChangedEvent : EventBase<SaveBlockChangedEvent>
-    {
         /// <summary>变动类别。</summary>
-        public ESaveBlockChangeKind Kind { get; private set; }
+        public readonly ESaveBlockChangeKind Kind;
 
-        /// <summary>事件参数。</summary>
-        public SaveBlockChangedArgs Args { get; private set; }
+        /// <summary>存档文件名。</summary>
+        public string FileName { get; }
 
+        /// <summary>存档文件夹名称。</summary>
+        public string FolderName { get; }
+
+        /// <summary>数据块键。</summary>
+        public string Key { get; }
+
+        /// <summary>序列化后端标识。</summary>
+        public ushort Backend { get; }
+
+        /// <summary>块载荷字节数。</summary>
+        public int SizeBytes { get; }
+        
         /// <summary>
-        /// 重置事件成员（池化复用前由 <see cref="EventBase"/> 回调）。
-        /// </summary>
-        protected override void Init()
-        {
-            base.Init();
-            Kind = default;
-            Args = default;
-        }
-
-        /// <summary>
-        /// 从事件池获取实例并装载参数。
-        /// </summary>
-        /// <param name="kind">变动类别。</param>
-        /// <param name="args">事件参数。</param>
-        /// <returns>池化事件实例（用后 Dispose 归还）。</returns>
-        public static SaveBlockChangedEvent GetPooled(ESaveBlockChangeKind kind, SaveBlockChangedArgs args)
-        {
-            SaveBlockChangedEvent evt = GetPooled();
-            evt.Kind = kind;
-            evt.Args = args;
-            return evt;
-        }
-
-        /// <summary>
-        /// 获取池化事件并广播（订阅侧亦可改用静态事件）。
+        /// 创建块变动事件。
         /// </summary>
         /// <param name="kind">变动类别。</param>
-        /// <param name="args">事件参数。</param>
-        public static void Trigger(ESaveBlockChangeKind kind, SaveBlockChangedArgs args)
+        /// <param name="fileName">存档文件名。</param>
+        /// <param name="folderName">存档文件夹名称。</param>
+        /// <param name="key">数据块键。</param>
+        /// <param name="backend">序列化后端标识。</param>
+        /// <param name="sizeBytes">块载荷字节数。</param>
+        public SaveBlockChangedEvent(ESaveBlockChangeKind kind, string fileName, string folderName, string key, ushort backend, int sizeBytes)
         {
-            using (SaveBlockChangedEvent evt = GetPooled(kind, args))
-            {
-                EventManager.SendEvent(evt);
-            }
+            Kind = kind;
+            FileName = fileName;
+            FolderName = folderName;
+            Key = key;
+            Backend = backend;
+            SizeBytes = sizeBytes;
         }
     }
 }

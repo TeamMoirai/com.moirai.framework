@@ -45,6 +45,16 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 发布无参事件：零字段空事件直接以泛型类型发布（default 实例，无需构造）。
+        /// </summary>
+        /// <example>EventBus.Publish&lt;EmptyArgsEvent&gt;();</example>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Publish<TEvent>() where TEvent : struct, IGameEvent
+        {
+            EventChannel<TEvent>.Instance.Publish(default);
+        }
+        
+        /// <summary>
         /// 发布事件（in 参数零拷贝）。同一事件的订阅者按订阅顺序同步派发。
         /// </summary>
         /// <remarks>

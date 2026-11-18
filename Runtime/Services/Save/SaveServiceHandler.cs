@@ -354,7 +354,7 @@ namespace Moirai.Atropos.Save
             }
             catch (Exception exception)
             {
-                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, key, ESaveFailureStage.Serialize, SaveError.SerializationFailed);
+                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, key, SaveFailedEvent.ESaveFailureStage.Serialize, SaveError.SerializationFailed);
                 throw new GameException(StringUtility.Format("Save block serialization failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
             }
 
@@ -372,7 +372,7 @@ namespace Moirai.Atropos.Save
             List<SaveBlockEntry> mergedBlocks = SaveBlockComposer.Upsert(existingBlocks, new SaveBlockEntry(key, dataVersion, backend, blockBytes));
             WriteContainerFile(paths, mergedBlocks, cancellationToken);
             SaveService.RaiseBlockSaved(paths.FileName, paths.FolderName, key, backend, blockBytes.Length);
-            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
+            SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
         }
 
         /// <summary>
@@ -409,7 +409,7 @@ namespace Moirai.Atropos.Save
             SaveError busError = MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: false, CancellationToken.None);
             if (busError != SaveError.None)
             {
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Migrate, busError);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Migrate, busError);
                 return busError;
             }
 
@@ -419,7 +419,7 @@ namespace Moirai.Atropos.Save
                 if (missError != SaveError.FileNotFound)
                 {
                     // 坏块键命中（或结构性坏块致状态不可知）——逐块损坏经失败事件观测（确无块的 FileNotFound 属正常业务流）
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, ESaveFailureStage.ContainerParse, missError);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, SaveFailedEvent.ESaveFailureStage.ContainerParse, missError);
                 }
 
                 return missError;
@@ -429,7 +429,7 @@ namespace Moirai.Atropos.Save
             {
                 // 块记录的后端未注册（依赖未接入或文件被改写）——明确拒绝而非静默解析
                 LogLoadFailure(paths.SaveFilePath, SaveError.InvalidFormat);
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, ESaveFailureStage.ContainerParse, SaveError.InvalidFormat);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, SaveFailedEvent.ESaveFailureStage.ContainerParse, SaveError.InvalidFormat);
                 return SaveError.InvalidFormat;
             }
 
@@ -440,7 +440,7 @@ namespace Moirai.Atropos.Save
             catch (Exception exception)
             {
                 LogUtility.Error("[SaveService] Deserialize save block failed, path: {0}, key: {1}, exception: {2}.", paths.SaveFilePath, key, exception.GetType().Name);
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, ESaveFailureStage.Deserialize, SaveError.SerializationFailed);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, key, SaveFailedEvent.ESaveFailureStage.Deserialize, SaveError.SerializationFailed);
                 return SaveError.SerializationFailed;
             }
 
@@ -477,7 +477,7 @@ namespace Moirai.Atropos.Save
             {
                 // SaveDataBlock 子类必须以 SaveDataAttribute 声明版本——缺失即契约破坏，fail-fast
                 LogUtility.Error("[SaveService] SaveDataBlock '{0}' is missing SaveDataAttribute, path: {1}.", typeof(T).FullName, paths.SaveFilePath);
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, entry.Key, ESaveFailureStage.Migrate, SaveError.SerializationFailed);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, entry.Key, SaveFailedEvent.ESaveFailureStage.Migrate, SaveError.SerializationFailed);
                 return SaveError.SerializationFailed;
             }
 
@@ -485,7 +485,7 @@ namespace Moirai.Atropos.Save
             if (entry.DataVersion > declaredVersion)
             {
                 LogLoadFailure(paths.SaveFilePath, SaveError.UnsupportedVersion);
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, entry.Key, ESaveFailureStage.Migrate, SaveError.UnsupportedVersion);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, entry.Key, SaveFailedEvent.ESaveFailureStage.Migrate, SaveError.UnsupportedVersion);
                 return SaveError.UnsupportedVersion;
             }
 
@@ -598,7 +598,7 @@ namespace Moirai.Atropos.Save
             {
                 // 删除最后一个块时整档移除——槽位同步消亡
                 StorageBackend.DeleteFile(paths.SaveFilePath);
-                SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+                SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
             }
             else
             {
@@ -706,7 +706,7 @@ namespace Moirai.Atropos.Save
             if (existed)
             {
                 SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
-                SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+                SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
             }
 
             return existed;
@@ -716,7 +716,7 @@ namespace Moirai.Atropos.Save
         /// 删除整个存档文件夹（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 目录级批量删除恒触发一次 <see cref="SaveService.onSlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，不保证目录先前存在）。 <br />
+        /// 目录级批量删除恒触发一次 <see cref="SaveSlotChangedEvent"/>（<see cref="SaveSlotChangedEvent.FileName"/> 为 <c>null</c>，不保证目录先前存在）。 <br />
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFiles"/>）。</param>
@@ -729,7 +729,7 @@ namespace Moirai.Atropos.Save
         /// 删除整个存档文件夹并返回目录先前的存在性（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteSaveFolder"/>（恒触发一次 <see cref="SaveService.onSlotChanged"/>）；<c>true</c> = 存在并已删除， <br />
+        /// 事件行为同 <see cref="DeleteSaveFolder"/>（恒触发一次 <see cref="SaveSlotChangedEvent"/>）；<c>true</c> = 存在并已删除， <br />
         /// <c>false</c> = 本不存在。
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
@@ -762,7 +762,7 @@ namespace Moirai.Atropos.Save
             }
 
             SaveMigrationManager.InvalidateSession(null);
-            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
+            SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, null, folderName);
             return existed;
         }
 
@@ -770,7 +770,7 @@ namespace Moirai.Atropos.Save
         /// 删除存档数据根目录（<c>persistentDataPath/Data/</c>）及其下所有存档。
         /// </summary>
         /// <remarks>
-        /// 恒触发一次 <see cref="SaveService.onSlotChanged"/>（<see cref="SaveSlotChangedArgs.FileName"/> 为 <c>null</c>，文件夹为空串）。 <br />
+        /// 恒触发一次 <see cref="SaveSlotChangedEvent"/>（<see cref="SaveSlotChangedEvent.FileName"/> 为 <c>null</c>，文件夹为空串）。 <br />
         /// 持分层门执行（根级），与所有存档的块级读写互斥。
         /// </remarks>
         public void DeleteAllSaveFiles()
@@ -782,7 +782,7 @@ namespace Moirai.Atropos.Save
         /// 删除存档数据根目录并返回目录先前的存在性（<c>persistentDataPath/Data/</c> 及其下所有存档）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteAllSaveFiles"/>（恒触发一次 <see cref="SaveService.onSlotChanged"/>）；<c>true</c> = 存在并已删除， <br />
+        /// 事件行为同 <see cref="DeleteAllSaveFiles"/>（恒触发一次 <see cref="SaveSlotChangedEvent"/>）；<c>true</c> = 存在并已删除， <br />
         /// <c>false</c> = 本不存在。
         /// 持分层门执行（根级），与所有存档的块级读写互斥。
         /// </remarks>
@@ -808,7 +808,7 @@ namespace Moirai.Atropos.Save
             }
 
             SaveMigrationManager.InvalidateSession(null);
-            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
+            SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, null, string.Empty);
             return existed;
         }
 
@@ -863,7 +863,7 @@ namespace Moirai.Atropos.Save
             if (existed)
             {
                 SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
-                SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+                SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
             }
 
             return existed;
@@ -873,7 +873,7 @@ namespace Moirai.Atropos.Save
         /// 异步删除整个存档文件夹（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 目录级批量删除恒触发一次 <see cref="SaveService.onSlotChanged"/>（不保证目录先前存在）。 <br />
+        /// 目录级批量删除恒触发一次 <see cref="SaveSlotChangedEvent"/>（不保证目录先前存在）。 <br />
         /// 持分层门执行（根 + 文件夹两级），与该文件夹内全部槽位的块级读写互斥。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
@@ -888,7 +888,7 @@ namespace Moirai.Atropos.Save
         /// 异步删除整个存档文件夹并返回目录先前的存在性（含其中全部文件与子目录）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteSaveFolderAsync"/>（恒触发一次 <see cref="SaveService.onSlotChanged"/>）；持分层门执行（根 + 文件夹两级）， <br />
+        /// 事件行为同 <see cref="DeleteSaveFolderAsync"/>（恒触发一次 <see cref="SaveSlotChangedEvent"/>）；持分层门执行（根 + 文件夹两级）， <br />
         /// 存在性判定与删除在同一临界区内完成。
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="TryDeleteAllSaveFilesAsync"/>）。</param>
@@ -926,7 +926,7 @@ namespace Moirai.Atropos.Save
             }
 
             SaveMigrationManager.InvalidateSession(null);
-            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, folderName);
+            SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, null, folderName);
             return existed;
         }
 
@@ -947,7 +947,7 @@ namespace Moirai.Atropos.Save
         /// 异步删除存档数据根目录并返回目录先前的存在性（<c>persistentDataPath/Data/</c> 及其下所有存档）。
         /// </summary>
         /// <remarks>
-        /// 事件行为同 <see cref="DeleteAllSaveFilesAsync"/>（恒触发一次 <see cref="SaveService.onSlotChanged"/>）；持分层门执行（根级），存在性判定与删除在同一临界区内完成。
+        /// 事件行为同 <see cref="DeleteAllSaveFilesAsync"/>（恒触发一次 <see cref="SaveSlotChangedEvent"/>）；持分层门执行（根级），存在性判定与删除在同一临界区内完成。
         /// </remarks>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>目录先前存在并已删除返回 <c>true</c>；本不存在返回 <c>false</c>。</returns>
@@ -977,7 +977,7 @@ namespace Moirai.Atropos.Save
             }
 
             SaveMigrationManager.InvalidateSession(null);
-            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, null, string.Empty);
+            SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, null, string.Empty);
             return existed;
         }
 
@@ -1014,7 +1014,7 @@ namespace Moirai.Atropos.Save
                 }
                 catch (GameException)
                 {
-                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageWrite, SaveError.IoFailed);
+                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageWrite, SaveError.IoFailed);
                     throw;
                 }
             }
@@ -1023,7 +1023,7 @@ namespace Moirai.Atropos.Save
                 scope.Leave();
             }
 
-            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.BackupCreated, paths.FileName, paths.FolderName);
+            SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.BackupCreated, paths.FileName, paths.FolderName);
         }
 
         /// <summary>
@@ -1044,7 +1044,7 @@ namespace Moirai.Atropos.Save
                 }
                 catch (GameException)
                 {
-                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageWrite, SaveError.IoFailed);
+                    SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageWrite, SaveError.IoFailed);
                     throw;
                 }
             }
@@ -1055,7 +1055,7 @@ namespace Moirai.Atropos.Save
 
             // 备份内容可能处于旧数据版本——失效会话迁移缓存，下次读取重新探测
             SaveMigrationManager.InvalidateSession(paths.SaveFilePath);
-            SaveService.RaiseSlotChanged(ESaveSlotChangeKind.BackupRestored, paths.FileName, paths.FolderName);
+            SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.BackupRestored, paths.FileName, paths.FolderName);
         }
 
         #endregion
@@ -1137,7 +1137,7 @@ namespace Moirai.Atropos.Save
                         SaveService.RaiseBlockSaved(paths.FileName, paths.FolderName, additions[i].Key, additions[i].Backend, additions[i].Bytes.Length);
                     }
 
-                    SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
+                    SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
                 }, configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
@@ -1183,7 +1183,7 @@ namespace Moirai.Atropos.Save
                 SaveError migrationError = MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: false, CancellationToken.None);
                 if (migrationError != SaveError.None)
                 {
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Migrate, migrationError);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Migrate, migrationError);
                     return new Dictionary<string, byte[]>();
                 }
 
@@ -1191,7 +1191,7 @@ namespace Moirai.Atropos.Save
                 {
                     for (int i = 0; i < blockErrors.Count; i++)
                     {
-                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, blockErrors[i].Key, ESaveFailureStage.ContainerParse, blockErrors[i].Error);
+                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, blockErrors[i].Key, SaveFailedEvent.ESaveFailureStage.ContainerParse, blockErrors[i].Error);
                     }
                 }
 
@@ -1230,7 +1230,7 @@ namespace Moirai.Atropos.Save
                     SaveError migrationError = MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: false, cancellationToken);
                     if (migrationError != SaveError.None)
                     {
-                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Migrate, migrationError);
+                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Migrate, migrationError);
                         return new Dictionary<string, byte[]>();
                     }
 
@@ -1238,7 +1238,7 @@ namespace Moirai.Atropos.Save
                     {
                         for (int i = 0; i < blockErrors.Count; i++)
                         {
-                            SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, blockErrors[i].Key, ESaveFailureStage.ContainerParse, blockErrors[i].Error);
+                            SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, blockErrors[i].Key, SaveFailedEvent.ESaveFailureStage.ContainerParse, blockErrors[i].Error);
                         }
                     }
 
@@ -1313,7 +1313,7 @@ namespace Moirai.Atropos.Save
                     if (mergedBlocks.Count == 0)
                     {
                         StorageBackend.DeleteFile(paths.SaveFilePath);
-                        SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+                        SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
                         return;
                     }
 
@@ -1408,7 +1408,7 @@ namespace Moirai.Atropos.Save
                     {
                         // 全量移除——整档删除（对齐 DeleteRawBlocks 语义）
                         StorageBackend.DeleteFile(paths.SaveFilePath);
-                        SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
+                        SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, paths.FileName, paths.FolderName);
                         return;
                     }
 
@@ -1421,7 +1421,7 @@ namespace Moirai.Atropos.Save
                         }
                     }
 
-                    SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
+                    SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Saved, paths.FileName, paths.FolderName);
                 }, configureAwait: false, cancellationToken: cancellationToken);
             }
             finally
@@ -1543,7 +1543,7 @@ namespace Moirai.Atropos.Save
         /// 读路径迁移前置（加载管线统一入口）：按需执行迁移链并按 <see cref="MigrationWriteBack"/> 惰性回写。
         /// </summary>
         /// <remarks>
-        /// 回写失败不阻断本次加载（内存数据已迁移；失败经日志与 <see cref="SaveService.onSaveFailed"/> 事件观测，下一会话重试）。
+        /// 回写失败不阻断本次加载（内存数据已迁移；失败经日志与 <see cref="SaveFailedEvent"/> 事件观测，下一会话重试）。
         /// </remarks>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="blocks">健康数据块列表（迁移后替换）。</param>
@@ -1577,7 +1577,7 @@ namespace Moirai.Atropos.Save
             catch (Exception exception) when (!(exception is OperationCanceledException))
             {
                 LogUtility.Error("[SaveService] Migration write-back failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name);
-                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageWrite, SaveError.IoFailed);
+                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageWrite, SaveError.IoFailed);
             }
 
             return SaveError.None;
@@ -1598,7 +1598,7 @@ namespace Moirai.Atropos.Save
             SaveError error = MigrateBlocksIfNeeded(paths, ref blocks, blockErrors, forceWriteBack: false, cancellationToken);
             if (error != SaveError.None)
             {
-                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Migrate, error);
+                SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Migrate, error);
                 throw new GameException(StringUtility.Format("Save migration failed on write path, path: {0}, error: {1}.", paths.SaveFilePath, error));
             }
         }
@@ -2125,8 +2125,8 @@ namespace Moirai.Atropos.Save
 
             if (ioError != SaveError.None)
             {
-                // IO 失败的详细日志已由存储层记录；事件统一走 onLoadFailed（写路径的合并读失败同样经此观测）
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageRead, ioError);
+                // IO 失败的详细日志已由存储层记录；事件统一走 SaveFailedEvent（写路径的合并读失败同样经此观测）
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageRead, ioError);
                 return ioError;
             }
 
@@ -2150,7 +2150,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>
         /// 将存档流（头 + 载荷）经流式管线还原为容器块列表（头读取 → CRC 增量包装 → 解密链 → 解压包装流 → 段池拉取 → 整档 CRC 把关 → 容器跨段解析； <br />
-        /// 错误分型触发 <see cref="SaveService.onLoadFailed"/> 事件）。
+        /// 错误分型触发 <see cref="SaveFailedEvent"/> 事件）。
         /// </summary>
         /// <remarks>
         /// 读路径全程无整档文件/容器驻留：解密/解压链输出经 256KB 池化段拉取（归还于 finally），峰值与文件大小解耦。
@@ -2171,14 +2171,14 @@ namespace Moirai.Atropos.Save
             Span<byte> headerBytes = stackalloc byte[SaveFileHeader.Size];
             if (!TryReadExactly(stream, headerBytes))
             {
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.InvalidFormat);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.HeaderValidation, SaveError.InvalidFormat);
                 return SaveError.InvalidFormat;
             }
 
             SaveError headerError = SaveFileHeader.Read(headerBytes, out SaveFileHeader header);
             if (headerError != SaveError.None)
             {
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, headerError);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.HeaderValidation, headerError);
                 return headerError;
             }
 
@@ -2186,7 +2186,7 @@ namespace Moirai.Atropos.Save
             if (!compressed && header.CompressionProviderId != 0)
             {
                 // 标志与提供方 ID 不一致（篡改/写中断）
-                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
+                SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
                 return SaveError.Corrupted;
             }
 
@@ -2195,14 +2195,14 @@ namespace Moirai.Atropos.Save
             {
                 if (header.CompressionProviderId == 0 || header.CompressionProviderId > byte.MaxValue)
                 {
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
                     return SaveError.Corrupted;
                 }
 
                 if (!SaveCompressionRegistry.TryGet((byte)header.CompressionProviderId, out compression))
                 {
                     // 未注册的提供方 ID（未来格式/依赖未接入保护）
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Decompress, SaveError.UnsupportedVersion);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Decompress, SaveError.UnsupportedVersion);
                     return SaveError.UnsupportedVersion;
                 }
             }
@@ -2218,7 +2218,7 @@ namespace Moirai.Atropos.Save
                 }
                 catch (SaveEncryptor.SaveDecryptStreamException exception)
                 {
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Restore, exception.Error);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Restore, exception.Error);
                     return exception.Error;
                 }
 
@@ -2248,12 +2248,12 @@ namespace Moirai.Atropos.Save
                 }
                 catch (SaveEncryptor.SaveDecryptStreamException exception)
                 {
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Restore, exception.Error);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Restore, exception.Error);
                     return exception.Error;
                 }
                 catch (CryptographicException)
                 {
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Restore, SaveError.DecryptionFailed);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Restore, SaveError.DecryptionFailed);
                     return SaveError.DecryptionFailed;
                 }
                 catch (IOException)
@@ -2262,18 +2262,18 @@ namespace Moirai.Atropos.Save
                     // 仅未压缩直通路径的底层存储流 IO 中断归 IoFailed（压缩档的底层 IO 中断随压缩链归损坏，分型保守）
                     if (compressed)
                     {
-                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.Decompress, SaveError.Corrupted);
+                        SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Decompress, SaveError.Corrupted);
                         return SaveError.Corrupted;
                     }
 
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.StorageRead, SaveError.IoFailed);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageRead, SaveError.IoFailed);
                     return SaveError.IoFailed;
                 }
                 catch (Exception)
                 {
                     // 压缩帧破坏等（GZip InvalidDataException）——归一为存储损坏分型
                     SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null,
-                        compressed ? ESaveFailureStage.Decompress : ESaveFailureStage.ContainerParse, SaveError.Corrupted);
+                        compressed ? SaveFailedEvent.ESaveFailureStage.Decompress : SaveFailedEvent.ESaveFailureStage.ContainerParse, SaveError.Corrupted);
                     return SaveError.Corrupted;
                 }
                 finally
@@ -2287,7 +2287,7 @@ namespace Moirai.Atropos.Save
                 // 整档 CRC 先行把关（存储载荷口径——解密链之前增量累计；长度与校验值双重自洽）
                 if (crcStream.BytesRead != header.PayloadLength || crcStream.Result != header.PayloadCrc)
                 {
-                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
+                    SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.HeaderValidation, SaveError.Corrupted);
                     return SaveError.Corrupted;
                 }
 
@@ -2295,7 +2295,7 @@ namespace Moirai.Atropos.Save
                 if (containerError != SaveError.None)
                 {
                     SaveService.RaiseLoadFailed(paths.FileName, paths.FolderName, null,
-                        compressed ? ESaveFailureStage.Decompress : ESaveFailureStage.ContainerParse, containerError);
+                        compressed ? SaveFailedEvent.ESaveFailureStage.Decompress : SaveFailedEvent.ESaveFailureStage.ContainerParse, containerError);
                     return containerError;
                 }
 
@@ -2488,7 +2488,7 @@ namespace Moirai.Atropos.Save
             ICompressionProvider compression = m_CompressionProvider;
             uint flags = compression != null ? SaveFileHeader.FlagCompressed : 0u;
             uint compressionProviderId = compression?.ProviderId ?? 0u;
-            ESaveFailureStage failureStage = ESaveFailureStage.StorageWrite;
+            SaveFailedEvent.ESaveFailureStage failureStage = SaveFailedEvent.ESaveFailureStage.StorageWrite;
             SaveError failureError = SaveError.IoFailed;
             try
             {
@@ -2507,7 +2507,7 @@ namespace Moirai.Atropos.Save
                     }
                     catch (Exception exception)
                     {
-                        failureStage = ESaveFailureStage.Transform;
+                        failureStage = SaveFailedEvent.ESaveFailureStage.Transform;
                         failureError = SaveError.TransformFailed;
                         if (exception is GameException)
                         {
@@ -2543,7 +2543,7 @@ namespace Moirai.Atropos.Save
                         }
                         catch (Exception exception) when (!(exception is GameException))
                         {
-                            failureStage = ESaveFailureStage.Compress;
+                            failureStage = SaveFailedEvent.ESaveFailureStage.Compress;
                             failureError = SaveError.CompressionFailed;
                             throw new GameException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                         }
@@ -2558,7 +2558,7 @@ namespace Moirai.Atropos.Save
                             }
                             catch (Exception exception) when (!(exception is GameException))
                             {
-                                failureStage = ESaveFailureStage.Transform;
+                                failureStage = SaveFailedEvent.ESaveFailureStage.Transform;
                                 failureError = SaveError.TransformFailed;
                                 throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                             }
