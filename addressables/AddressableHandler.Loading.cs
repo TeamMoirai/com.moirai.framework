@@ -8,7 +8,7 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.U2D;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Asset
 {
     /// <summary>
     /// 加载核心与去重——赢家/等待者路径、取消闭环与图集子精灵租约，接成记录内核的赢家路径。
@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Resource
         #region 异步加载 [ASYNC LOAD]
 
         private UniTask<UObject> GetOrLoadAssetAsync(string location, Type assetType,
-            EResourceAssetKind assetKind, string packageName, CancellationToken cancellationToken)
+            EAssetKind assetKind, string packageName, CancellationToken cancellationToken)
         {
             string normalizedPackageName = NormalizePackageName(packageName);
             assetKind = NormalizeAssetKind(assetType, assetKind);
@@ -41,7 +41,7 @@ namespace Moirai.Atropos.Resource
         }
 
         private async UniTask<UObject> GetOrLoadAssetPendingAsync(string location, Type assetType,
-            EResourceAssetKind assetKind, string normalizedPackageName, ulong loadingKey,
+            EAssetKind assetKind, string normalizedPackageName, ulong loadingKey,
             CancellationToken cancellationToken)
         {
             while (true)
@@ -159,23 +159,23 @@ namespace Moirai.Atropos.Resource
         /// 按图集地址取子精灵的租约：一条地址加载 <see cref="SpriteAtlas"/>，按名取用留给记录句柄。
         /// </summary>
         /// <remarks>Addressables 没有"一个地址拿全部子资产"的公开 API（<c>LoadAllAssetsAsync</c> 只在 AssetBundle 层），故对齐内建后端的形态。</remarks>
-        private UniTask<ResourceLeaseHandle> AcquireSubAssetsAsync(string location, string packageName,
-            EResourceLeaseOption options, CancellationToken cancellationToken)
+        private UniTask<AssetLeaseHandle> AcquireSubAssetsAsync(string location, string packageName,
+            EAssetLeaseOption options, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(location))
             {
-                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
+                return UniTask.FromResult(AssetLeaseHandle.Invalid);
             }
 
             string normalizedPackageName = NormalizePackageName(packageName);
             // 入口打包两次、全程复用：loadingKey（去重）≠ recordKey（图集口径，句柄轴与种类位都不同）。
             ulong loadingKey = GetLoadingOperationKey(location, normalizedPackageName, typeof(Sprite),
-                EResourceAssetKind.SubAssets);
+                EAssetKind.SubAssets);
             ulong recordKey = GetSubAssetsRecordKey(normalizedPackageName, location);
 
             if (cancellationToken.IsCancellationRequested || IsRecordStoreDestroying)
             {
-                return UniTask.FromResult(ResourceLeaseHandle.Invalid);
+                return UniTask.FromResult(AssetLeaseHandle.Invalid);
             }
 
             if (TryGetCachedSubAssetsRecordByKey(recordKey, out int cachedAssetId))
@@ -187,15 +187,15 @@ namespace Moirai.Atropos.Resource
                 cancellationToken);
         }
 
-        private async UniTask<ResourceLeaseHandle> AcquireSubAssetsPendingAsync(string location,
-            string normalizedPackageName, ulong loadingKey, ulong recordKey, EResourceLeaseOption options,
+        private async UniTask<AssetLeaseHandle> AcquireSubAssetsPendingAsync(string location,
+            string normalizedPackageName, ulong loadingKey, ulong recordKey, EAssetLeaseOption options,
             CancellationToken cancellationToken)
         {
             while (true)
             {
                 if (cancellationToken.IsCancellationRequested || IsRecordStoreDestroying)
                 {
-                    return ResourceLeaseHandle.Invalid;
+                    return AssetLeaseHandle.Invalid;
                 }
 
                 if (TryGetCachedSubAssetsRecordByKey(recordKey, out int cachedAssetId))
@@ -208,7 +208,7 @@ namespace Moirai.Atropos.Resource
                     // 同一图集并发绑定：并入赢家的加载，不再各自发起一次请求
                     if (!await WaitForLoadingAsync(loadingKey, cancellationToken))
                     {
-                        return ResourceLeaseHandle.Invalid;
+                        return AssetLeaseHandle.Invalid;
                     }
 
                     continue;
@@ -221,7 +221,7 @@ namespace Moirai.Atropos.Resource
                     if (!IsLoadingStateCurrent(loadGeneration))
                     {
                         FailLoading(loadingKey, null);
-                        return ResourceLeaseHandle.Invalid;
+                        return AssetLeaseHandle.Invalid;
                     }
 
                     var handle = Addressables.LoadAssetAsync<SpriteAtlas>(location);
@@ -230,7 +230,7 @@ namespace Moirai.Atropos.Resource
                     {
                         handleRef.Release();
                         FailLoadingAsWarning(loadingKey, NewLoadingFailure(location, normalizedPackageName));
-                        return ResourceLeaseHandle.Invalid;
+                        return AssetLeaseHandle.Invalid;
                     }
 
                     bool callerCancellationRequested = false;
@@ -248,7 +248,7 @@ namespace Moirai.Atropos.Resource
                     {
                         handleRef.Release();
                         FailLoading(loadingKey, null);
-                        return ResourceLeaseHandle.Invalid;
+                        return AssetLeaseHandle.Invalid;
                     }
 
                     bool abortedByCallerCancellation = ShouldAbortLoadingAfterCallerCancellation(loadingKey,
@@ -261,35 +261,35 @@ namespace Moirai.Atropos.Resource
                             : null;
                         handleRef.Release();
                         FailLoadingAsWarning(loadingKey, failure);
-                        return ResourceLeaseHandle.Invalid;
+                        return AssetLeaseHandle.Invalid;
                     }
 
                     if (handle.Result == null)
                     {
                         handleRef.Release();
                         FailLoadingAsWarning(loadingKey, NewLoadingFailure(location, normalizedPackageName));
-                        return ResourceLeaseHandle.Invalid;
+                        return AssetLeaseHandle.Invalid;
                     }
 
                     int assetId = GetOrCreateSubAssetsRecordByKey(recordKey, handleRef);
                     handleRef = null; // 所有权已移交记录，异常兜底不得再释放
                     CompleteLoading(loadingKey);
                     return callerCancellationRequested
-                        ? ResourceLeaseHandle.Invalid
+                        ? AssetLeaseHandle.Invalid
                         : AcquireBindingLease(assetId, options);
                 }
                 catch (OperationCanceledException)
                 {
                     handleRef?.Release();
                     FailLoading(loadingKey, null);
-                    return ResourceLeaseHandle.Invalid;
+                    return AssetLeaseHandle.Invalid;
                 }
                 catch (Exception ex)
                 {
                     handleRef?.Release();
                     FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource SubAssets load threw. Location:{0} Package:{1}", location, normalizedPackageName), ex));
-                    return ResourceLeaseHandle.Invalid;
+                    return AssetLeaseHandle.Invalid;
                 }
             }
         }

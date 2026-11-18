@@ -5,7 +5,7 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.AddressableAssets.ResourceLocators;
 using UnityEngine.ResourceManagement.ResourceLocations;
 
-namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Asset
 {
     /// <summary>
     /// Addressables 后端的查询面：定位解析、资产信息与存在性判断——一切从唯一的隐式目录来。
@@ -64,11 +64,11 @@ namespace Moirai.Atropos.Resource
         /// <remarks>只能答"有没有这条地址"：OnDisk / Online 的分别要 <c>GetDownloadSizeAsync</c>，
         /// 那是异步的，同步问不出来。命中一律回 AssetOnDisk，不当"已在本地"的保证用。 <br />
         /// 要精确判断请走 <c>IsNeedDownloadFromRemote</c> / <c>GetDownloadSize</c>（本后端保持 fail-fast）。</remarks>
-        public override EResourceHasAssetResult HasAsset(string location, string packageName = "")
+        public override EAssetHasResult HasAsset(string location, string packageName = "")
         {
             return TryLocate(location, out _)
-                ? EResourceHasAssetResult.AssetOnDisk
-                : EResourceHasAssetResult.NotExist;
+                ? EAssetHasResult.AssetOnDisk
+                : EAssetHasResult.NotExist;
         }
 
         #endregion
@@ -88,19 +88,19 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override ResourceAssetInfoEntry[] GetAssetInfos(string tag, string packageName = "")
+        public override AssetInfoEntry[] GetAssetInfos(string tag, string packageName = "")
         {
-            return Array.Empty<ResourceAssetInfoEntry>();
+            return Array.Empty<AssetInfoEntry>();
         }
 
         /// <inheritdoc />
-        public override ResourceAssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "")
+        public override AssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "")
         {
-            return Array.Empty<ResourceAssetInfoEntry>();
+            return Array.Empty<AssetInfoEntry>();
         }
 
         /// <inheritdoc />
-        public override ResourceAssetInfoEntry GetAssetInfo(string location, string packageName = "")
+        public override AssetInfoEntry GetAssetInfo(string location, string packageName = "")
         {
             return default;
         }

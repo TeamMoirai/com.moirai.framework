@@ -5,7 +5,7 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.AddressableAssets.ResourceLocators;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
-namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Asset
 {
     /// <summary>
     /// Addressables 后端的初始化与包生命周期面：一个隐式目录、单包初始化、包版本与缓存清理。
@@ -25,6 +25,8 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         protected override void OnShutdown()
         {
+            base.OnShutdown();
+
             ShutdownBindingService();
             ForceReleaseAllAssetRecords();
         }
@@ -34,14 +36,14 @@ namespace Moirai.Atropos.Resource
         #region 初始化 [INITIALIZATION]
 
         /// <inheritdoc />
-        public override async UniTask<ResourcePackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false)
+        public override async UniTask<AssetPackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false)
         {
             string targetPackage = string.IsNullOrEmpty(packageName) ? DefaultPackageName : packageName;
             // autoReleaseHandle: false —— 目录句柄一释放，ResourceLocators 就空了，
             // 之后所有按 key 的定位与加载都会莫名失败，且没有任何地方说为什么。
             AsyncOperationHandle<IResourceLocator> handle = Addressables.InitializeAsync(false);
             await handle.ToUniTask();
-            return new ResourcePackageInitResult
+            return new AssetPackageInitResult
             {
                 PackageName = targetPackage,
                 Operation = new AddressableOperation<IResourceLocator>(handle),
@@ -52,15 +54,15 @@ namespace Moirai.Atropos.Resource
         public override async UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "",
             string fallbackHostServerURL = "")
         {
-            ResourcePackageInitResult result = await InitializePackageAsync(packageName);
+            AssetPackageInitResult result = await InitializePackageAsync(packageName);
             return result != null && result.Succeed;
         }
 
         /// <summary>
-        /// <see cref="AsyncOperationHandle{TObject}"/> 到 <see cref="IResourceOperation"/> 的适配。
+        /// <see cref="AsyncOperationHandle{TObject}"/> 到 <see cref="IAssetOperation"/> 的适配。
         /// </summary>
         /// <remarks>句柄是 struct，故以泛型类持字段：既免装箱，也不必在解箱时精确知道 <c>TObject</c>。</remarks>
-        private sealed class AddressableOperation<TObject> : IResourceOperation
+        private sealed class AddressableOperation<TObject> : IAssetOperation
         {
             private readonly AsyncOperationHandle<TObject> _handle;
 
@@ -91,7 +93,7 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override ResourcePackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
+        public override AssetPackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "")
         {
             throw CreateNotSupported();
         }
@@ -104,27 +106,27 @@ namespace Moirai.Atropos.Resource
         }
 
         /// <inheritdoc />
-        public override IResourceOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "")
+        public override IAssetOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "")
         {
             throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        public override IResourceDownloader CreateResourceDownloader(string customPackageName = "")
+        public override IAssetDownloader CreateAssetDownloader(string customPackageName = "")
         {
             throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        public override ResourceClearCacheResult StartClearCache(EResourceClearMode clearMode, string customPackageName = "")
+        public override AssetClearCacheResult StartClearCache(EAssetClearMode clearMode, string customPackageName = "")
         {
             Addressables.ClearResourceLocators();
-            if (clearMode == EResourceClearMode.ClearAllBundleFiles)
+            if (clearMode == EAssetClearMode.ClearAllBundleFiles)
             {
                 Caching.ClearCache();
             }
 
-            return new ResourceClearCacheResult
+            return new AssetClearCacheResult
             {
                 Operation = null,
                 ClearedCount = 0,

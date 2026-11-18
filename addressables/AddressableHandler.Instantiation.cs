@@ -4,7 +4,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Asset
 {
     /// <summary>
     /// Addressables 后端的实例化面：预制体经租约取用后实例化，实例挂进绑定服务。
@@ -35,9 +35,9 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            ResourceLeaseHandle prefabLease = await AcquireLeaseAsync(
-                new ResourceKey(location, packageName, typeof(GameObject), EResourceAssetKind.Prefab),
-                ELeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
+            AssetLeaseHandle prefabLease = await AcquireLeaseAsync(
+                new AssetKey(location, packageName, typeof(GameObject), EAssetKind.Prefab),
+                ELeaseKind.Direct, EAssetLeaseOption.None, cancellationToken);
             if (!prefabLease.IsValid)
             {
                 return null;
@@ -71,9 +71,9 @@ namespace Moirai.Atropos.Resource
                 return null;
             }
 
-            ResourceOwner owner = EnsureResourceOwner(instance);
-            EResourceBindStatus bindStatus = RegisterPrefabSource(owner, prefabLease, prefab);
-            if (bindStatus != EResourceBindStatus.Success)
+            AssetOwner owner = EnsureAssetOwner(instance);
+            EAssetBindStatus bindStatus = RegisterPrefabSource(owner, prefabLease, prefab);
+            if (bindStatus != EAssetBindStatus.Success)
             {
                 UObject.Destroy(instance);
                 Release(prefabLease);

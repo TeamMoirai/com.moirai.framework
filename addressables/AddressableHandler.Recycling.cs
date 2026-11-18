@@ -1,5 +1,5 @@
 #if ADDRESSABLES_INSTALLED
-namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Asset
 {
     /// <summary>
     /// Addressables 后端的回收面：强制档回收。

@@ -8,7 +8,7 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.U2D;
 using UObject = UnityEngine.Object;
 
-namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Asset
 {
     /// <summary>
     /// Addressables 后端的取用面：租约 API 的公开接缝、租约取用核心与记录内核的接线。
@@ -126,23 +126,23 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// 取用一条资源并挂上租约，只服务异步成员（Addressables 侧唯一可行的形态是异步）。
         /// </summary>
-        private async UniTask<ResourceLeaseHandle> AcquireLeaseAsync(ResourceKey key, ELeaseKind leaseKind,
-            EResourceLeaseOption options, CancellationToken cancellationToken)
+        private async UniTask<AssetLeaseHandle> AcquireLeaseAsync(AssetKey key, ELeaseKind leaseKind,
+            EAssetLeaseOption options, CancellationToken cancellationToken)
         {
             Type assetType = key.AssetType ?? typeof(UObject);
-            EResourceAssetKind assetKind = NormalizeAssetKind(assetType, key.AssetKind);
+            EAssetKind assetKind = NormalizeAssetKind(assetType, key.AssetKind);
             UObject resource = await GetOrLoadAssetAsync(key.Location, assetType, assetKind, key.PackageName,
                 cancellationToken);
             if (resource == null)
             {
-                return ResourceLeaseHandle.Invalid;
+                return AssetLeaseHandle.Invalid;
             }
 
             string normalizedPackageName = NormalizePackageName(key.PackageName);
             ulong recordKey = GetAssetRecordKey(normalizedPackageName, key.Location, assetType, assetKind);
             if (!TryGetRecordId(recordKey, out int assetId))
             {
-                return ResourceLeaseHandle.Invalid;
+                return AssetLeaseHandle.Invalid;
             }
 
             return leaseKind == ELeaseKind.Binding
@@ -157,34 +157,34 @@ namespace Moirai.Atropos.Resource
         /// <inheritdoc />
         /// <remarks>Addressables 没有同步取资产的公开 API，同步族保持 fail-fast——
         /// 用 <c>Task.Wait()</c> 硬等会把主线程挂在驱动上，比抛错更糟。</remarks>
-        public override ResourceLeaseHandle AcquireDirect(ResourceKey key)
+        public override AssetLeaseHandle AcquireDirect(AssetKey key)
         {
             throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        public override UniTask<ResourceLeaseHandle> AcquireDirectAsync(ResourceKey key, CancellationToken cancellationToken = default)
+        public override UniTask<AssetLeaseHandle> AcquireDirectAsync(AssetKey key, CancellationToken cancellationToken = default)
         {
-            return AcquireLeaseAsync(key, ELeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
+            return AcquireLeaseAsync(key, ELeaseKind.Direct, EAssetLeaseOption.None, cancellationToken);
         }
 
         /// <inheritdoc />
-        public override ResourceAssetLease<T> LoadLease<T>(ResourceKey key)
+        public override AssetLease<T> LoadLease<T>(AssetKey key)
         {
             throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        public override ResourceAssetLease<T> LoadLease<T>(string location, string packageName = "")
+        public override AssetLease<T> LoadLease<T>(string location, string packageName = "")
         {
             throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        public override async UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(ResourceKey key, CancellationToken cancellationToken = default)
+        public override async UniTask<AssetLease<T>> LoadLeaseAsync<T>(AssetKey key, CancellationToken cancellationToken = default)
         {
-            ResourceLeaseHandle handle = await AcquireLeaseAsync(key, ELeaseKind.Direct,
-                EResourceLeaseOption.None, cancellationToken);
+            AssetLeaseHandle handle = await AcquireLeaseAsync(key, ELeaseKind.Direct,
+                EAssetLeaseOption.None, cancellationToken);
             if (!handle.IsValid)
             {
                 return default;
@@ -196,13 +196,13 @@ namespace Moirai.Atropos.Resource
                 return default;
             }
 
-            return new ResourceAssetLease<T>(this, handle, typedAsset);
+            return new AssetLease<T>(this, handle, typedAsset);
         }
 
         /// <inheritdoc />
-        public override UniTask<ResourceAssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
+        public override UniTask<AssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "")
         {
-            return LoadLeaseAsync<T>(new ResourceKey(location, packageName, typeof(T),
+            return LoadLeaseAsync<T>(new AssetKey(location, packageName, typeof(T),
                 InferAssetKind(typeof(T))), cancellationToken);
         }
 
@@ -211,49 +211,49 @@ namespace Moirai.Atropos.Resource
         #region 内部 Lease 方法 [INTERNAL LEASE METHODS]
 
         /// <inheritdoc />
-        public override ResourceLeaseHandle AcquireBinding(ResourceKey key)
+        public override AssetLeaseHandle AcquireBinding(AssetKey key)
         {
             throw CreateNotSupported();
         }
 
-        public override bool TryAcquireBindingCached(ResourceKey key, out ResourceLeaseHandle handle)
+        public override bool TryAcquireBindingCached(AssetKey key, out AssetLeaseHandle handle)
         {
             // Addressables 无同步加载；cache-only 只读已落地记录，未命中直接 false。
-            handle = ResourceLeaseHandle.Invalid;
-            EResourceAssetKind assetKind = NormalizeAssetKind(key.AssetType, key.AssetKind);
+            handle = AssetLeaseHandle.Invalid;
+            EAssetKind assetKind = NormalizeAssetKind(key.AssetType, key.AssetKind);
             if (!TryGetCachedAssetRecord(NormalizePackageName(key.PackageName), key.Location,
                     key.AssetType ?? typeof(UObject), assetKind, out int assetId, out _))
             {
                 return false;
             }
 
-            handle = AcquireBindingLease(assetId, EResourceLeaseOption.None);
+            handle = AcquireBindingLease(assetId, EAssetLeaseOption.None);
             return handle.IsValid;
         }
 
         /// <inheritdoc />
-        public override UniTask<ResourceLeaseHandle> AcquireBindingAsync(ResourceKey key, CancellationToken cancellationToken)
+        public override UniTask<AssetLeaseHandle> AcquireBindingAsync(AssetKey key, CancellationToken cancellationToken)
         {
-            return AcquireLeaseAsync(key, ELeaseKind.Binding, EResourceLeaseOption.None, cancellationToken);
+            return AcquireLeaseAsync(key, ELeaseKind.Binding, EAssetLeaseOption.None, cancellationToken);
         }
 
         /// <inheritdoc />
-        public override UniTask<ResourceLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EResourceLeaseOption options, CancellationToken cancellationToken)
+        public override UniTask<AssetLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EAssetLeaseOption options, CancellationToken cancellationToken)
         {
             return AcquireSubAssetsAsync(location, packageName, options, cancellationToken);
         }
 
         /// <inheritdoc />
-        public override ResourceLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
+        public override AssetLeaseHandle AcquirePrefabSourceLease(string location, string packageName)
         {
             throw CreateNotSupported();
         }
 
         /// <inheritdoc />
-        public override UniTask<ResourceLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken)
+        public override UniTask<AssetLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken)
         {
-            return AcquireLeaseAsync(new ResourceKey(location, packageName, typeof(GameObject), EResourceAssetKind.Prefab),
-                ELeaseKind.Direct, EResourceLeaseOption.None, cancellationToken);
+            return AcquireLeaseAsync(new AssetKey(location, packageName, typeof(GameObject), EAssetKind.Prefab),
+                ELeaseKind.Direct, EAssetLeaseOption.None, cancellationToken);
         }
 
         #endregion

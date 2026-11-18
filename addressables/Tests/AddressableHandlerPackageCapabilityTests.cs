@@ -15,8 +15,8 @@ namespace Moirai.Plugin.Addressables.Tests
     /// </remarks>
     public sealed class AddressableHandlerPackageCapabilityTests
     {
-        private const string AddressableHandlerTypeName = "Moirai.Atropos.Resource.AddressableHandler";
-        private const string BuiltinHandlerTypeName = "Moirai.Atropos.Resource.YooAssetHandler";
+        private const string AddressableHandlerTypeName = "Moirai.Atropos.Asset.AddressableHandler";
+        private const string BuiltinHandlerTypeName = "Moirai.Atropos.Asset.YooAssetHandler";
         private const string CapabilityPropertyName = "ConsumesPackageNames";
 
         /// <summary>
