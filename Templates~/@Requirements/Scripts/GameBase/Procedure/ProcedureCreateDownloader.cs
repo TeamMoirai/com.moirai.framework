@@ -1,7 +1,7 @@
 ﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.GameMain.UI;
 using UnityEngine;
 using JsonUtility = Moirai.Atropos.JsonUtility;
@@ -20,7 +20,7 @@ namespace Moirai.GameMain
         
         public override bool UseNativeDialog { get; }
 
-        private IResourceDownloader _downloader;
+        private IAssetDownloader _downloader;
 
         private int _totalDownloadCount;
 
@@ -39,7 +39,7 @@ namespace Moirai.GameMain
         {
             await UniTask.Delay(TimeSpan.FromSeconds(0.5f));
 
-            _downloader = ResourceService.CreateResourceDownloader();
+            _downloader = AssetService.CreateAssetDownloader();
 
             if (_downloader.TotalDownloadCount == 0)
             {

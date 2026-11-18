@@ -1,7 +1,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 
 namespace Moirai.Atropos.ObjectPool
@@ -17,7 +17,7 @@ namespace Moirai.Atropos.ObjectPool
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(IGameObjectPoolService), typeof(DefaultGameObjectPoolHandler))]
-    [ServiceDependency(typeof(DebuggerService), typeof(ResourceService))]
+    [ServiceDependency(typeof(DebuggerService), typeof(AssetService))]
     [UnityEngine.Scripting.Preserve]
     public partial class GameObjectPoolService : ServiceBase, IServiceTickable
     {

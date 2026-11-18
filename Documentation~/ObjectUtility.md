@@ -65,4 +65,4 @@ ObjectUtility.DestroyObject(go, allowNetworked: true);
 - 默认 `UnityObjectHandler` 中 `playerOwned` / `allowNetworked` 参数不影响行为（仅在网络 Handler 中生效）
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [ObjectPool](ObjectPool.md) · [Resource](Resource.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [ObjectPool](ObjectPool.md) · [Asset](Asset.md)

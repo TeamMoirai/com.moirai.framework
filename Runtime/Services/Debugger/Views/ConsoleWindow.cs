@@ -63,11 +63,11 @@ namespace Moirai.Atropos.Debugger
             }
 
             _logCapture = logCapture;
-            _lockScroll = SettingUtility.GetBool(Constant.Debug.LOCK_SCROLL, true);
-            _infoFilter = SettingUtility.GetBool(Constant.Debug.INFO_FILTER, true);
-            _warningFilter = SettingUtility.GetBool(Constant.Debug.WARNING_FILTER, true);
-            _errorFilter = SettingUtility.GetBool(Constant.Debug.ERROR_FILTER, true);
-            _fatalFilter = SettingUtility.GetBool(Constant.Debug.FATAL_FILTER, true);
+            _lockScroll = GameSettings.GetBool(Constant.Debug.LOCK_SCROLL, true);
+            _infoFilter = GameSettings.GetBool(Constant.Debug.INFO_FILTER, true);
+            _warningFilter = GameSettings.GetBool(Constant.Debug.WARNING_FILTER, true);
+            _errorFilter = GameSettings.GetBool(Constant.Debug.ERROR_FILTER, true);
+            _fatalFilter = GameSettings.GetBool(Constant.Debug.FATAL_FILTER, true);
         }
 
         /// <inheritdoc />
@@ -151,7 +151,7 @@ namespace Moirai.Atropos.Debugger
             _lockScrollToggle = DebuggerUI.CreateFilterChip("Lock", _lockScroll, DebuggerUI.EChipStyle.Accent, value =>
             {
                 _lockScroll = value;
-                SettingUtility.SetBool(Constant.Debug.LOCK_SCROLL, value);
+                GameSettings.SetBool(Constant.Debug.LOCK_SCROLL, value);
             });
             _lockScrollToggle.style.marginRight = 10f;
             toolbar.Add(_lockScrollToggle);
@@ -171,25 +171,25 @@ namespace Moirai.Atropos.Debugger
             _infoChip = DebuggerUI.CreateFilterChip(CHIP_INFO_TEXT, _infoFilter, DebuggerUI.EChipStyle.Info, value =>
             {
                 _infoFilter = value;
-                SettingUtility.SetBool(Constant.Debug.INFO_FILTER, value);
+                GameSettings.SetBool(Constant.Debug.INFO_FILTER, value);
                 RebuildFilteredLogs();
             });
             _warningChip = DebuggerUI.CreateFilterChip(CHIP_WARNING_TEXT, _warningFilter, DebuggerUI.EChipStyle.Warning, value =>
             {
                 _warningFilter = value;
-                SettingUtility.SetBool(Constant.Debug.WARNING_FILTER, value);
+                GameSettings.SetBool(Constant.Debug.WARNING_FILTER, value);
                 RebuildFilteredLogs();
             });
             _errorChip = DebuggerUI.CreateFilterChip(CHIP_ERROR_TEXT, _errorFilter, DebuggerUI.EChipStyle.Error, value =>
             {
                 _errorFilter = value;
-                SettingUtility.SetBool(Constant.Debug.ERROR_FILTER, value);
+                GameSettings.SetBool(Constant.Debug.ERROR_FILTER, value);
                 RebuildFilteredLogs();
             });
             _fatalChip = DebuggerUI.CreateFilterChip(CHIP_FATAL_TEXT, _fatalFilter, DebuggerUI.EChipStyle.Fatal, value =>
             {
                 _fatalFilter = value;
-                SettingUtility.SetBool(Constant.Debug.FATAL_FILTER, value);
+                GameSettings.SetBool(Constant.Debug.FATAL_FILTER, value);
                 RebuildFilteredLogs();
             });
 

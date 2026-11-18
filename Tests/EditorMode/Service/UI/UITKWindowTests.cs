@@ -18,7 +18,7 @@ namespace Service.UI
     /// <c>PanelSettings</c> 取包内 <c>Runtime/Services/Debugger/Resources/DebuggerPanelSettings</c> 作正对照——取不到是量具前提坏了，不是被测代码坏。 <br />
     /// 装载路径的三格成功用例（同步 / 异步 / 内置资源）不吃接缝、走真实现，因此只读引用包内<b>实存</b>资产（一个 <c>.uxml</c>、一个 <c>.uss</c>）： <br />
     /// 本文件不新增测试资产，测试桩一律代码注入。异步那格今天在 EditMode 就判得了：编辑器域里资源服务未初始化， <br />
-    /// <c>ResourceService.TryLoadAssetAsync</c> 走 <c>AssetDatabase</c> 那一支不经过任何 await 站点，<c>InternalLoad</c> 的续体当场跑完（不是「推测要 PlayMode」）。 <br />
+    /// <c>AssetService.TryLoadAssetAsync</c> 走 <c>AssetDatabase</c> 那一支不经过任何 await 站点，<c>InternalLoad</c> 的续体当场跑完（不是「推测要 PlayMode」）。 <br />
     /// 真装载建出的壳交 <c>TearDown</c> 清理，且登记排在断言之前：<c>InternalLoad</c> 是 <c>async UniTaskVoid</c>，中途抛错时壳已经挂到场景根，漏登记就是串味。 <br />
     /// 序空间那一组格钉「深度意图经 <c>ApplyDepth</c> 落进文档组件的 <c>float</c> 序、回读取的是文档事实」，含负序、超出 <c>float</c> 逐整数可表示范围、 <br />
     /// 面板从未装载与被拒开四种口径；判据一律打在窗基类自己的钩子与 <see cref="UITKWindow.Document"/> 取口上。 <br />
@@ -211,7 +211,7 @@ namespace Service.UI
         /// 异步装载的成功路径：今天在 EditMode 就判得了——编辑器域里资源服务未初始化，异步取值不经过 await 站点，续体就地跑完。
         /// </summary>
         /// <remarks>
-        /// <c>ResourceService.TryLoadAssetAsync</c> 的 <c>UNITY_EDITOR</c> 分支在 <c>IsInitialized</c> 为假时直读 <c>AssetDatabase</c> 后 <c>return</c>， <br />
+        /// <c>AssetService.TryLoadAssetAsync</c> 的 <c>UNITY_EDITOR</c> 分支在 <c>IsInitialized</c> 为假时直读 <c>AssetDatabase</c> 后 <c>return</c>， <br />
         /// 那条路上一个 await 都没有 ⇒ <c>LoadPanelAsync</c> 交回已完成的任务，<c>UIWindow.InternalLoad</c> 的续体当场把 <c>PanelLoaded</c> 跑完。 <br />
         /// 判据与同步那格同套：<c>IsLoadDone</c>、壳已建出、<c>Document.panelSettings == SharedPanelSettings</c>、激活位、壳进清理表。
         /// </remarks>

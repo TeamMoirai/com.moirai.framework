@@ -68,14 +68,14 @@ namespace Moirai.Atropos.Save
         /// <summary>未激活临时父物体（阻断 Awake：先注入 ID/块键，就位后再激活注册）。</summary>
         private static GameObject s_Staging;
 
-        /// <summary>同步模板加载器（prefabKey → 未激活克隆，调用方接管生命周期；默认经 ResourceService + SavePrefabRegistry）。</summary>
+        /// <summary>同步模板加载器（prefabKey → 未激活克隆，调用方接管生命周期；默认经 AssetService + SavePrefabRegistry）。</summary>
         internal static Func<string, GameObject> s_TemplateLoaderSync;
 
         /// <summary>异步模板加载器（同上语义）。</summary>
         internal static Func<string, CancellationToken, UniTask<GameObject>> s_TemplateLoaderAsync;
 
         /// <summary>
-        /// 静态构造：接线默认模板加载器（ResourceService 加载 + SavePrefabRegistry 解析）。
+        /// 静态构造：接线默认模板加载器（AssetService 加载 + SavePrefabRegistry 解析）。
         /// </summary>
         static SaveEntityPersistence()
         {
@@ -860,7 +860,7 @@ namespace Moirai.Atropos.Save
         #region 默认加载器 [DEFAULT LOADERS]
 
         /// <summary>
-        /// 默认同步模板加载：SavePrefabRegistry 解析定位串 → ResourceService 加载到 staging 下（未激活）。
+        /// 默认同步模板加载：SavePrefabRegistry 解析定位串 → AssetService 加载到 staging 下（未激活）。
         /// </summary>
         /// <param name="prefabKey">预制体注册键。</param>
         /// <returns>未激活模板克隆；注册表未配置/键未登记/加载失败返回 <c>null</c>（均已记录错误日志）。</returns>
@@ -871,10 +871,10 @@ namespace Moirai.Atropos.Save
                 return null;
             }
 
-            GameObject instance = Resource.ResourceService.LoadGameObject(location, EnsureStaging().transform);
+            GameObject instance = Asset.AssetService.LoadGameObject(location, EnsureStaging().transform);
             if (instance == null)
             {
-                LogUtility.Error("[SaveService] ResourceService failed to load prefab '{0}' (location '{1}').", prefabKey, location);
+                LogUtility.Error("[SaveService] AssetService failed to load prefab '{0}' (location '{1}').", prefabKey, location);
                 return null;
             }
 
@@ -894,10 +894,10 @@ namespace Moirai.Atropos.Save
                 return null;
             }
 
-            GameObject instance = await Resource.ResourceService.LoadGameObjectAsync(location, EnsureStaging().transform, cancellationToken);
+            GameObject instance = await Asset.AssetService.LoadGameObjectAsync(location, EnsureStaging().transform, cancellationToken);
             if (instance == null)
             {
-                LogUtility.Error("[SaveService] ResourceService failed to load prefab '{0}' (location '{1}').", prefabKey, location);
+                LogUtility.Error("[SaveService] AssetService failed to load prefab '{0}' (location '{1}').", prefabKey, location);
                 return null;
             }
 

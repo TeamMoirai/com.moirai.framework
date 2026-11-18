@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Audio
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(IAudioService), typeof(UnityAudioHandler))]
-    [ServiceDependency(typeof(TimerService), typeof(DebuggerService), typeof(ResourceService))]
+    [ServiceDependency(typeof(TimerService), typeof(DebuggerService), typeof(AssetService))]
     public partial class AudioService : ServiceBase, IServiceTickable
     {
         /// <summary>前后台切换订阅句柄（注销只能靠它，lambda 事后摘不掉）。</summary>

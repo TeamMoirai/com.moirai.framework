@@ -88,9 +88,10 @@
 
 - ⚠ 删除 `InputServiceHandler`/`ProcedureServiceHandler`/`GameObjectPoolServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IInputService`/`IProcedureService`/`IGameObjectPoolService`（3 个输入后端 UIMobile/UnityInputManager/UnityInputSystem 与 DefaultProcedureHandler/DefaultGameObjectPoolHandler 签名变为 `FrameworkHandler, I{Service}`）；`ProcedureServiceHandler` 的切换历史/广播承载收进 internal `ProcedureBackendPolicy`（后端自持状态 + 一行转发）；`GameObjectPoolService.TryResolveInstance` 因参数类型 internal 移入 internal `IGameObjectPoolInternals`；下游消费方（CharacterActions/PlayerActions）签名同步接口化。`UIServiceHandler` 保留——它是 uGUI/UITK 双轨并存的家族基座（多实例托管，非单选策略契约）
 
-#### Resource
+#### Asset（原 Resource）
 
-- 新增唯一契约接口 `IResourceService`（60 个公共契约成员收编，语义文档与门面同源）；`ResourceServiceHandler` 抽象基座保留并实现接口（abstract 成员满足契约义务，72 成员实现链零改动）——Resource 采用「契约接口 + 引擎基座」混合形态，addressables 等外部插件兼容性无损；internal `IResourceLeaseSource` 租约窄缝提取独立文件，internal `IResourceLeaseDiagnostics` 诊断附属接口（`GetLeaseSourceInfos` 显式实现，internal 参数类型不进公共契约）；`ResourceServiceSettings` 字段、`IPrefabLoader`/`OperationsWindow`/`ResourceBindingExtension`/编辑器包名桥与探针、消费方测试签名全部接口化
+- ⚠ 服务整体由 `Resource` 更名为 `Asset`：命名空间 `Moirai.Atropos.Resource` → `Moirai.Atropos.Asset`，类型族（`ResourceService`/`IResourceService`/`ResourceServiceHandler`/`ResourceServiceSettings`/`ResourceOwner`/`ResourceKey`/`ResourceAssetLease` 等）改按 `Asset*` 命名（复合名并入既有资产类型族：`ResourceAssetInfo`→`AssetInfo`、`ResourceAssetLease`→`AssetLease`、`EResourceAssetKind`→`EAssetKind`），服务方法（`ProcessResourceMaintenance`→`ProcessAssetMaintenance`、`RetainResourceKey`→`RetainAssetKey` 等）与目录 `Services/Resource`→`Services/Asset`、文档 `Resource.md`→`Asset.md`、设置资产 `ResourceServiceSettings.asset`→`AssetServiceSettings.asset`（GUID 不变、托管引用同步）一并迁移；`ResourceServiceSettings.asset`/测试字符串全名已同步，已配置自定义后端实例无损。迁移动机：`Resource` 只描述「资源」而未贴合服务本体（YooAsset 资产加载 + Lease/Binding 生命周期的资产服务），`Asset` 与类型族 `AssetReference`/`AssetSlot`/YooAsset 对齐。Unity `Resources` API、`Resources/` 特殊目录与 YooAsset `package.CreateResourceDownloader` 等外部 API 不在迁移范围，保持原名；下游需同步替换 using 与类型引用
+- 新增唯一契约接口 `IAssetService`（60 个公共契约成员收编，语义文档与门面同源）；`AssetServiceHandler` 抽象基座保留并实现接口（abstract 成员满足契约义务，72 成员实现链零改动）——Asset 采用「契约接口 + 引擎基座」混合形态，addressables 等外部插件兼容性无损；internal `IAssetLeaseSource` 租约窄缝提取独立文件，internal `IAssetLeaseDiagnostics` 诊断附属接口（`GetLeaseSourceInfos` 显式实现，internal 参数类型不进公共契约）；`AssetServiceSettings` 字段、`IPrefabLoader`/`OperationsWindow`/`AssetBindingExtension`/编辑器包名桥与探针、消费方测试签名全部接口化
 
 #### Localization
 

@@ -160,7 +160,7 @@ public partial class Player : MonoBehaviour
 - **集合**：数组 `T[]`、`List<T>`、`Queue<T>`、`Stack<T>`、`HashSet<T>`、`Dictionary<K,V>`；元素递归支持标量与嵌套数据类（含集合套集合）；映射键仅限标量/枚举；**引用类型暂不支持作集合元素**（报 MIRAI308）。恢复为**替换语义**（读回新容器实例）；null 与空集合严格区分；`Stack<T>` 按栈顶→栈底写出、恢复逆序压栈还原 LIFO。
 - **嵌套数据类**：标注 `[SaveData]` 的非 MonoBehaviour class，捕获其**全部 public 实例字段**（键 = 字段名，对齐 JSON 惯例；Key/Version 参数在嵌套语境不使用）。循环引用/抽象类/无可访问无参构造/struct 报 MIRAI307；`SaveDataBlock` 子类不能作嵌套字段（走手动轨块 API）。
 - **场景对象引用**（GameObject/Component 派生字段）：捕获存目标 `SaveObjectIdentity` 的**稳定 ID**（编辑器期 OnValidate 烘焙 GUID，空则自动赋值），恢复经 `SaveEntityRegistry` 反查当前场景内同 ID 对象（Component 字段经 `GetComponent<T>` 解析）。目标未挂 SaveObjectIdentity 时捕获写 Null 并记告警；档内 ID 在当前场景不存在时恢复为 null 并记告警。复制物体（Ctrl+D）会连 ID 拷贝——重复 ID 运行期首到先得并记告警，清空 ID 字段可重新烘焙。每个场景引用字段生成 MIRAI305 Info 指引。
-- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → ResourceService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MIRAI306 且不参与捕获。程序化修改目录条目（编辑器工具/导入器直改 `m_Entries`）后必须调用 `SaveAssetCatalog.InvalidateLookup()`——查找表延迟构建，缓存不失效既看不到新条目也无法拦截重复登记。
+- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → AssetService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MIRAI306 且不参与捕获。程序化修改目录条目（编辑器工具/导入器直改 `m_Entries`）后必须调用 `SaveAssetCatalog.InvalidateLookup()`——查找表延迟构建，缓存不失效既看不到新条目也无法拦截重复登记。
 
 ### 生成器诊断
 
@@ -180,7 +180,7 @@ MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器�
 
 运行期经预制体生成的物体（怪物/掉落物/临时建筑等）按「生成表 + 每实体差分块」持久化：
 
-1. **登记预制体**：创建 `SavePrefabRegistry` SO（Create → Moirai → Save Prefab Registry），为每个可持久化预制体登记**稳定键**（存档内引用标识，改名即毁档）与 **ResourceService 定位串**（YooAsset 地址），并在存档设置 `m_PrefabRegistry` 引用。
+1. **登记预制体**：创建 `SavePrefabRegistry` SO（Create → Moirai → Save Prefab Registry），为每个可持久化预制体登记**稳定键**（存档内引用标识，改名即毁档）与 **AssetService 定位串**（YooAsset 地址），并在存档设置 `m_PrefabRegistry` 引用。
 2. **实体根挂 SaveComponent 并勾选字段**（含 Transform 内置捕获器字段以持久化位置/旋转/缩放）。
 3. 游戏代码用持久化生成/销毁对替代 `Instantiate`/`Destroy`：
 
@@ -206,7 +206,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 | API（实体分部） | 说明 |
 |---|---|
-| `InstantiatePersistent(prefabKey, position, rotation, parent)` | 同步生成持久化实体（模板经 ResourceService 加载；失败返回 `null`） |
+| `InstantiatePersistent(prefabKey, position, rotation, parent)` | 同步生成持久化实体（模板经 AssetService 加载；失败返回 `null`） |
 | `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | 异步生成（取消时返回 `null`） |
 | `DestroyPersistent(target)` | 销毁并登记语义（动态实体移表 / 预置对象记销毁表 / 无身份物体仅销毁） |
 | `SaveEntitiesAsync(fileName, folderName, ct)` | 写入实体表与全部活跃实体差分块（预热基准→差分捕获→增量判定→单趟合并；零变化零 IO 跳过；失败抛 `GameException`） |
@@ -307,7 +307,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `m_DefaultSerializerTypeName` | 默认序列化后端（未声明 `[SaveData]` 的块）：ProviderDropdown 类型名模式，存 `ISaveSerializer` 实现类全名，候选只列已编译入包的实现（缺 NuGet 依赖的后端不出现在下拉里）；首次读取（或配置名变更）时在主线程解析成实例并按名缓存（解析失败同样缓存，同一份配置只报一次 Fatal），并确保该 ID 在 `SaveSerializerRegistry` 有主，容器逐块记录其 2 字节 `BackendId`；置空或解析失败回退内置 Json |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
 | `m_AssetCatalog` | 资产引用目录（SaveAssetCatalog SO）：无代码保存的资产引用字段经目录双向解析定位串；空 = 资产引用字段捕获恒写 Null |
-| `m_PrefabRegistry` | 预制体注册表（SavePrefabRegistry SO）：可持久化动态实体登记（稳定键 → ResourceService 定位串）；空 = `InstantiatePersistent` 不可用、实体生成记录恢复按未登记键跳过 |
+| `m_PrefabRegistry` | 预制体注册表（SavePrefabRegistry SO）：可持久化动态实体登记（稳定键 → AssetService 定位串）；空 = `InstantiatePersistent` 不可用、实体生成记录恢复按未登记键跳过 |
 | `m_CaptureScreenshotOnSave` | 保存时截图（默认关）：`SaveBlockAsync`/`SaveComponentsAsync` 成功后自动捕获截图并镜像 sidecar 与元数据（仅运行态主线程生效） |
 | `m_ScreenshotMaxDimension` | 截图缩略图最长边（像素，保纵横比不放大，默认 256） |
 
@@ -387,4 +387,4 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveV3HardeningTests` | 加固路径回归 |
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [Resource](Resource.md) · [Core](Core.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [Asset](Asset.md) · [Core](Core.md)

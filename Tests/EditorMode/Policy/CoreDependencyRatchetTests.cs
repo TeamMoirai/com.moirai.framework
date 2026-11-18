@@ -54,7 +54,7 @@ namespace Policy
     /// 这种「只换目录、内容零改动、命名空间不动」的搬运会把 <c>SceneService</c> 从判据词表里整个摘掉（它在 Core 侧 0 处取用、也不在允许清单里，
     /// 所以三条判据断言照旧读绿，能红的只有下面那条名册断言），
     /// 此后 Core 爱怎么用它就怎么用——豁免面就这一枚 <c>git mv</c> 的宽度，而且仓里原本没有任何东西约束「什么可以声明在 <c>Kernel/</c> 里」。
-    /// 已钉住的三支基线类型（<c>TimerService</c>/<c>ResourceService</c>/<c>TimerUnsafeBinding</c>）反倒是<b>碰巧</b>受保护：名字一旦整个离开词表，就落进断言二的第二条分支
+    /// 已钉住的三支基线类型（<c>TimerService</c>/<c>AssetService</c>/<c>TimerUnsafeBinding</c>）反倒是<b>碰巧</b>受保护：名字一旦整个离开词表，就落进断言二的第二条分支
     /// （「已不在 <c>SERVICES_ROOT</c>（<c>Kernel</c> 除外）的命名空间层级声明里」），那条文案对这种情形给的指引本来就是对的（先核对搬动方向，别顺手删条目）。
     /// 这条洞由 <see cref="ContainerKernel_FileSet_IsExactlyTheRoster"/> 收口：<c>Kernel/**</c> 的 <c>.cs</c> 文件集合与 <see cref="ContainerKernelFileRoster"/>
     /// 做集合相等判定，多一枚少一枚都红，因此「悄悄把豁免面扩大」这件事必须在这份名册上留名。它钉的是<b>豁免目录的边界不许被暗中改动</b>，
@@ -94,8 +94,8 @@ namespace Policy
             Entry("DelayTask.cs", "TimerUnsafeBinding",
                 "基线：与上一条同一条 using 边带出的回调结构体，DelayTask.cs:16 new TimerUnsafeBinding(task, &StopDelayTask)，旧版按 using 命名空间计数时看不见这条"),
 
-            Entry("DefaultVersionHandler.cs", "ResourceService",
-                "基线：默认版本处理器经 ResourceService 读远端版本清单（Runtime/Core/Utilities/GameVersion/Handler/DefaultVersionHandler.cs:18 与 :20），本轮不改行为，接受"),
+            Entry("DefaultVersionHandler.cs", "AssetService",
+                "基线：默认版本处理器经 AssetService 读远端版本清单（Runtime/Core/Utilities/GameVersion/Handler/DefaultVersionHandler.cs:18 与 :20），本轮不改行为，接受"),
         };
 
         /// <summary>

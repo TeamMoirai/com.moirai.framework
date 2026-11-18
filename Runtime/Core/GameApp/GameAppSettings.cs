@@ -40,8 +40,8 @@ namespace Moirai.Atropos
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]
-        [SerializeReference] private SettingHandler m_SettingHandler = SettingUtility.CreateDefaultHandler();
-        internal static SettingHandler SettingHandler => Instance.m_SettingHandler;
+        [SerializeReference] private GameSettingHandler m_SettingHandler = GameSettings.CreateDefaultHandler();
+        internal static GameSettingHandler SettingHandler => Instance.m_SettingHandler;
 
         [BoxGroup(HELPER_GROUP), DisableInPlayMode]
         [ProviderDropdown]

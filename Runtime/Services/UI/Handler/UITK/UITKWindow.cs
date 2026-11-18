@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UObject = UnityEngine.Object;
@@ -121,7 +121,7 @@ namespace Moirai.Atropos.UI
                 return false;
             }
 
-            var tree = await ResourceService.TryLoadAssetAsync<VisualTreeAsset>(assetLocation, ct);
+            var tree = await AssetService.TryLoadAssetAsync<VisualTreeAsset>(assetLocation, ct);
             if (tree == null)
             {
                 LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到面板模板 {1}", WindowId, assetLocation);
@@ -282,7 +282,7 @@ namespace Moirai.Atropos.UI
             }
             else
             {
-                ResourceService.TryLoadAsset(assetLocation, out tree);
+                AssetService.TryLoadAsset(assetLocation, out tree);
             }
 
             if (tree == null)
@@ -330,7 +330,7 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            if (!ResourceService.TryLoadAsset(location, out StyleSheet sheet) || sheet == null)
+            if (!AssetService.TryLoadAsset(location, out StyleSheet sheet) || sheet == null)
             {
                 LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到主题样式表 {1}", WindowId, location);
                 return;

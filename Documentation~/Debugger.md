@@ -146,7 +146,7 @@ DebuggerService.RegisterDebugView("Profiler/My Service", new MyServiceDebugView(
 | 路径 | 视图（模块目录） | 内容 |
 |------|-----------------|------|
 | `Profiler/Timer` | `TimerServiceDebuggerWindow`（Timer 模块） | 活跃/容量/峰值统计与占用率、活跃计时器采样、僵尸一次性计时器检测（0.5s 节流） |
-| `Profiler/Resource` | `ResourceServiceDebuggerWindow`（Resource 模块） | 运行模式、已加载资产快照（状态/引用计数，0.5s 节流） |
+| `Profiler/Resource` | `AssetServiceDebuggerWindow`（Resource 模块） | 运行模式、已加载资产快照（状态/引用计数，0.5s 节流） |
 | `Profiler/Audio` | `AudioServiceDebuggerWindow`（Audio 模块） | 主音量与五条音轨的音量/静音实时控制 |
 | `Profiler/Procedure` | `ProcedureServiceDebuggerWindow`（Procedure 模块） | 当前流程状态与持续时长（0.5s 节流） |
 | `Profiler/Localization` | `LocalizationInformationWindow`（Localization 模块） | 当前语言展示与一键切换（1s 节流） |

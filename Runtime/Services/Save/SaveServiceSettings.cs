@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Save
         /// <summary>资产引用目录（由 Inspector 序列化配置；<c>null</c> = 无资产引用解析能力）。</summary>
         public static SaveAssetCatalog AssetCatalog => Instance.m_AssetCatalog;
         
-        [Tooltip("预制体注册表：可持久化动态实体的预制体登记（稳定键 → ResourceService 定位串）。空 = InstantiatePersistent 不可用、实体生成记录恢复时按未登记键跳过。")]
+        [Tooltip("预制体注册表：可持久化动态实体的预制体登记（稳定键 → AssetService 定位串）。空 = InstantiatePersistent 不可用、实体生成记录恢复时按未登记键跳过。")]
         [SerializeField] private SavePrefabRegistry m_PrefabRegistry;
         /// <summary>预制体注册表（由 Inspector 序列化配置；<c>null</c> = 动态实体持久化不可用）。</summary>
         public static SavePrefabRegistry PrefabRegistry => Instance.m_PrefabRegistry;

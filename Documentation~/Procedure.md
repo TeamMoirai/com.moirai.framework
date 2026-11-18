@@ -101,7 +101,7 @@ ProcedureLaunch -> ProcedureSplash -> ProcedureInitPackage -> ProcedureInitResou
 -> ProcedureClearCache -> ProcedureLoadAssembly -> ProcedurePreload -> ProcedurePrepare4Entrance
 ```
 
-其中 `ProcedureInitResources` 演示了与 Resource 服务的配合：调用 `ResourceService.RequestPackageVersion()` 获取远端清单版本、写入 `ResourceService.PackageVersion` 后用 `ResourceService.LoadPackageManifestAsync(packageVersion)` 更新清单，再按播放模式（`EResourcePlayMode.HostPlay` / `WebGLPlay`、是否 `ResourceService.UpdatableWhilePlaying`）决定走下载流程还是直接预加载。
+其中 `ProcedureInitResources` 演示了与 Resource 服务的配合：调用 `AssetService.RequestPackageVersion()` 获取远端清单版本、写入 `AssetService.PackageVersion` 后用 `AssetService.LoadPackageManifestAsync(packageVersion)` 更新清单，再按播放模式（`EAssetPlayMode.HostPlay` / `WebGLPlay`、是否 `AssetService.UpdatableWhilePlaying`）决定走下载流程还是直接预加载。
 
 ### 重启流程
 
@@ -127,4 +127,4 @@ bool ok = ProcedureService.RestartProcedure(
 - `ChangeState<T>()` 是无参方法——通过 `ProcedureBase` 内部持有的 `Owner`（`ProcedureServiceHandler`）引用委托切换，无需在调用时传递服务实例。
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [Resource](Resource.md) · [Scene](Scene.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [Asset](Asset.md) · [Scene](Scene.md)

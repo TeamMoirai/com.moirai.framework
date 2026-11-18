@@ -102,7 +102,7 @@ com.moirai.framework/
 
 ```csharp
 // 服务访问 — 各服务提供静态外观（ProviderHandlerHost 源生成），内部懒加载
-ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
+AssetService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>("MainWindow");
 TimerService.Delay(1f, () => Debug.Log("1s"));
 

@@ -31,7 +31,7 @@ Runtime/Services/<Module>/
 namespace Moirai.Atropos.<Module>
 {
     [AutoRegisterService]
-    [ServiceDependency(typeof(ResourceService))]          // 只在真正依赖时声明
+    [ServiceDependency(typeof(AssetService))]          // 只在真正依赖时声明
     [ProviderHandlerHost(typeof(<Module>ServiceHandler))]
     public partial class <Module>Service : ServiceBase
     {

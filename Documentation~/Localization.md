@@ -215,7 +215,7 @@ string detail = LocalizationService.GetPluralTextFromId("quest.items", count, pl
 `TextLocalizer` / `ImageLocalizer` / `AudioLocalizer` 的 Inspector 在 ID 字段下方显示一行「译文预览 [Preview]」，解析路径与运行期同源，只是数据源按状态分两条：
 
 - **播放态**读已注册的服务：语言、译文与注入器已经取到的资产都是真值
-- **非播放态**向 Inspector 里选定的本地化数据源要预览批次（`LocalizationServiceHandler.LoadEditorPreviewBatch`，由**包内**后端实现——该钩子是 internal virtual，程序集外的自定义数据源不给预览，这是刻意的边界）；默认的配置表数据源内部走 `ConfigTableService.GetAllLocalizedStringsForEditor`，运行期没注册处理器时经 Settings 里配置的那份实例取数。资源模式那条地址再经 `ResourceService.TryLoadAsset` 的编辑态分支解析成资产，不需要进 Play
+- **非播放态**向 Inspector 里选定的本地化数据源要预览批次（`LocalizationServiceHandler.LoadEditorPreviewBatch`，由**包内**后端实现——该钩子是 internal virtual，程序集外的自定义数据源不给预览，这是刻意的边界）；默认的配置表数据源内部走 `ConfigTableService.GetAllLocalizedStringsForEditor`，运行期没注册处理器时经 Settings 里配置的那份实例取数。资源模式那条地址再经 `AssetService.TryLoadAsset` 的编辑态分支解析成资产，不需要进 Play
 - 文本类显示译文；取不到时按 `EPreviewResolveStatus` 分档点明「表内无此 ID」或「该语言留空」，不拿 key 冒充译文。解析入口是 `LocalizationService.ResolvePreviewText`（唯一）
 - 图/音的资源模式显示 `ID → 地址 → 资产类型 '名字'`，并点名三种在编辑器里就能看出来的错：地址指向的资产取不到、类型不符（注入器会拒绝）、类型可自动转换（运行期会为此告警一次）
 - 图/音的索引模式显示预览语言、将要取用的数组下标以及该下标上的元素（`缺项` / `空引用` / 资源名）——「新增语言后数组没补齐」这类错位在这里当场能看见，不必等运行时

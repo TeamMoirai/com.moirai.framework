@@ -2,7 +2,7 @@
 
 > 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（静态外观，不含 MonoBehaviour）经 PlayerLoop 驱动。
 
-`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明；世界构建为两阶段——`GameServices.RegisterService<T>(scope, service)` 仅将服务入图，组合根统一调用 `GameServices.Default.InitializeAsync()` 按依赖图拓扑排序驱动全部 `OnInit`（缺失依赖/循环依赖 fail-fast，初始化顺序与注册顺序无关）；运行时（世界已初始化后）注册的服务立即初始化。非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`ResourceService.Xxx()`），动态服务查找统一走 `GameServices.GetRequiredService<T>()` 等静态方法。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过内联 3 槽绑定值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。`ServiceWorld` 可实例化（`new ServiceWorld()`）——测试与沙盒场景可构造隔离世界，不触碰 `GameServices.Default`。
+`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明；世界构建为两阶段——`GameServices.RegisterService<T>(scope, service)` 仅将服务入图，组合根统一调用 `GameServices.Default.InitializeAsync()` 按依赖图拓扑排序驱动全部 `OnInit`（缺失依赖/循环依赖 fail-fast，初始化顺序与注册顺序无关）；运行时（世界已初始化后）注册的服务立即初始化。非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`AssetService.Xxx()`），动态服务查找统一走 `GameServices.GetRequiredService<T>()` 等静态方法。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过内联 3 槽绑定值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。`ServiceWorld` 可实例化（`new ServiceWorld()`）——测试与沙盒场景可构造隔离世界，不触碰 `GameServices.Default`。
 
 ## 核心特性
 
@@ -59,7 +59,7 @@
 // 1. 业务代码通过静态外观访问框架服务
 TimerService.Delay(1f, () => Debug.Log("1s"));
 UIService.ShowUI<MainWindow>("main");
-ResourceService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
+AssetService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
 // 2. 定义自定义服务——依赖通过 [ServiceDependency] 特性声明
 [ServiceDependency(typeof(TimerService))]
@@ -127,12 +127,12 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 服务依赖通过 `[ServiceDependency(typeof(...))]` 特性声明（单特性多类型，类似 `RequireComponent`）。世界初始化的拓扑排序据此排序并校验——**初始化顺序由声明决定，与注册顺序无关**：
 
 ```csharp
-[ServiceDependency(typeof(ResourceService), typeof(TimerService))]
+[ServiceDependency(typeof(AssetService), typeof(TimerService))]
 public sealed class UIService : ServiceBase, IServiceTickable
 {
     public override void OnInit()
     {
-        // 走到此处时 ResourceService/TimerService 已初始化完毕
+        // 走到此处时 AssetService/TimerService 已初始化完毕
         TimerService.Delay(1f, () => { });
     }
 
@@ -340,7 +340,7 @@ ObjectPoolService.Spawn(...); // ObjectPoolService 由此注册进 App 作用域
 实现 `IAsyncShutdownService` 的服务在异步关闭管线中按**逆激活序**（= 逆初始化序）先执行 `OnShutdownAsync()`，再执行同步 `OnShutdown()`：
 
 ```csharp
-public class ResourceService : ServiceBase, IAsyncShutdownService
+public class AssetService : ServiceBase, IAsyncShutdownService
 {
     public async UniTask OnShutdownAsync()
     {

@@ -13,11 +13,11 @@ namespace Moirai.Atropos
     /// <example>
     /// <code>
     /// // 单依赖
-    /// [ServiceDependency(typeof(ResourceService))]
+    /// [ServiceDependency(typeof(AssetService))]
     /// public sealed class AudioService : ServiceBase, IServiceTickable { ... }
     ///
     /// // 多依赖（单特性）
-    /// [ServiceDependency(typeof(ResourceService), typeof(TimerService))]
+    /// [ServiceDependency(typeof(AssetService), typeof(TimerService))]
     /// public sealed class UIService : ServiceBase, IServiceTickable { ... }
     /// </code>
     /// </example>

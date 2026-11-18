@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 
 namespace Moirai.Atropos.ConfigTable
@@ -15,7 +15,7 @@ namespace Moirai.Atropos.ConfigTable
     /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成，线程安全懒加载。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(ResourceService))]
+    [ServiceDependency(typeof(AssetService))]
     [ProviderHandlerHost(typeof(IConfigTableService), typeof(DefaultConfigTableHandler))]
     public partial class ConfigTableService : ServiceBase
     {
@@ -39,7 +39,7 @@ namespace Moirai.Atropos.ConfigTable
         /// 初始化配置表服务。由容器在构建期调用。
         /// </summary>
         /// <remarks>
-        /// 依赖 <see cref="ResourceService"/> 已就绪：表数据经资源系统装载，初始化序必须排在资源服务之后。 <br />
+        /// 依赖 <see cref="AssetService"/> 已就绪：表数据经资源系统装载，初始化序必须排在资源服务之后。 <br />
         /// 被 <see cref="Localization.LocalizationService"/> 反向依赖（本地化默认数据源即配置表）。 <br />
         /// 本服务无运行时轮询状态，不注册 Profiler 窗口。
         /// </remarks>
