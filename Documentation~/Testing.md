@@ -207,7 +207,7 @@ public abstract class XxxFixture
   - `ErrorWithException(fragment)`：带异常对象的 Error 重载——级别随处理器自述（`ErrorWithExceptionUsesExceptionChannel`），内置 `DefaultLogHandler` 恒为 Error 通道；`plugin` 分支的 `zlogger` 插件自述为 true，该后端的条目带异常即转 Exception 通道；
   - `ScopedIgnore()`：`ignoreFailingMessages` 的 using 形态窗口（构造快照、Dispose 还原），供**错误集不可枚举的故障注入夹具**使用。取舍：窗口内所有未处理日志（含真缺陷的）都不判红，相当于放弃「意外错误也要红」这层信号——只在夹具确实不需要该信号时选用；错误集可枚举的用例逐条声明。它是唯一允许触碰该全局开关的入口。
   - 该处理器已随 `unity-logging` 插件离开框架装配，`UtfLogExpect` 里不再有按它类型判定的分支，测试程序集的 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 那条 `versionDefines` 也随之摘掉——别为它再加回来。插件在场时它对 UTF 恒不可见，这条差异由插件自带的用例负责。
-- **被测走 `Debug.Log*` 直发、不经 LogUtility 的场景，`LogAssert` 是唯一正确通道**——该链路对 UTF 恒可见，声明预期不涉及处理器判定，用 `UtfLogExpect` 反而会在 UnityLoggingHandler 下漏声明而假红（范例：`DebuggerLogCaptureTests` 测的就是 Unity 控制台捕获器）。这类文件登记进 `TestLogChannelPolicyGuardTests.LogAssertAllowlist` 并写明归类；除此之外的直用一律按上一条走 `UtfLogExpect`。
+- **被测走 `Debug.Log*` 直发、不经 LogUtility 的场景，`LogAssert` 是唯一正确通道**——该链路对 UTF 恒可见，声明预期不涉及处理器判定，用 `UtfLogExpect` 反而会在 UnityLoggingHandler 下漏声明而假红（范例：`DebuggerLogCaptureTests` 测的就是 Unity 控制台捕获器）。除此之外的直用一律按上一条走 `UtfLogExpect`。
 
 ## 0-GC 验收（L3）
 
@@ -395,13 +395,9 @@ unity command test status --project-path "E:/Workspace/Unity/Game Dev Tools/Clie
 
 ## 可执行政策守卫与治理原则（2026-09-27）
 
-规范若只写在文档里，下一次"顺手一下"没人拦得住——以下政策已钉成可执行守卫（编辑器套件自动跑）：
+规范若只写在文档里，下一次"顺手一下"没人拦得住——2026-09-27 曾把以下政策钉成可执行守卫（编辑器套件自动跑）：非公开反射白名单双向断言（`ReflectionPolicyGuardTests`，未登记不得出现、已登记必须仍命中）、测试日志通道与 LogAssert 通道守卫（`TestLogChannelPolicyGuardTests`，测试日志发射统一 `Debug.Log*`、禁 `LogUtility.Verbose/…/Assert(` 直用、`LogAssert.*` 一律经 `UtfLogExpect`）、设置键名拼装位置守卫（`SettingsPolicyLocationGuardTests`，键名只允许在对应模块的政策文件里拼装）。
 
-- `ReflectionPolicyGuardTests`：非公开反射白名单双向断言（未登记不得出现、已登记必须仍命中）。
-- `TestLogChannelPolicyGuardTests`：测试日志输出发射统一 `Debug.Log*`，禁止 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`——白名单两类：被测本体（LogUtilityTests）、替身复刻生产发射（Save fake loader）；断言通道（`onMessageLogged` 捕获、`UtfLogExpect` 消噪）不受限。守卫按原文扫描，注释里写「LogUtility.Error(」字面也会命中——措辞用「LogUtility 的 Error」规避。 <br />
-  同一守卫还钉住 **LogAssert 通道**：用例侧禁止直用 `LogAssert.Expect` / `LogAssert.ignoreFailingMessages` / `LogAssert.NoUnexpectedReceived`（一律经 `UtfLogExpect`，`ignoreFailingMessages` 只经 `ScopedIgnore()`）——白名单为两份 `UtfLogExpect` 支撑副本与「被测走 `Debug.Log` 直发」的场景（DebuggerLogCaptureTests），双向断言防名单腐烂。
-
-- `SettingsPolicyLocationGuardTests`：设置键名只允许在对应模块的政策文件里拼装（按**键名空间**判，抓得住不叫 `*Handler.cs` 的第二份拼装），且 `*Handler.cs` 内不得出现 `SettingUtility.`。第三格是量具自检：政策文件取不到、或里面已不含该键名就判红，否则前两条的"零命中"没有含义；匹配前剥行注释，说明文字不算拼装站点。
+**2026-11-18 起 `Tests/EditorMode/Policy/` 目录整体移除，三份守卫随之撤下**；上列政策回归约定与评审把关，后续若重新钉回按本节历史口径落位。
 
 **反膨胀原则**（存量不追改、增量强制）：
 
