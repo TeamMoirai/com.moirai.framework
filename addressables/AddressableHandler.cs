@@ -3,7 +3,7 @@ using System;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Asset
 {
     /// <summary>
     /// 基于 Unity Addressables 的资源处理器实现（实验性），与框架内建的 YooAsset 后端经同一条记录内核宿主基类
@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Resource
     /// </remarks>
     [ProviderDisplay(title: "Addressables", description: "Unity Addressables 后端（实验性）：无同步加载族，下载族 fail-fast")]
     [Serializable]
-    internal sealed partial class AddressableHandler : ResourceRecordHostHandler
+    internal sealed partial class AddressableHandler : AssetRecordHostHandler
     {
         #region 基础属性 [BASE PROPERTIES]
 
@@ -36,7 +36,7 @@ namespace Moirai.Atropos.Resource
         public override string FallbackHostServerURL { get; set; }
 
         /// <inheritdoc />
-        public override EResourceLoadWayWebGL LoadResWayWebGL { get; set; }
+        public override EAssetLoadWayWebGL LoadResWayWebGL { get; set; }
 
         /// <inheritdoc />
         public override string ApplicableGameVersion => Application.version;

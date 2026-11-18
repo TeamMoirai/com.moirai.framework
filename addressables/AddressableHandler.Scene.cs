@@ -4,30 +4,30 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 
-namespace Moirai.Atropos.Resource
+namespace Moirai.Atropos.Asset
 {
     /// <summary>
-    /// <see cref="AddressableHandler"/> 的场景加载部分——场景经 Addressables 管线加载，产出 <see cref="ResourceSceneHandle"/> 适配句柄。
+    /// <see cref="AddressableHandler"/> 的场景加载部分——场景经 Addressables 管线加载，产出 <see cref="AssetSceneHandle"/> 适配句柄。
     /// </summary>
     partial class AddressableHandler
     {
         #region 场景加载 [SCENE LOADING]
 
         /// <inheritdoc />
-        public override ResourceSceneHandle LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "")
+        public override AssetSceneHandle LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "")
         {
             var handle = Addressables.LoadSceneAsync(location, sceneMode, !suspendLoad, (int)priority);
             return new AddressableSceneHandleAdapter(handle);
         }
 
         /// <summary>
-        /// Addressables 场景句柄适配器，把 Addressables 的挂起语义映射到 <see cref="ResourceSceneHandle"/> 契约。
+        /// Addressables 场景句柄适配器，把 Addressables 的挂起语义映射到 <see cref="AssetSceneHandle"/> 契约。
         /// </summary>
         /// <remarks>
         /// activateOnLoad=false 时外层句柄在场景就绪（待激活）即完成，激活需显式调用 <see cref="SceneInstance.ActivateAsync"/>；
         /// <c>IsDone</c> 与 <c>SceneObject</c> 均以 <c>Scene.isLoaded</c>（激活完成标记）为准，未完成时 <c>Progress</c> 封顶 0.99。
         /// </remarks>
-        private sealed class AddressableSceneHandleAdapter : ResourceSceneHandle
+        private sealed class AddressableSceneHandleAdapter : AssetSceneHandle
         {
             private AsyncOperationHandle<SceneInstance> _handle;
 
@@ -80,7 +80,7 @@ namespace Moirai.Atropos.Resource
             }
 
             /// <inheritdoc />
-            public override IResourceOperation UnloadAsync()
+            public override IAssetOperation UnloadAsync()
             {
                 if (!_handle.IsValid())
                 {
@@ -107,7 +107,7 @@ namespace Moirai.Atropos.Resource
         /// <summary>
         /// Addressables 异步操作适配器。
         /// </summary>
-        private sealed class AddressableOperationAdapter : IResourceOperation
+        private sealed class AddressableOperationAdapter : IAssetOperation
         {
             private readonly AsyncOperationHandle _handle;
 
