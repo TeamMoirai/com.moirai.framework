@@ -15,7 +15,7 @@ using static Moirai.Atropos.LogHandler;
 namespace Service.Save
 {
     /// <summary>
-    /// 事件 API 测试：静态事件触发时机/次数/参数、失败事件阶段分型、后台线程派发主线程化、进度批次判定。
+    /// 事件 API 测试：事件触发时机/次数/参数、失败事件阶段分型、后台线程派发主线程化、进度批次判定。
     /// </summary>
     /// <remarks>
     /// 全部经 internal 同步核心路径在主线程内联派发断言（EditMode 主线程 = <c>MainThreadDispatcher.IsMainThread</c>）； <br />
@@ -38,11 +38,11 @@ namespace Service.Save
         private string _rootPath;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
 
-        private List<SaveSlotChangedArgs> _slotEvents;
-        private List<SaveBlockChangedArgs> _blockSavedEvents;
-        private List<SaveBlockChangedArgs> _blockDeletedEvents;
-        private List<SaveFailedArgs> _saveFailedEvents;
-        private List<SaveFailedArgs> _loadFailedEvents;
+        private List<SaveSlotChangedEvent> _slotEvents;
+        private List<SaveBlockChangedEvent> _blockSavedEvents;
+        private List<SaveBlockChangedEvent> _blockDeletedEvents;
+        private List<SaveFailedEvent> _saveFailedEvents;
+        private List<SaveFailedEvent> _loadFailedEvents;
 
         [SetUp]
         public void SetUp()
@@ -55,26 +55,26 @@ namespace Service.Save
             _capturedLogs = new List<(ELogLevel, string)>();
             LogUtility.onMessageLogged += CaptureLog;
 
-            _slotEvents = new List<SaveSlotChangedArgs>();
-            _blockSavedEvents = new List<SaveBlockChangedArgs>();
-            _blockDeletedEvents = new List<SaveBlockChangedArgs>();
-            _saveFailedEvents = new List<SaveFailedArgs>();
-            _loadFailedEvents = new List<SaveFailedArgs>();
-            SaveService.onSlotChanged += OnSlotChanged;
-            SaveService.onBlockSaved += OnBlockSaved;
-            SaveService.onBlockDeleted += OnBlockDeleted;
-            SaveService.onSaveFailed += OnSaveFailed;
-            SaveService.onLoadFailed += OnLoadFailed;
+            _slotEvents = new List<SaveSlotChangedEvent>();
+            _blockSavedEvents = new List<SaveBlockChangedEvent>();
+            _blockDeletedEvents = new List<SaveBlockChangedEvent>();
+            _saveFailedEvents = new List<SaveFailedEvent>();
+            _loadFailedEvents = new List<SaveFailedEvent>();
+            EventBus.Subscribe<SaveSlotChangedEvent>(OnSlotChangedBusBridge);
+            EventBus.Subscribe<SaveBlockChangedEvent>(OnBlockSavedSavedBridge);
+            EventBus.Subscribe<SaveBlockChangedEvent>(OnBlockDeletedDeletedBridge);
+            EventBus.Subscribe<SaveFailedEvent>(OnSaveFailedSaveBridge);
+            EventBus.Subscribe<SaveFailedEvent>(OnLoadFailedLoadBridge);
         }
 
         [TearDown]
         public void TearDown()
         {
-            SaveService.onSlotChanged -= OnSlotChanged;
-            SaveService.onBlockSaved -= OnBlockSaved;
-            SaveService.onBlockDeleted -= OnBlockDeleted;
-            SaveService.onSaveFailed -= OnSaveFailed;
-            SaveService.onLoadFailed -= OnLoadFailed;
+            EventBus.Unsubscribe<SaveSlotChangedEvent>(OnSlotChangedBusBridge);
+            EventBus.Unsubscribe<SaveBlockChangedEvent>(OnBlockSavedSavedBridge);
+            EventBus.Unsubscribe<SaveBlockChangedEvent>(OnBlockDeletedDeletedBridge);
+            EventBus.Unsubscribe<SaveFailedEvent>(OnSaveFailedSaveBridge);
+            EventBus.Unsubscribe<SaveFailedEvent>(OnLoadFailedLoadBridge);
             LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             try
@@ -95,11 +95,15 @@ namespace Service.Save
             _capturedLogs.Add((level, message));
         }
 
-        private void OnSlotChanged(SaveSlotChangedArgs args) => _slotEvents.Add(args);
-        private void OnBlockSaved(SaveBlockChangedArgs args) => _blockSavedEvents.Add(args);
-        private void OnBlockDeleted(SaveBlockChangedArgs args) => _blockDeletedEvents.Add(args);
-        private void OnSaveFailed(SaveFailedArgs args) => _saveFailedEvents.Add(args);
-        private void OnLoadFailed(SaveFailedArgs args) => _loadFailedEvents.Add(args);
+        private void OnSlotChanged(SaveSlotChangedEvent evt) => _slotEvents.Add(evt);
+        private void OnBlockSaved(in SaveBlockChangedEvent evt) => _blockSavedEvents.Add(evt);
+        private void OnBlockSavedSavedBridge(in SaveBlockChangedEvent evt) { if (evt.Kind == SaveBlockChangedEvent.ESaveBlockChangeKind.Saved) OnBlockSaved(evt); }
+        private void OnBlockDeletedDeletedBridge(in SaveBlockChangedEvent evt) { if (evt.Kind == SaveBlockChangedEvent.ESaveBlockChangeKind.Deleted) OnBlockDeleted(evt); }
+        private void OnSaveFailedSaveBridge(in SaveFailedEvent evt) { if (evt.Operation == SaveFailedEvent.ESaveFailureOperation.Save) OnSaveFailed(evt); }
+        private void OnLoadFailedLoadBridge(in SaveFailedEvent evt) { if (evt.Operation == SaveFailedEvent.ESaveFailureOperation.Load) OnLoadFailed(evt); }
+        private void OnBlockDeleted(in SaveBlockChangedEvent evt) => _blockDeletedEvents.Add(evt);
+        private void OnSaveFailed(SaveFailedEvent evt) => _saveFailedEvents.Add(evt);
+        private void OnLoadFailed(SaveFailedEvent evt) => _loadFailedEvents.Add(evt);
 
         /// <summary>
         /// 为随后一条 Error 日志声明 UTF 预期（仅 DefaultLogHandler 同步链路下 UTF 可见）。
@@ -134,7 +138,7 @@ namespace Service.Save
             _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 5, PlayerName = "Moirai" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             Assert.AreEqual(1, _blockSavedEvents.Count, "块保存事件应恰好触发一次");
-            SaveBlockChangedArgs blockArgs = _blockSavedEvents[0];
+            SaveBlockChangedEvent blockArgs = _blockSavedEvents[0];
             Assert.AreEqual("slot", blockArgs.FileName);
             Assert.AreEqual(TestFolder, blockArgs.FolderName);
             Assert.AreEqual("stats", blockArgs.Key);
@@ -142,7 +146,7 @@ namespace Service.Save
             Assert.Greater(blockArgs.SizeBytes, 0);
 
             Assert.AreEqual(1, _slotEvents.Count, "槽位写入事件应恰好触发一次");
-            Assert.AreEqual(ESaveSlotChangeKind.Saved, _slotEvents[0].Kind);
+            Assert.AreEqual(SaveSlotChangedEvent.ESaveSlotChangeKind.Saved, _slotEvents[0].Kind);
             Assert.AreEqual("slot", _slotEvents[0].FileName);
             Assert.AreEqual(TestFolder, _slotEvents[0].FolderName);
         }
@@ -191,7 +195,7 @@ namespace Service.Save
 
             Assert.AreEqual(1, _blockDeletedEvents.Count);
             Assert.AreEqual(1, _slotEvents.Count);
-            Assert.AreEqual(ESaveSlotChangeKind.Deleted, _slotEvents[0].Kind, "最后一块删除后整档移除，槽位应报删除");
+            Assert.AreEqual(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, _slotEvents[0].Kind, "最后一块删除后整档移除，槽位应报删除");
             Assert.IsFalse(File.Exists(paths.SaveFilePath));
         }
 
@@ -205,7 +209,7 @@ namespace Service.Save
             _handler.DeleteSave("slot", TestFolder);
 
             Assert.AreEqual(1, _slotEvents.Count);
-            Assert.AreEqual(ESaveSlotChangeKind.Deleted, _slotEvents[0].Kind);
+            Assert.AreEqual(SaveSlotChangedEvent.ESaveSlotChangeKind.Deleted, _slotEvents[0].Kind);
             Assert.AreEqual("slot", _slotEvents[0].FileName);
         }
 
@@ -225,11 +229,11 @@ namespace Service.Save
 
             _handler.CreateBackup("slot", TestFolder);
             Assert.AreEqual(1, _slotEvents.Count);
-            Assert.AreEqual(ESaveSlotChangeKind.BackupCreated, _slotEvents[0].Kind);
+            Assert.AreEqual(SaveSlotChangedEvent.ESaveSlotChangeKind.BackupCreated, _slotEvents[0].Kind);
 
             _handler.RestoreBackup("slot", TestFolder);
             Assert.AreEqual(2, _slotEvents.Count);
-            Assert.AreEqual(ESaveSlotChangeKind.BackupRestored, _slotEvents[1].Kind);
+            Assert.AreEqual(SaveSlotChangedEvent.ESaveSlotChangeKind.BackupRestored, _slotEvents[1].Kind);
         }
 
         #endregion
@@ -245,8 +249,8 @@ namespace Service.Save
                 _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, 99, 1, CancellationToken.None));
 
             Assert.AreEqual(1, _saveFailedEvents.Count);
-            SaveFailedArgs args = _saveFailedEvents[0];
-            Assert.AreEqual(ESaveFailureStage.Serialize, args.Stage);
+            SaveFailedEvent args = _saveFailedEvents[0];
+            Assert.AreEqual(SaveFailedEvent.ESaveFailureStage.Serialize, args.Stage);
             Assert.AreEqual(SaveError.SerializationFailed, args.Error);
             Assert.AreEqual("stats", args.Key);
             Assert.AreEqual("slot", args.FileName);
@@ -269,7 +273,7 @@ namespace Service.Save
 
             Assert.AreEqual(SaveError.Corrupted, error);
             Assert.AreEqual(1, _loadFailedEvents.Count);
-            Assert.AreEqual(ESaveFailureStage.HeaderValidation, _loadFailedEvents[0].Stage);
+            Assert.AreEqual(SaveFailedEvent.ESaveFailureStage.HeaderValidation, _loadFailedEvents[0].Stage);
             Assert.AreEqual(SaveError.Corrupted, _loadFailedEvents[0].Error);
             Assert.IsNull(_loadFailedEvents[0].Key, "整档级失败不带块键");
         }
@@ -301,7 +305,7 @@ namespace Service.Save
 
             Assert.AreEqual(SaveError.Corrupted, error);
             Assert.AreEqual(1, _loadFailedEvents.Count);
-            Assert.AreEqual(ESaveFailureStage.ContainerParse, _loadFailedEvents[0].Stage);
+            Assert.AreEqual(SaveFailedEvent.ESaveFailureStage.ContainerParse, _loadFailedEvents[0].Stage);
             Assert.AreEqual("stats", _loadFailedEvents[0].Key, "逐块失败事件带块键");
         }
 
@@ -351,7 +355,7 @@ namespace Service.Save
 
             Assert.AreEqual(SaveError.SerializationFailed, error);
             Assert.AreEqual(1, _loadFailedEvents.Count);
-            Assert.AreEqual(ESaveFailureStage.Deserialize, _loadFailedEvents[0].Stage);
+            Assert.AreEqual(SaveFailedEvent.ESaveFailureStage.Deserialize, _loadFailedEvents[0].Stage);
             Assert.AreEqual(SaveError.SerializationFailed, _loadFailedEvents[0].Error);
             Assert.AreEqual("stats", _loadFailedEvents[0].Key);
         }
@@ -365,8 +369,7 @@ namespace Service.Save
         {
             int mainThreadId = Thread.CurrentThread.ManagedThreadId;
             int eventThreadId = -1;
-            void Handler(SaveBlockChangedArgs args) => eventThreadId = Thread.CurrentThread.ManagedThreadId;
-            SaveService.onBlockSaved += Handler;
+            EventBus.Subscribe<SaveBlockChangedEvent>((in SaveBlockChangedEvent e) => eventThreadId = Thread.CurrentThread.ManagedThreadId);
             try
             {
                 // 后台线程触发：事件不内联（入队等待主线程泵）
@@ -379,7 +382,7 @@ namespace Service.Save
             }
             finally
             {
-                SaveService.onBlockSaved -= Handler;
+                EventBus.Clear<SaveBlockChangedEvent>();
             }
         }
 
@@ -388,16 +391,16 @@ namespace Service.Save
         {
             int mainThreadId = Thread.CurrentThread.ManagedThreadId;
             int eventThreadId = -1;
-            void Handler(SaveSlotChangedArgs args) => eventThreadId = Thread.CurrentThread.ManagedThreadId;
-            SaveService.onSlotChanged += Handler;
+            EventBus.Subscribe<SaveSlotChangedEvent>((in SaveSlotChangedEvent e) => eventThreadId = Thread.CurrentThread.ManagedThreadId);
             try
             {
-                SaveService.RaiseSlotChanged(ESaveSlotChangeKind.Saved, "slot", TestFolder);
+                SaveService.RaiseSlotChanged(SaveSlotChangedEvent.ESaveSlotChangeKind.Saved, "slot", TestFolder);
                 Assert.AreEqual(mainThreadId, eventThreadId, "主线程触发应内联同步派发");
             }
             finally
             {
-                SaveService.onSlotChanged -= Handler;
+                // 局部 lambda 无法按引用退订——终态清空该类型通道（测试串行执行，不影响其他测试）
+                EventBus.Clear<SaveSlotChangedEvent>();
             }
         }
 
@@ -412,5 +415,8 @@ namespace Service.Save
         }
 
         #endregion
+
+	private void OnSlotChangedBusBridge(in SaveSlotChangedEvent e) => OnSlotChanged(e);
+
     }
 }

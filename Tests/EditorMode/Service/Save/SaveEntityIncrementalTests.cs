@@ -31,8 +31,8 @@ namespace Service.Save
         private readonly List<GameObject> _objects = new List<GameObject>();
         private GameObject _prefabSource;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
-        private List<SaveBlockChangedArgs> _blockSavedEvents;
-        private List<SaveSlotChangedArgs> _slotChangedEvents;
+        private List<SaveBlockChangedEvent> _blockSavedEvents;
+        private List<SaveSlotChangedEvent> _slotChangedEvents;
         private PlainSaveHandler _handler;
         private string _rootPath;
 
@@ -40,11 +40,11 @@ namespace Service.Save
         public void SetUp()
         {
             _capturedLogs = new List<(ELogLevel, string)>();
-            _blockSavedEvents = new List<SaveBlockChangedArgs>();
-            _slotChangedEvents = new List<SaveSlotChangedArgs>();
+            _blockSavedEvents = new List<SaveBlockChangedEvent>();
+            _slotChangedEvents = new List<SaveSlotChangedEvent>();
             LogUtility.onMessageLogged += CaptureLog;
-            SaveService.onBlockSaved += OnBlockSaved;
-            SaveService.onSlotChanged += OnSlotChanged;
+            EventBus.Subscribe<SaveBlockChangedEvent>(OnBlockSavedBusBridge);
+            EventBus.Subscribe<SaveSlotChangedEvent>(OnSlotChangedBusBridge);
             SaveEntityRegistry.ResetTables();
             SaveEntityPersistence.ResetForTests();
             SaveBuiltInCapturers.RegisterBuiltIns();
@@ -84,8 +84,8 @@ namespace Service.Save
         public void TearDown()
         {
             LogUtility.onMessageLogged -= CaptureLog;
-            SaveService.onBlockSaved -= OnBlockSaved;
-            SaveService.onSlotChanged -= OnSlotChanged;
+            EventBus.Unsubscribe<SaveBlockChangedEvent>(OnBlockSavedBusBridge);
+            EventBus.Unsubscribe<SaveSlotChangedEvent>(OnSlotChangedBusBridge);
             foreach (GameObject gameObject in _objects)
             {
                 if (gameObject != null)
@@ -124,14 +124,14 @@ namespace Service.Save
             _capturedLogs.Add((level, message));
         }
 
-        private void OnBlockSaved(SaveBlockChangedArgs args)
+        private void OnBlockSaved(in SaveBlockChangedEvent evt)
         {
-            _blockSavedEvents.Add(args);
+            _blockSavedEvents.Add(evt);
         }
 
-        private void OnSlotChanged(SaveSlotChangedArgs args)
+        private void OnSlotChanged(SaveSlotChangedEvent evt)
         {
-            _slotChangedEvents.Add(args);
+            _slotChangedEvents.Add(evt);
         }
 
         /// <summary>
@@ -176,7 +176,7 @@ namespace Service.Save
                 yield return null;
             }
 
-            // 再等一帧：merge/恢复的工作线程事件（onBlockSaved/onSlotChanged/Error 日志）入队后在主线程下一帧派发——确保落入本用例窗口
+            // 再等一帧：merge/恢复的工作线程事件（SaveBlockChangedEvent/SaveSlotChangedEvent/Error 日志）入队后在主线程下一帧派发——确保落入本用例窗口
             yield return null;
 
             if (task.IsFaulted && task.Exception != null)
@@ -202,8 +202,8 @@ namespace Service.Save
             yield return WaitForTask(SaveService.SaveEntitiesAsync("slot-incr", "Save").AsTask());
 
             Assert.AreEqual(firstWriteTime, File.GetLastWriteTimeUtc(paths.SaveFilePath), "零变化保存应零 IO 跳过（档写入时间不变）");
-            Assert.AreEqual(0, _blockSavedEvents.Count, "跳过保存不触发 onBlockSaved");
-            Assert.AreEqual(0, _slotChangedEvents.Count, "跳过保存不触发 onSlotChanged");
+            Assert.AreEqual(0, _blockSavedEvents.Count, "跳过保存不触发块保存事件");
+            Assert.AreEqual(0, _slotChangedEvents.Count, "跳过保存不触发槽位事件");
         }
 
         [UnityTest]
@@ -292,7 +292,11 @@ namespace Service.Save
             yield return WaitForTask(SaveService.SaveEntitiesAsync("slot-incr", "Save").AsTask());
 
             Assert.AreEqual(1, _slotChangedEvents.Count, "恢复后保存应全量写回（基准失效）");
-            Assert.AreEqual(ESaveSlotChangeKind.Saved, _slotChangedEvents[0].Kind);
+            Assert.AreEqual(SaveSlotChangedEvent.ESaveSlotChangeKind.Saved, _slotChangedEvents[0].Kind);
         }
+
+	private void OnBlockSavedBusBridge(in SaveBlockChangedEvent e) => OnBlockSaved(e);
+
+	private void OnSlotChangedBusBridge(in SaveSlotChangedEvent e) => OnSlotChanged(e);
     }
 }

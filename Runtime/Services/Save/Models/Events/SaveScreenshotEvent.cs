@@ -1,48 +1,41 @@
-using Moirai.Atropos.Events;
-#pragma warning disable CS0618 // Phase 3 迁移窗口：Save 双通道收敛（任务 3.4）后移除
-
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档截图完成的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.onScreenshotCaptured"/> 二选一订阅）。
+    /// 存档截图完成事件。
     /// </summary>
-    /// <remarks>生产点由截图管线接线，当前尚无生产方。</remarks>
-    public class SaveScreenshotEvent : EventBase<SaveScreenshotEvent>
+    /// <remarks>生产点为 <see cref="SaveService.CaptureScreenshotAsync*"/> 截图管线（sidecar <c>.screenshot.png</c>）。</remarks>
+    public readonly struct SaveScreenshotEvent : IGameEvent
     {
-        /// <summary>事件参数。</summary>
-        public SaveScreenshotArgs Args { get; private set; }
+        /// <summary>存档文件名。</summary>
+        public string FileName { get; }
+
+        /// <summary>存档文件夹名称。</summary>
+        public string FolderName { get; }
+
+        /// <summary>截图文件名（sidecar <c>.screenshot.png</c>）。</summary>
+        public string ScreenshotFileName { get; }
+
+        /// <summary>截图宽度（像素）。</summary>
+        public int Width { get; }
+
+        /// <summary>截图高度（像素）。</summary>
+        public int Height { get; }
 
         /// <summary>
-        /// 重置事件成员（池化复用前由 <see cref="EventBase"/> 回调）。
+        /// 创建截图完成事件。
         /// </summary>
-        protected override void Init()
+        /// <param name="fileName">存档文件名。</param>
+        /// <param name="folderName">存档文件夹名称。</param>
+        /// <param name="screenshotFileName">截图文件名。</param>
+        /// <param name="width">截图宽度（像素）。</param>
+        /// <param name="height">截图高度（像素）。</param>
+        public SaveScreenshotEvent(string fileName, string folderName, string screenshotFileName, int width, int height)
         {
-            base.Init();
-            Args = default;
-        }
-
-        /// <summary>
-        /// 从事件池获取实例并装载参数。
-        /// </summary>
-        /// <param name="args">事件参数。</param>
-        /// <returns>池化事件实例（用后 Dispose 归还）。</returns>
-        public static SaveScreenshotEvent GetPooled(SaveScreenshotArgs args)
-        {
-            SaveScreenshotEvent evt = GetPooled();
-            evt.Args = args;
-            return evt;
-        }
-
-        /// <summary>
-        /// 获取池化事件并广播（订阅侧亦可改用静态事件）。
-        /// </summary>
-        /// <param name="args">事件参数。</param>
-        public static void Trigger(SaveScreenshotArgs args)
-        {
-            using (SaveScreenshotEvent evt = GetPooled(args))
-            {
-                EventManager.SendEvent(evt);
-            }
+            FileName = fileName;
+            FolderName = folderName;
+            ScreenshotFileName = screenshotFileName;
+            Width = width;
+            Height = height;
         }
     }
 }

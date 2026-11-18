@@ -298,8 +298,8 @@ namespace Service.Save
         private PlainSaveHandler _handler;
         private string _rootPath;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
-        private List<SaveFailedArgs> _loadFailedEvents;
-        private List<SaveFailedArgs> _saveFailedEvents;
+        private List<SaveFailedEvent> _loadFailedEvents;
+        private List<SaveFailedEvent> _saveFailedEvents;
 
         [SetUp]
         public void SetUp()
@@ -317,17 +317,17 @@ namespace Service.Save
 
             _capturedLogs = new List<(ELogLevel, string)>();
             LogUtility.onMessageLogged += CaptureLog;
-            _loadFailedEvents = new List<SaveFailedArgs>();
-            _saveFailedEvents = new List<SaveFailedArgs>();
-            SaveService.onLoadFailed += OnLoadFailed;
-            SaveService.onSaveFailed += OnSaveFailed;
+            _loadFailedEvents = new List<SaveFailedEvent>();
+            _saveFailedEvents = new List<SaveFailedEvent>();
+            EventBus.Subscribe<SaveFailedEvent>((in SaveFailedEvent e) => { if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Load) OnLoadFailed(e); });
+            EventBus.Subscribe<SaveFailedEvent>((in SaveFailedEvent e) => { if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Save) OnSaveFailed(e); });
         }
 
         [TearDown]
         public void TearDown()
         {
-            SaveService.onLoadFailed -= OnLoadFailed;
-            SaveService.onSaveFailed -= OnSaveFailed;
+            EventBus.Unsubscribe<SaveFailedEvent>((in SaveFailedEvent e) => { if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Load) OnLoadFailed(e); });
+            EventBus.Unsubscribe<SaveFailedEvent>((in SaveFailedEvent e) => { if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Save) OnSaveFailed(e); });
             LogUtility.onMessageLogged -= CaptureLog;
             SaveMigrationManager.ResetForTests();
             SaveServiceHandler.s_OverrideBasePath = null;
@@ -349,8 +349,8 @@ namespace Service.Save
             _capturedLogs.Add((level, message));
         }
 
-        private void OnLoadFailed(SaveFailedArgs args) => _loadFailedEvents.Add(args);
-        private void OnSaveFailed(SaveFailedArgs args) => _saveFailedEvents.Add(args);
+        private void OnLoadFailed(SaveFailedEvent evt) => _loadFailedEvents.Add(evt);
+        private void OnSaveFailed(SaveFailedEvent evt) => _saveFailedEvents.Add(evt);
 
         private static void ExpectErrorLogForUtf()
         {
@@ -480,7 +480,7 @@ namespace Service.Save
 
             Assert.AreEqual(SaveError.MigrationFailed, error, "缺链应 fail-fast");
             AssertErrorLogged("migration chain broken");
-            Assert.IsTrue(_loadFailedEvents.Exists(e => e.Stage == ESaveFailureStage.Migrate && e.Error == SaveError.MigrationFailed), "应触发 Migrate 阶段失败事件");
+            Assert.IsTrue(_loadFailedEvents.Exists(e => e.Stage == SaveFailedEvent.ESaveFailureStage.Migrate && e.Error == SaveError.MigrationFailed), "应触发 Migrate 阶段失败事件");
         }
 
         [Test]
