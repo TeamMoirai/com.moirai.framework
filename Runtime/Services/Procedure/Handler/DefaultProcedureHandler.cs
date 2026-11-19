@@ -121,6 +121,8 @@ namespace Moirai.Atropos.Procedure
                     }
                     finally
                     {
+                        // 状态持有的租约作用域随 Leave 释放（Owner 保证，不依赖派生类调 base）
+                        from.CleanupLeaseScope();
                         RecordTransition(new ProcedureTransitionRecord(
                             ProcedureTransitionKind.Shutdown, from, null, currentStateTime));
                     }
@@ -309,6 +311,8 @@ namespace Moirai.Atropos.Procedure
             try
             {
                 from.OnLeave(false);
+                // 离开状态即释放其租约作用域（Owner 保证，不依赖派生类调 base）
+                from.CleanupLeaseScope();
                 _currentStateTime = 0f;
                 _currentState = procedure;
                 procedure.OnEnter();
