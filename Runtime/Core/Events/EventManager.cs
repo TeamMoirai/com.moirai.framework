@@ -98,6 +98,13 @@ namespace Moirai.Atropos.Events
         
         private static EventManager s_Instance;
 
+        /// <summary>Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例——幂等。</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticsForDomainReload()
+        {
+            s_Instance = null;
+        }
+
         public static EventManager Instance => s_Instance != null ? s_Instance : GetInstance();
         
         private CallbackEventHandler _eventHandler;
