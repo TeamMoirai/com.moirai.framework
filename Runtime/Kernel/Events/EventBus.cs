@@ -55,16 +55,24 @@ namespace Moirai.Atropos
         }
         
         /// <summary>
-        /// 发布事件（in 参数零拷贝）。同一事件的订阅者按订阅顺序同步派发。
+        /// 发布事件（in 参数零拷贝），可选拨发模式。
         /// </summary>
         /// <remarks>
         /// 发布期安全：派发前拷贝回调快照——发布期内的订阅本次不派发（下次发布生效）、退订排队后应用。 <br />
         /// 异常分级：逐回调隔离（<see cref="Debug.LogException(System.Exception)"/> 记日志不中断其他订阅者）。 <br />
-        /// 重入发布（回调内发布同一事件）直接递归派发——不做防环，由调用方自律。
+        /// 重入发布（回调内发布同一事件）直接递归派发——不做防环，由调用方自律。 <br />
+        /// <see cref="DispatchMode.Queued"/>：事件副本进入主线程队列，下一次主线程泵送时派发——
+        /// 非主线程或需要脱离当前调用栈派发时使用（发布点立即返回，不阻塞）。
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Publish<TEvent>(in TEvent evt) where TEvent : struct, IGameEvent
+        public static void Publish<TEvent>(in TEvent evt, DispatchMode mode = DispatchMode.Immediate) where TEvent : struct, IGameEvent
         {
+            if (mode == DispatchMode.Queued)
+            {
+                // 副本入队：in evt 的值拷贝进主线程队列，泵送时按值派发（发布点立即返回）
+                MainThreadDispatcher.Send(evt, static (TEvent queued) => EventChannel<TEvent>.Instance.Publish(queued));
+                return;
+            }
             EventChannel<TEvent>.Instance.Publish(in evt);
         }
 

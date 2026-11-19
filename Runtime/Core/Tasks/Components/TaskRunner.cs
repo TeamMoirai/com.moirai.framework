@@ -20,22 +20,6 @@ namespace Moirai.Atropos.Tasks
                 false;
 #endif
 
-        private class TaskCallbackEventHandler: CallbackEventHandler
-        {
-            public override IEventCoordinator Coordinator => EventManager.Instance;
-
-            public TaskCallbackEventHandler()
-            {
-                Parent = EventManager.EventHandler;
-            }
-            
-            public override void SendEvent(EventBase e, DispatchMode dispatchMode = DispatchMode.Default)
-            {
-                e.Target = this;
-                EventManager.Instance.Dispatch(e, dispatchMode, MonoDispatchType.Update);
-            }
-        }
-        
         internal readonly List<TaskBase> Tasks = new List<TaskBase>();
         
         private readonly List<TaskBase> _tasksToAdd = new List<TaskBase>();
@@ -63,8 +47,6 @@ namespace Moirai.Atropos.Tasks
             return s_Instance;
         }
 
-        private TaskCallbackEventHandler _eventHandler;
-        
         public static void RegisterTask(TaskBase task)
         {
             GetInstance()?.Internal_RegisterTask(task);
@@ -82,17 +64,12 @@ namespace Moirai.Atropos.Tasks
                 return;
             }
             task.Acquire();
-            task.Parent = GetEventHandler();
             _tasksToAdd.Add(task);
         }
         
         private void Awake()
         {
-#if R3_INSTALLED
-            GetEventHandler().AsObservable<TaskCompleteEvent>()
-                             .SubscribeSafe(OnTaskComplete)
-                             .RegisterTo(destroyCancellationToken);
-#endif
+            EventBus.Subscribe<TaskCompleteEventMessage>(static (in TaskCompleteEventMessage msg) => OnTaskComplete(msg.Event));
         }
         
         private void Update()
@@ -128,10 +105,6 @@ namespace Moirai.Atropos.Tasks
             Tasks.Clear();
         }
 
-        public CallbackEventHandler GetEventHandler()
-        {
-            return _eventHandler ??= new TaskCallbackEventHandler();
-        }
         
         internal void UpdateAllTasks()
         {
@@ -185,7 +158,7 @@ namespace Moirai.Atropos.Tasks
         
         private static void OnTaskComplete(TaskCompleteEvent evt)
         {
-            foreach (var task in evt.Listeners)
+            foreach (var task in evt.Listeners.ToArray())
             {
                 if (task.ReleasePrerequisite(evt) && !task.HasPrerequisite())
                 {
