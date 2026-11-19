@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Moirai.EventBus.Roslyn.Analyzers;
 
 /// <summary>
-/// MIRAI701 / MIRAI702 / MIRAI703：OnXxxEvent 事件回调签名规范。
+/// MA7001 / MA7002 / MA7003：OnXxxEvent 事件回调签名规范。
 /// </summary>
 /// <remarks>
 /// 约定：带参回调必须是 <c>OnXxxEvent(in XxxEvent evt)</c>（in 零拷贝）；无参回调直接 <c>OnXxxEvent()</c>， <br />
@@ -109,7 +109,7 @@ public sealed class OnEventCallbackSignatureAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    /// <summary>MIRAI703：无参 OnXxxEvent 仅能由 Source Generator 桥接，宿主类型必须声明 partial。</summary>
+    /// <summary>MA7003：无参 OnXxxEvent 仅能由 Source Generator 桥接，宿主类型必须声明 partial。</summary>
     private static void CheckParameterlessOwner(
         SyntaxNodeAnalysisContext context,
         SyntaxNode node,

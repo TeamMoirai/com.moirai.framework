@@ -10,7 +10,7 @@
 
 #### Kernel
 
-- 新增 `EventBusAnalyzer`（`SourceGenerators/EventBusAnalyzer.dll`，源码 `Source~/EventBusAnalyzer/`，随包自动生效）：MIRAI700 禁止匿名函数订阅/退订 EventBus（匿名委托无法值等价匹配 Unsubscribe，订阅即泄漏）、MIRAI701 `OnXxxEvent` 带参回调必须 `in` 修饰（含一键 CodeFix；方法组转换要求 ref-kind 精确匹配，缺 `in` 本就无法订阅）、MIRAI702 参数类型与方法名后缀不匹配告警、MIRAI703 非 partial 宿主上的无参回调告警；配套源生成器为含 `OnXxxEvent` 回调的 `partial` 类型生成成对 `SubscribeEvents()`/`UnsubscribeEvents()` 胶水——带参回调方法组直连、无参回调缓存包装桥接为 `EventDelegate<T>`、不合规签名跳过并留注释，详见 `Documentation~/EventBusAnalyzer.md`
+- 新增 `EventBusAnalyzer`（`SourceGenerators/EventBusAnalyzer.dll`，源码 `Source~/EventBusAnalyzer/`，随包自动生效）：MA7000 禁止匿名函数订阅/退订 EventBus（匿名委托无法值等价匹配 Unsubscribe，订阅即泄漏）、MA7001 `OnXxxEvent` 带参回调必须 `in` 修饰（含一键 CodeFix；方法组转换要求 ref-kind 精确匹配，缺 `in` 本就无法订阅）、MA7002 参数类型与方法名后缀不匹配告警、MA7003 非 partial 宿主上的无参回调告警；配套源生成器为含 `OnXxxEvent` 回调的 `partial` 类型生成成对 `SubscribeEvents()`/`UnsubscribeEvents()` 胶水——带参回调方法组直连、无参回调缓存包装桥接为 `EventDelegate<T>`、不合规签名跳过并留注释，详见 `Documentation~/EventBusAnalyzer.md`
 
 #### UI
 
@@ -23,6 +23,10 @@
 - 抽出 `PackageManagerWindowBase` 及其嵌套 `PackageManagerProfile`：菜单树、详情面、版本历史与装卸编排收进基类，派生包只需给出窗口标题、状态文件、检出落点、源缺省、宿主包类型与界面文案，即可在同一工程里管理另一条分支上的可安装包；`PackageManagerWindow` 改为框架插件源的首个实现，状态账本与宿主版本量取目标按包源注入
 
 ### Changed
+
+#### 源生成器
+
+- ⚠ 诊断 ID 段号方案统一迁移为 `MA + 4 位段号（ABCD）`：A=模块（1 ProviderHandlerHost / 2 ServiceDependency / 3 SaveServiceCodegen / 5 UIWindowCodegen / 6 HotPathAnalyzer / 7 EventBusAnalyzer）、B=功能面、CD 沿用原分配（Save 3xx/4xx 归并为 A=3）；旧 `MIRAI` + 3 位 ID 全部停用，`.editorconfig` 中的 `dotnet_diagnostic.MIRAIxxx.severity` 需按 `SourceGenerators/README.md` 分配表改为对应 `MAxxxx`
 
 #### UI
 
@@ -116,7 +120,7 @@
 
 #### Kernel / 注入互调（Phase 2 任务①）
 
-- `[ServiceDependency]` 依赖声明改指契约接口（20 处具体类依赖清零，`UIService` 双轨豁免保留具体类）：`BuiltinServiceRegistrationGenerator` 为带 `[ProviderHandlerHost]` 的服务生成契约接口附加绑定行（同实例多契约注册），`MIRAI201` 放宽为「实现 IService 或为 [ProviderHandlerHost] 自报的契约接口」（跨程序集契约接口收集）；容器注册键（具体类）不变，`EnsureRegistered<T>` 调用习惯零变更
+- `[ServiceDependency]` 依赖声明改指契约接口（20 处具体类依赖清零，`UIService` 双轨豁免保留具体类）：`BuiltinServiceRegistrationGenerator` 为带 `[ProviderHandlerHost]` 的服务生成契约接口附加绑定行（同实例多契约注册），`MA2001` 放宽为「实现 IService 或为 [ProviderHandlerHost] 自报的契约接口」（跨程序集契约接口收集）；容器注册键（具体类）不变，`EnsureRegistered<T>` 调用习惯零变更
 
 #### Kernel / 注入互调（Phase 2 任务②·基础设施）
 

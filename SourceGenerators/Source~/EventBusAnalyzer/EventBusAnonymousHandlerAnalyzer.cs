@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Moirai.EventBus.Roslyn.Analyzers;
 
 /// <summary>
-/// MIRAI700：EventBus.Subscribe / EventBus.Unsubscribe 不得传入匿名函数。
+/// MA7000：EventBus.Subscribe / EventBus.Unsubscribe 不得传入匿名函数。
 /// </summary>
 /// <remarks>
 /// 匿名委托每次转换生成新实例，Unsubscribe 的值等价匹配（同方法同目标）永不命中——订阅无法退订即泄漏。
