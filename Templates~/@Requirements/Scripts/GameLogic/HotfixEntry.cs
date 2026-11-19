@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
 using Moirai.Atropos;
-using Moirai.Atropos.Events;
 using Moirai.Atropos.UI;
 using Moirai.Atropos.Procedure;
 #if OBFUZ_INSTALLED && ENABLE_OBFUZ

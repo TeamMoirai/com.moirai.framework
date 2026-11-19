@@ -231,3 +231,25 @@
 - **新增 `UIService.Navigation.cs`**：`NavigateBack()`（关闭当前顶窗走既有关闭政策 + 恢复开启序历史中前一个已停放窗口——复用停放实例）与 `NavigateBackTo(windowId)`（逐次 Back 直到目标成为顶窗，次数上限 = 导航深度防环）
 - `UIWindowLedger` 补查询接缝：`PeekPreviousClosedHistoryWindow`（history 逆序找第一个未开启窗——多窗并存时跳过仍开启者）+ `IsWindowOpen`
 - **天然去重**：基于既有 history 栈语义（复用/停放重取自动挪到最新）；复用窗开启序维护，零新增状态
+
+#### 事件管线收工——原事件系统（Runtime/Core/Events）彻底移除
+
+- **吸收清单兑现**（原系统先进设计 → EventBus）：
+  - `EventDispatchPolicy` 迁入 Kernel/Events（异常分级门控——开发期上抛/发布期隔离）
+  - `DispatchMode` 枚举（Immediate/Queued）+ `EventBus.Publish(in evt, DispatchMode)`——Queued 经 MainThreadDispatcher 主线程队列派发
+  - `EventPool<TEvent>`：class 事件池（带引用负载的大事件保留 class 形态走池——IPoolableGameEvent.Reset 契约 + 幂等归还）
+  - Debugger 接口对接（EventBusDebuggerWindow，此前完成）
+- **Task 系迁移总线**：TaskCompleteEvent class 池化保留（EventPool）+ 引用包装 struct 走总线；TaskCallbackEventHandler 树传播宿主删除；R3 AsObservable 桥弃用改直接订阅
+- **删除**：Runtime/Core/Events 全目录（3917 行：EventBase/EventDispatcher/EventCallbackRegistry/MonoEventCoordinator/EventManager/ChangeEvent/PropagationPaths/EventDebugger 等）+ Editor/Core/Events（旧调试窗）+ R3 CallbackEventHandler 扩展（消费者清零）+ 下游 134 文件残留 using
+- **模板资产保留**：EventsDebugger.uxml/uss 迁出保留（UITK 测试夹具依赖——uxml 自足化去已删控件引用）
+- 回归 **2952 用例 / 2941 过 / 0 失败 / 11 跳过**
+
+#### Events / 事件管线收工——原事件系统彻底移除（EventBus 收编完成）
+
+- **删除 `Runtime/Core/Events/`**（15 文件 3917 行：EventBase/EventManager/MonoEventCoordinator/EventDispatcher/EventCallbackRegistry/EventHandler/派发策略族/EventDebugger 族/ChangeEvent/PropagationPaths）——Phase 3 迁移后下游引用面已为零（gameplay/juice/platformer/Client 全部走 EventBus），死代码清退
+- **删除 `Editor/Core/Events/`**；UI 测试探针夹具 `EventsDebugger.uxml/uss` 迁移至 `Editor/TestFixtures/Resources/`（3 个测试路径引用同步更新）
+- **全生态残留清理**：130 文件死 `using Moirai.Atropos.Events` + 注释中 EventManager/EventBase cref → EventBus（juice/plugin 族/Client Assets 全扫）
+- **吸收项补齐**：
+  - EventPool 接线：EventBus 加 `RentPooled<T>/ReturnPooled<T>` 门面（大事件三步模式：Rent 负载 → Publish struct 事件携带引用 → Return 归还）
+  - `[GameEvent]` 标记 + **GameEventAttributeAnalyzer**（MA7001-7003：标记类型必须 struct + 实现 IGameEvent + 禁实例方法——编译期约束校验，EventBusAnalyzer.dll 重建）
+- **验收**：编译零错误；回归 2952/2941/0 失败（净 -13 = 旧事件系统测试随目录清退）

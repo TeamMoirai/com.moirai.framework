@@ -1,6 +1,3 @@
-using System;
-using UnityEngine;
-
 namespace Moirai.Atropos
 {
     /// <summary>
@@ -23,7 +20,7 @@ namespace Moirai.Atropos
     /// <summary>
     /// 发布派发模式：立即（当前调用栈同步派发）或排队（主线程队列，下一次泵送派发）。
     /// </summary>
-    public enum DispatchMode
+    public enum EDispatchMode
     {
         /// <summary>立即派发：当前调用栈同步完成全部回调（默认）。</summary>
         Immediate = 0,

@@ -1,7 +1,7 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xmlns:akie="Moirai.Atropos.Events" editor-extension-mode="True">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
     <ui:VisualElement name="eventsDebugger">
         <uie:Toolbar name="searchToolbar" class="toolbar">
-            <akie:EventTypeSearchField name="filter-event-type" />
+            <ui:TextField name="filter-event-type" label="filter" />
         </uie:Toolbar>
         <ui:TwoPaneSplitView name="mainHorizontalSplitView" fixed-pane-index="0" fixed-pane-initial-dimension="750" orientation="Horizontal">
             <ui:VisualElement name="eventsLogContainer">

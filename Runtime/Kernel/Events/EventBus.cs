@@ -61,13 +61,13 @@ namespace Moirai.Atropos
         /// 发布期安全：派发前拷贝回调快照——发布期内的订阅本次不派发（下次发布生效）、退订排队后应用。 <br />
         /// 异常分级：逐回调隔离（<see cref="Debug.LogException(System.Exception)"/> 记日志不中断其他订阅者）。 <br />
         /// 重入发布（回调内发布同一事件）直接递归派发——不做防环，由调用方自律。 <br />
-        /// <see cref="DispatchMode.Queued"/>：事件副本进入主线程队列，下一次主线程泵送时派发——
+        /// <see cref="EDispatchMode.Queued"/>：事件副本进入主线程队列，下一次主线程泵送时派发——
         /// 非主线程或需要脱离当前调用栈派发时使用（发布点立即返回，不阻塞）。
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Publish<TEvent>(in TEvent evt, DispatchMode mode = DispatchMode.Immediate) where TEvent : struct, IGameEvent
+        public static void Publish<TEvent>(in TEvent evt, EDispatchMode mode = EDispatchMode.Immediate) where TEvent : struct, IGameEvent
         {
-            if (mode == DispatchMode.Queued)
+            if (mode == EDispatchMode.Queued)
             {
                 // 副本入队：in evt 的值拷贝进主线程队列，泵送时按值派发（发布点立即返回）
                 MainThreadDispatcher.Send(evt, static (TEvent queued) => EventChannel<TEvent>.Instance.Publish(queued));
@@ -84,6 +84,34 @@ namespace Moirai.Atropos
         {
             EventChannel<TEvent>.Instance.Clear();
         }
+
+        #region 池化大事件门面 [POOLED EVENTS]
+
+        /// <summary>
+        /// 大事件模式（三步）：<c>var payload = EventBus.RentPooled&lt;PayloadClass&gt;();</c> 填字段 →
+        /// <c>EventBus.Publish(new PayloadEvent(payload));</c>（struct 事件携带 class 引用）→
+        /// <c>EventBus.ReturnPooled(payload);</c> 派发完成后归还。
+        /// </summary>
+        /// <remarks>
+        /// struct 事件本身零池化（值拷贝即传参）；仅带大块引用负载（List/数组/图集等）的高频事件才值得把负载装箱为
+        /// class 并经 <see cref="EventPool{TEvent}"/> 复用。Return 重复归还安全（引用等价检查）。
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static TEvent RentPooled<TEvent>() where TEvent : class, IPoolableGameEvent, new()
+        {
+            return EventPool<TEvent>.Rent();
+        }
+
+        /// <summary>
+        /// 归还池化事件负载（派发完成后调用；重复归还安全）。
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ReturnPooled<TEvent>(TEvent evt) where TEvent : class, IPoolableGameEvent, new()
+        {
+            EventPool<TEvent>.Return(evt);
+        }
+
+        #endregion
 
         /// <summary>
         /// 关 DR 兜底：清空全部静态状态（进 Play 时重置）。
