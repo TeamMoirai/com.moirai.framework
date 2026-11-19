@@ -129,30 +129,19 @@ namespace Moirai.Atropos.Events
         /// </summary>
         /// <param name="callback">要添加的事件处理程序。</param>
         /// <param name="useTrickleDown"><c>true</c> 注册到 TrickleDown 阶段，<c>false</c> 注册到 BubbleUp 阶段。</param>
-        [System.Obsolete("Phase 3 迁移窗口：跨系统事件请迁移到 IEventBus（struct 事件，Context.GetRequiredService<IEventBus>() 获取；详见 Kernel/Events/IEventBus.cs 契约注释）。本 API 行为不变，下游事件迁移（3.3）完成后移除。")]
-        public static void RegisterCallback<TEventType>(EventCallback<TEventType> callback, TrickleDown useTrickleDown = TrickleDown.NoTrickleDown) where TEventType : EventBase<TEventType>, new()
-        {
-            EventHandler.RegisterCallback(callback, useTrickleDown);
-        }
         
         /// <summary>
         /// 从实例中删除回调。
         /// </summary>
         /// <param name="callback">要删除的回调。如果此回调从未注册，则不产生任何影响。</param>
         /// <param name="useTrickleDown"><c>true</c> 从 TrickleDown 阶段删除回调，<c>false</c> 从 BubbleUp 阶段删除回调。</param>
-        [System.Obsolete("Phase 3 迁移窗口：跨系统事件请迁移到 IEventBus（struct 事件，Context.GetRequiredService<IEventBus>() 获取；详见 Kernel/Events/IEventBus.cs 契约注释）。本 API 行为不变，下游事件迁移（3.3）完成后移除。")]
-        public static void UnregisterCallback<TEventType>(EventCallback<TEventType> callback, TrickleDown useTrickleDown = TrickleDown.NoTrickleDown) where TEventType : EventBase<TEventType>, new()
-        {
-            if (!s_Instance) return;
-            EventHandler.UnregisterCallback(callback, useTrickleDown);
-        }
         
         /// <summary>
         /// 将事件发送到事件处理程序。
         /// </summary>
         /// <param name="eventBase">要发送的事件。</param>
         /// <param name="dispatchMode">事件调度模式。</param>
-        [System.Obsolete("Phase 3 迁移窗口：跨系统事件请迁移到 IEventBus（struct 事件，Context.GetRequiredService<IEventBus>() 获取；详见 Kernel/Events/IEventBus.cs 契约注释）。本 API 行为不变，下游事件迁移（3.3）完成后移除。")]
+        /// <summary>树形传播入口（EventBase 单体系——UI/Task 树上的 MonoEvent 传播，非跨系统总线；跨系统事件走 EventBus）。</summary>
         public static void SendEvent(EventBase eventBase, DispatchMode dispatchMode = DispatchMode.Default, MonoDispatchType monoDispatchType = MonoDispatchType.Update)
         {
             if (!s_Instance) return;

@@ -159,3 +159,14 @@
 - ⚠ Save 6 事件规范化为 **readonly struct 且载荷字段内联**（无 Args 孪生——订阅侧 `e.Args.X` 改读 `e.X`，Kind/Operation 枚举原地保留）；`Trigger` 静态便捷发布与 5 个 `SaveXxxArgs` 类型删除，发布走构造函数 + `EventBus.Publish(in evt)`；GetPooled/对象初始化器形态移除
 - **无参事件直接发布**：`EventBus.Publish<TEvent>()` 泛型无参重载（default 实例零构造）——`EventBus.Publish<EmptyArgsEvent>();`
 - Save 派发入口统一 `MainThreadDispatcher.Send(evt, static e => EventBus.Publish(in e))`：主线程内联直发、后台池化工作项入队——Raise* 手写 `IsMainThread` 分支与 `Publish*` 包装删除
+
+#### Kernel / EventBus Debugger 对接（Phase 3 任务 3.4 收尾）
+
+- `EventBusDebuggerWindow`：事件流监视调试窗（"Profiler/EventBus" 路径）——`EventBusDiagnostics.OnPublished` 钩子挂接（进窗挂接/离窗摘除），64 条环形缓冲实时事件流 + 各事件类型发布计数（会话累计），OnUpdate 0.25s 节流刷新
+- `EventBusDebuggerRegistrar`：静态总线（无服务生命周期）的注册入口——`[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]` + `GameServices.GetService<IDebuggerService>()` nullable 解析（容器未构建静默跳过）
+
+#### Phase 3 终态 / EventManager 垫片移除
+
+- **Obsolete 垫片三入口删除**（RegisterCallback/UnregisterCallback 泛型版——消费面清零后按计划移除）；`SendEvent(EventBase)` 重新归类为 **树形传播入口**（EventBase 单体系 UI/Task 树传播，去 Obsolete——非跨系统总线 API）
+- `Templates~` 模板 HotfixEntryEvent 同步总线口径（readonly struct + `EventBus.Publish<T>()` 无参直发）
+- **跨系统事件体系终态**：EventBus 静态总线（readonly struct 事件 / 对称方法组订阅 / in 零拷贝 / 无参直发）；EventManager = EventBase 树形传播协调器（MonoEvent 单体系，与总线无交集）
