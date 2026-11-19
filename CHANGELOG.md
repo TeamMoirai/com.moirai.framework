@@ -187,3 +187,27 @@
 - **T5** `EncryptionUtility` → **`XorCipher`**（Obfuscate/ObfuscateInPlace/ObfuscateQuick 语义族——XOR 对称：同一函数即解密，不设 Deobfuscate 分立入口）；旧类 Obsolete 垫片转发（下游 juice 平滑迁移）
 - **T10** `GameException` → **`MoiraiException`**（全项目 118 文件 + **源生成器模板** ProviderHandlerHostGenerator——生成器 DLL 重建后再生效，3 个 fail-fast 回归失败定位修复）+ 测试改名 MoiraiExceptionTests；`GameException` Obsolete 垫片（**继承 MoiraiException**——既有 `catch(GameException)` 继续生效）
 - **工程经验**：源生成器产物（RequireHandler fail-fast）路径不在常规源码树——批量迁移必须含 SourceGenerators/Source~ 模板 + DLL 重建链路
+
+#### Phase 6 / Top 1 GameApp 分解（partial 化，公共 API 零变化）
+
+- `GameApp.cs`（704 行）→ **376 行**（生命周期 + 生命周期事件 + Unity 事件注入 + 私有方法）
+- 新增 `GameApp.Coroutine.cs`（111 行，协程控制）+ `GameApp.FrameDriver.cs`（177 行，订阅句柄 + Unity Update 注入 + 帧逻辑 Handler 注入）+ `GameApp.EngineSettings.cs`（111 行，引擎参数 FrameRate/GameSpeed/Pause/RunInBackground/NeverSleep）
+- 验收达成：全部文件 < 400 行且单一职责；公共 API 零变化（partial 纯区域移动）
+
+#### Phase 6 / Top 2 ServiceScope 分解（partial 化，公共 API 零变化）
+
+- `ServiceScope.cs`（1322 行）→ **306 行**（常量字段/属性/构造/查找/迭代安全/内部结构）
+- 新增 `ServiceScope.Registry.cs`（332 行，服务注册与注册期校验）+ `ServiceScope.Poller.cs`（279 行，帧轮询与异常分级）+ `ServiceScope.Lifecycle.cs`（218 行，逆序关闭与销毁）+ `ServiceScope.Diagnostics.cs`（231 行，诊断与图维护工具）
+- 全部文件 < 400 行单一职责；`internal sealed partial` 保持内聚（字段共享无需拆状态——类分解留待有实际改动需求时评估）
+
+#### Phase 6 / Top 3 PlayerLoopDriver 分解（partial 化，公共 API 零变化）
+
+- `PlayerLoopDriver.cs`（1099 行）→ **132 行**（状态 + 核心声明）
+- 新增 `PlayerLoopDriver.Registration.cs`（261 行，Unity 事件/接口/Action 三类注册）+ `PlayerLoopDriver.Drive.cs`（209 行，核心钩子与三阶段驱动循环）+ `PlayerLoopDriver.Slots.cs`（92 行，生命周期 Init/Shutdown）+ `PlayerLoopDriver.SlotHandler.cs`（264 行，泛型处理器槽——钩子表独立）+ `PlayerLoopDriver.SlotCallback.cs`（202 行，回调槽）
+- 全部文件 < 300 行；"核心钩子表独立"（方案 Top3 目标）达成——槽类拆出独立文件
+
+#### Phase 6 / Top 4 SaveServiceHandler 分解（partial 化，公共 API 零变化）
+
+- `SaveServiceHandler.cs`（2615 行）→ **143 行**（生命周期 + 类头字段）
+- 8 个域文件：Blocks（383，块读写）/ BlockListing（173，块删除枚举）/ Archive（341，存档删除）/ ArchiveQuery（121，查询与备份）/ Components（383，组件块管线）/ Migration（246，版本迁移+截图）/ Paths（388，路径管理）/ ReadPipeline（396，读管线）/ WritePipeline（187，写管线）
+- 全部文件 < 400 行；**行数守恒断言**（切块前后总行数校验）防内容丢失——过程中一次切块失误差点丢 394 行，靠 git HEAD 版本恢复重切
