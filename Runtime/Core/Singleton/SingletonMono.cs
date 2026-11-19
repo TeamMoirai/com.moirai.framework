@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     /// <remarks>
     /// <b>使用边界</b>：框架内建服务走 ServiceWorld 容器（<see cref="ServiceWorld"/>，契约接口 + 作用域）；
     /// 本家族面向 UI 组件与场景级 MonoBehaviour 单例（无服务生命周期语义的自治宿主）。新增全局系统优先评估服务化而非继承本类。 <br />
-    /// 线程模型：实例物化后任意线程访问 <see cref="Instance"/> 只走 volatile 读快速路径；物化（查找/创建）限主线程，未物化时后台线程访问抛 <see cref="GameException"/>， <br />
+    /// 线程模型：实例物化后任意线程访问 <see cref="Instance"/> 只走 volatile 读快速路径；物化（查找/创建）限主线程，未物化时后台线程访问抛 <see cref="MoiraiException"/>， <br />
     /// 需后台访问的派生类应在启动阶段于主线程预热。 <br />
     /// 编辑模式仅查找已有实例、不自动创建（避免向场景写入瞬时对象），未找到返回 null。 <br />
     /// 退出窗口内 <see cref="Instance"/> 返回 null 且拒绝重建；<see cref="IsValid"/> 与 <see cref="TryGetInstance"/> 同步反映该状态。 <br />
@@ -104,7 +104,7 @@ namespace Moirai.Atropos
                     // 物化（Unity API）只能发生在主线程：越线程调用属于未定义行为，fail-fast 显式化
                     if (!MainThreadDispatcher.IsMainThread)
                     {
-                        throw new GameException(StringUtility.Format(
+                        throw new MoiraiException(StringUtility.Format(
                             "SingletonMono<{0}> 的实例物化必须发生在主线程：后台线程在物化前的访问不受支持，" +
                             "请先在启动阶段于主线程访问一次 Instance（参照 MainThreadDispatcher.BootstrapOnPlay 预热模式）。",
                             typeof(T).FullName));

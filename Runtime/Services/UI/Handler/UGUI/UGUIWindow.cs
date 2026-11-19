@@ -161,7 +161,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <param name="panel">面板物体；null 时直接判装载失败。</param>
         /// <returns>装配成功返回 true。</returns>
-        /// <remarks>缺 <see cref="Canvas"/> 时抛 <see cref="GameException"/>——调用方不得拿到半个可用面板。</remarks>
+        /// <remarks>缺 <see cref="Canvas"/> 时抛 <see cref="MoiraiException"/>——调用方不得拿到半个可用面板。</remarks>
         internal bool BindPanel(GameObject panel)
         {
             if (panel == null) return false;
@@ -174,7 +174,7 @@ namespace Moirai.Atropos.UI
             _canvas = _panel.GetComponent<Canvas>();
             if (_canvas == null)
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "面板 {0}（窗口 {1}）上找不到 {2}：uGUI 窗口的面板必须自带排序画布", panel.name, WindowId, nameof(Canvas)));
             }
 

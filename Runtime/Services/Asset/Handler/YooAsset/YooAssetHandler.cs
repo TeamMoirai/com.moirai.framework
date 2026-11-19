@@ -94,7 +94,7 @@ namespace Moirai.Atropos.Asset
             {
                 if (value < 0)
                 {
-                    throw new GameException("Async operation max time slice cannot be negative.");
+                    throw new MoiraiException("Async operation max time slice cannot be negative.");
                 }
 
                 m_Milliseconds = value;

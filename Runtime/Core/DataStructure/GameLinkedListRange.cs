@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
@@ -23,7 +23,7 @@ namespace Moirai.Atropos
         {
             if (first == null || terminal == null || first == terminal)
             {
-                throw new GameException("Range is invalid.");
+                throw new MoiraiException("Range is invalid.");
             }
 
             _first = first;
@@ -119,7 +119,7 @@ namespace Moirai.Atropos
             {
                 if (!range.IsValid)
                 {
-                    throw new GameException("Range is invalid.");
+                    throw new MoiraiException("Range is invalid.");
                 }
 
                 _gameLinkedListRange = range;

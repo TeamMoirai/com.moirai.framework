@@ -5,14 +5,14 @@ using NUnit.Framework;
 namespace Utility
 {
     /// <summary>
-    /// 验证 <see cref="GameException"/> 各构造重载对消息与内部异常的设置，以及可分别以基类 <see cref="Exception"/> 与派生类型捕获的行为。
+    /// 验证 <see cref="MoiraiException"/> 各构造重载对消息与内部异常的设置，以及可分别以基类 <see cref="Exception"/> 与派生类型捕获的行为。
     /// </summary>
     public class GameExceptionTests
     {
         [Test]
         public void DefaultConstructor_NoMessage()
         {
-            var ex = new GameException();
+            var ex = new MoiraiException();
             Assert.IsNotNull(ex);
             Assert.IsInstanceOf<Exception>(ex);
         }
@@ -20,7 +20,7 @@ namespace Utility
         [Test]
         public void MessageConstructor_SetsMessage()
         {
-            var ex = new GameException("test error");
+            var ex = new MoiraiException("test error");
             Assert.AreEqual("test error", ex.Message);
         }
 
@@ -28,7 +28,7 @@ namespace Utility
         public void InnerExceptionConstructor_SetsInnerException()
         {
             var inner = new InvalidOperationException("inner");
-            var ex = new GameException("outer", inner);
+            var ex = new MoiraiException("outer", inner);
 
             Assert.AreEqual("outer", ex.Message);
             Assert.AreSame(inner, ex.InnerException);
@@ -40,7 +40,7 @@ namespace Utility
             bool caught = false;
             try
             {
-                throw new GameException("test");
+                throw new MoiraiException("test");
             }
             catch (Exception)
             {
@@ -56,9 +56,9 @@ namespace Utility
             string message = null;
             try
             {
-                throw new GameException("specific");
+                throw new MoiraiException("specific");
             }
-            catch (GameException ex)
+            catch (MoiraiException ex)
             {
                 message = ex.Message;
             }

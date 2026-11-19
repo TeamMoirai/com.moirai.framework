@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Asset
     /// <remarks>
     /// 未显式设置处理器时，懒加载优先从 <see cref="AssetServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
     /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成，线程安全懒加载。
-    /// 服务未就绪（未注册/未初始化）时按读写分界：写成员（租约取用与归还、预热、卸载、实例化等）经 <c>RequireHandler()</c> 抛 <see cref="GameException"/> fail-fast； <br />
+    /// 服务未就绪（未注册/未初始化）时按读写分界：写成员（租约取用与归还、预热、卸载、实例化等）经 <c>RequireHandler()</c> 抛 <see cref="MoiraiException"/> fail-fast； <br />
     /// 读成员降级为默认值（<c>HasAsset</c> 报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false）。 <br />
     /// 例外：<see cref="LoadSceneAsync"/> 未就绪时返回 <c>null</c>，是其消费者的既定契约。
     /// </remarks>

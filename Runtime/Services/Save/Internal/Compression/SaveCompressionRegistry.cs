@@ -30,19 +30,19 @@ namespace Moirai.Atropos.Save
         {
             if (provider == null)
             {
-                throw new GameException("Compression provider is null.");
+                throw new MoiraiException("Compression provider is null.");
             }
 
             if (provider.ProviderId == 0)
             {
-                throw new GameException(StringUtility.Format("Compression provider '{0}' uses reserved id 0 (uncompressed marker).", provider.GetType().FullName));
+                throw new MoiraiException(StringUtility.Format("Compression provider '{0}' uses reserved id 0 (uncompressed marker).", provider.GetType().FullName));
             }
 
             lock (s_Lock)
             {
                 if (s_Providers.TryGetValue(provider.ProviderId, out ICompressionProvider existing))
                 {
-                    throw new GameException(StringUtility.Format("Compression provider id {0} is already registered to '{1}', cannot register '{2}'.",
+                    throw new MoiraiException(StringUtility.Format("Compression provider id {0} is already registered to '{1}', cannot register '{2}'.",
                         provider.ProviderId, existing.GetType().FullName, provider.GetType().FullName));
                 }
 

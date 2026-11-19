@@ -53,7 +53,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.HasSetting(settingName);
@@ -68,7 +68,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.RemoveSetting(settingName);
@@ -91,7 +91,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.GetBool(settingName);
@@ -107,7 +107,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.GetBool(settingName, defaultValue);
@@ -122,7 +122,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             Handler.SetBool(settingName, value);
@@ -137,7 +137,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.GetInt(settingName);
@@ -153,7 +153,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.GetInt(settingName, defaultValue);
@@ -168,7 +168,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             Handler.SetInt(settingName, value);
@@ -183,7 +183,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.GetFloat(settingName);
@@ -199,7 +199,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.GetFloat(settingName, defaultValue);
@@ -214,7 +214,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             Handler.SetFloat(settingName, value);
@@ -229,7 +229,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.GetString(settingName);
@@ -245,7 +245,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             return Handler.GetString(settingName, defaultValue);
@@ -260,7 +260,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(settingName))
             {
-                throw new GameException("Setting name is invalid.");
+                throw new MoiraiException("Setting name is invalid.");
             }
 
             Handler.SetString(settingName, value);

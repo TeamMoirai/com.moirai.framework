@@ -52,7 +52,7 @@ namespace Moirai.Atropos
         {
             if (obj == null)
             {
-                throw new GameException("Object to overwrite is invalid.");
+                throw new MoiraiException("Object to overwrite is invalid.");
             }
 
             Parse(json, obj.GetType(), obj);
@@ -134,17 +134,17 @@ namespace Moirai.Atropos
         {
             if (type == null)
             {
-                throw new GameException("Target type is invalid.");
+                throw new MoiraiException("Target type is invalid.");
             }
 
             if (json == null)
             {
-                throw new GameException("Json string is invalid (null).");
+                throw new MoiraiException("Json string is invalid (null).");
             }
 
             if (json.Length == 0)
             {
-                throw new GameException("Json string is empty.");
+                throw new MoiraiException("Json string is empty.");
             }
 
             var lexer = new CharLexer(json, maxDepth);
@@ -155,18 +155,18 @@ namespace Moirai.Atropos
         {
             if (type == null)
             {
-                throw new GameException("Target type is invalid.");
+                throw new MoiraiException("Target type is invalid.");
             }
 
             if (json == null)
             {
-                throw new GameException("Json bytes are invalid (null).");
+                throw new MoiraiException("Json bytes are invalid (null).");
             }
 
             // 长度 0 或仅 BOM 头视为空输入（BOM 3 字节由 Reader 跳过）
             if (json.Length == 0 || (json.Length == 3 && json[0] == 0xEF && json[1] == 0xBB && json[2] == 0xBF))
             {
-                throw new GameException("Json bytes are empty.");
+                throw new MoiraiException("Json bytes are empty.");
             }
 
             var lexer = new ByteLexer(json, maxDepth);

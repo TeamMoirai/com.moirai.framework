@@ -83,7 +83,7 @@ namespace Moirai.Atropos.Scene
         #region 场景加载 [SCENE LOADING]
 
         /// <summary>
-        /// 异步加载场景。加载失败抛出 <see cref="GameException"/>。
+        /// 异步加载场景。加载失败抛出 <see cref="MoiraiException"/>。
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <param name="sceneMode">场景加载模式。</param>
@@ -154,7 +154,7 @@ namespace Moirai.Atropos.Scene
         /// 场景加载核心流程——经 <see cref="AssetService"/> 走资源系统管线加载场景。
         /// </summary>
         /// <remarks>
-        /// 门禁失败、资源后端同步失败、加载错误均抛出 <see cref="GameException"/>； <br />
+        /// 门禁失败、资源后端同步失败、加载错误均抛出 <see cref="MoiraiException"/>； <br />
         /// 等待方取消时由 <see cref="FinalizeLoadDetached"/> 后台收尾后重抛 <see cref="OperationCanceledException"/>。
         /// </remarks>
         private async UniTask<UnityEngine.SceneManagement.Scene> LoadSceneInternal(string location, string packageName, LoadSceneMode sceneMode,
@@ -163,7 +163,7 @@ namespace Moirai.Atropos.Scene
             // —— 入参校验 ——
             if (string.IsNullOrEmpty(location))
             {
-                throw new GameException("Could not load scene. Location is null or empty.");
+                throw new MoiraiException("Could not load scene. Location is null or empty.");
             }
 
             // —— 门禁判定（纯查询，含防重入与互斥检查）——
@@ -191,7 +191,7 @@ namespace Moirai.Atropos.Scene
             if (handle == null)
             {
                 _registry.UnmarkOperation(location);
-                throw new GameException(StringUtility.Format("Could not load scene. Resource service is not ready. Scene: {0}", location));
+                throw new MoiraiException(StringUtility.Format("Could not load scene. Resource service is not ready. Scene: {0}", location));
             }
 
             // —— 登记（句柄只存一处）——
@@ -230,22 +230,22 @@ namespace Moirai.Atropos.Scene
         /// <summary>
         /// 按门禁判定结果构造加载异常。
         /// </summary>
-        private static GameException CreateLoadException(SceneRegistry.ELoadGate gate, string location)
+        private static MoiraiException CreateLoadException(SceneRegistry.ELoadGate gate, string location)
         {
             switch (gate)
             {
                 case SceneRegistry.ELoadGate.InFlight:
-                    return new GameException(StringUtility.Format("Could not load scene while an operation is in flight. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load scene while an operation is in flight. Scene: {0}", location));
                 case SceneRegistry.ELoadGate.SubAlreadyRegistered:
-                    return new GameException(StringUtility.Format("Could not load sub scene while already registered. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load sub scene while already registered. Scene: {0}", location));
                 case SceneRegistry.ELoadGate.MainLoadInFlight:
-                    return new GameException(StringUtility.Format("Could not load main scene while another main scene is loading. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load main scene while another main scene is loading. Scene: {0}", location));
                 case SceneRegistry.ELoadGate.RegisteredAsSub:
-                    return new GameException(StringUtility.Format("Could not load scene as main while registered as sub scene. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load scene as main while registered as sub scene. Scene: {0}", location));
                 case SceneRegistry.ELoadGate.RegisteredAsMain:
-                    return new GameException(StringUtility.Format("Could not load scene as sub while registered as main scene. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load scene as sub while registered as main scene. Scene: {0}", location));
                 default:
-                    return new GameException(StringUtility.Format("Could not load scene. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load scene. Scene: {0}", location));
             }
         }
 
@@ -301,7 +301,7 @@ namespace Moirai.Atropos.Scene
         /// 加载完成收尾——登记迁移、主场景句柄切换与事件派发。
         /// </summary>
         /// <remarks>
-        /// 加载失败时清理全部登记、释放句柄并抛出 <see cref="GameException"/>。
+        /// 加载失败时清理全部登记、释放句柄并抛出 <see cref="MoiraiException"/>。
         /// </remarks>
         private UnityEngine.SceneManagement.Scene FinalizeSceneLoad(string location, AssetSceneHandle handle, LoadSceneMode sceneMode)
         {
@@ -311,7 +311,7 @@ namespace Moirai.Atropos.Scene
             {
                 _registry.AbandonLoad(location, sceneMode);
                 handle.Release();
-                throw new GameException(StringUtility.Format("Could not load scene. Scene: {0}, error: {1}", location, handle.Error));
+                throw new MoiraiException(StringUtility.Format("Could not load scene. Scene: {0}, error: {1}", location, handle.Error));
             }
 
             var scene = handle.SceneObject;

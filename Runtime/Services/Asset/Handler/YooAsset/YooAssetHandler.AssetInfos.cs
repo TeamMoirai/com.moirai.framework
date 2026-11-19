@@ -68,7 +68,7 @@ namespace Moirai.Atropos.Asset
         {
             if (string.IsNullOrEmpty(location))
             {
-                throw new GameException("Asset name is invalid.");
+                throw new MoiraiException("Asset name is invalid.");
             }
 
             YooAsset.AssetInfo yooAssetInfo;
@@ -116,7 +116,7 @@ namespace Moirai.Atropos.Asset
         {
             if (string.IsNullOrEmpty(location))
             {
-                throw new GameException("Asset name is invalid.");
+                throw new MoiraiException("Asset name is invalid.");
             }
 
             var package = GetPackageOrThrow(packageName);

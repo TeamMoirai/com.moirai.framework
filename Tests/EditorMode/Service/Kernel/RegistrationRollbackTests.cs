@@ -36,7 +36,7 @@ namespace Moirai.Atropos.Tests.EditorMode.Service.Kernel
                 world.Initialize();
 
                 // 运行时注册：依赖一个未注册的契约——校验必须失败
-                Assert.Throws<GameException>(() =>
+                Assert.Throws<MoiraiException>(() =>
                     world.Register(EServiceScopeKind.App, typeof(IDependencyProbe), new DependentService()),
                     "运行时注册的依赖校验必须 fail-fast（ITimerService 契约在本测试 world 未注册）");
 

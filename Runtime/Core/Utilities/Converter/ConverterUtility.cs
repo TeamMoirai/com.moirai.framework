@@ -28,7 +28,7 @@ namespace Moirai.Atropos
         {
             if (ScreenDpi <= 0)
             {
-                throw new GameException("You must set screen DPI first.");
+                throw new MoiraiException("You must set screen DPI first.");
             }
 
             return INCHES_TO_CENTIMETERS * pixels / ScreenDpi;
@@ -43,7 +43,7 @@ namespace Moirai.Atropos
         {
             if (ScreenDpi <= 0)
             {
-                throw new GameException("You must set screen DPI first.");
+                throw new MoiraiException("You must set screen DPI first.");
             }
 
             return CENTIMETERS_TO_INCHES * centimeters * ScreenDpi;
@@ -58,7 +58,7 @@ namespace Moirai.Atropos
         {
             if (ScreenDpi <= 0)
             {
-                throw new GameException("You must set screen DPI first.");
+                throw new MoiraiException("You must set screen DPI first.");
             }
 
             return pixels / ScreenDpi;
@@ -73,7 +73,7 @@ namespace Moirai.Atropos
         {
             if (ScreenDpi <= 0)
             {
-                throw new GameException("You must set screen DPI first.");
+                throw new MoiraiException("You must set screen DPI first.");
             }
 
             return inches * ScreenDpi;
@@ -111,12 +111,12 @@ namespace Moirai.Atropos
         {
             if (buffer == null)
             {
-                throw new GameException("Buffer is invalid.");
+                throw new MoiraiException("Buffer is invalid.");
             }
 
             if (startIndex < 0 || startIndex + 1 > buffer.Length)
             {
-                throw new GameException("Start index is invalid.");
+                throw new MoiraiException("Start index is invalid.");
             }
 
             buffer[startIndex] = value ? (byte)1 : (byte)0;
@@ -229,12 +229,12 @@ namespace Moirai.Atropos
         {
             if (buffer == null)
             {
-                throw new GameException("Buffer is invalid.");
+                throw new MoiraiException("Buffer is invalid.");
             }
 
             if (startIndex < 0 || startIndex + 2 > buffer.Length)
             {
-                throw new GameException("Start index is invalid.");
+                throw new MoiraiException("Start index is invalid.");
             }
 
             fixed (byte* valueRef = buffer)
@@ -350,12 +350,12 @@ namespace Moirai.Atropos
         {
             if (buffer == null)
             {
-                throw new GameException("Buffer is invalid.");
+                throw new MoiraiException("Buffer is invalid.");
             }
 
             if (startIndex < 0 || startIndex + 4 > buffer.Length)
             {
-                throw new GameException("Start index is invalid.");
+                throw new MoiraiException("Start index is invalid.");
             }
 
             fixed (byte* valueRef = buffer)
@@ -471,12 +471,12 @@ namespace Moirai.Atropos
         {
             if (buffer == null)
             {
-                throw new GameException("Buffer is invalid.");
+                throw new MoiraiException("Buffer is invalid.");
             }
 
             if (startIndex < 0 || startIndex + 8 > buffer.Length)
             {
-                throw new GameException("Start index is invalid.");
+                throw new MoiraiException("Start index is invalid.");
             }
 
             fixed (byte* valueRef = buffer)
@@ -711,12 +711,12 @@ namespace Moirai.Atropos
         {
             if (value == null)
             {
-                throw new GameException("Value is invalid.");
+                throw new MoiraiException("Value is invalid.");
             }
 
             if (encoding == null)
             {
-                throw new GameException("Encoding is invalid.");
+                throw new MoiraiException("Encoding is invalid.");
             }
 
             return encoding.GetBytes(value);
@@ -746,12 +746,12 @@ namespace Moirai.Atropos
         {
             if (value == null)
             {
-                throw new GameException("Value is invalid.");
+                throw new MoiraiException("Value is invalid.");
             }
 
             if (encoding == null)
             {
-                throw new GameException("Encoding is invalid.");
+                throw new MoiraiException("Encoding is invalid.");
             }
 
             return encoding.GetBytes(value, 0, value.Length, buffer, startIndex);
@@ -777,12 +777,12 @@ namespace Moirai.Atropos
         {
             if (value == null)
             {
-                throw new GameException("Value is invalid.");
+                throw new MoiraiException("Value is invalid.");
             }
 
             if (encoding == null)
             {
-                throw new GameException("Encoding is invalid.");
+                throw new MoiraiException("Encoding is invalid.");
             }
 
             return encoding.GetString(value);
@@ -812,12 +812,12 @@ namespace Moirai.Atropos
         {
             if (value == null)
             {
-                throw new GameException("Value is invalid.");
+                throw new MoiraiException("Value is invalid.");
             }
 
             if (encoding == null)
             {
-                throw new GameException("Encoding is invalid.");
+                throw new MoiraiException("Encoding is invalid.");
             }
 
             return encoding.GetString(value, startIndex, length);

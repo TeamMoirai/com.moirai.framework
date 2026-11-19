@@ -21,7 +21,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 由 <see cref="GameApp.Initialize"/> 及各 <c>Add*Listener</c> 调用，保证 Pause / Gizmos 从一开始就有派发者。 <br />
-        /// 必须在主线程调用：<see cref="SingletonMono{T}.Instance"/> 在物化前被后台线程访问会抛 <see cref="GameException"/>。
+        /// 必须在主线程调用：<see cref="SingletonMono{T}.Instance"/> 在物化前被后台线程访问会抛 <see cref="MoiraiException"/>。
         /// </remarks>
         internal static void Bootstrap()
         {

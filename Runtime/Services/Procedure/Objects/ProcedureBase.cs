@@ -1,4 +1,4 @@
-﻿namespace Moirai.Atropos.Procedure
+namespace Moirai.Atropos.Procedure
 {
     /// <summary>
     /// 流程基类 — 自包含的生命周期抽象，不依赖外部状态机。
@@ -52,13 +52,13 @@
         /// 切换到指定流程。
         /// </summary>
         /// <typeparam name="T">要切换到的流程类型。</typeparam>
-        /// <exception cref="GameException">流程未注册进状态机（<c>Owner</c> 未注入）时抛出——
+        /// <exception cref="MoiraiException">流程未注册进状态机（<c>Owner</c> 未注入）时抛出——
         /// 流程在 <see cref="ProcedureServiceHandler.Initialize"/> 之外被使用属时序错误，静默忽略会掩盖问题。</exception>
         protected void ChangeState<T>() where T : ProcedureBase
         {
             if (Owner == null)
             {
-                throw new GameException(
+                throw new MoiraiException(
                     "Procedure is not registered in an IProcedureService backend — ChangeState is unavailable before Initialize.");
             }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 
 namespace Moirai.Atropos
@@ -24,7 +24,7 @@ namespace Moirai.Atropos
             {
                 if (shift >= 35)
                 {
-                    throw new GameException("7 bit encoded int is invalid.");
+                    throw new MoiraiException("7 bit encoded int is invalid.");
                 }
 
                 b = binaryReader.ReadByte();
@@ -86,7 +86,7 @@ namespace Moirai.Atropos
             {
                 if (shift >= 70)
                 {
-                    throw new GameException("7 bit encoded int is invalid.");
+                    throw new MoiraiException("7 bit encoded int is invalid.");
                 }
 
                 b = binaryReader.ReadByte();
@@ -153,7 +153,7 @@ namespace Moirai.Atropos
                 s_CachedBytes[i] = binaryReader.ReadByte();
             }
 
-            EncryptionUtility.GetSelfXorBytes(s_CachedBytes, 0, length, encryptBytes);
+            XorCipher.ObfuscateInPlace(s_CachedBytes, 0, length, encryptBytes);
             string value = ConverterUtility.GetString(s_CachedBytes, 0, length);
             Array.Clear(s_CachedBytes, 0, length);
             return value;
@@ -176,10 +176,10 @@ namespace Moirai.Atropos
             int length = ConverterUtility.GetBytes(value, s_CachedBytes);
             if (length > byte.MaxValue)
             {
-                throw new GameException(StringUtility.Format("String '{0}' is too long.", value));
+                throw new MoiraiException(StringUtility.Format("String '{0}' is too long.", value));
             }
 
-            EncryptionUtility.GetSelfXorBytes(s_CachedBytes, encryptBytes);
+            XorCipher.ObfuscateInPlace(s_CachedBytes, encryptBytes);
             binaryWriter.Write((byte)length);
             binaryWriter.Write(s_CachedBytes, 0, length);
         }

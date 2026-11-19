@@ -138,7 +138,7 @@ namespace Moirai.Atropos.Asset
 
             if (_nextId <= 0 || _nextId > _maxId)
             {
-                throw new GameException("Resource key id range exceeded.");
+                throw new MoiraiException("Resource key id range exceeded.");
             }
 
             return _nextId++;

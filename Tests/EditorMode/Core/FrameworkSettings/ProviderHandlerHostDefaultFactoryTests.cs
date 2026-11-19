@@ -172,7 +172,7 @@ namespace Core.FrameworkSettings
             {
                 Assert.IsFalse(ProbeHost.IsValid);
                 Assert.IsNull(ProbeHost.Internal_PeekHandler());
-                AssertFailure<GameException>(() => { _ = ProbeHost.RequireReadyHandler(); }, "not ready");
+                AssertFailure<MoiraiException>(() => { _ = ProbeHost.RequireReadyHandler(); }, "not ready");
             };
             ProbeHost.SettingsFactory = () => handler;
 

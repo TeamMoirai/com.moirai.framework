@@ -37,13 +37,13 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>把已追加的块合并写进目标存档文件。</summary>
-        /// <remarks>处理器未就绪时抛 <see cref="GameException"/>（与写路径一致，不静默丢档）。</remarks>
+        /// <remarks>处理器未就绪时抛 <see cref="MoiraiException"/>（与写路径一致，不静默丢档）。</remarks>
         public async UniTask CommitAsync(string fileName, string folderName, CancellationToken cancellationToken = default)
         {
             if (_pending.Count == 0) return;
 
             var handler = SaveService.Internal_PeekHandler() as SaveServiceHandler;
-            if (handler == null) throw new GameException("SaveBlockBatch: SaveService handler is not ready.");
+            if (handler == null) throw new MoiraiException("SaveBlockBatch: SaveService handler is not ready.");
 
             List<SaveBlockEntry> entries = await UniTask.RunOnThreadPool(BuildEntries, cancellationToken: cancellationToken);
             await handler.UpsertRawBlocksAsync(SaveServiceHandler.ResolveSavePaths(fileName, folderName), entries, cancellationToken);

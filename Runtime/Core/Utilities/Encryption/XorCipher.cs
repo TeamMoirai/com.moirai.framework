@@ -8,8 +8,9 @@ namespace Moirai.Atropos
     /// <summary>
     /// 加密解密相关的实用函数。
     /// </summary>
-    public static class EncryptionUtility
+    public static class XorCipher
     {
+        /// <remarks>XOR 对称：Obfuscate 即 Deobfuscate——同一函数完成加密与解密，不设独立 Deobfuscate 入口。</remarks>
         internal const int QUICK_ENCRYPT_LENGTH = 220;
 
         /// <summary>
@@ -18,9 +19,9 @@ namespace Moirai.Atropos
         /// <param name="bytes">原始二进制流。</param>
         /// <param name="code">异或二进制流。</param>
         /// <returns>异或后的二进制流。</returns>
-        public static byte[] GetQuickXorBytes(byte[] bytes, byte[] code)
+        public static byte[] ObfuscateQuick(byte[] bytes, byte[] code)
         {
-            return GetXorBytes(bytes, 0, QUICK_ENCRYPT_LENGTH, code);
+            return Obfuscate(bytes, 0, QUICK_ENCRYPT_LENGTH, code);
         }
 
         /// <summary>
@@ -28,9 +29,9 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="bytes">原始及异或后的二进制流。</param>
         /// <param name="code">异或二进制流。</param>
-        public static void GetQuickSelfXorBytes(byte[] bytes, byte[] code)
+        public static void ObfuscateQuickInPlace(byte[] bytes, byte[] code)
         {
-            GetSelfXorBytes(bytes, 0, QUICK_ENCRYPT_LENGTH, code);
+            ObfuscateInPlace(bytes, 0, QUICK_ENCRYPT_LENGTH, code);
         }
 
         /// <summary>
@@ -39,14 +40,14 @@ namespace Moirai.Atropos
         /// <param name="bytes">原始二进制流。</param>
         /// <param name="code">异或二进制流。</param>
         /// <returns>异或后的二进制流。</returns>
-        public static byte[] GetXorBytes(byte[] bytes, byte[] code)
+        public static byte[] Obfuscate(byte[] bytes, byte[] code)
         {
             if (bytes == null)
             {
                 return null;
             }
 
-            return GetXorBytes(bytes, 0, bytes.Length, code);
+            return Obfuscate(bytes, 0, bytes.Length, code);
         }
 
         /// <summary>
@@ -54,14 +55,14 @@ namespace Moirai.Atropos
         /// </summary>
         /// <param name="bytes">原始及异或后的二进制流。</param>
         /// <param name="code">异或二进制流。</param>
-        public static void GetSelfXorBytes(byte[] bytes, byte[] code)
+        public static void ObfuscateInPlace(byte[] bytes, byte[] code)
         {
             if (bytes == null)
             {
                 return;
             }
 
-            GetSelfXorBytes(bytes, 0, bytes.Length, code);
+            ObfuscateInPlace(bytes, 0, bytes.Length, code);
         }
 
         /// <summary>
@@ -72,7 +73,7 @@ namespace Moirai.Atropos
         /// <param name="length">异或计算长度，若小于 0，则计算整个二进制流。</param>
         /// <param name="code">异或二进制流。</param>
         /// <returns>异或后的二进制流。</returns>
-        public static byte[] GetXorBytes(byte[] bytes, int startIndex, int length, byte[] code)
+        public static byte[] Obfuscate(byte[] bytes, int startIndex, int length, byte[] code)
         {
             if (bytes == null)
             {
@@ -82,7 +83,7 @@ namespace Moirai.Atropos
             int bytesLength = bytes.Length;
             byte[] results = new byte[bytesLength];
             Array.Copy(bytes, 0, results, 0, bytesLength);
-            GetSelfXorBytes(results, startIndex, length, code);
+            ObfuscateInPlace(results, startIndex, length, code);
             return results;
         }
 
@@ -93,7 +94,7 @@ namespace Moirai.Atropos
         /// <param name="startIndex">异或计算的开始位置。</param>
         /// <param name="length">异或计算长度。</param>
         /// <param name="code">异或二进制流。</param>
-        public static void GetSelfXorBytes(byte[] bytes, int startIndex, int length, byte[] code)
+        public static void ObfuscateInPlace(byte[] bytes, int startIndex, int length, byte[] code)
         {
             if (bytes == null)
             {
@@ -102,18 +103,18 @@ namespace Moirai.Atropos
 
             if (code == null)
             {
-                throw new GameException("Code is invalid.");
+                throw new MoiraiException("Code is invalid.");
             }
 
             int codeLength = code.Length;
             if (codeLength <= 0)
             {
-                throw new GameException("Code length is invalid.");
+                throw new MoiraiException("Code length is invalid.");
             }
 
             if (startIndex < 0 || length < 0 || startIndex + length > bytes.Length)
             {
-                throw new GameException("Start index or length is invalid.");
+                throw new MoiraiException("Start index or length is invalid.");
             }
 
             int codeIndex = startIndex % codeLength;

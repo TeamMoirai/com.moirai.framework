@@ -242,7 +242,7 @@ namespace Service.Kernel
             // 缺失依赖在两阶段构建的初始化期 fail-fast（而非注册期）
             RegisterDeferred(new DependentService());
 
-            Assert.Throws<GameException>(() => Init());
+            Assert.Throws<MoiraiException>(() => Init());
         }
 
         [Test]
@@ -251,7 +251,7 @@ namespace Service.Kernel
             RegisterDeferred(new CycleServiceA());
             RegisterDeferred(new CycleServiceB());
 
-            Assert.Throws<GameException>(() => Init());
+            Assert.Throws<MoiraiException>(() => Init());
         }
 
         [Test]
@@ -259,7 +259,7 @@ namespace Service.Kernel
         {
             RegisterDeferred(new AsyncInitService());
 
-            Assert.Throws<GameException>(() => Init());
+            Assert.Throws<MoiraiException>(() => Init());
         }
 
         [Test]
@@ -280,7 +280,7 @@ namespace Service.Kernel
         {
             Register(new AlphaService());  // 世界已初始化
 
-            Assert.Throws<GameException>(
+            Assert.Throws<MoiraiException>(
                 () => GameServices.RegisterService(EServiceScopeKind.App, new AsyncInitService()),
                 "运行时注册异步初始化服务应 fail-fast（无法等待）");
         }
@@ -342,7 +342,7 @@ namespace Service.Kernel
         {
             Register(new AlphaService());
 
-            Assert.Throws<GameException>(
+            Assert.Throws<MoiraiException>(
                 () => GameServices.GetRequiredService<BetaService>());
         }
 
@@ -845,7 +845,7 @@ namespace Service.Kernel
         private sealed class VetoInterceptor : IServiceInterceptor
         {
             public void OnServiceRegistering(IService service, Type contractType, EServiceScopeKind scope)
-                => throw new GameException("registration vetoed");
+                => throw new MoiraiException("registration vetoed");
         }
 
         [Test]
@@ -854,7 +854,7 @@ namespace Service.Kernel
             // Registering 是唯一的否决通道：不被隔离，且抛出后注册表不留半注册条目
             GameServices.AddInterceptor(new VetoInterceptor());
 
-            Assert.Throws<GameException>(
+            Assert.Throws<MoiraiException>(
                 () => GameServices.RegisterService(EServiceScopeKind.App, new AlphaService()));
             Assert.IsNull(GameServices.GetService<AlphaService>(), "否决后不得残留契约绑定");
         }
@@ -962,7 +962,7 @@ namespace Service.Kernel
                     // 目标此刻仍在挂起图中（注册序 gate→beta，无依赖边）——若无守卫会被真的摘走
                     GameServices.UnregisterService(EServiceScopeKind.App, typeof(IBetaService));
                 }
-                catch (GameException)
+                catch (MoiraiException)
                 {
                     Rejected = true;
                 }
@@ -997,7 +997,7 @@ namespace Service.Kernel
                 {
                     GameServices.ShutdownContainer(EServiceScopeKind.Scene);
                 }
-                catch (GameException)
+                catch (MoiraiException)
                 {
                     Rejected = true;
                 }
@@ -1038,7 +1038,7 @@ namespace Service.Kernel
             Assert.IsFalse(world.IsInitialized, "途中被 Dispose 的世界不得宣告已初始化");
             Assert.AreEqual(EServiceState.Disposed, svc.State,
                 "OnInit 途中已被关闭，转换回来时不得把 Disposed 盖回 Initialized");
-            Assert.Throws<GameException>(() => world.Register(EServiceScopeKind.App, new BetaService()));
+            Assert.Throws<MoiraiException>(() => world.Register(EServiceScopeKind.App, new BetaService()));
         }
 
         // ═══════════════════════════════════════════════════════
@@ -1134,7 +1134,7 @@ namespace Service.Kernel
 
             // 开发环境下先记录日志再上抛（fail-fast 分级策略）；轮询失败经 LogTickFailure 落在 Fatal 级
             UtfLogExpect.Error();
-            Assert.Throws<GameException>(() => GameServices.Tick(0f, 0f));
+            Assert.Throws<MoiraiException>(() => GameServices.Tick(0f, 0f));
             Assert.AreEqual(1, CountLogCaptured(ELogLevel.Fatal, "EDeferMode.Throw"),
                 "Throw 模式应先记录带模式名的 Fatal 日志（框架层 Fatal；无异常对象时在 Unity 通道落 Error）");
         }
@@ -1346,7 +1346,7 @@ namespace Service.Kernel
         {
             // 两阶段：缺失依赖在初始化期 fail-fast（注册仅入图）
             GameServices.RegisterService(EServiceScopeKind.App, new FactoryDependentService());
-            Assert.Throws<GameException>(() => Init());
+            Assert.Throws<MoiraiException>(() => Init());
         }
 
         // ─── GameApp 关闭态测试工具（EditMode 下 GameApp 未 Initialize，IsShutdown 恒为 true） ───
@@ -1360,7 +1360,7 @@ namespace Service.Kernel
             // 等价于"框架未启动/拆除窗口/已手动关闭"的关闭态
             Assert.IsTrue(GameApp.IsShutdown);
 
-            Assert.Throws<GameException>(() => GameServices.EnsureRegistered<AlphaService>());
+            Assert.Throws<MoiraiException>(() => GameServices.EnsureRegistered<AlphaService>());
 
             Assert.IsFalse(GameServices.HasApp, "关闭期懒加载不得复活世界");
             Assert.IsNull(GameServices.GetService<AlphaService>(), "关闭期不应留下半初始化服务");
@@ -1514,7 +1514,7 @@ namespace Service.Kernel
         public void Register_BareIService_Rejected()
         {
             // 裸实现的 State 永远停在 Created，声明它为依赖的服务过不了 IsServiceReady——注册期即拒
-            Assert.Throws<GameException>(
+            Assert.Throws<MoiraiException>(
                 () => GameServices.RegisterService(EServiceScopeKind.App, new RawContractService()),
                 "裸 IService 实现应在注册时被拒绝，而非静默永不就绪");
             Assert.IsFalse(GameServices.HasApp, "拒绝不得留下半注册的作用域状态");
@@ -1541,7 +1541,7 @@ namespace Service.Kernel
                 var mono = go.AddComponent<MonoGizmoService>();
 
                 // Unity 对 MonoBehaviour 的 OnDrawGizmos 魔法方法无条件驱动，再进容器轮询列表即双重绘制
-                var ex = Assert.Throws<GameException>(
+                var ex = Assert.Throws<MoiraiException>(
                     () => GameServices.RegisterService(EServiceScopeKind.App, mono),
                     "Mono 服务不得实现 IServiceGizmoDrawable");
                 StringAssert.Contains(nameof(IServiceGizmoDrawable), ex.Message);
@@ -1617,7 +1617,7 @@ namespace Service.Kernel
             var first = new AlphaService();
             Register(first);
 
-            Assert.Throws<GameException>(
+            Assert.Throws<MoiraiException>(
                 () => GameServices.RegisterService(EServiceScopeKind.App, new AlphaService()),
                 "Throw 策略应以不同实例抢占已占用契约时抛出异常");
             Assert.AreSame(first, GameServices.GetRequiredService<AlphaService>(),

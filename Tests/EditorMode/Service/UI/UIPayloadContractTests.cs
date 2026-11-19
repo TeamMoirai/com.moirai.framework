@@ -79,7 +79,7 @@ namespace Service.UI
     /// 两条通道各自的可观测判据：<see cref="IUIPayloadSlot{TArg}"/> 那一条按 <typeparamref name="TArg"/> 直塞（struct 不装箱、擦除计数为 0），
     /// <see cref="UIPayload"/> 那一条经 <c>Internal_SetPayload</c> 落位（擦除计数 +1）——同一个窗两个计数分开数，混用当场红。 <br />
     /// 判假的两档都在压栈与回执之前：<see cref="UIWindow.Internal_SetPayload"/>（无槽却给非空擦除载荷）与
-    /// <c>UIWindowLedger.SetPayloadChecked</c>（按标识命中的窗槽型不符）一律 <see cref="GameException"/>，不开半个窗、不静默退化。 <br />
+    /// <c>UIWindowLedger.SetPayloadChecked</c>（按标识命中的窗槽型不符）一律 <see cref="MoiraiException"/>，不开半个窗、不静默退化。 <br />
     /// 直账本驱动（<c>new UIWindowLedger()</c>）：本文件的格子不碰关停回滚，也不需要驱动者在位。面板本体按 DestroyImmediate 收，不留给下一轮；
     /// 登记进清理表排在<b>取到窗口的那一刻</b>，断言判红也不给下一轮用例留一个活物体。 <br />
     /// 停放支路的槽型校验按<b>意图次序</b>（先验槽、后卸停放）多钉一格：<c>GenericChannel_WrongSlotTypeOnParkedWindow_ParkedStateNotConsumedByThrow</c>
@@ -169,7 +169,7 @@ namespace Service.UI
         [Test]
         public void SlotlessWindow_NonEmptyPayload_FailsFastBeforePush()
         {
-            var ex = Assert.Throws<GameException>(() => _ledger.ShowUIImp(typeof(SlotlessProbeWindow), false, "Slotless",
+            var ex = Assert.Throws<MoiraiException>(() => _ledger.ShowUIImp(typeof(SlotlessProbeWindow), false, "Slotless",
                 null, UIPayload.From("x")), "不带槽却给非空载荷必须当场抬错，不静默吞");
             StringAssert.Contains(nameof(SlotlessProbeWindow), ex.Message, "文案带窗口类，便于定位漏换基类的调用点");
             Assert.IsNull(_ledger.GetWindow("Slotless"), "抬错排在压栈之前：不开半个窗");
@@ -188,7 +188,7 @@ namespace Service.UI
             var window = (SlotProbeWindow)_ledger.GetWindow("SlotMismatch");
             _panels.Add(window.gameObject);
 
-            var ex = Assert.Throws<GameException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false,
+            var ex = Assert.Throws<MoiraiException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false,
                 "SlotMismatch", null, "text"), "按标识命中的窗槽型不符时泛型直塞通道当场抬错，不退化为擦除");
             StringAssert.Contains(nameof(String), ex.Message, "文案带这一腿要塞的类型名");
         }
@@ -208,7 +208,7 @@ namespace Service.UI
             _ledger.CloseUI<SlotProbeWindow>("SlotParked");
             Assert.IsTrue(_ledger.IsParked("SlotParked"), "量具前提坏了：缓存实例的窗关闭后落在停放表里");
 
-            Assert.Throws<GameException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false,
+            Assert.Throws<MoiraiException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false,
                 "SlotParked", null, "text"), "停放支路同样校验槽型：不按标识命中就万事大吉是假象");
             Assert.AreEqual(dto.Value, window.Payload.Value, "抬错那一档不吃载荷：残留位仍是上一次那一份");
         }
@@ -232,7 +232,7 @@ namespace Service.UI
             _ledger.CloseUI<SlotProbeWindow>("ParkedSurvive");
             Assert.IsTrue(_ledger.IsParked("ParkedSurvive"), "量具前提坏了：关闭后落在停放表里");
 
-            Assert.Throws<GameException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false, "ParkedSurvive",
+            Assert.Throws<MoiraiException>(() => _ledger.ShowUIImp<string>(typeof(SlotProbeWindow), false, "ParkedSurvive",
                 null, "text"), "量具前提坏了：槽型不符仍按 R2 那一道抬错");
 
             Assert.IsTrue(_ledger.IsParked("ParkedSurvive"), "R2 修复转绿：抬错不消费停放态，那个实例仍留在停放表里");

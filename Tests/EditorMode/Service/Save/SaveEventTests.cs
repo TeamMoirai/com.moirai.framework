@@ -245,7 +245,7 @@ namespace Service.Save
         {
             var paths = Paths("slot");
 
-            Assert.Throws<GameException>(() =>
+            Assert.Throws<MoiraiException>(() =>
                 _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 1, PlayerName = "a" }, 99, 1, CancellationToken.None));
 
             Assert.AreEqual(1, _saveFailedEvents.Count);

@@ -3,7 +3,7 @@ using System;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 声明服务依赖；注册器据此在注册期校验依赖，缺失依赖与循环依赖即抛 <see cref="GameException"/>（fail-fast）。
+    /// 声明服务依赖；注册器据此在注册期校验依赖，缺失依赖与循环依赖即抛 <see cref="MoiraiException"/>（fail-fast）。
     /// </summary>
     /// <remarks>
     /// 依赖必须先行手动注册（服务实例不由框架隐式创建），注册序即依赖链序。 <br />

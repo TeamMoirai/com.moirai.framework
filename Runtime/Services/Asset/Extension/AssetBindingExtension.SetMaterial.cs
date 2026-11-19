@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -34,7 +34,7 @@ namespace Moirai.Atropos.Asset
         {
             if (image == null)
             {
-                throw new GameException("SetMaterial failed. Because image is null.");
+                throw new MoiraiException("SetMaterial failed. Because image is null.");
             }
 
             if (!TryGetAssetService(out _, out IAssetBindingService bindingService))
@@ -79,7 +79,7 @@ namespace Moirai.Atropos.Asset
         {
             if (spriteRenderer == null)
             {
-                throw new GameException("SetMaterial failed. Because spriteRenderer is null.");
+                throw new MoiraiException("SetMaterial failed. Because spriteRenderer is null.");
             }
 
             if (!TryGetAssetService(out _, out IAssetBindingService bindingService))
@@ -127,7 +127,7 @@ namespace Moirai.Atropos.Asset
         {
             if (meshRenderer == null)
             {
-                throw new GameException("SetMaterial failed. Because meshRenderer is null.");
+                throw new MoiraiException("SetMaterial failed. Because meshRenderer is null.");
             }
 
             if (!TryGetAssetService(out _, out IAssetBindingService bindingService))
@@ -190,7 +190,7 @@ namespace Moirai.Atropos.Asset
         {
             if (meshRenderer == null)
             {
-                throw new GameException("SetSharedMaterial failed. Because meshRenderer is null.");
+                throw new MoiraiException("SetSharedMaterial failed. Because meshRenderer is null.");
             }
 
             if (!TryGetAssetService(out _, out IAssetBindingService bindingService))

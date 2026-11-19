@@ -203,7 +203,7 @@ namespace Moirai.Atropos.Asset
         /// </summary>
         /// <param name="location">资源的定位地址。</param>
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
-        /// <returns>待下载字节数；定位地址或资源包无效时抛出 GameException。</returns>
+        /// <returns>待下载字节数；定位地址或资源包无效时抛出 MoiraiException。</returns>
         public abstract long GetDownloadSize(string location, string packageName = "");
 
         /// <summary>
