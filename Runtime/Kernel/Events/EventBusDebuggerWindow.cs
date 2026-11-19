@@ -6,8 +6,9 @@ using UnityEngine.UIElements;
 
 namespace Moirai.Atropos
 {
+#if UNITY_EDITOR
     /// <summary>
-    /// 事件总线调试窗：事件流监视（最近派发的环形缓冲 + 各事件类型的订阅计数），挂接 <see cref="EventBusDiagnostics.OnPublished"/> 钩子。
+    /// 事件总线调试窗：事件流监视（最近派发的环形缓冲 + 各事件类型的订阅计数），挂接 <see cref="EventBusDiagnostics.OnPublished"/> 钩子（仅编辑器——诊断钩子与面板同生命周期，运行时构建零诊断开销）。
     /// </summary>
     /// <remarks>
     /// 注册路径 "Profiler/EventBus"（总线由容器生命周期驱动，事件发布计数按会话累计）。 <br />
@@ -187,4 +188,5 @@ namespace Moirai.Atropos
 
         #endregion
     }
+#endif
 }

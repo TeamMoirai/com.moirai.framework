@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Tasks
     
     public interface ITaskEvent { }
     
-    public sealed class TaskCompleteEvent : IPoolableGameEvent, ITaskEvent
+    public sealed class TaskCompleteEvent : MemoryObject, ITaskEvent
     {
         [JsonIgnore]
         public TaskBase Task { get; private set; }
@@ -35,7 +35,7 @@ namespace Moirai.Atropos.Tasks
         
         public static TaskCompleteEvent Create(TaskBase task)
         {
-            var evt = EventPool<TaskCompleteEvent>.Rent();
+            var evt = MemoryPool.Acquire<TaskCompleteEvent>();
             evt.Task = task;
             evt.Listeners.Clear();
             return evt;
@@ -51,13 +51,13 @@ namespace Moirai.Atropos.Tasks
         {
             Listeners.Remove(taskBase);
         }
-        /// <summary>归还池（清引用负载后入 <see cref="EventPool{TaskCompleteEvent}"/>）。</summary>
+        /// <summary>归还池（清引用负载后入 MemoryPool——框架统一对象池）。</summary>
         public void Dispose()
         {
-            EventPool<TaskCompleteEvent>.Return(this);
+            MemoryPool.Release(this);
         }
-        /// <summary>Reset 清空引用负载（池归还时调用——防悬垂与内存滞留）。</summary>
-        public void Reset()
+        /// <summary>Clear 清空引用负载（池归还时调用——防悬垂与内存滞留）。</summary>
+        public override void Clear()
         {
             Task = null;
             Listeners.Clear();

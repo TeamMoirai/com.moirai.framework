@@ -15,7 +15,7 @@ namespace Moirai.Atropos
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void RegisterDebuggerWindow()
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR
             if (!Application.isPlaying) return;
 
             var debugger = GameServices.GetService<IDebuggerService>();
