@@ -1,0 +1,308 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
+
+namespace Moirai.EventBus.Roslyn.Generators;
+
+/// <summary>
+/// EventBus 订阅胶水生成器：为声明为 partial 且含 OnXxxEvent 回调的类型生成 <br />
+/// <c>SubscribeEvents()</c> / <c>UnsubscribeEvents()</c> 成对方法。 <br /><br />
+/// 带参回调 <c>OnXxxEvent(in XxxEvent evt)</c> 直接方法组订阅； <br />
+/// 无参回调 <c>OnXxxEvent()</c> 经缓存包装委托桥接为 <c>EventDelegate&lt;TEvent&gt;</c>（缓存保证 Unsubscribe 值等价匹配）。
+/// </summary>
+[Generator(LanguageNames.CSharp)]
+public sealed class EventBusSubscriptionGenerator : IIncrementalGenerator
+{
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var owners = context.SyntaxProvider.CreateSyntaxProvider(
+            predicate: static (node, _) => Predicate(node),
+            transform: static (gsc, ct) => OwnerModel.Create(gsc, ct));
+
+        context.RegisterSourceOutput(owners.Collect(), static (spc, collected) => Execute(spc, collected));
+    }
+
+    private static bool Predicate(SyntaxNode node)
+    {
+        if (node is not TypeDeclarationSyntax declaration) return false;
+        return declaration.Members.OfType<MethodDeclarationSyntax>().Any(m =>
+            EventBusFacts.IsOnEventCallbackName(m.Identifier.ValueText, out _));
+    }
+
+    private static void Execute(
+        SourceProductionContext context,
+        ImmutableArray<OwnerModel?> collected)
+    {
+        // 跨分部声明按全限定名合并
+        var owners = new Dictionary<string, OwnerModel>(StringComparer.Ordinal);
+        foreach (var model in collected)
+        {
+            if (model is null) continue;
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            if (owners.TryGetValue(model.FullName, out var existing))
+            {
+                MergeInto(existing, model);
+            }
+            else
+            {
+                owners.Add(model.FullName, model);
+            }
+        }
+
+        var emittedFileNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var owner in owners.Values.OrderBy(o => o.FullName, StringComparer.Ordinal))
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            var fileName = SanitizeFileName(owner);
+            if (!emittedFileNames.Add(fileName)) continue;
+
+            var source = Emit(owner);
+            if (source is not null)
+            {
+                context.AddSource(fileName, SourceText.From(source, Encoding.UTF8));
+            }
+        }
+    }
+
+    /// <summary>跨分部声明合并：回调与方法名集合取并集。</summary>
+    private static void MergeInto(OwnerModel target, OwnerModel addition)
+    {
+        foreach (var callback in addition.Callbacks)
+        {
+            if (!target.Callbacks.Any(c => c.MethodName == callback.MethodName
+                && c.EventTypeDisplay == callback.EventTypeDisplay))
+            {
+                target.Callbacks.Add(callback);
+            }
+        }
+        foreach (var name in addition.ExistingMemberNames)
+        {
+            if (!target.ExistingMemberNames.Contains(name))
+            {
+                target.ExistingMemberNames.Add(name);
+            }
+        }
+        if (!target.IsStaticClass && addition.IsStaticClass)
+        {
+            target.IsStaticClass = true;
+        }
+    }
+
+    private static string SanitizeFileName(OwnerModel owner)
+    {
+        var sanitized = string.Concat(owner.FullName
+            .Split('.')
+            .Select(part => System.Text.RegularExpressions.Regex.Replace(
+                part, "[^A-Za-z0-9_]", "_")));
+        return "EventBusSubscriptions_" + sanitized + ".g.cs";
+    }
+
+    // ---------------------------------------------------------------- emission
+
+    private static string? Emit(OwnerModel owner)
+    {
+        var statics = owner.Callbacks.Where(c => c.IsStatic).OrderBy(c => c.MethodName, StringComparer.Ordinal).ToList();
+        var instances = owner.Callbacks.Where(c => !c.IsStatic).OrderBy(c => c.MethodName, StringComparer.Ordinal).ToList();
+        var parameterless = owner.Callbacks.Where(c => c.IsParameterless).ToList();
+
+        // 静态类宿主：只允许静态回调（C# 本就不允许静态类含实例成员）
+        if (owner.IsStaticClass && instances.Count > 0) return null;
+
+        // 无参回调包装字段命名：__eventBusHandler_<小写事件名>
+        var fieldNames = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var callback in parameterless)
+        {
+            fieldNames[callback.MethodName] = "__eventBusHandler_"
+                + EventSimpleNameOf(callback.EventTypeDisplay) + "_" + callback.MethodName;
+        }
+
+        var (subscribeName, unsubscribeName) = ResolveMethodNames(owner);
+        if (subscribeName.Length == 0) return null; // 命名冲突且备选亦占用——放弃生成（保持编译安全）
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/> 由 EventBusAnalyzer Source Generator 生成——请勿手工修改。");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+
+        var indent = 0;
+        if (owner.Namespace.Length > 0)
+        {
+            sb.Append("namespace ").Append(owner.Namespace).AppendLine();
+            sb.AppendLine("{");
+            indent = 1;
+        }
+
+        for (var i = 0; i < owner.Containers.Count; i++)
+        {
+            var container = owner.Containers[i];
+            AppendIndent(sb, indent);
+            sb.Append("public partial ").Append(container.Keyword)
+              .Append(' ').Append(container.Name).AppendLine();
+            AppendIndent(sb, indent);
+            sb.AppendLine("{");
+            indent++;
+        }
+
+        var memberIndent = indent;
+        AppendIndent(sb, memberIndent);
+        sb.Append("partial ");
+        if (owner.IsStaticClass) sb.Append("static ");
+        sb.Append(owner.TypeKeyword).Append(' ').Append(owner.TypeName).AppendLine();
+        AppendIndent(sb, memberIndent);
+        sb.AppendLine("{");
+        indent++;
+
+        // 缓存字段（无参回调包装——保证退订值等价匹配）
+        if (parameterless.Count > 0)
+        {
+            sb.AppendLine("        // —— 无参回调包装缓存（保证 Unsubscribe 值等价匹配）——");
+            foreach (var callback in parameterless.OrderBy(c => c.MethodName, StringComparer.Ordinal))
+            {
+                AppendIndent(sb, indent);
+                sb.Append("private ");
+                if (callback.IsStatic) sb.Append("static ");
+                sb.Append("global::Moirai.Atropos.EventDelegate<")
+                  .Append(callback.EventTypeDisplay).Append("> ")
+                  .Append(fieldNames[callback.MethodName]).Append(" = null!;").AppendLine();
+            }
+            sb.AppendLine();
+        }
+
+        // SubscribeEvents
+        AppendIndent(sb, indent);
+        if (owner.IsStaticClass) sb.Append("static ");
+        sb.Append("public void ").Append(subscribeName).Append("()").AppendLine();
+        AppendIndent(sb, indent);
+        sb.AppendLine("{");
+        foreach (var callback in owner.Callbacks.OrderBy(c => c.MethodName, StringComparer.Ordinal))
+        {
+            AppendIndent(sb, indent + 1);
+            if (callback.IsParameterless)
+            {
+                var field = fieldNames[callback.MethodName];
+                sb.Append(field).Append(" ??= ");
+                if (callback.IsStatic) sb.Append("static ");
+                sb.Append("(in ").Append(callback.EventTypeDisplay).Append(" _) => ")
+                  .Append(callback.MethodName).Append("();");
+            }
+            else if (callback.MatchesContract)
+            {
+                sb.Append("global::Moirai.Atropos.EventBus.Subscribe<")
+                  .Append(callback.EventTypeDisplay).Append(">(")
+                  .Append(callback.MethodName).Append(");");
+            }
+            else
+            {
+                // 非 in 参数（缺 in / ref / out）无法方法组转换——跳过并留注释（MIRAI701 已由分析器告警）
+                sb.Append("// [EventBusAnalyzer] ").Append(callback.MethodName)
+                  .Append(" 未按 in 约定声明，无法订阅 EventDelegate<")
+                  .Append(callback.EventTypeDisplay).Append(">——已跳过。");
+            }
+            sb.Append(" // ").Append(callback.MethodName).AppendLine();
+        }
+        foreach (var callback in parameterless.OrderBy(c => c.MethodName, StringComparer.Ordinal))
+        {
+            AppendIndent(sb, indent + 1);
+            sb.Append("global::Moirai.Atropos.EventBus.Subscribe(")
+              .Append(fieldNames[callback.MethodName]).Append(");")
+              .Append(" // ").Append(callback.MethodName).AppendLine();
+        }
+        AppendIndent(sb, indent);
+        sb.AppendLine("}");
+        sb.AppendLine();
+
+        // UnsubscribeEvents
+        AppendIndent(sb, indent);
+        if (owner.IsStaticClass) sb.Append("static ");
+        sb.Append("public void ").Append(unsubscribeName).Append("()").AppendLine();
+        AppendIndent(sb, indent);
+        sb.AppendLine("{");
+        foreach (var callback in owner.Callbacks.OrderBy(c => c.MethodName, StringComparer.Ordinal))
+        {
+            AppendIndent(sb, indent + 1);
+            if (callback.IsParameterless)
+            {
+                var field = fieldNames[callback.MethodName];
+                sb.Append("if (").Append(field).Append(" != null) global::Moirai.Atropos.EventBus.Unsubscribe(")
+                  .Append(field).Append(");");
+            }
+            else if (callback.MatchesContract)
+            {
+                sb.Append("global::Moirai.Atropos.EventBus.Unsubscribe<")
+                  .Append(callback.EventTypeDisplay).Append(">(")
+                  .Append(callback.MethodName).Append(");");
+            }
+            else
+            {
+                sb.Append("// [EventBusAnalyzer] ").Append(callback.MethodName)
+                  .Append(" 未按 in 约定声明——已跳过退订生成。");
+            }
+            sb.Append(" // ").AppendLine(callback.MethodName);
+        }
+        AppendIndent(sb, indent);
+        sb.AppendLine("}");
+
+        indent--;
+        AppendIndent(sb, indent);
+        sb.AppendLine("}");
+
+        // 收尾容器/命名空间括号
+        for (var i = owner.Containers.Count - 1; i >= 0; i--)
+        {
+            indent--;
+            AppendIndent(sb, indent);
+            sb.AppendLine("}");
+        }
+        if (owner.Namespace.Length > 0)
+        {
+            sb.AppendLine("}");
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>生成方法命名冲突规避：SubscribeEvents → SubscribeBusEvents → 放弃生成。</summary>
+    private static (string Subscribe, string Unsubscribe) ResolveMethodNames(OwnerModel owner)
+    {
+        const string fallbackSubscribe = "SubscribeBusEvents";
+        const string fallbackUnsubscribe = "UnsubscribeBusEvents";
+
+        if (!owner.ExistingMemberNames.Contains("SubscribeEvents")
+            && !owner.ExistingMemberNames.Contains("UnsubscribeEvents"))
+        {
+            return ("SubscribeEvents", "UnsubscribeEvents");
+        }
+        if (!owner.ExistingMemberNames.Contains(fallbackSubscribe)
+            && !owner.ExistingMemberNames.Contains(fallbackUnsubscribe))
+        {
+            return (fallbackSubscribe, fallbackUnsubscribe);
+        }
+        // 命名冲突且备选亦占用——放弃生成（保持编译安全）
+        return (string.Empty, string.Empty);
+    }
+
+    private static string EventSimpleNameOf(string globalQualifiedDisplay)
+    {
+        // "global::Foo.Bar.PingEvent" → "PingEvent"（保留泛型可读性）
+        var name = globalQualifiedDisplay;
+        var globalIndex = name.IndexOf("global::", StringComparison.Ordinal);
+        if (globalIndex >= 0) name = name.Substring(globalIndex + 8);
+        var lastDot = name.LastIndexOf('.');
+        if (lastDot >= 0) name = name.Substring(lastDot + 1);
+        return System.Text.RegularExpressions.Regex.Replace(
+            name, "[^A-Za-z0-9_]", "").ToLowerInvariant();
+    }
+
+    private static void AppendIndent(StringBuilder sb, int level)
+    {
+        for (var i = 0; i < level; i++) sb.Append("    ");
+    }
+}
