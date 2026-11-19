@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace Moirai.Atropos
 {
     /// <summary>
@@ -18,6 +20,13 @@ namespace Moirai.Atropos
         /// <summary>创建互斥锁（每个封闭泛型类型独立一份）。</summary>
         // ReSharper disable once StaticMemberInGenericType
         private static readonly object s_Locker = new object();
+
+        /// <summary>Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例引用——幂等。</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticsForDomainReload()
+        {
+            s_Instance = null;
+        }
 
         #endregion
 

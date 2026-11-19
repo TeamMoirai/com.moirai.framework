@@ -170,3 +170,13 @@
 - **Obsolete 垫片三入口删除**（RegisterCallback/UnregisterCallback 泛型版——消费面清零后按计划移除）；`SendEvent(EventBase)` 重新归类为 **树形传播入口**（EventBase 单体系 UI/Task 树传播，去 Obsolete——非跨系统总线 API）
 - `Templates~` 模板 HotfixEntryEvent 同步总线口径（readonly struct + `EventBus.Publish<T>()` 无参直发）
 - **跨系统事件体系终态**：EventBus 静态总线（readonly struct 事件 / 对称方法组订阅 / in 零拷贝 / 无参直发）；EventManager = EventBase 树形传播协调器（MonoEvent 单体系，与总线无交集）
+
+#### Phase 4 / Singleton 家族加固（决策 C v4 落地）
+
+- **Domain Reload 自重置钩子**：`SingletonMono<T>`（s_Instance/s_ShuttingDown/s_NextOrdinal）+ `SingletonRegisterMono<T>` + `SingletonRegister<T>` 三处补 `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]` 兜底重置（关闭 DR 工作流时清上次会话异常退出的残留静态；幂等，正常路径无副作用；`SingletonMono_Persistent<T>` 无自有静态，继承基类钩子覆盖）
+- **使用边界文档**：`SingletonMono<T>` 类头补"服务走 ServiceWorld 容器 / 本家族面向 UI 组件与场景级 MonoBehaviour 单例；新增全局系统优先评估服务化"边界说明（决策 C 使用边界）
+- **DontDestroyOnLoad 归属登记**：11 文件 16 处调用逐处核实——全部为宿主根/服务实例根/持久单例/跨场景协调器的正当物化（无散落误用，零清理项）；归属登记表见方案产物 Phase 4 小节
+
+#### Phase 4 / 手写单例惯例统一
+
+- `EventManager` + `TaskRunner` 补 `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]` 自重置钩子——手写懒物化单例与 Singleton 家族 DR 兜底惯例对齐（保留各自特殊语义：Editor 守卫/异常分级门控不做替换——实现替换留 Phase 6 God 类分解范畴）

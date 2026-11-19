@@ -6,8 +6,9 @@ namespace Moirai.Atropos
     /// <summary>
     /// MonoBehaviour 单例基类：首次访问时查找场景已有实例，未找到则在主线程自动创建。
     /// </summary>
-    /// <typeparam name="T">继承本基类的具体单例类型。</typeparam>
     /// <remarks>
+    /// <b>使用边界</b>：框架内建服务走 ServiceWorld 容器（<see cref="ServiceWorld"/>，契约接口 + 作用域）；
+    /// 本家族面向 UI 组件与场景级 MonoBehaviour 单例（无服务生命周期语义的自治宿主）。新增全局系统优先评估服务化而非继承本类。 <br />
     /// 线程模型：实例物化后任意线程访问 <see cref="Instance"/> 只走 volatile 读快速路径；物化（查找/创建）限主线程，未物化时后台线程访问抛 <see cref="GameException"/>， <br />
     /// 需后台访问的派生类应在启动阶段于主线程预热。 <br />
     /// 编辑模式仅查找已有实例、不自动创建（避免向场景写入瞬时对象），未找到返回 null。 <br />
@@ -52,6 +53,18 @@ namespace Moirai.Atropos
         /// <summary>序号分配器（每封闭泛型类型独立递增）。</summary>
         // ReSharper disable once StaticMemberInGenericType
         private static long s_NextOrdinal;
+
+        /// <summary>
+        /// Domain Reload 自重置兜底（关闭 DR 工作流）：上次会话异常退出未走 OnDestroy 置空时，
+        /// 本钩子在下次 Play 前清残留静态——幂等，正常路径无副作用。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticsForDomainReload()
+        {
+            s_Instance = null;
+            s_ShuttingDown = false;
+            s_NextOrdinal = 0;
+        }
 
         #endregion
 

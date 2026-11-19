@@ -42,6 +42,13 @@ namespace Moirai.Atropos
         // ReSharper disable once StaticMemberInGenericType
         private static readonly object s_Locker = new object();
 
+        /// <summary>Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例引用——幂等。</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticsForDomainReload()
+        {
+            s_Instance = null;
+        }
+
         #endregion
 
         #region 单例访问 [Singleton Access]
