@@ -211,3 +211,9 @@
 - `SaveServiceHandler.cs`（2615 行）→ **143 行**（生命周期 + 类头字段）
 - 8 个域文件：Blocks（383，块读写）/ BlockListing（173，块删除枚举）/ Archive（341，存档删除）/ ArchiveQuery（121，查询与备份）/ Components（383，组件块管线）/ Migration（246，版本迁移+截图）/ Paths（388，路径管理）/ ReadPipeline（396，读管线）/ WritePipeline（187，写管线）
 - 全部文件 < 400 行；**行数守恒断言**（切块前后总行数校验）防内容丢失——过程中一次切块失误差点丢 394 行，靠 git HEAD 版本恢复重切
+
+#### Procedure / Res 惰性资源作用域
+
+- **新增 `AssetLeaseScope`**（Asset 服务侧通用设施）：惰性租约作用域——`Load<T>(location)` 按需加载并登记租约，`Dispose()` 登记逆序统一归还（幂等；IsDisposed 后 Load fail-fast）；使用者持有作用域即持有"资产所有权集合"
+- **`ProcedureBase` 接入**：新增 `protected AssetLeaseScope Res`（惰性创建）——派生类在 OnEnter/OnUpdate 中 `Res.Load<T>("location")` 拉起本状态所需资产，**状态持有的资产生命周期 = 状态生命周期**
+- **Owner 保证释放**：`DefaultProcedureHandler` 两处 OnLeave 调用点（正常切换 + Shutdown）之后调 `from.CleanupLeaseScope()`——不依赖派生类 override 调 base 的纪律，异常路径（catch/finally）也保证释放
