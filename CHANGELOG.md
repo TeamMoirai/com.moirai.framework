@@ -217,3 +217,9 @@
 - **新增 `AssetLeaseScope`**（Asset 服务侧通用设施）：惰性租约作用域——`Load<T>(location)` 按需加载并登记租约，`Dispose()` 登记逆序统一归还（幂等；IsDisposed 后 Load fail-fast）；使用者持有作用域即持有"资产所有权集合"
 - **`ProcedureBase` 接入**：新增 `protected AssetLeaseScope Res`（惰性创建）——派生类在 OnEnter/OnUpdate 中 `Res.Load<T>("location")` 拉起本状态所需资产，**状态持有的资产生命周期 = 状态生命周期**
 - **Owner 保证释放**：`DefaultProcedureHandler` 两处 OnLeave 调用点（正常切换 + Shutdown）之后调 `from.CleanupLeaseScope()`——不依赖派生类 override 调 base 的纪律，异常路径（catch/finally）也保证释放
+
+#### UI / 页面级导航
+
+- **新增 `UIService.Navigation.cs`**：`NavigateBack()`（关闭当前顶窗走既有关闭政策 + 恢复开启序历史中前一个已停放窗口——复用停放实例）与 `NavigateBackTo(windowId)`（逐次 Back 直到目标成为顶窗，次数上限 = 导航深度防环）
+- `UIWindowLedger` 补查询接缝：`PeekPreviousClosedHistoryWindow`（history 逆序找第一个未开启窗——多窗并存时跳过仍开启者）+ `IsWindowOpen`
+- **天然去重**：基于既有 history 栈语义（复用/停放重取自动挪到最新）；复用窗开启序维护，零新增状态

@@ -1226,6 +1226,25 @@ namespace Moirai.Atropos.UI
             return true;
         }
 
+        /// <summary>
+        /// 在开启序历史中自 <paramref name="current"/> 向前找第一个"当前不在开启态"的窗口
+        /// （复用/停放实例——Back 目标）。无则回 null。
+        /// </summary>
+        internal UIWindow PeekPreviousClosedHistoryWindow(UIWindow current)
+        {
+            int idx = _history.LastIndexOf(current);
+            if (idx < 0) return null;
+            for (int i = idx - 1; i >= 0; i--)
+            {
+                var w = _history[i];
+                if (!_uiStack.Contains(w)) return w;
+            }
+            return null;
+        }
+
+        /// <summary>窗口当前是否在开启态（uiStack 含）。</summary>
+        internal bool IsWindowOpen(UIWindow window) => _uiStack.Contains(window);
+
         #endregion
 
         #region 测试接缝 [TEST SEAMS]
