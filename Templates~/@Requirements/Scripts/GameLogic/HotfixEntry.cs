@@ -14,12 +14,11 @@ namespace Moirai.GameLogic
     /// 进入主流程事件，单次流程。
     /// </summary>
     /// <remarks>用于初始化一些初始设定</remarks>
-    public class HotfixEntryEvent : EventBase<HotfixEntryEvent>, IProcedureEvent
+    public readonly struct HotfixEntryEvent : IGameEvent, IProcedureEvent
     {
         public static void Trigger()
         {
-            using var evt = GetPooled();
-            EventManager.SendEvent(evt);
+            EventBus.Publish<HotfixEntryEvent>();
         }
     }
 
