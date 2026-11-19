@@ -5,13 +5,15 @@ using UnityEngine;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 总线诊断钩子：Debugger 挂接期订阅（发布路径零条件分支开销——空委托时 JIT 消除调用）。
+    /// 总线诊断钩子：仅编辑器存在（与 Debugger 面板同生命周期）——生产/开发构建编译期剥除，发布路径零诊断开销。
     /// </summary>
+#if UNITY_EDITOR
     internal static class EventBusDiagnostics
     {
         /// <summary>每次事件派发触发（参数为事件类型）。</summary>
         internal static Action<Type> OnPublished;
     }
+#endif
     
     /// <summary>
     /// 单事件类型的订阅通道（泛型静态容器）：每个 <typeparamref name="TEvent"/> 一个静态实例，零字典查找。
@@ -80,7 +82,9 @@ namespace Moirai.Atropos
                     var handler = snapshot[i];
                     if (handler == null) continue;
 
+#if UNITY_EDITOR
                     EventBusDiagnostics.OnPublished?.Invoke(typeof(TEvent));
+#endif
 
                     try
                     {

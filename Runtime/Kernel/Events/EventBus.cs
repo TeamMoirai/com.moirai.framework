@@ -85,36 +85,8 @@ namespace Moirai.Atropos
             EventChannel<TEvent>.Instance.Clear();
         }
 
-        #region 池化大事件门面 [POOLED EVENTS]
-
         /// <summary>
-        /// 大事件模式（三步）：<c>var payload = EventBus.RentPooled&lt;PayloadClass&gt;();</c> 填字段 →
-        /// <c>EventBus.Publish(new PayloadEvent(payload));</c>（struct 事件携带 class 引用）→
-        /// <c>EventBus.ReturnPooled(payload);</c> 派发完成后归还。
-        /// </summary>
-        /// <remarks>
-        /// struct 事件本身零池化（值拷贝即传参）；仅带大块引用负载（List/数组/图集等）的高频事件才值得把负载装箱为
-        /// class 并经 <see cref="EventPool{TEvent}"/> 复用。Return 重复归还安全（引用等价检查）。
-        /// </remarks>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static TEvent RentPooled<TEvent>() where TEvent : class, IPoolableGameEvent, new()
-        {
-            return EventPool<TEvent>.Rent();
-        }
-
-        /// <summary>
-        /// 归还池化事件负载（派发完成后调用；重复归还安全）。
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void ReturnPooled<TEvent>(TEvent evt) where TEvent : class, IPoolableGameEvent, new()
-        {
-            EventPool<TEvent>.Return(evt);
-        }
-
-        #endregion
-
-        /// <summary>
-        /// 关 DR 兜底：清空全部静态状态（进 Play 时重置）。
+        /// 清空全部静态状态（进 Play 时重置）。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         internal static void ResetStaticsForPlayModeReset()

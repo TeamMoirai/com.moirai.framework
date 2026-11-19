@@ -253,3 +253,9 @@
   - EventPool 接线：EventBus 加 `RentPooled<T>/ReturnPooled<T>` 门面（大事件三步模式：Rent 负载 → Publish struct 事件携带引用 → Return 归还）
   - `[GameEvent]` 标记 + **GameEventAttributeAnalyzer**（MA7001-7003：标记类型必须 struct + 实现 IGameEvent + 禁实例方法——编译期约束校验，EventBusAnalyzer.dll 重建）
 - **验收**：编译零错误；回归 2952/2941/0 失败（净 -13 = 旧事件系统测试随目录清退）
+
+#### Events / EventPool 删除——池化统一 MemoryPool
+
+- **删除 `Runtime/Kernel/Events/EventPool.cs`**（独立事件池与 MemoryPool 职责重复——框架统一对象池归一，"三池归一"验收标准的最后一笔：MemoryPool（C# 对象）+ GameObjectPool（GameObject），事件池不再单列）
+- `TaskCompleteEvent` 迁移 MemoryPool：继承 `MemoryObject`（Clear() 契约），Rent/Return → `MemoryPool.Acquire/Release`
+- EventBus 刚加的 RentPooled/ReturnPooled 门面一并撤除（MemoryPool 即统一入口，事件负载不设二次门面）；IGameEvent/GameEventAttribute 注释同步
