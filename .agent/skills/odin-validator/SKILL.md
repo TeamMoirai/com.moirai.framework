@@ -100,7 +100,7 @@ result.Add(ResultItem.Warning("..."));
    - 游戏内容级 → `Assets/Scripts/GameBase/Editor/**`（Unity 自动编译进 `Assembly-CSharp-Editor`）
    - 仓库 `Assets/` 下目前**没有**游戏侧 Editor asmdef，需要独立程序集时再新建（`includePlatforms: ["Editor"]`）。
 2. **不要**把校验器放进 `Runtime/`、`GameLib`、`GameLogic`、`GameProto` —— 仅 Editor 程序集可引用。
-3. 要暴露给数据的**自定义校验特性**仍走 OdinExtends 模式（特性入 `Runtime/Core/Attributes/OdinExtends/` + `[Conditional("UNITY_EDITOR")]`，`AttributeValidator` 入 `Editor/Core/Attributes/Drawers/OdinExtends/`），详见 odin-inspector 技能。
+3. 要暴露给数据的**自定义校验特性**仍走 OdinExtends 模式（特性入 `Runtime/Foundation/Attributes/OdinExtends/` + `[Conditional("UNITY_EDITOR")]`，`AttributeValidator` 入 `Editor/Core/Attributes/Drawers/OdinExtends/`），详见 odin-inspector 技能。
 4. 在框架内新增文件时，仍遵守框架 AAA C# 规范（命名前缀、双语 `#region 中文 [ENGLISH]`、`<summary>` 一句话）与"注释精简"要求。
 
 ## 自动化与构建门禁

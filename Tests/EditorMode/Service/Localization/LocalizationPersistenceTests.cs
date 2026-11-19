@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using GameSettings;
+using Kernel.GameSettings;
 using Moirai.Atropos;
 using Moirai.Atropos.Localization;
 using NUnit.Framework;

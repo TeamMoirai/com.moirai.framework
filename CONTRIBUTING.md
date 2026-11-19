@@ -49,11 +49,11 @@ config.m_MaxChannelCeiling = 4096;
 
 | 常量 | 文件 | 范围 |
 |------|------|------|
-| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Core/GameApp/PlayerLoop/PlayerLoopDriver.cs` | 帧订阅 Handler / 核心钩子旁路 |
+| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Kernel/GameApp/PlayerLoop/PlayerLoopDriver.cs` | 帧订阅 Handler / 核心钩子旁路 |
 | `ServiceScope.RETHROW_TICK_EXCEPTIONS` | `Runtime/Kernel/Internal/ServiceScope.cs` | 服务 Tick / 拦截器（否决通道 `OnServiceRegistering` 除外：抛出即拒绝注册，不被隔离） |
-| `EventDispatcher.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Core/Events/Models/EventDispatcher.cs` | 事件回调、`ProcessEvent`、协调器排空 |
-| `TaskRunner.RETHROW_TASK_EXCEPTIONS` | `Runtime/Core/Tasks/Components/TaskRunner.cs` | 任务/序列系统回调 |
-| `MemoryPoolRegistry.RETHROW_POOL_EXCEPTIONS` | `Runtime/Core/MemoryPool/MemoryPoolRegistry.cs` | 池回调 |
+| `EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Kernel/Events/EventDispatchPolicy.cs` | 事件回调、逐回调异常隔离 |
+| `TaskRunner.RETHROW_TASK_EXCEPTIONS` | `Runtime/Kernel/Tasks/Components/TaskRunner.cs` | 任务/序列系统回调 |
+| `MemoryPoolRegistry.RETHROW_POOL_EXCEPTIONS` | `Runtime/Kernel/MemoryPool/MemoryPoolRegistry.cs` | 池回调 |
 
 **与分级无关的硬性卫生（`finally` 无条件执行）：**
 
