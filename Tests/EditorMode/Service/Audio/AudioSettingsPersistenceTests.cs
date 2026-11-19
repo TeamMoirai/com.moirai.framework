@@ -1,6 +1,6 @@
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
-using GameSettings;
+using Kernel.GameSettings;
 using NUnit.Framework;
 using UnityEngine;
 using Settings = Moirai.Atropos.GameSettings;

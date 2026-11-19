@@ -9,11 +9,18 @@
 ```
 com.moirai.framework/
 ├── Runtime/                  # 运行时代码（Moirai.Atropos.asmdef）
-│   ├── Kernel/               # 服务注册与生命周期（门面 GameServices / 容器 ServiceScope / 基类 ServiceBase）
-│   ├── Core/                 # 核心系统，不依赖服务层；按功能分组平铺，不套服务层的角色档
-│   │   ├── <功能组>/         # Attributes / Constant / DataStructure / Extensions / GameException /
-│   │   │                     # Events / GameApp / GameProfiler / FrameworkSettings / Graphics /
-│   │   │                     # MemoryPool / Obfuz / SettingPersistence / Singleton / Tasks
+│   ├── Kernel/               # 内核：服务注册与生命周期（门面 GameServices / 容器 ServiceScope / 基类 ServiceBase）+ 框架运行底座
+│   │   ├── GameApp/          # 启动、帧驱动（PlayerLoop/）、运行期开关
+│   │   ├── MemoryPool/       # C# 内存池与通用池件
+│   │   ├── GameException/    # 框架异常约定
+│   │   ├── FrameworkSettings/# 设置基座（FrameworkSettings<T> / FrameworkHandler / [ProviderHandlerHost] 宿主侧）
+│   │   ├── GameSettings/     # 游戏设置资产
+│   │   ├── Singleton/        # 单例模式
+│   │   ├── Tasks/            # 任务系统（Components/、Models/ 次层）
+│   │   ├── GameProfiler/     # 性能采样
+│   │   └── Events/           # 事件总线（EventBus / EventChannel / GameEvent 编译期校验）
+│   ├── Foundation/           # 基础支撑，不依赖服务层；按功能分组平铺，不套服务层的角色档
+│   │   ├── <功能组>/         # Attributes / Constant / DataStructure / Extensions / Obfuz
 │   │   └── Utilities/        # 横切工具，一个关注点一个子目录（Algorithm / Json / GameLog / Tween …）
 │   └── Services/             # 各功能服务（每个服务一份文档，见 Documentation~）
 │       └── <Module>/         # 模块根平铺门面四件套 + 封闭角色档（见《目录与文件》）
@@ -36,7 +43,7 @@ com.moirai.framework/
 - **DebuggerService** - 调试工具
 - **InputService** - 输入系统
 - **LocalizationService** - 本地化
-- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 AssetService）；C# 对象池在 Core/MemoryPool，不设服务
+- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 AssetService）；C# 对象池在 Kernel/MemoryPool，不设服务
 - **ProcedureService** - 流程管理
 - **AssetService** - 资源管理
 - **SaveService** - 存档系统
@@ -44,24 +51,26 @@ com.moirai.framework/
 - **TimerService** - 定时器
 - **UIService** - UI 框架
 
-服务注册与生命周期由 `Runtime/Kernel` 承接：门面 `GameServices.cs`（+ `GameServices.DiagnosticInfo.cs`）、容器与轮询 `Internal/ServiceScope.cs`、服务基类 `Objects/ServiceBase.cs`。
+服务注册与生命周期由 `Runtime/Kernel` 承接：门面 `GameServices.cs`（+ `GameServices.DiagnosticInfo.cs`）、容器与轮询 `Internal/ServiceScope.cs`、服务基类 `Objects/ServiceBase.cs`。同目录还收拢了框架运行底座（`Events/` 事件总线、`GameApp/` 启动与帧驱动、`MemoryPool/` 内存池、`GameException/`、`FrameworkSettings/` 设置基座、`GameSettings/`、`Singleton/`、`Tasks/`、`GameProfiler/`）。
 
-### Core 系统
-按功能分组平铺在 `Runtime/Core/<功能>/`（没有 `Foundation/`、`Infrastructure/` 层级壳，也不用服务层的角色档）：
-- **Attributes** - 自定义特性（`BooleanButtonAttribute`、`ConditionAttribute`、`CustomLabelAttribute` 等编辑器绘图/校验用特性；`[ProviderHandlerHost]` 不在这一组，它随设置基座住 `FrameworkSettings/`）
-- **Constant** - 常量
-- **DataStructure** - 数据结构
-- **Events** - 事件系统
-- **Extensions** - 扩展方法
-- **FrameworkSettings** - 框架设置基座（`FrameworkSettings<T>`、`FrameworkHandler`、`[ProviderHandlerHost]` 宿主侧）
+### Kernel 运行底座
+按功能分组平铺在 `Runtime/Kernel/<功能>/`（不含服务层角色档；命名空间仍统一为根 `Moirai.Atropos`）：
+- **Events** - 事件总线（`EventBus` / `EventChannel` / `GameEvent` 编译期校验；调试器仅编辑器）
 - **GameApp** - 启动、帧驱动与运行期开关（`PlayerLoop/` 次层）
+- **MemoryPool** - 内存池与通用池件
 - **GameException** - 框架异常约定
-- **GameProfiler** - 性能采样
-- **Graphics** - 图形设置资产
-- **MemoryPool** - 内存池与通用池件（原 `Infrastructure/Pool/` 已并入本组）
-- **SettingPersistence** - 设置的落盘与读回
+- **FrameworkSettings** - 框架设置基座（`FrameworkSettings<T>`、`FrameworkHandler`、`[ProviderHandlerHost]` 宿主侧）
+- **GameSettings** - 游戏设置与落盘读回
 - **Singleton** - 单例模式
 - **Tasks** - 任务系统（`Components/`、`Models/` 次层）
+- **GameProfiler** - 性能采样
+
+### Foundation 基础支撑
+按功能分组平铺在 `Runtime/Foundation/<功能>/`（没有层级壳，也不用服务层的角色档）：
+- **Attributes** - 自定义特性（`BooleanButtonAttribute`、`ConditionAttribute`、`CustomLabelAttribute` 等编辑器绘图/校验用特性；`[ProviderHandlerHost]` 不在这一组，它随设置基座住 `Kernel/FrameworkSettings/`）
+- **Constant** - 常量
+- **DataStructure** - 数据结构
+- **Extensions** - 扩展方法
 - **Obfuz** - 混淆虚拟机初始化（`OBFUZ_INSTALLED && ENABLE_OBFUZ` 门控）
 - **Utilities** - 工具类（算法、随机、JSON、Tween、日志 `LogUtility` 等；一个关注点一个子目录）
 

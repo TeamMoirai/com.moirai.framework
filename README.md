@@ -67,11 +67,18 @@ Moirai Framework
 ```
 com.moirai.framework/
 ├── Runtime/                    # 核心框架程序集 (Moirai.Atropos)
-│   ├── Kernel/                 # 服务注册与生命周期（GameServices / ServiceScope / ServiceBase）
-│   ├── Core/                   # 与具体玩法无关的基础件，按功能分组平铺（无 Foundation/Infrastructure 层级壳）
-│   │   ├── <功能组>/           # Attributes / Constant / DataStructure / Extensions / GameException / Events /
-│   │   │                       # GameApp / GameProfiler / FrameworkSettings / Graphics / MemoryPool / Obfuz /
-│   │   │                       # SettingPersistence / Singleton / Tasks
+│   ├── Kernel/                 # 内核：服务注册与生命周期（GameServices / ServiceScope / ServiceBase）+ 框架运行底座
+│   │   ├── GameApp/            # 启动、帧驱动（PlayerLoop/）、运行期开关
+│   │   ├── MemoryPool/         # C# 内存池与通用池件
+│   │   ├── GameException/      # 框架异常约定
+│   │   ├── FrameworkSettings/  # 设置基座（FrameworkSettings<T> / FrameworkHandler / ProviderHandlerHost）
+│   │   ├── GameSettings/       # 游戏设置资产
+│   │   ├── Singleton/          # 单例模式
+│   │   ├── Tasks/              # 任务/序列系统
+│   │   ├── GameProfiler/       # 性能采样
+│   │   └── Events/             # 事件总线（EventBus / EventChannel / GameEvent 编译期校验）
+│   ├── Foundation/             # 与具体玩法无关的基础件，按功能分组平铺（无层级壳）
+│   │   ├── <功能组>/           # Attributes / Constant / DataStructure / Extensions / Obfuz
 │   │   └── Utilities/          # 工具集：日志、时间、加密、HTTP、反射、缓动等，一个子目录一个关注点
 │   └── Services/               # 功能服务（每个服务一份文档，见 Documentation~），模块内按封闭角色档归位：
 │       #  角色档：模块根平铺门面四件套 + Handler/ Models/ Objects/ Internal/ Support/（按需 Extension/ Views/）
@@ -80,7 +87,7 @@ com.moirai.framework/
 │       ├── Debugger/           # 运行时调试器
 │       ├── Input/              # 输入系统（键鼠/手柄/移动端）
 │       ├── Localization/       # 本地化（文本/图片/音频/Timeline）
-│       ├── Pooling/            # GameObject 池服务（C# 对象复用走 Core/MemoryPool）
+│       ├── Pooling/            # GameObject 池服务（C# 对象复用走 Kernel/MemoryPool）
 │       ├── Procedure/          # 流程管理
 │       ├── Resource/           # YooAsset 资源管理
 │       ├── Save/               # 存档系统（多块容器/多后端序列化/加密/迁移/云同步）

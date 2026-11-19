@@ -188,7 +188,7 @@ public class MyAttributeValidator<T> : AttributeValidator<MyAttribute, T>
 ```
 
 - `AttributeValidator<TAttribute,TValue>` = 针对特定值类型；`AttributeValidator<TAttribute>` = 不限值类型（**两者不可同时注册同一类名**，模板明确要求二选一）。
-- 本项目自定义校验特性走 OdinExtends 模式（特性在 `Runtime/Core/Attributes/OdinExtends/`、带 `[Conditional("UNITY_EDITOR")]`；该校验器在编辑器程序集），见 odin-inspector 技能。
+- 本项目自定义校验特性走 OdinExtends 模式（特性在 `Runtime/Foundation/Attributes/OdinExtends/`、带 `[Conditional("UNITY_EDITOR")]`；该校验器在编辑器程序集），见 odin-inspector 技能。
 
 ---
 

@@ -45,6 +45,7 @@
 - `MainThreadDispatcher` 停机改为主线程优雅排水：已入队任务在 `BeginShutdown` 内联执行完毕（存档落盘回执等停机收尾不再被静默截杀），挂起可等待操作的取消语义不变；非主线程停机维持丢弃并告警
 - `MainThreadDispatcher` 任务异常与 `PlayerLoopDriver` 订户策略对齐：开发构建 Fatal 后上抛中止本次泵（fail-fast），发布构建隔离续跑并对连续失败 300 次告警一次（任一任务成功归零重计）
 - `MainThreadDispatcher` 入队路径零分配收尾：`Post(IEnumerator)` 改经池化工作项 + 静态 lambda 转发（稳态零闭包分配），取消注册改用 `CancellationToken.Register` 状态重载，泵内毫秒换算提为静态字段
+- ⚠ 运行时目录重组：`Runtime/Core/` 一分为二——框架运行底座（`GameApp` 含 `PlayerLoop`、`MemoryPool`、`GameException`、`FrameworkSettings`、`GameSettings`、`Singleton`、`Tasks`、`GameProfiler`，连同事件总线 `Events/`）归入 `Runtime/Kernel/`；剩余基础件（`Attributes`、`Constant`、`DataStructure`、`Extensions`、`Obfuz`、`Utilities`）所在目录由 `Runtime/Core/` 改名为 `Runtime/Foundation/`。生产侧命名空间与公共 API 全部不变（仍为 `Moirai.Atropos`），所有 `.meta` GUID 原样保留；测试树同步拆分/改名为 `Tests/{EditorMode,PlayMode}/Kernel/` 与 `Tests/EditorMode/Foundation/`，测试命名空间一并改（`Core.MemoryPool` → `Kernel.MemoryPool`、`Utility` → `Foundation.Utility`、`GameSettings` → `Kernel.GameSettings`）；按源码相对路径定位文件的判据与文档路径已同步
 
 #### Editor
 

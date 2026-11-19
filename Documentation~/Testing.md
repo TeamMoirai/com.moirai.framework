@@ -55,17 +55,23 @@
 Tests/
 ├── EditorMode/                  # L1
 │   ├── Moirai.Atropos.Tests.EditorMode.asmdef
-│   ├── Core/                    # 对应 Runtime/Core/<模块>
+│   ├── Kernel/                  # 对应 Runtime/Kernel/<模块>
+│   │   ├── FrameworkSettings/
+│   │   ├── GameApp/
+│   │   ├── GameSettings/
 │   │   ├── MemoryPool/
 │   │   ├── Singleton/
-│   │   ├── Events/
-│   │   └── GameApp/
-│   ├── DataStructure/           # 对应 Runtime/Core/DataStructure（纯数据结构用例）
+│   │   └── Tasks/
+│   ├── Foundation/              # 对应 Runtime/Foundation/<模块>
+│   │   ├── DataStructure/       # 纯数据结构用例
+│   │   └── Utility/             # 对应 Runtime/Foundation/Utilities
 │   ├── Service/                 # 对应 Runtime/Services/<模块>
 │   │   ├── Audio/  Save/  Resource/  UI/  ...
 │   │   └── Kernel/
-│   └── Utility/                 # 对应 Runtime/Core/Utilities
+│   └── Editor/                  # 编辑器侧配套（Editor/Core、Editor/Foundation 等）
 ├── PlayMode/                    # L2
+│   ├── Kernel/
+│   │   └── Tasks/
 │   └── Service/<模块>/
 └── Player/                      # L3
     ├── PlayerTestBootstrap.cs   # 关掉 GameApp.AutoBoot（基础设施）
@@ -74,7 +80,7 @@ Tests/
 
 规则：
 
-- **测试树镜像到模块档为止**：`Runtime/Services/<模块>/…` 的用例落 `Tests/EditorMode/Service/<模块>/`，`Runtime/Core/<功能组>/…` 落 `Tests/EditorMode/Core/<功能组>/`。生产侧的角色档目录名（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）**不在测试树里复刻**——目录归位那一轮没有搬动 `Tests/**`，两侧同形只到模块/功能档，按生产侧档名去测试树找目录会找不到。
+- **测试树镜像到模块档为止**：`Runtime/Services/<模块>/…` 的用例落 `Tests/EditorMode/Service/<模块>/`；`Runtime/Kernel/<功能组>/…` 落 `Tests/EditorMode/Kernel/<功能组>/`、`Runtime/Foundation/<功能组>/…` 落 `Tests/EditorMode/Foundation/<功能组>/`（测试树目录与命名空间已随生产侧同步改名，如 `Core.MemoryPool` → `Kernel.MemoryPool`、`Utility` → `Foundation.Utility`）。生产侧的角色档目录名（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）**不在测试树里复刻**——两侧同形只到模块/功能档，按生产侧档名去测试树找目录会找不到。
 - 基础设施（夹具、Bootstrap、共享支撑）与被测模块无关的，放测试根目录或就近的模块目录。
 - 一个被测类型可以有多个用例文件（按行为簇拆分），但**一个文件只放一个公开测试类**（与"一文件一顶层类"一致）；夹具基座与测试专用类型是例外，见《夹具与隔离》。
 
