@@ -11,9 +11,9 @@ namespace Moirai.Atropos.SourceGenerators
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class ServiceDependencyAnalyzer : DiagnosticAnalyzer
     {
-        /// <summary>MIRAI201: ServiceDependency 依赖类型既未实现 IService，也不是任何服务自报的契约接口。</summary>
+        /// <summary>MA2001: ServiceDependency 依赖类型既未实现 IService，也不是任何服务自报的契约接口。</summary>
         public static readonly DiagnosticDescriptor DependencyMustImplementIServiceRule = new DiagnosticDescriptor(
-            id: "MIRAI201",
+            id: "MA2001",
             title: "ServiceDependency 依赖类型未实现 IService",
             messageFormat: "[ServiceDependency] 声明的类型 '{0}' 既未实现 'Moirai.Atropos.IService'，也不是任何 [ProviderHandlerHost] 自报的契约接口，无法作为服务依赖注册",
             category: "Usage",
@@ -22,9 +22,9 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Dependency types must either implement IService (registered as the concrete service) or be a contract interface self-reported via [ProviderHandlerHost(typeof(I{Service}), ...)] (bound as an additional contract at registration).",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>MIRAI202: ServiceDependency 未声明任何依赖类型。</summary>
+        /// <summary>MA2002: ServiceDependency 未声明任何依赖类型。</summary>
         public static readonly DiagnosticDescriptor EmptyDependencyRule = new DiagnosticDescriptor(
-            id: "MIRAI202",
+            id: "MA2002",
             title: "ServiceDependency 未声明依赖类型",
             messageFormat: "[ServiceDependency] 未声明任何依赖类型，至少需要一个实现 IService 的类型",
             category: "Usage",

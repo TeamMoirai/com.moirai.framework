@@ -79,7 +79,7 @@ internal sealed class OwnerModel
     {
         var declaration = (TypeDeclarationSyntax)context.Node;
 
-        // 非分部类型无法注入 partial 胶水（MIRAI703 由分析器提示）
+        // 非分部类型无法注入 partial 胶水（MA7003 由分析器提示）
         if (!declaration.Modifiers.Any(SyntaxKind.PartialKeyword)) return null;
         if (declaration.TypeParameterList is not null) return null; // 泛型宿主暂不支持
         if (declaration.Kind() is SyntaxKind.InterfaceDeclaration) return null;

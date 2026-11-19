@@ -12,7 +12,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Moirai.EventBus.Roslyn.CodeFixes;
 
 /// <summary>
-/// MIRAI701 修复：为 OnXxxEvent 回调的事件参数补上 in 修饰（ref/out 同步替换为 in）。
+/// MA7001 修复：为 OnXxxEvent 回调的事件参数补上 in 修饰（ref/out 同步替换为 in）。
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(AddInParameterCodeFixProvider))]
 [Shared]

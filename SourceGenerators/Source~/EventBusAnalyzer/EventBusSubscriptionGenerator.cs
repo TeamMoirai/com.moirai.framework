@@ -201,7 +201,7 @@ public sealed class EventBusSubscriptionGenerator : IIncrementalGenerator
             }
             else
             {
-                // 非 in 参数（缺 in / ref / out）无法方法组转换——跳过并留注释（MIRAI701 已由分析器告警）
+                // 非 in 参数（缺 in / ref / out）无法方法组转换——跳过并留注释（MA7001 已由分析器告警）
                 sb.Append("// [EventBusAnalyzer] ").Append(callback.MethodName)
                   .Append(" 未按 in 约定声明，无法订阅 EventDelegate<")
                   .Append(callback.EventTypeDisplay).Append(">——已跳过。");

@@ -3,19 +3,19 @@ using Microsoft.CodeAnalysis;
 namespace Moirai.EventBus.Roslyn;
 
 /// <summary>
-/// 诊断描述符集中定义：MIRAI700–MIRAI703（EventBus 使用规范，7xx 段——与 ServiceDependency 1xx/2xx、Save 3xx/4xx、UI 5xx、HotPath 6xx 错开）。
-/// 默认严重级别均为 Warning——可通过 .editorconfig 中 <c>dotnet_diagnostic.MIRAI7xx.severity</c> 升级为 error / 降级为 none。
+/// 诊断描述符集中定义：MA7000–MA7003（EventBus 使用规范，7xx 段——与 ServiceDependency 1xx/2xx、Save 3xx/4xx、UI 5xx、HotPath 6xx 错开）。
+/// 默认严重级别均为 Warning——可通过 .editorconfig 中 <c>dotnet_diagnostic.MA7xxx.severity</c> 升级为 error / 降级为 none。
 /// </summary>
 internal static class Diagnostics
 {
     public const string Category = "Moirai.EventBus";
 
-    public const string AnonymousHandlerId = "MIRAI700";
-    public const string InParameterRequiredId = "MIRAI701";
-    public const string CallbackNameMismatchId = "MIRAI702";
-    public const string PartialOwnerRequiredId = "MIRAI703";
+    public const string AnonymousHandlerId = "MA7000";
+    public const string InParameterRequiredId = "MA7001";
+    public const string CallbackNameMismatchId = "MA7002";
+    public const string PartialOwnerRequiredId = "MA7003";
 
-    /// <summary>MIRAI700：EventBus.Subscribe/Unsubscribe 传入匿名函数。</summary>
+    /// <summary>MA7000：EventBus.Subscribe/Unsubscribe 传入匿名函数。</summary>
     public static readonly DiagnosticDescriptor AnonymousHandler = new(
         AnonymousHandlerId,
         title: "禁止以匿名函数订阅或退订 EventBus 事件",
@@ -25,7 +25,7 @@ internal static class Diagnostics
         isEnabledByDefault: true,
         description: "EventBus 的订阅/退订采用对称方法形态（值等价匹配），匿名函数无法被 Unsubscribe 命中。");
 
-    /// <summary>MIRAI701：OnXxxEvent 带参回调参数缺少 in 修饰。</summary>
+    /// <summary>MA7001：OnXxxEvent 带参回调参数缺少 in 修饰。</summary>
     public static readonly DiagnosticDescriptor InParameterRequired = new(
         InParameterRequiredId,
         title: "OnXxxEvent 带参回调必须以 in 修饰事件参数",
@@ -35,7 +35,7 @@ internal static class Diagnostics
         isEnabledByDefault: true,
         description: "EventDelegate<TEvent> 的参数为 in 修饰；回调按值传参会对 struct 事件产生拷贝开销。");
 
-    /// <summary>MIRAI702：OnXxxEvent 参数类型与方法名后缀不匹配。</summary>
+    /// <summary>MA7002：OnXxxEvent 参数类型与方法名后缀不匹配。</summary>
     public static readonly DiagnosticDescriptor CallbackNameMismatch = new(
         CallbackNameMismatchId,
         title: "OnXxxEvent 参数类型与方法名约定不一致",
@@ -45,7 +45,7 @@ internal static class Diagnostics
         isEnabledByDefault: true,
         description: "OnXxxEvent 命名约定要求参数类型与方法名后缀一一对应。");
 
-    /// <summary>MIRAI703：无参 OnXxxEvent 所在类型未声明 partial，Source Generator 无法生成订阅胶水。</summary>
+    /// <summary>MA7003：无参 OnXxxEvent 所在类型未声明 partial，Source Generator 无法生成订阅胶水。</summary>
     public static readonly DiagnosticDescriptor PartialOwnerRequired = new(
         PartialOwnerRequiredId,
         title: "无参事件回调所在类型应声明 partial",
