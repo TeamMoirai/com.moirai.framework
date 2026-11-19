@@ -8,6 +8,10 @@
 
 ### Added
 
+#### Kernel
+
+- 新增 `EventBusAnalyzer`（`SourceGenerators/EventBusAnalyzer.dll`，源码 `Source~/EventBusAnalyzer/`，随包自动生效）：MIRAI700 禁止匿名函数订阅/退订 EventBus（匿名委托无法值等价匹配 Unsubscribe，订阅即泄漏）、MIRAI701 `OnXxxEvent` 带参回调必须 `in` 修饰（含一键 CodeFix；方法组转换要求 ref-kind 精确匹配，缺 `in` 本就无法订阅）、MIRAI702 参数类型与方法名后缀不匹配告警、MIRAI703 非 partial 宿主上的无参回调告警；配套源生成器为含 `OnXxxEvent` 回调的 `partial` 类型生成成对 `SubscribeEvents()`/`UnsubscribeEvents()` 胶水——带参回调方法组直连、无参回调缓存包装桥接为 `EventDelegate<T>`、不合规签名跳过并留注释，详见 `Documentation~/EventBusAnalyzer.md`
+
 #### UI
 
 - Widget 绑定纳入 UI 生成器产线：widget 根节点语法 `{WidgetClassName}@{InstanceTag}`（类名取 @ 前段，多实例共享一个类与一份 `<Class>.g.cs`；window 收集器在 widget 根停递归，只拿到 widget-typed 字段 `m_{Class}{Instance}`），生成与多实例回绑流程见包根 `.agent/commands/new-ui.md` 的「Widget 控件（可复用组件）」
