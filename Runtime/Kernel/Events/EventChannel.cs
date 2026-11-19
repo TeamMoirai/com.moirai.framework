@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Moirai.Atropos.Events;
 using UnityEngine;
 
 namespace Moirai.Atropos

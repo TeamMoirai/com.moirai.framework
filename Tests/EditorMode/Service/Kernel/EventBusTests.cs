@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Moirai.Atropos.Events;
 using NUnit.Framework;
 
 namespace Moirai.Atropos.Tests.EditorMode.Service.Kernel

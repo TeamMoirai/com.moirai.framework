@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Moirai.Atropos.Events;
 using UnityEngine;
 #if R3_INSTALLED
 using Moirai.Atropos.R3;
