@@ -24,7 +24,7 @@ namespace Moirai.Atropos.Tasks
     
     public interface ITaskEvent { }
     
-    public sealed class TaskCompleteEvent : EventBase<TaskCompleteEvent>, ITaskEvent
+    public sealed class TaskCompleteEvent : IPoolableGameEvent, ITaskEvent
     {
         [JsonIgnore]
         public TaskBase Task { get; private set; }
@@ -36,17 +36,12 @@ namespace Moirai.Atropos.Tasks
         
         public static TaskCompleteEvent Create(TaskBase task)
         {
-            var evt = GetPooled();
+            var evt = EventPool<TaskCompleteEvent>.Rent();
             evt.Task = task;
             evt.Listeners.Clear();
             return evt;
         }
         
-        protected override void Init()
-        {
-            base.Init();
-            Propagation = EventPropagation.Bubbles | EventPropagation.TricklesDown;
-        }
         
         public void AddListenerTask(TaskBase taskBase)
         {
@@ -57,23 +52,39 @@ namespace Moirai.Atropos.Tasks
         {
             Listeners.Remove(taskBase);
         }
+        /// <summary>归还池（清引用负载后入 <see cref="EventPool{TaskCompleteEvent}"/>）。</summary>
+        public void Dispose()
+        {
+            EventPool<TaskCompleteEvent>.Return(this);
+        }
+        /// <summary>Reset 清空引用负载（池归还时调用——防悬垂与内存滞留）。</summary>
+        public void Reset()
+        {
+            Task = null;
+            Listeners.Clear();
+        }
     }
     
     /// <summary>
     /// 框架任务的基类。
     /// </summary>
-    public abstract class TaskBase : CallbackEventHandler, IDisposable
+    /// <summary>任务完成事件的引用包装：class 事件对象经本 struct 进总线派发（订阅方取 .Event 访问负载）。</summary>
+    public readonly struct TaskCompleteEventMessage : IGameEvent
+    {
+        public readonly TaskCompleteEvent Event;
+        public TaskCompleteEventMessage(TaskCompleteEvent evt) => Event = evt;
+    }
+
+    public abstract class TaskBase : IDisposable
     {
         protected TaskStatus Status;
 
-        private IEventCoordinator _coordinator;
 
-        public override IEventCoordinator Coordinator => _coordinator;
 
-        public override void SendEvent(EventBase e, DispatchMode dispatchMode = DispatchMode.Default)
+        public void SendEvent(TaskCompleteEvent e)
         {
-            e.Target = this;
-            EventManager.Instance.Dispatch(e, dispatchMode, MonoDispatchType.Update);
+            var msg = new TaskCompleteEventMessage(e);
+            EventBus.Publish(in msg);
         }
 
         public virtual TaskStatus GetStatus()
@@ -102,7 +113,6 @@ namespace Moirai.Atropos.Tasks
         protected virtual void Init()
         {
             _completeEvent = TaskCompleteEvent.Create(this);
-            _coordinator = EventManager.Instance;
             Status = TaskStatus.Stopped;
         }
         
@@ -153,8 +163,6 @@ namespace Moirai.Atropos.Tasks
                 _completeEvent.Dispose();
                 _completeEvent = null;
             }
-            
-            Parent = null;
         }
         
         #endregion
@@ -168,7 +176,6 @@ namespace Moirai.Atropos.Tasks
         internal void PostComplete()
         {
             SendEvent(_completeEvent);
-            HandleEventAtTargetPhase(_completeEvent);
             _completeEvent.Dispose();
             _completeEvent = null;
         }
@@ -212,9 +219,7 @@ namespace Moirai.Atropos.Tasks
         {
             if (_prerequisites == null) return false;
             var evt = taskBase.GetCompleteEvent();
-            // 不应在 dispatch 时编辑集合
-            if (!evt.Dispatch)
-                evt.RemoveListenerTask(this);
+            evt.RemoveListenerTask(this);
             return _prerequisites.Remove(evt);
         }
         
