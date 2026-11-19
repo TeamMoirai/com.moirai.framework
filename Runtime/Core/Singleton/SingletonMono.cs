@@ -54,12 +54,17 @@ namespace Moirai.Atropos
         // ReSharper disable once StaticMemberInGenericType
         private static long s_NextOrdinal;
 
+        /// <summary>静态构造时自报重置回调：泛型类无法挂 RuntimeInitializeOnLoadMethod，由非泛型注册中心代执行。</summary>
+        static SingletonMono()
+        {
+            SingletonStaticStateRegistry.Register(ResetStaticsForDomainReload);
+        }
+
         /// <summary>
         /// Domain Reload 自重置兜底（关闭 DR 工作流）：上次会话异常退出未走 OnDestroy 置空时，
-        /// 本钩子在下次 Play 前清残留静态——幂等，正常路径无副作用。
+        /// 本回调在下次 Play 前清残留静态——幂等，正常路径无副作用。
         /// </summary>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStaticsForDomainReload()
+        internal static void ResetStaticsForDomainReload()
         {
             s_Instance = null;
             s_ShuttingDown = false;
