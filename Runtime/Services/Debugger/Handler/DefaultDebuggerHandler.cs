@@ -198,12 +198,12 @@ namespace Moirai.Atropos.Debugger
         {
             if (string.IsNullOrEmpty(path))
             {
-                throw new GameException("Path is invalid.");
+                throw new MoiraiException("Path is invalid.");
             }
 
             if (window == null)
             {
-                throw new GameException("Debugger window is invalid.");
+                throw new MoiraiException("Debugger window is invalid.");
             }
 
             _windowRegistry.Register(path, window);

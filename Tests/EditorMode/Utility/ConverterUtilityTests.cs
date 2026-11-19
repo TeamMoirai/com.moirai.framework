@@ -48,14 +48,14 @@ namespace Utility
         [Test]
         public void GetBytes_Bool_NullBuffer_ThrowsGameException()
         {
-            Assert.Throws<GameException>(() => ConverterUtility.GetBytes(true, null, 0));
+            Assert.Throws<MoiraiException>(() => ConverterUtility.GetBytes(true, null, 0));
         }
 
         [Test]
         public void GetBytes_Bool_InvalidStartIndex_ThrowsGameException()
         {
             byte[] buffer = new byte[1];
-            Assert.Throws<GameException>(() => ConverterUtility.GetBytes(true, buffer, 2));
+            Assert.Throws<MoiraiException>(() => ConverterUtility.GetBytes(true, buffer, 2));
         }
 
         [Test]
@@ -154,25 +154,25 @@ namespace Utility
         [Test]
         public void GetCentimetersFromPixels_ScreenDpiNotSet_Throws()
         {
-            Assert.Throws<GameException>(() => ConverterUtility.GetCentimetersFromPixels(100f));
+            Assert.Throws<MoiraiException>(() => ConverterUtility.GetCentimetersFromPixels(100f));
         }
 
         [Test]
         public void GetPixelsFromCentimeters_ScreenDpiNotSet_Throws()
         {
-            Assert.Throws<GameException>(() => ConverterUtility.GetPixelsFromCentimeters(2.54f));
+            Assert.Throws<MoiraiException>(() => ConverterUtility.GetPixelsFromCentimeters(2.54f));
         }
 
         [Test]
         public void GetInchesFromPixels_ScreenDpiNotSet_Throws()
         {
-            Assert.Throws<GameException>(() => ConverterUtility.GetInchesFromPixels(96f));
+            Assert.Throws<MoiraiException>(() => ConverterUtility.GetInchesFromPixels(96f));
         }
 
         [Test]
         public void GetPixelsFromInches_ScreenDpiNotSet_Throws()
         {
-            Assert.Throws<GameException>(() => ConverterUtility.GetPixelsFromInches(1f));
+            Assert.Throws<MoiraiException>(() => ConverterUtility.GetPixelsFromInches(1f));
         }
 
         [Test]

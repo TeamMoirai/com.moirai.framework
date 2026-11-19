@@ -37,7 +37,7 @@ namespace DataStructure
         [Test]
         public void Constructor_NullType_ThrowsGameException()
         {
-            Assert.Throws<GameException>(() => new TypeNamePair(null));
+            Assert.Throws<MoiraiException>(() => new TypeNamePair(null));
         }
 
         [Test]

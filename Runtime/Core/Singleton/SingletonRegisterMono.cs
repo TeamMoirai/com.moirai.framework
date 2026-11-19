@@ -29,7 +29,7 @@ namespace Moirai.Atropos
     /// 与 <see cref="SingletonMono{T}"/> 互补：无场景查找、无多实例消解、无生命周期回调——
     /// 仅做「不存在则主线程新建 GameObject 挂载」的惰性物化。需要完整策略时请改用
     /// <see cref="SingletonMono{T}"/>。实例物化只能发生在主线程，越线程访问将抛出
-    /// <see cref="GameException"/>。
+    /// <see cref="MoiraiException"/>。
     /// </remarks>
     public static class SingletonRegisterMono<T> where T : MonoBehaviour
     {
@@ -68,7 +68,7 @@ namespace Moirai.Atropos
                     // 物化（Unity API）只能发生在主线程：越线程调用属于未定义行为，fail-fast 显式化
                     if (!MainThreadDispatcher.IsMainThread)
                     {
-                        throw new GameException(StringUtility.Format(
+                        throw new MoiraiException(StringUtility.Format(
                             "SingletonRegisterMono<{0}> 的实例物化必须发生在主线程：后台线程在物化前的访问不受支持。",
                             typeof(T).FullName));
                     }

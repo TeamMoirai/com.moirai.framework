@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Save
     /// <remarks>
     /// 序列化后端（<see cref="ISaveSerializer"/>）、存储后端（<see cref="ISaveStorage"/>）与存储管线三轴正交可插拔；文件 IO 在工作线程执行， <br />
     /// 大存档不阻塞主线程（<see cref="CancellationToken"/> 协作式取消贯穿读写）。 <br />
-    /// 错误语义：写入失败 fail-fast 抛 <see cref="GameException"/>（不容忍半档状态）； <br />
+    /// 错误语义：写入失败 fail-fast 抛 <see cref="MoiraiException"/>（不容忍半档状态）； <br />
     /// 读取失败返回 <c>default</c> 并记错误日志（错误判别用 Try* 族的 <see cref="SaveResult{T}"/>）；删除幂等——目标不存在视为成功。 <br />
     /// 实例由 <see cref="SaveServiceSettings"/> 序列化持有，经 <see cref="SaveService"/> 静态外观访问。
     /// </remarks>
@@ -147,7 +147,7 @@ namespace Moirai.Atropos.Save
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="dataVersion">数据块模式版本。</param>
         /// <param name="cancellationToken">取消令牌（协作式：在序列化前后与替换前检查）。</param>
-        /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>（含路径上下文）。</returns>
+        /// <returns>写入完成的异步任务；失败抛出 <see cref="MoiraiException"/>（含路径上下文）。</returns>
         public UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = DEFAULT_FOLDER_NAME, ushort backend = SaveBackendIds.JSON, int dataVersion = 1, CancellationToken cancellationToken = default)
         {
             ValidateBlockData(data);
@@ -355,7 +355,7 @@ namespace Moirai.Atropos.Save
             catch (Exception exception)
             {
                 SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, key, SaveFailedEvent.ESaveFailureStage.Serialize, SaveError.SerializationFailed);
-                throw new GameException(StringUtility.Format("Save block serialization failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                throw new MoiraiException(StringUtility.Format("Save block serialization failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
             }
 
             // 既有档不可读时隔离拷贝为 sidecar 后再按空块集覆写（保留可抢救字节）；容器 v2 下坏块在写回时自然剔除，健康块保留
@@ -508,7 +508,7 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>删除完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        /// <returns>删除完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
         public UniTask DeleteBlockAsync(string fileName, string key, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             ValidateBlockKey(key);
@@ -573,7 +573,7 @@ namespace Moirai.Atropos.Save
             SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors);
             if (readError != SaveError.None)
             {
-                throw new GameException(StringUtility.Format("Save block delete failed, path: {0}, error: {1}.", paths.SaveFilePath, readError));
+                throw new MoiraiException(StringUtility.Format("Save block delete failed, path: {0}, error: {1}.", paths.SaveFilePath, readError));
             }
 
             // 目标块不存在 = 幂等空删早退（不做迁移——迁移不持久化却占会话缓存会导致后续读取跳过迁移拿到旧数据）
@@ -878,7 +878,7 @@ namespace Moirai.Atropos.Save
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>删除完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        /// <returns>删除完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
         public UniTask DeleteSaveFolderAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             return TryDeleteSaveFolderAsync(folderName, cancellationToken);
@@ -1012,7 +1012,7 @@ namespace Moirai.Atropos.Save
                 {
                     StorageBackend.CreateBackup(paths.SaveFilePath);
                 }
-                catch (GameException)
+                catch (MoiraiException)
                 {
                     SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageWrite, SaveError.IoFailed);
                     throw;
@@ -1042,7 +1042,7 @@ namespace Moirai.Atropos.Save
                 {
                     StorageBackend.RestoreBackup(paths.SaveFilePath);
                 }
-                catch (GameException)
+                catch (MoiraiException)
                 {
                     SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageWrite, SaveError.IoFailed);
                     throw;
@@ -1097,7 +1097,7 @@ namespace Moirai.Atropos.Save
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="additions">组件捕获条目（键 = 块键，载荷 = KVT 字节，后端 = <see cref="SaveBackendIds.KEY_VALUE"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        /// <returns>写入完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
         internal UniTask UpsertRawBlocksAsync(SavePaths paths, List<SaveBlockEntry> additions, CancellationToken cancellationToken)
         {
             if (additions.Count == 0)
@@ -1339,7 +1339,7 @@ namespace Moirai.Atropos.Save
         /// <param name="removals">已确定的删除块键集合（<c>null</c> = 无）。</param>
         /// <param name="removalResolver">读档后删除集解析委托（入参为档内健康块键→载荷；<c>null</c> = 无）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        /// <returns>写入完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
         internal UniTask MergeRawBlocksAsync(SavePaths paths, List<SaveBlockEntry> additions, List<string> removals, Func<Dictionary<string, byte[]>, List<string>> removalResolver, CancellationToken cancellationToken)
         {
             bool hasAdditions = additions != null && additions.Count > 0;
@@ -1584,7 +1584,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 写路径迁移前置（写入自愈）：旧版本档先迁移到当前版本再合并写回，失败 fail-fast 上抛 <see cref="GameException"/>。
+        /// 写路径迁移前置（写入自愈）：旧版本档先迁移到当前版本再合并写回，失败 fail-fast 上抛 <see cref="MoiraiException"/>。
         /// </summary>
         /// <remarks>
         /// 迁移结果由调用方随后的 <see cref="WriteContainerFile"/> 一并落盘（不单独回写）。
@@ -1599,7 +1599,7 @@ namespace Moirai.Atropos.Save
             if (error != SaveError.None)
             {
                 SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Migrate, error);
-                throw new GameException(StringUtility.Format("Save migration failed on write path, path: {0}, error: {1}.", paths.SaveFilePath, error));
+                throw new MoiraiException(StringUtility.Format("Save migration failed on write path, path: {0}, error: {1}.", paths.SaveFilePath, error));
             }
         }
 
@@ -1659,7 +1659,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 写入截图 sidecar（在调用线程执行，阻塞直至完成；经存储层原子写，失败抛 <see cref="GameException"/>）。
+        /// 写入截图 sidecar（在调用线程执行，阻塞直至完成；经存储层原子写，失败抛 <see cref="MoiraiException"/>）。
         /// </summary>
         /// <param name="paths">存档路径集合。</param>
         /// <param name="pngBytes">PNG 编码字节。</param>
@@ -1669,7 +1669,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 异步写入截图 sidecar（IO 在工作线程执行；失败抛 <see cref="GameException"/>）。
+        /// 异步写入截图 sidecar（IO 在工作线程执行；失败抛 <see cref="MoiraiException"/>）。
         /// </summary>
         /// <param name="paths">存档路径集合。</param>
         /// <param name="pngBytes">PNG 编码字节。</param>
@@ -2509,12 +2509,12 @@ namespace Moirai.Atropos.Save
                     {
                         failureStage = SaveFailedEvent.ESaveFailureStage.Transform;
                         failureError = SaveError.TransformFailed;
-                        if (exception is GameException)
+                        if (exception is MoiraiException)
                         {
                             throw;
                         }
 
-                        throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                        throw new MoiraiException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                     }
 
                     bool ownsPayloadStream = !ReferenceEquals(payloadStream, crcStream);
@@ -2541,11 +2541,11 @@ namespace Moirai.Atropos.Save
                                 }
                             }
                         }
-                        catch (Exception exception) when (!(exception is GameException))
+                        catch (Exception exception) when (!(exception is MoiraiException))
                         {
                             failureStage = SaveFailedEvent.ESaveFailureStage.Compress;
                             failureError = SaveError.CompressionFailed;
-                            throw new GameException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                            throw new MoiraiException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                         }
                     }
                     finally
@@ -2556,11 +2556,11 @@ namespace Moirai.Atropos.Save
                             {
                                 payloadStream.Dispose();
                             }
-                            catch (Exception exception) when (!(exception is GameException))
+                            catch (Exception exception) when (!(exception is MoiraiException))
                             {
                                 failureStage = SaveFailedEvent.ESaveFailureStage.Transform;
                                 failureError = SaveError.TransformFailed;
-                                throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                                throw new MoiraiException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                             }
                         }
                     }
@@ -2579,7 +2579,7 @@ namespace Moirai.Atropos.Save
             {
                 throw;
             }
-            catch (GameException)
+            catch (MoiraiException)
             {
                 SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, failureStage, failureError);
                 throw;
@@ -2591,7 +2591,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 在工作线程调用（存储层流式写委托内）；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。 <br />
-        /// 返回流生命周期由调用方管理（直通时按引用比较跳过释放）；密钥材料不可用抛 <see cref="GameException"/>（fail-fast）。
+        /// 返回流生命周期由调用方管理（直通时按引用比较跳过释放）；密钥材料不可用抛 <see cref="MoiraiException"/>（fail-fast）。
         /// </remarks>
         /// <param name="target">存储目标流（载荷 CRC 包装层——写入经此增量累计校验值）。</param>
         /// <returns>载荷写入流（只写；调用方负责关闭以收尾加密/变换帧）。</returns>

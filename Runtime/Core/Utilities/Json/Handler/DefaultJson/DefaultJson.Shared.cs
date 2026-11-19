@@ -182,7 +182,7 @@ namespace Moirai.Atropos
             /// </summary>
             /// <remarks>
             /// 返回 false 表示目标类型为数值，调用方需走各自的 span 数值解析路径。 <br />
-            /// 转换失败会抛 <see cref="GameException"/>，不是返回 false。
+            /// 转换失败会抛 <see cref="MoiraiException"/>，不是返回 false。
             /// </remarks>
             public static bool TryConvertFromString(string s, Type type, out object result)
             {
@@ -249,7 +249,7 @@ namespace Moirai.Atropos
             /// <summary>
             /// 将字符串转换为非数值字典 key 类型（string/char/bool/枚举/Guid）。
             /// </summary>
-            /// <remarks>返回 false 表示 key 为数值类型，调用方需走各自的 span 数值解析；转换失败抛 <see cref="GameException"/>。</remarks>
+            /// <remarks>返回 false 表示 key 为数值类型，调用方需走各自的 span 数值解析；转换失败抛 <see cref="MoiraiException"/>。</remarks>
             public static bool TryConvertDictionaryKey(string s, Type keyType, out object result)
             {
                 if (keyType == typeof(string)) { result = s; return true; }
@@ -279,7 +279,7 @@ namespace Moirai.Atropos
             [System.Diagnostics.CodeAnalysis.DoesNotReturn]
             private static void Throw(string message)
             {
-                throw new GameException(message);
+                throw new MoiraiException(message);
             }
         }
     }

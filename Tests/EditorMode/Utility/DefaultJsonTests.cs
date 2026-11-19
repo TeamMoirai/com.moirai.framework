@@ -678,25 +678,25 @@ namespace Utility
         [Test]
         public void Truncated_List_Throws()
         {
-            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<List<int>>("[1"));
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<List<int>>("[1"));
         }
 
         [Test]
         public void Truncated_List_WithComma_Throws()
         {
-            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<List<int>>("[1,2,3"));
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<List<int>>("[1,2,3"));
         }
 
         [Test]
         public void Truncated_Object_Throws()
         {
-            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<SimpleClass>("{\"name\":\"a\""));
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<SimpleClass>("{\"name\":\"a\""));
         }
 
         [Test]
         public void Malformed_UnterminatedString_Throws()
         {
-            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<SimpleClass>("{\"name\":\"abc}"));
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<SimpleClass>("{\"name\":\"abc}"));
         }
 
         // ===== 未知字段（前向/后向兼容，默认忽略） =====
@@ -971,9 +971,9 @@ namespace Utility
         public void IntegerOverflow_ULongMaxPlusOne_Rejected()
         {
             // 18446744073709551616 = ulong.MaxValue + 1：无符号回绕会变成 0——必须报错而非静默接受
-            Assert.Throws<Moirai.Atropos.GameException>(() =>
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() =>
                 DefaultJson.FromJson<ulong>("18446744073709551616"));
-            Assert.Throws<Moirai.Atropos.GameException>(() =>
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() =>
                 DefaultJson.FromJson<ulong>(System.Text.Encoding.UTF8.GetBytes("18446744073709551616")));
         }
 
@@ -981,9 +981,9 @@ namespace Utility
         public void IntegerOverflow_TwentyDigits_Rejected()
         {
             // 99999999999999999999（20 位）：远超 ulong，回绕后可能落回范围内——必须报错
-            Assert.Throws<Moirai.Atropos.GameException>(() =>
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() =>
                 DefaultJson.FromJson<long>("99999999999999999999"));
-            Assert.Throws<Moirai.Atropos.GameException>(() =>
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() =>
                 DefaultJson.FromJson<long>(System.Text.Encoding.UTF8.GetBytes("99999999999999999999")));
         }
 
@@ -1000,9 +1000,9 @@ namespace Utility
             Assert.AreEqual(ulong.MaxValue, DefaultJson.FromJson<ulong>(System.Text.Encoding.UTF8.GetBytes("18446744073709551615")));
 
             // 边界 +1 必须拒绝
-            Assert.Throws<Moirai.Atropos.GameException>(() =>
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() =>
                 DefaultJson.FromJson<long>("9223372036854775808"));
-            Assert.Throws<Moirai.Atropos.GameException>(() =>
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() =>
                 DefaultJson.FromJson<long>(System.Text.Encoding.UTF8.GetBytes("9223372036854775808")));
         }
 
@@ -1068,7 +1068,7 @@ namespace Utility
             CollectionAssert.AreEqual(new[] { 100, 20 }, DefaultJson.FromJson<int[]>("[1e2,2e1]"));
 
             // 截断仍抛错
-            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<int[]>("[1,2"));
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<int[]>("[1,2"));
         }
 
         // ===== 枚举数组快路径（B2 回归） =====
@@ -1137,13 +1137,13 @@ namespace Utility
         [Test]
         public void EmptyInput_ThrowsPreciseError()
         {
-            var ex1 = Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<SimpleClass>(""));
+            var ex1 = Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<SimpleClass>(""));
             StringAssert.Contains("empty", ex1.Message);
 
-            var ex2 = Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<SimpleClass>(new byte[0]));
+            var ex2 = Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<SimpleClass>(new byte[0]));
             StringAssert.Contains("empty", ex2.Message);
 
-            var ex3 = Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<SimpleClass>(new byte[] { 0xEF, 0xBB, 0xBF }));
+            var ex3 = Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<SimpleClass>(new byte[] { 0xEF, 0xBB, 0xBF }));
             StringAssert.Contains("empty", ex3.Message);
         }
 
@@ -1164,7 +1164,7 @@ namespace Utility
             // 含空白 + 截断仍抛错
             var back3 = DefaultJson.FromJson<List<string>>("[ \"x\" , \"y\" ]");
             CollectionAssert.AreEqual(new[] { "x", "y" }, back3);
-            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.FromJson<List<string>>("[\"x\","));
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.FromJson<List<string>>("[\"x\","));
         }
 
         // ===== 回调顺序：基类先行（复审：派生类回调可能依赖基类状态就绪） =====
@@ -1209,7 +1209,7 @@ namespace Utility
                 DefaultJson.FromJson<SimpleClass>("{\r\n  \"name\": \"a\",\r\n  ?bad");
                 Assert.Fail("应当抛出异常");
             }
-            catch (Moirai.Atropos.GameException e)
+            catch (Moirai.Atropos.MoiraiException e)
             {
                 Assert.IsTrue(e.Message.Contains("line"), "错误信息应包含行号: " + e.Message);
             }
@@ -1245,7 +1245,7 @@ namespace Utility
             // 匿名类型成员均为 get-only：按往返对称契约不可序列化（原实现行为一致），
             // 且无任何可序列化字段 → 显式失败而非静默 "{}"
             var anon = new { name = "temp", value = 42 };
-            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.ToJson(anon));
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.ToJson(anon));
         }
 
         #endregion
@@ -1402,9 +1402,9 @@ namespace Utility
         [Test]
         public void Bytes_Truncated_Throws()
         {
-            Assert.Throws<Moirai.Atropos.GameException>(() =>
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() =>
                 DefaultJson.FromJson<List<int>>(System.Text.Encoding.UTF8.GetBytes("[1,2,3")));
-            Assert.Throws<Moirai.Atropos.GameException>(() =>
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() =>
                 DefaultJson.FromJson<SimpleClass>(System.Text.Encoding.UTF8.GetBytes("{\"name\":\"a\"")));
         }
 
@@ -1746,7 +1746,7 @@ namespace Utility
         [Test]
         public void MemberlessType_StillThrows()
         {
-            Assert.Throws<Moirai.Atropos.GameException>(() => DefaultJson.ToJson(new MemberlessClass()));
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => DefaultJson.ToJson(new MemberlessClass()));
         }
 
         #endregion

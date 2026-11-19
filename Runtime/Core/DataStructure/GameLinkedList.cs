@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -242,7 +242,7 @@ namespace Moirai.Atropos
             LinkedListNode<T> first = _linkedList.First;
             if (first == null)
             {
-                throw new GameException("First is invalid.");
+                throw new MoiraiException("First is invalid.");
             }
 
             _linkedList.RemoveFirst();
@@ -257,7 +257,7 @@ namespace Moirai.Atropos
             LinkedListNode<T> last = _linkedList.Last;
             if (last == null)
             {
-                throw new GameException("Last is invalid.");
+                throw new MoiraiException("Last is invalid.");
             }
 
             _linkedList.RemoveLast();
@@ -334,7 +334,7 @@ namespace Moirai.Atropos
             {
                 if (linkedList == null)
                 {
-                    throw new GameException("Linked list is invalid.");
+                    throw new MoiraiException("Linked list is invalid.");
                 }
 
                 _enumerator = linkedList.GetEnumerator();

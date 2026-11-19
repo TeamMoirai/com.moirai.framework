@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Moirai.Atropos
@@ -58,7 +58,7 @@ namespace Moirai.Atropos
         {
             if (callback == null)
             {
-                throw new GameException("Serialize callback is invalid.");
+                throw new MoiraiException("Serialize callback is invalid.");
             }
 
             _serializeCallbacks[version] = callback;
@@ -77,7 +77,7 @@ namespace Moirai.Atropos
         {
             if (callback == null)
             {
-                throw new GameException("Deserialize callback is invalid.");
+                throw new MoiraiException("Deserialize callback is invalid.");
             }
 
             _deserializeCallbacks[version] = callback;
@@ -92,7 +92,7 @@ namespace Moirai.Atropos
         {
             if (callback == null)
             {
-                throw new GameException("Try get value callback is invalid.");
+                throw new MoiraiException("Try get value callback is invalid.");
             }
 
             _tryGetValueCallbacks[version] = callback;
@@ -108,7 +108,7 @@ namespace Moirai.Atropos
         {
             if (_serializeCallbacks.Count <= 0)
             {
-                throw new GameException("No serialize callback registered.");
+                throw new MoiraiException("No serialize callback registered.");
             }
 
             return Serialize(stream, data, _latestSerializeCallbackVersion);
@@ -131,7 +131,7 @@ namespace Moirai.Atropos
             SerializeCallback callback = null;
             if (!_serializeCallbacks.TryGetValue(version, out callback))
             {
-                throw new GameException(StringUtility.Format("Serialize callback '{0}' is not exist.", version));
+                throw new MoiraiException(StringUtility.Format("Serialize callback '{0}' is not exist.", version));
             }
 
             return callback(stream, data);
@@ -150,14 +150,14 @@ namespace Moirai.Atropos
             byte header2 = (byte)stream.ReadByte();
             if (header0 != header[0] || header1 != header[1] || header2 != header[2])
             {
-                throw new GameException(StringUtility.Format("Header is invalid, need '{0}{1}{2}', current '{3}{4}{5}'.", (char)header[0], (char)header[1], (char)header[2], (char)header0, (char)header1, (char)header2));
+                throw new MoiraiException(StringUtility.Format("Header is invalid, need '{0}{1}{2}', current '{3}{4}{5}'.", (char)header[0], (char)header[1], (char)header[2], (char)header0, (char)header1, (char)header2));
             }
 
             byte version = (byte)stream.ReadByte();
             DeserializeCallback callback = null;
             if (!_deserializeCallbacks.TryGetValue(version, out callback))
             {
-                throw new GameException(StringUtility.Format("Deserialize callback '{0}' is not exist.", version));
+                throw new MoiraiException(StringUtility.Format("Deserialize callback '{0}' is not exist.", version));
             }
 
             return callback(stream);

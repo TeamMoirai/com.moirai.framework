@@ -132,11 +132,11 @@ namespace Moirai.Atropos
             if (service == null) throw new ArgumentNullException(nameof(service));
 
             if (IsDisposed || _disposePending)
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "Scope {0} is disposed or disposing; registration is rejected.", Kind));
 
             if (_servicesByContract.ContainsKey(contractType.TypeHandle))
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "Contract '{0}' has already been registered in {1} scope.",
                     contractType.FullName, Kind));
 
@@ -200,22 +200,22 @@ namespace Moirai.Atropos
             if (service == null) throw new ArgumentNullException(nameof(service));
 
             if (IsDisposed)
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "Scope {0} has been disposed; runtime registration is rejected.", Kind));
 
             if (_disposePending)
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "Scope {0} is being disposed; runtime registration is rejected.", Kind));
 
             if (_servicesByContract.ContainsKey(contractType.TypeHandle))
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "Contract '{0}' has already been registered in {1} scope.",
                     contractType.FullName, Kind));
 
             if (_isIterating)
             {
                 if (deferMode == EDeferMode.Throw)
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "Cannot register '{0}' while {1} scope is iterating (EDeferMode.Throw).",
                         contractType.FullName, Kind));
 
@@ -223,7 +223,7 @@ namespace Moirai.Atropos
                 {
                     if (_pendingChanges[i].Kind != PendingChangeKind.Unregister &&
                         _pendingChanges[i].ContractType == contractType)
-                        throw new GameException(StringUtility.Format(
+                        throw new MoiraiException(StringUtility.Format(
                             "Contract '{0}' has a pending registration in {1} scope.",
                             contractType.FullName, Kind));
                 }
@@ -253,7 +253,7 @@ namespace Moirai.Atropos
             if (_isIterating)
             {
                 if (deferMode == EDeferMode.Throw)
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "Cannot unregister '{0}' while {1} scope is iterating (EDeferMode.Throw).",
                         serviceType.FullName, Kind));
 
@@ -280,23 +280,23 @@ namespace Moirai.Atropos
             if (service == null) throw new ArgumentNullException(nameof(service));
 
             if (IsDisposed || _disposePending)
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "Scope {0} is disposed or disposing; contract binding is rejected.", Kind));
 
             if (_servicesByContract.ContainsKey(contractType.TypeHandle))
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "Contract '{0}' has already been registered in {1} scope.",
                     contractType.FullName, Kind));
 
             if (!_entriesByService.ContainsKey(service))
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "Service '{0}' is not registered in {1} scope; register it before binding additional contracts.",
                     service.GetType().FullName, Kind));
 
             if (_isIterating)
             {
                 if (deferMode == EDeferMode.Throw)
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "Cannot bind '{0}' while {1} scope is iterating (EDeferMode.Throw).",
                         contractType.FullName, Kind));
 
@@ -304,7 +304,7 @@ namespace Moirai.Atropos
                 {
                     if (_pendingChanges[i].Kind != PendingChangeKind.Unregister &&
                         _pendingChanges[i].ContractType == contractType)
-                        throw new GameException(StringUtility.Format(
+                        throw new MoiraiException(StringUtility.Format(
                             "Contract '{0}' has a pending registration in {1} scope.",
                             contractType.FullName, Kind));
                 }
@@ -354,21 +354,21 @@ namespace Moirai.Atropos
             if (service is MonoBehaviour)
             {
                 if (service is IServiceTickable)
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "MonoBehaviour service '{0}' cannot implement IServiceTickable. " +
                         "Use Unity's Update() instead.", service.GetType().FullName));
                 if (service is IServiceFixedTickable)
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "MonoBehaviour service '{0}' cannot implement IServiceFixedTickable. " +
                         "Use Unity's FixedUpdate() instead.", service.GetType().FullName));
                 if (service is IServiceLateTickable)
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "MonoBehaviour service '{0}' cannot implement IServiceLateTickable. " +
                         "Use Unity's LateUpdate() instead.", service.GetType().FullName));
                 // Gizmo 同理：Unity 对任意 MonoBehaviour 的 OnDrawGizmos 消息无条件反射调用，
                 // 再进本容器的轮询列表就是编辑器下双重绘制
                 if (service is IServiceGizmoDrawable)
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "MonoBehaviour service '{0}' cannot implement IServiceGizmoDrawable. " +
                         "Unity already drives OnDrawGizmos() on the component; the container would draw it twice.",
                         service.GetType().FullName));

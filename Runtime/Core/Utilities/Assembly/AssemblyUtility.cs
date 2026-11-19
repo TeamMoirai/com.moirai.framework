@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 
@@ -49,7 +49,7 @@ namespace Moirai.Atropos
         {
             if (results == null)
             {
-                throw new GameException("Results is invalid.");
+                throw new MoiraiException("Results is invalid.");
             }
 
             results.Clear();
@@ -68,7 +68,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(typeName))
             {
-                throw new GameException("Type name is invalid.");
+                throw new MoiraiException("Type name is invalid.");
             }
 
             if (s_CachedTypes.TryGetValue(typeName, out Type type))

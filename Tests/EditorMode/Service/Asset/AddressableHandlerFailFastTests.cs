@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace Service.Asset
 {
     /// <summary>
-    /// AddressableHandler 的契约守卫：实验性后端的能力缺失必须以 <see cref="GameException"/> 暴露，已接通的低内存回收委托必须真的落地。
+    /// AddressableHandler 的契约守卫：实验性后端的能力缺失必须以 <see cref="MoiraiException"/> 暴露，已接通的低内存回收委托必须真的落地。
     /// </summary>
     /// <remarks>
     /// 后端住在 <c>addressables</c> 插件装配里（<c>Moirai.Plugin.Addressables</c>），随 <c>ADDRESSABLES_INSTALLED</c> 条件编译存在， <br />
@@ -134,7 +134,7 @@ namespace Service.Asset
         }
 
         /// <summary>
-        /// 反射调用指定成员并断言抛出带预期片段的 <see cref="GameException"/>。
+        /// 反射调用指定成员并断言抛出带预期片段的 <see cref="MoiraiException"/>。
         /// </summary>
         /// <remarks>
         /// public 与 internal 都要查：同步取用族的三个成员是 <c>internal override</c>，
@@ -209,7 +209,7 @@ namespace Service.Asset
         {
             var exception = Assert.Throws<TargetInvocationException>(
                 () => method.Invoke(instance, args));
-            Assert.IsInstanceOf<GameException>(exception.InnerException);
+            Assert.IsInstanceOf<MoiraiException>(exception.InnerException);
             StringAssert.Contains(MessageFragment, exception.InnerException.Message);
             StringAssert.Contains(method.Name, exception.InnerException.Message);
         }

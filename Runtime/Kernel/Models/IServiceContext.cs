@@ -10,7 +10,7 @@ namespace Moirai.Atropos
     /// </remarks>
     public interface IServiceContext
     {
-        /// <summary>按契约接口解析依赖；未注册抛 <see cref="GameException"/>。</summary>
+        /// <summary>按契约接口解析依赖；未注册抛 <see cref="MoiraiException"/>。</summary>
         T GetRequiredService<T>() where T : class;
 
         /// <summary>按契约接口解析依赖；未注册返回 null。</summary>

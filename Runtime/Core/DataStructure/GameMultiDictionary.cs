@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
@@ -213,7 +213,7 @@ namespace Moirai.Atropos
             {
                 if (dictionary == null)
                 {
-                    throw new GameException("Dictionary is invalid.");
+                    throw new MoiraiException("Dictionary is invalid.");
                 }
 
                 _enumerator = dictionary.GetEnumerator();

@@ -31,7 +31,7 @@ namespace Moirai.Atropos
         /// <para><b>调用粒度契约</b>：接口按"每 token"分发（每个键/值/字面量一次调用），
         /// 而非每字符——接口开销由 token 内部工作量摊薄。</para>
         /// <para><b>Peek 契约</b>：返回当前字符/字节为 int（结构字符均为 ASCII，两路径统一可比）；
-        /// EOF 时抛带位置信息的 <see cref="GameException"/>。</para>
+        /// EOF 时抛带位置信息的 <see cref="MoiraiException"/>。</para>
         /// <para><b>Throw 契约</b>：各实现基于自身缓冲计算偏移/行列/上下文片段。</para>
         /// </remarks>
         internal interface IJsonLexer
@@ -397,7 +397,7 @@ namespace Moirai.Atropos
                 int snippetLen = Math.Min(40, _json.Length - snippetStart);
                 string snippet = snippetLen > 0 ? _json.Substring(snippetStart, snippetLen) : string.Empty;
 
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "{0} At offset {1} (line {2}, column {3}) near \"{4}\".",
                     message, _pos, line, col, snippet));
             }
@@ -1214,7 +1214,7 @@ namespace Moirai.Atropos
                 int snippetLen = Math.Min(40, _json.Length - snippetStart);
                 string snippet = snippetLen > 0 ? Encoding.UTF8.GetString(_json, snippetStart, snippetLen) : string.Empty;
 
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "{0} At offset {1} (line {2}, column {3}) near \"{4}\".",
                     message, _pos, line, col, snippet));
             }

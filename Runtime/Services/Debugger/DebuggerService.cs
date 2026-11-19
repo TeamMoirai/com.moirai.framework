@@ -148,7 +148,7 @@ namespace Moirai.Atropos.Debugger
         {
             if (configure == null)
             {
-                throw new GameException("Panel configure delegate is invalid.");
+                throw new MoiraiException("Panel configure delegate is invalid.");
             }
 
             s_Handler?.RegisterDebuggerWindow(path, new DebugPanel(path), configure);
@@ -163,7 +163,7 @@ namespace Moirai.Atropos.Debugger
         {
             if (view == null)
             {
-                throw new GameException("Service debug view is invalid.");
+                throw new MoiraiException("Service debug view is invalid.");
             }
 
             s_Handler?.RegisterDebuggerWindow(path, new IMGUIDebuggerWindow(view));

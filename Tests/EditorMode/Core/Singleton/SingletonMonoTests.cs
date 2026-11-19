@@ -142,8 +142,8 @@ namespace Core.Singleton
             thread.Start();
             thread.Join();
 
-            Assert.IsInstanceOf<GameException>(captured,
-                "物化前从后台线程访问应 fail-fast 抛出 GameException，而非越线程调用 Unity API");
+            Assert.IsInstanceOf<MoiraiException>(captured,
+                "物化前从后台线程访问应 fail-fast 抛出 MoiraiException，而非越线程调用 Unity API");
         }
 
         #endregion

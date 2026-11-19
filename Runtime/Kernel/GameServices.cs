@@ -237,7 +237,7 @@ namespace Moirai.Atropos
 
             if (GameApp.IsShutdown)
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "EnsureRegistered<{0}> blocked: GameApp is shut down. Rebuild the world via explicit RegisterService.",
                     typeof(T).FullName));
             }
@@ -283,7 +283,7 @@ namespace Moirai.Atropos
         #region 查找 [LOOKUP]
 
         /// <summary>
-        /// 获取服务（未找到抛 <see cref="GameException"/>）。
+        /// 获取服务（未找到抛 <see cref="MoiraiException"/>）。
         /// </summary>
         /// <remarks>
         /// 按 Gameplay &gt; Scene &gt; App 优先级返回最优服务；容器未构建时同样抛出。
@@ -293,7 +293,7 @@ namespace Moirai.Atropos
         {
             EnsureMainThread();
             if (s_World != null && s_World.TryGet(out T service)) return service;
-            throw new GameException(StringUtility.Format(
+            throw new MoiraiException(StringUtility.Format(
                 "Service '{0}' was not found in any active scope.", typeof(T).FullName));
         }
 

@@ -32,14 +32,14 @@ namespace Service.Asset
         [Test]
         public void Pack_RejectsOutOfRange_InsteadOfTruncating()
         {
-            Assert.Throws<GameException>(() => AssetKeyCodec.Pack(0, 1, 1,
+            Assert.Throws<MoiraiException>(() => AssetKeyCodec.Pack(0, 1, 1,
                 EAssetKind.Asset, EAssetHandleKind.AssetHandle), "id 0 是保留位，不得编进键");
-            Assert.Throws<GameException>(() => AssetKeyCodec.Pack(AssetKeyCodec.RESOURCE_KEY_PACKAGE_MAX + 1, 1, 1,
+            Assert.Throws<MoiraiException>(() => AssetKeyCodec.Pack(AssetKeyCodec.RESOURCE_KEY_PACKAGE_MAX + 1, 1, 1,
                 EAssetKind.Asset, EAssetHandleKind.AssetHandle));
-            Assert.Throws<GameException>(() => AssetKeyCodec.Pack(1, 1, AssetKeyCodec.RESOURCE_KEY_TYPE_MAX + 1,
+            Assert.Throws<MoiraiException>(() => AssetKeyCodec.Pack(1, 1, AssetKeyCodec.RESOURCE_KEY_TYPE_MAX + 1,
                 EAssetKind.Asset, EAssetHandleKind.AssetHandle));
             // 负 id 走的是同一条 <=0 判定；位域若直接左移会把负数折成正数，编出一条合法却错主的键。
-            Assert.Throws<GameException>(() => AssetKeyCodec.Pack(1, -1, 1,
+            Assert.Throws<MoiraiException>(() => AssetKeyCodec.Pack(1, -1, 1,
                 EAssetKind.Asset, EAssetHandleKind.AssetHandle));
         }
 
