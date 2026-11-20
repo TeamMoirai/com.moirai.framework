@@ -5,6 +5,7 @@ using Moirai.Atropos.Asset;
 using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Audio
 {
@@ -201,21 +202,25 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 获取指定音轨的音量。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float GetTrackVolume(EAudioTrack track) => s_Handler?.GetTrackVolume(track) ?? 0f;
 
         /// <summary>
         /// 设置指定音轨的音量。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetTrackVolume(EAudioTrack track, float volume) => s_Handler?.SetTrackVolume(track, volume);
 
         /// <summary>
         /// 获取指定音轨的音高倍率（运行期，默认 1）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float GetTrackPitch(EAudioTrack track) => s_Handler?.GetTrackPitch(track) ?? AudioGroupConfig.DEFAULT_PITCH;
 
         /// <summary>
         /// 设置指定音轨的音高倍率，正在播放的声部会按新倍率重算音高。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetTrackPitch(EAudioTrack track, float pitch) => s_Handler?.SetTrackPitch(track, pitch);
 
         /// <summary>
@@ -237,16 +242,19 @@ namespace Moirai.Atropos.Audio
         /// 设置指定句柄声部的基础音高（不含音轨倍率），并按当前音轨倍率重算实际音高。
         /// </summary>
         /// <remarks>Unity 后端走 Agent；中间件后端按声部表直推原生实例（桥接 <see cref="Middleware.IAudioMiddlewareBridge.SetInstancePitch"/>）。</remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetPitch(ulong handle, float pitch) => s_Handler?.SetVoicePitch(handle, pitch);
 
         /// <summary>
         /// 获取指定音轨的静音状态。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetTrackMute(EAudioTrack track) => s_Handler?.GetTrackMute(track) ?? false;
 
         /// <summary>
         /// 设置指定音轨的静音状态。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetTrackMute(EAudioTrack track, bool mute) => s_Handler?.SetTrackMute(track, mute);
 
         /// <summary>
@@ -329,6 +337,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 重启音频服务。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Restart() => s_Handler?.Restart();
 
         #endregion 服务方法 [SERVICE METHOD]
@@ -339,6 +348,7 @@ namespace Moirai.Atropos.Audio
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
         /// <remarks>每次播放从池取一份冷参并写全 AudioSource 空间整形；热路径连发改用 <see cref="AudioPlayRequest"/> 重载（cold 传 null 即零堆对象）。</remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Play(AudioClip clip, in AudioPlayOptions options) =>
             s_Handler?.Play(clip, options) ?? 0UL;
 
@@ -350,6 +360,7 @@ namespace Moirai.Atropos.Audio
         /// 非 null 时所有权转移给服务：调用方不得再使用或自行归还，同一实例也不可在上一次播放结束前重复投递。
         /// 每次播放都要带空间整形与淡入/时间参数时改走 <see cref="AudioPlayOptions"/> 门面。
         /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Play(AudioClip clip, in AudioPlayRequest request, AudioPlayColdParams cold = null) =>
             s_Handler?.Play(clip, request, cold) ?? 0UL;
 
@@ -369,6 +380,7 @@ namespace Moirai.Atropos.Audio
         /// 播放音频，返回服务自维护的音频句柄。
         /// </summary>
         /// <remarks>默认异步加载；同步加载（<paramref name="bAsync"/>=false）会阻塞主线程，仅限启动期/预加载场景使用。</remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Play(string path, in AudioPlayOptions options, bool bAsync = true) =>
             s_Handler?.Play(path, options, bAsync) ?? 0UL;
         
@@ -392,16 +404,19 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停指定句柄的音频。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Pause(ulong handle) => s_Handler?.Pause(handle);
 
         /// <summary>
         /// 恢复播放指定句柄的音频。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Unpause(ulong handle) => s_Handler?.Unpause(handle);
 
         /// <summary>
         /// 停止指定句柄的音频。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Stop(ulong handle, float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.Stop(handle, fadeoutDuration);
 
         #endregion 音频控制 [AUDIO CONTROLS]
@@ -411,52 +426,62 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 对每个匹配 ID 的 AudioAgent 执行操作（零分配）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ForEachAgentByID(int id, Action<AudioAgent> action) => s_Handler?.ForEachAgentByID(id, action);
 
         /// <summary>
         /// 对每个匹配 Clip 的 AudioAgent 执行操作（零分配）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ForEachAgentByClip(AudioClip clip, Action<AudioAgent> action) => s_Handler?.ForEachAgentByClip(clip, action);
 
         /// <summary>
         /// 对每个匹配 ID 的 AudioHandle 执行操作（零分配）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ForEachHandleByID(int id, Action<ulong> action) => s_Handler?.ForEachHandleByID(id, action);
 
         /// <summary>
         /// 返回当前正在播放的指定 clip 数量。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CurrentlyPlayingCount(AudioClip clip) => s_Handler?.CurrentlyPlayingCount(clip) ?? 0;
 
         /// <summary>
         /// 通过句柄获取 AudioAgent（用于访问 AudioResource 等内部属性）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AudioAgent GetAgentByHandle(ulong handle) => s_Handler?.GetAgentByHandle(handle);
 
         /// <summary>
         /// 检查指定句柄的音频是否正在播放。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsPlaying(ulong handle) => s_Handler?.IsPlaying(handle) ?? false;
 
         /// <summary>
         /// 检查指定句柄的音频是否已停止。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsStopped(ulong handle) => s_Handler?.IsStopped(handle) ?? true;
 
         /// <summary>
         /// 移除已停止音频的句柄映射。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ReleaseHandle(ulong handle) => s_Handler?.ReleaseHandle(handle);
 
         /// <summary>
         /// 对指定 ID 的音频进行音量过渡（零 lambda 分配）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void PlayFade(int id, float duration, float finalVolume, TweenEase ease = default) =>
             s_Handler?.PlayFadeByID(id, duration, finalVolume, ease);
 
         /// <summary>
         /// 停止指定 ID 音频的音量过渡（零 lambda 分配）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopFade(int id) => s_Handler?.StopFadeByID(id);
 
         #endregion 获取 [FIND]
@@ -466,21 +491,25 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停某类音频的播放。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void PauseTrack(EAudioTrack track) => s_Handler?.PauseTrack(track);
 
         /// <summary>
         /// 恢复某类音频的播放。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void UnpauseTrack(EAudioTrack track) => s_Handler?.UnpauseTrack(track);
 
         /// <summary>
         /// 如果指定音轨当前处于暂停状态则返回 <c>true</c>，否则返回 <c>false</c>。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsPaused(EAudioTrack track) => s_Handler?.IsPaused(track) ?? false;
 
         /// <summary>
         /// 停止某类音频的播放。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopTrack(EAudioTrack track, float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopTrack(track, fadeoutDuration);
 
         #endregion 音轨控制 [TRACK CONTROLS]
@@ -490,31 +519,37 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 暂停所有音频。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void PauseAll() => s_Handler?.PauseAll();
 
         /// <summary>
         /// 恢复所有音频。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void UnpauseAll() => s_Handler?.UnpauseAll();
 
         /// <summary>
         /// 停止所有音频。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopAll(float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopAll(fadeoutDuration);
 
         /// <summary>
         /// 停止除持久性音频之外的所有音频。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopAllButPersistent(float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopAllButPersistent(fadeoutDuration);
 
         /// <summary>
         /// 停止所有循环音频。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopAllLooping(float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopAllLooping(fadeoutDuration);
 
         /// <summary>
         /// 停止匹配用户 ID 的全部音频（零 lambda）。用于分层 BGM 同 ID 替换，不影响其它 ID。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopByID(int id, float fadeoutDuration = AudioAgent.FADEOUT_DEFAULT_DURATION) => s_Handler?.StopByID(id, fadeoutDuration);
 
         #endregion 所有音频控制 [ALL AUDIO CONTROLS]
@@ -524,40 +559,47 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 在指定的持续时间内，淡入 Master 音轨到最终音量。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void FadeMasterTrack(float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default) =>
             s_Handler?.FadeMasterTrack(duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
         /// 停止 Master 音轨上所有当前的淡化（Fade）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopFadeMasterTrack() => s_Handler?.StopFadeMasterTrack();
 
         /// <summary>
         /// 在指定的持续时间内，淡入整个音轨到最终音量。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void FadeTrack(EAudioTrack track, float duration, float initialVolume = 0f, float finalVolume = 1f, TweenEase tweenEase = default) =>
             s_Handler?.FadeTrack(track, duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
         /// 停止指定音轨上所有当前的淡化（Fade）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopFadeTrack(EAudioTrack track) => s_Handler?.StopFadeTrack(track);
 
         /// <summary>
         /// 对指定句柄的音频进行音量过渡。
         /// </summary>
         /// <remarks>使用手动过渡系统，完全零 GC。</remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void FadeAudio(ulong handle, float duration, float initialVolume, float finalVolume, TweenEase tweenEase) =>
             s_Handler?.FadeAudio(handle, duration, initialVolume, finalVolume, tweenEase);
 
         /// <summary>
         /// 停止指定句柄音频上所有当前的淡化（Fade）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void StopFadeAudio(ulong handle) => s_Handler?.StopFadeAudio(handle);
 
         /// <summary>
         /// 检查指定句柄的音频是否正在过渡中。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SoundIsFadingOut(ulong handle) => s_Handler?.SoundIsFadingOut(handle) ?? false;
 
         #endregion 过渡 [FADES]
@@ -567,27 +609,32 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 预先加载 <c>AudioClip</c>，并放入对象池。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void PutInAudioPool(List<string> list) => s_Handler?.PutInAudioPool(list);
 
         /// <summary>
         /// 将部分 <c>AudioClip</c> 从对象池移出。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void RemoveClipFromPool(List<string> list) => s_Handler?.RemoveClipFromPool(list);
 
         /// <summary>
         /// 清空 <c>AudioClip</c> 的对象池。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CleanAudioPool() => s_Handler?.CleanAudioPool();
 
         /// <summary>
         /// 预加载地址（默认 Pin 常驻；Lease 保留 + 缓存）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Preload(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin) =>
             s_Handler?.Preload(address, policy) ?? false;
 
         /// <summary>
         /// 异步预加载地址。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void PreloadAsync(string address, EAudioCachePolicy policy = EAudioCachePolicy.Pin,
             Action<bool> completed = null) =>
             s_Handler?.PreloadAsync(address, policy, completed);
@@ -595,12 +642,14 @@ namespace Moirai.Atropos.Audio
         /// <summary>
         /// 卸载地址缓存（force=true 忽略引用计数）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool UnloadClipCache(string address, bool force = false) =>
             s_Handler?.UnloadClipCache(address, force) ?? false;
 
         /// <summary>
         /// 清空 Clip 缓存（force=true 连 Pin 一并清）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ClearClipCache(bool force = false) => s_Handler?.ClearClipCache(force);
 
         #endregion 资源池 [ASSET POOL]
@@ -611,11 +660,13 @@ namespace Moirai.Atropos.Audio
         /// 加载声音库（FMOD/Wwise）。
         /// </summary>
         /// <returns>后端或桥接不支持、以及加载失败都返回 <c>false</c>。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool LoadBank(string bankPath) => s_Handler?.LoadBank(bankPath) ?? false;
 
         /// <summary>
         /// 卸载声音库（语义同 <see cref="LoadBank"/>）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool UnloadBank(string bankPath) => s_Handler?.UnloadBank(bankPath) ?? false;
 
         /// <summary>
@@ -625,6 +676,7 @@ namespace Moirai.Atropos.Audio
         /// <param name="name">参数名。</param>
         /// <param name="value">参数值（线性，量纲由音效师在工程里定义）。</param>
         /// <param name="handle">播放句柄；<c>0</c> 表示工程/全局参数。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetRtpc(string name, float value, ulong handle = 0UL) => s_Handler?.SetRtpc(name, value, handle);
 
         #endregion 中间件接入面 [AUTHORING APIS]

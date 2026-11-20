@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -289,6 +290,7 @@ namespace Moirai.Atropos
         /// 按 Gameplay &gt; Scene &gt; App 优先级返回最优服务；容器未构建时同样抛出。
         /// </remarks>
         [HotPath]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T GetRequiredService<T>() where T : class
         {
             EnsureMainThread();
@@ -301,6 +303,7 @@ namespace Moirai.Atropos
         /// 获取服务（未找到返回 null）。
         /// </summary>
         [HotPath]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T GetService<T>() where T : class
         {
             EnsureMainThread();
@@ -311,6 +314,7 @@ namespace Moirai.Atropos
         /// 尝试获取服务。
         /// </summary>
         [HotPath]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryGetService<T>(out T service) where T : class
         {
             EnsureMainThread();

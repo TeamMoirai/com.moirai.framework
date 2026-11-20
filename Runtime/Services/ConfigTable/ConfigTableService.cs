@@ -4,6 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Asset;
 using UnityEngine;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.ConfigTable
 {
@@ -67,6 +68,7 @@ namespace Moirai.Atropos.ConfigTable
         /// 从配置表获取所有多语言文本。
         /// </summary>
         /// <returns>多语言文本字典。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Dictionary<string, List<string>> GetAllLocalizedStrings() =>
             s_Handler?.GetAllLocalizedStrings();
 
@@ -74,6 +76,7 @@ namespace Moirai.Atropos.ConfigTable
         /// 配置表自报的语言（Name 或 Code），顺序与 <see cref="GetAllLocalizedStrings"/> 的列顺序一致。
         /// </summary>
         /// <returns>未自报或未就绪时为空列表。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IReadOnlyList<string> GetLocalizationLanguageCodes() =>
             s_Handler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
 
@@ -86,6 +89,7 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <param name="languageCode"><see cref="GetLocalizationLanguageCodes"/> 自报的语言码。</param>
         /// <returns>未注册处理器或该语言取不到时为 <c>null</c>。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode) =>
             s_Handler?.GetLocalizedStringsByLanguage(languageCode);
 
@@ -94,6 +98,7 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <param name="id">配置 ID。</param>
         /// <param name="cancellationToken">取消令牌。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken = default) =>
             s_Handler?.LoadSpriteByID(id, cancellationToken) ?? UniTask.FromResult<Sprite>(null);
 
@@ -101,6 +106,7 @@ namespace Moirai.Atropos.ConfigTable
         /// 根据 ID 从配置表获取弹窗资产的位置。
         /// </summary>
         /// <param name="id">配置 ID。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetUIWindowLocation(string id) =>
             s_Handler?.GetUIWindowLocation(id);
 
@@ -121,12 +127,14 @@ namespace Moirai.Atropos.ConfigTable
         /// 编辑器预览取数：全表多语言文本，列序即 <see cref="GetLocalizationLanguageCodesForEditor"/> 的自报序。
         /// </summary>
         /// <returns>取不到时为 <c>null</c>（由调用方缓存失败并限流告警）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Dictionary<string, List<string>> GetAllLocalizedStringsForEditor() =>
             PreviewHandler?.GetAllLocalizedStrings();
 
         /// <summary>
         /// 编辑器预览取数：与 <see cref="GetAllLocalizedStringsForEditor"/> 同源、同列序的语言自报。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IReadOnlyList<string> GetLocalizationLanguageCodesForEditor() =>
             PreviewHandler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
 

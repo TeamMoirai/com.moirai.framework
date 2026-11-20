@@ -1,5 +1,6 @@
 using Moirai.Atropos.UI;
 using UnityEngine;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Input
 {
@@ -12,10 +13,12 @@ namespace Moirai.Atropos.Input
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
     /// </remarks>
-    // 依赖说明：订 UIService.onWindowShown/onWindowClosed 门面广播 + 读 UIService.CurrentModal——广播驱动软依赖，
-    // 不做 [ServiceDependency] 硬声明（UI 侧对 Input 是静态调用硬依赖，双向硬声明会构成拓扑环）。
+    // 依赖说明：订 IUIService.onWindowShown/onWindowClosed 窗口开合广播 + 读 CurrentModal（Phase 2 经上下文解析注入）。
+    // 依赖单向声明（Input → UI）：UI 侧对 Input 只有静态门面的运行时软消费（PreventInteractionUI 读写，未就绪静默忽略），
+    // 双向硬声明会构成拓扑环，故 UI 侧不反向声明。
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(IInputService))]
+    [ServiceDependency(typeof(IUIService))]
     public partial class InputService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
@@ -51,17 +54,22 @@ namespace Moirai.Atropos.Input
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IUIService _ui;
+
         /// <summary>
         /// 初始化输入服务：触发 <c>Handler</c> 懒加载并订阅对焦与窗口开合广播。由 <see cref="GameAppSettings.Initiation"/> 调用。
         /// </summary>
         public override void OnInit()
         {
+            _ui = Context.GetRequiredService<IUIService>();
+
             // 确保 Handler 已初始化
             _ = Handler;
 
             GameApp.onApplicationFocus += ResetInput;
-            UIService.onWindowShown += RefreshUIModal;
-            UIService.onWindowClosed += RefreshUIModal;
+            _ui.onWindowShown += RefreshUIModal;
+            _ui.onWindowClosed += RefreshUIModal;
         }
 
         /// <summary>
@@ -69,14 +77,19 @@ namespace Moirai.Atropos.Input
         /// </summary>
         public override void OnShutdown()
         {
+            if (_ui != null)
+            {
+                _ui.onWindowShown -= RefreshUIModal;
+                _ui.onWindowClosed -= RefreshUIModal;
+                _ui = null;
+            }
+
+            GameApp.onApplicationFocus -= ResetInput;
+
             var handler = s_Handler;
             s_Handler = null;
             // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
             (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
-
-            GameApp.onApplicationFocus -= ResetInput;
-            UIService.onWindowShown -= RefreshUIModal;
-            UIService.onWindowClosed -= RefreshUIModal;
         }
 
         #endregion
@@ -138,6 +151,7 @@ namespace Moirai.Atropos.Input
         /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
         /// <param name="actionGroup">输入动作分组。</param>
         /// <returns>是否按下（未就绪时为 false）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetButtonDown(string actionName, string actionGroup = "") =>
             s_Handler?.GetButtonDown(actionName, actionGroup) ?? false;
 
@@ -147,6 +161,7 @@ namespace Moirai.Atropos.Input
         /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
         /// <param name="actionGroup">输入动作分组。</param>
         /// <returns>是否抬起（未就绪时为 false）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetButtonUp(string actionName, string actionGroup = "") =>
             s_Handler?.GetButtonUp(actionName, actionGroup) ?? false;
 
@@ -174,6 +189,7 @@ namespace Moirai.Atropos.Input
         /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
         /// <param name="actionGroup">输入动作分组。</param>
         /// <returns>按钮状态布尔值（未就绪时为 false）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetBool(string actionName, string actionGroup = "") =>
             s_Handler?.GetBool(actionName, actionGroup) ?? false;
 
@@ -183,6 +199,7 @@ namespace Moirai.Atropos.Input
         /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
         /// <param name="actionGroup">输入动作分组。</param>
         /// <returns>返回驱动此动作的控件或绑定的当前值（未就绪时为 0）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float GetFloat(string actionName, string actionGroup = "") =>
             s_Handler?.GetFloat(actionName, actionGroup) ?? 0f;
 
@@ -192,6 +209,7 @@ namespace Moirai.Atropos.Input
         /// <param name="actionName">输入动作名，如果为全称则 actionGroup 置空。</param>
         /// <param name="actionGroup">输入动作分组。</param>
         /// <returns>返回驱动此动作的控件或绑定的当前值（未就绪时为 zero）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 GetVector2(string actionName, string actionGroup = "") =>
             s_Handler?.GetVector2(actionName, actionGroup) ?? Vector2.zero;
 
@@ -200,6 +218,7 @@ namespace Moirai.Atropos.Input
         /// </summary>
         /// <param name="button">鼠标按键。</param>
         /// <returns>是否在本帧按下（未就绪时为 false）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetMouseButtonDown(EMouseButton button) =>
             s_Handler?.GetMouseButtonDown(button) ?? false;
 
@@ -208,6 +227,7 @@ namespace Moirai.Atropos.Input
         /// </summary>
         /// <param name="button">鼠标按键。</param>
         /// <returns>是否在本帧抬起（未就绪时为 false）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetMouseButtonUp(EMouseButton button) =>
             s_Handler?.GetMouseButtonUp(button) ?? false;
 
@@ -216,6 +236,7 @@ namespace Moirai.Atropos.Input
         /// </summary>
         /// <param name="button">鼠标按键。</param>
         /// <returns>是否正在按住（未就绪时为 false）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetMouseButtonPressed(EMouseButton button) =>
             s_Handler?.GetMouseButtonPressed(button) ?? false;
 
@@ -223,6 +244,7 @@ namespace Moirai.Atropos.Input
         /// 返回鼠标的当前位置。
         /// </summary>
         /// <returns>鼠标屏幕坐标（未就绪时为 zero）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 GetMousePosition() =>
             s_Handler?.GetMousePosition() ?? Vector2.zero;
 
@@ -230,6 +252,7 @@ namespace Moirai.Atropos.Input
         /// 获取鼠标滚轮滚动值。
         /// </summary>
         /// <returns>滚轮滚动增量（未就绪时为 zero）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 GetScrollDelta() =>
             s_Handler?.GetScrollDelta() ?? Vector2.zero;
 

@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.UI;
 
 namespace Moirai.Atropos
 {
@@ -24,6 +25,10 @@ namespace Moirai.Atropos
                 {
                     // 注册（第一阶段：仅入图，顺序无关；清单由源生成器按 [AutoRegisterService] 生成）
                     BuiltinServiceRegistration.RegisterAll(GameServices.Default);
+
+                    // UIService 双轨例外：不声明 [ProviderHandlerHost]，IUIService 契约绑定在此显式补登
+                    // （第一阶段注册即写入契约映射，此处查询无需等初始化；服务互调经 Context.GetRequiredService<IUIService>() 解析）
+                    GameServices.RegisterService(EServiceScopeKind.App, typeof(IUIService), GameServices.GetRequiredService<UIService>());
 
                     // 项目侧扩展点：此时入图的服务与内置服务一并参与下面的拓扑排序
                     GameApp.InvokeServicesComposing();

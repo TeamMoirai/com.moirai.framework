@@ -35,6 +35,7 @@ namespace Moirai.Atropos.SourceGenerators
 
         private const string IServiceFullyQualifiedName = "Moirai.Atropos.IService";
         private const string ProviderHandlerHostFullyQualifiedName = "Moirai.Atropos.ProviderHandlerHostAttribute";
+        private const string AutoRegisterServiceFullyQualifiedName = "Moirai.Atropos.AutoRegisterServiceAttribute";
         private const string ServiceDependencyAttributeFullyQualifiedName = "Moirai.Atropos.ServiceDependencyAttribute";
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
@@ -140,7 +141,10 @@ namespace Moirai.Atropos.SourceGenerators
             = new System.Collections.Generic.Dictionary<Compilation, System.Collections.Generic.HashSet<string>>();
 
         /// <summary>
-        /// 收集编译单元内全部 [ProviderHandlerHost(typeof(I{Service}), ...)] 自报的契约接口全名（Phase 2 注入互调——依赖声明允许指契约接口）。
+        /// 收集编译单元内的合法契约接口全名（Phase 2 注入互调——依赖声明允许指契约接口）：
+        /// ① [ProviderHandlerHost(typeof(I{Service}), ...)] 自报的契约接口； <br />
+        /// ② [AutoRegisterService] 服务类实现的接口——无 ProviderHandlerHost 的服务（如 UIService 双轨例外）
+        /// 经组合根显式补登契约绑定，其实现接口同样可作为依赖声明目标。
         /// </summary>
         private static System.Collections.Generic.HashSet<string> GetContractInterfaces(Compilation compilation)
         {
@@ -167,16 +171,24 @@ namespace Moirai.Atropos.SourceGenerators
                 {
                     foreach (var attr in type.GetAttributes())
                     {
-                        if (attr.AttributeClass?.ToDisplayString() != ProviderHandlerHostFullyQualifiedName)
-                            continue;
-                        if (attr.ConstructorArguments.Length == 0)
-                            continue;
-                        var first = attr.ConstructorArguments[0];
-                        if (first.Value is INamedTypeSymbol contract && contract.TypeKind == TypeKind.Interface)
+                        var attrName = attr.AttributeClass?.ToDisplayString();
+                        if (attrName == ProviderHandlerHostFullyQualifiedName)
                         {
-                            set.Add(contract.ToDisplayString());
+                            if (attr.ConstructorArguments.Length != 0 &&
+                                attr.ConstructorArguments[0].Value is INamedTypeSymbol contract &&
+                                contract.TypeKind == TypeKind.Interface)
+                            {
+                                set.Add(contract.ToDisplayString());
+                            }
                         }
-                        break;
+                        else if (attrName == AutoRegisterServiceFullyQualifiedName)
+                        {
+                            // 自动注册服务实现的接口一并入白名单（含 IService 本身——非接口依赖另有判定，无副作用）
+                            foreach (var iface in type.AllInterfaces)
+                            {
+                                set.Add(iface.ToDisplayString());
+                            }
+                        }
                     }
 
                     if (type.ContainingNamespace != null && type.IsStatic)

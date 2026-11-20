@@ -99,6 +99,7 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("// </auto-generated>");
             sb.AppendLine();
             sb.AppendLine("using System;");
+            sb.AppendLine("using System.Runtime.CompilerServices;");
             sb.AppendLine("using System.Threading;");
             sb.AppendLine();
             sb.AppendLine($"namespace {info.Namespace}");
@@ -115,6 +116,7 @@ namespace Moirai.Atropos.SourceGenerators
                 sb.AppendLine("        /// <summary>");
                 sb.AppendLine("        /// 创建默认处理器（settings 未配置时的代码兜底）。");
                 sb.AppendLine("        /// </summary>");
+                sb.AppendLine("        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
                 sb.AppendLine($"        internal static {info.HandlerTypeName} CreateDefaultHandler() => new {info.DeclaredDefaultFqn}();");
                 sb.AppendLine();
             }
@@ -122,13 +124,18 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        /// <summary>");
             sb.AppendLine("        /// Handler 是否可用。");
             sb.AppendLine("        /// </summary>");
-            sb.AppendLine("        public static bool IsValid => s_Handler != null;");
+            sb.AppendLine("        public static bool IsValid");
+            sb.AppendLine("        {");
+            sb.AppendLine("            [MethodImpl(MethodImplOptions.AggressiveInlining)]");
+            sb.AppendLine("            get => s_Handler != null;");
+            sb.AppendLine("        }");
             sb.AppendLine();
             sb.AppendLine("        /// <summary>");
             sb.AppendLine("        /// 取就绪处理器；未就绪时抛 <see cref=\"Moirai.Atropos.GameException\"/>（写路径 fail-fast——禁止静默降级）。");
             sb.AppendLine("        /// <para>读 <c>s_Handler</c> 不触发懒加载：服务未注册/未初始化时立即失败，避免写操作静默丢档。</para>");
             sb.AppendLine("        /// </summary>");
             sb.AppendLine($"        /// <returns>已就绪的处理器实例。</returns>");
+            sb.AppendLine("        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
             sb.AppendLine($"        private static {info.HandlerTypeName} RequireHandler()");
             sb.AppendLine("        {");
             sb.AppendLine("            var handler = s_Handler;");
@@ -144,6 +151,7 @@ namespace Moirai.Atropos.SourceGenerators
 
             sb.AppendLine($"        internal static {info.HandlerTypeName} Handler");
             sb.AppendLine("        {");
+            sb.AppendLine("            [MethodImpl(MethodImplOptions.AggressiveInlining)]");
             sb.AppendLine("            get");
             sb.AppendLine("            {");
             sb.AppendLine("                var handler = s_Handler;");
@@ -253,12 +261,14 @@ namespace Moirai.Atropos.SourceGenerators
             // 于是「降级到空处理器」与「测试里临时换后端」只能反射私有字段——那是运行期才炸的耦合。
             sb.AppendLine();
             sb.AppendLine("        /// <summary>读当前处理器：不触发懒加载，也不产生任何副作用。</summary>");
+            sb.AppendLine("        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
             sb.AppendLine($"        internal static {info.HandlerTypeName} Internal_PeekHandler() => s_Handler;");
             sb.AppendLine();
             sb.AppendLine("        /// <summary>");
             sb.AppendLine("        /// 换入处理器并返回原值，允许传 null；不调用 <c>Internal_Init</c> 也不关停原处理器。");
             sb.AppendLine("        /// <para>框架内部门面与测试用它做无损换入换出，用完请把原值换回去。</para>");
             sb.AppendLine("        /// </summary>");
+            sb.AppendLine("        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
             sb.AppendLine($"        internal static {info.HandlerTypeName} Internal_UseHandler({info.HandlerTypeName} next) => Interlocked.Exchange(ref s_Handler, next);");
 
             // 关闭 Domain Reload 的编辑器工作流下，静态 s_Handler 会跨 Play 会话残留并指向上一局已销毁的

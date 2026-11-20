@@ -56,6 +56,9 @@ namespace Moirai.Atropos.Audio
         private ulong _autoUnSoloOnEnd;
         private UnSoloTimerState _unSoloTimerState;
 
+        /// <summary>计时器契约实例：首次注册自动独奏回执时经容器解析一次并缓存（不调静态门面）。</summary>
+        private ITimerService _timer;
+
         // ===== 热路径播放状态（从 AudioPlayRequest 解出，Update 高频读）=====
         private AudioPlayRequest _hot;
         // 在播 clip 的托管镜像：并发计数/按 clip 遍历按它预过滤，免逐声部原生读（BeginPlayback 写、EnterEndState 清）
@@ -554,7 +557,7 @@ namespace Moirai.Atropos.Audio
                     state.Agent = this;
                     state.AllTracks = false;
                     state.Track = _soloTrack;
-                    _autoUnSoloOnEnd = TimerService.Delay(_playDuration, static s => s.Agent.UnSoloFromTimer(s), state);
+                    _autoUnSoloOnEnd = EnsureTimer().Delay(_playDuration, static s => s.Agent.UnSoloFromTimer(s), state);
                 }
             }
             else if (_soloAllTracks)
@@ -567,7 +570,7 @@ namespace Moirai.Atropos.Audio
                     UnSoloTimerState state = _unSoloTimerState ??= new UnSoloTimerState();
                     state.Agent = this;
                     state.AllTracks = true;
-                    _autoUnSoloOnEnd = TimerService.Delay(_playDuration, static s => s.Agent.UnSoloFromTimer(s), state);
+                    _autoUnSoloOnEnd = EnsureTimer().Delay(_playDuration, static s => s.Agent.UnSoloFromTimer(s), state);
                 }
             }
         }
@@ -859,6 +862,14 @@ namespace Moirai.Atropos.Audio
             {
                 MuteAudiosOnTrack(state.Track, false);
             }
+        }
+
+        /// <summary>
+        /// 取计时器契约实例：首次取用时经容器解析一次并缓存（零分配稳态，不调静态门面）。
+        /// </summary>
+        private ITimerService EnsureTimer()
+        {
+            return _timer ??= GameServices.GetRequiredService<ITimerService>();
         }
 
         /// <summary>

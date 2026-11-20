@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -629,6 +630,7 @@ namespace Moirai.Atropos
         /// <summary>
         /// 获取服务（未找到抛 <see cref="GameException"/>）。按 Gameplay &gt; Scene &gt; App 优先级返回最优服务。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T GetRequiredService<T>() where T : class
         {
             if (TryGet(out T service)) return service;
@@ -640,6 +642,7 @@ namespace Moirai.Atropos
         /// 获取服务（未找到返回 null）。按 Gameplay &gt; Scene &gt; App 优先级返回最优服务。
         /// </summary>
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T GetService<T>() where T : class
         {
             return TryGet(out T service) ? service : null;
@@ -648,11 +651,13 @@ namespace Moirai.Atropos
         /// <summary>
         /// 尝试获取服务。按 Gameplay &gt; Scene &gt; App 优先级返回最优服务。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetService<T>(out T service) where T : class
         {
             return TryGet(out service);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool TryGet<T>(out T service) where T : class
         {
             if (_bindingsByContract.TryGetValue(typeof(T).TypeHandle, out var bindings) &&
@@ -905,6 +910,7 @@ namespace Moirai.Atropos
                 }
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool TryGetBest(out IService service)
             {
                 if (_gameplay != null) { service = _gameplay; return true; }

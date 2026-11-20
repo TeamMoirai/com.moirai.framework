@@ -16,6 +16,10 @@
 
 - 新增按键重绑定（Input System 后端）：`IInputRebindable` 能力窄接口 + `InputService.Rebinding` 能力探测（旧后端访问抛 `GameException`）、`RebindAsync` 交互式监听（冲突三策略 Fail/Override/Cancel、复合绑定按部件落点、默认屏蔽鼠标触屏）、覆写走 `InputBinding.overridePath` 并经 `GameSettings`（键 `Setting.Input.Rebind.{Group/Name}`）设备级持久化、启动自动恢复；重绑终态发布 `InputRebindEvent` 供 UI 提示层订阅刷新，详见 `Documentation~/Input.md` 的「按键重绑定（Rebinding）」
 
+#### UI
+
+- 新增 `IUIService` 契约接口：轨无关消费面（开窗/关隐/查询/异步取窗/安全区）+ `onWindowShown`/`onWindowClosed` 事件桥接，`UIService` 显式实现转发静态门面保持单一语义源；组合根在注册清单后显式补登契约绑定，服务互调经 `Context.GetRequiredService<IUIService>()` 解析
+
 #### Tests
 
 - 新增 `AllocationCapture` 字节级分配计量夹具（GC 线程字节差值主口径 + Profiler 稳态对照），并挂 Timer 万次 add/remove、事件稳态发布与订阅退订三组 0-Alloc 门禁
@@ -36,9 +40,16 @@
 
 ### Changed
 
+#### Core
+
+- ⚠ 服务间引用范式统一：内置服务的跨服务依赖一律「`[ServiceDependency]` 声明 + `OnInit` 中 `Context.GetRequiredService<IXxxService>()` 解析到实例字段」——Timer/UI/Save/Procedure/GameObjectPool 五服务的调试窗注册与 InputService 的窗口事件订阅不再走静态门面；`ProcedureService` 依赖声明 `typeof(UIService)` 改为 `typeof(IUIService)`；`InputService` 新增 `IUIService` 依赖且 `UIService` 相应移除 `IInputService` 声明（保持依赖单向，避免拓扑环）；`UIService.OnInit` 在容器外装配（上下文为空）时跳过调试面板注册、其余流程不变——自定义服务以 `UIService` 具体类型声明依赖的需同步改接口
+- ⚠ 机制类不再调静态门面：`AssetLeaseScope` 改持注入/容器解析的 `IAssetService`（公共无参构造保留，首次 `Load` 经容器解析一次并缓存——boot 前调用从「自动注册资产服务」变为抛 `GameException`）；Audio 的 clip 租约来源（`AssetClipLeaseSource`）与 AudioAgent 自动解除独奏计时器同改容器契约引用
+- 服务间引用与查找热路径内联：门面 one-liner 转发与显式接口实现、`GameServices.GetRequiredService/GetService/TryGetService`、`ServiceWorld.TryGet` 族与跨作用域绑定 `TryGetBest` 加 `[MethodImpl(AggressiveInlining)]`，稳态跨服务互调的转发开销由 JIT 折叠为零
+
 #### 源生成器
 
 - ⚠ 诊断 ID 段号方案统一迁移为 `MA + 4 位段号（ABCD）`：A=模块（1 ProviderHandlerHost / 2 ServiceDependency / 3 SaveServiceCodegen / 5 UIWindowCodegen / 6 HotPathAnalyzer / 7 EventBusAnalyzer）、B=功能面、CD 沿用原分配（Save 3xx/4xx 归并为 A=3）；旧 `MIRAI` + 3 位 ID 全部停用，`.editorconfig` 中的 `dotnet_diagnostic.MIRAIxxx.severity` 需按 `SourceGenerators/README.md` 分配表改为对应 `MAxxxx`
+- `ProviderHandlerHost` 生成的薄访问器加内联：`CreateDefaultHandler`/`RequireHandler`/`IsValid`（`[method: ...]`）与 `Handler` 属性快路径加 `[MethodImpl(AggressiveInlining)]`，宿主稳态取用零转发开销
 
 #### UI
 

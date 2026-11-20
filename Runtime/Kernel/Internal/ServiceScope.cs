@@ -118,8 +118,7 @@ namespace Moirai.Atropos
         }
 
         #endregion
-
-
+        
         #region 查找 [LOOKUP]
 
         /// <summary>
@@ -142,8 +141,7 @@ namespace Moirai.Atropos
         internal bool Contains(IService service) => _entriesByService.ContainsKey(service);
 
         #endregion
-
-
+        
         #region 迭代安全 [ITERATION SAFETY]
 
         private void FlushDisposeIfPending()
@@ -225,11 +223,7 @@ namespace Moirai.Atropos
         }
 
         #endregion
-
-
-
-
-
+        
         #region 内部数据结构 [INTERNAL STRUCTURES]
 
         /// <summary>

@@ -14,8 +14,7 @@ namespace Moirai.Atropos.Debugger
     /// </remarks>
     [ProviderDisplay(title: "内置调试器", description: "UI Toolkit 运行时调试台（FPS/Console/窗口注册），无资产依赖")]
     [Serializable]
-    internal sealed class DefaultDebuggerHandler :
-    FrameworkHandler, IDebuggerService
+    internal sealed class DefaultDebuggerHandler : FrameworkHandler, IDebuggerService
     {
         #region 字段 [FIELDS]
 
