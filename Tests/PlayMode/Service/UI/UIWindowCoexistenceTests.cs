@@ -81,11 +81,23 @@ namespace Service.UI
         /// <summary>
         /// 进门判据：协调者必须是框架自动 Boot 交出去的那一份生产处理器，且共享栈干净。
         /// </summary>
+        /// <remarks>
+        /// 与 UIStackReentry 同款：进门先收掉环境租户（ErrorLogger 的 LogUI 等）落下的残留并留声， <br />
+        /// 收不掉的残留仍然当场判红——量具只认「已知空栈起点」，不认「碰巧没人在栈上」。
+        /// </remarks>
         [SetUp]
         public void SetUp()
         {
             _coordinator = UIService.Internal_PeekUGUIHandler();
             Assert.IsNotNull(_coordinator, "量具前提坏了：播放态框架没把那份协调者交出来，开窗腿拿不到共享栈");
+            var top = UIService.GetTopWindow();
+            if (top != null)
+            {
+                Moirai.Atropos.LogUtility.Warning("UIWindowCoexistence 进门收掉共享栈残留：{0}",
+                    top.GetType().Name + "#" + top.WindowId);
+                UIService.CloseAll(true);
+            }
+
             Assert.IsNull(UIService.GetTopWindow(), "量具前提坏了：进门时共享栈上不干净");
         }
 

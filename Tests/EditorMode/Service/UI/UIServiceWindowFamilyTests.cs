@@ -30,7 +30,7 @@ namespace Service.UI
     [TestFixture]
     public sealed class UIServiceWindowFamilyTests
     {
-        /// <summary>同一个模板的内置资源地址（它住在 <c>Editor/Core/Events/Resources/</c> 下）：AB 那一路拿它取不到东西，两档因此互为反证。</summary>
+        /// <summary>同一个模板的内置资源地址（它住在 <c>Editor/TestFixtures/Resources/</c> 下）：AB 那一路拿它取不到东西，两档因此互为反证。</summary>
         private const string TEMPLATE_RESOURCE_NAME = "EventsDebugger";
 
         /// <summary>夹具用的共享面板配置（包内实存资产）：本文件只读消费，用例出门把静态位还原。</summary>
@@ -341,15 +341,15 @@ namespace Service.UI
 
         #region 认不出轨当场抬错 [TRACK FAIL-FAST]
 
-        /// <summary><see cref="System.Type"/> 形入口的空白档：窗口类给成 <c>null</c> 时同样抬 <see cref="GameException"/>，不掉进 <see cref="System.NullReferenceException"/>。</summary>
+        /// <summary><see cref="System.Type"/> 形入口的空白档：窗口类给成 <c>null</c> 时同样抬 <see cref="MoiraiException"/>，不掉进 <see cref="System.NullReferenceException"/>。</summary>
         [Test]
         public void ShowUI_TypeEntry_NullWindowType_FailsFastWithGameException()
         {
-            Assert.Throws<GameException>(() => UIService.ShowUI(null, "w"),
-                "空窗口类须抬 GameException，而不是取 FullName 时掉 NRE");
+            Assert.Throws<MoiraiException>(() => UIService.ShowUI(null, "w"),
+                "空窗口类须抬 MoiraiException，而不是取 FullName 时掉 NRE");
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "判 null 排在一切取用之前：共享栈上一个窗都没多");
 
-            Assert.Throws<GameException>(() => UIService.ShowUIAsync(null, "w"), "异步那一支同一判据");
+            Assert.Throws<MoiraiException>(() => UIService.ShowUIAsync(null, "w"), "异步那一支同一判据");
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "异步腿也没进共享栈");
         }
 
@@ -357,11 +357,11 @@ namespace Service.UI
         [Test]
         public void ShowUI_TypeEntry_WindowClassOnNoTrack_FailsFastBeforeCoordinator()
         {
-            Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeBareWindow), "w"),
-                "Type 入口错配须抬 GameException");
+            Assert.Throws<MoiraiException>(() => UIService.ShowUI(typeof(ProbeBareWindow), "w"),
+                "Type 入口错配须抬 MoiraiException");
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "错配不开半个窗：两条腿一次都没被叫到");
 
-            Assert.Throws<GameException>(() => UIService.ShowUIAsync(typeof(ProbeBareWindow), "w"), "异步腿同一判据");
+            Assert.Throws<MoiraiException>(() => UIService.ShowUIAsync(typeof(ProbeBareWindow), "w"), "异步腿同一判据");
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "同上");
         }
 
@@ -412,7 +412,7 @@ namespace Service.UI
             Assert.AreSame(UIService.SharedLedger.GetWindow<ProbeLocatedUitkWindow>("TypeUITK"), UIService.SharedLedger.GetTopWindow(),
                 "两条腿共存：两次开的窗并进同一份栈，栈顶是后开的那个");
 
-            Assert.Throws<GameException>(() => UIService.ShowUI(typeof(ProbeBareWindow), "bare"),
+            Assert.Throws<MoiraiException>(() => UIService.ShowUI(typeof(ProbeBareWindow), "bare"),
                 "两轨都在场时，没挂任何一个窗口基类的类型照样认不出");
             Assert.AreEqual(2, UIService.SharedLedger.PeekStack().Count, "认不出轨不开半个窗：栈上仍是那两个");
         }
@@ -489,7 +489,7 @@ namespace Service.UI
         }
 
         /// <summary>
-        /// 等待腿的转型守卫：账本按标识命中的实例不是这一腿声明的窗口类时当场抬 <see cref="GameException"/>，不把别的类的窗当成 <c>TWindow</c> 交回。
+        /// 等待腿的转型守卫：账本按标识命中的实例不是这一腿声明的窗口类时当场抬 <see cref="MoiraiException"/>，不把别的类的窗当成 <c>TWindow</c> 交回。
         /// </summary>
         /// <remarks>
         /// 可达的构造是「同标识两个窗共用同一个载荷槽型」：账本 <c>ResolveOrStartLoad&lt;TArg&gt;</c> 认名不认类，
@@ -497,7 +497,7 @@ namespace Service.UI
         /// <see cref="ProbeAliasedUGUIWindow"/> 都是 <c>UGUIWindow&lt;object&gt;</c> ⇒ 槽型这一关放行、交回的是 A 那个实例，
         /// 「窗口类对不对」只剩门面 <c>window switch</c> 那一道拦得住（两支后门的同一道守卫在 UITK 腿同形）。<br />
         /// A 由同步腿开出、当场就绪 ⇒ 复用支路排在等待腿第一个 await 之前，同帧交回实例，门面那一支 <c>async</c> 腿因此也同帧落定为故障，
-        /// <c>GetResult()</c> 当场答得出这个 <see cref="GameException"/>（与 <see cref="ShowUIAsyncAwait_PerTrackLegsOnStackedWindow_ReturnItWithoutWaiting"/> 同一档射程）。<br />
+        /// <c>GetResult()</c> 当场答得出这个 <see cref="MoiraiException"/>（与 <see cref="ShowUIAsyncAwait_PerTrackLegsOnStackedWindow_ReturnItWithoutWaiting"/> 同一档射程）。<br />
         /// 抬错排在装载之后、栈不变：判据吃的是「不静默交回别的类」与「不压第二个、也不收走原来那个」。
         /// </remarks>
         [Test]
@@ -509,7 +509,7 @@ namespace Service.UI
             Assert.IsNotNull(opened, "量具前提坏了：A 已按这个标识开进共享栈");
             Assert.IsTrue(opened.IsLoadDone, "量具前提坏了：A 走的是同步装载，复用支路才能同帧落定");
 
-            var ex = Assert.Throws<GameException>(() =>
+            var ex = Assert.Throws<MoiraiException>(() =>
                 UIService.ShowUIAsyncAwait<ProbeAliasedUGUIWindow, object>("CastGuard", payload).GetAwaiter().GetResult(),
                 "按标识命中的实例不是这一腿的窗口类：等待腿要抬错，不把别的类的窗当成 TWindow 交回");
             StringAssert.Contains(nameof(ProbeAliasedUGUIWindow), ex.Message, "文案带这一腿期望的窗口类名");
@@ -628,7 +628,7 @@ namespace Service.UI
         {
             UIService.Internal_ResetHandlerSlots();
 
-            Assert.Throws<GameException>(() =>
+            Assert.Throws<MoiraiException>(() =>
                 UIService.ShowUI<ProbeAddressUGUIWindow>("NotRegistered"),
                 "已启用但没注册：开窗腿要抬错，不替配置造一个驱动者");
             Assert.IsNull(UIService.GetTopWindow(), "抬错之后栈上不留半个窗");

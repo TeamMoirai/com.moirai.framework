@@ -40,10 +40,7 @@ namespace Service.Audio
             _clip.SetData(data, 0);
 
             _handler = new UnityAudioHandler();
-            var init = typeof(UnityAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(init, "UnityAudioHandler.OnInit 应存在");
-            init.Invoke(_handler, null);
+            _handler.Internal_Init();
         }
 
         [TearDown]

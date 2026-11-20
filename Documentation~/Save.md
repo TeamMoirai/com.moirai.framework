@@ -108,14 +108,14 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 }
 ```
 
-- 注册：实现类由 SaveServiceCodegen 生成器 扫描经模块初始化器自注册（AOT 安全；要求具体非抽象类、非私有嵌套、可访问无参构造，否则报 MIRAI302）；也可 `SaveService.RegisterMigrator(...)` 手动注册。非法版本边（`To <= From`）注册期抛 `ArgumentException`——仅允许升级方向，天然防环
+- 注册：实现类由 SaveServiceCodegen 生成器 扫描经模块初始化器自注册（AOT 安全；要求具体非抽象类、非私有嵌套、可访问无参构造，否则报 MA3002）；也可 `SaveService.RegisterMigrator(...)` 手动注册。非法版本边（`To <= From`）注册期抛 `ArgumentException`——仅允许升级方向，天然防环
 - 执行约束：迁移在加载/写入管线内**同步执行**（串行门持有期，可能在主线程）——`Migrate` 必须同步完成，禁止切线程或返回未完成任务（fail-fast `MigrationFailed`）；禁止触达 Unity 主线程 API
 - 目标块/字段不存在时操作为无操作（返回 `false`，兼容从未写过该块的旧档）；反序列化失败等真异常中止整条链
 - 字段级操作（`RenameField`/`RetypeField`）支持 JSON（需 Newtonsoft.Json）与 KeyValue 块；**二进制后端不支持字段级操作**（记告警并跳过——用 `TransformBlock<T>` 保留旧类型整对象迁移，键序纪律见下方分析器）
 
 ### 链语义与错误分型
 
-- 版本相等短路；`文件版本 > 当前版本` → `UnsupportedVersion`（拒绝降级）；链缺失/歧义（同起始版本多条不同目标边）/迁移器异常 → `MigrationFailed`（经 `onLoadFailed` 事件 `Migrate` 阶段观测）
+- 版本相等短路；`文件版本 > 当前版本` → `UnsupportedVersion`（拒绝降级）；链缺失/歧义（同起始版本多条不同目标边）/迁移器异常 → `MigrationFailed`（经 `SaveFailedEvent` 事件 `Migrate` 阶段观测）
 - **写入自愈**：任何读-改-写（块写入/组件块 upsert/块删除回写）触达旧版本档时先迁移再合并——任何落盘文件恒为当前版本，杜绝新形态块落入旧档后被迁移链误变换
 - **回写策略**：加载触发迁移成功后按处理器的 `m_MigrationWriteBack`（默认开）惰性回写（避免每次加载重跑迁移链）；关闭时迁移仅作用于内存，同文件同会话不重复迁移（会话级缓存），盘上保持旧版本
 - **审计**：每个迁移步向 `SaveMetadata.MigrationHistory` 追加 `"{from}->{to}|{迁移器类型全名}|{UTC ISO-8601}"`（随回写持久化）
@@ -128,9 +128,9 @@ public sealed class SaveMigratorV1ToV2 : ISaveMigrator
 - 恢复时存档版本与捕获器当前版本不符：组件实现 `ISaveComponentMigrator` → 路由到 `OnMigrateComponent(fromVersion, ref reader, recordCount)`（须恰好消费 recordCount 条记录）；未实现 → 记告警并按键匹配容错恢复
 - 旧格式块（无 `$schemas`）按当前版本处理（KVT 键匹配天然向后兼容）
 
-### 二进制后端键序冻结（分析器 MIRAI400/401）
+### 二进制后端键序冻结（分析器 MA3100/401）
 
-- `SaveServiceCodegen.dll` 内置 `SaveSchemaAnalyzer`：`[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` 类型的成员键序号（`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`）与快照比对——MIRAI400 键序重排告警、MIRAI401 成员删除且未重写 `OnMigrate` 告警（均 Warning）
+- `SaveServiceCodegen.dll` 内置 `SaveSchemaAnalyzer`：`[SaveData(Backend=MessagePack/MemoryPack/Protobuf)]` 类型的成员键序号（`[Key]`/`[MemoryPackOrder]`/`[ProtoMember]`）与快照比对——MA3100 键序重排告警、MA3101 成员删除且未重写 `OnMigrate` 告警（均 Warning）
 - 快照为附加文件 `.SaveSchemaSnapshot`（行格式 `类型全限定名|成员名:序号;…`，序号 -1 = MessagePack 字符串键模式），纳入版本控制随模式演进更新；快照缺失时分析器静默
 - **快照生成**：菜单 `Tools/Moirai/Save/Export Schema Snapshot` 一键扫描全部二进制后端 [SaveData] 类型并写出项目根目录 `.SaveSchemaSnapshot`（提取规则与分析器逐条对齐，成员按名排序保证 diff 稳定）；二进制线格式变更前重新导出即推进基线
 - Unity 编辑器无 AdditionalFiles 界面，经 `csc.rsp` 的 `/additionalfile:` 或 CI `dotnet build` 接线
@@ -157,14 +157,14 @@ public partial class Player : MonoBehaviour
 ### 支持的字段类型（SG v2）
 
 - **标量**：基元/枚举/string/DateTime/TimeSpan/Unity 数学类型（Vector2/3/4、Quaternion、Color、Rect、Bounds）。
-- **集合**：数组 `T[]`、`List<T>`、`Queue<T>`、`Stack<T>`、`HashSet<T>`、`Dictionary<K,V>`；元素递归支持标量与嵌套数据类（含集合套集合）；映射键仅限标量/枚举；**引用类型暂不支持作集合元素**（报 MIRAI308）。恢复为**替换语义**（读回新容器实例）；null 与空集合严格区分；`Stack<T>` 按栈顶→栈底写出、恢复逆序压栈还原 LIFO。
-- **嵌套数据类**：标注 `[SaveData]` 的非 MonoBehaviour class，捕获其**全部 public 实例字段**（键 = 字段名，对齐 JSON 惯例；Key/Version 参数在嵌套语境不使用）。循环引用/抽象类/无可访问无参构造/struct 报 MIRAI307；`SaveDataBlock` 子类不能作嵌套字段（走手动轨块 API）。
-- **场景对象引用**（GameObject/Component 派生字段）：捕获存目标 `SaveObjectIdentity` 的**稳定 ID**（编辑器期 OnValidate 烘焙 GUID，空则自动赋值），恢复经 `SaveEntityRegistry` 反查当前场景内同 ID 对象（Component 字段经 `GetComponent<T>` 解析）。目标未挂 SaveObjectIdentity 时捕获写 Null 并记告警；档内 ID 在当前场景不存在时恢复为 null 并记告警。复制物体（Ctrl+D）会连 ID 拷贝——重复 ID 运行期首到先得并记告警，清空 ID 字段可重新烘焙。每个场景引用字段生成 MIRAI305 Info 指引。
-- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → ResourceService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MIRAI306 且不参与捕获。程序化修改目录条目（编辑器工具/导入器直改 `m_Entries`）后必须调用 `SaveAssetCatalog.InvalidateLookup()`——查找表延迟构建，缓存不失效既看不到新条目也无法拦截重复登记。
+- **集合**：数组 `T[]`、`List<T>`、`Queue<T>`、`Stack<T>`、`HashSet<T>`、`Dictionary<K,V>`；元素递归支持标量与嵌套数据类（含集合套集合）；映射键仅限标量/枚举；**引用类型暂不支持作集合元素**（报 MA3008）。恢复为**替换语义**（读回新容器实例）；null 与空集合严格区分；`Stack<T>` 按栈顶→栈底写出、恢复逆序压栈还原 LIFO。
+- **嵌套数据类**：标注 `[SaveData]` 的非 MonoBehaviour class，捕获其**全部 public 实例字段**（键 = 字段名，对齐 JSON 惯例；Key/Version 参数在嵌套语境不使用）。循环引用/抽象类/无可访问无参构造/struct 报 MA3007；`SaveDataBlock` 子类不能作嵌套字段（走手动轨块 API）。
+- **场景对象引用**（GameObject/Component 派生字段）：捕获存目标 `SaveObjectIdentity` 的**稳定 ID**（编辑器期 OnValidate 烘焙 GUID，空则自动赋值），恢复经 `SaveEntityRegistry` 反查当前场景内同 ID 对象（Component 字段经 `GetComponent<T>` 解析）。目标未挂 SaveObjectIdentity 时捕获写 Null 并记告警；档内 ID 在当前场景不存在时恢复为 null 并记告警。复制物体（Ctrl+D）会连 ID 拷贝——重复 ID 运行期首到先得并记告警，清空 ID 字段可重新烘焙。每个场景引用字段生成 MA3005 Info 指引。
+- **资产引用**（Texture/SO/Material 等其余 UnityEngine.Object 派生字段）：捕获经 `SaveServiceSettings.m_AssetCatalog`（SaveAssetCatalog SO）查 object → AssetService 定位串写入；恢复按定位串经同一目录反查资产——**目录制双向解析，不触发运行时加载**（保持捕获器同步契约、零租约负担）。被引用资产须先登记入册；未登记/无目录时捕获写 Null 并记告警。声明为 `UnityEngine.Object` 基类的字段无法区分场景/资产，报 MA3006 且不参与捕获。程序化修改目录条目（编辑器工具/导入器直改 `m_Entries`）后必须调用 `SaveAssetCatalog.InvalidateLookup()`——查找表延迟构建，缓存不失效既看不到新条目也无法拦截重复登记。
 
 ### 生成器诊断
 
-MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器无法自注册；MIRAI303 所在类型及其嵌套外层链须均为 partial class；MIRAI304 需实例字段；MIRAI305 场景引用需 SaveObjectIdentity 指引（Info）；MIRAI306 引用类型声明为 UnityEngine.Object 基类（Warning，字段跳过）；MIRAI307 嵌套数据类型无效；MIRAI308 集合元素/映射键值类型不支持。修改生成器源码（`SourceGenerators/Source~/SaveServiceCodegen/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveServiceCodegen.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
+MA3000 字段类型不支持；MA3001 存档键重复；MA3002 迁移器无法自注册；MA3003 所在类型及其嵌套外层链须均为 partial class；MA3004 需实例字段；MA3005 场景引用需 SaveObjectIdentity 指引（Info）；MA3006 引用类型声明为 UnityEngine.Object 基类（Warning，字段跳过）；MA3007 嵌套数据类型无效；MA3008 集合元素/映射键值类型不支持。修改生成器源码（`SourceGenerators/Source~/SaveServiceCodegen/`）后必须 `dotnet build -c Release -t:Rebuild` 强制全量重建 `SourceGenerators/SaveServiceCodegen.dll`（增量构建在输入缓存未过期时会跳过编译产出残缺 DLL）。
 
 ### 内置捕获器（引擎组件）
 
@@ -180,7 +180,7 @@ MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器�
 
 运行期经预制体生成的物体（怪物/掉落物/临时建筑等）按「生成表 + 每实体差分块」持久化：
 
-1. **登记预制体**：创建 `SavePrefabRegistry` SO（Create → Moirai → Save Prefab Registry），为每个可持久化预制体登记**稳定键**（存档内引用标识，改名即毁档）与 **ResourceService 定位串**（YooAsset 地址），并在存档设置 `m_PrefabRegistry` 引用。
+1. **登记预制体**：创建 `SavePrefabRegistry` SO（Create → Moirai → Save Prefab Registry），为每个可持久化预制体登记**稳定键**（存档内引用标识，改名即毁档）与 **AssetService 定位串**（YooAsset 地址），并在存档设置 `m_PrefabRegistry` 引用。
 2. **实体根挂 SaveComponent 并勾选字段**（含 Transform 内置捕获器字段以持久化位置/旋转/缩放）。
 3. 游戏代码用持久化生成/销毁对替代 `Instantiate`/`Destroy`：
 
@@ -189,7 +189,7 @@ MIRAI300 字段类型不支持；MIRAI301 存档键重复；MIRAI302 迁移器�
 GameObject goblin = SaveService.InstantiatePersistent("goblin", pos, rot);
 // 销毁（动态实体移出生成表→数据块下次保存时清理；场景预置对象记入销毁表→恢复时销毁）
 SaveService.DestroyPersistent(goblin);
-// 保存/恢复（恢复 = DestroyUnwanted → SpawnMissing → 父子接线 → RestoreAll → 激活 + onEntityRestored 事件）
+// 保存/恢复（恢复 = DestroyUnwanted → SpawnMissing → 父子接线 → RestoreAll → 激活 + SaveEntityRestoredEvent 事件）
 await SaveService.SaveEntitiesAsync("slot1");
 await SaveService.RestoreEntitiesAsync("slot1");
 ```
@@ -197,20 +197,20 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **模板差分**：实体捕获与预制体模板基准（每稳定键会话级缓存一份基准 KVT）逐字段比对，**只写相对模板的变动字段**（嵌套对象递归差分；集合任一变动整条携带，元素级差分为 v2 范围）；恢复 = 实例化（天然模板默认值）+ 应用差分，存档增量最小化。基准不可用（预制体未登记/无根 SaveComponent）时退化为全量写入。
 - **块布局**：实体表 = 保留块 `__entities`（生成记录 EntityId/PrefabKey/SceneName/ParentId + 预置对象销毁 ID）；实体数据 = 每实体一个 `entity:{EntityId}` 块（实体组件块键由管线在激活前改写）。**组件存取 API 跳过 `entity:` 前缀块**——完整世界存取 = `SaveEntitiesAsync` + `SaveComponentsAsync`，恢复 = `RestoreEntitiesAsync` + `LoadComponentsAsync`（顺序：先实体后组件）。
 - **CarryForward 语义**：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留；绕过 `DestroyPersistent` 直接 `Object.Destroy` 的实体，其记录与块同样滞留（须走显式销毁移除）。恢复后会话生成/销毁表以档案状态整体替换。
-- **增量保存**：会话级脏跟踪（按档键控基准 = 实体表字节 + 逐实体差分载荷 + 档写入时间）——均未变化时零 IO 跳过（无事件）；有变化时单趟合并（读档 → 自愈迁移 → 删陈旧 → upsert → 原子写回）仅写脏块（仅变化块触发 `onBlockSaved`）；基准失效（首次保存 / 恢复后 / 档被外部改写——写入时间守卫经 `FileInfo.Refresh` 新鲜元数据判定，防 NTFS 缓存滞后误判）保守走全量合并（孤儿清理由读档后解析）。
+- **增量保存**：会话级脏跟踪（按档键控基准 = 实体表字节 + 逐实体差分载荷 + 档写入时间）——均未变化时零 IO 跳过（无事件）；有变化时单趟合并（读档 → 自愈迁移 → 删陈旧 → upsert → 原子写回）仅写脏块（仅变化块触发 `SaveBlockChangedEvent`）；基准失效（首次保存 / 恢复后 / 档被外部改写——写入时间守卫经 `FileInfo.Refresh` 新鲜元数据判定，防 NTFS 缓存滞后误判）保守走全量合并（孤儿清理由读档后解析）。
 - **线程归属**：实体/组件外观异步 API 的 IO 在工作线程，读档续体返回后先切回主线程再执行场景操作与字段写回（Unity API 恒主线程）。
 - **父子与场景落位**：生成记录的 ParentId（父级须挂 SaveObjectIdentity，否则父子关系不持久化并记告警）在恢复第二轮接线；SceneName 场景已加载则落位其中，否则落位活跃场景并记告警——**落位回落不改写场景归属**（生成表保持档案原 SceneName，下次会话场景加载时实体回到原场景，不漂移）。稳定 ID 查询走 `SaveEntityRegistry`——场景作用域表（场景卸载清扫）+ 全局作用域表（DontDestroyOnLoad 对象常驻）双表。
-- **恢复时序**：生成保持未激活直到差分块写回完成——Awake/OnEnable 即见最终父级与恢复后字段值（游戏逻辑须读档后状态时监听 `onEntityRestored` 事件或在 Start 之后）。差分块损坏的实体记错误日志并按模板默认恢复（不阻断其它实体）。
+- **恢复时序**：生成保持未激活直到差分块写回完成——Awake/OnEnable 即见最终父级与恢复后字段值（游戏逻辑须读档后状态时监听 `SaveEntityRestoredEvent` 事件或在 Start 之后）。差分块损坏的实体记错误日志并按模板默认恢复（不阻断其它实体）。
 - **降级契约**：`InstantiatePersistent`/`DestroyPersistent` 不依赖存档处理器（注册表与资源服务可用即可），预制体键未登记/加载失败记错误日志返回 `null`；`SaveEntitiesAsync` 在处理器未就绪时抛 `GameException`；`RestoreEntitiesAsync` 静默降级为空任务。
 - **预制体资产不烘焙 ID**：`SaveObjectIdentity.OnValidate` 跳过预制体资产本体（资产上的 ID 会被全部实例共享而必然撞键）；场景内实例仍各自烘焙，动态实体由生成管线在激活前注入每实例唯一 ID。
 
 | API（实体分部） | 说明 |
 |---|---|
-| `InstantiatePersistent(prefabKey, position, rotation, parent)` | 同步生成持久化实体（模板经 ResourceService 加载；失败返回 `null`） |
+| `InstantiatePersistent(prefabKey, position, rotation, parent)` | 同步生成持久化实体（模板经 AssetService 加载；失败返回 `null`） |
 | `InstantiatePersistentAsync(prefabKey, position, rotation, parent, ct)` | 异步生成（取消时返回 `null`） |
 | `DestroyPersistent(target)` | 销毁并登记语义（动态实体移表 / 预置对象记销毁表 / 无身份物体仅销毁） |
 | `SaveEntitiesAsync(fileName, folderName, ct)` | 写入实体表与全部活跃实体差分块（预热基准→差分捕获→增量判定→单趟合并；零变化零 IO 跳过；失败抛 `GameException`） |
-| `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐个触发 `onEntityRestored`） |
+| `RestoreEntitiesAsync(fileName, folderName, ct)` | 按档案状态整体重建实体（DestroyUnwanted→SpawnMissing→RestoreAll；逐个触发 `SaveEntityRestoredEvent`） |
 
 ## 截图与元数据镜像
 
@@ -219,7 +219,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **元数据镜像**：截图成功后镜像保留块 `__meta`——`ThumbnailFileName`（sidecar 文件名）与 `SceneName`（活动场景名）由管线自动填充；`PlayTimeTicks`（`TimeSpan` ticks）由游戏层按自身累计口径写入。既有元数据损坏时不覆盖（记告警并跳过镜像，保留抢救空间）。
 - **保存联动**：`m_CaptureScreenshotOnSave` 开启后，`SaveBlockAsync` / `SaveComponentsAsync` 成功即自动捕获（保留块 `__` 前缀豁免——元数据镜像回写不递归）；联动失败不回传保存结果，联动取消不外溢到保存方令牌。
 - **生命周期级联**：`DeleteSave` / `DeleteSaveAsync` 删除存档时级联删除 sidecar（防止同名新档复活陈旧缩略图）；目录级删除天然覆盖。
-- **降级契约**：处理器未就绪返回 `HandlerNotReady`；非运行态/批处理模式返回 `NotSupported`（记告警）；sidecar 写入失败返回 `IoFailed` 并记错误日志（不上抛）。截图成功派发 `onScreenshotCaptured` 事件。
+- **降级契约**：处理器未就绪返回 `HandlerNotReady`；非运行态/批处理模式返回 `NotSupported`（记告警）；sidecar 写入失败返回 `IoFailed` 并记错误日志（不上抛）。截图成功派发 `SaveScreenshotEvent` 事件。
 
 | API（截图分部） | 说明 |
 |---|---|
@@ -288,16 +288,16 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 ### 事件（SaveService.Events）
 
-静态事件（默认零开销通道）+ `EventManager` 桥事件（`SaveSlotChangedEvent` 等，订阅侧二选一）。全部主线程派发：主线程操作内联直发（零闭包），异步操作工作线程完成后经 `MainThreadDispatcher.Post<TState>` 状态化入队（池化工作项 + 静态 lambda 缓存——稳态零分配）。`OnShutdown` 不清理订阅者——订阅方自行退订；调试可用 `SaveService.UnsubscribeAll()` 一键清空。参数均为只读值类型（≤32B）。
+`EventBus` 单通道（`EventBus.Subscribe<T>(in T e)` 订阅），事件类型均为只读 struct（`Models/Events/`，字段内联无 Args 孪生）。全部主线程派发：主线程操作内联直发（零闭包），异步操作工作线程完成后经 `MainThreadDispatcher.Send<TState>` 状态化入队（池化工作项 + 静态 lambda 缓存——稳态零分配）。`OnShutdown` 不清理订阅者——订阅方自行退订防泄漏。
 
-| 静态事件 | 桥事件 | 时机 |
-|---|---|---|
-| `onSlotChanged` | `SaveSlotChangedEvent` | 槽位写入（`Saved` 创建/更新合并语义）/删除/备份创建/备份恢复；目录级批量删除 `FileName` 为 null |
-| `onBlockSaved` / `onBlockDeleted` | `SaveBlockChangedEvent` | 块保存/删除完成（fileName+key+后端+字节数）；幂等空删不触发 |
-| `onSaveProgress` / `onLoadProgress` | `SaveProgressEvent` | 组件存取按批回报（每 8 个一批 + 最终必报；`ShouldReportProgress`） |
-| `onSaveFailed` / `onLoadFailed` | `SaveFailedEvent` | 失败（`ESaveFailureStage` 阶段 + `SaveError`）；写路径同时 fail-fast 上抛 `GameException`；缺档/无块（FileNotFound）不触发 |
-| `onEntityRestored` | `SaveEntityRestoredEvent` | `RestoreEntitiesAsync` 恢复管线逐个实体触发（激活后；参数 = 实体 ID + 预制体键 + 实例） |
-| `onScreenshotCaptured` | `SaveScreenshotEvent` | 截图管线成功完成（fileName+sidecar 文件名+缩略图宽高） |
+| 事件 | 时机 |
+|---|---|
+| `SaveSlotChangedEvent` | 槽位写入（`Saved` 创建/更新合并语义）/删除/备份创建/备份恢复；目录级批量删除 `FileName` 为 null |
+| `SaveBlockChangedEvent` | 块保存/删除完成（fileName+key+后端+字节数）；幂等空删不触发 |
+| `SaveProgressEvent` | 组件存取按批回报（每 8 个一批 + 最终必报；`ShouldReportProgress`；`Kind` 分存/取） |
+| `SaveFailedEvent` | 失败（`ESaveFailureStage` 阶段 + `SaveError`；`Operation` 分存/取）；写路径同时 fail-fast 上抛 `GameException`；缺档/无块（FileNotFound）不触发 |
+| `SaveEntityRestoredEvent` | `RestoreEntitiesAsync` 恢复管线逐个实体触发（激活后；载荷 = 实体 ID + 预制体键 + 实例） |
+| `SaveScreenshotEvent` | 截图管线成功完成（fileName+sidecar 文件名+缩略图宽高） |
 
 ## 配置（SaveServiceSettings）
 
@@ -307,7 +307,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `m_DefaultSerializerTypeName` | 默认序列化后端（未声明 `[SaveData]` 的块）：ProviderDropdown 类型名模式，存 `ISaveSerializer` 实现类全名，候选只列已编译入包的实现（缺 NuGet 依赖的后端不出现在下拉里）；首次读取（或配置名变更）时在主线程解析成实例并按名缓存（解析失败同样缓存，同一份配置只报一次 Fatal），并确保该 ID 在 `SaveSerializerRegistry` 有主，容器逐块记录其 2 字节 `BackendId`；置空或解析失败回退内置 Json |
 | `m_SaveFileExtension` | 存档文件扩展名（默认 `.sav`） |
 | `m_AssetCatalog` | 资产引用目录（SaveAssetCatalog SO）：无代码保存的资产引用字段经目录双向解析定位串；空 = 资产引用字段捕获恒写 Null |
-| `m_PrefabRegistry` | 预制体注册表（SavePrefabRegistry SO）：可持久化动态实体登记（稳定键 → ResourceService 定位串）；空 = `InstantiatePersistent` 不可用、实体生成记录恢复按未登记键跳过 |
+| `m_PrefabRegistry` | 预制体注册表（SavePrefabRegistry SO）：可持久化动态实体登记（稳定键 → AssetService 定位串）；空 = `InstantiatePersistent` 不可用、实体生成记录恢复按未登记键跳过 |
 | `m_CaptureScreenshotOnSave` | 保存时截图（默认关）：`SaveBlockAsync`/`SaveComponentsAsync` 成功后自动捕获截图并镜像 sidecar 与元数据（仅运行态主线程生效） |
 | `m_ScreenshotMaxDimension` | 截图缩略图最长边（像素，保纵横比不放大，默认 256） |
 
@@ -347,7 +347,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 
 项目自定义后端有两条接法：
 
-- **声明式（内置与项目同形的唯一入口）**：实现类标 `[RegisterSerializer]`，SaveServiceCodegen 生成器把 `SaveSerializerRegistry.Register(<编号>, typeof(Xxx))` 写进各自程序集的模块初始化器，引导代码为零。特性**不带编号**——唯一真源是实现自述的 `BackendId`，且须是编译期常量表达式（`=> 1000`；框架内部也可写 `=> SaveBackendIds.XXX`，但 `SaveBackendIds` 是 internal，工程侧只能写数字）；生成器据此静态判重，形状非法（未实现接口/抽象/泛型/无可访问无参构造）、编号非常量、编号落在框架保留区 0-255、同编译单元内撞号分别报 **MIRAI309/310/311/312** 且一律 Error——注册跑在模块初始化期，放过去就是程序集加载即抛。跨程序集撞号生成器看不见，运行期由 `Register(ushort, Type)` 记一次 Fatal 并保留先到那份——这条路径刻意不抛：注册跑在模块初始化期，在那里抛出实测会让 Unity 在源生成扫描阶段原生崩溃。
+- **声明式（内置与项目同形的唯一入口）**：实现类标 `[RegisterSerializer]`，SaveServiceCodegen 生成器把 `SaveSerializerRegistry.Register(<编号>, typeof(Xxx))` 写进各自程序集的模块初始化器，引导代码为零。特性**不带编号**——唯一真源是实现自述的 `BackendId`，且须是编译期常量表达式（`=> 1000`；框架内部也可写 `=> SaveBackendIds.XXX`，但 `SaveBackendIds` 是 internal，工程侧只能写数字）；生成器据此静态判重，形状非法（未实现接口/抽象/泛型/无可访问无参构造）、编号非常量、编号落在框架保留区 0-255、同编译单元内撞号分别报 **MA3009/310/311/312** 且一律 Error——注册跑在模块初始化期，放过去就是程序集加载即抛。跨程序集撞号生成器看不见，运行期由 `Register(ushort, Type)` 记一次 Fatal 并保留先到那份——这条路径刻意不抛：注册跑在模块初始化期，在那里抛出实测会让 Unity 在源生成扫描阶段原生崩溃。
 - **代码式**（测试注入、运行期换实现时用）：`SaveSerializerRegistry.Register<MyBackend>()`、`Register(new MyBackend())`，或同样延迟到首次查询才实例化的 `Register(1000, typeof(MyBackend))`。
 
 换掉某个已占用的后端要先 `Unregister(id)` 再 `Register(...)`——`Unregister` 会连 ID→类型记录一并摘除，所以注销不会被下一次查询悄悄"复活"；被摘掉的内置实现要显式重新登记（如 `Register(0, typeof(JsonSaveSerializer))`）才回得来。
@@ -377,7 +377,7 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveAssetCatalogTests` | 资产目录双向查找、类型不符、重复首到先得、缓存失效、InvalidateLookup 程序化契约 |
 | `SaveKvDifferTests` | 模板差分：标量/嵌套/集合/新增/类型漂移/体积收缩/坏档 |
 | `SaveEntityTableTests` | 实体表往返、空表、可空字段、未知记录容错 |
-| `SaveEntityPersistenceTests` | 动态实体闭环、差分、销毁标记、父子接线、onEntityRestored |
+| `SaveEntityPersistenceTests` | 动态实体闭环、差分、销毁标记、父子接线、SaveEntityRestoredEvent |
 | `SaveEntityIncrementalTests` | 实体增量保存闭环：零变化跳过、仅脏块写回、销毁清陈旧、外部改写/恢复后走全量 |
 | `RestCloudSaveKvStoreTests` | REST 后端：读写往返（修订号/时间戳）、存在探测、幂等删除、前缀枚举、认证头优先级、远端失败/超时归一、ETag 回退 |
 | `SaveBuiltInCapturerTests` | Transform / Rigidbody / ParticleSystem 内置捕获器 |
@@ -387,4 +387,4 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveV3HardeningTests` | 加固路径回归 |
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [Resource](Resource.md) · [Core](Core.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [Asset](Asset.md) · [Core](Core.md)

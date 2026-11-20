@@ -5,7 +5,7 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <remarks>
     /// 缺省为「不支持」——未知后端不得自称支持，宁可多问一次也不静默改变语义。 <br />
-    /// 与 <see cref="AudioServiceHandler"/> 上的能力成员同构，但不吃后端实例，判据因此可脱离装配单测。 <br />
+    /// 与 <see cref="IAudioService"/> 的后端能力成员同构，但不吃后端实例，判据因此可脱离装配单测。 <br />
     /// <see cref="BackendName"/> 只进报告文本，不参与判据。
     /// </remarks>
     internal struct AudioBackendCapabilities
@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Audio
         /// </summary>
         /// <param name="handler">设置资产上序列化的后端；为 <c>null</c> 时按全不支持返回。</param>
         /// <returns>能力快照。</returns>
-        internal static AudioBackendCapabilities From(AudioServiceHandler handler)
+        internal static AudioBackendCapabilities From(IAudioService handler)
         {
             if (handler == null)
             {

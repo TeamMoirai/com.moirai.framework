@@ -163,8 +163,8 @@ namespace Moirai.Atropos.Debugger
 
                 _windowScale = clamped;
                 ApplyPanelScale();
-                SettingUtility.SetFloat(Constant.Debug.WINDOW_SCALE, _windowScale);
-                SettingUtility.Save();
+                GameSettings.SetFloat(Constant.Debug.WINDOW_SCALE, _windowScale);
+                GameSettings.Save();
             }
         }
 
@@ -255,7 +255,7 @@ namespace Moirai.Atropos.Debugger
 
         private void OnDestroy()
         {
-            SettingUtility.Save();
+            GameSettings.Save();
 
             if (Instance == this)
             {
@@ -1150,30 +1150,30 @@ namespace Moirai.Atropos.Debugger
 
         private void LoadLayoutSettings()
         {
-            float iconX = SettingUtility.GetFloat(Constant.Debug.ICON_X, DEFAULT_ICON_RECT.x);
-            float iconY = SettingUtility.GetFloat(Constant.Debug.ICON_Y, DEFAULT_ICON_RECT.y);
-            float windowX = SettingUtility.GetFloat(Constant.Debug.WINDOW_X, DEFAULT_WINDOW_RECT.x);
-            float windowY = SettingUtility.GetFloat(Constant.Debug.WINDOW_Y, DEFAULT_WINDOW_RECT.y);
-            float windowWidth = SettingUtility.GetFloat(Constant.Debug.WINDOW_WIDTH, DEFAULT_WINDOW_RECT.width);
-            float windowHeight = SettingUtility.GetFloat(Constant.Debug.WINDOW_HEIGHT, DEFAULT_WINDOW_RECT.height);
+            float iconX = GameSettings.GetFloat(Constant.Debug.ICON_X, DEFAULT_ICON_RECT.x);
+            float iconY = GameSettings.GetFloat(Constant.Debug.ICON_Y, DEFAULT_ICON_RECT.y);
+            float windowX = GameSettings.GetFloat(Constant.Debug.WINDOW_X, DEFAULT_WINDOW_RECT.x);
+            float windowY = GameSettings.GetFloat(Constant.Debug.WINDOW_Y, DEFAULT_WINDOW_RECT.y);
+            float windowWidth = GameSettings.GetFloat(Constant.Debug.WINDOW_WIDTH, DEFAULT_WINDOW_RECT.width);
+            float windowHeight = GameSettings.GetFloat(Constant.Debug.WINDOW_HEIGHT, DEFAULT_WINDOW_RECT.height);
 
-            _windowScale = Mathf.Clamp(SettingUtility.GetFloat(Constant.Debug.WINDOW_SCALE, 1f), MIN_WINDOW_SCALE, MAX_WINDOW_SCALE);
+            _windowScale = Mathf.Clamp(GameSettings.GetFloat(Constant.Debug.WINDOW_SCALE, 1f), MIN_WINDOW_SCALE, MAX_WINDOW_SCALE);
             _iconRect = new Rect(iconX, iconY, DEFAULT_ICON_RECT.width, DEFAULT_ICON_RECT.height);
             _windowRect = new Rect(windowX, windowY, windowWidth, windowHeight);
         }
 
         private void SaveIconLayoutSettings()
         {
-            SettingUtility.SetFloat(Constant.Debug.ICON_X, _iconRect.x);
-            SettingUtility.SetFloat(Constant.Debug.ICON_Y, _iconRect.y);
+            GameSettings.SetFloat(Constant.Debug.ICON_X, _iconRect.x);
+            GameSettings.SetFloat(Constant.Debug.ICON_Y, _iconRect.y);
         }
 
         private void SaveWindowLayoutSettings()
         {
-            SettingUtility.SetFloat(Constant.Debug.WINDOW_X, _windowRect.x);
-            SettingUtility.SetFloat(Constant.Debug.WINDOW_Y, _windowRect.y);
-            SettingUtility.SetFloat(Constant.Debug.WINDOW_WIDTH, _windowRect.width);
-            SettingUtility.SetFloat(Constant.Debug.WINDOW_HEIGHT, _windowRect.height);
+            GameSettings.SetFloat(Constant.Debug.WINDOW_X, _windowRect.x);
+            GameSettings.SetFloat(Constant.Debug.WINDOW_Y, _windowRect.y);
+            GameSettings.SetFloat(Constant.Debug.WINDOW_WIDTH, _windowRect.width);
+            GameSettings.SetFloat(Constant.Debug.WINDOW_HEIGHT, _windowRect.height);
         }
 
         internal void ResetLayout()
@@ -1186,8 +1186,8 @@ namespace Moirai.Atropos.Debugger
             ApplyWindowRect();
             SaveIconLayoutSettings();
             SaveWindowLayoutSettings();
-            SettingUtility.SetFloat(Constant.Debug.WINDOW_SCALE, _windowScale);
-            SettingUtility.Save();
+            GameSettings.SetFloat(Constant.Debug.WINDOW_SCALE, _windowScale);
+            GameSettings.Save();
         }
 
         private void EnsureStatsOverlay()

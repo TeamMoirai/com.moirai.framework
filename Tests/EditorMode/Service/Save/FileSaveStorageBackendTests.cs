@@ -162,7 +162,7 @@ namespace Service.Save
         {
             string filePath = FilePath("slot-stream-fail.sav");
 
-            GameException caught = Assert.Throws<GameException>(() => _backend.WriteAtomic(filePath, stream =>
+            MoiraiException caught = Assert.Throws<MoiraiException>(() => _backend.WriteAtomic(filePath, stream =>
             {
                 stream.WriteByte(0x01);
                 throw new InvalidOperationException("delegate failure (injected)");
@@ -329,13 +329,13 @@ namespace Service.Save
         [Test]
         public void CreateBackup_MissingSource_Throws()
         {
-            Assert.Throws<GameException>(() => _backend.CreateBackup(FilePath("missing.sav")));
+            Assert.Throws<MoiraiException>(() => _backend.CreateBackup(FilePath("missing.sav")));
         }
 
         [Test]
         public void RestoreBackup_MissingBackup_Throws()
         {
-            Assert.Throws<GameException>(() => _backend.RestoreBackup(FilePath("no-backup.sav")));
+            Assert.Throws<MoiraiException>(() => _backend.RestoreBackup(FilePath("no-backup.sav")));
         }
 
         #endregion
@@ -571,7 +571,7 @@ namespace Service.Save
         {
             // 存储后端配置内聚于处理器——既有配置资产未序列化该字段时，字段初始化器兜出文件后端默认值（无需资产迁移）
             Assert.IsNotNull(SaveServiceSettings.SaveServiceHandler, "设置应配置存档处理器");
-            Assert.IsInstanceOf<FileSaveStorageBackend>(SaveServiceSettings.SaveServiceHandler.StorageBackend);
+            Assert.IsInstanceOf<FileSaveStorageBackend>(((SaveServiceHandler)SaveServiceSettings.SaveServiceHandler).StorageBackend);
         }
 
         [Test]

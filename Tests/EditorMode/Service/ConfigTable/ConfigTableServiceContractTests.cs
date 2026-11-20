@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using Moirai.Atropos;
 using Moirai.Atropos.ConfigTable;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
@@ -17,13 +17,13 @@ namespace Service.ConfigTable
     /// </summary>
     /// <remarks>
     /// 钉三件事：外观在无后端时的降级值、默认后端的兜底语义、服务依赖声明的存在性。 <br />
-    /// 本组不建自定义 Handler 子类：<see cref="ConfigTableServiceHandler"/> 是 [Serializable] 框架基类，经 [SerializeReference] 用在设置资产里，
+    /// 本组不建自定义 Handler 子类：<see cref="IConfigTableService"/> 契约实现经 [SerializeReference] 用在设置资产里，经 [SerializeReference] 用在设置资产里，
     /// 测试程序集里的派生类会污染生产资产的 Inspector 下拉框；需要「已安装后端」的场景直接用包内默认实现 <c>DefaultConfigTableHandler</c>（internal）。
     /// </remarks>
     [TestFixture]
     public sealed class ConfigTableServiceContractTests
     {
-        private ConfigTableServiceHandler _savedHandler;
+        private IConfigTableService _savedHandler;
 
         [SetUp]
         public void SetUp()
@@ -165,9 +165,11 @@ namespace Service.ConfigTable
         {
             var defaultHandler = new DefaultConfigTableHandler();
 
-            Assert.IsFalse(defaultHandler.SupportsPerLanguageLocalizationLoad,
+            // DIM 成员只能经接口访问：经契约面验证默认实现
+            IConfigTableService contract = defaultHandler;
+            Assert.IsFalse(contract.SupportsPerLanguageLocalizationLoad,
                 "未覆写的后端必须留在整批路径。");
-            Assert.IsNull(defaultHandler.GetLocalizedStringsByLanguage("en"),
+            Assert.IsNull(contract.GetLocalizedStringsByLanguage("en"),
                 "未覆写的取列实现必须回 null（视为未就绪），不得回空字典冒充已加载的空列。");
         }
 
@@ -206,7 +208,7 @@ namespace Service.ConfigTable
         /// </summary>
         /// <remarks>配置表后端（游戏侧 Luban 处理器）经资源系统装载表字节；依赖缺失时本地化先于资源初始化读表即失败，并停在半初始化态持续报 NRE。</remarks>
         [Test]
-        public void Service_DeclaresResourceDependency()
+        public void Service_DeclaresAssetDependency()
         {
             ServiceDependencyAttribute[] declared = typeof(ConfigTableService)
                 .GetCustomAttributes(typeof(ServiceDependencyAttribute), false)
@@ -216,8 +218,8 @@ namespace Service.ConfigTable
             Assert.IsNotEmpty(declared, "ConfigTableService 必须声明服务依赖（首读表依赖资源系统就绪）。");
 
             Type[] dependencies = declared.SelectMany(attribute => attribute.DependencyTypes).ToArray();
-            CollectionAssert.Contains(dependencies, typeof(ResourceService),
-                "配置表首读表经资源系统装载，ResourceService 依赖必须显式声明。");
+            CollectionAssert.Contains(dependencies, typeof(IAssetService),
+                "配置表首读表经资源系统装载，IAssetService 契约依赖必须显式声明（Phase 2 注入互调）。");
         }
 
         [Test]

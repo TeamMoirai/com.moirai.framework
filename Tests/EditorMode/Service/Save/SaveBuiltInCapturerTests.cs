@@ -89,7 +89,7 @@ namespace Service.Save
         {
             GameObject source = CreateObject("src");
             var sourceBody = source.AddComponent<Rigidbody>();
-            sourceBody.linearVelocity = new Vector3(1f, 0f, 2f);
+            SetVelocity(sourceBody, new Vector3(1f, 0f, 2f));
             sourceBody.angularVelocity = new Vector3(0f, 1f, 0f);
             GameObject target = CreateObject("dst");
             var targetBody = target.AddComponent<Rigidbody>();
@@ -97,7 +97,7 @@ namespace Service.Save
             Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(Rigidbody), out ISaveComponentCapturer capturer));
             RoundTrip(capturer, sourceBody, targetBody);
 
-            Assert.AreEqual(new Vector3(1f, 0f, 2f), targetBody.linearVelocity);
+            Assert.AreEqual(new Vector3(1f, 0f, 2f), GetVelocity(targetBody));
             Assert.AreEqual(new Vector3(0f, 1f, 0f), targetBody.angularVelocity);
         }
 
@@ -106,7 +106,7 @@ namespace Service.Save
         {
             GameObject source = CreateObject("src");
             var sourceBody = source.AddComponent<Rigidbody>();
-            sourceBody.linearVelocity = new Vector3(1f, 0f, 2f);
+            SetVelocity(sourceBody, new Vector3(1f, 0f, 2f));
             GameObject target = CreateObject("dst");
             var targetBody = target.AddComponent<Rigidbody>();
             targetBody.isKinematic = true;
@@ -114,8 +114,26 @@ namespace Service.Save
             Assert.IsTrue(SaveCapturerRegistry.TryGet(typeof(Rigidbody), out ISaveComponentCapturer capturer));
             RoundTrip(capturer, sourceBody, targetBody);
 
-            Assert.AreEqual(Vector3.zero, targetBody.linearVelocity, "运动学刚体跳过速度写回");
+            Assert.AreEqual(Vector3.zero, GetVelocity(targetBody), "运动学刚体跳过速度写回");
         }
+        
+        private static Vector3 GetVelocity(Rigidbody rb)
+        {
+#if UNITY_2023_3_0 || UNITY_2023_3_OR_NEWER
+            return rb.linearVelocity;
+#else
+            return rb.velocity;
+#endif 
+        }
+        
+        private static void SetVelocity(Rigidbody rb, Vector3 newVelocity)
+        {
+#if UNITY_2023_3_0 || UNITY_2023_3_OR_NEWER
+            rb.linearVelocity = newVelocity;
+#else
+            rb.velocity = newVelocity;
+#endif 
+        }        
 
         [Test]
         public void ParticleSystemCapturer_RoundTripsTime()

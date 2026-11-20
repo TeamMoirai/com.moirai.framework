@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 using Moirai.Atropos;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.GameMain.UI;
 using UnityEngine;
 
@@ -38,14 +38,14 @@ namespace Moirai.GameMain
                 return;
             }
 
-            if (ResourceService.PlayMode == EResourcePlayMode.HostPlay || ResourceService.PlayMode == EResourcePlayMode.WebGLPlay)
+            if (AssetService.PlayMode == EAssetPlayMode.HostPlay || AssetService.PlayMode == EAssetPlayMode.WebGLPlay)
             {
                 // 线上最新版本operation.PackageVersion
-                LogUtility.Debug("Updated package Version : from {0} to {1}", ResourceService.GetPackageVersion(), ResourceService.PackageVersion);
+                LogUtility.Debug("Updated package Version : from {0} to {1}", AssetService.GetPackageVersion(), AssetService.PackageVersion);
                 // 注意：保存资源版本号作为下次默认启动的版本!
                 // 如果当前是WebGL或者是边玩边下载直接进入预加载阶段。
-                if (ResourceService.PlayMode == EResourcePlayMode.WebGLPlay ||
-                    ResourceService.UpdatableWhilePlaying)
+                if (AssetService.PlayMode == EAssetPlayMode.WebGLPlay ||
+                    AssetService.UpdatableWhilePlaying)
                 {
                     // 边玩边下载还可以拓展首包支持。
                     ChangeToPreloadState();
@@ -75,7 +75,7 @@ namespace Moirai.GameMain
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_UpdateManifest);
 
             // 1. 获取资源清单的版本信息
-            var operation1 = ResourceService.RequestPackageVersion();
+            var operation1 = AssetService.RequestPackageVersion();
             while (operation1?.Operation != null && !operation1.Operation.IsDone)
             {
                 yield return null;
@@ -87,14 +87,14 @@ namespace Moirai.GameMain
             }
 
             var packageVersion = operation1.PackageVersion;
-            ResourceService.PackageVersion = packageVersion;
+            AssetService.PackageVersion = packageVersion;
 
-            SettingUtility.SetString(GameConstant.GAME_VERSION, ResourceService.PackageVersion);
+            SettingUtility.SetString(GameConstant.GAME_VERSION, AssetService.PackageVersion);
 
             LogUtility.Info("Init resource package version : {0}", packageVersion);
 
             // 2. 传入的版本信息更新资源清单
-            var operation2 = ResourceService.LoadPackageManifestAsync(packageVersion);
+            var operation2 = AssetService.LoadPackageManifestAsync(packageVersion);
             while (operation2 != null && !operation2.IsDone)
             {
                 yield return null;
@@ -116,7 +116,7 @@ namespace Moirai.GameMain
         private void OnInitResourcesError(string message)
         {
             // 检查设备网络连接状态。
-            if (ResourceService.PlayMode == EResourcePlayMode.HostPlay)
+            if (AssetService.PlayMode == EAssetPlayMode.HostPlay)
             {
                 if (!IsNeedUpdate())
                 {
@@ -143,7 +143,7 @@ namespace Moirai.GameMain
         private bool IsNeedUpdate()
         {
             // 如果不能联网且当前游戏非强制(不更新可以进入游戏。)
-            if (UpdateSettings.UpdateStyle == EUpdateStyle.Optional && !ResourceService.UpdatableWhilePlaying)
+            if (UpdateSettings.UpdateStyle == EUpdateStyle.Optional && !AssetService.UpdatableWhilePlaying)
             {
                 // 获取上次成功记录的版本
                 string packageVersion = SettingUtility.GetString(GameConstant.GAME_VERSION, string.Empty);
@@ -157,7 +157,7 @@ namespace Moirai.GameMain
                     return false;
                 }
 
-                ResourceService.PackageVersion = packageVersion;
+                AssetService.PackageVersion = packageVersion;
 
                 if (UpdateSettings.UpdateNotice == EUpdateNotice.Notice)
                 {

@@ -1,7 +1,7 @@
 ﻿using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.GameMain.UI;
 using UnityEngine;
 
@@ -27,31 +27,31 @@ namespace Moirai.GameMain
         {
             try
             {
-                var initializationOperation = await ResourceService.InitializePackageAsync(ResourceService.DefaultPackageName,
-                    ResourceService.PlayMode == EResourcePlayMode.OfflinePlay);
+                var initializationOperation = await AssetService.InitializePackageAsync(AssetService.DefaultPackageName,
+                    AssetService.PlayMode == EAssetPlayMode.OfflinePlay);
 
                 if (initializationOperation != null && initializationOperation.Succeed)
                 {
                     // 热更新阶段文本初始化
                     LoadText.Instance.InitConfigData();
 
-                    EResourcePlayMode playMode = ResourceService.PlayMode;
+                    EAssetPlayMode playMode = AssetService.PlayMode;
 
                     // 编辑器模式。
-                    if (playMode == EResourcePlayMode.EditorSimulate)
+                    if (playMode == EAssetPlayMode.EditorSimulate)
                     {
                         LogUtility.Info("Editor resource mode detected.");
                         ChangeState<ProcedureInitResources>();
                     }
                     // 单机模式。
-                    else if (playMode == EResourcePlayMode.OfflinePlay)
+                    else if (playMode == EAssetPlayMode.OfflinePlay)
                     {
                         LogUtility.Info("Package resource mode detected.");
                         ChangeState<ProcedureInitResources>();
                     }
                     // 可更新模式。
-                    else if (playMode == EResourcePlayMode.HostPlay ||
-                             playMode == EResourcePlayMode.WebGLPlay)
+                    else if (playMode == EAssetPlayMode.HostPlay ||
+                             playMode == EAssetPlayMode.WebGLPlay)
                     {
                         // 打开启动UI。
                         LauncherMgr.ShowUI<LoadUpdateUI>();

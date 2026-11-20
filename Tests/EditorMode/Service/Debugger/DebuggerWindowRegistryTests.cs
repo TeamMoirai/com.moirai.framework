@@ -88,8 +88,8 @@ namespace Service.Debugger
             Dbg.DebuggerWindowRegistry registry = new Dbg.DebuggerWindowRegistry();
             registry.Register("Console", new StubWindow());
 
-            Assert.Throws<GameException>(() => registry.Register("Console", new StubWindow()),
-                "重复注册同一路径应抛出 GameException");
+            Assert.Throws<MoiraiException>(() => registry.Register("Console", new StubWindow()),
+                "重复注册同一路径应抛出 MoiraiException");
         }
 
         [Test]
@@ -98,7 +98,7 @@ namespace Service.Debugger
             Dbg.DebuggerWindowRegistry registry = new Dbg.DebuggerWindowRegistry();
             registry.Register("Console", new StubWindow());
 
-            Assert.Throws<GameException>(() => registry.Register("Console/Sub", new StubWindow()),
+            Assert.Throws<MoiraiException>(() => registry.Register("Console/Sub", new StubWindow()),
                 "窗口节点上不允许再挂子路径（目录与窗口互斥）");
         }
 
@@ -111,8 +111,8 @@ namespace Service.Debugger
         {
             Dbg.DebuggerWindowRegistry registry = new Dbg.DebuggerWindowRegistry();
 
-            Assert.Throws<GameException>(() => registry.Register(path, new StubWindow()),
-                "无效路径应抛出 GameException: " + path);
+            Assert.Throws<MoiraiException>(() => registry.Register(path, new StubWindow()),
+                "无效路径应抛出 MoiraiException: " + path);
         }
 
         [Test]
@@ -120,8 +120,8 @@ namespace Service.Debugger
         {
             Dbg.DebuggerWindowRegistry registry = new Dbg.DebuggerWindowRegistry();
 
-            Assert.Throws<GameException>(() => registry.Register("Console", null),
-                "空窗口应抛出 GameException");
+            Assert.Throws<MoiraiException>(() => registry.Register("Console", null),
+                "空窗口应抛出 MoiraiException");
         }
 
         [Test]

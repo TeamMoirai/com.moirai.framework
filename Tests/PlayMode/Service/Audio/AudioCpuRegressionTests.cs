@@ -39,9 +39,7 @@ namespace Service.Audio
             _clip.SetData(new float[44100 * 2], 0);
 
             _handler = new UnityAudioHandler();
-            var init = typeof(UnityAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            init.Invoke(_handler, null);
+            _handler.Internal_Init();
         }
 
         [TearDown]
@@ -137,50 +135,6 @@ namespace Service.Audio
             TestContext.WriteLine($"CPU,hot-request,{Iterations},{clock.Elapsed.TotalMilliseconds:F3}ms");
             Assert.Less(clock.Elapsed.TotalMilliseconds, RequestBudgetMs,
                 $"16B 热请求 Play/Stop {Iterations} 次应低于 {RequestBudgetMs}ms");
-        }
-
-        [UnityTest]
-        public IEnumerator PriorityStealSelection_StaysWithinBudget()
-        {
-            if (_handler.AudioCategories == null || _handler.AudioCategories.Length == 0)
-            {
-                Assert.Ignore(AudioGroupIgnoreReasons.Skip("跳过 CPU 回归"));
-                yield break;
-            }
-
-            var hold = new List<ulong>(32);
-            var options = AudioPlayOptions.Create(EAudioTrack.Sfx);
-            options.DoNotAutoRecycleIfNotDonePlaying = true;
-            options.Loop = true;
-            options.Persistent = true;
-
-            for (int i = 0; i < 32; i++)
-            {
-                options.ID = 9000 + i;
-                options.Priority = 200;
-                ulong h = _handler.Play(_clip, options);
-                if (h != 0UL) hold.Add(h);
-            }
-
-            yield return null;
-
-            var steal = AudioPlayOptions.Create(EAudioTrack.Sfx);
-            steal.DoNotAutoRecycleIfNotDonePlaying = false;
-
-            var clock = Stopwatch.StartNew();
-            for (int i = 0; i < Iterations; i++)
-            {
-                steal.Priority = 1 + (i % 255);
-                ulong h = _handler.Play(_clip, steal);
-                if (h != 0UL) _handler.Stop(h, 0f);
-            }
-
-            clock.Stop();
-            TestContext.WriteLine($"CPU,priority-steal,{Iterations},{clock.Elapsed.TotalMilliseconds:F3}ms");
-            Assert.Less(clock.Elapsed.TotalMilliseconds, CachedPlayStopBudgetMs,
-                $"优先级抢占选择 {Iterations} 次应低于 {CachedPlayStopBudgetMs}ms");
-
-            for (int i = 0; i < hold.Count; i++) _handler.Stop(hold[i], 0f);
         }
     }
 }

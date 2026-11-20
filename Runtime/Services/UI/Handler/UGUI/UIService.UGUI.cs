@@ -46,7 +46,7 @@ namespace Moirai.Atropos.UI
         /// uGUI 腿的三支与 <see cref="System.Type"/> 入口的 uGUI 档都只取用它作认领门探针。 <br />
         /// 轨专有查询走的是另一条分支：<see cref="UIRoot"/> 与 <see cref="UICamera"/> 直读槽位，本轨未启用时答 <c>null</c> 而不抬错。
         /// </remarks>
-        /// <exception cref="GameException">uGUI 轨没有被启用（槽位空着）。</exception>
+        /// <exception cref="MoiraiException">uGUI 轨没有被启用（槽位空着）。</exception>
         internal static UGUIHandler UGUIHandler
         {
             get
@@ -54,7 +54,7 @@ namespace Moirai.Atropos.UI
                 var handler = s_UGUIHandler;
                 if (handler == null)
                 {
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "UI backend track '{0}' has no driver in place: list it in {1} and let OnInit register it.",
                         "UGUI", nameof(UIServiceSettings)));
                 }
@@ -75,7 +75,7 @@ namespace Moirai.Atropos.UI
         /// 次序是填槽 → 挂关停与广播 → <c>Internal_Init</c>：同一实例重入是空操作，换第二个进槽当场抬错。
         /// </remarks>
         /// <param name="handler">自述归属到本轨的驱动者。</param>
-        /// <exception cref="GameException">本轨已经有驱动者在位（同一轨的第二个注入项）。</exception>
+        /// <exception cref="MoiraiException">本轨已经有驱动者在位（同一轨的第二个注入项）。</exception>
         internal static void Internal_ClaimUGUITrack(UGUIHandler handler)
         {
             // 同一实例再注册一次是空操作：OnInit 可重入（那一档有格钉着），要否掉的是「换第二个进来」；
@@ -87,7 +87,7 @@ namespace Moirai.Atropos.UI
 
             if (Interlocked.CompareExchange(ref s_UGUIHandler, handler, null) != null)
             {
-                throw new GameException(
+                throw new MoiraiException(
                     "UI backend track 'UGUI' already has a driver in place: one track takes exactly one driver.");
             }
 
@@ -221,7 +221,7 @@ namespace Moirai.Atropos.UI
         /// <param name="payload">本次开窗的载荷。</param>
         /// <param name="ct">调用方取消令牌；被它撤销时等待原样上抛 <see cref="System.OperationCanceledException"/>。</param>
         /// <returns>打开窗口操作句柄。</returns>
-        /// <exception cref="GameException">按标识取回的实例不是 <typeparamref name="TWindow"/>（缓存命中类型不符，消息带期望/实际双类型名）。</exception>
+        /// <exception cref="MoiraiException">按标识取回的实例不是 <typeparamref name="TWindow"/>（缓存命中类型不符，消息带期望/实际双类型名）。</exception>
         public static async UniTask<TWindow> ShowUIAsyncAwait<TWindow, TArg>(string windowId, TArg payload,
             CancellationToken ct = default) where TWindow : UGUIWindow<TArg>, new()
         {
@@ -231,7 +231,7 @@ namespace Moirai.Atropos.UI
             {
                 null => null,
                 TWindow typed => typed,
-                _ => throw new GameException(StringUtility.Format(
+                _ => throw new MoiraiException(StringUtility.Format(
                     "UI 窗口 '{0}' 按标识命中的实例不是 {1}：实际是 {2}。",
                     window.WindowId, typeof(TWindow).Name, window.GetType().Name))
             };

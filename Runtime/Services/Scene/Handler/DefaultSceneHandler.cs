@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos.Scene
@@ -11,7 +11,7 @@ namespace Moirai.Atropos.Scene
     /// 默认场景处理器实现，承载主场景切换、附加场景加载/卸载、进度回调和挂起加载等核心逻辑。
     /// </summary>
     /// <remarks>
-    /// 场景加载经 <see cref="ResourceService"/> 走资源系统管线加载场景——场景资源与普通资源共享包管理、下载与引用计数体系，而非引擎内建 <see cref="SceneManager"/> 加载管线， <br />
+    /// 场景加载经 <see cref="AssetService"/> 走资源系统管线加载场景——场景资源与普通资源共享包管理、下载与引用计数体系，而非引擎内建 <see cref="SceneManager"/> 加载管线， <br />
     /// 自动应用当前配置的资源后端适配器（YooAsset、Addressable 等）。 <br />
     /// 标识约定：内部登记以资源地址（location）为键并维护场景短名（<see cref="UnityEngine.SceneManagement.Scene.name"/>）反向索引；查询/激活/卸载接口同时接受资源地址与场景短名， <br />
     /// <see cref="CurrentMainSceneName"/> 与生命周期事件统一使用场景短名；短名碰撞时后注册者覆盖反向索引并打 Warning，按名查询可能解析到错误对象。
@@ -21,16 +21,17 @@ namespace Moirai.Atropos.Scene
     /// </remarks>
     [ProviderDisplay(title: "默认场景（资源管线）", description: "主/子场景走资源系统管线（共享包管理与引用计数），挂起加载须最终 UnSuspend")]
     [Serializable]
-    internal sealed class DefaultSceneHandler : SceneServiceHandler
+    internal sealed class DefaultSceneHandler :
+    FrameworkHandler, ISceneService
     {
         /// <summary>场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。</summary>
         [NonSerialized] private readonly SceneRegistry _registry = new SceneRegistry();
 
         /// <summary>当前主场景名称（场景短名）。</summary>
-        public override string CurrentMainSceneName => _registry.CurrentMainSceneName;
+        public string CurrentMainSceneName => _registry.CurrentMainSceneName;
 
         /// <summary>已完成加载的子场景资源地址快照（不含加载中的子场景）。</summary>
-        public override IReadOnlyCollection<string> LoadedSubSceneLocations => _registry.SnapshotLoadedSubScenes();
+        public IReadOnlyCollection<string> LoadedSubSceneLocations => _registry.SnapshotLoadedSubScenes();
 
         /// <summary>
         /// 处理器初始化。取当前激活场景作为初始主场景。
@@ -82,7 +83,7 @@ namespace Moirai.Atropos.Scene
         #region 场景加载 [SCENE LOADING]
 
         /// <summary>
-        /// 异步加载场景。加载失败抛出 <see cref="GameException"/>。
+        /// 异步加载场景。加载失败抛出 <see cref="MoiraiException"/>。
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <param name="sceneMode">场景加载模式。</param>
@@ -92,7 +93,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="packageName">资源包名称（空串使用默认包）。</param>
         /// <param name="cancellationToken">取消令牌——放弃等待语义，不中止底层加载。</param>
         /// <returns>加载完成的场景。</returns>
-        public override UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority,
+        public UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority,
             Action<float> progressCallBack, string packageName, CancellationToken cancellationToken)
         {
             // 直通返回内部任务，避免外层 async 多分配一个状态机
@@ -112,7 +113,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="priority">加载优先级。</param>
         /// <param name="callBack">加载完成回调。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
-        public override void LoadScene(string location, string packageName, LoadSceneMode sceneMode,
+        public void LoadScene(string location, string packageName, LoadSceneMode sceneMode,
             bool suspendLoad, uint priority, Action<UnityEngine.SceneManagement.Scene> callBack, Action<float> progressCallBack)
         {
             LoadSceneCallbackInternal(location, packageName ?? string.Empty, sceneMode, suspendLoad, priority, callBack, progressCallBack).Forget();
@@ -150,10 +151,10 @@ namespace Moirai.Atropos.Scene
         }
 
         /// <summary>
-        /// 场景加载核心流程——经 <see cref="ResourceService"/> 走资源系统管线加载场景。
+        /// 场景加载核心流程——经 <see cref="AssetService"/> 走资源系统管线加载场景。
         /// </summary>
         /// <remarks>
-        /// 门禁失败、资源后端同步失败、加载错误均抛出 <see cref="GameException"/>； <br />
+        /// 门禁失败、资源后端同步失败、加载错误均抛出 <see cref="MoiraiException"/>； <br />
         /// 等待方取消时由 <see cref="FinalizeLoadDetached"/> 后台收尾后重抛 <see cref="OperationCanceledException"/>。
         /// </remarks>
         private async UniTask<UnityEngine.SceneManagement.Scene> LoadSceneInternal(string location, string packageName, LoadSceneMode sceneMode,
@@ -162,7 +163,7 @@ namespace Moirai.Atropos.Scene
             // —— 入参校验 ——
             if (string.IsNullOrEmpty(location))
             {
-                throw new GameException("Could not load scene. Location is null or empty.");
+                throw new MoiraiException("Could not load scene. Location is null or empty.");
             }
 
             // —— 门禁判定（纯查询，含防重入与互斥检查）——
@@ -175,10 +176,10 @@ namespace Moirai.Atropos.Scene
             _registry.TryMarkOperation(location);
 
             // —— 发起加载 ——
-            ResourceSceneHandle handle;
+            AssetSceneHandle handle;
             try
             {
-                handle = ResourceService.LoadSceneAsync(location, sceneMode, suspendLoad, priority, packageName);
+                handle = AssetService.LoadSceneAsync(location, sceneMode, suspendLoad, priority, packageName);
             }
             catch (Exception)
             {
@@ -190,7 +191,7 @@ namespace Moirai.Atropos.Scene
             if (handle == null)
             {
                 _registry.UnmarkOperation(location);
-                throw new GameException(StringUtility.Format("Could not load scene. Resource service is not ready. Scene: {0}", location));
+                throw new MoiraiException(StringUtility.Format("Could not load scene. Resource service is not ready. Scene: {0}", location));
             }
 
             // —— 登记（句柄只存一处）——
@@ -229,22 +230,22 @@ namespace Moirai.Atropos.Scene
         /// <summary>
         /// 按门禁判定结果构造加载异常。
         /// </summary>
-        private static GameException CreateLoadException(SceneRegistry.ELoadGate gate, string location)
+        private static MoiraiException CreateLoadException(SceneRegistry.ELoadGate gate, string location)
         {
             switch (gate)
             {
                 case SceneRegistry.ELoadGate.InFlight:
-                    return new GameException(StringUtility.Format("Could not load scene while an operation is in flight. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load scene while an operation is in flight. Scene: {0}", location));
                 case SceneRegistry.ELoadGate.SubAlreadyRegistered:
-                    return new GameException(StringUtility.Format("Could not load sub scene while already registered. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load sub scene while already registered. Scene: {0}", location));
                 case SceneRegistry.ELoadGate.MainLoadInFlight:
-                    return new GameException(StringUtility.Format("Could not load main scene while another main scene is loading. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load main scene while another main scene is loading. Scene: {0}", location));
                 case SceneRegistry.ELoadGate.RegisteredAsSub:
-                    return new GameException(StringUtility.Format("Could not load scene as main while registered as sub scene. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load scene as main while registered as sub scene. Scene: {0}", location));
                 case SceneRegistry.ELoadGate.RegisteredAsMain:
-                    return new GameException(StringUtility.Format("Could not load scene as sub while registered as main scene. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load scene as sub while registered as main scene. Scene: {0}", location));
                 default:
-                    return new GameException(StringUtility.Format("Could not load scene. Scene: {0}", location));
+                    return new MoiraiException(StringUtility.Format("Could not load scene. Scene: {0}", location));
             }
         }
 
@@ -254,7 +255,7 @@ namespace Moirai.Atropos.Scene
         /// <remarks>
         /// internal 可见性供 PlayMode 帧驱动用例直接触达，不开反射接缝。
         /// </remarks>
-        internal static async UniTask AwaitSceneHandle(ResourceSceneHandle handle, Action<float> progressCallBack, CancellationToken cancellationToken)
+        internal static async UniTask AwaitSceneHandle(AssetSceneHandle handle, Action<float> progressCallBack, CancellationToken cancellationToken)
         {
             // 进度判重：无变化不重复回报——进度回调是调用方代码，churn 无收益。
             float lastReported = -1f;
@@ -300,9 +301,9 @@ namespace Moirai.Atropos.Scene
         /// 加载完成收尾——登记迁移、主场景句柄切换与事件派发。
         /// </summary>
         /// <remarks>
-        /// 加载失败时清理全部登记、释放句柄并抛出 <see cref="GameException"/>。
+        /// 加载失败时清理全部登记、释放句柄并抛出 <see cref="MoiraiException"/>。
         /// </remarks>
-        private UnityEngine.SceneManagement.Scene FinalizeSceneLoad(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode)
+        private UnityEngine.SceneManagement.Scene FinalizeSceneLoad(string location, AssetSceneHandle handle, LoadSceneMode sceneMode)
         {
             _registry.UnmarkOperation(location);
 
@@ -310,7 +311,7 @@ namespace Moirai.Atropos.Scene
             {
                 _registry.AbandonLoad(location, sceneMode);
                 handle.Release();
-                throw new GameException(StringUtility.Format("Could not load scene. Scene: {0}, error: {1}", location, handle.Error));
+                throw new MoiraiException(StringUtility.Format("Could not load scene. Scene: {0}, error: {1}", location, handle.Error));
             }
 
             var scene = handle.SceneObject;
@@ -359,7 +360,7 @@ namespace Moirai.Atropos.Scene
         /// <remarks>
         /// 处理器已关闭（<see cref="OnShutdown"/> 已排空登记簿）或登记被清理时直接返回，放弃过期收尾。
         /// </remarks>
-        private async UniTaskVoid FinalizeLoadDetached(string location, ResourceSceneHandle handle, LoadSceneMode sceneMode)
+        private async UniTaskVoid FinalizeLoadDetached(string location, AssetSceneHandle handle, LoadSceneMode sceneMode)
         {
             while (!handle.IsDone)
             {
@@ -396,7 +397,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否激活成功。</returns>
-        public override bool ActivateScene(string location)
+        public bool ActivateScene(string location)
         {
             if (string.IsNullOrEmpty(location))
             {
@@ -429,7 +430,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否取消成功。</returns>
-        public override bool UnSuspend(string location)
+        public bool UnSuspend(string location)
         {
             if (string.IsNullOrEmpty(location))
             {
@@ -458,7 +459,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否为主场景。</returns>
-        public override bool IsMainScene(string location)
+        public bool IsMainScene(string location)
         {
             return _registry.IsMainScene(location);
         }
@@ -473,7 +474,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <returns>是否卸载成功。</returns>
-        public override UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack)
+        public UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack)
         {
             if (!TryBeginUnload(location, out var pending))
             {
@@ -492,7 +493,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <param name="callBack">卸载完成回调（参数为是否卸载成功）。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
-        public override void Unload(string location, Action<bool> callBack, Action<float> progressCallBack)
+        public void Unload(string location, Action<bool> callBack, Action<float> progressCallBack)
         {
             if (!TryBeginUnload(location, out var pending))
             {
@@ -530,11 +531,11 @@ namespace Moirai.Atropos.Scene
         /// <remarks>
         /// 卸载失败或句柄已失效时保留登记（场景仍在场）并返回 <c>false</c> 供重试；在途标记由 finally 保证释放。
         /// </remarks>
-        private async UniTask<bool> UnloadSceneInternal(string location, string sceneName, ResourceSceneHandle handle, Action<float> progressCallBack)
+        private async UniTask<bool> UnloadSceneInternal(string location, string sceneName, AssetSceneHandle handle, Action<float> progressCallBack)
         {
             try
             {
-                IResourceOperation operation = null;
+                IAssetOperation operation = null;
                 try
                 {
                     operation = handle.UnloadAsync();
@@ -586,7 +587,7 @@ namespace Moirai.Atropos.Scene
         /// <summary>
         /// 卸载核心流程（回调式）——发起后无论成败恰好回调一次（参数为是否成功；回调自身异常被隔离记录）。
         /// </summary>
-        private async UniTaskVoid UnloadSceneCallbackInternal(string location, string sceneName, ResourceSceneHandle handle, Action<bool> callBack, Action<float> progressCallBack)
+        private async UniTaskVoid UnloadSceneCallbackInternal(string location, string sceneName, AssetSceneHandle handle, Action<bool> callBack, Action<float> progressCallBack)
         {
             var success = false;
             try
@@ -622,7 +623,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否已登记。</returns>
-        public override bool IsContainScene(string location)
+        public bool IsContainScene(string location)
         {
             return _registry.IsContainScene(location);
         }
@@ -632,7 +633,7 @@ namespace Moirai.Atropos.Scene
         /// <summary>
         /// 关闭路径安全释放句柄——逐项隔离异常，不中断关闭链。
         /// </summary>
-        private static void ReleaseHandleSafely(ResourceSceneHandle handle, string location)
+        private static void ReleaseHandleSafely(AssetSceneHandle handle, string location)
         {
             if (handle == null)
             {

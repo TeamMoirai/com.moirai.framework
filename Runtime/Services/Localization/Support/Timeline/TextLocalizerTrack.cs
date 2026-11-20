@@ -1,4 +1,4 @@
-﻿#if TIMELINE_INSTALLED
+#if TIMELINE_INSTALLED
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;

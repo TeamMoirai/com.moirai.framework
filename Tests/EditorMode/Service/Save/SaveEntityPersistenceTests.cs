@@ -16,10 +16,10 @@ using static Moirai.Atropos.LogHandler;
 namespace Service.Save
 {
     /// <summary>
-    /// 动态实体持久化闭环测试：生成（注入 ID/块键/命名规整）→ 差分捕获（体积与内容）→ 销毁标记 → 恢复（原 ID/字段值/模板默认/父子接线/onEntityRestored 事件）→ 陈旧块清理 → 加载失败降级。
+    /// 动态实体持久化闭环测试：生成（注入 ID/块键/命名规整）→ 差分捕获（体积与内容）→ 销毁标记 → 恢复（原 ID/字段值/模板默认/父子接线/SaveEntityRestoredEvent 事件）→ 陈旧块清理 → 加载失败降级。
     /// </summary>
     /// <remarks>
-    /// 模板加载器注入假实现（绕开 ResourceService/EditMode 限制）；模板源保持未激活避免 Awake 注册污染。 <br />
+    /// 模板加载器注入假实现（绕开 AssetService/EditMode 限制）；模板源保持未激活避免 Awake 注册污染。 <br />
     /// 告警/错误断言经 <see cref="LogUtility.onMessageLogged"/> 事件捕获（Handler 无关）； <br />
     /// UTF 可见链路的 <c>LogAssert.Expect</c> 由 <see cref="UtfLogExpect"/> 统一声明。
     /// </remarks>
@@ -46,15 +46,15 @@ namespace Service.Save
         private readonly List<GameObject> _objects = new List<GameObject>();
         private GameObject _prefabSource;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
-        private List<SaveEntityRestoredArgs> _restoredEvents;
+        private List<SaveEntityRestoredEvent> _restoredEvents;
 
         [SetUp]
         public void SetUp()
         {
             _capturedLogs = new List<(ELogLevel, string)>();
-            _restoredEvents = new List<SaveEntityRestoredArgs>();
+            _restoredEvents = new List<SaveEntityRestoredEvent>();
             LogUtility.onMessageLogged += CaptureLog;
-            SaveService.onEntityRestored += OnEntityRestored;
+            EventBus.Subscribe<SaveEntityRestoredEvent>(OnEntityRestoredBusBridge);
             SaveEntityRegistry.ResetTables();
             SaveEntityPersistence.ResetForTests();
             SaveBuiltInCapturers.RegisterBuiltIns();
@@ -89,7 +89,7 @@ namespace Service.Save
         public void TearDown()
         {
             LogUtility.onMessageLogged -= CaptureLog;
-            SaveService.onEntityRestored -= OnEntityRestored;
+            EventBus.Unsubscribe<SaveEntityRestoredEvent>(OnEntityRestoredBusBridge);
             foreach (GameObject gameObject in _objects)
             {
                 if (gameObject != null)
@@ -114,9 +114,9 @@ namespace Service.Save
             _capturedLogs.Add((level, message));
         }
 
-        private void OnEntityRestored(SaveEntityRestoredArgs args)
+        private void OnEntityRestored(SaveEntityRestoredEvent evt)
         {
-            _restoredEvents.Add(args);
+            _restoredEvents.Add(evt);
         }
 
         /// <summary>
@@ -279,7 +279,7 @@ namespace Service.Save
             Assert.AreEqual(new Vector3(5f, 1f, 0f), restored.transform.localPosition, "变换差分恢复");
             Assert.AreEqual(90f, restored.transform.localEulerAngles.y, 0.01f);
 
-            Assert.AreEqual(1, _restoredEvents.Count, "onEntityRestored 事件应逐实体触发");
+            Assert.AreEqual(1, _restoredEvents.Count, "SaveEntityRestoredEvent 事件应逐实体触发");
             Assert.AreEqual(entityId, _restoredEvents[0].EntityId);
             Assert.AreEqual(ENEMY_KEY, _restoredEvents[0].PrefabKey);
             Assert.AreSame(restored.gameObject, _restoredEvents[0].Instance);
@@ -443,5 +443,7 @@ namespace Service.Save
             Assert.AreEqual(1, spawns.Count);
             Assert.AreEqual(entityId, spawns[0].EntityId, "生成失败的实体记录应保留");
         }
+
+	private void OnEntityRestoredBusBridge(in SaveEntityRestoredEvent e) => OnEntityRestored(e);
     }
 }

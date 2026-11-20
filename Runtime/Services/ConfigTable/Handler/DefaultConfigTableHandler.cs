@@ -11,18 +11,19 @@ namespace Moirai.Atropos.ConfigTable
     /// </summary>
     [ProviderDisplay(title: "默认（兜底）", description: "未生成游戏侧配置代码时的占位：查表报错并返回空结果")]
     [Serializable]
-    internal sealed class DefaultConfigTableHandler : ConfigTableServiceHandler
+    internal sealed class DefaultConfigTableHandler :
+    FrameworkHandler, IConfigTableService
     {
         /// <summary>
         /// 从配置表获取所有多语言文本。
         /// </summary>
-        public override Dictionary<string, List<string>> GetAllLocalizedStrings()
+        public Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
             LogUtility.Error("Generate Config first!");
             return null;
         }
 
-        public override IReadOnlyList<string> GetLocalizationLanguageCodes()
+        public IReadOnlyList<string> GetLocalizationLanguageCodes()
         {
             LogUtility.Error("Generate Config first!");
             return Array.Empty<string>();
@@ -33,7 +34,7 @@ namespace Moirai.Atropos.ConfigTable
         /// </summary>
         /// <param name="id">配置 ID。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        public override UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
+        public UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
         {
             LogUtility.Error("Generate Config first!");
             return UniTask.FromResult<Sprite>(null);
@@ -43,7 +44,7 @@ namespace Moirai.Atropos.ConfigTable
         /// 根据 ID 从配置表获取弹窗资产的位置。
         /// </summary>
         /// <param name="id">配置 ID。</param>
-        public override string GetUIWindowLocation(string id)
+        public string GetUIWindowLocation(string id)
         {
             LogUtility.Error("Generate Config first!");
             return string.Empty;

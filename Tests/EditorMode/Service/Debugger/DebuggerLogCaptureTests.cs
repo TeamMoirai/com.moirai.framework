@@ -79,7 +79,7 @@ namespace Service.Debugger
         [Test]
         public void Capture_InvalidCapacity_Throws()
         {
-            Assert.Throws<Moirai.Atropos.GameException>(() => new Dbg.DebuggerLogCapture(0),
+            Assert.Throws<Moirai.Atropos.MoiraiException>(() => new Dbg.DebuggerLogCapture(0),
                 "容量须为正");
         }
 

@@ -11,9 +11,9 @@ namespace Moirai.Atropos.Audio
     {
         [InfoBox("默认使用内置音频后端。可替换为自定义音频后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private AudioServiceHandler m_AudioServiceHandler = AudioService.CreateDefaultHandler();
+        [SerializeReference] private IAudioService m_AudioServiceHandler = AudioService.CreateDefaultHandler();
         /// <summary>音频处理器（后端）。</summary>
-        internal static AudioServiceHandler AudioServiceHandler => Instance.m_AudioServiceHandler;
+        internal static IAudioService AudioServiceHandler => Instance.m_AudioServiceHandler;
 
         /// <summary>配置自检：当前序列化后端自报的播放能力快照。</summary>
         /// <remarks>

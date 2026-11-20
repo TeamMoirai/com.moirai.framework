@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine.SceneManagement;
 
 namespace Moirai.Atropos.Scene
@@ -13,14 +13,14 @@ namespace Moirai.Atropos.Scene
     /// <remarks>
     /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="SceneServiceSettings"/> 解析， <br />
     /// 未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。 <br />
-    /// 错误契约：加载失败抛出 <see cref="GameException"/>；卸载失败以 <c>false</c> 返回并保留登记；服务未注册时查询降级返回默认值、 <br />
+    /// 错误契约：加载失败抛出 <see cref="MoiraiException"/>；卸载失败以 <c>false</c> 返回并保留登记；服务未注册时查询降级返回默认值、 <br />
     /// 加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。 <br />
     /// 生命周期事件（<see cref="onMainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。 <br />
     /// 场景短名须尽量全局唯一：碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。
     /// </remarks>
     [AutoRegisterService]
-    [ProviderHandlerHost(typeof(SceneServiceHandler), typeof(DefaultSceneHandler))]
-    [ServiceDependency(typeof(ResourceService))]
+    [ProviderHandlerHost(typeof(ISceneService), typeof(DefaultSceneHandler))]
+    [ServiceDependency(typeof(IAssetService))]
     public partial class SceneService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
@@ -33,7 +33,7 @@ namespace Moirai.Atropos.Scene
         /// 幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static SceneServiceHandler GetHandlerFromSettings()
+        private static ISceneService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<SceneService>();
             return SceneServiceSettings.SceneServiceHandler;
@@ -63,7 +63,8 @@ namespace Moirai.Atropos.Scene
             onMainSceneChanged = null;
             onSubSceneLoaded = null;
             onSubSceneUnloaded = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         #endregion
@@ -127,7 +128,7 @@ namespace Moirai.Atropos.Scene
         #region 场景加载 [SCENE LOADING]
 
         /// <summary>
-        /// 异步加载场景。加载失败抛出 <see cref="GameException"/>。
+        /// 异步加载场景。加载失败抛出 <see cref="MoiraiException"/>。
         /// </summary>
         /// <remarks>
         /// 挂起加载（<c>suspendLoad</c>）须经 <see cref="UnSuspend"/> 解除后才会完成——底层加载不可中止，<paramref name="cancellationToken"/> 仅取消等待与进度回调， <br />

@@ -18,7 +18,7 @@ namespace Service.UI
     /// <c>PanelSettings</c> 取包内 <c>Runtime/Services/Debugger/Resources/DebuggerPanelSettings</c> 作正对照——取不到是量具前提坏了，不是被测代码坏。 <br />
     /// 装载路径的三格成功用例（同步 / 异步 / 内置资源）不吃接缝、走真实现，因此只读引用包内<b>实存</b>资产（一个 <c>.uxml</c>、一个 <c>.uss</c>）： <br />
     /// 本文件不新增测试资产，测试桩一律代码注入。异步那格今天在 EditMode 就判得了：编辑器域里资源服务未初始化， <br />
-    /// <c>ResourceService.TryLoadAssetAsync</c> 走 <c>AssetDatabase</c> 那一支不经过任何 await 站点，<c>InternalLoad</c> 的续体当场跑完（不是「推测要 PlayMode」）。 <br />
+    /// <c>AssetService.TryLoadAssetAsync</c> 走 <c>AssetDatabase</c> 那一支不经过任何 await 站点，<c>InternalLoad</c> 的续体当场跑完（不是「推测要 PlayMode」）。 <br />
     /// 真装载建出的壳交 <c>TearDown</c> 清理，且登记排在断言之前：<c>InternalLoad</c> 是 <c>async UniTaskVoid</c>，中途抛错时壳已经挂到场景根，漏登记就是串味。 <br />
     /// 序空间那一组格钉「深度意图经 <c>ApplyDepth</c> 落进文档组件的 <c>float</c> 序、回读取的是文档事实」，含负序、超出 <c>float</c> 逐整数可表示范围、 <br />
     /// 面板从未装载与被拒开四种口径；判据一律打在窗基类自己的钩子与 <see cref="UITKWindow.Document"/> 取口上。 <br />
@@ -28,7 +28,7 @@ namespace Service.UI
     public sealed class UITKWindowTests
     {
         /// <summary>真模板资产的定位地址：包内实存的调试器事件面板模板（只读消费，成功路径的装载判据）。</summary>
-        private const string TemplateAssetPath = "Packages/com.moirai.framework/Editor/Core/Events/Resources/EventsDebugger.uxml";
+        private const string TemplateAssetPath = "Packages/com.moirai.framework/Editor/TestFixtures/Resources/EventsDebugger.uxml";
 
         /// <summary>真主题资产的定位地址：包内实存的调试器样式表（<c>ApplyTheme</c> 成功分支的挂载判据）。</summary>
         private const string ThemeAssetPath = "Packages/com.moirai.framework/Runtime/Services/Debugger/Resources/Debugger UI.uss";
@@ -36,7 +36,7 @@ namespace Service.UI
         /// <summary>同一个样式表的 Resources 地址：拿它与 <paramref name="ThemeAssetPath"/> 取到的对象比同一性，钉住「挂的就是取到的那一份」。</summary>
         private const string ThemeResourceName = "Debugger UI";
 
-        /// <summary>那个真模板的内置资源地址（它在 <c>Editor/Core/Events/Resources/</c> 下）：先证 <c>Resources.Load</c> 取不取得到，再决定 <c>fromResources</c> 那一支覆不覆。</summary>
+        /// <summary>那个真模板的内置资源地址（它在 <c>Editor/TestFixtures/Resources/</c> 下）：先证 <c>Resources.Load</c> 取不取得到，再决定 <c>fromResources</c> 那一支覆不覆。</summary>
         private const string TemplateResourceName = "EventsDebugger";
 
         private GameObject _host;
@@ -211,7 +211,7 @@ namespace Service.UI
         /// 异步装载的成功路径：今天在 EditMode 就判得了——编辑器域里资源服务未初始化，异步取值不经过 await 站点，续体就地跑完。
         /// </summary>
         /// <remarks>
-        /// <c>ResourceService.TryLoadAssetAsync</c> 的 <c>UNITY_EDITOR</c> 分支在 <c>IsInitialized</c> 为假时直读 <c>AssetDatabase</c> 后 <c>return</c>， <br />
+        /// <c>AssetService.TryLoadAssetAsync</c> 的 <c>UNITY_EDITOR</c> 分支在 <c>IsInitialized</c> 为假时直读 <c>AssetDatabase</c> 后 <c>return</c>， <br />
         /// 那条路上一个 await 都没有 ⇒ <c>LoadPanelAsync</c> 交回已完成的任务，<c>UIWindow.InternalLoad</c> 的续体当场把 <c>PanelLoaded</c> 跑完。 <br />
         /// 判据与同步那格同套：<c>IsLoadDone</c>、壳已建出、<c>Document.panelSettings == SharedPanelSettings</c>、激活位、壳进清理表。
         /// </remarks>
@@ -287,7 +287,7 @@ namespace Service.UI
             Assert.IsNull(window.RootVisual, "失败后不得有内容根");
 
             var bareShell = NewShell("BareShell", false);
-            var error = Assert.Throws<Moirai.Atropos.GameException>(() => window.BindPanel(bareShell, null));
+            var error = Assert.Throws<Moirai.Atropos.MoiraiException>(() => window.BindPanel(bareShell, null));
 
             StringAssert.Contains(nameof(ProbeWindow), error.Message,
                 "缺 UIDocument 的文案要带上窗口标识：拿到半个可用面板不如当场指认");

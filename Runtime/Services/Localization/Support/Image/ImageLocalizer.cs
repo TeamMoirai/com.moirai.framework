@@ -37,7 +37,7 @@ namespace Moirai.Atropos.Localization
 #if UNITY_EDITOR
 		internal override string GetPreviewDescriptor()
 		{
-			if (!string.IsNullOrEmpty(localizedTextID)) return DescribeResourcePreview(localizedTextID);
+			if (!string.IsNullOrEmpty(localizedTextID)) return DescribeAssetPreview(localizedTextID);
 
 			var index = PreviewLanguageIndex();
 			if (index < 0) return null;

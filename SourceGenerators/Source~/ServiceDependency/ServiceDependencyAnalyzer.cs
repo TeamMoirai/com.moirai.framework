@@ -11,20 +11,20 @@ namespace Moirai.Atropos.SourceGenerators
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class ServiceDependencyAnalyzer : DiagnosticAnalyzer
     {
-        /// <summary>MIRAI201: ServiceDependency 依赖类型未实现 IService。</summary>
+        /// <summary>MA2001: ServiceDependency 依赖类型既未实现 IService，也不是任何服务自报的契约接口。</summary>
         public static readonly DiagnosticDescriptor DependencyMustImplementIServiceRule = new DiagnosticDescriptor(
-            id: "MIRAI201",
+            id: "MA2001",
             title: "ServiceDependency 依赖类型未实现 IService",
-            messageFormat: "[ServiceDependency] 声明的类型 '{0}' 未实现 'Moirai.Atropos.IService'，无法作为服务依赖注册",
+            messageFormat: "[ServiceDependency] 声明的类型 '{0}' 既未实现 'Moirai.Atropos.IService'，也不是任何 [ProviderHandlerHost] 自报的契约接口，无法作为服务依赖注册",
             category: "Usage",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true,
-            description: "All types passed to [ServiceDependency] must implement IService. Non-IService types cannot be registered via the service container.",
+            description: "Dependency types must either implement IService (registered as the concrete service) or be a contract interface self-reported via [ProviderHandlerHost(typeof(I{Service}), ...)] (bound as an additional contract at registration).",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>MIRAI202: ServiceDependency 未声明任何依赖类型。</summary>
+        /// <summary>MA2002: ServiceDependency 未声明任何依赖类型。</summary>
         public static readonly DiagnosticDescriptor EmptyDependencyRule = new DiagnosticDescriptor(
-            id: "MIRAI202",
+            id: "MA2002",
             title: "ServiceDependency 未声明依赖类型",
             messageFormat: "[ServiceDependency] 未声明任何依赖类型，至少需要一个实现 IService 的类型",
             category: "Usage",
@@ -34,6 +34,7 @@ namespace Moirai.Atropos.SourceGenerators
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         private const string IServiceFullyQualifiedName = "Moirai.Atropos.IService";
+        private const string ProviderHandlerHostFullyQualifiedName = "Moirai.Atropos.ProviderHandlerHostAttribute";
         private const string ServiceDependencyAttributeFullyQualifiedName = "Moirai.Atropos.ServiceDependencyAttribute";
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
@@ -118,9 +119,81 @@ namespace Moirai.Atropos.SourceGenerators
 
             // 检查 depType 是否实现了 IService
             bool implementsIService = ImplementsInterface(depType, iServiceSymbol);
-            if (!implementsIService)
+            if (!implementsIService && depType.TypeKind != TypeKind.Interface)
             {
                 ReportDiagnostic(context, attr, typeSymbol, DependencyMustImplementIServiceRule, depType.ToDisplayString());
+                return;
+            }
+
+            if (!implementsIService)
+            {
+                // 接口依赖：必须是某服务 [ProviderHandlerHost(typeof(I{Service}), ...)] 自报的契约接口（注册时附加契约绑定）
+                if (!GetContractInterfaces(context.Compilation).Contains(depType.ToDisplayString()))
+                {
+                    ReportDiagnostic(context, attr, typeSymbol, DependencyMustImplementIServiceRule, depType.ToDisplayString());
+                }
+            }
+        }
+
+        // 契约接口缓存（按编译实例）
+        private static readonly System.Collections.Generic.Dictionary<Compilation, System.Collections.Generic.HashSet<string>> s_ContractCache
+            = new System.Collections.Generic.Dictionary<Compilation, System.Collections.Generic.HashSet<string>>();
+
+        /// <summary>
+        /// 收集编译单元内全部 [ProviderHandlerHost(typeof(I{Service}), ...)] 自报的契约接口全名（Phase 2 注入互调——依赖声明允许指契约接口）。
+        /// </summary>
+        private static System.Collections.Generic.HashSet<string> GetContractInterfaces(Compilation compilation)
+        {
+            if (s_ContractCache.TryGetValue(compilation, out var cached))
+                return cached;
+
+            var set = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal);
+            CollectContractInterfaces(compilation.Assembly.GlobalNamespace, set);
+            // 引用程序集（含框架本体）也要收集——依赖声明可能指向其他程序集的服务契约
+            foreach (var referenced in compilation.SourceModule.ReferencedAssemblySymbols)
+            {
+                CollectContractInterfaces(referenced.GlobalNamespace, set);
+            }
+
+            s_ContractCache[compilation] = set;
+            return set;
+        }
+
+        private static void CollectContractInterfaces(INamespaceSymbol ns, System.Collections.Generic.HashSet<string> set)
+        {
+            foreach (var member in ns.GetMembers())
+            {
+                if (member is INamedTypeSymbol type)
+                {
+                    foreach (var attr in type.GetAttributes())
+                    {
+                        if (attr.AttributeClass?.ToDisplayString() != ProviderHandlerHostFullyQualifiedName)
+                            continue;
+                        if (attr.ConstructorArguments.Length == 0)
+                            continue;
+                        var first = attr.ConstructorArguments[0];
+                        if (first.Value is INamedTypeSymbol contract && contract.TypeKind == TypeKind.Interface)
+                        {
+                            set.Add(contract.ToDisplayString());
+                        }
+                        break;
+                    }
+
+                    if (type.ContainingNamespace != null && type.IsStatic)
+                        CollectContractInterfaces(type, set); // 静态类内的嵌套类型
+                }
+                else if (member is INamespaceSymbol nested)
+                {
+                    CollectContractInterfaces(nested, set);
+                }
+            }
+        }
+
+        private static void CollectContractInterfaces(INamedTypeSymbol type, System.Collections.Generic.HashSet<string> set)
+        {
+            foreach (var nested in type.GetTypeMembers())
+            {
+                CollectContractInterfaces(nested, set);
             }
         }
 

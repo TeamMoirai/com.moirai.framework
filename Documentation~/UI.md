@@ -8,7 +8,7 @@ UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类：`UIWindow` 是�
 
 UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，主入口不认识任何具体后端。
 
-- **`UIService`**：静态外观（`[AutoRegisterService]` + `[ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]`），承载通用 API——Type 形开窗分派、关闭/隐藏/查询、模态交互租约、安全区广播与生命周期；全部公共成员为静态方法/属性
+- **`UIService`**：静态外观（`[AutoRegisterService]` + `[ServiceDependency(typeof(DebuggerService), typeof(AssetService), typeof(TimerService), typeof(InputService))]`），承载通用 API——Type 形开窗分派、关闭/隐藏/查询、模态交互租约、安全区广播与生命周期；全部公共成员为静态方法/属性
 - **后端轨道**（每支一组 partial + 驱动者 + 窗口基类）：
   - `Handler/UGUI/`：`UIService.UGUI.cs`（槽位、认领门、开窗腿与轨道自登记）+ `UGUIHandler`（UI 根绑定、摄像机、错误日志、CanvasScaler 安全区落点）+ `UGUIWindow`（uGUI 面板意图落地）
   - `Handler/UITK/`：`UIService.UITK.cs` + `UITKHandler` + `UITKWindow`（`UIDocument` 壳 + 窗口级 `PanelSettings`）；本轨文档壳挂在 uGUI 轨那个 UI 根下

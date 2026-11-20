@@ -28,7 +28,7 @@ namespace Moirai.Atropos.UI
         public static UIPayload From(object value) => value == null ? Empty : new UIPayload(value);
 
         /// <summary>按 <typeparamref name="T"/> 取载荷。</summary>
-        /// <exception cref="GameException">类型不符，或空载荷作用于值类型（消息带期望类型名）。</exception>
+        /// <exception cref="MoiraiException">类型不符，或空载荷作用于值类型（消息带期望类型名）。</exception>
         public T To<T>()
         {
             if (_kind == EKind.Empty)
@@ -38,7 +38,7 @@ namespace Moirai.Atropos.UI
                     return default;
                 }
 
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "UIPayload 为空，取不出值类型 {0}：调用方没塞载荷。", typeof(T).Name));
             }
 
@@ -47,7 +47,7 @@ namespace Moirai.Atropos.UI
                 return typed;
             }
 
-            throw new GameException(StringUtility.Format(
+            throw new MoiraiException(StringUtility.Format(
                 "UIPayload 载荷类型不符：期望 {0}，实际 {1}。", typeof(T).Name, _ref.GetType().FullName));
         }
 

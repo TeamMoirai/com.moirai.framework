@@ -178,7 +178,7 @@ namespace Service.Audio
         public void AudioService_LoadBank_UnloadBank_SetRtpc_DispatchesToHandler()
         {
             // 走生成器发的内部接缝做无副作用换入换出：getter 会懒加载、setter 会 Internal_Init 且拒收 null
-            AudioServiceHandler previous = AudioService.Internal_PeekHandler();
+            IAudioService previous = AudioService.Internal_PeekHandler();
             var stub = new ContractBridge();
             var handler = new ContractHandler();
             handler.SetBridge(stub);

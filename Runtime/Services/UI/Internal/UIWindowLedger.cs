@@ -304,12 +304,12 @@ namespace Moirai.Atropos.UI
         /// <summary>开窗标识必填守卫：面板地址与栈上身份都只由窗口标识给出，复用/停放也认它，缺标识一律当场抬错。</summary>
         /// <param name="type">窗口类，只进抬错文案。</param>
         /// <param name="windowId">开窗传入的窗口标识。</param>
-        /// <exception cref="GameException">标识为空。</exception>
+        /// <exception cref="MoiraiException">标识为空。</exception>
         private static void RequireWindowId(Type type, string windowId)
         {
             if (string.IsNullOrEmpty(windowId))
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "UI 窗口 '{0}' 开窗没带 windowId：面板地址与栈上身份都只由窗口标识给出（配置表 configId，或 Resources 下的相对路径）",
                     type.FullName));
             }
@@ -412,7 +412,7 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            throw new GameException(StringUtility.Format(
+            throw new MoiraiException(StringUtility.Format(
                 "UI 窗口 '{0}' 的载荷槽类型不符：按标识命中的是 {1}，这一腿要塞 {2}。",
                 window.WindowId, window.GetType().FullName, typeof(TArg).Name));
         }
@@ -615,12 +615,12 @@ namespace Moirai.Atropos.UI
         /// <param name="type">窗口类。</param>
         /// <param name="windowId">窗口标识（配置表 configId，或 <c>Resources</c> 下的相对路径）。</param>
         /// <returns>已按描述符初始化好的新窗口。</returns>
-        /// <exception cref="GameException">窗口类未登记（没标 <c>[Window]</c>），或开窗没带 <paramref name="windowId"/>。</exception>
+        /// <exception cref="MoiraiException">窗口类未登记（没标 <c>[Window]</c>），或开窗没带 <paramref name="windowId"/>。</exception>
         private UIWindow CreateInstance(Type type, string windowId)
         {
             if (!UIWindowRegistry.TryGet(type, out var entry))
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "UI 窗口 '{0}' 未注册：窗口类必须标 [Window] 才能经注册表开出（由 UIWindowCodegen 在编译期登记）",
                     type.FullName));
             }
@@ -841,7 +841,8 @@ namespace Moirai.Atropos.UI
             CloseUI(typeof(T), windowId);
         }
 
-        /// <remarks>没带标识＝关掉该类型的所有窗口（自栈顶往下逐个经单窗路径收口）；带了标识则只关该标识。</remarks>
+        /// <remarks>没带标识＝关掉该类型的所有窗口（自栈顶往下逐个经单窗路径收口）；带了标识则只关该标识，
+        /// 且该标识的窗口必须是 <paramref name="type"/> 的实例——标识与类型指向不同窗口时按空操作处理并告警，不得误关。</remarks>
         internal void CloseUI(Type type, string windowId = null)
         {
             if (string.IsNullOrEmpty(windowId))
@@ -855,6 +856,15 @@ namespace Moirai.Atropos.UI
             if (window == null)
             {
                 LogUtility.Debug("要关闭的窗口 '{0}' 不在栈上：本次关闭是空操作", windowId);
+                return;
+            }
+
+            // 带键路径按唯一身份取窗：类型形参在此是第二重钥匙（与 GetWindow<T> 的类型守卫同口径），
+            // 标识写错（指向别的窗口）时不静默误关，报出来让调用方改
+            if (!type.IsInstanceOfType(window))
+            {
+                LogUtility.Error("CloseUI('{0}', '{1}') 的窗口标识与类型不匹配：标识指向 '{2}'，本次关闭是空操作",
+                    type.FullName, windowId, window.GetType().FullName);
                 return;
             }
 
@@ -1125,12 +1135,12 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 把窗口压入堆栈：按所属层级定位插入点，模态窗口压掉下层窗口的可交互位，末尾发一次打开回执。
         /// </summary>
-        /// <exception cref="GameException">同标识的窗口已在栈上。</exception>
+        /// <exception cref="MoiraiException">同标识的窗口已在栈上。</exception>
         internal void Push(UIWindow window)
         {
             if (IsContains(window.WindowId))
             {
-                throw new GameException($"Window {window.WindowId} is exist.");
+                throw new MoiraiException($"Window {window.WindowId} is exist.");
             }
 
             // 插入点取所属层级末位之后；该层无窗时退到较低层级末位之后，仍无则落栈底
@@ -1225,6 +1235,25 @@ namespace Moirai.Atropos.UI
             top.TryClose().Forget();
             return true;
         }
+
+        /// <summary>
+        /// 在开启序历史中自 <paramref name="current"/> 向前找第一个"当前不在开启态"的窗口
+        /// （复用/停放实例——Back 目标）。无则回 null。
+        /// </summary>
+        internal UIWindow PeekPreviousClosedHistoryWindow(UIWindow current)
+        {
+            int idx = _history.LastIndexOf(current);
+            if (idx < 0) return null;
+            for (int i = idx - 1; i >= 0; i--)
+            {
+                var w = _history[i];
+                if (!_uiStack.Contains(w)) return w;
+            }
+            return null;
+        }
+
+        /// <summary>窗口当前是否在开启态（uiStack 含）。</summary>
+        internal bool IsWindowOpen(UIWindow window) => _uiStack.Contains(window);
 
         #endregion
 

@@ -18,9 +18,9 @@ namespace Moirai.Atropos.SourceGenerators
     [Generator]
     public class BuiltinServiceRegistrationGenerator : IIncrementalGenerator
     {
-        /// <summary>MIRAI203: AutoRegisterService 目标类型未实现 IService。</summary>
+        /// <summary>MA2103: AutoRegisterService 目标类型未实现 IService。</summary>
         private static readonly DiagnosticDescriptor s_MustImplementIServiceRule = new DiagnosticDescriptor(
-            id: "MIRAI203",
+            id: "MA2103",
             title: "AutoRegisterService 目标类型未实现 IService",
             messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 未实现 'Moirai.Atropos.IService'，无法作为服务注册",
             category: "Usage",
@@ -29,9 +29,9 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Types marked with [AutoRegisterService] must implement IService.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>MIRAI204: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。</summary>
+        /// <summary>MA2104: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。</summary>
         private static readonly DiagnosticDescriptor s_InvalidTargetShapeRule = new DiagnosticDescriptor(
-            id: "MIRAI204",
+            id: "MA2104",
             title: "AutoRegisterService 目标类型形状非法",
             messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 必须是非抽象、非泛型且具有可访问无参构造函数的类（{1}）",
             category: "Usage",
@@ -40,9 +40,9 @@ namespace Moirai.Atropos.SourceGenerators
             description: "Auto-registration instantiates the service via a parameterless constructor; abstract, static, generic or ctor-less types are rejected.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
-        /// <summary>MIRAI205: AutoRegisterService 作用域值非法。</summary>
+        /// <summary>MA2105: AutoRegisterService 作用域值非法。</summary>
         private static readonly DiagnosticDescriptor s_InvalidScopeRule = new DiagnosticDescriptor(
-            id: "MIRAI205",
+            id: "MA2105",
             title: "AutoRegisterService 作用域值非法",
             messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 声明的作用域值 {1} 超出 EServiceScopeKind 合法范围 [App, Scene, Gameplay]",
             category: "Usage",
@@ -53,6 +53,7 @@ namespace Moirai.Atropos.SourceGenerators
 
         private const string AttributeFullyQualifiedName = "Moirai.Atropos.AutoRegisterServiceAttribute";
         private const string IServiceFullyQualifiedName = "Moirai.Atropos.IService";
+        private const string ProviderHandlerHostFullyQualifiedName = "Moirai.Atropos.ProviderHandlerHostAttribute";
 
         private static readonly string[] s_ScopeNames = { "App", "Scene", "Gameplay" };
 
@@ -136,10 +137,28 @@ namespace Moirai.Atropos.SourceGenerators
                 isValid = false;
             }
 
+            // 契约接口自报：[ProviderHandlerHost(typeof(I{Service}), ...)] 的第一参数——容器按该接口附加契约绑定（Phase 2 注入互调地基）
+            string? contractInterfaceFqn = null;
+            foreach (var classAttr in classSymbol.GetAttributes())
+            {
+                if (!SymbolEqualityComparer.Default.Equals(classAttr.AttributeClass,
+                        ctx.SemanticModel.Compilation.GetTypeByMetadataName(ProviderHandlerHostFullyQualifiedName)))
+                    continue;
+                if (classAttr.ConstructorArguments.Length == 0)
+                    continue;
+                var first = classAttr.ConstructorArguments[0];
+                if (first.Value is INamedTypeSymbol handlerContract && handlerContract.TypeKind == TypeKind.Interface)
+                {
+                    contractInterfaceFqn = handlerContract.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                }
+                break;
+            }
+
             return new ServiceRegistrationInfo(
                 classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 scopeValue,
                 isValid,
+                contractInterfaceFqn,
                 diagnostics.ToImmutable());
         }
 
@@ -209,13 +228,23 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        internal static void RegisterAll(ServiceWorld world)");
             sb.AppendLine("        {");
 
-            foreach (var info in infos)
+            for (var idx = 0; idx < infos.Count; idx++)
             {
-                sb.Append("            world.Register(EServiceScopeKind.");
+                var info = infos[idx];
+                sb.Append("            var __svc").Append(idx).Append(" = world.Register(EServiceScopeKind.");
                 sb.Append(s_ScopeNames[info.ScopeValue]);
                 sb.Append(", new ");
                 sb.Append(info.FullyQualifiedName);
                 sb.AppendLine("());");
+                if (!string.IsNullOrEmpty(info.ContractInterfaceFqn))
+                {
+                    // 契约接口附加绑定：同实例多契约（Phase 2 注入互调——[ServiceDependency] 可指接口）
+                    sb.Append("            world.Register(EServiceScopeKind.");
+                    sb.Append(s_ScopeNames[info.ScopeValue]);
+                    sb.Append(", typeof(");
+                    sb.Append(info.ContractInterfaceFqn);
+                    sb.Append("), __svc").Append(idx).AppendLine(");");
+                }
             }
 
             sb.AppendLine("        }");
@@ -230,17 +259,20 @@ namespace Moirai.Atropos.SourceGenerators
             public readonly string FullyQualifiedName;
             public readonly int ScopeValue;
             public readonly bool IsValid;
+            public readonly string? ContractInterfaceFqn;
             public readonly ImmutableArray<Diagnostic> Diagnostics;
 
             public ServiceRegistrationInfo(
                 string fullyQualifiedName,
                 int scopeValue,
                 bool isValid,
+                string? contractInterfaceFqn,
                 ImmutableArray<Diagnostic> diagnostics)
             {
                 FullyQualifiedName = fullyQualifiedName;
                 ScopeValue = scopeValue;
                 IsValid = isValid;
+                ContractInterfaceFqn = contractInterfaceFqn;
                 Diagnostics = diagnostics;
             }
         }

@@ -1,5 +1,5 @@
 using Moirai.Atropos.ObjectPool;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
@@ -49,10 +49,10 @@ namespace Moirai.Atropos.Debugger
 
         private static void UnloadUnusedAssets(bool garbageCollect)
         {
-            ResourceServiceHandler resourceService = ResourceService.Handler;
+            IAssetService resourceService = AssetService.Handler;
             if (resourceService == null)
             {
-                LogUtility.Warning("ResourceService is not initialized.");
+                LogUtility.Warning("AssetService is not initialized.");
                 return;
             }
 

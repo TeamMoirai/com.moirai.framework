@@ -10,7 +10,7 @@ namespace Service.Audio
     /// </summary>
     /// <remarks>
     /// 锁三件事：标记按音轨逐个生效不串味、中间件侧的暂停拦播放、以及 Unity 侧「数组未分配即整段作废」这条刻意保留的行为
-    /// （分配点留在后端，见 <see cref="AudioServiceHandler._pausedTracks"/> 的 remarks；改成基类懒分配即判失败）。
+    /// （分配点留在后端，见 <see cref="IAudioService"/> 实现 UnityAudioHandler 的 remarks；改成共享懒分配即判失败）。
     /// </remarks>
     /// <remarks>
     /// 中间件一侧用本文件的本地夹具（<see cref="PauseFlagHandler"/> / <see cref="PauseFlagBridge"/>）：FMOD / Wwise 后端已外置到插件装配， <br />

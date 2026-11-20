@@ -2,26 +2,25 @@
 
 ## 项目概述
 
-**Moirai Framework** 是一个 Unity 游戏开发框架，提供服务化、高性能的开发解决方案。
-
-### 核心特性
-- 🚀 开箱即用 - 5 分钟快速上手
-- 🔥 高性能 - 基于 UniTask 的异步系统，零 GC 事件分发
-- 🧩 高内聚低耦合 - 服务化设计
-- 🔄 热更新支持 - 集成 HybridCLR
-- 📦 资源管理 - 集成 YooAsset
-- 📊 配置表系统 - 集成 Luban
-- 🎨 UI 框架 - 商业化 UI 开发流程
+**Moirai Framework** 是一个 Unity 游戏开发框架，提供服务化、高性能的开发解决方案。特性全景见 [README.md](README.md) 的「核心特性」，服务清单与目录口径见下文。
 
 ## 项目结构
 
 ```
 com.moirai.framework/
 ├── Runtime/                  # 运行时代码（Moirai.Atropos.asmdef）
-│   ├── Core/                 # 核心系统，不依赖服务层；按功能分组平铺，不套服务层的角色档
-│   │   ├── <功能组>/         # Attributes / Constant / DataStructure / Extensions / GameException /
-│   │   │                     # Events / GameApp / GameProfiler / FrameworkSettings / Graphics /
-│   │   │                     # MemoryPool / Obfuz / SettingPersistence / Singleton / Tasks
+│   ├── Kernel/               # 内核：服务注册与生命周期（门面 GameServices / 容器 ServiceScope / 基类 ServiceBase）+ 框架运行底座
+│   │   ├── GameApp/          # 启动、帧驱动（PlayerLoop/）、运行期开关
+│   │   ├── MemoryPool/       # C# 内存池与通用池件
+│   │   ├── GameException/    # 框架异常约定
+│   │   ├── FrameworkSettings/# 设置基座（FrameworkSettings<T> / FrameworkHandler / [ProviderHandlerHost] 宿主侧）
+│   │   ├── GameSettings/     # 游戏设置资产
+│   │   ├── Singleton/        # 单例模式
+│   │   ├── Tasks/            # 任务系统（Components/、Models/ 次层）
+│   │   ├── GameProfiler/     # 性能采样
+│   │   └── Events/           # 事件总线（EventBus / EventChannel / GameEvent 编译期校验）
+│   ├── Foundation/           # 基础支撑，不依赖服务层；按功能分组平铺，不套服务层的角色档
+│   │   ├── <功能组>/         # Attributes / Constant / DataStructure / Extensions / Obfuz
 │   │   └── Utilities/        # 横切工具，一个关注点一个子目录（Algorithm / Json / GameLog / Tween …）
 │   └── Services/             # 各功能服务（每个服务一份文档，见 Documentation~）
 │       └── <Module>/         # 模块根平铺门面四件套 + 封闭角色档（见《目录与文件》）
@@ -44,33 +43,34 @@ com.moirai.framework/
 - **DebuggerService** - 调试工具
 - **InputService** - 输入系统
 - **LocalizationService** - 本地化
-- **ObjectPoolService** - 通用对象池（任意 ObjectBase 派生对象，opt-in 注册）
-- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 ResourceService）
+- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 AssetService）；C# 对象池在 Kernel/MemoryPool，不设服务
 - **ProcedureService** - 流程管理
-- **ResourceService** - 资源管理
+- **AssetService** - 资源管理
 - **SaveService** - 存档系统
 - **SceneService** - 场景管理
 - **TimerService** - 定时器
 - **UIService** - UI 框架
 
-服务注册与生命周期由 `Runtime/Services/Kernel` 承接：门面 `GameServices.cs`（+ `GameServices.DiagnosticInfo.cs`）、容器与轮询 `Internal/ServiceScope.cs`、服务基类 `Objects/ServiceBase.cs`。
+服务注册与生命周期由 `Runtime/Kernel` 承接：门面 `GameServices.cs`（+ `GameServices.DiagnosticInfo.cs`）、容器与轮询 `Internal/ServiceScope.cs`、服务基类 `Objects/ServiceBase.cs`。同目录还收拢了框架运行底座（`Events/` 事件总线、`GameApp/` 启动与帧驱动、`MemoryPool/` 内存池、`GameException/`、`FrameworkSettings/` 设置基座、`GameSettings/`、`Singleton/`、`Tasks/`、`GameProfiler/`）。
 
-### Core 系统
-按功能分组平铺在 `Runtime/Core/<功能>/`（没有 `Foundation/`、`Infrastructure/` 层级壳，也不用服务层的角色档）：
-- **Attributes** - 自定义特性（`BooleanButtonAttribute`、`ConditionAttribute`、`CustomLabelAttribute` 等编辑器绘图/校验用特性；`[ProviderHandlerHost]` 不在这一组，它随设置基座住 `FrameworkSettings/`）
-- **Constant** - 常量
-- **DataStructure** - 数据结构
-- **Events** - 事件系统
-- **Extensions** - 扩展方法
-- **FrameworkSettings** - 框架设置基座（`FrameworkSettings<T>`、`FrameworkHandler`、`[ProviderHandlerHost]` 宿主侧）
+### Kernel 运行底座
+按功能分组平铺在 `Runtime/Kernel/<功能>/`（不含服务层角色档；命名空间仍统一为根 `Moirai.Atropos`）：
+- **Events** - 事件总线（`EventBus` / `EventChannel` / `GameEvent` 编译期校验；调试器仅编辑器）
 - **GameApp** - 启动、帧驱动与运行期开关（`PlayerLoop/` 次层）
+- **MemoryPool** - 内存池与通用池件
 - **GameException** - 框架异常约定
-- **GameProfiler** - 性能采样
-- **Graphics** - 图形设置资产
-- **MemoryPool** - 内存池与通用池件（原 `Infrastructure/Pool/` 已并入本组）
-- **SettingPersistence** - 设置的落盘与读回
+- **FrameworkSettings** - 框架设置基座（`FrameworkSettings<T>`、`FrameworkHandler`、`[ProviderHandlerHost]` 宿主侧）
+- **GameSettings** - 游戏设置与落盘读回
 - **Singleton** - 单例模式
 - **Tasks** - 任务系统（`Components/`、`Models/` 次层）
+- **GameProfiler** - 性能采样
+
+### Foundation 基础支撑
+按功能分组平铺在 `Runtime/Foundation/<功能>/`（没有层级壳，也不用服务层的角色档）：
+- **Attributes** - 自定义特性（`BooleanButtonAttribute`、`ConditionAttribute`、`CustomLabelAttribute` 等编辑器绘图/校验用特性；`[ProviderHandlerHost]` 不在这一组，它随设置基座住 `Kernel/FrameworkSettings/`）
+- **Constant** - 常量
+- **DataStructure** - 数据结构
+- **Extensions** - 扩展方法
 - **Obfuz** - 混淆虚拟机初始化（`OBFUZ_INSTALLED && ENABLE_OBFUZ` 门控）
 - **Utilities** - 工具类（算法、随机、JSON、Tween、日志 `LogUtility` 等；一个关注点一个子目录）
 
@@ -84,9 +84,7 @@ com.moirai.framework/
 
 ## 测试规范
 
-细则（分层与归属、命名与结构、夹具与隔离、确定性、反射政策、日志断言、基准、公共 API 变更口径、覆盖率与出口准则、可执行守卫）
-
-的权威落点在 `.agent/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
+细则（分层与归属、命名与结构、夹具与隔离、确定性、反射政策、日志断言、基准、公共 API 变更口径、覆盖率与出口准则、可执行守卫）的权威落点在 `.agent/skills/moirai-conventions/references/testing.md`，本文不复述第二套。出口准则以「0 失败才算通过」为准。
 
 ## AI 测试流程
 
@@ -198,7 +196,7 @@ com.moirai.framework/
 ## 注意事项
 
 1. **Unity 版本**：推荐 Unity 2022.3.x
-2. **.NET 版本**：Api Compatibility Level 为 .NET Framework（`apiCompatibilityLevel: 6`，等效 4.8），非 .NET Standard 2.1
+2. **.NET 版本**：API Compatibility Level 为 .NET Standard 2.1（`apiCompatibilityLevel: 6`）；服务契约依赖接口默认方法（DIM），.NET Framework 4.x profile 不支持
 3. **平台支持**：Windows、macOS（Standalone——L3 玩家验收基座，IL2CPP 实测）、Android、iOS、WebGL
 4. **热更新**：使用 HybridCLR 进行热更新
 5. **资源管理**：使用 YooAsset 管理资源
@@ -206,16 +204,16 @@ com.moirai.framework/
 ## 常见问题
 
 ### Q: 如何添加新服务？
-A: 使用 `/new-service` 命令，按照模板创建服务。
+A: 使用 `/new-service` 命令，按照模板创建服务；服务契约接口与 Handler 基座的口径见 [Core 文档](Documentation~/Core.md)。
 
 ### Q: 如何进行热更新？
-A: 参考 README 中的打包运行步骤。
+A: 见 [安装与运行](Documentation~/Install.md) 的打包运行流程；热更 DLL 构建命令在 `HybridCLR/Build` 菜单。
 
 ### Q: 如何优化性能？
-A: 使用 `/optimize` 命令分析和优化代码。
+A: hot-path 判据与优化手法见 `.agent/skills/moirai-conventions/references/coding.md`，可用 `/optimize` 辅助分析。
 
 ### Q: 如何修复 Bug？
-A: 使用 `/fix-bug` 命令分析和修复问题。
+A: 测试与判绿流程见 `.agent/skills/moirai-conventions/references/verification.md`，可用 `/fix-bug` 辅助定位。
 
 ## 相关资源
 

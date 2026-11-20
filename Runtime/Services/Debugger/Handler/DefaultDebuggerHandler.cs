@@ -14,7 +14,8 @@ namespace Moirai.Atropos.Debugger
     /// </remarks>
     [ProviderDisplay(title: "内置调试器", description: "UI Toolkit 运行时调试台（FPS/Console/窗口注册），无资产依赖")]
     [Serializable]
-    internal sealed class DefaultDebuggerHandler : DebuggerServiceHandler
+    internal sealed class DefaultDebuggerHandler :
+    FrameworkHandler, IDebuggerService
     {
         #region 字段 [FIELDS]
 
@@ -52,7 +53,7 @@ namespace Moirai.Atropos.Debugger
         public float WindowOpacity => m_WindowOpacity;
 
         /// <inheritdoc />
-        public override bool ActiveWindow
+        public bool ActiveWindow
         {
             get
             {
@@ -89,7 +90,7 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <inheritdoc />
-        public override bool ShowFullWindow
+        public bool ShowFullWindow
         {
             get
             {
@@ -108,10 +109,10 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <inheritdoc />
-        public override DebuggerWindowRegistry WindowRegistry => _windowRegistry;
+        public DebuggerWindowRegistry WindowRegistry => _windowRegistry;
 
         /// <inheritdoc />
-        public override DebuggerLogCapture LogCapture => _logCapture;
+        public DebuggerLogCapture LogCapture => _logCapture;
 
         /// <summary>激活策略覆盖点（测试 / 代码装配用；<c>null</c> 表示用 <see cref="DebuggerServiceSettings"/> 的配置）。</summary>
         internal DebuggerActiveWindowType? Internal_ActiveWindowTypeOverride { get; set; }
@@ -168,7 +169,7 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <inheritdoc />
-        public override void Tick(float elapseSeconds, float realElapseSeconds)
+        public void Tick(float elapseSeconds, float realElapseSeconds)
         {
             _logCapture.Drain();
 
@@ -193,16 +194,16 @@ namespace Moirai.Atropos.Debugger
         #region 窗口管理 [WINDOW MANAGEMENT]
 
         /// <inheritdoc />
-        public override void RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args)
+        public void RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args)
         {
             if (string.IsNullOrEmpty(path))
             {
-                throw new GameException("Path is invalid.");
+                throw new MoiraiException("Path is invalid.");
             }
 
             if (window == null)
             {
-                throw new GameException("Debugger window is invalid.");
+                throw new MoiraiException("Debugger window is invalid.");
             }
 
             _windowRegistry.Register(path, window);
@@ -210,7 +211,7 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <inheritdoc />
-        public override bool UnregisterDebuggerWindow(string path)
+        public bool UnregisterDebuggerWindow(string path)
         {
             IDebuggerWindow window = _windowRegistry.GetWindow(path);
             if (window == null)
@@ -243,13 +244,13 @@ namespace Moirai.Atropos.Debugger
         }
 
         /// <inheritdoc />
-        public override IDebuggerWindow GetDebuggerWindow(string path)
+        public IDebuggerWindow GetDebuggerWindow(string path)
         {
             return _windowRegistry.GetWindow(path);
         }
 
         /// <inheritdoc />
-        public override bool SelectDebuggerWindow(string path)
+        public bool SelectDebuggerWindow(string path)
         {
             return _windowRegistry.SelectWindow(path);
         }

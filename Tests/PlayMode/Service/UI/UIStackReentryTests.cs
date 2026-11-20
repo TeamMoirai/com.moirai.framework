@@ -68,11 +68,42 @@ namespace Service.UI
         {
             Assert.IsTrue(UIService.IsValid, "量具前提坏了：播放态框架没把 UI 服务立起来，开窗腿拿不到共享栈");
             _ledger = UIService.SharedLedger;
+            DrainForeignResidue();
             Assert.AreEqual(0, _ledger.PeekStack().Count, "量具前提坏了：进门时共享栈上不干净");
             ReentryAWindow.OpenedByCallback = false;
             _eventLog.Clear();
             UIService.onWindowShown += OnWindowShown;
             UIService.onWindowClosed += OnWindowClosed;
+        }
+
+        /// <summary>
+        /// 进门先收掉共享栈上的环境残留，把已知起点归零。
+        /// </summary>
+        /// <remarks>
+        /// 共享栈是进程级静态状态，测试域里除夹具外还有环境租户——ErrorLogger 对 <c>LogType.Exception</c>
+        /// 自动弹的 <c>LogUI</c>（全量跑时早段夹具的预期异常，如 TaskRunner 毒丸任务，会把它赶上栈）。 <br />
+        /// 收掉什么都要留声：夹具漏网的窗会在日志里现形，不被静默吞掉；收不掉的残留仍然当场判红。
+        /// </remarks>
+        private void DrainForeignResidue()
+        {
+            var residual = _ledger.PeekStack();
+            if (residual.Count == 0) return;
+
+            Moirai.Atropos.LogUtility.Warning("UIStackReentry 进门收掉共享栈残留：{0}", DescribeResidue(residual));
+            UIService.CloseAll(true);
+        }
+
+        /// <summary>把残留窗口落到「具体类型#窗口标识」清单，让顺序依赖的污染源在日志里现形。</summary>
+        private static string DescribeResidue(IReadOnlyList<UIWindow> residual)
+        {
+            var residue = new System.Text.StringBuilder();
+            for (var i = 0; i < residual.Count; i++)
+            {
+                residue.Append(residual[i].GetType().Name).Append('#').Append(residual[i].WindowId);
+                if (i < residual.Count - 1) residue.Append(", ");
+            }
+
+            return residue.Length == 0 ? "<空>" : residue.ToString();
         }
 
         [TearDown]

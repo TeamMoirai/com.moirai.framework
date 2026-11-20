@@ -77,7 +77,7 @@ namespace Service.UI
             Assert.AreEqual("RegCaller", RegistryProbeWindow.LastLocation, "父目录留空时标识就是 Resources 下的相对路径，不拼前缀");
             Assert.IsTrue(RegistryProbeWindow.LastFromResources, "取法只由特性答：入口这一档已不存在，特性写了内置资源即为真");
 
-            Assert.Throws<GameException>(() => UIService.ShowUI<RegistryProbeWindow>(""),
+            Assert.Throws<MoiraiException>(() => UIService.ShowUI<RegistryProbeWindow>(""),
                 "没带 windowId 的开窗请求当场抬错：面板地址没有第二条来路");
             Assert.IsNull(UIService.SharedLedger.GetWindow("RegNoId"), "抬错排在压栈之前：栈上不多一个");
         }
@@ -86,7 +86,7 @@ namespace Service.UI
         [Test]
         public void Registry_UnregisteredWindow_FailsFastWithGameException()
         {
-            Assert.Throws<GameException>(() => UIService.ShowUIAsync(typeof(UnregisteredUGUIWindow), "Nope"),
+            Assert.Throws<MoiraiException>(() => UIService.ShowUIAsync(typeof(UnregisteredUGUIWindow), "Nope"),
                 "未登记的窗口类必须当场抬错");
             Assert.IsNull(UIService.SharedLedger.GetTopWindow(), "抬错排在压栈之前：栈上不多一个");
         }

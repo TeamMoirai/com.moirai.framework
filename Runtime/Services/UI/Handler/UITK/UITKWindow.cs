@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UObject = UnityEngine.Object;
@@ -121,7 +121,7 @@ namespace Moirai.Atropos.UI
                 return false;
             }
 
-            var tree = await ResourceService.TryLoadAssetAsync<VisualTreeAsset>(assetLocation, ct);
+            var tree = await AssetService.TryLoadAssetAsync<VisualTreeAsset>(assetLocation, ct);
             if (tree == null)
             {
                 LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到面板模板 {1}", WindowId, assetLocation);
@@ -205,7 +205,7 @@ namespace Moirai.Atropos.UI
         /// <param name="tree">面板模板资产；null 表示内容由代码构建，只建空内容根。</param>
         /// <returns>装配成功返回 true。</returns>
         /// <remarks>
-        /// 校验先于写入：缺 <see cref="UIDocument"/> 时抛 <see cref="GameException"/>，此时一个字段都不动，调用方不得拿到半个可用面板。 <br />
+        /// 校验先于写入：缺 <see cref="UIDocument"/> 时抛 <see cref="MoiraiException"/>，此时一个字段都不动，调用方不得拿到半个可用面板。 <br />
         /// 内容根一律由本类 new 出来：三份意图与 inset 都写在它身上，与文档有没有把根元素建起来无关—— <br />
         /// <c>UIDocument.rootVisualElement</c> 由组件自身的启用流程创建，拿不到宿主时不做 attach，也不报错。
         /// </remarks>
@@ -216,7 +216,7 @@ namespace Moirai.Atropos.UI
             var document = shell.GetComponent<UIDocument>();
             if (document == null)
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "面板壳 {0}（窗口 {1}）上找不到 {2}：UI Toolkit 窗口的壳必须自带文档组件", shell.name, WindowId, nameof(UIDocument)));
             }
 
@@ -282,7 +282,7 @@ namespace Moirai.Atropos.UI
             }
             else
             {
-                ResourceService.TryLoadAsset(assetLocation, out tree);
+                AssetService.TryLoadAsset(assetLocation, out tree);
             }
 
             if (tree == null)
@@ -330,7 +330,7 @@ namespace Moirai.Atropos.UI
                 return;
             }
 
-            if (!ResourceService.TryLoadAsset(location, out StyleSheet sheet) || sheet == null)
+            if (!AssetService.TryLoadAsset(location, out StyleSheet sheet) || sheet == null)
             {
                 LogUtility.Error("UI Toolkit 窗口 '{0}' 取不到主题样式表 {1}", WindowId, location);
                 return;

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ConfigTable;

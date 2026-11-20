@@ -6,7 +6,7 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档资产引用目录：登记可被存档字段引用的资产（Texture/SO/Material 等）及其 ResourceService 定位串。
+    /// 存档资产引用目录：登记可被存档字段引用的资产（Texture/SO/Material 等）及其 AssetService 定位串。
     /// </summary>
     /// <remarks>
     /// 资产引用字段按「存定位串、读目录反查」持久化（捕获查 object → location，恢复查 location → object），不触发运行时加载。 <br />
@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Save
     public sealed class SaveAssetCatalog : ScriptableObject
     {
         /// <summary>
-        /// 目录条目：资产引用 + ResourceService 定位串。
+        /// 目录条目：资产引用 + AssetService 定位串。
         /// </summary>
         [Serializable]
         public sealed class Entry
@@ -25,13 +25,13 @@ namespace Moirai.Atropos.Save
             /// <summary>资产引用。</summary>
             [SerializeField] internal UObject m_Asset;
 
-            /// <summary>ResourceService 定位串（YooAsset 地址）。</summary>
+            /// <summary>AssetService 定位串（YooAsset 地址）。</summary>
             [SerializeField] internal string m_Location = string.Empty;
 
             /// <summary>资产引用。</summary>
             public UObject Asset => m_Asset;
 
-            /// <summary>ResourceService 定位串。</summary>
+            /// <summary>AssetService 定位串。</summary>
             public string Location => m_Location;
         }
 

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 存档预制体注册表：登记可持久化动态实体的预制体及其稳定键与 <see cref="ResourceService"/> 定位串。
+    /// 存档预制体注册表：登记可持久化动态实体的预制体及其稳定键与 <see cref="AssetService"/> 定位串。
     /// </summary>
     /// <remarks>
     /// 动态实体按「存注册键、读注册表反查定位串」持久化；被持久化的预制体须先登记入册，未登记键在生成/恢复期记录错误日志并跳过。 <br />
@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Save
     public sealed class SavePrefabRegistry : ScriptableObject
     {
         /// <summary>
-        /// 注册条目：稳定键 + 预制体引用 + ResourceService 定位串。
+        /// 注册条目：稳定键 + 预制体引用 + AssetService 定位串。
         /// </summary>
         [Serializable]
         public sealed class Entry
@@ -26,7 +26,7 @@ namespace Moirai.Atropos.Save
             /// <summary>预制体引用（模板差分基准捕获与编辑器校验用）。</summary>
             [SerializeField] internal GameObject m_Prefab;
 
-            /// <summary>ResourceService 定位串（YooAsset 地址；运行期生成/恢复的加载入口）。</summary>
+            /// <summary>AssetService 定位串（YooAsset 地址；运行期生成/恢复的加载入口）。</summary>
             [SerializeField] internal string m_Location = string.Empty;
 
             /// <summary>稳定键。</summary>
@@ -35,7 +35,7 @@ namespace Moirai.Atropos.Save
             /// <summary>预制体引用。</summary>
             public GameObject Prefab => m_Prefab;
 
-            /// <summary>ResourceService 定位串。</summary>
+            /// <summary>AssetService 定位串。</summary>
             public string Location => m_Location;
         }
 
@@ -70,7 +70,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 按稳定键反查 ResourceService 定位串。
+        /// 按稳定键反查 AssetService 定位串。
         /// </summary>
         /// <param name="key">稳定键。</param>
         /// <param name="location">命中时的定位串。</param>
