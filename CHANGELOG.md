@@ -87,6 +87,10 @@
 
 ### Fixed
 
+#### Kernel
+
+- `DebuggerService`/`TimerService` 补齐自报契约接口实现（`IDebuggerService`/`ITimerService`，与静态门面同名的成员显式接口实现转发、降级语义与门面一致）：容器把服务实例绑定在 `[ProviderHandlerHost]` 自报契约下，此前门面未实现契约，`GetRequiredService` 解析坍缩为 null、boot 在首个接口互调（`AssetService.OnInit` 注册调试窗）即中断，UI/Audio 等下游服务全数未立
+
 #### PackageManager
 
 - 勾选「安装/更新前先清目录」时，安装目标位上的外来同名目录视同已批准覆盖、随清目录一并先删再装；原实现仍走覆盖确认回调，回调缺席即整批中止，勾了清目录也装不下去。未勾清目录的拒绝路径行为不变

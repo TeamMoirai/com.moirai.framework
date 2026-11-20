@@ -9,11 +9,12 @@ namespace Moirai.Atropos.Debugger
     /// 提供窗口注册 / 检索 / 选中、激活开关、日志检索与自定义面板注册。 <br />
     /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="DebuggerServiceSettings"/> 解析； <br />
     /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。 <br />
-    /// 外观方法经 <c>s_Handler</c> 直接转发，未注册时静默降级为默认值；<c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// 外观方法经 <c>s_Handler</c> 直接转发，未注册时静默降级为默认值；<c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。 <br />
+    /// 本类实现自报契约 <see cref="IDebuggerService"/>（显式接口实现转发静态门面）：容器把本实例绑定在该契约下，服务互调经 <c>Context.GetRequiredService&lt;IDebuggerService&gt;()</c> 解析到的就是本实例。
     /// </remarks>
     [AutoRegisterService]
     [ProviderHandlerHost(typeof(IDebuggerService), typeof(DefaultDebuggerHandler))]
-    public partial class DebuggerService : ServiceBase, IServiceTickable
+    public partial class DebuggerService : ServiceBase, IServiceTickable, IDebuggerService
     {
         #region 生命周期 [LIFECYCLE]
 
@@ -183,10 +184,43 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 获取记录的最近日志。
         /// </summary>
-        /// <param name="results">要获取的日志。</param>
+        /// <param name="results">要获取的最近日志。</param>
         /// <param name="count">要获取最近日志的数量。</param>
         public static void GetRecentLogs(List<LogNode> results, int count) =>
             s_Handler?.LogCapture?.GetRecentLogs(results, count);
+
+        #endregion
+
+        #region 契约注入面 [CONTRACT SURFACE]
+
+        // 容器把本实例绑定在 [ProviderHandlerHost] 自报的 IDebuggerService 契约下（Phase 2 注入互调）。
+        // 与静态门面同名的成员只能显式实现——转发到静态门面保持单一语义源；降级语义与门面一致。
+        // Tick 与门面实例方法同签名，由既有公有方法隐式实现。
+
+        bool IDebuggerService.ActiveWindow
+        {
+            get => ActiveWindow;
+            set => ActiveWindow = value;
+        }
+
+        bool IDebuggerService.ShowFullWindow
+        {
+            get => ShowFullWindow;
+            set => ShowFullWindow = value;
+        }
+
+        DebuggerWindowRegistry IDebuggerService.WindowRegistry => WindowRegistry;
+
+        DebuggerLogCapture IDebuggerService.LogCapture => LogCapture;
+
+        void IDebuggerService.RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args) =>
+            RegisterDebuggerWindow(path, window, args);
+
+        bool IDebuggerService.UnregisterDebuggerWindow(string path) => UnregisterDebuggerWindow(path);
+
+        IDebuggerWindow IDebuggerService.GetDebuggerWindow(string path) => GetDebuggerWindow(path);
+
+        bool IDebuggerService.SelectDebuggerWindow(string path) => SelectDebuggerWindow(path);
 
         #endregion
     }
