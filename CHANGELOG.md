@@ -20,6 +20,10 @@
 
 - 新增 `AllocationCapture` 字节级分配计量夹具（GC 线程字节差值主口径 + Profiler 稳态对照），并挂 Timer 万次 add/remove、事件稳态发布与订阅退订三组 0-Alloc 门禁
 
+#### Kernel
+
+- 事件发布热路径消分配：`EventChannel` 派发快照改缓存数组复用（容量按订阅数对齐 2 的幂），稳态发布零分配，扩容与重入发布（嵌套 Publish）走新数组保语义不变
+
 #### UI
 
 - Widget 绑定纳入 UI 生成器产线：widget 根节点语法 `{WidgetClassName}@{InstanceTag}`（类名取 @ 前段，多实例共享一个类与一份 `<Class>.g.cs`；window 收集器在 widget 根停递归，只拿到 widget-typed 字段 `m_{Class}{Instance}`），生成与多实例回绑流程见包根 `.agent/commands/new-ui.md` 的「Widget 控件（可复用组件）」
