@@ -308,9 +308,7 @@ namespace Service.Audio
             clip.SetData(new float[44100], 0);
 
             var handler = new UnityAudioHandler();
-            var init = typeof(UnityAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            init.Invoke(handler, null);
+            handler.Internal_Init();
 
             if (handler.AudioCategories == null || handler.AudioCategories.Length == 0)
             {

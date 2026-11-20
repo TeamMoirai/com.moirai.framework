@@ -87,6 +87,30 @@
 
 ### Fixed
 
+#### Audio
+
+- `AudioHandleRegistry.RegisterUser` 头表插入触发扩容后返回旧表槽位，链头被写进新表里别的 key 的位置：第 8 个唯一 userId 起（初始头表 16 半载即扩）按 ID 链错位/丢链，`StopByID`/`ForEachHandleByUser`/`Release` 解链失效。扩容后改按 key 重查新表槽位返回
+
+#### 测试（反膨胀治理）
+
+- Audio 测试夹具的 16 处反射直调 `OnInit` 全部改走 `Internal_Init()` 内部接缝（8 个 PlayMode/Player 文件）：反射绕过 `_initialized` 位使 `Internal_Shutdown` 空转，每次 SetUp 泄漏 `sceneLoaded` 订阅与一棵 `[AudioService]` DDOL 树；接缝化后生命周期门与生产同路，顺带修掉该错位。删掉名不副实的 `PriorityStealSelection_StaysWithinBudget` 基准格（首轮抢占后通道转 free，后续 999 发全走空闲路径，测的并非抢占选择）与 `AudioCacheTestSupport.CompleteNext` 的死参数 `address`（文档声称覆盖回调地址，实现从未使用）；`AudioVolumeParityTests` remarks 的旧值域口径 0..10 更正为 0..1（契约 `AudioGroupConfig.MAXIMAL_VOLUME`）
+
+#### Localization
+
+- `LocalizationService.ChangeLanguage(Language)` 重载补上 `HandPreferenceToHandler()` 交接：三个切换重载此前只有它漏交接检测链读数，经该重载首切的处理拿不到偏好（报 `Language.Unspecified`），与文档「每次取用处理器之前交接」不符
+
+#### UI
+
+- `UIService.CloseUI(type, windowId)` 带标识路径补类型守卫：标识与类型指向不同窗口（如 `CloseUI<A>("B的id")`）此前静默误关；现按空操作处理并 Error 告警，与 `GetWindow<T>` 的类型守卫同口径
+
+#### Save（测试）
+
+- `SaveMigrationBusTests` 订阅/退订改用具名方法组：原两端各自编译的匿名 lambda 不是同一委托实例，退订永不匹配，订阅跨用例泄漏进程级 EventBus
+
+#### 测试
+
+- `AudioHandleRegistryTests` 补头表扩容回归用例（唯一 userId 数越过半载阈值，逐 ID 验链完整）并修两处永真断言（`AreSame(registry, registry)`、压测桥 `PlayCount >= 0`）；`LocalizationServiceHandlerTests` 补三重载交接齐一用例；`UIServiceHandlerOrchestrationTests` 补标识与类型不匹配不误关用例——三处均按先红后绿验证
+
 #### Kernel
 
 - `DebuggerService`/`TimerService` 补齐自报契约接口实现（`IDebuggerService`/`ITimerService`，与静态门面同名的成员显式接口实现转发、降级语义与门面一致）：容器把服务实例绑定在 `[ProviderHandlerHost]` 自报契约下，此前门面未实现契约，`GetRequiredService` 解析坍缩为 null、boot 在首个接口互调（`AssetService.OnInit` 注册调试窗）即中断，UI/Audio 等下游服务全数未立

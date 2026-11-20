@@ -72,8 +72,7 @@ namespace Service.Audio
         /// 放行一个挂起的异步加载（按发起顺序）。
         /// </summary>
         /// <param name="fail">true 时回调空租约，模拟后端失败。</param>
-        /// <param name="address">覆盖回调携带的地址；缺省沿用发起时的地址。</param>
-        public void CompleteNext(bool fail = false, string address = null)
+        public void CompleteNext(bool fail = false)
         {
             if (_pending.Count == 0) throw new InvalidOperationException("没有待放行的异步加载。");
 

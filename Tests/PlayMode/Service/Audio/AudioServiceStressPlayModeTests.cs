@@ -111,9 +111,7 @@ namespace Service.Audio
         public IEnumerator UnityHandler_BurstPlayStop_HandleMapDoesNotGrowUnbounded()
         {
             var handler = new UnityAudioHandler();
-            var init = typeof(UnityAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            init.Invoke(handler, null);
+            handler.Internal_Init();
 
             if (handler.AudioCategories == null || handler.AudioCategories.Length == 0)
             {
@@ -168,9 +166,7 @@ namespace Service.Audio
         public IEnumerator UnityHandler_ConcurrentFadeAndStop_NoException()
         {
             var handler = new UnityAudioHandler();
-            var init = typeof(UnityAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            init.Invoke(handler, null);
+            handler.Internal_Init();
 
             if (handler.AudioCategories == null || handler.AudioCategories.Length == 0)
             {
@@ -221,12 +217,10 @@ namespace Service.Audio
             var handler = new StressHandler();
             handler.SetBridge(stub);
 
-            var init = typeof(StressHandler).BaseType
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            init.Invoke(handler, null);
+            handler.Internal_Init();
 
             Assert.IsNotNull(handler.Bridge);
-            Assert.IsTrue(stub.PlayCount >= 0);
+            Assert.AreEqual(0, stub.PlayCount, "桥接起跑前不得有播放记录");
 
             const int BURST = 150;
             var handles = new List<ulong>(BURST);
@@ -267,9 +261,7 @@ namespace Service.Audio
             var stub = new StressBridge();
             var handler = new StressHandler();
             handler.SetBridge(stub);
-            typeof(StressHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(handler, null);
+            handler.Internal_Init();
 
             ulong a = handler.Play("event:/Music/Theme", new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
             ulong b = handler.Play("event:/Music/Ambience", new AudioPlayRequest(2, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
@@ -295,9 +287,7 @@ namespace Service.Audio
             var stub = new StressBridge();
             var handler = new StressHandler();
             handler.SetBridge(stub);
-            typeof(StressHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(handler, null);
+            handler.Internal_Init();
 
             ulong h = handler.Play("event:/Sfx/Beep",
                 new AudioPlayRequest(9, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.None), null);
@@ -351,9 +341,7 @@ namespace Service.Audio
             var stub = new StressBridge();
             var handler = new StressHandler();
             handler.SetBridge(stub);
-            typeof(StressHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(handler, null);
+            handler.Internal_Init();
 
             const int BURST = 32;
 

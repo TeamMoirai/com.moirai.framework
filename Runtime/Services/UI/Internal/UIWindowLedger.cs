@@ -841,7 +841,8 @@ namespace Moirai.Atropos.UI
             CloseUI(typeof(T), windowId);
         }
 
-        /// <remarks>没带标识＝关掉该类型的所有窗口（自栈顶往下逐个经单窗路径收口）；带了标识则只关该标识。</remarks>
+        /// <remarks>没带标识＝关掉该类型的所有窗口（自栈顶往下逐个经单窗路径收口）；带了标识则只关该标识，
+        /// 且该标识的窗口必须是 <paramref name="type"/> 的实例——标识与类型指向不同窗口时按空操作处理并告警，不得误关。</remarks>
         internal void CloseUI(Type type, string windowId = null)
         {
             if (string.IsNullOrEmpty(windowId))
@@ -855,6 +856,15 @@ namespace Moirai.Atropos.UI
             if (window == null)
             {
                 LogUtility.Debug("要关闭的窗口 '{0}' 不在栈上：本次关闭是空操作", windowId);
+                return;
+            }
+
+            // 带键路径按唯一身份取窗：类型形参在此是第二重钥匙（与 GetWindow<T> 的类型守卫同口径），
+            // 标识写错（指向别的窗口）时不静默误关，报出来让调用方改
+            if (!type.IsInstanceOfType(window))
+            {
+                LogUtility.Error("CloseUI('{0}', '{1}') 的窗口标识与类型不匹配：标识指向 '{2}'，本次关闭是空操作",
+                    type.FullName, windowId, window.GetType().FullName);
                 return;
             }
 
