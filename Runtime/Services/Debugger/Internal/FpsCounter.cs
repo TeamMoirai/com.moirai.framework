@@ -21,12 +21,12 @@ namespace Moirai.Atropos.Debugger
         /// 初始化帧率采样器的新实例。
         /// </summary>
         /// <param name="updateInterval">刷新间隔（秒，须为正）。</param>
-        /// <exception cref="MoiraiException">刷新间隔非正。</exception>
+        /// <exception cref="GameException">刷新间隔非正。</exception>
         public FpsCounter(float updateInterval)
         {
             if (updateInterval <= 0f)
             {
-                throw new MoiraiException("Update interval is invalid.");
+                throw new GameException("Update interval is invalid.");
             }
 
             _updateInterval = updateInterval;
@@ -48,7 +48,7 @@ namespace Moirai.Atropos.Debugger
             {
                 if (value <= 0f)
                 {
-                    throw new MoiraiException("Update interval is invalid.");
+                    throw new GameException("Update interval is invalid.");
                 }
 
                 _updateInterval = value;

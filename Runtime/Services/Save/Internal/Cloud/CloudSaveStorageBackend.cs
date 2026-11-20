@@ -421,7 +421,7 @@ namespace Moirai.Atropos.Save
         /// <param name="filePath">目标文件完整路径。</param>
         /// <param name="bytes">完整文件字节。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>写入完成的异步任务；本地镜像失败抛 <see cref="MoiraiException"/>。</returns>
+        /// <returns>写入完成的异步任务；本地镜像失败抛 <see cref="GameException"/>。</returns>
         public override async UniTask WriteAtomicAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default)
         {
             Mirror.WriteAtomic(filePath, bytes, cancellationToken);

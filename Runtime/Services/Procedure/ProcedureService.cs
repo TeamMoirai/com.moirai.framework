@@ -16,7 +16,7 @@ namespace Moirai.Atropos.Procedure
     /// 处理器懒加载：优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析，未配置回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 生成（线程安全懒加载）。<br />
     /// 时序门槛：<see cref="AssetService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> / <see cref="TimerService"/> 须在流程 OnInit 前就绪（非本服务自身消费，极简项目应移除对应声明）。<br />
     /// 未就绪降级：查询类 API 返回安全默认值；<see cref="StartProcedure"/> / <see cref="ChangeState"/> 忽略并告警；<see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位，后端直接调用 fail-fast。<br />
-    /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="MoiraiException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
+    /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="GameException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(UIService), typeof(ILocalizationService), typeof(ITimerService))]
@@ -134,7 +134,7 @@ namespace Moirai.Atropos.Procedure
         /// <summary>流程切换广播：在切换完成（新流程 OnEnter 返回）后同步触发；启动切换 From 为 null。</summary>
         /// <remarks>
         /// 关停切换不广播（仅记入 <see cref="TransitionHistory"/>）；回调异常被逐订阅者隔离，不中断状态机。 <br />
-        /// 回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（会抛 <see cref="MoiraiException"/>）。
+        /// 回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（会抛 <see cref="GameException"/>）。
         /// </remarks>
         public static event Action<ProcedureTransitionRecord> onProcedureChanged;
 

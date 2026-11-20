@@ -121,7 +121,7 @@ namespace Moirai.Atropos.Save
         /// 将数据块异步写入存档文件（读-改-写合并进既有块集合）。
         /// </summary>
         /// <remarks>
-        /// 同文件写路径串行排队，落盘为原子替换；失败或处理器未就绪时抛 <see cref="MoiraiException"/>（不静默丢档）。
+        /// 同文件写路径串行排队，落盘为原子替换；失败或处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。
         /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="data">存档数据对象。</param>
@@ -173,7 +173,7 @@ namespace Moirai.Atropos.Save
         /// 将数据块同步写入存档文件（在调用线程执行完整管线，阻塞至完成）。
         /// </summary>
         /// <remarks>
-        /// 仅限主线程调用；处理器未就绪时抛 <see cref="MoiraiException"/>。适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveBlockAsync{T}"/>。
+        /// 仅限主线程调用；处理器未就绪时抛 <see cref="GameException"/>。适用于退出前落盘等必须同步完成的场景，大数据量请用 <see cref="SaveBlockAsync{T}"/>。
         /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="data">存档数据对象。</param>
@@ -224,7 +224,7 @@ namespace Moirai.Atropos.Save
         /// 异步删除存档文件中的指定数据块（删除最后一个块时整档移除）。
         /// </summary>
         /// <remarks>
-        /// IO 在工作线程执行；失败抛 <see cref="MoiraiException"/>，处理器未就绪时静默降级为空任务。
+        /// IO 在工作线程执行；失败抛 <see cref="GameException"/>，处理器未就绪时静默降级为空任务。
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="key">数据块键。</param>
@@ -267,7 +267,7 @@ namespace Moirai.Atropos.Save
         /// 将存档对象异步写入磁盘（映射到保留块 <see cref="MAIN_BLOCK_KEY"/>）。
         /// </summary>
         /// <remarks>
-        /// IO 在工作线程执行；失败（含路径上下文）或处理器未就绪时抛 <see cref="MoiraiException"/>。
+        /// IO 在工作线程执行；失败（含路径上下文）或处理器未就绪时抛 <see cref="GameException"/>。
         /// </remarks>
         /// <typeparam name="T">存档数据类型。</typeparam>
         /// <param name="saveObject">存档对象。</param>
@@ -355,7 +355,7 @@ namespace Moirai.Atropos.Save
         /// <remarks>
         /// 组件捕获在主线程、合并写回在工作线程；重复块键的组件记录告警并跳过。 <br />
         /// 实体管线管理的实体组件（<c>entity:</c> 前缀块键）跳过——经 <c>SaveEntitiesAsync</c> 持久化。 <br />
-        /// 失败或处理器未就绪时抛 <see cref="MoiraiException"/>（不静默丢档）。
+        /// 失败或处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -506,7 +506,7 @@ namespace Moirai.Atropos.Save
         /// 将槽位元数据异步写入存档文件（保留块 <c>__meta</c>，JSON 后端）。
         /// </summary>
         /// <remarks>
-        /// 失败或处理器未就绪时抛 <see cref="MoiraiException"/>（不静默丢档）。
+        /// 失败或处理器未就绪时抛 <see cref="GameException"/>（不静默丢档）。
         /// </remarks>
         /// <param name="metadata">槽位元数据。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -531,7 +531,7 @@ namespace Moirai.Atropos.Save
                 ?? UniTask.FromResult(SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
-        /// 将槽位元数据写入存档文件（在调用线程执行，阻塞直至完成；处理器未就绪时抛 <see cref="MoiraiException"/>）。
+        /// 将槽位元数据写入存档文件（在调用线程执行，阻塞直至完成；处理器未就绪时抛 <see cref="GameException"/>）。
         /// </summary>
         /// <param name="metadata">槽位元数据。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
@@ -686,7 +686,7 @@ namespace Moirai.Atropos.Save
             s_Handler?.GetSaveFilesAsync(folderName, cancellationToken) ?? UniTask.FromResult(Array.Empty<SaveFileInfo>());
 
         /// <summary>
-        /// 创建存档的单槽备份（<c>.bak</c> 后缀，覆盖旧备份；存档缺失时抛出 <see cref="MoiraiException"/>）。
+        /// 创建存档的单槽备份（<c>.bak</c> 后缀，覆盖旧备份；存档缺失时抛出 <see cref="GameException"/>）。
         /// </summary>
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
@@ -694,7 +694,7 @@ namespace Moirai.Atropos.Save
             s_Handler?.CreateBackup(fileName, folderName);
 
         /// <summary>
-        /// 从单槽备份恢复存档（备份缺失时抛出 <see cref="MoiraiException"/>；处理器未就绪时静默降级为空操作）。
+        /// 从单槽备份恢复存档（备份缺失时抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空操作）。
         /// </summary>
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>

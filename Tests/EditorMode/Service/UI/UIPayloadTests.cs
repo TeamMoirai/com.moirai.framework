@@ -5,7 +5,7 @@ using NUnit.Framework;
 
 namespace Service.UI
 {
-    /// <summary>UIPayload：Empty 与 null 同判；引用型零分配直存；失败面一律 MoiraiException 带期望类型名。</summary>
+    /// <summary>UIPayload：Empty 与 null 同判；引用型零分配直存；失败面一律 GameException 带期望类型名。</summary>
     [TestFixture]
     public sealed class UIPayloadTests
     {
@@ -30,14 +30,14 @@ namespace Service.UI
         public void To_WrongType_ThrowsGameExceptionWithExpectedName()
         {
             var payload = UIPayload.From("text");
-            var ex = Assert.Throws<MoiraiException>(() => payload.To<int>());
+            var ex = Assert.Throws<GameException>(() => payload.To<int>());
             StringAssert.Contains(nameof(Int32), ex.Message, "消息带期望类型名");
         }
 
         [Test]
         public void To_EmptyOnValueType_ThrowsGameException()
         {
-            var ex = Assert.Throws<MoiraiException>(() => UIPayload.Empty.To<int>());
+            var ex = Assert.Throws<GameException>(() => UIPayload.Empty.To<int>());
             StringAssert.Contains(nameof(Int32), ex.Message);
         }
 

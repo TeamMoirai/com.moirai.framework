@@ -82,12 +82,12 @@ namespace Moirai.Atropos.Save
                     {
                         failureStage = SaveFailedEvent.ESaveFailureStage.Transform;
                         failureError = SaveError.TransformFailed;
-                        if (exception is MoiraiException)
+                        if (exception is GameException)
                         {
                             throw;
                         }
 
-                        throw new MoiraiException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                        throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                     }
 
                     bool ownsPayloadStream = !ReferenceEquals(payloadStream, crcStream);
@@ -114,11 +114,11 @@ namespace Moirai.Atropos.Save
                                 }
                             }
                         }
-                        catch (Exception exception) when (!(exception is MoiraiException))
+                        catch (Exception exception) when (!(exception is GameException))
                         {
                             failureStage = SaveFailedEvent.ESaveFailureStage.Compress;
                             failureError = SaveError.CompressionFailed;
-                            throw new MoiraiException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                            throw new GameException(StringUtility.Format("Save compression failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                         }
                     }
                     finally
@@ -129,11 +129,11 @@ namespace Moirai.Atropos.Save
                             {
                                 payloadStream.Dispose();
                             }
-                            catch (Exception exception) when (!(exception is MoiraiException))
+                            catch (Exception exception) when (!(exception is GameException))
                             {
                                 failureStage = SaveFailedEvent.ESaveFailureStage.Transform;
                                 failureError = SaveError.TransformFailed;
-                                throw new MoiraiException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                                throw new GameException(StringUtility.Format("Save payload transform failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
                             }
                         }
                     }
@@ -152,7 +152,7 @@ namespace Moirai.Atropos.Save
             {
                 throw;
             }
-            catch (MoiraiException)
+            catch (GameException)
             {
                 SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, failureStage, failureError);
                 throw;
@@ -164,7 +164,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 在工作线程调用（存储层流式写委托内）；实现必须为纯 .NET 逻辑，禁止触达 Unity 主线程 API。 <br />
-        /// 返回流生命周期由调用方管理（直通时按引用比较跳过释放）；密钥材料不可用抛 <see cref="MoiraiException"/>（fail-fast）。
+        /// 返回流生命周期由调用方管理（直通时按引用比较跳过释放）；密钥材料不可用抛 <see cref="GameException"/>（fail-fast）。
         /// </remarks>
         /// <param name="target">存储目标流（载荷 CRC 包装层——写入经此增量累计校验值）。</param>
         /// <returns>载荷写入流（只写；调用方负责关闭以收尾加密/变换帧）。</returns>

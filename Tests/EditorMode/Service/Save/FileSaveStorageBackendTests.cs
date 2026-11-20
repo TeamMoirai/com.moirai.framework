@@ -162,7 +162,7 @@ namespace Service.Save
         {
             string filePath = FilePath("slot-stream-fail.sav");
 
-            MoiraiException caught = Assert.Throws<MoiraiException>(() => _backend.WriteAtomic(filePath, stream =>
+            GameException caught = Assert.Throws<GameException>(() => _backend.WriteAtomic(filePath, stream =>
             {
                 stream.WriteByte(0x01);
                 throw new InvalidOperationException("delegate failure (injected)");
@@ -329,13 +329,13 @@ namespace Service.Save
         [Test]
         public void CreateBackup_MissingSource_Throws()
         {
-            Assert.Throws<MoiraiException>(() => _backend.CreateBackup(FilePath("missing.sav")));
+            Assert.Throws<GameException>(() => _backend.CreateBackup(FilePath("missing.sav")));
         }
 
         [Test]
         public void RestoreBackup_MissingBackup_Throws()
         {
-            Assert.Throws<MoiraiException>(() => _backend.RestoreBackup(FilePath("no-backup.sav")));
+            Assert.Throws<GameException>(() => _backend.RestoreBackup(FilePath("no-backup.sav")));
         }
 
         #endregion

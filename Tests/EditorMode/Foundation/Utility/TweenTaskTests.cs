@@ -354,19 +354,19 @@ namespace Foundation.Utility
         [Test]
         public void NegativeDuration_Throws()
         {
-            Assert.Throws<MoiraiException>(() => CreatePositionTween(Vector3.zero, Vector3.one, -1f));
+            Assert.Throws<GameException>(() => CreatePositionTween(Vector3.zero, Vector3.one, -1f));
         }
 
         [Test]
         public void CyclesLessThanOne_Throws()
         {
-            Assert.Throws<MoiraiException>(() => CreatePositionTween(Vector3.zero, Vector3.one, 1f, cycles: 0));
+            Assert.Throws<GameException>(() => CreatePositionTween(Vector3.zero, Vector3.one, 1f, cycles: 0));
         }
 
         [Test]
         public void NegativeStartDelay_Throws()
         {
-            Assert.Throws<MoiraiException>(() => CreatePositionTween(Vector3.zero, Vector3.one, 1f, startDelay: -0.1f));
+            Assert.Throws<GameException>(() => CreatePositionTween(Vector3.zero, Vector3.one, 1f, startDelay: -0.1f));
         }
 
         #endregion

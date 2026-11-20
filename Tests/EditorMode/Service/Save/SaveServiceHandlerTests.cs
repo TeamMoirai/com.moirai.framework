@@ -623,12 +623,12 @@ namespace Service.Save
         [Test]
         public void Facade_HandlerNotReady_Save_ThrowsGameException()
         {
-            // 写路径 fail-fast：处理器未就绪抛 MoiraiException，禁止静默丢档
+            // 写路径 fail-fast：处理器未就绪抛 GameException，禁止静默丢档
             SetHandler(null);
 
-            Assert.Throws<MoiraiException>(() => SaveService.SaveBlock(new SaveData { Gold = 1 }, "slot", "stats", TestFolder));
-            Assert.Throws<MoiraiException>(() => SaveService.Save(new SaveData { Gold = 1 }, "slot", TestFolder));
-            Assert.Throws<MoiraiException>(() => SaveService.SaveMetadata(new SaveMetadata(), "slot", TestFolder));
+            Assert.Throws<GameException>(() => SaveService.SaveBlock(new SaveData { Gold = 1 }, "slot", "stats", TestFolder));
+            Assert.Throws<GameException>(() => SaveService.Save(new SaveData { Gold = 1 }, "slot", TestFolder));
+            Assert.Throws<GameException>(() => SaveService.SaveMetadata(new SaveMetadata(), "slot", TestFolder));
         }
 
         #endregion
@@ -925,13 +925,13 @@ namespace Service.Save
         [Test]
         public void RestoreBackup_MissingBackup_Throws()
         {
-            Assert.Throws<MoiraiException>(() => _handler.RestoreBackup("no-backup-slot", TestFolder));
+            Assert.Throws<GameException>(() => _handler.RestoreBackup("no-backup-slot", TestFolder));
         }
 
         [Test]
         public void CreateBackup_MissingSave_Throws()
         {
-            Assert.Throws<MoiraiException>(() => _handler.CreateBackup("no-save-slot", TestFolder));
+            Assert.Throws<GameException>(() => _handler.CreateBackup("no-save-slot", TestFolder));
         }
 
         #endregion

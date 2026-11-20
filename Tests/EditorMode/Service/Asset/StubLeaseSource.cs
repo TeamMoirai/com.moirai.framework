@@ -17,7 +17,7 @@ namespace Service.Asset
     {
         private readonly List<AssetLeaseHandle> _released = new List<AssetLeaseHandle>();
 
-        /// <summary>置为 <c>true</c> 后异步子资源图集取用直接抛 <see cref="MoiraiException"/>，用来造"预约位已落地、取用却失败"这条窗口。</summary>
+        /// <summary>置为 <c>true</c> 后异步子资源图集取用直接抛 <see cref="GameException"/>，用来造"预约位已落地、取用却失败"这条窗口。</summary>
         public bool SubAssetsAcquireThrows { get; set; }
 
         public IReadOnlyList<AssetLeaseHandle> Released => _released;
@@ -43,7 +43,7 @@ namespace Service.Asset
         {
             if (SubAssetsAcquireThrows)
             {
-                throw new MoiraiException("StubLeaseSource.AcquireSubAssetsBindingAsync is not implemented.");
+                throw new GameException("StubLeaseSource.AcquireSubAssetsBindingAsync is not implemented.");
             }
 
             return UniTask.FromResult(new AssetLeaseHandle(1, 1));

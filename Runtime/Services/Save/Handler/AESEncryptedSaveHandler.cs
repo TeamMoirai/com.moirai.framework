@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Save
             SaveError keyError = KeyProvider.TryGetKeyMaterial(out byte[] encryptionKey, out byte[] macKey);
             if (keyError != SaveError.None)
             {
-                throw new MoiraiException(StringUtility.Format("Save encryption key unavailable, error: {0}.", keyError));
+                throw new GameException(StringUtility.Format("Save encryption key unavailable, error: {0}.", keyError));
             }
 
             return Encryptor.OpenEncryptStreamWithMaterial(target, encryptionKey, macKey);

@@ -113,11 +113,11 @@ namespace Moirai.Atropos
             private static void Validate(in TweenState state)
             {
                 if (state.Duration < 0f)
-                    throw new MoiraiException("Tween duration must be >= 0 (0 = complete on first update).");
+                    throw new GameException("Tween duration must be >= 0 (0 = complete on first update).");
                 if (state.Cycles < 1)
-                    throw new MoiraiException("Tween cycles must be >= 1.");
+                    throw new GameException("Tween cycles must be >= 1.");
                 if (state.StartDelay < 0f)
-                    throw new MoiraiException("Tween startDelay must be >= 0.");
+                    throw new GameException("Tween startDelay must be >= 0.");
             }
 
             private static int FindFreeSlot()

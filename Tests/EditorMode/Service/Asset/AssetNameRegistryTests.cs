@@ -125,7 +125,7 @@ namespace Service.Asset
                 registry.GetOrAdd("name-" + i);
             }
 
-            Assert.Throws<MoiraiException>(() => registry.GetOrAdd("one-too-many"),
+            Assert.Throws<GameException>(() => registry.GetOrAdd("one-too-many"),
                 "超出该轴位宽必须抛：截断会让两条资源编出同一个键");
         }
 

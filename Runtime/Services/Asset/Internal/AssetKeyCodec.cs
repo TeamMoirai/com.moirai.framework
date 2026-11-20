@@ -47,7 +47,7 @@ namespace Moirai.Atropos.Asset
                 (uint)assetKind > RESOURCE_KEY_ASSET_KIND_MAX ||
                 (uint)handleKind > RESOURCE_KEY_HANDLE_MAX)
             {
-                throw new MoiraiException("Resource key id range exceeded.");
+                throw new GameException("Resource key id range exceeded.");
             }
 
             return ((ulong)(uint)packageId << RESOURCE_KEY_PACKAGE_SHIFT) |

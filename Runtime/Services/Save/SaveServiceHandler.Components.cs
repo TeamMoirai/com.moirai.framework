@@ -22,7 +22,7 @@ namespace Moirai.Atropos.Save
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="additions">组件捕获条目（键 = 块键，载荷 = KVT 字节，后端 = <see cref="SaveBackendIds.KEY_VALUE"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>写入完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
+        /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
         internal UniTask UpsertRawBlocksAsync(SavePaths paths, List<SaveBlockEntry> additions, CancellationToken cancellationToken)
         {
             if (additions.Count == 0)
@@ -264,7 +264,7 @@ namespace Moirai.Atropos.Save
         /// <param name="removals">已确定的删除块键集合（<c>null</c> = 无）。</param>
         /// <param name="removalResolver">读档后删除集解析委托（入参为档内健康块键→载荷；<c>null</c> = 无）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>写入完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
+        /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
         internal UniTask MergeRawBlocksAsync(SavePaths paths, List<SaveBlockEntry> additions, List<string> removals, Func<Dictionary<string, byte[]>, List<string>> removalResolver, CancellationToken cancellationToken)
         {
             bool hasAdditions = additions != null && additions.Count > 0;

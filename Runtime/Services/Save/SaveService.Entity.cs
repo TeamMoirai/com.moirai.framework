@@ -100,7 +100,7 @@ namespace Moirai.Atropos.Save
         /// 将实体表与全部活跃实体的差分块异步写入存档文件（主线程捕获，IO 在工作线程）。
         /// </summary>
         /// <remarks>
-        /// 流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 增量判定 → 单趟合并写回；失败抛 <see cref="MoiraiException"/>，处理器未就绪时同样抛出（不静默丢档）。 <br />
+        /// 流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 增量判定 → 单趟合并写回；失败抛 <see cref="GameException"/>，处理器未就绪时同样抛出（不静默丢档）。 <br />
         /// CarryForward 语义：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留。 <br />
         /// 增量语义：会话级脏跟踪 + 档写入时间守卫——实体表、差分载荷与档均未变化时零 IO 跳过（无事件）； <br />
         /// 有变化时经 <see cref="SaveServiceHandler.MergeRawBlocksAsync"/> 单趟合并（读档 → 迁移 → 删陈旧 → upsert → 写回）， <br />

@@ -23,7 +23,7 @@ namespace Moirai.Atropos
         {
             if (first == null || terminal == null || first == terminal)
             {
-                throw new MoiraiException("Range is invalid.");
+                throw new GameException("Range is invalid.");
             }
 
             _first = first;
@@ -119,7 +119,7 @@ namespace Moirai.Atropos
             {
                 if (!range.IsValid)
                 {
-                    throw new MoiraiException("Range is invalid.");
+                    throw new GameException("Range is invalid.");
                 }
 
                 _gameLinkedListRange = range;

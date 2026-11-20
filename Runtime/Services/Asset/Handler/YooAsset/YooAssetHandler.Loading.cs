@@ -82,7 +82,7 @@ namespace Moirai.Atropos.Asset
                 catch (Exception ex)
                 {
                     DisposeHandle(handle);
-                    Store.FailLoading(loadingKey, new MoiraiException(StringUtility.Format(
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource Asset sync load threw. Location:{0} Package:{1} Type:{2}", location,
                         normalizedPackageName, assetType), ex));
                     return null;
@@ -232,7 +232,7 @@ namespace Moirai.Atropos.Asset
                 catch (Exception ex)
                 {
                     DisposeHandle(handle);
-                    Store.FailLoading(loadingKey, new MoiraiException(StringUtility.Format(
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource Asset load threw. Location:{0} Package:{1} Type:{2}", location, normalizedPackageName,
                         assetType), ex));
                     return null;
@@ -371,7 +371,7 @@ namespace Moirai.Atropos.Asset
                 catch (Exception ex)
                 {
                     DisposeHandle(subHandle);
-                    Store.FailLoading(loadingKey, new MoiraiException(StringUtility.Format(
+                    Store.FailLoading(loadingKey, new GameException(StringUtility.Format(
                         "Resource SubAssets load threw. Location:{0} Package:{1}", location, normalizedPackageName), ex));
                     return AssetLeaseHandle.Invalid;
                 }
@@ -394,17 +394,17 @@ namespace Moirai.Atropos.Asset
             }
         }
 
-        private static MoiraiException NewLoadingFailure(string operation, string location, string packageName)
+        private static GameException NewLoadingFailure(string operation, string location, string packageName)
         {
-            return new MoiraiException(StringUtility.Format(
+            return new GameException(StringUtility.Format(
                 "Resource {0} load failed: handler returned null. Location:{1} Package:{2}",
                 operation, location, packageName));
         }
 
-        private static MoiraiException NewLoadingFailure(string operation, string location, string packageName,
+        private static GameException NewLoadingFailure(string operation, string location, string packageName,
             EOperationStatus status, string error)
         {
-            return new MoiraiException(StringUtility.Format(
+            return new GameException(StringUtility.Format(
                 "Resource {0} load failed. Location:{1} Package:{2} Status:{3} Error:{4}",
                 operation, location, packageName, status.ToString(), error ?? string.Empty));
         }

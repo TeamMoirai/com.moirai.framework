@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Save
     /// <remarks>
     /// 序列化后端（<see cref="ISaveSerializer"/>）、存储后端（<see cref="ISaveStorage"/>）与存储管线三轴正交可插拔；文件 IO 在工作线程执行， <br />
     /// 大存档不阻塞主线程（<see cref="CancellationToken"/> 协作式取消贯穿读写）。 <br />
-    /// 错误语义：写入失败 fail-fast 抛 <see cref="MoiraiException"/>（不容忍半档状态）； <br />
+    /// 错误语义：写入失败 fail-fast 抛 <see cref="GameException"/>（不容忍半档状态）； <br />
     /// 读取失败返回 <c>default</c> 并记错误日志（错误判别用 Try* 族的 <see cref="SaveResult{T}"/>）；删除幂等——目标不存在视为成功。 <br />
     /// 实例由 <see cref="SaveServiceSettings"/> 序列化持有，经 <see cref="SaveService"/> 静态外观访问。
     /// </remarks>

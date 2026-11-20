@@ -48,7 +48,7 @@ namespace Moirai.Atropos
             {
                 if (results == null)
                 {
-                    throw new MoiraiException("Results is invalid.");
+                    throw new GameException("Results is invalid.");
                 }
 
                 results.Clear();

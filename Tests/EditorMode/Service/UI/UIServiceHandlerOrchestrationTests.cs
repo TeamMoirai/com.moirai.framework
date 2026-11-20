@@ -116,7 +116,7 @@ namespace Service.UI
             var second = Window<ProbeUGUIWindow>("Duplicated", (int)EUILayer.Tips);
             UIService.SharedLedger.Push(first);
 
-            Assert.Throws<MoiraiException>(() => UIService.SharedLedger.Push(second), "同一标识的窗口不得第二次压栈");
+            Assert.Throws<GameException>(() => UIService.SharedLedger.Push(second), "同一标识的窗口不得第二次压栈");
             Assert.AreEqual(1, Stack.Count, "抬错排在插入之前：栈上只多出一个");
             Assert.AreSame(first, Stack[0], "栈上仍是先压进来的那个");
         }
@@ -492,7 +492,7 @@ namespace Service.UI
         {
             UIServiceSettings.Internal_SetEnabledHandlers(Array.Empty<UIServiceHandler>());
 
-            Assert.Throws<MoiraiException>(() => new UIService().OnInit(), "清单为空要在初始化当场抬错");
+            Assert.Throws<GameException>(() => new UIService().OnInit(), "清单为空要在初始化当场抬错");
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "抬错之后不留 uGUI 轨的驱动者");
             Assert.IsNull(UIService.Internal_PeekUITKHandler(), "抬错之后不留 UI Toolkit 轨的驱动者");
             Assert.IsFalse(UIService.IsValid, "一支都没启用时门面不算有效");
@@ -513,7 +513,7 @@ namespace Service.UI
                 new UGUIHandler(),
             });
 
-            var error = Assert.Throws<MoiraiException>(() => new UIService().OnInit(), "同一轨两项要抬错，不取第一个");
+            var error = Assert.Throws<GameException>(() => new UIService().OnInit(), "同一轨两项要抬错，不取第一个");
             StringAssert.Contains("UGUI", error.Message, "文案点名重复的是哪一轨");
             Assert.IsNull(UIService.Internal_PeekUITKHandler(), "这份清单没提 UI Toolkit 那一轨");
         }
@@ -548,7 +548,7 @@ namespace Service.UI
                 null,
             });
 
-            var error = Assert.Throws<MoiraiException>(() => new UIService().OnInit(), "清单里的 null 项要抬错，不静默跳过");
+            var error = Assert.Throws<GameException>(() => new UIService().OnInit(), "清单里的 null 项要抬错，不静默跳过");
             StringAssert.Contains("#1", error.Message, "文案点名的是第几项");
             Assert.IsNotNull(UIService.Internal_PeekUGUIHandler(), "抬错之前第一项已就位，门面不在抬错后回滚");
             Assert.IsNull(UIService.Internal_PeekUITKHandler(), "这份清单没提 UI Toolkit 那一轨");
@@ -613,16 +613,16 @@ namespace Service.UI
             EnableOnlyUITKTrackAndInit();
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：这一格判的是 uGUI 那一轨没被启用的档");
 
-            var error = Assert.Throws<MoiraiException>(
+            var error = Assert.Throws<GameException>(
                 () => UIService.ShowUI<ProbeUGUIWindow>("DisabledTrack"), "未启用那一轨的同步腿不得静默落空");
             StringAssert.Contains("UGUI", error.Message, "文案点名是没启用的哪一轨");
             StringAssert.Contains(nameof(UIServiceSettings), error.Message, "文案点名该去哪一处启用");
 
-            Assert.Throws<MoiraiException>(
+            Assert.Throws<GameException>(
                 () => UIService.ShowUIAsync<ProbeUGUIWindow>("DisabledTrackAsync"), "异步腿走的也是同一道守卫");
-            Assert.Throws<MoiraiException>(
+            Assert.Throws<GameException>(
                 () => UIService.ShowUI(typeof(ProbeUGUIWindow), "DisabledTrackByType"), "Type 形入口的 uGUI 档同判据");
-            Assert.Throws<MoiraiException>(
+            Assert.Throws<GameException>(
                 () => UIService.ShowUIAsyncAwait<ProbeUGUIWindow>("DisabledTrackAwait").GetAwaiter().GetResult(),
                 "等待腿把异常收进交回的那一份 UniTask");
 

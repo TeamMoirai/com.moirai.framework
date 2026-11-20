@@ -67,7 +67,7 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 发起即忘的绑定：不等待结果，但抛出必须落日志。
         /// </summary>
-        /// <remarks>裸 <c>Forget()</c> 会静默吞掉异常（含后端不支持某条异步绑定时抛出的 <c>MoiraiException</c>），使缺陷不可观测。</remarks>
+        /// <remarks>裸 <c>Forget()</c> 会静默吞掉异常（含后端不支持某条异步绑定时抛出的 <c>GameException</c>），使缺陷不可观测。</remarks>
         private static void FireAndForget(UniTask<EAssetBindStatus> bind)
         {
             bind.Forget(exception => LogUtility.Error(exception));

@@ -39,7 +39,7 @@ namespace Moirai.Atropos
         {
             if (IsDisposed)
             {
-                throw new MoiraiException(
+                throw new GameException(
                     "AssetLeaseScope was disposed — Load is unavailable after Dispose. " +
                     "Ensure the owning state/page recreates the scope on re-enter.");
             }

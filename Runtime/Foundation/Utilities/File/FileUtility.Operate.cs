@@ -15,7 +15,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(directoryName))
             {
-                throw new MoiraiException("Directory name is invalid.");
+                throw new GameException("Directory name is invalid.");
             }
 
             try
