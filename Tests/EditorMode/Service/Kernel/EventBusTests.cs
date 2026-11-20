@@ -109,5 +109,68 @@ namespace Moirai.Atropos.Tests.EditorMode.Service.Kernel
         {
             Assert.DoesNotThrow(() => EventBus.Publish(new Ping()));
         }
+
+        #region 编辑器诊断钩子（参数快照 / 重播）[EDITOR DIAGNOSTICS]
+
+        [Test]
+        public void Diagnostics_OnPublished_CarriesValueSnapshot_OncePerPublish()
+        {
+            var types = new List<Type>();
+            var values = new List<int>();
+            Action<Type, object> hook = (type, snapshot) =>
+            {
+                types.Add(type);
+                values.Add(((Ping)snapshot).Value);
+            };
+
+            EventBusDiagnostics.OnPublished += hook;
+            try
+            {
+                // 两个订阅者——钩子每次发布只触发一次，不随订阅者数放大
+                EventBus.Subscribe<Ping>((in Ping _) => { });
+                EventBus.Subscribe<Ping>((in Ping _) => { });
+                EventBus.Publish(new Ping { Value = 42 });
+
+                Assert.AreEqual(1, types.Count, "每次发布仅触发一次诊断钩子");
+                Assert.AreEqual(typeof(Ping), types[0]);
+                Assert.AreEqual(42, values[0], "钩子携带事件值快照 (struct 装箱副本)");
+            }
+            finally
+            {
+                EventBusDiagnostics.OnPublished -= hook;
+            }
+        }
+
+        [Test]
+        public void Diagnostics_ReflectedPublish_ReplaysSnapshotThroughInParameter()
+        {
+            var received = new List<int>();
+            EventBus.Subscribe<Ping>((in Ping evt) => received.Add(evt.Value));
+
+            object snapshot = new Ping { Value = 77 };
+
+            // 复刻 EventBusDebuggerWindow.PublishSnapshot 的反射闭合流程
+            System.Reflection.MethodInfo publish = null;
+            foreach (var m in typeof(EventBus).GetMethods(
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+            {
+                if (m.Name != "Publish" || !m.IsGenericMethodDefinition) continue;
+                var ps = m.GetParameters();
+                if (ps.Length == 2 && ps[0].ParameterType.IsByRef && ps[0].Name == "evt")
+                {
+                    publish = m;
+                    break;
+                }
+            }
+
+            Assert.IsNotNull(publish, "应找到 Publish<TEvent>(in TEvent, EDispatchMode) 重载");
+            var closed = publish.MakeGenericMethod(typeof(Ping));
+            closed.Invoke(null, new object[] { snapshot, EDispatchMode.Immediate });
+
+            Assert.AreEqual(new[] { 77 }, received.ToArray(),
+                "反射闭合泛型 + in 参数传入装箱快照可走真实发布路径重放");
+        }
+
+        #endregion
     }
 }

@@ -10,7 +10,7 @@
 
 #### Kernel
 
-- 新增 `EventBusAnalyzer`（`SourceGenerators/EventBusAnalyzer.dll`，源码 `Source~/EventBusAnalyzer/`，随包自动生效）：MA7000 禁止匿名函数订阅/退订 EventBus（匿名委托无法值等价匹配 Unsubscribe，订阅即泄漏）、MA7001 `OnXxxEvent` 带参回调必须 `in` 修饰（含一键 CodeFix；方法组转换要求 ref-kind 精确匹配，缺 `in` 本就无法订阅）、MA7002 参数类型与方法名后缀不匹配告警、MA7003 非 partial 宿主上的无参回调告警；配套源生成器为含 `OnXxxEvent` 回调的 `partial` 类型生成成对 `SubscribeEvents()`/`UnsubscribeEvents()` 胶水——带参回调方法组直连、无参回调缓存包装桥接为 `EventDelegate<T>`、不合规签名跳过并留注释，详见 `Documentation~/EventBusAnalyzer.md`
+- 新增 `EventBusAnalyzer`（`SourceGenerators/EventBusAnalyzer.dll`，源码 `Source~/EventBusAnalyzer/`，随包自动生效，**纯分析器不生成任何代码**）：MA7000 禁止匿名函数订阅/退订 EventBus（匿名委托无法值等价匹配 Unsubscribe，订阅即泄漏）、MA7001 `OnXxxEvent` 带参回调必须 `in` 修饰（含一键 CodeFix；方法组转换要求 ref-kind 精确匹配）、MA7002 参数类型与方法名后缀不匹配告警、MA7003 订阅缺少成对退订（按「事件类型 + 处理器」在同一宿主类型内配对，跨 partial 分部，多出的 Subscribe 报 Warning）、MA7004–MA7006 `[GameEvent]` 契约校验；**不再生成 SubscribeEvents()/UnsubscribeEvents() 胶水，无参回调也不再要求 partial，订阅时机与退订配对全部由用户自行控制**，详见 `Documentation~/EventBusAnalyzer.md`
 
 #### UI
 
@@ -46,6 +46,11 @@
 - `MainThreadDispatcher` 任务异常与 `PlayerLoopDriver` 订户策略对齐：开发构建 Fatal 后上抛中止本次泵（fail-fast），发布构建隔离续跑并对连续失败 300 次告警一次（任一任务成功归零重计）
 - `MainThreadDispatcher` 入队路径零分配收尾：`Post(IEnumerator)` 改经池化工作项 + 静态 lambda 转发（稳态零闭包分配），取消注册改用 `CancellationToken.Register` 状态重载，泵内毫秒换算提为静态字段
 - ⚠ 运行时目录重组：`Runtime/Core/` 一分为二——框架运行底座（`GameApp` 含 `PlayerLoop`、`MemoryPool`、`GameException`、`FrameworkSettings`、`GameSettings`、`Singleton`、`Tasks`、`GameProfiler`，连同事件总线 `Events/`）归入 `Runtime/Kernel/`；剩余基础件（`Attributes`、`Constant`、`DataStructure`、`Extensions`、`Obfuz`、`Utilities`）所在目录由 `Runtime/Core/` 改名为 `Runtime/Foundation/`。生产侧命名空间与公共 API 全部不变（仍为 `Moirai.Atropos`），所有 `.meta` GUID 原样保留；测试树同步拆分/改名为 `Tests/{EditorMode,PlayMode}/Kernel/` 与 `Tests/EditorMode/Foundation/`，测试命名空间一并改（`Core.MemoryPool` → `Kernel.MemoryPool`、`Utility` → `Foundation.Utility`、`GameSettings` → `Kernel.GameSettings`）；按源码相对路径定位文件的判据与文档路径已同步
+
+#### Kernel
+
+- `EventBus` 调试窗去服务化并补齐参数查看/重播：移除 Runtime 侧的 `EventBusDebuggerWindow`（原继承 `ScrollableDebuggerWindowBase`）与 `EventBusDebuggerRegistrar`（原经 `IDebuggerService.RegisterDebuggerWindow` 挂窗），调试改为纯编辑器 `EditorWindow`（`Editor/Core/Events/EventBusDebuggerWindow.cs`，菜单 `Window/Event Debugger`），经 `#if UNITY_EDITOR` 门控的 `EventBusDiagnostics.OnPublished` 钩子经 `InternalsVisibleTo` 挂接；内核侧不引入任何 Debugger 服务接口或窗口注册依赖
+- 诊断钩子 `EventBusDiagnostics.OnPublished` 由 `Action&lt;Type&gt;` 升为 `Action&lt;Type, object&gt;`：随事件携带 struct 值快照（调试窗未挂接时 `?.` 短路、零装箱），每次发布仅触发一次（原实现按订阅者数放大）；编辑器调试窗据此支持点选事件行查看传参（反射字段/属性）、单条重播与按记录时间差+倍速整段回放（反射闭合 `EventBus.Publish&lt;T&gt;` 走真实发布路径）
 
 #### Editor
 
@@ -252,7 +257,7 @@
 - **全生态残留清理**：130 文件死 `using Moirai.Atropos.Events` + 注释中 EventManager/EventBase cref → EventBus（juice/plugin 族/Client Assets 全扫）
 - **吸收项补齐**：
   - EventPool 接线：EventBus 加 `RentPooled<T>/ReturnPooled<T>` 门面（大事件三步模式：Rent 负载 → Publish struct 事件携带引用 → Return 归还）
-  - `[GameEvent]` 标记 + **GameEventAttributeAnalyzer**（MA7001-7003：标记类型必须 struct + 实现 IGameEvent + 禁实例方法——编译期约束校验，EventBusAnalyzer.dll 重建）
+  - `[GameEvent]` 标记 + **GameEventAttributeAnalyzer**（MA7004–MA7006：标记类型必须 struct + 实现 IGameEvent + 禁实例方法——编译期约束校验，EventBusAnalyzer.dll 重建；诊断 ID 从 MA7001–MA7003 迁出以避开订阅规范占用）
 - **验收**：编译零错误；回归 2952/2941/0 失败（净 -13 = 旧事件系统测试随目录清退）
 
 #### Events / EventPool 删除——池化统一 MemoryPool
