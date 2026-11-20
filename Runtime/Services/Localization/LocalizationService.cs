@@ -16,9 +16,8 @@ namespace Moirai.Atropos.Localization
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
-    [AutoRegisterService]
-    [ServiceDependency(typeof(IDebuggerService), typeof(IConfigTableService))]
     [ProviderHandlerHost(typeof(ILocalizationService), typeof(ConfigTableLocalizationHandler))]
+    [AutoRegisterService, ServiceDependency(typeof(IDebuggerService), typeof(IConfigTableService))]
     public partial class LocalizationService : ServiceBase
     {
         #region 生命周期 [LIFECYCLE]
@@ -256,6 +255,7 @@ namespace Moirai.Atropos.Localization
             var handler = s_Handler;
             if (handler == null) return;
 
+            HandPreferenceToHandler();
             handler.ChangeLanguage(language, logSource);
             PersistAcceptedLanguage(handler);
         }

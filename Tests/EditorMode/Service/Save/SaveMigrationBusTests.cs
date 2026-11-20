@@ -319,15 +319,16 @@ namespace Service.Save
             LogUtility.onMessageLogged += CaptureLog;
             _loadFailedEvents = new List<SaveFailedEvent>();
             _saveFailedEvents = new List<SaveFailedEvent>();
-            EventBus.Subscribe<SaveFailedEvent>((in SaveFailedEvent e) => { if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Load) OnLoadFailed(e); });
-            EventBus.Subscribe<SaveFailedEvent>((in SaveFailedEvent e) => { if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Save) OnSaveFailed(e); });
+            // 具名方法组订阅：退订按委托值等价匹配，匿名 lambda 每个编译点都是新实例，退订永不匹配（MA7000 同理）
+            EventBus.Subscribe<SaveFailedEvent>(OnLoadFailedBridge);
+            EventBus.Subscribe<SaveFailedEvent>(OnSaveFailedBridge);
         }
 
         [TearDown]
         public void TearDown()
         {
-            EventBus.Unsubscribe<SaveFailedEvent>((in SaveFailedEvent e) => { if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Load) OnLoadFailed(e); });
-            EventBus.Unsubscribe<SaveFailedEvent>((in SaveFailedEvent e) => { if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Save) OnSaveFailed(e); });
+            EventBus.Unsubscribe<SaveFailedEvent>(OnLoadFailedBridge);
+            EventBus.Unsubscribe<SaveFailedEvent>(OnSaveFailedBridge);
             LogUtility.onMessageLogged -= CaptureLog;
             SaveMigrationManager.ResetForTests();
             SaveServiceHandler.s_OverrideBasePath = null;
@@ -351,6 +352,16 @@ namespace Service.Save
 
         private void OnLoadFailed(SaveFailedEvent evt) => _loadFailedEvents.Add(evt);
         private void OnSaveFailed(SaveFailedEvent evt) => _saveFailedEvents.Add(evt);
+
+        private void OnLoadFailedBridge(in SaveFailedEvent e)
+        {
+            if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Load) OnLoadFailed(e);
+        }
+
+        private void OnSaveFailedBridge(in SaveFailedEvent e)
+        {
+            if (e.Operation == SaveFailedEvent.ESaveFailureOperation.Save) OnSaveFailed(e);
+        }
 
         private static void ExpectErrorLogForUtf()
         {

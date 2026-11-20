@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos;
 using Moirai.Atropos.Input;
+using Moirai.Atropos.Tests.EditorMode;
 using Moirai.Atropos.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -1135,6 +1136,31 @@ namespace Service.UI
             Assert.AreEqual(0, Stack.Count, "两支都得出栈");
             Assert.IsFalse(UIService.SharedLedger.HasWindow<ProbeUGUIWindow>(cached.WindowId),
                 "存在性查询按栈答，不按停放表");
+        }
+
+        /// <summary>带标识关闭时类型形参是第二重钥匙：标识指向别的类型的窗口时按空操作处理并告警，不得误关。</summary>
+        /// <remarks>
+        /// 带键路径按唯一身份取窗（不看类型），若无守卫，<c>CloseUI&lt;A&gt;("B的id")</c> 会静默关掉 B—— <br />
+        /// 与 <see cref="CloseUI_CachedAndPlainWindows_RouteSeparatelyAndLeaveStack"/> 的「标识没人应不动栈」成对：匹配不上同样一个都不碰。
+        /// </remarks>
+        [Test]
+        public void CloseUI_IdPointsToAnotherType_IsNoOpAndDoesNotCloseTheWrongWindow()
+        {
+            var target = Prepared("IdTypeGuard", (int)EUILayer.Bottom);
+            var bystander = PreparedKit("IdTypeBystander", (int)EUILayer.Popup);
+
+            UtfLogExpect.Error();
+            UIService.SharedLedger.CloseUI(typeof(ProbeUITKWindow), target.WindowId);
+
+            Assert.IsFalse(target.IsDestroyed, "标识与类型不匹配时不得误关那个标识的窗口");
+            Assert.AreEqual(2, Stack.Count, "匹配不上同样一个都不碰：栈上一个都不少");
+            Assert.IsTrue(UIService.SharedLedger.HasWindow<ProbeUGUIWindow>(target.WindowId));
+
+            // 类型匹配的关闭照常生效（守卫只拦不匹配的那一支）
+            UIService.SharedLedger.CloseUI(typeof(ProbeUGUIWindow), target.WindowId);
+            Assert.IsTrue(target.IsDestroyed, "类型匹配的关闭不得被守卫挡住");
+            Assert.AreEqual(1, Stack.Count);
+            Assert.IsTrue(UIService.SharedLedger.HasWindow<ProbeUITKWindow>(bystander.WindowId), "旁观窗全程不被牵连");
         }
 
         /// <summary>关闭不带标识那一档：按窗口类型扫栈，这一类的每个都收口，别的类型一个都不碰。</summary>

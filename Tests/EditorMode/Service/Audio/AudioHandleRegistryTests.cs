@@ -161,8 +161,7 @@ namespace Service.Audio
             {
                 seen++;
                 if (slot.Handle == drop) sawDropped = true;
-                Assert.AreSame(registry, registry);   // 读一次 Current 的形态，确保不是空转
-                Assert.IsNotNull(slot.Voice);
+                Assert.IsNotNull(slot.Voice, "枚举出的活跃槽位必须带声部");
             }
 
             Assert.AreEqual(1, seen);
@@ -213,6 +212,39 @@ namespace Service.Audio
             int perUser0 = 0;
             registry.ForEachHandleByUser(0, _ => perUser0++);
             Assert.AreEqual(10, perUser0, "扩容后同 ID 链必须重挂完整");
+        }
+
+        [Test]
+        public void RegisterUser_InsertThatTriggersHeadGrowth_LandsInNewTableSlot()
+        {
+            // 回归：FindHead 插入路径占位触发扩容后返回的是旧表槽号，调用方把链头写进新表里
+            // 别的 key 的位置——第 8 个唯一 userId 起（InitialUserHeads=16 半载即扩）链错位/丢链，
+            // StopByID / ForEachHandleByUser / Release 解链全部失效。旧测试只造 7 个唯一 ID，掩护了此路径。
+            var registry = new AudioHandleRegistry<TestVoice>();
+            var handlesByUser = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<ulong>>();
+
+            // 唯一 userId 数越过 InitialUserHeads 的一半，逼出「插入即扩容」与后续的倍增扩容
+            for (int userId = 0; userId < 40; userId++)
+            {
+                var handles = new System.Collections.Generic.List<ulong>();
+                for (int dup = 0; dup < 3; dup++)
+                {
+                    var voice = new TestVoice { UserId = userId };
+                    ulong handle = registry.Bind(voice);
+                    Assert.AreNotEqual(0UL, handle);
+                    Assert.IsTrue(registry.RegisterUser(handle, userId), $"userId={userId} 第 {dup} 条登记应成功");
+                    handles.Add(handle);
+                }
+                handlesByUser[userId] = handles;
+            }
+
+            Assert.AreEqual(120, registry.Count);
+            foreach (var pair in handlesByUser)
+            {
+                int visited = 0;
+                registry.ForEachHandleByUser(pair.Key, _ => visited++);
+                Assert.AreEqual(3, visited, $"userId={pair.Key} 的链在扩容后必须完整（不得错挂到别的 ID）");
+            }
         }
     }
 }

@@ -77,14 +77,10 @@ namespace Service.Audio
             }
 
             fmod.SetBridge(fmodStub);
-            typeof(MiddlewareAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(fmod, null);
+            fmod.Internal_Init();
 
             wwise.SetBridge(wwiseStub);
-            typeof(MiddlewareAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(wwise, null);
+            wwise.Internal_Init();
 
             var request = new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.Loop);
             ulong h1 = fmod.Play("event:/Test", request, null);
@@ -184,9 +180,7 @@ namespace Service.Audio
             var stub = new MixBridge();
             var handler = new MixHandler();
             handler.SetBridge(stub);
-            typeof(MiddlewareAudioHandler)
-                .GetMethod("OnInit", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                .Invoke(handler, null);
+            handler.Internal_Init();
 
             ulong a = handler.Play("event:/M/A", new AudioPlayRequest(10, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
             ulong b = handler.Play("event:/M/B", new AudioPlayRequest(11, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
