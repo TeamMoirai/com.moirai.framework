@@ -125,7 +125,7 @@ namespace Moirai.Atropos.UI
         /// 同一轨再来第二个不同实例时抬错，不静默换掉在位实例。<br />
         /// 同一实例重复注册是空操作（<c>OnInit</c> 可重入）。
         /// </remarks>
-        /// <exception cref="MoiraiException">本轨已经有驱动者在位。</exception>
+        /// <exception cref="GameException">本轨已经有驱动者在位。</exception>
         internal abstract void Internal_Register();
 
         #endregion

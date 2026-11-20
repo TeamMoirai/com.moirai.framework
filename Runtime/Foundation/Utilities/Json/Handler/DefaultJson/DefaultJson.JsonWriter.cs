@@ -204,7 +204,7 @@ namespace Moirai.Atropos
                             return;
                         }
 
-                        throw new MoiraiException(StringUtility.Format(
+                        throw new GameException(StringUtility.Format(
                             "Type '{0}' is not a simple value and cannot be written by WriteSimpleValue.", type.FullName));
                 }
             }
@@ -625,7 +625,7 @@ namespace Moirai.Atropos
 
                 if (fields.Length == 0 && properties.Length == 0)
                 {
-                    throw new MoiraiException(StringUtility.Format(
+                    throw new GameException(StringUtility.Format(
                         "Type '{0}' has no serializable fields or properties. If it represents a value-like type, expose members or mark them with [JsonSerialize].", type.FullName));
                 }
 
@@ -669,7 +669,7 @@ namespace Moirai.Atropos
                     }
                     catch (Exception e)
                     {
-                        throw new MoiraiException(StringUtility.Format(
+                        throw new GameException(StringUtility.Format(
                             "Failed to read property '{0}' of type '{1}'.", properties[i].Property.Name, type.FullName), e);
                     }
 

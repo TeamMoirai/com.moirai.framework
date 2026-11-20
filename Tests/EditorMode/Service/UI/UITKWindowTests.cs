@@ -287,7 +287,7 @@ namespace Service.UI
             Assert.IsNull(window.RootVisual, "失败后不得有内容根");
 
             var bareShell = NewShell("BareShell", false);
-            var error = Assert.Throws<Moirai.Atropos.MoiraiException>(() => window.BindPanel(bareShell, null));
+            var error = Assert.Throws<Moirai.Atropos.GameException>(() => window.BindPanel(bareShell, null));
 
             StringAssert.Contains(nameof(ProbeWindow), error.Message,
                 "缺 UIDocument 的文案要带上窗口标识：拿到半个可用面板不如当场指认");

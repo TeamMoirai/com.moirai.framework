@@ -235,7 +235,7 @@ namespace Moirai.Atropos.Save
         /// </remarks>
         /// <param name="folderName">文件夹名称；不允许为空（清空全部请用 <see cref="DeleteAllSaveFilesAsync"/>）。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>删除完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
+        /// <returns>删除完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
         public UniTask DeleteSaveFolderAsync(string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             return TryDeleteSaveFolderAsync(folderName, cancellationToken);

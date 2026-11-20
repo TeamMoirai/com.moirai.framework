@@ -173,14 +173,14 @@ namespace Service.Save
         [Test]
         public void Registry_DuplicateId_Throws()
         {
-            Assert.Throws<MoiraiException>(() => SaveCompressionRegistry.Register(new FakeCompressionProvider(GZipCompressionProvider.PROVIDER_ID)),
+            Assert.Throws<GameException>(() => SaveCompressionRegistry.Register(new FakeCompressionProvider(GZipCompressionProvider.PROVIDER_ID)),
                 "重复 ID 登记应 fail-fast（撞 ID = 静默写坏档）");
         }
 
         [Test]
         public void Registry_ReservedIdZero_Throws()
         {
-            Assert.Throws<MoiraiException>(() => SaveCompressionRegistry.Register(new FakeCompressionProvider(0)),
+            Assert.Throws<GameException>(() => SaveCompressionRegistry.Register(new FakeCompressionProvider(0)),
                 "ID 0 保留为「未压缩」标记，登记应 fail-fast");
         }
 

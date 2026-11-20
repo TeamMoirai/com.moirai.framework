@@ -49,7 +49,7 @@ namespace Moirai.Atropos
         {
             if (results == null)
             {
-                throw new MoiraiException("Results is invalid.");
+                throw new GameException("Results is invalid.");
             }
 
             results.Clear();
@@ -68,7 +68,7 @@ namespace Moirai.Atropos
         {
             if (string.IsNullOrEmpty(typeName))
             {
-                throw new MoiraiException("Type name is invalid.");
+                throw new GameException("Type name is invalid.");
             }
 
             if (s_CachedTypes.TryGetValue(typeName, out Type type))

@@ -59,7 +59,7 @@ namespace Moirai.Atropos.Debugger
         {
             if (capacity <= 0)
             {
-                throw new MoiraiException("Log capture capacity is invalid.");
+                throw new GameException("Log capture capacity is invalid.");
             }
 
             _capacity = capacity;

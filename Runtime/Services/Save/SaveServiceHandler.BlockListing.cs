@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="folderName">文件夹名称；空串表示存档数据根目录。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>删除完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
+        /// <returns>删除完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
         public UniTask DeleteBlockAsync(string fileName, string key, string folderName = DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             ValidateBlockKey(key);
@@ -88,7 +88,7 @@ namespace Moirai.Atropos.Save
             SaveError readError = ReadContainerOrEmpty(paths, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors);
             if (readError != SaveError.None)
             {
-                throw new MoiraiException(StringUtility.Format("Save block delete failed, path: {0}, error: {1}.", paths.SaveFilePath, readError));
+                throw new GameException(StringUtility.Format("Save block delete failed, path: {0}, error: {1}.", paths.SaveFilePath, readError));
             }
 
             // 目标块不存在 = 幂等空删早退（不做迁移——迁移不持久化却占会话缓存会导致后续读取跳过迁移拿到旧数据）

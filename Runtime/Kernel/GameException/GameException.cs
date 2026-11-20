@@ -3,10 +3,11 @@ using System.Runtime.Serialization;
 
 namespace Moirai.Atropos
 {
-    /// <summary>Phase 5 剥离（T10）：命名已重塑为 <see cref="MoiraiException"/>。继承关系保持——既有 catch(GameException) 继续生效。</summary>
+    /// <summary>
+    /// 框架统一异常类型。
+    /// </summary>
     [Serializable]
-    [System.Obsolete("Phase 5 剥离（T10）：请迁移至 MoiraiException（继承关系保持，既有 catch 继续生效）。")]
-    public class GameException : MoiraiException
+    public class GameException : Exception
     {
         public GameException()
             : base() { }

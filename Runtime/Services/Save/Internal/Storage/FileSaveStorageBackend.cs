@@ -122,7 +122,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 原子写入：完整文件字节写临时文件 → 强制落盘 → 原子替换目标（失败抛 <see cref="MoiraiException"/> 并清理临时文件）。
+        /// 原子写入：完整文件字节写临时文件 → 强制落盘 → 原子替换目标（失败抛 <see cref="GameException"/> 并清理临时文件）。
         /// </summary>
         /// <param name="filePath">目标文件完整路径。</param>
         /// <param name="bytes">完整文件字节（含文件头）。</param>
@@ -133,7 +133,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 原子写入（两段式）：头部与载荷分段写临时文件（零拼接分配）→ 强制落盘 → 原子替换目标（失败抛 <see cref="MoiraiException"/> 并清理临时文件）。
+        /// 原子写入（两段式）：头部与载荷分段写临时文件（零拼接分配）→ 强制落盘 → 原子替换目标（失败抛 <see cref="GameException"/> 并清理临时文件）。
         /// </summary>
         /// <param name="filePath">目标文件完整路径。</param>
         /// <param name="head">文件头部字节（先写入）。</param>
@@ -157,7 +157,7 @@ namespace Moirai.Atropos.Save
             catch (Exception exception)
             {
                 TryDeleteFile(tempFilePath);
-                throw new MoiraiException(StringUtility.Format("Save write failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name), exception);
+                throw new GameException(StringUtility.Format("Save write failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name), exception);
             }
         }
 
@@ -165,8 +165,8 @@ namespace Moirai.Atropos.Save
         /// 流式原子写入：临时文件流（可寻址）交委托写入全部内容 → 强制落盘 → 原子替换目标。
         /// </summary>
         /// <remarks>
-        /// 失败抛 <c>MoiraiException</c> 并清理临时文件；委托抛 <c>MoiraiException</c>/<see cref="OperationCanceledException"/> 原样上抛， <br />
-        /// 其余异常归一为 <c>MoiraiException</c>（含路径上下文）。
+        /// 失败抛 <c>GameException</c> 并清理临时文件；委托抛 <c>GameException</c>/<see cref="OperationCanceledException"/> 原样上抛， <br />
+        /// 其余异常归一为 <c>GameException</c>（含路径上下文）。
         /// </remarks>
         /// <param name="filePath">目标文件完整路径。</param>
         /// <param name="writeFile">写入委托（收到的临时文件流生命周期仅限本次调用）。</param>
@@ -196,7 +196,7 @@ namespace Moirai.Atropos.Save
                 TryDeleteFile(tempFilePath);
                 throw;
             }
-            catch (MoiraiException)
+            catch (GameException)
             {
                 TryDeleteFile(tempFilePath);
                 throw;
@@ -204,7 +204,7 @@ namespace Moirai.Atropos.Save
             catch (Exception exception)
             {
                 TryDeleteFile(tempFilePath);
-                throw new MoiraiException(StringUtility.Format("Save write failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name), exception);
+                throw new GameException(StringUtility.Format("Save write failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name), exception);
             }
         }
 
@@ -295,21 +295,21 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 创建单档备份（<c>.bak</c> 后缀，覆盖旧备份；源不存在抛 <see cref="MoiraiException"/>）。
+        /// 创建单档备份（<c>.bak</c> 后缀，覆盖旧备份；源不存在抛 <see cref="GameException"/>）。
         /// </summary>
         /// <param name="filePath">源文件完整路径。</param>
         public override void CreateBackup(string filePath)
         {
             if (!File.Exists(filePath))
             {
-                throw new MoiraiException(StringUtility.Format("Save file not found for backup, path: {0}.", filePath));
+                throw new GameException(StringUtility.Format("Save file not found for backup, path: {0}.", filePath));
             }
 
             File.Copy(filePath, filePath + BACKUP_FILE_SUFFIX, overwrite: true);
         }
 
         /// <summary>
-        /// 从单档备份恢复（备份经临时文件原子替换回源路径；备份不存在抛 <see cref="MoiraiException"/>）。
+        /// 从单档备份恢复（备份经临时文件原子替换回源路径；备份不存在抛 <see cref="GameException"/>）。
         /// </summary>
         /// <param name="filePath">目标文件完整路径。</param>
         public override void RestoreBackup(string filePath)
@@ -317,7 +317,7 @@ namespace Moirai.Atropos.Save
             string backupFilePath = filePath + BACKUP_FILE_SUFFIX;
             if (!File.Exists(backupFilePath))
             {
-                throw new MoiraiException(StringUtility.Format("Backup file not found, path: {0}.", backupFilePath));
+                throw new GameException(StringUtility.Format("Backup file not found, path: {0}.", backupFilePath));
             }
 
             string tempFilePath = filePath + TEMP_FILE_SUFFIX + Guid.NewGuid().ToString("N");
@@ -330,7 +330,7 @@ namespace Moirai.Atropos.Save
             catch (Exception exception)
             {
                 TryDeleteFile(tempFilePath);
-                throw new MoiraiException(StringUtility.Format("Backup restore failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name), exception);
+                throw new GameException(StringUtility.Format("Backup restore failed, path: {0}, exception: {1}.", filePath, exception.GetType().Name), exception);
             }
         }
 

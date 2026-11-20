@@ -234,7 +234,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 世界未初始化时服务挂入待初始化图，由 <see cref="Initialize"/> 按依赖拓扑统一驱动 OnInit。 <br />
-        /// 世界已初始化时依赖必须已就绪（缺失即抛 <see cref="MoiraiException"/>），服务立即 OnInit； <br />
+        /// 世界已初始化时依赖必须已就绪（缺失即抛 <see cref="GameException"/>），服务立即 OnInit； <br />
         /// 实现 <see cref="IServiceInitializableAsync"/> 的服务禁止运行时注册（无法等待，fail-fast）。 <br />
         /// 迭代中（Tick）调用时默认延迟到本轮迭代结束后执行（<see cref="EDeferMode.Defer"/>）。
         /// </remarks>
@@ -272,14 +272,14 @@ namespace Moirai.Atropos
             if (service == null) throw new ArgumentNullException(nameof(service));
             if (service is not IServiceLifecycle)
             {
-                throw new MoiraiException(StringUtility.Format(
+                throw new GameException(StringUtility.Format(
                     "Service '{0}' cannot be registered: a bare IService implementation has no container-driven " +
                     "state machine, so it can never be reported as ready and its dependents would fail dependency " +
                     "validation. Derive it from ServiceBase (pure C#) or ServiceMono<TScope> (MonoBehaviour).",
                     service.GetType().FullName));
             }
             if (_disposed)
-                throw new MoiraiException("ServiceWorld has been disposed; registration is rejected.");
+                throw new GameException("ServiceWorld has been disposed; registration is rejected.");
 
             ServiceScope targetScope = EnsureScope(scope);
 
@@ -306,7 +306,7 @@ namespace Moirai.Atropos
 
                 if (service is IServiceInitializableAsync)
                 {
-                    throw new MoiraiException(StringUtility.Format(
+                    throw new GameException(StringUtility.Format(
                         "Service '{0}' implements IServiceInitializableAsync and cannot be registered after world initialization (async init cannot be awaited). Register it before Initialize.",
                         service.GetType().FullName));
                 }
@@ -366,7 +366,7 @@ namespace Moirai.Atropos
             switch (_duplicateContractPolicy)
             {
                 case EDuplicateContractPolicy.Throw:
-                    throw new MoiraiException(StringUtility.Format(
+                    throw new GameException(StringUtility.Format(
                         "Duplicate contract registration rejected: contract '{0}' is already bound to '{1}' in {2} scope.",
                         contractType.FullName, existing.GetType().FullName, scope));
 
@@ -391,7 +391,7 @@ namespace Moirai.Atropos
             {
                 if (!IsServiceReady(dependencies[i]))
                 {
-                    throw new MoiraiException(StringUtility.Format(
+                    throw new GameException(StringUtility.Format(
                         "Dependency '{0}' required by '{1}' is not initialized. Runtime registration requires all dependencies ready.",
                         dependencies[i].FullName, implType.FullName));
                 }
@@ -505,7 +505,7 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 顺序契约：作用域固定 App → Scene → Gameplay 逐段处理；段内按 <c>[ServiceDependency]</c> 拓扑序——初始化顺序完全由声明决定，与注册顺序无关。 <br />
-        /// 缺失依赖与循环依赖在此 fail-fast；挂起服务中含 <see cref="IServiceInitializableAsync"/> 实现时抛 <see cref="MoiraiException"/>， <br />
+        /// 缺失依赖与循环依赖在此 fail-fast；挂起服务中含 <see cref="IServiceInitializableAsync"/> 实现时抛 <see cref="GameException"/>， <br />
         /// 须改用 <see cref="InitializeAsync"/>。
         /// </remarks>
         public void Initialize()
@@ -519,7 +519,7 @@ namespace Moirai.Atropos
                 var service = _pendingInit[i];
                 if (service is IServiceInitializableAsync)
                 {
-                    throw new MoiraiException(StringUtility.Format(
+                    throw new GameException(StringUtility.Format(
                         "Service '{0}' implements IServiceInitializableAsync. Use InitializeAsync instead of Initialize.",
                         service.GetType().FullName));
                 }
@@ -600,7 +600,7 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 初始化期图变更拦截：初始化进行中调用即抛 <see cref="MoiraiException"/>（注销 / 关闭作用域共用）。
+        /// 初始化期图变更拦截：初始化进行中调用即抛 <see cref="GameException"/>（注销 / 关闭作用域共用）。
         /// </summary>
         /// <remarks>
         /// 挂起图正被按索引推进的循环消费，中途摘除会让被注销的服务因局部引用仍被 <c>OnInit</c>（不记激活序 → <c>OnShutdown</c> 丢失）并让其后服务的索引位移而被跳过。
@@ -609,7 +609,7 @@ namespace Moirai.Atropos
         {
             if (!_initializing) return;
 
-            throw new MoiraiException(StringUtility.Format(
+            throw new GameException(StringUtility.Format(
                 "Cannot {0} while the world is initializing. Do it after Initialize/InitializeAsync completes.",
                 action));
         }
@@ -627,12 +627,12 @@ namespace Moirai.Atropos
         #region 查找 [LOOKUP]
 
         /// <summary>
-        /// 获取服务（未找到抛 <see cref="MoiraiException"/>）。按 Gameplay &gt; Scene &gt; App 优先级返回最优服务。
+        /// 获取服务（未找到抛 <see cref="GameException"/>）。按 Gameplay &gt; Scene &gt; App 优先级返回最优服务。
         /// </summary>
         public T GetRequiredService<T>() where T : class
         {
             if (TryGet(out T service)) return service;
-            throw new MoiraiException(StringUtility.Format(
+            throw new GameException(StringUtility.Format(
                 "Service '{0}' was not found in any active scope.", typeof(T).FullName));
         }
 

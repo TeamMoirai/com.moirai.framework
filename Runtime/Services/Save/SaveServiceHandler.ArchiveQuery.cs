@@ -46,7 +46,7 @@ namespace Moirai.Atropos.Save
                 {
                     StorageBackend.CreateBackup(paths.SaveFilePath);
                 }
-                catch (MoiraiException)
+                catch (GameException)
                 {
                     SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageWrite, SaveError.IoFailed);
                     throw;
@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Save
                 {
                     StorageBackend.RestoreBackup(paths.SaveFilePath);
                 }
-                catch (MoiraiException)
+                catch (GameException)
                 {
                     SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.StorageWrite, SaveError.IoFailed);
                     throw;

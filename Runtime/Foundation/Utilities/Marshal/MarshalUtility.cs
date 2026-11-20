@@ -39,7 +39,7 @@ namespace Moirai.Atropos
         {
             if (ensureSize < 0)
             {
-                throw new MoiraiException("Ensure size is invalid.");
+                throw new GameException("Ensure size is invalid.");
             }
 
             lock (s_HGlobalLock)
@@ -92,7 +92,7 @@ namespace Moirai.Atropos
         {
             if (structureSize < 0)
             {
-                throw new MoiraiException("Structure size is invalid.");
+                throw new GameException("Structure size is invalid.");
             }
 
             byte[] result = new byte[structureSize];
@@ -147,22 +147,22 @@ namespace Moirai.Atropos
         {
             if (structureSize < 0)
             {
-                throw new MoiraiException("Structure size is invalid.");
+                throw new GameException("Structure size is invalid.");
             }
 
             if (result == null)
             {
-                throw new MoiraiException("Result is invalid.");
+                throw new GameException("Result is invalid.");
             }
 
             if (startIndex < 0)
             {
-                throw new MoiraiException("Start index is invalid.");
+                throw new GameException("Start index is invalid.");
             }
 
             if (startIndex + structureSize > result.Length)
             {
-                throw new MoiraiException("Result length is not enough.");
+                throw new GameException("Result length is not enough.");
             }
 
             lock (s_HGlobalLock)
@@ -220,22 +220,22 @@ namespace Moirai.Atropos
         {
             if (structureSize < 0)
             {
-                throw new MoiraiException("Structure size is invalid.");
+                throw new GameException("Structure size is invalid.");
             }
 
             if (buffer == null)
             {
-                throw new MoiraiException("Buffer is invalid.");
+                throw new GameException("Buffer is invalid.");
             }
 
             if (startIndex < 0)
             {
-                throw new MoiraiException("Start index is invalid.");
+                throw new GameException("Start index is invalid.");
             }
 
             if (startIndex + structureSize > buffer.Length)
             {
-                throw new MoiraiException("Buffer length is not enough.");
+                throw new GameException("Buffer length is not enough.");
             }
 
             lock (s_HGlobalLock)

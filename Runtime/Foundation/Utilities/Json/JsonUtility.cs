@@ -30,12 +30,12 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                if (exception is MoiraiException)
+                if (exception is GameException)
                 {
                     throw;
                 }
 
-                throw new MoiraiException(StringUtility.Format("JSON 序列化失败（对象→文本）：{0}", exception.Message), exception);
+                throw new GameException(StringUtility.Format("JSON 序列化失败（对象→文本）：{0}", exception.Message), exception);
             }
         }
 
@@ -53,12 +53,12 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                if (exception is MoiraiException)
+                if (exception is GameException)
                 {
                     throw;
                 }
 
-                throw new MoiraiException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
+                throw new GameException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
             }
         }
 
@@ -72,7 +72,7 @@ namespace Moirai.Atropos
         {
             if (objectType == null)
             {
-                throw new MoiraiException("Object type is invalid.");
+                throw new GameException("Object type is invalid.");
             }
 
             try
@@ -81,12 +81,12 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                if (exception is MoiraiException)
+                if (exception is GameException)
                 {
                     throw;
                 }
 
-                throw new MoiraiException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
+                throw new GameException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
             }
         }
 
@@ -109,12 +109,12 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                if (exception is MoiraiException)
+                if (exception is GameException)
                 {
                     throw;
                 }
 
-                throw new MoiraiException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
+                throw new GameException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
             }
         }
 
@@ -134,12 +134,12 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                if (exception is MoiraiException)
+                if (exception is GameException)
                 {
                     throw;
                 }
 
-                throw new MoiraiException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
+                throw new GameException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
             }
         }
 
@@ -153,7 +153,7 @@ namespace Moirai.Atropos
         {
             if (objectType == null)
             {
-                throw new MoiraiException("Object type is invalid.");
+                throw new GameException("Object type is invalid.");
             }
 
             try
@@ -164,12 +164,12 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                if (exception is MoiraiException)
+                if (exception is GameException)
                 {
                     throw;
                 }
 
-                throw new MoiraiException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
+                throw new GameException(StringUtility.Format("JSON 反序列化失败（文本→对象）：{0}", exception.Message), exception);
             }
         }
         
@@ -186,7 +186,7 @@ namespace Moirai.Atropos
             }
             catch (Exception exception)
             {
-                throw new MoiraiException(StringUtility.Format("Can not overwrite from JSON with exception '{0}'.", exception), exception);
+                throw new GameException(StringUtility.Format("Can not overwrite from JSON with exception '{0}'.", exception), exception);
             }
         }
 

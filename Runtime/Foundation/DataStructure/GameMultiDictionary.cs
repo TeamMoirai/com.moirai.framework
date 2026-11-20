@@ -213,7 +213,7 @@ namespace Moirai.Atropos
             {
                 if (dictionary == null)
                 {
-                    throw new MoiraiException("Dictionary is invalid.");
+                    throw new GameException("Dictionary is invalid.");
                 }
 
                 _enumerator = dictionary.GetEnumerator();

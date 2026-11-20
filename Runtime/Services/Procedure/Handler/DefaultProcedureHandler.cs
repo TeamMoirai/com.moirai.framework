@@ -7,7 +7,7 @@ namespace Moirai.Atropos.Procedure
     /// 默认流程处理器（纯 C# 状态机实现），承载全部流程状态管理逻辑。
     /// </summary>
     /// <remarks>
-    /// 切换在 <c>OnLeave</c> / <c>OnEnter</c> 执行期间重入受深度上限保护，超出即抛 <see cref="MoiraiException"/>（互为 OnEnter 互切的流程环在此 fail-fast，而非栈溢出）。 <br />
+    /// 切换在 <c>OnLeave</c> / <c>OnEnter</c> 执行期间重入受深度上限保护，超出即抛 <see cref="GameException"/>（互为 OnEnter 互切的流程环在此 fail-fast，而非栈溢出）。 <br />
     /// 嵌套切换语义：OnEnter/OnLeave 内的合法重定向（如闪屏直切）会递归完成再逐层记录；中间流程可能未走 OnLeave，历史记录以最外层完成态为准（每条记录的 To 即广播时刻的当前流程）。
     /// </remarks>
     [ProviderDisplay(title: "默认流程机", description: "纯 C# 状态机：嵌套切换递归完成、切换环深度上限 fail-fast")]
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Procedure
             {
                 if (!_isStateReady)
                 {
-                    throw new MoiraiException("You must initialize procedure first.");
+                    throw new GameException("You must initialize procedure first.");
                 }
 
                 return _currentState;
@@ -71,7 +71,7 @@ namespace Moirai.Atropos.Procedure
             {
                 if (!_isStateReady)
                 {
-                    throw new MoiraiException("You must initialize procedure first.");
+                    throw new GameException("You must initialize procedure first.");
                 }
 
                 return _currentStateTime;
@@ -179,12 +179,12 @@ namespace Moirai.Atropos.Procedure
         {
             if (procedures == null || procedures.Length < 1)
             {
-                throw new MoiraiException("Procedures is invalid.");
+                throw new GameException("Procedures is invalid.");
             }
 
             if (_currentState != null)
             {
-                throw new MoiraiException("Procedure is running, can not initialize again. Use RestartProcedure instead.");
+                throw new GameException("Procedure is running, can not initialize again. Use RestartProcedure instead.");
             }
 
             _states.Clear();
@@ -197,13 +197,13 @@ namespace Moirai.Atropos.Procedure
             {
                 if (procedure == null)
                 {
-                    throw new MoiraiException("Procedure is invalid.");
+                    throw new GameException("Procedure is invalid.");
                 }
 
                 Type procedureType = procedure.GetType();
                 if (_states.ContainsKey(procedureType))
                 {
-                    throw new MoiraiException(StringUtility.Format("Procedure '{0}' is already exist.", procedureType.FullName));
+                    throw new GameException(StringUtility.Format("Procedure '{0}' is already exist.", procedureType.FullName));
                 }
 
                 procedure.SetOwner(this);
@@ -227,12 +227,12 @@ namespace Moirai.Atropos.Procedure
 
             if (!_isStateReady)
             {
-                throw new MoiraiException("You must initialize procedure first.");
+                throw new GameException("You must initialize procedure first.");
             }
 
             if (_currentState != null)
             {
-                throw new MoiraiException("Procedure is running, can not start again.");
+                throw new GameException("Procedure is running, can not start again.");
             }
 
             ProcedureBase procedure = GetRegisteredProcedure(procedureType);
@@ -268,7 +268,7 @@ namespace Moirai.Atropos.Procedure
         {
             if (!_isStateReady)
             {
-                throw new MoiraiException("You must initialize procedure first.");
+                throw new GameException("You must initialize procedure first.");
             }
 
             return _states.ContainsKey(ValidateProcedureType(procedureType));
@@ -288,18 +288,18 @@ namespace Moirai.Atropos.Procedure
 
             if (!_isStateReady)
             {
-                throw new MoiraiException("You must initialize procedure first.");
+                throw new GameException("You must initialize procedure first.");
             }
 
             if (_currentState == null)
             {
-                throw new MoiraiException("Current procedure is invalid.");
+                throw new GameException("Current procedure is invalid.");
             }
 
             ProcedureBase procedure = GetRegisteredProcedure(procedureType);
             if (_transitionDepth >= MaxTransitionDepth)
             {
-                throw new MoiraiException(StringUtility.Format(
+                throw new GameException(StringUtility.Format(
                     "ChangeState depth exceeds {0} — procedure loop detected between '{1}' and '{2}'. " +
                     "Do not switch procedures mutually inside OnEnter/OnLeave.",
                     MaxTransitionDepth, _currentState.GetType().FullName, procedureType?.FullName));
@@ -346,7 +346,7 @@ namespace Moirai.Atropos.Procedure
         {
             if (!_isStateReady)
             {
-                throw new MoiraiException("You must initialize procedure first.");
+                throw new GameException("You must initialize procedure first.");
             }
 
             ValidateProcedureType(procedureType);
@@ -364,7 +364,7 @@ namespace Moirai.Atropos.Procedure
 
             if (procedures == null || procedures.Length <= 0)
             {
-                throw new MoiraiException("RestartProcedure Failed procedures is invalid.");
+                throw new GameException("RestartProcedure Failed procedures is invalid.");
             }
 
             OnShutdown();
@@ -385,7 +385,7 @@ namespace Moirai.Atropos.Procedure
         {
             if (IsBroadcastingTransition)
             {
-                throw new MoiraiException(
+                throw new GameException(
                     "StartProcedure/ChangeState is not allowed inside ProcedureChanged callback — defer to next frame or Tick.");
             }
         }
@@ -397,12 +397,12 @@ namespace Moirai.Atropos.Procedure
         {
             if (procedureType == null)
             {
-                throw new MoiraiException("Procedure type is invalid.");
+                throw new GameException("Procedure type is invalid.");
             }
 
             if (!typeof(ProcedureBase).IsAssignableFrom(procedureType))
             {
-                throw new MoiraiException(StringUtility.Format("Procedure type '{0}' is invalid.", procedureType.FullName));
+                throw new GameException(StringUtility.Format("Procedure type '{0}' is invalid.", procedureType.FullName));
             }
 
             return procedureType;
@@ -415,7 +415,7 @@ namespace Moirai.Atropos.Procedure
         {
             if (!_states.TryGetValue(ValidateProcedureType(procedureType), out ProcedureBase procedure))
             {
-                throw new MoiraiException(StringUtility.Format("Procedure '{0}' is not registered.", procedureType.FullName));
+                throw new GameException(StringUtility.Format("Procedure '{0}' is not registered.", procedureType.FullName));
             }
 
             return procedure;

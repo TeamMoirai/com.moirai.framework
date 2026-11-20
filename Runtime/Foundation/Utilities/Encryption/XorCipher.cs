@@ -103,18 +103,18 @@ namespace Moirai.Atropos
 
             if (code == null)
             {
-                throw new MoiraiException("Code is invalid.");
+                throw new GameException("Code is invalid.");
             }
 
             int codeLength = code.Length;
             if (codeLength <= 0)
             {
-                throw new MoiraiException("Code length is invalid.");
+                throw new GameException("Code length is invalid.");
             }
 
             if (startIndex < 0 || length < 0 || startIndex + length > bytes.Length)
             {
-                throw new MoiraiException("Start index or length is invalid.");
+                throw new GameException("Start index or length is invalid.");
             }
 
             int codeIndex = startIndex % codeLength;

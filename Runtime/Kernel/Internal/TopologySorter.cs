@@ -19,7 +19,7 @@ namespace Moirai.Atropos
         /// <param name="pendingIndexByContract">契约类型 → pending 索引（含服务的全部契约，不止实现类型）。</param>
         /// <param name="dependenciesOf">解析服务实现类型声明的依赖数组。</param>
         /// <param name="isServiceReady">判定某契约类型是否已初始化就绪（已就绪依赖不构成边）。</param>
-        /// <exception cref="MoiraiException">存在未注册依赖或循环依赖时抛出。</exception>
+        /// <exception cref="GameException">存在未注册依赖或循环依赖时抛出。</exception>
         internal static void Sort(
             List<IService> pending,
             Dictionary<Type, int> pendingIndexByContract,
@@ -43,7 +43,7 @@ namespace Moirai.Atropos
 
                     if (!pendingIndexByContract.TryGetValue(dep, out int depIndex))
                     {
-                        throw new MoiraiException(StringUtility.Format(
+                        throw new GameException(StringUtility.Format(
                             "Dependency '{0}' required by '{1}' is not registered. Register it before world initialization.",
                             dep.FullName, pending[i].GetType().FullName));
                     }
@@ -87,7 +87,7 @@ namespace Moirai.Atropos
                 for (int i = 0; i < count; i++)
                     if (inDegree[i] > 0) cycle.Add(pending[i].GetType().FullName);
 
-                throw new MoiraiException(StringUtility.Format(
+                throw new GameException(StringUtility.Format(
                     "Circular service dependency detected among: {0}",
                     string.Join(" -> ", cycle)));
             }

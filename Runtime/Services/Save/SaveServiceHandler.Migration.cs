@@ -141,7 +141,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 写路径迁移前置（写入自愈）：旧版本档先迁移到当前版本再合并写回，失败 fail-fast 上抛 <see cref="MoiraiException"/>。
+        /// 写路径迁移前置（写入自愈）：旧版本档先迁移到当前版本再合并写回，失败 fail-fast 上抛 <see cref="GameException"/>。
         /// </summary>
         /// <remarks>
         /// 迁移结果由调用方随后的 <see cref="WriteContainerFile"/> 一并落盘（不单独回写）。
@@ -156,7 +156,7 @@ namespace Moirai.Atropos.Save
             if (error != SaveError.None)
             {
                 SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, null, SaveFailedEvent.ESaveFailureStage.Migrate, error);
-                throw new MoiraiException(StringUtility.Format("Save migration failed on write path, path: {0}, error: {1}.", paths.SaveFilePath, error));
+                throw new GameException(StringUtility.Format("Save migration failed on write path, path: {0}, error: {1}.", paths.SaveFilePath, error));
             }
         }
 
@@ -213,7 +213,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 写入截图 sidecar（在调用线程执行，阻塞直至完成；经存储层原子写，失败抛 <see cref="MoiraiException"/>）。
+        /// 写入截图 sidecar（在调用线程执行，阻塞直至完成；经存储层原子写，失败抛 <see cref="GameException"/>）。
         /// </summary>
         /// <param name="paths">存档路径集合。</param>
         /// <param name="pngBytes">PNG 编码字节。</param>
@@ -223,7 +223,7 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 异步写入截图 sidecar（IO 在工作线程执行；失败抛 <see cref="MoiraiException"/>）。
+        /// 异步写入截图 sidecar（IO 在工作线程执行；失败抛 <see cref="GameException"/>）。
         /// </summary>
         /// <param name="paths">存档路径集合。</param>
         /// <param name="pngBytes">PNG 编码字节。</param>

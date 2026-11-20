@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Asset
         {
             if (string.IsNullOrEmpty(location))
             {
-                throw new MoiraiException("Asset name is invalid.");
+                throw new GameException("Asset name is invalid.");
             }
 
             if (!IsLocationValid(location, packageName))
@@ -73,7 +73,7 @@ namespace Moirai.Atropos.Asset
         {
             if (string.IsNullOrEmpty(location))
             {
-                throw new MoiraiException("Asset name is invalid.");
+                throw new GameException("Asset name is invalid.");
             }
 
             if (!IsLocationValid(location, packageName))

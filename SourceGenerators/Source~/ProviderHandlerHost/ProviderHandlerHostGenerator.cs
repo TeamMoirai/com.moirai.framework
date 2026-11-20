@@ -15,7 +15,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// 非法声明（未继承契约/抽象/无可访问无参构造）不生成工厂（MA1003 由分析器报告）；懒加载先调 <c>GetHandlerFromSettings</c>、返回 null 回退默认工厂； <br />
     /// 工厂链末端 null 抛 <see cref="System.InvalidOperationException"/>；工厂全缺（MA1001）时 <c>Handler.get</c> 抛该异常； <br />
     /// 仅声明 <c>GetHandlerFromSettings</c>（MA1002）时要求返回非空值。 <br />
-    /// <c>RequireHandler</c> 读 <c>s_Handler</c> 且不触发懒加载，未就绪抛 MoiraiException——写路径 fail-fast 入口。
+    /// <c>RequireHandler</c> 读 <c>s_Handler</c> 且不触发懒加载，未就绪抛 GameException——写路径 fail-fast 入口。
     /// </remarks>
     [Generator]
     public class ProviderHandlerHostGenerator : IIncrementalGenerator
@@ -125,7 +125,7 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        public static bool IsValid => s_Handler != null;");
             sb.AppendLine();
             sb.AppendLine("        /// <summary>");
-            sb.AppendLine("        /// 取就绪处理器；未就绪时抛 <see cref=\"Moirai.Atropos.MoiraiException\"/>（写路径 fail-fast——禁止静默降级）。");
+            sb.AppendLine("        /// 取就绪处理器；未就绪时抛 <see cref=\"Moirai.Atropos.GameException\"/>（写路径 fail-fast——禁止静默降级）。");
             sb.AppendLine("        /// <para>读 <c>s_Handler</c> 不触发懒加载：服务未注册/未初始化时立即失败，避免写操作静默丢档。</para>");
             sb.AppendLine("        /// </summary>");
             sb.AppendLine($"        /// <returns>已就绪的处理器实例。</returns>");
@@ -134,7 +134,7 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("            var handler = s_Handler;");
             sb.AppendLine("            if (handler == null)");
             sb.AppendLine("            {");
-            sb.AppendLine("                throw new Moirai.Atropos.MoiraiException(");
+            sb.AppendLine("                throw new Moirai.Atropos.GameException(");
             sb.AppendLine($"                    \"ProviderHandlerHost: '{info.ClassName}' handler is not ready. Register and initialize the service before writing.\");");
             sb.AppendLine("            }");
             sb.AppendLine();

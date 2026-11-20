@@ -30,7 +30,7 @@ namespace Moirai.Atropos
         {
             if (type == null)
             {
-                throw new MoiraiException("Type is invalid.");
+                throw new GameException("Type is invalid.");
             }
 
             _type = type;
@@ -51,7 +51,7 @@ namespace Moirai.Atropos
         {
             if (_type == null)
             {
-                throw new MoiraiException("Type is invalid.");
+                throw new GameException("Type is invalid.");
             }
 
             string typeName = _type.FullName;

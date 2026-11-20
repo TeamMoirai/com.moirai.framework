@@ -30,7 +30,7 @@ namespace Moirai.Atropos.Save
         /// <param name="backend">序列化后端标识。</param>
         /// <param name="dataVersion">数据块模式版本。</param>
         /// <param name="cancellationToken">取消令牌（协作式：在序列化前后与替换前检查）。</param>
-        /// <returns>写入完成的异步任务；失败抛出 <see cref="MoiraiException"/>（含路径上下文）。</returns>
+        /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>（含路径上下文）。</returns>
         public UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = DEFAULT_FOLDER_NAME, ushort backend = SaveBackendIds.JSON, int dataVersion = 1, CancellationToken cancellationToken = default)
         {
             ValidateBlockData(data);
@@ -238,7 +238,7 @@ namespace Moirai.Atropos.Save
             catch (Exception exception)
             {
                 SaveService.RaiseSaveFailed(paths.FileName, paths.FolderName, key, SaveFailedEvent.ESaveFailureStage.Serialize, SaveError.SerializationFailed);
-                throw new MoiraiException(StringUtility.Format("Save block serialization failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
+                throw new GameException(StringUtility.Format("Save block serialization failed, path: {0}, exception: {1}.", paths.SaveFilePath, exception.GetType().Name), exception);
             }
 
             // 既有档不可读时隔离拷贝为 sidecar 后再按空块集覆写（保留可抢救字节）；容器 v2 下坏块在写回时自然剔除，健康块保留

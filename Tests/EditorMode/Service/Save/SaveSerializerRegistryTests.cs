@@ -153,7 +153,7 @@ namespace Service.Save
 
             Assert.IsTrue(SaveSerializerRegistry.Unregister(CustomBackend));
             Assert.IsFalse(SaveSerializerRegistry.TryGet(CustomBackend, out _));
-            Assert.Throws<MoiraiException>(() => SaveSerializerRegistry.GetRequired(CustomBackend));
+            Assert.Throws<GameException>(() => SaveSerializerRegistry.GetRequired(CustomBackend));
             Assert.IsFalse(SaveSerializerRegistry.Unregister(CustomBackend), "重复注销应返回 false");
         }
 
@@ -172,7 +172,7 @@ namespace Service.Save
             Assert.IsTrue(SaveSerializerRegistry.Unregister(SaveBackendIds.JSON));
             // 注销要连内置类型记录一起摘掉：只删实例的话，下一次查询会按内置类型表把它重建出来
             Assert.IsFalse(SaveSerializerRegistry.TryGet(SaveBackendIds.JSON, out _), "注销后不得按内置类型表复活");
-            Assert.Throws<MoiraiException>(() => SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON));
+            Assert.Throws<GameException>(() => SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON));
         }
 
         [Test]

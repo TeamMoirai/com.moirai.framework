@@ -230,7 +230,7 @@ namespace Moirai.Atropos.Asset
                     PackageMap.Remove(packageName);
                     LogUtility.Error("Unsupported play mode : {0}", AssetServiceSettings.PlayMode);
                     initSource.TrySetResult(null);
-                    throw new MoiraiException(StringUtility.Format("Unsupported play mode : {0}", AssetServiceSettings.PlayMode));
+                    throw new GameException(StringUtility.Format("Unsupported play mode : {0}", AssetServiceSettings.PlayMode));
                 }
 
                 _packageInitOperations[packageName] = initOperation;
@@ -291,7 +291,7 @@ namespace Moirai.Atropos.Asset
             // HostPlay/WebPlay 必须已有资源服务器地址：参数未传时回退到预先配置的 HostServerURL（Moirai 的配置源是属性）。
             if (AssetServiceSettings.PlayMode is EAssetPlayMode.HostPlay or EAssetPlayMode.WebGLPlay && string.IsNullOrEmpty(HostServerURL))
             {
-                throw new MoiraiException("Host server URL is invalid. Specify hostServerURL or set AssetService.HostServerURL before initializing in HostPlay/WebPlay mode.");
+                throw new GameException("Host server URL is invalid. Specify hostServerURL or set AssetService.HostServerURL before initializing in HostPlay/WebPlay mode.");
             }
 
             AssetPackageInitResult result = await InitializePackageAsync(packageName);
@@ -385,7 +385,7 @@ namespace Moirai.Atropos.Asset
             {
                 string errorMessage = StringUtility.Format("Request package version failed : {0}", requestPackageVersionOperation.Error);
                 LogUtility.Error(errorMessage);
-                throw new MoiraiException(errorMessage);
+                throw new GameException(errorMessage);
             }
 
             // 3. 传入的版本信息更新资源清单
@@ -396,7 +396,7 @@ namespace Moirai.Atropos.Asset
             {
                 string errorMessage = StringUtility.Format("Update package manifest failed : {0}", updatePackageManifestAsync.Error);
                 LogUtility.Error(errorMessage);
-                throw new MoiraiException(errorMessage);
+                throw new GameException(errorMessage);
             }
 
             // 清单更新成功后失效 AssetInfo 缓存。
@@ -515,7 +515,7 @@ namespace Moirai.Atropos.Asset
 
             if (package == null)
             {
-                throw new MoiraiException(StringUtility.Format("The package does not exist. Package Name :{0}", string.IsNullOrEmpty(packageName) ? DefaultPackageName : packageName));
+                throw new GameException(StringUtility.Format("The package does not exist. Package Name :{0}", string.IsNullOrEmpty(packageName) ? DefaultPackageName : packageName));
             }
 
             return package;

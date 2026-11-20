@@ -98,20 +98,20 @@ namespace Moirai.Atropos
         /// 暂停指定 tween（冻结时间推进）。
         /// </summary>
         /// <remarks>默认实现不支持暂停，实现方按需覆写。</remarks>
-        /// <exception cref="MoiraiException">默认实现被调用（未覆写）时抛出。</exception>
+        /// <exception cref="GameException">默认实现被调用（未覆写）时抛出。</exception>
         public virtual void Pause(long tweenId)
         {
-            throw new MoiraiException(StringUtility.Format("TweenHandler '{0}' does not implement Pause.", GetType().Name));
+            throw new GameException(StringUtility.Format("TweenHandler '{0}' does not implement Pause.", GetType().Name));
         }
 
         /// <summary>
         /// 恢复指定 tween。
         /// </summary>
         /// <remarks>默认实现不支持恢复，实现方按需覆写。</remarks>
-        /// <exception cref="MoiraiException">默认实现被调用（未覆写）时抛出。</exception>
+        /// <exception cref="GameException">默认实现被调用（未覆写）时抛出。</exception>
         public virtual void Resume(long tweenId)
         {
-            throw new MoiraiException(StringUtility.Format("TweenHandler '{0}' does not implement Resume.", GetType().Name));
+            throw new GameException(StringUtility.Format("TweenHandler '{0}' does not implement Resume.", GetType().Name));
         }
 
         /// <summary>

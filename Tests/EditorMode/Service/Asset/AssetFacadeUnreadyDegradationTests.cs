@@ -9,12 +9,12 @@ namespace Service.Asset
     /// </summary>
     /// <remarks>
     /// 两格都经 <see cref="AssetService.Internal_PeekHandler"/>/<see cref="AssetService.Internal_UseHandler"/> 把门面处理器换成 null 再调公共入口，出门还原。<br />
-    /// 写侧抛 <see cref="MoiraiException"/> 防「静默丢写」；读侧回空数组防调用方 <c>foreach</c> NRE。
+    /// 写侧抛 <see cref="GameException"/> 防「静默丢写」；读侧回空数组防调用方 <c>foreach</c> NRE。
     /// </remarks>
     public sealed class AssetFacadeUnreadyDegradationTests
     {
         /// <summary>
-        /// 配置属性 setter 走 <c>RequireHandler()</c>：未就绪时抛 <see cref="MoiraiException"/>，不得静默丢写。
+        /// 配置属性 setter 走 <c>RequireHandler()</c>：未就绪时抛 <see cref="GameException"/>，不得静默丢写。
         /// </summary>
         [Test]
         public void ConfigSetters_WhenHandlerUnready_ThrowInsteadOfSilentDrop()
@@ -23,9 +23,9 @@ namespace Service.Asset
             AssetService.Internal_UseHandler(null);
             try
             {
-                Assert.Throws<MoiraiException>(() => { AssetService.HostServerURL = "https://example.invalid"; });
-                Assert.Throws<MoiraiException>(() => { AssetService.DefaultPackageName = "Pkg"; });
-                Assert.Throws<MoiraiException>(() => { AssetService.IdleAssetCapacity = 8; });
+                Assert.Throws<GameException>(() => { AssetService.HostServerURL = "https://example.invalid"; });
+                Assert.Throws<GameException>(() => { AssetService.DefaultPackageName = "Pkg"; });
+                Assert.Throws<GameException>(() => { AssetService.IdleAssetCapacity = 8; });
             }
             finally
             {
