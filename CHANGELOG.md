@@ -16,6 +16,10 @@
 
 - 新增按键重绑定（Input System 后端）：`IInputRebindable` 能力窄接口 + `InputService.Rebinding` 能力探测（旧后端访问抛 `GameException`）、`RebindAsync` 交互式监听（冲突三策略 Fail/Override/Cancel、复合绑定按部件落点、默认屏蔽鼠标触屏）、覆写走 `InputBinding.overridePath` 并经 `GameSettings`（键 `Setting.Input.Rebind.{Group/Name}`）设备级持久化、启动自动恢复；重绑终态发布 `InputRebindEvent` 供 UI 提示层订阅刷新，详见 `Documentation~/Input.md` 的「按键重绑定（Rebinding）」
 
+#### Tests
+
+- 新增 `AllocationCapture` 字节级分配计量夹具（GC 线程字节差值主口径 + Profiler 稳态对照），并挂 Timer 万次 add/remove、事件稳态发布与订阅退订三组 0-Alloc 门禁
+
 #### UI
 
 - Widget 绑定纳入 UI 生成器产线：widget 根节点语法 `{WidgetClassName}@{InstanceTag}`（类名取 @ 前段，多实例共享一个类与一份 `<Class>.g.cs`；window 收集器在 widget 根停递归，只拿到 widget-typed 字段 `m_{Class}{Instance}`），生成与多实例回绑流程见包根 `.agent/commands/new-ui.md` 的「Widget 控件（可复用组件）」
