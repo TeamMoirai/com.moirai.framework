@@ -32,6 +32,9 @@ namespace Moirai.Atropos
         // 订阅桶：派发顺序即订阅序；快照拷贝保证发布期安全
         private readonly List<EventDelegate<TEvent>> _handlers = new List<EventDelegate<TEvent>>(4);
 
+        // 快照缓存数组：容量足够时复用（稳态发布零分配），仅扩容时分配
+        private EventDelegate<TEvent>[] _snapshot;
+
         // 发布期深度的待处理变更队列
         private readonly List<PendingUnsubscribe> _pendingUnsubscribes = new List<PendingUnsubscribe>();
         private int _publishingDepth;
@@ -79,15 +82,24 @@ namespace Moirai.Atropos
             EventBusDiagnostics.OnPublished?.Invoke(typeof(TEvent), evt);
 #endif
 
-            // 派发前拷贝回调快照：发布期内的订阅/退订不影响本循环
-            var snapshot = new EventDelegate<TEvent>[_handlers.Count];
-            for (int i = 0; i < _handlers.Count; i++)
+            // 派发前拷贝回调快照：发布期内的订阅/退订不影响本循环。
+            // 快照缓存数组复用——稳态发布零分配，仅扩容或重入发布时分配：
+            // 嵌套 Publish（外层 handler 里再发布）若复用同一数组，内层拷贝会覆盖外层尚未派发到的元素，
+            // 破坏外层循环语义，故 _publishingDepth > 0 时一律走新数组（重入是小概率路径，不为它保稳态零分配）。
+            int count = _handlers.Count;
+            if (_publishingDepth > 0 || _snapshot == null || _snapshot.Length < count)
+            {
+                int newSize = Mathf.NextPowerOfTwo(count > 4 ? count : 4);
+                _snapshot = new EventDelegate<TEvent>[newSize];
+            }
+            var snapshot = _snapshot;
+            for (int i = 0; i < count; i++)
                 snapshot[i] = _handlers[i];
 
             _publishingDepth++;
             try
             {
-                for (int i = 0; i < snapshot.Length; i++)
+                for (int i = 0; i < count; i++)
                 {
                     var handler = snapshot[i];
                     if (handler == null) continue;
