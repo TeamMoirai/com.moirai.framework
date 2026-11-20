@@ -4,19 +4,17 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Moirai.EventBus.Roslyn.Analyzers;
-using Moirai.EventBus.Roslyn.Generators;
 
 namespace Moirai.EventBus.Roslyn.Probe;
 
 /// <summary>
-/// EventBusCodegen 自检 Probe：以内存编译验证四条诊断（MA7000-0004）与生成胶水代码的正确性。
-/// 通过标准：诊断计数精确匹配 + 生成源码可编译零错误。
+/// EventBusAnalyzer 自检 Probe：以内存编译验证四条诊断（MA7000–MA7003）。
+/// 通过标准：诊断计数精确匹配 + 程序集内不含任何 Source Generator（不再产出胶水代码）。
 /// </summary>
 internal static class Program
 {
@@ -46,43 +44,116 @@ namespace Game
     public readonly struct BarEvent : IGameEvent { public readonly int Value; }
     public readonly struct QuxEvent : IGameEvent { public readonly int Value; }
 
-    // 合规宿主：in 参数 + 无参回调（期望生成 SubscribeEvents/UnsubscribeEvents）
+    // 签名规范用例：订阅胶水不再生成，用户自行控制
     public partial class PlayerSystem
     {
         private int _calls;
-
-        public void OnPingEvent(PingEvent evt) { _calls += evt.Value; }              // MA7001：缺 in（生成器跳过订阅）
-        public void OnPongEvent() { _calls++; }                                       // 合规（无参，缓存包装桥接）
-        public void OnBarEvent(ref BarEvent evt) { _calls += evt.Value; }             // MA7001：ref（生成器跳过订阅）
-        public void OnQuxEvent(in QuxEvent evt) { _calls += evt.Value; }              // 合规（方法组直连）
-        public void SubscribeEvents() { }                                             // 命名冲突 → 生成器应回退 SubscribeBusEvents
+        public void OnPingEvent(PingEvent evt) { _calls += evt.Value; }              // MA7001：缺 in
+        public void OnPongEvent() { _calls++; }                                       // 无参不再要求 partial
+        public void OnBarEvent(ref BarEvent evt) { _calls += evt.Value; }             // MA7001：ref
+        public void OnQuxEvent(in QuxEvent evt) { _calls += evt.Value; }              // 合规
     }
 
-    // 匿名函数订阅（MA7000 ×2）+ 命名方法订阅（合规）
+    // MA7000 ×2；命名处理器成对退订 → MA7003 0
     public class LegacySystem
     {
         private readonly List<int> _received = new List<int>();
-
         public void Wire()
         {
             EventBus.Subscribe<PingEvent>((in PingEvent e) => _received.Add(e.Value));   // MA7000
-            EventBus.Subscribe<PingEvent>(OnPingEvent);                                  // 合规
+            EventBus.Subscribe<PingEvent>(OnPingEvent);
             EventBus.Unsubscribe<PingEvent>((in PingEvent e) => _received.Add(e.Value)); // MA7000
+            EventBus.Unsubscribe<PingEvent>(OnPingEvent);
         }
-
-        public void OnPingEvent(in PingEvent evt) { } // 合规
+        public void OnPingEvent(in PingEvent evt) { }
     }
 
-    // 参数类型与方法名后缀不匹配（MA7002）
-    public partial class MismatchSystem
+    // MA7002
+    public class MismatchSystem
     {
         public void OnPingEvent(PongEvent evt) { }
     }
 
-    // 非 partial 宿主上的无参回调（MA7003）
+    // 非 partial 无参回调：新方案不再告警
     public class NonPartialSystem
     {
         public void OnPongEvent() { }
+    }
+
+    // 成对订阅 → 不告警
+    public class PairedSystem
+    {
+        public void OnEnable() => EventBus.Subscribe<PongEvent>(OnPongEvent);
+        public void OnDisable() => EventBus.Unsubscribe<PongEvent>(OnPongEvent);
+        public void OnPongEvent(in PongEvent evt) { }
+    }
+
+    // 漏退订 → MA7003 ×1
+    public class LeakySystem
+    {
+        public void Wire() => EventBus.Subscribe<QuxEvent>(OnQuxEvent);
+        public void OnQuxEvent(in QuxEvent evt) { }
+    }
+
+    // 2 订阅 1 退订 → MA7003 ×1（多出的那一个）
+    public class DoubleSubscribeSystem
+    {
+        public void Wire()
+        {
+            EventBus.Subscribe<PingEvent>(OnPingEvent);
+            EventBus.Subscribe<PingEvent>(OnPingEvent);
+        }
+        public void TearDown() => EventBus.Unsubscribe<PingEvent>(OnPingEvent);
+        public void OnPingEvent(in PingEvent evt) { }
+    }
+
+    // 退订用了另一个处理器 → 订阅侧 MA7003 ×1
+    public class CrossHandlerSystem
+    {
+        public void Wire()
+        {
+            EventBus.Subscribe<PingEvent>(OnPingEvent);
+            EventBus.Unsubscribe<PingEvent>(OnOtherPingEvent);
+        }
+        public void OnPingEvent(in PingEvent evt) { }
+        public void OnOtherPingEvent(in PingEvent evt) { }
+    }
+
+    // 委托字段订阅成对 → 不告警
+    public class DelegateFieldSystem
+    {
+        private EventDelegate<PingEvent> _handler;
+        public DelegateFieldSystem() { _handler = OnPingEvent; }
+        public void Wire() => EventBus.Subscribe(_handler);
+        public void TearDown() => EventBus.Unsubscribe(_handler);
+        private void OnPingEvent(in PingEvent evt) { }
+    }
+}
+";
+
+    // partial 分部甲：订阅
+    private const string PartialSourceA = @"
+using Moirai.Atropos;
+
+namespace Game
+{
+    public partial class PartialSystem
+    {
+        public void Wire() => EventBus.Subscribe<BarEvent>(OnBarEvent);
+        public void OnBarEvent(in BarEvent evt) { }
+    }
+}
+";
+
+    // partial 分部乙：退订（跨文件也应配对成功）
+    private const string PartialSourceB = @"
+using Moirai.Atropos;
+
+namespace Game
+{
+    public partial class PartialSystem
+    {
+        public void TearDown() => EventBus.Unsubscribe<BarEvent>(OnBarEvent);
     }
 }
 ";
@@ -91,6 +162,15 @@ namespace Game
     {
         var failures = new List<string>();
 
+        // —— 程序集形态：纯分析器，零 Source Generator ——
+        var analyzerAssembly = typeof(EventBusAnonymousHandlerAnalyzer).Assembly;
+        var generatorTypes = analyzerAssembly.GetTypes()
+            .Where(t => !t.IsAbstract && typeof(IIncrementalGenerator).IsAssignableFrom(t))
+            .ToList();
+        Record(failures, generatorTypes.Count == 0,
+            "EventBusAnalyzer.dll 不应包含 Source Generator（胶水代码生成已移除），实际："
+            + string.Join(", ", generatorTypes.Select(t => t.FullName)));
+
         var parseOptions = new CSharpParseOptions(LanguageVersion.CSharp9);
         var references = BuildReferences(failures);
 
@@ -98,6 +178,8 @@ namespace Game
         {
             SyntaxFactory.ParseSyntaxTree(FrameworkSource, parseOptions, path: "Framework.g.cs"),
             SyntaxFactory.ParseSyntaxTree(UserSource, parseOptions, path: "User.cs"),
+            SyntaxFactory.ParseSyntaxTree(PartialSourceA, parseOptions, path: "Partial.A.cs"),
+            SyntaxFactory.ParseSyntaxTree(PartialSourceB, parseOptions, path: "Partial.B.cs"),
         };
 
         var compilation = CSharpCompilation.Create(
@@ -106,8 +188,8 @@ namespace Game
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        var initialDiagnostics = compilation.GetDiagnostics();
-        var compileErrors = initialDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        var compileErrors = compilation.GetDiagnostics()
+            .Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
         if (compileErrors.Count > 0)
         {
             failures.Add("样例源码自身存在编译错误：\n" + string.Join("\n", compileErrors.Select(d => d.ToString())));
@@ -116,13 +198,13 @@ namespace Game
         // —— 诊断分析器 ——
         var analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(
             new EventBusAnonymousHandlerAnalyzer(),
-            new OnEventCallbackSignatureAnalyzer());
+            new OnEventCallbackSignatureAnalyzer(),
+            new EventBusSubscriptionPairAnalyzer(),
+            new GameEventAttributeAnalyzer());
 
-        var analysisDiagnostics = compilation
+        var moi = compilation
             .WithAnalyzers(analyzers)
-            .GetAllDiagnosticsAsync(CancellationToken.None).Result;
-
-        var moi = analysisDiagnostics
+            .GetAllDiagnosticsAsync(CancellationToken.None).Result
             .Where(d => d.Id.StartsWith("MA", StringComparison.Ordinal))
             .OrderBy(d => d.Id, StringComparer.Ordinal)
             .ThenBy(d => d.Location.SourceSpan.Start)
@@ -130,10 +212,10 @@ namespace Game
 
         var expected = new Dictionary<string, int>
         {
-            ["MA7000"] = 2, // LegacySystem lambda Subscribe + Unsubscribe
+            ["MA7000"] = 2, // LegacySystem 的 lambda Subscribe + Unsubscribe
             ["MA7001"] = 2, // PlayerSystem 缺 in + ref 参数
             ["MA7002"] = 1, // MismatchSystem 参数类型不匹配
-            ["MA7003"] = 1, // NonPartialSystem 非 partial 无参回调
+            ["MA7003"] = 3, // LeakySystem 漏退订 + DoubleSubscribe 多一个 + CrossHandler 处理器不同
         };
 
         foreach (var id in expected.Keys)
@@ -144,56 +226,10 @@ namespace Game
                 + (check ? "" : " → " + string.Join(" | ", moi.Where(d => d.Id == id).Select(d => d.ToString()))));
         }
 
-        // —— 源生成器 ——
-        var driver = CSharpGeneratorDriver.Create(
-            new[] { new EventBusSubscriptionGenerator().AsSourceGenerator() },
-            parseOptions: parseOptions);
-
-        driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var generatorDiagnostics);
-
-        var generatedTrees = outputCompilation.SyntaxTrees
-            .Where(t => Path.GetFileName(t.FilePath).StartsWith("EventBusSubscriptions_", StringComparison.Ordinal))
-            .ToList();
-
-        Record(failures, generatedTrees.Count == 2,
-            $"期望生成 2 个宿主胶水文件（PlayerSystem/MismatchSystem），实际 {generatedTrees.Count}（{string.Join(", ", generatedTrees.Select(t => t.FilePath))}）");
-
-        var playerGen = generatedTrees.FirstOrDefault(t => Path.GetFileName(t.FilePath).Contains("PlayerSystem"));
-        if (playerGen is not null)
-        {
-            var text = playerGen.GetText().ToString();
-            Record(failures, text.Contains("SubscribeBusEvents"),
-                "PlayerSystem 已声明 SubscribeEvents——生成器应回退命名 SubscribeBusEvents");
-            Record(failures, text.Contains("??="), "无参回调应有缓存包装委托（??=）");
-            Record(failures, text.Contains("global::Moirai.Atropos.EventBus.Subscribe<Game.QuxEvent>(OnQuxEvent);"),
-                "in 参数回调应方法组直连 EventBus.Subscribe<T>");
-            Record(failures, text.Contains("(in Game.PongEvent _) => OnPongEvent();"),
-                "无参回调应桥接为 (in PongEvent _) => OnPongEvent()");
-            Record(failures, text.Contains("未按 in 约定声明"),
-                "缺 in/ref 处理器应被跳过并留注释");
-            Record(failures, !text.Contains("Subscribe<global::Game.PingEvent>"),
-                "缺 in 的 OnPingEvent 不应直连订阅");
-        }
-
-        // 生成诊断应为空
-        var genErrors = generatorDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        Record(failures, genErrors.Count == 0,
-            "生成器不应报错：" + string.Join(" | ", genErrors.Select(d => d.ToString())));
-
-        // 生成代码可编译（含生成树重新编译，零 Error）
-        var recompiled = outputCompilation.WithAnalyzers(analyzers).GetAllDiagnosticsAsync(CancellationToken.None).Result;
-        var recompileErrors = recompiled.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        Record(failures, recompileErrors.Count == 0,
-            "含生成代码的整编译应零错误：\n" + string.Join("\n", recompileErrors.Select(d => d.ToString())));
-
-        // 生成文件应被 <auto-generated> 豁免诊断（PlayerSystem 的 MA7001 不应复制进生成代码）
-        var genFileDiagnostics = recompiled
-            .Where(d => d.Location.SourceTree != null
-                && generatedTrees.Contains(d.Location.SourceTree)
-                && d.Id.StartsWith("MA", StringComparison.Ordinal))
-            .ToList();
-        Record(failures, genFileDiagnostics.Count == 0,
-            "生成代码应被分析器豁免：" + string.Join(" | ", genFileDiagnostics.Select(d => d.ToString())));
+        // MA7003 应落在具体的 Subscribe 调用上（而非 Unsubscribe）
+        var unpaired = moi.Where(d => d.Id == "MA7003").ToList();
+        Record(failures, unpaired.All(d => d.GetMessage().Contains("EventBus.Subscribe")),
+            "MA7003 应报告在订阅点：" + string.Join(" | ", unpaired.Select(d => d.GetMessage())));
 
         if (failures.Count > 0)
         {
@@ -203,8 +239,8 @@ namespace Game
         }
 
         Console.WriteLine("==== EventBusAnalyzer.Probe 全部通过 ====");
-        Console.WriteLine($"MA 诊断计数：{string.Join(", ", moi.GroupBy(d => d.Id).Select(g => g.Key + "×" + g.Count()))}");
-        Console.WriteLine("生成文件：" + string.Join(", ", generatedTrees.Select(t => t.FilePath)));
+        Console.WriteLine("MA 诊断计数：" + string.Join(", ", moi.GroupBy(d => d.Id).Select(g => g.Key + "×" + g.Count())));
+        Console.WriteLine("源生成器数量：0（胶水代码不再生成，订阅由用户自管）");
         return 0;
     }
 

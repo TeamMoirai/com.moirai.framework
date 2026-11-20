@@ -5,6 +5,9 @@ namespace Moirai.EventBus.Roslyn;
 /// <summary>
 /// 诊断描述符集中定义：MA7000–MA7003（EventBus 使用规范，7xx 段——与 ServiceDependency 1xx/2xx、Save 3xx/4xx、UI 5xx、HotPath 6xx 错开）。
 /// 默认严重级别均为 Warning——可通过 .editorconfig 中 <c>dotnet_diagnostic.MA7xxx.severity</c> 升级为 error / 降级为 none。
+/// <para>
+/// 本程序集现为<strong>纯分析器</strong>：不生成任何订阅胶水代码，Subscribe/Unsubscribe 由用户自行编写。
+/// </para>
 /// </summary>
 internal static class Diagnostics
 {
@@ -13,7 +16,7 @@ internal static class Diagnostics
     public const string AnonymousHandlerId = "MA7000";
     public const string InParameterRequiredId = "MA7001";
     public const string CallbackNameMismatchId = "MA7002";
-    public const string PartialOwnerRequiredId = "MA7003";
+    public const string UnpairedSubscriptionId = "MA7003";
 
     /// <summary>MA7000：EventBus.Subscribe/Unsubscribe 传入匿名函数。</summary>
     public static readonly DiagnosticDescriptor AnonymousHandler = new(
@@ -33,7 +36,7 @@ internal static class Diagnostics
         category: Category,
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "EventDelegate<TEvent> 的参数为 in 修饰；回调按值传参会对 struct 事件产生拷贝开销。");
+        description: "EventDelegate<TEvent> 的参数为 in 修饰；回调按值传参会对 struct 事件产生拷贝开销，且方法组转换要求 ref-kind 精确匹配。IDE 内提供一键 CodeFix「添加 in 修饰」。");
 
     /// <summary>MA7002：OnXxxEvent 参数类型与方法名后缀不匹配。</summary>
     public static readonly DiagnosticDescriptor CallbackNameMismatch = new(
@@ -45,13 +48,14 @@ internal static class Diagnostics
         isEnabledByDefault: true,
         description: "OnXxxEvent 命名约定要求参数类型与方法名后缀一一对应。");
 
-    /// <summary>MA7003：无参 OnXxxEvent 所在类型未声明 partial，Source Generator 无法生成订阅胶水。</summary>
-    public static readonly DiagnosticDescriptor PartialOwnerRequired = new(
-        PartialOwnerRequiredId,
-        title: "无参事件回调所在类型应声明 partial",
-        messageFormat: "类型 '{0}' 未声明 partial——无参事件回调 '{1}' 仅能由 Source Generator 生成的订阅胶水桥接为 EventDelegate<{2}>，请为类型添加 partial 声明后使用生成的 SubscribeEvents()/UnsubscribeEvents()。",
+    /// <summary>MA7003：Subscribe 在同一宿主类型内找不到值等价的成对 Unsubscribe。</summary>
+    public static readonly DiagnosticDescriptor UnpairedSubscription = new(
+        UnpairedSubscriptionId,
+        title: "EventBus 订阅缺少成对的退订",
+        messageFormat: "EventBus.Subscribe<{0}>({1}) 在同一类型内找不到配对的 Unsubscribe——请在生命周期回调（如 OnDisable/OnDestroy）中用相同事件类型与处理器调用 EventBus.Unsubscribe<{0}>，避免订阅泄漏。",
         category: Category,
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "无参回调无法直接转换为 EventDelegate<T>，必须经生成器缓存包装桥接，而生成器只能注入 partial 类型。");
+        description: "EventBus 采用对称 Subscribe/Unsubscribe API，无订阅句柄、无作用域批量退订；每个订阅都必须在同一宿主类型内有值等价的成对退订。",
+        customTags: new[] { WellKnownDiagnosticTags.CompilationEnd });
 }

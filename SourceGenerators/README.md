@@ -28,7 +28,7 @@
 | 4 | _（预留：随 Save 归并释放，后续模块可复用）_ | | | |
 | 5 | UIWindowCodegen | 0 | UI 窗口注册/绑定 | 00–03 |
 | 6 | HotPathAnalyzer | 0 | 热路径纪律（装箱/匿名函数） | 00–01 |
-| 7 | EventBusAnalyzer | 0 | EventBus 订阅规范与胶水生成 | 00–03 |
+| 7 | EventBusAnalyzer | 0 | EventBus 订阅规范（纯分析器，无胶水生成） | 00–06 |
 | 8+ | 未分配 | | | |
 
 ### 当前 ID 明细
@@ -52,11 +52,12 @@
 - **A=6 HotPathAnalyzer**
   - `MA6000` 热路径值类型装箱（Warning）
   - `MA6001` 热路径匿名函数（Warning）
-- **A=7 EventBusAnalyzer**
+- **A=7 EventBusAnalyzer**（纯分析器，不产出任何生成代码；Subscribe/Unsubscribe 由用户自行编写）
   - `MA7000` 禁止匿名函数订阅/退订 EventBus（Warning）
   - `MA7001` OnXxxEvent 带参回调必须 `in` 修饰（Warning，含 CodeFix）
   - `MA7002` OnXxxEvent 参数类型与方法名后缀不匹配（Warning）
-  - `MA7003` 无参回调所在类型应声明 partial（Warning）
+  - `MA7003` 订阅缺少成对退订——同宿主类型内按「事件类型 + 处理器」配对，多出的 Subscribe 报警（Warning）
+  - `MA7004` `[GameEvent]` 必须为 struct（Error）· `MA7005` 必须实现 IGameEvent（Error）· `MA7006` 不得含实例方法（Warning）
 
 ## 新增分析器的申请流程
 
