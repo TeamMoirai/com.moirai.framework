@@ -224,11 +224,10 @@
 
 - `EventManager` + `TaskRunner` 补 `[RuntimeInitializeOnLoadMethod(SubsystemRegistration)]` 自重置钩子——手写懒物化单例与 Singleton 家族 DR 兜底惯例对齐（保留各自特殊语义：Editor 守卫/异常分级门控不做替换——实现替换留 Phase 6 God 类分解范畴）
 
-#### Phase 5 / T5 + T6 + T10 剥离（快赢三项）
+#### Phase 5 / T5 + T6 剥离（快赢两项）
 
 - **T6** `JsonUtility` 错误文案改自述（"Can not convert..." → "JSON 序列化/反序列化失败"）——8 处
 - **T5** `EncryptionUtility` → **`XorCipher`**（Obfuscate/ObfuscateInPlace/ObfuscateQuick 语义族——XOR 对称：同一函数即解密，不设 Deobfuscate 分立入口）；旧类 Obsolete 垫片转发（下游 juice 平滑迁移）
-- **T10** `GameException` → **`MoiraiException`**（全项目 118 文件 + **源生成器模板** ProviderHandlerHostGenerator——生成器 DLL 重建后再生效，3 个 fail-fast 回归失败定位修复）+ 测试改名 MoiraiExceptionTests；`GameException` Obsolete 垫片（**继承 MoiraiException**——既有 `catch(GameException)` 继续生效）
 - **工程经验**：源生成器产物（RequireHandler fail-fast）路径不在常规源码树——批量迁移必须含 SourceGenerators/Source~ 模板 + DLL 重建链路
 
 #### Phase 6 / Top 1 GameApp 分解（partial 化，公共 API 零变化）
