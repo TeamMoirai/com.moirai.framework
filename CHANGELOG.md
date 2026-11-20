@@ -12,6 +12,10 @@
 
 - 新增 `EventBusAnalyzer`（`SourceGenerators/EventBusAnalyzer.dll`，源码 `Source~/EventBusAnalyzer/`，随包自动生效，**纯分析器不生成任何代码**）：MA7000 禁止匿名函数订阅/退订 EventBus（匿名委托无法值等价匹配 Unsubscribe，订阅即泄漏）、MA7001 `OnXxxEvent` 带参回调必须 `in` 修饰（含一键 CodeFix；方法组转换要求 ref-kind 精确匹配）、MA7002 参数类型与方法名后缀不匹配告警、MA7003 订阅缺少成对退订（按「事件类型 + 处理器」在同一宿主类型内配对，跨 partial 分部，多出的 Subscribe 报 Warning）、MA7004–MA7006 `[GameEvent]` 契约校验；**不再生成 SubscribeEvents()/UnsubscribeEvents() 胶水，无参回调也不再要求 partial，订阅时机与退订配对全部由用户自行控制**，详见 `Documentation~/EventBusAnalyzer.md`
 
+#### Input
+
+- 新增按键重绑定（Input System 后端）：`IInputRebindable` 能力窄接口 + `InputService.Rebinding` 能力探测（旧后端访问抛 `GameException`）、`RebindAsync` 交互式监听（冲突三策略 Fail/Override/Cancel、复合绑定按部件落点、默认屏蔽鼠标触屏）、覆写走 `InputBinding.overridePath` 并经 `GameSettings`（键 `Setting.Input.Rebind.{Group/Name}`）设备级持久化、启动自动恢复；重绑终态发布 `InputRebindEvent` 供 UI 提示层订阅刷新，详见 `Documentation~/Input.md` 的「按键重绑定（Rebinding）」
+
 #### UI
 
 - Widget 绑定纳入 UI 生成器产线：widget 根节点语法 `{WidgetClassName}@{InstanceTag}`（类名取 @ 前段，多实例共享一个类与一份 `<Class>.g.cs`；window 收集器在 widget 根停递归，只拿到 widget-typed 字段 `m_{Class}{Instance}`），生成与多实例回绑流程见包根 `.agent/commands/new-ui.md` 的「Widget 控件（可复用组件）」

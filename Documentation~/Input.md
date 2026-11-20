@@ -13,6 +13,7 @@
 - UI 模态联动：监听 `UIService.onWindowShown` / `onWindowClosed`，存在模态窗口时自动锁定玩家控制
 - 应用焦点联动：失焦自动禁用输入，聚焦自动恢复
 - 按键提示系统（Prompts）：按键图标随当前活动输入设备自动切换，支持图文混排
+- 按键重绑定（Input System 后端）：运行期交互式改绑 + 冲突检测 + 设备级持久化，详见「按键重绑定（Rebinding）」
 
 ## 核心类型
 
@@ -133,6 +134,43 @@ Sprite device = InputDevicePromptSystem.GetDeviceSprite(spriteName);
 ### PreventInputOnEnable
 
 挂载该组件的对象启用时按勾选项锁定 `LockPlayerController` / `PreventInteractionUI`，禁用时恢复原值，适合过场、教程等节点式控制。
+
+### 按键重绑定（Rebinding）
+
+Input System 后端支持运行期改绑：玩家在设置页按下新按键即完成动作重绑，覆写走 `InputBinding.overridePath`（不篡改资产原始绑定），并即时持久化到游戏配置（`GameSettings` 键值，键 `Setting.Input.Rebind.{Group/Name}`），下次启动自动恢复。
+
+重绑定是后端能力面而非主契约——只有 Input System 后端实现 `IInputRebindable`，访问入口带能力探测：
+
+```csharp
+// 能力探测：设置页据此显隐重绑入口
+if (InputService.SupportsRebinding)
+{
+    // 交互式重绑：监听下一个输入，冲突按 Fail/Override/Cancel 策略处置
+    var result = await InputService.RebindAsync("Jump", "Player", InputRebindOptions.Default, cancellationToken);
+    switch (result.Outcome)
+    {
+        case ERebindOutcome.Applied:   // 成功，result.BindingPath 为新控件路径
+        case ERebindOutcome.Cancelled: // 用户取消或令牌触发
+        case ERebindOutcome.Conflict:  // result.ConflictedAction 为冲突动作全限定名
+        case ERebindOutcome.NotRebindable:
+            break;
+    }
+}
+
+// 读档/恢复：显式覆写（同样即时持久化）
+InputService.Rebinding.ApplyBindingOverride("Jump", "Player", new InputBindingData("<Keyboard>/e"));
+
+// 回到默认：清覆写并删持久化键
+InputService.Rebinding.ResetBinding("Jump", "Player");
+```
+
+行为要点：
+
+- 同一动作同时至多一个监听期，重复发起使上一个以 `Cancelled` 终结；后端关停时未决监听一律取消（等待方任务不悬挂）
+- 复合绑定（WASD 类）经 `InputRebindOptions.PartName` 指定部件名重绑（如 `up`/`down`），覆写按部件精确落点；持久化值编码部件名，恢复时按部件回落
+- 默认屏蔽鼠标与触屏参与重绑匹配（避免点设置页按钮误落绑）
+- 每次重绑到达终态发布 `InputRebindEvent`（`[GameEvent]` struct 事件），UI 提示层订阅刷新按键图标（Glyph），免轮询
+- 旧版 Input Manager 与移动端 UI 后端不支持重绑定：访问 `InputService.Rebinding` 抛 `GameException`（带后端名），不静默降级
 
 ## 注意事项
 
