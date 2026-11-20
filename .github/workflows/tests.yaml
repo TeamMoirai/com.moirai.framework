@@ -7,10 +7,16 @@
 # ——宿主工程的 Packages/manifest.json 以 submodule 方式引用本包，所以宿主跑一次
 # EditMode/PlayMode，本包的 Tests/** 就被覆盖。
 #
-# 因此下面的 checkout 默认拉取宿主工程仓库（HOST_REPOSITORY），而不是本仓库。
-# 接入时按实际情况调整 HOST_REPOSITORY / HOST_REF，并确保 HOST_REPO_TOKEN 对宿主仓库有读权限。
+# 因此 EditMode/PlayMode 的 checkout 拉取宿主工程仓库（HOST_REPOSITORY），而不是本仓库。
+# 宿主 submodule 记录的是宿主 master 上的旧 SHA——checkout 后必须把 Packages/com.moirai.framework
+# 钉到 PR head（pull ref 在基仓库有镜像，fork PR 同样可用），否则门禁跑的是旧代码。
+# 接入时按实际情况调整 HOST_REPOSITORY / HOST_REF，并确保 HOST_REPO_TOKEN 对宿主仓库有读权限；
+# Unity 许可证走 UNITY_LICENSE / UNITY_EMAIL / UNITY_PASSWORD（game-ci 惯例）。
 # （另一条路是在本仓库内建 build-release.yaml 注释里提到过的 Sandbox/Unity 宿主工程；
 #   该目录目前并不存在，属于尚未落地的设想。）
+#
+# player-assembly-shape 已生效：纯文件形状校验，直接 checkout 本仓库即可，
+# 不依赖宿主工程与 Unity 许可证；校验对象恒为 PR head。
 
 name: Tests
 
@@ -32,7 +38,6 @@ env:
 
 jobs:
   editmode:
-    if: ${{ false }}
     name: EditMode
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -46,6 +51,21 @@ jobs:
           submodules: recursive
           lfs: true
           fetch-depth: 1
+
+      # 宿主 submodule 记录的是宿主 master 的旧 SHA：fetch PR 的 pull ref（基仓库镜像，fork PR
+      # 同样可用）后钉到 PR head，保证门禁跑的是本 PR 的代码。GITHUB_TOKEN 对基仓库只读即够。
+      - name: Pin framework package to PR head
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pkg="Packages/com.moirai.framework"
+          pr_head="${{ github.event.pull_request.head.sha }}"
+          auth="Authorization: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -C "$pkg" -c "http.https://github.com/.extraheader=$auth" fetch origin "+refs/pull/${{ github.event.pull_request.number }}/head"
+          git -C "$pkg" checkout -q --detach "$pr_head"
+          echo "Pinned $pkg -> $pr_head"
 
       - name: Run EditMode tests
         id: tests
@@ -70,7 +90,6 @@ jobs:
           path: TestResults/EditMode
 
   playmode:
-    if: ${{ false }}
     name: PlayMode
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -84,6 +103,21 @@ jobs:
           submodules: recursive
           lfs: true
           fetch-depth: 1
+
+      # 宿主 submodule 记录的是宿主 master 的旧 SHA：fetch PR 的 pull ref（基仓库镜像，fork PR
+      # 同样可用）后钉到 PR head，保证门禁跑的是本 PR 的代码。GITHUB_TOKEN 对基仓库只读即够。
+      - name: Pin framework package to PR head
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pkg="Packages/com.moirai.framework"
+          pr_head="${{ github.event.pull_request.head.sha }}"
+          auth="Authorization: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -C "$pkg" -c "http.https://github.com/.extraheader=$auth" fetch origin "+refs/pull/${{ github.event.pull_request.number }}/head"
+          git -C "$pkg" checkout -q --detach "$pr_head"
+          echo "Pinned $pkg -> $pr_head"
 
       - name: Run PlayMode tests
         id: tests
@@ -108,18 +142,13 @@ jobs:
           path: TestResults/PlayMode
 
   player-assembly-shape:
-    if: ${{ false }}
     name: Player assembly shape
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Checkout host project (with submodules)
-        uses: TeamMoirai/GitHubActions/.github/actions/checkout@master
+      - name: Checkout framework package (PR head)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ env.HOST_REPOSITORY }}
-          ref: ${{ env.HOST_REF }}
-          token: ${{ secrets.HOST_REPO_TOKEN }}
-          submodules: recursive
           fetch-depth: 1
 
       # 玩家专用套件（Moirai.Atropos.Tests.Player）跑不了命令行：它的测试入口是构建期注入的
@@ -131,7 +160,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          asmdef="Packages/com.moirai.framework/Tests/Player/Moirai.Atropos.Tests.Player.asmdef"
+          asmdef="Tests/Player/Moirai.Atropos.Tests.Player.asmdef"
           if [ ! -f "$asmdef" ]; then
             echo "::error::missing $asmdef"
             exit 1
