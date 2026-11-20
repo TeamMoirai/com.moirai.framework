@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Moirai.EventBus.Roslyn.Analyzers;
 
 /// <summary>
-/// MA7001：[GameEvent] 标记的类型必须满足 struct + IGameEvent 约束，且不得含实例方法。
+/// MA7004–MA7006：[GameEvent] 标记的类型必须满足 struct + IGameEvent 约束，且不得含实例方法。
 /// </summary>
 /// <remarks>
 /// struct 事件是无状态数据包：字段 public 或 readonly；实例方法/事件成员属契约违反
@@ -66,21 +66,28 @@ public sealed class GameEventAttributeAnalyzer : DiagnosticAnalyzer
     }
 }
 
-/// <summary>MA70xx 诊断族描述符。</summary>
+/// <summary>[GameEvent] 契约诊断族：MA7004–MA7006（MA7000–MA7003 由订阅规范占用，ID 不得复用）。</summary>
 internal static class GameEventDiagnostics
 {
+    /// <summary>[GameEvent] 标记类型必须为 struct。</summary>
+    public const string NotStructId = "MA7004";
+    /// <summary>[GameEvent] 标记类型必须实现 IGameEvent。</summary>
+    public const string MissingIGameEventId = "MA7005";
+    /// <summary>[GameEvent] 标记类型不得含实例方法。</summary>
+    public const string HasInstanceMethodsId = "MA7006";
+
     public static readonly DiagnosticDescriptor NotStruct = new(
-        "MA7001", "[GameEvent] 必须为 struct",
+        NotStructId, "[GameEvent] 必须为 struct",
         "[GameEvent] 标记的类型 '{0}' 必须为 struct（值语义零拷贝发布）",
         "Moirai.EventBus", DiagnosticSeverity.Error, true);
 
     public static readonly DiagnosticDescriptor MissingIGameEvent = new(
-        "MA7002", "[GameEvent] 必须实现 IGameEvent",
+        MissingIGameEventId, "[GameEvent] 必须实现 IGameEvent",
         "[GameEvent] 标记的类型 '{0}' 必须实现 IGameEvent 标记接口",
         "Moirai.EventBus", DiagnosticSeverity.Error, true);
 
     public static readonly DiagnosticDescriptor HasInstanceMethods = new(
-        "MA7003", "[GameEvent] 不得含实例方法",
+        HasInstanceMethodsId, "[GameEvent] 不得含实例方法",
         "[GameEvent] 标记的类型 '{0}' 含实例方法 '{1}'——事件对象是无状态数据包，行为放订阅方",
         "Moirai.EventBus", DiagnosticSeverity.Warning, true);
 }
