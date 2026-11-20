@@ -6,7 +6,7 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 总线诊断钩子：仅编辑器存在——生产/开发构建编译期剥除，发布路径零诊断开销。
-    /// 独立的编辑器调试窗（Editor/Core/Events/EventBusDebuggerWindow）经 InternalsVisibleTo 挂接本钩子，
+    /// 独立的编辑器调试窗（Editor/Kernel/Events/EventBusDebuggerWindow）经 InternalsVisibleTo 挂接本钩子，
     /// 不占用 Debugger 服务窗口注册表，内核侧不引入任何调试接口。
     /// </summary>
 #if UNITY_EDITOR

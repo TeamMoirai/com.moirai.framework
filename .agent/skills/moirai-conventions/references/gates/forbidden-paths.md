@@ -19,7 +19,7 @@
 
 ## 按名解析的 `Resources/`
 
-参与 Unity 导入的 `Resources/` 目录是下面这几处：`Editor/Core/Attributes/Resources/`、`Editor/Core/Events/Resources/`、`Runtime/Services/Debugger/Resources/`、`Runtime/Services/UI/Resources/`。
+参与 Unity 导入的 `Resources/` 目录是下面这几处：`Editor/Foundation/Attributes/Resources/`、`Editor/TestFixtures/Resources/`、`Runtime/Services/Debugger/Resources/`、`Runtime/Services/UI/Resources/`。
 `~` 结尾目录（`Samples~`、`Templates~` 等）里另有同名 `Resources/`，它们不参与导入、`Resources.Load` 够不到，所以不在本表射程——按 `find -type d -name Resources` 数会得到比这里多的条目，那不是本表的口径，也别把计数钉进本层。
 `Resources.Load` 只认「目录名 `Resources` + 相对路径不含扩展名」，不看程序集归属、编译期没有任何引用可查：改名或搬动 ⇒ 编译照过，运行期取到 `null`。
 在盘面上对得上的几对（动一侧就断另一侧）：
@@ -28,8 +28,8 @@
   名字带空格的 `Debugger UI Theme.tss` 按常量 `"Debugger UI Theme"` 取。
 - `Runtime/Services/UI/Resources/` 里只有 `LogUI.prefab`：`ErrorLogger` 以 `nameof(LogUI)` 作标识，经 `UGUIWindow.LoadPanel`
   的 `Resources.Load<GameObject>` 取；相对路径由 `Runtime/Services/UI/UIServiceSettings.cs` 的内置资源父目录字段拼，留空即把标识原样当相对路径。
-- `Editor/Core/Events/Resources/`：`EventsDebugger.uxml` 与 `EventsDebugger.uss` 由 `EventsDebuggerWindow` 按 `"EventsDebugger"` 取。
-- `Editor/Core/Attributes/Resources/`：`.png` 与 `.uss` 按 `Attributes/…` 形态的相对路径取，常量集中在 `Editor/Core/Attributes/AttributesStaticRef.cs`。
+- `Editor/TestFixtures/Resources/`：`EventsDebugger.uxml` 与 `EventsDebugger.uss` 是 UI 测试夹具，由 `UITKWindowTests` / `UIServiceWindowFamilyTests` / `UIWindowCoexistenceTests` 按 `"EventsDebugger"` 取（事件调试窗本体已改为纯代码 UI，不消费此模板）。
+- `Editor/Foundation/Attributes/Resources/`：`.png` 与 `.uss` 按 `Attributes/…` 形态的相对路径取，常量集中在 `Editor/Foundation/Attributes/AttributesStaticRef.cs`；父目录由 `Editor/Core/` 改名而来，但 `Resources` 下的相对路径 `Attributes/…` 不变。
 
 多个 `Resources/` 下同名资产还会撞车——打包时取哪一份不由路径决定。
 

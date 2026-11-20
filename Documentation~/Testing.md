@@ -68,7 +68,7 @@ Tests/
 │   ├── Service/                 # 对应 Runtime/Services/<模块>
 │   │   ├── Audio/  Save/  Resource/  UI/  ...
 │   │   └── Kernel/
-│   └── Editor/                  # 编辑器侧配套（Editor/Core、Editor/Foundation 等）
+│   └── Editor/                  # 编辑器侧配套（Editor/Kernel、Editor/Foundation 等）
 ├── PlayMode/                    # L2
 │   ├── Kernel/
 │   │   └── Tasks/

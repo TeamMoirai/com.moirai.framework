@@ -49,8 +49,9 @@
 
 #### Kernel
 
-- `EventBus` 调试窗去服务化并补齐参数查看/重播：移除 Runtime 侧的 `EventBusDebuggerWindow`（原继承 `ScrollableDebuggerWindowBase`）与 `EventBusDebuggerRegistrar`（原经 `IDebuggerService.RegisterDebuggerWindow` 挂窗），调试改为纯编辑器 `EditorWindow`（`Editor/Core/Events/EventBusDebuggerWindow.cs`，菜单 `Window/Event Debugger`），经 `#if UNITY_EDITOR` 门控的 `EventBusDiagnostics.OnPublished` 钩子经 `InternalsVisibleTo` 挂接；内核侧不引入任何 Debugger 服务接口或窗口注册依赖
-- 诊断钩子 `EventBusDiagnostics.OnPublished` 由 `Action&lt;Type&gt;` 升为 `Action&lt;Type, object&gt;`：随事件携带 struct 值快照（调试窗未挂接时 `?.` 短路、零装箱），每次发布仅触发一次（原实现按订阅者数放大）；编辑器调试窗据此支持点选事件行查看传参（反射字段/属性）、单条重播与按记录时间差+倍速整段回放（反射闭合 `EventBus.Publish&lt;T&gt;` 走真实发布路径）
+- `EventBus` 调试窗去服务化并补齐参数查看/重播：移除 Runtime 侧的 `EventBusDebuggerWindow`（原继承 `ScrollableDebuggerWindowBase`）与 `EventBusDebuggerRegistrar`（原经 `IDebuggerService.RegisterDebuggerWindow` 挂窗），调试改为纯编辑器 `OdinEditorWindow`（`Editor/Kernel/Events/EventBusDebuggerWindow.cs`，菜单 `Window/Event Debugger`，形态对齐 `PlayerLoopDebuggerWindow`：控制条/状态区由 Odin 特性渲染，事件流行可点选、回放条目 [R] 着色），经 `#if UNITY_EDITOR` 门控的 `EventBusDiagnostics.OnPublished` 钩子经 `InternalsVisibleTo` 挂接；内核侧不引入任何 Debugger 服务接口或窗口注册依赖
+- 诊断钩子 `EventBusDiagnostics.OnPublished` 由 `Action&lt;Type&gt;` 升为 `Action&lt;Type, object&gt;`：随事件携带 struct 值快照（调试窗未挂接时 `?.` 短路、零装箱），每次发布仅触发一次（原实现按订阅者数放大）；编辑器调试窗据此支持点选事件行查看传参（Odin 检视器只读渲染 struct 快照）、单条重播与按记录时间差+倍速整段回放（反射闭合 `EventBus.Publish&lt;T&gt;` 走真实发布路径）
+- ⚠ `Editor/Core/` 镜像生产侧一分为二——`Events`/`GameSettings`/`Tasks` 归入 `Editor/Kernel/`，`Attributes`/`Tween`/`Inspector`/`MenuEditorWindow`/`Models` 归入 `Editor/Foundation/`；`Core.meta` GUID 延续给 `Kernel.meta`。对应测试 `Tests/EditorMode/Editor/Core/` 同步拆为 `Foundation/{Attributes,MenuEditorWindow}/`，测试短命名空间一并改（`Attributes` → `Foundation.Attributes`、`MenuEditorWindow` → `Foundation.MenuEditorWindow`）。编辑器侧命名空间与公共 API 全部不变，`.meta` GUID 原样保留；按名解析的 `Attributes/...` Resources 相对路径不随父目录改变
 
 #### Editor
 

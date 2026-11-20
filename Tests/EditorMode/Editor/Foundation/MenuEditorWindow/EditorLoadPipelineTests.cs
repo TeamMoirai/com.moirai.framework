@@ -7,7 +7,7 @@ using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
-namespace MenuEditorWindow
+namespace Foundation.MenuEditorWindow
 {
     /// <summary>
     /// <see cref="EditorLoadPipeline"/> 的 EditMode 测试：步序与动态登记、切片分摊、后台续体、取消与失败面。
