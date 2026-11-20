@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 
 namespace Moirai.Atropos.Debugger
 {

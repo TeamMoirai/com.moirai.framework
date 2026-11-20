@@ -7,7 +7,7 @@ using Moirai.Atropos.ConfigTable;
 using Moirai.GameProto.Config.L10n;
 using UnityEngine;
 using UnityEngine.U2D;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 
 namespace Moirai.GameProto.Config
 {
@@ -186,9 +186,9 @@ namespace Moirai.GameProto.Config
             
             using var lease =
 #if UNITY_WEBGL
-                await ResourceService.LoadLeaseAsync<SpriteAtlas>(atlasConfig.Location, packageName: atlasConfig.PackageName);
+                await AssetService.LoadLeaseAsync<SpriteAtlas>(atlasConfig.Location, packageName: atlasConfig.PackageName);
 #else
-                ResourceService.LoadLease<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
+                AssetService.LoadLease<SpriteAtlas>(atlasConfig.Location, packageName:atlasConfig.PackageName);
 #endif
             return lease.Asset?.GetSprite(spriteConfig.SpriteName);
         }

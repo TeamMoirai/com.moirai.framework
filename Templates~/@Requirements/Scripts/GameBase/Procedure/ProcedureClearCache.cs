@@ -1,5 +1,5 @@
 ﻿using Moirai.Atropos;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.GameMain.UI;
 
 namespace Moirai.GameMain
@@ -18,12 +18,12 @@ namespace Moirai.GameMain
             
             LauncherMgr.ShowUI<LoadUpdateUI>(LoadText.Instance.Label_ClearCache);
 
-            var options = EResourceClearMode.ClearUnusedBundleFiles;
-            var operation = ResourceService.StartClearCache(options);
+            var options = EAssetClearMode.ClearUnusedBundleFiles;
+            var operation = AssetService.StartClearCache(options);
             GameApp.StartCoroutine(WaitClearCacheComplete(operation));
         }
 
-        private System.Collections.IEnumerator WaitClearCacheComplete(ResourceClearCacheResult operation)
+        private System.Collections.IEnumerator WaitClearCacheComplete(AssetClearCacheResult operation)
         {
             while (operation?.Operation != null && !operation.Operation.IsDone)
             {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kernel.GameSettings;
 using Moirai.Atropos;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.Tests.EditorMode;
@@ -216,6 +217,46 @@ namespace Service.Localization
 
             Assert.AreEqual(before, _handler.CurrentLanguage);
             AssertLogCaptured(ELogLevel.Warning, "Japanese is not available");
+        }
+
+        [Test]
+        public void ChangeLanguage_AllThreeOverloads_HandPreferenceToHandler()
+        {
+            // 交接点漏一处不会编译报错，只会表现为「语言选错且没人报错」：
+            // 全新处理器（没交接过）经外观切语言后，来路必须非 null——三个重载齐一（Localization.md 偏好交接节）。
+            // 回归：ChangeLanguage(Language) 重载曾漏 HandPreferenceToHandler。
+            LoadStrings("ui.title", "Title", "标题");
+            _ = _handler.EntryCount; // 数据就绪后切换不再走首启解析，观测面集中在交接本身
+
+            var intent = OtherLoadedLanguage();
+            _handler.Internal_Shutdown();
+            var fresh = new L10nProbeHandler(); // 未 ApplyPreference：AppliedPreferenceSource 为 null
+            fresh.Internal_Init();
+            _handler = fresh;
+
+            // 外观 ChangeLanguage 的接受写入只记键不 flush：量具换只记数的设置处理器，隔离真档
+            var savedSettingHandler = Moirai.Atropos.GameSettings.Internal_PeekHandler();
+            Moirai.Atropos.GameSettings.Internal_UseHandler(new RecordingSettingHandler());
+            var savedFacadeHandler = LocalizationService.Internal_PeekHandler();
+            LocalizationService.Internal_UseHandler(fresh);
+            try
+            {
+                // fresh 是空数据源：切换触发加载失败（generate config first）、
+                // 首启解析无可用语言（No language available），两条 Error 均与本用例的交接判据无关
+                UtfLogExpect.Error();
+                UtfLogExpect.Error();
+                LocalizationService.ChangeLanguage(intent);
+
+                Assert.AreEqual(intent, fresh.CurrentLanguage, "切换本身必须生效");
+                Assert.IsNotNull(fresh.AppliedPreferenceSource,
+                    "枚举重载切语言前必须先交接检测链读数（同 string/int 重载齐一）");
+            }
+            finally
+            {
+                LocalizationService.Internal_UseHandler(savedFacadeHandler);
+                Moirai.Atropos.GameSettings.Internal_UseHandler(savedSettingHandler);
+                fresh.Internal_Shutdown();
+            }
         }
 
         #endregion

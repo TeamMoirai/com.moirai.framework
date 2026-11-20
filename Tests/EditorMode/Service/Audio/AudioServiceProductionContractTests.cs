@@ -173,7 +173,7 @@ namespace Service.Audio
         [Test]
         public void SceneLoad_Single_AlwaysStopsNonPersistent()
         {
-            Assert.IsTrue(AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Single),
+            Assert.IsTrue(AudioBackendPolicy.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Single),
                 "Single 整景切换必须停非持久音");
         }
 
@@ -182,7 +182,7 @@ namespace Service.Audio
         {
             // Additive（叠加/流式分区）加载没有"停掉全部非持久音"的合理用例，永不自动停；
             // 需要收口的游戏流程应在自己的切换点显式 StopAllButPersistent
-            Assert.IsFalse(AudioServiceHandler.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Additive),
+            Assert.IsFalse(AudioBackendPolicy.ShouldStopNonPersistentOnSceneLoad(LoadSceneMode.Additive),
                 "Additive 加载永不自动停非持久音");
         }
 

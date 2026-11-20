@@ -4,7 +4,7 @@ using Loc = Moirai.Atropos.Localization;
 using Moirai.Atropos;
 using NUnit.Framework;
 using Proc = Moirai.Atropos.Procedure;
-using Res = Moirai.Atropos.Resource;
+using Res = Moirai.Atropos.Asset;
 using Tim = Moirai.Atropos.Timer;
 
 namespace Service.Debugger
@@ -95,7 +95,7 @@ namespace Service.Debugger
         {
             // 各服务模块的调试视图（放置于对应模块目录）均实现 IDebuggerWindow——OnInit 注册进游戏内调试器
             Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Tim.TimerServiceDebuggerWindow)), "TimerServiceDebugView");
-            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Res.ResourceServiceDebuggerWindow)), "ResourceServiceDebugView");
+            Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Res.AssetServiceDebuggerWindow)), "AssetServiceDebugView");
             Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Aud.AudioServiceDebuggerWindow)), "AudioServiceDebugView");
             Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Proc.ProcedureServiceDebuggerWindow)), "ProcedureServiceDebugView");
             Assert.IsTrue(typeof(Dbg.IDebuggerWindow).IsAssignableFrom(typeof(Loc.LocalizationInformationWindow)), "LocalizationServiceDebugView");
@@ -134,13 +134,13 @@ namespace Service.Debugger
         public void ServiceViews_CreateView_ReturnNonNullWhenServiceUnready()
         {
             // EditMode 下服务未初始化——各视图应返回“未就绪”提示视图而非抛异常
-            UnityEngine.UIElements.VisualElement resourceView = new Res.ResourceServiceDebuggerWindow().CreateView();
+            UnityEngine.UIElements.VisualElement resourceView = new Res.AssetServiceDebuggerWindow().CreateView();
             UnityEngine.UIElements.VisualElement audioView = new Aud.AudioServiceDebuggerWindow().CreateView();
             UnityEngine.UIElements.VisualElement procedureView = new Proc.ProcedureServiceDebuggerWindow().CreateView();
             UnityEngine.UIElements.VisualElement localizationView = new Loc.LocalizationInformationWindow().CreateView();
             UnityEngine.UIElements.VisualElement gameAppView = new Dbg.GameAppInformationWindow().CreateView();
 
-            Assert.IsNotNull(resourceView, "ResourceServiceDebugView");
+            Assert.IsNotNull(resourceView, "AssetServiceDebugView");
             Assert.IsNotNull(audioView, "AudioServiceDebugView");
             Assert.IsNotNull(procedureView, "ProcedureServiceDebugView");
             Assert.IsNotNull(localizationView, "LocalizationServiceDebugView");

@@ -16,19 +16,18 @@ Moirai Framework
 
 ## 📖 简介
 
-**Moirai Framework** 是一个简单（新手友好、开箱即用）且强大的 Unity 框架全平台解决方案。
+**Moirai Framework** 是一个以「服务契约 + 编译期生成」为骨架的 Unity 客户端框架。每个子系统收敛为唯一契约接口，接线与样板代码由源生成器产出，测试与验收口径以可执行守卫落地。它面向需要长期迭代、多人协作的项目：替换后端不动消费方，接口漂移在编译期暴露，每笔提交留下可复现的判绿证据。三方兼容实现不堆进框架本体，而是外置为按宏门控的插件包。
 
 ### ✨ 核心特性
 
-- 🚀 **开箱即用** - 5 分钟即可上手整套开发流程，代码整洁，思路清晰
-- 🔥 **高性能** - 基于 UniTask 的异步系统，零 GC 事件分发，严格的内存管理
-- 🧩 **高内聚低耦合** - 服务化设计，可轻松移除或替换不需要的服务
-- 🔄 **热更新支持** - 集成 HybridCLR，全平台热更新流程已跑通
-- 🔐 **代码混淆** - 集成 Obfuz，支持代码混淆加固，保护核心逻辑
-- 📦 **资源管理** - 集成 YooAsset，支持 LRU、ARC 缓存策略，自动资源释放
-- 📊 **配置表系统** - 集成 Luban，支持懒加载、异步加载、同步加载
-- 🎨 **UI 框架** - 商业化 UI 开发流程，支持代码自动生成
-- 🌍 **全平台支持** - Windows、Android、iOS、WebGL、微信小游戏等
+- **契约化服务架构** — 每个服务以唯一 `I*Service` 接口对外，后端直接实现契约，抽象 Handler 基类已删除；门面、设置与测试均按接口类型持有，换后端不改消费方。默认语义走接口默认方法（DIM），因此 API Compatibility Level 为 .NET Standard 2.1。
+- **源生成器接线** — 5 个预编译生成器分担重复代码：`ProviderHandlerHost` 生成门面懒加载与 Provider 下拉绑定，`ServiceDependency` 生成依赖注册，`SaveServiceCodegen` 生成存档 schema 与迁移骨架，`UIWindowCodegen` 生成 UI 绑定，`HotPathAnalyzer` 在编译期标注热路径。
+- **服务世界与作用域** — `ServiceWorld` 可构造隔离世界供测试/沙盒使用；`App / Scene / Gameplay` 三级作用域决定生命周期，场景卸载时自动清理对应服务；依赖以特性声明，两阶段初始化按依赖图拓扑驱动 `OnInit`。
+- **零 GC 内存池** — 页式内存池配非托管元数据，按在用量抬升空闲水位线；空闲超时后分 Gameplay / Background / LowMemory 三档预算驱逐，兼顾峰值吞吐与常驻占用。
+- **异常分级与故障隔离** — 订阅、派发、任务、服务 Tick、池回调统一按构建分级：Editor / Development 上抛 fail-fast 暴露缺陷，发布构建记录后隔离续跑；生命周期广播等例外无条件隔离，避免漏掉释放与存档。
+- **插件化三方后端** — 日志、字符串、补间、网络对象、资源、音频、存档的可选实现不在框架内，各发行一支 `Moirai.Plugin.*`；装了插件才出现在 settings 的 Provider 下拉，未装时框架照常编译。
+- **可执行的验证纪律** — 测试分层、反射政策、日志通道都钉成可执行守卫；结论取 `summary.total/failed` 计数，0 失败才算通过；诊断要点写进 commit message，CHANGELOG 只保留净结果。
+- **配套工具链** — 包内自带分支作包源的插件包管理器、Luban 转表、图集变动重生成、事件与 PlayerLoop 调试器、发布流水线窗口；AI 协作按 `.agent/skills/` 规范层与 pipeline 验证闭环执行。
 
 ---
 
@@ -51,7 +50,7 @@ Moirai Framework
 
 ## 🚀 快速开始
 
-**环境要求**：Unity 2022.3.x（推荐）或更高、.NET 4.x，依赖 [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)；支持 Windows、OSX、Android、iOS、WebGL、微信小游戏。
+**环境要求**：Unity 2022.3.x（推荐）或更高、**API Compatibility Level 必须为 .NET Standard 2.1**（*Project Settings → Player → Other Settings → API Compatibility Level*；框架的服务契约接口依赖接口默认方法，.NET Framework 4.x profile 不支持），依赖 [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)；支持 Windows、OSX、Android、iOS、WebGL、微信小游戏。
 
 **安装方式三选一**：
 
@@ -68,20 +67,27 @@ Moirai Framework
 ```
 com.moirai.framework/
 ├── Runtime/                    # 核心框架程序集 (Moirai.Atropos)
-│   ├── Core/                   # 与具体玩法无关的基础件，按功能分组平铺（无 Foundation/Infrastructure 层级壳）
-│   │   ├── <功能组>/           # Attributes / Constant / DataStructure / Extensions / GameException / Events /
-│   │   │                       # GameApp / GameProfiler / FrameworkSettings / Graphics / MemoryPool / Obfuz /
-│   │   │                       # SettingPersistence / Singleton / Tasks
-│   │   └── Utilities/          # 工具集：日志、时间、加密、HTTP、反射、缓动等 30 个关注点，一个子目录一个
+│   ├── Kernel/                 # 内核：服务注册与生命周期（GameServices / ServiceScope / ServiceBase）+ 框架运行底座
+│   │   ├── GameApp/            # 启动、帧驱动（PlayerLoop/）、运行期开关
+│   │   ├── MemoryPool/         # C# 内存池与通用池件
+│   │   ├── GameException/      # 框架异常约定
+│   │   ├── FrameworkSettings/  # 设置基座（FrameworkSettings<T> / FrameworkHandler / ProviderHandlerHost）
+│   │   ├── GameSettings/       # 游戏设置资产
+│   │   ├── Singleton/          # 单例模式
+│   │   ├── Tasks/              # 任务/序列系统
+│   │   ├── GameProfiler/       # 性能采样
+│   │   └── Events/             # 事件总线（EventBus / EventChannel / GameEvent 编译期校验）
+│   ├── Foundation/             # 与具体玩法无关的基础件，按功能分组平铺（无层级壳）
+│   │   ├── <功能组>/           # Attributes / Constant / DataStructure / Extensions / Obfuz
+│   │   └── Utilities/          # 工具集：日志、时间、加密、HTTP、反射、缓动等，一个子目录一个关注点
 │   └── Services/               # 功能服务（每个服务一份文档，见 Documentation~），模块内按封闭角色档归位：
 │       #  角色档：模块根平铺门面四件套 + Handler/ Models/ Objects/ Internal/ Support/（按需 Extension/ Views/）
-│       ├── Kernel/             # 服务系统基座（门面 GameServices.cs + Internal/ Models/ Objects/）
 │       ├── Audio/              # 音频系统（分类/代理/混音/淡入淡出）
 │       ├── ConfigTable/        # 配置表管理
 │       ├── Debugger/           # 运行时调试器
 │       ├── Input/              # 输入系统（键鼠/手柄/移动端）
 │       ├── Localization/       # 本地化（文本/图片/音频/Timeline）
-│       ├── Pooling/            # 对象池服务（多服务模块：先按服务分档 ObjectPool/ GameObjectPool/，共享件在 Internal/）
+│       ├── Pooling/            # GameObject 池服务（C# 对象复用走 Kernel/MemoryPool）
 │       ├── Procedure/          # 流程管理
 │       ├── Resource/           # YooAsset 资源管理
 │       ├── Save/               # 存档系统（多块容器/多后端序列化/加密/迁移/云同步）
@@ -103,7 +109,7 @@ com.moirai.framework/
 
 ```csharp
 // 服务访问 — 各服务提供静态外观（ProviderHandlerHost 源生成），内部懒加载
-ResourceService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
+AssetService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>("MainWindow");
 TimerService.Delay(1f, () => Debug.Log("1s"));
 
@@ -139,7 +145,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 
 ## 📚 文档
 
-完整文档目录（安装、功能服务、核心工具、工程规范，共 26 篇）见 **[Documentation~/Index.md](Documentation~/Index.md)**。
+完整文档目录（安装、功能服务、核心工具、工程规范）见 **[Documentation~/Index.md](Documentation~/Index.md)**。
 
 ---
 

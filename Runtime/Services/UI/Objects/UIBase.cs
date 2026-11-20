@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 #if ENABLE_OBFUZ
@@ -104,13 +104,13 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 注册事件。
         /// </summary>
-        /// <remarks>常用全局事件，eg: <see cref="Moirai.Atropos.Events.EventManager"/></remarks>
+        /// <remarks>常用全局事件，eg: <see cref="Moirai.Atropos.EventBus"/>。</remarks>
         protected virtual void RegisterEvent() { }
         
         /// <summary>
         /// 取消注册事件。
         /// </summary>
-        /// <remarks>常用全局事件，eg: <see cref="Moirai.Atropos.Events.EventManager"/></remarks>
+        /// <remarks>常用全局事件，eg: <see cref="Moirai.Atropos.EventBus"/>。</remarks>
         protected virtual void UnregisterEvent() { }
 
         /// <summary>

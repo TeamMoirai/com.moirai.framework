@@ -215,7 +215,7 @@ namespace Service.Save
         public void Registry_UnknownBackend_GetRequired_FailFast()
         {
             // 未注册后端（如未接入的 KeyValue）必须 fail-fast 而非静默降级
-            Assert.Throws<GameException>(() => SaveSerializerRegistry.GetRequired(999));
+            Assert.Throws<MoiraiException>(() => SaveSerializerRegistry.GetRequired(999));
         }
 
         [Test]

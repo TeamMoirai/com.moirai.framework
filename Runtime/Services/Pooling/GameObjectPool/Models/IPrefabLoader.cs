@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 
 namespace Moirai.Atropos.ObjectPool
@@ -34,29 +34,29 @@ namespace Moirai.Atropos.ObjectPool
     }
 
     /// <summary>
-    /// 基于 ResourceService 租约的预制体加载器——同一预制体的多次加载各持一份租约，卸载按 LIFO 配对释放。
+    /// 基于 AssetService 租约的预制体加载器——同一预制体的多次加载各持一份租约，卸载按 LIFO 配对释放。
     /// </summary>
     internal sealed class ResourcePrefabLoader : IPrefabLoader
     {
         #region 字段 [FIELDS]
 
-        private readonly Dictionary<int, List<ResourceAssetLease<GameObject>>> _leases = new Dictionary<int, List<ResourceAssetLease<GameObject>>>(16);
-        private ResourceServiceHandler _resource;
+        private readonly Dictionary<int, List<AssetLease<GameObject>>> _leases = new Dictionary<int, List<AssetLease<GameObject>>>(16);
+        private IAssetService _asset;
 
         #endregion
 
         #region 属性 [PROPERTIES]
 
-        private ResourceServiceHandler Resource
+        private IAssetService Resource
         {
             get
             {
-                if (_resource == null)
+                if (_asset == null)
                 {
-                    _resource = ResourceService.Handler;
+                    _asset = AssetService.Handler;
                 }
 
-                return _resource;
+                return _asset;
             }
         }
 
@@ -71,7 +71,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>预制体。</returns>
         public GameObject LoadPrefab(string location)
         {
-            ResourceAssetLease<GameObject> lease = ResourceService.LoadLease<GameObject>(location);
+            AssetLease<GameObject> lease = AssetService.LoadLease<GameObject>(location);
             return RetainLease(lease);
         }
 
@@ -83,7 +83,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>预制体。</returns>
         public async UniTask<GameObject> LoadPrefabAsync(string location, CancellationToken cancellationToken = default)
         {
-            ResourceAssetLease<GameObject> lease = await ResourceService.LoadLeaseAsync<GameObject>(location, cancellationToken);
+            AssetLease<GameObject> lease = await AssetService.LoadLeaseAsync<GameObject>(location, cancellationToken);
             return RetainLease(lease);
         }
 
@@ -99,13 +99,13 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             int instanceId = UnityUtility.GetObjectEntityId(prefab);
-            if (!_leases.TryGetValue(instanceId, out List<ResourceAssetLease<GameObject>> leases) || leases.Count == 0)
+            if (!_leases.TryGetValue(instanceId, out List<AssetLease<GameObject>> leases) || leases.Count == 0)
             {
                 return;
             }
 
             int last = leases.Count - 1;
-            ResourceAssetLease<GameObject> lease = leases[last];
+            AssetLease<GameObject> lease = leases[last];
             leases.RemoveAt(last);
             if (leases.Count == 0)
             {
@@ -119,7 +119,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 私有方法 [PRIVATE METHODS]
 
-        private GameObject RetainLease(ResourceAssetLease<GameObject> lease)
+        private GameObject RetainLease(AssetLease<GameObject> lease)
         {
             if (lease.Asset == null)
             {
@@ -128,9 +128,9 @@ namespace Moirai.Atropos.ObjectPool
             }
 
             int instanceId = UnityUtility.GetObjectEntityId(lease.Asset);
-            if (!_leases.TryGetValue(instanceId, out List<ResourceAssetLease<GameObject>> leases))
+            if (!_leases.TryGetValue(instanceId, out List<AssetLease<GameObject>> leases))
             {
-                leases = new List<ResourceAssetLease<GameObject>>(1);
+                leases = new List<AssetLease<GameObject>>(1);
                 _leases.Add(instanceId, leases);
             }
 

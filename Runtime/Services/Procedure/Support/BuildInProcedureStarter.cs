@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -19,7 +19,7 @@ namespace Moirai.Atropos.Procedure
         /// 启动流程（引导入口，失败 fail-fast）。
         /// </summary>
         /// <remarks>
-        /// 流程服务未注册、类型解析失败或入口流程无效时抛出 <see cref="GameException"/>——启动链配置错误属发布级缺陷，静默吞掉会让玩家面对永久黑屏； <br />
+        /// 流程服务未注册、类型解析失败或入口流程无效时抛出 <see cref="MoiraiException"/>——启动链配置错误属发布级缺陷，静默吞掉会让玩家面对永久黑屏； <br />
         /// 异常经 <c>Forget()</c> 转为 <c>UniTaskScheduler.UnobservedTaskException</c> 输出错误日志，调用方不应捕获吞掉。
         /// </remarks>
         /// <param name="cancellationToken">取消令牌（由 <see cref="BuildInProcedureStarter"/> 传入宿主销毁令牌，
@@ -28,7 +28,7 @@ namespace Moirai.Atropos.Procedure
         {
             if (!ProcedureService.IsValid)
             {
-                throw new GameException(
+                throw new MoiraiException(
                     "ProcedureService is not registered when StartProcedure is called — " +
                     "ensure GameApp has initialized the service world before ProcedureStarter awakes.");
             }
@@ -43,14 +43,14 @@ namespace Moirai.Atropos.Procedure
                 Type procedureType = AssemblyUtility.GetType(availableProcedureTypeNames[i]);
                 if (procedureType == null)
                 {
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "Can not find procedure type '{0}'.", availableProcedureTypeNames[i]));
                 }
 
                 procedures[i] = (ProcedureBase)Activator.CreateInstance(procedureType);
                 if (procedures[i] == null)
                 {
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "Can not create procedure instance '{0}'.", availableProcedureTypeNames[i]));
                 }
 
@@ -62,7 +62,7 @@ namespace Moirai.Atropos.Procedure
 
             if (entranceProcedure == null)
             {
-                throw new GameException("Entrance procedure is invalid.");
+                throw new MoiraiException("Entrance procedure is invalid.");
             }
 
             ProcedureService.Initialize(procedures);

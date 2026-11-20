@@ -289,8 +289,9 @@ namespace Moirai.Atropos.Audio
                     _headKeys[index] = userId;
                     _headSlots[index] = NoSlot;
                     _headCount++;
-                    // 装到一半就扩表：链头位置不变，只把 key 重铺到新表
-                    if (_headCount << 1 >= _headKeys.Length) GrowHeads(_headKeys.Length << 1);
+                    // 装到一半就扩表：链头位置不变，只把 key 重铺到新表。
+                    // 扩容重铺后 index 失效（旧表槽号），必须按 key 重查新表，否则调用方会把链头写进别人的位置
+                    if (_headCount << 1 >= _headKeys.Length) return FindHead(userId, false);
                     return index;
                 }
 

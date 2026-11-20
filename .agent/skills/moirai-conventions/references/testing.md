@@ -46,9 +46,9 @@
 
 - 用例方法 `场景_条件_期望` 三段式（`RetainRelease_CycleAllocatesZeroBytes`）。
 
-- 命名空间用**短名**（`Service.Audio`、`Core.MemoryPool`、`Utility`），不带 `Moirai` 根；引用框架子命名空间类型**必须 `using` 别名**（`using Res = Moirai.Atropos.Resource;`），禁止裸限定名（会撞全局命名空间或 `UnityEngine` 类型，报 CS0246/CS0426）。
+- 命名空间用**短名**（`Service.Audio`、`Core.MemoryPool`、`Utility`），不带 `Moirai` 根；引用框架子命名空间类型**必须 `using` 别名**（`using Res = Moirai.Atropos.Asset;`），禁止裸限定名（会撞全局命名空间或 `UnityEngine` 类型，报 CS0246/CS0426）。
 
-- 测试树**镜像到模块档为止**：`Runtime/Services/<Module>/…` 的用例落 `Tests/EditorMode/Service/<Module>/`，`Runtime/Core/<功能>/…` 落 `Tests/EditorMode/Core/<功能>/`。服务层内部的**角色档（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）不在测试树里复刻**——本轮目录归位没有搬动 `Tests/**`，两侧同形只到模块/功能档，别按生产侧档名去测试树找目录。按 R3 分过服务档的模块连**模块档名**也不镜像：`Runtime/Services/Pooling/**` 的用例在 `Tests/EditorMode/Service/ObjectPool/`（测试树里没有 `Service/Pooling/` 这一目），池的用例按池找，不按模块名找。一个文件一个公开测试类；测试专用类型一律 `internal`。
+- 测试树**镜像到模块档为止**：`Runtime/Services/<Module>/…` 的用例落 `Tests/EditorMode/Service/<Module>/`，`Runtime/Kernel/<功能>/…` 落 `Tests/EditorMode/Kernel/<功能>/`、`Runtime/Foundation/<功能>/…` 落 `Tests/EditorMode/Foundation/<功能>/`（测试树目录与命名空间已随生产侧同步改名，如 `Core.MemoryPool` → `Kernel.MemoryPool`、`Utility` → `Foundation.Utility`）。服务层内部的**角色档（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）不在测试树里复刻**——两侧同形只到模块/功能档，别按生产侧档名去测试树找目录。按 R3 分过服务档的模块连**模块档名**也不镜像：`Runtime/Services/Pooling/**` 的用例在 `Tests/EditorMode/Service/ObjectPool/`（测试树里没有 `Service/Pooling/` 这一目），池的用例按池找，不按模块名找。一个文件一个公开测试类；测试专用类型一律 `internal`。
 
 - **禁止在测试里创建 `[Serializable]` 框架基类的子类**（`LogHandler`/`JsonHandler`/`TweenHandler`/`XxxServiceHandler` 等）——`[SerializeReference]` 类型扫描会把它们塞进生产资产的 Inspector 下拉框。捕获日志用内置实现 + `LogUtility.onMessageLogged`。
 
@@ -116,7 +116,7 @@
 
 - `LogAssert.Expect` 的正则一律 `".*"`，只承担消除未处理日志的职责，不耦合 Handler 的渲染前缀。
 
-- **消除未处理日志一律经 `UtfLogExpect`**（`Tests/EditorMode/Support/UtfLogExpect.cs`，PlayMode 侧有同名本地副本）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。API 面：`Error()`/`Warning()`/`Exception()`（正则固定 `.*`）、`ErrorWithException(fragment)`（带异常对象的 Error 重载按处理器自述判级别）、`ScopedIgnore()`（`ignoreFailingMessages` 的 using 快照窗口，仅供错误集不可枚举的故障注入夹具，是唯一允许触碰该全局开关的入口）。不要在用例里自写 `LogAssert.Expect` + 处理器判定（未装 com.unity.logging 的工程里 `UnityLoggingHandler` 不存在，会逼出每处一个 `#if`）。**例外**：被测走 `Debug.Log*` 直发、不经 LogUtility 时（如 `DebuggerLogCaptureTests`），LogAssert 是唯一正确通道——该场景登记进 `TestLogChannelPolicyGuardTests.LogAssertAllowlist`。
+- **消除未处理日志一律经 `UtfLogExpect`**（`Tests/EditorMode/Support/UtfLogExpect.cs`，PlayMode 侧有同名本地副本）：处理器可见性判定收在那一处，用例侧不写 `#if`、不提处理器类型。API 面：`Error()`/`Warning()`/`Exception()`（正则固定 `.*`）、`ErrorWithException(fragment)`（带异常对象的 Error 重载按处理器自述判级别）、`ScopedIgnore()`（`ignoreFailingMessages` 的 using 快照窗口，仅供错误集不可枚举的故障注入夹具，是唯一允许触碰该全局开关的入口）。不要在用例里自写 `LogAssert.Expect` + 处理器判定（未装 com.unity.logging 的工程里 `UnityLoggingHandler` 不存在，会逼出每处一个 `#if`）。**例外**：被测走 `Debug.Log*` 直发、不经 LogUtility 时（如 `DebuggerLogCaptureTests`），LogAssert 是唯一正确通道。
 
 
 
@@ -184,7 +184,7 @@ Unity -batchmode -projectPath "E:/Workspace/Unity/Game Dev Tools/Client" \
 
 
 
-- 反射白名单钉成可执行守卫 `ReflectionPolicyGuardTests`（双向断言：未登记不得出现、已登记必须仍命中）；测试日志通道同构落 `TestLogChannelPolicyGuardTests`——测试日志发射统一 `Debug.Log*`，禁 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`，白名单=被测本体/替身复刻生产发射，断言通道（onMessageLogged/UtfLogExpect）不受限；同一守卫另钉 **LogAssert 通道**：用例侧禁直用 `LogAssert.Expect`/`ignoreFailingMessages`/`NoUnexpectedReceived`（一律经 UtfLogExpect，后者只经 `ScopedIgnore()`），白名单=两份 UtfLogExpect 副本+Debug 直发场景，双向断言防名单腐烂；守卫按原文扫描，注释写「LogUtility 的 Error」规避字面命中。
+- 反射白名单与测试日志通道曾钉成可执行守卫 `ReflectionPolicyGuardTests` / `TestLogChannelPolicyGuardTests`（双向断言防名单腐烂：日志发射统一 `Debug.Log*`、禁 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(` 直用、`LogAssert.Expect`/`ignoreFailingMessages`/`NoUnexpectedReceived` 一律经 `UtfLogExpect`，后者只经 `ScopedIgnore()`）；**2026-11-18 起 `Tests/EditorMode/Policy/` 目录整体移除，守卫撤下**，上列口径回归约定与评审把关。
 
 - 所有基准住 `Tests/`（`[Explicit]`，KernelBenchmark 范式），跑完经 `BenchmarkReport` 落 XML 至统一文件夹 `<工程根>/Benchmarks/`（`MOIRAI_BENCH_XML` 可覆盖）。需 Debugger 窗口跑的基准走双通道：矩阵核心 `XxxBenchmarkRunner`（运行程序集，public static）+ 窗口基准区 + Tests `[Explicit]` 薄壳，两入口同一份矩阵；帧依赖 fire 用例住 PlayMode `[UnityTest]`。
 

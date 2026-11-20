@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Input
     /// </remarks>
     [ProviderDisplay(title: "Input System（新版）", description: "Input System 包，支持玩家/UI 上下文 Map 压制与模态门控")]
     [Serializable]
-    internal sealed class UnityInputSystemHandler : InputServiceHandler
+    internal sealed class UnityInputSystemHandler : FrameworkHandler, IInputService
     {
         [Tooltip("留空使用 Edit > Project Settings > Input System Package 中的设置。")]
         [SerializeField] internal InputActionAsset m_InputActions;
@@ -56,25 +56,25 @@ namespace Moirai.Atropos.Input
         // 资产由本处理器启用（而非项目级资产自动启用）——OnShutdown/换绑时负责对称关闭
         private bool _assetEnabledByUs;
 
-        public override bool Enabled
+        public bool Enabled
         {
             get => _state.Enabled;
             set => _state.Enabled = value;
         }
 
-        public override bool LockPlayerController
+        public bool LockPlayerController
         {
             get => _state.LockPlayerController;
             set => _state.LockPlayerController = value;
         }
 
-        public override bool PreventInteractionUI
+        public bool PreventInteractionUI
         {
             get => _state.PreventInteractionUI;
             set => _state.PreventInteractionUI = value;
         }
 
-        protected internal override void SetUIModal(bool hasModal)
+        public void SetUIModal(bool hasModal)
         {
             _state.SetUIModal(hasModal);
         }
@@ -120,7 +120,7 @@ namespace Moirai.Atropos.Input
             _boundActions = null;
         }
 
-        public override bool GetButtonDown(string actionName, string actionGroup = "")
+        public bool GetButtonDown(string actionName, string actionGroup = "")
         {
             bool output = false;
             
@@ -130,7 +130,7 @@ namespace Moirai.Atropos.Input
             return output;
         }
 
-        public override bool GetButtonUp(string actionName, string actionGroup = "")
+        public bool GetButtonUp(string actionName, string actionGroup = "")
         {
             bool output = false;
             
@@ -140,7 +140,7 @@ namespace Moirai.Atropos.Input
             return output;
         }
         
-        public override bool GetBool(string actionName, string actionGroup = "")
+        public bool GetBool(string actionName, string actionGroup = "")
         {
             bool output = false;
             
@@ -150,7 +150,7 @@ namespace Moirai.Atropos.Input
             return output;
         }
 
-        public override float GetFloat(string actionName, string actionGroup = "")
+        public float GetFloat(string actionName, string actionGroup = "")
         {
             var entry = GetCachedAction(actionGroup, actionName);
             var action = entry?.Action;
@@ -169,7 +169,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public override Vector2 GetVector2(string actionName, string actionGroup = "")
+        public Vector2 GetVector2(string actionName, string actionGroup = "")
         {
             var entry = GetCachedAction(actionGroup, actionName);
             var action = entry?.Action;
@@ -187,22 +187,22 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public override bool GetMouseButtonDown(EMouseButton button)
+        public bool GetMouseButtonDown(EMouseButton button)
         {
             return GetMouseButtonControl(button)?.wasPressedThisFrame ?? false;
         }
 
-        public override bool GetMouseButtonUp(EMouseButton button)
+        public bool GetMouseButtonUp(EMouseButton button)
         {
             return GetMouseButtonControl(button)?.wasReleasedThisFrame ?? false;
         }
 
-        public override bool GetMouseButtonPressed(EMouseButton button)
+        public bool GetMouseButtonPressed(EMouseButton button)
         {
             return GetMouseButtonControl(button)?.isPressed ?? false;
         }
 
-        public override Vector2 GetMousePosition()
+        public Vector2 GetMousePosition()
         {
             // Mouse.current 在无鼠标设备（掌机/部分主机/移动端）上为 null，按降级契约返回默认值
             var mouse = Mouse.current;
@@ -210,7 +210,7 @@ namespace Moirai.Atropos.Input
         }
 
         private static readonly Vector2 s_ScalingFactor = new Vector2(0.00833f, 0.00833f); // 1/120
-        public override Vector2 GetScrollDelta()
+        public Vector2 GetScrollDelta()
         {
             var mouse = Mouse.current;
             if (mouse == null) return Vector2.zero;
@@ -239,7 +239,7 @@ namespace Moirai.Atropos.Input
             }
         }
 
-        public override void ResetAllInputStates()
+        public void ResetAllInputStates()
         {
             InputSystem.FlushDisconnectedDevices();
             foreach (var device in InputSystem.devices)

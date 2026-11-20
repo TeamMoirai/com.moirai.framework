@@ -21,7 +21,7 @@ namespace Service.Input
 
         private readonly List<GameObject> _objects = new List<GameObject>();
         private UIMobileInputHandler _handler;
-        private InputServiceHandler _savedHandler;
+        private IInputService _savedHandler;
 
         [SetUp]
         public void SetUp()

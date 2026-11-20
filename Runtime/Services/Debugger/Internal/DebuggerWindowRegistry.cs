@@ -66,22 +66,22 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         /// <param name="path">调试器窗口路径（以 '/' 分隔，如 "Profiler/Memory/Texture"）。</param>
         /// <param name="window">要注册的调试器窗口。</param>
-        /// <exception cref="GameException">路径无效或已注册同名窗口。</exception>
+        /// <exception cref="MoiraiException">路径无效或已注册同名窗口。</exception>
         public void Register(string path, IDebuggerWindow window)
         {
             if (string.IsNullOrEmpty(path) || !IsValidPath(path))
             {
-                throw new GameException("Path is invalid.");
+                throw new MoiraiException("Path is invalid.");
             }
 
             if (window == null)
             {
-                throw new GameException("Debugger window is invalid.");
+                throw new MoiraiException("Debugger window is invalid.");
             }
 
             if (_windowsByPath.ContainsKey(path) || _nodesByPath.ContainsKey(path))
             {
-                throw new GameException(StringUtility.Format("Debugger window '{0}' has been registered.", path));
+                throw new MoiraiException(StringUtility.Format("Debugger window '{0}' has been registered.", path));
             }
 
             DebuggerWindowNode parentNode = EnsureDirectoryNode(path);
@@ -245,7 +245,7 @@ namespace Moirai.Atropos.Debugger
             }
             else if (node.Window != null)
             {
-                throw new GameException(StringUtility.Format("Debugger window '{0}' has been registered, can not create debugger window group.", directoryPath));
+                throw new MoiraiException(StringUtility.Format("Debugger window '{0}' has been registered, can not create debugger window group.", directoryPath));
             }
 
             return EnsureDirectoryNodeRecursive(node, path, separator + 1);

@@ -22,15 +22,15 @@
 - **工具链与质量门：** 启用 Roslyn Analyzers；.editorconfig indent_size=4；提交前通过 ZeroAlloc 性能测试；PR 须通过编译 + Analyzer + 测试三重门。
 - **公开面收敛（强制）：** 框架非公开 API 不向外扩可见性——能 `internal` 就别 `public`，公共面每多一个类型/成员都是在引导使用方依赖不该依赖的接缝（用户 2026-10-16 口径）。外部插件（`plugin` 分支）要触达的扩展面只按需开给派生方：优先契约基类上的 `protected internal` 成员，类型则嵌进契约基类（如 `LogHandler.ELogLevel`）。实测约束：命名空间级类型不能写 `protected internal`（CS1527，只能 `public`/`internal`）→ 嵌成嵌套类型；静态类不能带 protected 成员（CS1057，`LogUtility.GetBypassUnityHandler` 这类由可派生的基类以 `LogHandler.BypassUnityHandler` 转出）；`protected internal` 是「protected **或** internal」的并集，对外部程序集等价于 `protected`（`private protected` 才是「且」，方向相反插件反而用不了）；跨程序集覆写须声明 `protected`（写 `internal override` 报 CS0507，**友元身份不豁免**）。`InternalsVisibleTo` 只留给框架自家与产品程序集（Editor/三个测试集/Clotho/Lachesis），不逐插件放行。
 插件外置时按**使用者是谁**给扩展面定档（2026-10-16 十四支后端外置实测得出的三分法）：仅供**派生后端**取用的成员写 `protected internal`，
-内核类型一律**不出现在** `public`/`protected` 签名里——要传能力就开方法级接缝（`ResourceRecordHostHandler` 上成批 `protected internal`，
-`ResourceRecordStore`/`ResourceKeyCodec`/`IResourceLeaseSource` 等内核件保持 `internal` 原样）；只在派生侧出现的**类型**嵌进契约基类
+内核类型一律**不出现在** `public`/`protected` 签名里——要传能力就开方法级接缝（`AssetRecordHostHandler` 上成批 `protected internal`，
+`AssetRecordStore`/`AssetKeyCodec`/`IAssetLeaseSource` 等内核件保持 `internal` 原样）；只在派生侧出现的**类型**嵌进契约基类
 （`LogHandler.ELogLevel` 那种）；而**非派生类也要实现**的类型（音频桥 `IAudioMiddlewareBridge`/`IAudioMiddlewareBankControl`/
 `IAudioMiddlewareRtpcControl` 与 `EAudioBankLoadResult`）既嵌不进去（插件里的桥类不是派生方，`protected internal` 对它不可见）
 也躲不开 CS0050/CS0051，按契约面定性取 `public`，并**留在命名空间级不改名**——嵌进基类会改类型全名，撞"迁移不改类型名"这条
 （按全名反射的判据与 `[SerializeReference]` 资产都认全名）。反过来，框架自用而插件不碰的面（`IAudioFadeTarget`、
 `IsBackendInert`、`VoicePoolCount` 这类）保持 `internal`：基类转 public 不等于把它基列表里的内部接口一起放出去，
 CS0061 由"嵌套一个 private 实现类 + 一枚 `internal` 窄接缝"解掉（`MiddlewareAudioHandler.FadeSink` + `Internal_PeekFadeTarget()`）。
-跨装配的能力判据用 `protected internal virtual` 让**被判定方自报**（`ResourceServiceHandler.ConsumesPackageNames`），
+跨装配的能力判据用 `protected internal virtual` 让**被判定方自报**（`AssetServiceHandler.ConsumesPackageNames`），
 Editor 侧以友元身份读，绝不在框架里 `is 具体插件类型` 或按插件宏分支——那种判定会被预处理静默裁成恒假。框架侧引用嵌套类型走 `using static Moirai.Atropos.LogHandler;`（派生类内裸名可用），不改公共签名。后端家族统一口径（2026-10-16 全包盘点结论）：**契约基类一律 `public`**——各 `XxxServiceHandler`/`SettingHandler`/`YooAssetEncryptorHandler` 等是 settings 的 Provider 下拉与外部派生后端的接缝（`Testing.md` 明说这些基类就是给所有程序集扫描派生用的；已证外部消费者 = `InputServiceHandler` 作参数类型、`ConfigTableServiceHandler` 被 `Moirai.GameProto.LubanHandler` 派生）；**实现类一律 `internal`**（含带 `[ProviderDisplay]` 的内置后端：`DefaultLogHandler`/`YooAssetHandler`/`DefaultSettingHandler`/`DefaultGameObjectPoolHandler` 等），例外是 `Internal/` 目录里**被用户程序集生成代码或用户实现反向调用**的注册器与接口（`UIWindowRegistry`/`SaveSerializerRegistry`/`ISaveSerializer` 之类），它们必须 `public`；`SourceGenerators` 的生成器/分析器类保持 `public`——实测 internal 也能被 Roslyn 加载（探针 PROBEINT001/002 命中），但入库 DLL 不可字节复现（同源码重建哈希即变），不为可见性去动发行二进制、免得源码与产物脱节。后端装配一律走 settings 的 Provider 下拉（`Handler` 属性由生成器发出、为 `internal`，只限框架与友元程序集赋值），别在文档里写"游戏侧 `XxxService.Handler = new …` 安装"。
 - **执行等级：** Mandatory（违反打回：命名前缀、0-Alloc、防装箱、AOT 兼容、测试可见性、公开面收敛）/ Prefer（性能敏感区必须，非热路径可放宽：Span/unsafe/池化/线程安全）/ Reference（逐步优化遗留）。
 
@@ -47,7 +47,7 @@ Editor 侧以友元身份读，绝不在框架里 `is 具体插件类型` 或按
 |---|---|---|---|
 | 类型 / 方法 / 属性 / 命名空间 | `PascalCase` | 一致 | 同 |
 | 接口 | `I` + `PascalCase` | 全部（`IAudioClipLeaseSource`、`IAudioMiddlewareBridge`） | 同 |
-| 枚举类型 | `PascalCase` | 主流 `E` 前缀（`EAudioTrack`、`EResourceAssetKind`）；历史无前缀（`UIType`、`TaskStatus`、`TimerPhase`） | 一律 `E` 前缀；运行期状态枚举显式 `: byte`；非运行期状态的配置档枚举（如 `EUILayer`，其整数值进特性与深度算术）保持原底层类型 |
+| 枚举类型 | `PascalCase` | 主流 `E` 前缀（`EAudioTrack`、`EAssetKind`）；历史无前缀（`UIType`、`TaskStatus`、`TimerPhase`） | 一律 `E` 前缀；运行期状态枚举显式 `: byte`；非运行期状态的配置档枚举（如 `EUILayer`，其整数值进特性与深度算术）保持原底层类型 |
 | 枚举成员 | `PascalCase` | 一致 | 同 |
 | 局部变量 / 参数 | `camelCase` | 一致 | 同 |
 | 实例字段（`private`/`protected`/`internal`，非序列化） | `_camelCase` | ~650 处 | 同 |
@@ -85,18 +85,18 @@ Editor 侧以友元身份读，绝不在框架里 `is 具体插件类型` 或按
 
 - **R1** 一支后端一个 `Handler/<后端>/`，后端私有件（桥、平台文件系统、引擎实现）住在该后端目录内部；**单支默认后端不建 `<后端>/` 子目录**（否则给 ConfigTable/Scene/Procedure/Timer/Debugger/Localization 造六个只装一个文件的空档）。
 - **R2** 域目录不作废，但只作角色档的次层：`Save/Internal/Container/`、`Localization/Support/Text/` 合法，`Save/Container/` 不合法。
-- **R3** 一个模块含两支以上服务时先按服务分档、档内再按角色切：`Pooling/ObjectPool/{四件套,Handler,Models,Objects,Internal}/`、`Pooling/GameObjectPool/{…}`，两支共享的机制件在 `Pooling/Internal/`。**R3 只在两支队伍各自成套时生效**：判据是有没有第二套 `Handler`/`Settings`/`DebuggerWindow`，不是根上有几个 `XxxService.cs`——`Resource` 根的 `ResourceBindingService` 是 `internal sealed partial class ResourceBindingService : IResourceBindingService`（经 `ResourceService.BindingService` 取用，没有独立三件套），属同一服务的第二个门面族，**不拆**。
+- **R3** 一个模块含两支以上服务时先按服务分档、档内再按角色切：`Pooling/ObjectPool/{四件套,Handler,Models,Objects,Internal}/`、`Pooling/GameObjectPool/{…}`，两支共享的机制件在 `Pooling/Internal/`。**R3 只在两支队伍各自成套时生效**：判据是有没有第二套 `Handler`/`Settings`/`DebuggerWindow`，不是根上有几个 `XxxService.cs`——`Resource` 根的 `AssetBindingService` 是 `internal sealed partial class AssetBindingService : IAssetBindingService`（经 `AssetService.BindingService` 取用，没有独立三件套），属同一服务的第二个门面族，**不拆**。
 - **R4** 归属拿不准按消费者判：项目侧继承/`new` → `Objects/`，只有模块内部走 → `Internal/`，只是数据 → `Models/`，挂在 GameObject 上 → `Support/`；接口、枚举、Attribute、委托一律算类型面 → `Models/`（无论有无实现、实现在哪个档）；判"内部还是对外"不许凭名字猜，在 `Packages/` 全域 grep 类型名，命中包外即对外。
 - **R5** 路径语义区不参与：`Resources/` 与两处 `.asmref` 射程保持原路径。
 - **R6** UI 两腿例外：`Runtime/Services/UI/Handler/{UGUI,UITK}/UIService.<轨>.cs` 是后端自包含形状（见上文 UIService 例外条），留在后端目录，不搬回模块根。
 - **R7** 一个文件只整体归一档，档位由**文件名所指的那个类型**决定，文件内共存的次要类型随之同行（不做"一个文件里两个类型拆两档"，本刀严禁改文件内容）。
 - **R8** 整目录优先：内容同档的子目录整目录搬（连它的 `.meta`），不拆散同目录文件。
 
-`Runtime/Core/` **不套这套角色词表**，按功能分组平铺 `Core/<功能>/`：`Attributes`、`Constant`、`DataStructure`、`Extensions`、`GameException`、`Events`、`GameApp`、`GameProfiler`、`FrameworkSettings`、`Graphics`、`MemoryPool`、`Obfuz`、`SettingPersistence`、`Singleton`、`Tasks` + `Utilities/`（横切工具，一个关注点一个子目录）。`Foundation/`、`Infrastructure/` 两个层级壳与 `Utilities/GameSetting/` 已解除；Core 没有 `Internal/` 这一档。层级名消失后依赖方向只剩一条机械判据：`Tests/EditorMode/Policy/CoreDependencyRatchetTests.cs`——扫 `Runtime/Core/**` 对服务类型的整词取用、豁免 `Kernel/**` 容器与同名类型、基线钉 3 站点只准降不准升（键用 `文件名|类型名`，与路径无关）。
+`Runtime/Kernel/` 与 `Runtime/Foundation/` **都不套这套角色词表**，按功能分组平铺。内核底座 `Kernel/<功能>/`：`Events`（事件总线）、`GameApp`（含 `PlayerLoop/`）、`MemoryPool`、`GameException`、`FrameworkSettings`、`GameSettings`、`Singleton`、`Tasks`、`GameProfiler`；基础支撑 `Foundation/<功能>/`：`Attributes`、`Constant`、`DataStructure`、`Extensions`、`Obfuz` + `Utilities/`（横切工具，一个关注点一个子目录）。`Infrastructure/` 层级壳与 `Utilities/GameSetting/` 已解除；两者都没有 `Internal/` 这一档。依赖方向约束「内核与基础件不取用容器之外的服务层类型」原由机械判据 `Tests/EditorMode/Policy/CoreDependencyRatchetTests.cs` 钉住（2026-11-18 已随 Policy 目录移除），现回归约定与评审把关。
 
-`Editor/` 四域——`Tools/`（单点工具窗与构建工具）、`Foundation/`（编辑器侧基础件）、`Services/`（运行时服务的编辑器配套）、`Utilities/`；其中 `Editor/Services/<Module>/` 用编辑器侧的**五档封闭集合** + 模块根平铺配套件：`Drawers/`（属性绘制与自定义检视器）、`Windows/`（工具窗）、`BuildPipeline/`（构建期：转表、bake、BuildValidator、快照导出）、`Generator/`（产码，其配套件在 `Generator/Support/`）、`Support/`（编辑器侧桥与预览失效器等）。纯资产**不参与角色档**：单件的留在模块根（`Input/template-input-actions.txt`），成套的自成一目（`Input/Gizmos/`，`.psd` 与 `README.md` 同居）——多件平铺在模块根比自成一目更糟，所以这里不硬套「留模块根」。五档之外、模块根上的目次只有两处：`Input/Gizmos/` 与 `Resource/YooAsset/`（后者是 `.asmref` 射程的禁碰区，不是资产堆）。
+`Editor/` 五域——`Tools/`（单点工具窗与构建工具）、`Kernel/`（运行时内核底座的编辑器配套：`Events`/`GameSettings`/`Tasks`，镜像 `Runtime/Kernel/`）、`Foundation/`（编辑器侧基础件：`Attributes`/`Tween`/`Inspector`/`MenuEditorWindow`/`Models`，镜像 `Runtime/Foundation/`）、`Services/`（运行时服务的编辑器配套）、`Utilities/`；其中 `Editor/Services/<Module>/` 用编辑器侧的**五档封闭集合** + 模块根平铺配套件：`Drawers/`（属性绘制与自定义检视器）、`Windows/`（工具窗）、`BuildPipeline/`（构建期：转表、bake、BuildValidator、快照导出）、`Generator/`（产码，其配套件在 `Generator/Support/`）、`Support/`（编辑器侧桥与预览失效器等）。纯资产**不参与角色档**：单件的留在模块根（`Input/template-input-actions.txt`），成套的自成一目（`Input/Gizmos/`，`.psd` 与 `README.md` 同居）——多件平铺在模块根比自成一目更糟，所以这里不硬套「留模块根」。五档之外、模块根上的目次只有两处：`Input/Gizmos/` 与 `Resource/YooAsset/`（后者是 `.asmref` 射程的禁碰区，不是资产堆）。
 
-禁碰区（搬了就换装配或断引用）：`Editor/Services/Resource/YooAsset/Internal/**`（`YooAsset.Editor.asmref` 射程）、四处 `Resources/`（`Runtime/Services/{Debugger,UI}/Resources/`、`Editor/Foundation/{Attributes,Events}/Resources/`）、`Tests/**`（两份 Policy 门禁的白名单按 Tests 相对路径为键）、`Samples~`/`Templates~`/`Plugins`/`SourceGenerators`。新增文件先按上面归位再提交，不制造新一轮粒度割裂。
+禁碰区（搬了就换装配或断引用）：`Editor/Services/Resource/YooAsset/Internal/**`（`YooAsset.Editor.asmref` 射程）、四处 `Resources/`（`Runtime/Services/{Debugger,UI}/Resources/`、`Editor/Foundation/Attributes/Resources/`、`Editor/TestFixtures/Resources/`）、`Tests/**`、`Samples~`/`Templates~`/`Plugins`/`SourceGenerators`。新增文件先按上面归位再提交，不制造新一轮粒度割裂。
 - **partial 拆文件**：`Xxx.<职责>.cs`，职责名是首字母大写的单个英文名词（`.Core`/`.Slots`/`.Maintenance`/`.Bindings`/`.Async`/`.IO`）；拆文件不破坏"一文件一顶层类型"。
 - **通用后缀**：静态工具 `XxxUtility`（单数）、扩展方法 `XxxExtensions`、账本 `XxxRegistry`、缓存 `XxxCache`、调度 `XxxScheduler`/`XxxStateMachine`、调试器面板 `XxxServiceDebuggerWindow`。
 - **键名常量**：Mixer 参数与设置键按 `<域>_<对象>_<属性>` 全大写（`AUDIO_MASTER_VOLUME`、`GRAPHICS_FULLSCREEN_MODE`）；存档 schema 字段是 `PascalCase` + `Key` 后缀（`LocalPositionKey`、`SpawnsKey`）。两套并存是历史，改到哪个文件就跟哪个，不新造第三种。

@@ -58,11 +58,11 @@
       },
       "add-event.md|Service": {
         "class": "A",
-        "reason": "第 4 节示例 `public class SomeService : Service` 的基类名在本包查无声明。清它靠的是把示例改成本包真名：服务基类 `ServiceBase`（`Runtime/Services/Kernel/Objects/ServiceBase.cs`）。该节自述只用于包外的纯 C# 场景，所以先登记不顺手改正文。"
+        "reason": "第 4 节示例 `public class SomeService : Service` 的基类名在本包查无声明。清它靠的是把示例改成本包真名：服务基类 `ServiceBase`（`Runtime/Kernel/Objects/ServiceBase.cs`）。该节自述只用于包外的纯 C# 场景，所以先登记不顺手改正文。"
       },
       "migrate.md|Service": {
         "class": "A",
-        "reason": "服务系统迁移一节的新代码 `[Service] public class NewService : Service` 里，特性名与基类名都在本包查无声明。清它靠的是改用真名 `ServiceBase` 与 `[AutoRegisterService]`（`Runtime/Services/Kernel/Objects/ServiceBase.cs`、`Runtime/Services/Kernel/Models/AutoRegisterServiceAttribute.cs`）。"
+        "reason": "服务系统迁移一节的新代码 `[Service] public class NewService : Service` 里，特性名与基类名都在本包查无声明。清它靠的是改用真名 `ServiceBase` 与 `[AutoRegisterService]`（`Runtime/Kernel/Objects/ServiceBase.cs`、`Runtime/Kernel/Models/AutoRegisterServiceAttribute.cs`）。"
       },
       "migrate.md|EventSystem": {
         "class": "A",
@@ -84,7 +84,7 @@
       },
       "new-service.md|Handler": {
         "class": "C",
-        "reason": "活的框架成员，不是死 API：`Handler` 属性由 `SourceGenerators/Source~/ProviderHandlerHost/ProviderHandlerHostGenerator.cs` 给标了 `[ProviderHandlerHost(typeof(THandler))]` 的 partial class 发射，消费点如 `LogUtility.Handler`（`Runtime/Core/Utilities/GameLog/UnityLogInterceptor.cs:45`）与 `GameTime.Handler`（`Runtime/Services/Audio/Internal/AudioClipCache.cs:171`）。命令里「`Handler` 属性由源生成器生成，不要手写」是对的。骨架行 `_ = Handler;` 已由抽取按赋值右值成员形态收掉（量具在本文件复算出的成员命中集含 `Handler`），要点行 `` `Handler` 属性 `` 是裸写成员名的散文用法，仍在候选集里，故按 C 档分节登记。本条不进债务清零名单——清它等于把写对的文档改错。"
+        "reason": "活的框架成员，不是死 API：`Handler` 属性由 `SourceGenerators/Source~/ProviderHandlerHost/ProviderHandlerHostGenerator.cs` 给标了 `[ProviderHandlerHost(typeof(THandler))]` 的 partial class 发射，消费点如 `LogUtility.Handler`（`Runtime/Foundation/Utilities/GameLog/UnityLogInterceptor.cs:45`）与 `GameTime.Handler`（`Runtime/Services/Audio/Internal/AudioClipCache.cs:171`）。命令里「`Handler` 属性由源生成器生成，不要手写」是对的。骨架行 `_ = Handler;` 已由抽取按赋值右值成员形态收掉（量具在本文件复算出的成员命中集含 `Handler`），要点行 `` `Handler` 属性 `` 是裸写成员名的散文用法，仍在候选集里，故按 C 档分节登记。本条不进债务清零名单——清它等于把写对的文档改错。"
       }
     },
     "example_placeholder": {

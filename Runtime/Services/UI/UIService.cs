@@ -5,7 +5,7 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Input;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.Atropos.Timer;
 using UnityEngine;
 
@@ -23,7 +23,7 @@ namespace Moirai.Atropos.UI
     /// 关停按自报档位升序逐轨收口，uGUI 最后收。线程契约：仅主线程；不声明 <c>[ProviderHandlerHost]</c>，<see cref="IsValid"/> 与归零门手写在本文件。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(TimerService), typeof(InputService))]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(ITimerService), typeof(IInputService))]
     public sealed partial class UIService : ServiceBase, IServiceTickable
     {
         #region 处理器持有 [HANDLER HOSTING]
@@ -251,13 +251,13 @@ namespace Moirai.Atropos.UI
         /// 本层抬错档：清单为 <c>null</c> 或空、清单里有 <c>null</c> 项；同一轨被注入两次由那一轨自己的认领门抬错。<br />
         /// 抬错前可能已注册好前几项的驱动者——门面不补半程关停，已就位的由 <see cref="OnShutdown"/> 或归位门收。
         /// </remarks>
-        /// <exception cref="GameException">没有任何后端被启用、清单里有 <c>null</c> 项，或同一轨被注入两次。</exception>
+        /// <exception cref="MoiraiException">没有任何后端被启用、清单里有 <c>null</c> 项，或同一轨被注入两次。</exception>
         private static void Internal_EnableHandlersFromSettings()
         {
             var enabled = UIServiceSettings.EnabledHandlers;
             if (enabled == null || enabled.Length == 0)
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "No UI backend is enabled: {0} must list at least one handler to register at init.",
                     nameof(UIServiceSettings)));
             }
@@ -267,7 +267,7 @@ namespace Moirai.Atropos.UI
                 var entry = enabled[i];
                 if (entry == null)
                 {
-                    throw new GameException(StringUtility.Format(
+                    throw new MoiraiException(StringUtility.Format(
                         "UI backend entry #{0} is null: {1} must list handlers, not empty slots.",
                         i, nameof(UIServiceSettings)));
                 }
@@ -550,7 +550,7 @@ namespace Moirai.Atropos.UI
             var track = RequireOwningTrack(type);
             if (!track.IsDriverValid)
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "UI backend track '{0}' has no driver in place: list it in {1} and let OnInit register it.",
                     track.TrackName, nameof(UIServiceSettings)));
             }
@@ -569,12 +569,12 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <param name="windowType">窗口类型；<c>null</c> 与认不出轨的类型同样当场抬错。</param>
         /// <returns>拥有这一窗口类的那一轨。</returns>
-        /// <exception cref="GameException">窗口类为空，或不落任何已登记轨的窗口基类。</exception>
+        /// <exception cref="MoiraiException">窗口类为空，或不落任何已登记轨的窗口基类。</exception>
         private static UITrack RequireOwningTrack(Type windowType)
         {
             if (windowType == null)
             {
-                throw new GameException("UI window type is null: an open request must name a window class.");
+                throw new MoiraiException("UI window type is null: an open request must name a window class.");
             }
 
             var tracks = s_Tracks;
@@ -590,7 +590,7 @@ namespace Moirai.Atropos.UI
                 }
             }
 
-            throw new GameException(StringUtility.Format(
+            throw new MoiraiException(StringUtility.Format(
                 "UI window '{0}' pairs with no registered UI track: a window class must derive from one of the registered track window bases ({1}).",
                 windowType.FullName, RenderTrackWindowBaseNames(tracks)));
         }

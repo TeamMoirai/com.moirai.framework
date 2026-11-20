@@ -18,7 +18,7 @@ namespace Service.UI
     /// 判据一律打在窗基类自己的钩子与 <see cref="UGUIWindow.PanelCanvas"/> 取口上。 <br />
     /// 三处与旧实现的口径差（<c>Visible</c> 读意图而非 layer、异层面板隐藏成空操作、SHOW 层面板首次转可见多发一次回执） <br />
     /// 以 <c>CurrentBehaviour_…</c> 命名<b>登记现状，不是背书</b>。 <br />
-    /// 夹具不依赖场景、预制体与 <c>ResourceService</c>：面板由用例自备的 <see cref="GameObject"/> 经 <c>LoadPanel</c> 钩子注入。
+    /// 夹具不依赖场景、预制体与 <c>AssetService</c>：面板由用例自备的 <see cref="GameObject"/> 经 <c>LoadPanel</c> 钩子注入。
     /// </remarks>
     [TestFixture]
     public sealed class UGUIWindowTests
@@ -123,7 +123,7 @@ namespace Service.UI
             Assert.IsNull(window.gameObject, "失败后仍应保持未绑定");
         }
 
-        /// <summary>面板上没有 Canvas：抛 <see cref="Moirai.Atropos.GameException"/>（不静默退化成无排序面板）。</summary>
+        /// <summary>面板上没有 Canvas：抛 <see cref="Moirai.Atropos.MoiraiException"/>（不静默退化成无排序面板）。</summary>
         [Test]
         public void BindPanel_MissingCanvas_ThrowsWithWindowId()
         {
@@ -131,7 +131,7 @@ namespace Service.UI
             var window = Unbound();
             window.Init("BattleWindow", 1, false, "NoCanvasPanel", false, 10);
 
-            var error = Assert.Throws<Moirai.Atropos.GameException>(() => window.BindPanel(panel));
+            var error = Assert.Throws<Moirai.Atropos.MoiraiException>(() => window.BindPanel(panel));
 
             StringAssert.Contains("BattleWindow", error.Message,
                 "缺 Canvas 的文案要带上窗口标识：拿到半个可用面板不如当场指认");

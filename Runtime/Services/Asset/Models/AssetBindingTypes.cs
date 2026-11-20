@@ -1,0 +1,270 @@
+using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace Moirai.Atropos.Asset
+{
+    /// <summary>
+    /// 资源绑定结果状态。
+    /// </summary>
+    public enum EAssetBindStatus : byte
+    {
+        /// <summary>成功。</summary>
+        Success = 0,
+
+        /// <summary>无效键。</summary>
+        InvalidKey = 1,
+
+        /// <summary>缺少所有者。</summary>
+        MissingOwner = 2,
+
+        /// <summary>缺少目标。</summary>
+        MissingTarget = 3,
+
+        /// <summary>所有者已过期。</summary>
+        StaleOwner = 4,
+
+        /// <summary>请求已被调用方取消；与"加载失败"分道，避免上层按后端故障重试或告警。</summary>
+        Cancelled = 5,
+
+        /// <summary>加载失败。</summary>
+        LoadFailed = 6,
+
+        /// <summary>应用失败。</summary>
+        ApplyFailed = 7,
+
+        /// <summary>服务已关闭。</summary>
+        ServiceShutdown = 8,
+    }
+
+    /// <summary>
+    /// 资源绑定选项。
+    /// </summary>
+    [Flags]
+    public enum EAssetBindingOption : byte
+    {
+        /// <summary>无。</summary>
+        None = 0,
+
+        /// <summary>释放时保持存活。</summary>
+        KeepAliveOnRelease = 1,
+
+        /// <summary>设置原始尺寸。</summary>
+        SetNativeSize = 2,
+    }
+
+    /// <summary>
+    /// 资源绑定槽位类型。
+    /// </summary>
+    public enum EAssetBindingSlotType : byte
+    {
+        /// <summary>无。</summary>
+        None = 0,
+
+        /// <summary>Image 精灵。</summary>
+        ImageSprite = 1,
+
+        /// <summary>Image 材质。</summary>
+        ImageMaterial = 2,
+
+        /// <summary>SpriteRenderer 精灵。</summary>
+        SpriteRendererSprite = 3,
+
+        /// <summary>Renderer 共享材质。</summary>
+        RendererSharedMaterial = 4,
+
+        /// <summary>Renderer 材质实例。</summary>
+        RendererMaterialInstance = 5,
+
+        /// <summary>预制体源。</summary>
+        PrefabSource = 6,
+
+        /// <summary>子精灵。</summary>
+        SubSprite = 7,
+    }
+
+    /// <summary>
+    /// 资源绑定服务接口。
+    /// </summary>
+    public interface IAssetBindingService
+    {
+        /// <summary>
+        /// 注册所有者。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus RegisterOwner(AssetOwner owner);
+
+        /// <summary>
+        /// 释放所有者。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus ReleaseOwner(AssetOwner owner);
+
+        /// <summary>
+        /// 释放所有者。
+        /// </summary>
+        /// <param name="ownerId">所有者 ID。</param>
+        /// <param name="generation">代际标记。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus ReleaseOwner(int ownerId, uint generation);
+
+        /// <summary>
+        /// 预热绑定记录容量。
+        /// </summary>
+        /// <param name="ownerCapacity">所有者容量。</param>
+        /// <param name="bindingCapacity">绑定容量。</param>
+        void Warmup(int ownerCapacity, int bindingCapacity);
+
+        /// <summary>
+        /// 绑定精灵到 Image。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="image">目标 Image。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus BindSprite(AssetOwner owner, Image image, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None);
+
+        /// <summary>
+        /// 只读缓存绑定 Image 精灵；未加载则 LoadFailed，不触发后端加载。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="image">目标 Image。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus TryBindSpriteCached(AssetOwner owner, Image image, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None);
+
+        /// <summary>
+        /// 绑定精灵到 SpriteRenderer。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="spriteRenderer">目标 SpriteRenderer。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus BindSprite(AssetOwner owner, SpriteRenderer spriteRenderer, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None);
+
+        /// <summary>
+        /// 异步绑定子精灵到 Image。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="image">目标 Image。</param>
+        /// <param name="atlasKey">图集资源标识键。</param>
+        /// <param name="spriteName">精灵名称。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>绑定结果状态。</returns>
+        UniTask<EAssetBindStatus> BindSubSpriteAsync(AssetOwner owner, Image image, AssetKey atlasKey,
+            string spriteName, EAssetBindingOption options = EAssetBindingOption.None,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 异步绑定子精灵到 SpriteRenderer。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="spriteRenderer">目标 SpriteRenderer。</param>
+        /// <param name="atlasKey">图集资源标识键。</param>
+        /// <param name="spriteName">精灵名称。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>绑定结果状态。</returns>
+        UniTask<EAssetBindStatus> BindSubSpriteAsync(AssetOwner owner, SpriteRenderer spriteRenderer,
+            AssetKey atlasKey, string spriteName, EAssetBindingOption options = EAssetBindingOption.None,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 绑定材质到 Image。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="image">目标 Image。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus BindImageMaterial(AssetOwner owner, Image image, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None);
+
+        /// <summary>
+        /// 异步绑定材质到 Image。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="image">目标 Image。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>绑定结果状态。</returns>
+        UniTask<EAssetBindStatus> BindImageMaterialAsync(AssetOwner owner, Image image, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 绑定共享材质到 Renderer。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="renderer">目标 Renderer。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus BindSharedMaterial(AssetOwner owner, Renderer renderer, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None);
+
+        /// <summary>
+        /// 异步绑定共享材质到 Renderer。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="renderer">目标 Renderer。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>绑定结果状态。</returns>
+        UniTask<EAssetBindStatus> BindSharedMaterialAsync(AssetOwner owner, Renderer renderer, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 绑定材质实例到 Renderer。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="renderer">目标 Renderer。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <returns>绑定结果状态。</returns>
+        EAssetBindStatus BindMaterialInstance(AssetOwner owner, Renderer renderer, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None);
+
+        /// <summary>
+        /// 异步绑定材质实例到 Renderer。
+        /// </summary>
+        /// <param name="owner">资源所有者。</param>
+        /// <param name="renderer">目标 Renderer。</param>
+        /// <param name="key">资源标识键。</param>
+        /// <param name="options">绑定选项。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>绑定结果状态。</returns>
+        UniTask<EAssetBindStatus> BindMaterialInstanceAsync(AssetOwner owner, Renderer renderer, AssetKey key,
+            EAssetBindingOption options = EAssetBindingOption.None, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// 批量获取所有者信息。
+        /// </summary>
+        /// <param name="results">结果数组。</param>
+        /// <param name="startIndex">起始的槽位索引，负数按 0 处理。</param>
+        /// <param name="maxCount">最多写入数量，会钳制到 results.Length。</param>
+        /// <returns>所有者槽位总数（分页协议：调用方可据此翻页，实际写入数为 min(maxCount, results.Length, total - startIndex)）。</returns>
+        int GetOwnerInfos(AssetOwnerInfo[] results, int startIndex, int maxCount);
+
+        /// <summary>
+        /// 批量获取绑定信息。
+        /// </summary>
+        /// <param name="results">结果数组。</param>
+        /// <param name="startIndex">起始的槽位索引，负数按 0 处理。</param>
+        /// <param name="maxCount">最多写入数量，会钳制到 results.Length。</param>
+        /// <returns>绑定槽位总数（分页协议：调用方可据此翻页，实际写入数为 min(maxCount, results.Length, total - startIndex)）。</returns>
+        int GetBindingInfos(AssetBindingInfo[] results, int startIndex, int maxCount);
+    }
+}

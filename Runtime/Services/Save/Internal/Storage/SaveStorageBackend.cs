@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Save
         public abstract SaveError TryReadAllBytes(string filePath, out byte[] bytes);
 
         /// <summary>
-        /// 原子写入：完整文件字节经临时文件 + 落盘刷新 + 原子替换提交（失败抛 <see cref="GameException"/>，不留半文件窗口）。
+        /// 原子写入：完整文件字节经临时文件 + 落盘刷新 + 原子替换提交（失败抛 <see cref="MoiraiException"/>，不留半文件窗口）。
         /// </summary>
         /// <param name="filePath">目标文件完整路径（目录由实现确保存在）。</param>
         /// <param name="bytes">完整文件字节（含文件头）。</param>
@@ -132,13 +132,13 @@ namespace Moirai.Atropos.Save
         public abstract SaveFileInfo[] EnumerateFiles(string directoryPath, string extension);
 
         /// <summary>
-        /// 创建单档备份（覆盖旧备份；源不存在抛 <see cref="GameException"/>）。
+        /// 创建单档备份（覆盖旧备份；源不存在抛 <see cref="MoiraiException"/>）。
         /// </summary>
         /// <param name="filePath">源文件完整路径。</param>
         public abstract void CreateBackup(string filePath);
 
         /// <summary>
-        /// 从单档备份恢复（备份经临时文件原子替换回源路径；备份不存在抛 <see cref="GameException"/>）。
+        /// 从单档备份恢复（备份经临时文件原子替换回源路径；备份不存在抛 <see cref="MoiraiException"/>）。
         /// </summary>
         /// <param name="filePath">目标文件完整路径。</param>
         public abstract void RestoreBackup(string filePath);
@@ -196,7 +196,7 @@ namespace Moirai.Atropos.Save
         /// <param name="filePath">目标文件完整路径。</param>
         /// <param name="bytes">完整文件字节。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>写入完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        /// <returns>写入完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
         public virtual UniTask WriteAtomicAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default)
         {
             return UniTask.RunOnThreadPool(() => WriteAtomic(filePath, bytes, cancellationToken), configureAwait: false, cancellationToken: cancellationToken);
@@ -241,7 +241,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="filePath">源文件完整路径。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>备份完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        /// <returns>备份完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
         public virtual UniTask CreateBackupAsync(string filePath, CancellationToken cancellationToken = default)
         {
             return UniTask.RunOnThreadPool(() => CreateBackup(filePath), configureAwait: false, cancellationToken: cancellationToken);
@@ -252,7 +252,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="filePath">目标文件完整路径。</param>
         /// <param name="cancellationToken">取消令牌。</param>
-        /// <returns>恢复完成的异步任务；失败抛出 <see cref="GameException"/>。</returns>
+        /// <returns>恢复完成的异步任务；失败抛出 <see cref="MoiraiException"/>。</returns>
         public virtual UniTask RestoreBackupAsync(string filePath, CancellationToken cancellationToken = default)
         {
             return UniTask.RunOnThreadPool(() => RestoreBackup(filePath), configureAwait: false, cancellationToken: cancellationToken);

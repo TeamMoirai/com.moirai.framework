@@ -230,7 +230,7 @@ namespace Moirai.Atropos.UI
         {
             if (!payload.IsEmpty)
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "UI 窗口 '{0}'（{1}）不带载荷槽，却被塞了非空载荷：带参窗口必须继承 UGUIWindow<TArg> / UITKWindow<TArg>。",
                     WindowId, GetType().FullName));
             }

@@ -9,7 +9,7 @@ using Inp = Moirai.Atropos.Input;
 using Loc = Moirai.Atropos.Localization;
 using OPo = Moirai.Atropos.ObjectPool;
 using Proc = Moirai.Atropos.Procedure;
-using Res = Moirai.Atropos.Resource;
+using Res = Moirai.Atropos.Asset;
 using Sav = Moirai.Atropos.Save;
 using Scn = Moirai.Atropos.Scene;
 using Tim = Moirai.Atropos.Timer;
@@ -68,7 +68,7 @@ namespace Service.Kernel
             Assert.AreEqual(0, Sav.SaveService.GetSaveFiles("any").Length, "降级时应返回空数组");
             Assert.AreEqual(Sav.SaveError.HandlerNotReady, Sav.SaveService.TryLoad<object>("any").Error,
                 "同步判别加载降级时应返回 HandlerNotReady 失败结果");
-            Assert.Throws<GameException>(() => Sav.SaveService.Save("any", "any"), "写路径 fail-fast：处理器未就绪应抛 GameException");
+            Assert.Throws<MoiraiException>(() => Sav.SaveService.Save("any", "any"), "写路径 fail-fast：处理器未就绪应抛 MoiraiException");
             Assert.IsNull(Sav.SaveService.Load<object>("any"), "同步加载降级时应返回 default");
         }
 
@@ -94,14 +94,6 @@ namespace Service.Kernel
         }
 
         [Test]
-        public void ObjectPool_FacadeDegradesGracefully()
-        {
-            Assert.IsFalse(OPo.ObjectPoolService.IsValid);
-            Assert.AreEqual(0, OPo.ObjectPoolService.Count);
-            Assert.DoesNotThrow(() => OPo.ObjectPoolService.ReleaseAllUnused());
-        }
-
-        [Test]
         public void GameObjectPool_FacadeDegradesGracefully()
         {
             Assert.IsFalse(OPo.GameObjectPoolService.IsValid);
@@ -122,8 +114,8 @@ namespace Service.Kernel
         [Test]
         public void Resource_FacadeDegradesGracefully()
         {
-            Assert.IsFalse(Res.ResourceService.IsValid);
-            Assert.DoesNotThrow(() => Res.ResourceService.OnLowMemory());
+            Assert.IsFalse(Res.AssetService.IsValid);
+            Assert.DoesNotThrow(() => Res.AssetService.OnLowMemory());
         }
 
         [Test]
@@ -162,13 +154,12 @@ namespace Service.Kernel
 
         #region ② ServiceDependency 声明完整性静态分析 [DEPENDENCY STATIC ANALYSIS]
 
-        /// <summary>框架全部 App 服务实现类型（组合根 13 项——静态分析目标集）。</summary>
+        /// <summary>框架全部 App 服务实现类型（组合根 12 项——静态分析目标集）。</summary>
         private static readonly Type[] FrameworkServices =
         {
             typeof(Dbg.DebuggerService),
-            typeof(Res.ResourceService),
+            typeof(Res.AssetService),
             typeof(Tim.TimerService),
-            typeof(OPo.ObjectPoolService),
             typeof(OPo.GameObjectPoolService),
             typeof(Loc.LocalizationService),
             typeof(UIm.UIService),
@@ -190,8 +181,8 @@ namespace Service.Kernel
                 {
                     foreach (Type dep in attr.DependencyTypes)
                     {
-                        Assert.IsTrue(typeof(IService).IsAssignableFrom(dep),
-                            $"{serviceType.Name} 声明的依赖 {dep.Name} 必须实现 IService");
+                        Assert.IsTrue(typeof(IService).IsAssignableFrom(dep) || dep.IsInterface,
+                            $"{serviceType.Name} 声明的依赖 {dep.Name} 必须实现 IService 或是 [ProviderHandlerHost] 自报的契约接口（Phase 2 注入互调）");
                     }
                 }
             }
@@ -248,17 +239,17 @@ namespace Service.Kernel
             var mustDeclare = new Dictionary<Type, bool>
             {
                 [typeof(Aud.AudioService)] = true,
-                [typeof(Res.ResourceService)] = true,
+                [typeof(Res.AssetService)] = true,
                 [typeof(Tim.TimerService)] = true,
                 [typeof(Loc.LocalizationService)] = true,
                 [typeof(Proc.ProcedureService)] = true,
-                // 显式豁免：ConfigTable（无轮询状态）、Input/Save/Scene/ObjectPool×2（无调试面板）
+                // 显式豁免：ConfigTable（无轮询状态）、Input/Save/Scene/GameObjectPool（无调试面板）
             };
 
             foreach (var pair in mustDeclare)
             {
-                Assert.IsTrue(DeclaresDependency(pair.Key, typeof(Dbg.DebuggerService)),
-                    $"{pair.Key.Name} OnInit 注册调试面板，必须声明 [ServiceDependency(typeof(DebuggerService))]");
+                Assert.IsTrue(DeclaresDependency(pair.Key, typeof(Dbg.IDebuggerService)),
+                    $"{pair.Key.Name} OnInit 注册调试面板，必须声明 [ServiceDependency(typeof(IDebuggerService))]");
             }
         }
 
@@ -297,6 +288,45 @@ namespace Service.Kernel
             // 重复关闭幂等——对已关闭作用域再关闭不得抛异常
             Assert.DoesNotThrow(() => GameServices.ShutdownContainer(EServiceScopeKind.App));
             Assert.DoesNotThrow(() => service.OnShutdown());
+        }
+
+        #endregion
+
+        #region ④ 契约绑定 [CONTRACT BINDING]
+
+        /// <summary>
+        /// <c>[ProviderHandlerHost]</c> 自报的契约接口必须由服务门面自身实现（boot 已消费的契约全量断言）。
+        /// </summary>
+        /// <remarks>
+        /// 容器把服务实例绑定在自报契约接口下（Phase 2 注入互调）；服务不实现契约时，解析在 <c>as T</c> 处坍缩为 null， <br />
+        /// <c>GetRequiredService</c> 报 "not found in any active scope" 中断 boot——PlayMode 全 UI 失败的根因。
+        /// </remarks>
+        [Test]
+        public void ProviderHandlerHost_SelfReportedContract_IsImplementedByService()
+        {
+            Assert.IsTrue(typeof(Dbg.IDebuggerService).IsAssignableFrom(typeof(Dbg.DebuggerService)),
+                "DebuggerService 必须实现自报契约 IDebuggerService，否则容器契约绑定解析失败");
+            Assert.IsTrue(typeof(Tim.ITimerService).IsAssignableFrom(typeof(Tim.TimerService)),
+                "TimerService 必须实现自报契约 ITimerService，否则容器契约绑定解析失败");
+        }
+
+        [Test]
+        public void ContractBinding_ResolutionReturnsServiceInstance()
+        {
+            // 隔离世界复现组合根的两步注册（具体类入图 + 契约附加绑定），解析必须命中同一服务实例
+            var world = new ServiceWorld();
+
+            var debugger = world.Register(EServiceScopeKind.App, new Dbg.DebuggerService());
+            world.Register(EServiceScopeKind.App, typeof(Dbg.IDebuggerService), debugger);
+            Assert.IsTrue(world.TryGetService<Dbg.IDebuggerService>(out var resolvedDebugger),
+                "IDebuggerService 契约解析必须命中（未实现契约时 as T 坍缩为 null）");
+            Assert.AreSame(debugger, resolvedDebugger);
+
+            var timer = world.Register(EServiceScopeKind.App, new Tim.TimerService());
+            world.Register(EServiceScopeKind.App, typeof(Tim.ITimerService), timer);
+            Assert.IsTrue(world.TryGetService<Tim.ITimerService>(out var resolvedTimer),
+                "ITimerService 契约解析必须命中（未实现契约时 as T 坍缩为 null）");
+            Assert.AreSame(timer, resolvedTimer);
         }
 
         #endregion

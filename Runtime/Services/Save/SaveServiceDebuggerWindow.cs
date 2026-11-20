@@ -47,7 +47,7 @@ namespace Moirai.Atropos.Save
             }
 
             VisualElement pipelineCard = AddSection(root, "PIPELINE");
-            SaveServiceHandler handler = SaveServiceSettings.SaveServiceHandler;
+            var handler = SaveServiceSettings.SaveServiceHandler as SaveServiceHandler;
             AddRow(pipelineCard, "Handler", handler != null ? handler.GetType().Name : "null");
             AddRow(pipelineCard, "Storage", handler != null ? handler.StorageBackend.GetType().Name : "null");
             AddRow(pipelineCard, "Compression", handler != null && handler.CompressionProvider != null ? handler.CompressionProvider.GetType().Name : "None");

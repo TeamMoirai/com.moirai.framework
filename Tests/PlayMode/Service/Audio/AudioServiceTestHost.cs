@@ -12,7 +12,7 @@ namespace Service.Audio
     /// </remarks>
     internal sealed class AudioServiceTestHost : IDisposable
     {
-        private readonly AudioServiceHandler _previousHandler;
+        private readonly IAudioService _previousHandler;
         private bool _disposed;
 
         public UnityAudioHandler Handler { get; }

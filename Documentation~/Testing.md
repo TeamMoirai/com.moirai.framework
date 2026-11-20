@@ -55,17 +55,23 @@
 Tests/
 ├── EditorMode/                  # L1
 │   ├── Moirai.Atropos.Tests.EditorMode.asmdef
-│   ├── Core/                    # 对应 Runtime/Core/<模块>
+│   ├── Kernel/                  # 对应 Runtime/Kernel/<模块>
+│   │   ├── FrameworkSettings/
+│   │   ├── GameApp/
+│   │   ├── GameSettings/
 │   │   ├── MemoryPool/
 │   │   ├── Singleton/
-│   │   ├── Events/
-│   │   └── GameApp/
-│   ├── DataStructure/           # 对应 Runtime/Core/DataStructure（纯数据结构用例）
+│   │   └── Tasks/
+│   ├── Foundation/              # 对应 Runtime/Foundation/<模块>
+│   │   ├── DataStructure/       # 纯数据结构用例
+│   │   └── Utility/             # 对应 Runtime/Foundation/Utilities
 │   ├── Service/                 # 对应 Runtime/Services/<模块>
 │   │   ├── Audio/  Save/  Resource/  UI/  ...
 │   │   └── Kernel/
-│   └── Utility/                 # 对应 Runtime/Core/Utilities
+│   └── Editor/                  # 编辑器侧配套（Editor/Kernel、Editor/Foundation 等）
 ├── PlayMode/                    # L2
+│   ├── Kernel/
+│   │   └── Tasks/
 │   └── Service/<模块>/
 └── Player/                      # L3
     ├── PlayerTestBootstrap.cs   # 关掉 GameApp.AutoBoot（基础设施）
@@ -74,7 +80,7 @@ Tests/
 
 规则：
 
-- **测试树镜像到模块档为止**：`Runtime/Services/<模块>/…` 的用例落 `Tests/EditorMode/Service/<模块>/`，`Runtime/Core/<功能组>/…` 落 `Tests/EditorMode/Core/<功能组>/`。生产侧的角色档目录名（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）**不在测试树里复刻**——目录归位那一轮没有搬动 `Tests/**`，两侧同形只到模块/功能档，按生产侧档名去测试树找目录会找不到。
+- **测试树镜像到模块档为止**：`Runtime/Services/<模块>/…` 的用例落 `Tests/EditorMode/Service/<模块>/`；`Runtime/Kernel/<功能组>/…` 落 `Tests/EditorMode/Kernel/<功能组>/`、`Runtime/Foundation/<功能组>/…` 落 `Tests/EditorMode/Foundation/<功能组>/`（测试树目录与命名空间已随生产侧同步改名，如 `Core.MemoryPool` → `Kernel.MemoryPool`、`Utility` → `Foundation.Utility`）。生产侧的角色档目录名（`Handler/`、`Models/`、`Objects/`、`Internal/`、`Support/`）**不在测试树里复刻**——两侧同形只到模块/功能档，按生产侧档名去测试树找目录会找不到。
 - 基础设施（夹具、Bootstrap、共享支撑）与被测模块无关的，放测试根目录或就近的模块目录。
 - 一个被测类型可以有多个用例文件（按行为簇拆分），但**一个文件只放一个公开测试类**（与"一文件一顶层类"一致）；夹具基座与测试专用类型是例外，见《夹具与隔离》。
 
@@ -89,7 +95,7 @@ Tests/
 | 用例方法 | `场景_条件_期望` 三段式 | `RetainRelease_CycleAllocatesZeroBytes`、`PauseGame_NestedSources_OnlyLastResumeRestoresSpeed` |
 | 命名空间 | **短名**，与被测模块对齐，不带 `Moirai` 根 | `Service.Audio`、`Core.MemoryPool`、`Utility` |
 
-> 命名空间用短名是**有意为之**（`CheckNamespace` 规则已降级为 SUGGESTION 正是为此）。测试程序集自身声明了 `Resource`/`ObjectPool`/`Utility` 等全局命名空间，与被测子命名空间撞名；且 `UnityEngine` 的 `Audio`/`UI`/`Input` 类会遮蔽框架子命名空间。**在测试文件里引用框架子命名空间类型必须用 `using` 别名**（`using Res = Moirai.Atropos.Resource;`），禁止裸限定名（`Resource.Xxx` 会解析成全局命名空间或 `UnityEngine` 类型而报 CS0246/CS0426）。
+> 命名空间用短名是**有意为之**（`CheckNamespace` 规则已降级为 SUGGESTION 正是为此）。测试程序集自身声明了 `Resource`/`ObjectPool`/`Utility` 等全局命名空间，与被测子命名空间撞名；且 `UnityEngine` 的 `Audio`/`UI`/`Input` 类会遮蔽框架子命名空间。**在测试文件里引用框架子命名空间类型必须用 `using` 别名**（`using Res = Moirai.Atropos.Asset;`），禁止裸限定名（`Resource.Xxx` 会解析成全局命名空间或 `UnityEngine` 类型而报 CS0246/CS0426）。
 
 ### 测试专用类型的三条禁令
 
@@ -207,7 +213,7 @@ public abstract class XxxFixture
   - `ErrorWithException(fragment)`：带异常对象的 Error 重载——级别随处理器自述（`ErrorWithExceptionUsesExceptionChannel`），内置 `DefaultLogHandler` 恒为 Error 通道；`plugin` 分支的 `zlogger` 插件自述为 true，该后端的条目带异常即转 Exception 通道；
   - `ScopedIgnore()`：`ignoreFailingMessages` 的 using 形态窗口（构造快照、Dispose 还原），供**错误集不可枚举的故障注入夹具**使用。取舍：窗口内所有未处理日志（含真缺陷的）都不判红，相当于放弃「意外错误也要红」这层信号——只在夹具确实不需要该信号时选用；错误集可枚举的用例逐条声明。它是唯一允许触碰该全局开关的入口。
   - 该处理器已随 `unity-logging` 插件离开框架装配，`UtfLogExpect` 里不再有按它类型判定的分支，测试程序集的 `com.unity.logging` → `UNITY_LOGGING_INSTALLED` 那条 `versionDefines` 也随之摘掉——别为它再加回来。插件在场时它对 UTF 恒不可见，这条差异由插件自带的用例负责。
-- **被测走 `Debug.Log*` 直发、不经 LogUtility 的场景，`LogAssert` 是唯一正确通道**——该链路对 UTF 恒可见，声明预期不涉及处理器判定，用 `UtfLogExpect` 反而会在 UnityLoggingHandler 下漏声明而假红（范例：`DebuggerLogCaptureTests` 测的就是 Unity 控制台捕获器）。这类文件登记进 `TestLogChannelPolicyGuardTests.LogAssertAllowlist` 并写明归类；除此之外的直用一律按上一条走 `UtfLogExpect`。
+- **被测走 `Debug.Log*` 直发、不经 LogUtility 的场景，`LogAssert` 是唯一正确通道**——该链路对 UTF 恒可见，声明预期不涉及处理器判定，用 `UtfLogExpect` 反而会在 UnityLoggingHandler 下漏声明而假红（范例：`DebuggerLogCaptureTests` 测的就是 Unity 控制台捕获器）。除此之外的直用一律按上一条走 `UtfLogExpect`。
 
 ## 0-GC 验收（L3）
 
@@ -395,13 +401,9 @@ unity command test status --project-path "E:/Workspace/Unity/Game Dev Tools/Clie
 
 ## 可执行政策守卫与治理原则（2026-09-27）
 
-规范若只写在文档里，下一次"顺手一下"没人拦得住——以下政策已钉成可执行守卫（编辑器套件自动跑）：
+规范若只写在文档里，下一次"顺手一下"没人拦得住——2026-09-27 曾把以下政策钉成可执行守卫（编辑器套件自动跑）：非公开反射白名单双向断言（`ReflectionPolicyGuardTests`，未登记不得出现、已登记必须仍命中）、测试日志通道与 LogAssert 通道守卫（`TestLogChannelPolicyGuardTests`，测试日志发射统一 `Debug.Log*`、禁 `LogUtility.Verbose/…/Assert(` 直用、`LogAssert.*` 一律经 `UtfLogExpect`）、设置键名拼装位置守卫（`SettingsPolicyLocationGuardTests`，键名只允许在对应模块的政策文件里拼装）。
 
-- `ReflectionPolicyGuardTests`：非公开反射白名单双向断言（未登记不得出现、已登记必须仍命中）。
-- `TestLogChannelPolicyGuardTests`：测试日志输出发射统一 `Debug.Log*`，禁止 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(`——白名单两类：被测本体（LogUtilityTests）、替身复刻生产发射（Save fake loader）；断言通道（`onMessageLogged` 捕获、`UtfLogExpect` 消噪）不受限。守卫按原文扫描，注释里写「LogUtility.Error(」字面也会命中——措辞用「LogUtility 的 Error」规避。 <br />
-  同一守卫还钉住 **LogAssert 通道**：用例侧禁止直用 `LogAssert.Expect` / `LogAssert.ignoreFailingMessages` / `LogAssert.NoUnexpectedReceived`（一律经 `UtfLogExpect`，`ignoreFailingMessages` 只经 `ScopedIgnore()`）——白名单为两份 `UtfLogExpect` 支撑副本与「被测走 `Debug.Log` 直发」的场景（DebuggerLogCaptureTests），双向断言防名单腐烂。
-
-- `SettingsPolicyLocationGuardTests`：设置键名只允许在对应模块的政策文件里拼装（按**键名空间**判，抓得住不叫 `*Handler.cs` 的第二份拼装），且 `*Handler.cs` 内不得出现 `SettingUtility.`。第三格是量具自检：政策文件取不到、或里面已不含该键名就判红，否则前两条的"零命中"没有含义；匹配前剥行注释，说明文字不算拼装站点。
+**2026-11-18 起 `Tests/EditorMode/Policy/` 目录整体移除，三份守卫随之撤下**；上列政策回归约定与评审把关，后续若重新钉回按本节历史口径落位。
 
 **反膨胀原则**（存量不追改、增量强制）：
 

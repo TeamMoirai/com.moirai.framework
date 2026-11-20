@@ -100,9 +100,9 @@ namespace Service.Procedure
         [Test]
         public void Initialize_EmptyOrNullOrDuplicate_Throws()
         {
-            Assert.Throws<GameException>(() => _handler.Initialize());
-            Assert.Throws<GameException>(() => _handler.Initialize(null));
-            Assert.Throws<GameException>(() => _handler.Initialize(_a, _a));
+            Assert.Throws<MoiraiException>(() => _handler.Initialize());
+            Assert.Throws<MoiraiException>(() => _handler.Initialize(null));
+            Assert.Throws<MoiraiException>(() => _handler.Initialize(_a, _a));
         }
 
         [Test]
@@ -111,7 +111,7 @@ namespace Service.Procedure
             _handler.Initialize(_a, _b);
             _handler.StartProcedure(typeof(ProbeA));
 
-            Assert.Throws<GameException>(() => _handler.Initialize(_a, _b));
+            Assert.Throws<MoiraiException>(() => _handler.Initialize(_a, _b));
             Assert.AreSame(_a, _handler.CurrentProcedure);
         }
 
@@ -135,7 +135,7 @@ namespace Service.Procedure
             _handler.Initialize(_a, _b);
             _handler.StartProcedure(typeof(ProbeA));
 
-            Assert.Throws<GameException>(() => _handler.StartProcedure(typeof(ProbeB)));
+            Assert.Throws<MoiraiException>(() => _handler.StartProcedure(typeof(ProbeB)));
             Assert.AreSame(_a, _handler.CurrentProcedure);
         }
 
@@ -187,9 +187,9 @@ namespace Service.Procedure
             _handler.Initialize(_a, _b);
             _handler.StartProcedure(typeof(ProbeA));
 
-            Assert.Throws<GameException>(() => _handler.ChangeState(typeof(ProbeC)));
-            Assert.Throws<GameException>(() => _handler.ChangeState(null));
-            Assert.Throws<GameException>(() => _handler.ChangeState(typeof(string)));
+            Assert.Throws<MoiraiException>(() => _handler.ChangeState(typeof(ProbeC)));
+            Assert.Throws<MoiraiException>(() => _handler.ChangeState(null));
+            Assert.Throws<MoiraiException>(() => _handler.ChangeState(typeof(string)));
         }
 
         [Test]
@@ -199,7 +199,7 @@ namespace Service.Procedure
             _b.OnEnterHook = () => _handler.ChangeState(typeof(ProbeA));
             _handler.Initialize(_a, _b);
 
-            Assert.Throws<GameException>(() => _handler.StartProcedure(typeof(ProbeA)));
+            Assert.Throws<MoiraiException>(() => _handler.StartProcedure(typeof(ProbeA)));
         }
 
         [Test]
@@ -225,7 +225,7 @@ namespace Service.Procedure
         [Test]
         public void ForceChangeState_WithoutOwner_Throws()
         {
-            Assert.Throws<GameException>(() => _a.ForceChangeState<ProbeB>());
+            Assert.Throws<MoiraiException>(() => _a.ForceChangeState<ProbeB>());
         }
 
         #endregion
@@ -243,7 +243,7 @@ namespace Service.Procedure
             Assert.AreEqual(new[] { "Init", "Enter", "Leave:Shutdown", "Destroy" }, _a.Log);
             Assert.AreEqual(new[] { "Init", "Destroy" }, _b.Log);
             Assert.IsEmpty(_handler.Procedures);
-            Assert.Throws<GameException>(() => _ = _handler.CurrentProcedure);
+            Assert.Throws<MoiraiException>(() => _ = _handler.CurrentProcedure);
 
             // 关停记录保留供事后诊断，重新 Initialize 时才清空
             var history = _handler.TransitionHistory;
@@ -274,7 +274,7 @@ namespace Service.Procedure
         [Test]
         public void RestartProcedure_EmptyProcedures_Throws()
         {
-            Assert.Throws<GameException>(() => _handler.RestartProcedure());
+            Assert.Throws<MoiraiException>(() => _handler.RestartProcedure());
         }
 
         #endregion
@@ -285,10 +285,10 @@ namespace Service.Procedure
         public void Queries_BeforeInitialize_Throws()
         {
             Assert.IsFalse(_handler.IsStateReady);
-            Assert.Throws<GameException>(() => _ = _handler.CurrentProcedure);
-            Assert.Throws<GameException>(() => _ = _handler.CurrentProcedureTime);
-            Assert.Throws<GameException>(() => _handler.HasProcedure(typeof(ProbeA)));
-            Assert.Throws<GameException>(() => _handler.GetProcedure(typeof(ProbeA)));
+            Assert.Throws<MoiraiException>(() => _ = _handler.CurrentProcedure);
+            Assert.Throws<MoiraiException>(() => _ = _handler.CurrentProcedureTime);
+            Assert.Throws<MoiraiException>(() => _handler.HasProcedure(typeof(ProbeA)));
+            Assert.Throws<MoiraiException>(() => _handler.GetProcedure(typeof(ProbeA)));
         }
 
         [Test]
@@ -493,8 +493,8 @@ namespace Service.Procedure
             reentrant = _ =>
             {
                 ProcedureService.onProcedureChanged -= reentrant;
-                Assert.Throws<GameException>(() => _handler.ChangeState(typeof(ProbeB)));
-                Assert.Throws<GameException>(() => _handler.StartProcedure(typeof(ProbeB)));
+                Assert.Throws<MoiraiException>(() => _handler.ChangeState(typeof(ProbeB)));
+                Assert.Throws<MoiraiException>(() => _handler.StartProcedure(typeof(ProbeB)));
             };
             ProcedureService.onProcedureChanged += reentrant;
 
@@ -536,7 +536,7 @@ namespace Service.Procedure
                 ProcedureService.Handler = handler;
                 ProcedureService.Initialize(a, b);
 
-                // 回调内同步 ChangeState 抛 GameException，被隔离后转 Error 日志 ×1
+                // 回调内同步 ChangeState 抛 MoiraiException，被隔离后转 Error 日志 ×1
                 ExpectErrorLogForUtf();
 
                 Assert.DoesNotThrow(() => ProcedureService.StartProcedure(typeof(ProbeA)));

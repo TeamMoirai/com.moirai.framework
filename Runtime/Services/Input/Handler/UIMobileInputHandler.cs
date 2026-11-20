@@ -15,7 +15,7 @@ namespace Moirai.Atropos.Input
     /// </remarks>
     [ProviderDisplay(title: "UI 虚拟输入", description: "场景 InputButton/InputAxes 组件自注册，适合移动端虚拟按键")]
     [Serializable]
-    internal sealed class UIMobileInputHandler : InputServiceHandler
+    internal sealed class UIMobileInputHandler : FrameworkHandler, IInputService
     {
         // 状态组合语义（Enabled/Lock/PreventUI/UIModal）——组合持有，压制态自动清零虚拟按键
         private readonly InputStateMachine _state = new InputStateMachine();
@@ -28,25 +28,25 @@ namespace Moirai.Atropos.Input
         private readonly Dictionary<InputActionKey, int> _unresolvedButtons = new Dictionary<InputActionKey, int>();
         private readonly Dictionary<InputActionKey, int> _unresolvedAxes = new Dictionary<InputActionKey, int>();
 
-        public override bool Enabled
+        public bool Enabled
         {
             get => _state.Enabled;
             set => _state.Enabled = value;
         }
 
-        public override bool LockPlayerController
+        public bool LockPlayerController
         {
             get => _state.LockPlayerController;
             set => _state.LockPlayerController = value;
         }
 
-        public override bool PreventInteractionUI
+        public bool PreventInteractionUI
         {
             get => _state.PreventInteractionUI;
             set => _state.PreventInteractionUI = value;
         }
 
-        protected internal override void SetUIModal(bool hasModal)
+        public void SetUIModal(bool hasModal)
         {
             _state.SetUIModal(hasModal);
         }
@@ -65,60 +65,60 @@ namespace Moirai.Atropos.Input
             _unresolvedAxes.Clear();
         }
 
-        public override bool GetButtonDown(string actionName, string actionGroup= "")
+        public bool GetButtonDown(string actionName, string actionGroup= "")
         {
             return _state.Enabled && TryResolveButton(actionName, actionGroup, out InputButton button) && button.WasPressedThisFrame;
         }
 
-        public override bool GetButtonUp(string actionName, string actionGroup= "")
+        public bool GetButtonUp(string actionName, string actionGroup= "")
         {
             return _state.Enabled && TryResolveButton(actionName, actionGroup, out InputButton button) && button.WasReleasedThisFrame;
         }
 
-        public override bool GetBool(string actionName, string actionGroup = "")
+        public bool GetBool(string actionName, string actionGroup = "")
         {
             return _state.Enabled && TryResolveButton(actionName, actionGroup, out InputButton inputButton) && inputButton.BoolValue;
         }
 
         // IUIFloatAction 尚无对应虚拟组件（节流杆/力度按钮未实现），按降级契约返回默认值
-        public override float GetFloat(string actionName, string actionGroup = "")
+        public float GetFloat(string actionName, string actionGroup = "")
         {
             return 0f;
         }
 
-        public override Vector2 GetVector2(string actionName, string actionGroup = "")
+        public Vector2 GetVector2(string actionName, string actionGroup = "")
         {
             return _state.Enabled && TryResolveAxes(actionName, actionGroup, out InputAxes axes)
                 ? axes.Vector2Value
                 : Vector2.zero;
         }
 
-        public override bool GetMouseButtonDown(EMouseButton button)
+        public bool GetMouseButtonDown(EMouseButton button)
         {
             return false;
         }
 
-        public override bool GetMouseButtonUp(EMouseButton button)
+        public bool GetMouseButtonUp(EMouseButton button)
         {
             return false;
         }
 
-        public override bool GetMouseButtonPressed(EMouseButton button)
+        public bool GetMouseButtonPressed(EMouseButton button)
         {
             return false;
         }
 
-        public override Vector2 GetMousePosition()
+        public Vector2 GetMousePosition()
         {
             return Vector2.zero;
         }
 
-        public override Vector2 GetScrollDelta()
+        public Vector2 GetScrollDelta()
         {
             return Vector2.zero;
         }
 
-        public override void ResetAllInputStates()
+        public void ResetAllInputStates()
         {
             foreach (var inputButton in UIMobileInputRegistry.Buttons)
             {

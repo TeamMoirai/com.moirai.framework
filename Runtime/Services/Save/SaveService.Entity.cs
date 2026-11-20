@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Save
     /// <see cref="InstantiatePersistentAsync"/> 登记， <br />
     /// 销毁经 <see cref="DestroyPersistent"/> 标记；<see cref="SaveEntitiesAsync"/> 写入实体表与差分块， <br />
     /// <see cref="RestoreEntitiesAsync"/> 按档案状态整体重建实体（DestroyUnwanted → SpawnMissing → RestoreAll）。
-    /// 预制体须在 <see cref="SaveServiceSettings.PrefabRegistry"/> 登记（稳定键 → ResourceService 定位串）； <br />
+    /// 预制体须在 <see cref="SaveServiceSettings.PrefabRegistry"/> 登记（稳定键 → AssetService 定位串）； <br />
     /// 实体数据块与预制体模板基准差分后仅写变动字段（恢复 = 实例化模板默认值 + 应用差分）。 <br />
     /// 实体块（<c>entity:</c> 前缀）由本分部独占管理，组件存取 API（<c>SaveComponentsAsync</c>/<c>LoadComponentsAsync</c>）跳过。
     /// </remarks>
@@ -100,7 +100,7 @@ namespace Moirai.Atropos.Save
         /// 将实体表与全部活跃实体的差分块异步写入存档文件（主线程捕获，IO 在工作线程）。
         /// </summary>
         /// <remarks>
-        /// 流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 增量判定 → 单趟合并写回；失败抛 <see cref="GameException"/>，处理器未就绪时同样抛出（不静默丢档）。 <br />
+        /// 流程：预热模板基准（异步加载，避免捕获期卡顿）→ 逐实体差分捕获 → 增量判定 → 单趟合并写回；失败抛 <see cref="MoiraiException"/>，处理器未就绪时同样抛出（不静默丢档）。 <br />
         /// CarryForward 语义：保存仅 upsert 活跃实体，未访问场景与生成失败实体的块原样滞留。 <br />
         /// 增量语义：会话级脏跟踪 + 档写入时间守卫——实体表、差分载荷与档均未变化时零 IO 跳过（无事件）； <br />
         /// 有变化时经 <see cref="SaveServiceHandler.MergeRawBlocksAsync"/> 单趟合并（读档 → 迁移 → 删陈旧 → upsert → 写回）， <br />
@@ -112,7 +112,7 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务。</returns>
         public static async UniTask SaveEntitiesAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
-            SaveServiceHandler handler = RequireHandler();
+            var handler = (SaveServiceHandler)RequireHandler();
             await SaveEntityPersistence.WarmBaselinesAsync(cancellationToken);
             List<SaveBlockEntry> entries = SaveEntityPersistence.CaptureEntityEntries(fileName, folderName);
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
@@ -142,7 +142,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <remarks>
         /// 管线：DestroyUnwanted（会话实体整体替换 + 销毁表预置对象）→ SpawnMissing（原 ID 恢复 + 场景落位）→ 父子接线（第二轮）→ RestoreAll（差分块未激活写回， <br />
-        /// Awake 即见恢复后状态）→ 激活并逐个触发 <see cref="onEntityRestored"/>；生成失败的实体保留档案记录（原块滞留，不因本次保存丢失）。 <br />
+        /// Awake 即见恢复后状态）→ 激活并逐个触发 <see cref="SaveEntityRestoredEvent"/>；生成失败的实体保留档案记录（原块滞留，不因本次保存丢失）。 <br />
         /// 场景预置对象的字段恢复由 <c>LoadComponentsAsync</c> 承担——完整世界恢复 = <see cref="RestoreEntitiesAsync"/> + <c>LoadComponentsAsync</c>； <br />
         /// 处理器未就绪时静默降级为空任务。
         /// </remarks>
@@ -158,7 +158,7 @@ namespace Moirai.Atropos.Save
             }
 
             SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
-            Dictionary<string, byte[]> blocks = await s_Handler.ReadRawBlocksAsync(paths, cancellationToken);
+            Dictionary<string, byte[]> blocks = await ((SaveServiceHandler)s_Handler).ReadRawBlocksAsync(paths, cancellationToken);
 
             // 读档续体经 RunOnThreadPool(configureAwait:false) 完成——可能停留在线程池；
             // 恢复管线全程 Unity API（生成/销毁/变换写回/事件内联派发），须先切回主线程

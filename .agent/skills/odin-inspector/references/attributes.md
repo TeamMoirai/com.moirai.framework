@@ -13,7 +13,7 @@
 | `TitleGroup("标题", "副标题")` | 带标题组 | 配置面板 |
 | `HorizontalGroup` / `VerticalGroup` | 行/列布局 | 值行内并排控件 |
 | `ButtonGroup("组名")` | 按钮横排 | 多操作按钮 |
-| ⭐ `InspectorGroup` | 项目自定义分组 | `Runtime/Core/Attributes/OdinExtends/InspectorGroupAttribute.cs` |
+| ⭐ `InspectorGroup` | 项目自定义分组 | `Runtime/Foundation/Attributes/OdinExtends/InspectorGroupAttribute.cs` |
 
 ## 显示与标签
 
@@ -22,7 +22,7 @@
 | `LabelText("...")` | 标签文本 | 支持 `$表达式` / `@表达式`；被 `FrameworkSettingsWindow` 字段搜索识别 |
 | `Tooltip("...")` | 悬停提示 | 与 Unity 原生同参，Settings 字段全用 |
 | `InfoBox("...", InfoMessageType.Warning)` | 字段上方信息框 | |
-| ⭐ `InfoBoxBelow` | 项目自定义：信息框置于字段下方 | `Runtime/Core/Attributes/OdinExtends/` |
+| ⭐ `InfoBoxBelow` | 项目自定义：信息框置于字段下方 | `Runtime/Foundation/Attributes/OdinExtends/` |
 | ⭐ `HelpInfo("标题", "内容")` | 项目自定义帮助块 | |
 | `HideLabel` | 隐藏标签 | 列表项/预览字段 |
 | `InlineProperty` | 内联展开子字段 | 窄宽度结构体 |

@@ -10,9 +10,9 @@ namespace Moirai.Atropos.Procedure
     {
         [Tooltip("可拔插替换的流程状态机后端")]
         [ProviderDropdown]
-        [SerializeReference] private ProcedureServiceHandler m_ProcedureServiceHandler = ProcedureService.CreateDefaultHandler();
+        [SerializeReference] private IProcedureService m_ProcedureServiceHandler = ProcedureService.CreateDefaultHandler();
         /// <summary>当前流程处理器实例。</summary>
-        public static ProcedureServiceHandler ProcedureServiceHandler => Instance.m_ProcedureServiceHandler;
+        public static IProcedureService ProcedureServiceHandler => Instance.m_ProcedureServiceHandler;
 
         [HideInInspector]
         [SerializeField] private string[] m_AvailableProcedureTypeNames = null;

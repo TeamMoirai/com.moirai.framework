@@ -17,7 +17,7 @@ Runtime/Services/Audio/
 │                              # FMOD / Wwise 两支 SDK 后端不住这里——由 plugin 分支的 fmod、wwise 插件各自发行
 ├── Internal/                    # 模块私有机制
 │   ├── AudioHandleRegistry.cs / AudioClipCache.cs / AudioFadeScheduler.cs / AudioAgentHostPool.cs
-│   ├── AudioMainThread.cs / AudioFault.cs / AudioWarnOnce.cs / AudioBlockingLoadGate.cs / ResourceClipLeaseSource.cs
+│   ├── AudioMainThread.cs / AudioFault.cs / AudioWarnOnce.cs / AudioBlockingLoadGate.cs / AssetClipLeaseSource.cs
 │   └── Mix/                   # AudioMixStateMachine（混音快照状态机）/ AudioVoiceDucking（Voice 驱动的自动 Ducking）
 ├── Models/                      # 数据面与类型面：AudioPlayRequest / ColdParams(+Pool) / Options(+SO) / AssetData /
 │                                # GroupConfig / AudioCategory（音轨）/ AudioClipCacheEntry / AudioClipLease / EventMapping /
@@ -30,7 +30,7 @@ Runtime/Services/Audio/
 
 ## 架构（ProviderHandlerHost + 策略）
 
-- **`AudioService`**：静态外观，依赖 `TimerService`、`DebuggerService`、`ResourceService`（`OnInit` 排一帧后加载音频设置）
+- **`AudioService`**：静态外观，依赖 `TimerService`、`DebuggerService`、`AssetService`（`OnInit` 排一帧后加载音频设置）
 - **`AudioServiceHandler`**：后端抽象契约（含 `StopByID`、16B 热请求 `Play`、`OnAgentPlaybackEnded` 虚回调）。Master/音轨总线过渡由本契约**直接实现**（持 `AudioFadeScheduler`，落到 `IAudioFadeTarget.ApplyFade`），后端只需实现"音量写到哪儿"
 - **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**：Unity 与中间件后端共享的句柄注册与过渡调度（总线 Fade 用高位段伪句柄）
 - **`UnityAudioHandler`**：框架内置默认 Unity `AudioSource`/`AudioMixer` 后端
@@ -267,4 +267,4 @@ AudioService.ResetMixSnapshot(0.25f);
 - `Play(clip, in AudioPlayRequest, cold)`：`cold` 传 null 时零堆对象，且**不写 AudioSource 空间整形**——声源与 Agent 一对一，宿主池复位只覆盖音量/循环/静音与遮挡滤镜，故声像/衰减曲线/多普勒保持该声源此前的值。每次都要带整形（或淡入/延迟/起播点/截取时长）请走 `AudioPlayOptions` 门面，由框架按次取还池实例；`cold` 非 null 即所有权转移，调用方不得再使用或自行归还，也不可在上一次播放结束前重复投递同一实例
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [Resource](Resource.md) · [UI](UI.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [Asset](Asset.md) · [UI](UI.md)

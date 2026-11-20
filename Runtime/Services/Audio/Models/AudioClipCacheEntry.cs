@@ -1,6 +1,6 @@
 using System;
 using System.Threading;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 
 namespace Moirai.Atropos.Audio

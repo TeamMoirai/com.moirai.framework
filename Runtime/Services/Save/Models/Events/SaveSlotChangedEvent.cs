@@ -1,46 +1,51 @@
-using Moirai.Atropos.Events;
-
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 槽位变动的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.onSlotChanged"/> 二选一订阅）。
+    /// 存档槽位变动事件。
     /// </summary>
-    public class SaveSlotChangedEvent : EventBase<SaveSlotChangedEvent>
+    public readonly struct SaveSlotChangedEvent : IGameEvent
     {
-        /// <summary>事件参数。</summary>
-        public SaveSlotChangedArgs Args { get; private set; }
-
         /// <summary>
-        /// 重置事件成员（池化复用前由 <see cref="EventBase"/> 回调）。
+        /// 存档槽位变动类别（<see cref="SaveSlotChangedEvent.Kind"/>）。
         /// </summary>
-        protected override void Init()
+        public enum ESaveSlotChangeKind
         {
-            base.Init();
-            Args = default;
+            /// <summary>槽位已写入（创建或更新的合并语义——读-改-写管线不区分两者）。</summary>
+            Saved = 0,
+
+            /// <summary>槽位已删除（<see cref="SaveSlotChangedEvent.FileName"/> 为 <c>null</c> 时表示目录级批量删除）。</summary>
+            Deleted,
+
+            /// <summary>槽位已重命名（预留——重命名 API 后续版本提供）。</summary>
+            Renamed,
+
+            /// <summary>槽位单档备份已创建（<c>.bak</c>）。</summary>
+            BackupCreated,
+
+            /// <summary>槽位已从单档备份恢复。</summary>
+            BackupRestored,
         }
+        
+        /// <summary>变动类别。</summary>
+        public readonly ESaveSlotChangeKind Kind;
+
+        /// <summary>存档文件名（目录级批量删除为 <c>null</c>）。</summary>
+        public string FileName { get; }
+
+        /// <summary>存档文件夹名称。</summary>
+        public string FolderName { get; }
 
         /// <summary>
-        /// 从事件池获取实例并装载参数。
+        /// 创建槽位变动事件。
         /// </summary>
-        /// <param name="args">事件参数。</param>
-        /// <returns>池化事件实例（用后 Dispose 归还）。</returns>
-        public static SaveSlotChangedEvent GetPooled(SaveSlotChangedArgs args)
+        /// <param name="kind">变动类别。</param>
+        /// <param name="fileName">存档文件名。</param>
+        /// <param name="folderName">存档文件夹名称。</param>
+        public SaveSlotChangedEvent(ESaveSlotChangeKind kind, string fileName, string folderName)
         {
-            SaveSlotChangedEvent evt = GetPooled();
-            evt.Args = args;
-            return evt;
-        }
-
-        /// <summary>
-        /// 获取池化事件并广播（订阅侧亦可改用静态事件 <see cref="SaveService.onSlotChanged"/>）。
-        /// </summary>
-        /// <param name="args">事件参数。</param>
-        public static void Trigger(SaveSlotChangedArgs args)
-        {
-            using (SaveSlotChangedEvent evt = GetPooled(args))
-            {
-                EventManager.SendEvent(evt);
-            }
+            Kind = kind;
+            FileName = fileName;
+            FolderName = folderName;
         }
     }
 }

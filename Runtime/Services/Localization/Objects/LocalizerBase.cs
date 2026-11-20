@@ -1,5 +1,5 @@
 using System;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 
@@ -109,7 +109,7 @@ namespace Moirai.Atropos.Localization
 		/// </remarks>
 		/// <param name="id">词条 ID（其译文即资源定位地址 location）。</param>
 		/// <param name="policy">注入器给出的类型判据；为 <c>null</c> 时不查资产，只报 location。</param>
-		internal static string DescribeResourceIdPreview(string id, IInjectorAssetPreview policy = null)
+		internal static string DescribeAssetIdPreview(string id, IInjectorAssetPreview policy = null)
 		{
 			if (string.IsNullOrEmpty(id)) return null;
 
@@ -121,7 +121,7 @@ namespace Moirai.Atropos.Localization
 			if (policy == null) return tag + "（资源模式：注入器按该 location 取资源）";
 			if (Application.isPlaying) return tag + "（运行期按租约加载）";
 
-			ResourceService.TryLoadAsset(location, out UObject asset);
+			AssetService.TryLoadAsset(location, out UObject asset);
 			if (asset == null) return tag + " ✗ location 指向的资产取不到";
 
 			var described = $"{tag} → {asset.GetType().Name} '{asset.name}'";
@@ -135,10 +135,10 @@ namespace Moirai.Atropos.Localization
 		/// </summary>
 		/// <remarks>判据从注入器取而不是本地器自己判类型：<see cref="Prepare"/> 依据目标组件挑注入器，
 		/// 同一份本地化器换组件就换类型，本地器侧写不出不漂移的第二份对照表。</remarks>
-		protected string DescribeResourcePreview(string id)
+		protected string DescribeAssetPreview(string id)
 		{
 			EnsurePreparedForPreview();
-			return DescribeResourceIdPreview(id, _injector as IInjectorAssetPreview);
+			return DescribeAssetIdPreview(id, _injector as IInjectorAssetPreview);
 		}
 
 		/// <summary>

@@ -7,7 +7,7 @@
 1. Fork / 拉取仓库，从 `master` 切出功能分支。
 2. 模块文档只有中文一份，落在 `Documentation~/<模块>.md`；公共 API 变更同步对应那一篇（口径见 `.agent/skills/moirai-conventions/references/release.md`）。
 3. 变更记入 [CHANGELOG.md](CHANGELOG.md) 的 `[Unreleased]` 段——格式遵循 Keep a Changelog，只记尚未发行的净结果，具体排版规则见该文件头部说明。
-4. 提交信息格式为 `类型(范围): 摘要`，如 `feat(save): ...`、`fix(json): ...`、`docs(ui): ...`、`refactor(resource): ...`。
+4. 提交信息两段式：subject 一行 `type(scope): 中文摘要` 说清净结果，正文至多 3 行细则（为什么改 / 边界与不变式 / 未验证事项与收口指针）。类型沿用 Conventional Commits（feat/fix/refactor/chore/docs/test/perf）；细则与发版口径见 `.agent/skills/moirai-conventions/references/release.md`。
 5. 提交前跑测试（见 [Testing 文档](Documentation~/Testing.md)），确认既有用例不红。
 6. 搬目录/改文件名的提交另过两把仓内工具（都在 `Documentation~/Tools/`，各脚本头部写明自己的量程与检不出的形状）：
    `pure-move-gate.sh` 逐笔证「内容一个字节没动」，**只准审一笔提交**（跨区间它会 `RESULT: REFUSED`）；
@@ -49,11 +49,11 @@ config.m_MaxChannelCeiling = 4096;
 
 | 常量 | 文件 | 范围 |
 |------|------|------|
-| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Core/GameApp/PlayerLoop/PlayerLoopDriver.cs` | 帧订阅 Handler / 核心钩子旁路 |
-| `ServiceScope.RETHROW_TICK_EXCEPTIONS` | `Runtime/Services/Kernel/Internal/ServiceScope.cs` | 服务 Tick / 拦截器（否决通道 `OnServiceRegistering` 除外：抛出即拒绝注册，不被隔离） |
-| `EventDispatcher.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Core/Events/Models/EventDispatcher.cs` | 事件回调、`ProcessEvent`、协调器排空 |
-| `TaskRunner.RETHROW_TASK_EXCEPTIONS` | `Runtime/Core/Tasks/Components/TaskRunner.cs` | 任务/序列系统回调 |
-| `MemoryPoolRegistry.RETHROW_POOL_EXCEPTIONS` | `Runtime/Core/MemoryPool/MemoryPoolRegistry.cs` | 池回调 |
+| `PlayerLoopDriver.RETHROW_SUBSCRIBER_EXCEPTIONS` | `Runtime/Kernel/GameApp/PlayerLoop/PlayerLoopDriver.cs` | 帧订阅 Handler / 核心钩子旁路 |
+| `ServiceScope.RETHROW_TICK_EXCEPTIONS` | `Runtime/Kernel/Internal/ServiceScope.cs` | 服务 Tick / 拦截器（否决通道 `OnServiceRegistering` 除外：抛出即拒绝注册，不被隔离） |
+| `EventDispatchPolicy.RETHROW_DISPATCH_EXCEPTIONS` | `Runtime/Kernel/Events/EventDispatchPolicy.cs` | 事件回调、逐回调异常隔离 |
+| `TaskRunner.RETHROW_TASK_EXCEPTIONS` | `Runtime/Kernel/Tasks/Components/TaskRunner.cs` | 任务/序列系统回调 |
+| `MemoryPoolRegistry.RETHROW_POOL_EXCEPTIONS` | `Runtime/Kernel/MemoryPool/MemoryPoolRegistry.cs` | 池回调 |
 
 **与分级无关的硬性卫生（`finally` 无条件执行）：**
 

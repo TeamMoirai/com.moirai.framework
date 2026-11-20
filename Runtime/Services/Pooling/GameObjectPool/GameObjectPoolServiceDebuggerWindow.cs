@@ -62,7 +62,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <inheritdoc />
         protected override void BuildWindow(VisualElement root)
         {
-            _showInstances = SettingUtility.GetBool(POOL_SHOW_INSTANCES, true);
+            _showInstances = GameSettings.GetBool(POOL_SHOW_INSTANCES, true);
 
             if (!GameObjectPoolService.IsValid)
             {
@@ -156,7 +156,7 @@ namespace Moirai.Atropos.ObjectPool
             toolbar.Add(DebuggerUI.CreateFilterChip("Instances", _showInstances, DebuggerUI.EChipStyle.Accent, value =>
             {
                 _showInstances = value;
-                SettingUtility.SetBool(POOL_SHOW_INSTANCES, value);
+                GameSettings.SetBool(POOL_SHOW_INSTANCES, value);
                 RefreshInstanceRows();
             }));
 

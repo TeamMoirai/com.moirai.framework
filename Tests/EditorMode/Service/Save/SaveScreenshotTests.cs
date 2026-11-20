@@ -31,7 +31,7 @@ namespace Service.Save
         private PlainSaveHandler _handler;
         private string _rootPath;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
-        private List<SaveScreenshotArgs> _screenshotEvents;
+        private List<SaveScreenshotEvent> _screenshotEvents;
 
         [SetUp]
         public void SetUp()
@@ -44,14 +44,14 @@ namespace Service.Save
             _capturedLogs = new List<(ELogLevel, string)>();
             LogUtility.onMessageLogged += CaptureLog;
 
-            _screenshotEvents = new List<SaveScreenshotArgs>();
-            SaveService.onScreenshotCaptured += OnScreenshotCaptured;
+            _screenshotEvents = new List<SaveScreenshotEvent>();
+            EventBus.Subscribe<SaveScreenshotEvent>(OnScreenshotCapturedBusBridge);
         }
 
         [TearDown]
         public void TearDown()
         {
-            SaveService.onScreenshotCaptured -= OnScreenshotCaptured;
+            EventBus.Unsubscribe<SaveScreenshotEvent>(OnScreenshotCapturedBusBridge);
             LogUtility.onMessageLogged -= CaptureLog;
             SaveServiceHandler.s_OverrideBasePath = null;
             SetFacadeHandler(null);
@@ -73,7 +73,7 @@ namespace Service.Save
             _capturedLogs.Add((level, message));
         }
 
-        private void OnScreenshotCaptured(SaveScreenshotArgs args) => _screenshotEvents.Add(args);
+        private void OnScreenshotCaptured(SaveScreenshotEvent evt) => _screenshotEvents.Add(evt);
 
         /// <summary>
         /// 直设外观处理器（生成的 Handler 属性 setter 拒绝 null，降级注入走 <c>Internal_UseHandler</c>）。
@@ -369,7 +369,7 @@ namespace Service.Save
             SaveService.RaiseScreenshotCaptured("slot10", TestFolder, "slot10.screenshot.png", 256, 144);
 
             Assert.AreEqual(1, _screenshotEvents.Count);
-            SaveScreenshotArgs args = _screenshotEvents[0];
+            SaveScreenshotEvent args = _screenshotEvents[0];
             Assert.AreEqual("slot10", args.FileName);
             Assert.AreEqual(TestFolder, args.FolderName);
             Assert.AreEqual("slot10.screenshot.png", args.ScreenshotFileName);
@@ -397,5 +397,7 @@ namespace Service.Save
         }
 
         #endregion
+
+	private void OnScreenshotCapturedBusBridge(in SaveScreenshotEvent e) => OnScreenshotCaptured(e);
     }
 }

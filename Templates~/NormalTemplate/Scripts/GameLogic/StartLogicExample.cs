@@ -1,4 +1,4 @@
-﻿using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Audio;
 using Moirai.Atropos.Localization;

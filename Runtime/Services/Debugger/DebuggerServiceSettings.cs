@@ -19,8 +19,8 @@ namespace Moirai.Atropos.Debugger
         
         [InfoBox("默认使用内置 UI Toolkit 调试器。可替换为自定义调试器后端。", InfoMessageType.None)]
         [ProviderDropdown]
-        [SerializeReference] private DebuggerServiceHandler m_DebuggerServiceHandler = DebuggerService.CreateDefaultHandler();
+        [SerializeReference] private IDebuggerService m_DebuggerServiceHandler = DebuggerService.CreateDefaultHandler();
         /// <summary>获取调试器处理器。</summary>
-        internal static DebuggerServiceHandler DebuggerServiceHandler => Instance.m_DebuggerServiceHandler;
+        internal static IDebuggerService DebuggerServiceHandler => Instance.m_DebuggerServiceHandler;
     }
 }

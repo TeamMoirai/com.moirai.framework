@@ -372,8 +372,8 @@ namespace Tools.PackageManager
 
         private static PluginProvider GoodProvider() => new PluginProvider
         {
-            providerBase = "Moirai.Atropos.Resource.ResourceServiceHandler",
-            providerType = "Moirai.Atropos.Resource.YooAssetHandler",
+            providerBase = "Moirai.Atropos.Asset.AssetServiceHandler",
+            providerType = "Moirai.Atropos.Asset.YooAssetHandler",
             title = "YooAsset",
             requiresUpm = "com.tuyoogame.yooasset"
         };
@@ -458,15 +458,15 @@ namespace Tools.PackageManager
                 ""id"": ""yooasset"", ""name"": ""YooAsset"", ""function"": ""资源"", ""description"": ""d"",
                 ""author"": ""a"", ""version"": ""0.1.0"", ""minUnityVersion"": ""2022.3.0"",
                 ""minFrameworkVersion"": ""1.0.2"",
-                ""providers"": [{""providerBase"":""Moirai.Atropos.Resource.ResourceServiceHandler"",
-                                 ""providerType"":""Moirai.Atropos.Resource.YooAssetHandler"",
+                ""providers"": [{""providerBase"":""Moirai.Atropos.Asset.AssetServiceHandler"",
+                                 ""providerType"":""Moirai.Atropos.Asset.YooAssetHandler"",
                                  ""title"":""YooAsset""}]}";
             const string emptyJson = @"{
                 ""id"": ""yooasset"", ""name"": ""YooAsset"", ""function"": ""资源"", ""description"": ""d"",
                 ""author"": ""a"", ""version"": ""0.1.0"", ""minUnityVersion"": ""2022.3.0"",
                 ""minFrameworkVersion"": ""1.0.2"",
-                ""providers"": [{""providerBase"":""Moirai.Atropos.Resource.ResourceServiceHandler"",
-                                 ""providerType"":""Moirai.Atropos.Resource.YooAssetHandler"",
+                ""providers"": [{""providerBase"":""Moirai.Atropos.Asset.AssetServiceHandler"",
+                                 ""providerType"":""Moirai.Atropos.Asset.YooAssetHandler"",
                                  ""title"":""YooAsset"",""requiresUpm"":""""}]}";
 
             Assert.IsTrue(PluginManifest.TryParse("yooasset/yooasset.plugin.json", absentJson,
@@ -498,14 +498,14 @@ namespace Tools.PackageManager
                 ""id"": ""yooasset"", ""name"": ""YooAsset"", ""function"": ""资源"", ""description"": ""d"",
                 ""author"": ""a"", ""version"": ""0.1.0"", ""minUnityVersion"": ""2022.3.0"",
                 ""minFrameworkVersion"": ""1.0.2"",
-                ""providers"": [{""providerBase"":""Moirai.Atropos.Resource.ResourceServiceHandler"",
-                                 ""providerType"":""Moirai.Atropos.Resource.YooAssetHandler"",
+                ""providers"": [{""providerBase"":""Moirai.Atropos.Asset.AssetServiceHandler"",
+                                 ""providerType"":""Moirai.Atropos.Asset.YooAssetHandler"",
                                  ""title"":""YooAsset"",""requiresUpm"":""com.tuyoogame.yooasset""}]}";
 
             Assert.IsTrue(PluginManifest.TryParse("yooasset/yooasset.plugin.json", json,
                 out PluginManifest manifest, out List<string> errors), string.Join(" | ", errors));
             Assert.AreEqual(1, manifest.providers.Length);
-            Assert.AreEqual("Moirai.Atropos.Resource.YooAssetHandler", manifest.providers[0].providerType);
+            Assert.AreEqual("Moirai.Atropos.Asset.YooAssetHandler", manifest.providers[0].providerType);
         }
     }
 }

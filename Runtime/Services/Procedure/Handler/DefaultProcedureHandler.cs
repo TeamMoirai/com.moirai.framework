@@ -7,12 +7,12 @@ namespace Moirai.Atropos.Procedure
     /// 默认流程处理器（纯 C# 状态机实现），承载全部流程状态管理逻辑。
     /// </summary>
     /// <remarks>
-    /// 切换在 <c>OnLeave</c> / <c>OnEnter</c> 执行期间重入受深度上限保护，超出即抛 <see cref="GameException"/>（互为 OnEnter 互切的流程环在此 fail-fast，而非栈溢出）。 <br />
+    /// 切换在 <c>OnLeave</c> / <c>OnEnter</c> 执行期间重入受深度上限保护，超出即抛 <see cref="MoiraiException"/>（互为 OnEnter 互切的流程环在此 fail-fast，而非栈溢出）。 <br />
     /// 嵌套切换语义：OnEnter/OnLeave 内的合法重定向（如闪屏直切）会递归完成再逐层记录；中间流程可能未走 OnLeave，历史记录以最外层完成态为准（每条记录的 To 即广播时刻的当前流程）。
     /// </remarks>
     [ProviderDisplay(title: "默认流程机", description: "纯 C# 状态机：嵌套切换递归完成、切换环深度上限 fail-fast")]
     [Serializable]
-    internal sealed class DefaultProcedureHandler : ProcedureServiceHandler
+    internal sealed class DefaultProcedureHandler : FrameworkHandler, IProcedureService
     {
         /// <summary>单次调用栈内允许的最大切换深度（合法嵌套远低于此值，超出即判定为流程环）。</summary>
         private const int MaxTransitionDepth = 16;
@@ -25,17 +25,39 @@ namespace Moirai.Atropos.Procedure
         [NonSerialized] private bool _isStateReady;
         [NonSerialized] private int _transitionDepth;
 
+        #region 切换记录承载（原基类共享状态，[SerializeReference] 重建须懒初始化）
+
+        private const int TransitionHistoryCapacity = 32;
+
+        [NonSerialized] private List<ProcedureTransitionRecord> _transitionHistory;
+        [NonSerialized] private bool _isBroadcastingTransition;
+
+        private List<ProcedureTransitionRecord> TransitionHistoryList =>
+            _transitionHistory ??= new List<ProcedureTransitionRecord>(TransitionHistoryCapacity);
+
+        /// <inheritdoc />
+        public IReadOnlyList<ProcedureTransitionRecord> TransitionHistory => TransitionHistoryList;
+
+        private void RecordTransition(in ProcedureTransitionRecord record)
+            => ProcedureBackendPolicy.RecordTransition(TransitionHistoryList, ref _isBroadcastingTransition, record);
+
+        private void ClearTransitionHistory() => TransitionHistoryList.Clear();
+
+        private bool IsBroadcastingTransition => _isBroadcastingTransition;
+
+        #endregion 切换记录承载 [TRANSITION RECORDING]
+
         /// <summary>状态机是否已就绪（已 <see cref="Initialize"/> 且未关停）。</summary>
-        public override bool IsStateReady => _isStateReady;
+        public bool IsStateReady => _isStateReady;
 
         /// <summary>当前流程。</summary>
-        public override ProcedureBase CurrentProcedure
+        public ProcedureBase CurrentProcedure
         {
             get
             {
                 if (!_isStateReady)
                 {
-                    throw new GameException("You must initialize procedure first.");
+                    throw new MoiraiException("You must initialize procedure first.");
                 }
 
                 return _currentState;
@@ -43,13 +65,13 @@ namespace Moirai.Atropos.Procedure
         }
 
         /// <summary>当前流程持续时间。</summary>
-        public override float CurrentProcedureTime
+        public float CurrentProcedureTime
         {
             get
             {
                 if (!_isStateReady)
                 {
-                    throw new GameException("You must initialize procedure first.");
+                    throw new MoiraiException("You must initialize procedure first.");
                 }
 
                 return _currentStateTime;
@@ -57,7 +79,7 @@ namespace Moirai.Atropos.Procedure
         }
 
         /// <summary>已注册的全部流程（未初始化时为空集）。</summary>
-        public override IReadOnlyCollection<ProcedureBase> Procedures =>
+        public IReadOnlyCollection<ProcedureBase> Procedures =>
             _states != null ? (IReadOnlyCollection<ProcedureBase>)_states.Values : EmptyProcedures;
 
         /// <summary>
@@ -99,6 +121,8 @@ namespace Moirai.Atropos.Procedure
                     }
                     finally
                     {
+                        // 状态持有的租约作用域随 Leave 释放（Owner 保证，不依赖派生类调 base）
+                        from.CleanupLeaseScope();
                         RecordTransition(new ProcedureTransitionRecord(
                             ProcedureTransitionKind.Shutdown, from, null, currentStateTime));
                     }
@@ -132,7 +156,7 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="elapseSeconds">逻辑流逝时间。</param>
         /// <param name="realElapseSeconds">真实流逝时间。</param>
-        public override void Tick(float elapseSeconds, float realElapseSeconds)
+        public void Tick(float elapseSeconds, float realElapseSeconds)
         {
             if (!_isStateReady || _currentState == null)
             {
@@ -151,16 +175,16 @@ namespace Moirai.Atropos.Procedure
         /// 调用方应丢弃整批流程实例后重建传入。
         /// </remarks>
         /// <param name="procedures">流程管理器包含的流程。</param>
-        public override void Initialize(params ProcedureBase[] procedures)
+        public void Initialize(params ProcedureBase[] procedures)
         {
             if (procedures == null || procedures.Length < 1)
             {
-                throw new GameException("Procedures is invalid.");
+                throw new MoiraiException("Procedures is invalid.");
             }
 
             if (_currentState != null)
             {
-                throw new GameException("Procedure is running, can not initialize again. Use RestartProcedure instead.");
+                throw new MoiraiException("Procedure is running, can not initialize again. Use RestartProcedure instead.");
             }
 
             _states.Clear();
@@ -173,13 +197,13 @@ namespace Moirai.Atropos.Procedure
             {
                 if (procedure == null)
                 {
-                    throw new GameException("Procedure is invalid.");
+                    throw new MoiraiException("Procedure is invalid.");
                 }
 
                 Type procedureType = procedure.GetType();
                 if (_states.ContainsKey(procedureType))
                 {
-                    throw new GameException(StringUtility.Format("Procedure '{0}' is already exist.", procedureType.FullName));
+                    throw new MoiraiException(StringUtility.Format("Procedure '{0}' is already exist.", procedureType.FullName));
                 }
 
                 procedure.SetOwner(this);
@@ -197,18 +221,18 @@ namespace Moirai.Atropos.Procedure
         /// <c>OnEnter</c> 抛出时异常上抛并回滚到未启动态（当前流程置空，修复后可重新 StartProcedure）；若 <c>OnEnter</c> 内已完成嵌套重定向（当前流程不再是本流程），保留嵌套终态不回滚。
         /// </remarks>
         /// <param name="procedureType">要开始的流程类型。</param>
-        public override void StartProcedure(Type procedureType)
+        public void StartProcedure(Type procedureType)
         {
             ThrowIfBroadcastingTransition();
 
             if (!_isStateReady)
             {
-                throw new GameException("You must initialize procedure first.");
+                throw new MoiraiException("You must initialize procedure first.");
             }
 
             if (_currentState != null)
             {
-                throw new GameException("Procedure is running, can not start again.");
+                throw new MoiraiException("Procedure is running, can not start again.");
             }
 
             ProcedureBase procedure = GetRegisteredProcedure(procedureType);
@@ -240,11 +264,11 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="procedureType">要检查的流程类型。</param>
         /// <returns>是否存在流程。</returns>
-        public override bool HasProcedure(Type procedureType)
+        public bool HasProcedure(Type procedureType)
         {
             if (!_isStateReady)
             {
-                throw new GameException("You must initialize procedure first.");
+                throw new MoiraiException("You must initialize procedure first.");
             }
 
             return _states.ContainsKey(ValidateProcedureType(procedureType));
@@ -258,24 +282,24 @@ namespace Moirai.Atropos.Procedure
         /// <c>OnLeave</c> 抛出不影响当前流程（仍指向切出流程）。
         /// </remarks>
         /// <param name="procedureType">要切换的状态类型。</param>
-        public override void ChangeState(Type procedureType)
+        public void ChangeState(Type procedureType)
         {
             ThrowIfBroadcastingTransition();
 
             if (!_isStateReady)
             {
-                throw new GameException("You must initialize procedure first.");
+                throw new MoiraiException("You must initialize procedure first.");
             }
 
             if (_currentState == null)
             {
-                throw new GameException("Current procedure is invalid.");
+                throw new MoiraiException("Current procedure is invalid.");
             }
 
             ProcedureBase procedure = GetRegisteredProcedure(procedureType);
             if (_transitionDepth >= MaxTransitionDepth)
             {
-                throw new GameException(StringUtility.Format(
+                throw new MoiraiException(StringUtility.Format(
                     "ChangeState depth exceeds {0} — procedure loop detected between '{1}' and '{2}'. " +
                     "Do not switch procedures mutually inside OnEnter/OnLeave.",
                     MaxTransitionDepth, _currentState.GetType().FullName, procedureType?.FullName));
@@ -287,6 +311,8 @@ namespace Moirai.Atropos.Procedure
             try
             {
                 from.OnLeave(false);
+                // 离开状态即释放其租约作用域（Owner 保证，不依赖派生类调 base）
+                from.CleanupLeaseScope();
                 _currentStateTime = 0f;
                 _currentState = procedure;
                 procedure.OnEnter();
@@ -316,11 +342,11 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="procedureType">要获取的流程类型。</param>
         /// <returns>要获取的流程（不存在时为 null）。</returns>
-        public override ProcedureBase GetProcedure(Type procedureType)
+        public ProcedureBase GetProcedure(Type procedureType)
         {
             if (!_isStateReady)
             {
-                throw new GameException("You must initialize procedure first.");
+                throw new MoiraiException("You must initialize procedure first.");
             }
 
             ValidateProcedureType(procedureType);
@@ -332,13 +358,13 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         /// <param name="procedures">新的流程。</param>
         /// <returns>是否重启成功。</returns>
-        public override bool RestartProcedure(params ProcedureBase[] procedures)
+        public bool RestartProcedure(params ProcedureBase[] procedures)
         {
             ThrowIfBroadcastingTransition();
 
             if (procedures == null || procedures.Length <= 0)
             {
-                throw new GameException("RestartProcedure Failed procedures is invalid.");
+                throw new MoiraiException("RestartProcedure Failed procedures is invalid.");
             }
 
             OnShutdown();
@@ -359,7 +385,7 @@ namespace Moirai.Atropos.Procedure
         {
             if (IsBroadcastingTransition)
             {
-                throw new GameException(
+                throw new MoiraiException(
                     "StartProcedure/ChangeState is not allowed inside ProcedureChanged callback — defer to next frame or Tick.");
             }
         }
@@ -371,12 +397,12 @@ namespace Moirai.Atropos.Procedure
         {
             if (procedureType == null)
             {
-                throw new GameException("Procedure type is invalid.");
+                throw new MoiraiException("Procedure type is invalid.");
             }
 
             if (!typeof(ProcedureBase).IsAssignableFrom(procedureType))
             {
-                throw new GameException(StringUtility.Format("Procedure type '{0}' is invalid.", procedureType.FullName));
+                throw new MoiraiException(StringUtility.Format("Procedure type '{0}' is invalid.", procedureType.FullName));
             }
 
             return procedureType;
@@ -389,7 +415,7 @@ namespace Moirai.Atropos.Procedure
         {
             if (!_states.TryGetValue(ValidateProcedureType(procedureType), out ProcedureBase procedure))
             {
-                throw new GameException(StringUtility.Format("Procedure '{0}' is not registered.", procedureType.FullName));
+                throw new MoiraiException(StringUtility.Format("Procedure '{0}' is not registered.", procedureType.FullName));
             }
 
             return procedure;

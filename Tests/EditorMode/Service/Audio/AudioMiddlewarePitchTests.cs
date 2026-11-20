@@ -166,7 +166,7 @@ namespace Service.Audio
         public void AudioService_SetPitch_DispatchesToHandler()
         {
             // 走生成器发的内部接缝做无副作用换入换出：getter 会懒加载、setter 会 Internal_Init 且拒收 null
-            AudioServiceHandler previous = AudioService.Internal_PeekHandler();
+            IAudioService previous = AudioService.Internal_PeekHandler();
             var bridge = new RecordingPitchBridge();
             var handler = new ContractHandler();
             handler.SetBridge(bridge);

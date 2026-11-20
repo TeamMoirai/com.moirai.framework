@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Localization;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.Atropos.Timer;
 using Moirai.Atropos.UI;
 
@@ -14,13 +14,13 @@ namespace Moirai.Atropos.Procedure
     /// <remarks>
     /// 依赖组合：世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序，缺失/循环 fail-fast；调试面板注册要求 <see cref="DebuggerService"/> 拓扑先行。<br />
     /// 处理器懒加载：优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析，未配置回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 生成（线程安全懒加载）。<br />
-    /// 时序门槛：<see cref="ResourceService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> / <see cref="TimerService"/> 须在流程 OnInit 前就绪（非本服务自身消费，极简项目应移除对应声明）。<br />
+    /// 时序门槛：<see cref="AssetService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> / <see cref="TimerService"/> 须在流程 OnInit 前就绪（非本服务自身消费，极简项目应移除对应声明）。<br />
     /// 未就绪降级：查询类 API 返回安全默认值；<see cref="StartProcedure"/> / <see cref="ChangeState"/> 忽略并告警；<see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位，后端直接调用 fail-fast。<br />
-    /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="GameException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
+    /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="MoiraiException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(DebuggerService), typeof(ResourceService), typeof(UIService), typeof(LocalizationService), typeof(TimerService))]
-    [ProviderHandlerHost(typeof(ProcedureServiceHandler), typeof(DefaultProcedureHandler))]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(UIService), typeof(ILocalizationService), typeof(ITimerService))]
+    [ProviderHandlerHost(typeof(IProcedureService), typeof(DefaultProcedureHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {
         private static readonly ProcedureBase[] s_EmptyProcedures = new ProcedureBase[0];
@@ -52,7 +52,7 @@ namespace Moirai.Atropos.Procedure
         /// 幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static ProcedureServiceHandler GetHandlerFromSettings()
+        private static IProcedureService GetHandlerFromSettings()
         {
             GameServices.EnsureRegistered<ProcedureService>();
             return ProcedureServiceSettings.ProcedureServiceHandler;
@@ -80,7 +80,8 @@ namespace Moirai.Atropos.Procedure
         {
             var handler = s_Handler;
             s_Handler = null;
-            handler?.Internal_Shutdown();
+            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>
@@ -133,7 +134,7 @@ namespace Moirai.Atropos.Procedure
         /// <summary>流程切换广播：在切换完成（新流程 OnEnter 返回）后同步触发；启动切换 From 为 null。</summary>
         /// <remarks>
         /// 关停切换不广播（仅记入 <see cref="TransitionHistory"/>）；回调异常被逐订阅者隔离，不中断状态机。 <br />
-        /// 回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（会抛 <see cref="GameException"/>）。
+        /// 回调内禁止同步 <see cref="StartProcedure"/> / <see cref="ChangeState"/>（会抛 <see cref="MoiraiException"/>）。
         /// </remarks>
         public static event Action<ProcedureTransitionRecord> onProcedureChanged;
 
@@ -280,7 +281,7 @@ namespace Moirai.Atropos.Procedure
         /// <summary>
         /// 获取处理器；缺失时告警（引导时序错误须在控制台显式暴露，而非静默丢调用）。
         /// </summary>
-        private static bool TryGetHandler(string apiName, out ProcedureServiceHandler handler)
+        private static bool TryGetHandler(string apiName, out IProcedureService handler)
         {
             handler = s_Handler;
             if (handler != null)
@@ -299,7 +300,7 @@ namespace Moirai.Atropos.Procedure
         /// <remarks>
         /// <see cref="Initialize"/> / <see cref="RestartProcedure"/> 不走本守卫——二者是引导/重建入口。
         /// </remarks>
-        private static bool TryGetReadyHandler(string apiName, out ProcedureServiceHandler handler)
+        private static bool TryGetReadyHandler(string apiName, out IProcedureService handler)
         {
             if (!TryGetHandler(apiName, out handler))
             {

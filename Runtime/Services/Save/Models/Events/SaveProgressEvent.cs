@@ -1,66 +1,54 @@
-using Moirai.Atropos.Events;
-
 namespace Moirai.Atropos.Save
 {
     /// <summary>
-    /// 进度事件的操作类别（<see cref="SaveProgressEvent.Kind"/>）。
+    /// 存取进度事件。
     /// </summary>
-    public enum ESaveProgressKind
+    /// <remarks>组件存取管线按固定批次回报（每 <see cref="SaveService.PROGRESS_BATCH_SIZE"/> 个组件一批，最终一批必报）； <br />
+    /// <see cref="Total"/> 为已注册组件快照数，<see cref="Completed"/> 为已处理数。</remarks>
+    public readonly struct SaveProgressEvent : IGameEvent
     {
-        /// <summary>保存进度（组件捕获）。</summary>
-        Save = 0,
+        /// <summary>
+        /// 进度事件的操作类别（<see cref="SaveProgressEvent.Kind"/>）。
+        /// </summary>
+        public enum ESaveProgressKind
+        {
+            /// <summary>保存进度（组件捕获）。</summary>
+            Save = 0,
 
-        /// <summary>加载进度（组件恢复）。</summary>
-        Load,
-    }
-
-    /// <summary>
-    /// 存取进度的 <see cref="EventManager"/> 桥事件（与静态事件 <see cref="SaveService.onSaveProgress"/>/<see cref="SaveService.onLoadProgress"/> <br />
-    /// 二选一订阅）。
-    /// </summary>
-    public class SaveProgressEvent : EventBase<SaveProgressEvent>
-    {
+            /// <summary>加载进度（组件恢复）。</summary>
+            Load,
+        }
+        
         /// <summary>操作类别。</summary>
-        public ESaveProgressKind Kind { get; private set; }
+        public readonly ESaveProgressKind Kind;
 
-        /// <summary>事件参数。</summary>
-        public SaveProgressArgs Args { get; private set; }
+        /// <summary>存档文件名。</summary>
+        public string FileName { get; }
 
-        /// <summary>
-        /// 重置事件成员（池化复用前由 <see cref="EventBase"/> 回调）。
-        /// </summary>
-        protected override void Init()
-        {
-            base.Init();
-            Kind = default;
-            Args = default;
-        }
+        /// <summary>存档文件夹名称。</summary>
+        public string FolderName { get; }
 
-        /// <summary>
-        /// 从事件池获取实例并装载参数。
-        /// </summary>
-        /// <param name="kind">操作类别。</param>
-        /// <param name="args">事件参数。</param>
-        /// <returns>池化事件实例（用后 Dispose 归还）。</returns>
-        public static SaveProgressEvent GetPooled(ESaveProgressKind kind, SaveProgressArgs args)
-        {
-            SaveProgressEvent evt = GetPooled();
-            evt.Kind = kind;
-            evt.Args = args;
-            return evt;
-        }
+        /// <summary>已处理组件数。</summary>
+        public int Completed { get; }
+
+        /// <summary>组件总数（已注册快照）。</summary>
+        public int Total { get; }
 
         /// <summary>
-        /// 获取池化事件并广播（订阅侧亦可改用静态事件）。
+        /// 创建存取进度事件。
         /// </summary>
         /// <param name="kind">操作类别。</param>
-        /// <param name="args">事件参数。</param>
-        public static void Trigger(ESaveProgressKind kind, SaveProgressArgs args)
+        /// <param name="fileName">存档文件名。</param>
+        /// <param name="folderName">存档文件夹名称。</param>
+        /// <param name="completed">已处理组件数。</param>
+        /// <param name="total">组件总数。</param>
+        public SaveProgressEvent(ESaveProgressKind kind, string fileName, string folderName, int completed, int total)
         {
-            using (SaveProgressEvent evt = GetPooled(kind, args))
-            {
-                EventManager.SendEvent(evt);
-            }
+            Kind = kind;
+            FileName = fileName;
+            FolderName = folderName;
+            Completed = completed;
+            Total = total;
         }
     }
 }

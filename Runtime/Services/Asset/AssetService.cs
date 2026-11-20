@@ -1,0 +1,761 @@
+using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Debugger;
+using UnityEngine;
+using UObject = UnityEngine.Object;
+
+namespace Moirai.Atropos.Asset
+{
+    /// <summary>
+    /// 资源管理器外观（Facade）：统一的静态资源入口，提供资源加载、缓存、租约与绑定接口，替换 <see cref="Handler"/> 即切换后端。
+    /// </summary>
+    /// <remarks>
+    /// 未显式设置处理器时，懒加载优先从 <see cref="AssetServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>； <br />
+    /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成，线程安全懒加载。
+    /// 服务未就绪（未注册/未初始化）时按读写分界：写成员（租约取用与归还、预热、卸载、实例化等）经 <c>RequireHandler()</c> 抛 <see cref="MoiraiException"/> fail-fast； <br />
+    /// 读成员降级为默认值（<c>HasAsset</c> 报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false）。 <br />
+    /// 例外：<see cref="LoadSceneAsync"/> 未就绪时返回 <c>null</c>，是其消费者的既定契约。
+    /// </remarks>
+    [AutoRegisterService]
+    [ProviderHandlerHost(typeof(IAssetService), typeof(YooAssetHandler))]
+    [ServiceDependency(typeof(IDebuggerService))]
+    public partial class AssetService : ServiceBase, IServiceTickable
+    {
+        #region 驱动状态 [DRIVE STATE]
+
+        private static bool s_ForceUnloadUnusedAssets;
+        private static bool s_ForceSystemUnloadUnusedAssets;
+        private static bool s_PreorderUnloadUnusedAssets;
+        private static bool s_PerformGCCollect;
+
+        private static AsyncOperation s_AsyncOperation;
+        private static float s_LastUnloadElapsedSeconds;
+        private static float s_LastGCCollectElapsedSeconds = float.MaxValue;
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
+        /// </summary>
+        /// <remarks>归位口径与 <see cref="OnShutdown"/> 的驱动状态段一致（含 GC 节流时间戳复位到 <see cref="float.MaxValue"/>），兜底未经正常关停的异常退出。</remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            s_ForceUnloadUnusedAssets = false;
+            s_ForceSystemUnloadUnusedAssets = false;
+            s_PreorderUnloadUnusedAssets = false;
+            s_PerformGCCollect = false;
+            s_AsyncOperation = null;
+            s_LastUnloadElapsedSeconds = 0f;
+            s_LastGCCollectElapsedSeconds = float.MaxValue;
+        }
+#endif
+
+        #endregion
+
+        #region 生命周期 [LIFECYCLE]
+
+        /// <summary>
+        /// 从 <see cref="AssetServiceSettings"/> 解析资源处理器。
+        /// </summary>
+        /// <remarks>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），首次访问即完成世界注册。</remarks>
+        /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
+        private static IAssetService GetHandlerFromSettings()
+        {
+            GameServices.EnsureRegistered<AssetService>();
+            IAssetService handler = AssetServiceSettings.AssetServiceHandler;
+            if (handler == null)
+            {
+                // [SerializeReference] 类型名对不上时 Unity 只把字段还原成 null、不报错；
+                // 这里必须留下痕迹，否则「静默换默认后端」在构建里完全看不见。
+                LogUtility.Error(
+                    "AssetServiceSettings.m_AssetServiceHandler resolved to null " +
+                    "(SerializeReference type missing or field unset). Falling back to CreateDefaultHandler().");
+            }
+
+            return handler;
+        }
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.RESOURCE;
+
+        /// <summary>
+        /// 初始化资源服务：触发 <see cref="Handler"/> 懒加载、注入配置并接线帧驱动，由容器在构建期调用。
+        /// </summary>
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
+        public override void OnInit()
+        {
+            _debugger = Context.GetRequiredService<IDebuggerService>();
+            _ = Handler;
+
+            // 远程地址（更新系统单源）
+            s_Handler.HostServerURL = UpdateSettings.GetResDownLoadPath();
+            s_Handler.FallbackHostServerURL = UpdateSettings.GetFallbackResDownLoadPath();
+            s_Handler.LoadResWayWebGL = (EAssetLoadWayWebGL)UpdateSettings.LoadResWayWebGL;
+
+            // 通用配置（ResourceSettings 单源）
+            s_Handler.AssetRecordCapacity = AssetServiceSettings.AssetRecordCapacity;
+            s_Handler.AssetLeaseCapacity = AssetServiceSettings.AssetLeaseCapacity;
+            s_Handler.BindingOwnerCapacity = AssetServiceSettings.BindingOwnerCapacity;
+            s_Handler.BindingSlotCapacity = AssetServiceSettings.BindingSlotCapacity;
+            s_Handler.IdleAssetExpireTime = AssetServiceSettings.IdleAssetExpireTime;
+            s_Handler.IdleAssetCapacity = AssetServiceSettings.IdleAssetCapacity;
+            s_Handler.SetForceUnloadUnusedAssetsAction(RequestForceUnloadUnusedAssets);
+
+            // 初始化后端（创建默认包与绑定服务）
+            s_Handler.Initialize();
+            // 配置自检：只报不改，判据住在设置类里（构建期检查复用同一份，见 Editor 侧
+            // AssetSettingsBuildValidator），这里只负责在启动时打一次。
+            AssetServiceSettings.Instance.ReportConfigurationIssues();
+            LogUtility.Info("AssetService Run Mode：{0}", AssetServiceSettings.PlayMode);
+
+            Application.lowMemory += OnLowMemory;
+
+            _debugger.RegisterDebuggerWindow("Profiler/Resource", new AssetServiceDebuggerWindow());
+        }
+
+        /// <summary>
+        /// 关闭资源服务。由容器在关闭期调用：先解除驱动接线，再关闭处理器。
+        /// </summary>
+        public override void OnShutdown()
+        {
+            Application.lowMemory -= OnLowMemory;
+
+            s_AsyncOperation = null;
+            s_ForceUnloadUnusedAssets = false;
+            s_ForceSystemUnloadUnusedAssets = false;
+            s_PreorderUnloadUnusedAssets = false;
+            s_PerformGCCollect = false;
+            s_LastUnloadElapsedSeconds = 0f;
+            s_LastGCCollectElapsedSeconds = float.MaxValue;
+
+            var handler = s_Handler;
+            s_Handler = null;
+            // 消费契约按接口类型持有；生命周期关停按 FrameworkHandler 基座
+            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
+        }
+
+        /// <summary>
+        /// 每帧驱动：时间轮推进 + 无用资源卸载调度 + GC 节流。
+        /// </summary>
+        public void Tick(float elapseSeconds, float realElapseSeconds)
+        {
+            if (s_Handler == null) return;
+
+            float minInterval = AssetServiceSettings.MinUnloadUnusedAssetsInterval;
+            float maxInterval = AssetServiceSettings.MaxUnloadUnusedAssetsInterval;
+            bool useSystem = AssetServiceSettings.UseSystemUnloadUnusedAssets;
+            int expirePerFrame = AssetServiceSettings.ExpireProcessCountPerFrame;
+            int expireWhenUnloading = AssetServiceSettings.ExpireProcessCountWhenUnloading;
+            int destroySweepBudget = AssetServiceSettings.DestroySweepBudget;
+            float minGCInterval = AssetServiceSettings.MinGCCollectInterval;
+
+            bool operationInFlight = s_AsyncOperation != null;
+            bool shouldUnloadUnusedAssets = ShouldUnloadUnusedAssets(
+                operationInFlight,
+                s_LastUnloadElapsedSeconds,
+                s_ForceUnloadUnusedAssets,
+                s_PreorderUnloadUnusedAssets,
+                minInterval,
+                maxInterval);
+
+            int expireProcessCount = ResolveExpireProcessCount(shouldUnloadUnusedAssets, expirePerFrame, expireWhenUnloading);
+            s_Handler.ProcessAssetMaintenance(Time.unscaledTime, expireProcessCount, destroySweepBudget);
+
+            s_LastUnloadElapsedSeconds += Time.unscaledDeltaTime;
+            s_LastGCCollectElapsedSeconds += Time.unscaledDeltaTime;
+            if (shouldUnloadUnusedAssets)
+            {
+                bool force = s_ForceUnloadUnusedAssets;
+                bool useSystemUnload = s_ForceSystemUnloadUnusedAssets && useSystem;
+                s_ForceUnloadUnusedAssets = false;
+                s_ForceSystemUnloadUnusedAssets = false;
+                s_PreorderUnloadUnusedAssets = false;
+                s_LastUnloadElapsedSeconds = 0f;
+                s_Handler.UnloadUnusedAssets(force);
+                s_AsyncOperation = useSystemUnload ? Resources.UnloadUnusedAssets() : null;
+                LogUtility.Verbose("Unload unused assets...");
+            }
+
+            if (s_AsyncOperation == null && s_PerformGCCollect)
+            {
+                TryCollectGarbage(minGCInterval);
+            }
+
+            if (s_AsyncOperation is { isDone: true })
+            {
+                s_AsyncOperation = null;
+                if (s_PerformGCCollect)
+                {
+                    TryCollectGarbage(minGCInterval);
+                }
+            }
+        }
+
+        #endregion
+
+        #region 属性 [PROPERTIES]
+
+        /// <summary>是否已经初始化。</summary>
+        public static bool IsInitialized => IsValid && s_Handler.IsInitialized;
+
+        /// <summary>默认资源包名称。</summary>
+        public static string DefaultPackageName
+        {
+            get => s_Handler?.DefaultPackageName;
+            set => RequireHandler().DefaultPackageName = value;
+        }
+
+        /// <summary>运行模式。</summary>
+        public static EAssetPlayMode PlayMode
+        {
+            get => AssetServiceSettings.PlayMode;
+            set => AssetServiceSettings.PlayMode = value;
+        }
+
+        /// <summary>资源绑定服务。</summary>
+        public static IAssetBindingService BindingService => s_Handler?.BindingService;
+
+        /// <summary>热更 URL，资源服务器地址。</summary>
+        public static string HostServerURL
+        {
+            get => s_Handler?.HostServerURL;
+            set => RequireHandler().HostServerURL = value;
+        }
+
+        /// <summary>备用热更 URL。</summary>
+        public static string FallbackHostServerURL
+        {
+            get => s_Handler?.FallbackHostServerURL;
+            set => RequireHandler().FallbackHostServerURL = value;
+        }
+
+        /// <summary>WebGL 平台加载本地资源/加载远程资源。</summary>
+        public static EAssetLoadWayWebGL LoadResWayWebGL
+        {
+            get => s_Handler?.LoadResWayWebGL ?? EAssetLoadWayWebGL.Undefined;
+            set => RequireHandler().LoadResWayWebGL = value;
+        }
+
+        /// <summary>获取当前资源适用的游戏版本号。</summary>
+        public static string ApplicableGameVersion => s_Handler?.ApplicableGameVersion;
+
+        /// <summary>获取当前内部资源版本号。</summary>
+        public static int InternalResourceVersion => s_Handler?.InternalResourceVersion ?? 0;
+
+        /// <summary>当前最新的包裹版本。</summary>
+        public static string PackageVersion
+        {
+            get => s_Handler?.PackageVersion;
+            set => RequireHandler().PackageVersion = value;
+        }
+
+        /// <summary>是否边玩边下载。</summary>
+        public static bool UpdatableWhilePlaying => s_Handler?.UpdatableWhilePlaying ?? false;
+
+        #endregion
+
+        #region 运行时配置 [RUNTIME CONFIGURATION]
+
+        /// <summary>自动释放资源引用计数为 0 的资源包。</summary>
+        public static bool AutoUnloadBundleWhenUnused
+        {
+            get => s_Handler?.AutoUnloadBundleWhenUnused ?? false;
+            set => RequireHandler().AutoUnloadBundleWhenUnused = value;
+        }
+
+        /// <summary>同时下载的最大数目。</summary>
+        public static int DownloadingMaxNum
+        {
+            get => s_Handler?.DownloadingMaxNum ?? 0;
+            set => RequireHandler().DownloadingMaxNum = value;
+        }
+
+        /// <summary>下载失败重试次数。</summary>
+        public static int FailedTryAgain
+        {
+            get => s_Handler?.FailedTryAgain ?? 0;
+            set => RequireHandler().FailedTryAgain = value;
+        }
+
+        /// <summary>异步系统每帧执行消耗的最大时间切片（单位：毫秒）。</summary>
+        public static long Milliseconds
+        {
+            get => s_Handler?.Milliseconds ?? 0L;
+            set => RequireHandler().Milliseconds = value;
+        }
+
+        #endregion
+
+        #region 容量与过期 [CAPACITY & EXPIRY]
+
+        /// <summary>资源记录预热容量。</summary>
+        public static int AssetRecordCapacity
+        {
+            get => s_Handler?.AssetRecordCapacity ?? 0;
+            set => RequireHandler().AssetRecordCapacity = value;
+        }
+
+        /// <summary>资源租约预热容量。</summary>
+        public static int AssetLeaseCapacity
+        {
+            get => s_Handler?.AssetLeaseCapacity ?? 0;
+            set => RequireHandler().AssetLeaseCapacity = value;
+        }
+
+        /// <summary>绑定所有者预热容量。</summary>
+        public static int BindingOwnerCapacity
+        {
+            get => s_Handler?.BindingOwnerCapacity ?? 0;
+            set => RequireHandler().BindingOwnerCapacity = value;
+        }
+
+        /// <summary>绑定槽位预热容量。</summary>
+        public static int BindingSlotCapacity
+        {
+            get => s_Handler?.BindingSlotCapacity ?? 0;
+            set => RequireHandler().BindingSlotCapacity = value;
+        }
+
+        /// <summary>无引用资源句柄进入 Idle 后的过期秒数。</summary>
+        public static float IdleAssetExpireTime
+        {
+            get => s_Handler?.IdleAssetExpireTime ?? 0;
+            set => RequireHandler().IdleAssetExpireTime = value;
+        }
+
+        /// <summary>空闲资源记录容量上限：超过即淘汰最长空闲者，不必等到 <see cref="IdleAssetExpireTime"/> 到期。</summary>
+        /// <remarks>调小该值会立即释放多余的空闲记录。</remarks>
+        public static int IdleAssetCapacity
+        {
+            get => s_Handler?.IdleAssetCapacity ?? 0;
+            set => RequireHandler().IdleAssetCapacity = value;
+        }
+
+        /// <summary>
+        /// 预热资源记录。
+        /// </summary>
+        public static void WarmupAssetRecords(int assetCapacity, int leaseCapacity) =>
+            RequireHandler().WarmupAssetRecords(assetCapacity, leaseCapacity);
+
+        /// <summary>
+        /// 批量获取资源信息。
+        /// </summary>
+        public static int GetAssetInfos(AssetInfo[] results, int startIndex, int maxCount) =>
+            s_Handler?.GetAssetInfos(results, startIndex, maxCount) ?? 0;
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// 在途租约来源快照（仅编辑器）：带来源的租约写进 results，返回写入条数；out 计全部在途与其中带来源的。
+        /// </summary>
+        internal static int GetLeaseSourceInfos(AssetLeaseSourceInfo[] results, int startIndex, int maxCount,
+            out int outstandingCount, out int sourcedCount)
+        {
+            if (s_Handler is IAssetLeaseDiagnostics diagnostics)
+            {
+                return diagnostics.GetLeaseSourceInfos(results, startIndex, maxCount, out outstandingCount, out sourcedCount);
+            }
+
+            outstandingCount = 0;
+            sourcedCount = 0;
+            return 0;
+        }
+#endif
+
+        #endregion
+
+        #region 初始化 [INITIALIZATION]
+
+        /// <summary>
+        /// 初始化资源包并返回初始化结果。<paramref name="needInitManifest"/> 为 true 时顺带请求并更新清单。
+        /// </summary>
+        public static UniTask<AssetPackageInitResult> InitializePackageAsync(string customPackageName, bool needInitManifest = false) =>
+            s_Handler?.InitializePackageAsync(customPackageName, needInitManifest) ?? UniTask.FromResult<AssetPackageInitResult>(null);
+
+        /// <summary>
+        /// 初始化资源包并收成成败布尔（不更新清单）。
+        /// </summary>
+        /// <remarks>非空的 host / fallback 先写入 <see cref="HostServerURL"/> / <see cref="FallbackHostServerURL"/> 再初始化； <br />
+        /// 并发去重与幂等语义同 <see cref="InitializePackageAsync"/>。</remarks>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
+        /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>
+        /// <returns>初始化是否成功。</returns>
+        public static UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "") =>
+            s_Handler?.TryInitializePackageAsync(packageName, hostServerURL, fallbackHostServerURL) ?? UniTask.FromResult(false);
+
+        #endregion
+
+        #region 租约 API [LEASE API]
+
+        /// <summary>
+        /// 使用显式资源 Key 获取一个直接资源租约。
+        /// </summary>
+        public static AssetLeaseHandle AcquireDirect(AssetKey key) => RequireHandler().AcquireDirect(key);
+
+        /// <summary>
+        /// 异步获取一个直接资源租约。
+        /// </summary>
+        public static UniTask<AssetLeaseHandle> AcquireDirectAsync(AssetKey key, CancellationToken cancellationToken = default) =>
+            RequireHandler().AcquireDirectAsync(key, cancellationToken);
+
+        /// <summary>
+        /// 释放一个显式资源租约。
+        /// </summary>
+        public static void Release(AssetLeaseHandle handle) => RequireHandler().Release(handle);
+
+        /// <summary>
+        /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
+        /// </summary>
+        public static AssetLease<T> LoadLease<T>(AssetKey key) where T : UObject =>
+            RequireHandler().LoadLease<T>(key);
+
+        /// <summary>
+        /// 同步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
+        /// </summary>
+        public static AssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UObject =>
+            RequireHandler().LoadLease<T>(location, packageName);
+
+        /// <summary>
+        /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
+        /// </summary>
+        public static UniTask<AssetLease<T>> LoadLeaseAsync<T>(AssetKey key, CancellationToken cancellationToken = default) where T : UObject =>
+            RequireHandler().LoadLeaseAsync<T>(key, cancellationToken);
+
+        /// <summary>
+        /// 异步加载资源并返回资源租约。调用方必须在不再使用资源时调用 Dispose 释放租约。
+        /// </summary>
+        public static UniTask<AssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UObject =>
+            RequireHandler().LoadLeaseAsync<T>(location, cancellationToken, packageName);
+
+        /// <summary>
+        /// 按定位地址取资产，不把租约交给调用方：运行期取租约、读出对象后即刻归还；服务未初始化时（编辑器的预览与工具面）直读 <c>AssetDatabase</c>，不建记录也不取租约。
+        /// </summary>
+        /// <remarks>
+        /// 运行期归还时带 <see cref="EAssetLeaseOption.KeepAliveOnRelease"/>，取到的对象在 <see cref="IdleAssetExpireTime"/> 窗口内不会被卸载；
+        /// 窗口过后资产可能已被卸载，此时调用方长期存着的裸引用会变成已销毁对象 —— 需要每帧回读本入口取值，不要把结果跨长周期保存。
+        /// </remarks>
+        /// <param name="location">资源定位地址。</param>
+        /// <param name="asset">取到的资产，失败为 <c>null</c>。</param>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <returns>地址为空或取不到时为 <c>false</c>。不支持同步取的后端（如 Addressables）在其契约下仍会抛错。</returns>
+        public static bool TryLoadAsset<T>(string location, out T asset, string packageName = "") where T : UObject
+        {
+            asset = null;
+            if (string.IsNullOrEmpty(location))
+            {
+                return false;
+            }
+
+            if (IsInitialized)
+            {
+                using var lease = RequireHandler().LoadLease<T>(location, packageName);
+                RequireHandler().SetLeaseOptions(lease.Handle, EAssetLeaseOption.KeepAliveOnRelease);
+                asset = lease.Asset;
+                return asset != null;
+            }
+#if UNITY_EDITOR
+            asset = UnityEditor.AssetDatabase.LoadAssetAtPath<T>(location);
+            return asset != null;
+#else
+            return false;
+#endif
+        }
+
+        /// <summary>
+        /// <see cref="TryLoadAsset{T}"/> 的异步版。异步方法不能带 <c>out</c> 参数，故以 <c>null</c> 表失败。
+        /// </summary>
+        /// <remarks>保活窗口与长期持有约束同 <see cref="TryLoadAsset{T}"/>。</remarks>
+        public static async UniTask<T> TryLoadAssetAsync<T>(string location,
+            CancellationToken cancellationToken = default, string packageName = "") where T : UObject
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                return null;
+            }
+
+            if (IsInitialized)
+            {
+                using var lease = await RequireHandler().LoadLeaseAsync<T>(location, cancellationToken, packageName);
+                RequireHandler().SetLeaseOptions(lease.Handle, EAssetLeaseOption.KeepAliveOnRelease);
+                return lease.Asset;
+            }
+#if UNITY_EDITOR
+            return UnityEditor.AssetDatabase.LoadAssetAtPath<T>(location);
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>
+        /// 按资源 GUID 解析定位地址：运行期由后端清单解析（须收录资源 GUID）；服务未就绪时（编辑器的预览与工具面）直读 <c>AssetDatabase</c>。
+        /// </summary>
+        /// <remarks>
+        /// 是可序列化弱引用 <see cref="AssetReference"/> 的后端解析入口；YooAsset 后端要求收集器设置勾选 IncludeAssetGUID。
+        /// </remarks>
+        /// <param name="guid">资源 GUID。</param>
+        /// <param name="location">解析出的定位地址；失败为 <c>null</c>。</param>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <returns>解析成功为 <c>true</c>。</returns>
+        public static bool TryGetLocationFromGuid(string guid, out string location, string packageName = "")
+        {
+            location = null;
+            if (string.IsNullOrEmpty(guid))
+            {
+                return false;
+            }
+
+            if (IsInitialized)
+            {
+                return RequireHandler().TryGetLocationByGuid(guid, out location, packageName);
+            }
+
+#if UNITY_EDITOR
+            string assetPath = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            location = assetPath;
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        /// <summary>
+        /// 尝试从资源租约中读取 Unity 资源对象。
+        /// </summary>
+        public static bool TryGetLeaseAsset(AssetLeaseHandle handle, out UObject asset)
+        {
+            if (s_Handler == null)
+            {
+                asset = null;
+                return false;
+            }
+
+            return s_Handler.TryGetLeaseAsset(handle, out asset);
+        }
+
+        #endregion
+
+        #region 资源回收 [ASSET RECYCLING]
+
+        /// <summary>
+        /// 资源回收（卸载引用计数为零的资源）。
+        /// </summary>
+        public static void UnloadUnusedAssets() => RequireHandler().UnloadUnusedAssets();
+
+        /// <summary>
+        /// 资源回收。
+        /// </summary>
+        public static void UnloadUnusedAssets(bool force) => RequireHandler().UnloadUnusedAssets(force);
+
+        /// <summary>
+        /// 强制回收所有资源。
+        /// </summary>
+        public static void ForceUnloadAllAssets() => RequireHandler().ForceUnloadAllAssets();
+
+        /// <summary>
+        /// 强制执行释放未被使用的资源。
+        /// </summary>
+        public static void ForceUnloadUnusedAssets(bool performGCCollect) => RequireHandler().ForceUnloadUnusedAssets(performGCCollect);
+
+        /// <summary>
+        /// 检查资源是否存在。
+        /// </summary>
+        public static EAssetHasResult HasAsset(string location, string packageName = "") =>
+            s_Handler?.HasAsset(location, packageName) ?? EAssetHasResult.NotExist;
+
+        /// <summary>
+        /// 检查资源定位地址是否有效。
+        /// </summary>
+        public static bool IsLocationValid(string location, string packageName = "") =>
+            s_Handler?.IsLocationValid(location, packageName) ?? false;
+
+        /// <summary>
+        /// 检查资源是否需要从远端下载。
+        /// </summary>
+        public static bool IsNeedDownloadFromRemote(string location, string packageName = "") =>
+            s_Handler?.IsNeedDownloadFromRemote(location, packageName) ?? false;
+
+        /// <summary>
+        /// 获取资源需要从远端下载的字节数。
+        /// </summary>
+        /// <param name="location">资源的定位地址。</param>
+        /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
+        /// <returns>待下载字节数；服务不可用时返回 -1。</returns>
+        public static long GetDownloadSize(string location, string packageName = "") =>
+            s_Handler?.GetDownloadSize(location, packageName) ?? -1L;
+
+        /// <summary>
+        /// 获取资源信息列表。服务未就绪时返回空数组而非 null——调用方按列表消费，null 会把「没起来」伪装成 NRE。
+        /// </summary>
+        public static AssetInfoEntry[] GetAssetInfos(string resTag, string packageName = "") =>
+            s_Handler?.GetAssetInfos(resTag, packageName) ?? Array.Empty<AssetInfoEntry>();
+
+        /// <summary>
+        /// 获取资源信息列表。服务未就绪时返回空数组而非 null——调用方按列表消费，null 会把「没起来」伪装成 NRE。
+        /// </summary>
+        public static AssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "") =>
+            s_Handler?.GetAssetInfos(tags, packageName) ?? Array.Empty<AssetInfoEntry>();
+
+        /// <summary>
+        /// 获取资源信息。
+        /// </summary>
+        public static AssetInfoEntry GetAssetInfo(string location, string packageName = "") =>
+            s_Handler?.GetAssetInfo(location, packageName) ?? default;
+
+        /// <summary>
+        /// 低内存行为。
+        /// </summary>
+        internal static void OnLowMemory() => s_Handler?.OnLowMemory();
+
+        /// <summary>
+        /// 低内存回调保护。
+        /// </summary>
+        public static void SetForceUnloadUnusedAssetsAction(Action<bool> action) =>
+            RequireHandler().SetForceUnloadUnusedAssetsAction(action);
+
+        /// <summary>
+        /// 请求强制执行释放未被使用的资源。
+        /// </summary>
+        /// <param name="performGCCollect">是否使用垃圾回收。</param>
+        private static void RequestForceUnloadUnusedAssets(bool performGCCollect)
+        {
+            s_ForceUnloadUnusedAssets = true;
+            if (performGCCollect)
+            {
+                s_PerformGCCollect = true;
+                s_ForceSystemUnloadUnusedAssets = true;
+            }
+        }
+
+        private static void TryCollectGarbage(float minInterval)
+        {
+            if (s_LastGCCollectElapsedSeconds < minInterval) return;
+
+            // 时序已在 UnloadUnusedAssets 完成之后（见 Tick）。档位用 GCCollectionMode.Optimized——
+            // netstandard2.0/Unity 2022.3 均在；不是 .NET 9 的 GCCollectOptimizationOption。
+            LogUtility.Verbose("GC.Collect...");
+            s_PerformGCCollect = false;
+            s_LastGCCollectElapsedSeconds = 0f;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized);
+        }
+
+        #endregion
+
+        #region 资源加载 [ASSET LOADING]
+
+        /// <summary>
+        /// 同步加载游戏物体并实例化。
+        /// </summary>
+        public static GameObject LoadGameObject(string location, Transform parent = null, string packageName = "") =>
+            RequireHandler().LoadGameObject(location, parent, packageName);
+
+        /// <summary>
+        /// 异步加载游戏物体并实例化。
+        /// </summary>
+        public static UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "") =>
+            RequireHandler().LoadGameObjectAsync(location, parent, cancellationToken, packageName);
+
+        #endregion
+
+        #region 场景加载 [SCENE LOADING]
+
+        /// <summary>
+        /// 通过资源系统异步加载场景，场景资源经当前配置的资源后端（YooAsset、Addressable 等）管线加载。
+        /// </summary>
+        /// <remarks>由 <see cref="Scene.SceneService"/> 的默认后端调用，实现场景加载与资源系统的统一。</remarks>
+        /// <param name="location">场景资源定位地址。</param>
+        /// <param name="sceneMode">场景加载模式。</param>
+        /// <param name="suspendLoad">是否挂起加载（加载至待激活状态后保持挂起）。</param>
+        /// <param name="priority">加载优先级。</param>
+        /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
+        /// <returns>场景加载句柄；服务未就绪时返回 null。</returns>
+        public static AssetSceneHandle LoadSceneAsync(string location, UnityEngine.SceneManagement.LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "") =>
+            s_Handler?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, packageName);
+
+        #endregion
+
+        #region 包管理 [PACKAGE MANAGEMENT]
+
+        /// <summary>
+        /// 获取当前资源包版本。
+        /// </summary>
+        public static string GetPackageVersion(string customPackageName = "") =>
+            s_Handler?.GetPackageVersion(customPackageName);
+
+        /// <summary>
+        /// 异步更新最新包的版本。
+        /// </summary>
+        public static AssetPackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "") =>
+            s_Handler?.RequestPackageVersion(appendTimeTicks, timeout, customPackageName);
+
+        /// <summary>
+        /// 设置远程服务 URL。
+        /// </summary>
+        public static void SetRemoteServicesUrl(string defaultHostServer, string fallbackHostServer) =>
+            s_Handler?.SetRemoteServicesUrl(defaultHostServer, fallbackHostServer);
+
+        /// <summary>
+        /// 向网络端请求并更新清单。
+        /// </summary>
+        public static IAssetOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "") =>
+            s_Handler?.LoadPackageManifestAsync(packageVersion, timeout, customPackageName);
+
+        /// <summary>
+        /// 创建资源下载器，用于下载当前资源版本所有的资源包文件。
+        /// </summary>
+        public static IAssetDownloader CreateAssetDownloader(string customPackageName = "") =>
+            s_Handler?.CreateAssetDownloader(customPackageName);
+
+        /// <summary>
+        /// 清理包裹未使用的缓存文件。
+        /// </summary>
+        public static AssetClearCacheResult StartClearCache(EAssetClearMode clearMode, string customPackageName = "") =>
+            s_Handler?.StartClearCache(clearMode, customPackageName);
+
+        /// <summary>
+        /// 清理沙盒路径。
+        /// </summary>
+        public static void ClearAllBundleFiles(string customPackageName = "") =>
+            s_Handler?.ClearAllBundleFiles(customPackageName);
+
+        #endregion
+
+        #region 调度决策（纯函数，供回归测试）[SCHEDULING DECISIONS]
+
+        /// <summary>
+        /// 判定本帧是否应触发无用资源卸载。
+        /// </summary>
+        /// <param name="operationInFlight">是否已有卸载操作在途。</param>
+        /// <param name="elapsedSinceLastUnload">距上次卸载的经过秒数。</param>
+        /// <param name="forceRequested">是否被强制请求。</param>
+        /// <param name="preorderRequested">是否被预约请求（低优先级提前卸载）。</param>
+        /// <param name="minInterval">预约请求生效所需的最小间隔。</param>
+        /// <param name="maxInterval">无请求时的最大间隔。</param>
+        /// <returns>是否应触发卸载。</returns>
+        internal static bool ShouldUnloadUnusedAssets(bool operationInFlight, float elapsedSinceLastUnload,
+            bool forceRequested, bool preorderRequested, float minInterval, float maxInterval)
+        {
+            return !operationInFlight &&
+                   (forceRequested ||
+                    elapsedSinceLastUnload >= maxInterval ||
+                    preorderRequested && elapsedSinceLastUnload >= minInterval);
+        }
+
+        /// <summary>
+        /// 计算本帧过期处理预算：常态按每帧配额，进入卸载帧时提升至上限且不低于常态值。
+        /// </summary>
+        internal static int ResolveExpireProcessCount(bool shouldUnload, int perFrameCount, int whenUnloadingCount)
+        {
+            return Mathf.Max(shouldUnload ? whenUnloadingCount : 0, perFrameCount);
+        }
+
+        #endregion
+    }
+}

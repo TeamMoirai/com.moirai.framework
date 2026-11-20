@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 using Moirai.GameMain.UI;
 using UnityEngine;
 using UObject = UnityEngine.Object;
@@ -76,13 +76,13 @@ namespace Moirai.GameMain
         {
             if (!_preloadSwitch) return;
 
-            ResourceAssetInfoEntry[] assetInfos = ResourceService.GetAssetInfos("PRELOAD");
+            AssetInfoEntry[] assetInfos = AssetService.GetAssetInfos("PRELOAD");
             foreach (var assetInfo in assetInfos)
             {
                 PreLoad(assetInfo.Location).Forget();
             }
 #if UNITY_WEBGL
-            ResourceAssetInfoEntry[] webAssetInfos = ResourceService.GetAssetInfos("WEBGL_PRELOAD");
+            AssetInfoEntry[] webAssetInfos = AssetService.GetAssetInfos("WEBGL_PRELOAD");
             foreach (var assetInfo in webAssetInfos)
             {
                 PreLoadAsync(assetInfo.Location).Forget();
@@ -98,7 +98,7 @@ namespace Moirai.GameMain
         {
             _loadedFlag.Add(location, false);
 
-            var lease = await ResourceService.LoadLeaseAsync<UObject>(location);
+            var lease = await AssetService.LoadLeaseAsync<UObject>(location);
             try
             {
                 LogUtility.Debug("Success preload asset from '{0}' duration '{1}'.", location, 0);

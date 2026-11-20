@@ -4,7 +4,7 @@ using Luban;
 using Luban.SimpleJSON;
 using Moirai.Atropos;
 using UnityEngine;
-using Moirai.Atropos.Resource;
+using Moirai.Atropos.Asset;
 
 namespace Moirai.GameProto.Config
 {
@@ -93,7 +93,7 @@ namespace Moirai.GameProto.Config
 		{
 			string location = CONFIG_PATH + file + ".bytes";
 			LogUtility.Info("[Config] Load bin config: {0}", location);
-			ResourceService.TryLoadAsset<TextAsset>(location, out TextAsset textAsset);
+			AssetService.TryLoadAsset<TextAsset>(location, out TextAsset textAsset);
 			byte[] bytes = textAsset.bytes;
 			return new ByteBuf(bytes);
 		}
@@ -107,7 +107,7 @@ namespace Moirai.GameProto.Config
 		{
 			string location = CONFIG_PATH + file + ".json";
 			LogUtility.Info("[Config] Load json config: {0}", location);
-			ResourceService.TryLoadAsset<TextAsset>(location, out TextAsset textAsset);
+			AssetService.TryLoadAsset<TextAsset>(location, out TextAsset textAsset);
 			string json = textAsset.text;
 			return JSON.Parse(json);
 		}

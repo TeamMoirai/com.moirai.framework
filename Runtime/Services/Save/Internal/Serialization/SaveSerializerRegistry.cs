@@ -10,7 +10,7 @@ namespace Moirai.Atropos.Save
     /// 注册有两种形态，落进同一套表：<see cref="Register(ushort, Type)"/> 只挂 ID→类型，首次被查询才实例化（实现均无状态，一个会话内每后端至多一个对象）—— <br />
     /// <c>[RegisterSerializer]</c> 由 SaveServiceCodegen 生成的模块初始化器走的就是这条，框架内置后端与项目自定义后端在此完全同形，注册表不再硬编码任何实现。 <br />
     /// <see cref="Register(ISaveSerializer)"/> / <see cref="Register{T}"/> 登记现成实例（运行期注入与测试用）。 <br />
-    /// 查询未注册后端（依赖未接入/标识非法）由 <see cref="GetRequired"/> 抛 <see cref="GameException"/> fail-fast，避免静默降级导致块数据损坏。 <br />
+    /// 查询未注册后端（依赖未接入/标识非法）由 <see cref="GetRequired"/> 抛 <see cref="MoiraiException"/> fail-fast，避免静默降级导致块数据损坏。 <br />
     /// 键是 <see cref="SaveBackendIds"/> 那一套 2 字节线标识，取值不受框架枚举封版——项目新增后端直接登记自己的 ID 即可。 <br />
     /// <see cref="Unregister"/> 连 ID→类型记录一并摘除：只删实例的话，下次查询会按类型表把它重新建出来，注销不生效。
     /// </remarks>
@@ -91,7 +91,7 @@ namespace Moirai.Atropos.Save
         /// 标识由调用方给出（生成器静态取自实现的 <see cref="ISaveSerializer.BackendId"/>），实例化用可访问的（含非公共）无参构造。 <br />
         /// **占号冲突与重号不抛**：本方法跑在模块初始化期（<c>&lt;Module&gt;.cctor</c>），在那里抛出会连累整个编辑器——实测 Unity 的源生成扫描会因 <c>TypeInitializationException</c> 原生崩溃。 <br />
         /// 因此撞号只记一次 Fatal 并保留先到那份；先到者取决于各程序集初始化顺序，跨程序集撞号要靠编译期判据与评审消除。 <br />
-        /// 形状不合法（null / 非具体 ISaveSerializer 实现）仍抛：那是手写调用的编程错误，生成器侧由 MIRAI309 在编译期挡。
+        /// 形状不合法（null / 非具体 ISaveSerializer 实现）仍抛：那是手写调用的编程错误，生成器侧由 MA3009 在编译期挡。
         /// </remarks>
         /// <param name="backendId">后端标识（容器逐块落盘的 2 字节 ID）。</param>
         /// <param name="serializerType">序列化器实现类型。</param>
@@ -248,7 +248,7 @@ namespace Moirai.Atropos.Save
             {
                 if (!TryResolve(backendId, out ISaveSerializer serializer))
                 {
-                    throw new GameException(StringUtility.Format("Save serializer for backend '{0}' is not registered.",
+                    throw new MoiraiException(StringUtility.Format("Save serializer for backend '{0}' is not registered.",
                         SaveBackendIds.DisplayName(backendId)));
                 }
 

@@ -202,9 +202,9 @@ namespace Service.Save
         [Test]
         public void Passphrase_HandlerSave_Unset_ThrowsGameException()
         {
-            // 写路径 fail-fast 契约：密钥材料不可得 = 写入失败抛 GameException
+            // 写路径 fail-fast 契约：密钥材料不可得 = 写入失败抛 MoiraiException
             var writer = new AESEncryptedSaveHandler { KeyProvider = new PassphraseSaveKeyProvider() };
-            Assert.Throws<GameException>(() =>
+            Assert.Throws<MoiraiException>(() =>
                 writer.SaveBlockCore(_paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "x" }, SaveBackendIds.JSON, 1, CancellationToken.None));
         }
 

@@ -1,6 +1,6 @@
 using NUnit.Framework;
 using UnityEngine.SceneManagement;
-using Res = Moirai.Atropos.Resource;
+using Res = Moirai.Atropos.Asset;
 using Scn = Moirai.Atropos.Scene;
 
 namespace Service.Scene
@@ -15,7 +15,7 @@ namespace Service.Scene
         /// <summary>
         /// 最小场景句柄替身——仅承载身份与释放计数，不触碰引擎与资源后端。
         /// </summary>
-        private sealed class FakeSceneHandle : Res.ResourceSceneHandle
+        private sealed class FakeSceneHandle : Res.AssetSceneHandle
         {
             internal int ReleaseCount;
 
@@ -25,7 +25,7 @@ namespace Service.Scene
             public override UnityEngine.SceneManagement.Scene SceneObject => default;
             public override bool UnSuspend() => true;
             public override bool ActivateScene() => true;
-            public override Res.IResourceOperation UnloadAsync() => null;
+            public override Res.IAssetOperation UnloadAsync() => null;
             public override void Release() => ReleaseCount++;
         }
 
