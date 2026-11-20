@@ -33,6 +33,9 @@
             public const string GRAPHICS_FULLSCREEN_MODE = "Setting.Graphics.Screen.FullscreenMode";
             /// <summary>垂直同步。</summary>
             public const string GRAPHICS_VSYNC = "Setting.Graphics.VSync";
+
+            /// <summary>输入动作的重绑定覆写（格式项为动作全限定名 Group/Name，值为控件路径，复合部件以 | 追加部件名）。</summary>
+            public const string INPUT_REBIND_BINDING = "Setting.Input.Rebind.{0}";
         }
     }
 }

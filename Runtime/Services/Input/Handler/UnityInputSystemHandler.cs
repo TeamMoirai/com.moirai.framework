@@ -16,9 +16,9 @@ namespace Moirai.Atropos.Input
     /// 模态打开时玩家 Map 断开而 UI Map 保持可用，模态自身热键不受影响；未列入两类 Map 的动作不受上下文压制。 <br />
     /// 鼠标查询不参与门控。
     /// </remarks>
-    [ProviderDisplay(title: "Input System（新版）", description: "Input System 包，支持玩家/UI 上下文 Map 压制与模态门控")]
     [Serializable]
-    internal sealed class UnityInputSystemHandler : FrameworkHandler, IInputService
+    [ProviderDisplay(title: "Input System（新版）", description: "Input System 包，支持玩家/UI 上下文 Map 压制与模态门控")]
+    internal sealed partial class UnityInputSystemHandler : FrameworkHandler, IInputService
     {
         [Tooltip("留空使用 Edit > Project Settings > Input System Package 中的设置。")]
         [SerializeField] internal InputActionAsset m_InputActions;
@@ -55,6 +55,9 @@ namespace Moirai.Atropos.Input
 
         // 资产由本处理器启用（而非项目级资产自动启用）——OnShutdown/换绑时负责对称关闭
         private bool _assetEnabledByUs;
+
+        // 进行中的重绑会话（实现在 .Rebind 分部；null = 无监听）
+        private RebindSession _activeSession;
 
         public bool Enabled
         {
@@ -108,6 +111,9 @@ namespace Moirai.Atropos.Input
 
             _boundActions = asset;
             ApplySuppressionState();
+
+            // 已存的重绑定覆写在资产就位后恢复（GameSettings 无键即无覆写）
+            LoadPersistedOverrides();
         }
 
         protected override void OnShutdown()
@@ -115,6 +121,10 @@ namespace Moirai.Atropos.Input
             _state.onResetRequested -= ResetAllInputStates;
             _state.onSuppressionChanged -= ApplySuppressionState;
             _actionCache.Clear();
+
+            // 未决重绑会话以取消终结（等待方收到 Cancelled 结果，等待方任务不悬挂）
+            _activeSession?.Cancel(ERebindOutcome.Cancelled);
+            _activeSession = null;
 
             ReleaseAssetIfOwned();
             _boundActions = null;
