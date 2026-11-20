@@ -37,7 +37,7 @@ description: Odin Inspector 4 (Sirenix) expert for the Moirai project — Inspec
 | 层 | 位置 | 约定 |
 |----|------|------|
 | 特性类 | `Runtime/Foundation/Attributes/OdinExtends/` | 命名空间写 **`Sirenix.OdinInspector`**；继承 Odin 原生特性（如 `ConditionDropdownAttribute : ValueDropdownAttribute`）；**必须加 `[Conditional("UNITY_EDITOR")]`**——玩家构建自动剥离特性使用，运行时程序集零依赖编辑器 |
-| Drawer | `Editor/Core/Attributes/Drawers/OdinExtends/` | 命名空间写 **`Sirenix.OdinInspector.Editor.Drawers`**；继承 `OdinAttributeDrawer<T>`；用 `[DrawerPriority(...)]` 控制接管优先级 |
+| Drawer | `Editor/Foundation/Attributes/Drawers/OdinExtends/` | 命名空间写 **`Sirenix.OdinInspector.Editor.Drawers`**；继承 `OdinAttributeDrawer<T>`；用 `[DrawerPriority(...)]` 控制接管优先级 |
 
 ```csharp
 // MyDropdownAttribute.cs（放在上表「特性类」那一栏的目录里）
