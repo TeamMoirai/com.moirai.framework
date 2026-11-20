@@ -5,6 +5,7 @@ using Moirai.Atropos.Localization;
 using Moirai.Atropos.Asset;
 using Moirai.Atropos.Timer;
 using Moirai.Atropos.UI;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Procedure
 {
@@ -19,7 +20,7 @@ namespace Moirai.Atropos.Procedure
     /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="GameException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(UIService), typeof(ILocalizationService), typeof(ITimerService))]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(IUIService), typeof(ILocalizationService), typeof(ITimerService))]
     [ProviderHandlerHost(typeof(IProcedureService), typeof(DefaultProcedureHandler))]
     public partial class ProcedureService : ServiceBase, IServiceTickable
     {
@@ -61,6 +62,9 @@ namespace Moirai.Atropos.Procedure
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.PROCEDURE;
 
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
         /// <summary>
         /// 初始化流程服务。由容器在构建期调用。
         /// </summary>
@@ -69,8 +73,9 @@ namespace Moirai.Atropos.Procedure
         /// </remarks>
         public override void OnInit()
         {
+            _debugger = Context.GetRequiredService<IDebuggerService>();
             _ = Handler;
-            DebuggerService.RegisterDebuggerWindow("Profiler/Procedure", new ProcedureServiceDebuggerWindow());
+            _debugger.RegisterDebuggerWindow("Profiler/Procedure", new ProcedureServiceDebuggerWindow());
         }
 
         /// <summary>
@@ -78,6 +83,8 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         public override void OnShutdown()
         {
+            _debugger?.UnregisterDebuggerWindow("Profiler/Procedure");
+
             var handler = s_Handler;
             s_Handler = null;
             // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停

@@ -61,16 +61,22 @@ TimerService.Delay(1f, () => Debug.Log("1s"));
 UIService.ShowUI<MainWindow>("main");
 AssetService.LoadAsset<Sprite>("Assets/AssetRaw/UI/icon.png");
 
-// 2. 定义自定义服务——依赖通过 [ServiceDependency] 特性声明
-[ServiceDependency(typeof(TimerService))]
+// 2. 定义自定义服务——依赖通过 [ServiceDependency] 特性声明，OnInit 中经上下文解析注入
+[ServiceDependency(typeof(ITimerService))]
 public class MyService : ServiceBase, IServiceTickable
 {
+    private ITimerService _timer;
+
     public override int Priority => 10;              // 高优先级先轮询
 
     public override void OnInit()
     {
-        TimerService.Delay(1f, () => { /* 依赖已就绪，直接使用静态外观 */ });
+        // 走到此处时依赖已初始化完毕——解析契约实例到字段，服务互调一律用它
+        _timer = Context.GetRequiredService<ITimerService>();
+        _timer.Delay(1f, OnTimerDone);
     }
+
+    private void OnTimerDone() { }
 
     public override void OnShutdown() { }
     public void Tick(float elapseSeconds, float realElapseSeconds) { }
@@ -127,14 +133,21 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 服务依赖通过 `[ServiceDependency(typeof(...))]` 特性声明（单特性多类型，类似 `RequireComponent`）。世界初始化的拓扑排序据此排序并校验——**初始化顺序由声明决定，与注册顺序无关**：
 
 ```csharp
-[ServiceDependency(typeof(AssetService), typeof(TimerService))]
-public sealed class UIService : ServiceBase, IServiceTickable
+[ServiceDependency(typeof(IAssetService), typeof(ITimerService))]
+public sealed class MyUIService : ServiceBase, IServiceTickable
 {
+    private IAssetService _assets;
+    private ITimerService _timer;
+
     public override void OnInit()
     {
-        // 走到此处时 AssetService/TimerService 已初始化完毕
-        TimerService.Delay(1f, () => { });
+        // 走到此处时依赖已按声明图初始化完毕——解析契约实例到字段
+        _assets = Context.GetRequiredService<IAssetService>();
+        _timer = Context.GetRequiredService<ITimerService>();
+        _timer.Delay(1f, OnTimerDone);
     }
+
+    private void OnTimerDone() { }
 
     public override void OnShutdown() { }
     public void Tick(float elapseSeconds, float realElapseSeconds) { }
@@ -177,6 +190,11 @@ public class BattleService : ServiceBase
 ```csharp
 // 注册清单由 BuiltinServiceRegistrationGenerator 按服务类上的 [AutoRegisterService] 标记生成
 BuiltinServiceRegistration.RegisterAll(GameServices.Default);   // 仅入图，顺序无关
+
+// UIService 双轨例外：不声明 [ProviderHandlerHost]，IUIService 契约绑定在清单后显式补登
+// （服务互调经 Context.GetRequiredService<IUIService>() 解析）
+GameServices.RegisterService(EServiceScopeKind.App, typeof(IUIService), GameServices.GetRequiredService<UIService>());
+
 await GameServices.Default.InitializeAsync();                    // 按 [ServiceDependency] 拓扑序统一驱动 OnInit
 ```
 

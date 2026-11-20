@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Debugger
 {
@@ -62,6 +63,7 @@ namespace Moirai.Atropos.Debugger
         /// <summary>
         /// 容器 Tick 驱动——转发到处理器（排空日志并轮询可见窗口）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
             s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
@@ -110,6 +112,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="path">调试器窗口路径（如 "Game/Player"）。</param>
         /// <param name="window">要注册的调试器窗口。</param>
         /// <param name="args">初始化调试器窗口参数。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args) =>
             s_Handler?.RegisterDebuggerWindow(path, window, args);
 
@@ -118,6 +121,7 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>是否解除注册调试器窗口成功。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool UnregisterDebuggerWindow(string path) =>
             s_Handler?.UnregisterDebuggerWindow(path) ?? true;
 
@@ -126,6 +130,7 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>要获取的调试器窗口。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IDebuggerWindow GetDebuggerWindow(string path) =>
             s_Handler?.GetDebuggerWindow(path);
 
@@ -134,6 +139,7 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         /// <param name="path">调试器窗口路径。</param>
         /// <returns>是否成功选中调试器窗口。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SelectDebuggerWindow(string path) =>
             s_Handler?.SelectDebuggerWindow(path) ?? false;
 
@@ -178,6 +184,7 @@ namespace Moirai.Atropos.Debugger
         /// 获取记录的所有日志。
         /// </summary>
         /// <param name="results">要获取的日志。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void GetRecentLogs(List<LogNode> results) =>
             s_Handler?.LogCapture?.GetRecentLogs(results);
 
@@ -186,6 +193,7 @@ namespace Moirai.Atropos.Debugger
         /// </summary>
         /// <param name="results">要获取的最近日志。</param>
         /// <param name="count">要获取最近日志的数量。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void GetRecentLogs(List<LogNode> results, int count) =>
             s_Handler?.LogCapture?.GetRecentLogs(results, count);
 
@@ -213,13 +221,17 @@ namespace Moirai.Atropos.Debugger
 
         DebuggerLogCapture IDebuggerService.LogCapture => LogCapture;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IDebuggerService.RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args) =>
             RegisterDebuggerWindow(path, window, args);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IDebuggerService.UnregisterDebuggerWindow(string path) => UnregisterDebuggerWindow(path);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         IDebuggerWindow IDebuggerService.GetDebuggerWindow(string path) => GetDebuggerWindow(path);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IDebuggerService.SelectDebuggerWindow(string path) => SelectDebuggerWindow(path);
 
         #endregion

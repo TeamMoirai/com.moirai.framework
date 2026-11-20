@@ -3,6 +3,7 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
 using Moirai.Atropos.Asset;
 using UnityEngine;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.ObjectPool
 {
@@ -39,14 +40,17 @@ namespace Moirai.Atropos.ObjectPool
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.GAME_OBJECT_POOL;
 
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
         /// <summary>
         /// 初始化游戏对象池服务。由容器在构建期调用。
         /// </summary>
         public override void OnInit()
         {
+            _debugger = Context.GetRequiredService<IDebuggerService>();
             _ = Handler;
-            
-            DebuggerService.RegisterDebuggerWindow("Profiler/GameObject Pool", new GameObjectPoolServiceDebuggerWindow());
+            _debugger.RegisterDebuggerWindow("Profiler/GameObject Pool", new GameObjectPoolServiceDebuggerWindow());
         }
 
         /// <summary>
@@ -54,6 +58,8 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         public override void OnShutdown()
         {
+            _debugger?.UnregisterDebuggerWindow("Profiler/GameObject Pool");
+
             var handler = s_Handler;
             s_Handler = null;
             // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
@@ -63,6 +69,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 容器 Tick 驱动——转发到处理器处理到期的维护操作（未就绪时静默降级）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
             s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
@@ -77,6 +84,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <returns>游戏对象。</returns>
         [HotPath]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static GameObject Spawn(GameObjectPoolSource source, Transform parent = null) =>
             source.IsValid ? s_Handler?.Spawn(source, parent) : null;
 
@@ -259,6 +267,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="location">资源地址。</param>
         /// <returns>预制体。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static GameObject LoadPrefab(string location) =>
             s_Handler?.LoadPrefab(location);
 
@@ -268,6 +277,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="location">资源地址。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>预制体（未就绪时为 null）。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<GameObject> LoadPrefabAsync(string location, CancellationToken cancellationToken = default) =>
             s_Handler?.LoadPrefabAsync(location, cancellationToken) ?? UniTask.FromResult<GameObject>(null);
 
@@ -297,6 +307,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="instance">游戏对象。</param>
         [HotPath]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Despawn(GameObject instance) =>
             s_Handler?.Despawn(instance);
 
@@ -305,6 +316,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="pooled">池化租约。</param>
         [HotPath]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Despawn(PooledGameObject pooled) =>
             s_Handler?.Despawn(pooled);
 
@@ -334,12 +346,14 @@ namespace Moirai.Atropos.ObjectPool
         /// 刷新指定分组的所有池。
         /// </summary>
         /// <param name="group">分组名称。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void FlushGroup(string group) =>
             s_Handler?.FlushGroup(group);
 
         /// <summary>
         /// 刷新所有池。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void FlushAll() =>
             s_Handler?.FlushAll();
         

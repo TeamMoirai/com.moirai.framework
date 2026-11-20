@@ -4,6 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Asset;
 using UnityEngine.SceneManagement;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Scene
 {
@@ -142,6 +143,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="packageName">资源包名称（空串使用默认包）。</param>
         /// <param name="cancellationToken">取消令牌——放弃等待语义，不中止底层加载。</param>
         /// <returns>加载完成的场景。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode = LoadSceneMode.Single, bool suspendLoad = false, uint priority = 100,
             Action<float> progressCallBack = null, string packageName = "", CancellationToken cancellationToken = default) =>
             s_Handler?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, progressCallBack, packageName, cancellationToken)
@@ -160,6 +162,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="priority">加载优先级。</param>
         /// <param name="callBack">加载完成回调。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void LoadScene(string location, string packageName = "", LoadSceneMode sceneMode = LoadSceneMode.Single,
             bool suspendLoad = false, uint priority = 100, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null) =>
             s_Handler?.LoadScene(location, packageName, sceneMode, suspendLoad, priority, callBack, progressCallBack);
@@ -173,6 +176,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否激活成功。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ActivateScene(string location) => s_Handler?.ActivateScene(location) ?? false;
 
         /// <summary>
@@ -180,6 +184,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否取消成功。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool UnSuspend(string location) => s_Handler?.UnSuspend(location) ?? false;
 
         #endregion
@@ -192,6 +197,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         /// <returns>是否卸载成功。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack = null) =>
             s_Handler?.UnloadAsync(location, progressCallBack) ?? UniTask.FromResult(false);
 
@@ -201,6 +207,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <param name="callBack">卸载完成回调（参数为是否卸载成功）。</param>
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Unload(string location, Action<bool> callBack = null, Action<float> progressCallBack = null) =>
             s_Handler?.Unload(location, callBack, progressCallBack);
 
@@ -219,6 +226,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否为主场景。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsMainScene(string location) => s_Handler?.IsMainScene(location) ?? false;
 
         /// <summary>
@@ -226,6 +234,7 @@ namespace Moirai.Atropos.Scene
         /// </summary>
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否已登记。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsContainScene(string location) => s_Handler?.IsContainScene(location) ?? false;
 
         #endregion

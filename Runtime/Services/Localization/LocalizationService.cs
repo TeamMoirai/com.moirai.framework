@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ConfigTable;
 using Moirai.Atropos.Debugger;
 using UnityEngine;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Localization
 {
@@ -371,6 +372,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 检查当前数据库是否有指定的文本 ID（未就绪时为 false）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Has(string id) => s_Handler?.Has(id) ?? false;
 
         /// <summary>
@@ -399,6 +401,7 @@ namespace Moirai.Atropos.Localization
         /// 根据文本 ID 获取本地化字符串（无格式化参数路径：不经 params 数组，零分配）。
         /// </summary>
         /// <param name="id">文本 ID。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTextFromId(string id) =>
             s_Handler?.GetTextFromId(id) ?? id;
 
@@ -407,6 +410,7 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <param name="id">文本 ID。</param>
         /// <param name="p">Format。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTextFromId(string id, params object[] p) =>
             s_Handler?.GetTextFromId(id, p) ?? id;
 
@@ -439,6 +443,7 @@ namespace Moirai.Atropos.Localization
         /// </summary>
         /// <param name="id">文本 ID。</param>
         /// <param name="language">要获取的语言。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTextFromIdLanguage(string id, Language language) =>
             s_Handler?.GetTextFromIdLanguage(id, language) ?? id;
 
@@ -448,18 +453,21 @@ namespace Moirai.Atropos.Localization
         /// <param name="id">文本 ID。</param>
         /// <param name="language">要获取的语言。</param>
         /// <param name="p">Format。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTextFromIdLanguage(string id, Language language, params object[] p) =>
             s_Handler?.GetTextFromIdLanguage(id, language, p) ?? id;
 
         /// <summary>
         /// 获取包含指定 ID 的所有语言的字符串字典（未就绪时为 null）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Dictionary<string, string> GetDictionaryFromId(string id) =>
             s_Handler?.GetDictionaryFromId(id);
 
         /// <summary>
         /// 获取所有多语言索引（未就绪时为 null）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static List<string> GetAllIds() => s_Handler?.GetAllIds();
 
         /// <summary>
@@ -469,6 +477,7 @@ namespace Moirai.Atropos.Localization
         /// <param name="id">复数词条基础 ID。</param>
         /// <param name="count">数量（决定 CLDR 类别，同时作为 <c>{0}</c>）。</param>
         /// <param name="p">附加格式化参数。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetPluralTextFromId(string id, long count, params object[] p) =>
             s_Handler?.GetPluralTextFromId(id, count, p) ?? id;
 
@@ -539,6 +548,7 @@ namespace Moirai.Atropos.Localization
         /// 以句柄订阅语言变更（与 <see cref="onLanguageChanged"/> 同一次派发，但 Dispose 即摘除、关服自动作废）。
         /// </summary>
         /// <returns>订阅句柄；服务未就绪时返回一个立即可 Dispose 的空句柄。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IDisposable SubscribeLanguageChanged(Action<Language> callback) =>
             s_Handler?.SubscribeLanguageChanged(callback) ?? LanguageChangeSubscription.Completed;
 
@@ -550,17 +560,20 @@ namespace Moirai.Atropos.Localization
         /// <param name="language">被覆盖的语言。</param>
         /// <param name="entries">key → 新译文。</param>
         /// <returns>该层累计覆盖条数；服务未就绪、参数不合法或语言未收录时为 -1。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SetStringOverlay(string sourceId, Language language, IEnumerable<KeyValuePair<string, string>> entries) =>
             s_Handler?.SetStringOverlay(sourceId, language, entries) ?? -1;
 
         /// <summary>
         /// 撤掉某个来源的全部覆盖（未就绪时为 false）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ClearStringOverlay(string sourceId) => s_Handler?.ClearStringOverlay(sourceId) ?? false;
 
         /// <summary>
         /// 撤掉全部覆盖层。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ClearAllStringOverlays() => s_Handler?.ClearAllStringOverlays();
 
         #endregion
@@ -576,11 +589,13 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 取已记录缺译 key 的有序快照（未就绪为空数组；不触发数据加载）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string[] GetMissingKeys() => s_Handler?.GetMissingKeys() ?? Array.Empty<string>();
 
         /// <summary>
         /// 清空缺译记录（QA 巡检回合之间重置；未就绪为 no-op）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ClearMissingKeys() => s_Handler?.ClearMissingKeys();
 
         #endregion

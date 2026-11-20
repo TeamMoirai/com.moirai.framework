@@ -3,6 +3,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Unity.IL2CPP.CompilerServices;
 using Moirai.Atropos.Debugger;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Timer
 {
@@ -26,6 +27,9 @@ namespace Moirai.Atropos.Timer
     {
         #region 生命周期 [LIFECYCLE]
 
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
         /// <summary>
         /// 从 <see cref="TimerServiceSettings"/> 解析计时器处理器。
         /// </summary>
@@ -47,8 +51,9 @@ namespace Moirai.Atropos.Timer
         /// </summary>
         public override void OnInit()
         {
+            _debugger = Context.GetRequiredService<IDebuggerService>();
             _ = Handler;
-            DebuggerService.RegisterDebuggerWindow("Profiler/Timer", new TimerServiceDebuggerWindow());
+            _debugger.RegisterDebuggerWindow("Profiler/Timer", new TimerServiceDebuggerWindow());
         }
 
         /// <summary>
@@ -56,6 +61,8 @@ namespace Moirai.Atropos.Timer
         /// </summary>
         public override void OnShutdown()
         {
+            _debugger?.UnregisterDebuggerWindow("Profiler/Timer");
+
             var handler = s_Handler;
             s_Handler = null;
             // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
@@ -65,18 +72,21 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 容器 Update 驱动——推进时间轮（未就绪时静默降级）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Tick(float elapseSeconds, float realElapseSeconds) =>
             s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
         /// <summary>
         /// 容器 FixedUpdate 驱动。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FixedTick(float elapseSeconds, float realElapseSeconds) =>
             s_Handler?.FixedTick(elapseSeconds, realElapseSeconds);
 
         /// <summary>
         /// 容器 LateUpdate 驱动。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LateTick(float elapseSeconds, float realElapseSeconds) =>
             s_Handler?.LateTick(elapseSeconds, realElapseSeconds);
 
@@ -93,6 +103,7 @@ namespace Moirai.Atropos.Timer
         /// <param name="ignoreTimeScale">是否忽略时间缩放。</param>
         /// <param name="phase">触发阶段。</param>
         /// <returns>计时器句柄；无效时为 0。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Delay(float delaySeconds, Action onComplete,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) =>
             s_Handler?.Delay(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase) ?? 0UL;
@@ -100,6 +111,7 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 延迟并每帧上报进度（0..1），无完成回调。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Delay(float delaySeconds, Action<float> onUpdate,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) =>
             s_Handler?.Delay(delaySeconds, (Action)null, onUpdate, isLooped, ignoreTimeScale, phase) ?? 0UL;
@@ -114,6 +126,7 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 延迟并在到期前每帧上报进度（0..1）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Delay(float delaySeconds, Action onComplete, Action<float> onUpdate,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) =>
             s_Handler?.Delay(delaySeconds, onComplete, onUpdate, isLooped, ignoreTimeScale, phase) ?? 0UL;
@@ -121,6 +134,7 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 延迟（零分配函数指针绑定）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong DelayUnsafe(float delaySeconds, in TimerUnsafeBinding onComplete,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) =>
             s_Handler?.DelayUnsafe(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase) ?? 0UL;
@@ -128,6 +142,7 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 等待 N 帧后回调。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong WaitFrame(int frames, Action onComplete,
             bool isLooped = false, TimerPhase phase = TimerPhase.Update) =>
             s_Handler?.WaitFrame(frames, onComplete, isLooped, phase) ?? 0UL;
@@ -135,6 +150,7 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 等待 N 帧，每帧回调累计帧数（1 起）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong WaitFrame(int frames, Action<int> onUpdate,
             bool isLooped = false, TimerPhase phase = TimerPhase.Update) =>
             s_Handler?.WaitFrame(frames, onUpdate, isLooped, phase) ?? 0UL;
@@ -142,6 +158,7 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 帧等待（零分配函数指针绑定）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong WaitFrameUnsafe(int frames, in TimerUnsafeBinding onComplete,
             bool isLooped = false, TimerPhase phase = TimerPhase.Update) =>
             s_Handler?.WaitFrameUnsafe(frames, onComplete, isLooped, phase) ?? 0UL;
@@ -149,41 +166,49 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 暂停。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Pause(ulong timerHandle) => s_Handler?.Pause(timerHandle);
 
         /// <summary>
         /// 暂停全部计时器。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void PauseAll() => s_Handler?.PauseAll();
 
         /// <summary>
         /// 恢复。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Resume(ulong timerHandle) => s_Handler?.Resume(timerHandle);
 
         /// <summary>
         /// 恢复全部计时器。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ResumeAll() => s_Handler?.ResumeAll();
 
         /// <summary>
         /// 是否在运行（句柄有效且未暂停）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsRunning(ulong timerHandle) => s_Handler?.IsRunning(timerHandle) ?? false;
 
         /// <summary>
         /// 剩余秒数（帧计时器返回 0）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float GetLeftTime(ulong timerHandle) => s_Handler?.GetLeftTime(timerHandle) ?? 0f;
 
         /// <summary>
         /// 剩余帧数（时间计时器返回 0）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetLeftFrames(ulong timerHandle) => s_Handler?.GetLeftFrames(timerHandle) ?? 0;
 
         /// <summary>
         /// 是否已结束（完成 / 取消 / 无效）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsDone(ulong timerHandle) => s_Handler?.IsDone(timerHandle) ?? true;
         
         /// <summary>
@@ -194,31 +219,37 @@ namespace Moirai.Atropos.Timer
         /// <summary>
         /// 已流逝量：时间计时器为秒，帧计时器为帧。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float GetElapsed(ulong timerHandle) => s_Handler?.GetElapsed(timerHandle) ?? 0f;
 
         /// <summary>
         /// 总时长：时间计时器为秒，帧计时器为帧。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float GetDuration(ulong timerHandle) => s_Handler?.GetDuration(timerHandle) ?? 0f;
 
         /// <summary>
         /// 按原时长重启。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Restart(ulong timerHandle) => s_Handler?.Restart(timerHandle);
 
         /// <summary>
         /// 取消计时器。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Cancel(ulong timerHandle) => s_Handler?.Cancel(timerHandle);
 
         /// <summary>
         /// 取消全部计时器。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CancelAll() => s_Handler?.CancelAll();
 
         /// <summary>
         /// 等待计时器完成（默认后端为按槽位完成信号驱动，非每帧轮询）。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default) =>
             s_Handler?.WaitAsync(timerHandle, cancellationToken) ?? UniTask.CompletedTask;
 
@@ -231,67 +262,91 @@ namespace Moirai.Atropos.Timer
         // 与静态门面同名的成员只能显式实现——转发到静态门面保持单一语义源；降级语义与门面一致。
         // Tick/FixedTick/LateTick 与门面实例方法同签名，由既有公有方法隐式实现。
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ulong ITimerService.Delay(float delaySeconds, Action onComplete,
             bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
             Delay(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ulong ITimerService.Delay<T>(float delaySeconds, Action<T> onComplete, T arg,
             bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
             Delay(delaySeconds, onComplete, arg, isLooped, ignoreTimeScale, phase);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ulong ITimerService.Delay(float delaySeconds, Action onComplete, Action<float> onUpdate,
             bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
             Delay(delaySeconds, onComplete, onUpdate, isLooped, ignoreTimeScale, phase);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ulong ITimerService.DelayUnsafe(float delaySeconds, in TimerUnsafeBinding onComplete,
             bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
             DelayUnsafe(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ulong ITimerService.WaitFrame(int frames, Action onComplete, bool isLooped, TimerPhase phase) =>
             WaitFrame(frames, onComplete, isLooped, phase);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ulong ITimerService.WaitFrame(int frames, Action<int> onUpdate, bool isLooped, TimerPhase phase) =>
             WaitFrame(frames, onUpdate, isLooped, phase);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ulong ITimerService.WaitFrameUnsafe(int frames, in TimerUnsafeBinding onComplete,
             bool isLooped, TimerPhase phase) =>
             WaitFrameUnsafe(frames, onComplete, isLooped, phase);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ITimerService.Pause(ulong timerHandle) => Pause(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ITimerService.PauseAll() => PauseAll();
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ITimerService.Resume(ulong timerHandle) => Resume(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ITimerService.ResumeAll() => ResumeAll();
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ITimerService.Restart(ulong timerHandle) => Restart(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ITimerService.Cancel(ulong timerHandle) => Cancel(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ITimerService.CancelAll() => CancelAll();
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool ITimerService.IsRunning(ulong timerHandle) => IsRunning(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         float ITimerService.GetLeftTime(ulong timerHandle) => GetLeftTime(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int ITimerService.GetLeftFrames(ulong timerHandle) => GetLeftFrames(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool ITimerService.IsDone(ulong timerHandle) => IsDone(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         float ITimerService.GetElapsed(ulong timerHandle) => GetElapsed(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         float ITimerService.GetDuration(ulong timerHandle) => GetDuration(timerHandle);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         UniTask ITimerService.WaitAsync(ulong timerHandle, CancellationToken cancellationToken) =>
             WaitAsync(timerHandle, cancellationToken);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void ITimerService.GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount) =>
             GetStatistics(out activeCount, out poolCapacity, out peakActiveCount, out freeCount);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int ITimerService.GetAllTimers(TimerDebugInfo[] results) => GetAllTimers(results);
 
 #if UNITY_EDITOR
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int ITimerService.GetStaleOneShotTimers(TimerDebugInfo[] results) => GetStaleOneShotTimers(results);
 #endif
 

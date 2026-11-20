@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ConfigTable;
@@ -23,8 +24,8 @@ namespace Moirai.Atropos.UI
     /// 关停按自报档位升序逐轨收口，uGUI 最后收。线程契约：仅主线程；不声明 <c>[ProviderHandlerHost]</c>，<see cref="IsValid"/> 与归零门手写在本文件。
     /// </remarks>
     [AutoRegisterService]
-    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(ITimerService), typeof(IInputService))]
-    public sealed partial class UIService : ServiceBase, IServiceTickable
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(ITimerService))]
+    public sealed partial class UIService : ServiceBase, IServiceTickable, IUIService
     {
         #region 处理器持有 [HANDLER HOSTING]
 
@@ -228,19 +229,24 @@ namespace Moirai.Atropos.UI
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
         /// <summary>
         /// 初始化 UI 服务。由容器在构建期调用。
         /// </summary>
         /// <remarks>
-        /// 先归零共享持有者，再按 <see cref="UIServiceSettings"/> 的启用清单逐支造出驱动者——启用哪几支由配置答，不由「谁先碰到哪一支的取用」答。<br />
+        /// 先解析调试器契约并归零共享持有者，再按 <see cref="UIServiceSettings"/> 的启用清单逐支造出驱动者——启用哪几支由配置答，不由「谁先碰到哪一支的取用」答。<br />
         /// 各轨自此并存于同一条栈上，各自驱动本轨那半边的编排；窗口回叫问的是那条共享栈，门面不再交单一协调者出去。<br />
-        /// 可重入：某一轨的驱动者已就位时不再造第二个、不重复挂广播，但仍归零那一份共享存储。
+        /// 可重入：某一轨的驱动者已就位时不再造第二个、不重复挂广播，但仍归零那一份共享存储。<br />
+        /// 容器外装配（测试夹具以 <c>OnInit</c> 作驱动者认领入口）时上下文为空：跳过调试面板注册，其余流程不变。
         /// </remarks>
         public override void OnInit()
         {
+            _debugger = Context?.GetRequiredService<IDebuggerService>();
             Internal_ResetSharedLedger();
             Internal_EnableHandlersFromSettings();
-            DebuggerService.RegisterDebuggerWindow("Profiler/UI", new UIServiceDebuggerWindow());
+            _debugger?.RegisterDebuggerWindow("Profiler/UI", new UIServiceDebuggerWindow());
         }
 
         /// <summary>
@@ -287,6 +293,8 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         public override void OnShutdown()
         {
+            _debugger?.UnregisterDebuggerWindow("Profiler/UI");
+
             try
             {
                 onDetachTrackSlots?.Invoke();
@@ -419,24 +427,28 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 获取所有层级下顶部的窗口。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UIWindow GetTopWindow() =>
             SharedLedger.GetTopWindow();
 
         /// <summary>
         /// 获取指定层级下顶部的窗口。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UIWindow GetTopWindow(int layer) =>
             SharedLedger.GetTopWindow(layer);
 
         /// <summary>
         /// 获取指定层级下顶部窗口的标识。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTopWindowId(int layer) =>
             SharedLedger.GetTopWindowId(layer);
 
         /// <summary>
         /// 是否有任意窗口正在加载。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsAnyLoading() =>
             SharedLedger.IsAnyLoading();
 
@@ -453,6 +465,7 @@ namespace Moirai.Atropos.UI
         /// </summary>
         /// <param name="type">界面类型。</param>
         /// <returns>是否存在。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool HasWindow(Type type, string windowId = null) =>
             SharedLedger.HasWindow(type, windowId);
 
@@ -467,12 +480,14 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 判断指定 UI 对象是否被模态窗口遮挡。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsBlockedByModal(GameObject obj) =>
             SharedLedger.IsBlockedByModal(obj);
 
         /// <summary>
         /// 判断窗口是否为模态窗口。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsModal(UIWindow window) =>
             SharedLedger.IsModal(window);
 
@@ -484,6 +499,7 @@ namespace Moirai.Atropos.UI
         /// 压制位是无归属的全局布尔，仲裁见 <see cref="UIInteractionLease"/>。<br />
         /// 租约住在共享持有者那一份上，各轨据此争同一个压制位：任一轨在位都算门面有效，只剩一支时压制照样要争。
         /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool AcquireModalInteraction(UIWindow window) =>
             IsValid && SharedLedger.InteractionLease.Acquire(window, IsModal(window));
 
@@ -491,6 +507,7 @@ namespace Moirai.Atropos.UI
         /// 交还模态动画期间的 UI 交互压制。
         /// </summary>
         /// <returns>调用方是当前持有者、可以清除压制位时返回 true；压制归别人持有时返回 false。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool ReleaseModalInteraction(UIWindow window) =>
             IsValid && SharedLedger.InteractionLease.Release(window);
 
@@ -636,6 +653,7 @@ namespace Moirai.Atropos.UI
         /// 关闭窗口。
         /// </summary>
         /// <param name="type">窗口类型。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CloseUI(Type type, string windowId = null) =>
             SharedLedger.CloseUI(type, windowId);
 
@@ -650,18 +668,21 @@ namespace Moirai.Atropos.UI
         /// 隐藏窗口。
         /// </summary>
         /// <param name="type">窗口类型。</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void HideUI(Type type, string windowId = null) =>
             SharedLedger.HideUI(type, windowId);
 
         /// <summary>
         /// 关闭所有窗口。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CloseAll(bool isShutDown = false) =>
             SharedLedger.CloseAll(isShutDown);
 
         /// <summary>
         /// 关闭所有窗口除了指定窗口。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CloseAllWithOut(UIWindow withOut) =>
             SharedLedger.CloseAllWithOut(withOut);
 
@@ -674,6 +695,7 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 关闭所有窗口除了指定层级的窗口。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CloseAllWithOut(EUILayer withOut) =>
             SharedLedger.CloseAllWithOut(withOut);
 
@@ -714,7 +736,147 @@ namespace Moirai.Atropos.UI
         public static int NavigationDepth => SharedLedger.NavigationDepth;
 
         /// <summary>关闭最近打开的窗口：走既有 CanClose 政策，无历史/拒关/过渡中回假。</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryCloseTopWindow() => SharedLedger.TryCloseTopWindow();
+
+        #endregion
+
+        #region 契约注入面 [CONTRACT SURFACE]
+
+        // 容器把本实例绑定在 IUIService 契约下（组合根在注册清单后显式补登——本类不声明 [ProviderHandlerHost]，
+        // Phase 2 注入互调，如 InputService 经 Context.GetRequiredService<IUIService>() 解析）。
+        // 与静态门面同名的成员只能显式实现——转发到静态门面保持单一语义源；降级语义与门面一致。
+        // Tick(float,float) 与 IServiceTickable 同签名，由既有公有方法隐式实现。
+
+        /// <inheritdoc />
+        bool IUIService.IsValid => IsValid;
+
+        /// <inheritdoc />
+        UIWindow IUIService.CurrentModal => CurrentModal;
+
+        /// <inheritdoc />
+        int IUIService.NavigationDepth => NavigationDepth;
+
+        /// <inheritdoc />
+        event Action<UIWindow> IUIService.onWindowShown
+        {
+            add => onWindowShown += value;
+            remove => onWindowShown -= value;
+        }
+
+        /// <inheritdoc />
+        event Action<UIWindow> IUIService.onWindowClosed
+        {
+            add => onWindowClosed += value;
+            remove => onWindowClosed -= value;
+        }
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        UIWindow IUIService.GetTopWindow() => GetTopWindow();
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        UIWindow IUIService.GetTopWindow(int layer) => GetTopWindow(layer);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        string IUIService.GetTopWindowId(int layer) => GetTopWindowId(layer);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IUIService.IsAnyLoading() => IsAnyLoading();
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IUIService.HasWindow<T>(string windowId) => HasWindow<T>(windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IUIService.HasWindow(Type type, string windowId) => HasWindow(type, windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        T IUIService.GetWindow<T>(string windowId) => GetWindow<T>(windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IUIService.IsBlockedByModal(GameObject obj) => IsBlockedByModal(obj);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IUIService.IsModal(UIWindow window) => IsModal(window);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.ShowUI(Type type, string windowId, UIPayload payload, CancellationToken ct) =>
+            ShowUI(type, windowId, payload, ct);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.ShowUIAsync(Type type, string windowId, UIPayload payload, CancellationToken ct) =>
+            ShowUIAsync(type, windowId, payload, ct);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        UniTask<UIWindow> IUIService.ShowUIAsyncAwait(Type type, string windowId, UIPayload payload, CancellationToken ct) =>
+            ShowUIAsyncAwait(type, windowId, payload, ct);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.CloseUI<T>(string windowId) => CloseUI<T>(windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.CloseUI(Type type, string windowId) => CloseUI(type, windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.HideUI<T>(string windowId) => HideUI<T>(windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.HideUI(Type type, string windowId) => HideUI(type, windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.CloseAll(bool isShutDown) => CloseAll(isShutDown);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.CloseAllWithOut(UIWindow withOut) => CloseAllWithOut(withOut);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.CloseAllWithOut<T>() => CloseAllWithOut<T>();
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.CloseAllWithOut(EUILayer withOut) => CloseAllWithOut(withOut);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IUIService.TryCloseTopWindow() => TryCloseTopWindow();
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        UniTask<T> IUIService.GetUIAsyncAwait<T>(string windowId) => GetUIAsyncAwait<T>(windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.GetUIAsync<T>(string windowId, Action<T> callback) => GetUIAsync(windowId, callback);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        UniTask<UIOpenResult> IUIService.GetUIAwaitResult<T>(string windowId) => GetUIAwaitResult<T>(windowId);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.ApplyScreenSafeRect(Rect safeRect) => ApplyScreenSafeRect(safeRect);
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IUIService.SimulateIPhoneXNotchScreen() => SimulateIPhoneXNotchScreen();
 
         #endregion
     }

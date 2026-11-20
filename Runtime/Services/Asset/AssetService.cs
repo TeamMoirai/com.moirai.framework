@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
 using UnityEngine;
 using UObject = UnityEngine.Object;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Asset
 {
@@ -343,6 +344,7 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 批量获取资源信息。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetAssetInfos(AssetInfo[] results, int startIndex, int maxCount) =>
             s_Handler?.GetAssetInfos(results, startIndex, maxCount) ?? 0;
 
@@ -371,6 +373,7 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 初始化资源包并返回初始化结果。<paramref name="needInitManifest"/> 为 true 时顺带请求并更新清单。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<AssetPackageInitResult> InitializePackageAsync(string customPackageName, bool needInitManifest = false) =>
             s_Handler?.InitializePackageAsync(customPackageName, needInitManifest) ?? UniTask.FromResult<AssetPackageInitResult>(null);
 
@@ -383,6 +386,7 @@ namespace Moirai.Atropos.Asset
         /// <param name="hostServerURL">资源服务器地址。非空时写入 <see cref="HostServerURL"/>。</param>
         /// <param name="fallbackHostServerURL">备用资源服务器地址。非空时写入 <see cref="FallbackHostServerURL"/>。</param>
         /// <returns>初始化是否成功。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "") =>
             s_Handler?.TryInitializePackageAsync(packageName, hostServerURL, fallbackHostServerURL) ?? UniTask.FromResult(false);
 
@@ -567,18 +571,21 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 检查资源是否存在。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static EAssetHasResult HasAsset(string location, string packageName = "") =>
             s_Handler?.HasAsset(location, packageName) ?? EAssetHasResult.NotExist;
 
         /// <summary>
         /// 检查资源定位地址是否有效。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsLocationValid(string location, string packageName = "") =>
             s_Handler?.IsLocationValid(location, packageName) ?? false;
 
         /// <summary>
         /// 检查资源是否需要从远端下载。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsNeedDownloadFromRemote(string location, string packageName = "") =>
             s_Handler?.IsNeedDownloadFromRemote(location, packageName) ?? false;
 
@@ -588,30 +595,35 @@ namespace Moirai.Atropos.Asset
         /// <param name="location">资源的定位地址。</param>
         /// <param name="packageName">指定资源包的名称。不传使用默认资源包。</param>
         /// <returns>待下载字节数；服务不可用时返回 -1。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long GetDownloadSize(string location, string packageName = "") =>
             s_Handler?.GetDownloadSize(location, packageName) ?? -1L;
 
         /// <summary>
         /// 获取资源信息列表。服务未就绪时返回空数组而非 null——调用方按列表消费，null 会把「没起来」伪装成 NRE。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetInfoEntry[] GetAssetInfos(string resTag, string packageName = "") =>
             s_Handler?.GetAssetInfos(resTag, packageName) ?? Array.Empty<AssetInfoEntry>();
 
         /// <summary>
         /// 获取资源信息列表。服务未就绪时返回空数组而非 null——调用方按列表消费，null 会把「没起来」伪装成 NRE。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "") =>
             s_Handler?.GetAssetInfos(tags, packageName) ?? Array.Empty<AssetInfoEntry>();
 
         /// <summary>
         /// 获取资源信息。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetInfoEntry GetAssetInfo(string location, string packageName = "") =>
             s_Handler?.GetAssetInfo(location, packageName) ?? default;
 
         /// <summary>
         /// 低内存行为。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void OnLowMemory() => s_Handler?.OnLowMemory();
 
         /// <summary>
@@ -676,6 +688,7 @@ namespace Moirai.Atropos.Asset
         /// <param name="priority">加载优先级。</param>
         /// <param name="packageName">资源包名称。为空时使用默认资源包。</param>
         /// <returns>场景加载句柄；服务未就绪时返回 null。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetSceneHandle LoadSceneAsync(string location, UnityEngine.SceneManagement.LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "") =>
             s_Handler?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, packageName);
 
@@ -686,42 +699,49 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 获取当前资源包版本。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetPackageVersion(string customPackageName = "") =>
             s_Handler?.GetPackageVersion(customPackageName);
 
         /// <summary>
         /// 异步更新最新包的版本。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetPackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "") =>
             s_Handler?.RequestPackageVersion(appendTimeTicks, timeout, customPackageName);
 
         /// <summary>
         /// 设置远程服务 URL。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetRemoteServicesUrl(string defaultHostServer, string fallbackHostServer) =>
             s_Handler?.SetRemoteServicesUrl(defaultHostServer, fallbackHostServer);
 
         /// <summary>
         /// 向网络端请求并更新清单。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IAssetOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "") =>
             s_Handler?.LoadPackageManifestAsync(packageVersion, timeout, customPackageName);
 
         /// <summary>
         /// 创建资源下载器，用于下载当前资源版本所有的资源包文件。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IAssetDownloader CreateAssetDownloader(string customPackageName = "") =>
             s_Handler?.CreateAssetDownloader(customPackageName);
 
         /// <summary>
         /// 清理包裹未使用的缓存文件。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetClearCacheResult StartClearCache(EAssetClearMode clearMode, string customPackageName = "") =>
             s_Handler?.StartClearCache(clearMode, customPackageName);
 
         /// <summary>
         /// 清理沙盒路径。
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ClearAllBundleFiles(string customPackageName = "") =>
             s_Handler?.ClearAllBundleFiles(customPackageName);
 
