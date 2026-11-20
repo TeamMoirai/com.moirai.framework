@@ -13,7 +13,8 @@ namespace Moirai.Atropos.Timer
     /// 默认后端 <see cref="DefaultTimerHandler"/> 是时间轮（<c>Delay</c> 系列）与帧计时（<c>WaitFrame</c> 系列）两条泳道的复合外观， <br />
     /// 可在 <see cref="TimerServiceSettings"/> 中替换。 <br />
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册 / 未初始化时返回安全默认值。
-    /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
+    /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。 <br />
+    /// 本类实现自报契约 <see cref="ITimerService"/>（显式接口实现转发静态门面）：容器把本实例绑定在该契约下，服务互调经 <c>Context.GetRequiredService&lt;ITimerService&gt;()</c> 解析到的就是本实例。
     /// </remarks>
     [AutoRegisterService]
     [ServiceDependency(typeof(IDebuggerService))]
@@ -21,7 +22,7 @@ namespace Moirai.Atropos.Timer
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
-    public partial class TimerService : ServiceBase, IServiceTickable, IServiceFixedTickable, IServiceLateTickable
+    public partial class TimerService : ServiceBase, IServiceTickable, IServiceFixedTickable, IServiceLateTickable, ITimerService
     {
         #region 生命周期 [LIFECYCLE]
 
@@ -220,6 +221,79 @@ namespace Moirai.Atropos.Timer
         /// </summary>
         public static UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default) =>
             s_Handler?.WaitAsync(timerHandle, cancellationToken) ?? UniTask.CompletedTask;
+
+        #endregion
+
+        #region 契约注入面 [CONTRACT SURFACE]
+
+        // 容器把本实例绑定在 [ProviderHandlerHost] 自报的 ITimerService 契约下（Phase 2 注入互调，
+        // 如 AudioService 经 Context.GetRequiredService<ITimerService>() 解析）。
+        // 与静态门面同名的成员只能显式实现——转发到静态门面保持单一语义源；降级语义与门面一致。
+        // Tick/FixedTick/LateTick 与门面实例方法同签名，由既有公有方法隐式实现。
+
+        ulong ITimerService.Delay(float delaySeconds, Action onComplete,
+            bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
+            Delay(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
+
+        ulong ITimerService.Delay<T>(float delaySeconds, Action<T> onComplete, T arg,
+            bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
+            Delay(delaySeconds, onComplete, arg, isLooped, ignoreTimeScale, phase);
+
+        ulong ITimerService.Delay(float delaySeconds, Action onComplete, Action<float> onUpdate,
+            bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
+            Delay(delaySeconds, onComplete, onUpdate, isLooped, ignoreTimeScale, phase);
+
+        ulong ITimerService.DelayUnsafe(float delaySeconds, in TimerUnsafeBinding onComplete,
+            bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
+            DelayUnsafe(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
+
+        ulong ITimerService.WaitFrame(int frames, Action onComplete, bool isLooped, TimerPhase phase) =>
+            WaitFrame(frames, onComplete, isLooped, phase);
+
+        ulong ITimerService.WaitFrame(int frames, Action<int> onUpdate, bool isLooped, TimerPhase phase) =>
+            WaitFrame(frames, onUpdate, isLooped, phase);
+
+        ulong ITimerService.WaitFrameUnsafe(int frames, in TimerUnsafeBinding onComplete,
+            bool isLooped, TimerPhase phase) =>
+            WaitFrameUnsafe(frames, onComplete, isLooped, phase);
+
+        void ITimerService.Pause(ulong timerHandle) => Pause(timerHandle);
+
+        void ITimerService.PauseAll() => PauseAll();
+
+        void ITimerService.Resume(ulong timerHandle) => Resume(timerHandle);
+
+        void ITimerService.ResumeAll() => ResumeAll();
+
+        void ITimerService.Restart(ulong timerHandle) => Restart(timerHandle);
+
+        void ITimerService.Cancel(ulong timerHandle) => Cancel(timerHandle);
+
+        void ITimerService.CancelAll() => CancelAll();
+
+        bool ITimerService.IsRunning(ulong timerHandle) => IsRunning(timerHandle);
+
+        float ITimerService.GetLeftTime(ulong timerHandle) => GetLeftTime(timerHandle);
+
+        int ITimerService.GetLeftFrames(ulong timerHandle) => GetLeftFrames(timerHandle);
+
+        bool ITimerService.IsDone(ulong timerHandle) => IsDone(timerHandle);
+
+        float ITimerService.GetElapsed(ulong timerHandle) => GetElapsed(timerHandle);
+
+        float ITimerService.GetDuration(ulong timerHandle) => GetDuration(timerHandle);
+
+        UniTask ITimerService.WaitAsync(ulong timerHandle, CancellationToken cancellationToken) =>
+            WaitAsync(timerHandle, cancellationToken);
+
+        void ITimerService.GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount) =>
+            GetStatistics(out activeCount, out poolCapacity, out peakActiveCount, out freeCount);
+
+        int ITimerService.GetAllTimers(TimerDebugInfo[] results) => GetAllTimers(results);
+
+#if UNITY_EDITOR
+        int ITimerService.GetStaleOneShotTimers(TimerDebugInfo[] results) => GetStaleOneShotTimers(results);
+#endif
 
         #endregion
     }

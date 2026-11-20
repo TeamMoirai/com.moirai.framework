@@ -291,5 +291,44 @@ namespace Service.Kernel
         }
 
         #endregion
+
+        #region ④ 契约绑定 [CONTRACT BINDING]
+
+        /// <summary>
+        /// <c>[ProviderHandlerHost]</c> 自报的契约接口必须由服务门面自身实现（boot 已消费的契约全量断言）。
+        /// </summary>
+        /// <remarks>
+        /// 容器把服务实例绑定在自报契约接口下（Phase 2 注入互调）；服务不实现契约时，解析在 <c>as T</c> 处坍缩为 null， <br />
+        /// <c>GetRequiredService</c> 报 "not found in any active scope" 中断 boot——PlayMode 全 UI 失败的根因。
+        /// </remarks>
+        [Test]
+        public void ProviderHandlerHost_SelfReportedContract_IsImplementedByService()
+        {
+            Assert.IsTrue(typeof(Dbg.IDebuggerService).IsAssignableFrom(typeof(Dbg.DebuggerService)),
+                "DebuggerService 必须实现自报契约 IDebuggerService，否则容器契约绑定解析失败");
+            Assert.IsTrue(typeof(Tim.ITimerService).IsAssignableFrom(typeof(Tim.TimerService)),
+                "TimerService 必须实现自报契约 ITimerService，否则容器契约绑定解析失败");
+        }
+
+        [Test]
+        public void ContractBinding_ResolutionReturnsServiceInstance()
+        {
+            // 隔离世界复现组合根的两步注册（具体类入图 + 契约附加绑定），解析必须命中同一服务实例
+            var world = new ServiceWorld();
+
+            var debugger = world.Register(EServiceScopeKind.App, new Dbg.DebuggerService());
+            world.Register(EServiceScopeKind.App, typeof(Dbg.IDebuggerService), debugger);
+            Assert.IsTrue(world.TryGetService<Dbg.IDebuggerService>(out var resolvedDebugger),
+                "IDebuggerService 契约解析必须命中（未实现契约时 as T 坍缩为 null）");
+            Assert.AreSame(debugger, resolvedDebugger);
+
+            var timer = world.Register(EServiceScopeKind.App, new Tim.TimerService());
+            world.Register(EServiceScopeKind.App, typeof(Tim.ITimerService), timer);
+            Assert.IsTrue(world.TryGetService<Tim.ITimerService>(out var resolvedTimer),
+                "ITimerService 契约解析必须命中（未实现契约时 as T 坍缩为 null）");
+            Assert.AreSame(timer, resolvedTimer);
+        }
+
+        #endregion
     }
 }
