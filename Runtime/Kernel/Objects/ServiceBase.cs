@@ -9,7 +9,8 @@ namespace Moirai.Atropos
     /// 依赖通过 <c>[ServiceDependency]</c> 特性声明，世界初始化时按依赖图拓扑排序驱动 <see cref="OnInit"/>。 <br />
     /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。
     /// </remarks>
-    public abstract class ServiceBase : IService, IServiceLifecycle, IServiceContextAware {
+    public abstract class ServiceBase : IService, IServiceLifecycle, IServiceContextAware
+    {
         #region 属性 [PROPERTIES]
 
         /// <summary>轮询优先级（降序：数值越大越先 Tick，同值按注册先后）。</summary>
