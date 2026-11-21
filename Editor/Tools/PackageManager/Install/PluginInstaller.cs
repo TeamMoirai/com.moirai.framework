@@ -78,9 +78,7 @@ namespace Moirai.Atropos.PackageManager
         /// <summary>本轮 fetch 是否真到了远端；没到就不该记"上次刷新"时刻。</summary>
         internal bool LastFetchReachedRemote => _lastFetchReachedRemote;
 
-        /// <summary>
-        /// 安装各阶段的进度回调（0..1 + 当前阶段文案）；窗口用它边装边画进度，用例留空即不报。
-        /// </summary>
+        /// <summary>安装各阶段的进度回调（0..1 + 当前阶段文案）；窗口用它边装边画进度，用例留空即不报。</summary>
         internal Action<float, string> Progress { get; set; }
 
         /// <summary>同名目录已存在又不在账本上时，把覆盖不覆盖交给谁拍板：返回 true 即先删掉这些目录再物化。</summary>
@@ -135,7 +133,9 @@ namespace Moirai.Atropos.PackageManager
             return false;
         }
 
-        /// <summary>从引擎版本号里取前三段十进制。</summary>
+        /// <summary>
+        /// 从引擎版本号里取前三段十进制。
+        /// </summary>
         /// <remarks>修订段常带发行后缀（<c>2022.3.62f3</c>、<c>6000.3.26f1</c>），只取它的前导数字。</remarks>
         internal static bool TryParseEngineVersion(string engineVersion, out PluginVersion version)
         {
@@ -300,7 +300,9 @@ namespace Moirai.Atropos.PackageManager
             return Install(new[] { pluginId }, force, removeFirst ? new[] { pluginId } : null);
         }
 
-        /// <summary>装某个插件的历史修订：先清目录再按该修订物化，账本记该修订与它那次的版本。</summary>
+        /// <summary>
+        /// 装某个插件的历史修订：先清目录再按该修订物化，账本记该修订与它那次的版本。
+        /// </summary>
         /// <remarks>清目录是必须的：不先删，<c>sparse-checkout</c> 的合并语义会把分支头那份残留文件留下来。</remarks>
         internal PluginInstallReport InstallAtRevision(string pluginId, string revision, string version)
         {
@@ -645,7 +647,9 @@ namespace Moirai.Atropos.PackageManager
 
         private static string[] NoIds => Array.Empty<string>();
 
-        /// <summary>删掉这些插件的安装目录（干净更新或被卸载的包）。</summary>
+        /// <summary>
+        /// 删掉这些插件的安装目录（干净更新或被卸载的包）。
+        /// </summary>
         /// <remarks>删除面与 git 面同款纪律：目录名先过 <see cref="PluginManifest.IsValidId"/>，拼不出去才动手。</remarks>
         private void RemoveFolders(IReadOnlyList<string> ids, PluginInstallReport report)
         {
@@ -670,7 +674,9 @@ namespace Moirai.Atropos.PackageManager
             }
         }
 
-        /// <summary>某个插件在工程里的安装目录：<c>Packages/&lt;检出目录名&gt;.&lt;id&gt;/</c>。</summary>
+        /// <summary>
+        /// 某个插件在工程里的安装目录：<c>Packages/&lt;检出目录名&gt;.&lt;id&gt;/</c>。
+        /// </summary>
         internal string InstallFolderPath(string pluginId)
         {
             return Path.Combine(_installRootPath, new DirectoryInfo(_sourceRootPath).Name + INSTALL_FOLDER_SEPARATOR + pluginId);
@@ -743,7 +749,9 @@ namespace Moirai.Atropos.PackageManager
             return true;
         }
 
-        /// <summary>只读列表的按值包含判定；本文件不引 Linq，<see cref="MergeIds"/> 同款手写遍历。</summary>
+        /// <summary>
+        /// 只读列表的按值包含判定；本文件不引 Linq，<see cref="MergeIds"/> 同款手写遍历。
+        /// </summary>
         private static bool ContainsId(IReadOnlyList<string> ids, string id)
         {
             for (int i = 0; ids != null && i < ids.Count; i++)
@@ -754,7 +762,9 @@ namespace Moirai.Atropos.PackageManager
             return false;
         }
 
-        /// <summary>把批下来要顶掉的那批并进先删名单，已在前面的不重复删。</summary>
+        /// <summary>
+        /// 把批下来要顶掉的那批并进先删名单，已在前面的不重复删。
+        /// </summary>
         private static List<string> MergeIds(IReadOnlyList<string> first, IReadOnlyList<string> second)
         {
             var merged = new List<string>();
@@ -1004,7 +1014,9 @@ namespace Moirai.Atropos.PackageManager
             return File.ReadAllText(_projectManifestPath);
         }
 
-        /// <summary>整文替换工程 manifest：先落临时名再覆盖改名，避免半篇文件被 Unity 抢先读到。</summary>
+        /// <summary>
+        /// 整文替换工程 manifest：先落临时名再覆盖改名，避免半篇文件被 Unity 抢先读到。
+        /// </summary>
         /// <remarks>不用 <c>File.Move(source, target, overwrite)</c>：那个重载在最低引擎版本的 BCL 面里没有。</remarks>
         private void WriteProjectManifest(string text)
         {

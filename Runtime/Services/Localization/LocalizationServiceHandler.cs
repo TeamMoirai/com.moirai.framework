@@ -68,16 +68,12 @@ namespace Moirai.Atropos.Localization
         /// <summary>缺译追踪集合的最大容量。</summary>
         private const int MAX_TRACKED_MISSING_KEYS = 256;
 
-        /// <summary>
-        /// 当前使用的本地化语言。没交接过偏好时为 <see cref="Language.Unspecified"/>；
-        /// 交接过但解析不出来时落 <see cref="LocalizationService.DefaultLanguage"/>，连它也没发行时才由首启兜底落到语言表首项。
-        /// </summary>
+        /// <summary>当前使用的本地化语言；没交接过偏好时为 <see cref="Language.Unspecified"/>。</summary>
+        /// <remarks>交接过但解析不出来时落 <see cref="LocalizationService.DefaultLanguage"/>，连它也没发行时才由首启兜底落到语言表首项。</remarks>
         public Language CurrentLanguage
             => _currentLanguage ?? (_preferredRaw == null ? Language.Unspecified : ResolvePreference(_preferredRaw));
 
-        /// <summary>
-        /// 本轮切换受理到的语言：立即生效时为切换后的当前语言，数据未就绪时为新记下的待应用意图；未被受理时为 null。
-        /// </summary>
+        /// <summary>本轮切换受理到的语言：立即生效时为切换后的当前语言，数据未就绪时为新记下的待应用意图；未被受理时为 null。</summary>
         /// <remarks>
         /// 每进入一次切换内部实现先复位，服务外观读到的因此必然是<strong>它刚发起的那次</strong>请求的结果，不是上一轮的残留。
         /// 要不要把用户的选择记进存档由服务决定（见 <see cref="LocalizationService"/> 的切换入口），后端只出这一个读数。
@@ -161,9 +157,7 @@ namespace Moirai.Atropos.Localization
         /// </remarks>
         protected virtual IReadOnlyList<string> SelfReportedLanguageCodes() => Array.Empty<string>();
 
-        /// <summary>
-        /// 本数据源自报的语言代码，顺序即批内列序；没有语言可报的后端为空。
-        /// </summary>
+        /// <summary>本数据源自报的语言代码，顺序即批内列序；没有语言可报的后端为空。</summary>
         /// <remarks>
         /// 与 <see cref="LoadedLanguages"/> 的分工：本成员答「数据源有哪几门语言」，<b>不触发装载</b>，非播放态与服务未注册时都能读；
         /// 那份答「当前批内收录了哪几门」，读它会懒加载。语言真相源只有「数据源自报」这一条，框架不回落任何全局注册表。 <br />
@@ -178,9 +172,7 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>
-        /// 自报代码解析成的语言，已去空码与去重码——认不出的码按自定义语言直通；不自报时为空。
-        /// </summary>
+        /// <summary>自报代码解析成的语言，已去空码与去重码——认不出的码按自定义语言直通；不自报时为空。</summary>
         /// <remarks>
         /// 解析只走 <see cref="LocalizationService.ResolveLanguages"/> 这一个入口，与装批、编辑器预览同一套语言口径。
         /// 因去空去重，本序列可能比 <see cref="ExportedLanguageCodes"/> 短，两者的下标不保证互相指向同一门语言。
@@ -194,7 +186,9 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>作废自报缓存，下次访问重新问后端。</summary>
+        /// <summary>
+        /// 作废自报缓存，下次访问重新问后端。
+        /// </summary>
         /// <remarks>换批与整批重载会自动调用；只有「后端自己换了集合」才需要外部显式调用。</remarks>
         internal void InvalidateExportedLanguages()
         {

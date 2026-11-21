@@ -15,6 +15,8 @@ namespace Moirai.Atropos.Save
     /// <remarks>partial 拆分自 <see cref="SaveServiceHandler"/>——公共 API 零变化。</remarks>
     public abstract partial class SaveServiceHandler
     {
+        /// <summary>
+        /// 块缺失细分：键命中坏块清单 = 该块损坏（逐块分型）；存在结构性坏块 = 尾部解析中断、目标块状态不可知按损坏论；否则 = 真无块。
         /// </summary>
         /// <param name="blockErrors">坏块清单（可为 <c>null</c>）。</param>
         /// <param name="key">目标块键。</param>

@@ -31,13 +31,19 @@ namespace Moirai.Atropos.Asset
         /// <summary>在途去重槽数量——测试观测点。</summary>
         internal int LoadingOperationCount => Store.LoadingOperationCount;
 
-        /// <summary>校验后端原生句柄是否存活。</summary>
+        /// <summary>
+        /// 校验后端原生句柄是否存活。
+        /// </summary>
         protected abstract bool IsHandleValid(object handle);
 
-        /// <summary>释放后端原生句柄；已失效句柄安全跳过。</summary>
+        /// <summary>
+        /// 释放后端原生句柄；已失效句柄安全跳过。
+        /// </summary>
         protected abstract void DisposeHandle(object handle);
 
-        /// <summary>从图集形态句柄按名取子精灵；非图集形态返回 null。</summary>
+        /// <summary>
+        /// 从图集形态句柄按名取子精灵；非图集形态返回 null。
+        /// </summary>
         protected abstract Sprite GetSubSprite(object handle, string spriteName);
 
         // 接口接线转调抽象算子（接口成员隐式实现要求 public，故显式接线）。
@@ -57,18 +63,26 @@ namespace Moirai.Atropos.Asset
         // 轴位与分级折进方法名（AssetRecordKey / SubAssetsRecordKey、Direct / Binding 两条租约、
         // 两条 FailLoading 重载），后端原生句柄只以 object 进、以 object 出。
 
-        /// <summary>包名归一：空包名取当前默认包名（活读配置，不捕获旧值）。</summary>
+        /// <summary>
+        /// 包名归一：空包名取当前默认包名（活读配置，不捕获旧值）。
+        /// </summary>
         protected internal string NormalizePackageName(string packageName) => Store.NormalizePackageName(packageName);
 
-        /// <summary>资源种类归一：<see cref="EAssetKind.Unknown"/> 时按类型推断。</summary>
+        /// <summary>
+        /// 资源种类归一：<see cref="EAssetKind.Unknown"/> 时按类型推断。
+        /// </summary>
         protected internal EAssetKind NormalizeAssetKind(Type assetType, EAssetKind assetKind) =>
             AssetKeyCodec.NormalizeAssetKind(assetType, assetKind);
 
-        /// <summary>资源类型归一：按种类收成内核登记用的实际类型。</summary>
+        /// <summary>
+        /// 资源类型归一：按种类收成内核登记用的实际类型。
+        /// </summary>
         protected internal Type NormalizeAssetType(Type assetType, EAssetKind assetKind) =>
             AssetKeyCodec.NormalizeAssetType(assetType, assetKind);
 
-        /// <summary>由资源类型推断种类。</summary>
+        /// <summary>
+        /// 由资源类型推断种类。
+        /// </summary>
         protected internal EAssetKind InferAssetKind(Type assetType) => AssetKeyCodec.InferAssetKind(assetType);
 
         /// <summary>
@@ -78,25 +92,35 @@ namespace Moirai.Atropos.Asset
             EAssetKind assetKind) =>
             Store.GetAssetRecordKey(packageName, location, assetType, assetKind, EAssetHandleKind.AssetHandle);
 
-        /// <summary>图集子资源记录的 packed key（类型 / 种类 / 句柄三轴都固定为图集形态）。</summary>
+        /// <summary>
+        /// 图集子资源记录的 packed key（类型 / 种类 / 句柄三轴都固定为图集形态）。
+        /// </summary>
         protected internal ulong GetSubAssetsRecordKey(string packageName, string location) =>
             Store.GetAssetRecordKey(packageName, location, typeof(Sprite), EAssetKind.SubAssets,
                 EAssetHandleKind.SubAssetsHandle);
 
-        /// <summary>在途加载去重键（与记录键是两条轴位，不可互换）。</summary>
+        /// <summary>
+        /// 在途加载去重键（与记录键是两条轴位，不可互换）。
+        /// </summary>
         protected internal ulong GetLoadingOperationKey(string location, string packageName, Type assetType,
             EAssetKind assetKind) => Store.GetLoadingOperationKey(location, packageName, assetType, assetKind);
 
-        /// <summary>按 packed key 查记录槽号；不新增登记，查不到就是没有。</summary>
+        /// <summary>
+        /// 按 packed key 查记录槽号；不新增登记，查不到就是没有。
+        /// </summary>
         protected internal bool TryGetRecordId(ulong key, out int assetId) => Store.TryGetRecordId(key, out assetId);
 
-        /// <summary>只读缓存取单资产记录（句柄轴固定为单资产）；命中时同时给出槽号与资产。</summary>
+        /// <summary>
+        /// 只读缓存取单资产记录（句柄轴固定为单资产）；命中时同时给出槽号与资产。
+        /// </summary>
         protected internal bool TryGetCachedAssetRecord(string packageName, string location, Type assetType,
             EAssetKind assetKind, out int assetId, out UObject asset) =>
             Store.TryGetCachedAssetRecord(packageName, location, assetType, assetKind, EAssetHandleKind.AssetHandle,
                 out assetId, out asset);
 
-        /// <summary>按已打包的图集 key 直查缓存记录（热路径专用，跳过三条名称轴的字典往返）。</summary>
+        /// <summary>
+        /// 按已打包的图集 key 直查缓存记录（热路径专用，跳过三条名称轴的字典往返）。
+        /// </summary>
         protected internal bool TryGetCachedSubAssetsRecordByKey(ulong key, out int assetId) =>
             Store.TryGetCachedSubAssetsRecordByKey(key, out assetId);
 
@@ -109,7 +133,9 @@ namespace Moirai.Atropos.Asset
             Store.GetOrCreateAssetRecord(packageName, location, assetType, assetKind, EAssetHandleKind.AssetHandle,
                 asset, assetHandle);
 
-        /// <summary>按已打包的图集 key 建/并子资源记录。</summary>
+        /// <summary>
+        /// 按已打包的图集 key 建/并子资源记录。
+        /// </summary>
         protected internal int GetOrCreateSubAssetsRecordByKey(ulong key, object subAssetsHandle) =>
             Store.GetOrCreateSubAssetsRecordByKey(key, subAssetsHandle);
 
@@ -119,22 +145,32 @@ namespace Moirai.Atropos.Asset
         /// </summary>
         protected internal bool TryBeginLoading(ulong loadingKey) => Store.TryBeginLoading(loadingKey);
 
-        /// <summary>等赢家的加载结果；等待者计数与去重槽回收都在内核里闭环。</summary>
+        /// <summary>
+        /// 等赢家的加载结果；等待者计数与去重槽回收都在内核里闭环。
+        /// </summary>
         protected internal UniTask<bool> WaitForLoadingAsync(ulong loadingKey, CancellationToken cancellationToken) =>
             Store.WaitForLoadingAsync(loadingKey, cancellationToken);
 
-        /// <summary>赢家成功收尾：完成去重槽并唤醒等待者。</summary>
+        /// <summary>
+        /// 赢家成功收尾：完成去重槽并唤醒等待者。
+        /// </summary>
         protected internal void CompleteLoading(ulong loadingKey) => Store.CompleteLoading(loadingKey);
 
-        /// <summary>赢家失败收尾（意外异常档：以 Error 留痕）。</summary>
+        /// <summary>
+        /// 赢家失败收尾（意外异常档：以 Error 留痕）。
+        /// </summary>
         protected internal void FailLoading(ulong loadingKey, Exception exception) =>
             Store.FailLoading(loadingKey, exception);
 
-        /// <summary>赢家失败收尾（可预期的加载失败档：降为 Warning，对齐 RETHROW 分级约定）。</summary>
+        /// <summary>
+        /// 赢家失败收尾（可预期的加载失败档：降为 Warning，对齐 RETHROW 分级约定）。
+        /// </summary>
         protected internal void FailLoadingAsWarning(ulong loadingKey, Exception exception) =>
             Store.FailLoading(loadingKey, exception, ELogLevel.Warning);
 
-        /// <summary>在途状态是否仍然作数（没被强卸载或关停换掉世代）。</summary>
+        /// <summary>
+        /// 在途状态是否仍然作数（没被强卸载或关停换掉世代）。
+        /// </summary>
         protected internal bool IsLoadingStateCurrent(int loadGeneration) => Store.IsLoadingStateCurrent(loadGeneration);
 
         /// <summary>
@@ -145,11 +181,15 @@ namespace Moirai.Atropos.Asset
             Store.ShouldAbortLoadingAfterCallerCancellation(loadingKey, cancellationToken,
                 ref callerCancellationRequested);
 
-        /// <summary>取一条直接引用租约（内核的直接引用计数轴）。</summary>
+        /// <summary>
+        /// 取一条直接引用租约（内核的直接引用计数轴）。
+        /// </summary>
         protected internal AssetLeaseHandle AcquireDirectLease(int assetId, EAssetLeaseOption options) =>
             Store.AcquireLease(assetId, EAssetLeaseKind.Direct, options);
 
-        /// <summary>取一条绑定引用租约（内核的绑定引用计数轴）。</summary>
+        /// <summary>
+        /// 取一条绑定引用租约（内核的绑定引用计数轴）。
+        /// </summary>
         protected internal AssetLeaseHandle AcquireBindingLease(int assetId, EAssetLeaseOption options) =>
             Store.AcquireLease(assetId, EAssetLeaseKind.Binding, options);
 
@@ -159,13 +199,19 @@ namespace Moirai.Atropos.Asset
         /// <summary>卸载世代读数：实例化前后各取一次比对，跨越了强卸载就丢弃这次结果。</summary>
         protected internal uint UnloadGeneration => Store._unloadGeneration;
 
-        /// <summary>建绑定服务实例，宿主为本处理器（租约能力经框架内部的窄接缝交出去，后端不必认识绑定服务类型）。</summary>
+        /// <summary>
+        /// 建绑定服务实例，宿主为本处理器（租约能力经框架内部的窄接缝交出去，后端不必认识绑定服务类型）。
+        /// </summary>
         protected internal void CreateBindingService() => _bindingService = new AssetBindingService(this);
 
-        /// <summary>关停绑定服务：此后注册与绑定一律以 <see cref="EAssetBindStatus.ServiceShutdown"/> 拒绝。</summary>
+        /// <summary>
+        /// 关停绑定服务：此后注册与绑定一律以 <see cref="EAssetBindStatus.ServiceShutdown"/> 拒绝。
+        /// </summary>
         protected internal void ShutdownBindingService() => _bindingService?.Shutdown();
 
-        /// <summary>把预制体源登记给该所有者；登记失败时调用方须自己销毁实例并归还租约。</summary>
+        /// <summary>
+        /// 把预制体源登记给该所有者；登记失败时调用方须自己销毁实例并归还租约。
+        /// </summary>
         protected internal EAssetBindStatus RegisterPrefabSource(AssetOwner owner, AssetLeaseHandle lease,
             UObject prefabSource) => _bindingService.RegisterPrefabSource(owner, lease, prefabSource);
 
@@ -266,7 +312,9 @@ namespace Moirai.Atropos.Asset
             }
         }
 
-        /// <summary>按绑定容量预热绑定服务与 AssetOwner 释放缓冲。</summary>
+        /// <summary>
+        /// 按绑定容量预热绑定服务与 AssetOwner 释放缓冲。
+        /// </summary>
         protected void WarmupBindingRecords()
         {
             _bindingService?.Warmup(_bindingOwnerCapacity, _bindingSlotCapacity);
@@ -388,7 +436,9 @@ namespace Moirai.Atropos.Asset
             UnloadUnusedBundles();
         }
 
-        /// <summary>bundle 级未用卸载钩子；有对应操作的后端（YooAsset）覆写，无对应物者保持空实现。</summary>
+        /// <summary>
+        /// bundle 级未用卸载钩子；有对应操作的后端（YooAsset）覆写，无对应物者保持空实现。
+        /// </summary>
         protected virtual void UnloadUnusedBundles()
         {
         }

@@ -5,9 +5,7 @@ using UnityEngine;
 
 namespace Sirenix.OdinInspector
 {
-    /// <summary>
-    /// 带颜色的分组，与 <see cref="FoldoutGroupAttribute"/> 相同功能。
-    /// </summary>
+    /// <summary>带颜色的分组，与 <see cref="FoldoutGroupAttribute"/> 相同功能。</summary>
     [Conditional("UNITY_EDITOR")]
     [AttributeUsage(AttributeTargets.All, AllowMultiple = true)]
     // ReSharper disable once ClassNeverInstantiated.Global

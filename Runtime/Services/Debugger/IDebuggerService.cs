@@ -21,21 +21,31 @@ namespace Moirai.Atropos.Debugger
         /// <summary>获取日志捕获器（环形缓冲，供控制台与外部工具消费）。</summary>
         DebuggerLogCapture LogCapture { get; }
 
-        /// <summary>容器 Tick 驱动——排空日志捕获并轮询可见窗口。</summary>
+        /// <summary>
+        /// 容器 Tick 驱动——排空日志捕获并轮询可见窗口。
+        /// </summary>
         void Tick(float elapseSeconds, float realElapseSeconds);
 
-        /// <summary>注册调试器窗口。</summary>
+        /// <summary>
+        /// 注册调试器窗口。
+        /// </summary>
         /// <param name="args">初始化调试器窗口参数。</param>
         void RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args);
 
-        /// <summary>解除注册调试器窗口。</summary>
+        /// <summary>
+        /// 解除注册调试器窗口。
+        /// </summary>
         /// <returns>是否解除注册调试器窗口成功。</returns>
         bool UnregisterDebuggerWindow(string path);
 
-        /// <summary>获取调试器窗口。</summary>
+        /// <summary>
+        /// 获取调试器窗口。
+        /// </summary>
         IDebuggerWindow GetDebuggerWindow(string path);
 
-        /// <summary>选中调试器窗口。</summary>
+        /// <summary>
+        /// 选中调试器窗口。
+        /// </summary>
         /// <returns>是否成功选中调试器窗口。</returns>
         bool SelectDebuggerWindow(string path);
     }

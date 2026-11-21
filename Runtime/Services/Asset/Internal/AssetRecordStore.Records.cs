@@ -172,8 +172,7 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 按已打包的 SubAssets key 建/并子资源记录，热路径专用。
         /// </summary>
-        /// <remarks>与 <see cref="GetOrCreateAssetRecordByKey"/> 的差别只在句柄合并：子资源用 <c>IsHandleValid</c> 双侧判断（图集句柄恒非 null 资产），槽位与索引段共用。 <br />
-        /// </remarks>
+        /// <remarks>与 <see cref="GetOrCreateAssetRecordByKey"/> 的差别只在句柄合并：子资源用 <c>IsHandleValid</c> 双侧判断（图集句柄恒非 null 资产），槽位与索引段共用。</remarks>
         internal int GetOrCreateSubAssetsRecordByKey(ulong key, object subAssetsHandle)
         {
             if (_assetRecordsByKey.TryGetValue(key, out int existingId) && IsValidAssetId(existingId))

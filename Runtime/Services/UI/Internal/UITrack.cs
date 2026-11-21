@@ -64,7 +64,9 @@ namespace Moirai.Atropos.UI
             _openWindow = openWindow;
         }
 
-        /// <summary>认窗判据：窗口类落在本轨的窗口基类（含派生）之下时为真。</summary>
+        /// <summary>
+        /// 认窗判据：窗口类落在本轨的窗口基类（含派生）之下时为真。
+        /// </summary>
         /// <param name="windowType">待判的窗口类型。</param>
         /// <returns>属于本轨时为真。</returns>
         internal bool OwnsWindowType(Type windowType) => _ownsWindowType(windowType);
@@ -75,7 +77,9 @@ namespace Moirai.Atropos.UI
         /// <param name="driverShutDown">刚认领进槽的驱动者的关停。</param>
         internal void AttachDriver(Action driverShutDown) => _claimedShutDown = driverShutDown;
 
-        /// <summary>整批清认领：归位门与关停收尾各走一次，下一轮认领重新挂。</summary>
+        /// <summary>
+        /// 整批清认领：归位门与关停收尾各走一次，下一轮认领重新挂。
+        /// </summary>
         internal void ClearClaim() => _claimedShutDown = null;
 
         /// <summary>

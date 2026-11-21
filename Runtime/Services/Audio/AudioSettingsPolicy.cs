@@ -18,7 +18,9 @@ namespace Moirai.Atropos.Audio
         /// <summary>未写入过时的静音缺省。</summary>
         internal const bool DefaultMuted = false;
 
-        /// <summary>音量值域钳制：存量值可能写于上限还是 10 的年代，读回来一律落回契约值域。</summary>
+        /// <summary>
+        /// 音量值域钳制：存量值可能写于上限还是 10 的年代，读回来一律落回契约值域。
+        /// </summary>
         internal static float NormalizeVolume(float volume) => Mathf.Clamp01(volume);
 
         /// <summary>主音量键。</summary>
@@ -27,37 +29,51 @@ namespace Moirai.Atropos.Audio
         /// <summary>主音量静音键。</summary>
         internal static string MasterMutedKey => GameConstant.Setting.AUDIO_MASTER_MUTED;
 
-        /// <summary>指定音轨的音量键。</summary>
+        /// <summary>
+        /// 指定音轨的音量键。
+        /// </summary>
         /// <param name="track">音轨。</param>
         internal static string TrackVolumeKey(EAudioTrack track) =>
             StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_VOLUME, track);
 
-        /// <summary>指定音轨的静音键。</summary>
+        /// <summary>
+        /// 指定音轨的静音键。
+        /// </summary>
         /// <param name="track">音轨。</param>
         internal static string TrackMutedKey(EAudioTrack track) =>
             StringUtility.Format(GameConstant.Setting.AUDIO_GROUP_MUTED, track);
 
-        /// <summary>写音量（自动钳到契约值域）。</summary>
+        /// <summary>
+        /// 写音量（自动钳到契约值域）。
+        /// </summary>
         /// <param name="key">设置键（取本类的键成员）。</param>
         /// <param name="volume">音量。</param>
         internal static void SaveVolume(string key, float volume) => GameSettings.SetFloat(key, NormalizeVolume(volume));
 
-        /// <summary>读音量并按 <paramref name="defaultVolume"/> 回落。</summary>
+        /// <summary>
+        /// 读音量并按 <paramref name="defaultVolume"/> 回落。
+        /// </summary>
         /// <param name="key">设置键（取本类的键成员）。</param>
         /// <param name="defaultVolume">未写入过时的缺省音量。</param>
         internal static float LoadVolume(string key, float defaultVolume) =>
             NormalizeVolume(GameSettings.GetFloat(key, defaultVolume));
 
-        /// <summary>写静音标记。</summary>
+        /// <summary>
+        /// 写静音标记。
+        /// </summary>
         /// <param name="key">设置键（取本类的键成员）。</param>
         /// <param name="muted">是否静音。</param>
         internal static void SaveMuted(string key, bool muted) => GameSettings.SetBool(key, muted);
 
-        /// <summary>读静音标记，未写入过时为不静音。</summary>
+        /// <summary>
+        /// 读静音标记，未写入过时为不静音。
+        /// </summary>
         /// <param name="key">设置键（取本类的键成员）。</param>
         internal static bool LoadMuted(string key) => GameSettings.GetBool(key, DefaultMuted);
 
-        /// <summary>移除一对设置（静音与音量），移除即回到各自的缺省。</summary>
+        /// <summary>
+        /// 移除一对设置（静音与音量），移除即回到各自的缺省。
+        /// </summary>
         /// <param name="mutedKey">静音设置键。</param>
         /// <param name="volumeKey">音量设置键。</param>
         internal static void RemovePair(string mutedKey, string volumeKey)

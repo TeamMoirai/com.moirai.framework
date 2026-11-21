@@ -9,11 +9,15 @@ namespace Moirai.Atropos.Localization
     /// </remarks>
     internal static class LocalizationSettingsPolicy
     {
-        /// <summary>写语言存档。</summary>
+        /// <summary>
+        /// 写语言存档。
+        /// </summary>
         /// <param name="code">语言 Code（如 <c>zh-Hans</c>），不是语言 Name。</param>
         internal static void Save(string code) => GameSettings.SetString(GameConstant.Setting.LANGUAGE, code);
 
-        /// <summary>读语言存档。</summary>
+        /// <summary>
+        /// 读语言存档。
+        /// </summary>
         /// <param name="code">已存的语言 Code；没写过或写过空值时为 null。</param>
         /// <returns>存档里确实有一门语言时返回 <c>true</c>。</returns>
         internal static bool TryLoad(out string code)
@@ -25,7 +29,9 @@ namespace Moirai.Atropos.Localization
             return !string.IsNullOrEmpty(code);
         }
 
-        /// <summary>抹掉语言存档，下一次启动回到检测链。</summary>
+        /// <summary>
+        /// 抹掉语言存档，下一次启动回到检测链。
+        /// </summary>
         internal static void Remove() => GameSettings.RemoveSetting(GameConstant.Setting.LANGUAGE);
     }
 }

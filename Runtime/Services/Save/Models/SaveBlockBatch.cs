@@ -18,7 +18,9 @@ namespace Moirai.Atropos.Save
     {
         private readonly List<PendingBlock> _pending = new List<PendingBlock>();
 
-        /// <summary>追加一个待写入的块，编码推迟到 <see cref="CommitAsync"/> 的工作线程里执行。</summary>
+        /// <summary>
+        /// 追加一个待写入的块，编码推迟到 <see cref="CommitAsync"/> 的工作线程里执行。
+        /// </summary>
         /// <param name="key">数据块键，<c>__</c> 前缀只有 <see cref="SaveService.MAIN_BLOCK_KEY"/> 合法。</param>
         /// <param name="data">块数据对象，为 null 时按框架规则抛 <see cref="ArgumentNullException"/>。</param>
         public SaveBlockBatch Add<T>(string key, T data)
@@ -36,7 +38,9 @@ namespace Moirai.Atropos.Save
             return this;
         }
 
-        /// <summary>把已追加的块合并写进目标存档文件。</summary>
+        /// <summary>
+        /// 把已追加的块合并写进目标存档文件。
+        /// </summary>
         /// <remarks>处理器未就绪时抛 <see cref="GameException"/>（与写路径一致，不静默丢档）。</remarks>
         public async UniTask CommitAsync(string fileName, string folderName, CancellationToken cancellationToken = default)
         {
@@ -63,7 +67,9 @@ namespace Moirai.Atropos.Save
             return entries;
         }
 
-        /// <summary>已登记但尚未编码的块</summary>
+        /// <summary>
+        /// 已登记但尚未编码的块
+        /// </summary>
         private sealed class PendingBlock
         {
             public readonly string Key;

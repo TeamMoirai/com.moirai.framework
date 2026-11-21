@@ -5,9 +5,7 @@ using System.Text;
 
 namespace Moirai.Atropos.Collections
 {
-    /// <summary>
-    /// 二叉堆优先队列。基于数组实现，Enqueue/Dequeue 均为 O(log n)。
-    /// </summary>
+    /// <summary>二叉堆优先队列。基于数组实现，Enqueue/Dequeue 均为 O(log n)。</summary>
     /// <typeparam name="T">必须实现 <see cref="IComparable{T}"/> 的元素类型。</typeparam>
     // From https://visualstudiomagazine.com/articles/2012/11/01/priority-queues-with-c.aspx
     public class PriorityQueue<T> : IEnumerable<T> where T : IComparable<T>

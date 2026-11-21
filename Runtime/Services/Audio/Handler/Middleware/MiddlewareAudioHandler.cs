@@ -1079,7 +1079,7 @@ public void FadeAudio(ulong handle, float duration, float initialVolume, float f
         /// <summary>
         /// 过渡目标包装：把 <see cref="AudioFadeScheduler"/> 的内部回调面接进本处理器，不外泄到公共基类的基列表。
         /// </summary>
-        /// <remarks>每个处理器实例一个（首帧 Tick 或首条过渡时建，之后复用），语义与原 <c>IAudioFadeTarget</c> 显式实现逐字一致。</remarks>
+        /// <remarks>每个处理器实例一个（首帧 Tick 或首条过渡时建，之后复用），供 <c>AudioFadeScheduler</c> 回调。</remarks>
         private sealed class FadeSink : IAudioFadeTarget
         {
             private readonly MiddlewareAudioHandler _owner;

@@ -41,11 +41,7 @@ namespace Moirai.Atropos.ConfigTable.Luban
         /// <summary>
         /// 计算从 <see cref="relativeTo"/> 到 <see cref="path"/> 的相对路径。
         /// </summary>
-        /// <remarks>将绝对路径转换为相对于指定目录的 Unity 风格相对路径</remarks>
-        /// <remarks>
-        /// 正斜杠：config.ini 由 gen.sh（bash 驱动）直接读，Windows 侧也接受正斜杠路径，
-        /// 因此不再需要"反斜杠写入 + 读时转换"这一层。
-        /// </remarks>
+        /// <remarks>输出统一正斜杠：config.ini 由 gen.sh（bash 驱动）直接读，Windows 侧也接受正斜杠路径。</remarks>
         private static string GetRelativePath(string relativeTo, string path) =>
             PathUtility.FormatToUnityPath(Path.GetRelativePath(relativeTo, path) + "/");
 

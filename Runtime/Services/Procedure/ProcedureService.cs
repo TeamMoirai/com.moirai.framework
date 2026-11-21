@@ -14,7 +14,8 @@ namespace Moirai.Atropos.Procedure
     /// </summary>
     /// <remarks>
     /// 依赖组合：世界初始化按 <c>[ServiceDependency]</c> 声明拓扑排序，缺失/循环 fail-fast；调试面板注册要求 <see cref="DebuggerService"/> 拓扑先行。<br />
-    /// 处理器懒加载：优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析，未配置回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 生成（线程安全懒加载）。<br />
+    /// 处理器懒加载：优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ProcedureServiceSettings"/> 解析，未配置回退 <see cref="CreateDefaultHandler"/>。<br />
+    /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 生成（线程安全懒加载）。<br />
     /// 时序门槛：<see cref="AssetService"/> / <see cref="UIService"/> / <see cref="LocalizationService"/> / <see cref="TimerService"/> 须在流程 OnInit 前就绪（非本服务自身消费，极简项目应移除对应声明）。<br />
     /// 未就绪降级：查询类 API 返回安全默认值；<see cref="StartProcedure"/> / <see cref="ChangeState"/> 忽略并告警；<see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位，后端直接调用 fail-fast。<br />
     /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="GameException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
@@ -87,8 +88,7 @@ namespace Moirai.Atropos.Procedure
 
             var handler = s_Handler;
             s_Handler = null;
-            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
-            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
+            (handler as FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>

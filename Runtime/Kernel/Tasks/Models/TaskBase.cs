@@ -51,12 +51,16 @@ namespace Moirai.Atropos.Tasks
         {
             Listeners.Remove(taskBase);
         }
-        /// <summary>归还池（清引用负载后入 MemoryPool——框架统一对象池）。</summary>
+        /// <summary>
+        /// 归还池（清引用负载后入 MemoryPool——框架统一对象池）。
+        /// </summary>
         public void Dispose()
         {
             MemoryPool.Release(this);
         }
-        /// <summary>Clear 清空引用负载（池归还时调用——防悬垂与内存滞留）。</summary>
+        /// <summary>
+        /// Clear 清空引用负载（池归还时调用——防悬垂与内存滞留）。
+        /// </summary>
         public override void Clear()
         {
             Task = null;
@@ -67,7 +71,9 @@ namespace Moirai.Atropos.Tasks
     /// <summary>
     /// 框架任务的基类。
     /// </summary>
-    /// <summary>任务完成事件的引用包装：class 事件对象经本 struct 进总线派发（订阅方取 .Event 访问负载）。</summary>
+    /// <summary>
+    /// 任务完成事件的引用包装：class 事件对象经本 struct 进总线派发（订阅方取 .Event 访问负载）。
+    /// </summary>
     public readonly struct TaskCompleteEventMessage : IGameEvent
     {
         public readonly TaskCompleteEvent Event;

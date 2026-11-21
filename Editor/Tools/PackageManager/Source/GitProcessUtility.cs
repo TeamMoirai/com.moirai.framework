@@ -92,7 +92,9 @@ namespace Moirai.Atropos.PackageManager
             }
         }
 
-        /// <summary>构造进程外 git 的启动配置：两路输出一律重定向并按 UTF-8 解码，按需重定向标准输入。</summary>
+        /// <summary>
+        /// 构造进程外 git 的启动配置：两路输出一律重定向并按 UTF-8 解码，按需重定向标准输入。
+        /// </summary>
         private static ProcessStartInfo StartInfo(string gitPath, string workingDirectory, string arguments,
             bool redirectStandardInput)
         {
@@ -112,7 +114,9 @@ namespace Moirai.Atropos.PackageManager
             return startInfo;
         }
 
-        /// <summary>给命令行参数加引号：按 Windows 参数解析规则转义引号与反斜杠。</summary>
+        /// <summary>
+        /// 给命令行参数加引号：按 Windows 参数解析规则转义引号与反斜杠。
+        /// </summary>
         /// <remarks>收尾的反斜杠必须翻倍，否则它会把结束引号吃掉、参数形状就地裂变。</remarks>
         internal static string Quote(string argument)
         {

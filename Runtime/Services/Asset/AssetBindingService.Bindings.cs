@@ -473,7 +473,7 @@ namespace Moirai.Atropos.Asset
             }
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
-            // 同一个目标的组件 id 原先在这里和下面各算一次，每次都是一趟 managed→native 往返。
+            // 组件 id 在这里取一次、下面写槽位时复用：UnityObjectId.Get 每次都是一趟 managed→native 往返。
             ulong targetComponentId = UnityObjectId.Get(target);
             BindingSlotKey slotKey = new BindingSlotKey(targetComponentId, slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);
@@ -545,7 +545,7 @@ namespace Moirai.Atropos.Asset
             }
 
             ref OwnerSlot ownerSlot = ref GetOwnerSlotRef(ownerIndex);
-            // 同 RegisterSpriteSource：目标组件 id 原本在此与下面各算一次。
+            // 同 RegisterSpriteSource：组件 id 取一次复用，避免多一趟 managed→native 往返。
             ulong targetComponentId = UnityObjectId.Get(target);
             BindingSlotKey slotKey = new BindingSlotKey(targetComponentId, slotType);
             OwnerSlotKey ownerSlotKey = new OwnerSlotKey(ownerSlot.OwnerId, slotKey);

@@ -7,9 +7,7 @@ using UnityEngine.Serialization;
 
 namespace Moirai.Atropos.Audio
 {
-    /// <summary>
-    /// 保存 AudioService 播放数据的可编写脚本对象。
-    /// </summary>
+    /// <summary>保存 AudioService 播放数据的可编写脚本对象。</summary>
     [Serializable]
     [CreateAssetMenu(menuName = "Moirai/Audio/Play Options SO")]
     // ReSharper disable once InconsistentNaming

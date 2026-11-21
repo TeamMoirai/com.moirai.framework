@@ -25,9 +25,7 @@ namespace Moirai.Atropos.UI
         private List<string> _sweepScratch;
         private readonly List<UIWindow> _history = new List<UIWindow>(32); // 开启序：Push 追加、摘栈移除
 
-        /// <summary>
-        /// 就绪回执的那一枚回调：方法组转委托每次都在堆上新建一个委托对象，因此只在构造期转换一次。
-        /// </summary>
+        /// <summary>就绪回执的那一枚回调（构造期一次性转换，避免方法组转委托的逐次委托分配）。</summary>
         private readonly Action<UIWindow> _onWindowPrepare;
 
         internal UIWindowLedger()
@@ -186,7 +184,9 @@ namespace Moirai.Atropos.UI
             return string.IsNullOrEmpty(windowId) ? IsOnStackOfType(type) : IsContains(windowId);
         }
 
-        /// <summary>栈上有没有这一类的窗（含派生）：无键查询的判据，顺序扫、不建枚举器。</summary>
+        /// <summary>
+        /// 栈上有没有这一类的窗（含派生）：无键查询的判据，顺序扫、不建枚举器。
+        /// </summary>
         /// <param name="type">窗口类。</param>
         /// <returns>命中一个即真。</returns>
         private bool IsOnStackOfType(Type type)
@@ -291,7 +291,9 @@ namespace Moirai.Atropos.UI
             JoinInFlight(window, callerCt);
         }
 
-        /// <summary>开栈编排的同步腿（泛型直塞形）：静态腿经此把载荷按 <typeparamref name="TArg"/> 零装箱落进窗口。</summary>
+        /// <summary>
+        /// 开栈编排的同步腿（泛型直塞形）：静态腿经此把载荷按 <typeparamref name="TArg"/> 零装箱落进窗口。
+        /// </summary>
         internal void ShowUIImp<TArg>(Type type, bool isAsync, string windowId,
             Action<UIWindow> onInstanceCreated, in TArg payload, CancellationToken callerCt = default)
         {
@@ -301,7 +303,9 @@ namespace Moirai.Atropos.UI
             JoinInFlight(window, callerCt);
         }
 
-        /// <summary>开窗标识必填守卫：面板地址与栈上身份都只由窗口标识给出，复用/停放也认它，缺标识一律当场抬错。</summary>
+        /// <summary>
+        /// 开窗标识必填守卫：面板地址与栈上身份都只由窗口标识给出，复用/停放也认它，缺标识一律当场抬错。
+        /// </summary>
         /// <param name="type">窗口类，只进抬错文案。</param>
         /// <param name="windowId">开窗传入的窗口标识。</param>
         /// <exception cref="GameException">标识为空。</exception>
@@ -315,7 +319,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>装载在途才登记等待者；复用/停放命中同步完成，CT 不消费（语义诚实）。</summary>
+        /// <summary>
+        /// 装载在途才登记等待者；复用/停放命中同步完成，CT 不消费（语义诚实）。
+        /// </summary>
         private static void JoinInFlight(UIWindow window, CancellationToken callerCt)
         {
             if (window.IsLoadDone || window.IsDestroyed)
@@ -373,7 +379,9 @@ namespace Moirai.Atropos.UI
             window.InternalLoad(window.AssetLocation, _onWindowPrepare, isAsync).Forget();
         }
 
-        /// <summary>开栈编排的公共前置（泛型直塞形）：与 UIPayload 形同路，只把载荷经 <see cref="IUIPayloadSlot{TArg}"/> 强类型落位、不擦除。</summary>
+        /// <summary>
+        /// 开栈编排的公共前置（泛型直塞形）：与 UIPayload 形同路，只把载荷经 <see cref="IUIPayloadSlot{TArg}"/> 强类型落位、不擦除。
+        /// </summary>
         private void ResolveOrStartLoad<TArg>(Type type, bool isAsync, string windowId,
             Action<UIWindow> onInstanceCreated, in TArg payload, out UIWindow window)
         {
@@ -403,7 +411,9 @@ namespace Moirai.Atropos.UI
             window.InternalLoad(window.AssetLocation, _onWindowPrepare, isAsync).Forget();
         }
 
-        /// <summary>泛型直塞通道的落点：槽型不符（含不带槽）当场抬错，不退化为擦除路径。</summary>
+        /// <summary>
+        /// 泛型直塞通道的落点：槽型不符（含不带槽）当场抬错，不退化为擦除路径。
+        /// </summary>
         private static void SetPayloadChecked<TArg>(UIWindow window, in TArg payload)
         {
             if (window is IUIPayloadSlot<TArg> slot)
@@ -417,7 +427,9 @@ namespace Moirai.Atropos.UI
                 window.WindowId, window.GetType().FullName, typeof(TArg).Name));
         }
 
-        /// <summary>栈上已有同标识窗口时把它挪到栈顶（Pop/Push 重排）；载荷写入与准备回执交由调用方排在重排之后。</summary>
+        /// <summary>
+        /// 栈上已有同标识窗口时把它挪到栈顶（Pop/Push 重排）；载荷写入与准备回执交由调用方排在重排之后。
+        /// </summary>
         private bool TryGetWindow(string windowId, out UIWindow window)
         {
             window = null;
@@ -490,7 +502,9 @@ namespace Moirai.Atropos.UI
             return window;
         }
 
-        /// <summary>开栈编排的等待腿（泛型直塞形）：与 UIPayload 形同路，仅把载荷换进泛型直塞通道。</summary>
+        /// <summary>
+        /// 开栈编排的等待腿（泛型直塞形）：与 UIPayload 形同路，仅把载荷换进泛型直塞通道。
+        /// </summary>
         /// <remarks><paramref name="payload"/> 用普通形参而非 <c>in</c>：<c>async</c> 方法禁 <c>in</c> 形参（CS1988）；交给泛型直塞前置时按其 <c>in</c> 形参隐式按值传递。</remarks>
         internal async UniTask<UIWindow> ShowUIAwaitImp<TArg>(Type type, bool isAsync, string windowId,
             Action<UIWindow> onInstanceCreated, TArg payload, CancellationToken callerCt = default)
@@ -565,7 +579,9 @@ namespace Moirai.Atropos.UI
             return await WaitWindowResultAsync(window, windowId, LOAD_WAIT_TIMEOUT_SECONDS, callerCt);
         }
 
-        /// <summary>开栈编排的结果腿（泛型直塞形）：与 UIPayload 形同路，仅把载荷换进泛型直塞通道。</summary>
+        /// <summary>
+        /// 开栈编排的结果腿（泛型直塞形）：与 UIPayload 形同路，仅把载荷换进泛型直塞通道。
+        /// </summary>
         /// <remarks><paramref name="payload"/> 用普通形参而非 <c>in</c>：<c>async</c> 方法禁 <c>in</c> 形参（CS1988）；交给泛型直塞前置时按其 <c>in</c> 形参隐式按值传递。</remarks>
         internal async UniTask<UIOpenResult> ShowUIAwaitResultImp<TArg>(Type type, bool isAsync, string windowId,
             Action<UIWindow> onInstanceCreated, TArg payload, CancellationToken callerCt = default)
@@ -921,7 +937,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>停放 TTL 到期：仍停放着才移出并终态销毁；已被取用/顶替的迟到到期静默落空。</summary>
+        /// <summary>
+        /// 停放 TTL 到期：仍停放着才移出并终态销毁；已被取用/顶替的迟到到期静默落空。
+        /// </summary>
         internal void ExpireParkedWindow(UIWindow window)
         {
             if (window == null)
@@ -1218,7 +1236,9 @@ namespace Moirai.Atropos.UI
         /// <summary>导航深度：开启序历史的长度（栈按层级排序答不出「最近开的是谁」，历史按开启序答）。</summary>
         internal int NavigationDepth => _history.Count;
 
-        /// <summary>关闭最近打开的窗口，走既有关闭政策：无历史/过渡中/政策拒关回假，历史不出栈。</summary>
+        /// <summary>
+        /// 关闭最近打开的窗口，走既有关闭政策：无历史/过渡中/政策拒关回假，历史不出栈。
+        /// </summary>
         internal bool TryCloseTopWindow()
         {
             if (_history.Count == 0)
@@ -1252,7 +1272,9 @@ namespace Moirai.Atropos.UI
             return null;
         }
 
-        /// <summary>窗口当前是否在开启态（uiStack 含）。</summary>
+        /// <summary>
+        /// 窗口当前是否在开启态（uiStack 含）。
+        /// </summary>
         internal bool IsWindowOpen(UIWindow window) => _uiStack.Contains(window);
 
         #endregion
@@ -1264,7 +1286,9 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal IReadOnlyList<UIWindow> PeekStack() => _uiStack;
 
-        /// <summary>按标识关掉/隐藏该类型的所有窗口：自栈顶往下逐个走单窗路径。</summary>
+        /// <summary>
+        /// 按标识关掉/隐藏该类型的所有窗口：自栈顶往下逐个走单窗路径。
+        /// </summary>
         /// <param name="type">窗口类。</param>
         private void CloseAllOfType(Type type)
         {
@@ -1290,7 +1314,9 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal bool IsParked(string windowId) => _cache.ContainsKey(windowId);
 
-        /// <summary>停放表的只读视图（键集合）：调试面枚举缓存窗用它，不给写。</summary>
+        /// <summary>
+        /// 停放表的只读视图（键集合）：调试面枚举缓存窗用它，不给写。
+        /// </summary>
         internal IReadOnlyCollection<string> PeekParkedIds() => _cache.Keys;
 
         #endregion

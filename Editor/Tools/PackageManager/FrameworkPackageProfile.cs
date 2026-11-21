@@ -4,8 +4,7 @@ namespace Moirai.Atropos.PackageManager
     /// 框架插件源这一套包源配置。
     /// </summary>
     /// <remarks>
-    /// 单独成档而不挂在窗口类上：账本缓存与 Provider 下拉也要按同一份身份读同一份状态文件，
-    /// 那些调用方不该为了取一个常量而触碰 Odin 窗口类型。
+    /// 账本缓存与 Provider 下拉按同一份身份读同一份状态文件；这些调用方不该为了取一个常量而触碰 Odin 窗口类型。
     /// </remarks>
     internal static class FrameworkPackageProfile
     {

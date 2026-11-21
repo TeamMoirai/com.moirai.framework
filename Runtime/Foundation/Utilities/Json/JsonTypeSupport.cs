@@ -28,9 +28,7 @@ namespace Moirai.Atropos
             typeof(IReadOnlyDictionary<,>),
         };
 
-        /// <summary>
-        /// 以 JSON 数组承载的泛型集合定义：写侧按顺序展开、读侧按顺序回填。
-        /// </summary>
+        /// <summary>以 JSON 数组承载的泛型集合定义：写侧按顺序展开、读侧按顺序回填。</summary>
         /// <remarks>
         /// <c>Stack&lt;T&gt;</c> 的枚举序是自顶向下，读侧须逆序压栈才能还原成同构的栈；
         /// <see cref="System.Collections.Generic.ISet{T}"/> 一律落到 <c>HashSet&lt;T&gt;</c> 实例。

@@ -7,9 +7,7 @@ using YooAsset;
 
 namespace Moirai.Atropos.Asset
 {
-    /// <summary>
-    /// 资源管理器处理器：承载资源加载、缓存、租约与绑定等全部实现逻辑。
-    /// </summary>
+    /// <summary>资源管理器处理器：承载资源加载、缓存、租约与绑定等全部实现逻辑。</summary>
     /// <remarks>由 <see cref="AssetServiceSettings"/> 序列化配置，<see cref="AssetService"/> 外观转发调用。</remarks>
     // ReSharper disable once ClassNeverInstantiated.Global
     [ProviderDisplay(title: "YooAsset", description: "默认：YooAsset 资源管线（加载/缓存/租约/绑定/远程包下载）")]

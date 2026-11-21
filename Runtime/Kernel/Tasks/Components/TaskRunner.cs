@@ -25,7 +25,9 @@ namespace Moirai.Atropos.Tasks
         
         private static TaskRunner s_Instance;
 
-        /// <summary>Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例——幂等。</summary>
+        /// <summary>
+        /// Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例——幂等。
+        /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStaticsForDomainReload()
         {

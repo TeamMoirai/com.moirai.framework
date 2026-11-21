@@ -98,7 +98,9 @@ namespace Moirai.Atropos.Save
             return serializer;
         }
 
-        /// <summary>配置自检：默认序列化后端的类型名能否解析成 <see cref="ISaveSerializer"/> 实现。</summary>
+        /// <summary>
+        /// 配置自检：默认序列化后端的类型名能否解析成 <see cref="ISaveSerializer"/> 实现。
+        /// </summary>
         /// <remarks>
         /// 实例成员，不经 <see cref="FrameworkSettings{T}.Instance"/>：构建期校验器缺资产时只读不新建。 <br />
         /// 留空算通过——空即出厂的内置 JSON，不是配错。

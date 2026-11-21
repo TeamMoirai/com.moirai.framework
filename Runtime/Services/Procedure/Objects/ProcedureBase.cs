@@ -22,7 +22,9 @@ namespace Moirai.Atropos.Procedure
         /// </summary>
         protected AssetLeaseScope Res => _res ??= new AssetLeaseScope();
 
-        /// <summary>Owner 在 OnLeave 之后调用：释放并置空本状态的租约作用域（internal——由流程处理器保证，派生类勿调）。</summary>
+        /// <summary>
+        /// Owner 在 OnLeave 之后调用：释放并置空本状态的租约作用域（internal——由流程处理器保证，派生类勿调）。
+        /// </summary>
         internal void CleanupLeaseScope()
         {
             _res?.Dispose();

@@ -84,8 +84,8 @@ namespace Moirai.Atropos
         /// <remarks>
         /// <para>仅当前活动实例（<c>s_Instance == this</c>）可被释放；对陈旧实例或已释放实例重复调用为 no-op。
         /// 释放后再次访问 <see cref="Instance"/> 将创建新实例并重新初始化。</para>
-        /// <para><see cref="OnShutdown"/> 在锁内执行且先于引用清空——期间访问 <see cref="Instance"/>
-        /// 仍取回正在关闭中的当前实例，不会创建替身。</para>。
+        /// <para><see cref="OnShutdown"/> 在锁内执行且先于引用清空——期间访问 <see cref="Instance"/> <br />
+        /// 仍取回正在关闭中的当前实例，不会创建替身。</para>
         /// </remarks>
         public void Dispose()
         {

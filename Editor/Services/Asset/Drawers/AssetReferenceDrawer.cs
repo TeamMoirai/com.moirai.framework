@@ -8,14 +8,12 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Asset
 {
     /// <summary>
-    /// <see cref="AssetReference"/> 的 Odin 绘制器，单行绘制：对象字段选中即写回 GUID、
-    /// 标签按字段名实宽自绘（tooltip 附解析路径）、控件框紧贴其后，
-    /// 行尾「Package」包名下拉（后端不消费则不绘制，选项语义见 <see cref="DrawPackagePopup"/>）；
-    /// GUID 悬空（资产已不存在）时行下报错。
+    /// <see cref="AssetReference"/> 的 Odin 绘制器，单行绘制：对象字段 + 标签 + 行尾「Package」包名下拉，GUID 悬空时行下报错。
     /// </summary>
     /// <remarks>
-    /// 全管线经 Odin 接管（含 List 元素），字段无需再标 <c>[DrawWithUnity]</c>；
-    /// 无 Unity 序列化后端（纯 Odin 宿主）或类型参数不可解析时回退默认绘制。
+    /// 全管线经 Odin 接管（含 List 元素），字段无需再标 <c>[DrawWithUnity]</c>；<br />
+    /// 无 Unity 序列化后端（纯 Odin 宿主）或类型参数不可解析时回退默认绘制。<br />
+    /// 标签按字段名实宽自绘（tooltip 附解析路径）、控件框紧贴其后；包名下拉在后端不消费时不绘制，选项语义见 <see cref="DrawPackagePopup"/>。
     /// </remarks>
     public class AssetReferenceDrawer : OdinValueDrawer<AssetReference>
     {
@@ -61,7 +59,7 @@ namespace Moirai.Atropos.Asset
             string path = AssetDatabase.GUIDToAssetPath(guid);
             UObject current = string.IsNullOrEmpty(path) ? null : AssetDatabase.LoadAssetAtPath(path, assetType);
 
-            // 前缀标签式控件的标签列宽由宿主 labelWidth 决定（置 0 实测被当「默认 150」哨兵，无从收窄），
+            // 前缀标签式控件的标签列宽由宿主 labelWidth 决定（置 0 会被当「默认 150」哨兵，无从收窄），
             // 窄检视面板内字段名与控件框之间会空出整段标签列、控件框被挤出可视区；
             // 故标签一律分离自绘、按字段名实宽自适应，控件框紧贴其后
             EditorGUILayout.BeginHorizontal();

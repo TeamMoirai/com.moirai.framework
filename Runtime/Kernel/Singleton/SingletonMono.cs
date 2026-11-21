@@ -54,7 +54,9 @@ namespace Moirai.Atropos
         // ReSharper disable once StaticMemberInGenericType
         private static long s_NextOrdinal;
 
-        /// <summary>静态构造时自报重置回调：泛型类无法挂 RuntimeInitializeOnLoadMethod，由非泛型注册中心代执行。</summary>
+        /// <summary>
+        /// 静态构造时自报重置回调：泛型类无法挂 RuntimeInitializeOnLoadMethod，由非泛型注册中心代执行。
+        /// </summary>
         static SingletonMono()
         {
             SingletonStaticStateRegistry.Register(ResetStaticsForDomainReload);
@@ -208,7 +210,7 @@ namespace Moirai.Atropos
             if (s_Instance != this) return;
 
             // 退出判据：OnApplicationQuit 先于 OnDestroy 触发——销毁前已置位即退出期销毁。
-            // 旧实现以 Application.isPlaying 判定，但退出期 isPlaying 仍为 true，守卫被误复位导致退出窗口单例复活。
+            // 不能以 Application.isPlaying 判定退出：退出期 isPlaying 仍为 true，据此复位守卫会导致退出窗口单例复活。
             bool quitting = s_ShuttingDown;
 
             s_ShuttingDown = true;

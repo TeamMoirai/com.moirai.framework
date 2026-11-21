@@ -43,9 +43,7 @@ namespace Moirai.Atropos.UI
         // ReSharper disable once InconsistentNaming
         private static bool IsOnUITKTrack(Type windowType) => typeof(UITKWindow).IsAssignableFrom(windowType);
 
-        /// <summary>
-        /// UI Toolkit 轨<b>已启用</b>的驱动者：这一轨没启用时当场抬错，不静默落空、也不替本轨造一个。
-        /// </summary>
+        /// <summary>UI Toolkit 轨<b>已启用</b>的驱动者：这一轨没启用时当场抬错，不静默落空、也不替本轨造一个。</summary>
         /// <remarks>
         /// 槽位只有 <see cref="OnInit"/> 按 <see cref="UIServiceSettings"/> 启用清单认领那一条来路：没有换入接缝，也不替配置造驱动者。 <br />
         /// UI Toolkit 腿的三支与 <see cref="System.Type"/> 入口的 UI Toolkit 档都只取用它作认领门探针。
@@ -68,7 +66,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>读 UI Toolkit 轨的处理器槽：不叫认领门，也不产生任何副作用。</summary>
+        /// <summary>
+        /// 读 UI Toolkit 轨的处理器槽：不叫认领门，也不产生任何副作用。
+        /// </summary>
         internal static UITKHandler Internal_PeekUITKHandler() => s_UITKHandler;
 
         /// <summary>
@@ -101,7 +101,9 @@ namespace Moirai.Atropos.UI
             handler.Internal_Init();
         }
 
-        /// <summary>摘掉本轨的处理器槽：只清位，不跑关停，也不碰广播——广播由门面整批摘。</summary>
+        /// <summary>
+        /// 摘掉本轨的处理器槽：只清位，不跑关停，也不碰广播——广播由门面整批摘。
+        /// </summary>
         private static void Internal_DetachUITKTrack()
         {
             Interlocked.Exchange(ref s_UITKHandler, null);
@@ -273,9 +275,7 @@ namespace Moirai.Atropos.UI
             return SharedLedger.ShowUIAwaitResultImp<TArg>(typeof(TWindow), true, windowId, HandoffPanelSettings(panelSettings), payload, ct);
         }
 
-        /// <summary>
-        /// Type 形入口落到本轨的开窗实现：走各轨共用的那张中性形参表，因此不带窗口级 <c>PanelSettings</c>。
-        /// </summary>
+        /// <summary>Type 形入口落到本轨的开窗实现：走各轨共用的那张中性形参表，因此不带窗口级 <c>PanelSettings</c>。</summary>
         /// <remarks>
         /// 这一条路不给窗口级配置（<c>panelSettings</c> 恒为 <c>null</c>），装载回共享那一份 <see cref="UITKWindow.SharedPanelSettings"/>。
         /// </remarks>

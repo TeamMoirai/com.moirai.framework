@@ -61,9 +61,7 @@ namespace Moirai.Atropos
         protected string TimestampPrefix
             => m_TimestampEnabled ? StringUtility.Format("[{0}] ", DateTime.Now.ToString(m_TimestampFormat)) : null;
 
-        /// <summary>
-        /// 获取可直写 Unity 控制台、绕过全局拦截器的 logHandler，后端输出通道须经它取用（详见 <see cref="LogUtility.GetBypassUnityHandler"/>）。
-        /// </summary>
+        /// <summary>获取可直写 Unity 控制台、绕过全局拦截器的 logHandler，后端输出通道须经它取用（详见 <see cref="LogUtility.GetBypassUnityHandler"/>）。</summary>
         protected internal static ILogHandler BypassUnityHandler => LogUtility.GetBypassUnityHandler();
 
         /// <inheritdoc/>
@@ -74,9 +72,7 @@ namespace Moirai.Atropos
             LogUtility.EnableGlobalInterception();
         }
 
-        /// <summary>
-        /// 带异常对象的 Error 条目是否经 Unity 的 LogException 通道呈现（UTF 因此把它当作 <c>LogType.Exception</c> 而非 <c>LogType.Error</c>）。
-        /// </summary>
+        /// <summary>带异常对象的 Error 条目是否经 Unity 的 LogException 通道呈现（UTF 因此把它当作 <c>LogType.Exception</c> 而非 <c>LogType.Error</c>）。</summary>
         /// <remarks>
         /// 基类默认 <c>false</c>，与 <see cref="DefaultLogHandler"/> 一致：Error 落 <c>LogType.Error</c>，只有 Fatal 带异常时才走 LogException。 <br />
         /// 后端只要「条目自带异常就升级成 Exception」即覆盖为 <c>true</c>（<c>plugin</c> 分支的 zlogger 插件属此）。 <br />

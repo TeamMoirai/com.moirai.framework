@@ -45,7 +45,9 @@ namespace Moirai.Atropos.PackageManager
             FailureReason = reason;
         }
 
-        /// <summary>取一行可直接展示的汇总。</summary>
+        /// <summary>
+        /// 取一行可直接展示的汇总。
+        /// </summary>
         internal string Summary()
         {
             if (!Ok) return FailureReason;

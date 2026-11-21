@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Asset
         /// </summary>
         /// <remarks>
         /// 改值不能停在 <c>WeakSmartValue =</c> 后接 <c>Property.Update(true)</c>：赋值只落进 ValueEntry 的待写槽，
-        /// <c>Update</c> 随即从源读回原值把待写槽冲掉（实测：句柄属性选完包名弹回「留空」）。
+        /// <c>Update</c> 随即从源读回原值把待写槽冲掉（句柄属性选完包名即弹回「留空」）。
         /// 须逐格写 <c>Values</c> 再 <c>ApplyChanges()</c>（Odin 改值成例），宿主属性的 setter 才真被调用。
         /// </remarks>
         private bool DrawValueEntryFallback(Rect rowRect, GUIContent rowLabel, bool allowEmpty)

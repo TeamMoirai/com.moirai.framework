@@ -4,9 +4,7 @@ using UnityEngine.Profiling;
 
 namespace Moirai.Atropos
 {
-    /// <summary>
-    /// 游戏框架Profiler分析器类。
-    /// </summary>
+    /// <summary>游戏框架Profiler分析器类。</summary>
     // ReSharper disable once InconsistentNaming
     public static class GameProfiler
     {

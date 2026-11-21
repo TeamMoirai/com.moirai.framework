@@ -5,9 +5,7 @@ using UnityEngine;
 
 namespace Sirenix.OdinInspector.Editor.Drawers
 {
-    /// <summary>
-    /// 参考 <see cref="FoldoutGroupAttributeDrawer"/>。
-    /// </summary>
+    /// <summary>参考 <see cref="FoldoutGroupAttributeDrawer"/>。</summary>
     // ReSharper disable once UnusedType.Global
     public class InspectorGroupAttributeDrawer : OdinGroupDrawer<InspectorGroupAttribute>
     {

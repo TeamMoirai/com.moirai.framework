@@ -4,9 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos.Input
 {
-    /// <summary>
-    /// 输入服务外观（Facade）：统一的静态输入访问入口，替换 <see cref="Handler"/> 即可切换输入后端。
-    /// </summary>
+    /// <summary>输入服务外观（Facade）：统一的静态输入访问入口，替换 <see cref="Handler"/> 即可切换输入后端。</summary>
     /// <remarks>
     /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="InputServiceSettings"/> 解析， <br />
     /// 未配置则回退 <see cref="CreateDefaultHandler"/>。
@@ -88,8 +86,7 @@ namespace Moirai.Atropos.Input
 
             var handler = s_Handler;
             s_Handler = null;
-            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
-            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
+            (handler as FrameworkHandler)?.Internal_Shutdown();
         }
 
         #endregion
@@ -276,7 +273,9 @@ namespace Moirai.Atropos.Input
             if (target.HasValue) handler.Enabled = target.Value;
         }
 
-        /// <summary>窗口开合回执共用这一个入口：模态位重算只看「栈上还有没有模态窗」，与是哪个窗口、开还是关无关。</summary>
+        /// <summary>
+        /// 窗口开合回执共用这一个入口：模态位重算只看「栈上还有没有模态窗」，与是哪个窗口、开还是关无关。
+        /// </summary>
         /// <param name="window">刚入栈或刚出栈的窗口；本回执不取用。</param>
         private static void RefreshUIModal(UIWindow window)
         {

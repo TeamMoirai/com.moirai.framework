@@ -80,151 +80,249 @@ namespace Moirai.Atropos.Asset
         /// <summary>是否已经初始化（生命周期标志，源自 FrameworkHandler.IsInitialized）。</summary>
         bool IsInitialized { get; }
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void Initialize();
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<AssetPackageInitResult> InitializePackageAsync(string packageName, bool needInitManifest = false);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         string GetPackageVersion(string customPackageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetPackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void SetRemoteServicesUrl(string defaultHostServer, string fallbackHostServer);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         IAssetOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         IAssetDownloader CreateAssetDownloader(string customPackageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetClearCacheResult StartClearCache(EAssetClearMode clearMode, string customPackageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void ClearAllBundleFiles(string customPackageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void OnLowMemory();
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void SetForceUnloadUnusedAssetsAction(Action<bool> action);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void UnloadUnusedAssets();
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void UnloadUnusedAssets(bool force);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void ForceUnloadAllAssets();
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void ForceUnloadUnusedAssets(bool performGCCollect);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         bool IsNeedDownloadFromRemote(string location, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         long GetDownloadSize(string location, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetInfoEntry[] GetAssetInfos(string tag, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetInfoEntry GetAssetInfo(string location, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         EAssetHasResult HasAsset(string location, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         bool IsLocationValid(string location, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         bool TryGetLocationByGuid(string guid, out string location, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         GameObject LoadGameObject(string location, Transform parent = null, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<GameObject> LoadGameObjectAsync(string location, Transform parent = null, CancellationToken cancellationToken = default, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetSceneHandle LoadSceneAsync(string location, LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "");
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void WarmupAssetRecords(int assetCapacity, int leaseCapacity);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetLeaseHandle AcquireDirect(AssetKey key);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<AssetLeaseHandle> AcquireDirectAsync(AssetKey key, CancellationToken cancellationToken = default);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void Release(AssetLeaseHandle handle);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetLease<T> LoadLease<T>(AssetKey key) where T : UObject;
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetLease<T> LoadLease<T>(string location, string packageName = "") where T : UObject;
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<AssetLease<T>> LoadLeaseAsync<T>(AssetKey key, CancellationToken cancellationToken = default) where T : UObject;
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<AssetLease<T>> LoadLeaseAsync<T>(string location, CancellationToken cancellationToken = default, string packageName = "") where T : UObject;
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         bool TryGetLeaseAsset(AssetLeaseHandle handle, out UObject asset);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetLeaseHandle AcquireBinding(AssetKey key);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         bool TryAcquireBindingCached(AssetKey key, out AssetLeaseHandle handle);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<AssetLeaseHandle> AcquireBindingAsync(AssetKey key, CancellationToken cancellationToken);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<AssetLeaseHandle> AcquireSubAssetsBindingAsync(string location, string packageName, EAssetLeaseOption options, CancellationToken cancellationToken);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         bool TryGetSubSpriteAsset(AssetLeaseHandle handle, string spriteName, out Sprite sprite);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         bool TryGetLeaseAssetId(AssetLeaseHandle handle, out int assetId);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void SetLeaseOptions(AssetLeaseHandle handle, EAssetLeaseOption options);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         AssetLeaseHandle AcquirePrefabSourceLease(string location, string packageName);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         UniTask<AssetLeaseHandle> AcquirePrefabSourceLeaseAsync(string location, string packageName, CancellationToken cancellationToken);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void ProcessAssetMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget);
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         int ReleaseAllUnusedAssetRecords();
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         void ForceReleaseAllAssetRecords();
 
-        /// <summary>见 <see cref="AssetService"/> 门面对应 API 的语义文档。</summary>
+        /// <summary>
+        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
+        /// </summary>
         int GetAssetInfos(AssetInfo[] results, int startIndex, int maxCount);
     }
 
@@ -233,7 +331,9 @@ namespace Moirai.Atropos.Asset
     /// </summary>
     internal interface IAssetLeaseDiagnostics
     {
-        /// <summary>填充租约来源诊断信息。</summary>
+        /// <summary>
+        /// 填充租约来源诊断信息。
+        /// </summary>
         int GetLeaseSourceInfos(AssetLeaseSourceInfo[] results, int startIndex, int maxCount, out int outstandingCount, out int sourcedCount);
     }
 }

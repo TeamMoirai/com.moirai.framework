@@ -189,7 +189,9 @@ namespace Moirai.Atropos.Audio
             card.Add(row);
         }
 
-        /// <summary>音轨音高行：Slider 0.01~3，显示为倍率。</summary>
+        /// <summary>
+        /// 音轨音高行：Slider 0.01~3，显示为倍率。
+        /// </summary>
         private static void AddTrackPitchRow(VisualElement card, string label, Func<float> getter, Action<float> setter)
         {
             VisualElement row = CreateVolumeRow(label);

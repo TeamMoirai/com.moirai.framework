@@ -16,10 +16,14 @@ namespace Moirai.Atropos.ConfigTable
     /// </remarks>
     public interface IConfigTableService
     {
-        /// <summary>从配置表获取所有多语言文本。</summary>
+        /// <summary>
+        /// 从配置表获取所有多语言文本。
+        /// </summary>
         Dictionary<string, List<string>> GetAllLocalizedStrings();
 
-        /// <summary>自报本表提供哪些语言，返回语言 Name 或 Code。</summary>
+        /// <summary>
+        /// 自报本表提供哪些语言，返回语言 Name 或 Code。
+        /// </summary>
         /// <remarks>
         /// <b>语言必须随表自报</b>：返回空时本地化侧以「数据未就绪」整批拒载并保持重试，不存在可回落的全局注册表。 <br />
         /// 认不出的 Code 按自定义语言直通，列序不被重排。
@@ -35,16 +39,22 @@ namespace Moirai.Atropos.ConfigTable
         /// </remarks>
         bool SupportsPerLanguageLocalizationLoad => false;
 
-        /// <summary>取单一语言的词条列：key → 译文（<b>按语言取列时必须实现</b>）。</summary>
+        /// <summary>
+        /// 取单一语言的词条列：key → 译文（<b>按语言取列时必须实现</b>）。
+        /// </summary>
         /// <param name="languageCode"><see cref="GetLocalizationLanguageCodes"/> 自报过的语言码。</param>
         /// <returns>取不到时返回 <c>null</c>（视为数据未就绪，下次访问重试）；空字典是「已加载的空列」，不再重试。</returns>
         /// <remarks>缺译写成空字符串而不要省掉键：列按键对齐，省键会让后续语言整体错位。</remarks>
         Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode) => null;
 
-        /// <summary>根据 ID 从配置表加载图标。</summary>
+        /// <summary>
+        /// 根据 ID 从配置表加载图标。
+        /// </summary>
         UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken);
 
-        /// <summary>根据 ID 从配置表获取弹窗资产的位置。</summary>
+        /// <summary>
+        /// 根据 ID 从配置表获取弹窗资产的位置。
+        /// </summary>
         string GetUIWindowLocation(string id);
     }
 }

@@ -13,9 +13,11 @@ namespace Moirai.Atropos.PackageManager
     /// </remarks>
     internal static class InstallPlanner
     {
-        /// <summary>规划一次安装，依赖排在依赖方之前。</summary>
+        /// <summary>
+        /// 规划一次安装，依赖排在依赖方之前。
+        /// </summary>
         /// <remarks><paramref name="hostVersion"/> 以 <c>0.0.0</c>（<c>default</c>）作「未提供」哨兵：给了才判宿主包区间，纯规划用例可以不传；
-        /// 生产路径必须传当前宿主包版本（框架插件源是框架包，其余包源由各自的 <c>PackageManagerProfile</c> 指定）的实测值。</remarks>
+        /// 生产路径必须传当前宿主包版本（框架插件源是框架包，其余包源由各自的 <c>PackageManagerProfile</c> 指定）的实际值。</remarks>
         internal static InstallPlan Plan(IReadOnlyList<PluginManifest> catalog, IReadOnlyCollection<string> installedIds,
             IReadOnlyCollection<string> requestedIds, IReadOnlyCollection<string> forceIds, PluginVersion unityVersion,
             PluginVersion hostVersion = default)

@@ -23,9 +23,7 @@ namespace Moirai.Atropos.Input
         /// <summary>当前注册的全部虚拟摇杆（只读视图，元素顺序不保证）。</summary>
         public static IReadOnlyCollection<InputAxes> Axes => s_Axes.Values;
 
-        /// <summary>
-        /// 注册表变更版本号：每次注册（含同名覆盖）自增。
-        /// </summary>
+        /// <summary>注册表变更版本号：每次注册（含同名覆盖）自增。</summary>
         /// <remarks>供解析方做可失效的负缓存——版本一致时未命中的动作名可直接短路，任何新注册都会令负缓存失效。</remarks>
         public static int Version => s_Version;
 

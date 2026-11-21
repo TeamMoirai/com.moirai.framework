@@ -57,7 +57,9 @@ namespace Moirai.Atropos.UI
             Refresh();
         }
 
-        /// <summary>重建数据区：门面、共享栈、停放表与租约按当前快照重画。</summary>
+        /// <summary>
+        /// 重建数据区：门面、共享栈、停放表与租约按当前快照重画。
+        /// </summary>
         private void Refresh()
         {
             if (_dataRoot == null)
@@ -118,7 +120,9 @@ namespace Moirai.Atropos.UI
             AddRow(leaseCard, "Suppression Holder", holder != null ? holder.WindowId : "(none)");
         }
 
-        /// <summary>加一个数据卡片分区。</summary>
+        /// <summary>
+        /// 加一个数据卡片分区。
+        /// </summary>
         private VisualElement AddSection(string title)
         {
             var card = new VisualElement();

@@ -8,9 +8,7 @@ using UnityEditor;
 
 namespace Moirai.Atropos
 {
-    /// <summary>
-    /// 允许在指定路径创建并保存 <c>.curves</c> 资源：收集 Tween 库的缓动曲线（含反曲线）供任意动画曲线处使用。
-    /// </summary>
+    /// <summary>允许在指定路径创建并保存 <c>.curves</c> 资源：收集 Tween 库的缓动曲线（含反曲线）供任意动画曲线处使用。</summary>
     // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
     public class AnimationCurveGenerator : MonoBehaviour
     {

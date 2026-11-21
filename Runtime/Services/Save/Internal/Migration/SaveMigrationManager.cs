@@ -25,8 +25,7 @@ namespace Moirai.Atropos.Save
         private static readonly List<ISaveMigrator> s_Migrators = new List<ISaveMigrator>();
         private static readonly object s_RegistryLock = new object();
 
-        /// <summary>会话级已校验文件路径缓存（存档路径 → 标记时文件最后写入时间 UTC；版本相等或迁移完成的文件同会话不再重复探测/迁移——
-        /// 文件写入时间变化（外部替换/云同步落盘/备份恢复）使缓存条目被动失效自动重探测；备份恢复与删除操作另经 <see cref="InvalidateSession"/> 主动失效）。</summary>
+        /// <summary>会话级已校验文件路径缓存（存档路径 → 标记时最后写入时间 UTC；版本相等或已迁移同会话不再重复探测——写入时间变化（外部替换/云同步落盘/备份恢复）或 <see cref="InvalidateSession"/> 使条目失效重探测）。</summary>
         private static readonly Dictionary<string, DateTime> s_MigratedPaths = new Dictionary<string, DateTime>(StringComparer.Ordinal);
         private static readonly object s_SessionLock = new object();
 
@@ -230,8 +229,7 @@ namespace Moirai.Atropos.Save
         /// <param name="blockErrors">坏块清单（元数据块损坏时保守失败——版本不可信）。</param>
         /// <param name="migratedBlocks">迁移后的块集合（未迁移时为源列表）。</param>
         /// <param name="migrated">是否实际执行了迁移。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、 <br />
-        /// <see cref="SaveError.UnsupportedVersion"/>（降级拒绝）或 <see cref="SaveError.MigrationFailed"/>。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.UnsupportedVersion"/>（降级拒绝）或 <see cref="SaveError.MigrationFailed"/>。</returns>
         internal static SaveError TryMigrateBlocks(SaveServiceHandler.SavePaths paths, List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, out List<SaveBlockEntry> migratedBlocks, out bool migrated)
         {
             migratedBlocks = blocks;

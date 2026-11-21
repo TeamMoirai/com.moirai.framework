@@ -6,16 +6,15 @@ namespace Moirai.Atropos
 {
     /// <summary>
     /// 总线诊断钩子：仅编辑器存在——生产/开发构建编译期剥除，发布路径零诊断开销。
-    /// 独立的编辑器调试窗（Editor/Kernel/Events/EventBusDebuggerWindow）经 InternalsVisibleTo 挂接本钩子，
-    /// 不占用 Debugger 服务窗口注册表，内核侧不引入任何调试接口。
     /// </summary>
+    /// <remarks>
+    /// 编辑器调试窗（Editor/Kernel/Events/EventBusDebuggerWindow）经 InternalsVisibleTo 挂接本钩子；不占用 Debugger 服务窗口注册表，内核侧不引入任何调试接口。
+    /// </remarks>
 #if UNITY_EDITOR
     internal static class EventBusDiagnostics
     {
-        /// <summary>
-        /// 每次事件派发触发（参数：事件类型 + 事件值快照）。
-        /// 快照为 struct 事件的装箱副本（仅当调试窗挂接时求值——<c>?.</c> 在未挂接时短路，零装箱）。
-        /// </summary>
+        /// <summary>每次事件派发触发（参数：事件类型 + 事件值快照）。</summary>
+        /// <remarks>快照为 struct 事件的装箱副本，仅当调试窗挂接时求值——<c>?.</c> 在未挂接时短路，零装箱。</remarks>
         internal static Action<Type, object> OnPublished;
     }
 #endif

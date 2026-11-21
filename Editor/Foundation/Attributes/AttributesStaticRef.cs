@@ -1,9 +1,7 @@
 ﻿// ReSharper disable InconsistentNaming
 namespace Moirai.Atropos.Attributes.Editor
 {
-    /// <summary>
-    /// 静态引用。
-    /// </summary>
+    /// <summary>静态引用。</summary>
     // ReSharper disable once InconsistentNaming
     public static class AttributesStaticRef
     {

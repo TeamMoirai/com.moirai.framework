@@ -111,7 +111,7 @@ namespace Moirai.Atropos
 
             // 未激活服务（世界未完成初始化即销毁；或 OnInit 抛异常未完成激活）：
             // 从未 OnInit，无初始化序可逆——保持既有兜底语义，仍驱动 OnShutdown，
-            // 相对顺序沿用旧实现的逆注册序。
+            // 相对顺序为逆注册序。
             for (int i = _registrationOrder.Count - 1; i >= 0; i--)
             {
                 var service = _registrationOrder[i];

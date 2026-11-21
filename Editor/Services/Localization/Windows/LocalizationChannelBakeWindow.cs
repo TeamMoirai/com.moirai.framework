@@ -51,7 +51,9 @@ namespace Moirai.Atropos.Localization
             if (_selectedIndex >= _languages.Length) _selectedIndex = 0;
         }
 
-        /// <summary>已烘焙语言在候选里的下标；未烘焙、或烘的是表里已经没有的语言时为 -1。</summary>
+        /// <summary>
+        /// 已烘焙语言在候选里的下标；未烘焙、或烘的是表里已经没有的语言时为 -1。
+        /// </summary>
         private int IndexOfBaked(string baked)
         {
             if (string.IsNullOrEmpty(baked)) return -1;

@@ -13,8 +13,10 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 常量 [CONSTANTS]
 
-        /// <summary>槽位状态机。Transitioning=激活/回收回调（含 OnEnable/OnDisable 序列）执行中——
-        /// 一切回收与租约路径按非 Active 拒绝，防回调重入（计数双扣、OnDespawn 双发、同槽二次挂入 inactive 链）。</summary>
+        /// <summary>
+        /// 槽位状态机。Transitioning=激活/回收回调（含 OnEnable/OnDisable 序列）执行中——
+        /// 一切回收与租约路径按非 Active 拒绝，防回调重入（计数双扣、OnDespawn 双发、同槽二次挂入 inactive 链）。
+        /// </summary>
         private enum SlotState : byte
         {
             Free = 0,

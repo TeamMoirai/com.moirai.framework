@@ -52,7 +52,9 @@ namespace Moirai.Atropos.Localization
         // 运行期预览数据路径的解析器方法组（静态缓存，Localize 每调用零委托分配）
         private static readonly MarkerResolver s_RuntimeResolver = ResolveForRuntime;
 
-        /// <summary>标记 ID 解析器：入参为格式串中的 ID 切片，返回译文；<c>null</c> 表示未解析。</summary>
+        /// <summary>
+        /// 标记 ID 解析器：入参为格式串中的 ID 切片，返回译文；<c>null</c> 表示未解析。
+        /// </summary>
         internal delegate string MarkerResolver(ReadOnlySpan<char> id);
 
         /// <summary>
@@ -106,7 +108,7 @@ namespace Moirai.Atropos.Localization
                     continue;
                 }
 
-                // ID 两端空白裁剪（对齐旧实现的 Trim 语义），不分配
+                // ID 两端空白裁剪（保留 Trim 语义），不分配
                 while (idStart < idEnd && char.IsWhiteSpace(format[idStart])) idStart++;
                 while (idEnd > idStart && char.IsWhiteSpace(format[idEnd - 1])) idEnd--;
 
@@ -227,10 +229,10 @@ namespace Moirai.Atropos.Localization
             return languages;
         }
 
-        /// <summary>
-        /// 当前数据源自报的导出语言代码，顺序即列序；后端没自报语言或未注册时为空。
-        /// </summary>
-        /// <remarks>读数来自当前数据源的 <see cref="LocalizationServiceHandler.ExportedLanguageCodes"/>（覆写点是它的 <c>SelfReportedLanguageCodes</c>）；本项目即配置表那份转表期生成的语言清单。列语言选项目标请优先用 <see cref="ExportedLanguages"/>。</remarks>
+        /// <summary>当前数据源自报的导出语言代码，顺序即列序；后端没自报语言或未注册时为空。</summary>
+        /// <remarks>读数来自当前数据源的 <see cref="LocalizationServiceHandler.ExportedLanguageCodes"/><br />
+        /// （覆写点是它的 <c>SelfReportedLanguageCodes</c>）；本项目即配置表那份转表期生成的语言清单。<br />
+        /// 列语言选项目标请优先用 <see cref="ExportedLanguages"/>。</remarks>
         public static IReadOnlyList<string> ExportedLanguageCodes
         {
             get
@@ -240,9 +242,7 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>
-        /// 导出语言解析成的 <see cref="Language"/>，已去空码与去重码；未自报时为空。
-        /// </summary>
+        /// <summary>导出语言解析成的 <see cref="Language"/>，已去空码与去重码；未自报时为空。</summary>
         /// <remarks>
         /// 去空去重后它可能比 <see cref="ExportedLanguageCodes"/> 短，两者下标不保证互指。与 <see cref="LoadedLanguages"/> 的分工：
         /// 本属性答「数据源自报有哪几门语言」，装载前即可用；那份答「当前批内收录了哪几门」，装载后才有。
@@ -257,9 +257,7 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>
-        /// 导出语言的读数来源：已注册的处理器优先，编辑器内没有注册那份时直读 Settings 里配置的实例。
-        /// </summary>
+        /// <summary>导出语言的读数来源：已注册的处理器优先，编辑器内没有注册那份时直读 Settings 里配置的实例。</summary>
         /// <remarks>不装进 <c>s_Handler</c>、不触发初始化也不注册服务：语言候选要在服务世界之外也能成立。</remarks>
         private static LocalizationServiceHandler ExportedLanguageSource
         {
@@ -274,7 +272,9 @@ namespace Moirai.Atropos.Localization
             }
         }
 
-        /// <summary>编辑器语言设置是否为「未选」哨兵：<c>Unspecified</c> 的 Name 与 Code 两种写法都算。</summary>
+        /// <summary>
+        /// 编辑器语言设置是否为「未选」哨兵：<c>Unspecified</c> 的 Name 与 Code 两种写法都算。
+        /// </summary>
         /// <remarks>空值与认不出的写法判非哨兵，原样交给检测链解析；Name 与 Code 都判，是因为资产里落过两种写法。</remarks>
         internal static bool IsEditorLanguageUnspecified(string setting) =>
             TryGetBuiltInLanguage(setting, out var language) && language == Language.Unspecified;
@@ -285,9 +285,8 @@ namespace Moirai.Atropos.Localization
         /// <param name="str">语言 Name 或 Code（不区分大小写）。</param>
         /// <param name="onlySupported">是否只获取当前批内收录的语言。</param>
         /// <returns>无法识别的输入、或 <paramref name="onlySupported"/> 为真且语言不在批内时为 <see cref="DefaultLanguage"/>。</returns>
-        /// <remarks>「是否支持」的唯一真相源是已加载的语言批（全局注册表已删）：批未就绪时退化为身份解析
-        /// 直接放行，可用性由切换方在加载完成后校验（<c>ChangeLanguage</c> 有一次性告警）——。 <br />
-        /// 不再出现"数据没加载就把 zh-Hans 静默落成默认英语"的双源歧义。</remarks>
+        /// <remarks>「是否支持」的唯一真相源是已加载的语言批：批未就绪时退化为身份解析直接放行，<br />
+        /// 可用性由切换方在加载完成后校验（<c>ChangeLanguage</c> 有一次性告警）。</remarks>
         public static Language ToLanguage(string str, bool onlySupported)
         {
             // 处理边界条件：str 为空或 null

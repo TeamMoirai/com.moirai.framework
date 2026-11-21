@@ -114,10 +114,8 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>当前音轨的音量，线性 <c>0..1</c>。</summary>
-        /// <remarks>夹取放在 setter 而不是只放在写 Mixer 的那一刻：<c>Volume</c> 是对外可读的，
-        /// 让存着的值越界就会让 getter 报回一个契约外的数（旧写法正是如此，2.5 能原样读回来）。 <br />
-        /// 0 保留为 0（写 Mixer 时才换算成 <see cref="MINIMAL_VOLUME"/> 对应的 -80dB），。 <br />
-        /// 这样 UI 拉到 0 再读回来仍是 0。</remarks>
+        /// <remarks>夹取放在 setter 而不是只放在写 Mixer 的那一刻：<c>Volume</c> 是对外可读的，getter 必须报回契约内的值。 <br />
+        /// 0 保留为 0（写 Mixer 时才换算成 <see cref="MINIMAL_VOLUME"/> 对应的 -80dB），UI 拉到 0 再读回仍是 0。</remarks>
         public float Volume
         {
             get => _volume;
@@ -134,9 +132,7 @@ namespace Moirai.Atropos.Audio
         /// <summary>预设同时播放的最大数量。</summary>
         public int MaxChannel => m_MaxChannel;
 
-        /// <summary>
-        /// 当前音轨的音高倍率（运行期，不写入设置）。
-        /// </summary>
+        /// <summary>当前音轨的音高倍率（运行期，不写入设置）。</summary>
         /// <remarks>最终音高 = 每个声部自己的音高 × 所属音轨的音高倍率。修改后由处理器通知该音轨上正在播放的声部重算。</remarks>
         public float Pitch
         {
@@ -148,8 +144,8 @@ namespace Moirai.Atropos.Audio
         public bool CanExpand => m_CanExpand;
 
         /// <summary>扩展的通道硬上限：只约束 <see cref="CanExpand"/> 的按需增长，不约束 <see cref="MaxChannel"/> 的预置槽位。</summary>
-        /// <remarks>非正数（老资产缺字段、YAML 手改坏）回落到 <see cref="HARD_CHANNEL_CEILING_DEFAULT"/>，
-        /// 过大值削到 <see cref="HARD_CHANNEL_CEILING_MAX"/>——宁可按缺省跑，也不让一个写坏的数把保险拆掉。</remarks>
+        /// <remarks>非正数（老资产缺字段、YAML 手改坏）回落到 <see cref="HARD_CHANNEL_CEILING_DEFAULT"/>，<br />
+        /// 过大值削到 <see cref="HARD_CHANNEL_CEILING_MAX"/>。</remarks>
         public int MaxChannelCeiling => m_MaxChannelCeiling > 0
             ? Mathf.Min(m_MaxChannelCeiling, HARD_CHANNEL_CEILING_MAX)
             : HARD_CHANNEL_CEILING_DEFAULT;

@@ -4,9 +4,7 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Pool
 {
 #pragma warning disable IDE1006
-    /// <summary>
-    /// 内部简单对象池。
-    /// </summary>
+    /// <summary>内部简单对象池。</summary>
     // ReSharper disable once InconsistentNaming
     internal class Internal_ObjectPool<T> where T : new()
 #pragma warning restore IDE1006 

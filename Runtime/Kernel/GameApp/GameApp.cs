@@ -9,9 +9,9 @@ namespace Moirai.Atropos
     /// 游戏框架静态外观：生命周期、协程、帧与 Unity 事件订阅。
     /// </summary>
     /// <remarks>
-    /// 本类不含 MonoBehaviour 成员：帧逻辑订阅由 <see cref="PlayerLoopDriver"/> 静态表驱动，
-    /// 只在 MonoBehaviour 上派发的消息（协程 / Gizmos / ApplicationPause）由 <see cref="GameAppHost"/> 承接，
-    /// 对焦与退出走 Unity 的静态事件（<c>Application.focusChanged</c> / <c>Application.quitting</c>），本类直订并转成
+    /// 本类不含 MonoBehaviour 成员：帧逻辑订阅由 <see cref="PlayerLoopDriver"/> 静态表驱动， <br />
+    /// 只在 MonoBehaviour 上派发的消息（协程 / Gizmos / ApplicationPause）由 <see cref="GameAppHost"/> 承接， <br />
+    /// 对焦与退出走 Unity 的静态事件（<c>Application.focusChanged</c> / <c>Application.quitting</c>），本类直订并转成 <br />
     /// <see cref="onApplicationFocus"/> / <see cref="onApplicationQuit"/> 两个广播。
     /// </remarks>
     public partial class GameApp
@@ -24,7 +24,9 @@ namespace Moirai.Atropos
         /// <remarks>订阅者自持生命周期：<see cref="Shutdown"/> 会把这两个广播整批摘掉（禁用域重载时上一轮订阅者不得跨会话残留），但一次 <c>+=</c> 配一次 <c>-=</c> 仍是订阅方的责任。注册与注销仅限主线程。</remarks>
         public static event Action<bool> onApplicationFocus;
 
-        /// <summary>由 <c>Application.focusChanged</c> 广播对焦状态，逐项隔离订户异常。</summary>
+        /// <summary>
+        /// 由 <c>Application.focusChanged</c> 广播对焦状态，逐项隔离订户异常。
+        /// </summary>
         /// <param name="hasFocus">本次对焦真值。</param>
         internal static void InvokeApplicationFocus(bool hasFocus)
         {
@@ -35,7 +37,9 @@ namespace Moirai.Atropos
         /// <remarks>本类先把它发完再走 <see cref="Shutdown"/>，因此订阅方在这里还来得及落盘，但不得指望之后的帧。</remarks>
         public static event Action onApplicationQuit;
 
-        /// <summary>由 <c>Application.quitting</c> 广播退出回执，逐项隔离订户异常后再关闭框架。</summary>
+        /// <summary>
+        /// 由 <c>Application.quitting</c> 广播退出回执，逐项隔离订户异常后再关闭框架。
+        /// </summary>
         internal static void InvokeApplicationQuit()
         {
             InvokeQuarantined(onApplicationQuit, "ApplicationQuit");

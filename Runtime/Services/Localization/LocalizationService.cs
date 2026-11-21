@@ -40,6 +40,9 @@ namespace Moirai.Atropos.Localization
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
+        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
+        private IDebuggerService _debugger;
+
         /// <summary>
         /// 初始化本地化服务：订阅处理器语言变更事件并注册调试面板。由容器在构建期调用。
         /// </summary>
@@ -47,9 +50,6 @@ namespace Moirai.Atropos.Localization
         /// 触发 <c>Handler</c> 懒加载（可能首次读表），故 <see cref="ConfigTableService"/> 依赖必须显式声明，
         /// 否则初始化序会退化为注册序。调试器外观未就绪时静默跳过面板注册。
         /// </remarks>
-        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IDebuggerService _debugger;
-
         public override void OnInit()
         {
             _debugger = Context.GetRequiredService<IDebuggerService>();
@@ -68,7 +68,7 @@ namespace Moirai.Atropos.Localization
             var handler = s_Handler;
             s_Handler = null;
             // 契约接口不携带生命周期成员：引擎基座继承 FrameworkHandler，这里按基座关停
-            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
+            (handler as FrameworkHandler)?.Internal_Shutdown();
 
             if (handler != null) handler.onLanguageChanged -= onLanguageChanged;
             onLanguageChanged = null;
@@ -172,7 +172,9 @@ namespace Moirai.Atropos.Localization
             return detected;
         }
 
-        /// <summary>检测链本身：命令行 → 编辑器设置 → 本地存档 → 渠道烘焙 → 系统语言。</summary>
+        /// <summary>
+        /// 检测链本身：命令行 → 编辑器设置 → 本地存档 → 渠道烘焙 → 系统语言。
+        /// </summary>
         private static (string Raw, string Source) DetectPreference()
         {
             // 获取启动命令中的设置
@@ -215,7 +217,9 @@ namespace Moirai.Atropos.Localization
         /// </remarks>
         private static void HandPreferenceToHandler() => HandPreferenceTo(s_Handler);
 
-        /// <summary>把检测链读数交给指定处理器实例；交接给谁与「当前注册的是谁」是两件事，懒加载途中要交给刚拿到的那份。</summary>
+        /// <summary>
+        /// 把检测链读数交给指定处理器实例；交接给谁与「当前注册的是谁」是两件事，懒加载途中要交给刚拿到的那份。
+        /// </summary>
         private static void HandPreferenceTo(ILocalizationService handler)
         {
             var (raw, source) = CapturePreference();
@@ -223,7 +227,9 @@ namespace Moirai.Atropos.Localization
             if (handler is LocalizationServiceHandler engine) engine.ApplyPreference(raw, source);
         }
 
-        /// <summary>编辑器侧改了「编辑器语言」后代当前处理器交接一次；设置类不该自己碰注册的处理器。</summary>
+        /// <summary>
+        /// 编辑器侧改了「编辑器语言」后代当前处理器交接一次；设置类不该自己碰注册的处理器。
+        /// </summary>
         internal static void ApplyEditorLanguagePreference() => HandPreferenceToHandler();
 
 #if !UNITY_EDITOR

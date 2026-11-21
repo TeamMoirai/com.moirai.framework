@@ -53,9 +53,7 @@ namespace Moirai.Atropos.Audio
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.MID_TIER;
 
-        /// <summary>
-        /// 初始化音频服务。由容器在构建期调用。
-        /// </summary>
+        /// <summary>初始化音频服务。由容器在构建期调用。</summary>
         /// <remarks>确保 <c>AudioService.Handler</c> 已赋值，并向游戏内调试器注册调试面板（依赖组合根先注册 <see cref="DebuggerService"/>，未就绪时静默跳过）。</remarks>
         /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
         private ITimerService _timer;
@@ -116,8 +114,7 @@ namespace Moirai.Atropos.Audio
 
             var handler = s_Handler;
             s_Handler = null;
-            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
-            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
+            (handler as FrameworkHandler)?.Internal_Shutdown();
 
             // 诊断状态跟着服务一起归零，避免重启后首帧异常被上一轮的退避窗口吞掉
             AudioFault.Reset();
@@ -356,8 +353,8 @@ namespace Moirai.Atropos.Audio
         /// 16 字节热请求 + 冷参数播放（推荐热路径 API）。
         /// </summary>
         /// <remarks>
-        /// <paramref name="cold"/> 为 null 时零堆对象，且不写 AudioSource 空间整形，语义见 <see cref="AudioPlayColdParams"/>。
-        /// 非 null 时所有权转移给服务：调用方不得再使用或自行归还，同一实例也不可在上一次播放结束前重复投递。
+        /// <paramref name="cold"/> 为 null 时零堆对象，且不写 AudioSource 空间整形，语义见 <see cref="AudioPlayColdParams"/>。<br />
+        /// 非 null 时所有权转移给服务：调用方不得再使用或自行归还，同一实例也不可在上一次播放结束前重复投递。<br />
         /// 每次播放都要带空间整形与淡入/时间参数时改走 <see cref="AudioPlayOptions"/> 门面。
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

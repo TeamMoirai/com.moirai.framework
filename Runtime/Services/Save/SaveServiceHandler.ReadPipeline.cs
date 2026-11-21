@@ -389,8 +389,5 @@ namespace Moirai.Atropos.Save
         {
             return source;
         }
-
-        /// <summary>
-        /// 块缺失细分：键命中坏块清单 = 该块损坏（逐块分型）；存在结构性坏块 = 尾部解析中断、目标块状态不可知按损坏论；否则 = 真无块。
     }
 }

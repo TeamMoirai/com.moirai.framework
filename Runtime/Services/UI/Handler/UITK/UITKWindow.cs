@@ -8,9 +8,7 @@ using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.UI
 {
-    /// <summary>
-    /// UI Toolkit 轨窗口基类：面板实现（壳 GameObject/UIDocument/内容根）后端专有，对象模型不认这些类型。
-    /// </summary>
+    /// <summary>UI Toolkit 轨窗口基类：面板实现（壳 GameObject/UIDocument/内容根）后端专有，对象模型不认这些类型。</summary>
     /// <remarks>
     /// 覆写 <see cref="UIWindow"/> 的七个面板钩子，把显隐/深度/交互三份意图落进真实的 UI Toolkit 面板；<br />
     /// 每项怎么落、边界在哪写在它自己的文档上（<see cref="ApplyVisible"/>、<see cref="ApplyDepth"/>、<see cref="ApplyInteractable"/>）。<br />
@@ -39,9 +37,7 @@ namespace Moirai.Atropos.UI
         /// <remarks>保证与 Mono 的命名一致，沿袭使用习惯</remarks>
         public override GameObject gameObject => _shell;
 
-        /// <summary>
-        /// 本窗口的内容根：三份意图、安全区 inset 与克隆出来的模板都落在这里，不随文档组件的启用时机变化。
-        /// </summary>
+        /// <summary>本窗口的内容根：三份意图、安全区 inset 与克隆出来的模板都落在这里，不随文档组件的启用时机变化。</summary>
         /// <remarks>未绑定面板时为 <c>null</c>；它不是 <c>UIDocument.rootVisualElement</c>，而是挂在根元素之下的本窗口独占子树。</remarks>
         public VisualElement RootVisual => _contentRoot;
 
@@ -53,9 +49,7 @@ namespace Moirai.Atropos.UI
 
         #region 后端配置 [BACKEND CONFIG]
 
-        /// <summary>
-        /// 全后端共享的那一份 <see cref="PanelSettings"/>：由项目侧写入（样式表与主题同样归项目侧承担），是本轨没有窗口级配置时的兜底。
-        /// </summary>
+        /// <summary>全后端共享的那一份 <see cref="PanelSettings"/>：由项目侧写入（样式表与主题同样归项目侧承担），是本轨没有窗口级配置时的兜底。</summary>
         /// <remarks>
         /// 写口是 UI Toolkit 后端的资产引用，因此不住在中性的 <see cref="UIServiceSettings"/> 里，只在这一处对包外开口。 <br />
         /// 一窗一档的落点是 <see cref="PanelSettingsOverride"/>：它在场时这一位就让位，两者都不再是「全后端只有一份」。 <br />
@@ -96,7 +90,9 @@ namespace Moirai.Atropos.UI
 
         #region 面板钩子 [PANEL HOOKS]
 
-        /// <summary>装载面板：按 <paramref name="fromResources"/> 走 AB 或内置资源取模板，再建壳交给自己装配。</summary>
+        /// <summary>
+        /// 装载面板：按 <paramref name="fromResources"/> 走 AB 或内置资源取模板，再建壳交给自己装配。
+        /// </summary>
         protected internal override bool LoadPanel(string assetLocation, bool fromResources)
         {
             if (!TryReadTree(assetLocation, fromResources, out var tree))
@@ -107,7 +103,9 @@ namespace Moirai.Atropos.UI
             return BindPanel(NewDocumentShell(), tree);
         }
 
-        /// <summary>装载面板（异步）：AB 路径 await 模板，内置资源那一路仍走同步 <c>Resources.Load</c>。</summary>
+        /// <summary>
+        /// 装载面板（异步）：AB 路径 await 模板，内置资源那一路仍走同步 <c>Resources.Load</c>。
+        /// </summary>
         /// <remarks>配置与模板的判据同同步路径：任一项缺位都只报一条 Error 并回 false，不建壳、不装配。</remarks>
         protected internal override async UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources, CancellationToken ct)
         {
@@ -131,7 +129,9 @@ namespace Moirai.Atropos.UI
             return BindPanel(NewDocumentShell(), tree);
         }
 
-        /// <summary>显隐落地：切内容根的 <c>style.display</c>；同值早退只认「这槽真被写过」，没写过的槽一律先落一笔。</summary>
+        /// <summary>
+        /// 显隐落地：切内容根的 <c>style.display</c>；同值早退只认「这槽真被写过」，没写过的槽一律先落一笔。
+        /// </summary>
         /// <remarks>
         /// <c>DisplayStyle.Flex</c> 是 0 值：没写过 <c>display</c> 的内容根读回的 <c>value</c> 就是它，只比 <c>value</c> 会被初值冒充成已到位。<br />
         /// 一次都不写，窗口显隐意图在这棵树上没留过痕迹，模板样式表按名字选择器置的 <c>none</c> 也没东西压回去。<br />
@@ -148,7 +148,9 @@ namespace Moirai.Atropos.UI
             _contentRoot.style.display = set;
         }
 
-        /// <summary>深度落地：文档组件取绝对值；UI Toolkit 的序不住在子元素上，没有偏移差分要保。</summary>
+        /// <summary>
+        /// 深度落地：文档组件取绝对值；UI Toolkit 的序不住在子元素上，没有偏移差分要保。
+        /// </summary>
         protected internal override void ApplyDepth(int value)
         {
             if (_document == null) return;
@@ -158,7 +160,9 @@ namespace Moirai.Atropos.UI
             _document.sortingOrder = value;
         }
 
-        /// <summary>交互落地：只切内容根自身的 <c>pickingMode</c>。</summary>
+        /// <summary>
+        /// 交互落地：只切内容根自身的 <c>pickingMode</c>。
+        /// </summary>
         /// <remarks>
         /// <c>pickingMode</c> 是逐元素属性：内容根置 <c>Ignore</c> 只让自己退出命中树，屏蔽不到克隆进来的模板内容与代码追加的子元素。<br />
         /// 刻意不递归铺锁：解锁时分不出「本来就 <c>Ignore</c> 的装饰元素」与被锁元素，一刀切回 <c>Position</c> 会打穿按元素的意图。
@@ -170,7 +174,9 @@ namespace Moirai.Atropos.UI
             _contentRoot.pickingMode = value ? PickingMode.Position : PickingMode.Ignore;
         }
 
-        /// <summary>停放面板：壳物体留着但不激活（缓存实例的关闭态、关闭过渡结束后的隐藏）。</summary>
+        /// <summary>
+        /// 停放面板：壳物体留着但不激活（缓存实例的关闭态、关闭过渡结束后的隐藏）。
+        /// </summary>
         /// <remarks>未绑定壳时为空操作：装载在途的缓存窗被关闭可达这一档，与 <see cref="DestroyPanel"/> 同款守卫。</remarks>
         protected internal override void ParkPanel()
         {
@@ -180,7 +186,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>收走面板：销毁壳物体并断开全部后端引用，令窗口回到「未绑定」口径。</summary>
+        /// <summary>
+        /// 收走面板：销毁壳物体并断开全部后端引用，令窗口回到「未绑定」口径。
+        /// </summary>
         protected internal override void DestroyPanel()
         {
             if (_shell != null)
@@ -266,7 +274,9 @@ namespace Moirai.Atropos.UI
             return shell;
         }
 
-        /// <summary>取面板模板：内置资源走 <c>Resources</c>，其余走资源服务的按地址取值。</summary>
+        /// <summary>
+        /// 取面板模板：内置资源走 <c>Resources</c>，其余走资源服务的按地址取值。
+        /// </summary>
         /// <remarks>两条判据各自只报一条 Error：配置缺位与模板缺位是两种病因，文案分开才认得出是哪一种。</remarks>
         private bool TryReadTree(string assetLocation, bool fromResources, out VisualTreeAsset tree)
         {
@@ -294,7 +304,9 @@ namespace Moirai.Atropos.UI
             return true;
         }
 
-        /// <summary>校验本窗这一档的 <see cref="PanelSettings"/> 已配置：窗口级覆盖与共享兜底任一在场即可。</summary>
+        /// <summary>
+        /// 校验本窗这一档的 <see cref="PanelSettings"/> 已配置：窗口级覆盖与共享兜底任一在场即可。
+        /// </summary>
         /// <remarks>
         /// 两者都缺位才抬这一条 Error，且只报一次、回 false：它与「取不到面板模板」是两种病因，文案各自分开才认得出是哪一种。 <br />
         /// 覆盖为空不是错：那正是回 <see cref="SharedPanelSettings"/> 的那一档，只有两处都空才是配置缺位。
@@ -317,7 +329,9 @@ namespace Moirai.Atropos.UI
         /// <remarks>样式表本身由项目侧决定，框架只负责在装配时把它挂进内容根。</remarks>
         protected virtual string ThemeLocation => null;
 
-        /// <summary>贴主题：<see cref="ThemeLocation"/> 声明了才取样式表，取到就挂进内容根自己的 <c>styleSheets</c>。</summary>
+        /// <summary>
+        /// 贴主题：<see cref="ThemeLocation"/> 声明了才取样式表，取到就挂进内容根自己的 <c>styleSheets</c>。
+        /// </summary>
         /// <remarks>
         /// 只降级不拒开：主题缺失报一条 Error 后面板照旧可用。不动 <see cref="PanelSettings.themeStyleSheet"/>——那是共享资产， <br />
         /// 一个窗口改它会影响全部 UI Toolkit 窗口。

@@ -38,8 +38,7 @@ namespace Moirai.Atropos.Asset
         internal uint _unloadGeneration = 1;
 
         // 在途加载去重：一座 arena + 一张 packed key -> 槽号的开地址表。
-        // [NonSerialized] 逐字段保留（与 handler 侧运行时数组同一口径）：托管引用序列化对私有
-        // 字段的处理不在我实测过的范围内，这里省一对标注不值得拿序列化边界去赌。
+        // [NonSerialized] 逐字段保留（与 handler 侧运行时数组同一口径）：Unity 对私有字段里托管引用的序列化边界不可依赖，省一对标注不值得冒险。
         [NonSerialized] private LoadingOperationSlot[][] _loadingOperationSlotPages;
         [NonSerialized] private int _loadingOperationSlotNextIndex;
         [NonSerialized] private int _loadingOperationSlotFreeHead = -1;
@@ -236,7 +235,7 @@ namespace Moirai.Atropos.Asset
         {
             // 刻意不是 ReleaseAssetKey 的别名：整表清空时只该减数，
             // 摘字典与回收 id 在那些随后一并作废的表上是白做，而且会在遍历另一张表的键时
-            // 反向改动本表的字典。原实现就是两条分开的路，合并注册表时不能顺手并掉。
+            // 反向改动本表的字典。两条路必须保持分开，合并注册表时不能顺手并掉。
             _packageNames.DecrementOnly(AssetKeyCodec.UnpackPackageId(key));
             _locationNames.DecrementOnly(AssetKeyCodec.UnpackLocationId(key));
             _typeNames.DecrementOnly(AssetKeyCodec.UnpackTypeId(key));

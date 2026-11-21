@@ -80,12 +80,12 @@ namespace Moirai.Atropos.Asset
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.RESOURCE;
 
-        /// <summary>
-        /// 初始化资源服务：触发 <see cref="Handler"/> 懒加载、注入配置并接线帧驱动，由容器在构建期调用。
-        /// </summary>
         /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
         private IDebuggerService _debugger;
 
+        /// <summary>
+        /// 初始化资源服务：触发 <see cref="Handler"/> 懒加载、注入配置并接线帧驱动，由容器在构建期调用。
+        /// </summary>
         public override void OnInit()
         {
             _debugger = Context.GetRequiredService<IDebuggerService>();
@@ -135,7 +135,7 @@ namespace Moirai.Atropos.Asset
             var handler = s_Handler;
             s_Handler = null;
             // 消费契约按接口类型持有；生命周期关停按 FrameworkHandler 基座
-            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
+            (handler as FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>

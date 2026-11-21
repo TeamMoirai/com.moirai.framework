@@ -5,9 +5,7 @@ using System.Collections.Generic;
 namespace Moirai.Atropos.Collections
 {
     // Code from UnityEditor.ArrayUtility
-    // Helpers for builtin arrays ...
-    // 这些是 O(n) 操作（其中使用 List<T>()） - 数组实际上是复制的 （http://msdn.microsoft.com/en-us/library/fkbw11z0.aspx）
-    // 但它现在很有帮助
+    // 内置数组工具：各操作为 O(n)（经 List<T> 中转，数组实际被复制 http://msdn.microsoft.com/en-us/library/fkbw11z0.aspx）。
     public static class ArrayUtils
     {
         // 将 'item' 附加到 'array' 的末尾

@@ -15,21 +15,15 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     public interface ISaveSerializer
     {
-        /// <summary>
-        /// MessagePack 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.MESSAGE_PACK"/>）。
-        /// </summary>
+        /// <summary>MessagePack 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.MESSAGE_PACK"/>）。</summary>
         /// <remarks>外置到 plugin 分支的实现按符号引用本常量自述 <see cref="BackendId"/>，不写裸数字——线格式 ID 一经发行不得重排。</remarks>
         protected internal const ushort MESSAGE_PACK = SaveBackendIds.MESSAGE_PACK;
 
-        /// <summary>
-        /// MemoryPack 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.MEMORY_PACK"/>）。
-        /// </summary>
+        /// <summary>MemoryPack 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.MEMORY_PACK"/>）。</summary>
         /// <remarks>用途同 <see cref="MESSAGE_PACK"/>：只开给实现方，不对外部消费者公开，也不把 <see cref="SaveBackendIds"/> 整张表升成 <c>public</c>。</remarks>
         protected internal const ushort MEMORY_PACK = SaveBackendIds.MEMORY_PACK;
 
-        /// <summary>
-        /// protobuf-net 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.PROTOBUF"/>）。
-        /// </summary>
+        /// <summary>protobuf-net 后端的线格式标识（契约面别名，数值真源是框架内部表 <see cref="SaveBackendIds.PROTOBUF"/>）。</summary>
         /// <remarks>用途同 <see cref="MESSAGE_PACK"/>。</remarks>
         protected internal const ushort PROTOBUF = SaveBackendIds.PROTOBUF;
 

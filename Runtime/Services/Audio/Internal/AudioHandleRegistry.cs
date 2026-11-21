@@ -9,8 +9,7 @@ namespace Moirai.Atropos.Audio
     internal interface IAudioVoiceRef
     {
         /// <summary>用户定义 ID（声部自报值）。</summary>
-        /// <remarks>注册表不以它建索引，索引一律以 <see cref="RegisterUser"/> 显式传入的 ID 为准（Unity 侧 <c>AudioAgent.ID</c> 到播放调用内部才赋值，而登记必须发生在播放之前）。 <br />
-        /// </remarks>
+        /// <remarks>注册表不以它建索引，索引一律以 <see cref="RegisterUser"/> 显式传入的 ID 为准（Unity 侧 <c>AudioAgent.ID</c> 到播放调用内部才赋值，而登记必须发生在播放之前）。</remarks>
         int UserId { get; }
 
         /// <summary>声部侧句柄（双向关联的 agent→handle 方向）。</summary>

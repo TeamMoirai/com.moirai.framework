@@ -50,7 +50,9 @@ namespace Moirai.Atropos.Save
             return true;
         }
 
-        /// <summary>是否为框架占号的后端标识。</summary>
+        /// <summary>
+        /// 是否为框架占号的后端标识。
+        /// </summary>
         /// <remarks>占号与依赖是否接入无关（占号即意味着将来会有实现落到它上面），故与实现类型表无关——那张表现在由注册动作自己填。</remarks>
         /// <param name="backendId">待判定的后端标识。</param>
         /// <returns>属框架占号集合返回 <c>true</c>。</returns>
@@ -89,8 +91,8 @@ namespace Moirai.Atropos.Save
         /// <remarks>
         /// <c>[RegisterSerializer]</c> 生成的模块初始化器走的就是这条，框架内置实现与项目自定义实现在此同形。 <br />
         /// 标识由调用方给出（生成器静态取自实现的 <see cref="ISaveSerializer.BackendId"/>），实例化用可访问的（含非公共）无参构造。 <br />
-        /// **占号冲突与重号不抛**：本方法跑在模块初始化期（<c>&lt;Module&gt;.cctor</c>），在那里抛出会连累整个编辑器——实测 Unity 的源生成扫描会因 <c>TypeInitializationException</c> 原生崩溃。 <br />
-        /// 因此撞号只记一次 Fatal 并保留先到那份；先到者取决于各程序集初始化顺序，跨程序集撞号要靠编译期判据与评审消除。 <br />
+        /// **占号冲突与重号不抛**：本方法跑在模块初始化期（<c>&lt;Module&gt;.cctor</c>），在那里抛出会连累整个编辑器（Unity 的源生成扫描会因 <c>TypeInitializationException</c> 原生崩溃）。 <br />
+        /// 因此撞号只记一次 Fatal 并保留先到那份；先到者取决于各程序集初始化顺序，跨程序集撞号要靠编译期判据消除。 <br />
         /// 形状不合法（null / 非具体 ISaveSerializer 实现）仍抛：那是手写调用的编程错误，生成器侧由 MA3009 在编译期挡。
         /// </remarks>
         /// <param name="backendId">后端标识（容器逐块落盘的 2 字节 ID）。</param>

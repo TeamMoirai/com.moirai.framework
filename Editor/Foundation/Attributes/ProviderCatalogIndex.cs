@@ -6,7 +6,9 @@ using UnityEditor;
 
 namespace Moirai.Atropos
 {
-    /// <summary>Provider 下拉一行的可用性。</summary>
+    /// <summary>
+    /// Provider 下拉一行的可用性。
+    /// </summary>
     internal enum ProviderRowState : byte
     {
         /// <summary>可直接选中。</summary>
@@ -123,7 +125,9 @@ namespace Moirai.Atropos
             return rows.ToArray();
         }
 
-        /// <summary>该行可否写值：可写返本行下标，不可写返 <c>-1</c>（越界同样返 -1）。</summary>
+        /// <summary>
+        /// 该行可否写值：可写返本行下标，不可写返 <c>-1</c>（越界同样返 -1）。
+        /// </summary>
         internal static int ActivationIndex(ProviderRow[] rows, int rowIndex) =>
             rows != null && rowIndex >= 0 && rowIndex < rows.Length && rows[rowIndex].Selectable ? rowIndex : -1;
 
@@ -144,7 +148,9 @@ namespace Moirai.Atropos
                 .ToArray();
         }
 
-        /// <summary>取真状态归行：编译候选 + 包管理器目录缓存 + 已装账本。</summary>
+        /// <summary>
+        /// 取真状态归行：编译候选 + 包管理器目录缓存 + 已装账本。
+        /// </summary>
         /// <remarks>
         /// 前置条件：<b>调用方必须按 <paramref name="baseType"/> 缓存结果</b>（每个域一次，并在程序集重载前失效）。<br />
         /// 本方法每趟做一次账本盘 IO + 反序列化，并逐条拷贝清单——放进每次绘制或每个字段的循环，就是面板每帧一次磁盘读。

@@ -194,7 +194,9 @@ namespace Moirai.Atropos.MenuEditorWindow
             Run();
         }
 
-        /// <summary>取消装载（幂等）：停止切片与续体，不回调完成/失败。</summary>
+        /// <summary>
+        /// 取消装载（幂等）：停止切片与续体，不回调完成/失败。
+        /// </summary>
         public void Cancel()
         {
             if (!_running) return;

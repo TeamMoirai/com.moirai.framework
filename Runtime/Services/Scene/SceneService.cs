@@ -64,8 +64,7 @@ namespace Moirai.Atropos.Scene
             onMainSceneChanged = null;
             onSubSceneLoaded = null;
             onSubSceneUnloaded = null;
-            // 契约接口不携带生命周期成员：后端按实现约束继承 FrameworkHandler，这里按基座关停
-            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
+            (handler as FrameworkHandler)?.Internal_Shutdown();
         }
 
         #endregion
