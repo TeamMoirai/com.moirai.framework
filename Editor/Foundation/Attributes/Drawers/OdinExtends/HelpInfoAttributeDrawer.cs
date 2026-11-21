@@ -5,9 +5,7 @@ using UnityEngine;
 
 namespace Sirenix.OdinInspector.Editor.Drawers
 {
-    /// <summary>
-    /// 参考 <see cref="InfoBoxAttributeDrawer"/>。
-    /// </summary>
+    /// <summary>参考 <see cref="InfoBoxAttributeDrawer"/>。</summary>
     [DrawerPriority(0.0, 10001.0, 0.0)]
     // ReSharper disable once UnusedType.Global
     public class HelpInfoAttributeDrawer : OdinAttributeDrawer<HelpInfoAttribute>

@@ -6,8 +6,7 @@ namespace Moirai.Atropos.Audio
     /// <summary>
     /// Clip 租约来源：<see cref="AudioClipCache"/> 与资源后端之间的窄接缝。
     /// </summary>
-    /// <remarks>缓存只认这条契约；生产实现是 <see cref="AssetClipLeaseSource"/>（转发到 <see cref="IAssetService"/> 的租约 API），测试可注入受控实现。 <br />
-    /// </remarks>
+    /// <remarks>缓存只认这条契约；生产实现是 <see cref="AssetClipLeaseSource"/>（转发到 <see cref="IAssetService"/> 的租约 API），测试可注入受控实现。</remarks>
     internal interface IAudioClipLeaseSource
     {
         /// <summary>

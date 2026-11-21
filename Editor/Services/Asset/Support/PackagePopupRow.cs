@@ -39,9 +39,8 @@ namespace Moirai.Atropos.Asset
         private static string s_EmptyRowDefault;
 
         /// <summary>
-        /// 构建包名下拉显示行：<c>GUIContent.text</c> 即写回包名（<paramref name="includeEmptyItem"/> 为真时 0 位是「留空」状态项，
-        /// 其 <c>text</c> 非包名，取值请走 <see cref="Pick"/>）；当前值已不在清单中（包裹被改名/删除）时置顶（当前值与清单之间，恒在「留空」项后）；
-        /// 空清单返回占位单元素行且 <paramref name="manifestEmpty"/> 置真、索引为 -1。
+        /// 构建包名下拉显示行：<c>GUIContent.text</c> 即写回包名，<paramref name="includeEmptyItem"/> 为真时 0 位是「留空」状态项（取值走 <see cref="Pick"/>）。
+        /// 当前值不在清单中（包裹被改名/删除）时置顶于「留空」项后；空清单返回占位行且 <paramref name="manifestEmpty"/> 置真、索引为 -1。
         /// </summary>
         /// <param name="current">当前包名；空串在带「留空」项时选中该项，不带时索引为 -1（无选中项）。</param>
         /// <param name="includeEmptyItem">顶部是否加「留空 · 默认资源包」项（留空即运行时用后端默认资源包）。</param>
@@ -100,7 +99,9 @@ namespace Moirai.Atropos.Asset
         public static string Pick(GUIContent[] row, bool includeEmptyItem, int selected) =>
             includeEmptyItem && selected == 0 ? string.Empty : row[selected].text;
 
-        /// <summary>「仅包名」行：与清单同序，按数组引用失效重建。</summary>
+        /// <summary>
+        /// 「仅包名」行：与清单同序，按数组引用失效重建。
+        /// </summary>
         private static GUIContent[] BuildPlainRow(string[] names)
         {
             if (s_PlainRow != null && ReferenceEquals(s_PlainRowSource, names))
@@ -118,7 +119,9 @@ namespace Moirai.Atropos.Asset
             return s_PlainRow;
         }
 
-        /// <summary>「留空 + 包名」行：0 位为「留空」状态项，提示语含后端默认包名，两者任一变动即重建。</summary>
+        /// <summary>
+        /// 「留空 + 包名」行：0 位为「留空」状态项，提示语含后端默认包名，两者任一变动即重建。
+        /// </summary>
         /// <remarks>默认包名取自设置资产（<see cref="AssetServiceSettings"/>）而非 <c>AssetService</c>：编辑器里服务未初始化时后者句柄为 null。</remarks>
         private static GUIContent[] BuildEmptyItemRow(string[] names)
         {
@@ -143,7 +146,9 @@ namespace Moirai.Atropos.Asset
             return s_EmptyRow;
         }
 
-        /// <summary>包名在清单中的位置，无则 -1（逐绘制帧调用，零分配）。</summary>
+        /// <summary>
+        /// 包名在清单中的位置，无则 -1（逐绘制帧调用，零分配）。
+        /// </summary>
         private static int IndexOf(string[] names, string value)
         {
             if (string.IsNullOrEmpty(value))

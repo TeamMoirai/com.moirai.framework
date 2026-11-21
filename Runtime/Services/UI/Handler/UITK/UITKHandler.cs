@@ -3,9 +3,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos.UI
 {
-    /// <summary>
-    /// UI Toolkit 轨的驱动者：本轨开窗、关隐、查询那一圈编排的落点。
-    /// </summary>
+    /// <summary>UI Toolkit 轨的驱动者：本轨开窗、关隐、查询那一圈编排的落点。</summary>
     /// <remarks>
     /// 与 uGUI 轨各持一份 handler，但只有一条栈：栈、停放表与交互租约都住在 <see cref="UIService.SharedLedger"/>，关·隐·查询不分轨。<br />
     /// 面板本体住在 <see cref="UITKWindow"/>：壳物体与 <c>UIDocument</c> 一窗一个，<c>PanelSettings</c> 一窗一档。<br />
@@ -45,7 +43,9 @@ namespace Moirai.Atropos.UI
         /// <returns>该窗口以 <see cref="UITKWindow"/> 为基类时为真。</returns>
         protected override bool IsWindowOnOwnTrack(UIWindow window) => window is UITKWindow;
 
-        /// <summary>把本处理器注册进 UI Toolkit 轨的门面槽——归属由本类自述。</summary>
+        /// <summary>
+        /// 把本处理器注册进 UI Toolkit 轨的门面槽——归属由本类自述。
+        /// </summary>
         internal override void Internal_Register() => UIService.Internal_ClaimUITKTrack(this);
 
         /// <summary>

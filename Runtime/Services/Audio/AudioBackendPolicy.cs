@@ -16,7 +16,9 @@ namespace Moirai.Atropos.Audio
     {
         #region 过渡 [FADES]
 
-        /// <summary>淡入 Master 音轨到最终音量。时长为 0 等价于直接赋值；后端 inert 时不排过渡。</summary>
+        /// <summary>
+        /// 淡入 Master 音轨到最终音量。时长为 0 等价于直接赋值；后端 inert 时不排过渡。
+        /// </summary>
         internal static void FadeMasterTrack(IAudioService backend, AudioFadeScheduler fades,
             float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
@@ -35,7 +37,9 @@ namespace Moirai.Atropos.Audio
             });
         }
 
-        /// <summary>淡入整个音轨到最终音量。语义同 <see cref="FadeMasterTrack"/>，句柄按音轨派发。</summary>
+        /// <summary>
+        /// 淡入整个音轨到最终音量。语义同 <see cref="FadeMasterTrack"/>，句柄按音轨派发。
+        /// </summary>
         internal static void FadeTrack(IAudioService backend, AudioFadeScheduler fades,
             EAudioTrack track, float duration, float initialVolume, float finalVolume, TweenEase tweenEase)
         {
@@ -55,20 +59,28 @@ namespace Moirai.Atropos.Audio
             });
         }
 
-        /// <summary>停止一条总线（Master 或音轨）上所有当前的淡化。</summary>
+        /// <summary>
+        /// 停止一条总线（Master 或音轨）上所有当前的淡化。
+        /// </summary>
         internal static void StopFadeBus(AudioFadeScheduler fades, ulong busHandle) => fades.Stop(busHandle);
 
-        /// <summary>停止指定声部句柄上的所有淡化。</summary>
+        /// <summary>
+        /// 停止指定声部句柄上的所有淡化。
+        /// </summary>
         internal static void StopFadeHandle(AudioFadeScheduler fades, ulong handle) => fades.Stop(handle);
 
-        /// <summary>检查指定句柄的音频是否正在过渡中。</summary>
+        /// <summary>
+        /// 检查指定句柄的音频是否正在过渡中。
+        /// </summary>
         internal static bool SoundIsFadingOut(AudioFadeScheduler fades, ulong handle) => fades.IsFading(handle);
 
         #endregion 过渡 [FADES]
 
         #region 声部音高 [VOICE PITCH]
 
-        /// <summary>设置指定句柄声部的基础音高（不含音轨倍率）。未知句柄为空操作；值不夹取。</summary>
+        /// <summary>
+        /// 设置指定句柄声部的基础音高（不含音轨倍率）。未知句柄为空操作；值不夹取。
+        /// </summary>
         internal static void SetVoicePitch(IAudioService backend, ulong handle, float pitch)
             => backend.GetAgentByHandle(handle)?.SetPitch(pitch);
 
@@ -76,7 +88,9 @@ namespace Moirai.Atropos.Audio
 
         #region 音轨暂停标记 [TRACK PAUSE FLAGS]
 
-        /// <summary>置位/复位音轨暂停标记。数组尚未分配或下标越界一律忽略。</summary>
+        /// <summary>
+        /// 置位/复位音轨暂停标记。数组尚未分配或下标越界一律忽略。
+        /// </summary>
         internal static void SetTrackPaused(bool[] flags, EAudioTrack track, bool paused)
         {
             if (flags == null) return;
@@ -85,7 +99,9 @@ namespace Moirai.Atropos.Audio
             if (index >= 0 && index < flags.Length) flags[index] = paused;
         }
 
-        /// <summary>音轨是否被标记为暂停。数组未分配或下标越界按未暂停处理。</summary>
+        /// <summary>
+        /// 音轨是否被标记为暂停。数组未分配或下标越界按未暂停处理。
+        /// </summary>
         internal static bool IsTrackPaused(bool[] flags, EAudioTrack track)
         {
             int index = (int)track;
@@ -96,7 +112,9 @@ namespace Moirai.Atropos.Audio
 
         #region 场景切换 [SCENE LOAD]
 
-        /// <summary>场景加载后是否停掉所有非持久音频：仅 <see cref="LoadSceneMode.Single"/>（整景切换）恒停。</summary>
+        /// <summary>
+        /// 场景加载后是否停掉所有非持久音频：仅 <see cref="LoadSceneMode.Single"/>（整景切换）恒停。
+        /// </summary>
         /// <remarks>
         /// Additive（流式分区/关卡分片）加载永不触发自动停音；需要收口的流程应在明确的切换点显式调用 <see cref="IAudioService.StopAllButPersistent"/>。
         /// </remarks>

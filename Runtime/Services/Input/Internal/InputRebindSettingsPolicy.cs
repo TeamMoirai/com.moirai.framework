@@ -12,12 +12,16 @@ namespace Moirai.Atropos.Input
         /// <summary>绑定快照的路径与部件名分隔符（部件名含 | 的绑定不参与编码，见 <see cref="Encode"/>）。</summary>
         private const char SEPARATOR = '|';
 
-        /// <summary>指定动作的重绑定设置键。</summary>
+        /// <summary>
+        /// 指定动作的重绑定设置键。
+        /// </summary>
         /// <param name="fullActionName">动作全限定名（Group/Name）。</param>
         internal static string BindingKey(string fullActionName) =>
             StringUtility.Format(GameConstant.Setting.INPUT_REBIND_BINDING, fullActionName);
 
-        /// <summary>移除动作的重绑定设置（移除即回到资产默认绑定）。</summary>
+        /// <summary>
+        /// 移除动作的重绑定设置（移除即回到资产默认绑定）。
+        /// </summary>
         /// <param name="fullActionName">动作全限定名（Group/Name）。</param>
         internal static void RemoveBinding(string fullActionName) =>
             GameSettings.RemoveSetting(BindingKey(fullActionName));

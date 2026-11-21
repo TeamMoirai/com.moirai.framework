@@ -146,7 +146,9 @@ namespace Moirai.Atropos.UI
         /// <returns>该窗口以 <see cref="UGUIWindow"/> 为基类时为真。</returns>
         protected override bool IsWindowOnOwnTrack(UIWindow window) => window is UGUIWindow;
 
-        /// <summary>把本处理器注册进 uGUI 轨的门面槽——归属由本类自述，门面入口不认识任何具体实现。</summary>
+        /// <summary>
+        /// 把本处理器注册进 uGUI 轨的门面槽——归属由本类自述，门面入口不认识任何具体实现。
+        /// </summary>
         internal override void Internal_Register() => UIService.Internal_ClaimUGUITrack(this);
 
         /// <summary>

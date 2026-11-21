@@ -15,9 +15,7 @@ namespace Moirai.Atropos.Input
         /// <summary>当前后端是否支持运行期重绑定（设置页据此显隐重绑入口）。</summary>
         public static bool SupportsRebinding => s_Handler is IInputRebindable;
 
-        /// <summary>
-        /// 获取当前后端的重绑定能力面。
-        /// </summary>
+        /// <summary>获取当前后端的重绑定能力面。</summary>
         /// <exception cref="GameException">当前后端不支持运行期重绑定时抛出（含后端类型名）。</exception>
         public static IInputRebindable Rebinding
         {

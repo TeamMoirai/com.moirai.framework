@@ -107,7 +107,9 @@ namespace Moirai.Atropos.UI
             return track;
         }
 
-        /// <summary>摘掉一条轨道登记：合成轨用它收回干净域，内建轨不摘。</summary>
+        /// <summary>
+        /// 摘掉一条轨道登记：合成轨用它收回干净域，内建轨不摘。
+        /// </summary>
         /// <param name="track">要摘除的轨道。</param>
         /// <returns>目录里真有它并摘掉了为真。</returns>
         internal static bool Internal_UnregisterTrack(UITrack track)
@@ -116,12 +118,12 @@ namespace Moirai.Atropos.UI
             return tracks != null && tracks.Remove(track);
         }
 
-        /// <summary>目录只读视图：内建轨的登记完整性与合成轨的处置都由用例读它判定。</summary>
+        /// <summary>
+        /// 目录只读视图：内建轨的登记完整性与合成轨的处置都由用例读它判定。
+        /// </summary>
         internal static IReadOnlyList<UITrack> Internal_PeekTracks() => s_Tracks;
 
-        /// <summary>
-        /// 各轨后端共用的窗口栈与停放表持有者：懒建；<see cref="Internal_ResetHandlerSlots"/> 归位时抹掉，下次读取再建。
-        /// </summary>
+        /// <summary>各轨后端共用的窗口栈与停放表持有者：懒建；<see cref="Internal_ResetHandlerSlots"/> 归位时抹掉，下次读取再建。</summary>
         /// <remarks>
         /// 每读现取、不是构造期快照：共享持有者会被归位门换掉，而清单里的驱动者由资产反序列化器在任意时刻造出来。<br />
         /// 线程契约：仅主线程（开窗、关窗与每帧驱动都在主线程）。
@@ -207,16 +209,22 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>帧广播当前的订阅条数：一支驱动者认领成功才加一条，第二轮认领同一实例不再加。</summary>
+        /// <summary>
+        /// 帧广播当前的订阅条数：一支驱动者认领成功才加一条，第二轮认领同一实例不再加。
+        /// </summary>
         internal static int Internal_PeekTrackTickSubscriberCount() => onTrackTick?.GetInvocationList().Length ?? 0;
 
         #region 窗口事件触发 [WINDOW EVENT RAISERS]
 
-        /// <summary>发一次入栈回执：`event` 只能在声明类内触发，共享持有者经这一道口转手。</summary>
+        /// <summary>
+        /// 发一次入栈回执：`event` 只能在声明类内触发，共享持有者经这一道口转手。
+        /// </summary>
         /// <param name="window">刚入栈的窗口。</param>
         internal static void Internal_RaiseWindowShown(UIWindow window) => onWindowShown?.Invoke(window);
 
-        /// <summary>发一次出栈回执：停放与销毁两条路都由 <see cref="UIWindowLedger.Pop"/> 叫到这一道。</summary>
+        /// <summary>
+        /// 发一次出栈回执：停放与销毁两条路都由 <see cref="UIWindowLedger.Pop"/> 叫到这一道。
+        /// </summary>
         /// <param name="window">刚出栈的窗口。</param>
         internal static void Internal_RaiseWindowClosed(UIWindow window) => onWindowClosed?.Invoke(window);
 
@@ -612,7 +620,9 @@ namespace Moirai.Atropos.UI
                 windowType.FullName, RenderTrackWindowBaseNames(tracks)));
         }
 
-        /// <summary>把目录里各轨的窗口基类名拼成一列：认不出轨的文案用它枚举可挑的基类。</summary>
+        /// <summary>
+        /// 把目录里各轨的窗口基类名拼成一列：认不出轨的文案用它枚举可挑的基类。
+        /// </summary>
         /// <param name="tracks">当前目录；没建出来时枚举不出任何基类。</param>
         /// <returns>逗号分隔的基类名清单。</returns>
         private static string RenderTrackWindowBaseNames(List<UITrack> tracks)
@@ -735,7 +745,9 @@ namespace Moirai.Atropos.UI
         /// <summary>导航深度：开启序历史的长度（栈按层级排序答不出「最近开的是谁」，历史按开启序答）。</summary>
         public static int NavigationDepth => SharedLedger.NavigationDepth;
 
-        /// <summary>关闭最近打开的窗口：走既有 CanClose 政策，无历史/拒关/过渡中回假。</summary>
+        /// <summary>
+        /// 关闭最近打开的窗口：走既有 CanClose 政策，无历史/拒关/过渡中回假。
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryCloseTopWindow() => SharedLedger.TryCloseTopWindow();
 

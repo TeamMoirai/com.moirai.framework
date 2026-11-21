@@ -11,12 +11,10 @@ namespace Moirai.Atropos.Localization
         private static readonly Dictionary<string, SystemLanguage> s_ToSystemLanguage;
 
         private static readonly Language[] s_BuiltinLanguages;
-        /// <summary>参考自 <see cref="UnityEngine.SystemLanguage"/>。</summary>
+        /// <summary>内置语言清单，取值与 <see cref="UnityEngine.SystemLanguage"/> 一一对应。</summary>
         /// <remarks>
-        /// 保留 Unspecified 作为默认。
-        /// <para>返回共享实例而非每次新建：语言表在检测链与查询路径上高频访问，
-        /// 逐次重建会产生约 45 个对象的分配。作为代价，<b>调用方禁止原地改写元素或长度</b>，
-        /// 否则会污染全局语言表。</para>。
+        /// 保留 Unspecified 作为默认。<br />
+        /// 返回共享实例；<b>调用方禁止原地改写元素或长度</b>，否则会污染全局语言表。
         /// </remarks>
         public static Language[] BuiltinLanguages => s_BuiltinLanguages;
 
@@ -212,7 +210,7 @@ namespace Moirai.Atropos.Localization
         public string Name => m_Name;
 
         /// <summary>获取 <see href="https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes">ISO-639-1</see> 语言代码。</summary>
-        /// <returns>ISO-639-1 code.</returns>
+        /// <returns>ISO-639-1 代码。</returns>
         public string Code => m_Code;
 
         /// <summary>语言是自定义的还是内置的，支持 <see cref="SystemLanguage"/> 转换.</summary>
@@ -354,8 +352,7 @@ namespace Moirai.Atropos.Localization
             };
 
             // SystemLanguage 双向映射：语言检测链每次访问都要解析，
-            // 用 Array.FindIndex(BuiltinLanguages, ...) 配合原先逐次 new 的语言表，
-            // 一次转换即产生整张表（约 45 个对象）的分配。
+            // 静态一次性建表，转换路径零分配（每次现建整张语言表要分配约 45 个对象）。
             var builtinByName = new Dictionary<string, Language>(s_BuiltinLanguages.Length, StringComparer.Ordinal);
             foreach (var language in s_BuiltinLanguages)
             {

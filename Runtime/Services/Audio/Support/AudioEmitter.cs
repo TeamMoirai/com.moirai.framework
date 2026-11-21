@@ -129,7 +129,7 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 取 Listener 位置：命中后缓存，未命中时限流重找（旧实现每个发射器每帧做一次全局类型扫描）。
+        /// 取 Listener 位置：命中后缓存，未命中时限流重找。
         /// </summary>
         private bool TryGetListenerPosition(out Vector3 position)
         {

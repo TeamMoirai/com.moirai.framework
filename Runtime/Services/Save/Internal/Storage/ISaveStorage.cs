@@ -49,8 +49,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
         /// <param name="bytes">成功时的文件字节。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、 <br />
-        /// <see cref="SaveError.FileNotFound"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.FileNotFound"/> 或 <see cref="SaveError.IoFailed"/>。</returns>
         SaveError TryReadAllBytes(string filePath, out byte[] bytes);
 
         /// <summary>
@@ -90,8 +89,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="filePath">文件完整路径。</param>
         /// <param name="stream">成功时的只读流（生命周期由调用方管理）。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、 <br />
-        /// <see cref="SaveError.FileNotFound"/>（不记日志）或 <see cref="SaveError.IoFailed"/>（实现记录详细日志）。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.FileNotFound"/>（不记日志）或 <see cref="SaveError.IoFailed"/>（实现记录详细日志）。</returns>
         SaveError TryOpenRead(string filePath, out Stream stream);
 
         /// <summary>

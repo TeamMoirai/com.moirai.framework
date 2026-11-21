@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Events
     /// </summary>
     /// <remarks>
     /// 内核级事件总线不设运行时调试接口——诊断钩子与调试窗同生命周期、仅编辑器存在（<c>#if UNITY_EDITOR</c>），
-    /// 与旧 EventsDebugger 同形态（独立窗口，不挂 Debugger 服务的窗口注册表）。
+    /// 独立窗口，不挂 Debugger 服务的窗口注册表。
     /// 面板形态对齐 <see cref="Moirai.Atropos.PlayerLoopDebug.PlayerLoopDebuggerWindow"/>：控制条与状态区由 Odin 特性渲染，
     /// 事件流列表与参数详情在 <see cref="OnEndDrawEditors"/> 自绘——行可点选（[R] 标记回放条目并着色），
     /// 参数经 <see cref="PropertyTree.Create(object)"/> 以 Odin 检视器渲染 struct 快照（类型感知、只读）。 <br />
@@ -43,7 +43,9 @@ namespace Moirai.Atropos.Events
 
         #region 数据模型 [MODELS]
 
-        /// <summary>事件流条目：序号 + 事件类型 + 装箱快照 + 记录时刻 + 是否回放产生。</summary>
+        /// <summary>
+        /// 事件流条目：序号 + 事件类型 + 装箱快照 + 记录时刻 + 是否回放产生。
+        /// </summary>
         private readonly struct FlowEntry
         {
             public readonly int Sequence;
@@ -315,7 +317,9 @@ namespace Moirai.Atropos.Events
             Repaint();
         }
 
-        /// <summary>以 Odin 检视器建树渲染快照；只读——快照是重播数据源，禁止经检视器改写。</summary>
+        /// <summary>
+        /// 以 Odin 检视器建树渲染快照；只读——快照是重播数据源，禁止经检视器改写。
+        /// </summary>
         private void EnsureDetailTree(object snapshot)
         {
             if (_detailTree != null) return;
@@ -413,7 +417,9 @@ namespace Moirai.Atropos.Events
                 (_replayQueue[_replayIndex].Time - _replayQueue[_replayIndex - 1].Time) / Math.Max(0.01f, _replaySpeed)));
         }
 
-        /// <summary>反射闭合 <c>EventBus.Publish&lt;TEvent&gt;(in TEvent, EDispatchMode)</c> 并重放快照。</summary>
+        /// <summary>
+        /// 反射闭合 <c>EventBus.Publish&lt;TEvent&gt;(in TEvent, EDispatchMode)</c> 并重放快照。
+        /// </summary>
         private static void PublishSnapshot(FlowEntry entry)
         {
             if (entry.Snapshot == null) return;
@@ -480,7 +486,9 @@ namespace Moirai.Atropos.Events
 
         #region 环形缓冲 [RING BUFFER]
 
-        /// <summary>定容环形缓冲（增删 O(1)，只读索引遍历）。</summary>
+        /// <summary>
+        /// 定容环形缓冲（增删 O(1)，只读索引遍历）。
+        /// </summary>
         private sealed class RingBuffer<T>
         {
             private readonly T[] _items;

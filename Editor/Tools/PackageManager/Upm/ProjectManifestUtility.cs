@@ -39,7 +39,9 @@ namespace Moirai.Atropos.PackageManager
             return false;
         }
 
-        /// <summary>写入一条依赖。</summary>
+        /// <summary>
+        /// 写入一条依赖。
+        /// </summary>
         /// <remarks>
         /// <paramref name="takeOverExisting"/> 为假且该键已在盘上时原样返回，一个字符都不改——
         /// 这条是"用户手写条目不得被工具覆写"的实现点，归属判定由账本侧负责。

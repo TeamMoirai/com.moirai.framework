@@ -88,14 +88,18 @@ namespace Moirai.Atropos.MenuEditorWindow
         // 建树时 EditorStyles 未就绪：样式就绪后补一次重建取回加粗菜单样式
         private bool _menuStylePending;
 
-        /// <summary>MenuTree 缺失时无条件建树；OnEnable 调用。</summary>
+        /// <summary>
+        /// MenuTree 缺失时无条件建树；OnEnable 调用。
+        /// </summary>
         protected void EnsureMenuTreeBuilt()
         {
             if (MenuTree == null)
                 ForceMenuTreeRebuild();
         }
 
-        /// <summary>EditorStyles 是否已就绪。域重载早期访问会抛 NRE（而非返回 null），须捕获判定。</summary>
+        /// <summary>
+        /// EditorStyles 是否已就绪。域重载早期访问会抛 NRE（而非返回 null），须捕获判定。
+        /// </summary>
         protected static bool IsEditorStylesReady()
         {
             try { return EditorStyles.label != null; }
@@ -124,7 +128,9 @@ namespace Moirai.Atropos.MenuEditorWindow
             };
         }
 
-        /// <summary>重建菜单树：前后回调交子类缓存/恢复选中。</summary>
+        /// <summary>
+        /// 重建菜单树：前后回调交子类缓存/恢复选中。
+        /// </summary>
         /// <remarks>重建后主动请绘：选中项被筛掉时不会触发选中变更事件，不请绘就停在旧树上。</remarks>
         protected void RebuildTreePreservingSelection()
         {
@@ -135,7 +141,9 @@ namespace Moirai.Atropos.MenuEditorWindow
             Repaint();
         }
 
-        /// <summary>按值在树中选中条目，走 Odin 侧边栏点击同一条选中路径。</summary>
+        /// <summary>
+        /// 按值在树中选中条目，走 Odin 侧边栏点击同一条选中路径。
+        /// </summary>
         /// <remarks>
         /// <c>TrySelectMenuItemWithObject</c> 只登记请求，要等下一拍 Layout 遍才落地；点击后要当下切换就同步选中。
         /// 选中变更本身即请绘，故在 GUI 事件外调用也立即上屏；树中没有该值（值未上树）时交出 <c>false</c>。
@@ -155,10 +163,14 @@ namespace Moirai.Atropos.MenuEditorWindow
             return false;
         }
 
-        /// <summary>重建前回调：缓存待恢复的选中或失效相关缓存；默认无操作。</summary>
+        /// <summary>
+        /// 重建前回调：缓存待恢复的选中或失效相关缓存；默认无操作。
+        /// </summary>
         protected virtual void OnBeforeTreeRebuild(object previousSelection) { }
 
-        /// <summary>重建后回调：按需恢复选中；默认无操作。</summary>
+        /// <summary>
+        /// 重建后回调：按需恢复选中；默认无操作。
+        /// </summary>
         protected virtual void OnAfterTreeRebuild(object previousSelection) { }
 
         #endregion
@@ -200,7 +212,9 @@ namespace Moirai.Atropos.MenuEditorWindow
         /// </summary>
         protected virtual void BuildDataLoadSteps(EditorLoadPipeline pipeline) { }
 
-        /// <summary>全部步骤完成（主线程）：经 <see cref="ShouldRebuildTreeAfterDataLoad"/> 裁决单次重建后置就绪——遮罩随就绪同拍揭下，不露空树帧。</summary>
+        /// <summary>
+        /// 全部步骤完成（主线程）：经 <see cref="ShouldRebuildTreeAfterDataLoad"/> 裁决单次重建后置就绪——遮罩随就绪同拍揭下，不露空树帧。
+        /// </summary>
         protected virtual void OnDataLoadCompleted()
         {
             if (ShouldRebuildTreeAfterDataLoad())
@@ -212,10 +226,14 @@ namespace Moirai.Atropos.MenuEditorWindow
             Repaint();
         }
 
-        /// <summary>完成时是否重建树；默认恒真。在屏数据与新装载结果一致的派生窗可跳过，免无谓抖动。</summary>
+        /// <summary>
+        /// 完成时是否重建树；默认恒真。在屏数据与新装载结果一致的派生窗可跳过，免无谓抖动。
+        /// </summary>
         protected virtual bool ShouldRebuildTreeAfterDataLoad() => true;
 
-        /// <summary>装载失败（主线程）：默认无操作，派生窗经 <see cref="IsDataFailed"/> 自行呈现。</summary>
+        /// <summary>
+        /// 装载失败（主线程）：默认无操作，派生窗经 <see cref="IsDataFailed"/> 自行呈现。
+        /// </summary>
         protected virtual void OnDataLoadFailed(Exception exception) { }
 
         protected override void OnDisable()
@@ -309,7 +327,9 @@ namespace Moirai.Atropos.MenuEditorWindow
             }
         }
 
-        /// <summary>套用加粗菜单样式（含选中态）；EditorStyles 未就绪时记待补重建。BuildMenuTree 调用。</summary>
+        /// <summary>
+        /// 套用加粗菜单样式（含选中态）；EditorStyles 未就绪时记待补重建。BuildMenuTree 调用。
+        /// </summary>
         protected void ApplyMenuStyle(OdinMenuTree tree)
         {
             if (!IsEditorStylesReady())
@@ -326,7 +346,9 @@ namespace Moirai.Atropos.MenuEditorWindow
             tree.DefaultMenuStyle = menuStyle;
         }
 
-        /// <summary>工具栏按钮：统一样式与固定宽度。</summary>
+        /// <summary>
+        /// 工具栏按钮：统一样式与固定宽度。
+        /// </summary>
         protected static bool ToolbarButton(string label, float width)
         {
             return GUILayout.Button(label, EditorStyles.toolbarButton, GUILayout.Width(width));

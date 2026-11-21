@@ -8,9 +8,7 @@ namespace Moirai.Atropos.Asset
     /// 资源租约来源与卸载账（仅编辑器参与编译）：开关关掉时取用与卸载路径既不建调用栈也不建字符串。
     /// </summary>
     /// <remarks>
-    /// 要答的是两件事后问：这条没还的租约是哪一行取的（引用计数只说"还欠着"，不说谁欠的），
-    /// 以及这个资产是在哪一刻被回收的（过期轮只留当下待过期的那些，卸掉的什么都不剩）。
-    /// 两者合起来才把"超保活窗口的资产被回收、派生精灵变空白"这类事后现象归到具体一次取用上。 <br />
+    /// 记录两类事后问：未还的租约是哪一行取的、资产是在哪一刻被回收的——把"超保活窗口的资产被回收、派生精灵变空白"这类事后现象归到具体一次取用上。 <br />
     /// 本模块整体在 <c>#if UNITY_EDITOR</c> 内：玩家构建不编译、不占内存，也没有可开启的入口。 <br />
     /// 线程契约：跟随资源内核的取用与卸载线程（主线程为常态），环本身不做同步——与它所记录的槽位表同线程。
     /// </remarks>
@@ -22,7 +20,9 @@ namespace Moirai.Atropos.Asset
         /// <summary>来源采集开关：默认关闭。</summary>
         internal static bool Enabled { get; set; }
 
-        /// <summary>一次取用的调用来源。</summary>
+        /// <summary>
+        /// 一次取用的调用来源。
+        /// </summary>
         internal struct LeaseSource
         {
             /// <summary>类型全名.方法名；采不到时为空串。</summary>
@@ -35,7 +35,9 @@ namespace Moirai.Atropos.Asset
             internal int Line;
         }
 
-        /// <summary>一条卸载账。</summary>
+        /// <summary>
+        /// 一条卸载账。
+        /// </summary>
         internal readonly struct UnloadRecord
         {
             internal UnloadRecord(string location, string typeName, DateTime unloadTimeUtc)
@@ -123,7 +125,9 @@ namespace Moirai.Atropos.Asset
             UnloadDropped++;
         }
 
-        /// <summary>按最新优先读一条。</summary>
+        /// <summary>
+        /// 按最新优先读一条。
+        /// </summary>
         internal static UnloadRecord GetNewestUnload(int index)
         {
             if (index < 0 || index >= s_Count)
@@ -134,7 +138,9 @@ namespace Moirai.Atropos.Asset
             return s_Records[(s_Start + s_Count - 1 - index) % UNLOAD_CAPACITY];
         }
 
-        /// <summary>清空卸载账：连引用一起断掉，让被记录的字符串能立刻回收。</summary>
+        /// <summary>
+        /// 清空卸载账：连引用一起断掉，让被记录的字符串能立刻回收。
+        /// </summary>
         internal static void ClearUnload()
         {
             Array.Clear(s_Records, 0, s_Records.Length);

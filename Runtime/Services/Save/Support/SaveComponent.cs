@@ -12,14 +12,10 @@ namespace Moirai.Atropos.Save
     [Serializable]
     public sealed class SaveTargetBinding
     {
-        /// <summary>
-        /// 目标组件（同 GameObject 上的可保存组件）。
-        /// </summary>
+        /// <summary>目标组件（同 GameObject 上的可保存组件）。</summary>
         [SerializeField] internal Component Target;
 
-        /// <summary>
-        /// 勾选参与存档的字段键列表。
-        /// </summary>
+        /// <summary>勾选参与存档的字段键列表。</summary>
         [SerializeField] internal List<string> EnabledFields = new List<string>();
     }
 

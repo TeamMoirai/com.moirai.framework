@@ -25,10 +25,7 @@ namespace Moirai.Atropos.Asset
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public sealed class AssetPackageDropdownAttribute : PropertyAttribute
     {
-        /// <summary>
-        /// 顶部是否加「留空 · 默认资源包」状态项（选中即写回空串，运行时用后端配置的默认资源包）。
-        /// 必填包名的配置字段保持 <c>false</c>；可留空的引用槽设 <c>true</c>。
-        /// </summary>
+        /// <summary>顶部是否加「留空 · 默认资源包」状态项（选中即写回空串，运行时用后端配置的默认资源包）；必填包名的配置字段保持 <c>false</c>，可留空的引用槽设 <c>true</c>。</summary>
         public bool AllowEmpty { get; set; }
     }
 }

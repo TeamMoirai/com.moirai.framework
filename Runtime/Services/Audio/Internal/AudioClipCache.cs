@@ -26,8 +26,8 @@ namespace Moirai.Atropos.Audio
         /// <summary>失败过的地址 → 冷却截止时刻（<see cref="GameTime"/> 的 RealtimeNow 口径）。</summary>
         private readonly Dictionary<string, float> _failedUntil = new Dictionary<string, float>(8);
 
-        // 地址 → 条目的开址定长槽表。取代原先的 Dictionary<string, AudioClipCacheEntry>：
-        // 播放/停播/驱逐全走这张表，而字典只会长大不会缩，"条目数有上限"约束的是表外的世界。
+        // 地址 → 条目的开址定长槽表：播放/停播/驱逐全走这张表。
+        // 定长数组而非 Dictionary——字典只会长大不会缩，撑不住"条目数有上限"。
         private AudioClipCacheEntry[] _slots;
         private int[] _freeSlots;
         private int[] _buckets;
@@ -532,8 +532,8 @@ namespace Moirai.Atropos.Audio
         {
             unchecked
             {
-                // djb2：不取 string.GetHashCode——它按进程随机化，同一份包两次启动的桶分布都不一样，
-                // 复现线上"某个地址总在冲突链尾"这类问题时需要对齐的分布。
+                // djb2：不取 string.GetHashCode——它按进程随机化，同一份包两次启动的桶分布都不一样；
+                // 固定哈希让桶分布可复现，排查"某个地址总在冲突链尾"这类问题才有对齐的分布。
                 int hash = 5381;
                 for (int i = 0; i < address.Length; i++) hash = ((hash << 5) + hash) ^ address[i];
                 return hash & 0x7fffffff;

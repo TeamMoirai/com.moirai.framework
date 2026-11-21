@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Save
     /// 内部表本身不外露（<c>internal</c>），也不给插件放行 <c>InternalsVisibleTo</c>。 <br />
     /// 框架内置实现同样走本特性：注册表不再硬编码任何后端，内置与项目在模块初始化期同形登记（只挂 ID→类型，首次查询到该后端才实例化）。 <br />
     /// 形状非法、编号非常量、与框架占号相撞、同编译单元内重复一律报 MA3009~312 错误；跨程序集撞号生成器看不见，运行期由 <see cref="SaveSerializerRegistry"/> 记 Fatal 并保留先到那份—— <br />
-    /// 声明式登记跑在模块初始化期，在那里抛出会连累整个编辑器（<c>TypeInitializationException</c> 实测让 Unity 在源生成扫描中原生崩溃），故该路径刻意不抛。
+    /// 声明式登记跑在模块初始化期，在那里抛出会连累整个编辑器（<c>TypeInitializationException</c> 会让 Unity 在源生成扫描中原生崩溃），故该路径刻意不抛。
     /// </remarks>
     /// <example>
     /// <code lang="csharp">

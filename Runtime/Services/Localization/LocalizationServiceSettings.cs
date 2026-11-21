@@ -13,7 +13,9 @@ namespace Moirai.Atropos.Localization
         [InfoBox("候选只有 Unspecified 与配置表导出的语言：未转表时只剩 Unspecified 可选。", InfoMessageType.None)]
         [SerializeField] private string m_EditorLanguage = Language.Unspecified.Code;
 
-        /// <summary>编辑器语言下拉候选：候选值取 <see cref="GetLanguageCandidateCodes"/>，标签点明所存的 Code。</summary>
+        /// <summary>
+        /// 编辑器语言下拉候选：候选值取 <see cref="GetLanguageCandidateCodes"/>，标签点明所存的 Code。
+        /// </summary>
         private static ValueDropdownList<string> GetLanguageOptions()
         {
             var options = new ValueDropdownList<string>();
@@ -47,15 +49,15 @@ namespace Moirai.Atropos.Localization
             return candidates;
         }
 
-        /// <summary>候选标签：内置语言显示「显示名 (Code)」，认不出的代码原样显示那串 Code。</summary>
+        /// <summary>
+        /// 候选标签：内置语言显示「显示名 (Code)」，认不出的代码原样显示那串 Code。
+        /// </summary>
         internal static string FormatLanguageOptionLabel(string code) =>
             LocalizationService.TryGetBuiltInLanguage(code, out var language)
                 ? $"{language.DisplayName} ({code})"
                 : code;
 
-        /// <summary>
-        /// 获取或设置编辑器语言（仅编辑器内有效）。
-        /// </summary>
+        /// <summary>获取或设置编辑器语言（仅编辑器内有效）。</summary>
         /// <remarks>值为语言 Code（<see cref="LocalizationService.ExportedLanguageCodes"/> 那一族），<see cref="Language.Unspecified"/> 的 Code 表示未选。</remarks>
         public static string EditorLanguage
         {

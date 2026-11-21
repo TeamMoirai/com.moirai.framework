@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
 namespace Moirai.Atropos
@@ -134,7 +133,7 @@ namespace Moirai.Atropos
         /// <param name="folderName">子文件夹名称。</param>
         public static void CreateFolder(string path, string folderName)
         {
-            var fullPath = System.IO.Path.Combine(path, folderName);
+            var fullPath = Path.Combine(path, folderName);
             var dir = new DirectoryInfo(fullPath);
             if (!dir.Exists)
             {
@@ -176,16 +175,16 @@ namespace Moirai.Atropos
         /// <param name="overwrite">是否覆写。</param>
         public static void CopyFileToDirectory(string sourceFileName, string folderPath, bool overwrite = true)
         {
-            if (System.IO.File.Exists(sourceFileName))
+            if (File.Exists(sourceFileName))
             {
-                var fileName = System.IO.Path.GetDirectoryName(sourceFileName);
+                var fileName = Path.GetDirectoryName(sourceFileName);
                 if (!Directory.Exists(folderPath))
                 {
                     Directory.CreateDirectory(folderPath);
                 }
 
-                var destFileName = System.IO.Path.Combine(folderPath, fileName);
-                System.IO.File.Copy(sourceFileName, destFileName, overwrite);
+                var destFileName = Path.Combine(folderPath, fileName);
+                File.Copy(sourceFileName, destFileName, overwrite);
             }
         }
 
@@ -197,15 +196,15 @@ namespace Moirai.Atropos
         /// <param name="overwrite">是否覆写。</param>
         public static void CopyFile(string sourceFileName, string destFileName, bool overwrite = true)
         {
-            if (System.IO.File.Exists(sourceFileName))
+            if (File.Exists(sourceFileName))
             {
-                var directory = System.IO.Path.GetDirectoryName(destFileName);
+                var directory = Path.GetDirectoryName(destFileName);
                 if (!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
 
-                System.IO.File.Copy(sourceFileName, destFileName, overwrite);
+                File.Copy(sourceFileName, destFileName, overwrite);
             }
         }
 
@@ -232,7 +231,7 @@ namespace Moirai.Atropos
             //复制所有文件到新地址
             foreach (FileInfo fi in source.GetFiles())
             {
-                fi.CopyTo(System.IO.Path.Combine(target.FullName, fi.Name), true);
+                fi.CopyTo(Path.Combine(target.FullName, fi.Name), true);
             }
 
             //递归拷贝所有子目录
@@ -250,9 +249,9 @@ namespace Moirai.Atropos
         /// <param name="fileFullPath">文件地址。</param>
         public static void DeleteFile(string fileFullPath)
         {
-            if (System.IO.File.Exists(fileFullPath))
+            if (File.Exists(fileFullPath))
             {
-                System.IO.File.Delete(fileFullPath);
+                File.Delete(fileFullPath);
             }
         }
 
@@ -287,18 +286,18 @@ namespace Moirai.Atropos
         /// <remarks>源文件不存在时先创建空文件再改名；目标同名文件已存在时先删除再移动。</remarks>
         public static void RenameFile(string oldFileFullPath, string newFileNamewithExtension)
         {
-            if (!System.IO.File.Exists(oldFileFullPath))
+            if (!File.Exists(oldFileFullPath))
             {
-                using (FileStream fs = System.IO.File.Create(oldFileFullPath))
+                using (FileStream fs = File.Create(oldFileFullPath))
                 {
                 }
             }
 
-            var dirPath = System.IO.Path.GetDirectoryName(oldFileFullPath);
-            var newFileName = System.IO.Path.Combine(dirPath, newFileNamewithExtension);
-            if (System.IO.File.Exists(newFileName))
-                System.IO.File.Delete(newFileName);
-            System.IO.File.Move(oldFileFullPath, newFileName);
+            var dirPath = Path.GetDirectoryName(oldFileFullPath);
+            var newFileName = Path.Combine(dirPath, newFileNamewithExtension);
+            if (File.Exists(newFileName))
+                File.Delete(newFileName);
+            File.Move(oldFileFullPath, newFileName);
         }
 
         /// <summary>
@@ -308,9 +307,9 @@ namespace Moirai.Atropos
         /// <returns>读取到的文件byte数组。</returns>
         public static byte[] ReadFile(string fileFullPath)
         {
-            if (!System.IO.File.Exists(fileFullPath))
+            if (!File.Exists(fileFullPath))
                 throw new IOException("File full path is invalid ! ");
-            return System.IO.File.ReadAllBytes(fileFullPath);
+            return File.ReadAllBytes(fileFullPath);
         }
 
         /// <summary>不含 BOM 的 UTF-8 编码，本类所有文本读写共用。</summary>
@@ -324,9 +323,9 @@ namespace Moirai.Atropos
         /// <exception cref="IOException">文件不存在。</exception>
         public static byte[] ReadBinaryFile(string fileFullPath)
         {
-            if (!System.IO.File.Exists(fileFullPath))
+            if (!File.Exists(fileFullPath))
                 throw new IOException("ReadBinaryFile path not exist !" + fileFullPath);
-            using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.Open))
+            using (FileStream stream = File.Open(fileFullPath, FileMode.Open))
             {
                 using (BinaryReader reader = new BinaryReader(stream, s_UTF8Encoding))
                 {
@@ -342,10 +341,10 @@ namespace Moirai.Atropos
         /// <returns>指定文件的包含的内容。</returns>
         public static string ReadTextFileContent(string fileFullPath)
         {
-            if (!System.IO.File.Exists(fileFullPath))
+            if (!File.Exists(fileFullPath))
                 throw new IOException("ReadTextFileContent path not exist !" + fileFullPath);
             string result = string.Empty;
-            using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.Open))
+            using (FileStream stream = File.Open(fileFullPath, FileMode.Open))
             {
                 using (StreamReader reader = new StreamReader(stream, s_UTF8Encoding))
                 {
@@ -366,7 +365,7 @@ namespace Moirai.Atropos
         {
             if (!Directory.Exists(folderPath))
                 throw new IOException("ReadTextFileContent folder path not exist !" + folderPath);
-            return ReadTextFileContent(System.IO.Path.Combine(folderPath, fileName));
+            return ReadTextFileContent(Path.Combine(folderPath, fileName));
         }
 
         /// <summary>
@@ -380,7 +379,7 @@ namespace Moirai.Atropos
         {
             if (!Directory.Exists(filePath))
                 Directory.CreateDirectory(filePath);
-            using (FileStream stream = new FileStream(System.IO.Path.Combine(filePath, fileName), FileMode.OpenOrCreate,
+            using (FileStream stream = new FileStream(Path.Combine(filePath, fileName), FileMode.OpenOrCreate,
                        FileAccess.ReadWrite, FileShare.ReadWrite))
             {
                 stream.Position = stream.Length;
@@ -400,7 +399,7 @@ namespace Moirai.Atropos
         /// <remarks>目录或文件不存在时自动创建；共享方式为 <c>FileShare.ReadWrite</c>。</remarks>
         public static void AppendWriteTextFile(string fileFullPath, string context)
         {
-            var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
+            var folderPath = Path.GetDirectoryName(fileFullPath);
             if (!Directory.Exists(folderPath))
                 Directory.CreateDirectory(folderPath);
             using (FileStream stream = new FileStream(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
@@ -427,7 +426,7 @@ namespace Moirai.Atropos
         {
             if (!Directory.Exists(filePath))
                 Directory.CreateDirectory(filePath);
-            using (FileStream stream = System.IO.File.Open(System.IO.Path.Combine(filePath, fileName), FileMode.OpenOrCreate,
+            using (FileStream stream = File.Open(Path.Combine(filePath, fileName), FileMode.OpenOrCreate,
                        FileAccess.ReadWrite, FileShare.ReadWrite))
             {
                 if (append)
@@ -449,10 +448,10 @@ namespace Moirai.Atropos
         /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void WriteTextFile(string fileFullPath, string context, bool append = false)
         {
-            var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
+            var folderPath = Path.GetDirectoryName(fileFullPath);
             if (!Directory.Exists(folderPath))
                 Directory.CreateDirectory(folderPath);
-            using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
+            using (FileStream stream = File.Open(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
                        FileShare.ReadWrite))
             {
                 if (append)
@@ -472,7 +471,7 @@ namespace Moirai.Atropos
         /// <param name="fileFullPath">文件完整路径，带后缀名。</param>
         public static void WriteBinaryFile(byte[] context, string fileFullPath)
         {
-            using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.Create))
+            using (FileStream stream = File.Open(fileFullPath, FileMode.Create))
             {
                 using (BinaryWriter writer = new BinaryWriter(stream))
                 {
@@ -490,10 +489,10 @@ namespace Moirai.Atropos
         /// <remarks>写入前不截断文件，新内容比原文件短时尾部会残留旧数据。</remarks>
         public static void WriteFile(byte[] context, string fileFullPath)
         {
-            var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
+            var folderPath = Path.GetDirectoryName(fileFullPath);
             if (!Directory.Exists(folderPath))
                 Directory.CreateDirectory(folderPath);
-            using (BinaryWriter writer = new BinaryWriter(System.IO.File.Open(fileFullPath, FileMode.OpenOrCreate)))
+            using (BinaryWriter writer = new BinaryWriter(File.Open(fileFullPath, FileMode.OpenOrCreate)))
             {
                 writer.Write(context);
             }
@@ -507,10 +506,10 @@ namespace Moirai.Atropos
         /// <param name="startPosition">追加写入的起始位置。</param>
         public static void WriteFile(byte[] context, string fileFullPath, int startPosition)
         {
-            var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
+            var folderPath = Path.GetDirectoryName(fileFullPath);
             if (!Directory.Exists(folderPath))
                 Directory.CreateDirectory(folderPath);
-            using (BinaryWriter writer = new BinaryWriter(System.IO.File.Open(fileFullPath, FileMode.OpenOrCreate)))
+            using (BinaryWriter writer = new BinaryWriter(File.Open(fileFullPath, FileMode.OpenOrCreate)))
             {
                 writer.Write(context, startPosition, context.Length);
             }
@@ -535,7 +534,7 @@ namespace Moirai.Atropos
                 }
 
                 var bytesLength = stream.Length;
-                System.IO.File.WriteAllBytes(path, stream.ToArray());
+                File.WriteAllBytes(path, stream.ToArray());
                 stream.Close();
                 return bytesLength;
             }
@@ -552,8 +551,8 @@ namespace Moirai.Atropos
         {
             if (!Directory.Exists(filePath))
                 Directory.CreateDirectory(filePath);
-            var fileFullPath = System.IO.Path.Combine(filePath, fileName);
-            using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
+            var fileFullPath = Path.Combine(filePath, fileName);
+            using (FileStream stream = File.Open(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
                        FileShare.ReadWrite))
             {
                 stream.Seek(0, SeekOrigin.Begin);
@@ -574,10 +573,10 @@ namespace Moirai.Atropos
         /// <remarks>目录或文件不存在时自动创建；正文经 <c>WriteLine</c> 写入（行尾补换行）。</remarks>
         public static void OverwriteTextFile(string fileFullPath, string context)
         {
-            var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
+            var folderPath = Path.GetDirectoryName(fileFullPath);
             if (!Directory.Exists(folderPath))
                 Directory.CreateDirectory(folderPath);
-            using (FileStream stream = System.IO.File.Open(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
+            using (FileStream stream = File.Open(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
                        FileShare.ReadWrite))
             {
                 stream.Seek(0, SeekOrigin.Begin);
@@ -589,73 +588,7 @@ namespace Moirai.Atropos
                 }
             }
         }
-
-        /// <summary>
-        /// 写入二进制。
-        /// </summary>
-        /// <param name="fileFullPath">完整文件路径，带后缀名。</param>
-        /// <param name="context">内容。</param>
-        /// <returns>是否写入成功。</returns>
-        /// <remarks>
-        /// 安全警告：BinaryFormatter 存在反序列化攻击风险。 <br />
-        /// 参见：https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide。
-        /// </remarks>
-        [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
-        public static bool WriterFormattedBinary(string fileFullPath, object context)
-        {
-            var folderPath = System.IO.Path.GetDirectoryName(fileFullPath);
-            if (!Directory.Exists(folderPath))
-                Directory.CreateDirectory(folderPath);
-            using (FileStream stream = new FileStream(fileFullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
-                       FileShare.ReadWrite))
-            {
-                BinaryFormatter formatter = new BinaryFormatter();
-                formatter.Serialize(stream, context);
-                return true;
-            }
-        }
-
-        /// <summary>
-        /// 用 <see cref="BinaryFormatter"/> 将对象序列化写入文件，<paramref name="filePath"/> 为文件夹路径。
-        /// </summary>
-        /// <param name="filePath">文件夹路径。</param>
-        /// <param name="fileName">带后缀的文件名。</param>
-        /// <param name="context">内容。</param>
-        /// <returns>是否写入成功。</returns>
-        /// <remarks>已废弃：<see cref="BinaryFormatter"/> 存在反序列化攻击风险，请改用 JSON 序列化。</remarks>
-        [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
-        public static bool WriterFormattedBinary(string filePath, string fileName, object context)
-        {
-            if (!Directory.Exists(filePath))
-                Directory.CreateDirectory(filePath);
-            var fullFilePath = System.IO.Path.Combine(filePath, fileName);
-            using (FileStream stream = new FileStream(fullFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
-                       FileShare.ReadWrite))
-            {
-                BinaryFormatter formatter = new BinaryFormatter();
-                formatter.Serialize(stream, context);
-                return true;
-            }
-        }
-
-        /// <summary>
-        /// 读取二进制。
-        /// </summary>
-        /// <param name="fileFullPath">完整文件路径。</param>
-        /// <returns>内容。</returns>
-        [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
-        public static object ReadFormattedBinary(string fileFullPath)
-        {
-            if (!System.IO.File.Exists(fileFullPath))
-                return null;
-            using (FileStream stream = new FileStream(fileFullPath, FileMode.Open, FileAccess.ReadWrite,
-                       FileShare.ReadWrite))
-            {
-                BinaryFormatter formatter = new BinaryFormatter();
-                return formatter.Deserialize(stream);
-            }
-        }
-
+        
         /// <summary>
         /// 清空text类型的文本。
         /// </summary>
@@ -663,9 +596,9 @@ namespace Moirai.Atropos
         /// <returns>是否写入成功。</returns>
         public static bool ClearTextContext(string fileFullPath)
         {
-            if (!System.IO.File.Exists(fileFullPath))
+            if (!File.Exists(fileFullPath))
                 return false;
-            System.IO.File.WriteAllText(fileFullPath, string.Empty);
+            File.WriteAllText(fileFullPath, string.Empty);
             return true;
         }
 
@@ -676,11 +609,12 @@ namespace Moirai.Atropos
         /// <returns>文件long类型的长度。</returns>
         public static long GetFileSizeByFileInfo(string filePath)
         {
-            if (!Directory.Exists(System.IO.Path.GetDirectoryName(filePath)))
+            if (!Directory.Exists(Path.GetDirectoryName(filePath)))
             {
                 return 0;
             }
-            else if (System.IO.File.Exists(filePath))
+
+            if (File.Exists(filePath))
             {
                 return new FileInfo(filePath).Length;
             }
@@ -706,7 +640,8 @@ namespace Moirai.Atropos
                     isSubDir = true;
                     break;
                 }
-                else subDirInfo = subDirInfo.Parent;
+
+                subDirInfo = subDirInfo.Parent;
             }
 
             return isSubDir;

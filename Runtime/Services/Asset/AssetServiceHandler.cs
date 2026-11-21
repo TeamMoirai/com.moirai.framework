@@ -23,9 +23,7 @@ namespace Moirai.Atropos.Asset
         /// <summary>默认资源包/资源组名称。</summary>
         public abstract string DefaultPackageName { get; set; }
 
-        /// <summary>
-        /// 本后端是否消费资源包名轴：为假时编辑器侧不接管包名下拉行（只有一张隐式目录、没有包名轴的后端覆写为假）。
-        /// </summary>
+        /// <summary>本后端是否消费资源包名轴：为假时编辑器侧不接管包名下拉行（只有一张隐式目录、没有包名轴的后端覆写为假）。</summary>
         /// <remarks>
         /// 判据由被判定方自报，<c>Moirai.Atropos.Editor</c> 的包名桥只读它：编辑器装配不许按具体后端类型判——
         /// 后端可以住在插件装配里，那种判定会被预处理或装配缺失静默裁成恒假。默认真：包名轴成立。
@@ -402,8 +400,7 @@ namespace Moirai.Atropos.Asset
         /// </summary>
         /// <param name="unscaledTime">本帧的无缩放时间。</param>
         /// <param name="expireBudget">本轮可处理的到期记录数上限。</param>
-        /// <param name="destroySweepBudget">销毁态轮转每帧查验的槽位数（所有者与绑定各一份）。
-        /// 它与 <paramref name="expireBudget"/> 是两件事，分开传：合成一个预算会让到期记录多的帧饿死销毁回收。</param>
+        /// <param name="destroySweepBudget">销毁态轮转每帧查验的槽位数（所有者与绑定各一份）；与 <paramref name="expireBudget"/> 分开传，合成一个预算会让到期记录多的帧饿死销毁回收。</param>
         public abstract void ProcessAssetMaintenance(float unscaledTime, int expireBudget, int destroySweepBudget);
 
         /// <summary>

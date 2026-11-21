@@ -12,7 +12,9 @@ namespace Moirai.Atropos.PackageManager
         public string version;
         public string versionOperator;
 
-        /// <summary>判定给定已装版本是否满足这条依赖。</summary>
+        /// <summary>
+        /// 判定给定已装版本是否满足这条依赖。
+        /// </summary>
         /// <remarks>
         /// 运算符或版本不可解析时一律判不满足——不做"解析失败当作满足"的降级。
         /// </remarks>

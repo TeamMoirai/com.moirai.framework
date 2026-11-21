@@ -199,7 +199,7 @@ namespace Moirai.Atropos
 
             int indentLevel = 0;
             bool inQuote = false;
-            // 池化 builder：原先每次 new StringBuilder + 每行 string.Join 产生大量 GC
+            // 池化 builder，降低格式化过程的 GC 压力
             var sb = StringUtility.CreateStringBuilder(json.Length + json.Length / 4);
             try
             {

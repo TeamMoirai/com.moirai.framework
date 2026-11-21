@@ -10,13 +10,19 @@ namespace Moirai.Atropos
     /// </remarks>
     public interface IServiceContext
     {
-        /// <summary>按契约接口解析依赖；未注册抛 <see cref="GameException"/>。</summary>
+        /// <summary>
+        /// 按契约接口解析依赖；未注册抛 <see cref="GameException"/>。
+        /// </summary>
         T GetRequiredService<T>() where T : class;
 
-        /// <summary>按契约接口解析依赖；未注册返回 null。</summary>
+        /// <summary>
+        /// 按契约接口解析依赖；未注册返回 null。
+        /// </summary>
         T GetService<T>() where T : class;
 
-        /// <summary>按契约接口尝试解析依赖。</summary>
+        /// <summary>
+        /// 按契约接口尝试解析依赖。
+        /// </summary>
         bool TryGetService<T>(out T service) where T : class;
     }
 
@@ -29,7 +35,9 @@ namespace Moirai.Atropos
     /// </remarks>
     public interface IServiceContextAware
     {
-        /// <summary>容器在注册入图时注入（世界引用在两阶段注册期内即已确定）。</summary>
+        /// <summary>
+        /// 容器在注册入图时注入（世界引用在两阶段注册期内即已确定）。
+        /// </summary>
         void SetContext(IServiceContext context);
     }
 }

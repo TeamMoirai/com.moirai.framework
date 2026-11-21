@@ -178,7 +178,9 @@ namespace Moirai.Atropos.PackageManager
             errors.Add(Describe(sourcePath, $"{fieldName} '{ceilingText}' 不高于地板 '{floorText}'，区间为空，任何编辑器都装不上"));
         }
 
-        /// <summary>版本区间违例的类别；<see cref="None"/> 表示满足。</summary>
+        /// <summary>
+        /// 版本区间违例的类别；<see cref="None"/> 表示满足。
+        /// </summary>
         internal enum VersionViolation : byte
         {
             None = 0,
@@ -283,7 +285,9 @@ namespace Moirai.Atropos.PackageManager
             return true;
         }
 
-        /// <summary>类型全名字符集：路径分隔符、空白与控制字符一律拒——它们是菜单树与反射查找的注入面。</summary>
+        /// <summary>
+        /// 类型全名字符集：路径分隔符、空白与控制字符一律拒——它们是菜单树与反射查找的注入面。
+        /// </summary>
         internal static bool IsValidTypeName(string candidate)
         {
             if (string.IsNullOrEmpty(candidate) || candidate.Length > MAX_TYPE_NAME_LENGTH) return false;
@@ -297,7 +301,9 @@ namespace Moirai.Atropos.PackageManager
             return true;
         }
 
-        /// <summary>UPM 包 id 字符集：小写点分段，与 Unity 的注册表惯例同形。</summary>
+        /// <summary>
+        /// UPM 包 id 字符集：小写点分段，与 Unity 的注册表惯例同形。
+        /// </summary>
         internal static bool IsValidUpmPackageId(string candidate)
         {
             if (string.IsNullOrEmpty(candidate) || candidate.Length > MAX_TYPE_NAME_LENGTH) return false;

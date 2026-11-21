@@ -30,8 +30,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 注册存档迁移器（同类型重复注册以最新为准；模块初始化器自注册之外的补充手动通道）。
         /// </summary>
-        /// <param name="migrator">迁移器实例（版本契约：<c>FromVersion &gt;= 0</c> 且 <c>ToVersion &gt; FromVersion</c>， <br />
-        /// 破坏即抛 <see cref="System.ArgumentException"/>）。</param>
+        /// <param name="migrator">迁移器实例（版本契约：<c>FromVersion &gt;= 0</c> 且 <c>ToVersion &gt; FromVersion</c>，破坏即抛 <see cref="System.ArgumentException"/>）。</param>
         public static void RegisterMigrator(ISaveMigrator migrator) =>
             SaveMigrationManager.Register(migrator);
 
@@ -43,8 +42,7 @@ namespace Moirai.Atropos.Save
         /// </remarks>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
-        /// <returns>错误码（缺档返回 <see cref="SaveError.FileNotFound"/>；迁移链缺失/失败返回 <see cref="SaveError.MigrationFailed"/>； <br />
-        /// 降级返回 <see cref="SaveError.UnsupportedVersion"/>）。</returns>
+        /// <returns>错误码（缺档返回 <see cref="SaveError.FileNotFound"/>；迁移链缺失/失败返回 <see cref="SaveError.MigrationFailed"/>；降级返回 <see cref="SaveError.UnsupportedVersion"/>）。</returns>
         public static SaveError MigrateSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
             s_Handler?.MigrateSave(fileName, folderName) ?? SaveError.HandlerNotReady;
 

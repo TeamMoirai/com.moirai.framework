@@ -62,7 +62,7 @@ namespace Moirai.Atropos.Audio
             var states = (EMixSnapshot[])Enum.GetValues(typeof(EMixSnapshot));
             var existing = m_MixSnapshots ?? Array.Empty<AudioMixSnapshotEntry>();
 
-            // 重复 State 原先是"首个胜出、其余静默丢弃"——资产里真有重复时必须说出来，
+            // 重复 State 不做"首个胜出、其余静默丢弃"——资产里真有重复时必须说出来，
             // 否则音效师改了后一行却毫无效果，且无从归因。
             int duplicates = 0;
             for (int a = 0; a < existing.Length; a++)

@@ -323,10 +323,8 @@ namespace Moirai.Atropos
             if (minValue > maxValue)
                 throw new ArgumentOutOfRangeException(nameof(maxValue), maxValue, "上界不得小于下界");
 
-            // 旧实现是"拼一个 length 位数字串，落不进 [min,max] 就整串重拼"：允许前导零，
-            // 所以它能表达的值就是 [0, 10^length)，而该集合与 [min,max] 无交时（length=1 配
-            // [100,200]、或 min<0）那个 do-while 永远转不完，每轮还白造一个 StringBuilder。
-            // 现直接在同一个取值域上等概率取一次；域为空就报错而不是空转。
+            // 位数能表达的值域是 [0, 10^length)：在它与 [minValue, maxValue] 的交集上等概率取一次，
+            // 交集为空时抛错而不是原地空转。
             long cap = 1;
             for (int i = 0; i < length; i++)
             {
@@ -356,8 +354,7 @@ namespace Moirai.Atropos
         /// <returns>生成的int整数。</returns>
         public static int RandomRange(int minValue, int maxValue)
         {
-         // 旧实现每次调用都 new 一个 Random（Guid 播种），既白造对象又扰动不到全局流；
-         // min == max 现在返回该值而不是抛，与其它 RandomUtility 取值口径一致。
+         // min == max 时返回该值本身，与其它 RandomUtility 取值口径一致。
          return RandomUtility.NextInt(minValue, maxValue);
         }
 
@@ -369,9 +366,7 @@ namespace Moirai.Atropos
         /// <returns>生成的long。</returns>
         public static long RandomRange(long minValue, long maxValue)
         {
-         // 旧实现是 NextBytes 拼一个可能为负的 long，再按 double 缩放进区间：
-         // 负值会把结果顶到 minValue 以下（真能越界），double 也只有 53 位精度。
-         // 上界口径同时由"含"改为"不含"，与 int 版和框架其余取值统一。
+         // 整型精度直接取值，不经 double 缩放；上界不含，与 int 版同口径。
          return RandomUtility.NextLong(minValue, maxValue);
         }
 
@@ -446,7 +441,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static double AverageRandom(double minValue, double maxValue)
         {
-         // 旧实现把值量化到 1e-4 步长，且 maxValue * 10000 超出 int 时会静默取乱数
+         // 全量程连续取值，不量化到固定步长
          return minValue + (maxValue - minValue) * RandomUtility.NextDouble();
         }
 
@@ -519,8 +514,7 @@ namespace Moirai.Atropos
         {
             if (array == null) throw new ArgumentNullException(nameof(array));
 
-            // 旧实现每次 new Random(seed) 并走元组交换；现改走统一原语，
-            // 种子语义不变（局部流，扰动不到别处的取值）
+            // 种子对应独立局部流：同一种子同序，扰动不到其他取值
             var rng = RandomUtility.CreateSeeded(unchecked((ulong)randomSeed));
             ShuffleUtility.Shuffle(array, array.Count, ref rng);
         }

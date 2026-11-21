@@ -281,7 +281,9 @@ namespace Moirai.Atropos
             if (tex != null) GUI.DrawTexture(arrowRect, tex, ScaleMode.ScaleToFit);
         }
 
-        /// <summary>遍历直接可见子属性（高度计算与 Unity 序列化回退绘制共用）。visitor 需跨迭代持有时应自行 Copy。</summary>
+        /// <summary>
+        /// 遍历直接可见子属性（高度计算与 Unity 序列化回退绘制共用）。visitor 需跨迭代持有时应自行 Copy。
+        /// </summary>
         private static void ForEachVisibleChild(SerializedProperty property, Action<SerializedProperty> visit)
         {
             var child = property.Copy();
@@ -842,7 +844,9 @@ namespace Moirai.Atropos
 
         private static string FormatCount(int count) => count == 1 ? "1 item" : count + " items";
 
-        /// <summary>新增元素：逐选中父对象各建独立实例，Queue → Apply 延迟到本帧绘制结束后执行。</summary>
+        /// <summary>
+        /// 新增元素：逐选中父对象各建独立实例，Queue → Apply 延迟到本帧绘制结束后执行。
+        /// </summary>
         private void QueueAddElement(Type elementType, ICollectionResolver resolver)
         {
             int parentCount = Property.ValueEntry.ValueCount;
@@ -861,7 +865,9 @@ namespace Moirai.Atropos
             });
         }
 
-        /// <summary>元素行 ✕ 删除：按位删除所有选中对象的同位元素，延迟到本帧绘制结束后应用。</summary>
+        /// <summary>
+        /// 元素行 ✕ 删除：按位删除所有选中对象的同位元素，延迟到本帧绘制结束后应用。
+        /// </summary>
         private void QueueRemoveSelf()
         {
             InspectorProperty parent = Property.Parent;
@@ -878,14 +884,18 @@ namespace Moirai.Atropos
             });
         }
 
-        /// <summary>元素行是否具备 ✕ 删除条件：宿主集合可写、可按位删除且本行处于有效元素位。</summary>
+        /// <summary>
+        /// 元素行是否具备 ✕ 删除条件：宿主集合可写、可按位删除且本行处于有效元素位。
+        /// </summary>
         private bool CanRemoveElement()
         {
             if (!(Property.Parent?.ChildResolver is IOrderedCollectionResolver resolver)) return false;
             return !resolver.IsReadOnly && Property.Index >= 0;
         }
 
-        /// <summary>图标按钮外框：1px 边框 + 微弱底色，标示命中区（按钮样式背景贴图托管侧不可见，故自绘）。</summary>
+        /// <summary>
+        /// 图标按钮外框：1px 边框 + 微弱底色，标示命中区（按钮样式背景贴图托管侧不可见，故自绘）。
+        /// </summary>
         private static void DrawIconButtonFrame(Rect rect)
         {
             if (Event.current.type != EventType.Repaint) return;
@@ -899,7 +909,9 @@ namespace Moirai.Atropos
             EditorGUI.DrawRect(new Rect(rect.xMax - 1, rect.y, 1, rect.height), line);
         }
 
-        /// <summary>✕ 竖条按钮：行高正方形、纵向居中（SDFIconButton 会把图标缩放到 rect 尺寸，不能传整条竖条）。</summary>
+        /// <summary>
+        /// ✕ 竖条按钮：行高正方形、纵向居中（SDFIconButton 会把图标缩放到 rect 尺寸，不能传整条竖条）。
+        /// </summary>
         private static bool DrawRemoveStripButton(Rect strip)
         {
             float size = EditorGUIUtility.singleLineHeight;
@@ -908,7 +920,9 @@ namespace Moirai.Atropos
             return SirenixEditorGUI.SDFIconButton(iconRect, SdfIconType.X, SirenixGUIStyles.IconButton);
         }
 
-        /// <summary>取集合根的 Unity SerializedProperty；解析失败（4.0.x 偶发）返回 null，退化值条目路径。</summary>
+        /// <summary>
+        /// 取集合根的 Unity SerializedProperty；解析失败（4.0.x 偶发）返回 null，退化值条目路径。
+        /// </summary>
         private SerializedProperty TryGetUnityProperty()
         {
             try
@@ -1079,7 +1093,9 @@ namespace Moirai.Atropos
             private float GetInfoHeight() =>
                 INFO_PAD * 2 + LINE_H * 3 + 4 + (HoverDescription() is string desc ? DescriptionHeight(desc) : 0f);
 
-            /// <summary>当前悬停项的描述（(None) 档与未标注项为 null）。</summary>
+            /// <summary>
+            /// 当前悬停项的描述（(None) 档与未标注项为 null）。
+            /// </summary>
             private string HoverDescription()
             {
                 int cacheIndex = _options.LocalToCache(_hoverIndex);

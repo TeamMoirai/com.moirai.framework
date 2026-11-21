@@ -29,7 +29,9 @@ namespace Moirai.Atropos.PackageManager
 
         internal void AddConflict(PlanConflict conflict) => _conflicts.Add(conflict);
 
-        /// <summary>整批中止：保留冲突供展示，丢弃可执行部分。</summary>
+        /// <summary>
+        /// 整批中止：保留冲突供展示，丢弃可执行部分。
+        /// </summary>
         internal void AbortBatch() => _toInstall.Clear();
     }
 }

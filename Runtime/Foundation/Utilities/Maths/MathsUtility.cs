@@ -590,8 +590,7 @@ namespace Moirai.Atropos
         /// </summary>
         public static int RandomNumber(int lower, int upper)
         {        
-            // 旧实现每次调用都 new System.Random()：种子取自时钟，同一 tick 内的两次调用会
-            // 拿到完全相同的"随机数"，还每调一次白造一个对象
+            // 取值走 RandomUtility 每线程随机流，统一受 Reseed 播种控制
             return RandomUtility.NextInt(lower, upper);
         }
 	}

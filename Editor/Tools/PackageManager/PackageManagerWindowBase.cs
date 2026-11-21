@@ -42,7 +42,9 @@ namespace Moirai.Atropos.PackageManager
         private static readonly Color BLOCKED_ICON_COLOR = new Color(0.95f, 0.35f, 0.32f);
         private static readonly Color OUT_OF_SUPPORT_ICON_COLOR = new Color(0.98f, 0.78f, 0.20f);
 
-        /// <summary>菜单树的列表筛选口径；与文本筛选叠加。</summary>
+        /// <summary>
+        /// 菜单树的列表筛选口径；与文本筛选叠加。
+        /// </summary>
         private enum EntryFilterMode
         {
             All = 0,
@@ -50,7 +52,9 @@ namespace Moirai.Atropos.PackageManager
             Upgradable = 2
         }
 
-        /// <summary>设置面左树里的页签。</summary>
+        /// <summary>
+        /// 设置面左树里的页签。
+        /// </summary>
         private enum SettingsNode
         {
             Source = 0,
@@ -358,7 +362,9 @@ namespace Moirai.Atropos.PackageManager
             EditorGUILayout.EndVertical();
         }
 
-        /// <summary>上次刷新时刻的可读文案。</summary>
+        /// <summary>
+        /// 上次刷新时刻的可读文案。
+        /// </summary>
         private string FetchText() => string.IsNullOrEmpty(_status.LastFetchAt) ? "从未" : _status.LastFetchAt;
 
         private void DrawMessage()
@@ -778,7 +784,9 @@ namespace Moirai.Atropos.PackageManager
             AfterMutation(report, $"更新了 {report.TouchedPluginIds.Count} 个" + skippedNote);
         }
 
-        /// <summary>按 id 取当前目录里那条包的详情模型；不在场返回 null。</summary>
+        /// <summary>
+        /// 按 id 取当前目录里那条包的详情模型；不在场返回 null。
+        /// </summary>
         private PluginEntry FindEntry(string pluginId)
         {
             for (int i = 0; i < _entries.Count; i++)
@@ -957,7 +965,9 @@ namespace Moirai.Atropos.PackageManager
             Repaint();
         }
 
-        /// <summary>目标目录是不是本地 git 工作树；读不通时把 git 的原因一并交回。</summary>
+        /// <summary>
+        /// 目标目录是不是本地 git 工作树；读不通时把 git 的原因一并交回。
+        /// </summary>
         private bool TryValidateSyncWorktree(string folder, out string failureReason)
         {
             GitRunResult result = GitProcessUtility.Run(_state.settings.gitPath, folder,
@@ -1034,7 +1044,9 @@ namespace Moirai.Atropos.PackageManager
             RefreshEntryIcons();
         }
 
-        /// <summary>把就地更新后的状态图标写回已有叶子：列表结构不动，只换图标与颜色。</summary>
+        /// <summary>
+        /// 把就地更新后的状态图标写回已有叶子：列表结构不动，只换图标与颜色。
+        /// </summary>
         private void RefreshEntryIcons()
         {
             OdinMenuTree tree = MenuTree;
@@ -1216,9 +1228,7 @@ namespace Moirai.Atropos.PackageManager
             /// <summary>拦路的原文（能装为空），给 Update All 的跳过点名取用。</summary>
             internal string BlockerText => _blocker;
 
-            /// <summary>
-            /// 菜单行前的状态图标：超出支持范围黄警告 &gt; 其他拦路红叉 &gt; 可升级 &gt; 已装；未装且无拦路不画图标。
-            /// </summary>
+            /// <summary>菜单行前的状态图标：超出支持范围黄警告 &gt; 其他拦路红叉 &gt; 可升级 &gt; 已装；未装且无拦路不画图标。</summary>
             internal SdfIconType? StatusIcon
             {
                 get
@@ -1240,7 +1250,9 @@ namespace Moirai.Atropos.PackageManager
                 }
             }
 
-            /// <summary>列表筛选口径的命中判据；文本筛选另由 <see cref="Matches"/> 叠加。</summary>
+            /// <summary>
+            /// 列表筛选口径的命中判据；文本筛选另由 <see cref="Matches"/> 叠加。
+            /// </summary>
             internal bool MatchesMode(EntryFilterMode mode)
             {
                 switch (mode)
@@ -1288,9 +1300,7 @@ namespace Moirai.Atropos.PackageManager
                 _window?.InstallVersionRequested(_manifest.id, revision, SelectedVersion);
             }
 
-            /// <summary>
-            /// 装不了的成因：✕ 图标加原因，排在动作按钮之后；能装时整行不画。
-            /// </summary>
+            /// <summary>装不了的成因：✕ 图标加原因，排在动作按钮之后；能装时整行不画。</summary>
             /// <remarks>卸载不在拦的范围里——版本过档了也得让人把已装的拆掉，所以那一颗按钮不接 <see cref="CanInstall"/>。</remarks>
             [BoxGroup(OPERATIONS_GROUP), ShowInInspector, LabelText("不能安装的原因"), PropertyOrder(100)]
             [HideIf(nameof(CanInstall))]
@@ -1495,7 +1505,9 @@ namespace Moirai.Atropos.PackageManager
                 return parts.Count == 0 ? "—" : string.Join("\n", parts);
             }
 
-            /// <summary>把安装目录收敛成从 <c>Packages/</c> 起的形状：前面的工程绝对路径用 ~ 省略。</summary>
+            /// <summary>
+            /// 把安装目录收敛成从 <c>Packages/</c> 起的形状：前面的工程绝对路径用 ~ 省略。
+            /// </summary>
             private static string CollapseToPackages(string path)
             {
                 string normalized = (path ?? string.Empty).Replace('\\', '/');
@@ -1503,7 +1515,9 @@ namespace Moirai.Atropos.PackageManager
                 return index < 0 ? normalized : "~" + normalized.Substring(index);
             }
 
-            /// <summary>同步落点相对项目 <c>Assets/</c> 的路径；路径形状不合法时退回插件目录名。</summary>
+            /// <summary>
+            /// 同步落点相对项目 <c>Assets/</c> 的路径；路径形状不合法时退回插件目录名。
+            /// </summary>
             private static string DescribeTargetPath(string root, string pluginId)
             {
                 try
@@ -1516,7 +1530,9 @@ namespace Moirai.Atropos.PackageManager
                 }
             }
 
-            /// <summary>从项目 <c>Assets/</c> 出发表示目标路径；跨盘符时交出绝对路径。</summary>
+            /// <summary>
+            /// 从项目 <c>Assets/</c> 出发表示目标路径；跨盘符时交出绝对路径。
+            /// </summary>
             private static string RelativeToAssets(string path)
             {
                 string assetsRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Assets"))

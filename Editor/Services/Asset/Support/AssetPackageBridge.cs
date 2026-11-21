@@ -30,10 +30,14 @@ namespace Moirai.Atropos.Asset
             EditorApplication.projectChanged += InvalidatePackageNames;
         }
 
-        /// <summary>登记编辑器侧包名探针：由提供该后端的程序集自己调用，覆盖式。</summary>
+        /// <summary>
+        /// 登记编辑器侧包名探针：由提供该后端的程序集自己调用，覆盖式。
+        /// </summary>
         public static void RegisterEditorPackageProbe(IAssetEditorPackageProbe probe) => s_Probe = probe;
 
-        /// <summary>当前后端的默认包是否开了寻址（探针不认领时 <c>false</c>）。</summary>
+        /// <summary>
+        /// 当前后端的默认包是否开了寻址（探针不认领时 <c>false</c>）。
+        /// </summary>
         public static bool DefaultPackageIsAddressable(IAssetService handler) =>
             s_Probe != null && s_Probe.AppliesTo(handler) && s_Probe.DefaultPackageIsAddressable();
 
@@ -78,7 +82,9 @@ namespace Moirai.Atropos.Asset
             s_PackageNamesCached = false;
         }
 
-        /// <summary>用例复位：清掉按域缓存，避免同域内先跑的用例把后跑的用例糊住（探针登记本身跨用例保留）。</summary>
+        /// <summary>
+        /// 用例复位：清掉按域缓存，避免同域内先跑的用例把后跑的用例糊住（探针登记本身跨用例保留）。
+        /// </summary>
         internal static void Internal_ResetCacheForTest() => InvalidatePackageNames();
     }
 }

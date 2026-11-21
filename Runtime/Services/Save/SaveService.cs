@@ -54,7 +54,7 @@ namespace Moirai.Atropos.Save
         /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
         /// </summary>
         /// <remarks>
-        /// 告警去重位归零，告警去重位归零：订阅生命周期自负盈亏，关闭域重载时上一会话的订阅者不得跨会话残留重复收报。
+        /// 告警去重位归零；订阅生命周期自负盈亏，关闭域重载时上一会话的订阅者不得跨会话残留重复收报。
         /// </remarks>
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
@@ -118,7 +118,7 @@ namespace Moirai.Atropos.Save
             var handler = s_Handler;
             s_Handler = null;
             // 契约接口不携带生命周期成员：引擎基座继承 FrameworkHandler，这里按基座关停
-            (handler as global::Moirai.Atropos.FrameworkHandler)?.Internal_Shutdown();
+            (handler as FrameworkHandler)?.Internal_Shutdown();
         }
 
         #endregion

@@ -30,17 +30,19 @@ namespace Moirai.Atropos.UI
             "UGUI", typeof(UGUIWindow), UITrack.SHUTDOWN_ORDER_HOST,
             IsOnUGUITrack, IsUGUIValidProbe, OpenUGUIWindowForTypeEntry));
 
-        /// <summary>uGUI 轨的有效性探针：只读本轨槽位，目录不另记一份在位状态。</summary>
+        /// <summary>
+        /// uGUI 轨的有效性探针：只读本轨槽位，目录不另记一份在位状态。
+        /// </summary>
         private static bool IsUGUIValidProbe() => s_UGUIHandler != null;
 
-        /// <summary>uGUI 轨的认窗判据：<see cref="UGUIWindow"/> 及其派生类落在 uGUI 轨上。</summary>
+        /// <summary>
+        /// uGUI 轨的认窗判据：<see cref="UGUIWindow"/> 及其派生类落在 uGUI 轨上。
+        /// </summary>
         /// <param name="windowType">窗口类型。</param>
         /// <returns>落在 uGUI 轨上时为真。</returns>
         private static bool IsOnUGUITrack(Type windowType) => typeof(UGUIWindow).IsAssignableFrom(windowType);
 
-        /// <summary>
-        /// uGUI 轨<b>已启用</b>的驱动者：这一轨没启用时当场抬错，不静默落空、也不替本轨造一个。
-        /// </summary>
+        /// <summary>uGUI 轨<b>已启用</b>的驱动者：这一轨没启用时当场抬错，不静默落空、也不替本轨造一个。</summary>
         /// <remarks>
         /// 槽位只有 <see cref="OnInit"/> 按 <see cref="UIServiceSettings"/> 启用清单认领那一条来路：没有换入接缝，也没有用到才 new 的隐式启用。 <br />
         /// uGUI 腿的三支与 <see cref="System.Type"/> 入口的 uGUI 档都只取用它作认领门探针。 <br />
@@ -63,7 +65,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>读 uGUI 轨的处理器槽：不叫认领门，也不产生任何副作用。</summary>
+        /// <summary>
+        /// 读 uGUI 轨的处理器槽：不叫认领门，也不产生任何副作用。
+        /// </summary>
         internal static UGUIHandler Internal_PeekUGUIHandler() => s_UGUIHandler;
 
         /// <summary>
@@ -96,7 +100,9 @@ namespace Moirai.Atropos.UI
             handler.Internal_Init();
         }
 
-        /// <summary>摘掉本轨的处理器槽：只清位，不跑关停，也不碰广播——广播由门面整批摘。</summary>
+        /// <summary>
+        /// 摘掉本轨的处理器槽：只清位，不跑关停，也不碰广播——广播由门面整批摘。
+        /// </summary>
         private static void Internal_DetachUGUITrack()
         {
             Interlocked.Exchange(ref s_UGUIHandler, null);

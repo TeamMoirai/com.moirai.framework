@@ -127,7 +127,7 @@ namespace Moirai.Atropos.Audio
                     return;
                 }
 
-                // fail-fast：撞 ID 不再静默改派——两个列表互相 StopByID 是线上事故，必须在开发期暴露
+                // fail-fast：撞 ID 不静默改派——两个列表互相 StopByID 会误伤对方曲目，必须在开发期暴露
                 LogUtility.Error(
                     "[BgmPlaylist] 分层 ID {0} 已被另一个播放列表占用。本实例不会启动播放；请改用不同的正数 ID 或 0（自动分配）。",
                     requested);

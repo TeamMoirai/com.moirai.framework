@@ -26,10 +26,9 @@ namespace Moirai.Atropos
     /// ]]></code>
     /// </example>
     /// <remarks>
-    /// 与 <see cref="SingletonMono{T}"/> 互补：无场景查找、无多实例消解、无生命周期回调——
-    /// 仅做「不存在则主线程新建 GameObject 挂载」的惰性物化。需要完整策略时请改用
-    /// <see cref="SingletonMono{T}"/>。实例物化只能发生在主线程，越线程访问将抛出
-    /// <see cref="GameException"/>。
+    /// 与 <see cref="SingletonMono{T}"/> 互补：无场景查找、无多实例消解、无生命周期回调—— <br />
+    /// 仅做「不存在则主线程新建 GameObject 挂载」的惰性物化。需要完整策略时请改用 <see cref="SingletonMono{T}"/>。 <br />
+    /// 实例物化只能发生在主线程，越线程访问将抛出 <see cref="GameException"/>。
     /// </remarks>
     public static class SingletonRegisterMono<T> where T : MonoBehaviour
     {
@@ -42,13 +41,17 @@ namespace Moirai.Atropos
         // ReSharper disable once StaticMemberInGenericType
         private static readonly object s_Locker = new object();
 
-        /// <summary>静态构造时自报重置回调：泛型类无法挂 RuntimeInitializeOnLoadMethod，由非泛型注册中心代执行。</summary>
+        /// <summary>
+        /// 静态构造时自报重置回调：泛型类无法挂 RuntimeInitializeOnLoadMethod，由非泛型注册中心代执行。
+        /// </summary>
         static SingletonRegisterMono()
         {
             SingletonStaticStateRegistry.Register(ResetStaticsForDomainReload);
         }
 
-        /// <summary>Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例引用——幂等。</summary>
+        /// <summary>
+        /// Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例引用——幂等。
+        /// </summary>
         internal static void ResetStaticsForDomainReload()
         {
             s_Instance = null;

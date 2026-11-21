@@ -14,13 +14,11 @@ namespace Moirai.Atropos
         // 跳过创建时只报一次：导入期的设置访问是反复的，别把原来的递归换成刷屏
         private static string s_SkippedCreatePath;
 
-        /// <summary>
-        /// 加载或创建设置文件，新创建时通过 onNewAsset 回调初始化。
-        /// </summary>
+        /// <summary>加载或创建设置文件，新创建时通过 onNewAsset 回调初始化。</summary>
         // ReSharper disable once InconsistentNaming
         public static TSetting LoadSettingSO<TSetting>(string settingPath, Action<TSetting> onNewAsset = null) where TSetting : ScriptableObject
         {
-            // 重入期间资产还没进库，再查一遍只会再造一次、再派发一次 → 同步自递归（实测能把编辑器钉死在导入阶段）。
+            // 重入期间资产还没进库，再查一遍只会再造一次、再派发一次 → 同步自递归，可把编辑器钉死在导入阶段。
             // 重入一律按「暂不可用」返回 null，让调用方降级，绝不叠加。
             if (s_IsLoading) return null;
 

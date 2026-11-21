@@ -8,7 +8,8 @@ namespace Moirai.Atropos.Procedure
     /// </summary>
     /// <remarks>
     /// 自包含状态机契约，不依赖外部 FSM 服务；默认实现 <see cref="DefaultProcedureHandler"/> 由 <see cref="ProcedureServiceSettings"/> 驱动初始化。 <br />
-    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/>（生命周期与序列化基座）； <c>OnInitAsync</c>/<c>OnShutdownAsync</c> 不会被 await，异步就绪的后端在 <see cref="Moirai.Atropos.FrameworkHandler.OnInit"/> 内自管。 <br />
+    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/>（生命周期与序列化基座）； <br />
+    /// <c>OnInitAsync</c>/<c>OnShutdownAsync</c> 不会被 await，异步就绪的后端在 <see cref="Moirai.Atropos.FrameworkHandler.OnInit"/> 内自管。 <br />
     /// 切换记录契约：每次切换完成（<c>OnEnter</c> 返回后）后端须把记录写进 <see cref="TransitionHistory"/>（写法见 <see cref="ProcedureBackendPolicy.RecordTransition"/>）—— <br />
     /// <see cref="ProcedureService.onProcedureChanged"/> 广播由 <see cref="ProcedureBackendPolicy"/> 承载，关停切换（To 为 null）仅记历史。 <br />
     /// 广播期间后端 <c>StartProcedure</c>/<c>ChangeState</c> 须拒绝重入（抛 <see cref="GameException"/>）；OnEnter/OnLeave 内的嵌套切换发生在记录之前，不受广播标志影响。
@@ -35,29 +36,45 @@ namespace Moirai.Atropos.Procedure
         /// <remarks>关停后保留（含关停记录，供事后诊断），重新 <see cref="Initialize"/> 时清空。</remarks>
         IReadOnlyList<ProcedureTransitionRecord> TransitionHistory { get; }
 
-        /// <summary>轮询当前流程。</summary>
+        /// <summary>
+        /// 轮询当前流程。
+        /// </summary>
         void Tick(float elapseSeconds, float realElapseSeconds);
 
-        /// <summary>初始化流程管理器。</summary>
+        /// <summary>
+        /// 初始化流程管理器。
+        /// </summary>
         /// <param name="procedures">流程管理器包含的流程。</param>
         void Initialize(params ProcedureBase[] procedures);
 
-        /// <summary>开始流程。</summary>
+        /// <summary>
+        /// 开始流程。
+        /// </summary>
         void StartProcedure(Type procedureType);
 
-        /// <summary>是否存在流程。</summary>
+        /// <summary>
+        /// 是否存在流程。
+        /// </summary>
         bool HasProcedure(Type procedureType);
 
-        /// <summary>切换流程（泛型便利形态）。</summary>
+        /// <summary>
+        /// 切换流程（泛型便利形态）。
+        /// </summary>
         void ChangeState<T>() where T : ProcedureBase => ChangeState(typeof(T));
 
-        /// <summary>切换流程。</summary>
+        /// <summary>
+        /// 切换流程。
+        /// </summary>
         void ChangeState(Type procedureType);
 
-        /// <summary>获取流程。</summary>
+        /// <summary>
+        /// 获取流程。
+        /// </summary>
         ProcedureBase GetProcedure(Type procedureType);
 
-        /// <summary>重启流程。默认使用第一个流程作为启动流程。</summary>
+        /// <summary>
+        /// 重启流程。默认使用第一个流程作为启动流程。
+        /// </summary>
         bool RestartProcedure(params ProcedureBase[] procedures);
     }
 }

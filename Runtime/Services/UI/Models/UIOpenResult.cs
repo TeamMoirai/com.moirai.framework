@@ -54,7 +54,9 @@ namespace Moirai.Atropos.UI
             Window = window;
         }
 
-        /// <summary>是否装载就绪：隐式布尔只答这一档，超时与失败都当假。</summary>
+        /// <summary>
+        /// 是否装载就绪：隐式布尔只答这一档，超时与失败都当假。
+        /// </summary>
         /// <param name="result">待判的结果。</param>
         public static implicit operator bool(UIOpenResult result) => result.Success;
     }

@@ -21,13 +21,17 @@ namespace Moirai.Atropos
         // ReSharper disable once StaticMemberInGenericType
         private static readonly object s_Locker = new object();
 
-        /// <summary>静态构造时自报重置回调：泛型类无法挂 RuntimeInitializeOnLoadMethod，由非泛型注册中心代执行。</summary>
+        /// <summary>
+        /// 静态构造时自报重置回调：泛型类无法挂 RuntimeInitializeOnLoadMethod，由非泛型注册中心代执行。
+        /// </summary>
         static SingletonRegister()
         {
             SingletonStaticStateRegistry.Register(ResetStaticsForDomainReload);
         }
 
-        /// <summary>Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例引用——幂等。</summary>
+        /// <summary>
+        /// Domain Reload 自重置兜底（关闭 DR 工作流）：清上次会话残留实例引用——幂等。
+        /// </summary>
         internal static void ResetStaticsForDomainReload()
         {
             s_Instance = null;

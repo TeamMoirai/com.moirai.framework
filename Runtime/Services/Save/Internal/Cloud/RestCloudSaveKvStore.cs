@@ -45,7 +45,9 @@ namespace Moirai.Atropos.Save
         [Tooltip("认证头静态值。安全提示：静态密钥随设置资产入库——生产环境建议经代码注入 AuthTokenProvider 提供动态令牌。")]
         [SerializeField] private string m_AuthHeaderValue = "";
 
-        /// <summary>单次远端请求超时（秒；超时抛 <see cref="TimeoutException"/>——远端失败语义）。</summary>
+        /// <summary>
+        /// 单次远端请求超时（秒；超时抛 <see cref="TimeoutException"/>——远端失败语义）。
+        /// </summary>
         [Tooltip("单次远端请求超时（秒）。")]
         [SerializeField, Min(1)] private int m_TimeoutSeconds = 15;
 

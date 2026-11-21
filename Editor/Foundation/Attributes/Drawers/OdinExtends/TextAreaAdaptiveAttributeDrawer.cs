@@ -5,9 +5,7 @@ using UnityEngine;
 
 namespace Sirenix.OdinInspector
 {
-    /// <summary>
-    /// 多行文本块：高度随内容行数在 <c>MinLines</c> 与 <c>MaxLines</c> 之间自适应，超出后由文本框自身滚动；可作用于字符串字段与 <c>[ShowInInspector]</c> 属性。
-    /// </summary>
+    /// <summary>多行文本块：高度随内容行数在 <c>MinLines</c> 与 <c>MaxLines</c> 之间自适应，超出后由文本框自身滚动；可作用于字符串字段与 <c>[ShowInInspector]</c> 属性。</summary>
     /// <seealso cref="Sirenix.OdinInspector.Editor.Drawers.TextAreaAdaptiveAttributeDrawer" />
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     // ReSharper disable once UnusedType.Global
@@ -29,9 +27,7 @@ namespace Sirenix.OdinInspector
 
 namespace Sirenix.OdinInspector.Editor.Drawers
 {
-    /// <summary>
-    /// <see cref="TextAreaAdaptiveAttribute" /> 的 Drawer。不绘制 label——文本块要占整行宽度。
-    /// </summary>
+    /// <summary><see cref="TextAreaAdaptiveAttribute" /> 的 Drawer。不绘制 label——文本块要占整行宽度。</summary>
     // ReSharper disable once UnusedType.Global
     public class TextAreaAdaptiveAttributeDrawer : OdinAttributeDrawer<TextAreaAdaptiveAttribute>
     {

@@ -14,9 +14,9 @@ namespace Moirai.Atropos.UI
     /// <remarks>
     /// 覆写 <see cref="UIWindow"/> 的七个面板钩子，把 <see cref="UIWindow.Visible"/> / <see cref="UIWindow.Depth"/> / <see cref="UIWindow.Interactable"/> <br />
     /// 三份意图落到真实面板上：显隐切整棵子树的 layer（SHOW/HIDE）、深度给父 Canvas 写绝对值并按各自偏移差分同步子 Canvas、 <br />
-    /// 交互推面板自身与全部子 <see cref="GraphicRaycaster"/> 的 <c>enabled</c>。判据与写入次序逐字承自下沉前的 <c>UIWindow</c>，未作修正。 <br />
-    /// 空引用口径同样保持：未绑定时 <c>gameObject</c> 回 null，<c>transform</c> / <c>rectTransform</c> 抛 <see cref="NullReferenceException"/>（不补 <c>?.</c>）。 <br />
-    /// 排序刷新与 <c>OnSetVisible</c> 的回执仍由 <see cref="UIWindow"/> 决策，本类不知道 <c>_isCreate</c>。线程契约：仅主线程。
+    /// 交互推面板自身与全部子 <see cref="GraphicRaycaster"/> 的 <c>enabled</c>。<br />
+    /// 未绑定时 <c>gameObject</c> 回 null，<c>transform</c> / <c>rectTransform</c> 抛 <see cref="NullReferenceException"/>（不补 <c>?.</c>）。 <br />
+    /// 排序刷新与 <c>OnSetVisible</c> 的回执由 <see cref="UIWindow"/> 决策。线程契约：仅主线程。
     /// </remarks>
     public abstract class UGUIWindow : UIWindow
     {
@@ -48,7 +48,9 @@ namespace Moirai.Atropos.UI
 
         #region 面板钩子 [PANEL HOOKS]
 
-        /// <summary>装载面板：按 <paramref name="fromResources"/> 走 AB 或内置资源，交给自己装配。</summary>
+        /// <summary>
+        /// 装载面板：按 <paramref name="fromResources"/> 走 AB 或内置资源，交给自己装配。
+        /// </summary>
         protected internal override bool LoadPanel(string assetLocation, bool fromResources)
         {
             if (!fromResources)
@@ -59,7 +61,9 @@ namespace Moirai.Atropos.UI
             return BindPanel(UObject.Instantiate(Resources.Load<GameObject>(assetLocation), UIService.UIRoot));
         }
 
-        /// <summary>装载面板（异步）：AB 路径 await，内置资源路径与旧实现一样仍走同步 <c>Resources.Load</c>。</summary>
+        /// <summary>
+        /// 装载面板（异步）：AB 路径 await，内置资源路径仍走同步 <c>Resources.Load</c>。
+        /// </summary>
         /// <remarks>取消令牌下给资源层：装载在途时窗口被关闭，资源装载随之取消。</remarks>
         protected internal override async UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources, CancellationToken ct)
         {
@@ -72,7 +76,9 @@ namespace Moirai.Atropos.UI
             return BindPanel(uiInstance);
         }
 
-        /// <summary>显隐落地：整棵子树一起切显示/隐藏 layer，实际 layer 已到位则不重复写。</summary>
+        /// <summary>
+        /// 显隐落地：整棵子树一起切显示/隐藏 layer，实际 layer 已到位则不重复写。
+        /// </summary>
         protected internal override void ApplyVisible(bool value)
         {
             if (_canvas == null) return;
@@ -89,7 +95,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>深度落地：父 Canvas 取绝对值，子 Canvas 按各自原有偏移一同平移；实际序已到位则不重复写。</summary>
+        /// <summary>
+        /// 深度落地：父 Canvas 取绝对值，子 Canvas 按各自原有偏移一同平移；实际序已到位则不重复写。
+        /// </summary>
         protected internal override void ApplyDepth(int value)
         {
             if (_canvas == null) return;
@@ -117,7 +125,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>交互落地：推给面板自身与全部子 Raycaster；面板没挂 Raycaster 时写不进去。</summary>
+        /// <summary>
+        /// 交互落地：推给面板自身与全部子 Raycaster；面板没挂 Raycaster 时写不进去。
+        /// </summary>
         protected internal override void ApplyInteractable(bool value)
         {
             if (_raycaster != null)
@@ -130,7 +140,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>停放面板：物体留着但不激活（缓存实例的关闭态、关闭过渡结束后的隐藏）。</summary>
+        /// <summary>
+        /// 停放面板：物体留着但不激活（缓存实例的关闭态、关闭过渡结束后的隐藏）。
+        /// </summary>
         /// <remarks>未绑定面板时为空操作：装载在途的缓存窗被关闭可达这一档，与 <see cref="DestroyPanel"/> 同款守卫。</remarks>
         protected internal override void ParkPanel()
         {
@@ -140,7 +152,9 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>收走面板：销毁物体并断开全部后端引用，令窗口回到「未绑定」口径。</summary>
+        /// <summary>
+        /// 收走面板：销毁物体并断开全部后端引用，令窗口回到「未绑定」口径。
+        /// </summary>
         protected internal override void DestroyPanel()
         {
             if (_panel != null)
@@ -149,7 +163,7 @@ namespace Moirai.Atropos.UI
                 _panel = null;
             }
 
-            // 引用一并断开：装载完成前窗口已被销毁时，旧实现压根没装配过面板，后续写意图必须同样落空
+            // 引用一并断开：装载完成前窗口已被销毁时，本类压根没装配过面板，后续写意图必须同样落空
             _canvas = null;
             _raycaster = null;
             _childCanvas = null;
@@ -259,7 +273,9 @@ namespace Moirai.Atropos.UI
         }
     }
 
-    /// <summary>uGUI 轨带载荷窗口基类：每次开窗最多一个强类型 DTO，静态腿泛型直塞（struct 不装箱）。</summary>
+    /// <summary>
+    /// uGUI 轨带载荷窗口基类：每次开窗最多一个强类型 DTO，静态腿泛型直塞（struct 不装箱）。
+    /// </summary>
     /// <remarks>载荷每次开窗覆盖、关闭不清；再开覆盖。动态腿经 <see cref="UIPayload"/> 擦除后从这里取回。</remarks>
     public abstract class UGUIWindow<TArg> : UGUIWindow, IUIPayloadSlot<TArg>
     {

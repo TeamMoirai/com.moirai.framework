@@ -4,9 +4,7 @@ using UnityEngine;
 
 namespace Moirai.Atropos
 {
-    /// <summary>
-    /// 自动引用 T 类型的 ScriptableObject 实例基类。
-    /// </summary>
+    /// <summary>自动引用 T 类型的 ScriptableObject 实例基类。</summary>
     /// <typeparam name="T">目标 ScriptableObject 类型。</typeparam>
     /// <remarks>
     /// 可用于继承自 <see cref="ReferenceHolder{T}"/> 的任意类； <br />

@@ -132,7 +132,9 @@ namespace Moirai.Atropos.PackageManager
                 .Replace('\\', '/');
         }
 
-        /// <summary>候选路径与根相同或位于根之下。</summary>
+        /// <summary>
+        /// 候选路径与根相同或位于根之下。
+        /// </summary>
         private static bool IsSameOrUnder(string candidate, string root)
         {
             string normalizedCandidate = Path.GetFullPath(candidate)

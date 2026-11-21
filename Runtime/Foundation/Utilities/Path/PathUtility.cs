@@ -109,9 +109,7 @@ namespace Moirai.Atropos
             return path.Replace('\\', '/');
         }
 
-        /// <summary>
-        /// 标准 Windows 文件路径地址合并，返回结果示例：<c>Resources\JsonData\</c>。
-        /// </summary>
+        /// <summary>标准 Windows 文件路径地址合并，返回结果示例：<c>Resources\JsonData\</c>。</summary>
         /// <param name="paths">路径params。</param>
         /// <returns>合并的路径。</returns>
         // ReSharper disable once InconsistentNaming
@@ -122,9 +120,7 @@ namespace Moirai.Atropos
             return resultPath;
         }
         
-        /// <summary>
-        /// 格式化 UNC 地址。
-        /// </summary>
+        /// <summary>格式化 UNC 地址。</summary>
         /// <param name="path">需要格式化的地址。</param>
         /// <returns>格式化后的 UNC 地址。</returns>
         /// <remarks>关于 UNC 的介绍：https://learn.microsoft.com/zh-cn/dotnet/standard/io/file-path-formats#unc-paths</remarks>

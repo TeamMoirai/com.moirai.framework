@@ -205,7 +205,9 @@ namespace Moirai.Atropos.PackageManager
             return ApplySparsePaths(SelectedIdsInConePatterns(), out failureReason);
         }
 
-        /// <summary>从 cone 模式的模式表里取勾选的目录名；cone 的 <c>/*</c> 与 <c>!/*/</c> 落不进来。</summary>
+        /// <summary>
+        /// 从 cone 模式的模式表里取勾选的目录名；cone 的 <c>/*</c> 与 <c>!/*/</c> 落不进来。
+        /// </summary>
         private List<string> SelectedIdsInConePatterns()
         {
             var ids = new List<string>();
@@ -386,7 +388,9 @@ namespace Moirai.Atropos.PackageManager
             return true;
         }
 
-        /// <summary>从某修订的可达对象里挑出本地还没有的那些。</summary>
+        /// <summary>
+        /// 从某修订的可达对象里挑出本地还没有的那些。
+        /// </summary>
         /// <remarks>只认 <c>--missing=print</c> 的标记行；探测本身不发惰性取包请求，因此不联网。</remarks>
         private bool TryFindMissingObjects(string revision, IReadOnlyList<string> objectIds, out List<string> missing,
             out string failureReason)
@@ -438,7 +442,9 @@ namespace Moirai.Atropos.PackageManager
             return true;
         }
 
-        /// <summary>把一批对象从远端一次取回。</summary>
+        /// <summary>
+        /// 把一批对象从远端一次取回。
+        /// </summary>
         /// <remarks>对象号先过字符集——这里唯一一处把对象号拼进命令行。<br />
         /// 不带过滤器：要取的就是 blob 本体，<c>blob:none</c> 在这里自相矛盾，服务端真按它裁剪就把整单裁空了。</remarks>
         private bool TryFetchObjects(IReadOnlyList<string> objectIds, out string failureReason)
@@ -461,7 +467,9 @@ namespace Moirai.Atropos.PackageManager
             return result.Ok;
         }
 
-        /// <summary>按 <c>cat-file --batch</c> 的「头行 + 声明字节数正文」切分整段输出。</summary>
+        /// <summary>
+        /// 按 <c>cat-file --batch</c> 的「头行 + 声明字节数正文」切分整段输出。
+        /// </summary>
         /// <remarks>取不到的对象回一行「<c>&lt;oid&gt; missing</c>」并继续下一条：跳过它，其余条目照收，
         /// 缺的那份交给调用方的逐份重读兜底（<see cref="TryReadBlobs"/> 的 remarks）。<br />
         /// internal：解析器用例直调（private→internal 走 InternalsVisibleTo 测试接缝，见 CONTRIBUTING.md）。</remarks>
@@ -517,7 +525,9 @@ namespace Moirai.Atropos.PackageManager
             return true;
         }
 
-        /// <summary>对象号可否原样拼进 git：只收 40 或 64 位十六进制。</summary>
+        /// <summary>
+        /// 对象号可否原样拼进 git：只收 40 或 64 位十六进制。
+        /// </summary>
         private static bool IsSafeObjectId(string objectId)
         {
             if (objectId == null || (objectId.Length != 40 && objectId.Length != 64)) return false;
@@ -588,7 +598,9 @@ namespace Moirai.Atropos.PackageManager
             return true;
         }
 
-        /// <summary>列某插件清单历史上出现过的版本：每版本取最新那次修订，新的在前。</summary>
+        /// <summary>
+        /// 列某插件清单历史上出现过的版本：每版本取最新那次修订，新的在前。
+        /// </summary>
         /// <remarks>只看最近 <c>HISTORY_SCAN_LIMIT</c> 次改动，且同版本合并——一次开出版本下拉要对每个候选跑一条 git。</remarks>
         internal bool TryListManifestHistory(string pluginId, out List<PluginVersionRevision> history, out string failureReason)
         {
@@ -627,7 +639,9 @@ namespace Moirai.Atropos.PackageManager
             return true;
         }
 
-        /// <summary>把这些插件目录按指定修订物化进工作树：装历史版本用。</summary>
+        /// <summary>
+        /// 把这些插件目录按指定修订物化进工作树：装历史版本用。
+        /// </summary>
         /// <remarks>走 <c>restore --worktree</c> 而不是 <c>checkout</c>——后者会把内容写进索引，落点工作树的 git status 就脏了。<br />
         /// 路径一律取自 git 自己列出的清单，再过一遍 <see cref="IsSafeTreePath"/> 才拼进命令行。</remarks>
         internal bool TryMaterializeAt(string revision, IReadOnlyList<string> ids, out string failureReason)

@@ -4,7 +4,9 @@ using UnityEngine.InputSystem;
 
 namespace Moirai.Atropos.Input
 {
-    /// <summary>重绑定冲突的处置策略。</summary>
+    /// <summary>
+    /// 重绑定冲突的处置策略。
+    /// </summary>
     public enum ERebindConflictPolicy : byte
     {
         /// <summary>检测到冲突即失败返回（缺省，最安全）。</summary>
@@ -17,7 +19,9 @@ namespace Moirai.Atropos.Input
         Cancel,
     }
 
-    /// <summary>重绑定结果的终态类别。</summary>
+    /// <summary>
+    /// 重绑定结果的终态类别。
+    /// </summary>
     public enum ERebindOutcome : byte
     {
         /// <summary>重绑成功落地。</summary>
@@ -33,7 +37,9 @@ namespace Moirai.Atropos.Input
         NotRebindable,
     }
 
-    /// <summary>一次交互式重绑的终态快照。</summary>
+    /// <summary>
+    /// 一次交互式重绑的终态快照。
+    /// </summary>
     public readonly struct InputRebindResult
     {
         /// <summary>终态类别。</summary>
@@ -64,16 +70,22 @@ namespace Moirai.Atropos.Input
             ConflictedAction = conflictedAction;
         }
 
-        /// <summary>构造终态结果（无绑定信息）。</summary>
+        /// <summary>
+        /// 构造终态结果（无绑定信息）。
+        /// </summary>
         public static InputRebindResult Failed(ERebindOutcome outcome, string actionGroup, string actionName) =>
             new InputRebindResult(outcome, actionGroup, actionName);
 
-        /// <summary>构造冲突终态结果。</summary>
+        /// <summary>
+        /// 构造冲突终态结果。
+        /// </summary>
         public static InputRebindResult Conflict(string actionGroup, string actionName, string conflictedAction) =>
             new InputRebindResult(ERebindOutcome.Conflict, actionGroup, actionName, null, conflictedAction);
     }
 
-    /// <summary>交互式重绑的可选项。</summary>
+    /// <summary>
+    /// 交互式重绑的可选项。
+    /// </summary>
     public struct InputRebindOptions
     {
         /// <summary>冲突处置策略（缺省 <see cref="ERebindConflictPolicy.Fail"/>）。</summary>
@@ -85,9 +97,7 @@ namespace Moirai.Atropos.Input
         /// <summary>复合绑定的部件名（如 WASD 的 up/down/left/right；空 = 单控绑定整体）。</summary>
         public string PartName;
 
-        /// <summary>
-        /// 缺省选项：屏蔽鼠标触屏、冲突即失败。
-        /// </summary>
+        /// <summary>缺省选项：屏蔽鼠标触屏、冲突即失败。</summary>
         public static InputRebindOptions Default => new InputRebindOptions
         {
             ConflictPolicy = ERebindConflictPolicy.Fail,
@@ -95,7 +105,9 @@ namespace Moirai.Atropos.Input
         };
     }
 
-    /// <summary>动作上某个绑定的只读快照（设备路径 + 可选复合部件名）。</summary>
+    /// <summary>
+    /// 动作上某个绑定的只读快照（设备路径 + 可选复合部件名）。
+    /// </summary>
     public readonly struct InputBindingData : IEquatable<InputBindingData>
     {
         /// <summary>控件设备路径（如 <c>&lt;Keyboard&gt;/space</c>）。</summary>
@@ -159,16 +171,24 @@ namespace Moirai.Atropos.Input
         UniTask<InputRebindResult> RebindAsync(string actionName, string actionGroup,
             InputRebindOptions options, System.Threading.CancellationToken cancelToken);
 
-        /// <summary>读取动作当前生效的绑定覆写快照（无覆写返回 false）。</summary>
+        /// <summary>
+        /// 读取动作当前生效的绑定覆写快照（无覆写返回 false）。
+        /// </summary>
         bool TryGetBindingOverride(string actionName, string actionGroup, out InputBindingData data);
 
-        /// <summary>应用绑定覆写（读档/恢复用）；path 为 null 或空移除覆写回到默认。</summary>
+        /// <summary>
+        /// 应用绑定覆写（读档/恢复用）；path 为 null 或空移除覆写回到默认。
+        /// </summary>
         void ApplyBindingOverride(string actionName, string actionGroup, in InputBindingData data);
 
-        /// <summary>移除动作的全部覆写，回到资产默认绑定。</summary>
+        /// <summary>
+        /// 移除动作的全部覆写，回到资产默认绑定。
+        /// </summary>
         void ResetBinding(string actionName, string actionGroup);
 
-        /// <summary>移除全部动作的覆写。</summary>
+        /// <summary>
+        /// 移除全部动作的覆写。
+        /// </summary>
         void ResetAllBindings();
     }
 }

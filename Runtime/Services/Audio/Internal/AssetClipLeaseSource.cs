@@ -77,7 +77,9 @@ namespace Moirai.Atropos.Audio
             completed(new AudioClipLease(handle.Asset, handle));
         }
 
-        /// <summary>解析资产契约：已缓存直接命中；未就绪返回假（调用方按既有静默降级语义处置）。</summary>
+        /// <summary>
+        /// 解析资产契约：已缓存直接命中；未就绪返回假（调用方按既有静默降级语义处置）。
+        /// </summary>
         private bool EnsureAssetService()
         {
             return _assetService != null || GameServices.TryGetService(out _assetService);

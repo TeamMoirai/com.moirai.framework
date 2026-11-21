@@ -93,8 +93,7 @@ namespace Moirai.Atropos.Save
         /// </remarks>
         /// <param name="source">文件头字节序列（至少 <see cref="Size"/> 字节）。</param>
         /// <param name="header">解析成功时的文件头。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidFormat"/>、 <br />
-        /// <see cref="SaveError.UnsupportedVersion"/> 或 <see cref="SaveError.Corrupted"/>。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.UnsupportedVersion"/> 或 <see cref="SaveError.Corrupted"/>。</returns>
         public static SaveError Read(ReadOnlySpan<byte> source, out SaveFileHeader header)
         {
             header = default;

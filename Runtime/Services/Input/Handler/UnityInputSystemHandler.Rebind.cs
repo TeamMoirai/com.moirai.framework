@@ -189,7 +189,9 @@ namespace Moirai.Atropos.Input
             return -1;
         }
 
-        /// <summary>覆写变更后对齐动作启停（被压制 Map 的动作保持禁用，其余恢复启用）。</summary>
+        /// <summary>
+        /// 覆写变更后对齐动作启停（被压制 Map 的动作保持禁用，其余恢复启用）。
+        /// </summary>
         private void RefreshActionEnabled(InputAction action)
         {
             bool suppressed = IsActionSuppressed(action);
@@ -305,7 +307,9 @@ namespace Moirai.Atropos.Input
                 return _completion.Task;
             }
 
-            /// <summary>以指定终态结束会话（幂等：先到者胜）。</summary>
+            /// <summary>
+            /// 以指定终态结束会话（幂等：先到者胜）。
+            /// </summary>
             public void Cancel(ERebindOutcome outcome)
             {
                 if (_finished) return;
@@ -384,7 +388,9 @@ namespace Moirai.Atropos.Input
                 return new InputActionKey(action.actionMap.name, action.name).ToFullName();
             }
 
-            /// <summary>监听结束后按压制态恢复动作启停（重绑前曾被禁用）。</summary>
+            /// <summary>
+            /// 监听结束后按压制态恢复动作启停（重绑前曾被禁用）。
+            /// </summary>
             private void RestoreActionState()
             {
                 if (_action.enabled) return;

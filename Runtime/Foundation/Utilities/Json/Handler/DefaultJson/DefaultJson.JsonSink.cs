@@ -121,7 +121,7 @@ namespace Moirai.Atropos
 
             public void WriteEscaped(string s)
             {
-                // 无转义快路径（实测最快）：整体一次 Append，免段循环逐字符簿记
+                // 无转义快路径：整体一次 Append，免段循环逐字符簿记
                 if (!NeedsEscape(s))
                 {
                     _sb.Append('"').Append(s).Append('"');
@@ -131,7 +131,7 @@ namespace Moirai.Atropos
                 _sb.Append('"');
 
                 // 批量段复制：扫描到下一个转义点，将两转义点之间的整段一次 Append（接口调用从每字符降为每段；
-                // 实测对稀疏转义长文本 -40%~-71%，仅密集转义（段长≤3）时劣于逐字符）
+                // 稀疏转义长文本约 -40%~-71%，仅密集转义（段长≤3）时劣于逐字符）
                 int i = 0;
                 int segStart = 0;
                 while (i < s.Length)
@@ -349,7 +349,7 @@ namespace Moirai.Atropos
                 Reserve(s.Length * 6 + 2);
                 Buffer[Position++] = (byte)'"';
 
-                // 单遍逐字符：段复制结构在字节路径实测反而回退 8-43%（段内仍需逐字符 UTF8 编码，
+                // 单遍逐字符：段复制结构在字节路径反而回退 8-43%（段内仍需逐字符 UTF8 编码，
                 // 且外层探测 + 段写入把无转义字符扫两遍）——段复制仅对 StringBuilder 批量 Append 有意义
                 for (int i = 0; i < s.Length; i++)
                 {

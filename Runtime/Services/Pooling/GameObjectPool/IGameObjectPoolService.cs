@@ -16,71 +16,105 @@ namespace Moirai.Atropos.ObjectPool
     {
         #region 轮询 [TICK]
 
-        /// <summary>每帧轮询——处理到期的池维护操作。</summary>
+        /// <summary>
+        /// 每帧轮询——处理到期的池维护操作。
+        /// </summary>
         void Tick(float elapseSeconds, float realElapseSeconds);
 
         #endregion
 
         #region 获取 [SPAWN]
 
-        /// <summary>同步获取游戏对象。</summary>
+        /// <summary>
+        /// 同步获取游戏对象。
+        /// </summary>
         GameObject Spawn(GameObjectPoolSource source, Transform parent = null);
 
-        /// <summary>同步获取组件。</summary>
+        /// <summary>
+        /// 同步获取组件。
+        /// </summary>
         T Spawn<T>(GameObjectPoolSource source, Transform parent = null) where T : Component;
 
-        /// <summary>尝试同步获取游戏对象。</summary>
+        /// <summary>
+        /// 尝试同步获取游戏对象。
+        /// </summary>
         bool TrySpawn(GameObjectPoolSource source, Transform parent, out GameObject instance);
 
-        /// <summary>异步获取游戏对象。</summary>
+        /// <summary>
+        /// 异步获取游戏对象。
+        /// </summary>
         UniTask<GameObject> SpawnAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default);
 
-        /// <summary>异步获取组件。</summary>
+        /// <summary>
+        /// 异步获取组件。
+        /// </summary>
         UniTask<T> SpawnAsync<T>(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) where T : Component;
 
         #endregion
 
         #region 预制体与预热 [PREFAB & WARMUP]
 
-        /// <summary>同步加载预制体。</summary>
+        /// <summary>
+        /// 同步加载预制体。
+        /// </summary>
         GameObject LoadPrefab(string location);
 
-        /// <summary>异步加载预制体。</summary>
+        /// <summary>
+        /// 异步加载预制体。
+        /// </summary>
         UniTask<GameObject> LoadPrefabAsync(string location, CancellationToken cancellationToken = default);
 
-        /// <summary>异步预热指定来源的池。</summary>
+        /// <summary>
+        /// 异步预热指定来源的池。
+        /// </summary>
         UniTask WarmupAsync(GameObjectPoolSource source, int count, CancellationToken cancellationToken = default);
 
         #endregion
 
         #region 回收与刷新 [DESPAWN & FLUSH]
 
-        /// <summary>回收游戏对象。</summary>
+        /// <summary>
+        /// 回收游戏对象。
+        /// </summary>
         void Despawn(GameObject instance);
 
-        /// <summary>通过租约回收游戏对象。</summary>
+        /// <summary>
+        /// 通过租约回收游戏对象。
+        /// </summary>
         void Despawn(PooledGameObject pooled);
 
-        /// <summary>刷新指定来源的池。</summary>
+        /// <summary>
+        /// 刷新指定来源的池。
+        /// </summary>
         void Flush(GameObjectPoolSource source);
 
-        /// <summary>刷新指定分组的所有池。</summary>
+        /// <summary>
+        /// 刷新指定分组的所有池。
+        /// </summary>
         void FlushGroup(string group);
 
-        /// <summary>刷新所有池。</summary>
+        /// <summary>
+        /// 刷新所有池。
+        /// </summary>
         void FlushAll();
 
         #endregion
 
         #region 调试接口 [DEBUG INTERFACE]
 
-        /// <summary>获取调试摘要。</summary>
+        /// <summary>
+        /// 获取调试摘要。
+        /// </summary>
         GameObjectPoolSummarySnapshot GetDebugSummary();
 
-        /// <summary>获取调试快照。</summary>
+        /// <summary>
+        /// 获取调试快照。
+        /// </summary>
         int GetDebugSnapshots(GameObjectPoolSnapshot[] snapshots);
 
-        /// <summary>填充实例级调试快照。</summary>
+        /// <summary>
+        /// 填充实例级调试快照。
+        /// </summary>
         void FillDebugInstances(GameObjectPoolSnapshot snapshot);
 
         #endregion
@@ -91,7 +125,9 @@ namespace Moirai.Atropos.ObjectPool
     /// </summary>
     internal interface IGameObjectPoolInternals
     {
-        /// <summary>尝试解析实例身份（供租约包装与 Despawn 使用）。</summary>
+        /// <summary>
+        /// 尝试解析实例身份（供租约包装与 Despawn 使用）。
+        /// </summary>
         bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex);
     }
 }

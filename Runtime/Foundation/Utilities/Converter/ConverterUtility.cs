@@ -946,26 +946,6 @@ namespace Moirai.Atropos
             return $"{Math.Round(dblSByte, decimals)}{suffix[i]}";
         }
         
-        /// <summary>
-        /// object类型转换为bytes。
-        /// </summary>
-        /// <param name="obj">对象。</param>
-        /// <returns>byte数组。</returns>
-        /// <remarks>
-        /// 安全警告：BinaryFormatter 存在反序列化攻击风险。 <br />
-        /// 参见：https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide。
-        /// </remarks>
-        [System.Obsolete("BinaryFormatter is insecure and deprecated. Use JSON serialization instead. See https://aka.ms/binaryformatter")]
-        public static byte[] Object2Bytes(object obj)
-        {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                var formatter = new BinaryFormatter();
-                formatter.Serialize(ms, obj);
-                return ms.GetBuffer();
-            }
-        }
-
         public static string Convert2String(byte[] bytes)
         {
             return Encoding.UTF8.GetString(bytes);

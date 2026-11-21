@@ -225,7 +225,9 @@ namespace Moirai.Atropos.UI
         /// <remarks>压栈压下层交互位、开/关过渡占全局压制位的判据都以它为准。</remarks>
         internal bool IsModalWindow { get; private set; }
 
-        /// <summary>动态腿载荷落点：不带载荷槽的窗被塞非空载荷当场抬错（fail-fast，不静默吞）。</summary>
+        /// <summary>
+        /// 动态腿载荷落点：不带载荷槽的窗被塞非空载荷当场抬错（fail-fast，不静默吞）。
+        /// </summary>
         internal virtual void Internal_SetPayload(UIPayload payload)
         {
             if (!payload.IsEmpty)
@@ -252,12 +254,13 @@ namespace Moirai.Atropos.UI
         /// <summary>装载期的取消源租约：装载在途时窗口被关闭（<see cref="InternalDestroy"/>）即掐断资源装载。</summary>
         private UICtsLease _loadLease;
 
-        /// <summary>装载相位：五元链，取代原先「装载完毕 / 已销毁 / 装载失败」三个独立布尔。</summary>
+        /// <summary>
+        /// 装载相位：五元状态链（在途 / 完成 / 三类终态）。
+        /// </summary>
         /// <remarks>
-        /// 那三个全程只置真、从不复位，可达态本就是一条链；收成枚举后「失败却没销毁」「收口后又回到在途」
-        /// 这类假组合无法再表示。<see cref="ClosedBeforeReady"/> 与 <see cref="LoadFailed"/> 的分界是
-        /// 装载有没有失败过——两者都算"面板没能用起来过"，台账里那串
-        /// <c>IsLoadFailed || (IsDestroyed &amp;&amp; !IsLoadDone)</c> 就是在手写这个并集。
+        /// 相位只进不退，「失败却没销毁」「收口后又回到在途」这类假组合无法表示。<br />
+        /// <see cref="ClosedBeforeReady"/> 与 <see cref="LoadFailed"/> 的分界是装载有没有失败过——两者都算"面板没能用起来过"，<br />
+        /// 台账里那串 <c>IsLoadFailed || (IsDestroyed &amp;&amp; !IsLoadDone)</c> 就是在手写这个并集。
         /// </remarks>
         internal enum ELoadPhase : byte
         {
@@ -283,7 +286,9 @@ namespace Moirai.Atropos.UI
         /// <summary>装载失败位：面板装载回 false 或抛出后置位，等待腿据此判 <see cref="EUIOpenStatus.Failed"/>。</summary>
         internal bool IsLoadFailed => _loadPhase == ELoadPhase.LoadFailed;
 
-        /// <summary>当前装载相位的测试接缝：断相位本身，而不是把三个派生位拼回同一句话。</summary>
+        /// <summary>
+        /// 当前装载相位的测试接缝：断相位本身，而不是把三个派生位拼回同一句话。
+        /// </summary>
         internal ELoadPhase Internal_PeekLoadPhase() => _loadPhase;
 
         private int _openWaiters;
@@ -291,10 +296,14 @@ namespace Moirai.Atropos.UI
 
         private static readonly System.Action<object> s_OpenCancelCallback = state => ((UIWindow)state).Internal_LeaveOpenWaiter();
 
-        /// <summary>登记一名开窗等待者（在飞合并的计数来源）。</summary>
+        /// <summary>
+        /// 登记一名开窗等待者（在飞合并的计数来源）。
+        /// </summary>
         internal void Internal_JoinOpenWaiter() => _openWaiters++;
 
-        /// <summary>等待者离场（取消唯一来路）：归零即掐断在途装载，回滚按取消落定。</summary>
+        /// <summary>
+        /// 等待者离场（取消唯一来路）：归零即掐断在途装载，回滚按取消落定。
+        /// </summary>
         internal void Internal_LeaveOpenWaiter()
         {
             if (IsLoadDone || IsDestroyed)
@@ -316,14 +325,18 @@ namespace Moirai.Atropos.UI
             CancelLoadCts();
         }
 
-        /// <summary>void 腿的调用方取消登记：静态回调 + 引用形 state，无闭包；仅 CanBeCanceled 时才叫。</summary>
+        /// <summary>
+        /// void 腿的调用方取消登记：静态回调 + 引用形 state，无闭包；仅 CanBeCanceled 时才叫。
+        /// </summary>
         internal void Internal_RegisterOpenCancel(CancellationToken callerCt)
         {
             _openCancelRegs ??= new List<CancellationTokenRegistration>(2);
             _openCancelRegs.Add(callerCt.Register(s_OpenCancelCallback, this));
         }
 
-        /// <summary>装载落定（就绪/失败/作废/销毁）时清账：等待者归零、取消登记整批解除。</summary>
+        /// <summary>
+        /// 装载落定（就绪/失败/作废/销毁）时清账：等待者归零、取消登记整批解除。
+        /// </summary>
         private void SettleOpenWaiters()
         {
             _openWaiters = 0;
@@ -437,7 +450,9 @@ namespace Moirai.Atropos.UI
             DestroyPanel();
         }
 
-        /// <summary>掐断装载期取消源：装载在途的窗口被关闭时，资源装载随之取消。</summary>
+        /// <summary>
+        /// 掐断装载期取消源：装载在途的窗口被关闭时，资源装载随之取消。
+        /// </summary>
         private void CancelLoadCts()
         {
             _loadLease?.Source.Cancel();
@@ -779,19 +794,29 @@ namespace Moirai.Atropos.UI
         protected internal virtual UniTask<bool> LoadPanelAsync(string assetLocation, bool fromResources, CancellationToken ct) =>
             UniTask.FromResult(false);
 
-        /// <summary>把 <see cref="Visible"/> 意图落到面板上。</summary>
+        /// <summary>
+        /// 把 <see cref="Visible"/> 意图落到面板上。
+        /// </summary>
         protected internal virtual void ApplyVisible(bool value) { }
 
-        /// <summary>把 <see cref="Depth"/> 意图落到面板上。</summary>
+        /// <summary>
+        /// 把 <see cref="Depth"/> 意图落到面板上。
+        /// </summary>
         protected internal virtual void ApplyDepth(int value) { }
 
-        /// <summary>把 <see cref="Interactable"/> 意图落到面板上。</summary>
+        /// <summary>
+        /// 把 <see cref="Interactable"/> 意图落到面板上。
+        /// </summary>
         protected internal virtual void ApplyInteractable(bool value) { }
 
-        /// <summary>停放面板：物体留着但不激活（缓存实例的关闭态与关闭动画结束后的隐藏）。</summary>
+        /// <summary>
+        /// 停放面板：物体留着但不激活（缓存实例的关闭态与关闭动画结束后的隐藏）。
+        /// </summary>
         protected internal virtual void ParkPanel() { }
 
-        /// <summary>收走面板：销毁面板物体并断开后端引用。</summary>
+        /// <summary>
+        /// 收走面板：销毁面板物体并断开后端引用。
+        /// </summary>
         protected internal virtual void DestroyPanel() { }
 
         #endregion
@@ -829,9 +854,7 @@ namespace Moirai.Atropos.UI
             }
         }
 
-        /// <summary>
-        /// 本窗的开/关过渡；为 null 表示瞬时——不过渡、不锁交互、不占全局压制位。
-        /// </summary>
+        /// <summary>本窗的开/关过渡；为 null 表示瞬时——不过渡、不锁交互、不占全局压制位。</summary>
         /// <remarks>
         /// 默认瞬时：开窗与关闭都当场结算，不再有内置的延迟与输入锁。 <br />
         /// 覆写它交回 <see cref="IUITransition"/> 即启用过渡：过渡期间本窗锁交互（模态窗还占全局压制位）， <br />
@@ -891,10 +914,14 @@ namespace Moirai.Atropos.UI
         /// <summary>关闭的门：<see cref="TryClose"/> 等到可交互后过这一道，回真才真关。</summary>
         protected virtual bool CanClose => true;
 
-        /// <summary>试图关闭但关不了时调用（<see cref="CanClose"/> 为假的那一轮）。</summary>
+        /// <summary>
+        /// 试图关闭但关不了时调用（<see cref="CanClose"/> 为假的那一轮）。
+        /// </summary>
         protected virtual void OnCloseFail() { }
 
-        /// <summary>关闭政策的同步初筛：可交互且未销毁才评 CanClose；CanClose 抛按拒关（fail-closed）。</summary>
+        /// <summary>
+        /// 关闭政策的同步初筛：可交互且未销毁才评 CanClose；CanClose 抛按拒关（fail-closed）。
+        /// </summary>
         internal bool Internal_EvaluateCanClose()
         {
             if (!Interactable || IsDestroyed)

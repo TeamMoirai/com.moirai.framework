@@ -241,8 +241,7 @@ namespace Moirai.Atropos.Save
         /// <param name="source">容器字节序列。</param>
         /// <param name="blocks">解析成功时的健康数据块列表（坏块已剔除）。</param>
         /// <param name="blockErrors">坏块清单（无坏块为 <c>null</c>；结构性损坏以单条终结记录收尾，其后的块不可达）。</param>
-        /// <returns>错误码：<see cref="SaveError.None"/>（含部分恢复）、<see cref="SaveError.InvalidFormat"/>、
-        /// <see cref="SaveError.UnsupportedVersion"/> 或 <see cref="SaveError.Corrupted"/>（块数字段不可信）。</returns>
+        /// <returns>错误码：<see cref="SaveError.None"/>（含部分恢复）、<see cref="SaveError.InvalidFormat"/>、<see cref="SaveError.UnsupportedVersion"/> 或 <see cref="SaveError.Corrupted"/>（块数字段不可信）。</returns>
         public static SaveError Read(ReadOnlySpan<byte> source, out List<SaveBlockEntry> blocks, out List<SaveBlockError> blockErrors)
         {
             blocks = null;

@@ -48,9 +48,7 @@ namespace Moirai.Atropos
 
         #region 基础方法 [CORE METHODS]
 
-        /// <summary>
-        /// 判断指定对象是否正在执行Tween动画。
-        /// </summary>
+        /// <summary>判断指定对象是否正在执行Tween动画。</summary>
         /// <param name="onTarget">需要检查的对象。</param>
         /// <returns>如果正在执行Tween动画则返回true，否则返回false。</returns>
         // ReSharper disable once IdentifierTypo

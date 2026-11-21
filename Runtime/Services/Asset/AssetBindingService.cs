@@ -135,8 +135,7 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 创建资源绑定服务。
         /// </summary>
-        /// <param name="leaseSource">租约提供方（<see cref="IAssetLeaseSource"/> 窄接缝， <br />
-        /// 而非整个 <see cref="IAssetService"/>）。</param>
+        /// <param name="leaseSource">租约提供方（<see cref="IAssetLeaseSource"/> 窄接缝，而非整个 <see cref="IAssetService"/>）。</param>
         public AssetBindingService(IAssetLeaseSource leaseSource)
         {
             _leaseSource = leaseSource;

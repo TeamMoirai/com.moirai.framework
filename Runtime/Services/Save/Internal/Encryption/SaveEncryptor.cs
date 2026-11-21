@@ -75,14 +75,10 @@ namespace Moirai.Atropos.Save
             }
         }
 
-        /// <summary>
-        /// 派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销；整体替换原子读）。
-        /// </summary>
+        /// <summary>派生密钥缓存（同参数重复加解密时跳过 PBKDF2 重派生——每次派生为 10 万次迭代级开销；整体替换原子读）。</summary>
         [NonSerialized] private volatile DerivedKeySnapshot _derivedKeyCache;
 
-        /// <summary>
-        /// 缓存安装锁（仅保护「查缓存 → 安装」竞态；PBKDF2 派生本体在锁外执行，不阻塞并发存档 IO 线程）。
-        /// </summary>
+        /// <summary>缓存安装锁（仅保护「查缓存 → 安装」竞态；PBKDF2 派生本体在锁外执行，不阻塞并发存档 IO 线程）。</summary>
         [NonSerialized] private readonly object _deriveLock = new object();
 
         #region 公共流式 API [PUBLIC STREAM API]
