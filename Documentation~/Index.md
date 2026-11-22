@@ -18,7 +18,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| [Core](Core.md) | 服务系统基座：`ServiceWorld` 服务世界、`GameServices` 注册/查找/作用域、`[ServiceDependency]` 依赖拓扑初始化 |
+| [Kernel](Kernel.md) | 服务系统基座：`ServiceWorld` 服务世界、`GameServices` 注册/查找/作用域、`[ServiceDependency]` 依赖拓扑初始化 |
 | [Asset](Asset.md) | 基于 YooAsset 的资源管理：同步/异步加载、引用计数、加密、子精灵 |
 | [UI](UI.md) | 商业化 UI 框架：栈式窗口、五层层级、Widget 子控件、绑定代码生成 |
 | [UIMigration](UIMigration.md) | UI 载荷迁移：DTO 与基类换形、写点两种去向（静态腿 / 动态腿 `UIPayload`）、行为变更四条 |

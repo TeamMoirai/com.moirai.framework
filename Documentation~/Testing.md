@@ -93,7 +93,7 @@ Tests/
 | 共享支撑 | `XxxTestSupport` / `XxxTestHost` | `AudioCacheTestSupport`、`AudioServiceTestHost` |
 | 基准 | `XxxBenchmark`，且必须 `[Explicit]` | `GenericObjectPoolBenchmark` |
 | 用例方法 | `场景_条件_期望` 三段式 | `RetainRelease_CycleAllocatesZeroBytes`、`PauseGame_NestedSources_OnlyLastResumeRestoresSpeed` |
-| 命名空间 | **短名**，与被测模块对齐，不带 `Moirai` 根 | `Service.Audio`、`Core.MemoryPool`、`Utility` |
+| 命名空间 | **短名**，与被测模块对齐，不带 `Moirai` 根 | `Service.Audio`、`Kernel.MemoryPool`、`Foundation.Utility` |
 
 > 命名空间用短名是**有意为之**（`CheckNamespace` 规则已降级为 SUGGESTION 正是为此）。测试程序集自身声明了 `Resource`/`ObjectPool`/`Utility` 等全局命名空间，与被测子命名空间撞名；且 `UnityEngine` 的 `Audio`/`UI`/`Input` 类会遮蔽框架子命名空间。**在测试文件里引用框架子命名空间类型必须用 `using` 别名**（`using Res = Moirai.Atropos.Asset;`），禁止裸限定名（`Resource.Xxx` 会解析成全局命名空间或 `UnityEngine` 类型而报 CS0246/CS0426）。
 
@@ -437,4 +437,4 @@ unity command test status --project-path "E:/Workspace/Unity/Game Dev Tools/Clie
 | 改了 `.cs` 编辑器迟迟不编译 | 窗口焦点脉冲不可靠（失焦时自动刷新不触发） | 跑 `unity recompile` 驱动编译（通道三），别只靠聚焦窗口 |
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [Core](Core.md) · [Debugger](Debugger.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [Kernel](Kernel.md) · [Debugger](Debugger.md)

@@ -24,7 +24,7 @@ com.moirai.framework/
 │   │   └── Utilities/        # 横切工具，一个关注点一个子目录（Algorithm / Json / GameLog / Tween …）
 │   └── Services/             # 各功能服务（每个服务一份文档，见 Documentation~）
 │       └── <Module>/         # 模块根平铺门面四件套 + 封闭角色档（见《目录与文件》）
-├── Editor/                   # 编辑器代码（Core / Services / Tools / Utilities）
+├── Editor/                   # 编辑器代码（Kernel / Services / Tools / Utilities）
 ├── Tests/                    # EditorMode / PlayMode / Player 三套测试
 ├── SourceGenerators/         # ProviderHandlerHost 等代码生成器
 ├── Documentation~/           # 模块文档，一个服务一份中文文档
@@ -43,7 +43,7 @@ com.moirai.framework/
 - **DebuggerService** - 调试工具
 - **InputService** - 输入系统
 - **LocalizationService** - 本地化
-- **GameObjectPoolService** - 游戏对象池（GameObject 实例，opt-in 注册，依赖 AssetService）；C# 对象池在 Kernel/MemoryPool，不设服务
+- **ObjectPoolService** - 对象池（GameObject 实例，opt-in 注册，依赖 AssetService）；C# 对象池在 Kernel/MemoryPool，不设服务
 - **ProcedureService** - 流程管理
 - **AssetService** - 资源管理
 - **SaveService** - 存档系统
@@ -204,7 +204,7 @@ com.moirai.framework/
 ## 常见问题
 
 ### Q: 如何添加新服务？
-A: 使用 `/new-service` 命令，按照模板创建服务；服务契约接口与 Handler 基座的口径见 [Core 文档](Documentation~/Core.md)。
+A: 使用 `/new-service` 命令，按照模板创建服务；服务契约接口与 Handler 基座的口径见 [Kernel 文档](Documentation~/Kernel.md)。
 
 ### Q: 如何进行热更新？
 A: 见 [安装与运行](Documentation~/Install.md) 的打包运行流程；热更 DLL 构建命令在 `HybridCLR/Build` 菜单。

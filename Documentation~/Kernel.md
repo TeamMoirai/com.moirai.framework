@@ -1,15 +1,15 @@
-# Core 服务系统（@Service）
+# Kernel 服务系统（@Service）
 
 > 框架的服务化基座：以统一服务世界（`ServiceWorld`）管理所有子服务的构造、生命周期、轮询与作用域，并由 `GameApp`（静态外观，不含 MonoBehaviour）经 PlayerLoop 驱动。
 
-`@Service` 是整个框架的服务基础设施。所有功能服务（资源、UI、音频、计时器等）均为继承 `ServiceBase` 的普通 C# 类，依赖通过 `[ServiceDependency(typeof(...))]` 特性声明；世界构建为两阶段——`GameServices.RegisterService<T>(scope, service)` 仅将服务入图，组合根统一调用 `GameServices.Default.InitializeAsync()` 按依赖图拓扑排序驱动全部 `OnInit`（缺失依赖/循环依赖 fail-fast，初始化顺序与注册顺序无关）；运行时（世界已初始化后）注册的服务立即初始化。非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`AssetService.Xxx()`），动态服务查找统一走 `GameServices.GetRequiredService<T>()` 等静态方法。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过内联 3 槽绑定值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。`ServiceWorld` 可实例化（`new ServiceWorld()`）——测试与沙盒场景可构造隔离世界，不触碰 `GameServices.Default`。
+`@Service` 是整个框架的服务基础设施。各功能服务的后端 handler 为继承 `ServiceBase` 的普通 C# 类，注册进容器实现契约（依赖通过 `[ServiceDependency(typeof(...))]` 特性声明）；静态门面（`AudioService`/`UIService` 等）是容器实例的公共缓存与高层封装；世界构建为两阶段——`GameServices.RegisterService<T>(scope, service)` 仅将服务入图，组合根统一调用 `GameServices.Default.InitializeAsync()` 按依赖图拓扑排序驱动全部 `OnInit`（缺失依赖/循环依赖 fail-fast，初始化顺序与注册顺序无关）；运行时（世界已初始化后）注册的服务立即初始化。非服务代码通过各服务的静态外观访问（如 `AudioService.Xxx()`、`UIService.Xxx()`、`AssetService.Xxx()`），动态服务查找统一走 `GameServices.GetRequiredService<T>()` 等静态方法。服务支持 App/Scene/Gameplay 三级作用域，跨作用域通过内联 3 槽绑定值类型 struct 实现 O(1) 查找（Gameplay > Scene > App 优先级），场景卸载时自动清理场景与玩法级服务。`ServiceWorld` 可实例化（`new ServiceWorld()`）——测试与沙盒场景可构造隔离世界，不触碰 `GameServices.Default`。
 
 ## 核心特性
 
 - **可实例化服务世界**：`ServiceWorld` 可 `new` 构造隔离世界（测试/沙盒），`GameServices` 静态外观仅是默认世界 `Default` 的投影；3 作用域固定序槽位（App/Scene/Gameplay，零排序）+ 内联 3 槽绑定值类型 struct O(1) 跨作用域查找
 - **特性声明依赖 + 拓扑初始化**：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性声明多依赖，编译期由 `ServiceDependencyAnalyzer`（MA2001/MA2002）校验类型实现 `IService`；世界初始化按声明图 Kahn 拓扑排序统一驱动 OnInit（初始化顺序与注册顺序无关）
 - **两阶段构建**：`Register` 仅入图（注册期不驱动 OnInit）；`Initialize()`/`InitializeAsync()` 提交第二阶段——缺失依赖与循环依赖在初始化期 fail-fast（错误消息含环成员）；世界已初始化后的运行时注册要求全部依赖已就绪（缺失即 fail-fast），通过后立即 OnInit——**不做拓扑插入**，新服务总是排在既有服务之后（实现 `IServiceInitializableAsync` 的服务禁止运行时注册）
-- **ProviderHandlerHost 静态外观**：框架服务均为 `[ProviderHandlerHost] XxxService : ServiceBase` 静态外观 + 可序列化 `XxxHandler` 后端 + `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现
+- **ProviderHandlerHost 静态门面 + 绑定即注册**：框架服务均为 `static partial class XxxService` 门面（标记 `[ProviderHandlerHost(typeof(IXxxService), typeof(默认后端))]`——缓存宿主 + 绑定声明）+ 可序列化后端 `XxxHandler : ServiceBase, IXxxService`（注册实体，生命周期/轮询/诊断归属此层）+ `XxxSettings`（`[SerializeReference]` + `[ProviderDropdown]`）选择后端实现；门面缓存槽回填容器注册结果——槽位 ≡ 容器实例
 - **三级作用域**（`EServiceScopeKind.App` / `Scene` / `Gameplay`），跨作用域按 Gameplay > Scene > App 优先级查找
 - **生命周期能力接口按需实现**：`IServiceTickable`、`IServiceFixedTickable`、`IServiceLateTickable`、`IServiceGizmoDrawable`、`IAsyncShutdownService`（均继承 `IService`）
 - **`Priority` 优先级**控制轮询顺序（高优先先轮询、后关闭）。框架内置服务统一 ≤ -1000（见 `ServicePriorityOrder`），业务服务默认 0 及以上
@@ -21,7 +21,7 @@
 - **迭代安全**：轮询期间的注册/注销操作延迟到本轮结束后统一应用；轮询中请求的作用域销毁也延迟执行
 - **Tick 异常分级策略**：编辑器与开发构建下记录后立即上抛（fail-fast，第一时间暴露缺陷）；发布构建下记录后隔离续跑（单服务故障不拖垮整帧）
 - **主线程亲和守卫**：`GameServices` 的注册/注销/关闭/查找/轮询入口在编辑器与开发构建断言主线程；发布构建下该断言不参与编译（`#if UNITY_EDITOR || DEVELOPMENT_BUILD`），零开销。隔离世界（`new ServiceWorld()`）自身不断言，可跨线程用于并行测试
-- **生命周期状态机**：每个服务跟踪 `EServiceState`（Created → Initialized → ShuttingDown → Disposed），关闭幂等
+- **生命周期状态机**：每个服务跟踪 `EServiceState`，装配与关停均幂等（见〈生命周期状态机〉）
 - **MonoBehaviour 轮询约束**：MonoBehaviour 服务不可实现 `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` / `IServiceGizmoDrawable`——一律由 Unity 自身的 `Update`/`FixedUpdate`/`LateUpdate`/`OnDrawGizmos` 驱动，注册时即拒绝
 - **统一查找入口**：动态服务查找统一走 `GameServices.GetRequiredService<T>()` / `GetService<T>()` / `TryGetService<T>(out T)`，按 Gameplay > Scene > App 优先级返回最优服务
 
@@ -33,21 +33,23 @@
 |---------|------|
 | `IService` | 服务核心契约：`Priority`、`Scope`、`OnInit()`、`OnShutdown()`。**必须由 `ServiceBase`（纯 C#）或 `ServiceMono<TScope>`（MonoBehaviour）派生**——容器经 `IServiceLifecycle` 驱动并读取状态，裸实现 `IService` 的类型在注册时即被拒 |
 | `ServiceBase` | 纯 C# 服务抽象基类；依赖通过 `[ServiceDependency]` 特性声明，世界初始化时拓扑校验（生命周期状态机由容器经 `IServiceLifecycle` 唯一驱动，`State` 为只读投影）；内置服务 `Priority` 统一 ≤ -1000 |
-| `ServiceMono<TScope>` | MonoBehaviour 服务基类（泛型作用域标记），Awake 自动注册、OnDestroy 自动注销 |
+| `ServiceMono<TScope>` | MonoBehaviour 服务基类（泛型作用域标记），Awake 自动注册、OnDestroy 自动注销；生命期钩子 `protected`，只由框架经状态机驱动 |
 | `ServiceWorld` | 可实例化统一服务世界（`new ServiceWorld()` 构造隔离世界）：3 作用域固定序槽位 + 内联绑定值类型 O(1) 跨作用域查找；两阶段构建 `Register`/`Initialize(Async)`；关闭严格逆拓扑；初始化进行中禁止注销与关闭作用域（fail-fast）；自身不做线程断言 |
 | `ServiceScope` | 单作用域注册表、轮询列表（lazy-sort + swap-remove）、迭代安全（延迟变更队列）与 Tick 异常熔断（按轮询类别独立计数，阈值取自所属世界） |
 | `TopologySorter` | 内部 Kahn 拓扑排序器：同入度按注册序稳定出队；缺失依赖/循环依赖 fail-fast（错误消息含环成员） |
-| `GameServices` | 静态外观（默认世界 `Default` 投影）：注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、外观懒加载自动注册（`EnsureRegistered`，内部）、轮询驱动、帧边界拦截器 |
+| `GameServices` | 静态外观（默认世界 `Default` 投影）：注册入口 `RegisterService<T>(scope, service, deferMode)` 与显式契约重载、注销、作用域管理（`ShutdownContainer`/`HasApp`/`HasScene`/`HasGameplay`）、服务后端懒链注册与预热（内部）、轮询驱动、帧边界拦截器 |
 | `ServiceDependencyAttribute` | 依赖声明特性：`[ServiceDependency(typeof(DepA), typeof(DepB))]` 单特性多依赖；编译期 MA2001/MA2002 校验 + 初始化期拓扑排序 |
 | `IServiceInitializableAsync` | 异步初始化能力接口（`UniTask OnInitAsync()`）；须在 `InitializeAsync` 前注册（运行时注册 fail-fast） |
 | `IServiceInterceptor` | 拦截器接口：注册/注销/关闭回调 + 作用域帧边界（`OnBeforeScopeTick`/`OnAfterScopeTick`），按 Priority 降序；除 `OnServiceRegistering` 外异常被容器隔离 |
 | `EServiceScopeKind` | 服务作用域枚举：`App`（全局）、`Scene`（场景卸载时重置）、`Gameplay`（单局玩法） |
-| `EServiceState` | 服务生命周期状态：`Created`、`Initialized`、`ShuttingDown`、`Disposed`（`ServiceBase.State` 属性） |
+| `EServiceState` | 服务生命周期状态（四个取值见〈生命周期状态机〉的状态表），挂在 `HandlerBase.State` |
 | `EDeferMode` | 迭代中注册/注销的延迟策略：`Defer`（延迟到本轮结束，默认）/ `Throw`（立即抛异常） |
 | `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` | 轮询能力接口（均继承 `IService`），方法签名 `Tick(float elapseSeconds, float realElapseSeconds)` 等（MonoBehaviour 服务不可实现） |
 | `IServiceGizmoDrawable` | 编辑器 Gizmos 绘制能力接口（继承 `IService`）`OnDrawGizmos()`；MonoBehaviour 服务不可实现（Unity 已按魔法方法驱动，双份绘制） |
 | `IAsyncShutdownService` | 异步关闭能力接口（继承 `IService`），实现 `OnShutdownAsync()` 的服务在 `ShutdownContainerAsync()` 中按逆激活序先异步关闭 |
-| `FrameworkHandler` | 处理器基类（`[Serializable]`）：幂等 `Internal_Init`/`Internal_Shutdown` + 同步/异步生命周期回调；所有 XxxHandler 的基类 |
+| `HandlerBase` | 处理器与服务共同的生命期基座：`State` / `IsReady` / `AllowsRevival` + `protected virtual OnInit`/`OnShutdown` |
+| `LifecycleMachine` | 生命期转换语义的唯一实现（`internal static`）：就绪判据与 `Initialize`/`Shutdown` 两条幂等转换，宿主经 `IHost` 接缝接入 |
+| `FrameworkHandler` | 工具处理器基类（`[Serializable]`，派生 `HandlerBase`）：`Internal_Init`/`Internal_Shutdown` 直驱、全程同步；服务后端不继承它 |
 | `ServiceScopeOrder` | 作用域常量表（App=-10000, Scene=-5000, Gameplay=0）；**容器不消费它**——作用域顺序由固定槽位决定，轮询顺序由 `IService.Priority` 决定 |
 | `ServicePriorityOrder` | 框架内置服务轮询优先级常量（全部 ≤ -1000，与业务服务分带） |
 | `GameApp` | 静态外观入口（不含 MonoBehaviour）：由 `GameAppSettings.Initiation` 在 `BeforeSceneLoad` 初始化，向 `PlayerLoopDriver` 装配内置核心钩子以按帧驱动 `GameServices.Tick`，`Shutdown` 时调用 `GameServices.Shutdown`；协程/Gizmos/Pause 委托 `GameAppHost`，对焦/退出直订 `Application.focusChanged` / `Application.quitting` |
@@ -69,7 +71,7 @@ public class MyService : ServiceBase, IServiceTickable
 
     public override int Priority => 10;              // 高优先级先轮询
 
-    public override void OnInit()
+    protected override void OnInit()
     {
         // 走到此处时依赖已初始化完毕——解析契约实例到字段，服务互调一律用它
         _timer = Context.GetRequiredService<ITimerService>();
@@ -78,12 +80,12 @@ public class MyService : ServiceBase, IServiceTickable
 
     private void OnTimerDone() { }
 
-    public override void OnShutdown() { }
+    protected override void OnShutdown() { }
     public void Tick(float elapseSeconds, float realElapseSeconds) { }
 }
 
 // 3. 两阶段构建：注册顺序无关（拓扑排序保证依赖先行），Initialize 统一驱动 OnInit
-GameServices.RegisterService(EServiceScopeKind.Gameplay, new TimerService());
+//    框架服务不在这里注册——组合根按 [ProviderHandlerHost] 宿主预热，运行期首次访问走同一条懒链入容器
 GameServices.RegisterService(EServiceScopeKind.Gameplay, new MyService());
 GameServices.Default.Initialize();
 
@@ -105,19 +107,38 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 
 ### ProviderHandlerHost 服务架构
 
-框架的内置服务（Resource/Debugger/Audio/ObjectPool/GameObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input/ConfigTable）统一采用三层结构：
+框架的内置服务（Asset/Debugger/Audio/ObjectPool/Procedure/Localization/Scene/Timer/Save/UI/Input/ConfigTable）统一采用三层结构：
 
 | 层 | 形态 | 职责 |
 |------|------|------|
-| `XxxService : ServiceBase` | 静态外观，标记 `[ProviderHandlerHost(typeof(XxxHandler), typeof(默认后端))]` + `[ServiceDependency(...)]` | 全部静态 API；`OnInit` 触发 Handler 懒加载，`OnShutdown` 清空 Handler |
-| `XxxHandler : FrameworkHandler` | 可序列化后端类 | 承载核心逻辑；替换后端无需改动调用方 |
+| `static partial class XxxService` | 静态门面，标记 `[ProviderHandlerHost(typeof(IXxxService), typeof(默认后端))]`（缓存宿主 + 绑定声明） | 全部静态 API（`s_Handler?.` 转发热路径）；容器实例的公共缓存 + 高层封装（跨后端编排、高频入口组合）；`RequireHandler` fail-fast 写路径 |
+| `XxxHandler : ServiceBase, IXxxService` | 可序列化后端类，**注册实体** | 直接实现契约承载核心逻辑；`[ServiceDependency]`/`Priority`/轮询/诊断归属此层；`OnShutdown` 末尾调门面缓存失效钩子 |
 | `XxxSettings : FrameworkSettings<XxxSettings>` | ScriptableObject 设置 | `[ProviderDropdown]` + `[SerializeReference]` 选择后端实现 |
 
-业务代码一律调用静态外观（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`），不持有服务实例引用。默认处理器经 `[ProviderHandlerHost]` 第二构造参数声明，由 `ProviderHandlerHostGenerator` 生成 `CreateDefaultHandler` 兜底工厂（非法声明编译期报 MA1003）；懒加载优先读 settings，未配置回退声明默认——**不按已安装包自动优选**，切换后端一律在 settings 里显式选择（引擎宏分派的宿主如 `InputService` 保留手写工厂）。自定义后端：继承 `XxxHandler` 覆写虚方法 → 在 `XxxSettings` 的 Provider 下拉框中切换。
+**绑定即注册**：懒加载链解析出后端实例后注册进容器（契约 = `IXxxService`），缓存回填注册结果——**门面槽位 ≡ 容器登记实例**是构造性不变量；组合根 `RegisterAll` 对 static 服务宿主发射 `WarmHandler` 预热（settings 解析 → 注册 → 回填），运行期首次访问静态 API 走同一懒链，但只在**世界已初始化或初始化在途**的窗口内放行（未建/未初始化/已关闭 → 抛 `GameException`，见「懒加载装配窗口」）。槽位失效由写侧推送：后端注销/销毁经失效钩子同步清槽，世界关停时内核再按装配期登记的回调逐个落槽——读侧不回查容器，`IsValid` 随之翻转。
+
+**消费政策三车道**（谁是消费方决定走哪条通道）：
+
+| 消费方 | 通道 |
+|---|---|
+| 游戏业务代码 | 门面静态 API（产品面，方便优先） |
+| 框架内部服务互调 | `Context.GetRequiredService<T>()` 契约注入（解析到真实现） |
+| 测试 / 编辑器工具 | 门面 `Handler` setter（注销旧 → 注册新 → 回填）+ `Internal_Peek/UseHandler` 接缝 |
+
+> **门面槽 ≡ App 级注册实例**。作用域遮蔽（Scene/Gameplay 同契约覆盖）只影响契约解析通道（`GetService<T>` 按 Gameplay > Scene > App 取最优），门面静态 API 永远指向 App 级那份——两通道语义差异是设计定案。
+
+读写路径分级容错：读路径 `s_Handler?.` 优雅降级（未就绪返回默认值，不抛）；写路径 `RequireHandler` 不触发懒加载、未就绪抛 `GameException`（fail-fast）。
+
+默认处理器经 `[ProviderHandlerHost]` 第二构造参数声明，由 `ProviderHandlerHostGenerator` 生成 `CreateDefaultHandler` 兜底工厂（非法声明编译期报 MA1003：接口契约的后端须继承 `ServiceBase`，`FrameworkHandler` 派生**不再放行**——服务侧只有一条经容器的装配路径，生成代码不再按实例类型运行期分派）；懒加载优先读 settings，未配置回退声明默认——**不按已安装包自动优选**，切换后端一律在 settings 里显式选择（引擎宏分派的宿主如 `InputService` 保留手写工厂）。自定义后端：继承家族基座覆写 → 在 `XxxSettings` 的 Provider 下拉框中切换。空壳基座（无共享实现的 `XxxServiceHandler`）已删除；有真实共享实现或被插件继承的家族基座保留（`AssetRecordHostHandler` 链、`SaveServiceHandler`、`MiddlewareAudioHandler`、`LocalizationServiceHandler`、`UIServiceHandler`）。
+
+**UI 双轨多缓存例外（终态口径）**：`UGUIHandler`/`UITKHandler : UIServiceHandler : ServiceBase, IUIService, IServiceTickable` 由组合根 `UIService.RegisterEnabledHandlers()` 按目录关停档降序注册（契约 = 各自具体类型，宿主轨最先注册），容器反序拆除 = 档位升序收口（宿主轨最后拆根）；门面 `UIService` 是**多缓存**（每启用后端一槽）+ 跨轨开关分派（`RequireOwningTrack`）+ 共享栈排序（`SharedLedger`）。`IUIService` 定位为后端能力契约 + 门面多缓存引用类型，**不承诺容器可解析**；UI 消费方（Input/Procedure 等）直订门面静态事件、调门面静态开窗——终态而非过渡态。
 
 ### 生命周期状态机
 
-每个服务通过 `ServiceBase.State`（`EServiceState`）跟踪生命周期状态：
+生命期转换与就绪判据只有一处实现：`LifecycleMachine`（`internal static`）。
+`ServiceBase` 与 `FrameworkHandler` 经共同基座 `HandlerBase` 接入，`ServiceMono<TScope>` 自己实现同一枚 `LifecycleMachine.IHost` 接缝。
+
+每个宿主通过 `HandlerBase.State`（`EServiceState`）跟踪生命周期状态：
 
 | 状态 | 说明 |
 |------|------|
@@ -126,7 +147,16 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 | `ShuttingDown` | 正在调用 `OnShutdown()` |
 | `Disposed` | 服务已完全关闭并移除 |
 
-关闭幂等：对已关闭的服务再次驱动关闭不会重复执行 `OnShutdown()`。
+| 宿主 | 入口 | 驱动者 |
+|------|------|------|
+| `ServiceBase`（服务后端） | `IServiceLifecycle.Initialize()` / `Destroy()` | 容器按 `[ServiceDependency]` 拓扑序驱动 |
+| `FrameworkHandler`（工具处理器） | `Internal_Init()` / `Internal_Shutdown()` | `[ProviderHandlerHost]` 生成代码直驱 |
+| `ServiceMono<TScope>`（Mono 服务） | `Awake` 注册、`OnDestroy` 注销 | 注册即入容器，逐帧生命周期归 Unity |
+
+- **就绪判据**：严格 `== Initialized`（`LifecycleMachine.IsReady` 单点），关停中与已关闭都不算就绪
+- **复活口径**：`AllowsRevival` 由宿主自报，容器与工具后端允许，`ServiceMono<TScope>` 拒绝（Mono 实例没有复活来源）
+- **关停钩子**：`OnShutdown` 抛错由机器捕获、经 `LogUtility.Error` 记录，实例照常落 `Disposed`；`OnInit` 异常原样上抛
+- **直驱前置**：停在 `Created`（从未装配成功）的处理器不跑 `OnShutdown`，容器侧无此前置——两处不一致是刻意的
 
 ### 依赖声明
 
@@ -139,7 +169,7 @@ public sealed class MyUIService : ServiceBase, IServiceTickable
     private IAssetService _assets;
     private ITimerService _timer;
 
-    public override void OnInit()
+    protected override void OnInit()
     {
         // 走到此处时依赖已按声明图初始化完毕——解析契约实例到字段
         _assets = Context.GetRequiredService<IAssetService>();
@@ -149,7 +179,7 @@ public sealed class MyUIService : ServiceBase, IServiceTickable
 
     private void OnTimerDone() { }
 
-    public override void OnShutdown() { }
+    protected override void OnShutdown() { }
     public void Tick(float elapseSeconds, float realElapseSeconds) { }
 }
 ```
@@ -163,7 +193,7 @@ public sealed class MyUIService : ServiceBase, IServiceTickable
 ```csharp
 public class BattleService : ServiceBase
 {
-    public override void OnInit()
+    protected override void OnInit()
     {
         if (GameServices.TryGetService(out DebuggerService debugger)) // 可选依赖，未注册返回 false
         {
@@ -188,21 +218,21 @@ public class BattleService : ServiceBase
 框架组合根：`GameAppSettings.InitializeAppServices()`（`BeforeSceneLoad` 阶段调用）注册全部内置 App 服务，随后一次提交第二阶段：
 
 ```csharp
-// 注册清单由 BuiltinServiceRegistrationGenerator 按服务类上的 [AutoRegisterService] 标记生成
+// 注册清单由 BuiltinServiceRegistrationGenerator 生成：对每个 static 服务宿主发射 WarmHandler 预热
+// （settings 解析 → 注册进容器 → 缓存回填）
 BuiltinServiceRegistration.RegisterAll(GameServices.Default);   // 仅入图，顺序无关
 
-// UIService 双轨例外：不声明 [ProviderHandlerHost]，IUIService 契约绑定在清单后显式补登
-// （服务互调经 Context.GetRequiredService<IUIService>() 解析）
-GameServices.RegisterService(EServiceScopeKind.App, typeof(IUIService), GameServices.GetRequiredService<UIService>());
+// UIService 双轨多缓存：handler 按目录关停档降序注册（契约 = 各自具体类型，宿主轨最先），容器反序拆除 = 档位升序收口
+UIService.RegisterEnabledHandlers();
 
 await GameServices.Default.InitializeAsync();                    // 按 [ServiceDependency] 拓扑序统一驱动 OnInit
 ```
 
-内置服务经服务类上的 `[AutoRegisterService]` 特性进入注册清单：源生成器收集标记类型并生成程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)`（实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MA2103/204/205 报错）。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。各服务外观的懒加载路径（`GetHandlerFromSettings` 首行）仍调用 `GameServices.EnsureRegistered<T>()` 作兜底——组合根尚未跑到就被访问服务时也能完成注册（关闭态会被显式阻断，见「懒加载自动注册」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
+内置服务进清单的来路是 `[ProviderHandlerHost]` 的接口契约宿主：源生成器收集 static 宿主，生成的程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)` 逐个发射 `WarmHandler` 预热（settings 解析出的后端经容器登记契约绑定，与运行期懒链同一条装配序列）。`[AutoRegisterService]` 不再标在任何内置服务上，它仍承担**项目侧自建服务**的汇入——标记后进入所在程序集自己生成的那份清单（清单是程序集 `internal`，须由项目在自己的装配点调用，如 `GameApp.onServicesComposing` 订阅方），实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MA2103/204/205 报错。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。组合根尚未跑到就被访问服务时，静态 API 的懒链**判红而不自举**（见「懒加载装配窗口」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
 
-### 处理器异步生命周期
+### 后端异步生命周期
 
-处理器（`XxxHandler : FrameworkHandler`）支持异步生命周期：覆写 `OnInitAsync()` / `OnShutdownAsync()`，由 `GameAppSettings.Initiation` 在同步初始化后显式驱动。
+服务后端（`XxxHandler : ServiceBase`）的异步生命周期由容器承接：实现 `IServiceInitializableAsync` 的后端在世界 `InitializeAsync()` 中按拓扑序驱动 `OnInitAsync()`（禁止运行时注册）；实现 `IAsyncShutdownService` 的后端在异步关闭中按逆激活序先执行 `OnShutdownAsync()`。工具处理器（`FrameworkHandler` 派生，如 `LogHandler`/`JsonHandler`）生命周期全部同步（`Internal_Init`/`Internal_Shutdown` 直驱），不挂异步钩子。
 
 ### 服务事件
 
@@ -228,10 +258,10 @@ public sealed class ServiceAuditInterceptor : IServiceInterceptor
 ```csharp
 public class MyMonoService : ServiceMono<AppScope>
 {
-    public override void OnInit() { /* Awake 注册后自动调用 */ }
-    public override void OnShutdown() { /* OnDestroy 注销前自动调用 */ }
+    protected override void OnInit() { /* Awake 注册后自动调用 */ }
+    protected override void OnShutdown() { /* OnDestroy 注销前自动调用 */ }
 
-    protected override void Update() { /* Unity 自身生命周期驱动 */ }
+    private void Update() { /* Unity 自身生命周期驱动（基类没有对应的可覆写成员） */ }
     // AppScope 自动 DontDestroyOnLoad；SceneScope/GameplayScope 随场景卸载自然销毁
 }
 
@@ -291,7 +321,7 @@ GameServices.AddInterceptor(new ProfilingInterceptor());
 ```csharp
 public class BattleService : ServiceBase
 {
-    public override void OnInit()
+    protected override void OnInit()
     {
         // 运行时延迟解析：泛型方法直接调用，无 MakeGenericMethod 路径
         var stats = GameServices.GetRequiredService<StatsService>();
@@ -338,34 +368,32 @@ GameServices.DuplicateContractPolicy = EDuplicateContractPolicy.Throw;
 
 > 同实例重复注册始终幂等返回既有实例；已占用契约再次注册**同一实例**的其他契约走多契约绑定路径，不受本策略影响。`Warn`/`Skip` 下**被丢弃的那个实例不会被框架关闭**——它从未入图，框架无从接管其生命周期。
 
-### 懒加载自动注册
+### 懒加载装配窗口
 
-服务实例没有集中工厂表。每个 ProviderHandlerHost 服务外观的懒加载路径
-（`GetHandlerFromSettings` 首行）调用 `GameServices.EnsureRegistered<T>()`——服务在未注册状态下被外观访问时，
-自动创建实例并注册到 App 作用域（幂等）：
+服务后端有两条注册路径，**同形而权限不同**：组合根 `WarmHandler` 预热（免装配闸，先入图、拓扑统一驱动）与运行期访问静态 API 的懒链（settings 解析（null 回退声明默认工厂）→ 注册进容器（契约 = `IXxxService`）→ 注册结果回填门面缓存）。懒链只在**世界已初始化或初始化在途**的窗口内放行：
 
 ```csharp
-// 任意外观 API 首次访问——服务未注册时自动注册，轮询维护即刻生效
-ObjectPoolService.Spawn(...); // ObjectPoolService 由此注册进 App 作用域
+// 世界就绪后首次访问——懒链解析后端、注册进 App 作用域并回填缓存槽
+ObjectPoolService.Spawn(...);
 ```
 
-- 走的是标准 `RegisterService` 路径，因此依赖校验规则不变：世界已初始化时依赖必须当场就绪（否则抛 `GameException`），未初始化时推迟到拓扑排序期
-- 关闭态阻断懒加载复活：`GameApp` 已 `Shutdown` 时 `EnsureRegistered` 抛 `GameException`，显式 `RegisterService` 是重建世界的唯一路径
-- 组合根已显式注册全部内置服务，本路径现为兜底与项目侧服务的便捷入口
+- 闸在工厂之前：世界未建立、已建立但尚未初始化、`GameApp` 已关闭三种情形一律抛 `GameException`（正文带门面名），不再静默返回未初始化的后端——预热缺失属启动序问题，判红比半装配易查
+- 走的是标准 `RegisterService` 路径，依赖校验规则不变：世界已初始化时依赖必须当场就绪（否则抛 `GameException`）
+- 组合根已对全部内置服务宿主预热；项目侧自建服务经门面懒加载，须在世界初始化之后访问
 
 ### 异步关闭
 
 实现 `IAsyncShutdownService` 的服务在异步关闭管线中按**逆激活序**（= 逆初始化序）先执行 `OnShutdownAsync()`，再执行同步 `OnShutdown()`：
 
 ```csharp
-public class AssetService : ServiceBase, IAsyncShutdownService
+public class BundleCacheService : ServiceBase, IAsyncShutdownService
 {
     public async UniTask OnShutdownAsync()
     {
-        await UnloadAllAssetsAsync(); // 异步卸载资源
+        await UnloadAllBundlesAsync(); // 异步卸载资源
     }
 
-    public override void OnShutdown() { /* 同步清理 */ }
+    protected override void OnShutdown() { /* 同步清理 */ }
 }
 
 // 异步关闭单个作用域
@@ -384,7 +412,7 @@ await GameServices.ShutdownAsync();
 ## 注意事项
 
 - `GameServices` 仅允许主线程调用（编辑器/开发构建由断言强制，发布构建不参与编译）；后台线程/异步回调请通过 `MainThreadDispatcher` 的 `Post`/`Send` 切回主线程。隔离世界（`new ServiceWorld()`）不做该断言，可跨线程用于并行测试。
-- 业务代码一律通过静态外观访问框架服务（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`）；动态服务查找统一走 `GameServices.GetRequiredService<T>()` / `TryGetService<T>()`。
+- 消费政策三车道（详见「ProviderHandlerHost 服务架构」）：游戏业务代码走门面静态 API（如 `AudioService.Play(...)`、`UIService.ShowUI<T>()`）；框架服务互调走 `Context` 契约注入；动态服务查找统一走 `GameServices.GetRequiredService<T>()` / `TryGetService<T>()`。
 - `GameServices.GetRequiredService<T>()` 未注册时抛出 `GameException`；`GetService<T>()` 返回 null；`TryGetService<T>()` 返回 bool。
 - 同一作用域重复注册同契约幂等跳过（返回既有实例），嵌套依赖链重复注册免疫；以不同实例抢占已占用契约按 `DuplicateContractPolicy` 处置（开发默认告警、发布静默、可配 Throw）。注意 `Warn`/`Skip` 下**被丢弃的那个实例不会被框架关闭**——它从未入图，框架无从接管其生命周期。
 - 单个服务在轮询中抛异常：编辑器与开发构建记录后立即上抛（fail-fast）；发布构建记录后隔离续跑，不影响同帧其他服务。同一服务在同一轮询类别连续失败达到阈值（默认 300）即被摘除出该轮询列表并汇总告警一次（熔断）；服务条目保留、重新注册即完全重置。阈值挂在世界上（`ServiceWorld.TickFailureTripThreshold`，框架内部可调，不对外暴露），隔离世界各持一份、互不污染。

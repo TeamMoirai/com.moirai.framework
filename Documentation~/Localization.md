@@ -167,7 +167,7 @@ await LocalizationService.PreloadAsync();
 
 ## 按语言列加载（可选契约）
 
-整批常驻对绝大多数项目够用。词条量级到了按列常驻更合理时（`ResidentChars` 量化判据），自定义处理器声明三件套即启用；配置表这条默认数据源不需要你动处理器——它按语言分份导出后由 `ConfigTableServiceHandler` 自报开关，桥处理器自动转列模式：
+整批常驻对绝大多数项目够用。词条量级到了按列常驻更合理时（`ResidentChars` 量化判据），自定义处理器声明三件套即启用；配置表这条默认数据源不需要你动处理器——它按语言分份导出后由游戏侧配置表处理器（`IConfigTableService` 实现）自报开关，桥处理器自动转列模式：
 
 ```csharp
 public sealed class RemoteLocalizationHandler : LocalizationServiceHandler
@@ -258,7 +258,7 @@ private void OnDisable() => _subscription?.Dispose();
 - 编辑器非运行模式下 `TextLocalizer.ChangeID` / `ImageLocalizer.ChangeID` 直接返回 `false`（编辑态没有后端可取资产，写进组件还会把场景标脏）；要看效果用组件 Inspector 的预览行，`LocalizationService.Localize` 在非运行模式也走同一条预览直读，取不到时才原样返回
 - 数据未就绪（表未加载完）时，各 Localizer **静默推迟注入**——不按缺译刷错误日志；首次加载成功触发的语言切换会把全部已注册本地化器重注入一遍。可用 `LocalizationService.IsDataLoaded`（不触发加载）区分「未就绪」与「真缺失」
 - `ImageLocalizer` / `AudioLocalizer` 的数组是按语言索引注入的，配表新增语言后需同步补齐数组元素
-- 默认整批加载、全部语言列常驻内存（词条在存储层为行表 + 扁平数组，比「每词条一个 List」省下一半容器对象）。要降到「语言头 + 当前列」常驻，自定义处理器实现 `SupportsPerLanguageLoad` 三件套即可；默认的**配置表数据源已自动接好**——转表按语言分份、且游戏侧 `ConfigTableServiceHandler` 自报 `SupportsPerLanguageLocalizationLoad` 时，[ConfigTable](ConfigTable.md) 服务就切到列模式，项目侧无需再写一个本地化处理器
+- 默认整批加载、全部语言列常驻内存（词条在存储层为行表 + 扁平数组，比「每词条一个 List」省下一半容器对象）。要降到「语言头 + 当前列」常驻，自定义处理器实现 `SupportsPerLanguageLoad` 三件套即可；默认的**配置表数据源已自动接好**——转表按语言分份、且游戏侧配置表处理器（`IConfigTableService` 实现）自报 `SupportsPerLanguageLocalizationLoad` 时，[ConfigTable](ConfigTable.md) 服务就切到列模式，项目侧无需再写一个本地化处理器
 
 ---
 [« 返回文档索引](Index.md) · [主 README](../README.md) · [ConfigTable](ConfigTable.md)

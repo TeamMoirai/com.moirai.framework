@@ -20,7 +20,7 @@ Moirai Framework
 
 ### ✨ 核心特性
 
-- **契约化服务架构** — 每个服务以唯一 `I*Service` 接口对外，后端直接实现契约，抽象 Handler 基类已删除；门面、设置与测试均按接口类型持有，换后端不改消费方。默认语义走接口默认方法（DIM），因此 API Compatibility Level 为 .NET Standard 2.1。
+- **契约化服务架构** — 每个服务以唯一 `I*Service` 接口对外，后端直接实现契约并注册进服务世界（绑定即注册，拓扑驱动生命周期）；空壳抽象 Handler 基类已删除，有真实共享实现的家族基座保留。静态门面缓存容器实例并提供高层封装；设置与测试均按接口类型持有，换后端不改消费方。默认语义走接口默认方法（DIM），因此 API Compatibility Level 为 .NET Standard 2.1。
 - **源生成器接线** — 5 个预编译生成器分担重复代码：`ProviderHandlerHost` 生成门面懒加载与 Provider 下拉绑定，`ServiceDependency` 生成依赖注册，`SaveServiceCodegen` 生成存档 schema 与迁移骨架，`UIWindowCodegen` 生成 UI 绑定，`HotPathAnalyzer` 在编译期标注热路径。
 - **服务世界与作用域** — `ServiceWorld` 可构造隔离世界供测试/沙盒使用；`App / Scene / Gameplay` 三级作用域决定生命周期，场景卸载时自动清理对应服务；依赖以特性声明，两阶段初始化按依赖图拓扑驱动 `OnInit`。
 - **零 GC 内存池** — 页式内存池配非托管元数据，按在用量抬升空闲水位线；空闲超时后分 Gameplay / Background / LowMemory 三档预算驱逐，兼顾峰值吞吐与常驻占用。
@@ -94,7 +94,7 @@ com.moirai.framework/
 │       ├── Scene/              # 场景管理
 │       ├── Timer/              # 计时器（时间轮 + 帧计时双引擎）
 │       └── UI/                 # UI 框架（窗口/控件/层）
-├── Editor/                     # 编辑器工具集（Core / Services / Tools / Utilities；Services 按服务分目录，模块内按需分 Drawers / Windows / BuildPipeline / Support 等档）
+├── Editor/                     # 编辑器工具集（Kernel / Services / Tools / Utilities；Services 按服务分目录，模块内按需分 Drawers / Windows / BuildPipeline / Support 等档）
 ├── Plugins/                    # 第三方库
 ├── Samples~/                   # 示例
 ├── SourceGenerators/           # 预编译源生成器与分析器（ProviderHandlerHost / SaveServiceCodegen / ServiceDependency / UIWindowCodegen / HotPathAnalyzer）
@@ -105,10 +105,10 @@ com.moirai.framework/
 
 ### 服务系统
 
-框架采用**服务化架构**，所有子系统均为继承 `ServiceBase` 的普通 C# 类（非 MonoBehaviour），由统一服务世界 `ServiceWorld` 管理注册、生命周期、轮询与作用域；入口 `GameApp` 驱动世界轮询（内建更新循环、引擎回调代理与协程托管）。
+框架采用**服务化架构**：各子系统的后端 handler 为继承 `ServiceBase` 的普通 C# 类（非 MonoBehaviour），注册进统一服务世界 `ServiceWorld` 实现契约，由世界管理生命周期、轮询与作用域；静态门面（`ProviderHandlerHost` 源生成）是容器实例的公共缓存与高层封装。入口 `GameApp` 驱动世界轮询（内建更新循环、引擎回调代理与协程托管）。
 
 ```csharp
-// 服务访问 — 各服务提供静态外观（ProviderHandlerHost 源生成），内部懒加载
+// 服务访问 — 静态门面（ProviderHandlerHost 源生成）：容器实例缓存 + 高层封装，懒链兜底注册
 AssetService.LoadLease<Sprite>("Assets/AssetRaw/UI/icon.png");
 UIService.ShowUI<MainWindow>("MainWindow");
 TimerService.Delay(1f, () => Debug.Log("1s"));
@@ -125,7 +125,7 @@ var my = GameServices.GetRequiredService<MyService>();
 - 通过 `Priority` 属性控制轮询顺序（框架内置服务统一 ≤ -1000，业务服务默认 0 及以上），通过 `Scope`（App / Scene / Gameplay）控制生命周期范围，场景卸载时自动清理场景与玩法级服务
 - `ServiceWorld` 可 `new` 构造隔离世界（测试/沙盒），`GameServices` 静态外观仅是默认世界的投影
 
-> 📖 详细用法（自定义服务、作用域遮蔽、跨服务依赖）见 **[Core 服务系统文档](Documentation~/Core.md)**
+> 📖 详细用法（自定义服务、作用域遮蔽、跨服务依赖）见 **[Kernel 服务系统文档](Documentation~/Kernel.md)**
 
 ### 启动流程
 
@@ -160,7 +160,7 @@ ProcedureLaunch → ProcedureSplash → ProcedureInitPackage → ProcedureInitRe
 | Event Debugger | 可视化事件派发调试窗口（`Window/Event Debugger`） |
 | Framework Settings | 框架设置窗口：音频组、Luban、流程、更新设置（`Tools/Framework Settings`） |
 | HybridCLR | 热更新宏定义与热更 DLL 构建命令（`HybridCLR/Define Symbols`、`HybridCLR/Build`） |
-| Inspector | Asset / Core 组件自定义 Inspector |
+| Inspector | Asset / Kernel 组件自定义 Inspector |
 | Input Service | 输入动作配置编辑器、按键图标集合编辑器 |
 | Luban Tools | Luban 配置表生成、表格目录直达（`Tools/Config`） |
 | Maintenance | 清理空文件夹、查找丢失脚本、预制体查找器、分组选择、锁定 Inspector |

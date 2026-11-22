@@ -196,4 +196,4 @@ Debugger 窗口（如已启用）显示所有池的列：Unused、Using（含 ma
 | `m_DefaultLiveLimit` | 0 | 存活（在外）对象数量上限的全局默认值，0 表示不限制 |
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [ObjectPool](ObjectPool.md) · [Core](Core.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [ObjectPool](ObjectPool.md) · [Kernel](Kernel.md)

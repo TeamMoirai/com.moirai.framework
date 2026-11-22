@@ -49,7 +49,7 @@ Resource 服务（`AssetService`）对 [YooAsset](https://github.com/tuyoogame/Y
 | `AssetKeyCodec` | packed key 的位域编解码与 `assetKind` / `assetType` 互推（纯静态、零状态） |
 | `AssetNameRegistry<TValue>` | 单条名称轴的登记、引用计数与 ID 回收；package / location / type 三轴各持一份 |
 | `AssetBindingService` | 绑定服务实现（`internal sealed`），`partial` 按职责拆分：主文件（所有者注册、释放、槽位快照）/ Bindings（绑定注册与组件应用）/ Async（异步绑定安全的预约与代次判定）/ Maintenance（关停、重置与销毁态回收）/ Slots（分页槽位借还） |
-| `AssetServiceHandler` | 处理器抽象基类，定义后端契约；框架内置实现 `YooAssetHandler`，实验性的 Addressables 后端由 `plugin` 分支的 `addressables` 插件提供 |
+| `AssetServiceHandler` | 记录宿主链的家族基座（`AssetServiceHandler → AssetRecordHostHandler`，非后端契约）：承载与 `IAssetService` 契约无关的宿主级共享实现；框架内置实现 `YooAssetHandler`（`: ServiceBase, IAssetService`），实验性的 Addressables 后端由 `plugin` 分支的 `addressables` 插件提供 |
 | `IAssetBindingService` | 声明式资源-组件绑定服务接口，经 `AssetService.BindingService` 访问 |
 | `AssetOwner` | MonoBehaviour 组件（`[DisallowMultipleComponent]`），`OnDestroy` 时自动释放所有绑定。提供 `ReleaseBindings()`、`EnsureFor(target, bindingService)`。单个所有者抛出只记账不截断其余绑定，末尾汇总重抛。 |
 | `AssetBindingExtension` | 静态扩展类：`Image/SpriteRenderer.SetSprite`、`Image/SpriteRenderer.SetSubSprite`、`Image/SpriteRenderer/MeshRenderer.SetMaterial`、`MeshRenderer.SetSharedMaterial` |

@@ -67,7 +67,9 @@ Editor 侧以友元身份读，绝不在框架里 `is 具体插件类型` 或按
 
 下列是**仓库既定词汇**，DotSettings 管不到，但新模块照抄、不另造同义词：
 
-- **服务三件套**：`XxxService.cs`（门面）+ `XxxServiceHandler.cs`（后端契约，派生 `FrameworkHandler`）+ `XxxServiceSettings.cs`（配置资产）；默认实现 `DefaultXxxHandler`，按后端的 `<Backend>XxxHandler`（`YooAssetHandler`、`UnityAudioHandler`、`MiddlewareAudioHandler`）。
+- **服务三件套**：`XxxService.cs`（静态门面，标 `[ProviderHandlerHost]`）+ `XxxServiceHandler.cs`（后端契约/家族基座）+
+  `XxxServiceSettings.cs`（配置资产）。后端基座取两档：进容器的服务后端派生 `ServiceBase`，无容器直驱的派生 `FrameworkHandler`；
+  共同祖先 `HandlerBase` 持生命期钩子、就绪判据与复活口径，转换语义在 `LifecycleMachine`。默认实现 `DefaultXxxHandler`，按后端 `<Backend>XxxHandler`。
 - **生命周期**：覆写点一律 `protected virtual On*`（`OnInit`/`OnShutdown`/`OnInitAsync`/`OnShutdownAsync`/`OnUpdate`/`OnLowMemory`），框架内部门面一律 `internal Internal_*`（`Internal_Init`/`Internal_Shutdown`）。调用方只碰 `Internal_*`，不要在 `On*` 上直接互调。
 - **SDK 适配层**：`IXxxBridge` 主接口 + `XxxBridgeStub`（无 SDK 也要能编译）+ `XxxBridgeNative`（真 SDK，整文件由 `*_INSTALLED` 宏门控）；可选能力另开窄接口按能力探测（`IAudioMiddlewareBankControl`、`IAudioMiddlewareRtpcControl`），不扩主接口。
 - **目录与文件**：`Runtime/Services/<Module>/` 顶层只允许下面这套**封闭角色词表**，其余目录名一律视为同义词归并，不许临时开档；新文件归位的判据 = 这张表 + R1–R8。

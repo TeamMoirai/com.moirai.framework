@@ -2,7 +2,7 @@
 
 > 抽象输入层：以统一的轮询 API 屏蔽 Unity 新旧输入系统与移动端 UI 触控的差异，并内置按键提示（Prompts）系统。
 
-输入服务（`Moirai.Atropos.Input`）通过 `InputServiceHandler` 抽象三种输入后端，业务代码只需面向 `InputService.Xxx()` 静态外观的动作名（Action）API 编程，切换后端无需改动调用方。服务还监听 UI 模态事件与应用焦点事件，自动屏蔽/恢复输入，并基于 Input System 提供跨设备的按键图标提示组件。
+输入服务（`Moirai.Atropos.Input`）通过 `IInputService` 契约抽象三种输入后端（实现类 `: ServiceBase`，绑定即注册进容器），业务代码只需面向 `InputService.Xxx()` 静态门面的动作名（Action）API 编程，切换后端无需改动调用方。服务还监听 UI 模态事件与应用焦点事件，自动屏蔽/恢复输入，并基于 Input System 提供跨设备的按键图标提示组件。
 
 ## 核心特性
 
@@ -21,11 +21,11 @@
 
 | 类/接口 | 说明 |
 |---------|------|
-| `Moirai.Atropos.Input.InputService` | 输入服务静态外观（`[ProviderHandlerHost]`），全部轮询 API 为静态方法，经 `Handler` 属性转发；降级契约——未注册/未初始化时返回安全默认值（false/0/zero），不抛异常 |
-| `Moirai.Atropos.Input.InputServiceHandler` | 输入处理器抽象基类（`[Serializable]`），定义全部输入查询方法。通过 `[SerializeReference]` 在输入设置中配置 |
-| `Moirai.Atropos.Input.UnityInputSystemHandler` | 基于 Unity Input System 的处理器（宏 `ENABLE_INPUT_SYSTEM`） |
-| `Moirai.Atropos.Input.UnityInputManagerHandler` | 基于旧版 Input Manager 的处理器（宏 `ENABLE_LEGACY_INPUT_MANAGER`） |
-| `Moirai.Atropos.Input.UIMobileInputHandler` | 移动端处理器，读取场景中 `InputButton` / `InputAxes` 组件状态 |
+| `Moirai.Atropos.Input.InputService` | 输入服务静态门面（`[ProviderHandlerHost]`），全部轮询 API 为静态方法，经 `Handler` 属性转发；降级契约——未注册/未初始化时返回安全默认值（false/0/zero），不抛异常 |
+| `Moirai.Atropos.Input.IInputService` | 输入服务契约（`[Serializable]` 实现类经 `[SerializeReference]` 在输入设置中配置），定义全部输入查询方法 |
+| `Moirai.Atropos.Input.UnityInputSystemHandler` | 基于 Unity Input System 的处理器（`: ServiceBase, IInputService`，宏 `ENABLE_INPUT_SYSTEM`） |
+| `Moirai.Atropos.Input.UnityInputManagerHandler` | 基于旧版 Input Manager 的处理器（`: ServiceBase, IInputService`，宏 `ENABLE_LEGACY_INPUT_MANAGER`） |
+| `Moirai.Atropos.Input.UIMobileInputHandler` | 移动端处理器（`: ServiceBase, IInputService`），读取场景中 `InputButton` / `InputAxes` 组件状态 |
 | `Moirai.Atropos.Input.InputServiceSettings` | 框架设置（"输入设置"），通过 `[SerializeReference]` 配置输入处理器并懒加载初始化 |
 | `Moirai.Atropos.Input.InputActionsConfiguration` | 输入动作配置资产，按分组登记 bool/float/Vector2 动作名，用于生成代码 |
 | `Moirai.Atropos.Input.EMouseButton` | 鼠标键枚举：`Left = 0`、`Right = 1`、`Middle = 2` |

@@ -18,7 +18,7 @@
 
 #### UI
 
-- 新增 `IUIService` 契约接口：轨无关消费面（开窗/关隐/查询/异步取窗/安全区）+ `onWindowShown`/`onWindowClosed` 事件桥接，`UIService` 显式实现转发静态门面保持单一语义源；组合根在注册清单后显式补登契约绑定，服务互调经 `Context.GetRequiredService<IUIService>()` 解析
+- `UIService` 定型为多缓存静态门面（终态口径）：`IUIService` 定位为后端能力契约 + 门面多缓存引用类型，不承诺容器可解析；跨服务消费走门面静态 API 与静态事件（`onWindowShown`/`onWindowClosed`），不立容器契约绑定
 
 #### Tests
 
@@ -42,9 +42,19 @@
 
 #### Core
 
-- ⚠ 服务间引用范式统一：内置服务的跨服务依赖一律「`[ServiceDependency]` 声明 + `OnInit` 中 `Context.GetRequiredService<IXxxService>()` 解析到实例字段」——Timer/UI/Save/Procedure/GameObjectPool 五服务的调试窗注册与 InputService 的窗口事件订阅不再走静态门面；`ProcedureService` 依赖声明 `typeof(UIService)` 改为 `typeof(IUIService)`；`InputService` 新增 `IUIService` 依赖且 `UIService` 相应移除 `IInputService` 声明（保持依赖单向，避免拓扑环）；`UIService.OnInit` 在容器外装配（上下文为空）时跳过调试面板注册、其余流程不变——自定义服务以 `UIService` 具体类型声明依赖的需同步改接口
+- ⚠ 服务架构回摆——后端即注册实体、门面退回纯静态缓存：12 个服务门面全部转 `static partial class`（删除 `ServiceBase` 派生、`[AutoRegisterService]` 与实例生命周期，门面实例化 API 废弃），可序列化后端改为 `XxxHandler : ServiceBase, IServiceTickable?, IXxxService` 注册进容器（绑定即注册：懒链解析 → 容器注册 → 注册结果回填门面缓存槽，槽位 ≡ 容器实例；组合根 `RegisterAll` 对 static 宿主发射 `WarmHandler` 预热）；契约键改绑真实后端实现（原「门面自报契约但未实现」的隐性错绑随之消除），`[ServiceDependency]`/`Priority` 从门面移到后端，后端进容器轮询、拓扑排序与诊断表；`Tick`/`Initialize` 移出业务契约（`IAudioService`/`IDebuggerService`/`IGameObjectPoolService`/`IProcedureService`/`ITimerService`/`IUIService` 的 Tick 与 `IAssetService.Initialize`/`IsInitialized`/`IProcedureService.Initialize` 不再是契约成员，由 `IServiceTickable`/容器生命周期承接；业务性 `Restart` 保留）；消费政策三车道 = 业务走门面静态 API、框架互调走 `Context` 契约注入、测试/编辑器走 `Handler` setter + `Internal_Peek/UseHandler` 接缝——门面槽 ≡ App 级注册实例（作用域遮蔽只影响契约解析通道）
+- ⚠ UI 双轨多缓存收口：`UGUIHandler`/`UITKHandler : UIServiceHandler : ServiceBase, IUIService, IServiceTickable` 由组合根 `UIService.RegisterEnabledHandlers()` 按目录关停档降序注册（契约 = 各自具体类型，宿主轨最先注册），容器反序拆除 = 档位升序收口（宿主轨最后拆根）；共享栈结算加帧守卫幂等（任一轨 Tick 先到先结算、顺序无关）；`GameAppSettings` 的 IUIService 手工补登删除，Input/Procedure 等消费方改订门面静态事件/调门面静态开窗；门面级广播（`onWindowShown`/`onWindowClosed`）与跨轨归零门挂门面静态，域重载复位接缝保留
+- ⚠ 服务间引用范式统一：内置服务的跨服务依赖一律「后端 `[ServiceDependency]` 声明 + `OnInit` 中 `Context.GetRequiredService<IXxxService>()` 解析到实例字段」——Timer/Save/Procedure/GameObjectPool/Asset/Localization/Audio 的调试窗注册与窗口事件订阅不再经静态门面直调；UI 消费例外走门面静态事件（见 UI 双轨条目）；自定义服务以门面具体类型声明依赖的需同步改契约接口
 - ⚠ 机制类不再调静态门面：`AssetLeaseScope` 改持注入/容器解析的 `IAssetService`（公共无参构造保留，首次 `Load` 经容器解析一次并缓存——boot 前调用从「自动注册资产服务」变为抛 `GameException`）；Audio 的 clip 租约来源（`AssetClipLeaseSource`）与 AudioAgent 自动解除独奏计时器同改容器契约引用
 - 服务间引用与查找热路径内联：门面 one-liner 转发与显式接口实现、`GameServices.GetRequiredService/GetService/TryGetService`、`ServiceWorld.TryGet` 族与跨作用域绑定 `TryGetBest` 加 `[MethodImpl(AggressiveInlining)]`，稳态跨服务互调的转发开销由 JIT 折叠为零
+- ⚠ 门面懒装配不再自举世界：`[ProviderHandlerHost]` 服务宿主的懒链只在**世界已初始化或初始化在途**的窗口放行，世界未建、已建未初始化、`GameApp` 已关闭三种情形一律抛 `GameException`（正文带门面名），不再静默返回未初始化的后端；预热唯一入口是组合根 `WarmHandler`。`GameServices.EnsureRegistered<T>` 随之删除（外部无引用面）。迁移口径 = 组合根跑到之前不要访问服务门面，需要自造世界时走显式 `RegisterService`
+- 门面槽位一致性改由写侧推送：装配路径向内核登记清槽回调，`GameServices.Shutdown`/`ShutdownAsync` 逐个落槽；`Handler` 读侧不再每次回查容器绑定（原「任一契约」线性扫描判据删除），`Internal_PeekHandler`/`Internal_UseHandler` 的无损换入换出也不再被读侧静默弃槽
+- ⚠ 生命期钩子收严到 `HandlerBase`：`OnInit`/`OnShutdown` 改为 `protected virtual`，包外覆写处 `public override` 改 `protected override`
+- 状态机、就绪判据与转换语义收进 `LifecycleMachine`；转换只由框架驱动——容器经 `IServiceLifecycle`，生成宿主经 `Internal_Init`/`Internal_Shutdown`
+- `FrameworkHandler` 派生 `HandlerBase`：`IsInitialized` 读共用的就绪判据，状态位只由 `LifecycleMachine` 写
+- 直驱关停只留「停在 `Created`（从未装配成功）即跳过 `OnShutdown`」这一枚前置；重复驱动与复活口径并到 `LifecycleMachine` 一处，`AllowsRevival` 取假保留 Mono 不复活
+- 工具处理器的直驱关停承接 `OnShutdown` 抛错：由生命期机器记 Error、实例照常落 `Disposed`，不再打断换提供者本身
+- ⚠ `ServiceMono<TScope>` 生命期钩子收严为 `protected abstract`，与容器侧同口径：包外子类覆写处 `public override` 改 `protected override`
 
 #### 源生成器
 
@@ -94,19 +104,25 @@
 
 - `Runtime/Services/Kernel` 独立为根级 `Runtime/Kernel`：物理目录迁移，命名空间与公共 API 不变；Core 依赖棘轮豁免目录名册同步改判据（`ContainerKernelFileRoster` 已留账）
 
+#### Core
+
+- ⚠ 删除服务契约上的轮询成员 `IObjectPoolService.Tick`、`ITimerService.FixedTick`/`LateTick`：逐帧驱动只认能力接口 `IServiceTickable`/`IServiceFixedTickable`/`IServiceLateTickable`——实现业务契约本身不再带来任何驱动，后端在实现契约之外按需实现能力接口（内建后端已全部实现，全仓无按契约类型调用这些成员的站点）
+- `GameServices.UnregisterHandler` 由 `public` 收为 `internal`：调用面只有同装配的 `[ProviderHandlerHost]` 生成代码与友元测试装配，不属于对外 API
+- ~~`MA1005`~~ 退役：原「服务后端仍继承 `FrameworkHandler`」的过渡告警随之取消——接口契约宿主的默认后端只认 `ServiceBase`，非法声明由 `MA1003` 在编译期判红，号位不再复用
+
 ### Changed
 
 #### Timer
 
-- ⚠ 删除 `TimerServiceHandler` 抽象基类：计时器后端改为直接实现唯一契约 `ITimerService`（`DefaultTimerHandler` 签名变为 `FrameworkHandler, ITimerService`，原 `internal override` 全部转 public）；自定义后端迁移口径 = 直接实现 `ITimerService` + 继承 `FrameworkHandler` 生命周期基座，`TimerServiceSettings.TimerServiceHandler`、`Internal_UseHandler` 等签名同步改按接口类型
+- ⚠ 删除 `TimerServiceHandler` 抽象基类：计时器后端改为直接实现唯一契约 `ITimerService`（`DefaultTimerHandler` 签名变为 `ServiceBase, IServiceTickable..., ITimerService`，原 `internal override` 全部转 public）；自定义后端迁移口径 = 直接实现 `ITimerService` + 继承 `ServiceBase`（绑定即注册进容器），`TimerServiceSettings.TimerServiceHandler`、`Internal_UseHandler` 等签名同步改按接口类型
 
 #### Editor
 
-- `[ProviderHandlerHost]` 源生成器支持接口契约：默认实现校验放宽为「实现处理器契约（继承类或实现接口）+ 继承 FrameworkHandler 生命周期基座」，生成代码的生命周期调用按基座强转；类契约宿主（Log/GameTime/Json 等 Utility 族）行为不变
+- `[ProviderHandlerHost]` 源生成器接口契约定型（绑定即注册）：默认实现校验改为「实现处理器契约（继承类或实现接口）+ 继承 ServiceBase 基座」（`FrameworkHandler` 派生的服务后端判非法，服务侧只有一条经容器的装配路径，生成代码不按实例类型分派），生成代码的生命周期调用改为「注册进容器（契约绑定）→ 注册结果回填缓存槽」，新增 `InvalidateHandler` 缓存失效钩子与 static 宿主 `WarmHandler` 预热发射，宿主须 `static`（MA1003 拦截实例宿主）；类契约宿主（Log/GameTime/Json 等 Utility 族）行为不变（`Internal_Init`/`Internal_Shutdown` 直驱）
 
 #### Audio
 
-- ⚠ 删除 `AudioServiceHandler` 抽象基类：音频后端改为直接实现唯一契约 `IAudioService`（`UnityAudioHandler`/`MiddlewareAudioHandler` 签名变为 `FrameworkHandler, IAudioService`）；原基类共享语义（总线 Fade 六方法、`SetVoicePitch`、音轨暂停标记越界守卫、场景切换停音判据）收进 internal `AudioBackendPolicy`（this + 自持调度表作参数的组合替代继承）；`AudioServiceSettings` 字段、`AudioCategory.Handler`、`AudioAgent._audioHandler` 等签名改按接口类型。自定义后端迁移口径 = 直接实现 `IAudioService` + 继承 `FrameworkHandler`；过渡调度表（internal `AudioFadeScheduler`）仍留在各后端自持
+- ⚠ 删除 `AudioServiceHandler` 抽象基类：音频后端改为直接实现唯一契约 `IAudioService`（`UnityAudioHandler`/`MiddlewareAudioHandler` 签名变为 `ServiceBase, IServiceTickable, IAudioService, IAudioFadeTarget`）；原基类共享语义（总线 Fade 六方法、`SetVoicePitch`、音轨暂停标记越界守卫、场景切换停音判据）收进 internal `AudioBackendPolicy`（this + 自持调度表作参数的组合替代继承）；`AudioServiceSettings` 字段、`AudioCategory.Handler`、`AudioAgent._audioHandler` 等签名改按接口类型。自定义后端迁移口径 = 直接实现 `IAudioService` + 继承 `ServiceBase`（FMOD/Wwise 插件经 `MiddlewareAudioHandler` 家族基座自动跟随）；过渡调度表（internal `AudioFadeScheduler`）仍留在各后端自持
 
 ### Fixed
 
@@ -114,9 +130,13 @@
 
 - `AudioHandleRegistry.RegisterUser` 头表插入触发扩容后返回旧表槽位，链头被写进新表里别的 key 的位置：第 8 个唯一 userId 起（初始头表 16 半载即扩）按 ID 链错位/丢链，`StopByID`/`ForEachHandleByUser`/`Release` 解链失效。扩容后改按 key 重查新表槽位返回
 
+#### Asset
+
+- `AssetService.IsInitialized` 与 `AssetServiceHandler.IsInitialized` 按「≥ `EServiceState.Initialized`」判就绪，把关停中与已关闭（`Disposed`）的后端一并报成就绪，与内核 `ServiceWorld.IsServiceReady` 的严格判据分叉；`AssetReference` 的租约释放与加载核心路径据此对已拆除的后端发起取用。两处收紧为严格 `== EServiceState.Initialized`
+
 #### 测试（反膨胀治理）
 
-- Audio 测试夹具的 16 处反射直调 `OnInit` 全部改走 `Internal_Init()` 内部接缝（8 个 PlayMode/Player 文件）：反射绕过 `_initialized` 位使 `Internal_Shutdown` 空转，每次 SetUp 泄漏 `sceneLoaded` 订阅与一棵 `[AudioService]` DDOL 树；接缝化后生命周期门与生产同路，顺带修掉该错位。删掉名不副实的 `PriorityStealSelection_StaysWithinBudget` 基准格（首轮抢占后通道转 free，后续 999 发全走空闲路径，测的并非抢占选择）与 `AudioCacheTestSupport.CompleteNext` 的死参数 `address`（文档声称覆盖回调地址，实现从未使用）；`AudioVolumeParityTests` remarks 的旧值域口径 0..10 更正为 0..1（契约 `AudioGroupConfig.MAXIMAL_VOLUME`）
+- Audio 测试夹具的 16 处反射直调 `OnInit` 全部改走 `IServiceLifecycle` 显式转换接缝（8 个 PlayMode/Player 文件；架构回摆前曾短暂走 `Internal_Init()`，后端改挂 `ServiceBase` 后统一为容器生命周期接口）：反射绕过初始化闸使关闭空转，每次 SetUp 泄漏 `sceneLoaded` 订阅与一棵 DDOL 树；接缝化后生命周期门与生产同路，顺带修掉该错位。删掉名不副实的 `PriorityStealSelection_StaysWithinBudget` 基准格（首轮抢占后通道转 free，后续 999 发全走空闲路径，测的并非抢占选择）与 `AudioCacheTestSupport.CompleteNext` 的死参数 `address`（文档声称覆盖回调地址，实现从未使用）；`AudioVolumeParityTests` remarks 的旧值域口径 0..10 更正为 0..1（契约 `AudioGroupConfig.MAXIMAL_VOLUME`）
 
 #### Localization
 
@@ -136,7 +156,7 @@
 
 #### Kernel
 
-- `DebuggerService`/`TimerService` 补齐自报契约接口实现（`IDebuggerService`/`ITimerService`，与静态门面同名的成员显式接口实现转发、降级语义与门面一致）：容器把服务实例绑定在 `[ProviderHandlerHost]` 自报契约下，此前门面未实现契约，`GetRequiredService` 解析坍缩为 null、boot 在首个接口互调（`AssetService.OnInit` 注册调试窗）即中断，UI/Audio 等下游服务全数未立
+- 契约键绑定语义修正：容器把 `[ProviderHandlerHost]` 自报契约绑定到**真实后端实现**（`IXxxService` → 已迁移的 `XxxHandler : ServiceBase, IXxxService`；未迁移过渡期按实例类型分派）——原实现里契约绑在未实现该接口的门面实例上（`GetRequiredService<IXxxService>()` 解析坍缩为 null、boot 在首个接口互调即中断），随架构回摆一并消除
 
 #### PackageManager
 
@@ -152,11 +172,11 @@
 
 #### ConfigTable / Debugger / Scene
 
-- ⚠ 删除 `DebuggerServiceHandler`/`ConfigTableServiceHandler`/`SceneServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IDebuggerService`/`IConfigTableService`/`ISceneService`（`DefaultXxxHandler` 签名变为 `FrameworkHandler, I{Service}`）；`ConfigTableServiceSettings.InjectConfigTableHandler<T>` 泛型约束改 `where T : class, IConfigTableService, new()`（DIM 需 .NET Standard 2.1 API profile）。可选能力（按语言取列）走接口默认方法，自定义后端不覆写即回默认
+- ⚠ 删除 `DebuggerServiceHandler`/`ConfigTableServiceHandler`/`SceneServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IDebuggerService`/`IConfigTableService`/`ISceneService`（`DefaultXxxHandler` 签名变为 `ServiceBase, I{Service}`）；`ConfigTableServiceSettings.InjectConfigTableHandler<T>` 泛型约束改 `where T : class, IConfigTableService, new()`（DIM 需 .NET Standard 2.1 API profile）。可选能力（按语言取列）走接口默认方法，自定义后端不覆写即回默认
 
 #### Input / Procedure / GameObjectPool
 
-- ⚠ 删除 `InputServiceHandler`/`ProcedureServiceHandler`/`GameObjectPoolServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IInputService`/`IProcedureService`/`IGameObjectPoolService`（3 个输入后端 UIMobile/UnityInputManager/UnityInputSystem 与 DefaultProcedureHandler/DefaultGameObjectPoolHandler 签名变为 `FrameworkHandler, I{Service}`）；`ProcedureServiceHandler` 的切换历史/广播承载收进 internal `ProcedureBackendPolicy`（后端自持状态 + 一行转发）；`GameObjectPoolService.TryResolveInstance` 因参数类型 internal 移入 internal `IGameObjectPoolInternals`；下游消费方（CharacterActions/PlayerActions）签名同步接口化。`UIServiceHandler` 保留——它是 uGUI/UITK 双轨并存的家族基座（多实例托管，非单选策略契约）
+- ⚠ 删除 `InputServiceHandler`/`ProcedureServiceHandler`/`GameObjectPoolServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IInputService`/`IProcedureService`/`IGameObjectPoolService`（3 个输入后端 UIMobile/UnityInputManager/UnityInputSystem 与 DefaultProcedureHandler/DefaultGameObjectPoolHandler 签名变为 `ServiceBase, I{Service}`）；`ProcedureServiceHandler` 的切换历史/广播承载收进 internal `ProcedureBackendPolicy`（后端自持状态 + 一行转发）；`GameObjectPoolService.TryResolveInstance` 因参数类型 internal 移入 internal `IGameObjectPoolInternals`；下游消费方（CharacterActions/PlayerActions）签名同步接口化。`UIServiceHandler` 保留——它是 uGUI/UITK 双轨并存的家族基座（多实例托管，非单选策略契约）
 
 #### Asset（原 Resource）
 

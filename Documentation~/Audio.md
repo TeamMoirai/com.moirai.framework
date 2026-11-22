@@ -8,7 +8,7 @@
 
 ```text
 Runtime/Services/Audio/
-├── AudioService.cs / AudioServiceHandler.cs / AudioServiceSettings.cs   # 门面四件套（平铺在模块根）
+├── AudioService.cs / IAudioService.cs / AudioServiceSettings.cs   # 门面三件套（平铺在模块根）
 ├── AudioServiceDebuggerWindow.cs                            # 主音量与五条音轨的实时控制
 ├── AudioSettingsPolicy.cs                                   # 设置键名、默认值与音量值域钳制的唯一定义处
 ├── Handler/                     # 可换后端缝
@@ -30,8 +30,8 @@ Runtime/Services/Audio/
 
 ## 架构（ProviderHandlerHost + 策略）
 
-- **`AudioService`**：静态外观，依赖 `TimerService`、`DebuggerService`、`AssetService`（`OnInit` 排一帧后加载音频设置）
-- **`AudioServiceHandler`**：后端抽象契约（含 `StopByID`、16B 热请求 `Play`、`OnAgentPlaybackEnded` 虚回调）。Master/音轨总线过渡由本契约**直接实现**（持 `AudioFadeScheduler`，落到 `IAudioFadeTarget.ApplyFade`），后端只需实现"音量写到哪儿"
+- **`AudioService`**：静态门面（容器实例缓存 + 高层封装）；音频设置经门面静态 Manager 钩子装配（`OnInit` 排一帧后加载音频设置）
+- **`IAudioService`**：后端契约（`: ServiceBase` 注册实体，含 `StopByID`、16B 热请求 `Play`、`OnAgentPlaybackEnded` 虚回调；`Tick` 由后端的 `IServiceTickable` 承接）。Master/音轨总线过渡语义由 `AudioBackendPolicy` 静态共享实现收纳（各后端一行转发传入自身持有的 `AudioFadeScheduler`，落到 `IAudioFadeTarget.ApplyFade`），后端只需实现"音量写到哪儿"
 - **`AudioHandleRegistry<TVoice>` / `AudioFadeScheduler`**：Unity 与中间件后端共享的句柄注册与过渡调度（总线 Fade 用高位段伪句柄）
 - **`UnityAudioHandler`**：框架内置默认 Unity `AudioSource`/`AudioMixer` 后端
 - **`MiddlewareAudioHandler`**：中间件共用基类（句柄、声部 Fade、总线、分层）；FMOD / Wwise 两支 SDK 后端各自继承它，但都住在 `plugin` 分支的 `fmod`、`wwise` 插件里，不在本程序集
@@ -87,8 +87,8 @@ Runtime/Services/Audio/
 
 | 类型 | 说明 |
 |------|------|
-| `AudioService` | 静态外观；含 `RequestMixSnapshot` / `StopByID` / 16B `Play` |
-| `AudioServiceHandler` | 后端契约 |
+| `AudioService` | 静态门面；含 `RequestMixSnapshot` / `StopByID` / 16B `Play` |
+| `IAudioService` | 后端契约（实现类 `: ServiceBase`） |
 | `UnityAudioHandler` | 默认 Unity 后端 |
 | `MiddlewareAudioHandler` | 中间件共用基类（`public abstract`）；FMOD / Wwise 两支后端各由同名插件提供、继承它，命名空间不变但类型不在本程序集 |
 | `AudioPlayRequest` | 16B 热路径请求（Id/Volume/Pitch/Track/Priority/Flags） |

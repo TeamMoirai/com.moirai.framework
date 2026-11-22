@@ -387,4 +387,4 @@ await SaveService.RestoreEntitiesAsync("slot1");
 | `SaveV3HardeningTests` | 加固路径回归 |
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [Asset](Asset.md) · [Core](Core.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [Asset](Asset.md) · [Kernel](Kernel.md)

@@ -2,11 +2,11 @@
 
 > Luban 配置表桥接层：框架侧定义接口与单例入口，具体配置代码由 Luban 从 Excel 生成到项目程序集。
 
-`ConfigTable` 服务在 Runtime 侧只包含 `ConfigTableService` 静态外观（`[ProviderHandlerHost]`）与 `ConfigTableServiceHandler` 抽象契约：前者提供框架关心的四个能力（多语言文本、语言列自报、图标加载、UI 窗口路径）的静态入口，后者约定后端实现。真正的表数据与 `Tables` 表集合均由 Luban 转表工具从模板生成到项目的 `GameProto` 程序集，游戏侧的 `LubanHandler`（继承 `ConfigTableServiceHandler`）在编辑器脚本重载时经 `[DidReloadScripts]` 调用 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 写入设置，运行期由外观按设置懒加载安装。配套的编辑器工具（`Tools/Framework Settings` 的 `LubanSettings` 与 `Tools/Config` 菜单）负责配置表工程目录的生成、重定向与转表。
+`ConfigTable` 服务在 Runtime 侧只包含 `ConfigTableService` 静态门面（`[ProviderHandlerHost]`）与 `IConfigTableService` 契约：前者提供框架关心的四个能力（多语言文本、语言列自报、图标加载、UI 窗口路径）的静态入口，后者约定后端实现（实现类 `: ServiceBase`，绑定即注册进容器）。真正的表数据与 `Tables` 表集合均由 Luban 转表工具从模板生成到项目的 `GameProto` 程序集，游戏侧的 `LubanHandler`（`: ServiceBase, IConfigTableService`）在编辑器脚本重载时经 `[DidReloadScripts]` 调用 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 写入设置，运行期由门面按设置懒加载安装。配套的编辑器工具（`Tools/Framework Settings` 的 `LubanSettings` 与 `Tools/Config` 菜单）负责配置表工程目录的生成、重定向与转表。
 
 ## 核心特性
 
-- 框架与配表解耦：框架仅依赖 `ConfigTableServiceHandler` 抽象契约，Luban 生成代码落在业务程序集，移除配表不影响框架其他服务编译
+- 框架与配表解耦：框架仅依赖 `IConfigTableService` 契约，Luban 生成代码落在业务程序集，移除配表不影响框架其他服务编译
 - 懒加载 `Tables`：首次访问 `ConfigTableService.Tables` 时才加载，按生成代码的 Loader 返回类型自动选择二进制（`ByteBuf`）或 JSON（`JSONNode`）格式
 - 编辑器友好：非运行模式下配置 `TextAsset` 直接经 `AssetDatabase` 加载，无需启动资源系统
 - 多语言桥接：多语言表按语言分份导出到 `Table/<语言码>/`，bean 仅含一个变体字段；可用语言由转表期生成的 `L10nLanguages.Codes` 经 `GetLocalizationLanguageCodes()` 自报。后端可选实现 `SupportsPerLanguageLocalizationLoad` + `GetLocalizedStringsByLanguage`，[Localization](Localization.md) 服务据此只装载、也只解析当前语言列（缺译直接露 key，不读其它语言列）；不实现则回落 `GetAllLocalizedStrings()` 整批模式
@@ -20,8 +20,8 @@
 | 类/接口 | 说明 |
 |---------|------|
 | `Moirai.Atropos.ConfigTable.ConfigTableService` | 配置表静态外观（`[ProviderHandlerHost]`）：`GetAllLocalizedStrings`、`GetLocalizationLanguageCodes`、`SupportsPerLanguageLocalizationLoad`、`GetLocalizedStringsByLanguage`、`LoadSpriteByID`、`GetUIWindowLocation`；查询 API 经 `s_Handler?.` 转发（未就绪时静默降级为 null / 空集，按语言取列的开关降级为 `false`），处理器懒加载优先从 settings 取、再回退默认工厂，两者都取不到才抛异常 |
-| `Moirai.Atropos.ConfigTable.ConfigTableServiceHandler` | 配置表处理器抽象基类（继承 `FrameworkHandler`），定义后端契约；未安装自定义处理器时使用 `DefaultConfigTableHandler`（记录错误并返回空结果） |
-| `Moirai.GameProto.Config.LubanHandler` | 游戏侧处理器（继承 `ConfigTableServiceHandler`），编辑器脚本重载时经 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 安装，桥接 Luban 生成代码与框架外观 |
+| `Moirai.Atropos.ConfigTable.IConfigTableService` | 配置表服务契约：后端唯一实现契约（实现类 `: ServiceBase`）；未安装自定义处理器时使用 `DefaultConfigTableHandler`（记录错误并返回空结果） |
+| `Moirai.GameProto.Config.LubanHandler` | 游戏侧处理器（`: ServiceBase, IConfigTableService`），编辑器脚本重载时经 `ConfigTableServiceSettings.InjectConfigTableHandler<LubanHandler>()` 安装，桥接 Luban 生成代码与框架门面 |
 | `Moirai.GameProto.Config.Tables` | Luban 生成的表集合（`TbUIWindow`、`TbSprite`、`TbSpriteAtlas` 及业务表）。**不含多语言表**——那些按语言分份，见下一行 |
 | `Moirai.GameProto.Config.L10nTables` | 多语言表集合（`TbLocalizedStrings`、`TbLocalizedAudio`、`TbLocalizedImages`）。运行期不构造它，处理器按语言子目录逐张自建（`LubanHandler.LoadTable<T>`） |
 | `Moirai.Atropos.ConfigTable.LubanSettings` | 编辑器设置（`FrameworkSettings`，面板「[框架]Luban 配置」）：配置表根目录、数据/代码导出路径 |
@@ -77,7 +77,7 @@ string location = ConfigTableService.GetUIWindowLocation("MainWindow");
 | `Gen/L10n/` 下的表代码 | 多语言表 Bean（单字段变体 bean）、各语言共用的类，以及 `L10nLanguages.cs`。多语言那趟与主趟**共用一个代码根**，`L10n/` 这一层是 Luban 按模块名建的——把该趟的输出目录直接设成 `Gen/L10n/` 会得到 `Gen/L10n/L10n/`。所以该趟必须关掉清理（`outputSaver.<codeTarget>.cleanUpOutputDir=0`，`codeTarget` 随路线为 `cs-bin` 或 `cs-simple-json`，否则主趟的 `Tables.cs`/`Test/`/`UI/` 会被当多余文件删掉），旧版残留交给主趟的递归清理，顺序仍是 常规 → 多语言 → 常量 |
 | `Gen/L10nTables.cs` | 多语言表的 manager 类（无模块名，故落在代码根下、与 `Tables.cs` 同级）。运行期不构造它，多语言表按语言逐张自建 |
 | `Table/<语言码>/l10n_*.bytes` | 每种语言一份多语言数据，含全部键（缺译是空串） |
-| `LubanHandler.cs` | 游戏侧处理器：实现 `ConfigTableServiceHandler` 契约（按语言取列、Sprite/UI 查询）并自动安装 |
+| `LubanHandler.cs` | 游戏侧处理器：实现 `IConfigTableService` 契约（按语言取列、Sprite/UI 查询）并自动安装 |
 | `ExternalTypeUtil.cs` | Luban 扩展类型工具 |
 
 ## 注意事项

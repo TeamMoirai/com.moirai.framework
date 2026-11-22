@@ -2,22 +2,25 @@
 
 > 多后端栈式窗口管理框架（uGUI / UI Toolkit / 自定义后端），提供窗口生命周期、层级深度排序、模态遮挡、Widget 子控件与多分辨率适配能力。
 
-UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类：`UIWindow` 是后端无关的窗口对象模型（持有显隐 / 深度 / 交互三份面板意图与生命周期），各渲染后端（「轨」）提供自己的窗口基类——uGUI 轨的业务窗口继承 `UGUIWindow`、UI Toolkit 轨继承 `UITKWindow`；`UIWidget` 为窗口内嵌控件。多支后端可在同一会话并存，共享同一条窗口栈：栈序、层级深度、可见性与模态遮挡不分轨。`UIService` 作为静态外观对外暴露全部 API。窗口面板通过资源服务（YooAsset）或 `Resources` 加载实例化，窗口类本身不挂 MonoBehaviour。通过 `UIService.Xxx()` 静态方法即可完成打开、关闭、隐藏、查询等全部操作。
+UI 服务（`Moirai.Atropos.UI`）将界面抽象为纯 C# 类：`UIWindow` 是后端无关的窗口对象模型（持有显隐 / 深度 / 交互三份面板意图与生命周期），
+各渲染后端（「轨」）提供自己的窗口基类（`UGUIWindow` / `UITKWindow`），`UIWidget` 为窗口内嵌控件；窗口面板经 `Resources` 或资源服务加载实例化。
 
 ## 架构（多后端轨道）
 
 UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，主入口不认识任何具体后端。
 
-- **`UIService`**：静态外观（`[AutoRegisterService]` + `[ServiceDependency(typeof(DebuggerService), typeof(AssetService), typeof(TimerService), typeof(InputService))]`），承载通用 API——Type 形开窗分派、关闭/隐藏/查询、模态交互租约、安全区广播与生命周期；全部公共成员为静态方法/属性
+- **`UIService`**：静态外观（`public static partial class`，本身不进容器），承载通用 API——Type 形开窗分派、关闭/隐藏/查询、模态交互租约、安全区广播与生命周期；全部公共成员为静态方法/属性；每支启用后端在门面上占一个槽（多缓存），跨轨操作按认领轨分派
 - **后端轨道**（每支一组 partial + 驱动者 + 窗口基类）：
   - `Handler/UGUI/`：`UIService.UGUI.cs`（槽位、认领门、开窗腿与轨道自登记）+ `UGUIHandler`（UI 根绑定、摄像机、错误日志、CanvasScaler 安全区落点）+ `UGUIWindow`（uGUI 面板意图落地）
   - `Handler/UITK/`：`UIService.UITK.cs` + `UITKHandler` + `UITKWindow`（`UIDocument` 壳 + 窗口级 `PanelSettings`）；本轨文档壳挂在 uGUI 轨那个 UI 根下
 - **`UIWindowLedger`**：共享窗口栈、停放表与交互租约的持有者——各轨窗口并进同一条栈，关·隐·查询不分轨
 - **`UITrack`**：轨道自述（认窗判据、有效性探针、Type 形开窗实现、关停档位）。各轨在自己的 partial 里静态自登记进门面目录，主文件只枚举目录做认轨分派、`IsValid` 聚合与按档位升序的关停收口——**加一轨 = 加一个 partial 自登记，主文件零改动**
 - **`UIServiceSettings`**：框架设置（菜单「UI设置」），`[SerializeReference]` 启用清单 `EnabledHandlers` 列哪几支就启用哪几支（可同时多支）；清单为空初始化当场报错，没有「没配就自动造一支」的退路
-- 服务标记 `[AutoRegisterService]`，由组合根经生成的内置服务清单自动注册（App 作用域，`[ServiceDependency]` 拓扑序保证初始化先后），也可手动 `GameServices.RegisterService(EServiceScopeKind.App, new UIService())`
-
-关停次序由各轨自报的档位表述：持有别轨面板挂靠的宿主根那一轨（uGUI）取 `UITrack.SHUTDOWN_ORDER_HOST` 最后收，其余取 `SHUTDOWN_ORDER_DEFAULT` 先收。
+- 后端注册走组合根调用的 `UIService.RegisterEnabledHandlers()`：
+  - 每支驱动者以**各自具体类型**为契约键注册进 App 作用域，注册序按目录关停档降序（宿主轨最先）
+  - 容器反序拆除即按档位升序收口、宿主轨最后拆根
+  - `[ServiceDependency]` 声明在各轨驱动者身上，初始化先后由依赖图拓扑序保证
+  - `IUIService` 是后端能力契约，不承诺容器可解析——服务互调走门面静态
 
 ## 核心特性
 
@@ -47,7 +50,7 @@ UI 服务按「轨道」组织渲染后端：每支后端的三件套自洽，�
 | 类/接口 | 说明 |
 |---------|------|
 | `Moirai.Atropos.UI.UIService` | UI 服务静态外观，通用 API 全在此：Type 形打开、关闭/隐藏/查询、模态租约、安全区广播；静态属性 `IsValid`（任一轨驱动者就位即真）、`CurrentModal`，轨专有查询 `UIRoot` / `UICamera`（只由 uGUI 轨回答，未启用答 `null`） |
-| `Moirai.Atropos.UI.UIServiceHandler` | 后端驱动者抽象基类（继承 `FrameworkHandler`）：`UGUIHandler` / `UITKHandler` 的公共契约，含本轨认窗判据 `IsWindowOnOwnTrack` 与自述注册 `Internal_Register` |
+| `Moirai.Atropos.UI.UIServiceHandler` | 后端驱动者抽象基类（继承 `ServiceBase`）：`UGUIHandler` / `UITKHandler` 的公共契约，含本轨认窗判据 `IsWindowOnOwnTrack` 与自述注册 `Internal_Register` |
 | `Moirai.Atropos.UI.UGUIHandler` | uGUI 轨驱动者（`Handler/UGUI/`）：UI 根绑定、UI 摄像机、错误日志、CanvasScaler 安全区换算落点 |
 | `Moirai.Atropos.UI.UITKHandler` | UI Toolkit 轨驱动者（`Handler/UITK/`）：本轨窗关停收口；面板本体在 `UITKWindow` 上 |
 | `Moirai.Atropos.UI.UITrack` | 轨道自述：认窗判据、有效性探针、Type 形开窗实现、关停档位；各轨 partial 静态自登记进门面目录 |

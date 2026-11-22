@@ -25,8 +25,8 @@ Debugger 服务由 `DebuggerService` 静态外观负责窗口注册表与轮询�
 
 | 类/接口 | 说明 |
 |---------|------|
-| `DebuggerService` | 静态外观（`[ProviderHandlerHost]`，`IServiceTickable`）：`ActiveWindow` / `ShowFullWindow` / `ActiveWindowType` / `WindowRegistry` / `LogCapture`；`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` / `RegisterPanel` / `RegisterDebugView` / `GetRecentLogs`。经 `s_Handler` 转发（未注册时静默降级——仅主动注册方可使用服务） |
-| `DebuggerServiceHandler` | 处理器抽象基类（契约）：`ActiveWindow` / `ShowFullWindow` / `WindowRegistry` / `LogCapture` / `Tick` / 注册族四方法 |
+| `DebuggerService` | 静态门面（`[ProviderHandlerHost]`）：`ActiveWindow` / `ShowFullWindow` / `ActiveWindowType` / `WindowRegistry` / `LogCapture`；`RegisterDebuggerWindow` / `UnregisterDebuggerWindow` / `GetDebuggerWindow` / `SelectDebuggerWindow` / `RegisterPanel` / `RegisterDebugView` / `GetRecentLogs`。经 `s_Handler` 转发（未注册时静默降级——仅主动注册方可使用服务） |
+| `IDebuggerService` | 调试器服务契约：`ActiveWindow` / `ShowFullWindow` / `WindowRegistry` / `LogCapture` / 注册族四方法；轮询由后端的 `IServiceTickable` 承接（`Tick` 不在契约上） |
 | `DefaultDebuggerHandler` | 内置后端：持有窗口注册表与日志捕获器，按激活策略解析可见性，首个 Tick 懒建运行时宿主；序列化字段 `ConsoleCapacity`（环形缓冲容量，默认 256）/ `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity` |
 | `DebuggerServiceSettings` | 设置资产（`[FrameworkSetting]`）：`ActiveWindowType` 激活策略 + `m_DebuggerServiceHandler` 处理器 |
 | `IDebuggerWindow` | 窗口接口：`Initialize(params object[])` / `Shutdown()` / `OnEnter()` / `OnLeave()` / `OnUpdate(float, float)` / **`CreateView()` → `VisualElement`** |
@@ -135,7 +135,7 @@ DebuggerService.RegisterDebuggerWindow("Other/My", new MyWindow());
 DebuggerService.RegisterDebugView("Profiler/My Service", new MyServiceDebugView());
 ```
 
-框架内置的服务面板**不**走这条路径：它们是实现 `IDebuggerWindow` 的原生 UI Toolkit 窗口（如 `TimerServiceDebuggerWindow`），由服务自身的 `OnInit` 经 `RegisterDebuggerWindow` 注册（见下节）。
+框架内置的服务面板**不**走这条路径：它们是实现 `IDebuggerWindow` 的原生 UI Toolkit 窗口，由服务自身注册（见下节）。
 
 样式辅助统一收口 `DebuggerUI`（仅构建结构与挂 USS 类）：`CreateSection` / `CreateCard` / `CreateRow`（值区域点击复制，2/3 宽行重载）/ `CreateActionButton` / `CreateToggle` / `CreateFilterChip` / `CreateSlider` / `CreateReadOnlyMultilineText` / `StyleScrollView` 等；视觉样式（色板/尺寸/三态）统一定义于共享样式库「`Runtime/Services/Debugger/Resources/Debugger UI.uss`」（经「`Debugger UI Theme.tss`」挂载到 `DebuggerPanelSettings.themeStyleSheet`，悬停/按下/选中由 USS 伪类驱动）——与 [DebugUI](https://github.com/annulusgames/DebugUI) 共用同一主题结构；侧边栏组节点使用内置 `Foldout`（自带旋转箭头与内容折叠）。
 
@@ -158,7 +158,7 @@ DebuggerService.RegisterDebugView("Profiler/My Service", new MyServiceDebugView(
 // 1) 视图类是门面四件套之一，平铺在该服务模块根（如 Runtime/Services/Audio/AudioServiceDebuggerWindow.cs），
 //    继承 PollingDebuggerWindowBase（数据型）或 ScrollableDebuggerWindowBase（控制型），内容经 DebuggerUI 主题化辅助构建；
 // 2) 服务 OnInit 末尾注册（组合根已保证 DebuggerService 先行——外观未就绪时静默跳过）：
-public override void OnInit()
+protected override void OnInit()
 {
     _ = Handler;
     DebuggerService.RegisterDebuggerWindow("Profiler/<Service>", new XxxServiceDebugView());
@@ -187,7 +187,7 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
   - 非 `AlwaysOpen` 策略均可用启动参数 `-show-debugger` 强制开启
 - **后端序列化字段**（`DefaultDebuggerHandler`）：`ConsoleCapacity` / `FpsUpdateInterval` / `StatsOverlayVisible` / `WindowOpacity`
 - **扩展信息窗口**：继承 `PollingDebuggerWindowBase`（节流重建）或 `ScrollableDebuggerWindowBase`，注册到 `"Information/..."` 路径
-- **自定义后端**：继承 `DebuggerServiceHandler`（以 `[SerializeField]` 字段承载配置），在设置资产中替换
+- **自定义后端**：实现 `IDebuggerService`（`: ServiceBase`，以 `[SerializeField]` 字段承载配置），在设置资产中替换
 - `DebuggerService.Tick` 仅在 `ShowFullWindow` 展开时轮询可见窗口；日志捕获的排空始终执行（捕获不依赖 UI 状态）
 
 ## 注意事项
@@ -198,7 +198,7 @@ DebuggerService.RegisterDebugView("My/IMGUI View", new MyIMGUIDebugView());
 - 悬浮入口拖拽松手后自动吸附最近屏幕边缘；布局经 `SettingUtility` 持久化，标题栏 Reset 按钮还原默认
 - 控制台筛选状态（分级 + 锁定滚动）同样持久化，键见 `Constant.Debug`
 - `GetRecentLogs` 返回的 `LogNode` 为池化对象，由捕获器持有——仅读取，勿长期保存（环形淘汰后结点被复用）
-- 服务为 opt-in 注册（组合根经 `[AutoRegisterService]` 生成清单注册 `DebuggerService`），未注册时外观调用静默降级（日志检索返回空、注册不生效）
+- 后端 opt-in 装配：`WarmHandler` 预热或首次访问的懒链把它注册进容器；未装配时外观调用静默降级（日志检索返回空、注册不生效）
 
 ---
-[« 返回文档索引](Index.md) · [主 README](../README.md) · [Core](Core.md)
+[« 返回文档索引](Index.md) · [主 README](../README.md) · [Kernel](Kernel.md)
