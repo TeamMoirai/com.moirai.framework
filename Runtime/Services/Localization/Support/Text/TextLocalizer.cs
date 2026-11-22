@@ -10,10 +10,10 @@ namespace Moirai.Atropos.Localization
 	{
 		[SerializeField] private string m_TextId;
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
-		// 按语言索引的 TMP 字体资产：下标 = 当前语言列下标（与 ImageLocalizer 数组同一约定）；下标越界或空元素保持原字体
+		[Tooltip("按语言索引的 TMP 字体资产：下标 = 当前语言列下标（下标越界或空元素保持原字体）")]
 		[SerializeField] private TMP_FontAsset[] m_TmpFontAssets;
 #endif
-		// 按语言索引的 UGUI 字体：下标同上约定；下标越界或空元素保持原字体
+		[Tooltip("按语言索引的 UGUI 字体：下标 = 当前语言列下标（下标越界或空元素保持原字体）")]
 		[SerializeField] private Font[] m_UguiFonts;
 
 		protected override void Prepare()
@@ -89,7 +89,7 @@ namespace Moirai.Atropos.Localization
 
 			if (_injector == null)
 			{
-				if (Application.isPlaying) LogUtility.Error($"TextLocalizer {name}: no injectable text component found.");
+				if (Application.isPlaying) LogUtility.Error("TextLocalizer {0}: no injectable text component found.", name);
 				return false;
 			}
 

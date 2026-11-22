@@ -103,7 +103,7 @@ namespace Service.Localization
                 _gameObject = new GameObject("L10nImageProbe");
                 var renderer = _gameObject.AddComponent<SpriteRenderer>();
                 var localizer = _gameObject.AddComponent<ImageLocalizer>();
-                localizer.sprites = new[] { spriteEn, spriteZh };
+                localizer.m_Sprites = new[] { spriteEn, spriteZh };
 
                 // EditMode 下非 ExecuteInEditMode 组件的 Awake 不执行，Prepare 需手动补齐
                 localizer.Internal_Prepare();
@@ -119,7 +119,7 @@ namespace Service.Localization
                 Assert.AreEqual(index, LocalizationService.CurrentLanguageIndex);
 
                 localizer.Localize();
-                Assert.AreSame(localizer.sprites[index], renderer.sprite, "就绪后应按当前语言索引注入对应 Sprite");
+                Assert.AreSame(localizer.m_Sprites[index], renderer.sprite, "就绪后应按当前语言索引注入对应 Sprite");
             }
             finally
             {

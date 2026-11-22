@@ -44,7 +44,7 @@ namespace Moirai.Atropos.Localization
 		/// <param name="localizer">发起注入的本地化器。</param>
 		public void Inject<T1, T2>(T1 localizedData, T2 localizer) where T2 : LocalizerBase
 		{
-			// 数组模式也需要记录本地化器：Play 依赖其 playFromSamePositionWhenInject 配置
+			// 数组模式也需要记录本地化器：Play 依赖其 PlayFromSamePositionWhenInject 配置
 			_localizer = localizer;
 
 			switch (localizedData)
@@ -125,7 +125,7 @@ namespace Moirai.Atropos.Localization
 		/// <summary>
 		/// 播放指定音频片段，并保留原播放状态与进度。
 		/// </summary>
-		/// <remarks>播放前音频源正在播放时，更换片段后继续播放；是否恢复至原进度取决于 <see cref="AudioLocalizer.playFromSamePositionWhenInject"/>。</remarks>
+		/// <remarks>播放前音频源正在播放时，更换片段后继续播放；是否恢复至原进度取决于 <see cref="AudioLocalizer.PlayFromSamePositionWhenInject"/>。</remarks>
 		/// <param name="audioClip">待播放的音频片段；传 <c>null</c> 即清空音源。</param>
 		void Play(AudioClip audioClip)
 		{
@@ -134,7 +134,7 @@ namespace Moirai.Atropos.Localization
 			var isPlaying = _audio.isPlaying;
 			var time = _audio.time;
 			if (isPlaying) _audio.Stop();
-			var playFromSamePosition = (_localizer as AudioLocalizer)?.playFromSamePositionWhenInject;
+			var playFromSamePosition = (_localizer as AudioLocalizer)?.PlayFromSamePositionWhenInject;
 
 			_audio.clip = audioClip;
 			if (isPlaying)

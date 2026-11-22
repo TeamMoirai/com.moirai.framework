@@ -1,4 +1,3 @@
-using Moirai.Atropos.Localization;
 using Sirenix.OdinInspector.Editor;
 using UnityEditor;
 using UnityEngine;

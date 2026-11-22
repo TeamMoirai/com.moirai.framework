@@ -191,6 +191,7 @@
 
 #### Localization
 
+- ⚠ Localization 支撑组件公共序列化字段收编为私有 `m_` 前缀 + PascalCase 属性（`ImageLocalizer` 的 `localizedTextID`/`propertyName`/`texture2Ds`/`sprites`/`textures`、`AudioLocalizer` 的 `localizedTextID`/`clips`，`PlayFromSamePositionWhenInject` 改为只读属性；Timeline `TextLocalizerPlayableAsset.textId` → `m_TextId`、`TextLocalizerPlayableBehaviour.textId` → `TextId`）：组件字段挂 `FormerlySerializedAs` 保旧序列化键，场景资产无损，代码引用旧字段需改用新名或属性
 - ⚠ 命名空间 `Moirai.Atropos.Localization` 迁移为 `Moirai.Atropos.Localization`（类型与目录不变；`LocalizationServiceSettings.asset` 的托管引用 ns 已同步迁移，已配置的自定义后端实例无损；下游 using 需同步替换）
 - 新增唯一消费契约 `ILocalizationService`（门面公共 API 收编，语义文档同源）：引擎基座 `LocalizationServiceHandler` 保留（1500+ 行共享实现豁免契约化），后端经派生基座落地；internal 协作面（偏好解析/编辑器预览）不进公共契约，框架内部按引擎基座引用访问；`Settings` 字段与消费方测试签名按契约类型持有
 

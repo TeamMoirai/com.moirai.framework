@@ -27,8 +27,8 @@
 | `LocalizerBase` | 本地化器抽象基类（MonoBehaviour）：`Prepare` 获取目标组件引用，`Localize` 执行注入 |
 | `ILocalizationInjector` | 注入器接口：`Inject<T1, T2>(localizedData, localizer)` |
 | `TextLocalizer` | 文本本地化器，自动发现 TextMesh / Text / TMP_Text 并注入文本 |
-| `ImageLocalizer` | 图片本地化器，按语言索引切换 `sprites` / `textures` / `texture2Ds` 数组 |
-| `AudioLocalizer` | 音频本地化器，按语言索引切换 `clips` 数组注入 AudioSource |
+| `ImageLocalizer` | 图片本地化器，按语言索引切换 `m_Sprites` / `m_Textures` / `m_Texture2Ds` 数组 |
+| `AudioLocalizer` | 音频本地化器，按语言索引切换 `m_Clips` 数组注入 AudioSource |
 | `UITextInjector` / `TMPInjector` / `TextMeshInjector` | 文本注入器，分别写入 UGUI Text、TMP_Text、TextMesh |
 | `ImageInjector` / `RawImageInjector` / `SpriteRendererInjector` / `TextureInjector` | 图片注入器，分别作用于 Image、RawImage、SpriteRenderer、Renderer 材质属性 |
 | `AudioSourceInjector` | 音频注入器，作用于 AudioSource |
@@ -111,12 +111,12 @@ LocalizationService.onLanguageChanged += language =>
 ### 组件注入
 
 - 文本：在挂有 `TextMesh`、UGUI `Text` 或 `TMP_Text` 的物体上添加 `TextLocalizer`， Inspector 中填写 `m_TextId`；运行中可调用 `ChangeID(string textId)` 动态换文案，`Clear()` 清空
-- 图片：`ImageLocalizer` 按发现顺序作用于 Image / RawImage / SpriteRenderer / Renderer；`sprites` / `textures` / `texture2Ds` 数组元素须与表自报的语言列序一致（按 `CurrentLanguageIndex` 索引），`Renderer` 走材质属性（默认 `_MainTex`，可用 `propertyName` 指定）
-- 音频：`AudioLocalizer` 将 `clips[CurrentLanguageIndex]` 注入 AudioSource；该下标处是空元素时清空音源，不会留着上一语言的语音继续播
+- 图片：`ImageLocalizer` 按发现顺序作用于 Image / RawImage / SpriteRenderer / Renderer；`m_Sprites` / `m_Textures` / `m_Texture2Ds` 数组元素须与表自报的语言列序一致（按 `CurrentLanguageIndex` 索引），`Renderer` 走材质属性（默认 `_MainTex`，可用 `m_PropertyName` 指定）
+- 音频：`AudioLocalizer` 将 `m_Clips[CurrentLanguageIndex]` 注入 AudioSource；该下标处是空元素时清空音源，不会留着上一语言的语音继续播
 
 ### Timeline 本地化
 
-安装 Timeline 包（`TIMELINE_INSTALLED` 宏）后，创建 `TextLocalizerTrack` 轨道并绑定场景中的 `TextLocalizer`，每个 `TextLocalizerPlayableAsset` 片段设置 `textId`，播放到该片段时自动切换文本，离开片段时清空。
+安装 Timeline 包（`TIMELINE_INSTALLED` 宏）后，创建 `TextLocalizerTrack` 轨道并绑定场景中的 `TextLocalizer`，每个 `TextLocalizerPlayableAsset` 片段设置 `m_TextId`，播放到该片段时自动切换文本，离开片段时清空。
 
 ## 运行时覆盖（热改文案）
 

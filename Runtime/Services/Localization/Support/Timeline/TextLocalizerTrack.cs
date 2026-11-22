@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Localization
 				// 片段资源类型不匹配时跳过，避免空引用
 				if (clip.asset is TextLocalizerPlayableAsset asset)
 				{
-					clip.displayName = asset.textId;
+					clip.displayName = asset.m_TextId;
 				}
 			}
 
