@@ -42,12 +42,12 @@
 | `IServiceInitializableAsync` | 异步初始化能力接口（`UniTask OnInitAsync()`）；须在 `InitializeAsync` 前注册（运行时注册 fail-fast） |
 | `IServiceInterceptor` | 拦截器接口：注册/注销/关闭回调 + 作用域帧边界（`OnBeforeScopeTick`/`OnAfterScopeTick`），按 Priority 降序；除 `OnServiceRegistering` 外异常被容器隔离 |
 | `EServiceScopeKind` | 服务作用域枚举：`App`（全局）、`Scene`（场景卸载时重置）、`Gameplay`（单局玩法） |
-| `EServiceState` | 服务生命周期状态（四个取值见〈生命周期状态机〉的状态表），挂在 `HandlerBase.State` |
+| `EServiceState` | 服务生命周期状态（四个取值见〈生命周期状态机〉的状态表），事实源在宿主实例自持的 `State` |
 | `EDeferMode` | 迭代中注册/注销的延迟策略：`Defer`（延迟到本轮结束，默认）/ `Throw`（立即抛异常） |
 | `IServiceTickable` / `IServiceFixedTickable` / `IServiceLateTickable` | 轮询能力接口（均继承 `IService`），方法签名 `Tick(float elapseSeconds, float realElapseSeconds)` 等（MonoBehaviour 服务不可实现） |
 | `IServiceGizmoDrawable` | 编辑器 Gizmos 绘制能力接口（继承 `IService`）`OnDrawGizmos()`；MonoBehaviour 服务不可实现（Unity 已按魔法方法驱动，双份绘制） |
 | `IAsyncShutdownService` | 异步关闭能力接口（继承 `IService`），实现 `OnShutdownAsync()` 的服务在 `ShutdownContainerAsync()` 中按逆激活序先异步关闭 |
-| `HandlerBase` | 处理器与服务共同的生命期基座：`State` / `IsReady` / `AllowsRevival` + `protected virtual OnInit`/`OnShutdown` |
+| `HandlerBase` | 处理器与服务共同的生命期基座：`State` / `IsReady` / `WasInitialized` / `AllowsRevival` + `protected virtual OnInit`/`OnShutdown` |
 | `LifecycleMachine` | 生命期转换语义的唯一实现（`internal static`）：就绪判据与 `Initialize`/`Shutdown` 两条幂等转换，宿主经 `IHost` 接缝接入 |
 | `FrameworkHandler` | 工具处理器基类（`[Serializable]`，派生 `HandlerBase`）：`Internal_Init`/`Internal_Shutdown` 直驱、全程同步；服务后端不继承它 |
 | `ServiceScopeOrder` | 作用域常量表（App=-10000, Scene=-5000, Gameplay=0）；**容器不消费它**——作用域顺序由固定槽位决定，轮询顺序由 `IService.Priority` 决定 |
@@ -138,7 +138,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 生命期转换与就绪判据只有一处实现：`LifecycleMachine`（`internal static`）。
 `ServiceBase` 与 `FrameworkHandler` 经共同基座 `HandlerBase` 接入，`ServiceMono<TScope>` 自己实现同一枚 `LifecycleMachine.IHost` 接缝。
 
-每个宿主通过 `HandlerBase.State`（`EServiceState`）跟踪生命周期状态：
+每个宿主自己持有状态位（`EServiceState`）：`ServiceBase` 与 `FrameworkHandler` 用共同基座的 `HandlerBase.State`，`ServiceMono<TScope>` 不派生该基座、自持同名 `State`。三处都只由 `LifecycleMachine` 经 `IHost` 接缝写入，对外只读；容器侧读的是同一枚状态，没有第二份账：
 
 | 状态 | 说明 |
 |------|------|
@@ -154,6 +154,7 @@ GameServices.ShutdownContainer(EServiceScopeKind.Gameplay);
 | `ServiceMono<TScope>`（Mono 服务） | `Awake` 注册、`OnDestroy` 注销 | 注册即入容器，逐帧生命周期归 Unity |
 
 - **就绪判据**：严格 `== Initialized`（`LifecycleMachine.IsReady` 单点），关停中与已关闭都不算就绪
+- **装配过没有**：类侧基座另有单向锁存 `HandlerBase.WasInitialized`，只在机器落 `Initialized` 那一刻武装、关停期仍可读。机器先落 `ShuttingDown` 才驱动 `OnShutdown`，故关停体里的编排收尾（摘订阅、注销调试窗）挂 `IsReady` 恒假、只能挂锁存——两个问题分开答，就绪判据不放宽
 - **复活口径**：`AllowsRevival` 由宿主自报，容器与工具后端允许，`ServiceMono<TScope>` 拒绝（Mono 实例没有复活来源）
 - **关停钩子**：`OnShutdown` 抛错由机器捕获、经 `LogUtility.Error` 记录，实例照常落 `Disposed`；`OnInit` 异常原样上抛
 - **直驱前置**：停在 `Created`（从未装配成功）的处理器不跑 `OnShutdown`，容器侧无此前置——两处不一致是刻意的

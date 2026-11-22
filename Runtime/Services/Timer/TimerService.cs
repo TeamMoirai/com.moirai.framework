@@ -15,7 +15,9 @@ namespace Moirai.Atropos.Timer
     /// 可在 <see cref="TimerServiceSettings"/> 中替换。 <br />
     /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册 / 未初始化时返回安全默认值。
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。 <br />
-    /// 本类实现自报契约 <see cref="ITimerService"/>（显式接口实现转发静态门面）：容器把本实例绑定在该契约下，服务互调经 <c>Context.GetRequiredService&lt;ITimerService&gt;()</c> 解析到的就是本实例。
+    /// 本类是纯静态门面：不实现契约、不进容器，自报契约 <see cref="ITimerService"/> 的绑定键挂在后端实例上（绑定即注册）。 <br />
+    /// 服务互调经 <c>Context.GetRequiredService&lt;ITimerService&gt;()</c> 解析到的是 <see cref="DefaultTimerHandler"/> 实例， <br />
+    /// 门面只在它两侧做静态缓存与降级。
     /// </remarks>
     [ProviderHandlerHost(typeof(ITimerService), typeof(DefaultTimerHandler))]
     [UnityEngine.Scripting.Preserve]

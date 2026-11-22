@@ -322,8 +322,8 @@ namespace Moirai.Atropos.Localization
             {
                 LocalizationService.InvalidateHandler(this);
             }
-            // 编排收尾以就绪态为闸：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown
-            if (IsReady && Context != null)
+            // 编排收尾以「装配过」为闸（就绪判据在关停体内恒假）：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown
+            if (WasInitialized && Context != null)
             {
                 LocalizationService.OnHandlerShuttingDown(this);
             }
@@ -454,8 +454,8 @@ namespace Moirai.Atropos.Localization
                         sourceError = ex;
                     }
 
-                    // 加载在途时处理器被关服：结果一律丢弃，不得把批写进下一次会话的新存储
-                    if (State < EServiceState.Initialized) return;
+                    // 加载在途时处理器已开始关停（含关停中与已关闭）：结果一律丢弃，不得把批写进下一次会话的新存储
+                    if (State >= EServiceState.ShuttingDown) return;
 
                     ApplyLoadedBatch(batch, sourceError);
                 }

@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Kernel.FrameworkSettings
 {
     /// <summary>
-    /// 生命期转换语义判据（就绪落位、复活口径、途中关停、重复关停、关停抛错）。
+    /// 生命期转换语义判据（就绪落位、复活口径、途中关停、重复关停、关停抛错、关停期锁存收尾）。
     /// </summary>
     /// <remarks>
     /// 判据唯一落点在 <see cref="LifecycleMachine"/>：机器一段直驱它的 <see cref="LifecycleMachine.IHost"/> 接缝，不经任何生产类型； <br />
@@ -240,6 +240,43 @@ namespace Kernel.FrameworkSettings
         }
 
         /// <summary>
+        /// 锁存闸内的编排收尾：装配过的实例在关停体里必须跑到收尾，且此时就绪判据读数为假。
+        /// </summary>
+        /// <remarks>
+        /// 机器先落 <see cref="EServiceState.ShuttingDown"/> 才驱动 <c>OnShutdown</c>，关停体内的 <c>IsReady</c> 恒假； <br />
+        /// 生产侧六处编排收尾（Timer/Asset/Save/Procedure/ObjectPool/Localization）挂 <c>IsReady</c> 即永不执行。 <br />
+        /// 走 <see cref="IServiceLifecycle"/> 而非直驱入口：后者带「停在 Created 即跳过」前置，会替锁存背下第二格的功劳。
+        /// </remarks>
+        [Test]
+        public void ShutdownTeardown_WhenInitializedBeforeShutdown_RunsGatedTail()
+        {
+            var probe = new LatchProbe();
+
+            ((IServiceLifecycle)probe).Initialize();
+            ((IServiceLifecycle)probe).Destroy();
+
+            Assert.AreEqual(1, probe.ShutdownCount, "释放回调由容器侧驱动一次");
+            Assert.IsTrue(probe.WasInitializedInShutdown, "机器落 Initialized 即武装锁存，关停体内必须仍读得到");
+            Assert.IsFalse(probe.IsReadyInShutdown, "关停体内就绪判据恒假——这正是收尾必须挂锁存而非挂 IsReady 的理由");
+            Assert.AreEqual(1, probe.TeardownCount, "装配过的后端必须跑完锁存闸内的编排收尾");
+        }
+
+        /// <summary>
+        /// 锁存闸内的编排收尾：从未装配的实例只跑释放回调，不跑收尾。
+        /// </summary>
+        [Test]
+        public void ShutdownTeardown_WhenNeverInitialized_SkipsGatedTail()
+        {
+            var probe = new LatchProbe();
+
+            ((IServiceLifecycle)probe).Destroy();
+
+            Assert.AreEqual(1, probe.ShutdownCount, "容器侧无 Created 前置，释放回调照常驱动（与直驱入口的刻意差异）");
+            Assert.AreEqual(0, probe.TeardownCount, "没装配过就没有欠做的收尾：锁存未武装，闸内编排不得执行");
+            Assert.AreEqual(EServiceState.Disposed, probe.State);
+        }
+
+        /// <summary>
         /// 直驱入口探针：仅继承 <see cref="FrameworkHandler"/>，不关联任何生产处理器契约。
         /// </summary>
         /// <remarks>
@@ -273,6 +310,44 @@ namespace Kernel.FrameworkSettings
             {
                 ShutdownCount++;
                 OnShutdownBody?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// 锁存探针：继承容器侧基座，在释放体里以 <c>WasInitialized</c> 闸一段编排收尾，并留两个关停期读数。
+        /// </summary>
+        /// <remarks>
+        /// 形状对齐生产侧六处收尾（闸内取 <c>Context</c> 解析的依赖做注销）：本探针只记次数，不接任何服务门面。
+        /// </remarks>
+        private sealed class LatchProbe : ServiceBase
+        {
+            /// <summary>释放回调被驱动次数。</summary>
+            public int ShutdownCount { get; private set; }
+
+            /// <summary>锁存闸内的编排收尾被驱动次数。</summary>
+            public int TeardownCount { get; private set; }
+
+            /// <summary>释放体内读到的锁存读数。</summary>
+            public bool WasInitializedInShutdown { get; private set; }
+
+            /// <summary>释放体内读到的就绪判据读数。</summary>
+            public bool IsReadyInShutdown { get; private set; }
+
+            /// <inheritdoc />
+            protected override void OnInit()
+            {
+            }
+
+            /// <inheritdoc />
+            protected override void OnShutdown()
+            {
+                ShutdownCount++;
+                WasInitializedInShutdown = WasInitialized;
+                IsReadyInShutdown = IsReady;
+                if (WasInitialized)
+                {
+                    TeardownCount++;
+                }
             }
         }
     }

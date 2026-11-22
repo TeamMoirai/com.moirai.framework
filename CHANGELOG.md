@@ -42,15 +42,15 @@
 
 #### Core
 
-- ⚠ 服务架构回摆——后端即注册实体、门面退回纯静态缓存：12 个服务门面全部转 `static partial class`（删除 `ServiceBase` 派生、`[AutoRegisterService]` 与实例生命周期，门面实例化 API 废弃），可序列化后端改为 `XxxHandler : ServiceBase, IServiceTickable?, IXxxService` 注册进容器（绑定即注册：懒链解析 → 容器注册 → 注册结果回填门面缓存槽，槽位 ≡ 容器实例；组合根 `RegisterAll` 对 static 宿主发射 `WarmHandler` 预热）；契约键改绑真实后端实现（原「门面自报契约但未实现」的隐性错绑随之消除），`[ServiceDependency]`/`Priority` 从门面移到后端，后端进容器轮询、拓扑排序与诊断表；`Tick`/`Initialize` 移出业务契约（`IAudioService`/`IDebuggerService`/`IGameObjectPoolService`/`IProcedureService`/`ITimerService`/`IUIService` 的 Tick 与 `IAssetService.Initialize`/`IsInitialized`/`IProcedureService.Initialize` 不再是契约成员，由 `IServiceTickable`/容器生命周期承接；业务性 `Restart` 保留）；消费政策三车道 = 业务走门面静态 API、框架互调走 `Context` 契约注入、测试/编辑器走 `Handler` setter + `Internal_Peek/UseHandler` 接缝——门面槽 ≡ App 级注册实例（作用域遮蔽只影响契约解析通道）
+- ⚠ 服务架构回摆——后端即注册实体、门面退回纯静态缓存：12 个服务门面全部转 `static partial class`（删除 `ServiceBase` 派生、`[AutoRegisterService]` 与实例生命周期，门面实例化 API 废弃），可序列化后端改为 `XxxHandler : ServiceBase, IServiceTickable?, IXxxService` 注册进容器（绑定即注册：懒链解析 → 容器注册 → 注册结果回填门面缓存槽，槽位 ≡ 容器实例；组合根 `RegisterAll` 对 static 宿主发射 `WarmHandler` 预热）；契约键改绑真实后端实现（原「门面自报契约但未实现」的隐性错绑随之消除），`[ServiceDependency]`/`Priority` 从门面移到后端，后端进容器轮询、拓扑排序与诊断表；`Tick`/`Initialize` 移出业务契约（`IAudioService`/`IDebuggerService`/`IObjectPoolService`/`IProcedureService`/`ITimerService`/`IUIService` 的 Tick 与 `IAssetService.Initialize`/`IsInitialized`/`IProcedureService.Initialize` 不再是契约成员，由 `IServiceTickable`/容器生命周期承接；业务性 `Restart` 保留）；消费政策三车道 = 业务走门面静态 API、框架互调走 `Context` 契约注入、测试/编辑器走 `Handler` setter + `Internal_Peek/UseHandler` 接缝——门面槽 ≡ App 级注册实例（作用域遮蔽只影响契约解析通道）
 - ⚠ UI 双轨多缓存收口：`UGUIHandler`/`UITKHandler : UIServiceHandler : ServiceBase, IUIService, IServiceTickable` 由组合根 `UIService.RegisterEnabledHandlers()` 按目录关停档降序注册（契约 = 各自具体类型，宿主轨最先注册），容器反序拆除 = 档位升序收口（宿主轨最后拆根）；共享栈结算加帧守卫幂等（任一轨 Tick 先到先结算、顺序无关）；`GameAppSettings` 的 IUIService 手工补登删除，Input/Procedure 等消费方改订门面静态事件/调门面静态开窗；门面级广播（`onWindowShown`/`onWindowClosed`）与跨轨归零门挂门面静态，域重载复位接缝保留
-- ⚠ 服务间引用范式统一：内置服务的跨服务依赖一律「后端 `[ServiceDependency]` 声明 + `OnInit` 中 `Context.GetRequiredService<IXxxService>()` 解析到实例字段」——Timer/Save/Procedure/GameObjectPool/Asset/Localization/Audio 的调试窗注册与窗口事件订阅不再经静态门面直调；UI 消费例外走门面静态事件（见 UI 双轨条目）；自定义服务以门面具体类型声明依赖的需同步改契约接口
+- ⚠ 服务间引用范式统一：内置服务的跨服务依赖一律「后端 `[ServiceDependency]` 声明 + `OnInit` 中 `Context.GetRequiredService<IXxxService>()` 解析到实例字段」——Timer/Save/Procedure/ObjectPool/Asset/Localization/Audio 的调试窗注册与窗口事件订阅不再经静态门面直调；UI 消费例外走门面静态事件（见 UI 双轨条目）；自定义服务以门面具体类型声明依赖的需同步改契约接口
 - ⚠ 机制类不再调静态门面：`AssetLeaseScope` 改持注入/容器解析的 `IAssetService`（公共无参构造保留，首次 `Load` 经容器解析一次并缓存——boot 前调用从「自动注册资产服务」变为抛 `GameException`）；Audio 的 clip 租约来源（`AssetClipLeaseSource`）与 AudioAgent 自动解除独奏计时器同改容器契约引用
 - 服务间引用与查找热路径内联：门面 one-liner 转发与显式接口实现、`GameServices.GetRequiredService/GetService/TryGetService`、`ServiceWorld.TryGet` 族与跨作用域绑定 `TryGetBest` 加 `[MethodImpl(AggressiveInlining)]`，稳态跨服务互调的转发开销由 JIT 折叠为零
 - ⚠ 门面懒装配不再自举世界：`[ProviderHandlerHost]` 服务宿主的懒链只在**世界已初始化或初始化在途**的窗口放行，世界未建、已建未初始化、`GameApp` 已关闭三种情形一律抛 `GameException`（正文带门面名），不再静默返回未初始化的后端；预热唯一入口是组合根 `WarmHandler`。`GameServices.EnsureRegistered<T>` 随之删除（外部无引用面）。迁移口径 = 组合根跑到之前不要访问服务门面，需要自造世界时走显式 `RegisterService`
 - 门面槽位一致性改由写侧推送：装配路径向内核登记清槽回调，`GameServices.Shutdown`/`ShutdownAsync` 逐个落槽；`Handler` 读侧不再每次回查容器绑定（原「任一契约」线性扫描判据删除），`Internal_PeekHandler`/`Internal_UseHandler` 的无损换入换出也不再被读侧静默弃槽
 - ⚠ 生命期钩子收严到 `HandlerBase`：`OnInit`/`OnShutdown` 改为 `protected virtual`，包外覆写处 `public override` 改 `protected override`
-- 状态机、就绪判据与转换语义收进 `LifecycleMachine`；转换只由框架驱动——容器经 `IServiceLifecycle`，生成宿主经 `Internal_Init`/`Internal_Shutdown`
+- 状态机、就绪判据与转换语义收进 `LifecycleMachine`；转换只由框架驱动——容器经 `IServiceLifecycle`，生成宿主经 `Internal_Init`/`Internal_Shutdown`；就绪判据保持严格等号，关停体内的编排收尾另读 `HandlerBase.WasInitialized`（机器落 `Initialized` 时武装的单向锁存，关停期仍可读）
 - `FrameworkHandler` 派生 `HandlerBase`：`IsInitialized` 读共用的就绪判据，状态位只由 `LifecycleMachine` 写
 - 直驱关停只留「停在 `Created`（从未装配成功）即跳过 `OnShutdown`」这一枚前置；重复驱动与复活口径并到 `LifecycleMachine` 一处，`AllowsRevival` 取假保留 Mono 不复活
 - 工具处理器的直驱关停承接 `OnShutdown` 抛错：由生命期机器记 Error、实例照常落 `Disposed`，不再打断换提供者本身
@@ -94,11 +94,15 @@
 
 - `InputServiceHandler.SetUIModal` 由 `internal abstract` 改为对派生方开放，非友元程序集的自定义输入后端现可按 `protected` 覆写实现（此前无法完成该契约）
 
+#### Pooling
+
+- ⚠ GameObject 池服务整体更名为 `ObjectPool`：目录 `Runtime/Services/Pooling/GameObjectPool/` → `Runtime/Services/ObjectPool/`（命名空间 `Moirai.Atropos.ObjectPool`），`GameObjectPoolService` → `ObjectPoolService`、`IGameObjectPoolService` → `IObjectPoolService`、`DefaultGameObjectPoolHandler` → `DefaultObjectPoolHandler`、internal `IGameObjectPoolInternals` → `IObjectPoolInternals`、`ServicePriorityOrder.GAME_OBJECT_POOL` → `OBJECT_POOL`，同族其余类型现均带 `ObjectPool*` 前缀（`ObjectPoolServiceSettings`/`ObjectPoolSource`/`ObjectPoolServiceDebuggerWindow`），文档改 `Documentation~/ObjectPool.md`。迁移口径 = 池类型的 `GameObjectPool*` 前缀统一换成 `ObjectPool*`，成员与语义不变；腾出的 `ObjectPoolService` 这个名字此前属已删除的通用对象池服务（见 Removed 的 Pooling 条目），现由 GameObject 池独占
+
 ### Removed
 
 #### Pooling
 
-- ⚠ 删除通用对象池服务 `ObjectPoolService`/`IObjectPool<T>`/`ObjectBase` 及其调试窗口与设置资产：全仓无生产消费面，C# 对象复用走 `MemoryPool`、GameObject 复用走 `GameObjectPoolService`，无需迁移（外部引用者请改用上述两套）
+- ⚠ 删除通用对象池服务（拆除时的名字 `ObjectPoolService`/`IObjectPool<T>`/`ObjectBase`）及其调试窗口与设置资产：全仓无生产消费面，C# 对象复用走 `MemoryPool`、GameObject 复用走 `ObjectPoolService`（该名已由 GameObject 池服务更名接管，见 Changed 的 Pooling 更名条目），无需迁移（外部引用者请改用上述两套）
 
 #### Kernel
 
@@ -107,7 +111,6 @@
 #### Core
 
 - ⚠ 删除服务契约上的轮询成员 `IObjectPoolService.Tick`、`ITimerService.FixedTick`/`LateTick`：逐帧驱动只认能力接口 `IServiceTickable`/`IServiceFixedTickable`/`IServiceLateTickable`——实现业务契约本身不再带来任何驱动，后端在实现契约之外按需实现能力接口（内建后端已全部实现，全仓无按契约类型调用这些成员的站点）
-- `GameServices.UnregisterHandler` 由 `public` 收为 `internal`：调用面只有同装配的 `[ProviderHandlerHost]` 生成代码与友元测试装配，不属于对外 API
 - ~~`MA1005`~~ 退役：原「服务后端仍继承 `FrameworkHandler`」的过渡告警随之取消——接口契约宿主的默认后端只认 `ServiceBase`，非法声明由 `MA1003` 在编译期判红，号位不再复用
 
 ### Changed
@@ -118,7 +121,7 @@
 
 #### Editor
 
-- `[ProviderHandlerHost]` 源生成器接口契约定型（绑定即注册）：默认实现校验改为「实现处理器契约（继承类或实现接口）+ 继承 ServiceBase 基座」（`FrameworkHandler` 派生的服务后端判非法，服务侧只有一条经容器的装配路径，生成代码不按实例类型分派），生成代码的生命周期调用改为「注册进容器（契约绑定）→ 注册结果回填缓存槽」，新增 `InvalidateHandler` 缓存失效钩子与 static 宿主 `WarmHandler` 预热发射，宿主须 `static`（MA1003 拦截实例宿主）；类契约宿主（Log/GameTime/Json 等 Utility 族）行为不变（`Internal_Init`/`Internal_Shutdown` 直驱）
+- `[ProviderHandlerHost]` 源生成器接口契约定型（绑定即注册）：默认实现校验改为「实现处理器契约（继承类或实现接口）+ 继承 ServiceBase 基座」（`FrameworkHandler` 派生的服务后端判非法，服务侧只有一条经容器的装配路径，生成代码不按实例类型分派），生成代码的生命周期调用改为「注册进容器（契约绑定）→ 注册结果回填缓存槽」，新增 `InvalidateHandler` 缓存失效钩子与 static 宿主 `WarmHandler` 预热发射，宿主按 `static` 写（生成器读静态与否决定发射 `static partial class` 与要不要发 `WarmHandler`，实例宿主只是拿不到预热入口——没有任何诊断拦截非静态宿主，`MA1003` 判的是声明的默认处理器可否实例化）；类契约宿主（Log/GameTime/Json 等 Utility 族）行为不变（`Internal_Init`/`Internal_Shutdown` 直驱）
 
 #### Audio
 
@@ -174,9 +177,9 @@
 
 - ⚠ 删除 `DebuggerServiceHandler`/`ConfigTableServiceHandler`/`SceneServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IDebuggerService`/`IConfigTableService`/`ISceneService`（`DefaultXxxHandler` 签名变为 `ServiceBase, I{Service}`）；`ConfigTableServiceSettings.InjectConfigTableHandler<T>` 泛型约束改 `where T : class, IConfigTableService, new()`（DIM 需 .NET Standard 2.1 API profile）。可选能力（按语言取列）走接口默认方法，自定义后端不覆写即回默认
 
-#### Input / Procedure / GameObjectPool
+#### Input / Procedure / ObjectPool
 
-- ⚠ 删除 `InputServiceHandler`/`ProcedureServiceHandler`/`GameObjectPoolServiceHandler` 抽象基类：三服务后端改为直接实现唯一契约 `IInputService`/`IProcedureService`/`IGameObjectPoolService`（3 个输入后端 UIMobile/UnityInputManager/UnityInputSystem 与 DefaultProcedureHandler/DefaultGameObjectPoolHandler 签名变为 `ServiceBase, I{Service}`）；`ProcedureServiceHandler` 的切换历史/广播承载收进 internal `ProcedureBackendPolicy`（后端自持状态 + 一行转发）；`GameObjectPoolService.TryResolveInstance` 因参数类型 internal 移入 internal `IGameObjectPoolInternals`；下游消费方（CharacterActions/PlayerActions）签名同步接口化。`UIServiceHandler` 保留——它是 uGUI/UITK 双轨并存的家族基座（多实例托管，非单选策略契约）
+- ⚠ 删除 `InputServiceHandler`/`ProcedureServiceHandler`/`GameObjectPoolServiceHandler` 抽象基类（池服务随后整体更名为 `ObjectPool`，见 Changed 的 Pooling 更名条目）：三服务后端改为直接实现唯一契约 `IInputService`/`IProcedureService`/`IObjectPoolService`（3 个输入后端 UIMobile/UnityInputManager/UnityInputSystem 与 DefaultProcedureHandler/DefaultObjectPoolHandler 签名变为 `ServiceBase, I{Service}`）；`ProcedureServiceHandler` 的切换历史/广播承载收进 internal `ProcedureBackendPolicy`（后端自持状态 + 一行转发）；`ObjectPoolService.TryResolveInstance` 因参数类型 internal 移入 internal `IObjectPoolInternals`；下游消费方（CharacterActions/PlayerActions）签名同步接口化。`UIServiceHandler` 保留——它是 uGUI/UITK 双轨并存的家族基座（多实例托管，非单选策略契约）
 
 #### Asset（原 Resource）
 
@@ -333,6 +336,6 @@
 
 #### Events / EventPool 删除——池化统一 MemoryPool
 
-- **删除 `Runtime/Kernel/Events/EventPool.cs`**（独立事件池与 MemoryPool 职责重复——框架统一对象池归一，"三池归一"验收标准的最后一笔：MemoryPool（C# 对象）+ GameObjectPool（GameObject），事件池不再单列）
+- **删除 `Runtime/Kernel/Events/EventPool.cs`**（独立事件池与 MemoryPool 职责重复——框架统一对象池归一，"三池归一"验收标准的最后一笔：MemoryPool（C# 对象）+ ObjectPool（GameObject），事件池不再单列）
 - `TaskCompleteEvent` 迁移 MemoryPool：继承 `MemoryObject`（Clear() 契约），Rent/Return → `MemoryPool.Acquire/Release`
 - EventBus 刚加的 RentPooled/ReturnPooled 门面一并撤除（MemoryPool 即统一入口，事件负载不设二次门面）；IGameEvent/GameEventAttribute 注释同步

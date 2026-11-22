@@ -381,7 +381,8 @@ namespace Moirai.Atropos.Scene
                 await UniTask.Yield();
             }
 
-            if (State < EServiceState.Initialized)
+            // 续体回到这里时关停已开始：登记簿正随关闭流程排空，过期收尾不再落回后端
+            if (State >= EServiceState.ShuttingDown)
             {
                 return;
             }

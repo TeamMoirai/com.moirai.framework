@@ -40,7 +40,9 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// 关停中与已关闭都不算就绪——持留的 <c>[SerializeReference]</c> 后端带 <c>Disposed</c> 进新世界时， <br />
-        /// 按区间判定会被当成就绪、跳过依赖边。
+        /// 按区间判定会被当成就绪、跳过依赖边。 <br />
+        /// 「装配过没有」不由本判据回答：关停体内它恒假（机器先落 <see cref="EServiceState.ShuttingDown"/> 才驱动释放回调）， <br />
+        /// 收尾欠不欠看 <see cref="HandlerBase.WasInitialized"/>。
         /// </remarks>
         /// <param name="state">待判定的生命周期状态。</param>
         /// <returns>处于就绪态为真。</returns>

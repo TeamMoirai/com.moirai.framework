@@ -3,8 +3,13 @@ using Cysharp.Threading.Tasks;
 namespace Moirai.Atropos
 {
     /// <summary>
-    /// 服务生命周期状态。由容器（<see cref="ServiceWorld"/>）统一维护，服务侧仅只读投影。
+    /// 服务生命周期状态：事实源在宿主实例自己持有的状态位，写入只由 <see cref="LifecycleMachine"/> 经宿主接缝执行，对外一律只读。
     /// </summary>
+    /// <remarks>
+    /// 三型各持一枚：<see cref="ServiceBase"/> 与 <see cref="FrameworkHandler"/> 共用基座的 <see cref="HandlerBase.State"/>， <br />
+    /// <see cref="ServiceMono{TScope}"/> 不派生该基座，自己实现同一枚接缝并持有同名 <c>State</c>。 <br />
+    /// 容器侧的 <see cref="IServiceLifecycle.StateInternal"/> 是同一枚状态的读取口，不是第二份账。
+    /// </remarks>
     public enum EServiceState : byte
     {
         /// <summary>已创建但未初始化。</summary>

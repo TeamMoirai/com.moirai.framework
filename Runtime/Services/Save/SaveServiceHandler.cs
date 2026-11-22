@@ -115,8 +115,8 @@ namespace Moirai.Atropos.Save
             {
                 SaveService.InvalidateHandler(this);
             }
-            // 编排收尾以就绪态为闸：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown，此时依赖可能已先被拆走
-            if (IsReady && Context != null)
+            // 编排收尾以「装配过」为闸（就绪判据在关停体内恒假）：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown，此时依赖可能已先被拆走
+            if (WasInitialized && Context != null)
             {
                 SaveService.OnHandlerShuttingDown(Context.GetRequiredService<IDebuggerService>());
             }
