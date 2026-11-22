@@ -38,7 +38,7 @@ namespace Moirai.Atropos.ConfigTable
         /// <returns>多语言文本字典。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Dictionary<string, List<string>> GetAllLocalizedStrings() =>
-            s_Handler?.GetAllLocalizedStrings();
+            Internal_PeekHandler()?.GetAllLocalizedStrings();
 
         /// <summary>
         /// 配置表自报的语言（Name 或 Code），顺序与 <see cref="GetAllLocalizedStrings"/> 的列顺序一致。
@@ -46,7 +46,7 @@ namespace Moirai.Atropos.ConfigTable
         /// <returns>未自报或未就绪时为空列表。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IReadOnlyList<string> GetLocalizationLanguageCodes() =>
-            s_Handler?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
+            Internal_PeekHandler()?.GetLocalizationLanguageCodes() ?? Array.Empty<string>();
 
         /// <summary>当前配置表处理器是否支持按语言单独取列。未注册处理器时为 <c>false</c>（走整批加载）。</summary>
         public static bool SupportsPerLanguageLocalizationLoad =>
@@ -59,7 +59,7 @@ namespace Moirai.Atropos.ConfigTable
         /// <returns>未注册处理器或该语言取不到时为 <c>null</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode) =>
-            s_Handler?.GetLocalizedStringsByLanguage(languageCode);
+            Internal_PeekHandler()?.GetLocalizedStringsByLanguage(languageCode);
 
         /// <summary>
         /// 根据 ID 从配置表加载图标。
@@ -68,7 +68,7 @@ namespace Moirai.Atropos.ConfigTable
         /// <param name="cancellationToken">取消令牌。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken = default) =>
-            s_Handler?.LoadSpriteByID(id, cancellationToken) ?? UniTask.FromResult<Sprite>(null);
+            Internal_PeekHandler()?.LoadSpriteByID(id, cancellationToken) ?? UniTask.FromResult<Sprite>(null);
 
         /// <summary>
         /// 根据 ID 从配置表获取弹窗资产的位置。
@@ -76,7 +76,7 @@ namespace Moirai.Atropos.ConfigTable
         /// <param name="id">配置 ID。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetUIWindowLocation(string id) =>
-            s_Handler?.GetUIWindowLocation(id);
+            Internal_PeekHandler()?.GetUIWindowLocation(id);
 
         #endregion
 

@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Input
     /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="InputServiceSettings"/> 解析， <br />
     /// 未配置则回退 <see cref="CreateDefaultHandler"/>。
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
-    /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
+    /// 全部 API 经 <c>Internal_PeekHandler()?.</c> 静默降级：未注册或未初始化时返回安全默认值。
     /// </remarks>
     // 依赖说明：订 IUIService.onWindowShown/onWindowClosed 窗口开合广播 + 读 CurrentModal（Phase 2 经上下文解析注入）。
     // 依赖单向声明（Input → UI）：UI 侧对 Input 只有静态门面的运行时软消费（PreventInteractionUI 读写，未就绪静默忽略），
@@ -76,7 +76,7 @@ namespace Moirai.Atropos.Input
         /// </remarks>
         public static bool Enabled
         {
-            get => s_Handler?.Enabled ?? false;
+            get => Internal_PeekHandler()?.Enabled ?? false;
             set
             {
                 if (s_Handler == null) return;
@@ -91,7 +91,7 @@ namespace Moirai.Atropos.Input
         /// </remarks>
         public static bool LockPlayerController
         {
-            get => s_Handler?.LockPlayerController ?? false;
+            get => Internal_PeekHandler()?.LockPlayerController ?? false;
             set
             {
                 if (s_Handler == null) return;
@@ -103,7 +103,7 @@ namespace Moirai.Atropos.Input
         /// <remarks>Input System 后端中心化强制：禁止时 UI 上下文 Map 整体禁用；UI 侧交互（UIServiceHelper/UIHotKey 等）亦会自查该状态。</remarks>
         public static bool PreventInteractionUI
         {
-            get => s_Handler?.PreventInteractionUI ?? false;
+            get => Internal_PeekHandler()?.PreventInteractionUI ?? false;
             set
             {
                 if (s_Handler == null) return;
@@ -126,7 +126,7 @@ namespace Moirai.Atropos.Input
         /// <returns>是否按下（未就绪时为 false）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetButtonDown(string actionName, string actionGroup = "") =>
-            s_Handler?.GetButtonDown(actionName, actionGroup) ?? false;
+            Internal_PeekHandler()?.GetButtonDown(actionName, actionGroup) ?? false;
 
         /// <summary>
         /// 按钮是否被松开。
@@ -136,7 +136,7 @@ namespace Moirai.Atropos.Input
         /// <returns>是否抬起（未就绪时为 false）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetButtonUp(string actionName, string actionGroup = "") =>
-            s_Handler?.GetButtonUp(actionName, actionGroup) ?? false;
+            Internal_PeekHandler()?.GetButtonUp(actionName, actionGroup) ?? false;
 
         /// <summary>
         /// 按钮是否被按住（<see cref="GetBool"/> 的别名，保留以贴近旧版 Input 习惯命名）。
@@ -164,7 +164,7 @@ namespace Moirai.Atropos.Input
         /// <returns>按钮状态布尔值（未就绪时为 false）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetBool(string actionName, string actionGroup = "") =>
-            s_Handler?.GetBool(actionName, actionGroup) ?? false;
+            Internal_PeekHandler()?.GetBool(actionName, actionGroup) ?? false;
 
         /// <summary>
         /// 获取指定输入动作的 float。
@@ -174,7 +174,7 @@ namespace Moirai.Atropos.Input
         /// <returns>返回驱动此动作的控件或绑定的当前值（未就绪时为 0）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float GetFloat(string actionName, string actionGroup = "") =>
-            s_Handler?.GetFloat(actionName, actionGroup) ?? 0f;
+            Internal_PeekHandler()?.GetFloat(actionName, actionGroup) ?? 0f;
 
         /// <summary>
         /// 获取指定输入动作的 Vector2。
@@ -184,7 +184,7 @@ namespace Moirai.Atropos.Input
         /// <returns>返回驱动此动作的控件或绑定的当前值（未就绪时为 zero）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 GetVector2(string actionName, string actionGroup = "") =>
-            s_Handler?.GetVector2(actionName, actionGroup) ?? Vector2.zero;
+            Internal_PeekHandler()?.GetVector2(actionName, actionGroup) ?? Vector2.zero;
 
         /// <summary>
         /// 获取是否按下指定鼠标按键。
@@ -193,7 +193,7 @@ namespace Moirai.Atropos.Input
         /// <returns>是否在本帧按下（未就绪时为 false）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetMouseButtonDown(EMouseButton button) =>
-            s_Handler?.GetMouseButtonDown(button) ?? false;
+            Internal_PeekHandler()?.GetMouseButtonDown(button) ?? false;
 
         /// <summary>
         /// 获取是否抬起指定鼠标按键。
@@ -202,7 +202,7 @@ namespace Moirai.Atropos.Input
         /// <returns>是否在本帧抬起（未就绪时为 false）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetMouseButtonUp(EMouseButton button) =>
-            s_Handler?.GetMouseButtonUp(button) ?? false;
+            Internal_PeekHandler()?.GetMouseButtonUp(button) ?? false;
 
         /// <summary>
         /// 获取是否按住指定鼠标按键。
@@ -211,7 +211,7 @@ namespace Moirai.Atropos.Input
         /// <returns>是否正在按住（未就绪时为 false）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetMouseButtonPressed(EMouseButton button) =>
-            s_Handler?.GetMouseButtonPressed(button) ?? false;
+            Internal_PeekHandler()?.GetMouseButtonPressed(button) ?? false;
 
         /// <summary>
         /// 返回鼠标的当前位置。
@@ -219,7 +219,7 @@ namespace Moirai.Atropos.Input
         /// <returns>鼠标屏幕坐标（未就绪时为 zero）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 GetMousePosition() =>
-            s_Handler?.GetMousePosition() ?? Vector2.zero;
+            Internal_PeekHandler()?.GetMousePosition() ?? Vector2.zero;
 
         /// <summary>
         /// 获取鼠标滚轮滚动值。
@@ -227,7 +227,7 @@ namespace Moirai.Atropos.Input
         /// <returns>滚轮滚动增量（未就绪时为 zero）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 GetScrollDelta() =>
-            s_Handler?.GetScrollDelta() ?? Vector2.zero;
+            Internal_PeekHandler()?.GetScrollDelta() ?? Vector2.zero;
 
         #endregion
 

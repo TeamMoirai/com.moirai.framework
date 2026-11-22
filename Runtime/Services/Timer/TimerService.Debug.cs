@@ -51,7 +51,7 @@
         /// </summary>
         /// <param name="results">结果缓冲区。</param>
         /// <returns>填充的数量（未就绪时为 0）。</returns>
-        public static int GetAllTimers(TimerDebugInfo[] results) => s_Handler?.GetAllTimers(results) ?? 0;
+        public static int GetAllTimers(TimerDebugInfo[] results) => Internal_PeekHandler()?.GetAllTimers(results) ?? 0;
 
 #if UNITY_EDITOR
         /// <summary>
@@ -59,7 +59,7 @@
         /// </summary>
         /// <param name="results">结果缓冲区。</param>
         /// <returns>符合条件的计时器数量（未就绪时为 0）。</returns>
-        public static int GetStaleOneShotTimers(TimerDebugInfo[] results) => s_Handler?.GetStaleOneShotTimers(results) ?? 0;
+        public static int GetStaleOneShotTimers(TimerDebugInfo[] results) => Internal_PeekHandler()?.GetStaleOneShotTimers(results) ?? 0;
 #endif
     }
 }

@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Timer
     /// <remarks>
     /// 默认后端 <see cref="DefaultTimerHandler"/> 是时间轮（<c>Delay</c> 系列）与帧计时（<c>WaitFrame</c> 系列）两条泳道的复合外观， <br />
     /// 可在 <see cref="TimerServiceSettings"/> 中替换。 <br />
-    /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册 / 未初始化时返回安全默认值。
+    /// 全部 API 经 <c>Internal_PeekHandler()?.</c> 静默降级：未注册 / 未初始化时返回安全默认值。
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。 <br />
     /// 本类是纯静态门面：不实现契约、不进容器，自报契约 <see cref="ITimerService"/> 的绑定键挂在后端实例上（绑定即注册）。 <br />
     /// 服务互调经 <c>Context.GetRequiredService&lt;ITimerService&gt;()</c> 解析到的是 <see cref="DefaultTimerHandler"/> 实例， <br />
@@ -72,7 +72,7 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Delay(float delaySeconds, Action onComplete,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) =>
-            s_Handler?.Delay(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase) ?? 0UL;
+            Internal_PeekHandler()?.Delay(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase) ?? 0UL;
 
         /// <summary>
         /// 延迟并每帧上报进度（0..1），无完成回调。
@@ -80,14 +80,14 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Delay(float delaySeconds, Action<float> onUpdate,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) =>
-            s_Handler?.Delay(delaySeconds, (Action)null, onUpdate, isLooped, ignoreTimeScale, phase) ?? 0UL;
+            Internal_PeekHandler()?.Delay(delaySeconds, (Action)null, onUpdate, isLooped, ignoreTimeScale, phase) ?? 0UL;
 
         /// <summary>
         /// 延迟后带参回调。
         /// </summary>
         public static ulong Delay<T>(float delaySeconds, Action<T> onComplete, T arg,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) where T : class =>
-            s_Handler?.Delay(delaySeconds, onComplete, arg, isLooped, ignoreTimeScale, phase) ?? 0UL;
+            Internal_PeekHandler()?.Delay(delaySeconds, onComplete, arg, isLooped, ignoreTimeScale, phase) ?? 0UL;
 
         /// <summary>
         /// 延迟并在到期前每帧上报进度（0..1）。
@@ -95,7 +95,7 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong Delay(float delaySeconds, Action onComplete, Action<float> onUpdate,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) =>
-            s_Handler?.Delay(delaySeconds, onComplete, onUpdate, isLooped, ignoreTimeScale, phase) ?? 0UL;
+            Internal_PeekHandler()?.Delay(delaySeconds, onComplete, onUpdate, isLooped, ignoreTimeScale, phase) ?? 0UL;
 
         /// <summary>
         /// 延迟（零分配函数指针绑定）。
@@ -103,7 +103,7 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong DelayUnsafe(float delaySeconds, in TimerUnsafeBinding onComplete,
             bool isLooped = false, bool ignoreTimeScale = false, TimerPhase phase = TimerPhase.Update) =>
-            s_Handler?.DelayUnsafe(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase) ?? 0UL;
+            Internal_PeekHandler()?.DelayUnsafe(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase) ?? 0UL;
 
         /// <summary>
         /// 等待 N 帧后回调。
@@ -111,7 +111,7 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong WaitFrame(int frames, Action onComplete,
             bool isLooped = false, TimerPhase phase = TimerPhase.Update) =>
-            s_Handler?.WaitFrame(frames, onComplete, isLooped, phase) ?? 0UL;
+            Internal_PeekHandler()?.WaitFrame(frames, onComplete, isLooped, phase) ?? 0UL;
 
         /// <summary>
         /// 等待 N 帧，每帧回调累计帧数（1 起）。
@@ -119,7 +119,7 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong WaitFrame(int frames, Action<int> onUpdate,
             bool isLooped = false, TimerPhase phase = TimerPhase.Update) =>
-            s_Handler?.WaitFrame(frames, onUpdate, isLooped, phase) ?? 0UL;
+            Internal_PeekHandler()?.WaitFrame(frames, onUpdate, isLooped, phase) ?? 0UL;
 
         /// <summary>
         /// 帧等待（零分配函数指针绑定）。
@@ -127,55 +127,55 @@ namespace Moirai.Atropos.Timer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong WaitFrameUnsafe(int frames, in TimerUnsafeBinding onComplete,
             bool isLooped = false, TimerPhase phase = TimerPhase.Update) =>
-            s_Handler?.WaitFrameUnsafe(frames, onComplete, isLooped, phase) ?? 0UL;
+            Internal_PeekHandler()?.WaitFrameUnsafe(frames, onComplete, isLooped, phase) ?? 0UL;
 
         /// <summary>
         /// 暂停。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Pause(ulong timerHandle) => s_Handler?.Pause(timerHandle);
+        public static void Pause(ulong timerHandle) => Internal_PeekHandler()?.Pause(timerHandle);
 
         /// <summary>
         /// 暂停全部计时器。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void PauseAll() => s_Handler?.PauseAll();
+        public static void PauseAll() => Internal_PeekHandler()?.PauseAll();
 
         /// <summary>
         /// 恢复。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Resume(ulong timerHandle) => s_Handler?.Resume(timerHandle);
+        public static void Resume(ulong timerHandle) => Internal_PeekHandler()?.Resume(timerHandle);
 
         /// <summary>
         /// 恢复全部计时器。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void ResumeAll() => s_Handler?.ResumeAll();
+        public static void ResumeAll() => Internal_PeekHandler()?.ResumeAll();
 
         /// <summary>
         /// 是否在运行（句柄有效且未暂停）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsRunning(ulong timerHandle) => s_Handler?.IsRunning(timerHandle) ?? false;
+        public static bool IsRunning(ulong timerHandle) => Internal_PeekHandler()?.IsRunning(timerHandle) ?? false;
 
         /// <summary>
         /// 剩余秒数（帧计时器返回 0）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float GetLeftTime(ulong timerHandle) => s_Handler?.GetLeftTime(timerHandle) ?? 0f;
+        public static float GetLeftTime(ulong timerHandle) => Internal_PeekHandler()?.GetLeftTime(timerHandle) ?? 0f;
 
         /// <summary>
         /// 剩余帧数（时间计时器返回 0）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetLeftFrames(ulong timerHandle) => s_Handler?.GetLeftFrames(timerHandle) ?? 0;
+        public static int GetLeftFrames(ulong timerHandle) => Internal_PeekHandler()?.GetLeftFrames(timerHandle) ?? 0;
 
         /// <summary>
         /// 是否已结束（完成 / 取消 / 无效）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsDone(ulong timerHandle) => s_Handler?.IsDone(timerHandle) ?? true;
+        public static bool IsDone(ulong timerHandle) => Internal_PeekHandler()?.IsDone(timerHandle) ?? true;
         
         /// <summary>
         /// 是否已暂停。
@@ -186,38 +186,38 @@ namespace Moirai.Atropos.Timer
         /// 已流逝量：时间计时器为秒，帧计时器为帧。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float GetElapsed(ulong timerHandle) => s_Handler?.GetElapsed(timerHandle) ?? 0f;
+        public static float GetElapsed(ulong timerHandle) => Internal_PeekHandler()?.GetElapsed(timerHandle) ?? 0f;
 
         /// <summary>
         /// 总时长：时间计时器为秒，帧计时器为帧。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float GetDuration(ulong timerHandle) => s_Handler?.GetDuration(timerHandle) ?? 0f;
+        public static float GetDuration(ulong timerHandle) => Internal_PeekHandler()?.GetDuration(timerHandle) ?? 0f;
 
         /// <summary>
         /// 按原时长重启。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Restart(ulong timerHandle) => s_Handler?.Restart(timerHandle);
+        public static void Restart(ulong timerHandle) => Internal_PeekHandler()?.Restart(timerHandle);
 
         /// <summary>
         /// 取消计时器。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Cancel(ulong timerHandle) => s_Handler?.Cancel(timerHandle);
+        public static void Cancel(ulong timerHandle) => Internal_PeekHandler()?.Cancel(timerHandle);
 
         /// <summary>
         /// 取消全部计时器。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void CancelAll() => s_Handler?.CancelAll();
+        public static void CancelAll() => Internal_PeekHandler()?.CancelAll();
 
         /// <summary>
         /// 等待计时器完成（默认后端为按槽位完成信号驱动，非每帧轮询）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask WaitAsync(ulong timerHandle, CancellationToken cancellationToken = default) =>
-            s_Handler?.WaitAsync(timerHandle, cancellationToken) ?? UniTask.CompletedTask;
+            Internal_PeekHandler()?.WaitAsync(timerHandle, cancellationToken) ?? UniTask.CompletedTask;
 
         #endregion
 

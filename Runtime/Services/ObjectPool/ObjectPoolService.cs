@@ -62,7 +62,7 @@ namespace Moirai.Atropos.ObjectPool
         [HotPath]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static GameObject Spawn(ObjectPoolSource source, Transform parent = null) =>
-            source.IsValid ? s_Handler?.Spawn(source, parent) : null;
+            source.IsValid ? Internal_PeekHandler()?.Spawn(source, parent) : null;
 
         /// <summary>
         /// 同步获取游戏对象并设置姿态。
@@ -100,7 +100,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>组件（未就绪时为 null）。</returns>
         [HotPath]
         public static T Spawn<T>(ObjectPoolSource source, Transform parent = null) where T : Component =>
-            source.IsValid ? s_Handler?.Spawn<T>(source, parent) : null;
+            source.IsValid ? Internal_PeekHandler()?.Spawn<T>(source, parent) : null;
 
         /// <summary>
         /// 尝试同步获取游戏对象。
@@ -245,7 +245,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>预制体。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static GameObject LoadPrefab(string location) =>
-            s_Handler?.LoadPrefab(location);
+            Internal_PeekHandler()?.LoadPrefab(location);
 
         /// <summary>
         /// 异步加载预制体（仅资源地址源）。
@@ -255,7 +255,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>预制体（未就绪时为 null）。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<GameObject> LoadPrefabAsync(string location, CancellationToken cancellationToken = default) =>
-            s_Handler?.LoadPrefabAsync(location, cancellationToken) ?? UniTask.FromResult<GameObject>(null);
+            Internal_PeekHandler()?.LoadPrefabAsync(location, cancellationToken) ?? UniTask.FromResult<GameObject>(null);
 
         /// <summary>
         /// 异步预热指定来源的池。
@@ -285,7 +285,7 @@ namespace Moirai.Atropos.ObjectPool
         [HotPath]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Despawn(GameObject instance) =>
-            s_Handler?.Despawn(instance);
+            Internal_PeekHandler()?.Despawn(instance);
 
         /// <summary>
         /// 通过租约回收游戏对象。
@@ -294,7 +294,7 @@ namespace Moirai.Atropos.ObjectPool
         [HotPath]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Despawn(PooledGameObject pooled) =>
-            s_Handler?.Despawn(pooled);
+            Internal_PeekHandler()?.Despawn(pooled);
 
         /// <summary>
         /// 尝试解析实例身份（内部：租约包装）。
@@ -314,7 +314,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (source.IsValid)
             {
-                s_Handler?.Flush(source);
+                Internal_PeekHandler()?.Flush(source);
             }
         }
 
@@ -324,14 +324,14 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="group">分组名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void FlushGroup(string group) =>
-            s_Handler?.FlushGroup(group);
+            Internal_PeekHandler()?.FlushGroup(group);
 
         /// <summary>
         /// 刷新所有池。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void FlushAll() =>
-            s_Handler?.FlushAll();
+            Internal_PeekHandler()?.FlushAll();
         
         #endregion
 

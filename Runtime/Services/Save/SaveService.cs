@@ -144,7 +144,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>反序列化后的块数据；失败返回默认值。</returns>
         public static UniTask<T> LoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.LoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult<T>(default);
+            Internal_PeekHandler()?.LoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult<T>(default);
 
         /// <summary>
         /// 从存档文件异步加载指定数据块，返回带错误类别的结果。
@@ -160,7 +160,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>加载结果（区分无档/无块/损坏/解密失败等错误类别）。</returns>
         public static UniTask<SaveResult<T>> TryLoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.TryLoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult(SaveResult<T>.Failure(SaveError.HandlerNotReady));
+            Internal_PeekHandler()?.TryLoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult(SaveResult<T>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
         /// 将数据块同步写入存档文件（在调用线程执行完整管线，阻塞至完成）。
@@ -210,7 +210,7 @@ namespace Moirai.Atropos.Save
         public static SaveResult<T> TryLoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
         {
             WarnSyncMirrorReadOnce();
-            return s_Handler?.TryLoadBlock<T>(fileName, key, folderName) ?? SaveResult<T>.Failure(SaveError.HandlerNotReady);
+            return Internal_PeekHandler()?.TryLoadBlock<T>(fileName, key, folderName) ?? SaveResult<T>.Failure(SaveError.HandlerNotReady);
         }
 
         /// <summary>
@@ -226,7 +226,7 @@ namespace Moirai.Atropos.Save
         /// <returns>删除完成的异步任务。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask DeleteBlockAsync(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.DeleteBlockAsync(fileName, key, folderName, cancellationToken) ?? UniTask.CompletedTask;
+            Internal_PeekHandler()?.DeleteBlockAsync(fileName, key, folderName, cancellationToken) ?? UniTask.CompletedTask;
 
         /// <summary>
         /// 从存档文件中删除指定数据块（在调用线程执行，阻塞直至完成；处理器未就绪时静默降级为空操作）。
@@ -236,7 +236,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void DeleteBlock(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.DeleteBlock(fileName, key, folderName);
+            Internal_PeekHandler()?.DeleteBlock(fileName, key, folderName);
 
         /// <summary>
         /// 同步枚举存档文件内的全部数据块（含保留块）。
@@ -251,7 +251,7 @@ namespace Moirai.Atropos.Save
         public static SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
         {
             WarnSyncMirrorReadOnce();
-            return s_Handler?.GetBlockInfos(fileName, folderName) ?? Array.Empty<SaveBlockInfo>();
+            return Internal_PeekHandler()?.GetBlockInfos(fileName, folderName) ?? Array.Empty<SaveBlockInfo>();
         }
 
         #endregion
@@ -523,7 +523,7 @@ namespace Moirai.Atropos.Save
         /// <returns>元数据加载结果。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<SaveResult<SaveMetadata>> TryLoadMetadataAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, cancellationToken)
+            Internal_PeekHandler()?.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, cancellationToken)
                 ?? UniTask.FromResult(SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
@@ -544,7 +544,7 @@ namespace Moirai.Atropos.Save
         public static SaveResult<SaveMetadata> TryLoadMetadata(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
         {
             WarnSyncMirrorReadOnce();
-            return s_Handler?.TryLoadBlock<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName)
+            return Internal_PeekHandler()?.TryLoadBlock<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName)
                 ?? SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady);
         }
 
@@ -559,7 +559,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void DeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.DeleteSave(fileName, folderName);
+            Internal_PeekHandler()?.DeleteSave(fileName, folderName);
 
         /// <summary>
         /// 删除整个存档文件夹。
@@ -567,14 +567,14 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void DeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.DeleteSaveFolder(folderName);
+            Internal_PeekHandler()?.DeleteSaveFolder(folderName);
 
         /// <summary>
         /// 删除存档数据根目录及其下所有存档。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void DeleteAllSaveFiles() =>
-            s_Handler?.DeleteAllSaveFiles();
+            Internal_PeekHandler()?.DeleteAllSaveFiles();
 
         /// <summary>
         /// 从磁盘中异步删除单个存档（含全部数据块，删除退避重试在工作线程执行）。
@@ -585,7 +585,7 @@ namespace Moirai.Atropos.Save
         /// <returns>删除完成的异步任务。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask DeleteSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.DeleteSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.CompletedTask;
+            Internal_PeekHandler()?.DeleteSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.CompletedTask;
 
         /// <summary>
         /// 异步删除整个存档文件夹。
@@ -595,7 +595,7 @@ namespace Moirai.Atropos.Save
         /// <returns>删除完成的异步任务。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask DeleteSaveFolderAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.DeleteSaveFolderAsync(folderName, cancellationToken) ?? UniTask.CompletedTask;
+            Internal_PeekHandler()?.DeleteSaveFolderAsync(folderName, cancellationToken) ?? UniTask.CompletedTask;
 
         /// <summary>
         /// 异步删除存档数据根目录及其下所有存档。
@@ -604,7 +604,7 @@ namespace Moirai.Atropos.Save
         /// <returns>删除完成的异步任务。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask DeleteAllSaveFilesAsync(CancellationToken cancellationToken = default) =>
-            s_Handler?.DeleteAllSaveFilesAsync(cancellationToken) ?? UniTask.CompletedTask;
+            Internal_PeekHandler()?.DeleteAllSaveFilesAsync(cancellationToken) ?? UniTask.CompletedTask;
 
         /// <summary>
         /// 删除单个存档并返回目标先前的存在性（幂等语义与 <see cref="DeleteSave"/> 一致；<c>false</c> = 目标本不存在）。
@@ -614,7 +614,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryDeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.TryDeleteSave(fileName, folderName) ?? false;
+            Internal_PeekHandler()?.TryDeleteSave(fileName, folderName) ?? false;
 
         /// <summary>
         /// 删除整个存档文件夹并返回目录先前的存在性（事件行为与 <see cref="DeleteSaveFolder"/> 一致；<c>false</c> = 目录本不存在）。
@@ -623,7 +623,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryDeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.TryDeleteSaveFolder(folderName) ?? false;
+            Internal_PeekHandler()?.TryDeleteSaveFolder(folderName) ?? false;
 
         /// <summary>
         /// 删除存档数据根目录并返回目录先前的存在性（事件行为与 <see cref="DeleteAllSaveFiles"/> 一致；<c>false</c> = 根目录本不存在）。
@@ -631,7 +631,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryDeleteAllSaveFiles() =>
-            s_Handler?.TryDeleteAllSaveFiles() ?? false;
+            Internal_PeekHandler()?.TryDeleteAllSaveFiles() ?? false;
 
         /// <summary>
         /// 异步删除单个存档并返回目标先前的存在性（幂等语义与 <see cref="DeleteSaveAsync"/> 一致；<c>false</c> = 目标本不存在）。
@@ -642,7 +642,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<bool> TryDeleteSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.TryDeleteSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.FromResult(false);
+            Internal_PeekHandler()?.TryDeleteSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.FromResult(false);
 
         /// <summary>
         /// 异步删除整个存档文件夹并返回目录先前的存在性（事件行为与 <see cref="DeleteSaveFolderAsync"/> 一致；<c>false</c> = 目录本不存在）。
@@ -652,7 +652,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<bool> TryDeleteSaveFolderAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.TryDeleteSaveFolderAsync(folderName, cancellationToken) ?? UniTask.FromResult(false);
+            Internal_PeekHandler()?.TryDeleteSaveFolderAsync(folderName, cancellationToken) ?? UniTask.FromResult(false);
 
         /// <summary>
         /// 异步删除存档数据根目录并返回目录先前的存在性（事件行为与 <see cref="DeleteAllSaveFilesAsync"/> 一致；<c>false</c> = 根目录本不存在）。
@@ -661,7 +661,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<bool> TryDeleteAllSaveFilesAsync(CancellationToken cancellationToken = default) =>
-            s_Handler?.TryDeleteAllSaveFilesAsync(cancellationToken) ?? UniTask.FromResult(false);
+            Internal_PeekHandler()?.TryDeleteAllSaveFilesAsync(cancellationToken) ?? UniTask.FromResult(false);
 
         #endregion
 
@@ -675,7 +675,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存在返回 <c>true</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool FileExists(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.FileExists(fileName, folderName) ?? false;
+            Internal_PeekHandler()?.FileExists(fileName, folderName) ?? false;
 
         /// <summary>
         /// 枚举指定文件夹内的全部存档槽位（按最后写入时间倒序，最近优先）。
@@ -684,7 +684,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存档元数据数组；处理器未就绪时降级为空数组。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SaveFileInfo[] GetSaveFiles(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.GetSaveFiles(folderName) ?? Array.Empty<SaveFileInfo>();
+            Internal_PeekHandler()?.GetSaveFiles(folderName) ?? Array.Empty<SaveFileInfo>();
 
         /// <summary>
         /// 异步枚举指定文件夹内的全部存档槽位（枚举与排序在工作线程执行）。
@@ -694,7 +694,7 @@ namespace Moirai.Atropos.Save
         /// <returns>存档元数据数组（按最后写入时间倒序）；缺目录/处理器未就绪时为空数组。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<SaveFileInfo[]> GetSaveFilesAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.GetSaveFilesAsync(folderName, cancellationToken) ?? UniTask.FromResult(Array.Empty<SaveFileInfo>());
+            Internal_PeekHandler()?.GetSaveFilesAsync(folderName, cancellationToken) ?? UniTask.FromResult(Array.Empty<SaveFileInfo>());
 
         /// <summary>
         /// 创建存档的单槽备份（<c>.bak</c> 后缀，覆盖旧备份；存档缺失时抛出 <see cref="GameException"/>）。
@@ -703,7 +703,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CreateBackup(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.CreateBackup(fileName, folderName);
+            Internal_PeekHandler()?.CreateBackup(fileName, folderName);
 
         /// <summary>
         /// 从单槽备份恢复存档（备份缺失时抛出 <see cref="GameException"/>；处理器未就绪时静默降级为空操作）。
@@ -712,7 +712,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void RestoreBackup(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.RestoreBackup(fileName, folderName);
+            Internal_PeekHandler()?.RestoreBackup(fileName, folderName);
 
         #endregion
 
@@ -725,7 +725,7 @@ namespace Moirai.Atropos.Save
         /// <returns>保存路径；处理器未就绪时降级返回 <c>null</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string DetermineSavePath(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.DetermineSavePath(folderName);
+            Internal_PeekHandler()?.DetermineSavePath(folderName);
 
         #endregion
 

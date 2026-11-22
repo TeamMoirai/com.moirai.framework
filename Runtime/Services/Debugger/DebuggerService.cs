@@ -35,7 +35,7 @@ namespace Moirai.Atropos.Debugger
         /// <summary>获取或设置调试器是否激活（悬浮入口可见）。</summary>
         public static bool ActiveWindow
         {
-            get => s_Handler?.ActiveWindow ?? false;
+            get => Internal_PeekHandler()?.ActiveWindow ?? false;
             set
             {
                 if (s_Handler == null) return;
@@ -46,7 +46,7 @@ namespace Moirai.Atropos.Debugger
         /// <summary>获取或设置完整调试器窗口是否展开。</summary>
         public static bool ShowFullWindow
         {
-            get => s_Handler?.ShowFullWindow ?? false;
+            get => Internal_PeekHandler()?.ShowFullWindow ?? false;
             set
             {
                 if (s_Handler == null) return;
@@ -58,10 +58,10 @@ namespace Moirai.Atropos.Debugger
         public static DebuggerActiveWindowType ActiveWindowType => DebuggerServiceSettings.ActiveWindowType;
 
         /// <summary>获取调试器窗口注册表（路径树导航模型；服务未注册时为 null）。</summary>
-        public static DebuggerWindowRegistry WindowRegistry => s_Handler?.WindowRegistry;
+        public static DebuggerWindowRegistry WindowRegistry => Internal_PeekHandler()?.WindowRegistry;
 
         /// <summary>获取日志捕获器（服务未注册时为 null）。</summary>
-        public static DebuggerLogCapture LogCapture => s_Handler?.LogCapture;
+        public static DebuggerLogCapture LogCapture => Internal_PeekHandler()?.LogCapture;
 
         #endregion
 
@@ -75,7 +75,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="args">初始化调试器窗口参数。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args) =>
-            s_Handler?.RegisterDebuggerWindow(path, window, args);
+            Internal_PeekHandler()?.RegisterDebuggerWindow(path, window, args);
 
         /// <summary>
         /// 解除注册调试器窗口。
@@ -84,7 +84,7 @@ namespace Moirai.Atropos.Debugger
         /// <returns>是否解除注册调试器窗口成功。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool UnregisterDebuggerWindow(string path) =>
-            s_Handler?.UnregisterDebuggerWindow(path) ?? true;
+            Internal_PeekHandler()?.UnregisterDebuggerWindow(path) ?? true;
 
         /// <summary>
         /// 获取调试器窗口。
@@ -93,7 +93,7 @@ namespace Moirai.Atropos.Debugger
         /// <returns>要获取的调试器窗口。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IDebuggerWindow GetDebuggerWindow(string path) =>
-            s_Handler?.GetDebuggerWindow(path);
+            Internal_PeekHandler()?.GetDebuggerWindow(path);
 
         /// <summary>
         /// 选中调试器窗口。
@@ -102,7 +102,7 @@ namespace Moirai.Atropos.Debugger
         /// <returns>是否成功选中调试器窗口。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SelectDebuggerWindow(string path) =>
-            s_Handler?.SelectDebuggerWindow(path) ?? false;
+            Internal_PeekHandler()?.SelectDebuggerWindow(path) ?? false;
 
         /// <summary>
         /// 以流式构建器注册自定义调试面板。
@@ -119,7 +119,7 @@ namespace Moirai.Atropos.Debugger
                 throw new GameException("Panel configure delegate is invalid.");
             }
 
-            s_Handler?.RegisterDebuggerWindow(path, new DebugPanel(path), configure);
+            Internal_PeekHandler()?.RegisterDebuggerWindow(path, new DebugPanel(path), configure);
         }
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace Moirai.Atropos.Debugger
                 throw new GameException("Service debug view is invalid.");
             }
 
-            s_Handler?.RegisterDebuggerWindow(path, new IMGUIDebuggerWindow(view));
+            Internal_PeekHandler()?.RegisterDebuggerWindow(path, new IMGUIDebuggerWindow(view));
         }
 
         #endregion
@@ -147,7 +147,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="results">要获取的日志。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void GetRecentLogs(List<LogNode> results) =>
-            s_Handler?.LogCapture?.GetRecentLogs(results);
+            Internal_PeekHandler()?.LogCapture?.GetRecentLogs(results);
 
         /// <summary>
         /// 获取记录的最近日志。
@@ -156,7 +156,7 @@ namespace Moirai.Atropos.Debugger
         /// <param name="count">要获取最近日志的数量。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void GetRecentLogs(List<LogNode> results, int count) =>
-            s_Handler?.LogCapture?.GetRecentLogs(results, count);
+            Internal_PeekHandler()?.LogCapture?.GetRecentLogs(results, count);
 
         #endregion
 

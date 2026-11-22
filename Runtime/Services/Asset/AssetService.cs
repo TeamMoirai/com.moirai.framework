@@ -188,7 +188,7 @@ namespace Moirai.Atropos.Asset
         /// <summary>默认资源包名称。</summary>
         public static string DefaultPackageName
         {
-            get => s_Handler?.DefaultPackageName;
+            get => Internal_PeekHandler()?.DefaultPackageName;
             set => RequireHandler().DefaultPackageName = value;
         }
 
@@ -200,44 +200,44 @@ namespace Moirai.Atropos.Asset
         }
 
         /// <summary>资源绑定服务。</summary>
-        public static IAssetBindingService BindingService => s_Handler?.BindingService;
+        public static IAssetBindingService BindingService => Internal_PeekHandler()?.BindingService;
 
         /// <summary>热更 URL，资源服务器地址。</summary>
         public static string HostServerURL
         {
-            get => s_Handler?.HostServerURL;
+            get => Internal_PeekHandler()?.HostServerURL;
             set => RequireHandler().HostServerURL = value;
         }
 
         /// <summary>备用热更 URL。</summary>
         public static string FallbackHostServerURL
         {
-            get => s_Handler?.FallbackHostServerURL;
+            get => Internal_PeekHandler()?.FallbackHostServerURL;
             set => RequireHandler().FallbackHostServerURL = value;
         }
 
         /// <summary>WebGL 平台加载本地资源/加载远程资源。</summary>
         public static EAssetLoadWayWebGL LoadResWayWebGL
         {
-            get => s_Handler?.LoadResWayWebGL ?? EAssetLoadWayWebGL.Undefined;
+            get => Internal_PeekHandler()?.LoadResWayWebGL ?? EAssetLoadWayWebGL.Undefined;
             set => RequireHandler().LoadResWayWebGL = value;
         }
 
         /// <summary>获取当前资源适用的游戏版本号。</summary>
-        public static string ApplicableGameVersion => s_Handler?.ApplicableGameVersion;
+        public static string ApplicableGameVersion => Internal_PeekHandler()?.ApplicableGameVersion;
 
         /// <summary>获取当前内部资源版本号。</summary>
-        public static int InternalResourceVersion => s_Handler?.InternalResourceVersion ?? 0;
+        public static int InternalResourceVersion => Internal_PeekHandler()?.InternalResourceVersion ?? 0;
 
         /// <summary>当前最新的包裹版本。</summary>
         public static string PackageVersion
         {
-            get => s_Handler?.PackageVersion;
+            get => Internal_PeekHandler()?.PackageVersion;
             set => RequireHandler().PackageVersion = value;
         }
 
         /// <summary>是否边玩边下载。</summary>
-        public static bool UpdatableWhilePlaying => s_Handler?.UpdatableWhilePlaying ?? false;
+        public static bool UpdatableWhilePlaying => Internal_PeekHandler()?.UpdatableWhilePlaying ?? false;
 
         #endregion
 
@@ -246,28 +246,28 @@ namespace Moirai.Atropos.Asset
         /// <summary>自动释放资源引用计数为 0 的资源包。</summary>
         public static bool AutoUnloadBundleWhenUnused
         {
-            get => s_Handler?.AutoUnloadBundleWhenUnused ?? false;
+            get => Internal_PeekHandler()?.AutoUnloadBundleWhenUnused ?? false;
             set => RequireHandler().AutoUnloadBundleWhenUnused = value;
         }
 
         /// <summary>同时下载的最大数目。</summary>
         public static int DownloadingMaxNum
         {
-            get => s_Handler?.DownloadingMaxNum ?? 0;
+            get => Internal_PeekHandler()?.DownloadingMaxNum ?? 0;
             set => RequireHandler().DownloadingMaxNum = value;
         }
 
         /// <summary>下载失败重试次数。</summary>
         public static int FailedTryAgain
         {
-            get => s_Handler?.FailedTryAgain ?? 0;
+            get => Internal_PeekHandler()?.FailedTryAgain ?? 0;
             set => RequireHandler().FailedTryAgain = value;
         }
 
         /// <summary>异步系统每帧执行消耗的最大时间切片（单位：毫秒）。</summary>
         public static long Milliseconds
         {
-            get => s_Handler?.Milliseconds ?? 0L;
+            get => Internal_PeekHandler()?.Milliseconds ?? 0L;
             set => RequireHandler().Milliseconds = value;
         }
 
@@ -278,35 +278,35 @@ namespace Moirai.Atropos.Asset
         /// <summary>资源记录预热容量。</summary>
         public static int AssetRecordCapacity
         {
-            get => s_Handler?.AssetRecordCapacity ?? 0;
+            get => Internal_PeekHandler()?.AssetRecordCapacity ?? 0;
             set => RequireHandler().AssetRecordCapacity = value;
         }
 
         /// <summary>资源租约预热容量。</summary>
         public static int AssetLeaseCapacity
         {
-            get => s_Handler?.AssetLeaseCapacity ?? 0;
+            get => Internal_PeekHandler()?.AssetLeaseCapacity ?? 0;
             set => RequireHandler().AssetLeaseCapacity = value;
         }
 
         /// <summary>绑定所有者预热容量。</summary>
         public static int BindingOwnerCapacity
         {
-            get => s_Handler?.BindingOwnerCapacity ?? 0;
+            get => Internal_PeekHandler()?.BindingOwnerCapacity ?? 0;
             set => RequireHandler().BindingOwnerCapacity = value;
         }
 
         /// <summary>绑定槽位预热容量。</summary>
         public static int BindingSlotCapacity
         {
-            get => s_Handler?.BindingSlotCapacity ?? 0;
+            get => Internal_PeekHandler()?.BindingSlotCapacity ?? 0;
             set => RequireHandler().BindingSlotCapacity = value;
         }
 
         /// <summary>无引用资源句柄进入 Idle 后的过期秒数。</summary>
         public static float IdleAssetExpireTime
         {
-            get => s_Handler?.IdleAssetExpireTime ?? 0;
+            get => Internal_PeekHandler()?.IdleAssetExpireTime ?? 0;
             set => RequireHandler().IdleAssetExpireTime = value;
         }
 
@@ -314,7 +314,7 @@ namespace Moirai.Atropos.Asset
         /// <remarks>调小该值会立即释放多余的空闲记录。</remarks>
         public static int IdleAssetCapacity
         {
-            get => s_Handler?.IdleAssetCapacity ?? 0;
+            get => Internal_PeekHandler()?.IdleAssetCapacity ?? 0;
             set => RequireHandler().IdleAssetCapacity = value;
         }
 
@@ -329,7 +329,7 @@ namespace Moirai.Atropos.Asset
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetAssetInfos(AssetInfo[] results, int startIndex, int maxCount) =>
-            s_Handler?.GetAssetInfos(results, startIndex, maxCount) ?? 0;
+            Internal_PeekHandler()?.GetAssetInfos(results, startIndex, maxCount) ?? 0;
 
 #if UNITY_EDITOR
         /// <summary>
@@ -358,7 +358,7 @@ namespace Moirai.Atropos.Asset
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<AssetPackageInitResult> InitializePackageAsync(string customPackageName, bool needInitManifest = false) =>
-            s_Handler?.InitializePackageAsync(customPackageName, needInitManifest) ?? UniTask.FromResult<AssetPackageInitResult>(null);
+            Internal_PeekHandler()?.InitializePackageAsync(customPackageName, needInitManifest) ?? UniTask.FromResult<AssetPackageInitResult>(null);
 
         /// <summary>
         /// 初始化资源包并收成成败布尔（不更新清单）。
@@ -371,7 +371,7 @@ namespace Moirai.Atropos.Asset
         /// <returns>初始化是否成功。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<bool> TryInitializePackageAsync(string packageName = "", string hostServerURL = "", string fallbackHostServerURL = "") =>
-            s_Handler?.TryInitializePackageAsync(packageName, hostServerURL, fallbackHostServerURL) ?? UniTask.FromResult(false);
+            Internal_PeekHandler()?.TryInitializePackageAsync(packageName, hostServerURL, fallbackHostServerURL) ?? UniTask.FromResult(false);
 
         #endregion
 
@@ -556,21 +556,21 @@ namespace Moirai.Atropos.Asset
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static EAssetHasResult HasAsset(string location, string packageName = "") =>
-            s_Handler?.HasAsset(location, packageName) ?? EAssetHasResult.NotExist;
+            Internal_PeekHandler()?.HasAsset(location, packageName) ?? EAssetHasResult.NotExist;
 
         /// <summary>
         /// 检查资源定位地址是否有效。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsLocationValid(string location, string packageName = "") =>
-            s_Handler?.IsLocationValid(location, packageName) ?? false;
+            Internal_PeekHandler()?.IsLocationValid(location, packageName) ?? false;
 
         /// <summary>
         /// 检查资源是否需要从远端下载。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsNeedDownloadFromRemote(string location, string packageName = "") =>
-            s_Handler?.IsNeedDownloadFromRemote(location, packageName) ?? false;
+            Internal_PeekHandler()?.IsNeedDownloadFromRemote(location, packageName) ?? false;
 
         /// <summary>
         /// 获取资源需要从远端下载的字节数。
@@ -580,34 +580,34 @@ namespace Moirai.Atropos.Asset
         /// <returns>待下载字节数；服务不可用时返回 -1。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long GetDownloadSize(string location, string packageName = "") =>
-            s_Handler?.GetDownloadSize(location, packageName) ?? -1L;
+            Internal_PeekHandler()?.GetDownloadSize(location, packageName) ?? -1L;
 
         /// <summary>
         /// 获取资源信息列表。服务未就绪时返回空数组而非 null——调用方按列表消费，null 会把「没起来」伪装成 NRE。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetInfoEntry[] GetAssetInfos(string resTag, string packageName = "") =>
-            s_Handler?.GetAssetInfos(resTag, packageName) ?? Array.Empty<AssetInfoEntry>();
+            Internal_PeekHandler()?.GetAssetInfos(resTag, packageName) ?? Array.Empty<AssetInfoEntry>();
 
         /// <summary>
         /// 获取资源信息列表。服务未就绪时返回空数组而非 null——调用方按列表消费，null 会把「没起来」伪装成 NRE。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetInfoEntry[] GetAssetInfos(string[] tags, string packageName = "") =>
-            s_Handler?.GetAssetInfos(tags, packageName) ?? Array.Empty<AssetInfoEntry>();
+            Internal_PeekHandler()?.GetAssetInfos(tags, packageName) ?? Array.Empty<AssetInfoEntry>();
 
         /// <summary>
         /// 获取资源信息。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetInfoEntry GetAssetInfo(string location, string packageName = "") =>
-            s_Handler?.GetAssetInfo(location, packageName) ?? default;
+            Internal_PeekHandler()?.GetAssetInfo(location, packageName) ?? default;
 
         /// <summary>
         /// 低内存行为。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void OnLowMemory() => s_Handler?.OnLowMemory();
+        internal static void OnLowMemory() => Internal_PeekHandler()?.OnLowMemory();
 
         /// <summary>
         /// 低内存回调保护。
@@ -673,7 +673,7 @@ namespace Moirai.Atropos.Asset
         /// <returns>场景加载句柄；服务未就绪时返回 null。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetSceneHandle LoadSceneAsync(string location, UnityEngine.SceneManagement.LoadSceneMode sceneMode, bool suspendLoad, uint priority, string packageName = "") =>
-            s_Handler?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, packageName);
+            Internal_PeekHandler()?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, packageName);
 
         #endregion
 
@@ -684,49 +684,49 @@ namespace Moirai.Atropos.Asset
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetPackageVersion(string customPackageName = "") =>
-            s_Handler?.GetPackageVersion(customPackageName);
+            Internal_PeekHandler()?.GetPackageVersion(customPackageName);
 
         /// <summary>
         /// 异步更新最新包的版本。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetPackageVersionResult RequestPackageVersion(bool appendTimeTicks = false, int timeout = 60, string customPackageName = "") =>
-            s_Handler?.RequestPackageVersion(appendTimeTicks, timeout, customPackageName);
+            Internal_PeekHandler()?.RequestPackageVersion(appendTimeTicks, timeout, customPackageName);
 
         /// <summary>
         /// 设置远程服务 URL。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetRemoteServicesUrl(string defaultHostServer, string fallbackHostServer) =>
-            s_Handler?.SetRemoteServicesUrl(defaultHostServer, fallbackHostServer);
+            Internal_PeekHandler()?.SetRemoteServicesUrl(defaultHostServer, fallbackHostServer);
 
         /// <summary>
         /// 向网络端请求并更新清单。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IAssetOperation LoadPackageManifestAsync(string packageVersion, int timeout = 60, string customPackageName = "") =>
-            s_Handler?.LoadPackageManifestAsync(packageVersion, timeout, customPackageName);
+            Internal_PeekHandler()?.LoadPackageManifestAsync(packageVersion, timeout, customPackageName);
 
         /// <summary>
         /// 创建资源下载器，用于下载当前资源版本所有的资源包文件。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IAssetDownloader CreateAssetDownloader(string customPackageName = "") =>
-            s_Handler?.CreateAssetDownloader(customPackageName);
+            Internal_PeekHandler()?.CreateAssetDownloader(customPackageName);
 
         /// <summary>
         /// 清理包裹未使用的缓存文件。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AssetClearCacheResult StartClearCache(EAssetClearMode clearMode, string customPackageName = "") =>
-            s_Handler?.StartClearCache(clearMode, customPackageName);
+            Internal_PeekHandler()?.StartClearCache(clearMode, customPackageName);
 
         /// <summary>
         /// 清理沙盒路径。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void ClearAllBundleFiles(string customPackageName = "") =>
-            s_Handler?.ClearAllBundleFiles(customPackageName);
+            Internal_PeekHandler()?.ClearAllBundleFiles(customPackageName);
 
         #endregion
 

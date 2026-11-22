@@ -44,7 +44,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>错误码（缺档返回 <see cref="SaveError.FileNotFound"/>；迁移链缺失/失败返回 <see cref="SaveError.MigrationFailed"/>；降级返回 <see cref="SaveError.UnsupportedVersion"/>）。</returns>
         public static SaveError MigrateSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            s_Handler?.MigrateSave(fileName, folderName) ?? SaveError.HandlerNotReady;
+            Internal_PeekHandler()?.MigrateSave(fileName, folderName) ?? SaveError.HandlerNotReady;
 
         /// <summary>
         /// 显式迁移指定存档到当前数据版本，IO 在工作线程执行。
@@ -57,7 +57,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>迁移结果（错误码）。</returns>
         public static UniTask<SaveError> MigrateSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            s_Handler?.MigrateSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.FromResult(SaveError.HandlerNotReady);
+            Internal_PeekHandler()?.MigrateSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.FromResult(SaveError.HandlerNotReady);
 
         #endregion
     }

@@ -77,7 +77,7 @@ namespace Moirai.Atropos.Procedure
         /// <remarks>
         /// 直接调用处理器时须先经此守卫——外观查询/变更已内建降级，后端路径仍会 fail-fast。
         /// </remarks>
-        public static bool IsStateReady => s_Handler?.IsStateReady ?? false;
+        public static bool IsStateReady => Internal_PeekHandler()?.IsStateReady ?? false;
 
         /// <summary>当前流程（处理器缺失或状态机未就绪时为 null）。</summary>
         public static ProcedureBase CurrentProcedure =>
@@ -88,11 +88,11 @@ namespace Moirai.Atropos.Procedure
             s_Handler != null && s_Handler.IsStateReady ? s_Handler.CurrentProcedureTime : 0f;
 
         /// <summary>已注册的全部流程（未就绪时为空集）。</summary>
-        public static IReadOnlyCollection<ProcedureBase> Procedures => s_Handler?.Procedures ?? s_EmptyProcedures;
+        public static IReadOnlyCollection<ProcedureBase> Procedures => Internal_PeekHandler()?.Procedures ?? s_EmptyProcedures;
 
         /// <summary>最近的流程切换历史（时间升序；未就绪时为空集）。</summary>
         public static IReadOnlyList<ProcedureTransitionRecord> TransitionHistory =>
-            s_Handler?.TransitionHistory ?? s_EmptyTransitions;
+            Internal_PeekHandler()?.TransitionHistory ?? s_EmptyTransitions;
 
         /// <summary>流程切换广播：在切换完成（新流程 OnEnter 返回）后同步触发；启动切换 From 为 null。</summary>
         /// <remarks>

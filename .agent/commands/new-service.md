@@ -135,7 +135,8 @@ namespace Moirai.Atropos.<Module>
   入图来路是组合根的 `BuiltinServiceRegistration.RegisterAll` 逐宿主发射 `WarmHandler`（settings 解析 → 注册 → 回填槽位）。
 - 生成成员**不要手写**（写了就是重复定义）：`s_Handler` / `Handler` / `IsValid` / `RequireHandler` /
   `CreateDefaultHandler` / `WarmHandler` / `InvalidateHandler` /
-  `Internal_PeekHandler()` / `Internal_UseHandler(next)` 都由 `ProviderHandlerHostGenerator` 发出。
+  `Internal_PeekHandler()`（读侧窥视；未就绪即读在编辑器/开发构建一次性告警 `Facade unready read:`，Release 静默——
+  门面读路径的降级站点请走它而非直读 `s_Handler`）/ `Internal_UseHandler(next)` 都由 `ProviderHandlerHostGenerator` 发出。
 - `[ServiceDependency]` 声明的是**契约接口**（`typeof(IAssetService)`），不是具体门面类：static 门面既不实现 `IService`
   也不是自报的契约接口，编译期 MA2001 判红（空参数表另有 MA2002）。
 - 后端钩子只有 `protected override OnInit()`/`OnShutdown()`：装配与释放由容器经 `IServiceLifecycle` 转 `LifecycleMachine` 单点驱动。

@@ -123,7 +123,7 @@ namespace Moirai.Atropos.Scene
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<UnityEngine.SceneManagement.Scene> LoadSceneAsync(string location, LoadSceneMode sceneMode = LoadSceneMode.Single, bool suspendLoad = false, uint priority = 100,
             Action<float> progressCallBack = null, string packageName = "", CancellationToken cancellationToken = default) =>
-            s_Handler?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, progressCallBack, packageName, cancellationToken)
+            Internal_PeekHandler()?.LoadSceneAsync(location, sceneMode, suspendLoad, priority, progressCallBack, packageName, cancellationToken)
             ?? UniTask.FromResult(default(UnityEngine.SceneManagement.Scene));
 
         /// <summary>
@@ -142,7 +142,7 @@ namespace Moirai.Atropos.Scene
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void LoadScene(string location, string packageName = "", LoadSceneMode sceneMode = LoadSceneMode.Single,
             bool suspendLoad = false, uint priority = 100, Action<UnityEngine.SceneManagement.Scene> callBack = null, Action<float> progressCallBack = null) =>
-            s_Handler?.LoadScene(location, packageName, sceneMode, suspendLoad, priority, callBack, progressCallBack);
+            Internal_PeekHandler()?.LoadScene(location, packageName, sceneMode, suspendLoad, priority, callBack, progressCallBack);
 
         #endregion
 
@@ -154,7 +154,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否激活成功。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ActivateScene(string location) => s_Handler?.ActivateScene(location) ?? false;
+        public static bool ActivateScene(string location) => Internal_PeekHandler()?.ActivateScene(location) ?? false;
 
         /// <summary>
         /// 取消挂起。仅接受资源地址（挂起场景尚未产生场景短名）。
@@ -162,7 +162,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址。</param>
         /// <returns>是否取消成功。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool UnSuspend(string location) => s_Handler?.UnSuspend(location) ?? false;
+        public static bool UnSuspend(string location) => Internal_PeekHandler()?.UnSuspend(location) ?? false;
 
         #endregion
 
@@ -176,7 +176,7 @@ namespace Moirai.Atropos.Scene
         /// <returns>是否卸载成功。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UniTask<bool> UnloadAsync(string location, Action<float> progressCallBack = null) =>
-            s_Handler?.UnloadAsync(location, progressCallBack) ?? UniTask.FromResult(false);
+            Internal_PeekHandler()?.UnloadAsync(location, progressCallBack) ?? UniTask.FromResult(false);
 
         /// <summary>
         /// 卸载子场景（回调式）。回调契约：卸载发起后无论成败恰好回调一次（参数为是否成功）；无效请求（地址未登记、存在在途操作）不发起亦不回调。
@@ -186,17 +186,17 @@ namespace Moirai.Atropos.Scene
         /// <param name="progressCallBack">进度回调（成功完成时以 1.0 收尾一次；失败不伪报完成进度）。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Unload(string location, Action<bool> callBack = null, Action<float> progressCallBack = null) =>
-            s_Handler?.Unload(location, callBack, progressCallBack);
+            Internal_PeekHandler()?.Unload(location, callBack, progressCallBack);
 
         #endregion
 
         #region 场景查询 [SCENE QUERY]
 
         /// <summary>当前主场景名称（归一化场景短名，非资源地址；启动场景未经本服务加载时为引擎激活场景名）。</summary>
-        public static string CurrentMainSceneName => s_Handler?.CurrentMainSceneName;
+        public static string CurrentMainSceneName => Internal_PeekHandler()?.CurrentMainSceneName;
 
         /// <summary>已完成加载的子场景资源地址快照（不含加载中的子场景——在途登记请用 <see cref="IsContainScene"/> 查询）。</summary>
-        public static IReadOnlyCollection<string> LoadedSubSceneLocations => s_Handler?.LoadedSubSceneLocations ?? Array.Empty<string>();
+        public static IReadOnlyCollection<string> LoadedSubSceneLocations => Internal_PeekHandler()?.LoadedSubSceneLocations ?? Array.Empty<string>();
 
         /// <summary>
         /// 判断指定场景是否为当前主场景（身份判断，不含激活状态——激活状态请比较 <c>SceneManager.GetActiveScene().name</c> 与 <see cref="CurrentMainSceneName"/>）。
@@ -204,7 +204,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否为主场景。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsMainScene(string location) => s_Handler?.IsMainScene(location) ?? false;
+        public static bool IsMainScene(string location) => Internal_PeekHandler()?.IsMainScene(location) ?? false;
 
         /// <summary>
         /// 查询场景是否已登记（主场景含启动场景，子场景含加载中未完成的挂起加载）。
@@ -212,7 +212,7 @@ namespace Moirai.Atropos.Scene
         /// <param name="location">场景资源定位地址或场景短名。</param>
         /// <returns>是否已登记。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsContainScene(string location) => s_Handler?.IsContainScene(location) ?? false;
+        public static bool IsContainScene(string location) => Internal_PeekHandler()?.IsContainScene(location) ?? false;
 
         #endregion
     }

@@ -128,6 +128,8 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine($"        private static volatile {info.HandlerTypeName} s_Handler;");
             sb.AppendLine("        // 仅在共享初始化锁内访问；工厂阶段不置位，允许重入装配；注册阶段置位（容器 OnInit 重入即抛）。");
             sb.AppendLine("        private static bool s_InitializingHandler;");
+            sb.AppendLine("        // 开发期「未就绪读」一次性告警闸：Peek 落空时置位；仅编辑器/开发构建参与读写（Release 无此字段）。");
+            sb.AppendLine("        private static volatile bool s_UnreadyReadReported;");
             sb.AppendLine();
 
             if (info.DeclaredDefaultFqn != null && !info.HasUserCreateDefaultHandler)
@@ -399,9 +401,21 @@ namespace Moirai.Atropos.SourceGenerators
             // 无损换入换出的接缝：公开 setter 会触发注册/初始化且拒收 null，
             // 于是「降级到空处理器」与「测试里临时换后端」只能反射私有字段——那是运行期才炸的耦合。
             sb.AppendLine();
-            sb.AppendLine("        /// <summary>读当前处理器：不触发懒加载，也不产生任何副作用。</summary>");
+            sb.AppendLine("        /// <summary>读当前处理器：不触发懒加载；未就绪即读在编辑器/开发构建一次性告警（聚合去重，Release 静默）。</summary>");
             sb.AppendLine("        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
-            sb.AppendLine($"        internal static {info.HandlerTypeName} Internal_PeekHandler() => s_Handler;");
+            sb.AppendLine($"        internal static {info.HandlerTypeName} Internal_PeekHandler()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            var handler = s_Handler;");
+            sb.AppendLine("#if UNITY_EDITOR || DEVELOPMENT_BUILD");
+            sb.AppendLine("            if (handler == null && !s_UnreadyReadReported)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                s_UnreadyReadReported = true;");
+            sb.AppendLine("                global::Moirai.Atropos.LogUtility.Warning(");
+            sb.AppendLine($"                    \"Facade unready read: '{info.ClassName}' handler accessed before registration/initialization - read degraded to null/default. (reported once per facade)\");");
+            sb.AppendLine("            }");
+            sb.AppendLine("#endif");
+            sb.AppendLine("            return handler;");
+            sb.AppendLine("        }");
             sb.AppendLine();
             sb.AppendLine("        /// <summary>");
             sb.AppendLine("        /// 换入处理器并返回原值，允许传 null；不注册、不初始化也不关停原处理器。");
@@ -423,6 +437,7 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("        {");
             sb.AppendLine("            s_Handler = null;");
             sb.AppendLine("            s_InitializingHandler = false;");
+            sb.AppendLine("            s_UnreadyReadReported = false;");
             sb.AppendLine("        }");
             sb.AppendLine("#endif");
             sb.AppendLine("    }");

@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Localization
     /// <remarks>
     /// 未显式设置处理器时懒加载经 <c>GetHandlerFromSettings</c> 从 <see cref="LocalizationServiceSettings"/> 解析， <br />
     /// 未配置则回退 <see cref="CreateDefaultHandler"/>。 <br />
-    /// 全部 API 经 <c>s_Handler?.</c> 静默降级：未注册或未初始化时返回安全默认值。
+    /// 全部 API 经 <c>Internal_PeekHandler()?.</c> 静默降级：未注册或未初始化时返回安全默认值。
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [ProviderHandlerHost(typeof(ILocalizationService), typeof(ConfigTableLocalizationHandler))]
@@ -60,40 +60,40 @@ namespace Moirai.Atropos.Localization
         #region 属性 [PROPERTIES]
 		
         /// <summary>当前使用的本地化语言（未就绪时为 <see cref="Language.Unspecified"/>）。</summary>
-        public static Language CurrentLanguage => s_Handler?.CurrentLanguage ?? Language.Unspecified;
+        public static Language CurrentLanguage => Internal_PeekHandler()?.CurrentLanguage ?? Language.Unspecified;
 
         /// <summary>当前语言索引（未就绪时为 -1）。</summary>
-        public static int CurrentLanguageIndex => s_Handler?.CurrentLanguageIndex ?? -1;
+        public static int CurrentLanguageIndex => Internal_PeekHandler()?.CurrentLanguageIndex ?? -1;
 
         #endregion
 
         #region 诊断 [DIAGNOSTICS]
 
         /// <summary>已加载词条数（未就绪时为 0）。</summary>
-        public static int EntryCount => s_Handler?.EntryCount ?? 0;
+        public static int EntryCount => Internal_PeekHandler()?.EntryCount ?? 0;
 
         /// <summary>已加载语言数（未就绪时为 0）。</summary>
-        public static int LoadedLanguageCount => s_Handler?.LanguageCount ?? 0;
+        public static int LoadedLanguageCount => Internal_PeekHandler()?.LanguageCount ?? 0;
 
         /// <summary>当前批内收录的语言，列序即批内列下标顺序；未就绪时为空。</summary>
         /// <remarks>语言真相源唯一：语言头随批自报，不存在第二份全局注册表。</remarks>
-        public static IReadOnlyList<Language> LoadedLanguages => s_Handler?.LoadedLanguages ?? Array.Empty<Language>();
+        public static IReadOnlyList<Language> LoadedLanguages => Internal_PeekHandler()?.LoadedLanguages ?? Array.Empty<Language>();
 
         /// <summary>全部语言列的译文总字符数——常驻译文的规模下限（未就绪时为 0）。</summary>
         /// <remarks>UTF-16 每字符 2 字节，不含字符串对象头与字典开销。
         /// 用于判断是否已到必须按语言拆包加载的量级。</remarks>
-        public static long ResidentChars => s_Handler?.ResidentChars ?? 0;
+        public static long ResidentChars => Internal_PeekHandler()?.ResidentChars ?? 0;
 
         /// <summary>已登记的运行时覆盖层数量。</summary>
-        public static int StringOverlayLayerCount => s_Handler?.StringOverlayLayerCount ?? 0;
+        public static int StringOverlayLayerCount => Internal_PeekHandler()?.StringOverlayLayerCount ?? 0;
 
         /// <summary>本地化数据是否已加载完成（只读快照，不触发懒加载）。</summary>
         /// <remarks>本地化器据此区分「数据未就绪」（静默推迟注入，首载成功的语言切换会重注入）与「词条真缺失」（报错）。</remarks>
-        public static bool IsDataLoaded => s_Handler?.IsDataLoaded ?? false;
+        public static bool IsDataLoaded => Internal_PeekHandler()?.IsDataLoaded ?? false;
 
         /// <summary>当前语言是否从右向左书写（未就绪为 <c>false</c>）。</summary>
         /// <remarks>仅 TMP 文本应用该方向（<c>TMP_Text.isRightToLeftText</c>）；UGUI Text 与 TextMesh 无 RTL 排版能力。</remarks>
-        public static bool IsCurrentLanguageRightToLeft => s_Handler?.IsCurrentLanguageRightToLeft ?? false;
+        public static bool IsCurrentLanguageRightToLeft => Internal_PeekHandler()?.IsCurrentLanguageRightToLeft ?? false;
 
         #endregion
 
@@ -358,7 +358,7 @@ namespace Moirai.Atropos.Localization
         /// 检查当前数据库是否有指定的文本 ID（未就绪时为 false）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Has(string id) => s_Handler?.Has(id) ?? false;
+        public static bool Has(string id) => Internal_PeekHandler()?.Has(id) ?? false;
 
         /// <summary>
         /// 单趟按 ID 取当前语言译文，缺译按处理器口径追踪一次，不返回 ID 原文。
@@ -388,7 +388,7 @@ namespace Moirai.Atropos.Localization
         /// <param name="id">文本 ID。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTextFromId(string id) =>
-            s_Handler?.GetTextFromId(id) ?? id;
+            Internal_PeekHandler()?.GetTextFromId(id) ?? id;
 
         /// <summary>
         /// 根据文本 ID 获取本地化字符串（未就绪时返回 id 原文——保证 UI 可见键名而非空白）。
@@ -397,31 +397,31 @@ namespace Moirai.Atropos.Localization
         /// <param name="p">Format。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTextFromId(string id, params object[] p) =>
-            s_Handler?.GetTextFromId(id, p) ?? id;
+            Internal_PeekHandler()?.GetTextFromId(id, p) ?? id;
 
         /// <summary>
         /// 根据文本 ID 获取带一个格式化参数的本地化字符串（不装箱路径，见处理器同名重载的说明）。
         /// </summary>
         public static string GetTextFromId<T1>(string id, T1 arg1) =>
-            s_Handler?.GetTextFromId(id, arg1) ?? id;
+            Internal_PeekHandler()?.GetTextFromId(id, arg1) ?? id;
 
         /// <summary>
         /// 根据文本 ID 获取带两个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
         /// </summary>
         public static string GetTextFromId<T1, T2>(string id, T1 arg1, T2 arg2) =>
-            s_Handler?.GetTextFromId(id, arg1, arg2) ?? id;
+            Internal_PeekHandler()?.GetTextFromId(id, arg1, arg2) ?? id;
 
         /// <summary>
         /// 根据文本 ID 获取带三个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
         /// </summary>
         public static string GetTextFromId<T1, T2, T3>(string id, T1 arg1, T2 arg2, T3 arg3) =>
-            s_Handler?.GetTextFromId(id, arg1, arg2, arg3) ?? id;
+            Internal_PeekHandler()?.GetTextFromId(id, arg1, arg2, arg3) ?? id;
 
         /// <summary>
         /// 根据文本 ID 获取带四个格式化参数的本地化字符串（不装箱路径，见 <see cref="GetTextFromId{T1}(string,T1)"/>）。
         /// </summary>
         public static string GetTextFromId<T1, T2, T3, T4>(string id, T1 arg1, T2 arg2, T3 arg3, T4 arg4) =>
-            s_Handler?.GetTextFromId(id, arg1, arg2, arg3, arg4) ?? id;
+            Internal_PeekHandler()?.GetTextFromId(id, arg1, arg2, arg3, arg4) ?? id;
 
         /// <summary>
         /// 根据文本 ID 和指定语言获取本地化字符串（无格式化参数路径：不经 params 数组，零分配）。
@@ -430,7 +430,7 @@ namespace Moirai.Atropos.Localization
         /// <param name="language">要获取的语言。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTextFromIdLanguage(string id, Language language) =>
-            s_Handler?.GetTextFromIdLanguage(id, language) ?? id;
+            Internal_PeekHandler()?.GetTextFromIdLanguage(id, language) ?? id;
 
         /// <summary>
         /// 根据文本 ID 和指定语言获取本地化字符串（未就绪时返回 id 原文）。
@@ -440,20 +440,20 @@ namespace Moirai.Atropos.Localization
         /// <param name="p">Format。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetTextFromIdLanguage(string id, Language language, params object[] p) =>
-            s_Handler?.GetTextFromIdLanguage(id, language, p) ?? id;
+            Internal_PeekHandler()?.GetTextFromIdLanguage(id, language, p) ?? id;
 
         /// <summary>
         /// 获取包含指定 ID 的所有语言的字符串字典（未就绪时为 null）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Dictionary<string, string> GetDictionaryFromId(string id) =>
-            s_Handler?.GetDictionaryFromId(id);
+            Internal_PeekHandler()?.GetDictionaryFromId(id);
 
         /// <summary>
         /// 获取所有多语言索引（未就绪时为 null）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static List<string> GetAllIds() => s_Handler?.GetAllIds();
+        public static List<string> GetAllIds() => Internal_PeekHandler()?.GetAllIds();
 
         /// <summary>
         /// 取复数词条（未就绪时返回 ID 原文）：按当前语言的 CLDR 规则选中 <c>id#类别</c>，回落 <c>id#other</c> 与裸 key。
@@ -464,14 +464,14 @@ namespace Moirai.Atropos.Localization
         /// <param name="p">附加格式化参数。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string GetPluralTextFromId(string id, long count, params object[] p) =>
-            s_Handler?.GetPluralTextFromId(id, count, p) ?? id;
+            Internal_PeekHandler()?.GetPluralTextFromId(id, count, p) ?? id;
 
         #endregion
 
         #region 本地化器 [LOCALIZERS]
 
         // 服务就绪前注册的本地化器挂起队列：场景物体的 Awake 可能早于世界初始化，
-        // 走 s_Handler?. 静默降级会让它永久不本地化且无重试——先挂起，OnInit 回灌。
+        // 走 Internal_PeekHandler()?. 静默降级会让它永久不本地化且无重试——先挂起，OnInit 回灌。
         // 懒建且回灌即弃，稳态（服务就绪后）不留存、零开销
         private static List<LocalizerBase> s_PendingLocalizers;
 
@@ -503,7 +503,7 @@ namespace Moirai.Atropos.Localization
             if (localizer == null) return;
             if (s_PendingLocalizers != null && s_PendingLocalizers.Remove(localizer)) return;
 
-            s_Handler?.RemoveLocalizer(localizer);
+            Internal_PeekHandler()?.RemoveLocalizer(localizer);
         }
 
         /// <summary>
@@ -535,7 +535,7 @@ namespace Moirai.Atropos.Localization
         /// <returns>订阅句柄；服务未就绪时返回一个立即可 Dispose 的空句柄。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IDisposable SubscribeLanguageChanged(Action<Language> callback) =>
-            s_Handler?.SubscribeLanguageChanged(callback) ?? LanguageChangeSubscription.Completed;
+            Internal_PeekHandler()?.SubscribeLanguageChanged(callback) ?? LanguageChangeSubscription.Completed;
 
         /// <summary>
         /// 覆盖指定语言下的一批词条（运营热改文案、QA 强改、远程补丁走同一条路）。
@@ -547,41 +547,41 @@ namespace Moirai.Atropos.Localization
         /// <returns>该层累计覆盖条数；服务未就绪、参数不合法或语言未收录时为 -1。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SetStringOverlay(string sourceId, Language language, IEnumerable<KeyValuePair<string, string>> entries) =>
-            s_Handler?.SetStringOverlay(sourceId, language, entries) ?? -1;
+            Internal_PeekHandler()?.SetStringOverlay(sourceId, language, entries) ?? -1;
 
         /// <summary>
         /// 撤掉某个来源的全部覆盖（未就绪时为 false）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool ClearStringOverlay(string sourceId) => s_Handler?.ClearStringOverlay(sourceId) ?? false;
+        public static bool ClearStringOverlay(string sourceId) => Internal_PeekHandler()?.ClearStringOverlay(sourceId) ?? false;
 
         /// <summary>
         /// 撤掉全部覆盖层。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void ClearAllStringOverlays() => s_Handler?.ClearAllStringOverlays();
+        public static void ClearAllStringOverlays() => Internal_PeekHandler()?.ClearAllStringOverlays();
 
         #endregion
 
         #region 缺译追踪 [MISSING TRACKING]
 
         /// <summary>已记录的去重缺译 key 数（未就绪为 0；数据未加载期间的查询不计缺译）。</summary>
-        public static int MissingKeyCount => s_Handler?.MissingKeyCount ?? 0;
+        public static int MissingKeyCount => Internal_PeekHandler()?.MissingKeyCount ?? 0;
 
         /// <summary>缺译事件总数，含同一 key 的重复命中（未就绪为 0）。</summary>
-        public static int MissingKeyEventCount => s_Handler?.MissingKeyEventCount ?? 0;
+        public static int MissingKeyEventCount => Internal_PeekHandler()?.MissingKeyEventCount ?? 0;
 
         /// <summary>
         /// 取已记录缺译 key 的有序快照（未就绪为空数组；不触发数据加载）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string[] GetMissingKeys() => s_Handler?.GetMissingKeys() ?? Array.Empty<string>();
+        public static string[] GetMissingKeys() => Internal_PeekHandler()?.GetMissingKeys() ?? Array.Empty<string>();
 
         /// <summary>
         /// 清空缺译记录（QA 巡检回合之间重置；未就绪为 no-op）。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void ClearMissingKeys() => s_Handler?.ClearMissingKeys();
+        public static void ClearMissingKeys() => Internal_PeekHandler()?.ClearMissingKeys();
 
         #endregion
     }
