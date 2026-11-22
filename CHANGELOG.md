@@ -110,6 +110,7 @@
 
 #### Core
 
+- ⚠ 删除 `[AutoRegisterService]` 及其全部支撑面（特性类型、生成器实例注册支路、MA2103/204/205）：框架程序集已零标记（12 门面 static 化退役全部使用点），这条与「服务装配单一路径」相抵的项目侧自建服务汇入通道不再保留——迁移口径 = 项目侧服务在 `GameApp.onServicesComposing` 订阅方内显式 `GameServices.RegisterService`，或门面挂 `[ProviderHandlerHost]` 走 settings 后端选型；MA2001 契约白名单不再收 `[AutoRegisterService]` 类的实现接口，特例注册服务（UIService 双轨）的依赖声明以具体后端类型为准，号段不复用
 - ⚠ 删除服务契约上的轮询成员 `IObjectPoolService.Tick`、`ITimerService.FixedTick`/`LateTick`：逐帧驱动只认能力接口 `IServiceTickable`/`IServiceFixedTickable`/`IServiceLateTickable`——实现业务契约本身不再带来任何驱动，后端在实现契约之外按需实现能力接口（内建后端已全部实现，全仓无按契约类型调用这些成员的站点）
 - ~~`MA1005`~~ 退役：原「服务后端仍继承 `FrameworkHandler`」的过渡告警随之取消——接口契约宿主的默认后端只认 `ServiceBase`，非法声明由 `MA1003` 在编译期判红，号位不再复用
 

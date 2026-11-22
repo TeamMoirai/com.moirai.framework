@@ -11,9 +11,9 @@ namespace Service.Kernel
     /// 组合根注册清单（BuiltinServiceRegistrationGenerator）的契约守卫。
     /// </summary>
     /// <remarks>
-    /// 清单形态 = 纯服务后端预热（[AutoRegisterService] 实例注册已退役）：RegisterAll 只发射 <c>WarmHandler</c>。 <br />
+    /// 清单形态 = 纯服务后端预热：RegisterAll 只发射 <c>WarmHandler</c>（[AutoRegisterService] 实例注册已整体退役删除）。 <br />
     /// ① RegisterAll 注册的契约键恰好覆盖全部 [ProviderHandlerHost] 接口契约宿主，实现都是 ServiceBase 派生后端； <br />
-    /// ② 服务后端豁免标记校验——契约接口实现走 settings 选型；UIServiceHandler 家族派生走 UI 认轨注册。
+    /// ② 漏注册审计——程序集内全部可实例化非 MonoBehaviour 服务必须落在服务后端豁免面内。
     /// </remarks>
     [TestFixture]
     public class BuiltinServiceRegistrationTests
@@ -69,10 +69,9 @@ namespace Service.Kernel
         }
 
         [Test]
-        public void BuiltinServices_ServiceBackends_AreExemptFromMarking()
+        public void BuiltinServices_AllInstantiableServices_AreRegisteredBackends()
         {
-            // 回摆后全程序集零标记（12 门面 static 化退役了全部 [AutoRegisterService] 使用点）；
-            // 本守卫反转视角：程序集内全部可实例化的非 MonoBehaviour IService 实现，必须全部落在豁免面内——
+            // 本守卫：程序集内全部可实例化的非 MonoBehaviour IService 实现，必须全部落在豁免面内——
             // 服务后端（契约接口实现 / UI 家族基座派生）由 settings 选型或 UI 认轨注册，不走程序集扫描。
             var providerContracts = CollectProviderContractInterfaces();
             var violators = new List<string>();
@@ -86,8 +85,6 @@ namespace Service.Kernel
                 // Scene/Gameplay 的 MonoBehaviour 服务（ServiceMono）走 Awake 自注册，不参与组合根清单
                 if (typeof(MonoBehaviour).IsAssignableFrom(type))
                     continue;
-                if (type.GetCustomAttribute<AutoRegisterServiceAttribute>() != null)
-                    continue;
                 // 豁免 1：实现某 ProviderHandlerHost 契约接口的 ServiceBase 派生类（settings 选型驱动）
                 if (IsServiceHandlerBackend(type, providerContracts))
                     continue;
@@ -99,7 +96,7 @@ namespace Service.Kernel
             }
 
             Assert.IsEmpty(violators,
-                "以下可实例化服务既无 [AutoRegisterService] 标记也不在服务后端豁免面内（漏注册）："
+                "以下可实例化服务不在服务后端豁免面内（漏注册）："
                 + string.Join(", ", violators));
         }
 
@@ -119,18 +116,6 @@ namespace Service.Kernel
             }
 
             return null;
-        }
-
-        /// <summary>全部 [ProviderHandlerHost] 接口契约宿主自报的契约接口（诊断信息以 FullName 记账，键用 FullName）。</summary>
-        private static HashSet<string> CollectProviderContractInterfaceNames()
-        {
-            var names = new HashSet<string>(StringComparer.Ordinal);
-            foreach (Type contract in CollectProviderContractInterfaces())
-            {
-                names.Add(contract.FullName);
-            }
-
-            return names;
         }
 
         /// <summary>全部 [ProviderHandlerHost] 接口契约宿主自报的契约接口类型集合。</summary>

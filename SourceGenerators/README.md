@@ -21,8 +21,7 @@
 | A | 模块（程序集） | B | 功能 | CD 段占用 |
 | --- | --- | --- | --- | --- |
 | 1 | ProviderHandlerHost | 0 | 宿主契约/默认工厂 | 01–04（05 已退役，不复用） |
-| 2 | ServiceDependency | 0 | `[ServiceDependency]` 依赖校验 | 01–02 |
-| | | 1 | `[AutoRegisterService]` 自注册 | 03–05 |
+| 2 | ServiceDependency | 0 | `[ServiceDependency]` 依赖校验 | 01–02（B=1 段 03–05 已退役，不复用） |
 | 3 | SaveServiceCodegen | 0 | 字段捕获/序列化注册/迁移注册 | 00–12 |
 | | | 1 | 二进制后端键序冻结校验（SaveSchemaAnalyzer） | 00–01 |
 | 4 | _（预留：随 Save 归并释放，后续模块可复用）_ | | | |
@@ -42,9 +41,7 @@
 - **A=2 ServiceDependency**
   - `MA2001` 依赖类型未实现 IService/契约接口（Warning）
   - `MA2002` 未声明任何依赖类型（Info）
-  - `MA2103` AutoRegisterService 目标未实现 IService
-  - `MA2104` AutoRegisterService 目标形状非法（Error）
-  - `MA2105` AutoRegisterService 作用域值非法
+  - ~~`MA2103`/`MA2104`/`MA2105`~~ **已退役**：原 `[AutoRegisterService]` 实例自注册的约束诊断。该特性已整体删除（特性类型、生成器采集支路一并移除——框架零标记后项目侧自建服务汇入通道不再保留，改走 `onServicesComposing` 显式注册或 `[ProviderHandlerHost]` 门面）；按本文《诊断 ID 段号方案》该号段不再复用
 - **A=3 SaveServiceCodegen**
   - B=0 生成器：`MA3000` 字段类型不支持 · `MA3001` 存档键重复 · `MA3002` 迁移器无法生成自注册 · `MA3003` 包含类型须 partial class · `MA3004` 须为实例字段 · `MA3005` 场景引用指引 · `MA3006` 引用类型不明 · `MA3007` 嵌套数据类型无效 · `MA3008` 集合元素/键值类型不支持 · `MA3009`–`MA3012` 序列化器编号/撞号（Error）
   - B=1 架构校验：`MA3100` 键序重排（Warning）· `MA3101` 成员删除缺迁移钩子（Warning）

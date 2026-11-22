@@ -229,7 +229,7 @@ namespace Service.ConfigTable
         [Test]
         public void Service_IsRegisteredViaBinding()
         {
-            // 回摆后注册路径 = [ProviderHandlerHost] 契约绑定（WarmHandler 预热 + 懒链注册）：门面不再带 [AutoRegisterService]
+            // 注册路径 = [ProviderHandlerHost] 契约绑定（WarmHandler 预热 + 懒链注册）
             var host = typeof(ConfigTableService).GetCustomAttribute<ProviderHandlerHostAttribute>();
             Assert.IsNotNull(host, "门面必须保留 [ProviderHandlerHost]（契约绑定即注册的声明源）");
             Assert.IsTrue(typeof(Moirai.Atropos.IService).IsAssignableFrom(typeof(DefaultConfigTableHandler)),

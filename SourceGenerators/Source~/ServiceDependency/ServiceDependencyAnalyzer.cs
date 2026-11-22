@@ -35,7 +35,6 @@ namespace Moirai.Atropos.SourceGenerators
 
         private const string IServiceFullyQualifiedName = "Moirai.Atropos.IService";
         private const string ProviderHandlerHostFullyQualifiedName = "Moirai.Atropos.ProviderHandlerHostAttribute";
-        private const string AutoRegisterServiceFullyQualifiedName = "Moirai.Atropos.AutoRegisterServiceAttribute";
         private const string ServiceDependencyAttributeFullyQualifiedName = "Moirai.Atropos.ServiceDependencyAttribute";
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
@@ -141,10 +140,9 @@ namespace Moirai.Atropos.SourceGenerators
             = new System.Collections.Generic.Dictionary<Compilation, System.Collections.Generic.HashSet<string>>();
 
         /// <summary>
-        /// 收集编译单元内的合法契约接口全名（Phase 2 注入互调——依赖声明允许指契约接口）：
-        /// ① [ProviderHandlerHost(typeof(I{Service}), ...)] 自报的契约接口； <br />
-        /// ② [AutoRegisterService] 服务类实现的接口——无 ProviderHandlerHost 的服务（如 UIService 双轨例外）
-        /// 经组合根显式补登契约绑定，其实现接口同样可作为依赖声明目标。
+        /// 收集编译单元内的合法契约接口全名（Phase 2 注入互调——依赖声明允许指契约接口）： <br />
+        /// [ProviderHandlerHost(typeof(I{Service}), ...)] 自报的契约接口。 <br />
+        /// 特例注册的服务（如 UIService 双轨）不经本白名单——依赖声明以实现 IService 的具体后端类型为准。
         /// </summary>
         private static System.Collections.Generic.HashSet<string> GetContractInterfaces(Compilation compilation)
         {
@@ -179,14 +177,6 @@ namespace Moirai.Atropos.SourceGenerators
                                 contract.TypeKind == TypeKind.Interface)
                             {
                                 set.Add(contract.ToDisplayString());
-                            }
-                        }
-                        else if (attrName == AutoRegisterServiceFullyQualifiedName)
-                        {
-                            // 自动注册服务实现的接口一并入白名单（含 IService 本身——非接口依赖另有判定，无副作用）
-                            foreach (var iface in type.AllInterfaces)
-                            {
-                                set.Add(iface.ToDisplayString());
                             }
                         }
                     }

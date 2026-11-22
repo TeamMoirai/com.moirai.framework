@@ -131,7 +131,7 @@ namespace Moirai.Atropos.<Module>
 
 ## 要点
 
-- **静态门面不派生任何基座**：只是缓存宿主 + API 面，不是注册实体，`ServiceBase` 由后端继承，门面也不带 `[AutoRegisterService]`。
+- **静态门面不派生任何基座**：只是缓存宿主 + API 面，不是注册实体，`ServiceBase` 由后端继承。
   入图来路是组合根的 `BuiltinServiceRegistration.RegisterAll` 逐宿主发射 `WarmHandler`（settings 解析 → 注册 → 回填槽位）。
 - 生成成员**不要手写**（写了就是重复定义）：`s_Handler` / `Handler` / `IsValid` / `RequireHandler` /
   `CreateDefaultHandler` / `WarmHandler` / `InvalidateHandler` /

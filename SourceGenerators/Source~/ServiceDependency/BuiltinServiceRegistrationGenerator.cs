@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -8,88 +7,32 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Moirai.Atropos.SourceGenerators
 {
     /// <summary>
-    /// 推送式服务注册源生成器： 为标记 <c>[AutoRegisterService]</c> 的服务类生成程序集级 internal 清单类 <br />
-    /// <c>BuiltinServiceRegistration.RegisterAll(ServiceWorld)</c>。
+    /// 服务后端宿主预热源生成器：收集标记 <c>[ProviderHandlerHost]</c> 的 <b>static</b> 接口契约宿主， <br />
+    /// 生成程序集级 internal 清单类 <c>BuiltinServiceRegistration.RegisterAll(ServiceWorld)</c>，逐宿主发射 <c>WarmHandler</c> 预热。
     /// </summary>
     /// <remarks>
-    /// 清单类供组合根调用，替代手写的逐服务 RegisterService 调用；初始化顺序仍由 <c>[ServiceDependency]</c> 依赖图在世界初始化时拓扑排序决定，与注册顺序无关。 <br />
-    /// 无有效标记类型时不产出任何源文件（避免空清单类污染其他程序集）。
+    /// 预热与运行期懒链同一条装配序列（settings 解析 → 注册进容器 → 缓存回填），先入图参与初始化拓扑排序； <br />
+    /// 初始化顺序仍由 <c>[ServiceDependency]</c> 依赖图在世界初始化时拓扑排序决定，与注册顺序无关。 <br />
+    /// 无 static 接口契约宿主时不产出任何源文件（避免空清单类污染其他程序集）。 <br />
+    /// 实例门面（非 static）不发射预热——组合根清单与漏注册审计（<c>BuiltinServiceRegistrationTests</c>）兜底完整性。
     /// </remarks>
     [Generator]
     public class BuiltinServiceRegistrationGenerator : IIncrementalGenerator
     {
-        /// <summary>MA2103: AutoRegisterService 目标类型未实现 IService。</summary>
-        private static readonly DiagnosticDescriptor s_MustImplementIServiceRule = new DiagnosticDescriptor(
-            id: "MA2103",
-            title: "AutoRegisterService 目标类型未实现 IService",
-            messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 未实现 'Moirai.Atropos.IService'，无法作为服务注册",
-            category: "Usage",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true,
-            description: "Types marked with [AutoRegisterService] must implement IService.",
-            customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
-
-        /// <summary>MA2104: AutoRegisterService 目标类型形状非法（抽象/泛型/静态/缺可访问无参构造）。</summary>
-        private static readonly DiagnosticDescriptor s_InvalidTargetShapeRule = new DiagnosticDescriptor(
-            id: "MA2104",
-            title: "AutoRegisterService 目标类型形状非法",
-            messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 必须是非抽象、非泛型且具有可访问无参构造函数的类（{1}）",
-            category: "Usage",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true,
-            description: "Auto-registration instantiates the service via a parameterless constructor; abstract, static, generic or ctor-less types are rejected.",
-            customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
-
-        /// <summary>MA2105: AutoRegisterService 作用域值非法。</summary>
-        private static readonly DiagnosticDescriptor s_InvalidScopeRule = new DiagnosticDescriptor(
-            id: "MA2105",
-            title: "AutoRegisterService 作用域值非法",
-            messageFormat: "[AutoRegisterService] 标记的类型 '{0}' 声明的作用域值 {1} 超出 EServiceScopeKind 合法范围 [App, Scene, Gameplay]",
-            category: "Usage",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true,
-            description: "The scope value must be a valid EServiceScopeKind member.",
-            customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
-
-        private const string AttributeFullyQualifiedName = "Moirai.Atropos.AutoRegisterServiceAttribute";
-        private const string IServiceFullyQualifiedName = "Moirai.Atropos.IService";
         private const string ProviderHandlerHostFullyQualifiedName = "Moirai.Atropos.ProviderHandlerHostAttribute";
-
-        private static readonly string[] s_ScopeNames = { "App", "Scene", "Gameplay" };
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-            var provider = context.SyntaxProvider
-                .ForAttributeWithMetadataName(
-                    AttributeFullyQualifiedName,
-                    predicate: static (node, _) => node is ClassDeclarationSyntax,
-                    transform: static (ctx, _) => AnalyzeTarget(ctx));
-
             var providerHosts = context.SyntaxProvider
                 .ForAttributeWithMetadataName(
                     ProviderHandlerHostFullyQualifiedName,
                     predicate: static (node, _) => node is ClassDeclarationSyntax,
                     transform: static (ctx, _) => AnalyzeProviderHost(ctx));
 
-            var collected = provider.Collect();
             var collectedHosts = providerHosts.Collect();
 
-            context.RegisterSourceOutput(collected.Combine(collectedHosts), static (spc, pair) =>
+            context.RegisterSourceOutput(collectedHosts, static (spc, hostInfos) =>
             {
-                var (infos, hostInfos) = pair;
-
-                var valid = new List<ServiceRegistrationInfo>(infos.Length);
-                var seen = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var info in infos)
-                {
-                    foreach (var diagnostic in info.Diagnostics)
-                        spc.ReportDiagnostic(diagnostic);
-
-                    // partial 多处声明重复贴特性会去重（注册以类型为键，首个生效）
-                    if (info.IsValid && seen.Add(info.FullyQualifiedName))
-                        valid.Add(info);
-                }
-
                 // 服务后端宿主（接口契约）去重：登记 WarmHandler 预热发射
                 var warmHosts = new List<string>(hostInfos.Length);
                 var seenHosts = new HashSet<string>(StringComparer.Ordinal);
@@ -99,30 +42,21 @@ namespace Moirai.Atropos.SourceGenerators
                         warmHosts.Add(host.FullyQualifiedName);
                 }
 
-                // 无任何标记类型时不产出源文件
-                if (valid.Count == 0 && warmHosts.Count == 0)
+                // 无任何宿主时不产出源文件
+                if (warmHosts.Count == 0)
                     return;
 
-                // 确定性输出：先按作用域序、再按全限定名字典序（避免生成内容随编译顺序抖动）
-                valid.Sort(static (a, b) =>
-                {
-                    int byScope = a.ScopeValue.CompareTo(b.ScopeValue);
-                    return byScope != 0
-                        ? byScope
-                        : string.CompareOrdinal(a.FullyQualifiedName, b.FullyQualifiedName);
-                });
+                // 确定性输出：按全限定名字典序（避免生成内容随编译顺序抖动）
                 warmHosts.Sort(StringComparer.Ordinal);
 
-                spc.AddSource("BuiltinServiceRegistration.g.cs", GenerateCode(valid, warmHosts));
+                spc.AddSource("BuiltinServiceRegistration.g.cs", GenerateCode(warmHosts));
             });
         }
 
         /// <summary>
         /// 服务后端宿主（[ProviderHandlerHost] 接口契约）：登记 <c>WarmHandler</c> 预热发射—— <br />
         /// 组合根经 RegisterAll 先入图（settings 解析 → 注册进容器 → 缓存回填），参与初始化拓扑排序。 <br />
-        /// 发射判据 = <b>宿主是 static 类</b>：迁移后的门面为 static partial（绑定即注册形态）； <br />
-        /// 未迁移门面仍是 ServiceBase 实例类（[AutoRegisterService] 自注册 + 门面 OnInit 触发懒加载）—— <br />
-        /// 不预热，保持原时序，随其迁移批次转 static 后自动生效。
+        /// 发射判据 = <b>宿主是 static 类</b>（绑定即注册形态）；实例类门面不发射，完整性由漏注册审计兜底。
         /// </summary>
         private static ProviderHostWarmInfo AnalyzeProviderHost(GeneratorAttributeSyntaxContext ctx)
         {
@@ -144,7 +78,7 @@ namespace Moirai.Atropos.SourceGenerators
                 return default;
             }
 
-            // 未迁移判据：门面仍是实例类（懒加载仍由门面 OnInit 触发，且 GetHandlerFromSettings 走 EnsureRegistered 闸）
+            // 实例类门面无 WarmHandler 发射（绑定即注册形态只认 static 宿主）；清单完整性由漏注册审计兜底
             if (!classSymbol.IsStatic)
             {
                 return default;
@@ -153,112 +87,7 @@ namespace Moirai.Atropos.SourceGenerators
             return new ProviderHostWarmInfo(classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
         }
 
-        private static ServiceRegistrationInfo AnalyzeTarget(GeneratorAttributeSyntaxContext ctx)
-        {
-            var classDecl = (ClassDeclarationSyntax)ctx.TargetNode;
-            var classSymbol = (INamedTypeSymbol)ctx.SemanticModel.GetDeclaredSymbol(classDecl)!;
-
-            var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>(0);
-            bool isValid = true;
-
-            var attr = ctx.Attributes[0];
-            int scopeValue = 0;
-            if (attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Value != null)
-                scopeValue = Convert.ToInt32(attr.ConstructorArguments[0].Value);
-
-            var location = attr.ApplicationSyntaxReference?.GetSyntax()?.GetLocation()
-                           ?? classDecl.Identifier.GetLocation();
-            string displayName = classSymbol.ToDisplayString();
-
-            if (scopeValue < 0 || scopeValue >= s_ScopeNames.Length)
-            {
-                diagnostics.Add(Diagnostic.Create(s_InvalidScopeRule, location, displayName, scopeValue));
-                isValid = false;
-            }
-
-            if (!ImplementsIService(classSymbol, ctx.SemanticModel.Compilation))
-            {
-                diagnostics.Add(Diagnostic.Create(s_MustImplementIServiceRule, location, displayName));
-                isValid = false;
-            }
-
-            string? shapeError = ValidateShape(classSymbol);
-            if (shapeError != null)
-            {
-                diagnostics.Add(Diagnostic.Create(s_InvalidTargetShapeRule, location, displayName, shapeError));
-                isValid = false;
-            }
-
-            // 契约接口自报：[ProviderHandlerHost(typeof(I{Service}), ...)] 的第一参数——容器按该接口附加契约绑定（Phase 2 注入互调地基）
-            string? contractInterfaceFqn = null;
-            foreach (var classAttr in classSymbol.GetAttributes())
-            {
-                if (!SymbolEqualityComparer.Default.Equals(classAttr.AttributeClass,
-                        ctx.SemanticModel.Compilation.GetTypeByMetadataName(ProviderHandlerHostFullyQualifiedName)))
-                    continue;
-                if (classAttr.ConstructorArguments.Length == 0)
-                    continue;
-                var first = classAttr.ConstructorArguments[0];
-                if (first.Value is INamedTypeSymbol handlerContract && handlerContract.TypeKind == TypeKind.Interface)
-                {
-                    contractInterfaceFqn = handlerContract.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                }
-                break;
-            }
-
-            return new ServiceRegistrationInfo(
-                classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                scopeValue,
-                isValid,
-                contractInterfaceFqn,
-                diagnostics.ToImmutable());
-        }
-
-        private static bool ImplementsIService(INamedTypeSymbol classSymbol, Compilation compilation)
-        {
-            var iServiceSymbol = compilation.GetTypeByMetadataName(IServiceFullyQualifiedName);
-            if (iServiceSymbol == null)
-                return false;
-
-            foreach (var iface in classSymbol.AllInterfaces)
-            {
-                if (SymbolEqualityComparer.Default.Equals(iface, iServiceSymbol))
-                    return true;
-            }
-
-            return false;
-        }
-
-        private static string? ValidateShape(INamedTypeSymbol classSymbol)
-        {
-            if (classSymbol.IsStatic)
-                return "静态类无法实例化";
-            if (classSymbol.IsAbstract)
-                return "抽象类无法实例化";
-            if (classSymbol.IsGenericType)
-                return "泛型类型无法以无参构造实例化";
-
-            bool hasAccessibleParameterlessCtor = false;
-            foreach (var ctor in classSymbol.InstanceConstructors)
-            {
-                if (!ctor.Parameters.IsEmpty)
-                    continue;
-                if (ctor.DeclaredAccessibility == Accessibility.Public ||
-                    ctor.DeclaredAccessibility == Accessibility.Internal ||
-                    ctor.DeclaredAccessibility == Accessibility.ProtectedOrInternal)
-                {
-                    hasAccessibleParameterlessCtor = true;
-                    break;
-                }
-            }
-
-            if (!hasAccessibleParameterlessCtor)
-                return "缺少可访问的无参构造函数";
-
-            return null;
-        }
-
-        private static string GenerateCode(List<ServiceRegistrationInfo> infos, List<string> warmHosts)
+        private static string GenerateCode(List<string> warmHosts)
         {
             var sb = new StringBuilder(2048);
             sb.AppendLine("// <auto-generated>");
@@ -268,47 +97,21 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("namespace Moirai.Atropos");
             sb.AppendLine("{");
             sb.AppendLine("    /// <summary>");
-            sb.AppendLine("    /// 内置服务注册清单（按 [AutoRegisterService] 与 [ProviderHandlerHost] 标记由源生成器生成，勿手改）。");
-            sb.AppendLine("    /// <para>仅负责注册（两阶段第一阶段：入图）；OnInit 顺序由 [ServiceDependency] 依赖图拓扑排序决定。</para>");
+            sb.AppendLine("    /// 内置服务注册清单（按 [ProviderHandlerHost] 标记由源生成器生成，勿手改）。");
+            sb.AppendLine("    /// <para>仅负责服务后端预热（两阶段第一阶段：入图）；OnInit 顺序由 [ServiceDependency] 依赖图拓扑排序决定。</para>");
             sb.AppendLine("    /// </summary>");
             sb.AppendLine("    internal static class BuiltinServiceRegistration");
             sb.AppendLine("    {");
             sb.AppendLine("        /// <summary>");
-            sb.AppendLine("        /// 将全部标记服务注册到指定世界（仅入图，OnInit 由世界初始化拓扑统一驱动）。");
-            sb.AppendLine("        /// <para>服务后端宿主（接口契约）经 <c>WarmHandler</c> 预热：settings 解析 → 注册进容器 → 缓存回填。</para>");
+            sb.AppendLine("        /// 将全部服务后端宿主预热到指定世界（settings 解析 → 注册进容器 → 缓存回填；仅入图，OnInit 由世界初始化拓扑统一驱动）。");
             sb.AppendLine("        /// </summary>");
             sb.AppendLine("        /// <param name=\"world\">目标服务世界。</param>");
             sb.AppendLine("        internal static void RegisterAll(ServiceWorld world)");
             sb.AppendLine("        {");
-
-            if (warmHosts.Count > 0)
+            sb.AppendLine("            // 服务后端宿主预热（懒链同一路径：settings 解析 → 注册进容器 → 缓存回填；先入图参与拓扑排序）");
+            for (var idx = 0; idx < warmHosts.Count; idx++)
             {
-                sb.AppendLine("            // 服务后端宿主预热（懒链同一路径：settings 解析 → 注册进容器 → 缓存回填；先入图参与拓扑排序）");
-                for (var idx = 0; idx < warmHosts.Count; idx++)
-                {
-                    sb.Append("            ").Append(warmHosts[idx]).AppendLine(".WarmHandler();");
-                }
-
-                sb.AppendLine();
-            }
-
-            for (var idx = 0; idx < infos.Count; idx++)
-            {
-                var info = infos[idx];
-                sb.Append("            var __svc").Append(idx).Append(" = world.Register(EServiceScopeKind.");
-                sb.Append(s_ScopeNames[info.ScopeValue]);
-                sb.Append(", new ");
-                sb.Append(info.FullyQualifiedName);
-                sb.AppendLine("());");
-                if (!string.IsNullOrEmpty(info.ContractInterfaceFqn))
-                {
-                    // 契约接口附加绑定：同实例多契约（Phase 2 注入互调——[ServiceDependency] 可指接口）
-                    sb.Append("            world.Register(EServiceScopeKind.");
-                    sb.Append(s_ScopeNames[info.ScopeValue]);
-                    sb.Append(", typeof(");
-                    sb.Append(info.ContractInterfaceFqn);
-                    sb.Append("), __svc").Append(idx).AppendLine(");");
-                }
+                sb.Append("            ").Append(warmHosts[idx]).AppendLine(".WarmHandler();");
             }
 
             sb.AppendLine("        }");
@@ -316,29 +119,6 @@ namespace Moirai.Atropos.SourceGenerators
             sb.AppendLine("}");
 
             return sb.ToString();
-        }
-
-        private sealed class ServiceRegistrationInfo
-        {
-            public readonly string FullyQualifiedName;
-            public readonly int ScopeValue;
-            public readonly bool IsValid;
-            public readonly string? ContractInterfaceFqn;
-            public readonly ImmutableArray<Diagnostic> Diagnostics;
-
-            public ServiceRegistrationInfo(
-                string fullyQualifiedName,
-                int scopeValue,
-                bool isValid,
-                string? contractInterfaceFqn,
-                ImmutableArray<Diagnostic> diagnostics)
-            {
-                FullyQualifiedName = fullyQualifiedName;
-                ScopeValue = scopeValue;
-                IsValid = isValid;
-                ContractInterfaceFqn = contractInterfaceFqn;
-                Diagnostics = diagnostics;
-            }
         }
 
         /// <summary>服务后端宿主预热登记（接口契约宿主的 WarmHandler 发射）；default 即无效项。</summary>

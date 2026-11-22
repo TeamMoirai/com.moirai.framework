@@ -229,7 +229,7 @@ UIService.RegisterEnabledHandlers();
 await GameServices.Default.InitializeAsync();                    // 按 [ServiceDependency] 拓扑序统一驱动 OnInit
 ```
 
-内置服务进清单的来路是 `[ProviderHandlerHost]` 的接口契约宿主：源生成器收集 static 宿主，生成的程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)` 逐个发射 `WarmHandler` 预热（settings 解析出的后端经容器登记契约绑定，与运行期懒链同一条装配序列）。`[AutoRegisterService]` 不再标在任何内置服务上，它仍承担**项目侧自建服务**的汇入——标记后进入所在程序集自己生成的那份清单（清单是程序集 `internal`，须由项目在自己的装配点调用，如 `GameApp.onServicesComposing` 订阅方），实例由生成代码经无参构造创建；目标非法——未实现 `IService`、抽象/泛型、缺可访问无参构造、作用域越界——编译期 MA2103/204/205 报错。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）。组合根尚未跑到就被访问服务时，静态 API 的懒链**判红而不自举**（见「懒加载装配窗口」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
+内置服务进清单的来路是 `[ProviderHandlerHost]` 的接口契约宿主：源生成器收集 static 宿主，生成的程序集级 `BuiltinServiceRegistration.RegisterAll(ServiceWorld)` 逐个发射 `WarmHandler` 预热（settings 解析出的后端经容器登记契约绑定，与运行期懒链同一条装配序列）。项目侧自建服务**不进清单**——在自己的装配点（如 `GameApp.onServicesComposing` 订阅方）显式调用 `GameServices.RegisterService`（实例由项目创建，作用域与轮询能力随声明），或把门面挂 `[ProviderHandlerHost]` 走 settings 后端选型。`[ServiceDependency]` 声明在世界初始化的拓扑排序期校验并排序（缺失依赖 fail-fast，与注册顺序无关）；接口目标须为某宿主自报的契约接口，特例注册的服务（UIService 双轨）以具体后端类型声明。组合根尚未跑到就被访问服务时，静态 API 的懒链**判红而不自举**（见「懒加载装配窗口」）。自定义服务的后端实现可在对应 `XxxSettings` 的 Inspector 中通过 Provider 下拉框替换。
 
 ### 后端异步生命周期
 
