@@ -18,10 +18,8 @@ namespace Moirai.Atropos.Asset
     /// 读成员降级为默认值（<c>HasAsset</c> 报 <c>NotExist</c>、<c>IsLocationValid</c> 报 false）。 <br />
     /// 例外：<see cref="LoadSceneAsync"/> 未就绪时返回 <c>null</c>，是其消费者的既定契约。
     /// </remarks>
-    [AutoRegisterService]
     [ProviderHandlerHost(typeof(IAssetService), typeof(YooAssetHandler))]
-    [ServiceDependency(typeof(IDebuggerService))]
-    public partial class AssetService : ServiceBase, IServiceTickable
+    public static partial class AssetService
     {
         #region 驱动状态 [DRIVE STATE]
 
@@ -59,11 +57,10 @@ namespace Moirai.Atropos.Asset
         /// <summary>
         /// 从 <see cref="AssetServiceSettings"/> 解析资源处理器。
         /// </summary>
-        /// <remarks>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），首次访问即完成世界注册。</remarks>
+        /// <remarks>由生成的懒装配链调用（预热在入图期、懒加载在世界就绪后）；解析出的实例经容器登记契约绑定。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static IAssetService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<AssetService>();
             IAssetService handler = AssetServiceSettings.AssetServiceHandler;
             if (handler == null)
             {
@@ -77,36 +74,27 @@ namespace Moirai.Atropos.Asset
             return handler;
         }
 
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.RESOURCE;
-
-        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IDebuggerService _debugger;
-
         /// <summary>
-        /// 初始化资源服务：触发 <see cref="Handler"/> 懒加载、注入配置并接线帧驱动，由容器在构建期调用。
+        /// 容器编排（后端 OnInit 经 Manager 钩子调用）：配置推送、后端初始化、自检、低内存订阅与调试面板。
         /// </summary>
-        public override void OnInit()
+        internal static void OnHandlerInitialized(IAssetService handler, IDebuggerService debugger)
         {
-            _debugger = Context.GetRequiredService<IDebuggerService>();
-            _ = Handler;
-
             // 远程地址（更新系统单源）
-            s_Handler.HostServerURL = UpdateSettings.GetResDownLoadPath();
-            s_Handler.FallbackHostServerURL = UpdateSettings.GetFallbackResDownLoadPath();
-            s_Handler.LoadResWayWebGL = (EAssetLoadWayWebGL)UpdateSettings.LoadResWayWebGL;
+            handler.HostServerURL = UpdateSettings.GetResDownLoadPath();
+            handler.FallbackHostServerURL = UpdateSettings.GetFallbackResDownLoadPath();
+            handler.LoadResWayWebGL = (EAssetLoadWayWebGL)UpdateSettings.LoadResWayWebGL;
 
             // 通用配置（ResourceSettings 单源）
-            s_Handler.AssetRecordCapacity = AssetServiceSettings.AssetRecordCapacity;
-            s_Handler.AssetLeaseCapacity = AssetServiceSettings.AssetLeaseCapacity;
-            s_Handler.BindingOwnerCapacity = AssetServiceSettings.BindingOwnerCapacity;
-            s_Handler.BindingSlotCapacity = AssetServiceSettings.BindingSlotCapacity;
-            s_Handler.IdleAssetExpireTime = AssetServiceSettings.IdleAssetExpireTime;
-            s_Handler.IdleAssetCapacity = AssetServiceSettings.IdleAssetCapacity;
-            s_Handler.SetForceUnloadUnusedAssetsAction(RequestForceUnloadUnusedAssets);
+            handler.AssetRecordCapacity = AssetServiceSettings.AssetRecordCapacity;
+            handler.AssetLeaseCapacity = AssetServiceSettings.AssetLeaseCapacity;
+            handler.BindingOwnerCapacity = AssetServiceSettings.BindingOwnerCapacity;
+            handler.BindingSlotCapacity = AssetServiceSettings.BindingSlotCapacity;
+            handler.IdleAssetExpireTime = AssetServiceSettings.IdleAssetExpireTime;
+            handler.IdleAssetCapacity = AssetServiceSettings.IdleAssetCapacity;
+            handler.SetForceUnloadUnusedAssetsAction(RequestForceUnloadUnusedAssets);
 
-            // 初始化后端（创建默认包与绑定服务）
-            s_Handler.Initialize();
+            // 初始化后端（创建默认包与绑定服务）——Initialize 随契约瘦身移出 IAssetService，按家族基座调用
+            ((AssetServiceHandler)handler).Initialize();
             // 配置自检：只报不改，判据住在设置类里（构建期检查复用同一份，见 Editor 侧
             // AssetSettingsBuildValidator），这里只负责在启动时打一次。
             AssetServiceSettings.Instance.ReportConfigurationIssues();
@@ -114,14 +102,16 @@ namespace Moirai.Atropos.Asset
 
             Application.lowMemory += OnLowMemory;
 
-            _debugger.RegisterDebuggerWindow("Profiler/Resource", new AssetServiceDebuggerWindow());
+            debugger.RegisterDebuggerWindow("Profiler/Resource", new AssetServiceDebuggerWindow());
         }
 
         /// <summary>
-        /// 关闭资源服务。由容器在关闭期调用：先解除驱动接线，再关闭处理器。
+        /// 容器收尾（后端 OnShutdown 经 Manager 钩子调用）：低内存退订、调试面板注销与静态调度态归零。
         /// </summary>
-        public override void OnShutdown()
+        internal static void OnHandlerShuttingDown(IDebuggerService debugger)
         {
+            debugger?.UnregisterDebuggerWindow("Profiler/Resource");
+
             Application.lowMemory -= OnLowMemory;
 
             s_AsyncOperation = null;
@@ -131,20 +121,13 @@ namespace Moirai.Atropos.Asset
             s_PerformGCCollect = false;
             s_LastUnloadElapsedSeconds = 0f;
             s_LastGCCollectElapsedSeconds = float.MaxValue;
-
-            var handler = s_Handler;
-            s_Handler = null;
-            // 消费契约按接口类型持有；生命周期关停按 FrameworkHandler 基座
-            (handler as FrameworkHandler)?.Internal_Shutdown();
         }
 
         /// <summary>
-        /// 每帧驱动：时间轮推进 + 无用资源卸载调度 + GC 节流。
+        /// 每帧驱动：无用资源卸载调度 + GC 节流（后端 IServiceTickable.Tick 经 Manager 钩子进入）。
         /// </summary>
-        public void Tick(float elapseSeconds, float realElapseSeconds)
+        internal static void TickMaintenance(IAssetService handler)
         {
-            if (s_Handler == null) return;
-
             float minInterval = AssetServiceSettings.MinUnloadUnusedAssetsInterval;
             float maxInterval = AssetServiceSettings.MaxUnloadUnusedAssetsInterval;
             bool useSystem = AssetServiceSettings.UseSystemUnloadUnusedAssets;
@@ -163,7 +146,7 @@ namespace Moirai.Atropos.Asset
                 maxInterval);
 
             int expireProcessCount = ResolveExpireProcessCount(shouldUnloadUnusedAssets, expirePerFrame, expireWhenUnloading);
-            s_Handler.ProcessAssetMaintenance(Time.unscaledTime, expireProcessCount, destroySweepBudget);
+            handler.ProcessAssetMaintenance(Time.unscaledTime, expireProcessCount, destroySweepBudget);
 
             s_LastUnloadElapsedSeconds += Time.unscaledDeltaTime;
             s_LastGCCollectElapsedSeconds += Time.unscaledDeltaTime;
@@ -175,7 +158,7 @@ namespace Moirai.Atropos.Asset
                 s_ForceSystemUnloadUnusedAssets = false;
                 s_PreorderUnloadUnusedAssets = false;
                 s_LastUnloadElapsedSeconds = 0f;
-                s_Handler.UnloadUnusedAssets(force);
+                handler.UnloadUnusedAssets(force);
                 s_AsyncOperation = useSystemUnload ? Resources.UnloadUnusedAssets() : null;
                 LogUtility.Verbose("Unload unused assets...");
             }
@@ -200,7 +183,7 @@ namespace Moirai.Atropos.Asset
         #region 属性 [PROPERTIES]
 
         /// <summary>是否已经初始化。</summary>
-        public static bool IsInitialized => IsValid && s_Handler.IsInitialized;
+        public static bool IsInitialized => s_Handler is IService service && GameServices.IsReady(service);
 
         /// <summary>默认资源包名称。</summary>
         public static string DefaultPackageName

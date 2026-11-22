@@ -13,10 +13,12 @@ namespace Moirai.Atropos.Input
     /// 虚拟输入按组件的 ActionName 寻址：优先解析 <c>Group/Name</c>，未命中回退平铺名称；鼠标类查询在此后端无意义，按降级契约返回默认值。
     /// <c>Enabled=false</c> 为全局硬门控（动作类查询一律降级）；玩家/UI 上下文压制为 Input System 后端专属能力。
     /// </remarks>
-    [ProviderDisplay(title: "UI 虚拟输入", description: "场景 InputButton/InputAxes 组件自注册，适合移动端虚拟按键")]
     [Serializable]
-    internal sealed class UIMobileInputHandler : FrameworkHandler, IInputService
+    [ProviderDisplay(title: "UI 虚拟输入", description: "场景 InputButton/InputAxes 组件自注册，适合移动端虚拟按键")]
+    internal sealed class UIMobileInputHandler : ServiceBase, IInputService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
         // 状态组合语义（Enabled/Lock/PreventUI/UIModal）——组合持有，压制态自动清零虚拟按键
         private readonly InputStateMachine _state = new InputStateMachine();
 
@@ -53,11 +55,24 @@ namespace Moirai.Atropos.Input
 
         protected override void OnInit()
         {
+            if (Context != null)
+            {
+                InputService.OnHandlerInitialized();
+            }
             _state.onResetRequested += ResetAllInputStates;
         }
 
         protected override void OnShutdown()
         {
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                InputService.InvalidateHandler(this);
+            }
+            if (Context != null)
+            {
+                InputService.OnHandlerShuttingDown();
+            }
             _state.onResetRequested -= ResetAllInputStates;
             _resolvedButtons.Clear();
             _resolvedAxes.Clear();

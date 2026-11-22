@@ -11,14 +11,14 @@ using UObject = UnityEngine.Object;
 using Mp = Moirai.Atropos.MemoryPool;
 using static Moirai.Atropos.LogHandler;
 
-namespace Service.GameObjectPool
+namespace Service.ObjectPool
 {
     /// <summary>
-    /// GameObject 池回归测试：注入 fake <c>IPrefabLoader</c> 直测 <c>RuntimeGameObjectPool</c> 的 Spawn/Despawn 往返、句柄代系校验、容量约束、 <br />
+    /// GameObject 池回归测试：注入 fake <c>IPrefabLoader</c> 直测 <c>RuntimeObjectPool</c> 的 Spawn/Despawn 往返、句柄代系校验、容量约束、 <br />
     /// Flush 裁剪与策略规划器。
     /// </summary>
     /// <remarks>故障注入路径的日志数量不可枚举，消噪窗口经 <c>UtfLogExpect.ScopedIgnore()</c> 打开；框架故障的身份日志经 <see cref="LogUtility.onMessageLogged"/> 捕获断内容。</remarks>
-    public sealed class GameObjectPoolTests
+    public sealed class ObjectPoolTests
     {
         #region 测试桩 [TEST FAKE]
 
@@ -59,7 +59,7 @@ namespace Service.GameObjectPool
         /// <summary>
         /// 可故障池件：抛出开关按实例逐个设置，不用静态位以免跨用例、跨并行域串味。
         /// </summary>
-        private sealed class FaultyPoolable : MonoBehaviour, IGameObjectPoolable
+        private sealed class FaultyPoolable : MonoBehaviour, IObjectPoolable
         {
             public int SpawnCount;
             public int DespawnCount;
@@ -72,7 +72,7 @@ namespace Service.GameObjectPool
             /// 实例组件的非序列化委托字段不随 Instantiate 复制，只能走类型级注入。</summary>
             public static System.Action<GameObject> OnSpawnedHook;
 
-            public void OnSpawn(in GameObjectPoolSpawnContext context)
+            public void OnSpawn(in ObjectPoolSpawnContext context)
             {
                 SpawnCount++;
                 OnSpawnedHook?.Invoke(gameObject);
@@ -105,7 +105,7 @@ namespace Service.GameObjectPool
         private PoolMaintenanceScheduler _scheduler;
         private FakePrefabLoader _loader;
         private Transform _root;
-        private RuntimeGameObjectPool _pool;
+        private RuntimeObjectPool _pool;
         private PoolCompiledRule _lastRule;
         private PooledInstanceRegistry _registry;
         private List<(ELogLevel Level, string Message)> _logs;
@@ -151,7 +151,7 @@ namespace Service.GameObjectPool
             }
         }
 
-        private RuntimeGameObjectPool CreatePool(
+        private RuntimeObjectPool CreatePool(
             EPoolPolicy policy = EPoolPolicy.Burst,
             int minIdle = 0,
             int softCapacity = 4,
@@ -164,21 +164,21 @@ namespace Service.GameObjectPool
                 policy, minIdle, softCapacity, hardCapacity, idleSeconds, unloadPrefab, 0,
                 PoolGlobMatcher.Compile("Assets/Test/Fake"));
             _lastRule = rule;
-            _pool = new RuntimeGameObjectPool();
+            _pool = new RuntimeObjectPool();
             _pool.Initialize(_scheduler, rule, "Assets/Test/Fake", _loader, _root, _registry);
             return _pool;
         }
 
-        private GameObject SpawnOne(RuntimeGameObjectPool pool)
+        private GameObject SpawnOne(RuntimeObjectPool pool)
         {
             GameObject prefab = pool.LoadPrefab();
             Assert.NotNull(prefab);
             return pool.Spawn(null);
         }
 
-        private void DespawnOne(RuntimeGameObjectPool pool, GameObject instance)
+        private void DespawnOne(RuntimeObjectPool pool, GameObject instance)
         {
-            Assert.IsTrue(_registry.TryResolve(instance, out RuntimeGameObjectPool owner, out int slotIndex));
+            Assert.IsTrue(_registry.TryResolve(instance, out RuntimeObjectPool owner, out int slotIndex));
             Assert.AreSame(pool, owner);
             Assert.AreEqual(EPoolReleaseResult.Released, pool.ReleaseByInstance(slotIndex, instance));
         }
@@ -204,7 +204,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Spawn_CreatesInstanceAndRegisters()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
 
             GameObject instance = SpawnOne(pool);
 
@@ -218,7 +218,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Spawn_WithoutPrefabLoaded_ReturnsNull()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
 
             GameObject instance = pool.Spawn(null);
 
@@ -228,7 +228,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Despawn_ParksInactiveUnderRoot()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
 
             DespawnOne(pool, instance);
@@ -243,7 +243,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Spawn_AfterDespawn_ReusesSameInstance()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject first = SpawnOne(pool);
             DespawnOne(pool, first);
 
@@ -257,7 +257,7 @@ namespace Service.GameObjectPool
         [Test]
         public void TryRelease_Twice_SecondFails()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
 
@@ -269,7 +269,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Pool_ImplementsIPoolMaintenanceItem_WithHeapIndex()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
 
             Assert.AreEqual(-1, pool.MaintenanceHeapIndex);
         }
@@ -281,7 +281,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Spawn_ReentrantDespawnInOnSpawn_IsRejected_InstanceStaysActive()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             _loader.Prefab.AddComponent<FaultyPoolable>();
             EPoolReleaseResult inner = EPoolReleaseResult.Released;
             try
@@ -316,7 +316,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Despawn_ReentrantReleaseInOnDespawn_IsRejected_ChainStaysIntact()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             _loader.Prefab.AddComponent<FaultyPoolable>();
             GameObject instance = SpawnOne(pool);
             EPoolReleaseResult inner = EPoolReleaseResult.Released;
@@ -352,7 +352,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Spawn_BeyondHardCapacity_ReturnsNull()
         {
-            RuntimeGameObjectPool pool = CreatePool(hardCapacity: 3);
+            RuntimeObjectPool pool = CreatePool(hardCapacity: 3);
 
             GameObject a = SpawnOne(pool);
             GameObject b = SpawnOne(pool);
@@ -369,7 +369,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Despawn_BeyondHardCapacity_DespanwedObjectsRecycledOnNextSpawn()
         {
-            RuntimeGameObjectPool pool = CreatePool(hardCapacity: 2);
+            RuntimeObjectPool pool = CreatePool(hardCapacity: 2);
             GameObject a = SpawnOne(pool);
             GameObject b = SpawnOne(pool);
             DespawnOne(pool, a);
@@ -387,7 +387,7 @@ namespace Service.GameObjectPool
         [Test]
         public void ExecuteMaintenance_LowMemory_TrimsToMinIdle()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Burst, minIdle: 1, softCapacity: 8, hardCapacity: 16);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Burst, minIdle: 1, softCapacity: 8, hardCapacity: 16);
             GameObject a = SpawnOne(pool);
             GameObject b = SpawnOne(pool);
             DespawnOne(pool, a);
@@ -403,7 +403,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Flush_EmptyPool_UnloadsPrefab()
         {
-            RuntimeGameObjectPool pool = CreatePool(unloadPrefab: true);
+            RuntimeObjectPool pool = CreatePool(unloadPrefab: true);
             GameObject a = SpawnOne(pool);
             DespawnOne(pool, a);
 
@@ -417,7 +417,7 @@ namespace Service.GameObjectPool
         [Test]
         public void ExecuteMaintenance_BurstIdleNotElapsed_KeepsInstances()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Burst, minIdle: 0, softCapacity: 8, hardCapacity: 16, idleSeconds: 100f);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Burst, minIdle: 0, softCapacity: 8, hardCapacity: 16, idleSeconds: 100f);
             GameObject a = SpawnOne(pool);
             DespawnOne(pool, a);
 
@@ -429,7 +429,7 @@ namespace Service.GameObjectPool
         [Test]
         public void ExecuteMaintenance_BurstIdleElapsed_Trims()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Burst, minIdle: 0, softCapacity: 8, hardCapacity: 16, idleSeconds: 10f);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Burst, minIdle: 0, softCapacity: 8, hardCapacity: 16, idleSeconds: 10f);
             GameObject a = SpawnOne(pool);
             DespawnOne(pool, a);
 
@@ -441,7 +441,7 @@ namespace Service.GameObjectPool
         [Test]
         public void ExecuteMaintenance_StickyPolicy_DoesNotTrimWithoutLowMemory()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky, minIdle: 0, softCapacity: 4, hardCapacity: 16, idleSeconds: 1f);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky, minIdle: 0, softCapacity: 4, hardCapacity: 16, idleSeconds: 1f);
             GameObject a = SpawnOne(pool);
             DespawnOne(pool, a);
 
@@ -453,7 +453,7 @@ namespace Service.GameObjectPool
         [Test]
         public void ExecuteMaintenance_StickyPolicy_LowMemoryTrims()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky, minIdle: 0, softCapacity: 4, hardCapacity: 16, idleSeconds: 1f);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky, minIdle: 0, softCapacity: 4, hardCapacity: 16, idleSeconds: 1f);
             GameObject a = SpawnOne(pool);
             DespawnOne(pool, a);
 
@@ -465,7 +465,7 @@ namespace Service.GameObjectPool
         [Test]
         public void ExecuteMaintenance_BurstKeepsMinIdle()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Burst, minIdle: 2, softCapacity: 8, hardCapacity: 16, idleSeconds: 10f);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Burst, minIdle: 2, softCapacity: 8, hardCapacity: 16, idleSeconds: 10f);
             GameObject a = SpawnOne(pool);
             GameObject b = SpawnOne(pool);
             GameObject c = SpawnOne(pool);
@@ -485,7 +485,7 @@ namespace Service.GameObjectPool
         [Test]
         public void LoadPrefab_LoadsOnceViaLoader()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
 
             GameObject prefab = pool.LoadPrefab();
 
@@ -498,7 +498,7 @@ namespace Service.GameObjectPool
         [Test]
         public void SpawnAsync_LoadsPrefabThenSpawns()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
 
             // 伪加载器同步完成——整条链路无真实挂起，直接阻塞取结果（NUnit 无法 await UniTask）。
             GameObject instance = pool.SpawnAsync(null, CancellationToken.None).GetAwaiter().GetResult();
@@ -511,7 +511,7 @@ namespace Service.GameObjectPool
         [Test]
         public void WarmupAsync_CreatesTargetInstances()
         {
-            RuntimeGameObjectPool pool = CreatePool(hardCapacity: 16);
+            RuntimeObjectPool pool = CreatePool(hardCapacity: 16);
 
             // 预热量小于单帧批量阈值——无真实 yield，直接阻塞取结果。
             pool.WarmupAsync(5, CancellationToken.None).GetAwaiter().GetResult();
@@ -528,12 +528,12 @@ namespace Service.GameObjectPool
         [Test]
         public void CreateSnapshot_ReportsPoolStatistics()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject a = SpawnOne(pool);
             GameObject b = SpawnOne(pool);
             DespawnOne(pool, a);
 
-            GameObjectPoolSnapshot snapshot = pool.CreateSnapshot(false);
+            ObjectPoolSnapshot snapshot = pool.CreateSnapshot(false);
             try
             {
                 Assert.AreEqual("Assets/Test/Fake", snapshot.location);
@@ -621,7 +621,7 @@ namespace Service.GameObjectPool
             try
             {
                 PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:ExtPrefab:1");
-                _pool = new RuntimeGameObjectPool();
+                _pool = new RuntimeObjectPool();
                 _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:ExtPrefab:1", prefab, _root, _registry);
 
                 GameObject instance = _pool.Spawn(null);
@@ -644,7 +644,7 @@ namespace Service.GameObjectPool
             try
             {
                 PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:ExtPrefab:2");
-                _pool = new RuntimeGameObjectPool();
+                _pool = new RuntimeObjectPool();
                 _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:ExtPrefab:2", prefab, _root, _registry);
 
                 GameObject first = _pool.Spawn(null);
@@ -668,7 +668,7 @@ namespace Service.GameObjectPool
             try
             {
                 PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:ExtPrefab:3");
-                _pool = new RuntimeGameObjectPool();
+                _pool = new RuntimeObjectPool();
                 _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:ExtPrefab:3", prefab, _root, _registry);
 
                 GameObject first = _pool.Spawn(null);
@@ -694,7 +694,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Generation_Recycle_InvalidatesOldLease()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject first = SpawnOne(pool);
             Assert.IsTrue(_registry.TryResolve(first, out _, out int slotIndex));
             Assert.IsTrue(pool.TryBindLease(slotIndex, out uint gen1, out _, out _));
@@ -712,7 +712,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Lease_IsValid_FalseAfterDespawn()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
             Assert.IsTrue(pool.TryBindLease(slotIndex, out uint generation, out GameObject bound, out Transform tr));
@@ -725,7 +725,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Wrap_InactiveInstance_ReturnsNull()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             DespawnOne(pool, instance);
 
@@ -736,10 +736,10 @@ namespace Service.GameObjectPool
         [Test]
         public void Despawn_Twice_DoesNotDestroyInactiveInstance()
         {
-            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            DefaultObjectPoolHandler handler = new DefaultObjectPoolHandler();
             try
             {
-                handler.Internal_Init();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
                 GameObject prefab = new GameObject("DupDespawnPrefab");
                 GameObject instance = handler.Spawn(prefab, null);
                 Assert.NotNull(instance);
@@ -752,31 +752,31 @@ namespace Service.GameObjectPool
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 
         [Test]
         public void Despawn_ForeignInstance_Destroys()
         {
-            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            DefaultObjectPoolHandler handler = new DefaultObjectPoolHandler();
             try
             {
-                handler.Internal_Init();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
                 GameObject foreign = new GameObject("ForeignInstance");
                 handler.Despawn(foreign);
                 Assert.IsTrue(foreign == null, "foreign instance must be destroyed");
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 
         [Test]
         public void Dispose_ActiveInstanceExternallyDestroyed_DoesNotThrow()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
             Assert.IsTrue(pool.TryBindLease(slotIndex, out uint generation, out _, out _));
@@ -790,7 +790,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Sticky_LazySweep_ReclaimsDestroyedSlot()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky);
             GameObject first = SpawnOne(pool);
             UObject.DestroyImmediate(first);
 
@@ -803,7 +803,7 @@ namespace Service.GameObjectPool
         [Test]
         public void ExternalDestroy_UnregistersRegistryEntry()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             Assert.IsTrue(_registry.TryResolve(instance, out _, out int slotIndex));
 
@@ -817,7 +817,7 @@ namespace Service.GameObjectPool
         [Test]
         public void HardCap_ZombieSelfHeal_RetrySucceeds()
         {
-            RuntimeGameObjectPool pool = CreatePool(softCapacity: 1, hardCapacity: 1);
+            RuntimeObjectPool pool = CreatePool(softCapacity: 1, hardCapacity: 1);
             GameObject first = SpawnOne(pool);
             UObject.DestroyImmediate(first);
 
@@ -832,7 +832,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Sticky_AllActive_ZombieSweepGetsScheduled()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky, hardCapacity: 4);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky, hardCapacity: 4);
             GameObject instance = SpawnOne(pool);
             Assert.AreEqual(1, pool.TotalCount);
 
@@ -897,7 +897,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Source_ImplicitConversion_Roundtrip()
         {
-            GameObjectPoolSource fromLocation = "Assets/X";
+            ObjectPoolSource fromLocation = "Assets/X";
             Assert.IsTrue(fromLocation.IsValid);
             Assert.IsFalse(fromLocation.IsPrefab);
             Assert.AreEqual("Assets/X", fromLocation.Location);
@@ -905,12 +905,12 @@ namespace Service.GameObjectPool
             GameObject prefab = new GameObject("SrcPrefab");
             try
             {
-                GameObjectPoolSource fromPrefab = prefab;
+                ObjectPoolSource fromPrefab = prefab;
                 Assert.IsTrue(fromPrefab.IsValid);
                 Assert.IsTrue(fromPrefab.IsPrefab);
                 Assert.AreSame(prefab, fromPrefab.Prefab);
 
-                Assert.IsFalse(default(GameObjectPoolSource).IsValid);
+                Assert.IsFalse(default(ObjectPoolSource).IsValid);
             }
             finally
             {
@@ -929,7 +929,7 @@ namespace Service.GameObjectPool
                 prefab.transform.localScale = new Vector3(2f, 2f, 2f);
 
                 PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:PosePrefab:9");
-                _pool = new RuntimeGameObjectPool();
+                _pool = new RuntimeObjectPool();
                 _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:PosePrefab:9", prefab, _root, _registry);
 
                 GameObject first = _pool.Spawn(null);
@@ -956,7 +956,7 @@ namespace Service.GameObjectPool
             try
             {
                 PoolCompiledRule rule = DefaultPoolRules.CreateExternalRule("Prefab:UserDataAlien:1");
-                _pool = new RuntimeGameObjectPool();
+                _pool = new RuntimeObjectPool();
                 _pool.InitializeWithPrefab(_scheduler, rule, "Prefab:UserDataAlien:1", prefab, _root, _registry);
 
                 GameObject instance = _pool.Spawn(null);
@@ -979,7 +979,7 @@ namespace Service.GameObjectPool
         [Test]
         public void HotPath_ZeroGcAlloc_WarmPoolRoundtrip()
         {
-            RuntimeGameObjectPool pool = CreatePool(hardCapacity: 32);
+            RuntimeObjectPool pool = CreatePool(hardCapacity: 32);
             pool.LoadPrefab();
             // 预热量须低于 WarmupAsync 单帧批量阈值（WARMUP_CREATE_BATCH = 8），
             // 否则触发帧 yield，EditMode 下同步 GetResult 抛 "Not yet completed"。
@@ -1015,7 +1015,7 @@ namespace Service.GameObjectPool
         public void Despawn_InstanceDestroyedInOnDespawn_ReclaimsSlotWithoutThrowing()
         {
             _loader.Prefab.AddComponent<FaultyPoolable>();
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             FaultyPoolable poolable = instance.GetComponent<FaultyPoolable>();
             poolable.OnDespawned = () => UObject.DestroyImmediate(instance);
@@ -1035,7 +1035,7 @@ namespace Service.GameObjectPool
         public void Despawn_InstanceDestroyedInOnDespawn_KeepsInactiveChainReachable()
         {
             _loader.Prefab.AddComponent<FaultyPoolable>();
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject survivor = SpawnOne(pool);
             GameObject selfDestructive = SpawnOne(pool);
             selfDestructive.GetComponent<FaultyPoolable>().OnDespawned =
@@ -1056,7 +1056,7 @@ namespace Service.GameObjectPool
         [Test]
         public void NormalizeLocation_IdentityResult_IsNotCached()
         {
-            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            DefaultObjectPoolHandler handler = new DefaultObjectPoolHandler();
             const string clean = "Assets/UI/Hero";
 
             string same = null;
@@ -1071,9 +1071,9 @@ namespace Service.GameObjectPool
         [Test]
         public void RecycledPool_AfterClear_StillServesAsyncSpawnAndShutdown()
         {
-            // 池对象是 MemoryObject：DefaultGameObjectPoolHandler 经 MemoryPool.Acquire/Release 循环使用它，
+            // 池对象是 MemoryObject：DefaultObjectPoolHandler 经 MemoryPool.Acquire/Release 循环使用它，
             // Clear() 里漏掉任何一条状态都会让"第二个住进这块内存的池"带着旧状态跑。
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject first = SpawnOne(pool);
             DespawnOne(pool, first);
             pool.Shutdown();
@@ -1094,7 +1094,7 @@ namespace Service.GameObjectPool
         public void RefreshMaintenance_OverSoftCapacity_WakesAtOnceInsteadOfWaitingForIdle()
         {
             // 600s 空闲期 + 软容量 2：造一个"早已放回、但空闲期远未到期"的超额态。
-            RuntimeGameObjectPool pool = CreatePool(EPoolPolicy.Burst, minIdle: 0, softCapacity: 2,
+            RuntimeObjectPool pool = CreatePool(EPoolPolicy.Burst, minIdle: 0, softCapacity: 2,
                 hardCapacity: 8, idleSeconds: 600f);
             GameObject a = SpawnOne(pool);
             GameObject b = SpawnOne(pool);
@@ -1116,7 +1116,7 @@ namespace Service.GameObjectPool
         {
             _loader.Prefab.AddComponent<FaultyPoolable>();
             _loader.Prefab.AddComponent<FaultyPoolable>();
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             DespawnOne(pool, instance);
 
@@ -1140,7 +1140,7 @@ namespace Service.GameObjectPool
         public void Maintenance_PooledDestroyThrows_TrimContinuesAndPoolStaysScheduled()
         {
             _loader.Prefab.AddComponent<FaultyPoolable>();
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject first = SpawnOne(pool);
             GameObject second = SpawnOne(pool);
             SpawnOne(pool);
@@ -1170,7 +1170,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Maintenance_FrameworkFault_IsLoggedWithPoolIdentityAndDoesNotEscape()
         {
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject instance = SpawnOne(pool);
             DespawnOne(pool, instance);
             _loader.UnloadException = new System.InvalidOperationException("unload boom");
@@ -1190,7 +1190,7 @@ namespace Service.GameObjectPool
         public void Shutdown_PooledDestroyThrows_EveryInstanceStillTornDown()
         {
             _loader.Prefab.AddComponent<FaultyPoolable>();
-            RuntimeGameObjectPool pool = CreatePool();
+            RuntimeObjectPool pool = CreatePool();
             GameObject poisoned = SpawnOne(pool);
             GameObject other = SpawnOne(pool);
             // 组件引用必须在关停前取：实例销毁后再 GetComponent 会打在假空对象上。
@@ -1214,7 +1214,7 @@ namespace Service.GameObjectPool
         [Test]
         public void Sticky_LazySweep_OfDestroyedTail_KeepsRemainingChainIntact()
         {
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Sticky);
             GameObject survivor = SpawnOne(pool);
             GameObject destroyed = SpawnOne(pool);
             DespawnOne(pool, survivor);
@@ -1235,7 +1235,7 @@ namespace Service.GameObjectPool
         {
             _loader.Prefab.AddComponent<FaultyPoolable>();
             // Fixed 策略的到期时间恒为 now，ProcessDue 必定把它弹出并回调。
-            RuntimeGameObjectPool pool = CreatePool(policy: EPoolPolicy.Fixed);
+            RuntimeObjectPool pool = CreatePool(policy: EPoolPolicy.Fixed);
             GameObject instance = SpawnOne(pool);
             SpawnOne(pool); // 留一个在借实例：全清空时池会转为「无事可排期」，那样断言不到重排
             FaultyPoolable poolable = instance.GetComponent<FaultyPoolable>();

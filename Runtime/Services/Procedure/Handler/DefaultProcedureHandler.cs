@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Moirai.Atropos.Asset;
+using Moirai.Atropos.Debugger;
+using Moirai.Atropos.Localization;
+using Moirai.Atropos.Timer;
 
 namespace Moirai.Atropos.Procedure
 {
@@ -10,12 +14,15 @@ namespace Moirai.Atropos.Procedure
     /// 切换在 <c>OnLeave</c> / <c>OnEnter</c> 执行期间重入受深度上限保护，超出即抛 <see cref="GameException"/>（互为 OnEnter 互切的流程环在此 fail-fast，而非栈溢出）。 <br />
     /// 嵌套切换语义：OnEnter/OnLeave 内的合法重定向（如闪屏直切）会递归完成再逐层记录；中间流程可能未走 OnLeave，历史记录以最外层完成态为准（每条记录的 To 即广播时刻的当前流程）。
     /// </remarks>
-    [ProviderDisplay(title: "默认流程机", description: "纯 C# 状态机：嵌套切换递归完成、切换环深度上限 fail-fast")]
     [Serializable]
-    internal sealed class DefaultProcedureHandler : FrameworkHandler, IProcedureService
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(ILocalizationService), typeof(ITimerService))]
+    [ProviderDisplay(title: "默认流程机", description: "纯 C# 状态机：嵌套切换递归完成、切换环深度上限 fail-fast")]
+    internal sealed class DefaultProcedureHandler : ServiceBase, IServiceTickable, IProcedureService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.PROCEDURE;
         /// <summary>单次调用栈内允许的最大切换深度（合法嵌套远低于此值，超出即判定为流程环）。</summary>
-        private const int MaxTransitionDepth = 16;
+        private const int MAX_TRANSITION_DEPTH = 16;
 
         private static readonly ProcedureBase[] EmptyProcedures = new ProcedureBase[0];
 
@@ -27,13 +34,13 @@ namespace Moirai.Atropos.Procedure
 
         #region 切换记录承载（原基类共享状态，[SerializeReference] 重建须懒初始化）
 
-        private const int TransitionHistoryCapacity = 32;
+        private const int TRANSITION_HISTORY_CAPACITY = 32;
 
         [NonSerialized] private List<ProcedureTransitionRecord> _transitionHistory;
         [NonSerialized] private bool _isBroadcastingTransition;
 
         private List<ProcedureTransitionRecord> TransitionHistoryList =>
-            _transitionHistory ??= new List<ProcedureTransitionRecord>(TransitionHistoryCapacity);
+            _transitionHistory ??= new List<ProcedureTransitionRecord>(TRANSITION_HISTORY_CAPACITY);
 
         /// <inheritdoc />
         public IReadOnlyList<ProcedureTransitionRecord> TransitionHistory => TransitionHistoryList;
@@ -83,10 +90,15 @@ namespace Moirai.Atropos.Procedure
             _states != null ? (IReadOnlyCollection<ProcedureBase>)_states.Values : EmptyProcedures;
 
         /// <summary>
-        /// 处理器初始化。
+        /// 处理器初始化。由容器在拓扑位驱动；容器编排（调试面板注册）以 Context 就位为闸随行。
         /// </summary>
         protected override void OnInit()
         {
+            if (Context != null)
+            {
+                ProcedureService.OnHandlerInitialized(Context.GetRequiredService<IDebuggerService>());
+            }
+
             _states ??= new Dictionary<Type, ProcedureBase>();
             _currentState = null;
             _currentStateTime = 0f;
@@ -103,6 +115,17 @@ namespace Moirai.Atropos.Procedure
         /// </remarks>
         protected override void OnShutdown()
         {
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                ProcedureService.InvalidateHandler(this);
+            }
+            // 编排收尾以就绪态为闸：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown，此时依赖可能已先被拆走
+            if (IsReady && Context != null)
+            {
+                ProcedureService.OnHandlerShuttingDown(Context.GetRequiredService<IDebuggerService>());
+            }
+
             if (_isStateReady)
             {
                 if (_currentState != null)
@@ -297,12 +320,12 @@ namespace Moirai.Atropos.Procedure
             }
 
             ProcedureBase procedure = GetRegisteredProcedure(procedureType);
-            if (_transitionDepth >= MaxTransitionDepth)
+            if (_transitionDepth >= MAX_TRANSITION_DEPTH)
             {
                 throw new GameException(StringUtility.Format(
                     "ChangeState depth exceeds {0} — procedure loop detected between '{1}' and '{2}'. " +
                     "Do not switch procedures mutually inside OnEnter/OnLeave.",
-                    MaxTransitionDepth, _currentState.GetType().FullName, procedureType?.FullName));
+                    MAX_TRANSITION_DEPTH, _currentState.GetType().FullName, procedureType?.FullName));
             }
 
             ProcedureBase from = _currentState;

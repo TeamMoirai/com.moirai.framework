@@ -43,7 +43,7 @@ namespace Service.Audio
             _clip.SetData(new float[44100 * 2], 0);
 
             _handler = new UnityAudioHandler();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
 
             _request = new AudioPlayRequest(9001, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.DoNotAutoRecycle);
             _options = AudioPlayOptions.Create(EAudioTrack.Sfx);

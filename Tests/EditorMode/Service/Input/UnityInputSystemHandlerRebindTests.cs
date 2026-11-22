@@ -41,13 +41,13 @@ namespace Service.Input
 
             _previousHandler = Settings.Internal_PeekHandler();
             Settings.Internal_UseHandler(new RecordingSettingHandler());
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
         public void TearDown()
         {
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             Object.DestroyImmediate(_asset);
             Settings.Internal_UseHandler(_previousHandler);
         }
@@ -175,7 +175,7 @@ namespace Service.Input
             var jump = _asset.FindAction("Player/Jump");
             Assert.IsFalse(jump.enabled, "监听期动作禁用，避免重绑触发 gameplay 查询");
 
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             var shutdownResult = task.GetAwaiter().GetResult();
             Assert.AreEqual(ERebindOutcome.Cancelled, shutdownResult.Outcome, "后端关停取消未决监听");
         }

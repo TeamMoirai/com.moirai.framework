@@ -39,10 +39,10 @@ namespace Moirai.GameLogic
             await UniTask.Delay(5 * 1000);
             AudioService.Stop(coinsHandle);
 
-            // await GameObjectPoolService.WarmupAsync("Assets/AssetRaw/Default/UI/Window/StartScreen", 5);
-            var instance = GameObjectPoolService.Spawn("Assets/AssetRaw/Default/UI/Window/StartScreen");
+            // await ObjectPoolService.WarmupAsync("Assets/AssetRaw/Default/UI/Window/StartScreen", 5);
+            var instance = ObjectPoolService.Spawn("Assets/AssetRaw/Default/UI/Window/StartScreen");
             await UniTask.Delay(5 * 1000);
-            GameObjectPoolService.Despawn(instance);
+            ObjectPoolService.Despawn(instance);
         }
     }
 }

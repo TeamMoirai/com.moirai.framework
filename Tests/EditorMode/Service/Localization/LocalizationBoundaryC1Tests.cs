@@ -42,7 +42,7 @@ namespace Service.Localization
             probe.Strings["ui.title"] = new List<string> { "タイトル", "Title" };
             // 处理器不再自行走检测链：探针也得有人把偏好交给它，交给批内的英语，首启结果因此与机器无关
             probe.ApplyPreference(Language.English.Code, "EditorSetting");
-            probe.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)probe).Initialize();
             // 批得真的装上：处理器在批未就绪时把可用性判定退化成身份解析，那时这一组断言测不到判定档
             _ = probe.GetTextFromId("ui.title");
             return probe;
@@ -63,7 +63,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 
@@ -84,7 +84,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 
@@ -112,7 +112,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 
@@ -132,7 +132,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 
@@ -150,7 +150,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 
@@ -162,7 +162,7 @@ namespace Service.Localization
             UtfLogExpect.Error();
 
             var probe = new L10nProbeHandler();
-            probe.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)probe).Initialize();
             try
             {
                 LocalizationService.Internal_UseHandler(probe);
@@ -175,7 +175,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
     }

@@ -9,11 +9,10 @@ namespace Moirai.Atropos
         /// 注册 App 作用域服务并启动游戏流程（Composition Root）。
         /// </summary>
         /// <remarks>
-        /// 顺序固定： ① 内置服务注册清单（源生成器按 <see cref="AutoRegisterServiceAttribute"/> 标记生成）→ ② <br />
-        /// <see cref="GameApp.onServicesComposing"/> 交回项目侧注册自有 App 服务 → ③ <see cref="ServiceWorld.InitializeAsync"/> 提交两阶段构建的第二阶段。
-        /// 初始化顺序由 <see cref="ServiceDependencyAttribute"/> 声明拓扑决定、与注册顺序无关，缺失依赖与循环依赖 fail-fast。 <br />
-        /// 需要调试面板的服务应声明 <c>[ServiceDependency(typeof(DebuggerService))]</c> 以保证拓扑先行。 <br />
-        /// 由 <see cref="GameApp.Boot"/> 调用，触发点 <see cref="GameAppSettings.Initiation"/> 相位为 <c>BeforeSceneLoad</c>。
+        /// 三步固定序：内置清单入图（生成器按 <see cref="ProviderHandlerHostAttribute"/> 发射 <c>WarmHandler</c> 预热） <br />
+        /// → <see cref="GameApp.onServicesComposing"/> 交回项目侧注册 → 提交 <see cref="ServiceWorld"/> 的第二阶段。 <br />
+        /// 初始化顺序由 <see cref="ServiceDependencyAttribute"/> 拓扑决定、与注册顺序无关，缺失与循环依赖 fail-fast。 <br />
+        /// 由 <see cref="GameApp.Boot"/> 在 <c>BeforeSceneLoad</c> 相位调用。
         /// </remarks>
         internal static partial UniTaskVoid InitializeAppServices()
         {
@@ -23,23 +22,24 @@ namespace Moirai.Atropos
             {
                 try
                 {
-                    // 注册（第一阶段：仅入图，顺序无关；清单由源生成器按 [AutoRegisterService] 生成）
+                    // 起步清世界：关闭域重载时编辑器会话的静态世界会泄漏进播放态，boot 必须从干净世界起步才走确定序。
+                    GameServices.Shutdown();
+
+                    // 第一阶段：仅入图，顺序无关
                     BuiltinServiceRegistration.RegisterAll(GameServices.Default);
 
-                    // UIService 双轨例外：不声明 [ProviderHandlerHost]，IUIService 契约绑定在此显式补登
-                    // （第一阶段注册即写入契约映射，此处查询无需等初始化；服务互调经 Context.GetRequiredService<IUIService>() 解析）
-                    GameServices.RegisterService(EServiceScopeKind.App, typeof(IUIService), GameServices.GetRequiredService<UIService>());
+                    // UIService 双轨多缓存：按目录关停档降序注册，容器反序拆除即档位升序收口
+                    UIService.RegisterEnabledHandlers();
 
-                    // 项目侧扩展点：此时入图的服务与内置服务一并参与下面的拓扑排序
+                    // 项目侧扩展点：此时入图的服务与内置服务一并参与拓扑排序
                     GameApp.InvokeServicesComposing();
 
-                    // 初始化（第二阶段：依赖图拓扑排序统一驱动 OnInit）
+                    // 第二阶段：按依赖图拓扑序统一驱动 OnInit
                     await GameServices.Default.InitializeAsync();
                 }
                 catch (System.Exception exception)
                 {
-                    // 本方法是 fire-and-forget 的 UniTaskVoid：不接住异常，Forget() 在发布构建会
-                    // 静默吞掉它，启动失败就只剩一块黑屏。先记录再交回项目上报。
+                    // fire-and-forget 的 UniTaskVoid：不接住异常，发布构建会静默吞掉，启动失败只剩一块黑屏。
                     LogUtility.Error("GameApp boot failed: service composition threw. {0}", exception);
                     GameApp.RaiseBootFailed(exception);
                 }

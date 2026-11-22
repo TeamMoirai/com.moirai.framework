@@ -45,7 +45,7 @@ namespace Service.Audio
             _voiceClip.SetData(new float[44100], 0);
 
             _handler = new UnityAudioHandler();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
 
             // 状态机只在过渡真的能施加时才推进状态：测试环境的项目 Mixer 未必带 Dialogue/Default 快照，
             // 缺快照时 Ducking 的请求会被正当拒绝、Current 永远停在 Default，端到端断言便无从观测。

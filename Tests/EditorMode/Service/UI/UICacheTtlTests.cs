@@ -78,7 +78,7 @@ namespace Service.UI
         {
             _ledger = new UIWindowLedger();
             _timerHandler = new DefaultTimerHandler();
-            ((FrameworkHandler)_timerHandler).Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_timerHandler).Initialize();
             _savedTimerHandler = TimerService.Internal_UseHandler(_timerHandler);
         }
 
@@ -86,7 +86,7 @@ namespace Service.UI
         public void TearDown()
         {
             TimerService.Internal_UseHandler(_savedTimerHandler);
-            ((FrameworkHandler)_timerHandler).Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_timerHandler).Destroy();
             _timerHandler = null;
             _savedTimerHandler = null;
             _ledger = null;

@@ -73,7 +73,7 @@ namespace Service.Procedure
         public void SetUp()
         {
             _handler = new DefaultProcedureHandler();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
             _a = new ProbeA();
             _b = new ProbeB();
         }
@@ -81,7 +81,7 @@ namespace Service.Procedure
         [TearDown]
         public void TearDown()
         {
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
         }
 
         #region 初始化 [INITIALIZE]
@@ -238,7 +238,7 @@ namespace Service.Procedure
             _handler.Initialize(_a, _b);
             _handler.StartProcedure(typeof(ProbeA));
 
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
 
             Assert.AreEqual(new[] { "Init", "Enter", "Leave:Shutdown", "Destroy" }, _a.Log);
             Assert.AreEqual(new[] { "Init", "Destroy" }, _b.Log);
@@ -299,7 +299,7 @@ namespace Service.Procedure
             _handler.Initialize(_a, _b);
             Assert.IsTrue(_handler.IsStateReady);
 
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             Assert.IsFalse(_handler.IsStateReady);
         }
 
@@ -341,7 +341,10 @@ namespace Service.Procedure
             try
             {
                 // 经真实 setter 链路注入（Internal_Init + CAS 交换）
-                ProcedureService.Handler = handler;
+                // 生成的 setter 现在带容器注册副作用（RegisterRuntime → OnInit 编排），测试沙盒不得走它：
+                // 直驱初始化 + 无注册语义的槽位换入，与旧 setter 语义（Internal_Init + CAS 交换）一致
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
+                ProcedureService.Internal_UseHandler(handler);
 
                 var a = new ProbeA();
                 var b = new ProbeB();
@@ -369,7 +372,7 @@ namespace Service.Procedure
             {
                 ProcedureService.onProcedureChanged -= throwingSubscriber;
                 ProcedureService.onProcedureChanged -= countingSubscriber;
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
                 ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
@@ -406,7 +409,10 @@ namespace Service.Procedure
             try
             {
                 // 外观已注册但状态机未 Initialize——后端会 fail-fast，外观必须静默降级
-                ProcedureService.Handler = handler;
+                // 生成的 setter 现在带容器注册副作用（RegisterRuntime → OnInit 编排），测试沙盒不得走它：
+                // 直驱初始化 + 无注册语义的槽位换入，与旧 setter 语义（Internal_Init + CAS 交换）一致
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
+                ProcedureService.Internal_UseHandler(handler);
                 Assert.IsTrue(ProcedureService.IsValid);
                 Assert.IsFalse(ProcedureService.IsStateReady);
 
@@ -420,7 +426,7 @@ namespace Service.Procedure
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
                 ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
@@ -433,7 +439,10 @@ namespace Service.Procedure
 
             try
             {
-                ProcedureService.Handler = handler;
+                // 生成的 setter 现在带容器注册副作用（RegisterRuntime → OnInit 编排），测试沙盒不得走它：
+                // 直驱初始化 + 无注册语义的槽位换入，与旧 setter 语义（Internal_Init + CAS 交换）一致
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
+                ProcedureService.Internal_UseHandler(handler);
                 Assert.IsFalse(ProcedureService.IsStateReady);
 
                 // Start/Change 依赖已就绪状态机——忽略并告警
@@ -457,7 +466,7 @@ namespace Service.Procedure
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
                 ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
@@ -470,7 +479,10 @@ namespace Service.Procedure
 
             try
             {
-                ProcedureService.Handler = handler;
+                // 生成的 setter 现在带容器注册副作用（RegisterRuntime → OnInit 编排），测试沙盒不得走它：
+                // 直驱初始化 + 无注册语义的槽位换入，与旧 setter 语义（Internal_Init + CAS 交换）一致
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
+                ProcedureService.Internal_UseHandler(handler);
                 Assert.IsFalse(ProcedureService.IsStateReady);
 
                 var a = new ProbeA();
@@ -481,7 +493,7 @@ namespace Service.Procedure
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
                 ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
@@ -533,7 +545,10 @@ namespace Service.Procedure
 
             try
             {
-                ProcedureService.Handler = handler;
+                // 生成的 setter 现在带容器注册副作用（RegisterRuntime → OnInit 编排），测试沙盒不得走它：
+                // 直驱初始化 + 无注册语义的槽位换入，与旧 setter 语义（Internal_Init + CAS 交换）一致
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
+                ProcedureService.Internal_UseHandler(handler);
                 ProcedureService.Initialize(a, b);
 
                 // 回调内同步 ChangeState 抛 GameException，被隔离后转 Error 日志 ×1
@@ -546,7 +561,7 @@ namespace Service.Procedure
             finally
             {
                 ProcedureService.onProcedureChanged -= reentrant;
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
                 ProcedureService.Internal_UseHandler(savedHandler);
             }
         }
@@ -577,7 +592,7 @@ namespace Service.Procedure
             ExpectErrorLogForUtf();
             ExpectErrorLogForUtf();
 
-            Assert.DoesNotThrow(() => _handler.Internal_Shutdown());
+            Assert.DoesNotThrow(() => ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy());
 
             Assert.AreEqual(new[] { "Init", "Enter", "Leave:Shutdown", "Destroy" }, _a.Log);
             Assert.AreEqual(new[] { "Init", "Destroy" }, _b.Log);

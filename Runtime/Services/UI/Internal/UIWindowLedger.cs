@@ -85,9 +85,21 @@ namespace Moirai.Atropos.UI
         /// <summary>
         /// 每帧驱动栈上窗口的内部更新：栈序在遍历期间被窗口回叫改写时立刻收尾，避免半程索引读到错位窗口。
         /// </summary>
-        internal void Tick()
+        // 帧守卫：同帧多轨驱动只结算一次（回摆后两支 handler 都被容器轮询，TickShared 各自进入）
+        private int _settledFrame = -1;
+        private float _settledReal = float.NegativeInfinity;
+
+        internal void Tick(float realElapseSeconds)
         {
             if (_uiStack == null) return;
+
+            if (Application.isPlaying && _settledFrame == Time.frameCount && _settledReal == realElapseSeconds)
+            {
+                return;
+            }
+
+            _settledFrame = Time.frameCount;
+            _settledReal = realElapseSeconds;
 
             int count = _uiStack.Count;
             for (int i = 0; i < _uiStack.Count; i++)

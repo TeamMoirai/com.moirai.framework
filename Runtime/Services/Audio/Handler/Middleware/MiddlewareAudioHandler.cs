@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
@@ -10,6 +11,7 @@ namespace Moirai.Atropos.Audio.Middleware
     /// 中间件音频处理器基类——FMOD / Wwise 共用。
     /// </summary>
     /// <remarks>
+    /// 服务后端（<see cref="IAudioService"/> 契约实现）：由容器注册并驱动生命周期，经 <c>GameServices</c> 按契约解析。 <br />
     /// 统一句柄生命周期（<see cref="AudioHandleRegistry{TVoice}"/>）、用户 ID 映射、声部与总线 Fade（<see cref="AudioFadeScheduler"/>）、 <br />
     /// 总线音量/静音/暂停与场景切换清理； <br />
     /// 子类只需提供 <see cref="CreateDefaultBridge"/> 与可选总线路径覆盖。 <br />
@@ -19,8 +21,15 @@ namespace Moirai.Atropos.Audio.Middleware
     /// 后端插件既不提供也不实现它，把它挂到本公共契约基类的基列表上会让调度器的内部面漏进公共 API。
     /// </remarks>
     [Serializable]
-    public abstract class MiddlewareAudioHandler : FrameworkHandler, IAudioService
+    [ServiceDependency(typeof(IDebuggerService))]
+    public abstract class MiddlewareAudioHandler : ServiceBase, IServiceTickable, IAudioService
     {
+        /// <summary>依赖契约实例（OnInit 经上下文解析，Phase 2 注入互调）。</summary>
+        [NonSerialized] private IDebuggerService _debugger;
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
+
         #region 声部 [VOICE]
 
         private sealed class Voice : IAudioVoiceRef
@@ -380,10 +389,19 @@ namespace Moirai.Atropos.Audio.Middleware
 
         #region 服务方法 [SERVICE METHOD]
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 初始化中间件桥接。由容器在拓扑位驱动（调试面板注册随编排并入）。
+        /// </summary>
+        /// <remarks>容器外直驱（测试沙盒）只做桥接初始化——与旧 <c>Internal_Init</c> 语义对齐；编排以 Context 就位为闸。</remarks>
         protected override void OnInit()
         {
             if (!Application.isPlaying) return;
+
+            bool containerDriven = Context != null;
+            if (containerDriven)
+            {
+                _debugger = Context.GetRequiredService<IDebuggerService>();
+            }
 
             _bridge ??= CreateDefaultBridge();
 
@@ -397,22 +415,37 @@ namespace Moirai.Atropos.Audio.Middleware
             {
                 EnsureTrackArrays();
                 SceneManager.sceneLoaded += OnSceneLoaded;
-                return;
+            }
+            else
+            {
+                // 初始化失败即整体禁用并丢弃引用，不留「半初始化」状态：各判空分支退化为静默 no-op
+                // （Play 返回 0、Bank/RTPC 空操作、Shutdown 不再触达）。不重试，恢复只在重启进程时发生。
+                LogUtility.Error(
+                    "[MiddlewareAudio] 桥接初始化失败，本次运行音频已禁用（Play 返回 0、Bank/RTPC 空操作）。" +
+                    "请检查 SDK 插件是否导入、*_INSTALLED 宏与 Handler 选择是否成对配置。");
+                _bridge = null;
+                // 音量面随之转 inert：getter 报 0、写入无效，避免面板在引擎已死时仍显示有效音量。
+                _engineUnavailable = true;
             }
 
-            // 初始化失败即整体禁用并丢弃引用，不留「半初始化」状态：各判空分支退化为静默 no-op
-            // （Play 返回 0、Bank/RTPC 空操作、Shutdown 不再触达）。不重试，恢复只在重启进程时发生。
-            LogUtility.Error(
-                "[MiddlewareAudio] 桥接初始化失败，本次运行音频已禁用（Play 返回 0、Bank/RTPC 空操作）。" +
-                "请检查 SDK 插件是否导入、*_INSTALLED 宏与 Handler 选择是否成对配置。");
-            _bridge = null;
-            // 音量面随之转 inert：getter 报 0、写入无效，避免面板在引擎已死时仍显示有效音量。
-            _engineUnavailable = true;
+            if (containerDriven)
+            {
+                _debugger.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
+            }
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 关闭中间件处理器。由容器在关闭期驱动（注销/世界收口），或生成 setter 换后端时经条件注销触发。
+        /// </summary>
         protected override void OnShutdown()
         {
+            // 缓存失效钩子先于平台守卫：槽位记账是生命周期层的事，EditMode/非播放态的世界销毁也要清槽
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                AudioService.InvalidateHandler(this);
+            }
+
             if (!Application.isPlaying) return;
 
             StopAll(0f);
@@ -427,10 +460,34 @@ namespace Moirai.Atropos.Audio.Middleware
             _bridge = null;
             _instanceRoot = null;
             SceneManager.sceneLoaded -= OnSceneLoaded;
+
+            // 门面侧收尾仅容器路径执行（与 OnInit 编排一一对应）；直驱路径按旧 Internal_Shutdown 语义只收后端
+            if (Context != null)
+            {
+                _debugger?.UnregisterDebuggerWindow("Profiler/Audio");
+                AudioFault.Reset();
+                AudioWarnOnce.Reset();
+            }
         }
 
         /// <inheritdoc />
+        /// <remarks>隔离边界收口在本 handler（与 Unity 后端同一口径）：容器 tick 保护在开发构建下会重抛并打断整轮。</remarks>
         public void Tick(float elapseSeconds, float realElapseSeconds)
+        {
+            try
+            {
+                TickCore(elapseSeconds, realElapseSeconds);
+            }
+            catch (Exception e)
+            {
+                AudioFault.Report($"{nameof(MiddlewareAudioHandler)}.{nameof(Tick)}", e);
+            }
+        }
+
+        /// <summary>
+        /// 轮询桥接与过渡（异常隔离由 <see cref="Tick"/> 收口）。
+        /// </summary>
+        private void TickCore(float elapseSeconds, float realElapseSeconds)
         {
             // 不碰 AudioBlockingLoadGate：该门禁强制点在 Unity 后端的路径 Play 上，
             // 中间件按事件路径即时下发、没有同步资源加载可拦，调 Close/Open 只会给出一个并不存在的保证。

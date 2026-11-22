@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UObject = UnityEngine.Object;
@@ -16,8 +17,18 @@ namespace Moirai.Atropos.Asset
     /// 由 <see cref="AssetServiceSettings"/> 序列化配置，<see cref="AssetService"/> 外观转发调用。
     /// </remarks>
     [Serializable]
-    public abstract class AssetServiceHandler : FrameworkHandler, IAssetService, IAssetLeaseSource
+    [ServiceDependency(typeof(IDebuggerService))]
+    public abstract class AssetServiceHandler : ServiceBase, IServiceTickable, IAssetService, IAssetLeaseSource
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.RESOURCE;
+
+        /// <summary>后端是否完成初始化（容器状态；具体后端可按自身就绪口径收严）。</summary>
+        public virtual bool IsInitialized => IsReady;
+
+        /// <inheritdoc />
+        public void Tick(float elapseSeconds, float realElapseSeconds) => AssetService.TickMaintenance(this);
+
         #region 基础属性 [BASE PROPERTIES]
 
         /// <summary>默认资源包/资源组名称。</summary>
@@ -31,18 +42,33 @@ namespace Moirai.Atropos.Asset
         protected internal virtual bool ConsumesPackageNames => true;
 
         /// <summary>
-        /// 同步初始化回调。默认实现为空，由具体后端覆写以接管资源。
+        /// 同步初始化回调。由容器在拓扑位驱动；容器编排（配置推送、后端 Initialize、自检、
+        /// 低内存订阅、调试面板）以 Context 就位为闸随行。默认实现为空，由具体后端覆写以接管资源。
         /// </summary>
         protected override void OnInit()
         {
+            if (Context != null)
+            {
+                AssetService.OnHandlerInitialized(this, Context.GetRequiredService<IDebuggerService>());
+            }
         }
 
         /// <summary>
-        /// 关闭处理器：释放所有资源记录与在途加载操作。
+        /// 关闭处理器：释放所有资源记录与在途加载操作。由容器在关闭期驱动（注销/世界收口）：
+        /// 缓存失效与容器编排收尾随行。
         /// </summary>
-        /// <remarks>由 <see cref="AssetService.OnShutdown"/> 在容器关闭期调用。</remarks>
         protected override void OnShutdown()
         {
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                AssetService.InvalidateHandler(this);
+            }
+            // 编排收尾以就绪态为闸：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown，此时依赖可能已先被拆走
+            if (IsReady && Context != null)
+            {
+                AssetService.OnHandlerShuttingDown(Context.GetRequiredService<IDebuggerService>());
+            }
         }
 
         /// <summary>绑定服务。</summary>
@@ -90,7 +116,7 @@ namespace Moirai.Atropos.Asset
         #region 初始化 [INITIALIZATION]
 
         /// <summary>
-        /// 初始化资源系统。
+        /// 初始化资源系统（创建默认资源包与绑定服务），由容器编排在配置推送后调用。
         /// </summary>
         public abstract void Initialize();
 

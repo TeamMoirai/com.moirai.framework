@@ -9,7 +9,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// 运行时 GameObject 池，使用分页 Slot 存储 + 侵入式链表实现零 GC 热路径，维护经共享调度器驱动。
     /// </summary>
-    internal sealed class RuntimeGameObjectPool : MemoryObject, IPoolMaintenanceItem
+    internal sealed class RuntimeObjectPool : MemoryObject, IPoolMaintenanceItem
     {
         #region 常量 [CONSTANTS]
 
@@ -48,7 +48,7 @@ namespace Moirai.Atropos.ObjectPool
             public GameObject Instance;
             public Transform Transform;
             public object UserData;
-            public IGameObjectPoolable[] Poolables;
+            public IObjectPoolable[] Poolables;
             public int PoolableCount;
             public float SpawnTime;
             public float LastReleaseTime;
@@ -63,7 +63,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 字段 [FIELDS]
 
         private PoolMaintenanceScheduler _scheduler;
-        private readonly GameObjectPrefabSource _prefabSource = new GameObjectPrefabSource();
+        private readonly PrefabSource _prefabSource = new PrefabSource();
         private PooledInstanceRegistry _registry;
         private PoolCompiledRule _rule;
         private string _location;
@@ -73,6 +73,8 @@ namespace Moirai.Atropos.ObjectPool
         // 关停标志：Shutdown 会把槽位页归还 ArrayPool，挂起中的异步续体（SpawnAsync / WarmupAsync）
         // 若在其后复跑，写的就是可能已被他池复用的内存，故一切异步入口续跑前必须先问它。
         private bool _isShuttingDown;
+        // 隐藏托管：根对象自身实现 IObjectPoolable 即为真——回收不代管 SetActive(false)，由池件 OnDespawn 自管
+        private bool _ownsVisibility;
 
         private PoolSlotStorage<Slot> _storage;
 
@@ -90,9 +92,9 @@ namespace Moirai.Atropos.ObjectPool
         private int _destroyCount;
         private int _peakActive;
         private uint _generationCounter;
-        private readonly List<IGameObjectPoolable> _poolableBuffer = new List<IGameObjectPoolable>(8);
+        private readonly List<IObjectPoolable> _poolableBuffer = new List<IObjectPoolable>(8);
 
-        private static readonly Comparison<GameObjectPoolInstanceSnapshot> s_InstanceComparer = CompareInstanceSnapshot;
+        private static readonly Comparison<ObjectPoolInstanceSnapshot> s_InstanceComparer = CompareInstanceSnapshot;
 
         #endregion
 
@@ -497,7 +499,7 @@ namespace Moirai.Atropos.ObjectPool
                 // 带上池身份再报一次：调度器那一层的日志只能给出异常，指不出是哪个池在退化。
                 _maintenanceFailureCount++;
                 LogUtility.Fatal(
-                    "[GameObjectPool] Maintenance faulted (consecutive {0}), next wake backed off. Rule:{1}, Location:{2}\n{3}",
+                    "[ObjectPool] Maintenance faulted (consecutive {0}), next wake backed off. Rule:{1}, Location:{2}\n{3}",
                     _maintenanceFailureCount, _rule.EntryName, _location, exception);
             }
             finally
@@ -594,10 +596,10 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 创建池快照。
         /// </summary>
-        public GameObjectPoolSnapshot CreateSnapshot(bool includeInstances)
+        public ObjectPoolSnapshot CreateSnapshot(bool includeInstances)
         {
             float now = Time.time;
-            GameObjectPoolSnapshot snapshot = MemoryPool.Acquire<GameObjectPoolSnapshot>();
+            ObjectPoolSnapshot snapshot = MemoryPool.Acquire<ObjectPoolSnapshot>();
             snapshot.entryName = _rule.EntryName;
             snapshot.group = _rule.Group;
             snapshot.location = _location;
@@ -630,7 +632,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 填充实例快照。
         /// </summary>
-        public void FillInstances(GameObjectPoolSnapshot snapshot)
+        public void FillInstances(ObjectPoolSnapshot snapshot)
         {
             FillInstances(snapshot, Time.time);
         }
@@ -667,7 +669,7 @@ namespace Moirai.Atropos.ObjectPool
             _destroyCount = 0;
             _peakActive = 0;
             // 回收再用的池必须解开关停判定：本对象经 MemoryPool.Acquire/Release 循环使用
-            // （见 DefaultGameObjectPoolHandler），残留 true 会让复用池的 SpawnAsync 永久返回 null、
+            // （见 DefaultObjectPoolHandler），残留 true 会让复用池的 SpawnAsync 永久返回 null、
             // WarmupAsync 永不挂调度，且第二次 Shutdown 被自身重入守卫吞掉——同步 Spawn 照常，故极隐蔽。
             _isShuttingDown = false;
             // 代系计数在池对象 CLR 生命期内单调递增，避免回收再用时与陈旧租约碰撞。
@@ -743,12 +745,14 @@ namespace Moirai.Atropos.ObjectPool
                 slot.Transform.localScale = prefabTransform.localScale;
             }
 
+            // 借出激活归池（预热实例入链时已隐藏）；隐藏可托管：根对象自带池件时
+            // 回收不代管 SetActive(false)，由池件的 OnDespawn 自行控制
             if (!slot.Instance.activeSelf)
             {
                 slot.Instance.SetActive(true);
             }
 
-            GameObjectPoolSpawnContext context = new GameObjectPoolSpawnContext(_location, _rule.Group, parent, (uint)Time.frameCount);
+            ObjectPoolSpawnContext context = new ObjectPoolSpawnContext(_location, _rule.Group, parent, (uint)Time.frameCount);
             try
             {
                 InvokeOnSpawn(ref slot, in context);
@@ -762,7 +766,8 @@ namespace Moirai.Atropos.ObjectPool
                 if (slot.State == SlotState.Transitioning)
                 {
                     _activeCount--;
-                    if (slot.Instance != null && slot.Instance.activeSelf)
+                    // 托管档（根对象自带池件）可见性归池件自管，回滚不代管隐藏
+                    if (!_ownsVisibility && slot.Instance != null && slot.Instance.activeSelf)
                     {
                         slot.Instance.SetActive(false);
                     }
@@ -821,7 +826,8 @@ namespace Moirai.Atropos.ObjectPool
                 return;
             }
 
-            if (slot.Instance.activeSelf)
+            // 可见性托管：根对象自带池件时由其 OnDespawn 自管隐藏（池不做 SetActive）
+            if (!_ownsVisibility && slot.Instance.activeSelf)
             {
                 slot.Instance.SetActive(false);
             }
@@ -852,7 +858,7 @@ namespace Moirai.Atropos.ObjectPool
                 if (_totalCount >= _rule.HardCapacity)
                 {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    LogUtility.Warning("[GameObjectPool] HardCapacity reached. Rule:{0}, Location:{1}, Hard:{2}",
+                    LogUtility.Warning("[ObjectPool] HardCapacity reached. Rule:{0}, Location:{1}, Hard:{2}",
                         _rule.EntryName, _location, _rule.HardCapacity);
 #endif
                     return -1;
@@ -880,6 +886,12 @@ namespace Moirai.Atropos.ObjectPool
 
             _registry?.Register(slot.Instance, this, slotIndex);
             CachePoolables(ref slot);
+            // 首实例上探测隐藏托管档：根对象自带池件 → 回收不代管隐藏（后续实例同 prefab，档位一致）
+            if (_totalCount == 0)
+            {
+                _ownsVisibility = slot.PoolableCount > 0 && slot.Poolables[0] != null
+                    && (slot.Instance.GetComponent<IObjectPoolable>() != null);
+            }
             _totalCount++;
             _expandCount++;
             return slotIndex;
@@ -958,7 +970,7 @@ namespace Moirai.Atropos.ObjectPool
                 if (slot.State != SlotState.Free && slot.Instance == null)
                 {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    LogUtility.Warning("[GameObjectPool] Pooled object destroyed outside pool. Rule:{0}, Location:{1}",
+                    LogUtility.Warning("[ObjectPool] Pooled object destroyed outside pool. Rule:{0}, Location:{1}",
                         _rule.EntryName, _location);
 #endif
                     try
@@ -1050,7 +1062,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 私有方法 — Poolable 回调 [PRIVATE POOLABLE CALLBACKS]
 
         /// <summary>
-        /// 缓存实例上的 <see cref="IGameObjectPoolable"/> 组件列表。
+        /// 缓存实例上的 <see cref="IObjectPoolable"/> 组件列表。
         /// </summary>
         /// <remarks>
         /// 使用预分配的 buffer，避免 GC 分配。
@@ -1066,14 +1078,14 @@ namespace Moirai.Atropos.ObjectPool
                 return;
             }
 
-            slot.Poolables = SlotArrayPool<IGameObjectPoolable>.Rent(slot.PoolableCount);
+            slot.Poolables = SlotArrayPool<IObjectPoolable>.Rent(slot.PoolableCount);
             for (int i = 0; i < slot.PoolableCount; i++)
             {
                 slot.Poolables[i] = _poolableBuffer[i];
             }
         }
 
-        private static void InvokeOnSpawn(ref Slot slot, in GameObjectPoolSpawnContext context)
+        private static void InvokeOnSpawn(ref Slot slot, in ObjectPoolSpawnContext context)
         {
             for (int i = 0; i < slot.PoolableCount; i++)
             {
@@ -1165,7 +1177,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 私有方法 — 快照填充 [PRIVATE SNAPSHOT FILL]
 
-        private void FillInstances(GameObjectPoolSnapshot snapshot, float now)
+        private void FillInstances(ObjectPoolSnapshot snapshot, float now)
         {
             snapshot.ClearInstances();
             int slotCount = _storage.SlotCount;
@@ -1177,7 +1189,7 @@ namespace Moirai.Atropos.ObjectPool
                     continue;
                 }
 
-                GameObjectPoolInstanceSnapshot instanceSnapshot = MemoryPool.Acquire<GameObjectPoolInstanceSnapshot>();
+                ObjectPoolInstanceSnapshot instanceSnapshot = MemoryPool.Acquire<ObjectPoolInstanceSnapshot>();
                 instanceSnapshot.instanceName = slot.Instance == null ? "<destroyed>" : slot.Instance.name;
                 instanceSnapshot.isActive = slot.State == SlotState.Active;
                 instanceSnapshot.idleDuration = slot.State == SlotState.Active ? 0f : Mathf.Max(0f, now - slot.LastReleaseTime);
@@ -1189,7 +1201,7 @@ namespace Moirai.Atropos.ObjectPool
             snapshot.instances.Sort(s_InstanceComparer);
         }
 
-        private static int CompareInstanceSnapshot(GameObjectPoolInstanceSnapshot left, GameObjectPoolInstanceSnapshot right)
+        private static int CompareInstanceSnapshot(ObjectPoolInstanceSnapshot left, ObjectPoolInstanceSnapshot right)
         {
             if (ReferenceEquals(left, right))
             {
@@ -1218,7 +1230,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             if (slot.Poolables != null)
             {
-                SlotArrayPool<IGameObjectPoolable>.Return(slot.Poolables, true);
+                SlotArrayPool<IObjectPoolable>.Return(slot.Poolables, true);
             }
 
             slot = default;
@@ -1234,7 +1246,7 @@ namespace Moirai.Atropos.ObjectPool
             {
                 if (_storage.GetSlotRef(i).Poolables != null)
                 {
-                    SlotArrayPool<IGameObjectPoolable>.Return(_storage.GetSlotRef(i).Poolables, true);
+                    SlotArrayPool<IObjectPoolable>.Return(_storage.GetSlotRef(i).Poolables, true);
                 }
             }
 

@@ -34,8 +34,24 @@ namespace Service.Kernel
         [TearDown]
         public void ResetWorld()
         {
-            // 关闭默认世界——全部服务 OnShutdown 触发外观 s_Handler=null，保证降级路径被测
+            // 关闭默认世界——全部服务 OnShutdown 触发失效钩子清槽，保证降级路径被测
             GameServices.Shutdown();
+
+            // 回摆后门面缓存槽是跨夹具共享的静态态（BuiltinRegistration 预热等夹具会合法地填槽）：
+            // 显式清空已迁移模块的槽位（随迁移批次扩展，与 FrameworkServices 清单同步）。
+            // Shutdown 已销毁槽内实例，这里只摘引用，无生命周期遗漏。
+            Aud.AudioService.Internal_UseHandler(null);
+            Scn.SceneService.Internal_UseHandler(null);
+            Cfg.ConfigTableService.Internal_UseHandler(null);
+            Dbg.DebuggerService.Internal_UseHandler(null);
+            Loc.LocalizationService.Internal_UseHandler(null);
+            Inp.InputService.Internal_UseHandler(null);
+            Sav.SaveService.Internal_UseHandler(null);
+            Res.AssetService.Internal_UseHandler(null);
+            Tim.TimerService.Internal_UseHandler(null);
+            Proc.ProcedureService.Internal_UseHandler(null);
+            OPo.ObjectPoolService.Internal_UseHandler(null);
+            UIm.UIService.Internal_ResetHandlerSlots();
         }
 
         [Test]
@@ -94,13 +110,13 @@ namespace Service.Kernel
         }
 
         [Test]
-        public void GameObjectPool_FacadeDegradesGracefully()
+        public void ObjectPool_FacadeDegradesGracefully()
         {
-            Assert.IsFalse(OPo.GameObjectPoolService.IsValid);
-            Assert.IsNull(OPo.GameObjectPoolService.Spawn("any"));
-            Assert.IsFalse(OPo.GameObjectPoolService.TrySpawn("any", null, out UnityEngine.GameObject go));
+            Assert.IsFalse(OPo.ObjectPoolService.IsValid);
+            Assert.IsNull(OPo.ObjectPoolService.Spawn("any"));
+            Assert.IsFalse(OPo.ObjectPoolService.TrySpawn("any", null, out UnityEngine.GameObject go));
             Assert.IsNull(go);
-            Assert.DoesNotThrow(() => OPo.GameObjectPoolService.FlushAll());
+            Assert.DoesNotThrow(() => OPo.ObjectPoolService.FlushAll());
         }
 
         [Test]
@@ -154,20 +170,27 @@ namespace Service.Kernel
 
         #region ② ServiceDependency 声明完整性静态分析 [DEPENDENCY STATIC ANALYSIS]
 
-        /// <summary>框架全部 App 服务实现类型（组合根 12 项——静态分析目标集）。</summary>
+        /// <summary>
+        /// 框架全部 App 服务实现类型（静态分析目标集）。
+        /// </summary>
+        /// <remarks>
+        /// 架构回摆迁移期混合态：已迁移模块记 handler（音频 = <see cref="Aud.UnityAudioHandler"/>、 <br />
+        /// 场景 = <see cref="Scn.DefaultSceneHandler"/>、配置表 = <see cref="Cfg.DefaultConfigTableHandler"/>、调试器 = <see cref="Dbg.DefaultDebuggerHandler"/>， <br />
+        /// 依赖声明随 handler 走），未迁移模块仍记门面；全部迁移完成后此表应全量为 handler。
+        /// </remarks>
         private static readonly Type[] FrameworkServices =
         {
-            typeof(Dbg.DebuggerService),
+            typeof(Dbg.DefaultDebuggerHandler),
             typeof(Res.AssetService),
             typeof(Tim.TimerService),
-            typeof(OPo.GameObjectPoolService),
+            typeof(OPo.ObjectPoolService),
             typeof(Loc.LocalizationService),
             typeof(UIm.UIService),
-            typeof(Scn.SceneService),
-            typeof(Aud.AudioService),
+            typeof(Scn.DefaultSceneHandler),
+            typeof(Aud.UnityAudioHandler),
             typeof(Inp.InputService),
             typeof(Sav.SaveService),
-            typeof(Cfg.ConfigTableService),
+            typeof(Cfg.DefaultConfigTableHandler),
             typeof(Proc.ProcedureService),
         };
 
@@ -238,12 +261,17 @@ namespace Service.Kernel
             // OnInit 注册调试面板的服务必须声明 DebuggerService（拓扑序保证 Debugger 先行就绪）
             var mustDeclare = new Dictionary<Type, bool>
             {
-                [typeof(Aud.AudioService)] = true,
-                [typeof(Res.AssetService)] = true,
-                [typeof(Tim.TimerService)] = true,
-                [typeof(Loc.LocalizationService)] = true,
-                [typeof(Proc.ProcedureService)] = true,
-                // 显式豁免：ConfigTable（无轮询状态）、Input/Save/Scene/GameObjectPool（无调试面板）
+                // 迁移期混合态：音频的调试面板注册编排已并入 UnityAudioHandler.OnInit
+                [typeof(Aud.UnityAudioHandler)] = true,
+                // 迁移期混合态：资源的调试面板注册编排已并入家族基座（YooAssetHandler 为默认后端）
+                [typeof(Res.YooAssetHandler)] = true,
+                // 迁移期混合态：计时器的调试面板注册编排已并入 DefaultTimerHandler
+                [typeof(Tim.DefaultTimerHandler)] = true,
+                // 迁移期混合态：本地化的调试面板注册编排已并入家族基座（ConfigTableLocalizationHandler 继承）
+                [typeof(Loc.ConfigTableLocalizationHandler)] = true,
+                // 迁移期混合态：流程的调试面板注册编排已并入 DefaultProcedureHandler
+                [typeof(Proc.DefaultProcedureHandler)] = true,
+                // 显式豁免：ConfigTable（无轮询状态）、Input/Save/Scene/ObjectPool（无调试面板）
             };
 
             foreach (var pair in mustDeclare)
@@ -273,21 +301,23 @@ namespace Service.Kernel
         [Test]
         public void FacadeShutdown_IsIdempotent_AndInvalidates()
         {
-            // 注册并初始化一个代表性服务（DebuggerService——无外部依赖）
+            // 注册并初始化一个代表性服务（DefaultDebuggerHandler——无外部依赖，回摆后 handler 即注册实体）
             // 两阶段语义：Register 入图 + Initialize 驱动 OnInit（Handler 就绪）
-            var service = new Dbg.DebuggerService();
-            GameServices.RegisterService(EServiceScopeKind.App, service);
+            var handler = new Dbg.DefaultDebuggerHandler();
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService), handler);
             GameServices.Default.Initialize();
+            // 预热门面缓存：容器初始化期间首次 Handler 访问经懒链回填注册结果（同实例幂等）
+            Dbg.DebuggerService.WarmHandler();
 
             Assert.IsTrue(Dbg.DebuggerService.IsValid, "初始化后外观应可用");
 
             GameServices.ShutdownContainer(EServiceScopeKind.App);
 
-            Assert.IsFalse(Dbg.DebuggerService.IsValid, "关闭后外观应失效（s_Handler 置空）");
+            Assert.IsFalse(Dbg.DebuggerService.IsValid, "关闭后外观应失效（OnShutdown 失效钩子清槽）");
 
             // 重复关闭幂等——对已关闭作用域再关闭不得抛异常
             Assert.DoesNotThrow(() => GameServices.ShutdownContainer(EServiceScopeKind.App));
-            Assert.DoesNotThrow(() => service.OnShutdown());
+            Assert.DoesNotThrow(() => ((Moirai.Atropos.IServiceLifecycle)handler).Destroy());
         }
 
         #endregion
@@ -304,10 +334,10 @@ namespace Service.Kernel
         [Test]
         public void ProviderHandlerHost_SelfReportedContract_IsImplementedByService()
         {
-            Assert.IsTrue(typeof(Dbg.IDebuggerService).IsAssignableFrom(typeof(Dbg.DebuggerService)),
-                "DebuggerService 必须实现自报契约 IDebuggerService，否则容器契约绑定解析失败");
-            Assert.IsTrue(typeof(Tim.ITimerService).IsAssignableFrom(typeof(Tim.TimerService)),
-                "TimerService 必须实现自报契约 ITimerService，否则容器契约绑定解析失败");
+            Assert.IsTrue(typeof(Dbg.IDebuggerService).IsAssignableFrom(typeof(Dbg.DefaultDebuggerHandler)),
+                "DefaultDebuggerHandler 必须实现自报契约 IDebuggerService，否则容器契约绑定解析失败");
+            Assert.IsTrue(typeof(Tim.ITimerService).IsAssignableFrom(typeof(Tim.DefaultTimerHandler)),
+                "DefaultTimerHandler 必须实现自报契约 ITimerService，否则容器契约绑定解析失败");
         }
 
         [Test]
@@ -316,13 +346,13 @@ namespace Service.Kernel
             // 隔离世界复现组合根的两步注册（具体类入图 + 契约附加绑定），解析必须命中同一服务实例
             var world = new ServiceWorld();
 
-            var debugger = world.Register(EServiceScopeKind.App, new Dbg.DebuggerService());
+            var debugger = world.Register(EServiceScopeKind.App, new Dbg.DefaultDebuggerHandler());
             world.Register(EServiceScopeKind.App, typeof(Dbg.IDebuggerService), debugger);
             Assert.IsTrue(world.TryGetService<Dbg.IDebuggerService>(out var resolvedDebugger),
                 "IDebuggerService 契约解析必须命中（未实现契约时 as T 坍缩为 null）");
             Assert.AreSame(debugger, resolvedDebugger);
 
-            var timer = world.Register(EServiceScopeKind.App, new Tim.TimerService());
+            var timer = world.Register(EServiceScopeKind.App, new Tim.DefaultTimerHandler());
             world.Register(EServiceScopeKind.App, typeof(Tim.ITimerService), timer);
             Assert.IsTrue(world.TryGetService<Tim.ITimerService>(out var resolvedTimer),
                 "ITimerService 契约解析必须命中（未实现契约时 as T 坍缩为 null）");

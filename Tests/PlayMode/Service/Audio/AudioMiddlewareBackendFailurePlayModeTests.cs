@@ -96,7 +96,7 @@ namespace Service.Audio
         private static void Invoke(MiddlewareAudioHandler handler, string member)
         {
             typeof(MiddlewareAudioHandler)
-                .GetMethod(member, BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetMethod(member, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
                 .Invoke(handler, null);
         }
 

@@ -2,6 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Debugger;
 using Unity.IL2CPP.CompilerServices;
 using UnityEngine;
 
@@ -15,14 +16,17 @@ namespace Moirai.Atropos.Timer
     /// 句柄操作按 <see cref="TimerHandleLayout.LaneOf"/> 内嵌泳道号路由，阶段推进与统计调试跨引擎扇出 / 聚合。 <br />
     /// 可在 <see cref="TimerServiceSettings"/> 中替换为自定义实现。
     /// </remarks>
-    [ProviderDisplay(title: "默认计时器", description: "时间轮（按秒）+ 帧计时（按帧）双泳道，槽位容量可配")]
     [Serializable]
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
     [HotPath]
-    internal sealed class DefaultTimerHandler : FrameworkHandler, ITimerService
+    [ServiceDependency(typeof(IDebuggerService))]
+    [ProviderDisplay(title: "默认计时器", description: "时间轮（按秒）+ 帧计时（按帧）双泳道，槽位容量可配")]
+    internal sealed class DefaultTimerHandler : ServiceBase, IServiceTickable, IServiceFixedTickable, IServiceLateTickable, ITimerService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
         private const int MIN_INITIAL_CAPACITY = 256;
         private const int DEFAULT_WHEEL_CAPACITY = 1024;
         private const int DEFAULT_FRAME_CAPACITY = 256;
@@ -44,8 +48,16 @@ namespace Moirai.Atropos.Timer
         // 跨引擎真实并发峰值：活跃总数仅在创建时上升，故每次创建后采样的最大值即真实峰值。
         private int _peakActiveCount;
 
+        /// <summary>
+        /// 处理器初始化。由容器在拓扑位驱动；容器编排（调试面板注册）以 Context 就位为闸随行。
+        /// </summary>
         protected override void OnInit()
         {
+            if (Context != null)
+            {
+                TimerService.OnHandlerInitialized(Context.GetRequiredService<IDebuggerService>());
+            }
+
             _lanes = new ITimerEngine[TimerLaneKinds.Count];
             _lanes[TimerLaneKinds.Wheel] = _wheel;
             _lanes[TimerLaneKinds.Frame] = _frame;
@@ -57,6 +69,17 @@ namespace Moirai.Atropos.Timer
 
         protected override void OnShutdown()
         {
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                TimerService.InvalidateHandler(this);
+            }
+            // 编排收尾以就绪态为闸：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown，此时依赖可能已先被拆走
+            if (IsReady && Context != null)
+            {
+                TimerService.OnHandlerShuttingDown(Context.GetRequiredService<IDebuggerService>());
+            }
+
             _wheel.Shutdown();
             _frame.Shutdown();
             // 摘掉路由表：Lane() 见 null 即整体降级，句柄操作不再进入已关停的引擎。

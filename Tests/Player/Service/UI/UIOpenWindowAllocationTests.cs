@@ -257,7 +257,7 @@ namespace Service.UI
         }
 
         /// <summary>无载荷探针窗（缓存实例）：面板代码建出，装载只跑一次，之后走停放重取稳态。</summary>
-        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
+        [Window(EUILayer.Tips, true, cacheTimeToDestroy: -1f)]
         internal sealed class AllocPlainWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -268,7 +268,7 @@ namespace Service.UI
         }
 
         /// <summary>静态腿 struct DTO 探针窗（缓存实例）。</summary>
-        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
+        [Window(EUILayer.Tips, true, cacheTimeToDestroy: -1f)]
         internal sealed class AllocStructWindow : UGUIWindow<AllocDto>
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -279,7 +279,7 @@ namespace Service.UI
         }
 
         /// <summary>class DTO 探针窗（缓存实例）：静态腿与动态腿共用这个，两格各用各的窗口标识。</summary>
-        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
+        [Window(EUILayer.Tips, true, cacheTimeToDestroy: -1f)]
         internal sealed class AllocClassWindow : UGUIWindow<AllocBox>
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -290,7 +290,7 @@ namespace Service.UI
         }
 
         /// <summary>动态腿基元探针窗（缓存实例）：<see cref="UIPayload"/> 擦除后按 <c>int</c> 取回，允许装箱一次。</summary>
-        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
+        [Window(EUILayer.Tips, true, cacheTimeToDestroy: -1f)]
         internal sealed class AllocIntWindow : UGUIWindow<int>
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>

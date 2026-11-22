@@ -9,12 +9,12 @@ namespace Moirai.Atropos.Debugger
     /// 基于 UI Toolkit 运行时界面的默认调试器处理器。
     /// </summary>
     /// <remarks>
-    /// <see cref="DebuggerServiceHandler"/> 的内置实现：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性， <br />
+    /// 调试器服务后端（<see cref="IDebuggerService"/> 契约实现，由容器注册驱动）：持有窗口注册表与日志捕获器，按激活策略解析悬浮入口可见性， <br />
     /// 并在首个 Tick 懒建运行时宿主 <see cref="DebuggerRuntimeHost"/>（无资产依赖）。
     /// </remarks>
-    [ProviderDisplay(title: "内置调试器", description: "UI Toolkit 运行时调试台（FPS/Console/窗口注册），无资产依赖")]
     [Serializable]
-    internal sealed class DefaultDebuggerHandler : FrameworkHandler, IDebuggerService
+    [ProviderDisplay(title: "内置调试器", description: "UI Toolkit 运行时调试台（FPS/Console/窗口注册），无资产依赖")]
+    internal sealed class DefaultDebuggerHandler : ServiceBase, IServiceTickable, IDebuggerService
     {
         #region 字段 [FIELDS]
 
@@ -121,6 +121,9 @@ namespace Moirai.Atropos.Debugger
         #region 生命周期 [LIFECYCLE]
 
         /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.DEBUGGER;
+
+        /// <inheritdoc />
         protected override void OnInit()
         {
             _windowRegistry = new DebuggerWindowRegistry();
@@ -143,6 +146,13 @@ namespace Moirai.Atropos.Debugger
         /// <inheritdoc />
         protected override void OnShutdown()
         {
+            // 缓存失效钩子先于后端收口：旧语义「先摘 Handler 引用再关闭」由生成槽位清空承接
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                DebuggerService.InvalidateHandler(this);
+            }
+
             _activeWindow = false;
             _showFullWindow = false;
             _hostPending = false;
@@ -154,15 +164,16 @@ namespace Moirai.Atropos.Debugger
                 _host = null;
             }
 
+            // 未初始化销毁路径（世界 Dispose 未激活桶）_windowRegistry/_logCapture 可为 null
             _windowBuffer.Clear();
-            _windowRegistry.CollectWindows(_windowBuffer);
+            _windowRegistry?.CollectWindows(_windowBuffer);
             for (int i = 0; i < _windowBuffer.Count; i++)
             {
                 _windowBuffer[i].Shutdown();
             }
 
             _windowBuffer.Clear();
-            _logCapture.Stop();
+            _logCapture?.Stop();
             _windowRegistry = null;
             _logCapture = null;
         }
@@ -170,6 +181,9 @@ namespace Moirai.Atropos.Debugger
         /// <inheritdoc />
         public void Tick(float elapseSeconds, float realElapseSeconds)
         {
+            // 未就绪静默降级（OnInit 失败的服务不得毒化整帧）
+            if (_logCapture == null) return;
+
             _logCapture.Drain();
 
             if (_hostPending && _activeWindow)
@@ -212,6 +226,12 @@ namespace Moirai.Atropos.Debugger
         /// <inheritdoc />
         public bool UnregisterDebuggerWindow(string path)
         {
+            // 未初始化时注册表不存在，语义等价「窗口从未注册」
+            if (_windowRegistry == null)
+            {
+                return false;
+            }
+
             IDebuggerWindow window = _windowRegistry.GetWindow(path);
             if (window == null)
             {

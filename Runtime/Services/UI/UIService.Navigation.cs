@@ -11,7 +11,7 @@ namespace Moirai.Atropos.UI
     /// 多窗并存：Back 会跳过 history 中仍然开启的窗口，只恢复已停放者。 <br />
     /// 返回 false 的情形：无 history、顶窗政策拒关（模态确认未通过）、BackTo 目标不在历史中。
     /// </remarks>
-    public sealed partial class UIService
+    public partial class UIService
     {
         /// <summary>
         /// 返回上一页：关闭当前顶窗，并恢复开启序历史中前一个已停放的窗口。

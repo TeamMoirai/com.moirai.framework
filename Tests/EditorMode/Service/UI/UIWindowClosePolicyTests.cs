@@ -119,7 +119,7 @@ namespace Service.UI
                 new UGUIHandler(),
                 new UITKHandler(),
             });
-            new UIService().OnInit();
+            UIService.EnableHandlersForTests();
         }
 
         /// <summary>

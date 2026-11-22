@@ -16,6 +16,13 @@ namespace Service.Asset
     /// </remarks>
     public sealed class EditorPreviewAssetTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            // 预览取数（PreviewHandler 槽优先回退 settings）的前提是干净槽
+            AssetService.Internal_UseHandler(null);
+        }
+
         [Test]
         public void EmptyLocation_ReturnsNull()
         {

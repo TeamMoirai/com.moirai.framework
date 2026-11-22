@@ -157,7 +157,7 @@ namespace Service.Localization
         public void PeekText_Miss_DoesNotTrackMissingKey()
         {
             var handler = new L10nProbeHandler();
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
             try
             {
                 handler.Languages = new List<Language> { Language.English, Language.ChineseSimplified };
@@ -177,7 +177,7 @@ namespace Service.Localization
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 
@@ -188,7 +188,7 @@ namespace Service.Localization
         public void PeekText_BlankCell_IsBlankNotMissing()
         {
             var handler = new L10nProbeHandler();
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
             try
             {
                 handler.Languages = new List<Language> { Language.English, Language.ChineseSimplified };
@@ -207,7 +207,7 @@ namespace Service.Localization
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 

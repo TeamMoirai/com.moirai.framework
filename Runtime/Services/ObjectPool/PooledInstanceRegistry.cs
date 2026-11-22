@@ -15,7 +15,7 @@ namespace Moirai.Atropos.ObjectPool
 
         private struct Entry
         {
-            public RuntimeGameObjectPool Pool;
+            public RuntimeObjectPool Pool;
             public int SlotIndex;
             public int NextFree;
         }
@@ -47,7 +47,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 公共方法 [PUBLIC METHODS]
 
-        public void Register(GameObject instance, RuntimeGameObjectPool pool, int slotIndex)
+        public void Register(GameObject instance, RuntimeObjectPool pool, int slotIndex)
         {
             if (instance == null)
             {
@@ -86,7 +86,7 @@ namespace Moirai.Atropos.ObjectPool
             _count--;
         }
 
-        public bool TryResolve(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex)
+        public bool TryResolve(GameObject instance, out RuntimeObjectPool pool, out int slotIndex)
         {
             pool = null;
             slotIndex = -1;

@@ -11,7 +11,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <see cref="Group"/> 仅在 Prefab 源首次建池时生效；Location 源的分组以 PoolConfig 规则为准。
     /// <c>default</c> 为无效源（<c>IsValid</c> 为 false），外观入口统一 fail-safe 返回空。
     /// </remarks>
-    public readonly struct GameObjectPoolSource : IEquatable<GameObjectPoolSource>
+    public readonly struct ObjectPoolSource : IEquatable<ObjectPoolSource>
     {
         #region 字段 [FIELDS]
 
@@ -42,7 +42,7 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 构造 [CONSTRUCTOR]
 
-        private GameObjectPoolSource(string location, GameObject prefab, string group)
+        private ObjectPoolSource(string location, GameObject prefab, string group)
         {
             _location = location;
             _prefab = prefab;
@@ -58,8 +58,8 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="location">资源地址。</param>
         /// <returns>池化来源。</returns>
-        public static GameObjectPoolSource FromLocation(string location) =>
-            new GameObjectPoolSource(location, null, null);
+        public static ObjectPoolSource FromLocation(string location) =>
+            new ObjectPoolSource(location, null, null);
 
         /// <summary>
         /// 由外部 Prefab 引用创建来源。
@@ -67,8 +67,8 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="prefab">预制体。</param>
         /// <param name="group">建池分组（仅首次建池生效）。</param>
         /// <returns>池化来源。</returns>
-        public static GameObjectPoolSource FromPrefab(GameObject prefab, string group = null) =>
-            new GameObjectPoolSource(null, prefab, group);
+        public static ObjectPoolSource FromPrefab(GameObject prefab, string group = null) =>
+            new ObjectPoolSource(null, prefab, group);
 
         #endregion
 
@@ -78,13 +78,13 @@ namespace Moirai.Atropos.ObjectPool
         /// 资源地址隐式转换。
         /// </summary>
         /// <param name="location">资源地址。</param>
-        public static implicit operator GameObjectPoolSource(string location) => FromLocation(location);
+        public static implicit operator ObjectPoolSource(string location) => FromLocation(location);
 
         /// <summary>
         /// 外部 Prefab 隐式转换。
         /// </summary>
         /// <param name="prefab">预制体。</param>
-        public static implicit operator GameObjectPoolSource(GameObject prefab) => FromPrefab(prefab);
+        public static implicit operator ObjectPoolSource(GameObject prefab) => FromPrefab(prefab);
 
         #endregion
 
@@ -95,7 +95,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="other">另一来源。</param>
         /// <returns>是否相等。</returns>
-        public bool Equals(GameObjectPoolSource other)
+        public bool Equals(ObjectPoolSource other)
         {
             if (!ReferenceEquals(_prefab, other._prefab))
             {
@@ -106,7 +106,7 @@ namespace Moirai.Atropos.ObjectPool
         }
 
         /// <inheritdoc />
-        public override bool Equals(object obj) => obj is GameObjectPoolSource other && Equals(other);
+        public override bool Equals(object obj) => obj is ObjectPoolSource other && Equals(other);
 
         /// <inheritdoc />
         public override int GetHashCode()
@@ -120,13 +120,13 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="left">左值。</param>
         /// <param name="right">右值。</param>
         /// <returns>是否相等。</returns>
-        public static bool operator ==(GameObjectPoolSource left, GameObjectPoolSource right) => left.Equals(right);
+        public static bool operator ==(ObjectPoolSource left, ObjectPoolSource right) => left.Equals(right);
 
         /// <summary>不等运算符。</summary>
         /// <param name="left">左值。</param>
         /// <param name="right">右值。</param>
         /// <returns>是否不等。</returns>
-        public static bool operator !=(GameObjectPoolSource left, GameObjectPoolSource right) => !left.Equals(right);
+        public static bool operator !=(ObjectPoolSource left, ObjectPoolSource right) => !left.Equals(right);
 
         #endregion
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace Moirai.Atropos
@@ -11,17 +12,20 @@ namespace Moirai.Atropos
     /// 不可实现 <see cref="IServiceTickable"/> 等轮询接口（含 <see cref="IServiceGizmoDrawable"/>）——Mono 服务由 Unity 自身生命周期驱动， <br />
     /// 注册时由 <see cref="ServiceScope"/> 拒绝。 <br />
     /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。 <br />
-    /// 重复注册自动销毁 GameObject（同契约幂等）。
+    /// 重复注册自动销毁 GameObject（同契约幂等）。 <br />
+    /// 转换语义与类侧基座同源，由 <see cref="LifecycleMachine"/> 单处承载； <br />
+    /// 本型只声明 <see cref="LifecycleMachine.IHost.AllowsRevival"/> 为假——Mono 实例随 GameObject 而亡，没有复活来源。 <br />
+    /// 钩子一律 <c>protected</c>：装配与释放只由框架经状态机驱动，与 <see cref="ServiceBase"/> 同口径。
     /// </remarks>
     /// <typeparam name="TScope">作用域标记类型。</typeparam>
-    public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle, IServiceContextAware
+    public abstract class ServiceMono<TScope> : MonoBehaviour, IService, IServiceLifecycle, IServiceContextAware, LifecycleMachine.IHost
         where TScope : IServiceScope, new()
     {
         /// <summary>本实例是否已完成作用域注册——未注册的重复副本在 OnDestroy 中不得触碰注册表。</summary>
         [NonSerialized] private bool _registeredToScope;
 
-        /// <summary>当前生命周期状态（只读投影；由容器经 <see cref="IServiceLifecycle"/> 驱动转换）。</summary>
-        public EServiceState State { get; private set; } = EServiceState.Created;
+        /// <summary>当前生命周期状态（对外只读，写入只经 <see cref="LifecycleMachine"/> 走显式接缝）。</summary>
+        public EServiceState State { get; internal set; } = EServiceState.Created;
 
         /// <summary>轮询优先级（降序，高优先先 Tick）。Mono 服务不参与容器 Tick，此属性仅用于诊断。</summary>
         public virtual int Priority => 0;
@@ -43,37 +47,60 @@ namespace Moirai.Atropos
         /// <summary>
         /// 注册完成后调用（同步）。
         /// </summary>
-        public abstract void OnInit();
+        protected abstract void OnInit();
 
         /// <summary>
         /// 注销或作用域关闭时调用。
         /// </summary>
-        public abstract void OnShutdown();
+        protected abstract void OnShutdown();
 
         #endregion
+
+        #region IService 实现 [SERVICE CONTRACT]
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IService.OnInit() => OnInit();
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IService.OnShutdown() => OnShutdown();
+
+        #endregion IService 实现 [SERVICE CONTRACT]
 
         #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
 
         EServiceState IServiceLifecycle.StateInternal => State;
 
-        void IServiceLifecycle.Initialize()
-        {
-            if (State >= EServiceState.Initialized) return;
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IServiceLifecycle.Initialize() => LifecycleMachine.Initialize(this);
 
-            OnInit();
-            // OnInit 期间可能被外部关闭（注销/Dispose 打在 Awake 触发的注册途中）：不得盖回 Initialized
-            if (State == EServiceState.Created) State = EServiceState.Initialized;
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IServiceLifecycle.Destroy() => LifecycleMachine.Shutdown(this);
+
+        #endregion
+
+        #region 生命期机器宿主 [LIFECYCLE HOST]
+
+        /// <inheritdoc />
+        EServiceState LifecycleMachine.IHost.State
+        {
+            get => State;
+            set => State = value;
         }
 
-        void IServiceLifecycle.Destroy()
-        {
-            if (State >= EServiceState.ShuttingDown) return;
+        /// <inheritdoc />
+        bool LifecycleMachine.IHost.AllowsRevival => false;
 
-            State = EServiceState.ShuttingDown;
-            try { OnShutdown(); }
-            catch (Exception ex) { LogUtility.Error(ex.ToString()); }
-            State = EServiceState.Disposed;
-        }
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void LifecycleMachine.IHost.OnInit() => OnInit();
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void LifecycleMachine.IHost.OnShutdown() => OnShutdown();
 
         #endregion
 

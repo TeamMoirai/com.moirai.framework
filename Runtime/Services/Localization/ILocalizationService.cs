@@ -13,7 +13,7 @@ namespace Moirai.Atropos.Localization
     /// 本契约与引擎基座 <see cref="LocalizationServiceHandler"/> 分层：基座承载语言切换引擎、装载管线、缺失键统计与订阅管理（1500+ 行共享实现，豁免契约化）， <br />
     /// 后端经派生基座落地；本接口只收编门面公共 API（消费面），供服务互调与单测注入。 <br />
     /// internal 协作面（偏好解析/编辑器预览 PeekText 等）不进公共契约，框架内部按引擎基座引用访问。 <br />
-    /// 实现约束：实现类须继承 <see cref="LocalizationServiceHandler"/>（引擎基座 + <see cref="Moirai.Atropos.FrameworkHandler"/> 生命周期）。 <br />
+    /// 实现约束：实现类须继承 <see cref="LocalizationServiceHandler"/>（家族基座，挂 <see cref="Moirai.Atropos.ServiceBase"/> 生命周期——绑定即注册进容器）。 <br />
     /// 语义文档与 <see cref="LocalizationService"/> 门面对应 API 同源。
     /// </remarks>
     public interface ILocalizationService

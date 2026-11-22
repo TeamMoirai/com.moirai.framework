@@ -10,6 +10,13 @@ namespace Service.Audio
     /// </summary>
     public sealed class AudioServiceProductionContractTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            // 降级断言的前提是干净槽（暖链会跨夹具填槽，见 testing.md 夹具与隔离）
+            Moirai.Atropos.Audio.AudioService.Internal_UseHandler(null);
+        }
+
         #region 通道硬上限 [CHANNEL CAP]
 
         [Test]

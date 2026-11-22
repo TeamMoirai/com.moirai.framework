@@ -46,13 +46,13 @@ namespace Service.Input
 
             _previousHandler = Settings.Internal_PeekHandler();
             Settings.Internal_UseHandler(new RecordingSettingHandler());
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
         public void TearDown()
         {
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             Object.DestroyImmediate(_asset);
             Settings.Internal_UseHandler(_previousHandler);
         }
@@ -93,16 +93,16 @@ namespace Service.Input
         public void Restart_RestoresCompositePartOverride_FromPersistedKey()
         {
             _handler.ApplyBindingOverride("Move", "Player", new InputBindingData("<Keyboard>/i", "Up"));
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
 
             var restored = new UnityInputSystemHandler();
             restored.m_InputActions = _asset;
-            restored.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)restored).Initialize();
 
             var bindings = _asset.FindAction("Player/Move").bindings;
             Assert.AreEqual("<Keyboard>/i", bindings[1].effectivePath, "重启后按部件恢复覆写");
             Assert.AreEqual("<Keyboard>/s", bindings[2].effectivePath, "其余部件保持默认");
-            restored.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)restored).Destroy();
         }
 
         [Test]

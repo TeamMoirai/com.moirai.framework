@@ -15,6 +15,21 @@ namespace Service.Debugger
     /// <remarks>服务调试视图统一经各服务 <c>OnInit</c> 注册进游戏内调试器，不经 Inspector 宿主组件。</remarks>
     public sealed class ServiceDebuggerTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            // 注册实体自清：关默认世界 + 清门面槽（暖链/注册会跨夹具填槽，见 testing.md 夹具与隔离）
+            GameServices.Shutdown();
+            Dbg.DebuggerService.Internal_UseHandler(null);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            GameServices.Shutdown();
+            Dbg.DebuggerService.Internal_UseHandler(null);
+        }
+
         #region 测试桩 [TEST FAKES]
 
         private sealed class TestServiceDebugView : Dbg.ServiceDebugView
@@ -180,8 +195,9 @@ namespace Service.Debugger
         public void DebuggerService_RegisterServiceDebugView_RoundTrip()
         {
             // 显式注册 DebuggerService（组合根模式）+ 两阶段提交——Initialize 驱动 OnInit 后才可用
-            GameServices.RegisterService(EServiceScopeKind.App, new Dbg.DebuggerService());
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService), new Dbg.DefaultDebuggerHandler());
             GameServices.Default.Initialize();
+            Dbg.DebuggerService.WarmHandler();
 
             var view = new TestServiceDebugView();
             const string path = "UnitTest/Service Debug View";
@@ -204,16 +220,17 @@ namespace Service.Debugger
 
             // 清理：注销服务，避免污染同域的后续测试
             Assert.IsTrue(
-                GameServices.UnregisterService(EServiceScopeKind.App, typeof(Dbg.DebuggerService)),
+                GameServices.UnregisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService)),
                 "注销 DebuggerService 应成功");
-            Assert.IsNull(GameServices.GetService<Dbg.DebuggerService>(), "注销后不应再解析到服务");
+            Assert.IsNull(GameServices.GetService<Dbg.IDebuggerService>(), "注销后不应再解析到服务");
         }
 
         [Test]
         public void DebuggerService_RegisterPanel_RoundTrip()
         {
-            GameServices.RegisterService(EServiceScopeKind.App, new Dbg.DebuggerService());
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService), new Dbg.DefaultDebuggerHandler());
             GameServices.Default.Initialize();
+            Dbg.DebuggerService.WarmHandler();
 
             const string path = "UnitTest/Builder Panel";
             try
@@ -226,15 +243,16 @@ namespace Service.Debugger
             finally
             {
                 Dbg.DebuggerService.UnregisterDebuggerWindow(path);
-                GameServices.UnregisterService(EServiceScopeKind.App, typeof(Dbg.DebuggerService));
+                GameServices.UnregisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService));
             }
         }
 
         [Test]
         public void DebuggerService_UnregisterUnknownPath_ReturnsFalse()
         {
-            GameServices.RegisterService(EServiceScopeKind.App, new Dbg.DebuggerService());
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService), new Dbg.DefaultDebuggerHandler());
             GameServices.Default.Initialize();
+            Dbg.DebuggerService.WarmHandler();
             try
             {
                 Assert.IsFalse(Dbg.DebuggerService.UnregisterDebuggerWindow("UnitTest/NotRegistered"),
@@ -242,15 +260,16 @@ namespace Service.Debugger
             }
             finally
             {
-                GameServices.UnregisterService(EServiceScopeKind.App, typeof(Dbg.DebuggerService));
+                GameServices.UnregisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService));
             }
         }
 
         [Test]
         public void DebuggerService_Unregister_CallsWindowShutdown()
         {
-            GameServices.RegisterService(EServiceScopeKind.App, new Dbg.DebuggerService());
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService), new Dbg.DefaultDebuggerHandler());
             GameServices.Default.Initialize();
+            Dbg.DebuggerService.WarmHandler();
             var window = new TestWindow();
             const string path = "UnitTest/ShutdownContract";
             try
@@ -265,7 +284,7 @@ namespace Service.Debugger
             }
 
             Assert.IsTrue(window.ShuttedDown, "解除注册时应调用 Shutdown");
-            GameServices.UnregisterService(EServiceScopeKind.App, typeof(Dbg.DebuggerService));
+            GameServices.UnregisterService(EServiceScopeKind.App, typeof(Dbg.IDebuggerService));
         }
 
         #endregion

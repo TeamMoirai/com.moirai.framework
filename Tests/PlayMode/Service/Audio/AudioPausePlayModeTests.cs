@@ -40,7 +40,7 @@ namespace Service.Audio
             _clip.SetData(data, 0);
 
             _handler = new UnityAudioHandler();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
@@ -245,11 +245,11 @@ namespace Service.Audio
 
             // 模拟非本框架渠道置位（_pausedByFramework 保持 false）——OnShutdown 必须无条件复位，
             // 否则 AudioListener.pause=true 会寄生到下一个场景或编辑器会话。
-            // 夹具经反射直调 OnInit（绕过 Internal_Init，_initialized=false），
-            // Internal_Shutdown 会因此空转；与 SetUp 同构地直调 OnShutdown 才能测到本契约。
+            // 本格只取释放回调本身：OnShutdown 由生命期状态机驱动、对外没有公开调用面，
+            // 故反射直调，把它从整条关停链路里单独隔离出来。
             AudioListener.pause = true;
             var shutdown = typeof(UnityAudioHandler)
-                .GetMethod("OnShutdown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                .GetMethod("OnShutdown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
             Assert.IsNotNull(shutdown, "UnityAudioHandler.OnShutdown 应存在");
             shutdown.Invoke(_handler, null);
             Assert.IsFalse(AudioListener.pause, "外部置位的 AudioListener.pause 也必须在 OnShutdown 复位");

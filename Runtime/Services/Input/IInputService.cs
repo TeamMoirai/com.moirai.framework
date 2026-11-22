@@ -9,7 +9,7 @@ namespace Moirai.Atropos.Input
     /// 状态组合语义（Enabled/LockPlayerController/PreventInteractionUI/UIModal）由实现类经 <see cref="InputStateMachine"/> 组合持有。 <br />
     /// 门控契约：<c>Enabled=false</c> 为全局硬门控，所有后端必须在动作类查询入口检查并降级。 <br />
     /// 玩家/UI 上下文压制的强制方式由后端能力决定（Input System 经 Action Map 切换中心强制，无 Map 概念的后端仅供消费者协作自查）。 <br />
-    /// 鼠标查询不参与门控。实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/>（生命周期与序列化基座）。
+    /// 鼠标查询不参与门控。实现约束：实现类须继承 <see cref="Moirai.Atropos.ServiceBase"/>（绑定即注册进容器，生命周期由容器拓扑驱动）。
     /// </remarks>
     public interface IInputService
     {

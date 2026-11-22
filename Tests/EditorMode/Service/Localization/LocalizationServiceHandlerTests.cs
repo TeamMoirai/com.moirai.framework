@@ -36,7 +36,7 @@ namespace Service.Localization
             _handler = new L10nProbeHandler();
             // 处理器不回身问检测链：探针的首启语言要由夹具交接，交给批内首列的英语，读数因此与机器与存档无关
             _handler.ApplyPreference(English.Code, "EditorSetting");
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
 
             _logs = new List<(ELogLevel, string)>();
             _logCallback = (level, message, _) => _logs.Add((level, message));
@@ -47,7 +47,7 @@ namespace Service.Localization
         public void TearDown()
         {
             LogUtility.onMessageLogged -= _logCallback;
-            _handler?.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler)?.Destroy();
             _handler = null;
         }
 
@@ -229,9 +229,9 @@ namespace Service.Localization
             _ = _handler.EntryCount; // 数据就绪后切换不再走首启解析，观测面集中在交接本身
 
             var intent = OtherLoadedLanguage();
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             var fresh = new L10nProbeHandler(); // 未 ApplyPreference：AppliedPreferenceSource 为 null
-            fresh.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)fresh).Initialize();
             _handler = fresh;
 
             // 外观 ChangeLanguage 的接受写入只记键不 flush：量具换只记数的设置处理器，隔离真档
@@ -255,7 +255,7 @@ namespace Service.Localization
             {
                 LocalizationService.Internal_UseHandler(savedFacadeHandler);
                 Moirai.Atropos.GameSettings.Internal_UseHandler(savedSettingHandler);
-                fresh.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)fresh).Destroy();
             }
         }
 
@@ -551,7 +551,7 @@ namespace Service.Localization
             LoadStrings("ui.title", "Title", "标题");
             Assert.AreEqual(1, _handler.EntryCount);
 
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             // 懒加载会重新向数据源取数，只有数据源同时空掉才观察得到运行时状态是否被复位
             _handler.Languages = new List<Language>();
             _handler.Strings = new Dictionary<string, List<string>>();
@@ -653,8 +653,8 @@ namespace Service.Localization
             _handler.SetStringOverlay("remote-ops", English, new[] { new KeyValuePair<string, string>("ui.title", "Title!") });
             Assert.AreEqual("Title!", _handler.GetTextFromId("ui.title"));
 
-            _handler.Internal_Shutdown();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
 
             // 关服后热改内容不得串进下一次会话（此时数据源仍是同一批，只有覆盖层被丢弃）
             // 重开后是哪门语言由检测链定，用例只判「文本回到源文」，不假定源文是哪一列
@@ -743,7 +743,7 @@ namespace Service.Localization
             var subscription = (LanguageChangeSubscription)_handler.SubscribeLanguageChanged(_ => { });
 
             Assert.IsTrue(subscription.IsSubscribed);
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             Assert.IsFalse(subscription.IsSubscribed);
 
             // 作废之后再 Dispose 只是空操作，不该抛也不该碰到已释放的表
@@ -825,7 +825,7 @@ namespace Service.Localization
             // 语言必须随表自报：EditMode 下 ConfigTableService 降级（无处理器），codes 为空 →
             // 整批拒载、保持未就绪可重试，不再回落任何全局注册表
             var handler = new ConfigTableLocalizationHandler();
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             try
             {
@@ -839,7 +839,7 @@ namespace Service.Localization
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 

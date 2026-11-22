@@ -29,7 +29,7 @@ namespace Service.Timer
             _originalGameTimeHandler = GameTime.Handler;
             GameTime.Handler = new VirtualClockHandler(() => _now, () => _unscaledNow);
             _handler = new DefaultTimerHandler();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
@@ -38,7 +38,7 @@ namespace Service.Timer
             // 还原全局时钟必须放 finally：Shutdown 抛异常时不归还，会把虚拟时钟泄漏给后续所有用例
             try
             {
-                _handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             }
             finally
             {

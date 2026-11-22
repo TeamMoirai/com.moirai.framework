@@ -18,58 +18,37 @@ namespace Moirai.Atropos.Localization
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
     [ProviderHandlerHost(typeof(ILocalizationService), typeof(ConfigTableLocalizationHandler))]
-    [AutoRegisterService, ServiceDependency(typeof(IDebuggerService), typeof(IConfigTableService))]
-    public partial class LocalizationService : ServiceBase
+    public static partial class LocalizationService
     {
-        #region 生命周期 [LIFECYCLE]
+        #region 生命周期钩子 [LIFECYCLE HOOKS]
 
         /// <summary>
-        /// 从 <see cref="LocalizationServiceSettings"/> 解析本地化处理器。
+        /// 从 <see cref="LocalizationServiceSettings"/> 解析本地化处理器（懒链 settings 来源；注册与缓存回填由生成代码完成）。
         /// </summary>
-        /// <remarks>先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），使懒加载主路径首次访问即完成世界注册。</remarks>
+        /// <remarks>拿到实例即交接语言偏好：处理器在被查语言之前必须先有检测链读数。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ILocalizationService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<LocalizationService>();
             var handler = LocalizationServiceSettings.LocalizationServiceHandler;
-            // 拿到实例就交接：这条是懒加载主路径，处理器在被查语言之前必须先有检测链读数
             HandPreferenceTo(handler);
             return handler;
         }
 
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.MID_TIER;
-
-        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IDebuggerService _debugger;
-
         /// <summary>
-        /// 初始化本地化服务：订阅处理器语言变更事件并注册调试面板。由容器在构建期调用。
+        /// 容器编排（后端 OnInit 经 Manager 钩子调用）：语言事件订阅、挂起本地化器回灌、调试面板。
         /// </summary>
-        /// <remarks>
-        /// 触发 <c>Handler</c> 懒加载（可能首次读表），故 <see cref="ConfigTableService"/> 依赖必须显式声明，
-        /// 否则初始化序会退化为注册序。调试器外观未就绪时静默跳过面板注册。
-        /// </remarks>
-        public override void OnInit()
+        internal static void OnHandlerInitialized(ILocalizationService handler, IDebuggerService debugger)
         {
-            _debugger = Context.GetRequiredService<IDebuggerService>();
-            var handler = Handler;
-            HandPreferenceToHandler();
             handler.onLanguageChanged += onLanguageChanged;
             ReplayPendingLocalizers();
-            _debugger.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
+            debugger.RegisterDebuggerWindow("Profiler/Localization", new LocalizationInformationWindow());
         }
 
         /// <summary>
-        /// 关闭本地化服务。由容器在关闭期调用。
+        /// 容器收尾（后端 OnShutdown 经 Manager 钩子调用）：摘语言事件订阅并清静态悬挂状态。
         /// </summary>
-        public override void OnShutdown()
+        internal static void OnHandlerShuttingDown(ILocalizationService handler)
         {
-            var handler = s_Handler;
-            s_Handler = null;
-            // 契约接口不携带生命周期成员：引擎基座继承 FrameworkHandler，这里按基座关停
-            (handler as FrameworkHandler)?.Internal_Shutdown();
-
             if (handler != null) handler.onLanguageChanged -= onLanguageChanged;
             onLanguageChanged = null;
             s_PendingLocalizers = null;

@@ -192,9 +192,10 @@ namespace Service.Timer
                 // 不消费此处传入的两个零 elapse——推进只认全局时钟。若引擎日后改为消费传入 delta，
                 // 本基准会当场红掉（回调计数对不上）：届时应改回「手动推进」语义，不得删用例。
                 clockNow += delay * 2;
-                var pump = new TimerService();
+                // 回摆后 Timer 门面为纯静态：手动泵 Tick 打到注册实例（原门面实例 Tick 转发语义，承载既有 Delay 建的计时器）
+                var pump = TimerService.Handler;
                 var sw = Stopwatch.StartNew();
-                pump.Tick(0f, 0f);
+                ((Moirai.Atropos.IServiceTickable)pump).Tick(0f, 0f);
                 sw.Stop();
 
                 if (isLoop)

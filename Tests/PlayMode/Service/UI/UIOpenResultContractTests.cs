@@ -126,7 +126,7 @@ namespace Service.UI
         #region 探针 [PROBES]
 
         /// <summary>异步装载两帧后失败的探针窗：失败跨帧才落定，回滚链在真驱动者下走全。</summary>
-        [Window(EUILayer.Tips)]
+        [Window(EUILayer.Tips, true)]
         internal sealed class DelayFailProbeWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => false;
@@ -139,7 +139,7 @@ namespace Service.UI
         }
 
         /// <summary>异步装载两帧后就绪的探针窗：就绪档按实际就绪帧落定。</summary>
-        [Window(EUILayer.Tips)]
+        [Window(EUILayer.Tips, true)]
         internal sealed class DelayReadyProbeWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) => true;

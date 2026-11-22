@@ -10,8 +10,8 @@ namespace Moirai.Atropos.Audio
     /// </summary>
     /// <remarks>
     /// 默认实现为 <see cref="UnityAudioHandler"/>，中间件家族共享基座为 <see cref="MiddlewareAudioHandler"/>； <br />
-    /// 可在 <see cref="AudioServiceSettings"/> 中替换。实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/> <br />
-    /// （生命周期与序列化基座——<c>Internal_Init</c>/<c>Internal_Shutdown</c> 由宿主生成代码强制调用）。 <br />
+    /// 可在 <see cref="AudioServiceSettings"/> 中替换。实现约束：实现类须继承 <see cref="Moirai.Atropos.ServiceBase"/> <br />
+    /// （服务后端基座——绑定即注册进 <c>GameServices</c>，生命周期由容器拓扑驱动；每帧轮询经 <see cref="Moirai.Atropos.IServiceTickable"/>）。 <br />
     /// 跨后端语义约定：暂停音轨拦截新播放（<see cref="Play"/> 返回 0）；<see cref="MasterVolume"/> getter 报未静音的设置值； <br />
     /// 主音量与音轨音量都是线性 <c>0..1</c>、在契约入口夹取一次；句柄生命周期与用户 ID 映射由 <see cref="AudioHandleRegistry{TVoice}"/> 保证； <br />
     /// 后端整体失效时（<see cref="IsBackendInert"/>）音量面读作 0、写作无效。 <br />
@@ -109,11 +109,6 @@ namespace Moirai.Atropos.Audio
         #endregion 后端能力 [BACKEND CAPABILITIES]
 
         #region 服务方法 [SERVICE METHOD]
-
-        /// <summary>
-        /// 容器 Tick 驱动——轮询音轨与手动过渡。
-        /// </summary>
-        void Tick(float elapseSeconds, float realElapseSeconds);
 
         /// <summary>
         /// 重启音频服务。

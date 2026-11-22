@@ -111,7 +111,7 @@ namespace Service.Audio
         public IEnumerator UnityHandler_BurstPlayStop_HandleMapDoesNotGrowUnbounded()
         {
             var handler = new UnityAudioHandler();
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             if (handler.AudioCategories == null || handler.AudioCategories.Length == 0)
             {
@@ -166,7 +166,7 @@ namespace Service.Audio
         public IEnumerator UnityHandler_ConcurrentFadeAndStop_NoException()
         {
             var handler = new UnityAudioHandler();
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             if (handler.AudioCategories == null || handler.AudioCategories.Length == 0)
             {
@@ -217,7 +217,7 @@ namespace Service.Audio
             var handler = new StressHandler();
             handler.SetBridge(stub);
 
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             Assert.IsNotNull(handler.Bridge);
             Assert.AreEqual(0, stub.PlayCount, "桥接起跑前不得有播放记录");
@@ -261,7 +261,7 @@ namespace Service.Audio
             var stub = new StressBridge();
             var handler = new StressHandler();
             handler.SetBridge(stub);
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             ulong a = handler.Play("event:/Music/Theme", new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
             ulong b = handler.Play("event:/Music/Ambience", new AudioPlayRequest(2, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
@@ -287,7 +287,7 @@ namespace Service.Audio
             var stub = new StressBridge();
             var handler = new StressHandler();
             handler.SetBridge(stub);
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             ulong h = handler.Play("event:/Sfx/Beep",
                 new AudioPlayRequest(9, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.None), null);
@@ -341,7 +341,7 @@ namespace Service.Audio
             var stub = new StressBridge();
             var handler = new StressHandler();
             handler.SetBridge(stub);
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             const int BURST = 32;
 

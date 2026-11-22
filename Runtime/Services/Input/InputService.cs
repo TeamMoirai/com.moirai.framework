@@ -14,10 +14,8 @@ namespace Moirai.Atropos.Input
     // 依赖说明：订 IUIService.onWindowShown/onWindowClosed 窗口开合广播 + 读 CurrentModal（Phase 2 经上下文解析注入）。
     // 依赖单向声明（Input → UI）：UI 侧对 Input 只有静态门面的运行时软消费（PreventInteractionUI 读写，未就绪静默忽略），
     // 双向硬声明会构成拓扑环，故 UI 侧不反向声明。
-    [AutoRegisterService]
     [ProviderHandlerHost(typeof(IInputService))]
-    [ServiceDependency(typeof(IUIService))]
-    public partial class InputService : ServiceBase
+    public static partial class InputService
     {
         #region 生命周期 [LIFECYCLE]
 
@@ -41,52 +39,30 @@ namespace Moirai.Atropos.Input
         /// <summary>
         /// 从 <see cref="InputServiceSettings"/> 解析输入处理器。
         /// </summary>
-        /// <remarks>先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），使懒加载主路径首次访问即完成世界注册。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static IInputService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<InputService>();
             return InputServiceSettings.InputServiceHandler;
         }
 
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.MID_TIER;
-
-        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IUIService _ui;
-
         /// <summary>
-        /// 初始化输入服务：触发 <c>Handler</c> 懒加载并订阅对焦与窗口开合广播。由 <see cref="GameAppSettings.Initiation"/> 调用。
+        /// 容器编排（后端 OnInit 经 Manager 钩子调用）：订阅对焦与窗口开合广播。
         /// </summary>
-        public override void OnInit()
+        internal static void OnHandlerInitialized()
         {
-            _ui = Context.GetRequiredService<IUIService>();
-
-            // 确保 Handler 已初始化
-            _ = Handler;
-
             GameApp.onApplicationFocus += ResetInput;
-            _ui.onWindowShown += RefreshUIModal;
-            _ui.onWindowClosed += RefreshUIModal;
+            UIService.onWindowShown += RefreshUIModal;
+            UIService.onWindowClosed += RefreshUIModal;
         }
 
         /// <summary>
-        /// 关闭输入服务。由 <see cref="GameApp.Shutdown"/> 调用。
+        /// 容器收尾（后端 OnShutdown 经 Manager 钩子调用）：摘对焦与窗口开合订阅。
         /// </summary>
-        public override void OnShutdown()
+        internal static void OnHandlerShuttingDown()
         {
-            if (_ui != null)
-            {
-                _ui.onWindowShown -= RefreshUIModal;
-                _ui.onWindowClosed -= RefreshUIModal;
-                _ui = null;
-            }
-
+            UIService.onWindowShown -= RefreshUIModal;
+            UIService.onWindowClosed -= RefreshUIModal;
             GameApp.onApplicationFocus -= ResetInput;
-
-            var handler = s_Handler;
-            s_Handler = null;
-            (handler as FrameworkHandler)?.Internal_Shutdown();
         }
 
         #endregion

@@ -37,7 +37,7 @@ namespace Service.Localization
         {
             for (var i = 0; i < _handlers.Count; i++)
             {
-                _handlers[i]?.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)_handlers[i])?.Destroy();
             }
 
             _handlers.Clear();
@@ -50,7 +50,7 @@ namespace Service.Localization
         {
             // 夹具已在 SetUp 里把编辑器语言播成简体中文：把它交接给每一份探针处理器，首启语言才与存档和机器无关
             handler.ApplyPreference(LocalizationServiceSettings.EditorLanguage, "EditorSetting");
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
             _handlers.Add(handler);
             return handler;
         }

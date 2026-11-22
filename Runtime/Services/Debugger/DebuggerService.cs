@@ -8,63 +8,25 @@ namespace Moirai.Atropos.Debugger
     /// </summary>
     /// <remarks>
     /// 提供窗口注册 / 检索 / 选中、激活开关、日志检索与自定义面板注册。 <br />
+    /// 容器是唯一事实源：settings 选出的后端 handler（<see cref="DefaultDebuggerHandler"/>）作为 <see cref="IDebuggerService"/> 契约服务注册进 <see cref="GameServices"/>， <br />
+    /// 本类缓存该实例（懒链注册结果回填）；服务互调经 <c>GameServices.GetRequiredService&lt;IDebuggerService&gt;()</c> 解析到真实现。 <br />
     /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="DebuggerServiceSettings"/> 解析； <br />
     /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。 <br />
-    /// 外观方法经 <c>s_Handler</c> 直接转发，未注册时静默降级为默认值；<c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。 <br />
-    /// 本类实现自报契约 <see cref="IDebuggerService"/>（显式接口实现转发静态门面）：容器把本实例绑定在该契约下，服务互调经 <c>Context.GetRequiredService&lt;IDebuggerService&gt;()</c> 解析到的就是本实例。
+    /// 外观方法经 <c>s_Handler</c> 直接转发，未注册时静默降级为默认值；<c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（懒加载 + 绑定即注册）。
     /// </remarks>
-    [AutoRegisterService]
     [ProviderHandlerHost(typeof(IDebuggerService), typeof(DefaultDebuggerHandler))]
-    public partial class DebuggerService : ServiceBase, IServiceTickable, IDebuggerService
+    public static partial class DebuggerService
     {
-        #region 生命周期 [LIFECYCLE]
+        #region 生命周期钩子 [LIFECYCLE HOOKS]
 
         /// <summary>
-        /// 从 <see cref="DebuggerServiceSettings"/> 解析调试器处理器。
+        /// 从 <see cref="DebuggerServiceSettings"/> 解析调试器处理器（懒链 settings 来源；注册与缓存回填由生成代码完成）。
         /// </summary>
-        /// <remarks>
-        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
-        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static IDebuggerService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<DebuggerService>();
             return DebuggerServiceSettings.DebuggerServiceHandler;
         }
-
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.DEBUGGER;
-
-        /// <summary>
-        /// 初始化调试器服务。由容器在构建期调用。
-        /// </summary>
-        /// <remarks>
-        /// 确保 <c>DebuggerService.Handler</c> 已赋值（触发 <c>Handler</c> 懒加载）。
-        /// </remarks>
-        public override void OnInit()
-        {
-            _ = Handler;
-        }
-
-        /// <summary>
-        /// 关闭调试器服务。由容器在关闭期调用。
-        /// </summary>
-        /// <remarks>
-        /// 先摘除 <c>Handler</c> 引用再关闭：窗口关闭回调抛异常时不得让半关状态的 Handler 残留。
-        /// </remarks>
-        public override void OnShutdown()
-        {
-            var handler = s_Handler;
-            s_Handler = null;
-            (handler as FrameworkHandler)?.Internal_Shutdown();
-        }
-
-        /// <summary>
-        /// 容器 Tick 驱动——转发到处理器（排空日志并轮询可见窗口）。
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
 
         #endregion
 
@@ -198,41 +160,5 @@ namespace Moirai.Atropos.Debugger
 
         #endregion
 
-        #region 契约注入面 [CONTRACT SURFACE]
-
-        // 容器把本实例绑定在 [ProviderHandlerHost] 自报的 IDebuggerService 契约下（Phase 2 注入互调）。
-        // 与静态门面同名的成员只能显式实现——转发到静态门面保持单一语义源；降级语义与门面一致。
-        // Tick 与门面实例方法同签名，由既有公有方法隐式实现。
-
-        bool IDebuggerService.ActiveWindow
-        {
-            get => ActiveWindow;
-            set => ActiveWindow = value;
-        }
-
-        bool IDebuggerService.ShowFullWindow
-        {
-            get => ShowFullWindow;
-            set => ShowFullWindow = value;
-        }
-
-        DebuggerWindowRegistry IDebuggerService.WindowRegistry => WindowRegistry;
-
-        DebuggerLogCapture IDebuggerService.LogCapture => LogCapture;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IDebuggerService.RegisterDebuggerWindow(string path, IDebuggerWindow window, params object[] args) =>
-            RegisterDebuggerWindow(path, window, args);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IDebuggerService.UnregisterDebuggerWindow(string path) => UnregisterDebuggerWindow(path);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        IDebuggerWindow IDebuggerService.GetDebuggerWindow(string path) => GetDebuggerWindow(path);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IDebuggerService.SelectDebuggerWindow(string path) => SelectDebuggerWindow(path);
-
-        #endregion
     }
 }

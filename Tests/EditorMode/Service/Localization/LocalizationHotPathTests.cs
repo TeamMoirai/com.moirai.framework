@@ -27,7 +27,7 @@ namespace Service.Localization
             _handler = new L10nProbeHandler();
             // 处理器不回身问检测链：探针的首启语言由夹具交接，交给批内首列的英语
             _handler.ApplyPreference(English.Code, "EditorSetting");
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
             _originalFacadeHandler = LocalizationService.Internal_PeekHandler();
         }
 
@@ -43,7 +43,7 @@ namespace Service.Localization
             LocalizationService.Internal_UseHandler(_originalFacadeHandler);
             _originalFacadeHandler = null;
 
-            _handler?.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler)?.Destroy();
             _handler = null;
         }
 

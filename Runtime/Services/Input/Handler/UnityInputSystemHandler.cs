@@ -18,8 +18,10 @@ namespace Moirai.Atropos.Input
     /// </remarks>
     [Serializable]
     [ProviderDisplay(title: "Input System（新版）", description: "Input System 包，支持玩家/UI 上下文 Map 压制与模态门控")]
-    internal sealed partial class UnityInputSystemHandler : FrameworkHandler, IInputService
+    internal sealed partial class UnityInputSystemHandler : ServiceBase, IInputService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
         [Tooltip("留空使用 Edit > Project Settings > Input System Package 中的设置。")]
         [SerializeField] internal InputActionAsset m_InputActions;
 
@@ -84,6 +86,10 @@ namespace Moirai.Atropos.Input
 
         protected override void OnInit()
         {
+            if (Context != null)
+            {
+                InputService.OnHandlerInitialized();
+            }
             _state.onResetRequested += ResetAllInputStates;
             _state.onSuppressionChanged += ApplySuppressionState;
             _actionCache.Clear();
@@ -118,6 +124,15 @@ namespace Moirai.Atropos.Input
 
         protected override void OnShutdown()
         {
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                InputService.InvalidateHandler(this);
+            }
+            if (Context != null)
+            {
+                InputService.OnHandlerShuttingDown();
+            }
             _state.onResetRequested -= ResetAllInputStates;
             _state.onSuppressionChanged -= ApplySuppressionState;
             _actionCache.Clear();

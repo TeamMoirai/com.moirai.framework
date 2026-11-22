@@ -28,11 +28,6 @@ namespace Moirai.GameProto.Config
 			}
 		}
 		
-		protected override void OnShutdown()
-		{
-			s_Tables = null;
-		}
-
 		/// <summary>
 		/// 加载配置。
 		/// <remarks>自动判断加载bin或json配置</remarks>

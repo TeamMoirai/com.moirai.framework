@@ -77,10 +77,10 @@ namespace Service.Audio
             }
 
             fmod.SetBridge(fmodStub);
-            fmod.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)fmod).Initialize();
 
             wwise.SetBridge(wwiseStub);
-            wwise.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)wwise).Initialize();
 
             var request = new AudioPlayRequest(1, 1f, 1f, EAudioTrack.Sfx, 128, EAudioPlayFlags.Loop);
             ulong h1 = fmod.Play("event:/Test", request, null);
@@ -180,7 +180,7 @@ namespace Service.Audio
             var stub = new MixBridge();
             var handler = new MixHandler();
             handler.SetBridge(stub);
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             ulong a = handler.Play("event:/M/A", new AudioPlayRequest(10, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);
             ulong b = handler.Play("event:/M/B", new AudioPlayRequest(11, 1f, 1f, EAudioTrack.Music, 128, EAudioPlayFlags.Loop), null);

@@ -20,16 +20,12 @@ namespace Moirai.Atropos.Procedure
     /// 未就绪降级：查询类 API 返回安全默认值；<see cref="StartProcedure"/> / <see cref="ChangeState"/> 忽略并告警；<see cref="Initialize"/> / <see cref="RestartProcedure"/> 仅要求处理器在位，后端直接调用 fail-fast。<br />
     /// 切换广播：<see cref="onProcedureChanged"/> 在切换完成后同步触发，回调异常逐订阅者隔离；回调内禁止同步切换（重入抛 <see cref="GameException"/>），OnEnter/OnLeave 内合法嵌套不受影响。
     /// </remarks>
-    [AutoRegisterService]
-    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(IUIService), typeof(ILocalizationService), typeof(ITimerService))]
     [ProviderHandlerHost(typeof(IProcedureService), typeof(DefaultProcedureHandler))]
-    public partial class ProcedureService : ServiceBase, IServiceTickable
+    public static partial class ProcedureService
     {
         private static readonly ProcedureBase[] s_EmptyProcedures = new ProcedureBase[0];
         private static readonly ProcedureTransitionRecord[] s_EmptyTransitions = new ProcedureTransitionRecord[0];
 
-        /// <summary>Tick 懒加载重绑只告警一次（域重载后静态位自动复位，每个会话至多一次）。</summary>
-        private static bool s_WarnedLazyRebind;
 
 #if UNITY_EDITOR
         /// <summary>
@@ -39,7 +35,6 @@ namespace Moirai.Atropos.Procedure
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
-            s_WarnedLazyRebind = false;
             onProcedureChanged = null;
         }
 #endif
@@ -50,69 +45,30 @@ namespace Moirai.Atropos.Procedure
         /// 从 <see cref="ProcedureServiceSettings"/> 解析流程处理器。
         /// </summary>
         /// <remarks>
-        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>， <br />
-        /// 幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
+        /// 由生成的懒装配链调用（预热在入图期、懒加载在世界就绪后）；解析出的实例经容器登记契约绑定。 <br />
+        /// 懒加载主路径下 settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static IProcedureService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<ProcedureService>();
             return ProcedureServiceSettings.ProcedureServiceHandler;
         }
 
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.PROCEDURE;
-
-        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IDebuggerService _debugger;
-
         /// <summary>
-        /// 初始化流程服务。由容器在构建期调用。
+        /// 容器编排（后端 OnInit 经 Manager 钩子调用）：注册调试面板。
         /// </summary>
-        /// <remarks>
-        /// 确保 <see cref="Handler"/> 已赋值（触发懒加载），并向游戏内调试器注册调试面板；依赖组合根先注册 <see cref="DebuggerService"/>，外观未就绪时静默跳过。
-        /// </remarks>
-        public override void OnInit()
+        internal static void OnHandlerInitialized(IDebuggerService debugger)
         {
-            _debugger = Context.GetRequiredService<IDebuggerService>();
-            _ = Handler;
-            _debugger.RegisterDebuggerWindow("Profiler/Procedure", new ProcedureServiceDebuggerWindow());
+            debugger.RegisterDebuggerWindow("Profiler/Procedure", new ProcedureServiceDebuggerWindow());
         }
 
         /// <summary>
-        /// 关闭流程服务。由容器在关闭期调用。
+        /// 容器收尾（后端 OnShutdown 经 Manager 钩子调用）：注销调试面板。
         /// </summary>
-        public override void OnShutdown()
+        internal static void OnHandlerShuttingDown(IDebuggerService debugger)
         {
-            _debugger?.UnregisterDebuggerWindow("Profiler/Procedure");
-
-            var handler = s_Handler;
-            s_Handler = null;
-            (handler as FrameworkHandler)?.Internal_Shutdown();
+            debugger?.UnregisterDebuggerWindow("Profiler/Procedure");
         }
-
-        /// <summary>
-        /// 容器 Tick 驱动——转发到处理器轮询当前流程。
-        /// </summary>
-        /// <remarks>
-        /// <c>s_Handler</c> 静态字段会被域重载（编辑器内脚本编译）清空而服务实例仍在轮询，此处经 <see cref="Handler"/> 属性懒加载重绑，避免流程状态机从此静默停摆。
-        /// </remarks>
-        public void Tick(float elapseSeconds, float realElapseSeconds)
-        {
-            var handler = s_Handler;
-            if (handler == null)
-            {
-                handler = Handler;
-                if (!s_WarnedLazyRebind)
-                {
-                    s_WarnedLazyRebind = true;
-                    LogUtility.Warning("ProcedureService.Tick 检测到处理器失联（多为编辑器域重载），已懒加载重绑；流程集为空，需重新启动流程。");
-                }
-            }
-
-            handler.Tick(elapseSeconds, realElapseSeconds);
-        }
-
         #endregion
 
         #region 属性 [PROPERTIES]

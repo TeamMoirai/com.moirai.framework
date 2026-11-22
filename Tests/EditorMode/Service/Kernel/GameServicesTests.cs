@@ -6,6 +6,7 @@ using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
 using static Moirai.Atropos.LogHandler;
+using Dbg = Moirai.Atropos.Debugger;
 
 namespace Service.Kernel
 {
@@ -41,8 +42,8 @@ namespace Service.Kernel
             public int ShutdownCount;
             public int TickCount;
 
-            public override void OnInit() => InitCount++;
-            public override void OnShutdown() => ShutdownCount++;
+            protected override void OnInit() => InitCount++;
+            protected override void OnShutdown() => ShutdownCount++;
             public virtual void Tick(float elapseSeconds, float realElapseSeconds) => TickCount++;
         }
 
@@ -59,7 +60,7 @@ namespace Service.Kernel
         {
             public DependeeService Dependency { get; private set; }
 
-            public override void OnInit()
+            protected override void OnInit()
             {
                 base.OnInit();
                 Dependency = GameServices.GetRequiredService<DependeeService>();
@@ -96,7 +97,7 @@ namespace Service.Kernel
             public bool AsyncShutdownCalled;
             public bool SyncShutdownCalled;
 
-            public override void OnShutdown()
+            protected override void OnShutdown()
             {
                 SyncShutdownCalled = true;
                 base.OnShutdown();
@@ -424,15 +425,15 @@ namespace Service.Kernel
 
         private sealed class OrderDependee : TestServiceBase, IDepTargetService
         {
-            public override void OnInit() { base.OnInit(); s_OrderLog.Add("dependee:init"); }
-            public override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependee:shutdown"); }
+            protected override void OnInit() { base.OnInit(); s_OrderLog.Add("dependee:init"); }
+            protected override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependee:shutdown"); }
         }
 
         [ServiceDependency(typeof(OrderDependee))]
         private sealed class OrderDependent : TestServiceBase, IAlphaService
         {
-            public override void OnInit() { base.OnInit(); s_OrderLog.Add("dependent:init"); }
-            public override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependent:shutdown"); }
+            protected override void OnInit() { base.OnInit(); s_OrderLog.Add("dependent:init"); }
+            protected override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependent:shutdown"); }
         }
 
         [Test]
@@ -464,7 +465,7 @@ namespace Service.Kernel
                 return UniTask.CompletedTask;
             }
 
-            public override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependee:shutdown"); }
+            protected override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependee:shutdown"); }
         }
 
         [ServiceDependency(typeof(AsyncOrderDependee))]
@@ -476,7 +477,7 @@ namespace Service.Kernel
                 return UniTask.CompletedTask;
             }
 
-            public override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependent:shutdown"); }
+            protected override void OnShutdown() { base.OnShutdown(); s_OrderLog.Add("dependent:shutdown"); }
         }
 
         [Test]
@@ -954,7 +955,7 @@ namespace Service.Kernel
         {
             public bool Rejected;
 
-            public override void OnInit()
+            protected override void OnInit()
             {
                 base.OnInit();
                 try
@@ -990,7 +991,7 @@ namespace Service.Kernel
         {
             public bool Rejected;
 
-            public override void OnInit()
+            protected override void OnInit()
             {
                 base.OnInit();
                 try
@@ -1019,7 +1020,7 @@ namespace Service.Kernel
 
         private sealed class SelfShutdownOnInitService : TestServiceBase, IAlphaService
         {
-            public override void OnInit()
+            protected override void OnInit()
             {
                 base.OnInit();
                 GameServices.Shutdown();
@@ -1354,15 +1355,15 @@ namespace Service.Kernel
         private static void SetGameAppActive(bool active) => GameApp.IsShutdown = !active;
 
         [Test]
-        public void EnsureRegistered_WhenGameAppShutDown_ThrowsAndBlocksRevival()
+        public void EnsureFacadeAssemblyAllowed_WhenGameAppShutDown_ThrowsAndBlocksRevival()
         {
             // EditMode 下 GameApp 未 Initialize——IsShutdown 恒为 true，
             // 等价于"框架未启动/拆除窗口/已手动关闭"的关闭态
             Assert.IsTrue(GameApp.IsShutdown);
 
-            Assert.Throws<GameException>(() => GameServices.EnsureRegistered<AlphaService>());
+            Assert.Throws<GameException>(() => GameServices.EnsureFacadeAssemblyAllowed("TimerService"));
 
-            Assert.IsFalse(GameServices.HasApp, "关闭期懒加载不得复活世界");
+            Assert.IsFalse(GameServices.HasApp, "关闭期懒装配不得复活世界");
             Assert.IsNull(GameServices.GetService<AlphaService>(), "关闭期不应留下半初始化服务");
         }
 
@@ -1377,17 +1378,14 @@ namespace Service.Kernel
         }
 
         [Test]
-        public void EnsureRegistered_WhenGameAppActive_CreatesAndRegistersWhenAbsent()
+        public void EnsureFacadeAssemblyAllowed_WhenWorldAbsent_ThrowsAndCreatesNoWorld()
         {
             SetGameAppActive(true);
             try
             {
-                GameServices.EnsureRegistered<AlphaService>();
-
-                var resolved = GameServices.GetRequiredService<AlphaService>();
-                Assert.IsInstanceOf<AlphaService>(resolved);
-                Assert.AreEqual(1, ((AlphaService)resolved).InitCount, "懒加载注册应保证可用（注册即初始化）");
-                Assert.AreEqual(EServiceState.Initialized, ((AlphaService)resolved).State);
+                // 门面不再有自举路径：世界未建立即取用一律判红，而不是替组合根把世界拉起来
+                Assert.Throws<GameException>(() => GameServices.EnsureFacadeAssemblyAllowed("TimerService"));
+                Assert.IsFalse(GameServices.HasApp, "入口闸不得顺手建世界");
             }
             finally
             {
@@ -1396,18 +1394,16 @@ namespace Service.Kernel
         }
 
         [Test]
-        public void EnsureRegistered_AlreadyRegistered_Idempotent()
+        public void EnsureFacadeAssemblyAllowed_WhenWorldPendingInitialization_Throws()
         {
             SetGameAppActive(true);
             try
             {
-                var instance = new AlphaService();
-                Register(instance);
+                RegisterDeferred(new AlphaService());
+                Assert.IsFalse(GameServices.Default.IsInitialized, "本格要的是「世界已建、尚未初始化」的半装配窗口");
 
-                GameServices.EnsureRegistered<AlphaService>();
-
-                Assert.AreSame(instance, GameServices.GetRequiredService<AlphaService>(), "已注册时不应替换实例");
-                Assert.AreEqual(1, instance.InitCount, "已注册时不应再次驱动 OnInit");
+                // 该窗口曾静默返回未初始化的后端；预热只认组合根的 WarmHandler
+                Assert.Throws<GameException>(() => GameServices.EnsureFacadeAssemblyAllowed("TimerService"));
             }
             finally
             {
@@ -1415,33 +1411,64 @@ namespace Service.Kernel
             }
         }
 
+        [Test]
+        public void EnsureFacadeAssemblyAllowed_WhenWorldInitialized_Returns()
+        {
+            Register(new AlphaService());
+            Init();
+
+            Assert.DoesNotThrow(() => GameServices.EnsureFacadeAssemblyAllowed("TimerService"), "世界就绪后懒装配应放行");
+        }
+
         private sealed class SelfEnsureService : TestServiceBase, IAlphaService
         {
-            public override void OnInit()
+            protected override void OnInit()
             {
                 base.OnInit();
-                // 初始化循环内重入 EnsureRegistered——已在注册表即跳过（禁止嵌套初始化）
-                GameServices.EnsureRegistered<SelfEnsureService>();
+                // 初始化在途必须放行——服务在 OnInit 里取用同伴后端是既定形态，禁止嵌套初始化由容器另管
+                GameServices.EnsureFacadeAssemblyAllowed("SelfEnsureService");
                 s_OrderLog.Add("self-ensure");
             }
         }
 
         [Test]
-        public void EnsureRegistered_ReentrantDuringInitialization_Skipped()
+        public void EnsureFacadeAssemblyAllowed_WhileInitializing_Returns()
         {
-            SetGameAppActive(true);
-            try
-            {
-                GameServices.RegisterService(EServiceScopeKind.App, new SelfEnsureService());
-                Init();
+            GameServices.RegisterService(EServiceScopeKind.App, new SelfEnsureService());
+            Init();
 
-                Assert.IsTrue(s_OrderLog.Contains("self-ensure"), "重入的 EnsureRegistered 应被跳过而非递归");
-                Assert.AreEqual(1, GameServices.GetRequiredService<SelfEnsureService>().InitCount);
-            }
-            finally
-            {
-                SetGameAppActive(false);
-            }
+            Assert.IsTrue(s_OrderLog.Contains("self-ensure"), "初始化在途的懒装配应放行而非判红");
+            Assert.AreEqual(1, GameServices.GetRequiredService<SelfEnsureService>().InitCount);
+        }
+
+        /// <summary>
+        /// 世界关停逐个推送清槽回调，门面静态槽随之落空。
+        /// </summary>
+        /// <remarks>读侧不再回查容器，「槽位 ≡ 容器实例」全靠关停这条路落锤——登记方是生成的装配路径。</remarks>
+        [Test]
+        public void Shutdown_AfterHandlerResetterRegistered_InvokesResetter()
+        {
+            var cleared = 0;
+            GameServices.RegisterHandlerResetter(() => cleared++);
+
+            GameServices.Shutdown();
+
+            Assert.AreEqual(1, cleared, "关停必须把已登记的清槽回调全部跑一遍");
+        }
+
+        /// <summary>
+        /// 生成的服务门面在世界关停后槽位落空。
+        /// </summary>
+        /// <remarks>取真门面而非探针宿主：类契约探针不进容器，走不到清槽登记那条分支。</remarks>
+        [Test]
+        public void Shutdown_AfterServiceFacadeWarm_ClearsGeneratedSlot()
+        {
+            Dbg.DebuggerService.WarmHandler();
+            Assert.IsNotNull(Dbg.DebuggerService.Internal_PeekHandler(), "预热应把后端装进门面槽");
+
+            GameServices.Shutdown();
+
+            Assert.IsNull(Dbg.DebuggerService.Internal_PeekHandler(), "读侧已不再回查容器，一致性由关停推送落锤");
         }
 
         // ═══════════════════════════════════════════════════════
@@ -1470,8 +1497,8 @@ namespace Service.Kernel
         [ExecuteAlways]
         private sealed class TestMonoService : ServiceMono<AppScope>
         {
-            public override void OnInit() { }
-            public override void OnShutdown() { }
+            protected override void OnInit() { }
+            protected override void OnShutdown() { }
         }
 
         [Test]
@@ -1520,6 +1547,58 @@ namespace Service.Kernel
             Assert.IsFalse(GameServices.HasApp, "拒绝不得留下半注册的作用域状态");
         }
 
+        // --- 就绪判据夹具（严格 == Initialized） ---
+
+        private interface IReadyGateDependeeService : IService { }
+
+        private interface IReadyGateDependentService : IService { }
+
+        private sealed class ReadyGateDependee : TestServiceBase, IReadyGateDependeeService { }
+
+        [ServiceDependency(typeof(IReadyGateDependeeService))]
+        private sealed class ReadyGateDependent : TestServiceBase, IReadyGateDependentService { }
+
+        /// <summary>
+        /// 运行时注册的依赖已初始化：接受。
+        /// </summary>
+        /// <remarks>正对照——缺这一格，负例的「抛异常」可能来自夹具接线错误而非就绪判据。</remarks>
+        [Test]
+        public void RuntimeRegister_DependencyInitialized_Accepted()
+        {
+            var dependee = new ReadyGateDependee();
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IReadyGateDependeeService), dependee);
+            GameServices.Default.Initialize();
+
+            var dependent = new ReadyGateDependent();
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IReadyGateDependentService), dependent);
+
+            Assert.AreEqual(1, dependent.InitCount, "依赖就绪时运行时注册须立即初始化");
+        }
+
+        /// <summary>
+        /// 运行时注册的依赖已关闭但仍绑定：拒绝。
+        /// </summary>
+        /// <remarks>
+        /// 就绪判据取严格 <c>== EServiceState.Initialized</c>：持留的 <c>[SerializeReference]</c> 后端带着 <c>Disposed</c> <br />
+        /// 进入新世界时，按「≥ Initialized」区间判定会把它当就绪、跳过依赖边，拓扑退化成注册序。
+        /// </remarks>
+        [Test]
+        public void RuntimeRegister_DependencyDisposedButStillBound_Rejected()
+        {
+            var dependee = new ReadyGateDependee();
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IReadyGateDependeeService), dependee);
+            GameServices.Default.Initialize();
+
+            // 容器绑定不动，只把实例状态推向已关闭——即持留实例进入新世界的形状
+            ((IServiceLifecycle)dependee).Destroy();
+            Assert.AreEqual(EServiceState.Disposed, dependee.State, "夹具须先把依赖推到已关闭");
+
+            var dependent = new ReadyGateDependent();
+            Assert.Throws<GameException>(
+                () => GameServices.RegisterService(EServiceScopeKind.App, typeof(IReadyGateDependentService), dependent),
+                "依赖处于 Disposed 仍被放行，即区间判据的漏口");
+        }
+
         /// <summary>
         /// MonoBehaviour + Gizmo 能力的服务。
         /// </summary>
@@ -1527,8 +1606,8 @@ namespace Service.Kernel
         /// 才不会被 <see cref="ServiceMono{TScope}"/> 的自动注册抢跑掉本用例要验的守卫。</remarks>
         private sealed class MonoGizmoService : ServiceMono<AppScope>, IServiceGizmoDrawable
         {
-            public override void OnInit() { }
-            public override void OnShutdown() { }
+            protected override void OnInit() { }
+            protected override void OnShutdown() { }
             public void OnDrawGizmos() { }
         }
 

@@ -17,7 +17,7 @@ namespace Moirai.Atropos.Debugger
         protected override void BuildWindow(VisualElement root)
         {
             VisualElement poolCard = AddSection(root, "Object Pool");
-            poolCard.Add(DebuggerUI.CreateActionButton("GameObject Pool Flush All", GameObjectPoolService.FlushAll));
+            poolCard.Add(DebuggerUI.CreateActionButton("GameObject Pool Flush All", ObjectPoolService.FlushAll));
 
             VisualElement resourceCard = AddSection(root, "Resource");
             resourceCard.Add(DebuggerUI.CreateActionButton("Unload Unused Assets", () => UnloadUnusedAssets(false)));

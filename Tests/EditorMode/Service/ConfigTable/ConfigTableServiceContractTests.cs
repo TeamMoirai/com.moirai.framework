@@ -182,8 +182,10 @@ namespace Service.ConfigTable
         {
             InstallDefaultHandler();
 
-            ConfigTableService service = new ConfigTableService();
-            service.OnShutdown();
+            // 回摆后后端即注册实体：容器销毁路径（OnShutdown 失效钩子）承担「关闭后摘引用」契约
+            var handler = (DefaultConfigTableHandler)ConfigTableService.Internal_PeekHandler();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
 
             Assert.IsNull(ConfigTableService.Internal_PeekHandler(), "关闭后必须摘掉后端引用。");
             Assert.IsNull(ConfigTableService.GetUIWindowLocation("any"),
@@ -193,9 +195,10 @@ namespace Service.ConfigTable
         [Test]
         public void OnShutdown_WithoutHandler_IsNoOp()
         {
-            ConfigTableService service = new ConfigTableService();
+            // 未初始化状态重复销毁幂等（状态机守卫）
+            var handler = new DefaultConfigTableHandler();
 
-            Assert.DoesNotThrow(() => service.OnShutdown());
+            Assert.DoesNotThrow(() => ((Moirai.Atropos.IServiceLifecycle)handler).Destroy());
             Assert.IsNull(ConfigTableService.Internal_PeekHandler());
         }
 
@@ -210,12 +213,13 @@ namespace Service.ConfigTable
         [Test]
         public void Service_DeclaresAssetDependency()
         {
-            ServiceDependencyAttribute[] declared = typeof(ConfigTableService)
+            // 回摆后依赖声明随后端走
+            ServiceDependencyAttribute[] declared = typeof(DefaultConfigTableHandler)
                 .GetCustomAttributes(typeof(ServiceDependencyAttribute), false)
                 .Cast<ServiceDependencyAttribute>()
                 .ToArray();
 
-            Assert.IsNotEmpty(declared, "ConfigTableService 必须声明服务依赖（首读表依赖资源系统就绪）。");
+            Assert.IsNotEmpty(declared, "DefaultConfigTableHandler 必须声明服务依赖（首读表依赖资源系统就绪）。");
 
             Type[] dependencies = declared.SelectMany(attribute => attribute.DependencyTypes).ToArray();
             CollectionAssert.Contains(dependencies, typeof(IAssetService),
@@ -223,16 +227,20 @@ namespace Service.ConfigTable
         }
 
         [Test]
-        public void Service_IsAutoRegistered()
+        public void Service_IsRegisteredViaBinding()
         {
-            Assert.IsNotNull(typeof(ConfigTableService).GetCustomAttribute<AutoRegisterServiceAttribute>(),
-                "内置 App 服务必须带 [AutoRegisterService]，否则不会进生成的注册清单。");
+            // 回摆后注册路径 = [ProviderHandlerHost] 契约绑定（WarmHandler 预热 + 懒链注册）：门面不再带 [AutoRegisterService]
+            var host = typeof(ConfigTableService).GetCustomAttribute<ProviderHandlerHostAttribute>();
+            Assert.IsNotNull(host, "门面必须保留 [ProviderHandlerHost]（契约绑定即注册的声明源）");
+            Assert.IsTrue(typeof(Moirai.Atropos.IService).IsAssignableFrom(typeof(DefaultConfigTableHandler)),
+                "后端必须是 ServiceBase 注册实体");
         }
 
         [Test]
         public void Service_Priority_IsMidTier()
         {
-            Assert.AreEqual(ServicePriorityOrder.MID_TIER, new ConfigTableService().Priority);
+            // 回摆后 Priority 随后端声明
+            Assert.AreEqual(ServicePriorityOrder.MID_TIER, new DefaultConfigTableHandler().Priority);
         }
 
         #endregion

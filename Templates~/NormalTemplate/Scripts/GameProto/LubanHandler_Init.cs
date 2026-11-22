@@ -28,6 +28,11 @@ namespace Moirai.GameProto.Config
 			}
 		}
 		
+		/// <summary>
+		/// 表集合是静态懒载（见 <see cref="Tables"/>），初始化阶段没有要做的装配。
+		/// </summary>
+		protected override void OnInit() { }
+
 		protected override void OnShutdown()
 		{
 			s_Tables = null;

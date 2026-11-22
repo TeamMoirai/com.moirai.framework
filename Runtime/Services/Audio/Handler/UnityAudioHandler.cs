@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Moirai.Atropos.Asset;
+using Moirai.Atropos.Debugger;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
@@ -14,14 +16,23 @@ namespace Moirai.Atropos.Audio
     /// 基于 Unity 音频系统（<see cref="AudioSource"/>/<see cref="AudioMixer"/>）的默认音频处理器。
     /// </summary>
     /// <remarks>
+    /// 服务后端（<see cref="IAudioService"/> 契约实现）：由容器注册并驱动生命周期，经 <c>GameServices</c> 按契约解析； <br />
     /// 句柄生命周期：Play 绑定 → 结束/抢占时 <see cref="OnAgentPlaybackEnded"/> 自动释放，杜绝无界增长与旧句柄别名。 <br />
     /// 句柄注册与音量过渡复用 <see cref="AudioHandleRegistry{TVoice}"/> / <see cref="AudioFadeScheduler"/>， <br />
     /// 与 <see cref="Middleware.MiddlewareAudioHandler"/> 共享同一套语义。
     /// </remarks>
     [Serializable]
+    [ServiceDependency(typeof(ITimerService), typeof(IDebuggerService), typeof(IAssetService))]
     [ProviderDisplay(title: "Unity 音频", description: "默认：AudioSource/AudioMixer 直驱，无中间件依赖")]
-    internal sealed class UnityAudioHandler : FrameworkHandler, IAudioService, IAudioFadeTarget
+    internal sealed class UnityAudioHandler : ServiceBase, IServiceTickable, IAudioService, IAudioFadeTarget
     {
+        /// <summary>依赖契约实例（OnInit 经上下文解析，Phase 2 注入互调）。</summary>
+        [NonSerialized] private ITimerService _timer;
+        [NonSerialized] private IDebuggerService _debugger;
+
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
+
         [NonSerialized] private AudioGroupConfig[] _audioGroupConfigs;
         [NonSerialized] private bool _unityAudioDisabled;
 
@@ -252,24 +263,56 @@ namespace Moirai.Atropos.Audio
         #region 服务方法 [SERVICE METHOD]
 
         /// <summary>
-        /// 初始化音频处理器。由 <c>Handler</c> 赋值时自动调用。
+        /// 初始化音频处理器。由容器在拓扑位驱动（编排随行：依赖解析、宿主池预热、设置延迟应用、调试面板、前后台订阅）。
         /// </summary>
+        /// <remarks>容器外直驱（测试沙盒/编辑器工具）只做后端初始化——与旧 <c>Internal_Init</c> 语义对齐；编排以 Context 就位为闸。</remarks>
         protected override void OnInit()
         {
             if (!Application.isPlaying) return;
+
+            bool containerDriven = Context != null;
+            if (containerDriven)
+            {
+                _timer = Context.GetRequiredService<ITimerService>();
+                _debugger = Context.GetRequiredService<IDebuggerService>();
+            }
 
             Initialize(null, null, null);
             AudioMixService.Initialize(_audioMixer);
             ApplyMixSnapshotSettings();
 
+            if (containerDriven)
+            {
+                // 预热 AudioSource 宿主栈池（配置在 AudioServiceSettings）
+                if (AudioServiceSettings.WarmupAudioHostPool && InstanceRoot != null)
+                {
+                    AudioAgentHostPool.Warmup(InstanceRoot, AudioServiceSettings.AudioHostWarmupCount);
+                }
+
+                // 加载音频设置：初始化当帧写 AudioMixer 不生效，排到下一帧再应用
+                _timer.WaitFrame(1, AudioService.LoadSettings);
+
+                _debugger.RegisterDebuggerWindow("Profiler/Audio", new AudioServiceDebuggerWindow());
+
+                // 移动端只有 OnApplicationPause 可靠（Focus 在桌面切窗时也会触发，不应据此静音）
+                AudioService.AttachPauseSubscription();
+            }
+
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
         /// <summary>
-        /// 关闭音频处理器。由 <c>Handler</c> 置空/替换时自动调用。
+        /// 关闭音频处理器。由容器在关闭期驱动（注销/世界收口），或生成 setter 换后端时经条件注销触发。
         /// </summary>
         protected override void OnShutdown()
         {
+            // 缓存失效钩子先于平台守卫：槽位记账是生命周期层的事，EditMode/非播放态的世界销毁也要清槽
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                AudioService.InvalidateHandler(this);
+            }
+
             if (!Application.isPlaying) return;
 
             StopAll(fadeoutDuration: 0f);
@@ -303,10 +346,36 @@ namespace Moirai.Atropos.Audio
             _audioCategories = null;
             _categoryCache = null;
             _configCache = null;
+
+            // 门面侧收尾仅容器路径执行（与 OnInit 编排一一对应）；直驱路径按旧 Internal_Shutdown 语义只收后端
+            if (Context != null)
+            {
+                _debugger?.UnregisterDebuggerWindow("Profiler/Audio");
+                AudioService.DetachPauseSubscription();
+                AudioMixService.Shutdown();
+                AudioFault.Reset();
+                AudioWarnOnce.Reset();
+            }
         }
 
         /// <inheritdoc />
+        /// <remarks>隔离边界收口在本 handler：容器 tick 保护在开发构建下会重抛并打断整轮，一条音的异常不该冻住同帧的输入/UI/存档；退避上报使两种构建行为一致且不刷屏。</remarks>
         public void Tick(float elapseSeconds, float realElapseSeconds)
+        {
+            try
+            {
+                TickCore(elapseSeconds, realElapseSeconds);
+            }
+            catch (Exception e)
+            {
+                AudioFault.Report($"{nameof(UnityAudioHandler)}.{nameof(Tick)}", e);
+            }
+        }
+
+        /// <summary>
+        /// 轮询音轨与手动过渡（异常隔离由 <see cref="Tick"/> 收口）。
+        /// </summary>
+        private void TickCore(float elapseSeconds, float realElapseSeconds)
         {
             // 首帧后关闭阻塞加载窗口
             AudioBlockingLoadGate.Close();

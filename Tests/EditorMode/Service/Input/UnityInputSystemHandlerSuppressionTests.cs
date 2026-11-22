@@ -33,13 +33,13 @@ namespace Service.Input
             _handler = new UnityInputSystemHandler();
             _handler.m_InputActions = _asset;
 
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
         public void TearDown()
         {
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             Object.DestroyImmediate(_asset);
         }
 
@@ -121,12 +121,12 @@ namespace Service.Input
         [Test]
         public void Shutdown_DisablesOwnedAsset()
         {
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
 
             Assert.IsFalse(_asset.enabled, "由处理器启用的自定义资产应在关闭时对称禁用");
 
             // TearDown 幂等：重复 Shutdown 不应再触碰资产
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
         }
     }
 }

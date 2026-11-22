@@ -8,7 +8,11 @@ namespace Kernel.FrameworkSettings
     /// <summary>
     /// 探针契约：仅继承 <see cref="FrameworkHandler"/>，不关联任何生产处理器契约。
     /// </summary>
-    /// <remarks>不标 <c>[Serializable]</c> 且无生产 <c>[ProviderDropdown]</c> 字段引用本类型，不会进入资产下拉扫描。</remarks>
+    /// <remarks>
+    /// 下拉候选按 <c>[ProviderDropdown]</c> 字段声明的类型收非抽象派生类，而本包没有一处以 <see cref="FrameworkHandler"/> 为基类 <br />
+    /// （字段基座分两档：具体家族基座与服务契约接口，见 <c>Runtime/Kernel/GameApp/GameAppSettings.cs</c>）； <br />
+    /// 本类型自身抽象，另有 <c>ProviderCatalogIndex.CompiledCandidates</c> 按装配名排除测试装配这一层筛选项。
+    /// </remarks>
     internal abstract class ProbeHandler : FrameworkHandler
     {
         internal Action InitAction { get; set; }

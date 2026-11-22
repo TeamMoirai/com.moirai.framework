@@ -349,6 +349,25 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
+        /// 条件注销：契约当前绑定的就是 <paramref name="handler"/> 时注销并关闭它，否则空操作。
+        /// </summary>
+        /// <remarks>
+        /// ProviderHandlerHost 生成 setter 的旧实例收尾路径：换后端时旧实例若仍是该契约的容器绑定则走容器销毁， <br />
+        /// 槽位换入/测试换入的未注册实例不误伤契约上可能存在的其它绑定。
+        /// </remarks>
+        /// <param name="contractType">契约类型。</param>
+        /// <param name="handler">待注销的处理器实例。</param>
+        /// <returns>执行了注销为真。</returns>
+        internal bool UnregisterIfBound(Type contractType, IService handler)
+        {
+            if (contractType == null || handler == null || _disposed) return false;
+            if (!TryGetScope(handler.Scope, out var scope)) return false;
+            if (!scope.TryGet(contractType, out var existing) || !ReferenceEquals(existing, handler)) return false;
+
+            return Unregister(handler.Scope, contractType);
+        }
+
+        /// <summary>
         /// 运行时注销并关闭指定作用域中的单个服务（泛型版本）。
         /// </summary>
         public bool Unregister<T>(
@@ -399,13 +418,17 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 契约是否已初始化就绪（跨作用域解析）。
+        /// 契约是否已初始化就绪（跨作用域解析；严格 <see cref="EServiceState.Initialized"/>）。
         /// </summary>
+        /// <remarks>
+        /// 持留实例（settings 资产的 <c>[SerializeReference]</c> 后端跨会话存活）带着 <see cref="EServiceState.Disposed"/> <br />
+        /// 进入新世界——按「≥ Initialized」区间判定会把它当就绪、跳过依赖边，拓扑退化成注册序。
+        /// </remarks>
         internal bool IsServiceReady(Type contractType)
         {
             if (!_bindingsByContract.TryGetValue(contractType.TypeHandle, out var bindings))
                 return false;
-            return bindings.TryGetBest(out IService service) && GameServices.GetState(service) >= EServiceState.Initialized;
+            return bindings.TryGetBest(out IService service) && GameServices.IsReady(service);
         }
 
         /// <summary>

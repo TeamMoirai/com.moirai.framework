@@ -24,9 +24,9 @@ namespace Service.Kernel
             public int TickCount;
             public int ShutdownCount;
 
-            public override void OnInit() => InitCount++;
+            protected override void OnInit() => InitCount++;
             public void Tick(float elapseSeconds, float realElapseSeconds) => TickCount++;
-            public override void OnShutdown() => ShutdownCount++;
+            protected override void OnShutdown() => ShutdownCount++;
         }
 
         [ServiceDependency(typeof(ProbeService))]
@@ -34,14 +34,14 @@ namespace Service.Kernel
         {
             public bool DependencyReadyOnInit;
 
-            public override void OnInit()
+            protected override void OnInit()
             {
                 // 拓扑契约：OnInit 时依赖必须已初始化
                 DependencyReadyOnInit = _dependency != null &&
                     _dependency.State == EServiceState.Initialized;
             }
 
-            public override void OnShutdown() { }
+            protected override void OnShutdown() { }
 
             public void Bind(ProbeService dependency) => _dependency = dependency;
             private ProbeService _dependency;

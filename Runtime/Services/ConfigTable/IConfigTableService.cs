@@ -11,7 +11,7 @@ namespace Moirai.Atropos.ConfigTable
     /// <remarks>
     /// 默认实现为 <see cref="DefaultConfigTableHandler"/>（记录错误并返回空结果），可在 <see cref="ConfigTableServiceSettings"/> 中替换； <br />
     /// 游戏侧自定义后端经 <see cref="ConfigTableServiceSettings"/> 的 Provider 下拉选定并随资产序列化装配。 <br />
-    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/>（生命周期与序列化基座）。 <br />
+    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.ServiceBase"/>（绑定即注册进容器，生命周期由容器拓扑驱动）。 <br />
     /// 本地化协同契约：<see cref="GetLocalizationLanguageCodes"/> 自报的语言顺序必须与 <see cref="GetAllLocalizedStrings"/> 每条文本的列顺序一致。
     /// </remarks>
     public interface IConfigTableService

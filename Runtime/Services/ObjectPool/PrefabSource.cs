@@ -11,7 +11,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <remarks>
     /// 封装加载状态机与生命周期；仅主线程访问。
     /// </remarks>
-    internal sealed class GameObjectPrefabSource
+    internal sealed class PrefabSource
     {
         #region 常量 [CONSTANTS]
 
@@ -206,7 +206,7 @@ namespace Moirai.Atropos.ObjectPool
             }
             catch (Exception e)
             {
-                LogUtility.Error("[GameObjectPool] Prefab load failed. Location:{0}, Error:{1}", location, e.Message);
+                LogUtility.Error("[ObjectPool] Prefab load failed. Location:{0}, Error:{1}", location, e.Message);
                 loaded = null;
             }
 

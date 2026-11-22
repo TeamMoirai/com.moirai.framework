@@ -22,7 +22,7 @@ namespace Service.Debugger
             handler.Internal_ActiveWindowTypeOverride = Dbg.DebuggerActiveWindowType.AlwaysClose;
             try
             {
-                handler.Internal_Init();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
                 Assert.IsFalse(handler.ActiveWindow, "前置条件：AlwaysClose 且未带 -showdebugger 时应为未激活");
                 Assert.IsNotNull(handler.WindowRegistry, "注册表仍应随处理器初始化建立");
@@ -30,7 +30,7 @@ namespace Service.Debugger
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 
@@ -41,14 +41,14 @@ namespace Service.Debugger
             handler.Internal_ActiveWindowTypeOverride = Dbg.DebuggerActiveWindowType.AlwaysOpen;
             try
             {
-                handler.Internal_Init();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
                 Assert.IsTrue(handler.ActiveWindow, "前置条件：AlwaysOpen 应为激活");
                 Assert.Greater(handler.WindowRegistry.WindowCount, 0, "激活路径必须填内置窗口，懒建不得把窗口懒没了");
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 
@@ -59,7 +59,7 @@ namespace Service.Debugger
             handler.Internal_ActiveWindowTypeOverride = Dbg.DebuggerActiveWindowType.AlwaysClose;
             try
             {
-                handler.Internal_Init();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
                 Assert.AreEqual(0, handler.WindowRegistry.WindowCount, "前置条件：未激活时注册表为空");
 
                 handler.ActiveWindow = true;
@@ -74,7 +74,7 @@ namespace Service.Debugger
             finally
             {
                 handler.ActiveWindow = false;
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
     }

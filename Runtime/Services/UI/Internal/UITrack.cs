@@ -40,6 +40,8 @@ namespace Moirai.Atropos.UI
         /// <summary>本轨驱动者是否在位：探针读的是那一轨自己的槽位。</summary>
         internal bool IsDriverValid => _isDriverValid();
 
+        private Type _driverType;
+
         /// <summary>认领进槽时挂上的那条关停回调：实例绑定，摘槽不清它，门面整批清认领时才摘。</summary>
         internal Action ClaimedShutDown => _claimedShutDown;
 
@@ -54,7 +56,8 @@ namespace Moirai.Atropos.UI
         /// <param name="openWindow">Type 形入口落到本轨的开窗实现。</param>
         internal UITrack(string trackName, Type windowBaseType, int shutdownOrder,
             Func<Type, bool> ownsWindowType, Func<bool> isDriverValid,
-            Action<Type, bool, string, UIPayload, CancellationToken> openWindow)
+            Action<Type, bool, string, UIPayload, CancellationToken> openWindow,
+            Type driverType = null)
         {
             _trackName = trackName;
             _windowBaseType = windowBaseType;
@@ -62,6 +65,14 @@ namespace Moirai.Atropos.UI
             _ownsWindowType = ownsWindowType;
             _isDriverValid = isDriverValid;
             _openWindow = openWindow;
+            _driverType = driverType;
+        }
+
+        /// <summary>本轨驱动者的具体类型（组合根按它把启用清单分派进各轨；合成轨为 null）。</summary>
+        internal bool OwnsDriver(Type driverType)
+        {
+            return _driverType != null && driverType != null
+                && (_driverType == driverType || _driverType.IsAssignableFrom(driverType));
         }
 
         /// <summary>

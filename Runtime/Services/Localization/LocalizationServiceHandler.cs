@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.ConfigTable;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -16,8 +18,23 @@ namespace Moirai.Atropos.Localization
     /// 默认整批加载、全语言常驻；数据源自报支持按语言取列时转为列模式，常驻与取值都只有当前语言列。
     /// </remarks>
     [Serializable]
-    public abstract class LocalizationServiceHandler : FrameworkHandler, ILocalizationService
+    [ServiceDependency(typeof(IDebuggerService), typeof(IConfigTableService))]
+    public abstract class LocalizationServiceHandler : ServiceBase, ILocalizationService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
+
+        /// <summary>
+        /// 处理器初始化。由容器在拓扑位驱动：容器编排（偏好已在懒链交接）随行——语言事件订阅、挂起本地化器回灌、调试面板。
+        /// </summary>
+        /// <remarks>容器外直驱（测试沙盒）只走后端自身初始化——与旧 <c>Internal_Init</c> 语义对齐。</remarks>
+        protected override void OnInit()
+        {
+            if (Context != null)
+            {
+                LocalizationService.OnHandlerInitialized(this, Context.GetRequiredService<IDebuggerService>());
+            }
+        }
         // 本地化器列表
         [NonSerialized] internal readonly List<LocalizerBase> _localizers = new List<LocalizerBase>();
         // 注册去重集合：与 _localizers 同进退——万级本地化器场景加载期注册 List.Contains 是 O(N²)，
@@ -300,6 +317,17 @@ namespace Moirai.Atropos.Localization
 
         protected override void OnShutdown()
         {
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                LocalizationService.InvalidateHandler(this);
+            }
+            // 编排收尾以就绪态为闸：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown
+            if (IsReady && Context != null)
+            {
+                LocalizationService.OnHandlerShuttingDown(this);
+            }
+
             _currentLanguage = null;
             _preferredRaw = null;
             _preferredSource = null;
@@ -427,7 +455,7 @@ namespace Moirai.Atropos.Localization
                     }
 
                     // 加载在途时处理器被关服：结果一律丢弃，不得把批写进下一次会话的新存储
-                    if (!IsInitialized) return;
+                    if (State < EServiceState.Initialized) return;
 
                     ApplyLoadedBatch(batch, sourceError);
                 }

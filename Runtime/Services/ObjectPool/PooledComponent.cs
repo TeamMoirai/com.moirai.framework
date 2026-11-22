@@ -69,7 +69,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>组件池化租约。</returns>
         public new static T Wrap(GameObject instance)
         {
-            if (!GameObjectPoolService.TryResolveInstance(instance, out RuntimeGameObjectPool pool, out int slotIndex))
+            if (!ObjectPoolService.TryResolveInstance(instance, out RuntimeObjectPool pool, out int slotIndex))
             {
                 return null;
             }
@@ -90,8 +90,8 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件池化租约。</returns>
-        public new static T Spawn(GameObjectPoolSource source, Transform parent = null) =>
-            Wrap(GameObjectPoolService.Spawn(source, parent));
+        public new static T Spawn(ObjectPoolSource source, Transform parent = null) =>
+            Wrap(ObjectPoolService.Spawn(source, parent));
 
         /// <summary>
         /// 按池化来源在指定姿态同步获取组件租约。
@@ -103,12 +103,12 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="useLocalPosition">是否使用本地位置而不是世界位置。</param>
         /// <returns>组件池化租约。</returns>
         public static T Spawn(
-            GameObjectPoolSource source,
+            ObjectPoolSource source,
             Vector3 position,
             Quaternion rotation,
             Transform parent = null,
             bool useLocalPosition = false) =>
-            Wrap(GameObjectPoolService.Spawn(source, position, rotation, parent, useLocalPosition));
+            Wrap(ObjectPoolService.Spawn(source, position, rotation, parent, useLocalPosition));
 
         /// <summary>
         /// 按池化来源异步获取组件租约。
@@ -117,8 +117,8 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件池化租约。</returns>
-        public new static async UniTask<T> SpawnAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
-            Wrap(await GameObjectPoolService.SpawnAsync(source, parent, cancellationToken));
+        public new static async UniTask<T> SpawnAsync(ObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
+            Wrap(await ObjectPoolService.SpawnAsync(source, parent, cancellationToken));
 
         /// <summary>
         /// 设置包装器池最大容量。
@@ -188,7 +188,7 @@ namespace Moirai.Atropos.ObjectPool
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (GetUserData<object>() != null)
             {
-                LogUtility.Warning("[GameObjectPool] Slot.UserData occupied by alien type; component cache is non-resident: {0}", typeof(TCache).Name);
+                LogUtility.Warning("[ObjectPool] Slot.UserData occupied by alien type; component cache is non-resident: {0}", typeof(TCache).Name);
             }
 #endif
             cache = new TCache();
@@ -211,7 +211,7 @@ namespace Moirai.Atropos.ObjectPool
     /// 通用组件池化租约（无自定义逻辑的默认形态）。
     /// </summary>
     /// <remarks>
-    /// <see cref="GameObjectPoolService.SpawnPooled{TComponent}"/> 的返回类型。
+    /// <see cref="ObjectPoolService.SpawnPooled{TComponent}"/> 的返回类型。
     /// </remarks>
     /// <typeparam name="TComponent">目标组件类型。</typeparam>
     public sealed class Pooled<TComponent> : PooledComponent<Pooled<TComponent>, TComponent>

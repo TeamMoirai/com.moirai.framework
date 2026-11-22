@@ -16,10 +16,12 @@ namespace Moirai.Atropos.Input
     /// 一律降级返回默认值）；玩家/UI 上下文压制（Action Map 切换）为 Input System 后端专属能力，
     /// 需要上下文隔离的项目请使用 Input System 后端。</para>
     /// </remarks>
-    [ProviderDisplay(title: "Input Manager（旧版）", description: "映射 Project Settings 轴/键名；无动作分组，仅全局门控")]
     [Serializable]
-    internal sealed class UnityInputManagerHandler : FrameworkHandler, IInputService
+    [ProviderDisplay(title: "Input Manager（旧版）", description: "映射 Project Settings 轴/键名；无动作分组，仅全局门控")]
+    internal sealed class UnityInputManagerHandler : ServiceBase, IInputService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
         private struct Vector2Action
         {
             public string X;
@@ -68,11 +70,24 @@ namespace Moirai.Atropos.Input
 
         protected override void OnInit()
         {
+            if (Context != null)
+            {
+                InputService.OnHandlerInitialized();
+            }
             _state.onResetRequested += ResetAllInputStates;
         }
 
         protected override void OnShutdown()
         {
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                InputService.InvalidateHandler(this);
+            }
+            if (Context != null)
+            {
+                InputService.OnHandlerShuttingDown();
+            }
             _state.onResetRequested -= ResetAllInputStates;
             _vector2Actions.Clear();
             _registeredButtons.Clear();

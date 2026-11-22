@@ -52,7 +52,7 @@ namespace Service.Localization
                 }
             };
             probe.ApplyPreference(Language.English.Code, "EditorSetting");
-            probe.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)probe).Initialize();
             return probe;
         }
 
@@ -71,7 +71,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 
@@ -91,7 +91,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 
@@ -109,7 +109,7 @@ namespace Service.Localization
             }
             finally
             {
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 

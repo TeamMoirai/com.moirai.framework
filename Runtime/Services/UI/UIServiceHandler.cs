@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI
@@ -14,8 +15,47 @@ namespace Moirai.Atropos.UI
     /// 新增一支后端：一个派生实现类、一条认领门、一份 <c>UIService.&lt;轨&gt;.cs</c> partial 文件。
     /// </remarks>
     [Serializable]
-    public abstract class UIServiceHandler : FrameworkHandler
+    public abstract class UIServiceHandler : ServiceBase, IServiceTickable, IUIService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
+
+        /// <summary>
+        /// 处理器初始化。由容器在拓扑位驱动：先认领（填槽、挂广播），容器编排（共享账本归零、调试面板）以 Context 就位为闸随行。
+        /// </summary>
+        protected override void OnInit()
+        {
+            Internal_Register();
+
+            if (Context != null)
+            {
+                UIService.OnHandlerInitialized(Context.GetRequiredService<IDebuggerService>());
+            }
+        }
+
+        /// <summary>
+        /// 处理器关闭。由容器在关闭期驱动（注销/世界收口）：派生先收本轨的窗与本轨的槽，再走本基座的全轨收口。
+        /// </summary>
+        protected override void OnShutdown()
+        {
+            UIService.Internal_OnTrackDown();
+        }
+
+        /// <summary>
+        /// 每帧轮询：先结算共享栈（帧守卫幂等，同帧多轨只结算一次），再落本轨专有的帧职责。
+        /// </summary>
+        public void Tick(float elapseSeconds, float realElapseSeconds)
+        {
+            UIService.TickShared(realElapseSeconds);
+            OnTrackTick(elapseSeconds, realElapseSeconds);
+        }
+
+        /// <summary>
+        /// 本轨专有的帧职责（旧 onTrackTick 广播的落点：容器直达轮询替代广播）。
+        /// </summary>
+        protected virtual void OnTrackTick(float elapseSeconds, float realElapseSeconds)
+        {
+        }
         /// <summary>两支共用的那一份窗口栈与停放表：每次取用现读门面那一位，不得缓存引用。</summary>
         private UIWindowLedger Ledger => UIService.SharedLedger;
 
@@ -38,11 +78,7 @@ namespace Moirai.Atropos.UI
         /// uGUI 那一轨交出的是 UI 根的续等，UI Toolkit 那一轨当前没有帧职责。<br />
         /// 形参供需要按帧时长行事的轨使用，本轨没有帧时长可吃时不必用它。
         /// </remarks>
-        /// <param name="elapseSeconds">逻辑经过的秒数。</param>
-        /// <param name="realElapseSeconds">真实经过的秒数。</param>
-        public virtual void Tick(float elapseSeconds, float realElapseSeconds)
-        {
-        }
+
 
         #endregion
 

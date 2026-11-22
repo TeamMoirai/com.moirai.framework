@@ -35,7 +35,7 @@ namespace Service.ObjectPool
         [Test]
         public void NormalizeLocation_RawPathWithExtension_SteadyStateAllocatesZero()
         {
-            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            DefaultObjectPoolHandler handler = new DefaultObjectPoolHandler();
             const string raw = "Assets/UI/Hero.prefab";
 
             Assert.AreEqual("Assets/UI/Hero", handler.NormalizeLocationCached(raw),
@@ -53,7 +53,7 @@ namespace Service.ObjectPool
         [Test]
         public void NormalizeLocation_IdentityResult_SteadyStateAllocatesZero()
         {
-            DefaultGameObjectPoolHandler handler = new DefaultGameObjectPoolHandler();
+            DefaultObjectPoolHandler handler = new DefaultObjectPoolHandler();
             const string clean = "Assets/UI/Hero";
 
             string same = null;

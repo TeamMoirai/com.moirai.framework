@@ -19,11 +19,13 @@ namespace Moirai.Atropos.Scene
     /// 挂起加载契约：底层加载不可中止，挂起场景必须最终 <see cref="UnSuspend"/>；等待方取消（<see cref="CancellationToken"/>）只放弃等待，登记与事件由后台续体在加载真正结束时收尾。 <br />
     /// 由 <see cref="SceneServiceSettings"/> 序列化配置，可替换为自定义场景加载后端。
     /// </remarks>
-    [ProviderDisplay(title: "默认场景（资源管线）", description: "主/子场景走资源系统管线（共享包管理与引用计数），挂起加载须最终 UnSuspend")]
     [Serializable]
-    internal sealed class DefaultSceneHandler :
-    FrameworkHandler, ISceneService
+    [ServiceDependency(typeof(IAssetService))]
+    [ProviderDisplay(title: "默认场景（资源管线）", description: "主/子场景走资源系统管线（共享包管理与引用计数），挂起加载须最终 UnSuspend")]
+    internal sealed class DefaultSceneHandler : ServiceBase, ISceneService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
         /// <summary>场景登记簿——主/子场景登记、在途防重入与短名索引的唯一状态源。</summary>
         [NonSerialized] private readonly SceneRegistry _registry = new SceneRegistry();
 
@@ -34,7 +36,7 @@ namespace Moirai.Atropos.Scene
         public IReadOnlyCollection<string> LoadedSubSceneLocations => _registry.SnapshotLoadedSubScenes();
 
         /// <summary>
-        /// 处理器初始化。取当前激活场景作为初始主场景。
+        /// 处理器初始化。由容器在拓扑位驱动：取当前激活场景作为初始主场景。
         /// </summary>
         protected override void OnInit()
         {
@@ -42,13 +44,25 @@ namespace Moirai.Atropos.Scene
         }
 
         /// <summary>
-        /// 处理器关闭，卸载已加载子场景并释放主场景在途/已完成句柄。
+        /// 处理器关闭，卸载已加载子场景并释放主场景在途/已完成句柄。由容器在关闭期驱动（注销/世界收口）。
         /// </summary>
         /// <remarks>
         /// 登记簿排空保证每个句柄只从唯一登记处取出一次；逐项隔离异常，单个句柄处置失败不中断关闭链。
         /// </remarks>
         protected override void OnShutdown()
         {
+            // 缓存失效钩子先于平台守卫：槽位记账是生命周期层的事
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                SceneService.InvalidateHandler(this);
+            }
+
+            if (Context != null)
+            {
+                SceneService.Internal_ClearLifecycleEvents();
+            }
+
             // 排空前先取日志上下文（Shutdown 会重置全部字段）
             var mainLoadingLocation = _registry.MainLoadingLocation;
             var mainLocation = _registry.CurrentMainSceneLocation;
@@ -367,7 +381,7 @@ namespace Moirai.Atropos.Scene
                 await UniTask.Yield();
             }
 
-            if (!IsInitialized)
+            if (State < EServiceState.Initialized)
             {
                 return;
             }

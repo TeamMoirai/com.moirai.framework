@@ -14,7 +14,7 @@ namespace Moirai.Atropos.Input
     /// 同一动作同时至多一个监听期，重复发起使上一个以 <see cref="ERebindOutcome.Cancelled"/> 终结； <br />
     /// 后端关停（<see cref="OnShutdown"/>）时未决监听一律取消。
     /// </remarks>
-    internal sealed partial class UnityInputSystemHandler : IInputRebindable
+    partial class UnityInputSystemHandler : IInputRebindable
     {
         /// <inheritdoc />
         public UniTask<InputRebindResult> RebindAsync(string actionName, string actionGroup,

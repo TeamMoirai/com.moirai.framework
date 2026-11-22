@@ -1,4 +1,7 @@
 using System;
+using Moirai.Atropos.Asset;
+using Moirai.Atropos.Debugger;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 
 namespace Moirai.Atropos.UI
@@ -12,8 +15,9 @@ namespace Moirai.Atropos.UI
     /// 那些 call 的接收者是非虚的共享持有者与门面静态，本类没有可 shadow 的转发槽。<br />
     /// 线程契约：仅主线程。
     /// </remarks>
-    [ProviderDisplay(title: "UI Toolkit 轨", description: "UIDocument 壳 + 窗口级 PanelSettings，与 uGUI 轨同栈并存")]
     [Serializable]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(ITimerService))]
+    [ProviderDisplay(title: "UI Toolkit 轨", description: "UIDocument 壳 + 窗口级 PanelSettings，与 uGUI 轨同栈并存")]
     // ReSharper disable once InconsistentNaming
     internal sealed class UITKHandler : UIServiceHandler
     {
@@ -60,6 +64,7 @@ namespace Moirai.Atropos.UI
         {
             CloseOwnTrackWindows(true);
 
+            UIService.Internal_DetachUITKTrack(this);
             base.OnShutdown();
         }
     }

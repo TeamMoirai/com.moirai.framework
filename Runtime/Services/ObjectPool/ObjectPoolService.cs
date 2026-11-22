@@ -1,7 +1,6 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Debugger;
-using Moirai.Atropos.Asset;
 using UnityEngine;
 using System.Runtime.CompilerServices;
 
@@ -11,66 +10,44 @@ namespace Moirai.Atropos.ObjectPool
     /// GameObject 池服务外观（Facade）：全框架统一的静态游戏对象池访问入口。
     /// </summary>
     /// <remarks>
-    /// 通过替换 <see cref="Handler"/> 可在不同对象池后端之间切换；支持资源地址与外部 Prefab 两种来源，经 <see cref="GameObjectPoolSource"/> 统一入口。 <br />
-    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="GameObjectPoolServiceSettings"/> 解析； <br />
+    /// 通过替换 <see cref="Handler"/> 可在不同对象池后端之间切换；支持资源地址与外部 Prefab 两种来源，经 <see cref="ObjectPoolSource"/> 统一入口。 <br />
+    /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="ObjectPoolServiceSettings"/> 解析； <br />
     /// settings 未配置则回退 <see cref="CreateDefaultHandler"/>。
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。
     /// </remarks>
-    [AutoRegisterService]
-    [ProviderHandlerHost(typeof(IGameObjectPoolService), typeof(DefaultGameObjectPoolHandler))]
-    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService))]
+    [ProviderHandlerHost(typeof(IObjectPoolService), typeof(DefaultObjectPoolHandler))]
     [UnityEngine.Scripting.Preserve]
-    public partial class GameObjectPoolService : ServiceBase, IServiceTickable
+    public static partial class ObjectPoolService
     {
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>
-        /// 从 <see cref="GameObjectPoolServiceSettings"/> 解析游戏对象池处理器。
+        /// 从 <see cref="ObjectPoolServiceSettings"/> 解析游戏对象池处理器。
         /// </summary>
         /// <remarks>
-        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
+        /// 由生成的懒装配链调用（预热在入图期、懒加载在世界就绪后）；解析出的实例经容器登记契约绑定。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
-        private static IGameObjectPoolService GetHandlerFromSettings()
+        private static IObjectPoolService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<GameObjectPoolService>();
-            return GameObjectPoolServiceSettings.GameObjectPoolServiceHandler;
-        }
-
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.GAME_OBJECT_POOL;
-
-        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IDebuggerService _debugger;
-
-        /// <summary>
-        /// 初始化游戏对象池服务。由容器在构建期调用。
-        /// </summary>
-        public override void OnInit()
-        {
-            _debugger = Context.GetRequiredService<IDebuggerService>();
-            _ = Handler;
-            _debugger.RegisterDebuggerWindow("Profiler/GameObject Pool", new GameObjectPoolServiceDebuggerWindow());
+            return ObjectPoolServiceSettings.ObjectPoolServiceHandler;
         }
 
         /// <summary>
-        /// 关闭游戏对象池服务。由容器在关闭期调用。
+        /// 容器编排（后端 OnInit 经 Manager 钩子调用）：注册调试面板。
         /// </summary>
-        public override void OnShutdown()
+        internal static void OnHandlerInitialized(IDebuggerService debugger)
         {
-            _debugger?.UnregisterDebuggerWindow("Profiler/GameObject Pool");
-
-            var handler = s_Handler;
-            s_Handler = null;
-            (handler as FrameworkHandler)?.Internal_Shutdown();
+            debugger.RegisterDebuggerWindow("Profiler/GameObject Pool", new ObjectPoolServiceDebuggerWindow());
         }
 
         /// <summary>
-        /// 容器 Tick 驱动——转发到处理器处理到期的维护操作（未就绪时静默降级）。
+        /// 容器收尾（后端 OnShutdown 经 Manager 钩子调用）：注销调试面板。
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
+        internal static void OnHandlerShuttingDown(IDebuggerService debugger)
+        {
+            debugger?.UnregisterDebuggerWindow("Profiler/GameObject Pool");
+        }
 
         #endregion
 
@@ -84,7 +61,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>游戏对象。</returns>
         [HotPath]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static GameObject Spawn(GameObjectPoolSource source, Transform parent = null) =>
+        public static GameObject Spawn(ObjectPoolSource source, Transform parent = null) =>
             source.IsValid ? s_Handler?.Spawn(source, parent) : null;
 
         /// <summary>
@@ -98,7 +75,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>游戏对象。</returns>
         [HotPath]
         public static GameObject Spawn(
-            GameObjectPoolSource source,
+            ObjectPoolSource source,
             Vector3 position,
             Quaternion rotation,
             Transform parent = null,
@@ -122,7 +99,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件（未就绪时为 null）。</returns>
         [HotPath]
-        public static T Spawn<T>(GameObjectPoolSource source, Transform parent = null) where T : Component =>
+        public static T Spawn<T>(ObjectPoolSource source, Transform parent = null) where T : Component =>
             source.IsValid ? s_Handler?.Spawn<T>(source, parent) : null;
 
         /// <summary>
@@ -132,7 +109,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="instance">获取的游戏对象。</param>
         /// <returns>是否成功。</returns>
-        public static bool TrySpawn(GameObjectPoolSource source, Transform parent, out GameObject instance)
+        public static bool TrySpawn(ObjectPoolSource source, Transform parent, out GameObject instance)
         {
             instance = null;
             if (!source.IsValid || s_Handler == null)
@@ -150,7 +127,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>游戏对象（未就绪时为 null）。</returns>
-        public static UniTask<GameObject> SpawnAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default)
+        public static UniTask<GameObject> SpawnAsync(ObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default)
         {
             if (!source.IsValid || s_Handler == null)
             {
@@ -168,7 +145,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件（未就绪时为 null）。</returns>
-        public static UniTask<T> SpawnAsync<T>(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) where T : Component
+        public static UniTask<T> SpawnAsync<T>(ObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) where T : Component
         {
             if (!source.IsValid || s_Handler == null)
             {
@@ -188,7 +165,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>池化租约。</returns>
-        public static PooledGameObject SpawnPooled(GameObjectPoolSource source, Transform parent = null) =>
+        public static PooledGameObject SpawnPooled(ObjectPoolSource source, Transform parent = null) =>
             PooledGameObject.Wrap(Spawn(source, parent));
 
         /// <summary>
@@ -201,7 +178,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="useLocalPosition">是否使用本地位置而不是世界位置。</param>
         /// <returns>池化租约。</returns>
         public static PooledGameObject SpawnPooled(
-            GameObjectPoolSource source,
+            ObjectPoolSource source,
             Vector3 position,
             Quaternion rotation,
             Transform parent = null,
@@ -215,7 +192,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>池化租约。</returns>
-        public static async UniTask<PooledGameObject> SpawnPooledAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
+        public static async UniTask<PooledGameObject> SpawnPooledAsync(ObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
             PooledGameObject.Wrap(await SpawnAsync(source, parent, cancellationToken));
 
         /// <summary>
@@ -225,7 +202,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>组件池化租约。</returns>
-        public static Pooled<TComponent> SpawnPooled<TComponent>(GameObjectPoolSource source, Transform parent = null) where TComponent : Component =>
+        public static Pooled<TComponent> SpawnPooled<TComponent>(ObjectPoolSource source, Transform parent = null) where TComponent : Component =>
             Pooled<TComponent>.Wrap(Spawn(source, parent));
 
         /// <summary>
@@ -239,7 +216,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="useLocalPosition">是否使用本地位置而不是世界位置。</param>
         /// <returns>组件池化租约。</returns>
         public static Pooled<TComponent> SpawnPooled<TComponent>(
-            GameObjectPoolSource source,
+            ObjectPoolSource source,
             Vector3 position,
             Quaternion rotation,
             Transform parent = null,
@@ -254,7 +231,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>组件池化租约。</returns>
-        public static async UniTask<Pooled<TComponent>> SpawnPooledAsync<TComponent>(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) where TComponent : Component =>
+        public static async UniTask<Pooled<TComponent>> SpawnPooledAsync<TComponent>(ObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) where TComponent : Component =>
             Pooled<TComponent>.Wrap(await SpawnAsync(source, parent, cancellationToken));
 
         #endregion
@@ -287,7 +264,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="count">预热数量。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>异步任务（未就绪时为 CompletedTask）。</returns>
-        public static UniTask WarmupAsync(GameObjectPoolSource source, int count, CancellationToken cancellationToken = default)
+        public static UniTask WarmupAsync(ObjectPoolSource source, int count, CancellationToken cancellationToken = default)
         {
             if (!source.IsValid || s_Handler == null)
             {
@@ -322,18 +299,18 @@ namespace Moirai.Atropos.ObjectPool
         /// <summary>
         /// 尝试解析实例身份（内部：租约包装）。
         /// </summary>
-        internal static bool TryResolveInstance(GameObject instance, out RuntimeGameObjectPool pool, out int slotIndex)
+        internal static bool TryResolveInstance(GameObject instance, out RuntimeObjectPool pool, out int slotIndex)
         {
             pool = null;
             slotIndex = -1;
-            return s_Handler is IGameObjectPoolInternals internals && internals.TryResolveInstance(instance, out pool, out slotIndex);
+            return s_Handler is IObjectPoolInternals internals && internals.TryResolveInstance(instance, out pool, out slotIndex);
         }
 
         /// <summary>
         /// 刷新指定来源的池。
         /// </summary>
         /// <param name="source">池化来源。</param>
-        public static void Flush(GameObjectPoolSource source)
+        public static void Flush(ObjectPoolSource source)
         {
             if (source.IsValid)
             {

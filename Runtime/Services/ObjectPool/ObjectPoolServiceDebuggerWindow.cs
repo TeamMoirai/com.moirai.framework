@@ -12,7 +12,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <remarks>
     /// 摘要卡与池视图构建一次常驻，轮询仅原地刷新数值；实例行仅在展开期间重建，池集合经签名哈希检测到变化时才整体重建。
     /// </remarks>
-    public sealed class GameObjectPoolServiceDebuggerWindow : ScrollableDebuggerWindowBase
+    public sealed class ObjectPoolServiceDebuggerWindow : ScrollableDebuggerWindowBase
     {
         #region 常量 [CONSTANTS]
 
@@ -24,7 +24,7 @@ namespace Moirai.Atropos.ObjectPool
         private const int POOL_SET_HASH_SEED = 17;
 
         /// <summary>GameObject 池窗口是否显示实例清单。</summary>
-        private const string POOL_SHOW_INSTANCES = "Debugger.GameObjectPool.ShowInstances";
+        private const string POOL_SHOW_INSTANCES = "Debugger.ObjectPool.ShowInstances";
 
         #endregion
 
@@ -32,7 +32,7 @@ namespace Moirai.Atropos.ObjectPool
 
         private readonly HashSet<string> _expandedPools = new HashSet<string>();
         private readonly Dictionary<string, PoolView> _poolViews = new Dictionary<string, PoolView>();
-        private GameObjectPoolSnapshot[] _snapshotBuffer = new GameObjectPoolSnapshot[INITIAL_SNAPSHOT_BUFFER_SIZE];
+        private ObjectPoolSnapshot[] _snapshotBuffer = new ObjectPoolSnapshot[INITIAL_SNAPSHOT_BUFFER_SIZE];
         private int _snapshotCount;
 
         private VisualElement _listRoot;
@@ -64,10 +64,10 @@ namespace Moirai.Atropos.ObjectPool
         {
             _showInstances = GameSettings.GetBool(POOL_SHOW_INSTANCES, true);
 
-            if (!GameObjectPoolService.IsValid)
+            if (!ObjectPoolService.IsValid)
             {
                 root.Add(DebuggerUI.CreateSectionTitle("GameObject Pool Information"));
-                root.Add(DebuggerUI.CreateHintLabel("GameObjectPoolService is not registered (opt-in service)."));
+                root.Add(DebuggerUI.CreateHintLabel("ObjectPoolService is not registered (opt-in service)."));
                 return;
             }
 
@@ -180,7 +180,7 @@ namespace Moirai.Atropos.ObjectPool
             toolbar.Add(DebuggerUI.CreateToolbarButton("Refresh", Refresh));
             toolbar.Add(DebuggerUI.CreateToolbarButton("Flush All", () =>
             {
-                GameObjectPoolService.FlushAll();
+                ObjectPoolService.FlushAll();
                 Refresh();
             }, DebuggerUI.EButtonStyle.Danger));
 
@@ -189,7 +189,7 @@ namespace Moirai.Atropos.ObjectPool
 
         private void RefreshSummary()
         {
-            GameObjectPoolSummarySnapshot summary = GameObjectPoolService.GetDebugSummary();
+            ObjectPoolSummarySnapshot summary = ObjectPoolService.GetDebugSummary();
             _readyButton.text = summary.IsReady ? "Yes" : "No";
             SetSeverity(_readyButton, false, !summary.IsReady);
 
@@ -227,7 +227,7 @@ namespace Moirai.Atropos.ObjectPool
 
             for (int i = 0; i < poolCount; i++)
             {
-                GameObjectPoolSnapshot snapshot = _snapshotBuffer[i];
+                ObjectPoolSnapshot snapshot = _snapshotBuffer[i];
                 if (snapshot == null || !_poolViews.TryGetValue(GetPoolKey(snapshot), out PoolView view))
                 {
                     continue;
@@ -244,14 +244,14 @@ namespace Moirai.Atropos.ObjectPool
             // 缓冲不足时倍增重取——返回值等于缓冲长度意味着还有池被截断
             while (true)
             {
-                int count = GameObjectPoolService.GetDebugSnapshots(_snapshotBuffer);
+                int count = ObjectPoolService.GetDebugSnapshots(_snapshotBuffer);
                 if (count < _snapshotBuffer.Length)
                 {
                     _snapshotCount = count;
                     return count;
                 }
 
-                _snapshotBuffer = new GameObjectPoolSnapshot[_snapshotBuffer.Length << 1];
+                _snapshotBuffer = new ObjectPoolSnapshot[_snapshotBuffer.Length << 1];
             }
         }
 
@@ -265,7 +265,7 @@ namespace Moirai.Atropos.ObjectPool
             int hash = POOL_SET_HASH_SEED;
             for (int i = 0; i < poolCount; i++)
             {
-                GameObjectPoolSnapshot snapshot = _snapshotBuffer[i];
+                ObjectPoolSnapshot snapshot = _snapshotBuffer[i];
                 hash = hash * 31 + (snapshot != null ? GetPoolKey(snapshot).GetHashCode() : 0);
             }
 
@@ -282,7 +282,7 @@ namespace Moirai.Atropos.ObjectPool
             _poolViews.Clear();
             for (int i = 0; i < poolCount; i++)
             {
-                GameObjectPoolSnapshot snapshot = _snapshotBuffer[i];
+                ObjectPoolSnapshot snapshot = _snapshotBuffer[i];
                 string key = snapshot != null ? GetPoolKey(snapshot) : null;
                 if (key == null || _poolViews.ContainsKey(key))
                 {
@@ -299,7 +299,7 @@ namespace Moirai.Atropos.ObjectPool
             _viewsBuilt = true;
         }
 
-        private PoolView BuildPoolView(GameObjectPoolSnapshot snapshot)
+        private PoolView BuildPoolView(ObjectPoolSnapshot snapshot)
         {
             string key = GetPoolKey(snapshot);
             PoolView view = new PoolView(key, snapshot.location, snapshot.group);
@@ -394,7 +394,7 @@ namespace Moirai.Atropos.ObjectPool
             return view;
         }
 
-        private void UpdatePoolView(PoolView view, GameObjectPoolSnapshot snapshot)
+        private void UpdatePoolView(PoolView view, ObjectPoolSnapshot snapshot)
         {
             if (snapshot == null)
             {
@@ -437,7 +437,7 @@ namespace Moirai.Atropos.ObjectPool
             }
         }
 
-        private void RebuildInstanceRows(PoolView view, GameObjectPoolSnapshot snapshot)
+        private void RebuildInstanceRows(PoolView view, ObjectPoolSnapshot snapshot)
         {
             VisualElement instancesRoot = view.InstancesRoot;
             instancesRoot.Clear();
@@ -447,7 +447,7 @@ namespace Moirai.Atropos.ObjectPool
                 return;
             }
 
-            GameObjectPoolService.FillDebugInstances(snapshot);
+            ObjectPoolService.FillDebugInstances(snapshot);
             if (snapshot.InstanceCount <= 0)
             {
                 return;
@@ -466,7 +466,7 @@ namespace Moirai.Atropos.ObjectPool
             }
         }
 
-        private void AddInstanceRow(VisualElement container, GameObjectPoolInstanceSnapshot instance)
+        private void AddInstanceRow(VisualElement container, ObjectPoolInstanceSnapshot instance)
         {
             if (instance == null)
             {
@@ -493,13 +493,13 @@ namespace Moirai.Atropos.ObjectPool
             VisualElement actions = DebuggerUI.CreateToolbarRow();
             actions.Add(DebuggerUI.CreateActionButton("Flush This", () =>
             {
-                GameObjectPoolService.Flush(view.Location);
+                ObjectPoolService.Flush(view.Location);
                 Refresh();
             }));
 
             Button flushGroupButton = DebuggerUI.CreateActionButton("Flush Group", () =>
             {
-                GameObjectPoolService.FlushGroup(view.Group);
+                ObjectPoolService.FlushGroup(view.Group);
                 Refresh();
             });
             flushGroupButton.SetEnabled(!string.IsNullOrEmpty(view.Group));
@@ -512,7 +512,7 @@ namespace Moirai.Atropos.ObjectPool
             // 只展开当前可见池——大池量下重建开销与渲染集合一致，且不往被过滤池堆积展开状态
             for (int i = 0; i < _snapshotCount; i++)
             {
-                GameObjectPoolSnapshot snapshot = _snapshotBuffer[i];
+                ObjectPoolSnapshot snapshot = _snapshotBuffer[i];
                 if (snapshot == null || !IsPoolVisible(snapshot))
                 {
                     continue;
@@ -552,12 +552,12 @@ namespace Moirai.Atropos.ObjectPool
             }
         }
 
-        private GameObjectPoolSnapshot FindSnapshot(string key)
+        private ObjectPoolSnapshot FindSnapshot(string key)
         {
             // 最近一轮快照在下一轮取数前持续有效，可在轮询间隙直接使用
             for (int i = 0; i < _snapshotCount; i++)
             {
-                GameObjectPoolSnapshot snapshot = _snapshotBuffer[i];
+                ObjectPoolSnapshot snapshot = _snapshotBuffer[i];
                 if (snapshot != null && GetPoolKey(snapshot) == key)
                 {
                     return snapshot;
@@ -571,7 +571,7 @@ namespace Moirai.Atropos.ObjectPool
         {
             for (int i = 0; i < _snapshotCount; i++)
             {
-                GameObjectPoolSnapshot snapshot = _snapshotBuffer[i];
+                ObjectPoolSnapshot snapshot = _snapshotBuffer[i];
                 if (snapshot == null || !_poolViews.TryGetValue(GetPoolKey(snapshot), out PoolView view))
                 {
                     continue;
@@ -593,7 +593,7 @@ namespace Moirai.Atropos.ObjectPool
             int visibleCount = 0;
             for (int i = 0; i < _poolCount; i++)
             {
-                GameObjectPoolSnapshot snapshot = _snapshotBuffer[i];
+                ObjectPoolSnapshot snapshot = _snapshotBuffer[i];
                 if (snapshot == null || !_poolViews.TryGetValue(GetPoolKey(snapshot), out PoolView view))
                 {
                     continue;
@@ -616,7 +616,7 @@ namespace Moirai.Atropos.ObjectPool
             }
         }
 
-        private bool IsPoolVisible(GameObjectPoolSnapshot snapshot)
+        private bool IsPoolVisible(ObjectPoolSnapshot snapshot)
         {
             if (_hideEmpty && snapshot.totalCount <= 0)
             {
@@ -640,12 +640,12 @@ namespace Moirai.Atropos.ObjectPool
 
         #region 私有 [PRIVATE]
 
-        private static string GetPoolKey(GameObjectPoolSnapshot snapshot)
+        private static string GetPoolKey(ObjectPoolSnapshot snapshot)
         {
             return string.Concat(snapshot.group, "|", snapshot.location);
         }
 
-        private static string GetPoolTitle(GameObjectPoolSnapshot snapshot)
+        private static string GetPoolTitle(ObjectPoolSnapshot snapshot)
         {
             string name = string.IsNullOrWhiteSpace(snapshot.entryName) ? snapshot.location : snapshot.entryName;
             return StringUtility.Format("[{0}] {1}", string.IsNullOrEmpty(snapshot.group) ? "<None>" : snapshot.group, name);

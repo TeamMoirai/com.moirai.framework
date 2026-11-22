@@ -8,33 +8,12 @@ namespace Moirai.Atropos.Timer
     /// 计时器服务契约（策略模式契约接口）：计时器后端的唯一实现契约，也是服务互调与单测的注入契约。
     /// </summary>
     /// <remarks>
-    /// 默认实现为 <see cref="DefaultTimerHandler"/>（四级时间轮 + 帧计时 + 阶段触发），可在 <see cref="TimerServiceSettings"/> 中替换。 <br />
-    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/>（生命周期与序列化基座——<c>Internal_Init</c>/<c>Internal_Shutdown</c> 由宿主生成代码强制调用）； <br />
-    /// 跨后端语义约定：句柄 0 一律无效；<c>GetLeftFrames</c> 对时间计时器返回 0、<c>GetLeftTime</c> 对帧计时器返回 0； <br />
-    /// <c>WaitAsync</c> 的轮询实现语义：<c>UniTask.WaitUntil</c> 挂 <see cref="IsDone"/>，完成/取消在引擎本阶段 Tick 末尾统一唤醒，Shutdown 时同步排空。 <br />
-    /// <see cref="GetStatistics"/>/<see cref="GetAllTimers"/>（与编辑器 <see cref="GetStaleOneShotTimers"/>）是调试面，服务壳的调试窗口经宿主转发调用。
+    /// 默认实现 <see cref="DefaultTimerHandler"/>，可在 <see cref="TimerServiceSettings"/> 中替换。 <br />
+    /// 实现类须继承 <see cref="Moirai.Atropos.ServiceBase"/>：绑定即注册进容器，生命周期由容器拓扑驱动。 <br />
+    /// 跨后端语义：句柄 0 一律无效；<c>GetLeftFrames</c> 对时间计时器返回 0、<c>GetLeftTime</c> 对帧计时器返回 0。
     /// </remarks>
     public interface ITimerService
     {
-        #region 阶段驱动 [PHASE TICK]
-
-        /// <summary>
-        /// Update 阶段轮询——推进时间轮、处理 Update 阶段帧计时与进度回调。
-        /// </summary>
-        void Tick(float elapseSeconds, float realElapseSeconds);
-
-        /// <summary>
-        /// FixedUpdate 阶段轮询。
-        /// </summary>
-        void FixedTick(float elapseSeconds, float realElapseSeconds);
-
-        /// <summary>
-        /// LateUpdate 阶段轮询。
-        /// </summary>
-        void LateTick(float elapseSeconds, float realElapseSeconds);
-
-        #endregion 阶段驱动 [PHASE TICK]
-
         #region 调度注册 [SCHEDULE]
 
         /// <summary>

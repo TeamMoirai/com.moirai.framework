@@ -17,77 +17,42 @@ namespace Moirai.Atropos.Timer
     /// <c>Handler</c> 属性由 <c>ProviderHandlerHostGenerator</c> 源生成器生成（线程安全懒加载）。 <br />
     /// 本类实现自报契约 <see cref="ITimerService"/>（显式接口实现转发静态门面）：容器把本实例绑定在该契约下，服务互调经 <c>Context.GetRequiredService&lt;ITimerService&gt;()</c> 解析到的就是本实例。
     /// </remarks>
-    [AutoRegisterService]
-    [ServiceDependency(typeof(IDebuggerService))]
     [ProviderHandlerHost(typeof(ITimerService), typeof(DefaultTimerHandler))]
     [UnityEngine.Scripting.Preserve]
     [Il2CppSetOption(Option.NullChecks, false)]
     [Il2CppSetOption(Option.ArrayBoundsChecks, false)]
-    public partial class TimerService : ServiceBase, IServiceTickable, IServiceFixedTickable, IServiceLateTickable, ITimerService
+    public static partial class TimerService
     {
         #region 生命周期 [LIFECYCLE]
 
         /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IDebuggerService _debugger;
-
         /// <summary>
         /// 从 <see cref="TimerServiceSettings"/> 解析计时器处理器。
         /// </summary>
         /// <remarks>
-        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等）。
+        /// 由生成的懒装配链调用（预热在入图期、懒加载在世界就绪后）；解析出的实例经容器登记契约绑定。
         /// </remarks>
         /// <returns>settings 中配置的后端；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ITimerService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<TimerService>();
             return TimerServiceSettings.TimerServiceHandler;
         }
 
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.MID_TIER;
-
         /// <summary>
-        /// 初始化计时器服务。由容器在构建期调用。
+        /// 容器编排（后端 OnInit 经 Manager 钩子调用）：注册调试面板。
         /// </summary>
-        public override void OnInit()
+        internal static void OnHandlerInitialized(IDebuggerService debugger)
         {
-            _debugger = Context.GetRequiredService<IDebuggerService>();
-            _ = Handler;
-            _debugger.RegisterDebuggerWindow("Profiler/Timer", new TimerServiceDebuggerWindow());
+            debugger.RegisterDebuggerWindow("Profiler/Timer", new TimerServiceDebuggerWindow());
         }
 
         /// <summary>
-        /// 关闭计时器服务。由容器在关闭期调用。
+        /// 容器收尾（后端 OnShutdown 经 Manager 钩子调用）：注销调试面板。
         /// </summary>
-        public override void OnShutdown()
+        internal static void OnHandlerShuttingDown(IDebuggerService debugger)
         {
-            _debugger?.UnregisterDebuggerWindow("Profiler/Timer");
-
-            var handler = s_Handler;
-            s_Handler = null;
-            (handler as FrameworkHandler)?.Internal_Shutdown();
+            debugger?.UnregisterDebuggerWindow("Profiler/Timer");
         }
-
-        /// <summary>
-        /// 容器 Update 驱动——推进时间轮（未就绪时静默降级）。
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Tick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.Tick(elapseSeconds, realElapseSeconds);
-
-        /// <summary>
-        /// 容器 FixedUpdate 驱动。
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FixedTick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.FixedTick(elapseSeconds, realElapseSeconds);
-
-        /// <summary>
-        /// 容器 LateUpdate 驱动。
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void LateTick(float elapseSeconds, float realElapseSeconds) =>
-            s_Handler?.LateTick(elapseSeconds, realElapseSeconds);
 
         #endregion
 
@@ -254,102 +219,6 @@ namespace Moirai.Atropos.Timer
 
         #endregion
 
-        #region 契约注入面 [CONTRACT SURFACE]
-
-        // 容器把本实例绑定在 [ProviderHandlerHost] 自报的 ITimerService 契约下（Phase 2 注入互调，
-        // 如 AudioService 经 Context.GetRequiredService<ITimerService>() 解析）。
-        // 与静态门面同名的成员只能显式实现——转发到静态门面保持单一语义源；降级语义与门面一致。
-        // Tick/FixedTick/LateTick 与门面实例方法同签名，由既有公有方法隐式实现。
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ulong ITimerService.Delay(float delaySeconds, Action onComplete,
-            bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
-            Delay(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ulong ITimerService.Delay<T>(float delaySeconds, Action<T> onComplete, T arg,
-            bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
-            Delay(delaySeconds, onComplete, arg, isLooped, ignoreTimeScale, phase);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ulong ITimerService.Delay(float delaySeconds, Action onComplete, Action<float> onUpdate,
-            bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
-            Delay(delaySeconds, onComplete, onUpdate, isLooped, ignoreTimeScale, phase);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ulong ITimerService.DelayUnsafe(float delaySeconds, in TimerUnsafeBinding onComplete,
-            bool isLooped, bool ignoreTimeScale, TimerPhase phase) =>
-            DelayUnsafe(delaySeconds, onComplete, isLooped, ignoreTimeScale, phase);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ulong ITimerService.WaitFrame(int frames, Action onComplete, bool isLooped, TimerPhase phase) =>
-            WaitFrame(frames, onComplete, isLooped, phase);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ulong ITimerService.WaitFrame(int frames, Action<int> onUpdate, bool isLooped, TimerPhase phase) =>
-            WaitFrame(frames, onUpdate, isLooped, phase);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ulong ITimerService.WaitFrameUnsafe(int frames, in TimerUnsafeBinding onComplete,
-            bool isLooped, TimerPhase phase) =>
-            WaitFrameUnsafe(frames, onComplete, isLooped, phase);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ITimerService.Pause(ulong timerHandle) => Pause(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ITimerService.PauseAll() => PauseAll();
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ITimerService.Resume(ulong timerHandle) => Resume(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ITimerService.ResumeAll() => ResumeAll();
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ITimerService.Restart(ulong timerHandle) => Restart(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ITimerService.Cancel(ulong timerHandle) => Cancel(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ITimerService.CancelAll() => CancelAll();
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool ITimerService.IsRunning(ulong timerHandle) => IsRunning(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        float ITimerService.GetLeftTime(ulong timerHandle) => GetLeftTime(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int ITimerService.GetLeftFrames(ulong timerHandle) => GetLeftFrames(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool ITimerService.IsDone(ulong timerHandle) => IsDone(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        float ITimerService.GetElapsed(ulong timerHandle) => GetElapsed(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        float ITimerService.GetDuration(ulong timerHandle) => GetDuration(timerHandle);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        UniTask ITimerService.WaitAsync(ulong timerHandle, CancellationToken cancellationToken) =>
-            WaitAsync(timerHandle, cancellationToken);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ITimerService.GetStatistics(out int activeCount, out int poolCapacity, out int peakActiveCount, out int freeCount) =>
-            GetStatistics(out activeCount, out poolCapacity, out peakActiveCount, out freeCount);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int ITimerService.GetAllTimers(TimerDebugInfo[] results) => GetAllTimers(results);
-
-#if UNITY_EDITOR
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int ITimerService.GetStaleOneShotTimers(TimerDebugInfo[] results) => GetStaleOneShotTimers(results);
-#endif
-
-        #endregion
     }
 
     /// <summary>

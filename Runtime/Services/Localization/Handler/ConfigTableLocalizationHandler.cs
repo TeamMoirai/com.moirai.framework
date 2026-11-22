@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System;
 using Cysharp.Threading.Tasks;
 using Moirai.Atropos.ConfigTable;
+using Moirai.Atropos.Debugger;
 
 namespace Moirai.Atropos.Localization
 {
@@ -12,8 +13,9 @@ namespace Moirai.Atropos.Localization
     /// 语言必须随表自报：<c>GetLocalizationLanguageCodes</c> 返回空时产出空批，由基类以「数据未就绪」拒载并保持重试，不回落任何全局注册表。 <br />
     /// 配置表按语言分份存储时（<see cref="ConfigTableService.SupportsPerLanguageLocalizationLoad"/>）走基类按语言列模式，常驻与取值都只有「语言头 + 当前语言列」。
     /// </remarks>
-    [ProviderDisplay(title: "配置表数据源", description: "默认：语言代码与文本字典读自 ConfigTableService 多语言表")]
     [Serializable]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IConfigTableService))]
+    [ProviderDisplay(title: "配置表数据源", description: "默认：语言代码与文本字典读自 ConfigTableService 多语言表")]
     internal class ConfigTableLocalizationHandler : LocalizationServiceHandler
     {
         /// <summary>

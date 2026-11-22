@@ -24,8 +24,8 @@ namespace Service.Kernel
 
         private sealed class BenchService : ServiceBase, IServiceTickable
         {
-            public override void OnInit() { }
-            public override void OnShutdown() { }
+            protected override void OnInit() { }
+            protected override void OnShutdown() { }
             public void Tick(float elapseSeconds, float realElapseSeconds) { }
         }
 

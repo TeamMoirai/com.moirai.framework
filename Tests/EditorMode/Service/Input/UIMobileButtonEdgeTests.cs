@@ -23,13 +23,13 @@ namespace Service.Input
         {
             ClearRegistry();
             _handler = new UIMobileInputHandler();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
         public void TearDown()
         {
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             _handler = null;
 
             foreach (var go in _objects)

@@ -1,13 +1,16 @@
 using System;
+using Moirai.Atropos;
 using Moirai.Atropos.Audio;
 using NUnit.Framework;
 
 namespace Service.Audio
 {
     /// <summary>
-    /// PlayMode 音频测试宿主：注入最小 <see cref="AudioGroupConfig"/>，并经 <c>Internal_UseHandler</c> 把实例换入 <see cref="AudioService"/> 的门面。
+    /// PlayMode 音频测试宿主：注入最小 <see cref="AudioGroupConfig"/>，把实例换入 <see cref="AudioService"/> 的门面槽位并占住容器注册位。
     /// </summary>
     /// <remarks>
+    /// 回摆后 Tick 由容器直达注册实例（不再经门面转发到槽位）：槽位换入的测试 handler 必须同时换绑进默认世界， <br />
+    /// SO 播放时长/淡出等容器驱动的时间语义才能到达测试 handler。 <br />
     /// 关键路径夹具不得因工程 Settings 未配置而 <c>Assert.Ignore</c>——那会把整套验收洗成「全绿零覆盖」；配置缺失时这里直接 <c>Assert.Fail</c>。
     /// </remarks>
     internal sealed class AudioServiceTestHost : IDisposable
@@ -37,6 +40,9 @@ namespace Service.Audio
             }
 
             Handler = new UnityAudioHandler();
+            // 先以容器语义占住已初始化态（Context 缺席 → 后端直驱，仅 Init(null 配置) + 混音接线），
+            // 再覆盖测试最小配置——注册进容器时状态已是 Initialized，RegisterRuntime 不再驱动 OnInit
+            ((IServiceLifecycle)Handler).Initialize();
             Handler.Initialize(null, null, configs);
 
             var categories = Handler.AudioCategories;
@@ -45,6 +51,15 @@ namespace Service.Audio
 
             _previousHandler = AudioService.Internal_PeekHandler();
             AudioService.Internal_UseHandler(Handler);
+
+            // 容器换绑：摘掉 warm 绑定，把测试 handler 注册进默认世界（容器 Tick 直达测试 handler）
+            if (GameServices.Default.TryGetScope(EServiceScopeKind.App, out var scope) &&
+                scope.TryGet(typeof(IAudioService), out var bound))
+            {
+                GameServices.UnregisterHandler(typeof(IAudioService), bound);
+            }
+
+            GameServices.RegisterService(EServiceScopeKind.App, typeof(IAudioService), Handler);
         }
 
         public void Dispose()
@@ -54,8 +69,18 @@ namespace Service.Audio
 
             try
             {
-                Handler?.StopAll(0f);
-                Handler?.Internal_Shutdown();
+                // 注册位上的测试 handler 走容器销毁（OnShutdown 由容器驱动，含缓存失效钩子）
+                if (GameServices.Default.TryGetScope(EServiceScopeKind.App, out var scope) &&
+                    scope.TryGet(typeof(IAudioService), out var bound) &&
+                    ReferenceEquals(bound, Handler))
+                {
+                    GameServices.UnregisterHandler(typeof(IAudioService), Handler);
+                }
+                else
+                {
+                    Handler?.StopAll(0f);
+                    ((IServiceLifecycle)Handler)?.Destroy();
+                }
             }
             finally
             {

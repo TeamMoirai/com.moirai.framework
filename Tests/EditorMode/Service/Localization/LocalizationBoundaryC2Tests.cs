@@ -55,7 +55,7 @@ namespace Service.Localization
         public void HandlerWithoutPreference_YieldsUnspecified()
         {
             var handler = CreateJaEnProbe();
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
             try
             {
                 // 没交接过就是未选：处理器不代替装配侧走检测链
@@ -63,7 +63,7 @@ namespace Service.Localization
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 
@@ -72,7 +72,7 @@ namespace Service.Localization
         {
             var handler = CreateJaEnProbe();
             handler.ApplyPreference(Language.ChineseSimplified.Code, "EditorSetting");
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
             try
             {
                 _ = handler.GetTextFromId("ui.title");   // 装载并解析首启语言
@@ -84,7 +84,7 @@ namespace Service.Localization
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 
@@ -94,7 +94,7 @@ namespace Service.Localization
             LocalizationServiceSettings.EditorLanguage = Language.English.Code;
 
             var probe = CreateJaEnProbe();
-            probe.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)probe).Initialize();
             LocalizationService.Internal_UseHandler(probe);
             try
             {
@@ -107,7 +107,7 @@ namespace Service.Localization
             finally
             {
                 LocalizationService.Internal_UseHandler(_savedFacadeHandler);
-                probe.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)probe).Destroy();
             }
         }
 
@@ -172,7 +172,7 @@ namespace Service.Localization
             }
             finally
             {
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 

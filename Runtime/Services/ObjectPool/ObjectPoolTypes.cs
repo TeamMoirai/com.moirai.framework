@@ -52,7 +52,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// GameObject 池化对象生成上下文。
     /// </summary>
-    public readonly struct GameObjectPoolSpawnContext
+    public readonly struct ObjectPoolSpawnContext
     {
         #region 字段 [FIELDS]
 
@@ -73,13 +73,13 @@ namespace Moirai.Atropos.ObjectPool
         #region 构造 [CONSTRUCTOR]
 
         /// <summary>
-        /// 初始化 <see cref="GameObjectPoolSpawnContext"/> 的新实例。
+        /// 初始化 <see cref="ObjectPoolSpawnContext"/> 的新实例。
         /// </summary>
         /// <param name="location">资源地址。</param>
         /// <param name="group">分组名称。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <param name="spawnFrame">生成帧号。</param>
-        public GameObjectPoolSpawnContext(string location, string group, Transform parent, uint spawnFrame)
+        public ObjectPoolSpawnContext(string location, string group, Transform parent, uint spawnFrame)
         {
             Location = location;
             Group = group;
@@ -93,13 +93,13 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// 可池化 GameObject 组件接口。
     /// </summary>
-    public interface IGameObjectPoolable
+    public interface IObjectPoolable
     {
         /// <summary>
         /// 对象从池中取出时调用。
         /// </summary>
         /// <param name="context">生成上下文。</param>
-        void OnSpawn(in GameObjectPoolSpawnContext context);
+        void OnSpawn(in ObjectPoolSpawnContext context);
 
         /// <summary>
         /// 对象归还池中时调用。
@@ -115,7 +115,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// GameObject 池全局统计快照。
     /// </summary>
-    public readonly struct GameObjectPoolSummarySnapshot
+    public readonly struct ObjectPoolSummarySnapshot
     {
         #region 字段 [FIELDS]
 
@@ -145,7 +145,7 @@ namespace Moirai.Atropos.ObjectPool
         #region 构造 [CONSTRUCTOR]
 
         /// <summary>
-        /// 初始化 <see cref="GameObjectPoolSummarySnapshot"/> 的新实例。
+        /// 初始化 <see cref="ObjectPoolSummarySnapshot"/> 的新实例。
         /// </summary>
         /// <param name="isReady">是否就绪。</param>
         /// <param name="poolCount">池数量。</param>
@@ -154,7 +154,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="activeInstanceCount">活跃实例数量。</param>
         /// <param name="inactiveInstanceCount">非活跃实例数量。</param>
         /// <param name="pendingMaintenanceCount">待维护数量。</param>
-        public GameObjectPoolSummarySnapshot(
+        public ObjectPoolSummarySnapshot(
             bool isReady,
             int poolCount,
             int loadedPrefabCount,
@@ -178,7 +178,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// GameObject 池实例级快照。
     /// </summary>
-    public sealed class GameObjectPoolInstanceSnapshot : MemoryObject
+    public sealed class ObjectPoolInstanceSnapshot : MemoryObject
     {
         #region 字段 [FIELDS]
 
@@ -219,7 +219,7 @@ namespace Moirai.Atropos.ObjectPool
     /// <summary>
     /// GameObject 单池快照。
     /// </summary>
-    public sealed class GameObjectPoolSnapshot : MemoryObject
+    public sealed class ObjectPoolSnapshot : MemoryObject
     {
         #region 字段 [FIELDS]
 
@@ -287,7 +287,7 @@ namespace Moirai.Atropos.ObjectPool
         public int peakActive;
 
         /// <summary>实例列表。</summary>
-        internal readonly List<GameObjectPoolInstanceSnapshot> instances = new List<GameObjectPoolInstanceSnapshot>(16);
+        internal readonly List<ObjectPoolInstanceSnapshot> instances = new List<ObjectPoolInstanceSnapshot>(16);
 
         #endregion
 
@@ -301,7 +301,7 @@ namespace Moirai.Atropos.ObjectPool
         /// </summary>
         /// <param name="index">索引。</param>
         /// <returns>实例快照。</returns>
-        public GameObjectPoolInstanceSnapshot GetInstance(int index)
+        public ObjectPoolInstanceSnapshot GetInstance(int index)
         {
             return (uint)index < (uint)instances.Count ? instances[index] : null;
         }

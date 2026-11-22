@@ -28,7 +28,8 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         private static readonly UITrack s_UGUITrack = Internal_RegisterTrack(new UITrack(
             "UGUI", typeof(UGUIWindow), UITrack.SHUTDOWN_ORDER_HOST,
-            IsOnUGUITrack, IsUGUIValidProbe, OpenUGUIWindowForTypeEntry));
+            IsOnUGUITrack, IsUGUIValidProbe, OpenUGUIWindowForTypeEntry,
+            typeof(UGUIHandler)));
 
         /// <summary>
         /// uGUI 轨的有效性探针：只读本轨槽位，目录不另记一份在位状态。
@@ -95,16 +96,23 @@ namespace Moirai.Atropos.UI
                     "UI backend track 'UGUI' already has a driver in place: one track takes exactly one driver.");
             }
 
-            s_UGUITrack.AttachDriver(handler.Internal_Shutdown);
+            // 初始化由容器驱动的 OnInit（或测试直驱）承担：认领门只管占槽、挂广播与关停委托
+            s_UGUITrack.AttachDriver(() => ((Moirai.Atropos.IServiceLifecycle)handler).Destroy());
             Internal_SubscribeUGUITrack(handler);
-            handler.Internal_Init();
         }
 
         /// <summary>
         /// 摘掉本轨的处理器槽：只清位，不跑关停，也不碰广播——广播由门面整批摘。
         /// </summary>
-        private static void Internal_DetachUGUITrack()
+        internal static void Internal_DetachUGUITrack(UGUIHandler handler = null)
         {
+            if (handler != null)
+            {
+                // 本轨自己的广播退订（换后端时旧实例不得残留订阅）
+                onScreenSafeArea -= handler.ApplyScreenSafeRect;
+                onNotchSimulate -= handler.SimulateIPhoneXNotchScreen;
+            }
+
             Interlocked.Exchange(ref s_UGUIHandler, null);
         }
 
@@ -117,10 +125,8 @@ namespace Moirai.Atropos.UI
         /// <param name="handler">按启用清单刚造出来的驱动者。</param>
         private static void Internal_SubscribeUGUITrack(UGUIHandler handler)
         {
-            onTrackTick += handler.Tick;
             onScreenSafeArea += handler.ApplyScreenSafeRect;
             onNotchSimulate += handler.SimulateIPhoneXNotchScreen;
-            onDetachTrackSlots += Internal_DetachUGUITrack;
         }
 
         /// <summary>UI根节点：uGUI 轨的资源只由这一轨答，UI Toolkit 轨答不出这两个。</summary>

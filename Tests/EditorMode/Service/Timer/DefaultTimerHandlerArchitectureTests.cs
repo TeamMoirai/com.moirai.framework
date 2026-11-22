@@ -31,7 +31,7 @@ namespace Service.Timer
             _originalGameTimeHandler = GameTime.Handler;
             GameTime.Handler = new VirtualClockHandler(() => _now, () => _unscaledNow);
             _handler = new DefaultTimerHandler();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
@@ -40,7 +40,7 @@ namespace Service.Timer
             // 还原全局时钟必须放 finally：Shutdown 抛异常时不归还，会把虚拟时钟泄漏给后续所有用例
             try
             {
-                _handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             }
             finally
             {
@@ -417,7 +417,7 @@ namespace Service.Timer
             Assert.IsFalse(_handler.IsDone(wheelHandle));
             Assert.IsFalse(_handler.IsDone(frameHandle));
 
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
 
             // 关停后不得抛：句柄一律按"已结束"降级，新注册返回 0 句柄，阶段驱动与 All 系列为空操作。
             Assert.IsTrue(_handler.IsDone(wheelHandle));

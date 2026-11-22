@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -15,8 +15,27 @@ namespace Moirai.GameProto.Config
     /// 游戏配置表助手。
     /// </summary>
     [Serializable]
-	public sealed partial class LubanHandler : ConfigTableServiceHandler
+	public sealed partial class LubanHandler : ServiceBase, IConfigTableService
     {
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
+
+        /// <inheritdoc />
+        protected override void OnInit()
+        {
+        }
+
+        /// <inheritdoc />
+        protected override void OnShutdown()
+        {
+            // 槽位失效只在真实容器拆除时发生（State 门）
+            if (State >= EServiceState.ShuttingDown)
+            {
+                ConfigTableService.InvalidateHandler(this);
+            }
+
+            s_Tables = null;
+        }
         #region 初始化 [INITIALIZE]
 
 #if UNITY_EDITOR
@@ -39,7 +58,7 @@ namespace Moirai.GameProto.Config
         /// <summary>
         /// 词条按语言各存一份，走框架的按语言列模式：常驻与取值都只有语言头 + 当前语言列。
         /// </summary>
-        public override bool SupportsPerLanguageLocalizationLoad => true;
+        public bool SupportsPerLanguageLocalizationLoad => true;
 
         /// <summary>
         /// 自报本表提供的语言：顺序即 <see cref="GetLocalizedStringsByLanguage"/> 各列在框架内的列序，也是 <see cref="GetAllLocalizedStrings"/> 里每条形文本的列顺序。
@@ -47,13 +66,13 @@ namespace Moirai.GameProto.Config
         /// <remarks>
         /// 语言取自转表期生成的 <see cref="L10nLanguages.Codes"/>，不从 bean 字段名反推：多语言改走字段变体后 bean 只剩一个 Text 字段，字段名与语言无关。
         /// </remarks>
-        public override IReadOnlyList<string> GetLocalizationLanguageCodes() => L10nLanguages.Codes;
+        public IReadOnlyList<string> GetLocalizationLanguageCodes() => L10nLanguages.Codes;
 
         /// <summary>
         /// 取一种语言的词条列：读该语言子目录下的那份数据。
         /// </summary>
         /// <param name="languageCode"><see cref="GetLocalizationLanguageCodes"/> 自报过的语言码。未登记的返回 <c>null</c>，框架按「数据未就绪」保持重试。</param>
-        public override Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode)
+        public Dictionary<string, string> GetLocalizedStringsByLanguage(string languageCode)
         {
             if (string.IsNullOrEmpty(languageCode)) return null;
             if (Array.IndexOf(L10nLanguages.Codes, languageCode) < 0) return null;
@@ -69,7 +88,7 @@ namespace Moirai.GameProto.Config
         /// <remarks>
         /// 按语言列模式下运行期不再走到这里，留给编辑器预览——预览要同时看到所有语言。
         /// </remarks>
-        public override Dictionary<string, List<string>> GetAllLocalizedStrings()
+        public Dictionary<string, List<string>> GetAllLocalizedStrings()
         {
             if (_allLocalizedStrings == null)
             {
@@ -144,7 +163,7 @@ namespace Moirai.GameProto.Config
 
         #region 界面 [UI]
 
-        public override string GetUIWindowLocation(string id)
+        public string GetUIWindowLocation(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
 
@@ -165,7 +184,7 @@ namespace Moirai.GameProto.Config
         /// <param name="id">UISprite - SpriteAtlas 配置表的 id</param>
         /// <param name="cancellationToken"></param>
 #pragma warning disable CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
-        public override async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
+        public async UniTask<Sprite> LoadSpriteByID(string id, CancellationToken cancellationToken)
 #pragma warning restore CS1998 // 异步方法缺少 "await" 运算符，将以同步方式运行
         {
             if (string.IsNullOrEmpty(id)) return null;

@@ -9,7 +9,7 @@ namespace Moirai.Atropos
     public static class ServicePriorityOrder
     {
         /// <summary>GameObject 池服务（内置带最高，最先轮询）。</summary>
-        public const int GAME_OBJECT_POOL = -1000;
+        public const int OBJECT_POOL = -1000;
 
         /// <summary>资源服务。</summary>
         public const int RESOURCE = -1002;

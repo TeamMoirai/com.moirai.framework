@@ -5,7 +5,7 @@ namespace Moirai.Atropos.Debugger
     /// </summary>
     /// <remarks>
     /// 默认实现为 <see cref="DefaultDebuggerHandler"/>（UI Toolkit 运行时调试器），可在 <see cref="DebuggerServiceSettings"/> 中替换。 <br />
-    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/>（生命周期与序列化基座）。
+    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.ServiceBase"/>（绑定即注册进容器，生命周期由容器拓扑驱动）。
     /// </remarks>
     public interface IDebuggerService
     {
@@ -21,10 +21,6 @@ namespace Moirai.Atropos.Debugger
         /// <summary>获取日志捕获器（环形缓冲，供控制台与外部工具消费）。</summary>
         DebuggerLogCapture LogCapture { get; }
 
-        /// <summary>
-        /// 容器 Tick 驱动——排空日志捕获并轮询可见窗口。
-        /// </summary>
-        void Tick(float elapseSeconds, float realElapseSeconds);
 
         /// <summary>
         /// 注册调试器窗口。

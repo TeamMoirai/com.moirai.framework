@@ -16,23 +16,17 @@ namespace Moirai.Atropos.UI
     /// UI 服务外观（Facade）：全框架统一的静态 UI 访问入口。
     /// </summary>
     /// <remarks>
-    /// 开窗入口按窗口基类平铺成同名两腿（<c>UGUIWindow</c> / <c>UITKWindow</c>），各腿直呼本轨 partial 的实现，没有替全部后端开窗的默认通道。<br />
-    /// UI Toolkit 腿比 uGUI 腿多收一个 <c>panelSettings</c>：同名重载靠形参表分辨，它也是窗口级面板配置的落点。<br />
-    /// 每轨一个驱动者，由 <see cref="UIServiceSettings"/> 的启用清单认领进各自槽位，拿的都是同一份 <see cref="SharedLedger"/>：栈只有一条。<br />
-    /// 各轨以一条 <see cref="UITrack"/> 自述登记进目录；本文件只枚举目录，加一轨就是加一个自登记的 partial。<br />
-    /// 跨轨的全局操作（查询、关隐、租约、每帧结算）直叫共享持有者；轨专有的走门面私有广播，<see cref="UIRoot"/>、<see cref="UICamera"/> 只有 uGUI 轨答得出。<br />
-    /// 关停按自报档位升序逐轨收口，uGUI 最后收。线程契约：仅主线程；不声明 <c>[ProviderHandlerHost]</c>，<see cref="IsValid"/> 与归零门手写在本文件。
+    /// 开窗入口按窗口基类平铺成同名两腿（<c>UGUIWindow</c> / <c>UITKWindow</c>），各腿直呼本轨 partial 的实现。 <br />
+    /// 每轨一个驱动者，按 <see cref="UIServiceSettings"/> 的启用清单认领进各自槽位，共用同一份 <see cref="SharedLedger"/>。 <br />
+    /// 各轨以一条 <see cref="UITrack"/> 自登记进目录，本文件只枚举目录：加一轨 = 加一个 partial，主文件零改动。 <br />
+    /// <see cref="RegisterEnabledHandlers"/> 按目录关停档降序把 handler 注册进容器，容器反序拆除即档位升序收口。 <br />
+    /// 线程契约：仅主线程；本类不进容器（多后端并行，无单一注册实体），<see cref="IsValid"/> 与归零门手写在本文件。
     /// </remarks>
-    [AutoRegisterService]
-    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(ITimerService))]
-    public sealed partial class UIService : ServiceBase, IServiceTickable, IUIService
+    public static partial class UIService
     {
         #region 处理器持有 [HANDLER HOSTING]
 
         private static volatile UIWindowLedger s_Ledger;
-
-        /// <summary>各轨驱动者的本轨帧职责：各自在认领进槽时订阅一次，门面每帧广播一遍。</summary>
-        private static event Action<float, float> onTrackTick;
 
         /// <summary>安全区矩形落到各轨自己面板的那一条广播。</summary>
         private static event Action<Rect> onScreenSafeArea;
@@ -40,22 +34,19 @@ namespace Moirai.Atropos.UI
         /// <summary>刘海屏模拟的逐轨广播。</summary>
         private static event Action onNotchSimulate;
 
-        /// <summary>各轨各自摘掉本轨槽位的广播：关停与归零门都先叫它一次，销毁链里迟到的回叫因此当场落空。</summary>
-        private static event Action onDetachTrackSlots;
-
         /// <summary>窗口入栈后广播，形参是刚入栈的窗口；装载在途也照发（回执说的是栈序，不是面板就绪）。</summary>
-        /// <remarks>订阅者自持生命周期：门面的归零门会整批摘掉这两条广播（禁用域重载时上一轮订阅者不得跨会话残留），但一次 <c>+=</c> 配一次 <c>-=</c> 仍是对话方的责任。</remarks>
+        /// <remarks>订阅者自配对退订；归零门会整批摘掉这两条广播，不让上一轮订阅者跨会话残留。</remarks>
         public static event Action<UIWindow> onWindowShown;
 
         /// <summary>窗口出栈后广播，形参是刚出栈的窗口：停放与销毁都发，一次出栈恰一次。</summary>
         public static event Action<UIWindow> onWindowClosed;
 
-        /// <summary>轨道目录：各轨 partial 的静态初始化器把自述登记进这一份，门面只枚举它。</summary>
-        /// <remarks>懒建＋compare-exchange：partial 各文件静态字段的初始化次序没有契约保证，目录不能靠本文件自己的初始化器先就位。</remarks>
+        /// <summary>轨道目录：各轨 partial 的静态初始化器把自述登记进这一份。</summary>
+        /// <remarks>懒建＋compare-exchange：各 partial 静态字段的初始化次序没有契约保证，目录不能靠本文件的初始化器先就位。</remarks>
         private static volatile List<UITrack> s_Tracks;
 
         /// <summary>目录里任何一轨的驱动者就位即为真；一轨都没就位为假。</summary>
-        /// <remarks>读的是各轨描述符自述的有效性探针（探针读本轨槽位），门面不另记一份在位状态。</remarks>
+        /// <remarks>读各轨描述符自述的有效性探针，门面不另记一份在位状态。</remarks>
         public static bool IsValid
         {
             get
@@ -82,9 +73,8 @@ namespace Moirai.Atropos.UI
         /// 把一条轨道登记进门面目录：各轨 partial 的静态初始化器在类型就绪时各叫一次。
         /// </summary>
         /// <remarks>
-        /// 按 <see cref="UITrack.ShutdownOrder"/> 升序插入、同档按登记序，关停就按这一序逐轨走一遍。<br />
-        /// 登记只发生在类型初始化里（外部取用都排在静态初始化器之后），插入本身不需要并发防护。<br />
-        /// 不查重复登记：内建轨各登记一次，测试的合成轨由 <see cref="Internal_UnregisterTrack"/> 摘回去。
+        /// 按 <see cref="UITrack.ShutdownOrder"/> 升序插入、同档按登记序，关停即按这一序逐轨走一遍。 <br />
+        /// 登记只发生在类型初始化里，插入本身不需要并发防护；不查重复登记，合成轨由 <see cref="Internal_UnregisterTrack"/> 摘回。
         /// </remarks>
         /// <param name="track">待登记的轨道自述。</param>
         /// <returns>原样交回登记进去的轨道自述，供 partial 存成自己的字段。</returns>
@@ -123,10 +113,15 @@ namespace Moirai.Atropos.UI
         /// </summary>
         internal static IReadOnlyList<UITrack> Internal_PeekTracks() => s_Tracks;
 
+        /// <summary>逐轨广播的在位挂钩数：安全区与刘海两条广播的订阅者总和。</summary>
+        /// <remarks>认领门每支后端各挂这两条一次，同实例重入按早退不再挂——夹具用它数重复认领有没有漏。</remarks>
+        internal static int Internal_PeekTrackSubscriptionCount() =>
+            (onScreenSafeArea?.GetInvocationList().Length ?? 0) + (onNotchSimulate?.GetInvocationList().Length ?? 0);
+
         /// <summary>各轨后端共用的窗口栈与停放表持有者：懒建；<see cref="Internal_ResetHandlerSlots"/> 归位时抹掉，下次读取再建。</summary>
         /// <remarks>
-        /// 每读现取、不是构造期快照：共享持有者会被归位门换掉，而清单里的驱动者由资产反序列化器在任意时刻造出来。<br />
-        /// 线程契约：仅主线程（开窗、关窗与每帧驱动都在主线程）。
+        /// 每读现取、不是构造期快照：共享持有者会被归位门换掉，驱动者则由资产反序列化器在任意时刻造出来。 <br />
+        /// 线程契约：仅主线程。
         /// </remarks>
         internal static UIWindowLedger SharedLedger
         {
@@ -162,9 +157,8 @@ namespace Moirai.Atropos.UI
         /// 免域重载复位：处理器槽与共享持有者都是静态位，跨 Play 会话残留会把上一轮的栈漏给下一轮。
         /// </summary>
         /// <remarks>
-        /// s_UGUIHandler / s_UITKHandler 经 <see cref="onDetachTrackSlots"/> 广播在 <see cref="Internal_ResetHandlerSlots"/> 内一并摘除，无需单独归位。 <br />
-        /// s_Tracks 有意保留不清：目录只由各轨 partial 的静态字段初始化器登记（每域仅一次），关闭域重载后第二会话不会重跑，
-        /// 清空会让目录永久为空；轨内跨会话的残留认领已由 <see cref="UITrack.ClearClaim"/> 归位。
+        /// 处理器槽与订阅在 <see cref="Internal_ResetHandlerSlots"/> 内一并摘除，无需单独归位。 <br />
+        /// s_Tracks 有意不清：目录只在类型初始化期登记（每域一次），清空会让免域重载的第二会话目录永久为空。
         /// </remarks>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetHandlerSlotsOnDomainReload()
@@ -173,17 +167,36 @@ namespace Moirai.Atropos.UI
         }
 
         /// <summary>
-        /// 归位门：叫各轨各自摘槽、摘掉挂在门面上的全部订阅与认领，再把共享持有者清回干净状态。
+        /// 归位门：各轨摘槽、摘全部订阅与认领、共享持有者清回干净状态，落锤待销毁根。
         /// </summary>
         /// <remarks>
-        /// 只清不置：不收实参、也没有把对象放进槽的路径，槽里只剩 <see cref="OnInit"/> 按启用清单认领那一条来路。<br />
-        /// 不跑关停：被摘下的实例归 <see cref="OnShutdown"/> 按目录档位收口。夹具按进门归位用它。
+        /// 只清不置、不跑关停：槽里只剩 <c>OnInit</c> 按启用清单认领那一条来路，摘下的实例归 <c>OnShutdown</c> 收口。 <br />
+        /// 夹具进门归位也用它。
         /// </remarks>
         internal static void Internal_ResetHandlerSlots()
         {
-            onDetachTrackSlots?.Invoke();
+            Internal_DetachUGUITrack();
+            Internal_DetachUITKTrack();
             Internal_ClearTrackSubscriptions();
             Interlocked.Exchange(ref s_Ledger, null);
+            DestroyPendingUGUIRoot();
+        }
+
+        /// <summary>uGUI 轨移交给归零门的待销毁根：销毁推迟到全轨摘净（他轨面板还挂在其下）。</summary>
+        private static GameObject s_PendingUGUIRoot;
+
+        /// <summary>
+        /// uGUI 根销毁挂归零门：反序拆除里宿主轨先拆，立即销毁会拆掉还挂着的 UITK 面板。
+        /// </summary>
+        internal static void HandUGUIRootToDestroyGate(GameObject rootParent) => s_PendingUGUIRoot = rootParent;
+
+        private static void DestroyPendingUGUIRoot()
+        {
+            var root = s_PendingUGUIRoot;
+            s_PendingUGUIRoot = null;
+            if (root == null) return;
+            if (Application.isPlaying) UnityEngine.Object.Destroy(root);
+            else UnityEngine.Object.DestroyImmediate(root);
         }
 
         /// <summary>
@@ -192,8 +205,6 @@ namespace Moirai.Atropos.UI
         /// <remarks>订阅与认领住在静态位上：槽清了而它们没清，下一轮仍会叫到上一轮已退役的实例。</remarks>
         private static void Internal_ClearTrackSubscriptions()
         {
-            onDetachTrackSlots = null;
-            onTrackTick = null;
             onScreenSafeArea = null;
             onNotchSimulate = null;
             onWindowShown = null;
@@ -208,11 +219,6 @@ namespace Moirai.Atropos.UI
                 }
             }
         }
-
-        /// <summary>
-        /// 帧广播当前的订阅条数：一支驱动者认领成功才加一条，第二轮认领同一实例不再加。
-        /// </summary>
-        internal static int Internal_PeekTrackTickSubscriberCount() => onTrackTick?.GetInvocationList().Length ?? 0;
 
         #region 窗口事件触发 [WINDOW EVENT RAISERS]
 
@@ -232,42 +238,25 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        #region 生命周期 [LIFECYCLE]
+        #region 生命周期钩子 [LIFECYCLE HOOKS]
 
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.MID_TIER;
-
-        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IDebuggerService _debugger;
+        /// <summary>调试面板的注册位（第一支认领的驱动者注册，最后一支收口注销）。</summary>
+        private static bool s_DebuggerWindowRegistered;
+        private static IDebuggerService s_Debugger;
 
         /// <summary>
-        /// 初始化 UI 服务。由容器在构建期调用。
+        /// 组合根装配入口：把 <see cref="UIServiceSettings.EnabledHandlers"/> 启用清单按目录关停档降序注册进容器。
         /// </summary>
         /// <remarks>
-        /// 先解析调试器契约并归零共享持有者，再按 <see cref="UIServiceSettings"/> 的启用清单逐支造出驱动者——启用哪几支由配置答，不由「谁先碰到哪一支的取用」答。<br />
-        /// 各轨自此并存于同一条栈上，各自驱动本轨那半边的编排；窗口回叫问的是那条共享栈，门面不再交单一协调者出去。<br />
-        /// 可重入：某一轨的驱动者已就位时不再造第二个、不重复挂广播，但仍归零那一份共享存储。<br />
-        /// 容器外装配（测试夹具以 <c>OnInit</c> 作驱动者认领入口）时上下文为空：跳过调试面板注册，其余流程不变。
+        /// 目录登记时已按关停档升序排好：按目录降序注册 = 容器反序拆除按档位升序收口，宿主轨最后拆根。 <br />
+        /// 契约键 = 各自具体类型（多后端并行无单一契约实例）；认领与编排随 handler 的 OnInit 走 → <see cref="OnHandlerInitialized"/>。
         /// </remarks>
-        public override void OnInit()
+        /// <exception cref="GameException">没有任何后端被启用、清单里有 <c>null</c> 项，或条目不落任何已登记轨。</exception>
+        internal static void RegisterEnabledHandlers()
         {
-            _debugger = Context?.GetRequiredService<IDebuggerService>();
+            // 入口清账：重装配时上一轮的共享栈归零须赶在认领之前（认领门对同实例早退，钩子里的 anyUp 档看不到）
             Internal_ResetSharedLedger();
-            Internal_EnableHandlersFromSettings();
-            _debugger?.RegisterDebuggerWindow("Profiler/UI", new UIServiceDebuggerWindow());
-        }
 
-        /// <summary>
-        /// 按配置启用后端：逐条把 <see cref="UIServiceSettings.EnabledHandlers"/> 里的条目交回它自己那一轨去认领——填槽、挂广播、初始化。
-        /// </summary>
-        /// <remarks>
-        /// 逐支叫 <see cref="UIServiceHandler.Internal_Register"/>，本文件既不判类型也不写槽。<br />
-        /// 本层抬错档：清单为 <c>null</c> 或空、清单里有 <c>null</c> 项；同一轨被注入两次由那一轨自己的认领门抬错。<br />
-        /// 抬错前可能已注册好前几项的驱动者——门面不补半程关停，已就位的由 <see cref="OnShutdown"/> 或归位门收。
-        /// </remarks>
-        /// <exception cref="GameException">没有任何后端被启用、清单里有 <c>null</c> 项，或同一轨被注入两次。</exception>
-        private static void Internal_EnableHandlersFromSettings()
-        {
             var enabled = UIServiceSettings.EnabledHandlers;
             if (enabled == null || enabled.Length == 0)
             {
@@ -278,50 +267,104 @@ namespace Moirai.Atropos.UI
 
             for (var i = 0; i < enabled.Length; i++)
             {
-                var entry = enabled[i];
-                if (entry == null)
+                if (enabled[i] == null)
                 {
                     throw new GameException(StringUtility.Format(
                         "UI backend entry #{0} is null: {1} must list handlers, not empty slots.",
                         i, nameof(UIServiceSettings)));
                 }
+            }
 
-                entry.Internal_Register();
+            // 注册序 = 关停档降序（宿主轨最先注册）：容器反序拆除 = 档位升序收口，宿主轨最后拆根
+            var registered = new List<UIServiceHandler>(enabled.Length);
+            var tracks = s_Tracks;
+            if (tracks != null)
+            {
+                for (var i = tracks.Count - 1; i >= 0; i--)
+                {
+                    for (var j = 0; j < enabled.Length; j++)
+                    {
+                        var entry = enabled[j];
+                        if (!registered.Contains(entry) && tracks[i].OwnsDriver(entry.GetType()))
+                        {
+                            GameServices.RegisterService(EServiceScopeKind.App, entry.GetType(), entry);
+                            registered.Add(entry);
+                        }
+                    }
+                }
+            }
+
+            for (var j = 0; j < enabled.Length; j++)
+            {
+                if (!registered.Contains(enabled[j]))
+                {
+                    throw new GameException(StringUtility.Format(
+                        "UI backend entry #{0} ({1}) pairs with no registered UI track.",
+                        j, enabled[j].GetType().FullName));
+                }
             }
         }
 
         /// <summary>
-        /// 关闭 UI 服务。由容器在关闭期调用。
+        /// 容器编排（后端 OnInit 经 Manager 钩子调用）：首支认领时清账，注册调试面板。
         /// </summary>
-        /// <remarks>
-        /// 顺序是契约：先广播摘槽，再按各轨自报的关停档位升序逐轨收口，最后整批摘掉订阅与认领。<br />
-        /// 摘槽排在收口之前：<see cref="UIWindow"/> 的回叫钩子认 <see cref="IsValid"/>，槽清了它们就静默落空，既不拿到半关的驱动者、也不在账本正被收的时候重进去。<br />
-        /// 收口叫认领时绑定的那条关停回调，不重读槽位（此刻重读会静默跳过关停）。<br />
-        /// 摘订阅与归零放在 <c>finally</c>：销毁链抛了也不能把订阅留在已空的槽上，否则下一轮认领会给同一实例挂出第二遍广播。
-        /// </remarks>
-        public override void OnShutdown()
+        /// <remarks>重装配的归零归装配入口（本钩子跑到时本支已进槽，anyUp 恒真）。</remarks>
+        internal static void OnHandlerInitialized(IDebuggerService debugger)
         {
-            _debugger?.UnregisterDebuggerWindow("Profiler/UI");
-
-            try
+            var tracks = s_Tracks;
+            var anyUp = false;
+            if (tracks != null)
             {
-                onDetachTrackSlots?.Invoke();
-                Internal_ShutDownTracksInOrder();
+                for (var i = 0; i < tracks.Count; i++)
+                {
+                    anyUp |= tracks[i].IsDriverValid;
+                }
             }
-            finally
+
+            if (!anyUp)
             {
-                Internal_ClearTrackSubscriptions();
                 Internal_ResetSharedLedger();
             }
+
+            if (!s_DebuggerWindowRegistered)
+            {
+                s_Debugger = debugger;
+                debugger?.RegisterDebuggerWindow("Profiler/UI", new UIServiceDebuggerWindow());
+                s_DebuggerWindowRegistered = true;
+            }
         }
 
         /// <summary>
-        /// 按档位升序逐轨收口：目录在登记时就排好升序，宿主轨（持有别轨面板挂靠的根）落在最后一段。
+        /// 容器收尾（后端 OnShutdown 经 Manager 钩子调用）：全部轨摘净后收调试面板。
         /// </summary>
-        /// <remarks>
-        /// 叫的是认领进槽时绑定的那条关停回调：某一轨没被启用（没认领）时它没有回调，目录序跳过它。同档各轨按登记序，彼此没有宿主依赖。
-        /// </remarks>
-        private static void Internal_ShutDownTracksInOrder()
+        /// <remarks>共享栈与订阅不在这里清——归零只剩 <see cref="Internal_ResetHandlerSlots"/> 与免域重载复位门两处。</remarks>
+        internal static void Internal_OnTrackDown()
+        {
+            var tracks = s_Tracks;
+            var anyUp = false;
+            if (tracks != null)
+            {
+                for (var i = 0; i < tracks.Count; i++)
+                {
+                    anyUp |= tracks[i].IsDriverValid;
+                }
+            }
+
+            if (anyUp) return;
+
+            if (s_DebuggerWindowRegistered)
+            {
+                s_Debugger?.UnregisterDebuggerWindow("Profiler/UI");
+                s_Debugger = null;
+                s_DebuggerWindowRegistered = false;
+            }
+        }
+
+        /// <summary>
+        /// 按目录关停档升序逐轨收口：叫认领时绑定的那条关停回调（合成轨/测试语义的生产扫）。
+        /// </summary>
+        /// <remarks>叫过即清认领（<see cref="UITrack.ClearClaim"/>）：回调实例绑定旧驱动者，残留会在下一轮被误叫。</remarks>
+        internal static void Internal_ShutDownTracksInOrder()
         {
             var tracks = s_Tracks;
             if (tracks == null)
@@ -332,20 +375,46 @@ namespace Moirai.Atropos.UI
             for (var i = 0; i < tracks.Count; i++)
             {
                 tracks[i].ClaimedShutDown?.Invoke();
+                tracks[i].ClearClaim();
             }
         }
 
         /// <summary>
-        /// 容器 Tick 驱动：每帧把那条共享栈结算一次，再广播各轨 handler 本轨专有那段。
+        /// 测试接缝：按启用清单直驱认领（逐支 ServiceBase.Initialize → OnInit → Internal_Register），不走容器。
         /// </summary>
-        /// <remarks>
-        /// 整条栈的驱动归这一处、每帧只结算一次；各轨广播里那份只剩本轨自己的帧职责，认领进槽时各挂一次。<br />
-        /// 不得改成各轨各叫一次（整条栈每帧跑几遍），也不得任挑一支当代驱动（只剩另一轨在位时整条栈一帧都不结算，而 <see cref="IsValid"/> 回真）。
-        /// </remarks>
-        public void Tick(float elapseSeconds, float realElapseSeconds)
+        /// <remarks>容器外直驱的装配路径：编排夹具以认领作入口，Context 缺席时每支的编排钩子自然跳过。</remarks>
+        internal static void EnableHandlersForTests()
         {
-            SharedLedger.Tick();
-            onTrackTick?.Invoke(elapseSeconds, realElapseSeconds);
+            // 入口清账：与 RegisterEnabledHandlers 同语义
+            Internal_ResetSharedLedger();
+
+            var enabled = UIServiceSettings.EnabledHandlers;
+            if (enabled == null || enabled.Length == 0)
+            {
+                throw new GameException(StringUtility.Format(
+                    "No UI backend is enabled: {0} must list at least one handler to register at init.",
+                    nameof(UIServiceSettings)));
+            }
+
+            for (var i = 0; i < enabled.Length; i++)
+            {
+                if (enabled[i] == null)
+                {
+                    throw new GameException(StringUtility.Format(
+                        "UI backend entry #{0} is null: {1} must list handlers, not empty slots.",
+                        i, nameof(UIServiceSettings)));
+                }
+
+                ((Moirai.Atropos.IServiceLifecycle)enabled[i]).Initialize();
+            }
+        }
+
+        /// <summary>
+        /// 共享栈结算（后端 IServiceTickable.Tick 经 Manager 钩子进入；帧守卫幂等，同帧多轨只结算一次）。
+        /// </summary>
+        internal static void TickShared(float realElapseSeconds)
+        {
+            SharedLedger.Tick(realElapseSeconds);
         }
 
         #endregion
@@ -381,7 +450,7 @@ namespace Moirai.Atropos.UI
         /// 设置屏幕安全区域（异形屏支持）：广播给各轨，各自把这块矩形落到本轨的面板上。
         /// </summary>
         /// <remarks>
-        /// 换算的输入在各轨里形状不同（uGUI 吃 <c>CanvasScaler</c> 的参考分辨率，UI Toolkit 那一路目前不吃），门面因此不替谁代答、也不任挑一支。 <br />
+        /// 换算输入在各轨形状不同（uGUI 吃 <c>CanvasScaler</c> 的参考分辨率），门面不替谁代答、也不任挑一支。 <br />
         /// 刘海屏模拟那一档的矩形换算各轨共用 <see cref="UIServiceHandler.ComputeIPhoneXNotchSafeRect"/>。
         /// </remarks>
         /// <param name="safeRect">安全区域。</param>
@@ -406,10 +475,11 @@ namespace Moirai.Atropos.UI
         /// 把开窗传入的 <paramref name="windowId"/> 换算成面板资产地址：内置资源档按 <see cref="UIServiceSettings"/> 的 Resources 父目录拼，否则查配置表。
         /// </summary>
         /// <remarks>
-        /// 只在账本造新实例那一格叫：复用栈上窗与停放重取两条支路不吃标识，配置表未就绪时停放窗照样能重开。 <br />
-        /// 父目录为空时标识<b>原样</b>当 Resources 相对路径用（不拼分隔符）——包内与项目根的内置资源都靠这一档。 <br />
-        /// 配置表档的降级口径归 <c>ConfigTableService</c>：服务未就绪回 <c>null</c>，查无此 id 回空串并记一条 Warning——两者都不再回落成字面地址，直接落进装载失败回滚。 <br />
-        /// 线程契约：仅主线程（开窗链路本身即主线程）。
+        /// 只在账本造新实例那一格叫：复用栈上窗与停放重取不吃标识，配置表未就绪时停放窗照样能重开。 <br />
+        /// 父目录为空时标识<b>原样</b>当 Resources 相对路径用（不拼分隔符）。 <br />
+        /// 配置表档的降级口径归 <c>ConfigTableService</c>：未就绪回 <c>null</c>、查无此 id 回空串并记 Warning， <br />
+        /// 两者都不回落成字面地址，直接落进装载失败回滚。 <br />
+        /// 线程契约：仅主线程。
         /// </remarks>
         /// <param name="windowId">窗口标识：配置表 configId，或 <c>Resources</c> 下的相对路径。</param>
         /// <param name="fromResources">取哪一档：真走 <c>Resources</c>，假走配置表。</param>
@@ -429,8 +499,7 @@ namespace Moirai.Atropos.UI
 
         #region 窗口查询 [WINDOW QUERIES]
 
-        // 这一族的读数都来自那条各轨共用的栈：门面直叫共享持有者，与哪一轨在位、哪一轨先就位无关。
-        // 形参表与返回形状是包外调用点的编译依据，一个都不动。
+        // 读数都来自各轨共用的栈：门面直叫共享持有者，与哪一轨在位、哪一轨先就位无关。
 
         /// <summary>
         /// 获取所有层级下顶部的窗口。
@@ -587,10 +656,9 @@ namespace Moirai.Atropos.UI
         /// 认轨守卫：<see cref="Type"/> 形入口按目录找到拥有这一窗口类的轨并交回它，认不出轨当场抬错。
         /// </summary>
         /// <remarks>
-        /// 判据是各轨描述符自述的窗口基类（<see cref="UGUIWindow"/>、<see cref="UITKWindow"/>），本文件不登记任何具体后端。<br />
-        /// 泛型腿的约束在编译期就挡死跨轨实参与没挂窗口基类的窗口类，运行期会判出错配的只有 <see cref="Type"/> 形入口。<br />
-        /// 判在叫任何一轨的开窗实现之前：否则窗口被推进栈、面板装载静默失败，留下一个开不出来的窗。<br />
-        /// 「认不出轨」与「轨认出来了但那一轨没被启用」是两档不同的错，后者由那一轨自己的开窗实现抬。
+        /// 判据是各轨自述的窗口基类，本文件不登记具体后端；泛型腿编译期已挡死错配，只有 <see cref="Type"/> 形入口会运行期判错。 <br />
+        /// 判在叫任何一轨的开窗实现之前：否则窗口进了栈、装载静默失败，留下一个开不出来的窗。 <br />
+        /// 「认不出轨」与「认出的轨没启用」是两档错，后者由那一轨自己的开窗实现抬。
         /// </remarks>
         /// <param name="windowType">窗口类型；<c>null</c> 与认不出轨的类型同样当场抬错。</param>
         /// <returns>拥有这一窗口类的那一轨。</returns>
@@ -650,7 +718,7 @@ namespace Moirai.Atropos.UI
 
         #region 关闭窗口 [CLOSE WINDOW]
 
-        // 关与隐落的也是那一条共享栈：各轨的窗混排在同一条序里，门面上的关窗入口因此不分轨、也不看哪一轨先就位。
+        // 关与隐落的也是那一条共享栈：各轨的窗混排在同一条序里，入口不分轨。
 
         /// <summary>
         /// 关闭窗口。
@@ -753,143 +821,5 @@ namespace Moirai.Atropos.UI
 
         #endregion
 
-        #region 契约注入面 [CONTRACT SURFACE]
-
-        // 容器把本实例绑定在 IUIService 契约下（组合根在注册清单后显式补登——本类不声明 [ProviderHandlerHost]，
-        // Phase 2 注入互调，如 InputService 经 Context.GetRequiredService<IUIService>() 解析）。
-        // 与静态门面同名的成员只能显式实现——转发到静态门面保持单一语义源；降级语义与门面一致。
-        // Tick(float,float) 与 IServiceTickable 同签名，由既有公有方法隐式实现。
-
-        /// <inheritdoc />
-        bool IUIService.IsValid => IsValid;
-
-        /// <inheritdoc />
-        UIWindow IUIService.CurrentModal => CurrentModal;
-
-        /// <inheritdoc />
-        int IUIService.NavigationDepth => NavigationDepth;
-
-        /// <inheritdoc />
-        event Action<UIWindow> IUIService.onWindowShown
-        {
-            add => onWindowShown += value;
-            remove => onWindowShown -= value;
-        }
-
-        /// <inheritdoc />
-        event Action<UIWindow> IUIService.onWindowClosed
-        {
-            add => onWindowClosed += value;
-            remove => onWindowClosed -= value;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        UIWindow IUIService.GetTopWindow() => GetTopWindow();
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        UIWindow IUIService.GetTopWindow(int layer) => GetTopWindow(layer);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        string IUIService.GetTopWindowId(int layer) => GetTopWindowId(layer);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IUIService.IsAnyLoading() => IsAnyLoading();
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IUIService.HasWindow<T>(string windowId) => HasWindow<T>(windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IUIService.HasWindow(Type type, string windowId) => HasWindow(type, windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        T IUIService.GetWindow<T>(string windowId) => GetWindow<T>(windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IUIService.IsBlockedByModal(GameObject obj) => IsBlockedByModal(obj);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IUIService.IsModal(UIWindow window) => IsModal(window);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.ShowUI(Type type, string windowId, UIPayload payload, CancellationToken ct) =>
-            ShowUI(type, windowId, payload, ct);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.ShowUIAsync(Type type, string windowId, UIPayload payload, CancellationToken ct) =>
-            ShowUIAsync(type, windowId, payload, ct);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        UniTask<UIWindow> IUIService.ShowUIAsyncAwait(Type type, string windowId, UIPayload payload, CancellationToken ct) =>
-            ShowUIAsyncAwait(type, windowId, payload, ct);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.CloseUI<T>(string windowId) => CloseUI<T>(windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.CloseUI(Type type, string windowId) => CloseUI(type, windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.HideUI<T>(string windowId) => HideUI<T>(windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.HideUI(Type type, string windowId) => HideUI(type, windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.CloseAll(bool isShutDown) => CloseAll(isShutDown);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.CloseAllWithOut(UIWindow withOut) => CloseAllWithOut(withOut);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.CloseAllWithOut<T>() => CloseAllWithOut<T>();
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.CloseAllWithOut(EUILayer withOut) => CloseAllWithOut(withOut);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IUIService.TryCloseTopWindow() => TryCloseTopWindow();
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        UniTask<T> IUIService.GetUIAsyncAwait<T>(string windowId) => GetUIAsyncAwait<T>(windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.GetUIAsync<T>(string windowId, Action<T> callback) => GetUIAsync(windowId, callback);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        UniTask<UIOpenResult> IUIService.GetUIAwaitResult<T>(string windowId) => GetUIAwaitResult<T>(windowId);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.ApplyScreenSafeRect(Rect safeRect) => ApplyScreenSafeRect(safeRect);
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IUIService.SimulateIPhoneXNotchScreen() => SimulateIPhoneXNotchScreen();
-
-        #endregion
     }
 }

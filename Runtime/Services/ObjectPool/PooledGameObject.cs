@@ -16,7 +16,7 @@ namespace Moirai.Atropos.ObjectPool
     /// </summary>
     /// <remarks>
     /// 持有 (owner, slot, generation) 身份，Dispose 时按代系回收。 <br />
-    /// 与 <see cref="GameObjectPoolService"/> 共用 Spawn / SpawnAsync / Despawn 动词，location 与 Prefab 引用同一套 API。
+    /// 与 <see cref="ObjectPoolService"/> 共用 Spawn / SpawnAsync / Despawn 动词，location 与 Prefab 引用同一套 API。
     /// </remarks>
     public class PooledGameObject : IDisposable
 #if R3_INSTALLED
@@ -34,7 +34,7 @@ namespace Moirai.Atropos.ObjectPool
         private readonly List<IDisposable> _disposables = new List<IDisposable>();
         private List<ulong> _timerHandles;
 
-        private RuntimeGameObjectPool _owner;
+        private RuntimeObjectPool _owner;
         private int _slotIndex = -1;
         private uint _generation;
         private GameObject _instance;
@@ -67,7 +67,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <returns>池化租约。</returns>
         public static PooledGameObject Wrap(GameObject instance)
         {
-            if (!GameObjectPoolService.TryResolveInstance(instance, out RuntimeGameObjectPool pool, out int slotIndex))
+            if (!ObjectPoolService.TryResolveInstance(instance, out RuntimeObjectPool pool, out int slotIndex))
             {
                 return null;
             }
@@ -88,8 +88,8 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="source">池化来源。</param>
         /// <param name="parent">父级 Transform。</param>
         /// <returns>池化租约。</returns>
-        public static PooledGameObject Spawn(GameObjectPoolSource source, Transform parent = null) =>
-            Wrap(GameObjectPoolService.Spawn(source, parent));
+        public static PooledGameObject Spawn(ObjectPoolSource source, Transform parent = null) =>
+            Wrap(ObjectPoolService.Spawn(source, parent));
 
         /// <summary>
         /// 按池化来源异步获取租约。
@@ -98,8 +98,8 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="parent">父级 Transform。</param>
         /// <param name="cancellationToken">取消令牌。</param>
         /// <returns>池化租约。</returns>
-        public static async UniTask<PooledGameObject> SpawnAsync(GameObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
-            Wrap(await GameObjectPoolService.SpawnAsync(source, parent, cancellationToken));
+        public static async UniTask<PooledGameObject> SpawnAsync(ObjectPoolSource source, Transform parent = null, CancellationToken cancellationToken = default) =>
+            Wrap(await ObjectPoolService.SpawnAsync(source, parent, cancellationToken));
 
         #endregion
 
@@ -245,7 +245,7 @@ namespace Moirai.Atropos.ObjectPool
         /// <param name="generation">租期代系。</param>
         /// <param name="instance">实例引用。</param>
         /// <param name="transform">实例 Transform。</param>
-        internal void Bind(RuntimeGameObjectPool owner, int slotIndex, uint generation, GameObject instance, Transform transform)
+        internal void Bind(RuntimeObjectPool owner, int slotIndex, uint generation, GameObject instance, Transform transform)
         {
             _owner = owner;
             _slotIndex = slotIndex;

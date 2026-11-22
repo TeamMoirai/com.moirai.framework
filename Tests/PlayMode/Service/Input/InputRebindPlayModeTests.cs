@@ -56,12 +56,12 @@ namespace Service.Input
             Settings.Internal_UseHandler(_settings);
 
             _keyboard = InputSystem.AddDevice<Keyboard>();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         public override void TearDown()
         {
-            _handler.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
             Object.DestroyImmediate(_asset);
             Settings.Internal_UseHandler(_previousHandler);
             base.TearDown();

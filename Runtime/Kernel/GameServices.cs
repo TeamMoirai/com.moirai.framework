@@ -129,6 +129,7 @@ namespace Moirai.Atropos
         public static void Shutdown()
         {
             EnsureMainThread();
+            InvokeHandlerResetters();
             if (s_World == null) return;
             s_World.Dispose();
             s_World = null;
@@ -144,6 +145,7 @@ namespace Moirai.Atropos
         public static async UniTask ShutdownAsync()
         {
             EnsureMainThread();
+            InvokeHandlerResetters();
             if (s_World == null) return;
             await s_World.DisposeAsync();
             s_World = null;
@@ -214,41 +216,74 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 确保服务已注册到指定作用域，未注册时创建默认实例并注册（幂等）。
+        /// 条件注销：仅当契约当前绑定的就是该实例时注销并关闭，否则空操作。
         /// </summary>
         /// <remarks>
-        /// ProviderHandlerHost 外观懒加载路径（<c>CreateDefaultHandler</c>）调用：首次经外观访问服务时自动完成世界注册——世界未初始化时挂入待初始化图（依赖校验在初始化拓扑时统一执行），已初始化时立即注册并初始化。 <br />
-        /// 关闭态阻断懒加载复活——显式 RegisterService 是关闭后重建世界的唯一路径。
+        /// 生成 setter 的旧实例收尾路径；槽位/测试换入的未注册实例不误伤契约上的其它绑定。
         /// </remarks>
-        /// <typeparam name="T">服务具体类型（契约即类型本身，须有无参构造函数）。</typeparam>
-        /// <param name="scope">目标作用域。</param>
-        internal static void EnsureRegistered<T>(EServiceScopeKind scope = EServiceScopeKind.App)
-            where T : class, IService, new()
+        /// <param name="contractType">契约类型。</param>
+        /// <param name="handler">待注销的处理器实例。</param>
+        /// <returns>执行了注销为真；未绑定该实例（或世界已弃置）为假。</returns>
+        internal static bool UnregisterHandler(Type contractType, IService handler)
         {
-            var world = Default;
+            EnsureMainThread();
+            return Default.UnregisterIfBound(contractType, handler);
+        }
 
-            if (world.TryGetScope(scope, out var targetScope) &&
-                targetScope.TryGet(typeof(T), out _))
+        /// <summary>已登记清槽回调的服务门面，世界关停时逐个落槽。</summary>
+        private static System.Collections.Generic.List<System.Action> s_HandlerResetters;
+
+        /// <summary>
+        /// 登记一枚服务门面的清槽回调。
+        /// </summary>
+        /// <remarks>由 <c>[ProviderHandlerHost]</c> 生成的装配路径在首次装配时登记（宿主侧自带去重门）；关停路径据此把静态槽与容器绑定一并收口。</remarks>
+        /// <param name="resetter">清槽回调。</param>
+        internal static void RegisterHandlerResetter(System.Action resetter)
+        {
+            (s_HandlerResetters ??= new System.Collections.Generic.List<System.Action>(16)).Add(resetter);
+        }
+
+        /// <summary>
+        /// 落尽全部已登记服务门面的缓存槽。
+        /// </summary>
+        /// <remarks>世界关停即「槽位 ≡ 容器实例」的失效点：登记过的槽位由内核推送清空，读侧不再逐次回查容器。</remarks>
+        private static void InvokeHandlerResetters()
+        {
+            var resetters = s_HandlerResetters;
+            if (resetters == null) return;
+
+            for (var i = 0; i < resetters.Count; i++)
             {
-                // 已注册（含待初始化）：懒加载契约=可用——世界未初始化且不在初始化循环内时补提交初始化
-                if (!world.IsInitialized && !world.IsInitializing)
-                    world.Initialize();
-                return;
+                resetters[i]();
             }
+        }
+
+        /// <summary>
+        /// 判定服务门面此刻能否自行装配后端——组合根预热之外的懒加载入口闸。
+        /// </summary>
+        /// <remarks>
+        /// 世界由组合根「先入图 → 再拓扑驱动」两段式建立，放开懒装配的窗口只有已初始化与初始化在途两种。 <br />
+        /// 世界未建＝启动序被越过；已建未初始化且不在初始化中＝预热未发生；已关闭＝退出途中的迟到读。三者一律判红，不静默返回未初始化实例。
+        /// </remarks>
+        /// <param name="hostName">门面类名（异常正文用）。</param>
+        /// <exception cref="GameException">世界不可用或尚未初始化就绪。</exception>
+        internal static void EnsureFacadeAssemblyAllowed(string hostName)
+        {
+            var world = s_World;
+            if (world != null && (world.IsInitialized || world.IsInitializing)) return;
 
             if (GameApp.IsShutdown)
             {
                 throw new GameException(StringUtility.Format(
-                    "EnsureRegistered<{0}> blocked: GameApp is shut down. Rebuild the world via explicit RegisterService.",
-                    typeof(T).FullName));
+                    "ProviderHandlerHost: '{0}' blocked: GameApp is shut down. Rebuild the world via explicit RegisterService.",
+                    hostName));
             }
 
-            RegisterService<T>(scope, new T());
-
-            // 注册即可用：世界未初始化且不在初始化循环内时立即提交初始化
-            // （初始化循环内的重入由外层循环按索引推进接管，禁止嵌套初始化）
-            if (!world.IsInitialized && !world.IsInitializing)
-                world.Initialize();
+            throw new GameException(StringUtility.Format(
+                world == null
+                    ? "ProviderHandlerHost: '{0}' was accessed before the service world exists. Boot the app before using service facades."
+                    : "ProviderHandlerHost: '{0}' was accessed before the world was initialized - warm the backend from the composition root instead of relying on lazy registration.",
+                hostName));
         }
 
         /// <summary>
@@ -354,6 +389,13 @@ namespace Moirai.Atropos
         #endregion
 
         #region 状态辅助 [STATE HELPERS]
+
+        /// <summary>服务是否处于就绪态（判据在 <see cref="LifecycleMachine.IsReady"/>，本方法只负责取状态）。</summary>
+        /// <remarks>门面读数与家族基座的关停门控一律转调本方法，不另抄比较。</remarks>
+        /// <param name="service">待判定的服务实例。</param>
+        /// <returns>处于就绪态为真。</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool IsReady(IService service) => LifecycleMachine.IsReady(GetState(service));
 
         internal static EServiceState GetState(IService service)
         {

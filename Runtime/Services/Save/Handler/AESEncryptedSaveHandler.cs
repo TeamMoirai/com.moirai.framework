@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Sirenix.OdinInspector;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 
 namespace Moirai.Atropos.Save
@@ -11,8 +12,9 @@ namespace Moirai.Atropos.Save
     /// 上线前须在 Inspector 配置项目专属提供方）。 <br />
     /// 派生材料由提供方按参数缓存；提供方须为纯 .NET，工作线程调用安全。
     /// </remarks>
-    [ProviderDisplay(title: "AES 加密存档", description: "AES-256-CBC + HMAC（encrypt-then-MAC）；密钥经下方提供方注入，上线前须换掉占位密钥")]
     [Serializable]
+    [ServiceDependency(typeof(IDebuggerService))]
+    [ProviderDisplay(title: "AES 加密存档", description: "AES-256-CBC + HMAC（encrypt-then-MAC）；密钥经下方提供方注入，上线前须换掉占位密钥")]
     // ReSharper disable once InconsistentNaming
     internal class AESEncryptedSaveHandler : SaveServiceHandler
     {

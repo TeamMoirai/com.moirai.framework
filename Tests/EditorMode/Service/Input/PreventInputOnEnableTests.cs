@@ -28,7 +28,10 @@ namespace Service.Input
         {
             _savedHandler = InputService.Internal_PeekHandler();
             _handler = new UIMobileInputHandler();
-            InputService.Handler = _handler;
+            // 直驱初始化（Context 缺席 → 仅后端状态机接线）+ 无注册语义的槽位换入：
+            // 生成的 setter 现在带容器注册副作用，测试沙盒不得走它
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
+            InputService.Internal_UseHandler(_handler);
         }
 
         [TearDown]
@@ -42,7 +45,7 @@ namespace Service.Input
 
             if (_handler != null)
             {
-                _handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
                 _handler = null;
             }
 

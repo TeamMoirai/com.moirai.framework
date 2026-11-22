@@ -8,8 +8,8 @@ namespace Moirai.Atropos.Procedure
     /// </summary>
     /// <remarks>
     /// 自包含状态机契约，不依赖外部 FSM 服务；默认实现 <see cref="DefaultProcedureHandler"/> 由 <see cref="ProcedureServiceSettings"/> 驱动初始化。 <br />
-    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/>（生命周期与序列化基座）； <br />
-    /// <c>OnInitAsync</c>/<c>OnShutdownAsync</c> 不会被 await，异步就绪的后端在 <see cref="Moirai.Atropos.FrameworkHandler.OnInit"/> 内自管。 <br />
+    /// 实现约束：实现类须继承 <see cref="Moirai.Atropos.ServiceBase"/>（绑定即注册进容器，生命周期由容器拓扑驱动）； <br />
+    /// 异步就绪的后端实现 <see cref="Moirai.Atropos.IServiceInitializableAsync"/> / <see cref="Moirai.Atropos.IAsyncShutdownService"/>，由容器在初始化/关闭管线驱动。 <br />
     /// 切换记录契约：每次切换完成（<c>OnEnter</c> 返回后）后端须把记录写进 <see cref="TransitionHistory"/>（写法见 <see cref="ProcedureBackendPolicy.RecordTransition"/>）—— <br />
     /// <see cref="ProcedureService.onProcedureChanged"/> 广播由 <see cref="ProcedureBackendPolicy"/> 承载，关停切换（To 为 null）仅记历史。 <br />
     /// 广播期间后端 <c>StartProcedure</c>/<c>ChangeState</c> 须拒绝重入（抛 <see cref="GameException"/>）；OnEnter/OnLeave 内的嵌套切换发生在记录之前，不受广播标志影响。
@@ -36,10 +36,6 @@ namespace Moirai.Atropos.Procedure
         /// <remarks>关停后保留（含关停记录，供事后诊断），重新 <see cref="Initialize"/> 时清空。</remarks>
         IReadOnlyList<ProcedureTransitionRecord> TransitionHistory { get; }
 
-        /// <summary>
-        /// 轮询当前流程。
-        /// </summary>
-        void Tick(float elapseSeconds, float realElapseSeconds);
 
         /// <summary>
         /// 初始化流程管理器。

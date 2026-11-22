@@ -9,57 +9,26 @@ using System.Runtime.CompilerServices;
 namespace Moirai.Atropos.ConfigTable
 {
     /// <summary>
-    /// 配置表服务外观（Facade）：统一的静态配置表访问入口，替换 <see cref="Handler"/> 即可在不同后端之间零成本切换。
+    /// 配置表服务外观（Facade）：统一静态访问入口 + 后端实例公共缓存。
     /// </summary>
     /// <remarks>
+    /// 容器是唯一事实源：settings 选出的后端 handler 作为 <see cref="IConfigTableService"/> 契约服务注册进 <see cref="GameServices"/>， <br />
+    /// 本类缓存该实例（懒链注册结果回填）；服务互调经 <c>GameServices.GetRequiredService&lt;IConfigTableService&gt;()</c> 解析。 <br />
     /// 未显式设置处理器时，懒加载优先从 <see cref="ConfigTableServiceSettings"/> 解析，未配置则回退 <see cref="CreateDefaultHandler"/>。
-    /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成，线程安全懒加载。
+    /// <see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成，懒加载 + 绑定即注册。
     /// </remarks>
-    [AutoRegisterService]
-    [ServiceDependency(typeof(IAssetService))]
     [ProviderHandlerHost(typeof(IConfigTableService), typeof(DefaultConfigTableHandler))]
-    public partial class ConfigTableService : ServiceBase
+    public static partial class ConfigTableService
     {
-        #region 生命周期 [LIFECYCLE]
-
         /// <summary>
-        /// 从 <see cref="ConfigTableServiceSettings"/> 解析配置表处理器。
+        /// 从 <see cref="ConfigTableServiceSettings"/> 解析配置表处理器（懒链 settings 来源；注册与缓存回填由生成代码完成）。
         /// </summary>
-        /// <remarks>首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>，幂等），首次访问即完成世界注册。</remarks>
+        /// <remarks>表数据经资源系统装载（依赖 <see cref="Asset.AssetService"/>）；被 <see cref="Localization.LocalizationService"/> 反向依赖（本地化默认数据源即配置表）。</remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static IConfigTableService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<ConfigTableService>();
             return ConfigTableServiceSettings.ConfigTableServiceHandler;
         }
-
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.MID_TIER;
-
-        /// <summary>
-        /// 初始化配置表服务。由容器在构建期调用。
-        /// </summary>
-        /// <remarks>
-        /// 依赖 <see cref="AssetService"/> 已就绪：表数据经资源系统装载，初始化序必须排在资源服务之后。 <br />
-        /// 被 <see cref="Localization.LocalizationService"/> 反向依赖（本地化默认数据源即配置表）。 <br />
-        /// 本服务无运行时轮询状态，不注册 Profiler 窗口。
-        /// </remarks>
-        public override void OnInit()
-        {
-            _ = Handler;
-        }
-
-        /// <summary>
-        /// 关闭配置表服务。由容器在关闭期调用。
-        /// </summary>
-        public override void OnShutdown()
-        {
-            var handler = s_Handler;
-            s_Handler = null;
-            (handler as FrameworkHandler)?.Internal_Shutdown();
-        }
-
-        #endregion
 
         #region 配置表查询 [CONFIG QUERIES]
 

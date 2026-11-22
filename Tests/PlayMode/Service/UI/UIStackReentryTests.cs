@@ -392,7 +392,7 @@ namespace Service.UI
         }
 
         /// <summary>关闭回叫里开窗的探针窗（缓存实例）：<c>OnClose</c> 里经载荷腿开出 B，用来判回叫链上的事件与载荷。</summary>
-        [Window(EUILayer.Tips, cacheTimeToDestroy: -1f)]
+        [Window(EUILayer.Tips, true, cacheTimeToDestroy: -1f)]
         internal sealed class ReentryAWindow : UGUIWindow
         {
             /// <summary>回叫是否真把 B 开出去了（用例出门前归零）。</summary>
@@ -412,7 +412,7 @@ namespace Service.UI
         }
 
         /// <summary>回叫里被开出的带载荷探针窗：就绪回执次数与回看见的载荷都记账。</summary>
-        [Window(EUILayer.Tips)]
+        [Window(EUILayer.Tips, true)]
         internal sealed class ReentryBWindow : UGUIWindow<string>
         {
             /// <summary>就绪回执被叫到的次数。</summary>
@@ -435,7 +435,7 @@ namespace Service.UI
         }
 
         /// <summary>在飞关开交叉的探针窗：异步装载挂在闸门后，装载次数与终载荷回执都记账。</summary>
-        [Window(EUILayer.Tips)]
+        [Window(EUILayer.Tips, true)]
         internal sealed class CrossFlightProbeWindow : UGUIWindow<string>
         {
             /// <summary>本窗最近一次装载的闸门。</summary>

@@ -1,5 +1,7 @@
 using System;
+using Moirai.Atropos.Asset;
 using Moirai.Atropos.Debugger;
+using Moirai.Atropos.Timer;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,8 +10,9 @@ namespace Moirai.Atropos.UI
     /// <summary>
     /// UI 处理器（后端）：承载 UI 根的取用与常驻、面板装载与窗口实例创建。
     /// </summary>
-    [ProviderDisplay(title: "uGUI 轨", description: "默认：Canvas 根 + UGUI 面板，UITK 壳也挂在这个 UI 根下")]
     [Serializable]
+    [ServiceDependency(typeof(IDebuggerService), typeof(IAssetService), typeof(ITimerService))]
+    [ProviderDisplay(title: "uGUI 轨", description: "默认：Canvas 根 + UGUI 面板，UITK 壳也挂在这个 UI 根下")]
     internal sealed class UGUIHandler : UIServiceHandler
     {
         // 核心字段
@@ -36,6 +39,8 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         protected override void OnInit()
         {
+            base.OnInit();
+
             _rootAwaitingBind = false;
             _rootProblemLogged = false;
             MainThreadDispatcher.Post(TryBindRoot);
@@ -152,12 +157,11 @@ namespace Moirai.Atropos.UI
         internal override void Internal_Register() => UIService.Internal_ClaimUGUITrack(this);
 
         /// <summary>
-        /// 处理器关闭：清理错误日志系统、关掉本轨那半边的窗，再销毁 UI 根节点。
+        /// 处理器关闭：清理错误日志系统、关掉本轨那半边的窗，根销毁移交门面归零门。
         /// </summary>
         /// <remarks>
-        /// 只交自己那一轨的窗进共享栈的关闭流程（<see cref="UIServiceHandler.CloseOwnTrackWindows"/>），另一轨的窗留在栈上。<br />
-        /// UI Toolkit 轨的壳挂在本轨的 UI 根下：销毁根之前那些壳必须已被门面收掉，<br />
-        /// 该次序归门面的 <see cref="UIService.OnShutdown"/>（先叫 UI Toolkit 轨、再叫本轨）。
+        /// 只关本轨的窗，另一轨的窗留在栈上。UITK 壳挂在本轨根下而反序拆除里宿主先拆—— <br />
+        /// 根销毁推迟到全轨摘净（<see cref="UIService.Internal_ResetHandlerSlots"/>）落锤。
         /// </remarks>
         protected override void OnShutdown()
         {
@@ -169,17 +173,10 @@ namespace Moirai.Atropos.UI
             CloseOwnTrackWindows(true);
             if (_instanceRoot != null && _instanceRoot.parent != null)
             {
-                // EditMode 下 Object.Destroy 只会报错不落账——测试夹具与编辑器工具走 DestroyImmediate
-                if (Application.isPlaying)
-                {
-                    UnityEngine.Object.Destroy(_instanceRoot.parent.gameObject);
-                }
-                else
-                {
-                    UnityEngine.Object.DestroyImmediate(_instanceRoot.parent.gameObject);
-                }
+                UIService.HandUGUIRootToDestroyGate(_instanceRoot.parent.gameObject);
             }
 
+            UIService.Internal_DetachUGUITrack(this);
             base.OnShutdown();
             _instanceRoot = null;
             _uiCamera = null;
@@ -196,7 +193,7 @@ namespace Moirai.Atropos.UI
         /// </remarks>
         /// <param name="elapseSeconds">逻辑经过的秒数（本轨不吃）。</param>
         /// <param name="realElapseSeconds">真实经过的秒数（本轨不吃）。</param>
-        public override void Tick(float elapseSeconds, float realElapseSeconds)
+        protected override void OnTrackTick(float elapseSeconds, float realElapseSeconds)
         {
             if (_rootAwaitingBind)
             {

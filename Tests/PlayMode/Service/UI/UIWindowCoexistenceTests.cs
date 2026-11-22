@@ -589,7 +589,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨探针窗（<see cref="EUILayer.UI"/>）：同步与异步装载都当场交出代码面板。</summary>
-        [Window(EUILayer.UI)]
+        [Window(EUILayer.UI, true)]
         internal sealed class ProbeUGUIWindowOnUiLayer : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -602,7 +602,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨探针窗（<see cref="EUILayer.Tips"/>）：与另一轨同层时判序位表用。</summary>
-        [Window(EUILayer.Tips)]
+        [Window(EUILayer.Tips, true)]
         internal sealed class ProbeUGUIWindowOnTipsLayer : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -613,7 +613,7 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨探针窗（<see cref="EUILayer.Tips"/>）：代码建树，内容根不带模板克隆。</summary>
-        [Window(EUILayer.Tips)]
+        [Window(EUILayer.Tips, true)]
         internal sealed class ProbeUITKWindowOnTipsLayer : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -626,7 +626,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨延迟装载探针窗（<see cref="EUILayer.UI"/>）：面板在若干帧之后才绑上，等待腿要等的就是这一段。</summary>
-        [Window(EUILayer.UI)]
+        [Window(EUILayer.UI, true)]
         internal sealed class ProbeDelayedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -640,7 +640,7 @@ namespace Service.UI
         }
 
         /// <summary>UI Toolkit 轨延迟装载探针窗（<see cref="EUILayer.Tips"/>）：同上一条腿，另一轨各量一次。</summary>
-        [Window(EUILayer.Tips)]
+        [Window(EUILayer.Tips, true)]
         internal sealed class ProbeDelayedUITKWindow : UITKWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>
@@ -654,7 +654,7 @@ namespace Service.UI
         }
 
         /// <summary>uGUI 轨缓存实例探针窗（<see cref="EUILayer.UI"/>）：关闭后停放，重开交回同一个。</summary>
-        [Window(EUILayer.UI, cacheTimeToDestroy: -1f)]
+        [Window(EUILayer.UI, true, cacheTimeToDestroy: -1f)]
         internal sealed class ProbeCachedUGUIWindow : UGUIWindow
         {
             protected internal override bool LoadPanel(string assetLocation, bool fromResources) =>

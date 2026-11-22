@@ -1,4 +1,4 @@
-using System;
+using System.Runtime.CompilerServices;
 
 namespace Moirai.Atropos
 {
@@ -6,10 +6,11 @@ namespace Moirai.Atropos
     /// 纯 C# 服务基类。不依赖 MonoBehaviour，生命周期由 <see cref="ServiceWorld"/> 控制。
     /// </summary>
     /// <remarks>
-    /// 依赖通过 <c>[ServiceDependency]</c> 特性声明，世界初始化时按依赖图拓扑排序驱动 <see cref="OnInit"/>。 <br />
+    /// 状态机与装配/释放钩子来自 <see cref="HandlerBase"/>，本类只补容器侧的契约面。 <br />
+    /// 依赖通过 <c>[ServiceDependency]</c> 特性声明，世界初始化时按依赖图拓扑排序驱动 <see cref="HandlerBase.OnInit"/>。 <br />
     /// 运行时延迟解析统一走 <see cref="GameServices.GetRequiredService{T}"/> / <see cref="GameServices.TryGetService{T}"/>。
     /// </remarks>
-    public abstract class ServiceBase : IService, IServiceLifecycle, IServiceContextAware
+    public abstract class ServiceBase : HandlerBase, IService, IServiceLifecycle, IServiceContextAware
     {
         #region 属性 [PROPERTIES]
 
@@ -20,51 +21,42 @@ namespace Moirai.Atropos
         public virtual int Priority => 0;
         public virtual EServiceScopeKind Scope => EServiceScopeKind.App;
 
-        /// <summary>当前生命周期状态（只读投影；唯一事实源在容器侧，由容器经 <see cref="IServiceLifecycle"/> 驱动转换）。</summary>
-        public EServiceState State { get; private set; } = EServiceState.Created;
-
-        #endregion
-
-        #region 生命周期 [LIFECYCLE]
-
-        public abstract void OnInit();
-        public abstract void OnShutdown();
-
         #endregion
 
         #region 上下文注入 [CONTEXT INJECTION]
 
-        /// <summary>服务上下文（容器在注册入图时经 <see cref="IServiceContextAware"/> 注入；派生在 <see cref="OnInit"/> 中按契约接口解析依赖）。</summary>
+        /// <summary>服务上下文（容器在注册入图时经 <see cref="IServiceContextAware"/> 注入；派生在 <see cref="HandlerBase.OnInit"/> 中按契约接口解析依赖）。</summary>
         protected IServiceContext Context { get; private set; }
 
         void IServiceContextAware.SetContext(IServiceContext context) => Context = context;
 
         #endregion 上下文注入 [CONTEXT INJECTION]
 
+        #region IService 实现 [SERVICE CONTRACT]
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IService.OnInit() => OnInit();
+
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IService.OnShutdown() => OnShutdown();
+
+        #endregion IService 实现 [SERVICE CONTRACT]
+
         #region IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
 
+        /// <inheritdoc />
         EServiceState IServiceLifecycle.StateInternal => State;
 
-        void IServiceLifecycle.Initialize()
-        {
-            if (State >= EServiceState.Initialized) return;
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IServiceLifecycle.Initialize() => DriveInitialize();
 
-            OnInit();
-            // OnInit 期间可能被外部关闭（退出应用时 Dispose 打在初始化途中）：
-            // 无条件赋值会把 ShuttingDown/Disposed 盖回 Initialized，让已关闭的服务重新"就绪"
-            if (State == EServiceState.Created) State = EServiceState.Initialized;
-        }
+        /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IServiceLifecycle.Destroy() => DriveShutdown();
 
-        void IServiceLifecycle.Destroy()
-        {
-            if (State >= EServiceState.ShuttingDown) return;
-
-            State = EServiceState.ShuttingDown;
-            try { OnShutdown(); }
-            catch (Exception ex) { LogUtility.Error(ex.ToString()); }
-            State = EServiceState.Disposed;
-        }
-
-        #endregion
+        #endregion IServiceLifecycle 实现 [RUNTIME LIFECYCLE]
     }
 }

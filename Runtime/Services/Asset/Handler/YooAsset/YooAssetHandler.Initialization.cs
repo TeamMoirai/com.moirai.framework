@@ -153,6 +153,8 @@ namespace Moirai.Atropos.Asset
         /// <remarks>由 <see cref="AssetService.OnShutdown"/> 在容器关闭期调用。</remarks>
         protected override void OnShutdown()
         {
+            base.OnShutdown();
+
             Store._isDestroying = true;
             Store._unloadGeneration++;
             _bindingService?.Shutdown();

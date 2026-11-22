@@ -11,16 +11,16 @@ namespace Moirai.Atropos.Tests.EditorMode.Service.Kernel
     {
         private sealed class BrokenService : ServiceBase
         {
-            public override void OnInit() { }
-            public override void OnShutdown() { }
+            protected override void OnInit() { }
+            protected override void OnShutdown() { }
         }
 
         /// <summary>声明了一个未注册依赖的依赖方：运行时注册时依赖校验必须失败。</summary>
         [ServiceDependency(typeof(Tim.ITimerService))]
         private sealed class DependentService : ServiceBase
         {
-            public override void OnInit() { }
-            public override void OnShutdown() { }
+            protected override void OnInit() { }
+            protected override void OnShutdown() { }
         }
 
 

@@ -6,26 +6,25 @@ using NUnit.Framework;
 namespace Service.UI
 {
     /// <summary>
-    /// IUIService 契约绑定与显式实现转发的契约守卫。
+    /// IUIService 契约 DIM 落地与门面静态语义对齐的契约守卫。
     /// </summary>
     /// <remarks>
-    /// UIService 双轨例外不声明 [ProviderHandlerHost]，契约绑定由组合根显式补登； <br />
-    /// 本夹具用隔离世界复刻同一条绑定路径，验证解析与事件桥接机制。
+    /// 回摆口径：IUIService 不再有单一注册实体——两支后端 handler 直接落地契约（DIM 全量转发静态门面）； <br />
+    /// 本夹具用后端 handler 验证契约实例与静态门面读同一语义源、事件直订门面静态广播。
     /// </remarks>
     [TestFixture]
     public class IUIServiceContractTests
     {
         private ServiceWorld _world;
-        private UIService _ui;
+        private UITKHandler _handler;
 
         [SetUp]
         public void SetUp()
         {
             _world = new ServiceWorld();
-            _ui = new UIService();
-            // 组合根同款绑定路径：先注册实例，再显式补登 IUIService 契约绑定
-            _world.Register(EServiceScopeKind.App, _ui);
-            _world.Register(EServiceScopeKind.App, typeof(IUIService), _ui);
+            _handler = new UITKHandler();
+            // 回摆后契约键 = 各自具体类型（RegisterEnabledHandlers 同款路径）：handler 即注册实体
+            _world.Register(EServiceScopeKind.App, _handler);
         }
 
         [TearDown]
@@ -33,44 +32,37 @@ namespace Service.UI
         {
             // 未激活（未 OnInit）的隔离世界不 Dispose：纯托管对象图交由 GC 回收
             _world = null;
-            _ui = null;
+            _handler = null;
         }
 
         [Test]
-        public void ContractBinding_ResolvesFacadeInstance()
+        public void ContractInstance_QueryMatchesStaticFacade()
         {
-            Assert.IsTrue(_world.TryGetService(out IUIService resolved),
-                "IUIService 契约绑定未生效：组合根显式补登后 Context 解析应命中门面实例");
-            Assert.AreSame(_ui, resolved, "契约解析应命中注册的同一 UIService 实例");
+            Assert.IsTrue(_world.TryGetService(out UITKHandler resolved));
+
+            // 轨无关查询面：DIM 默认实现与静态门面读同一条共享账本，空账本下两侧同为 null
+            Assert.AreEqual(UIService.CurrentModal, ((IUIService)resolved).CurrentModal);
+            Assert.AreEqual(UIService.NavigationDepth, ((IUIService)resolved).NavigationDepth);
         }
 
         [Test]
-        public void ContractQuery_MatchesStaticFacade()
+        public void ContractInstance_StaticEventSubscriptionReceivesRaise()
         {
-            Assert.IsTrue(_world.TryGetService(out IUIService resolved));
-
-            // 轨无关查询面：契约实例与静态门面读同一条共享账本，空账本下两侧同为 null
-            Assert.AreEqual(UIService.CurrentModal, resolved.CurrentModal);
-            Assert.AreEqual(UIService.NavigationDepth, resolved.NavigationDepth);
-        }
-
-        [Test]
-        public void ContractEventBridge_InstanceSubscriptionReceivesStaticRaise()
-        {
-            Assert.IsTrue(_world.TryGetService(out IUIService resolved));
+            Assert.IsTrue(_world.TryGetService(out UITKHandler resolved));
 
             var window = new ProbeWindow();
             UIWindow received = null;
 
-            resolved.onWindowShown += OnShown;
+            // 回摆后契约事件成员已移除：消费方直订门面静态事件（同一语义源）
+            UIService.onWindowShown += OnShown;
             try
             {
                 UIService.Internal_RaiseWindowShown(window);
-                Assert.AreSame(window, received, "经契约实例订阅应桥接到门面静态事件并收到广播");
+                Assert.AreSame(window, received, "直订门面静态事件应收到广播");
             }
             finally
             {
-                resolved.onWindowShown -= OnShown;
+                UIService.onWindowShown -= OnShown;
             }
 
             void OnShown(UIWindow shown) => received = shown;

@@ -1,10 +1,9 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Debugger;
 using UnityEngine;
 
 namespace Moirai.Atropos.Save
@@ -19,7 +18,9 @@ namespace Moirai.Atropos.Save
     /// 读取失败返回 <c>default</c> 并记错误日志（错误判别用 Try* 族的 <see cref="SaveResult{T}"/>）；删除幂等——目标不存在视为成功。 <br />
     /// 实例由 <see cref="SaveServiceSettings"/> 序列化持有，经 <see cref="SaveService"/> 静态外观访问。
     /// </remarks>
-    public abstract partial class SaveServiceHandler : FrameworkHandler, ISaveService
+    [Serializable]
+    [ServiceDependency(typeof(IDebuggerService))]
+    public abstract partial class SaveServiceHandler : ServiceBase, ISaveService
     {
         /// <summary>存档数据根目录名（persistentDataPath 下）。</summary>
         public const string DATA_FOLDER_NAME = "Data";
@@ -101,8 +102,36 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 初始化存档处理器。由容器在构建期调用（主线程：校验存储后端配置，并后台清扫孤儿临时文件）。
         /// </summary>
+        /// <inheritdoc />
+        public override int Priority => ServicePriorityOrder.MID_TIER;
+
+        /// <summary>
+        /// 关闭存档处理器。由容器在关闭期驱动（注销/世界收口）：容器编排收尾随行。
+        /// </summary>
+        protected override void OnShutdown()
+        {
+            // 槽位失效只在真实容器拆除时发生（State 门）：handler 内部复用 OnShutdown 做引导重置时不清槽
+            if (State >= EServiceState.ShuttingDown)
+            {
+                SaveService.InvalidateHandler(this);
+            }
+            // 编排收尾以就绪态为闸：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown，此时依赖可能已先被拆走
+            if (IsReady && Context != null)
+            {
+                SaveService.OnHandlerShuttingDown(Context.GetRequiredService<IDebuggerService>());
+            }
+        }
+
+        /// <summary>
+        /// 初始化存档处理器。由容器在拓扑位驱动：容器编排（调试面板注册）以 Context 就位为闸随行。
+        /// </summary>
         protected override void OnInit()
         {
+            if (Context != null)
+            {
+                SaveService.OnHandlerInitialized(Context.GetRequiredService<IDebuggerService>());
+            }
+
             if (m_StorageBackend == null)
             {
                 LogUtility.Warning("[SaveService] Storage backend is not configured, falling back to FileSaveStorageBackend.");

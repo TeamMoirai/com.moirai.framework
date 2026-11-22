@@ -31,7 +31,8 @@ namespace Moirai.Atropos.UI
         // ReSharper disable once InconsistentNaming
         private static readonly UITrack s_UITKTrack = Internal_RegisterTrack(new UITrack(
             "UITK", typeof(UITKWindow), UITrack.SHUTDOWN_ORDER_DEFAULT,
-            IsOnUITKTrack, IsUITKValidProbe, OpenUITKWindowForTypeEntry));
+            IsOnUITKTrack, IsUITKValidProbe, OpenUITKWindowForTypeEntry,
+            typeof(UITKHandler)));
 
         /// <summary>UI Toolkit 轨的有效性探针：只读本轨槽位，目录不另记一份在位状态。</summary>
         // ReSharper disable once InconsistentNaming
@@ -96,16 +97,22 @@ namespace Moirai.Atropos.UI
                     "UI backend track 'UITK' already has a driver in place: one track takes exactly one driver.");
             }
 
-            s_UITKTrack.AttachDriver(handler.Internal_Shutdown);
+            // 初始化由容器驱动的 OnInit（或测试直驱）承担：认领门只管占槽、挂广播与关停委托
+            s_UITKTrack.AttachDriver(() => ((Moirai.Atropos.IServiceLifecycle)handler).Destroy());
             Internal_SubscribeUITKTrack(handler);
-            handler.Internal_Init();
         }
 
         /// <summary>
         /// 摘掉本轨的处理器槽：只清位，不跑关停，也不碰广播——广播由门面整批摘。
         /// </summary>
-        private static void Internal_DetachUITKTrack()
+        internal static void Internal_DetachUITKTrack(UITKHandler handler = null)
         {
+            if (handler != null)
+            {
+                onScreenSafeArea -= handler.ApplyScreenSafeRect;
+                onNotchSimulate -= handler.SimulateIPhoneXNotchScreen;
+            }
+
             Interlocked.Exchange(ref s_UITKHandler, null);
         }
 
@@ -118,10 +125,8 @@ namespace Moirai.Atropos.UI
         /// <param name="handler">按启用清单刚造出来的驱动者。</param>
         private static void Internal_SubscribeUITKTrack(UITKHandler handler)
         {
-            onTrackTick += handler.Tick;
             onScreenSafeArea += handler.ApplyScreenSafeRect;
             onNotchSimulate += handler.SimulateIPhoneXNotchScreen;
-            onDetachTrackSlots += Internal_DetachUITKTrack;
         }
 
         #region 显示窗口（UI Toolkit 腿） [SHOW WINDOW UITK]

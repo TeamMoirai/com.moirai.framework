@@ -29,7 +29,7 @@ namespace Service.UI
             _savedEnabledHandlers = UIServiceSettings.EnabledHandlers;
             UIService.Internal_ResetHandlerSlots();
             UIServiceSettings.Internal_SetEnabledHandlers(new UIServiceHandler[] { new UGUIHandler() });
-            new UIService().OnInit();
+            UIService.EnableHandlersForTests();
         }
 
         [TearDown]

@@ -40,7 +40,7 @@ namespace Service.Audio
             _clip.SetData(data, 0);
 
             _handler = new UnityAudioHandler();
-            _handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]

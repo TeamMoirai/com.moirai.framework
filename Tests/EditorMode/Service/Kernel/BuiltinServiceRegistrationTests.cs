@@ -8,68 +8,73 @@ using UnityEngine;
 namespace Service.Kernel
 {
     /// <summary>
-    /// 内置服务自动注册（[AutoRegisterService] + BuiltinServiceRegistrationGenerator）的契约守卫。
+    /// 组合根注册清单（BuiltinServiceRegistrationGenerator）的契约守卫。
     /// </summary>
     /// <remarks>
-    /// ① 生成清单 <c>BuiltinServiceRegistration.RegisterAll</c> 的注册集合与程序集内标记集合严格相等； <br />
-    /// ② 框架程序集内全部可实例化的非 MonoBehaviour <see cref="IService"/> 实现必须带标记——组合根不再持有手写清单，漏标服务将永远不会注册。
+    /// 清单形态 = 纯服务后端预热（[AutoRegisterService] 实例注册已退役）：RegisterAll 只发射 <c>WarmHandler</c>。 <br />
+    /// ① RegisterAll 注册的契约键恰好覆盖全部 [ProviderHandlerHost] 接口契约宿主，实现都是 ServiceBase 派生后端； <br />
+    /// ② 服务后端豁免标记校验——契约接口实现走 settings 选型；UIServiceHandler 家族派生走 UI 认轨注册。
     /// </remarks>
     [TestFixture]
     public class BuiltinServiceRegistrationTests
     {
         private static readonly Assembly s_FrameworkAssembly = typeof(GameApp).Assembly;
 
-        [Test]
-        public void RegisterAll_RegistersExactlyMarkedTypes()
+        [TearDown]
+        public void TearDown()
         {
-            var marked = CollectMarkedTypes();
+            // RegisterAll 的预热把 settings handler 回填进缓存槽并注册进默认世界；本测试不消费槽位，
+            // 关掉世界让兜底销毁驱动失效钩子清槽，避免跨夹具残留（EditMode 同域共享静态态）。
+            GameServices.Shutdown();
+        }
 
-            Assert.Greater(marked.Count, 0, "程序集内未发现任何 [AutoRegisterService] 标记——生成器或特性失效");
+        [Test]
+        public void RegisterAll_WarmsExactlyProviderContractHosts()
+        {
+            // WarmHandler 走默认世界（GameServices 静态投影）：先复位到全新未初始化世界，
+            // 保证服务后端预热走「先入图」路径，而不是对已初始化世界做运行时依赖校验
+            GameServices.Shutdown();
 
-            var world = new ServiceWorld();
-            // 故意不 Dispose：隔离世界持有的是未初始化的真实服务实例，
-            // Dispose 会对未激活服务兜底驱动 OnShutdown（ServiceScope.DisposeInternal），无必要引入副作用；
-            // 纯托管对象图交由 GC 回收即可。
+            var providerContracts = CollectProviderContractInterfaces();
+            Assert.Greater(providerContracts.Count, 0,
+                "程序集内未发现任何 [ProviderHandlerHost] 接口契约宿主——特性或收集失效");
+
+            // warm 链经 GameServices.RegisterService 静态投影注册，目标恒为默认世界——
+            // 隔离世界收不到预热产物（生成代码的组合根语义），诊断必须对 Default 收集
+            var world = GameServices.Default;
             BuiltinServiceRegistration.RegisterAll(world);
 
-            foreach (var pair in marked)
-            {
-                Assert.IsTrue(world.TryGetScope(pair.Key, out var scope),
-                    $"作用域未创建：{pair.Key}（服务 {pair.Value.FullName}）");
-                Assert.IsTrue(scope.TryGet(pair.Value, out var service),
-                    $"标记服务未注册：{pair.Value.FullName}");
-                Assert.IsInstanceOf(pair.Value, service,
-                    $"注册实例类型不符：期望 {pair.Value.FullName}，实际 {service.GetType().FullName}");
-            }
-
-            // 反向校验：各作用域注册总数与标记数相等（无多注册/重复展开）
             var infos = new List<GameServices.DiagnosticInfo>();
             world.CollectDiagnosticInfo(infos);
 
-            var expectedPerScope = new Dictionary<EServiceScopeKind, int>();
-            foreach (var pair in marked)
-            {
-                expectedPerScope.TryGetValue(pair.Key, out int count);
-                expectedPerScope[pair.Key] = count + 1;
-            }
-
+            var registeredContracts = new HashSet<string>(StringComparer.Ordinal);
             foreach (var info in infos)
             {
-                Assert.IsTrue(expectedPerScope.TryGetValue(info.Scope, out _),
-                    $"出现了标记集合之外的作用域注册：{info.ContractType} @ {info.Scope}");
-                expectedPerScope[info.Scope]--;
+                Assert.IsTrue(providerContracts.TryGetValue(Type.GetType(info.ContractType) ?? FindTypeInLoadedAssemblies(info.ContractType), out _),
+                    $"出现了契约宿主清单之外的作用域注册：{info.ContractType} @ {info.Scope}");
+                registeredContracts.Add(info.ContractType);
+
+                // 实现必须是 ServiceBase 派生的服务后端（绑定即注册，无裸实例注册）
+                var impl = typeof(ServiceBase).Assembly.GetType(info.ImplementationType)
+                    ?? FindTypeInLoadedAssemblies(info.ImplementationType);
+                Assert.IsTrue(impl != null && typeof(ServiceBase).IsAssignableFrom(impl),
+                    $"契约 {info.ContractType} 绑定的实现不是 ServiceBase 派生后端：{info.ImplementationType}");
             }
 
-            foreach (var pair in expectedPerScope)
+            foreach (var contract in providerContracts)
             {
-                Assert.AreEqual(0, pair.Value,
-                    $"作用域 {pair.Key} 注册数量与标记数量不一致（差值 {pair.Value}）");
+                Assert.IsTrue(registeredContracts.Contains(contract.FullName),
+                    $"契约宿主未被预热注册：{contract.FullName}");
             }
         }
 
         [Test]
-        public void BuiltinServices_AllInstantiableServices_AreMarked()
+        public void BuiltinServices_ServiceBackends_AreExemptFromMarking()
         {
+            // 回摆后全程序集零标记（12 门面 static 化退役了全部 [AutoRegisterService] 使用点）；
+            // 本守卫反转视角：程序集内全部可实例化的非 MonoBehaviour IService 实现，必须全部落在豁免面内——
+            // 服务后端（契约接口实现 / UI 家族基座派生）由 settings 选型或 UI 认轨注册，不走程序集扫描。
+            var providerContracts = CollectProviderContractInterfaces();
             var violators = new List<string>();
 
             foreach (var type in s_FrameworkAssembly.GetTypes())
@@ -78,34 +83,85 @@ namespace Service.Kernel
                     continue;
                 if (!typeof(IService).IsAssignableFrom(type))
                     continue;
-                // Scene/Gameplay 的 MonoBehaviour 服务（ServiceMono）走 Awake 自注册，不参与自动注册清单
+                // Scene/Gameplay 的 MonoBehaviour 服务（ServiceMono）走 Awake 自注册，不参与组合根清单
                 if (typeof(MonoBehaviour).IsAssignableFrom(type))
                     continue;
                 if (type.GetCustomAttribute<AutoRegisterServiceAttribute>() != null)
+                    continue;
+                // 豁免 1：实现某 ProviderHandlerHost 契约接口的 ServiceBase 派生类（settings 选型驱动）
+                if (IsServiceHandlerBackend(type, providerContracts))
+                    continue;
+                // 豁免 2：UI 双轨家族基座派生类（UIService.RegisterEnabledHandlers 认轨注册，无 ProviderHandlerHost 绑定）
+                if (IsUiTrackHandler(type))
                     continue;
 
                 violators.Add(type.FullName);
             }
 
             Assert.IsEmpty(violators,
-                "以下可实例化服务缺少 [AutoRegisterService] 标记（组合根已改为生成清单，漏标即漏注册）："
+                "以下可实例化服务既无 [AutoRegisterService] 标记也不在服务后端豁免面内（漏注册）："
                 + string.Join(", ", violators));
         }
 
-        private static List<KeyValuePair<EServiceScopeKind, Type>> CollectMarkedTypes()
+        /// <summary>UI 双轨后端判据：UIServiceHandler 家族基座（ServiceBase 派生）的派生类。</summary>
+        private static bool IsUiTrackHandler(Type type)
         {
-            var result = new List<KeyValuePair<EServiceScopeKind, Type>>();
+            var uiFamily = typeof(Moirai.Atropos.UI.IUIService).Assembly.GetType("Moirai.Atropos.UI.UIServiceHandler");
+            return uiFamily != null && uiFamily.IsAssignableFrom(type);
+        }
 
-            foreach (var type in s_FrameworkAssembly.GetTypes())
+        private static Type FindTypeInLoadedAssemblies(string fullName)
+        {
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                var attr = type.GetCustomAttribute<AutoRegisterServiceAttribute>();
-                if (attr == null)
-                    continue;
-
-                result.Add(new KeyValuePair<EServiceScopeKind, Type>(attr.Scope, type));
+                var type = assembly.GetType(fullName);
+                if (type != null) return type;
             }
 
-            return result;
+            return null;
+        }
+
+        /// <summary>全部 [ProviderHandlerHost] 接口契约宿主自报的契约接口（诊断信息以 FullName 记账，键用 FullName）。</summary>
+        private static HashSet<string> CollectProviderContractInterfaceNames()
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Type contract in CollectProviderContractInterfaces())
+            {
+                names.Add(contract.FullName);
+            }
+
+            return names;
+        }
+
+        /// <summary>全部 [ProviderHandlerHost] 接口契约宿主自报的契约接口类型集合。</summary>
+        private static HashSet<Type> CollectProviderContractInterfaces()
+        {
+            var contracts = new HashSet<Type>();
+            foreach (var type in s_FrameworkAssembly.GetTypes())
+            {
+                var attr = type.GetCustomAttribute<ProviderHandlerHostAttribute>();
+                if (attr?.HandlerType == null || !attr.HandlerType.IsInterface)
+                    continue;
+
+                contracts.Add(attr.HandlerType);
+            }
+
+            return contracts;
+        }
+
+        /// <summary>服务后端判据：实现某宿主契约接口的 ServiceBase 派生类。</summary>
+        private static bool IsServiceHandlerBackend(Type type, HashSet<Type> providerContracts)
+        {
+            if (!typeof(ServiceBase).IsAssignableFrom(type))
+                return false;
+
+            foreach (Type contract in providerContracts)
+            {
+                if (contract.IsAssignableFrom(type))
+                    return true;
+            }
+
+            return false;
         }
     }
 }

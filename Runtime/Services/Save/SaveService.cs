@@ -23,10 +23,8 @@ namespace Moirai.Atropos.Save
     /// MySave restored = await SaveService.LoadAsync&lt;MySave&gt;("slot1");
     /// </code>
     /// </example>
-    [AutoRegisterService]
     [ProviderHandlerHost(typeof(ISaveService), typeof(PlainSaveHandler))]
-    [ServiceDependency(typeof(IDebuggerService))]
-    public partial class SaveService : ServiceBase
+    public static partial class SaveService
     {
         /// <summary>便捷单对象 API 读写的保留数据块键。</summary>
         public const string MAIN_BLOCK_KEY = SaveServiceHandler.MAIN_BLOCK_KEY;
@@ -37,12 +35,11 @@ namespace Moirai.Atropos.Save
         /// 从 <see cref="SaveServiceSettings"/> 解析存档处理器。
         /// </summary>
         /// <remarks>
-        /// 首次调用即经 <c>GameServices.EnsureRegistered</c>（幂等）完成世界注册。
+        /// 由生成的懒装配链调用（预热在入图期、懒加载在世界就绪后）；解析出的实例经容器登记契约绑定。
         /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ISaveService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<SaveService>();
             return SaveServiceSettings.SaveServiceHandler;
         }
 
@@ -86,11 +83,6 @@ namespace Moirai.Atropos.Save
             LogUtility.Warning("[SaveService] Sync read APIs return the local mirror only (SyncReadsAuthoritative=false) — remote/cloud content requires the async API family.");
         }
 
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.MID_TIER;
-
-        /// <summary>依赖契约实例（<see cref="OnInit"/> 经上下文解析，Phase 2 注入互调）。</summary>
-        private IDebuggerService _debugger;
 
         /// <summary>
         /// 初始化存档服务。由容器在构建期调用。
@@ -98,27 +90,20 @@ namespace Moirai.Atropos.Save
         /// <remarks>
         /// 调用时触发 <see cref="Handler"/> 懒加载并完成赋值。
         /// </remarks>
-        public override void OnInit()
+        /// <summary>
+        /// 容器编排（后端 OnInit 经 Manager 钩子调用）：注册调试面板。
+        /// </summary>
+        internal static void OnHandlerInitialized(IDebuggerService debugger)
         {
-            _debugger = Context.GetRequiredService<IDebuggerService>();
-
-            // 确保 Handler 已初始化（加密处理器在此阶段注入密钥与派生参数）
-            _ = Handler;
-
-            _debugger.RegisterDebuggerWindow("Profiler/Save", new SaveServiceDebuggerWindow());
+            debugger.RegisterDebuggerWindow("Profiler/Save", new SaveServiceDebuggerWindow());
         }
 
         /// <summary>
-        /// 关闭存档服务。由容器在关闭期调用。
+        /// 容器收尾（后端 OnShutdown 经 Manager 钩子调用）：注销调试面板。
         /// </summary>
-        public override void OnShutdown()
+        internal static void OnHandlerShuttingDown(IDebuggerService debugger)
         {
-            _debugger?.UnregisterDebuggerWindow("Profiler/Save");
-
-            var handler = s_Handler;
-            s_Handler = null;
-            // 契约接口不携带生命周期成员：引擎基座继承 FrameworkHandler，这里按基座关停
-            (handler as FrameworkHandler)?.Internal_Shutdown();
+            debugger?.UnregisterDebuggerWindow("Profiler/Save");
         }
 
         #endregion

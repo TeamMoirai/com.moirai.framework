@@ -65,7 +65,7 @@ namespace Moirai.Atropos.Timer
             EnsureInfoBuffer(Math.Max(TIMER_COUNT, 64) + 16);
 
             s_Handler = new DefaultTimerHandler();
-            s_Handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)s_Handler).Initialize();
 
             long wallStart = Stopwatch.GetTimestamp();
             try
@@ -90,7 +90,7 @@ namespace Moirai.Atropos.Timer
             finally
             {
                 ClearAllTimers();
-                s_Handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)s_Handler).Destroy();
                 s_Handler = null;
             }
 

@@ -9,62 +9,40 @@ using System.Runtime.CompilerServices;
 namespace Moirai.Atropos.Scene
 {
     /// <summary>
-    /// 场景服务外观（Facade），通过替换 <see cref="Handler"/> 即可在不同场景加载后端之间切换。
+    /// 场景服务外观（Facade）：统一静态访问入口 + 后端实例公共缓存。
     /// </summary>
     /// <remarks>
+    /// 容器是唯一事实源：settings 选出的后端 handler（<see cref="DefaultSceneHandler"/>）作为 <see cref="ISceneService"/> 契约服务注册进 <see cref="GameServices"/>， <br />
+    /// 本类缓存该实例（懒链注册结果回填）并把后端基础 API 组合成常用功能；服务互调经 <c>GameServices.GetRequiredService&lt;ISceneService&gt;()</c> 解析。 <br />
     /// 未显式设置处理器时，懒加载优先经 <c>GetHandlerFromSettings</c> 从 <see cref="SceneServiceSettings"/> 解析， <br />
-    /// 未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成器自动生成（线程安全懒加载）。 <br />
+    /// 未配置则回退 <see cref="CreateDefaultHandler"/>；<see cref="Handler"/> 由 <c>ProviderHandlerHostGenerator</c> 源生成器自动生成（懒加载 + 绑定即注册）。 <br />
     /// 错误契约：加载失败抛出 <see cref="GameException"/>；卸载失败以 <c>false</c> 返回并保留登记；服务未注册时查询降级返回默认值、 <br />
     /// 加载静默无效（调用方须检查 <see cref="UnityEngine.SceneManagement.Scene.IsValid"/>）。 <br />
     /// 生命周期事件（<see cref="onMainSceneChanged"/> 等）在主线程同步触发，订阅者异常被隔离记录，不影响其他订阅者；服务关闭时静态事件会被清空。 <br />
     /// 场景短名须尽量全局唯一：碰撞时按名查询/激活/卸载可能解析到错误对象（后注册者覆盖，详见处理器日志）。
     /// </remarks>
-    [AutoRegisterService]
     [ProviderHandlerHost(typeof(ISceneService), typeof(DefaultSceneHandler))]
-    [ServiceDependency(typeof(IAssetService))]
-    public partial class SceneService : ServiceBase
+    public static partial class SceneService
     {
-        #region 生命周期 [LIFECYCLE]
+        #region 生命周期钩子 [LIFECYCLE HOOKS]
 
         /// <summary>
-        /// 从 <see cref="SceneServiceSettings"/> 解析场景处理器。
+        /// 从 <see cref="SceneServiceSettings"/> 解析场景处理器（懒链 settings 来源；注册与缓存回填由生成代码完成）。
         /// </summary>
-        /// <remarks>
-        /// 首行先确保服务已注册（<c>GameServices.EnsureRegistered</c>， <br />
-        /// 幂等）——懒加载主路径（settings 已配置时 <see cref="CreateDefaultHandler"/> 被短路）首次访问即完成世界注册。
-        /// </remarks>
         /// <returns>settings 中配置的处理器；未配置时返回 <c>null</c> 回退到 <see cref="CreateDefaultHandler"/>。</returns>
         private static ISceneService GetHandlerFromSettings()
         {
-            GameServices.EnsureRegistered<SceneService>();
             return SceneServiceSettings.SceneServiceHandler;
         }
 
-        /// <inheritdoc />
-        public override int Priority => ServicePriorityOrder.MID_TIER;
-
         /// <summary>
-        /// 初始化场景服务。由容器在构建期调用。
+        /// 清空生命周期静态事件（后端 OnShutdown 经 Manager 钩子调用；容器路径收口）。
         /// </summary>
-        /// <remarks>
-        /// 确保 <see cref="Handler"/> 已赋值（触发懒加载）。
-        /// </remarks>
-        public override void OnInit()
+        internal static void Internal_ClearLifecycleEvents()
         {
-            _ = Handler;
-        }
-
-        /// <summary>
-        /// 关闭场景服务。由容器在关闭期调用。
-        /// </summary>
-        public override void OnShutdown()
-        {
-            var handler = s_Handler;
-            s_Handler = null;
             onMainSceneChanged = null;
             onSubSceneLoaded = null;
             onSubSceneUnloaded = null;
-            (handler as FrameworkHandler)?.Internal_Shutdown();
         }
 
         #endregion

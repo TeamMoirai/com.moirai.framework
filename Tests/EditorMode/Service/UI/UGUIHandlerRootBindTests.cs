@@ -30,7 +30,7 @@ namespace Service.UI
         {
             if (_handler != null)
             {
-                _handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
                 _handler = null;
             }
 

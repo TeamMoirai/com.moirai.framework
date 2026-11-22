@@ -61,7 +61,7 @@ namespace Service.UI
                 new UGUIHandler(),
                 new UITKHandler(),
             });
-            new UIService().OnInit();
+            UIService.EnableHandlersForTests();
         }
 
         [TearDown]
@@ -534,8 +534,10 @@ namespace Service.UI
         [Test]
         public void HideAndClose_WindowCallsAfterServiceShutdown_FallSilently()
         {
-            new UIService().OnInit();
-            new UIService().OnShutdown();
+            UIService.EnableHandlersForTests();
+            // 回摆后关停 = 容器销毁各支 handler（OnShutdown 收本轨窗与本轨槽）
+            ((Moirai.Atropos.IServiceLifecycle)UIService.Internal_PeekUGUIHandler()).Destroy();
+            ((Moirai.Atropos.IServiceLifecycle)UIService.Internal_PeekUITKHandler()).Destroy();
             Assert.IsFalse(UIService.IsValid, "量具前提坏了：关停没把两支处理器都摘掉");
 
             var window = new ProbeUGUIWindow();
@@ -561,7 +563,7 @@ namespace Service.UI
         [Test]
         public void OnInit_ProductionEntry_LeavesBothTracksOpenable_AndSurvivesASecondInit()
         {
-            new UIService().OnInit();
+            UIService.EnableHandlersForTests();
             Assert.IsInstanceOf<UGUIHandler>(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：OnInit 没把 uGUI 那一轨的驱动者交出来");
             Assert.IsInstanceOf<UITKHandler>(UIService.Internal_PeekUITKHandler(), "量具前提坏了：OnInit 没把 UI Toolkit 那一轨的驱动者交出来");
 
@@ -569,7 +571,7 @@ namespace Service.UI
             UIService.ShowUI(typeof(ProbeLocatedUitkWindow), "ProdUITK");
             Assert.AreEqual(2, UIService.SharedLedger.PeekStack().Count, "生产入口之后两轨各开一个窗都成立");
 
-            new UIService().OnInit();
+            UIService.EnableHandlersForTests();
             Assert.AreEqual(0, UIService.SharedLedger.PeekStack().Count, "再走一次生产入口先归零那一份共享栈：门面的 OnInit 是唯一抹栈的地方");
 
             UIService.ShowUI(typeof(ProbeLocatedUGUIWindow), "ProdUGUI2");
@@ -646,7 +648,7 @@ namespace Service.UI
         public void ShowUI_OnProductionHandler_OpenLandsOnTheSharedStack()
         {
             var handler = UIService.UGUIHandler;
-            new UIService().OnInit();
+            UIService.EnableHandlersForTests();
             Assert.AreSame(handler, UIService.Internal_PeekUGUIHandler(), "量具前提坏了：OnInit 认的就是清单里那一份驱动者");
 
             UIService.ShowUI<ProbeLocatedUGUIWindow>("ProdStack");

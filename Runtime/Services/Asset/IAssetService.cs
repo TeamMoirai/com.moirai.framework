@@ -12,7 +12,7 @@ namespace Moirai.Atropos.Asset
     /// </summary>
     /// <remarks>
     /// 通用资源加载、缓存、租约与绑定契约，框架不依赖具体资源系统；内建后端 <see cref="YooAssetHandler"/>（经家族基座 <see cref="AssetRecordHostHandler"/> 承载记录簿共享实现）， <br />
-    /// 装配外的后端（如 addressables 插件）实现本契约即可。实现约束：实现类须继承 <see cref="Moirai.Atropos.FrameworkHandler"/>（生命周期与序列化基座）。 <br />
+    /// 装配外的后端（如 addressables 插件）实现本契约即可。实现约束：实现类须继承 <see cref="Moirai.Atropos.ServiceBase"/>（绑定即注册进容器，生命周期由容器拓扑驱动）。 <br />
     /// 各成员的语义文档与 <see cref="AssetService"/> 门面对应 API 同源；internal 诊断面（<c>GetLeaseSourceInfos</c>）在附属接口 <see cref="IAssetLeaseDiagnostics"/>，租约窄缝在 <see cref="IAssetLeaseSource"/>。
     /// </remarks>
     public interface IAssetService
@@ -76,14 +76,6 @@ namespace Moirai.Atropos.Asset
 
         /// <summary>PackageVersion。</summary>
         string PackageVersion { get; set; }
-
-        /// <summary>是否已经初始化（生命周期标志，源自 FrameworkHandler.IsInitialized）。</summary>
-        bool IsInitialized { get; }
-
-        /// <summary>
-        /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。
-        /// </summary>
-        void Initialize();
 
         /// <summary>
         /// 见 <see cref="AssetService"/> 门面对应 API 的语义文档。

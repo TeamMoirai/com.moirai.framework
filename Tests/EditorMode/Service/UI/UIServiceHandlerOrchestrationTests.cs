@@ -42,7 +42,7 @@ namespace Service.UI
         /// <summary>进门归位：两支处理器槽与那份共享持有者清回「干净域」那一份状态，压制位与启用清单按进门值快照。</summary>
         /// <remarks>
         /// 归位门只清不置：两支槽此后的来路只有 <see cref="UIService.OnInit"/> 按启用清单造那个，栈与停放表也是新一份， <br />
-        /// 因此要吃驱动者的夹具一律先叫 <c>new UIService().OnInit()</c>，不叫任何属性就拿到驱动者的形状已不存在。 <br />
+        /// 因此要吃驱动者的夹具一律先叫 <c>UIService.EnableHandlersForTests()</c>，不叫任何属性就拿到驱动者的形状已不存在。 <br />
         /// 启用清单住在设置资产那一份实例上，是跨夹具的静态位：按进门值快照，出门交回，改清单的用例不给后跑的用例留配置。 <br />
         /// 压制位是无归属的全局布尔，本文件的租约那一族会写到它，出门按进门值交回。
         /// </remarks>
@@ -390,7 +390,7 @@ namespace Service.UI
             first.UpdateSink = order;
             second.UpdateSink = order;
 
-            UIService.SharedLedger.Tick();
+            UIService.SharedLedger.Tick(0f);
 
             CollectionAssert.AreEqual(new[] { "Tick1", "Tick2" }, order, "驱动次序按栈序自下而上，两个都走到");
         }
@@ -404,7 +404,7 @@ namespace Service.UI
             window.UpdateSink = order;
             UIService.SharedLedger.Push(window);
 
-            UIService.SharedLedger.Tick();
+            UIService.SharedLedger.Tick(0f);
 
             Assert.AreEqual(0, order.Count, "面板还没就绪的窗口不该走内部更新");
         }
@@ -427,7 +427,7 @@ namespace Service.UI
             third.Updates = 0;
             first.OnUpdateHook = () => UIService.SharedLedger.Pop(second);
 
-            UIService.SharedLedger.Tick();
+            UIService.SharedLedger.Tick(0f);
 
             Assert.AreEqual(1, first.Updates, "改动栈的那个自己被驱动过");
             Assert.AreEqual(0, third.Updates, "本轮不再往下驱动");
@@ -444,13 +444,15 @@ namespace Service.UI
         [Test]
         public void Tick_TwoTrackDriversInPlace_SharedStackSettlesExactlyOncePerFrame()
         {
-            new UIService().OnInit();
+            // 清单是跨夹具静态位：本格自设双轨，不依赖前序用例的快照
+            UIServiceSettings.Internal_SetEnabledHandlers(new UIServiceHandler[] { new UGUIHandler(), new UITKHandler() });
+            UIService.EnableHandlersForTests();
             Assert.IsNotNull(UIService.Internal_PeekUGUIHandler(), "量具前提坏了：按配置启用之后 uGUI 那一轨的驱动者没就位");
             Assert.IsNotNull(UIService.Internal_PeekUITKHandler(), "量具前提坏了：按配置启用之后 UI Toolkit 那一轨的驱动者没就位");
             var window = Prepared("SettleOnce", (int)EUILayer.Bottom);
             window.Updates = 0;
 
-            new UIService().Tick(0f, 0f);
+            UIService.TickShared(0f);
 
             Assert.AreEqual(1, window.Updates, "一帧只结算一次：两支各驱一次会数到 2");
         }
@@ -474,7 +476,7 @@ namespace Service.UI
 
             Assert.IsTrue(UIService.IsValid, "量具前提坏了：UI Toolkit 那个就位时门面就该算有效");
 
-            new UIService().Tick(0f, 0f);
+            UIService.TickShared(0f);
 
             Assert.AreEqual(1, window.Updates, "uGUI 那个不在位不是静默的理由：这一帧栈要结算一次");
         }
@@ -492,7 +494,7 @@ namespace Service.UI
         {
             UIServiceSettings.Internal_SetEnabledHandlers(Array.Empty<UIServiceHandler>());
 
-            Assert.Throws<GameException>(() => new UIService().OnInit(), "清单为空要在初始化当场抬错");
+            Assert.Throws<GameException>(() => UIService.EnableHandlersForTests(), "清单为空要在初始化当场抬错");
             Assert.IsNull(UIService.Internal_PeekUGUIHandler(), "抬错之后不留 uGUI 轨的驱动者");
             Assert.IsNull(UIService.Internal_PeekUITKHandler(), "抬错之后不留 UI Toolkit 轨的驱动者");
             Assert.IsFalse(UIService.IsValid, "一支都没启用时门面不算有效");
@@ -513,7 +515,7 @@ namespace Service.UI
                 new UGUIHandler(),
             });
 
-            var error = Assert.Throws<GameException>(() => new UIService().OnInit(), "同一轨两项要抬错，不取第一个");
+            var error = Assert.Throws<GameException>(() => UIService.EnableHandlersForTests(), "同一轨两项要抬错，不取第一个");
             StringAssert.Contains("UGUI", error.Message, "文案点名重复的是哪一轨");
             Assert.IsNull(UIService.Internal_PeekUITKHandler(), "这份清单没提 UI Toolkit 那一轨");
         }
@@ -529,9 +531,8 @@ namespace Service.UI
             var twice = new UGUIHandler();
             UIServiceSettings.Internal_SetEnabledHandlers(new UIServiceHandler[] { twice, twice });
 
-            Assert.DoesNotThrow(() => new UIService().OnInit(), "同一个实例重复出现按可重入的空操作收下");
+            Assert.DoesNotThrow(() => UIService.EnableHandlersForTests(), "同一个实例重复出现按可重入的空操作收下");
             Assert.AreSame(twice, UIService.Internal_PeekUGUIHandler(), "槽里仍是清单里那一份实例");
-            Assert.AreEqual(1, UIService.Internal_PeekTrackTickSubscriberCount(), "同实例两项只挂一条帧广播");
         }
 
         /// <summary>清单里某一项是 <c>null</c> ⇒ 当场抬错并点名第几项，没有「跳过空项」那一档。</summary>
@@ -548,25 +549,31 @@ namespace Service.UI
                 null,
             });
 
-            var error = Assert.Throws<GameException>(() => new UIService().OnInit(), "清单里的 null 项要抬错，不静默跳过");
+            var error = Assert.Throws<GameException>(() => UIService.EnableHandlersForTests(), "清单里的 null 项要抬错，不静默跳过");
             StringAssert.Contains("#1", error.Message, "文案点名的是第几项");
             Assert.IsNotNull(UIService.Internal_PeekUGUIHandler(), "抬错之前第一项已就位，门面不在抬错后回滚");
             Assert.IsNull(UIService.Internal_PeekUITKHandler(), "这份清单没提 UI Toolkit 那一轨");
         }
 
-        /// <summary>第二轮 <see cref="UIService.OnInit"/> 不重复挂帧广播：两支各一条，计数不因再走一遍OnInit 而翻倍。</summary>
+        /// <summary>第二轮认领不重复挂逐轨广播：状态机的幂等门与认领门的同实例早退都要拦住重挂。</summary>
         /// <remarks>
-        /// 订阅挂在认领门里、认领门对同一个实例早退，这一格数的是那条早退真的生效——摘掉早退就是 4 条而不是 2 条。
+        /// 每支后端挂安全区与刘海两条，两支共四处挂钩。再走一遍装配入口时拦下重跑的是 <see cref="LifecycleMachine"/> 的幂等门； <br />
+        /// 直接再叫一次认领门验的是同实例早退那一道——摘掉早退，最后一步就不再是空操作而是抬错。
         /// </remarks>
         [Test]
         public void OnInit_SecondPassWithTheSameEntries_SubscribesEachTrackTickOnce()
         {
             EnableBothTracksAndInit();
-            Assert.AreEqual(2, UIService.Internal_PeekTrackTickSubscriberCount(), "量具前提坏了：两支各挂一条帧广播");
 
-            new UIService().OnInit();
+            Assert.AreEqual(4, UIService.Internal_PeekTrackSubscriptionCount(), "两支后端各挂安全区与刘海两条");
 
-            Assert.AreEqual(2, UIService.Internal_PeekTrackTickSubscriberCount(), "同一个实例再注册不重复挂广播");
+            UIService.EnableHandlersForTests();
+
+            Assert.AreEqual(4, UIService.Internal_PeekTrackSubscriptionCount(), "再走一遍装配入口不重挂广播");
+
+            UIService.Internal_ClaimUGUITrack(UIService.Internal_PeekUGUIHandler());
+
+            Assert.AreEqual(4, UIService.Internal_PeekTrackSubscriptionCount(), "同实例再叫认领门按早退收下，不重挂");
         }
 
         /// <summary>
@@ -579,7 +586,7 @@ namespace Service.UI
                 new UGUIHandler(),
                 new UITKHandler(),
             });
-            new UIService().OnInit();
+            UIService.EnableHandlersForTests();
         }
 
         /// <summary>
@@ -595,7 +602,7 @@ namespace Service.UI
             {
                 new UITKHandler(),
             });
-            new UIService().OnInit();
+            UIService.EnableHandlersForTests();
         }
 
         /// <summary>
@@ -715,7 +722,7 @@ namespace Service.UI
             finally
             {
                 // 叫出来的是槽里那个生产驱动者：出门按夹具既有的形状把它关回去，不把已退役的实例留给后跑的用例
-                handler.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)handler).Destroy();
             }
         }
 
@@ -735,13 +742,13 @@ namespace Service.UI
         public void Init_ReenteredWithLeftoverWindow_KeepsTheSharedStack()
         {
             var driver = new UITKHandler();
-            driver.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)driver).Initialize();
             var leftover = Window<ProbeUGUIWindow>("Round1", (int)EUILayer.UI);
             UIService.SharedLedger.Push(leftover);
-            driver.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)driver).Destroy();
             UIService.SharedLedger.Push(Window<ProbeUITKWindow>("Round2", (int)EUILayer.UI));
 
-            driver.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)driver).Initialize();
 
             Assert.AreEqual(2, Stack.Count, "重入初始化不清共享栈：归零只剩门面那一处");
             Assert.AreSame(leftover, Stack[0], "上一轮遗留的那个仍在栈上，没跟着被抹掉");
@@ -756,12 +763,12 @@ namespace Service.UI
         public void Init_SecondDriver_LeavesTheFirstOnesWindowOnTheStack()
         {
             var first = new UGUIHandler();
-            first.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)first).Initialize();
             var mine = Window<ProbeUGUIWindow>("FirstDriverWindow", (int)EUILayer.UI);
             UIService.SharedLedger.Push(mine);
 
             var other = new UITKHandler();
-            other.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)other).Initialize();
 
             Assert.AreEqual(1, Stack.Count, "另一个驱动者初始化后，共享栈上仍只有那个");
             Assert.AreSame(mine, other.Internal_PeekStack()[0], "另一个读到的就是这个压进去的那个窗");
@@ -777,11 +784,11 @@ namespace Service.UI
         public void Shutdown_OfOneDriver_LeavesStackAndLeaseAlone()
         {
             var driver = new UITKHandler();
-            driver.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)driver).Initialize();
             var modal = Prepared("HeldModal", (int)EUILayer.UI);
             Assert.IsTrue(HoldLease(modal), "量具前提坏了：模态窗口没占到压制权");
 
-            driver.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)driver).Destroy();
 
             Assert.AreEqual(1, Stack.Count, "驱动者的关停不再清共享栈");
             Assert.IsTrue(LeaseHeldBy(modal), "压制权的归属还在这个窗手里：关停一支不交回它");
@@ -888,7 +895,9 @@ namespace Service.UI
         {
             try
             {
-                new UIService().OnInit();
+                // 清单是跨夹具静态位：本格自设双轨，不依赖前序快照
+                UIServiceSettings.Internal_SetEnabledHandlers(new UIServiceHandler[] { new UGUIHandler(), new UITKHandler() });
+                UIService.EnableHandlersForTests();
 
                 var ugui = UIService.Internal_PeekUGUIHandler();
                 var uikit = UIService.Internal_PeekUITKHandler();
@@ -906,8 +915,8 @@ namespace Service.UI
             }
             finally
             {
-                UIService.Internal_PeekUGUIHandler()?.Internal_Shutdown();
-                UIService.Internal_PeekUITKHandler()?.Internal_Shutdown();
+                ((Moirai.Atropos.IServiceLifecycle)UIService.Internal_PeekUGUIHandler())?.Destroy();
+                ((Moirai.Atropos.IServiceLifecycle)UIService.Internal_PeekUITKHandler())?.Destroy();
                 UIService.Internal_ResetHandlerSlots();
             }
         }
@@ -1340,14 +1349,14 @@ namespace Service.UI
         public void Shutdown_OneTrackDriver_ClosesOnlyItsOwnTrackWindowsOnTheSharedStack()
         {
             var uguiDriver = new UGUIHandler();
-            uguiDriver.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)uguiDriver).Initialize();
             var uguiWindow = Prepared("ShutUGUI", (int)EUILayer.Bottom);
             var kitWindow = Window<ProbeUITKWindow>("ShutKit", (int)EUILayer.Bottom);
             UIService.SharedLedger.Push(kitWindow);
             kitWindow.InternalLoad("Panel", null, false);
             UIService.SharedLedger.OnWindowPrepare(kitWindow);
 
-            uguiDriver.Internal_Shutdown();
+            ((Moirai.Atropos.IServiceLifecycle)uguiDriver).Destroy();
 
             Assert.IsTrue(uguiWindow.IsDestroyed, "本轨那个随本轨的关停一起销毁");
             Assert.IsNotNull(UIService.SharedLedger.GetWindow<ProbeUITKWindow>("ShutKit"), "另一轨的窗不被这一轨带走");
@@ -1355,12 +1364,12 @@ namespace Service.UI
         }
 
         /// <summary>
-        /// 门面的关停次序：先叫 UI Toolkit 那个收掉挂在下面的壳，再叫 uGUI 那个销毁那个 UI 根。
+        /// 门面的关停次序：两轨逐个拆除时 UI Toolkit 那个的壳先收，uGUI 那个的根<b>移交归零门</b>、全轨摘净才销毁。
         /// </summary>
         /// <remarks>
         /// UI Toolkit 轨的壳物体挂在 uGUI 轨那个 UI 根下（<see cref="UITKWindow"/> 建壳时取的是门面那个根）， <br />
         /// 次序倒了就是先销毁父物体、再让还挂在父物体里的壳走自己的销毁链——面板被拆在用的那一个。 <br />
-        /// 读数取的是「本轨那个窗的面板被收走的那一刻，uGUI 轨那个登记的根还在不在」：两支都是生产驱动者，次序由门面的 <see cref="UIService.OnShutdown"/> 给。 <br />
+        /// 根销毁挂归零门（<see cref="UIService.Internal_ResetHandlerSlots"/>）：两支 Destroy 后补一次归零门落锤。 <br />
         /// 这一格判次序，上一格判分流；两支驱动者都由门面的启用清单认领就位，UI 根由夹具登记。
         /// </remarks>
         [Test]
@@ -1380,12 +1389,18 @@ namespace Service.UI
             kitWindow.InternalLoad("Panel", null, false);
             ledger.OnWindowPrepare(kitWindow);
 
-            new UIService().OnShutdown();
+            // 模拟容器反序拆除：宿主轨（注册序先）先拆、UITK 后拆
+            ((Moirai.Atropos.IServiceLifecycle)uguiDriver).Destroy();
+            ((Moirai.Atropos.IServiceLifecycle)UIService.Internal_PeekUITKHandler()).Destroy();
 
             Assert.IsTrue(kitWindow.RootStillAliveAtPanelDestroy,
                 "UI Toolkit 那个该先关：轮到它收本轨那个窗时，uGUI 轨那个根还该在位");
             Assert.IsTrue(kitWindow.IsDestroyed, "另一轨那个由它自己那个关掉");
-            Assert.IsTrue(_uiRootGo == null, "uGUI 那个随后销毁登记那个父物体，挂在其下的壳因此不会被拆在用的那一个");
+            Assert.IsTrue(_uiRootGo != null, "两轨拆完但归零门未跑：根此刻必须还活着（壳已全收、销毁尚未落锤）");
+
+            // 归零门落锤（生产在世界收口/夹具归位时跑）
+            UIService.Internal_ResetHandlerSlots();
+            Assert.IsTrue(_uiRootGo == null, "归零门把移交的根销毁：挂在下面的壳早已被各轨自己收走，不会拆在用的那一个");
         }
 
         #endregion

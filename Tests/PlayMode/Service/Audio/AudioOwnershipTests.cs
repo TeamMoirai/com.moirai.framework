@@ -308,7 +308,7 @@ namespace Service.Audio
             clip.SetData(new float[44100], 0);
 
             var handler = new UnityAudioHandler();
-            handler.Internal_Init();
+            ((Moirai.Atropos.IServiceLifecycle)handler).Initialize();
 
             if (handler.AudioCategories == null || handler.AudioCategories.Length == 0)
             {

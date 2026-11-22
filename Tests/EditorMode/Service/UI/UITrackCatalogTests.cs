@@ -204,7 +204,7 @@ namespace Service.UI
             middleTrack.AttachDriver(() => order.Add("middle"));
             hostTrack.AttachDriver(() => order.Add("host"));
 
-            new UIService().OnShutdown();
+            UIService.Internal_ShutDownTracksInOrder();
 
             CollectionAssert.AreEqual(new[] { "default", "middle", "host" }, order,
                 "按自报档位升序收口：默认档先、中间档随后、宿主档最后，没认领的那个一次都没被叫到");
