@@ -14,7 +14,7 @@ namespace Moirai.Atropos.SourceGenerators
     /// <remarks>
     /// MA1001（Warning）：默认工厂与 settings 来源均缺——懒加载无来源。 <br />
     /// MA1002（Info）：仅提供 <c>GetHandlerFromSettings</c>（settings-only）——懒加载依赖其返回非空值。 <br />
-    /// MA1003（Error）：声明的默认处理器不可实例化（未继承契约/抽象/无可访问无参构造）。 <br />
+    /// MA1003（Error）：声明的默认处理器不可实例化（未实现契约/生命周期基座不符/抽象/无可访问无参构造）。 <br />
     /// MA1004（Info）：声明默认与手写工厂并存——手写生效、声明不生成，提示删除其一。
     /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
@@ -47,7 +47,10 @@ namespace Moirai.Atropos.SourceGenerators
             category: "Usage",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true,
-            description: "The declared default handler type must derive from the handler contract, be a concrete class, and expose an accessible parameterless constructor. Otherwise no CreateDefaultHandler is generated and lazy loading falls back to the remaining factory sources.",
+            description: "The declared default handler type must implement the handler contract, carry the "
+                + "matching lifecycle base (interface contract: ServiceBase, class contract: FrameworkHandler), "
+                + "be a concrete class, and expose an accessible parameterless constructor. Otherwise no "
+                + "CreateDefaultHandler is generated and lazy loading falls back to the remaining sources.",
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         public static readonly DiagnosticDescriptor RedundantDeclaredDefaultRule = new DiagnosticDescriptor(
@@ -61,7 +64,8 @@ namespace Moirai.Atropos.SourceGenerators
             customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
-            => ImmutableArray.Create(MissingHandlerFactoryRule, SettingsOnlyHandlerRule, InvalidDeclaredDefaultRule, RedundantDeclaredDefaultRule);
+            => ImmutableArray.Create(MissingHandlerFactoryRule, SettingsOnlyHandlerRule,
+                InvalidDeclaredDefaultRule, RedundantDeclaredDefaultRule);
 
         public override void Initialize(AnalysisContext context)
         {

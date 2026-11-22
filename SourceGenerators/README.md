@@ -20,7 +20,7 @@
 
 | A | 模块（程序集） | B | 功能 | CD 段占用 |
 | --- | --- | --- | --- | --- |
-| 1 | ProviderHandlerHost | 0 | 宿主契约/默认工厂 | 01–04 |
+| 1 | ProviderHandlerHost | 0 | 宿主契约/默认工厂 | 01–04（05 已退役，不复用） |
 | 2 | ServiceDependency | 0 | `[ServiceDependency]` 依赖校验 | 01–02 |
 | | | 1 | `[AutoRegisterService]` 自注册 | 03–05 |
 | 3 | SaveServiceCodegen | 0 | 字段捕获/序列化注册/迁移注册 | 00–12 |
@@ -38,6 +38,7 @@
   - `MA1002` 仅声明 GetHandlerFromSettings（settings-only，Info）
   - `MA1003` 声明的默认处理器不可实例化（Error）
   - `MA1004` 声明默认与手写工厂并存（Info）
+  - ~~`MA1005`~~ **已退役**：原「服务后端仍继承 FrameworkHandler」的过渡提示。接口契约的默认后端只认 `ServiceBase`，`FrameworkHandler` 派生改由 `MA1003` 判红，生成代码的服务侧装配路径也不再按实例类型分派；按本文《诊断 ID 段号方案》该号位不再复用
 - **A=2 ServiceDependency**
   - `MA2001` 依赖类型未实现 IService/契约接口（Warning）
   - `MA2002` 未声明任何依赖类型（Info）
@@ -75,6 +76,12 @@ dotnet build -c Release
 
 # EventBusAnalyzer 自检
 cd Source~/EventBusAnalyzer.Probe && dotnet run -c Release
+
+# ProviderHandlerHost 自检（装配路径发射形状 + 默认声明判据 + MA 支持集）
+cd Source~/ProviderHandlerHost.Probe && dotnet run -c Release
 ```
+
+探针经 `InternalsVisibleTo` 直调生成项目的 internal 入口（`GenerateCodeForTesting` / `HandlerContract`），不用反射读私有成员；
+`dotnet run` 会连带重建 `SourceGenerators/ProviderHandlerHost.dll`，源码与分发产物不会各走各路。
 
 技术口径：目标框架 `netstandard2.0`、`Microsoft.CodeAnalysis.CSharp 4.3.0`（Unity 6000 内置 Roslyn 版本）、`IsRoslynComponent=true`、DLL 输出 `SourceGenerators/` 根并配 `RoslynAnalyzer` label 的 `.meta`。
