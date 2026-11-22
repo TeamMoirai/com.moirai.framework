@@ -6,7 +6,8 @@
 
 - `CHANGELOG.md` **只有 `[Unreleased]` 一段**：已发布的内容不留在文件里。发版由 `build-release` 工作流收尾——先从该段切出 GitHub Release notes（`>` 引言 + 摘要 + `<details>` 详细日志），再打**一笔** commit：subject 为 `chore(automate): Bump version to v{版本}`，body 为 `>` 之后到 `<details>` 之前的摘要（`[Unreleased]` 里第一个 `###` 之前的段落）；同 commit 写入 `package.json` 的 `version` 并把 `CHANGELOG.md` 整份重置为空白模板，随后用这笔 commit 打 tag 建 Release 并 Publish。版本号与 `CHANGELOG` 重置同 commit，不在手上改。两条硬约定：**发版进行中不要往 `[Unreleased]` 写新条目**（合并 commit 整文件换模板，窗口期内新写的会一并消失且不进任何 Release）；**重跑时若该 Release commit 已落地**，notes 从其父提交的 CHANGELOG 重新切出，不要手工回填上一版条目。
 - `CHANGELOG.md` 按**后覆盖**维护：一条只写当前仍然成立的净结果。加了又删的开关、改到一半的命名、逐轮刷新的测试格数与成员计数、当时判为"不采纳"的观察一律不立条目；同一件事被后续提交推翻时，改掉或删掉原条目，不要再追加一条把它推翻。
-- 提交信息两段式：subject 一行 `type(scope): 中文摘要` 说清净结果（沿用 Conventional Commits 类型 feat/fix/refactor/chore/docs/test/perf），正文至多 **3 行细则**——只收「为什么改 / 边界与不变式 / 未验证事项与收口指针」，条目化优先；逐文件流水账与 CHANGELOG 内容不进正文。
+- 提交信息两段式：subject 一行 `type(scope): 中文摘要` 说清净结果（沿用 Conventional Commits 类型 feat/fix/refactor/chore/docs/test/perf），正文至多 **3 行要点**——只收「为什么改 / 边界与不变式 / 未验证事项与收口指针」，条目化优先；逐文件流水账与 CHANGELOG 内容不进正文。
+- **长度硬约束**：整条提交信息（subject + 正文合计，按字符数）控制在 **100 字以内**，subject 本身 ≤ 50 字为宜、100 字为硬上限（merge 提交的 GitHub 生成标题豁免）。写完自检：过程性叙述（验证轮次、实测读数、括注证据、"见后续提交"式交叉引用）一律删掉，只留净结果；破坏性变更的 ⚠ 标记保留在对应要点行上。
 - 诊断过程与来龙去脉的要点写进 commit message，不进 CHANGELOG；CHANGELOG 面向 release note 读者——只写净结果与迁移口径，一条一行不折行。破坏性变更前置 ⚠ 并给出迁移口径。
 - 模块文档只有中文一份，落在 `Documentation~/<模块>.md`，接口改动同步对应那一篇；文档里的类名、成员名与菜单路径要对着代码核真名——`E` 前缀、单复数这类差别会让照文档写出的代码直接编译不过。
 
