@@ -1,0 +1,8 @@
+{
+  "note": "层间依赖守卫（check_layer_edges.py）的豁免登记表，与量具同目录。键 = 违例串逐字等值豁免（与 config-surface-debt.json 同形态：文件路径:行号: 违例描述）。行号是登记时的快照——源文件行号漂移会使该条失效（量不出来即红），这正是单向棘轮：修复或行号漂移都要求重登记，只准降不准升。reason 必写登记时的真实情况与清债路径。",
+  "violations": {
+    "Runtime/Services/UI/Internal/UIWindowRegistry.cs:19: Services 引用 Kernel 内部件 'ContractHandleComparer'": {
+      "reason": "既有用法（回摆前即存在）：UI 窗口注册表复用内核类型句柄比较器实现零装箱字典。同程序集 internal 可编译，但违背 Services 不摸 Kernel/Internal 的口径；清债路径 = UIWindowRegistry 自持一份同语义比较器或把该比较器上提为 Foundation 数据结构（届时删本条）。"
+    }
+  }
+}

@@ -35,6 +35,15 @@ com.moirai.framework/
 
 （`~` 后缀的目录 Unity 不导入包内；工程另在 `Client/` 下，与包分开归属。）
 
+### Runtime 层界守卫与 asmdef 拆分口径
+
+`Runtime/Moirai.Atropos.asmdef` 是单一程序集，Kernel/Foundation/Services 三层是目录约定；层界由可执行守卫承接（`.agent/skills/moirai-conventions/scripts/check_layer_edges.py`，豁免登记在同目录 `layer-edges-debt.json`，单向棘轮——只准降不准升）：
+
+- **Kernel/Foundation → Services**：上游不得以限定名引用 Services 类型（现有豁免仅组合根 `GameAppSettings.Services.cs` 的 `UIService.RegisterEnabledHandlers`）
+- **Services → Kernel/Internal**：容器内部件（`ServiceWorld`/`ServiceScope`/`ServiceEntry`/`ContractHandleComparer`）只经容器基座（`ServiceBase`/`Context`）出借
+
+**拆分判据（结论：三拆不可行，暂不拆）**：Foundation 的 7 个 Utility 门面回引 Kernel 的 `GameAppSettings`/`[ProviderHandlerHost]`，Kernel ⇄ Foundation 双向依赖已是事实——任何 Kernel/Foundation 分离都编不过。两拆（Core/Services）可行但前置清单不短：Services 消费 Kernel 大量 `internal`（需立框架内部 IVT 口径）、versionDefines 重分配、Editor/Tests 引用面更新、组合根搬移。触发条件（满足其一再评估）：运行时编译时长超阈值 / 对外独立发行 / 层间越界在守卫下持续增长。评估时从本段开始，不要重新发明三拆。
+
 ## 核心服务
 
 ### Runtime Services
