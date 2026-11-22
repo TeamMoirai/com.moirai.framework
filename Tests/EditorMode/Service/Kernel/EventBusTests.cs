@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Moirai.Atropos.Tests.EditorMode.Service.Kernel
 {
     /// <summary>
-    /// IEventBus 行为契约：订阅/发布/句柄退订/发布期安全/作用域批量退订/异常隔离。
+    /// EventBus 行为契约：订阅/发布/退订/发布期安全/作用域订阅/异常隔离。
     /// </summary>
     public sealed class EventBusTests
     {
@@ -109,6 +109,76 @@ namespace Moirai.Atropos.Tests.EditorMode.Service.Kernel
         {
             Assert.DoesNotThrow(() => EventBus.Publish(new Ping()));
         }
+
+        #region 作用域订阅 [SCOPED SUBSCRIPTIONS]
+
+        [Test]
+        public void SubscribeScoped_ClearedWhenScopeShutsDown()
+        {
+            var sceneReceived = 0;
+            var appReceived = 0;
+            EventDelegate<Ping> sceneHandler = (in Ping _) => sceneReceived++;
+            EventDelegate<Ping> appHandler = (in Ping _) => appReceived++;
+
+            EventBus.SubscribeScoped<Ping>(EServiceScopeKind.Scene, sceneHandler);
+            EventBus.Subscribe<Ping>(appHandler);
+
+            EventBus.Publish(new Ping());
+            Assert.AreEqual(1, sceneReceived, "作用域关停前订阅照常派发");
+            Assert.AreEqual(1, appReceived);
+
+            // 隔离世界关停 Scene：台账清空即使该世界从未创建 Scene 作用域（进程级台账，与通道同口径）
+            using (var world = new ServiceWorld())
+            {
+                world.ShutdownScope(EServiceScopeKind.Scene);
+            }
+
+            EventBus.Publish(new Ping());
+            Assert.AreEqual(1, sceneReceived, "作用域关停后登记订阅被批量退订");
+            Assert.AreEqual(2, appReceived, "未登记订阅不受作用域关停影响");
+        }
+
+        [Test]
+        public void SubscribeScoped_ManualUnsubscribeBeforeClear_IsIdempotent()
+        {
+            var received = 0;
+            EventDelegate<Ping> handler = (in Ping _) => received++;
+
+            EventBus.SubscribeScoped<Ping>(EServiceScopeKind.Gameplay, handler);
+            EventBus.Unsubscribe(handler);
+
+            using (var world = new ServiceWorld())
+            {
+                world.ShutdownScope(EServiceScopeKind.Gameplay);
+                world.ShutdownScope(EServiceScopeKind.Gameplay); // 幂等：重复关停不得抛
+            }
+
+            EventBus.Publish(new Ping());
+            Assert.AreEqual(0, received, "手动退订后清台账不重复触发");
+        }
+
+        [Test]
+        public void SubscribeScoped_WorldDisposeClearsAllKinds()
+        {
+            var gameplayReceived = 0;
+            var sceneReceived = 0;
+            EventDelegate<Ping> gameplayHandler = (in Ping _) => gameplayReceived++;
+            EventDelegate<Ping> sceneHandler = (in Ping _) => sceneReceived++;
+
+            EventBus.SubscribeScoped<Ping>(EServiceScopeKind.Gameplay, gameplayHandler);
+            EventBus.SubscribeScoped<Ping>(EServiceScopeKind.Scene, sceneHandler);
+
+            using (var world = new ServiceWorld())
+            {
+                world.Dispose();
+            }
+
+            EventBus.Publish(new Ping());
+            Assert.AreEqual(0, gameplayReceived, "世界整体销毁清空全部作用域台账");
+            Assert.AreEqual(0, sceneReceived, "世界整体销毁清空全部作用域台账");
+        }
+
+        #endregion
 
         #region 编辑器诊断钩子（参数快照 / 重播）[EDITOR DIAGNOSTICS]
 

@@ -801,6 +801,9 @@ namespace Moirai.Atropos
                 scope.Dispose();
                 _scopes[(int)kind] = null;
             }
+
+            // 事件作用域台账最后清：关停体内的 OnShutdown 仍可发布事件，订阅清理在其之后
+            EventBus.ClearScope(kind);
         }
 
         /// <summary>
@@ -819,6 +822,9 @@ namespace Moirai.Atropos
                 }
                 _scopes[(int)kind] = null;
             }
+
+            // 事件作用域台账最后清（同 ShutdownScope）
+            EventBus.ClearScope(kind);
         }
 
         /// <summary>
@@ -832,6 +838,7 @@ namespace Moirai.Atropos
             {
                 _scopes[i]?.Dispose();
                 _scopes[i] = null;
+                EventBus.ClearScope((EServiceScopeKind)i);
             }
 
             _bindingsByContract.Clear();
@@ -858,6 +865,8 @@ namespace Moirai.Atropos
                     if (!scope.IsDisposed) scope.Dispose();
                     _scopes[i] = null;
                 }
+
+                EventBus.ClearScope((EServiceScopeKind)i);
             }
 
             _bindingsByContract.Clear();

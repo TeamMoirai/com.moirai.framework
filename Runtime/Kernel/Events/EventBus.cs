@@ -9,7 +9,8 @@ namespace Moirai.Atropos
     /// </summary>
     /// <remarks>
     /// API 习惯决定记录：订阅/退订为对称方法形态（<c>EventBus.Subscribe&lt;T&gt;(h)</c> / <c>EventBus.Unsubscribe&lt;T&gt;(h)</c>， <br />
-    /// 与原 EventManager 用法一致），Subscribe 不返回句柄——不采用 IDisposable 句柄/作用域批量退订形态（用户决策）。
+    /// 与原 EventManager 用法一致），Subscribe 不返回句柄、不采用 IDisposable 句柄形态（用户决策）。 <br />
+    /// 作用域批量退订以容器驱动的 opt-in 台账补入（<see cref="EventBus.SubscribeScoped{TEvent}"/> + 世界关停钩子），对称 API 不变。
     /// </remarks>
     public delegate void EventDelegate<TEvent>(in TEvent evt) where TEvent : struct, IGameEvent;
     
@@ -20,7 +21,7 @@ namespace Moirai.Atropos
     /// struct 事件、in 参数零拷贝、发布期安全队列、作用域批量退订。 <br />
     /// 分桶采用泛型静态容器（<see cref="EventChannel{TEvent}"/>）：每个事件类型一个静态通道实例，零字典查找。
     /// </remarks>
-    public static class EventBus
+    public static partial class EventBus
     {
         #region 契约面 [CONTRACT]
 
@@ -92,6 +93,7 @@ namespace Moirai.Atropos
         internal static void ResetStaticsForPlayModeReset()
         {
             EventChannelCore.ClearAllChannels();
+            ClearAllScopes();
         }
 
         #endregion

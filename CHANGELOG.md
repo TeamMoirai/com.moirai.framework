@@ -11,6 +11,7 @@
 #### Kernel
 
 - 新增 `EventBusAnalyzer`（`SourceGenerators/EventBusAnalyzer.dll`，源码 `Source~/EventBusAnalyzer/`，随包自动生效，**纯分析器不生成任何代码**）：MA7000 禁止匿名函数订阅/退订 EventBus（匿名委托无法值等价匹配 Unsubscribe，订阅即泄漏）、MA7001 `OnXxxEvent` 带参回调必须 `in` 修饰（含一键 CodeFix；方法组转换要求 ref-kind 精确匹配）、MA7002 参数类型与方法名后缀不匹配告警、MA7003 订阅缺少成对退订（按「事件类型 + 处理器」在同一宿主类型内配对，跨 partial 分部，多出的 Subscribe 报 Warning）、MA7004–MA7006 `[GameEvent]` 契约校验；**不再生成 SubscribeEvents()/UnsubscribeEvents() 胶水，无参回调也不再要求 partial，订阅时机与退订配对全部由用户自行控制**，详见 `Documentation~/EventBusAnalyzer.md`
+- EventBus 作用域订阅：新增 `EventBus.SubscribeScoped(kind, handler)`——订阅并登记进作用域台账，`ServiceWorld` 关停作用域（`ShutdownScope(Async)`）或整体 `Dispose(Async)` 时自动批量退订（在该作用域全部服务 `OnShutdown` 之后执行）；`Subscribe`/`Unsubscribe` 对称无句柄 API 不变，未登记的作用域订阅照旧手动成对退订
 
 #### Input
 
