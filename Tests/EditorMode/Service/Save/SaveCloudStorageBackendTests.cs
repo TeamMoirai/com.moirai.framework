@@ -166,7 +166,7 @@ namespace Service.Save
         public void SetUp()
         {
             _rootPath = Path.Combine(Path.GetTempPath(), "moirai-save-cloud-tests-" + Guid.NewGuid().ToString("N"));
-            _directoryPath = Path.Combine(_rootPath, SaveServiceHandler.DATA_FOLDER_NAME, TestFolder) + Path.DirectorySeparatorChar;
+            _directoryPath = Path.Combine(_rootPath, SaveServiceDefaults.DATA_FOLDER_NAME, TestFolder) + Path.DirectorySeparatorChar;
             Directory.CreateDirectory(_directoryPath);
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
 

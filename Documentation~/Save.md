@@ -7,7 +7,13 @@ Save 服务（`SaveService`）提供 AAA 级存档基础设施：**四种可插�
 ## 架构
 
 ```text
+ISaveService（消费契约，自立：常量出自 SaveServiceDefaults，零基座引用；28 个公共 API 供互调与单测注入）
+▲                          ▲
+│ 消费                     │ 消费
 SaveService（静态外观，写路径未就绪抛 GameException，读路径降级）
+├── 能力协商（is ISaveServiceBackend，internal 能力契约取代家族基座强转）
+│     require 站点（写路径）：能力缺失抛 GameException 带迁移指引
+│     peek 站点（读路径）：能力缺失降级 + 会话级一次性告警（等价未就绪语义）
 ├── 存储管线（[SerializeReference] 可切换）
 │     PlainSaveHandler        明文直通
 │     AESEncryptedSaveHandler AES-256-CBC + HMAC（encrypt-then-MAC），内嵌 [SerializeReference] 密钥提供方
@@ -247,6 +253,11 @@ await SaveService.RestoreEntitiesAsync("slot1");
 - **SaveComponentEditor 补强**：字段勾选清单标注引用类别（场景引用 = GameObject/Component 派生字段，资产引用 = 其余 UnityEngine.Object 字段）并给出 Identity/Catalog 配置提示；每个绑定显示模式版本（SG 发射值优先 → `[SaveComponentSchema]` 声明 → 缺省 1）。
 
 ## 公共 API（静态外观）
+
+跨包同步 API 消费现状登记（2026-11-23 审计；迁移决策归各消费包，本包不代执行）：
+`com.moirai.juice` AchievementManager（:156 同步 `DeleteSave` 重置清理；:171/:183 已走异步 `LoadAsync`/`SaveAsync`）、`com.moirai.platformer` GameManager（:346-348 同步 `DeleteSaveFolder` ×3，重置流程）与 SaveResetButton（:12-13 同步 `DeleteSaveFolder` ×2，UI 点击）——同步调用均为低频运维/用户触发场景，按「保留同步」登记；高频/大数据量消费方新增时须走异步 API 族（契约 remarks 已逐方法写明）。
+
+
 
 ### 版本迁移
 

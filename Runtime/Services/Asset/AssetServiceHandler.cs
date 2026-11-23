@@ -18,7 +18,7 @@ namespace Moirai.Atropos.Asset
     /// </remarks>
     [Serializable]
     [ServiceDependency(typeof(IDebuggerService))]
-    public abstract class AssetServiceHandler : ServiceBase, IServiceTickable, IAssetService, IAssetLeaseSource
+    public abstract class AssetServiceHandler : ServiceBase, IServiceTickable, IAssetService, IAssetLeaseSource, IAssetServiceBackend
     {
         /// <inheritdoc />
         public override int Priority => ServicePriorityOrder.RESOURCE;

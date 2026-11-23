@@ -14,7 +14,7 @@
 
 完整 ID 形如 `MA3007`，`.editorconfig` 调级示例：`dotnet_diagnostic.MA3007.severity = error`。
 
-> 历史：v2.0.1 前曾使用 `MIRAI` + 3 位段号（1xx~7xx），v2.0.1 起统一迁移至 `MA+ABCD`——首位与旧段号一一对应（Save 3xx/4xx 归并为 A=3，B 区分生成器与架构校验）。
+> 历史：v2.0.1 前曾使用 `MIRAI` + 3 位段号（1xx~7xx），v2.0.1 起统一迁移至 `MA+ABCD`——首位与旧段号一一对应（Save 3xx/4xx 归并为 A=3，B 区分生成器与架构校验）。（该版本号指诊断 ID 方案迁移注记，非生成器装配版本，与 package.json 版本无关。）
 
 ## 模块与段位分配表
 

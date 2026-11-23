@@ -32,7 +32,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">存档文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>错误码（<see cref="SaveError.None"/> = 截图与元数据镜像完成）。</returns>
-        public static async UniTask<SaveError> CaptureScreenshotAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask<SaveError> CaptureScreenshotAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             if (s_Handler is null)
             {
@@ -45,7 +45,7 @@ namespace Moirai.Atropos.Save
                 return SaveError.NotSupported;
             }
 
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
 
             // 帧末捕获（屏幕捕获须在帧渲染完成后进行；GPU 降采样 + 小图回读，ImageConversion 主线程编码小图）
             await UniTask.WaitForEndOfFrame(cancellationToken: cancellationToken);
@@ -57,7 +57,14 @@ namespace Moirai.Atropos.Save
 
             try
             {
-                await ((SaveServiceHandler)s_Handler).WriteScreenshotAsync(paths, pngBytes, cancellationToken);
+                ISaveServiceBackend backend = PeekBackend(s_Handler);
+                if (backend is null)
+                {
+                    WarnCapabilityMissingOnce(nameof(CaptureScreenshotAsync));
+                    return SaveError.HandlerNotReady;
+                }
+
+                await backend.WriteScreenshotAsync(paths, pngBytes, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -93,7 +100,7 @@ namespace Moirai.Atropos.Save
         /// <returns>镜像完成的异步任务。</returns>
         private static async UniTask MirrorScreenshotMetadataAsync(string fileName, string folderName, string screenshotFileName, string sceneName, CancellationToken cancellationToken)
         {
-            SaveResult<SaveMetadata> loadResult = await s_Handler.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, cancellationToken);
+            SaveResult<SaveMetadata> loadResult = await s_Handler.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, cancellationToken);
             SaveMetadata metadata = MergeScreenshotMetadata(loadResult, screenshotFileName, sceneName, out bool shouldWrite);
             if (!shouldWrite)
             {
@@ -102,7 +109,7 @@ namespace Moirai.Atropos.Save
 
             try
             {
-                await s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1, cancellationToken);
+                await s_Handler.SaveBlockAsync(metadata, fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -154,7 +161,7 @@ namespace Moirai.Atropos.Save
         /// <returns>联动完成的异步任务。</returns>
         private static async UniTask CaptureScreenshotOnSaveIfEnabledAsync(string fileName, string folderName, string key)
         {
-            if (key != null && key.StartsWith(SaveServiceHandler.RESERVED_BLOCK_KEY_PREFIX, StringComparison.Ordinal))
+            if (key != null && key.StartsWith(SaveServiceDefaults.RESERVED_BLOCK_KEY_PREFIX, StringComparison.Ordinal))
             {
                 return;
             }

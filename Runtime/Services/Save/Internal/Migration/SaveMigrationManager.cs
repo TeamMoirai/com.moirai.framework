@@ -230,7 +230,7 @@ namespace Moirai.Atropos.Save
         /// <param name="migratedBlocks">迁移后的块集合（未迁移时为源列表）。</param>
         /// <param name="migrated">是否实际执行了迁移。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.UnsupportedVersion"/>（降级拒绝）或 <see cref="SaveError.MigrationFailed"/>。</returns>
-        internal static SaveError TryMigrateBlocks(SaveServiceHandler.SavePaths paths, List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, out List<SaveBlockEntry> migratedBlocks, out bool migrated)
+        internal static SaveError TryMigrateBlocks(SavePaths paths, List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, out List<SaveBlockEntry> migratedBlocks, out bool migrated)
         {
             migratedBlocks = blocks;
             migrated = false;
@@ -342,7 +342,7 @@ namespace Moirai.Atropos.Save
             fileVersion = 0;
             metadata = null;
 
-            if (SaveBlockComposer.TryFind(blocks, SaveServiceHandler.META_BLOCK_KEY, out SaveBlockEntry metaEntry))
+            if (SaveBlockComposer.TryFind(blocks, SaveServiceDefaults.META_BLOCK_KEY, out SaveBlockEntry metaEntry))
             {
                 try
                 {
@@ -362,7 +362,7 @@ namespace Moirai.Atropos.Save
             {
                 for (int i = 0; i < blockErrors.Count; i++)
                 {
-                    if (string.Equals(blockErrors[i].Key, SaveServiceHandler.META_BLOCK_KEY, StringComparison.Ordinal))
+                    if (string.Equals(blockErrors[i].Key, SaveServiceDefaults.META_BLOCK_KEY, StringComparison.Ordinal))
                     {
                         return SaveError.Corrupted;
                     }
@@ -456,6 +456,7 @@ namespace Moirai.Atropos.Save
                     return SaveError.MigrationFailed;
                 }
 
+                // IsCompleted 断言通过后此处只取已完成的结果——GetResult 不是等待；ISaveMigrator 契约强制同步完成（未完成即 fail-fast）
                 task.GetAwaiter().GetResult();
             }
             catch (Exception exception)
@@ -490,7 +491,7 @@ namespace Moirai.Atropos.Save
         private static List<SaveBlockEntry> UpsertMetaBlock(List<SaveBlockEntry> migratedBlocks, SaveMetadata metadata)
         {
             byte[] metaBytes = SaveSerializerRegistry.GetRequired(SaveBackendIds.JSON).Serialize(metadata);
-            var newMetaEntry = new SaveBlockEntry(SaveServiceHandler.META_BLOCK_KEY, 1, SaveBackendIds.JSON, metaBytes);
+            var newMetaEntry = new SaveBlockEntry(SaveServiceDefaults.META_BLOCK_KEY, 1, SaveBackendIds.JSON, metaBytes);
             return SaveBlockComposer.Upsert(migratedBlocks, newMetaEntry);
         }
 

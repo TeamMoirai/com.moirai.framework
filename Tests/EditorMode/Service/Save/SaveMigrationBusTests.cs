@@ -379,9 +379,9 @@ namespace Service.Save
                 $"应记录含 '{fragment}' 的 Error 日志，实际捕获 {_capturedLogs.Count} 条");
         }
 
-        private SaveServiceHandler.SavePaths Paths(string fileName)
+        private SavePaths Paths(string fileName)
         {
-            return SaveServiceHandler.ResolveSavePaths(fileName, TestFolder);
+            return SavePathResolver.ResolveSavePaths(fileName, TestFolder);
         }
 
         /// <summary>
@@ -398,7 +398,7 @@ namespace Service.Save
         /// </summary>
         private SaveMetadata ReadMeta(string fileName)
         {
-            SaveError error = _handler.TryLoadBlockCore<SaveMetadata>(Paths(fileName), SaveServiceHandler.META_BLOCK_KEY, out SaveMetadata metadata);
+            SaveError error = _handler.TryLoadBlockCore<SaveMetadata>(Paths(fileName), SaveServiceDefaults.META_BLOCK_KEY, out SaveMetadata metadata);
             Assert.AreEqual(SaveError.None, error, "元数据块应可读");
             return metadata;
         }
@@ -846,7 +846,7 @@ namespace Service.Save
             _handler.SaveBlockCore(Paths("slot"), "profile", new ProfileData { Gold = 1 }, SaveBackendIds.JSON, 1, CancellationToken.None);
             SaveError error = _handler.MigrateSave("slot", TestFolder);
             Assert.AreEqual(SaveError.None, error);
-            SaveError metaError = _handler.TryLoadBlockCore<SaveMetadata>(Paths("slot"), SaveServiceHandler.META_BLOCK_KEY, out _);
+            SaveError metaError = _handler.TryLoadBlockCore<SaveMetadata>(Paths("slot"), SaveServiceDefaults.META_BLOCK_KEY, out _);
             Assert.AreEqual(SaveError.FileNotFound, metaError, "未激活时不应创建元数据块");
         }
 

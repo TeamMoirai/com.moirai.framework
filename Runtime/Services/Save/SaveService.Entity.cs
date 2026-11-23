@@ -110,14 +110,14 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static async UniTask SaveEntitiesAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask SaveEntitiesAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
-            var handler = (SaveServiceHandler)RequireHandler();
+            ISaveServiceBackend backend = RequireBackend(RequireHandler(), nameof(SaveEntitiesAsync));
             await SaveEntityPersistence.WarmBaselinesAsync(cancellationToken);
             List<SaveBlockEntry> entries = SaveEntityPersistence.CaptureEntityEntries(fileName, folderName);
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
 
-            if (SaveEntityPersistence.TrySkipEntitySave(paths, entries, handler, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals))
+            if (SaveEntityPersistence.TrySkipEntitySave(paths, entries, backend, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals))
             {
                 return;
             }
@@ -128,10 +128,10 @@ namespace Moirai.Atropos.Save
             List<string> removals = incremental ? certainRemovals : null;
             System.Func<System.Collections.Generic.Dictionary<string, byte[]>, List<string>> removalResolver = incremental ? null : SaveEntityPersistence.StaleKeyResolver;
 
-            await handler.MergeRawBlocksAsync(paths, additions, removals, removalResolver, cancellationToken);
+            await backend.MergeRawBlocksAsync(paths, additions, removals, removalResolver, cancellationToken);
 
             // merge 成功后回读档写入时间提交增量基准（下次保存的脏判定基准）
-            if (handler.TryGetSaveWriteTimeUtc(paths, out System.DateTime writeTimeUtc))
+            if (backend.TryGetSaveWriteTimeUtc(paths, out System.DateTime writeTimeUtc))
             {
                 SaveEntityPersistence.CommitSavedState(paths, entries, writeTimeUtc);
             }
@@ -150,15 +150,22 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>恢复完成的异步任务。</returns>
-        public static async UniTask RestoreEntitiesAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask RestoreEntitiesAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             if (s_Handler is null)
             {
                 return;
             }
 
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
-            Dictionary<string, byte[]> blocks = await ((SaveServiceHandler)s_Handler).ReadRawBlocksAsync(paths, cancellationToken);
+            ISaveServiceBackend backend = PeekBackend(s_Handler);
+            if (backend is null)
+            {
+                WarnCapabilityMissingOnce(nameof(RestoreEntitiesAsync));
+                return;
+            }
+
+            SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
+            Dictionary<string, byte[]> blocks = await backend.ReadRawBlocksAsync(paths, cancellationToken);
 
             // 读档续体经 RunOnThreadPool(configureAwait:false) 完成——可能停留在线程池；
             // 恢复管线全程 Unity API（生成/销毁/变换写回/事件内联派发），须先切回主线程

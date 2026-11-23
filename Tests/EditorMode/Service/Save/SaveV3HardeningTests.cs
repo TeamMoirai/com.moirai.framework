@@ -192,8 +192,8 @@ namespace Service.Save
         [Test]
         public void TryLoad_UnknownHeaderFlags_ReturnsUnsupportedVersion()
         {
-            var paths = SaveServiceHandler.ResolveSavePaths("slot", TestFolder);
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "f" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            var paths = SavePathResolver.ResolveSavePaths("slot", TestFolder);
+            _handler.SaveBlockCore(paths, SaveServiceDefaults.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "f" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             // 篡改 flags 为未知位（模拟未来版本运行时写出的档）
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
@@ -207,7 +207,7 @@ namespace Service.Save
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
 
             ExpectErrorLogForUtf();
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out _);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceDefaults.MAIN_BLOCK_KEY, out _);
             Assert.AreEqual(SaveError.UnsupportedVersion, error, "未知标志位必须拒载（旧运行时静默忽略会写坏档）");
             AssertErrorLogged("UnsupportedVersion");
         }
@@ -215,10 +215,10 @@ namespace Service.Save
         [Test]
         public void TryLoad_KnownFlagsZero_StillLoads()
         {
-            var paths = SaveServiceHandler.ResolveSavePaths("slot", TestFolder);
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 7, PlayerName = "ok" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            var paths = SavePathResolver.ResolveSavePaths("slot", TestFolder);
+            _handler.SaveBlockCore(paths, SaveServiceDefaults.MAIN_BLOCK_KEY, new SaveData { Gold = 7, PlayerName = "ok" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceDefaults.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
             Assert.AreEqual(7, loaded.Gold);
         }
@@ -330,7 +330,7 @@ namespace Service.Save
                 for (int i = 0; i < writesPerWriter; i++)
                 {
                     SaveError error = _handler.TryLoadBlockCore<SaveData>(
-                        SaveServiceHandler.ResolveSavePaths("slot", TestFolder), "key-" + w + "-" + i, out SaveData loaded);
+                        SavePathResolver.ResolveSavePaths("slot", TestFolder), "key-" + w + "-" + i, out SaveData loaded);
                     Assert.AreEqual(SaveError.None, error, $"key-{w}-{i} 应可加载");
                     Assert.AreEqual(i, loaded.Gold, $"key-{w}-{i} 内容应完整");
                 }
@@ -340,7 +340,7 @@ namespace Service.Save
         [Test]
         public void FileGate_ReleasesEntry_AfterLastLeave()
         {
-            var paths = SaveServiceHandler.ResolveSavePaths("gate-reclaim-slot", TestFolder);
+            var paths = SavePathResolver.ResolveSavePaths("gate-reclaim-slot", TestFolder);
             SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             gate.Wait();
             SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: true);
@@ -351,7 +351,7 @@ namespace Service.Save
         [Test]
         public void FileGate_CancelledWaiter_DoesNotLeakEntry()
         {
-            var paths = SaveServiceHandler.ResolveSavePaths("gate-cancel-slot", TestFolder);
+            var paths = SavePathResolver.ResolveSavePaths("gate-cancel-slot", TestFolder);
             // Enter 后未持门（acquired: false 模拟等门期取消）——仅归还占用不 Release
             SemaphoreSlim gate = SaveFileGate.Enter(paths.SaveFilePath);
             SaveFileGate.Leave(paths.SaveFilePath, gate, acquired: false);
@@ -362,7 +362,7 @@ namespace Service.Save
         [Test]
         public void FileGate_ConcurrentHolders_KeepEntryAlive()
         {
-            var paths = SaveServiceHandler.ResolveSavePaths("gate-alive-slot", TestFolder);
+            var paths = SavePathResolver.ResolveSavePaths("gate-alive-slot", TestFolder);
             SemaphoreSlim gate1 = SaveFileGate.Enter(paths.SaveFilePath);
             SemaphoreSlim gate2 = SaveFileGate.Enter(paths.SaveFilePath);
             Assert.AreSame(gate1, gate2, "同路径必须取到同一把门");
@@ -383,7 +383,7 @@ namespace Service.Save
             Assert.IsTrue(_handler.FileExists("gate-del-slot", TestFolder));
 
             // 持文件级门——整档删除（分层门：根+文件夹+文件）必须在文件级排队
-            var paths = SaveServiceHandler.ResolveSavePaths("gate-del-slot", TestFolder);
+            var paths = SavePathResolver.ResolveSavePaths("gate-del-slot", TestFolder);
             SemaphoreSlim fileGate = SaveFileGate.Enter(paths.SaveFilePath);
             fileGate.Wait();
 
@@ -416,7 +416,7 @@ namespace Service.Save
         public void DeleteSaveFolder_WhileFolderGateHeld_BlocksUntilRelease()
         {
             _handler.SaveBlock(new SaveData { Gold = 1, PlayerName = "p" }, "gate-folder-slot", "k", TestFolder);
-            var paths = SaveServiceHandler.ResolveSavePaths("gate-folder-slot", TestFolder);
+            var paths = SavePathResolver.ResolveSavePaths("gate-folder-slot", TestFolder);
 
             // 持文件夹级门（块级读写持「根+文件夹+文件」三级，故文件夹删除与任一槽位写入互斥）
             SemaphoreSlim dirGate = SaveFileGate.Enter(paths.DirectoryPath);
@@ -451,7 +451,7 @@ namespace Service.Save
         public void DeleteAllSaveFiles_WhileRootGateHeld_BlocksUntilRelease()
         {
             _handler.SaveBlock(new SaveData { Gold = 1, PlayerName = "p" }, "gate-root-slot", "k", TestFolder);
-            var paths = SaveServiceHandler.ResolveSavePaths("gate-root-slot", TestFolder);
+            var paths = SavePathResolver.ResolveSavePaths("gate-root-slot", TestFolder);
 
             // 持根级门（与 BuildDataRootDirectory 同串：文件夹路径去尾分隔符后取父目录）
             string rootKey = Path.GetDirectoryName(paths.DirectoryPath.TrimEnd(Path.DirectorySeparatorChar));

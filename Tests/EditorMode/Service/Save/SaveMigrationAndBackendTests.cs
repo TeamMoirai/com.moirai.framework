@@ -121,9 +121,9 @@ namespace Service.Save
             UtfLogExpect.Error();
         }
 
-        private SaveServiceHandler.SavePaths Paths(string fileName)
+        private SavePaths Paths(string fileName)
         {
-            return SaveServiceHandler.ResolveSavePaths(fileName, "Slots");
+            return SavePathResolver.ResolveSavePaths(fileName, "Slots");
         }
 
         #region 版本迁移 [MIGRATION]
