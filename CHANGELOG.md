@@ -39,6 +39,10 @@
 
 - 抽出 `PackageManagerWindowBase` 及其嵌套 `PackageManagerProfile`：菜单树、详情面、版本历史与装卸编排收进基类，派生包只需给出窗口标题、状态文件、检出落点、源缺省、宿主包类型与界面文案，即可在同一工程里管理另一条分支上的可安装包；`PackageManagerWindow` 改为框架插件源的首个实现，状态账本与宿主版本量取目标按包源注入
 
+#### Localization
+
+- 新增 `LanguageIndexedAttribute`（`Runtime/Services/Localization/Support/`）与编辑器抽屉（`Editor/Services/Localization/Drawers/LanguageIndexedArrayDrawer`）：标在「下标 = 语言列下标」的数组字段上，Inspector 每个元素行前缀显示语言码（语言清单取 `LocalizationService.ExportedLanguages`，编辑态直读 Settings 后端实例）；清单为空整列原样显示，越界行不猜语言。`TextLocalizer`/`ImageLocalizer`/`AudioLocalizer` 的六个按语言数组字段已标注
+
 ### Changed
 
 #### Core

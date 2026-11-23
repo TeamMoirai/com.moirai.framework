@@ -1,3 +1,4 @@
+using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -8,7 +9,7 @@ namespace Moirai.Atropos.Localization
 		[SerializeField, FormerlySerializedAs("localizedTextID")] private string m_LocalizedTextID = "";
 
 		[Tooltip("按语言索引的音频资源：下标 = 当前语言列下标（下标越界或空元素保持原音频）")]
-		[SerializeField, FormerlySerializedAs("clips")] private AudioClip[] m_Clips;
+		[SerializeField, FormerlySerializedAs("clips"), LanguageIndexed] private AudioClip[] m_Clips;
 
 		[SerializeField, FormerlySerializedAs("playFromSamePositionWhenInject")] private bool m_PlayFromSamePositionWhenInject;
 		public bool PlayFromSamePositionWhenInject => m_PlayFromSamePositionWhenInject;

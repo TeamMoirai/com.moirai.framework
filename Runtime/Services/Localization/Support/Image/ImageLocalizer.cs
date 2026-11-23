@@ -1,3 +1,4 @@
+using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
@@ -10,11 +11,11 @@ namespace Moirai.Atropos.Localization
 		[SerializeField, FormerlySerializedAs("propertyName")] private string m_PropertyName = "_MainTex";
 
 		[Tooltip("按语言索引的二维纹理：下标 = 当前语言列下标（下标越界或空元素保持原二维纹理）")]
-		[SerializeField, FormerlySerializedAs("texture2Ds")] private Texture2D[] m_Texture2Ds;
+		[SerializeField, FormerlySerializedAs("texture2Ds"), LanguageIndexed] private Texture2D[] m_Texture2Ds;
 		[Tooltip("按语言索引的精灵：下标 = 当前语言列下标（下标越界或空元素保持原精灵）")]
-		[SerializeField, FormerlySerializedAs("sprites")] internal Sprite[] m_Sprites;
+		[SerializeField, FormerlySerializedAs("sprites"), LanguageIndexed] internal Sprite[] m_Sprites;
 		[Tooltip("按语言索引的纹理：下标 = 当前语言列下标（下标越界或空元素保持原纹理）")]
-		[SerializeField, FormerlySerializedAs("textures")] private Texture[] m_Textures;
+		[SerializeField, FormerlySerializedAs("textures"), LanguageIndexed] private Texture[] m_Textures;
 
 		protected override void Prepare()
 		{

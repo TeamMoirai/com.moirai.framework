@@ -1,6 +1,7 @@
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
 using TMPro;
 #endif
+using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,10 +12,10 @@ namespace Moirai.Atropos.Localization
 		[SerializeField] private string m_TextId;
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
 		[Tooltip("按语言索引的 TMP 字体资产：下标 = 当前语言列下标（下标越界或空元素保持原字体）")]
-		[SerializeField] private TMP_FontAsset[] m_TmpFontAssets;
+		[SerializeField, LanguageIndexed] private TMP_FontAsset[] m_TmpFontAssets;
 #endif
 		[Tooltip("按语言索引的 UGUI 字体：下标 = 当前语言列下标（下标越界或空元素保持原字体）")]
-		[SerializeField] private Font[] m_UguiFonts;
+		[SerializeField, LanguageIndexed] private Font[] m_UguiFonts;
 
 		protected override void Prepare()
 		{
