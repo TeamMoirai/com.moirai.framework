@@ -365,7 +365,7 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
             await handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
             await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, null);
         }
@@ -394,7 +394,7 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
             Dictionary<string, byte[]> blocks = await ((SaveServiceHandler)s_Handler).ReadRawBlocksAsync(paths, cancellationToken);
 
             // 读档续体经 RunOnThreadPool(configureAwait:false) 完成——可能停留在线程池；组件字段写回触及 Unity 对象，须先切回主线程

@@ -379,9 +379,9 @@ namespace Service.Save
                 $"应记录含 '{fragment}' 的 Error 日志，实际捕获 {_capturedLogs.Count} 条");
         }
 
-        private SaveServiceHandler.SavePaths Paths(string fileName)
+        private SavePaths Paths(string fileName)
         {
-            return SaveServiceHandler.ResolveSavePaths(fileName, TestFolder);
+            return SavePathResolver.ResolveSavePaths(fileName, TestFolder);
         }
 
         /// <summary>

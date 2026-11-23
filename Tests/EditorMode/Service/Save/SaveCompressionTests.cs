@@ -122,9 +122,9 @@ namespace Service.Save
         /// <summary>
         /// 在 <see cref="TestFolder"/> 下解析目标存档路径。
         /// </summary>
-        private SaveServiceHandler.SavePaths Paths(string fileName)
+        private SavePaths Paths(string fileName)
         {
-            return SaveServiceHandler.ResolveSavePaths(fileName, TestFolder);
+            return SavePathResolver.ResolveSavePaths(fileName, TestFolder);
         }
 
         #region 提供方与注册表 [PROVIDER / REGISTRY]

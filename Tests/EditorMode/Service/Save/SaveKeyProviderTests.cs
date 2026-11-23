@@ -32,7 +32,7 @@ namespace Service.Save
 
         private string _rootPath;
         private string _directoryPath;
-        private SaveServiceHandler.SavePaths _paths;
+        private SavePaths _paths;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
 
         [SetUp]
@@ -42,7 +42,7 @@ namespace Service.Save
             _directoryPath = Path.Combine(_rootPath, SaveServiceDefaults.DATA_FOLDER_NAME, "Slots");
             Directory.CreateDirectory(_directoryPath);
             SaveServiceHandler.s_OverrideBasePath = _rootPath;
-            _paths = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "slot.sav"));
+            _paths = new SavePaths(_directoryPath, Path.Combine(_directoryPath, "slot.sav"));
 
             _capturedLogs = new List<(ELogLevel, string)>();
             LogUtility.onMessageLogged += CaptureLog;

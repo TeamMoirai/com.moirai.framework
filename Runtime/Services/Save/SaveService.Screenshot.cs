@@ -45,7 +45,7 @@ namespace Moirai.Atropos.Save
                 return SaveError.NotSupported;
             }
 
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
 
             // 帧末捕获（屏幕捕获须在帧渲染完成后进行；GPU 降采样 + 小图回读，ImageConversion 主线程编码小图）
             await UniTask.WaitForEndOfFrame(cancellationToken: cancellationToken);

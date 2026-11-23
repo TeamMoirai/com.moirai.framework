@@ -230,7 +230,7 @@ namespace Moirai.Atropos.Save
         /// <param name="migratedBlocks">迁移后的块集合（未迁移时为源列表）。</param>
         /// <param name="migrated">是否实际执行了迁移。</param>
         /// <returns>错误码：<see cref="SaveError.None"/>、<see cref="SaveError.UnsupportedVersion"/>（降级拒绝）或 <see cref="SaveError.MigrationFailed"/>。</returns>
-        internal static SaveError TryMigrateBlocks(SaveServiceHandler.SavePaths paths, List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, out List<SaveBlockEntry> migratedBlocks, out bool migrated)
+        internal static SaveError TryMigrateBlocks(SavePaths paths, List<SaveBlockEntry> blocks, List<SaveBlockError> blockErrors, out List<SaveBlockEntry> migratedBlocks, out bool migrated)
         {
             migratedBlocks = blocks;
             migrated = false;

@@ -193,7 +193,7 @@ namespace Service.Save
             _objects.Add(entity);
 
             yield return WaitForTask(SaveService.SaveEntitiesAsync("slot-incr", "Save").AsTask());
-            var paths = SaveServiceHandler.ResolveSavePaths("slot-incr", "Save");
+            var paths = SavePathResolver.ResolveSavePaths("slot-incr", "Save");
             Assert.IsTrue(File.Exists(paths.SaveFilePath), "首次全量写回应落档");
             DateTime firstWriteTime = File.GetLastWriteTimeUtc(paths.SaveFilePath);
             _blockSavedEvents.Clear();
@@ -247,7 +247,7 @@ namespace Service.Save
             SaveService.DestroyPersistent(entityA);
             yield return WaitForTask(SaveService.SaveEntitiesAsync("slot-incr", "Save").AsTask());
 
-            var paths = SaveServiceHandler.ResolveSavePaths("slot-incr", "Save");
+            var paths = SavePathResolver.ResolveSavePaths("slot-incr", "Save");
             Dictionary<string, byte[]> blocks = _handler.ReadRawBlocks(paths);
             Assert.IsFalse(blocks.ContainsKey(SaveEntityPersistence.BuildEntityBlockKey(entityIdA)), "已销毁实体块应被清理");
             Assert.IsTrue(blocks.ContainsKey(SaveEntityPersistence.BuildEntityBlockKey(entityIdB)), "存活实体块应保留");
@@ -262,7 +262,7 @@ namespace Service.Save
             string entityId = SaveObjectIdentity.Resolve(entity).Id;
 
             yield return WaitForTask(SaveService.SaveEntitiesAsync("slot-incr", "Save").AsTask());
-            var paths = SaveServiceHandler.ResolveSavePaths("slot-incr", "Save");
+            var paths = SavePathResolver.ResolveSavePaths("slot-incr", "Save");
 
             // 外部改写档（写入时间失配）——守卫失效，本次保存须全量重写回正确内容
             File.WriteAllText(paths.SaveFilePath, "garbage-external-overwrite");

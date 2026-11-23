@@ -94,9 +94,9 @@ namespace Service.Save
         /// <summary>
         /// 在 <see cref="TestFolder"/> 下解析目标存档路径。
         /// </summary>
-        private SaveServiceHandler.SavePaths Paths(string fileName)
+        private SavePaths Paths(string fileName)
         {
-            return SaveServiceHandler.ResolveSavePaths(fileName, TestFolder);
+            return SavePathResolver.ResolveSavePaths(fileName, TestFolder);
         }
 
         /// <summary>
@@ -638,28 +638,28 @@ namespace Service.Save
         [Test]
         public void Validate_NullFileName_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => SaveServiceHandler.ResolveSavePaths(null, TestFolder));
+            Assert.Throws<ArgumentNullException>(() => SavePathResolver.ResolveSavePaths(null, TestFolder));
         }
 
         [Test]
         public void Validate_EmptyFileName_Throws()
         {
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("", TestFolder));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("", TestFolder));
         }
 
         [Test]
         public void Validate_WhitespaceFileName_Throws()
         {
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("   ", TestFolder));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("   ", TestFolder));
         }
 
         [Test]
         public void Validate_PathTraversalFileName_Throws()
         {
             // ".." 穿越段与正斜杠分隔符在所有平台都拦截，无条件断言
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("../evil", TestFolder),
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("../evil", TestFolder),
                 "穿越段任何平台都必须拦截");
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("sub/dir/evil", TestFolder),
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("sub/dir/evil", TestFolder),
                 "路径分隔符任何平台都必须拦截");
 
             // 反斜杠是 Windows 的目录分隔符；POSIX 家族里它是合法文件名字符，运行时按平台字符集放行。
@@ -669,22 +669,22 @@ namespace Service.Save
                 Assert.Ignore("反斜杠在当前平台是合法文件名字符，运行时按平台字符集放行；恢复条件：Windows 平台或跨平台并集字符集");
             }
 
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths(@"sub\dir\evil", TestFolder),
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths(@"sub\dir\evil", TestFolder),
                 "反斜杠分隔符在本平台必须拦截");
         }
 
         [Test]
         public void Validate_ReservedDeviceName_Throws()
         {
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("CON", TestFolder));
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("com1.sav", TestFolder));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("CON", TestFolder));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("com1.sav", TestFolder));
         }
 
         [Test]
         public void Validate_TempSuffixFileName_Throws()
         {
             // 文件名含临时后缀会被孤儿清扫误删——校验层拦截
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot.tmp-x", TestFolder));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("slot.tmp-x", TestFolder));
         }
 
         [Test]
@@ -702,13 +702,13 @@ namespace Service.Save
 
             if (colonInvalid)
             {
-                Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot:1", TestFolder),
+                Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("slot:1", TestFolder),
                     "':' 在本平台是非法文件名字符");
             }
 
             if (questionInvalid)
             {
-                Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot?", TestFolder),
+                Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("slot?", TestFolder),
                     "'?' 在本平台是非法文件名字符");
             }
         }
@@ -716,23 +716,23 @@ namespace Service.Save
         [Test]
         public void Validate_NullFolderName_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => SaveServiceHandler.ResolveSavePaths("slot", null));
+            Assert.Throws<ArgumentNullException>(() => SavePathResolver.ResolveSavePaths("slot", null));
         }
 
         [Test]
         public void Validate_PathTraversalFolderName_Throws()
         {
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot", "../escape"));
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot", "a/b"));
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot", "a:b"));
-            Assert.Throws<ArgumentException>(() => SaveServiceHandler.ResolveSavePaths("slot", "."));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("slot", "../escape"));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("slot", "a/b"));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("slot", "a:b"));
+            Assert.Throws<ArgumentException>(() => SavePathResolver.ResolveSavePaths("slot", "."));
         }
 
         [Test]
         public void Validate_EmptyFolderName_IsDataRoot()
         {
             // 空文件夹名 = 存档数据根目录（合法语义，路径即覆盖根 + 分隔符）
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths("slot", "");
+            SavePaths paths = SavePathResolver.ResolveSavePaths("slot", "");
             StringAssert.StartsWith(_rootPath, paths.SaveFilePath);
         }
 
@@ -746,7 +746,7 @@ namespace Service.Save
         public void FileName_ExtensionIsNormalized()
         {
             // 传入带扩展名的文件名应被剥离后重新追加配置扩展名（既有契约）
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths("player_data.json", TestFolder);
+            SavePaths paths = SavePathResolver.ResolveSavePaths("player_data.json", TestFolder);
             StringAssert.EndsWith(SaveServiceSettings.SaveFileExtension, paths.SaveFilePath);
             StringAssert.DoesNotEndWith(".json" + SaveServiceSettings.SaveFileExtension, paths.SaveFilePath);
         }

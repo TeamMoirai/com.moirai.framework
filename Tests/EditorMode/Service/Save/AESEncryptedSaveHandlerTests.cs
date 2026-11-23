@@ -33,7 +33,7 @@ namespace Service.Save
 
         private AESEncryptedSaveHandler _handler;
         private string _directoryPath;
-        private SaveServiceHandler.SavePaths _paths;
+        private SavePaths _paths;
         private List<(ELogLevel Level, string Message)> _capturedLogs;
 
         private static AESEncryptedSaveHandler CreateHandler(string passphrase)
@@ -50,7 +50,7 @@ namespace Service.Save
 
             _directoryPath = Path.Combine(Path.GetTempPath(), "moirai-save-enc-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_directoryPath);
-            _paths = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "slot.sav"));
+            _paths = new SavePaths(_directoryPath, Path.Combine(_directoryPath, "slot.sav"));
 
             _capturedLogs = new List<(ELogLevel, string)>();
             LogUtility.onMessageLogged += CaptureLog;
@@ -159,8 +159,8 @@ namespace Service.Save
         public void SaveCore_IsDeterministicLayout()
         {
             // 两次写入布局稳定（IV 随机导致密文不同，但长度结构一致：容器 + 头 + IV + 填充块 + MAC）
-            var firstPath = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "first.sav"));
-            var secondPath = new SaveServiceHandler.SavePaths(_directoryPath, Path.Combine(_directoryPath, "second.sav"));
+            var firstPath = new SavePaths(_directoryPath, Path.Combine(_directoryPath, "first.sav"));
+            var secondPath = new SavePaths(_directoryPath, Path.Combine(_directoryPath, "second.sav"));
             var data = new SaveData { Gold = 7, PlayerName = "Moirai" };
 
             _handler.SaveBlockCore(firstPath, SaveServiceDefaults.MAIN_BLOCK_KEY, data, SaveBackendIds.JSON, 1, CancellationToken.None);

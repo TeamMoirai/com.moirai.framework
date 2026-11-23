@@ -115,7 +115,7 @@ namespace Moirai.Atropos.Save
             var handler = (SaveServiceHandler)RequireHandler();
             await SaveEntityPersistence.WarmBaselinesAsync(cancellationToken);
             List<SaveBlockEntry> entries = SaveEntityPersistence.CaptureEntityEntries(fileName, folderName);
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
 
             if (SaveEntityPersistence.TrySkipEntitySave(paths, entries, handler, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals))
             {
@@ -157,7 +157,7 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+            SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
             Dictionary<string, byte[]> blocks = await ((SaveServiceHandler)s_Handler).ReadRawBlocksAsync(paths, cancellationToken);
 
             // 读档续体经 RunOnThreadPool(configureAwait:false) 完成——可能停留在线程池；

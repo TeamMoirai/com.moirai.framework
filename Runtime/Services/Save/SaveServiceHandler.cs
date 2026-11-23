@@ -40,31 +40,12 @@ namespace Moirai.Atropos.Save
         /// <summary>块键最大字符数。源自 <see cref="SaveServiceDefaults"/>（中立宿主）。</summary>
         internal const int MAX_BLOCK_KEY_LENGTH = SaveServiceDefaults.MAX_BLOCK_KEY_LENGTH;
 
-        private static readonly char[] s_PathSeparators = { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
-        private static readonly char[] s_InvalidFileNameChars = Path.GetInvalidFileNameChars();
-        private static readonly HashSet<string> s_ReservedDeviceNames = BuildReservedDeviceNames();
-
-        /// <summary>存档根路径缓存（persistentDataPath 为 Unity API，仅在主线程首次解析）。</summary>
-        [NonSerialized] private static string s_BasePath;
-
-        /// <summary>存档根路径覆盖点（仅供测试注入；非 null 时优先于 persistentDataPath）。</summary>
-        [NonSerialized] internal static string s_OverrideBasePath;
-
-#if UNITY_EDITOR
-        /// <summary>
-        /// 重置静态状态：兼容关闭 Domain Reload 的编辑器工作流（进入 Play 时清空上一会话残留）。
-        /// </summary>
-        /// <remarks>
-        /// 只清两份路径缓存：根路径由主线程首次解析重建，测试覆盖点不得跨会话泄漏（上一场测试的注入会污染下一场的落盘位置）。 <br />
-        /// s_PathSeparators / s_InvalidFileNameChars / s_ReservedDeviceNames 为不可变只读集，无需归位。
-        /// </remarks>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ResetStatics()
+        /// <summary>存档根路径覆盖点（仅供测试注入；非 null 时优先于 persistentDataPath）。转发 <see cref="SavePathResolver.s_OverrideBasePath"/>。</summary>
+        internal static string s_OverrideBasePath
         {
-            s_BasePath = null;
-            s_OverrideBasePath = null;
+            get => SavePathResolver.s_OverrideBasePath;
+            set => SavePathResolver.s_OverrideBasePath = value;
         }
-#endif
 
         [Tooltip("存储后端：存档 IO 的下沉目标（默认本地文件；云存档等自定义后端继承 SaveStorageBackend 接入）。置空时回退本地文件后端。")]
         [ProviderDropdown]

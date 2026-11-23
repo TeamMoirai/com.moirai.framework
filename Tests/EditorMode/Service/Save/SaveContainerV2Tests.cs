@@ -106,15 +106,15 @@ namespace Service.Save
         /// <summary>
         /// 在 <see cref="TestFolder"/> 下解析目标存档路径。
         /// </summary>
-        private SaveServiceHandler.SavePaths Paths(string fileName)
+        private SavePaths Paths(string fileName)
         {
-            return SaveServiceHandler.ResolveSavePaths(fileName, TestFolder);
+            return SavePathResolver.ResolveSavePaths(fileName, TestFolder);
         }
 
         /// <summary>
         /// 写入含 stats/inventory 两个健康块的存档。
         /// </summary>
-        private SaveServiceHandler.SavePaths WriteTwoBlockSave(string fileName)
+        private SavePaths WriteTwoBlockSave(string fileName)
         {
             var paths = Paths(fileName);
             _handler.SaveBlockCore(paths, "stats", new SaveData { Gold = 100, PlayerName = "stats" }, SaveBackendIds.JSON, 1, CancellationToken.None);

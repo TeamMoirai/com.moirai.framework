@@ -1206,7 +1206,7 @@ namespace Moirai.Atropos.Save
 
                 view.IsEncryptedLikely = view.Blocks.Length == 0 && view.Info.SizeBytes > 64;
 
-                SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(view.Info.FileName, folder);
+                SavePaths paths = SavePathResolver.ResolveSavePaths(view.Info.FileName, folder);
                 string screenshotPath = Path.Combine(paths.DirectoryPath, SaveScreenshotUtility.DetermineScreenshotFileName(view.Info.FileName));
                 view.HasScreenshot = File.Exists(screenshotPath);
                 view.HasBackup = File.Exists(paths.SaveFilePath + BACKUP_SUFFIX);
@@ -1258,7 +1258,7 @@ namespace Moirai.Atropos.Save
             EnrichSlotView(_activeDetail.View, _activeDetail.Folder, loadMetadata: true);
             try
             {
-                SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(_activeDetail.View.Info.FileName, _activeDetail.Folder);
+                SavePaths paths = SavePathResolver.ResolveSavePaths(_activeDetail.View.Info.FileName, _activeDetail.Folder);
                 _activeDetail.SetRawBlocks(_handler.ReadRawBlocks(paths));
             }
             catch
@@ -1662,7 +1662,7 @@ namespace Moirai.Atropos.Save
 
             try
             {
-                SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(view.Info.FileName, folder);
+                SavePaths paths = SavePathResolver.ResolveSavePaths(view.Info.FileName, folder);
                 string screenshotPath = Path.Combine(paths.DirectoryPath, SaveScreenshotUtility.DetermineScreenshotFileName(view.Info.FileName));
                 if (!File.Exists(screenshotPath))
                 {
@@ -1739,7 +1739,7 @@ namespace Moirai.Atropos.Save
         {
             try
             {
-                SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths(fileName, folderName);
+                SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
                 return paths.SaveFilePath;
             }
             catch

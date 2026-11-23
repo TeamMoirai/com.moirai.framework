@@ -574,7 +574,7 @@ namespace Moirai.Atropos.Save
         /// <param name="dirtyEntries">需写回的变化条目（跳过/全量模式为 <c>null</c>；增量模式含变化差分块与变化的实体表块）。</param>
         /// <param name="certainRemovals">会话内确定的删除块键（上次在册 − 当前在册；全量模式为 <c>null</c>）。</param>
         /// <returns><c>true</c> = 零变化且档未被外部改写（跳过保存）；<c>false</c> = 需要写回。</returns>
-        internal static bool TrySkipEntitySave(SaveServiceHandler.SavePaths paths, List<SaveBlockEntry> entries, SaveServiceHandler handler, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals)
+        internal static bool TrySkipEntitySave(SavePaths paths, List<SaveBlockEntry> entries, SaveServiceHandler handler, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals)
         {
             dirtyEntries = null;
             certainRemovals = null;
@@ -631,7 +631,7 @@ namespace Moirai.Atropos.Save
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="entries">本次保存的全部实体条目（末位恒为实体表块）。</param>
         /// <param name="fileWriteTimeUtc">保存完成后的档写入时间（守卫基准）。</param>
-        internal static void CommitSavedState(SaveServiceHandler.SavePaths paths, List<SaveBlockEntry> entries, DateTime fileWriteTimeUtc)
+        internal static void CommitSavedState(SavePaths paths, List<SaveBlockEntry> entries, DateTime fileWriteTimeUtc)
         {
             var state = new LastSavedState
             {
@@ -659,7 +659,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 构造增量基准键（folderName/fileName——同档同名文件夹唯一键控）。
         /// </summary>
-        private static string BuildStateKey(SaveServiceHandler.SavePaths paths)
+        private static string BuildStateKey(SavePaths paths)
         {
             return StringUtility.Concat(paths.FolderName, "/", paths.FileName);
         }

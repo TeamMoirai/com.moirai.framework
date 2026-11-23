@@ -50,7 +50,7 @@ namespace Moirai.Atropos.Save
             if (handler == null) throw new GameException("SaveBlockBatch: SaveService handler is not ready.");
 
             List<SaveBlockEntry> entries = await UniTask.RunOnThreadPool(BuildEntries, cancellationToken: cancellationToken);
-            await handler.UpsertRawBlocksAsync(SaveServiceHandler.ResolveSavePaths(fileName, folderName), entries, cancellationToken);
+            await handler.UpsertRawBlocksAsync(SavePathResolver.ResolveSavePaths(fileName, folderName), entries, cancellationToken);
 
             _pending.Clear();
         }

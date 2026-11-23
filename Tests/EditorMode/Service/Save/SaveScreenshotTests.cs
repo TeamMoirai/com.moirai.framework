@@ -270,7 +270,7 @@ namespace Service.Save
         [Test]
         public void WriteScreenshot_PersistsSidecarBytes()
         {
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths("slot7", TestFolder);
+            SavePaths paths = SavePathResolver.ResolveSavePaths("slot7", TestFolder);
             _handler.SaveBlock(new SaveData { Gold = 1 }, "slot7", SaveServiceDefaults.MAIN_BLOCK_KEY, TestFolder, SaveBackendIds.JSON, 1);
 
             byte[] png = SaveScreenshotUtility.EncodeThumbnailPng(BuildGradientPixels(4, 4), 4, 4, 4, out _, out _);
@@ -285,7 +285,7 @@ namespace Service.Save
         [Test]
         public void DeleteSave_CascadesScreenshotSidecar()
         {
-            SaveServiceHandler.SavePaths paths = SaveServiceHandler.ResolveSavePaths("slot8", TestFolder);
+            SavePaths paths = SavePathResolver.ResolveSavePaths("slot8", TestFolder);
             _handler.SaveBlock(new SaveData { Gold = 1 }, "slot8", SaveServiceDefaults.MAIN_BLOCK_KEY, TestFolder, SaveBackendIds.JSON, 1);
             _handler.WriteScreenshot(paths, SaveScreenshotUtility.EncodeThumbnailPng(BuildGradientPixels(2, 2), 2, 2, 2, out _, out _));
 
