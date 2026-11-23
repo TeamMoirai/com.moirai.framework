@@ -20,7 +20,7 @@ namespace Moirai.Atropos.Save
     /// </remarks>
     [Serializable]
     [ServiceDependency(typeof(IDebuggerService))]
-    public abstract partial class SaveServiceHandler : ServiceBase, ISaveService
+    public abstract partial class SaveServiceHandler : ServiceBase, ISaveService, ISaveServiceBackend
     {
         /// <summary>存档数据根目录名（persistentDataPath 下）。源自 <see cref="SaveServiceDefaults"/>（中立宿主）。</summary>
         public const string DATA_FOLDER_NAME = SaveServiceDefaults.DATA_FOLDER_NAME;
@@ -63,6 +63,33 @@ namespace Moirai.Atropos.Save
         /// 严禁在核心管线惰性触达 <see cref="SaveServiceSettings"/>（<c>Resources.Load</c> 仅限主线程，工作线程触达即崩）。
         /// </remarks>
         internal SaveStorageBackend StorageBackend => m_StorageBackend ?? FileSaveStorageBackend.s_Default;
+
+        #region 能力契约实现 [ISaveServiceBackend]
+
+        // 显式接口实现转发既有 internal 成员（签名携带 internal 类型，隐式实现触发 CS0051 并外扩公开面）；
+        // 门面经 is ISaveServiceBackend 能力协商取用，家族基座谱系随之降级为实现路径而非语义要求。
+
+        SaveStorageBackend ISaveServiceBackend.StorageBackend => StorageBackend;
+
+        UniTask ISaveServiceBackend.UpsertRawBlocksAsync(SavePaths paths, List<SaveBlockEntry> additions, CancellationToken cancellationToken)
+            => UpsertRawBlocksAsync(paths, additions, cancellationToken);
+
+        UniTask<Dictionary<string, byte[]>> ISaveServiceBackend.ReadRawBlocksAsync(SavePaths paths, CancellationToken cancellationToken)
+            => ReadRawBlocksAsync(paths, cancellationToken);
+
+        UniTask ISaveServiceBackend.MergeRawBlocksAsync(SavePaths paths, List<SaveBlockEntry> additions, List<string> removals, Func<Dictionary<string, byte[]>, List<string>> removalResolver, CancellationToken cancellationToken)
+            => MergeRawBlocksAsync(paths, additions, removals, removalResolver, cancellationToken);
+
+        bool ISaveServiceBackend.TryGetSaveWriteTimeUtc(SavePaths paths, out DateTime writeTimeUtc)
+            => TryGetSaveWriteTimeUtc(paths, out writeTimeUtc);
+
+        UniTask ISaveServiceBackend.WriteScreenshotAsync(SavePaths paths, byte[] pngBytes, CancellationToken cancellationToken)
+            => WriteScreenshotAsync(paths, pngBytes, cancellationToken);
+
+        void ISaveServiceBackend.SaveBlock<T>(T data, string fileName, string key, string folderName, ushort backend, int dataVersion)
+            => SaveBlock(data, fileName, key, folderName, backend, dataVersion);
+
+        #endregion 能力契约实现 [ISaveServiceBackend]
 
         /// <summary>压缩提供方（<c>null</c> = 不压缩；无状态纯 .NET，工作线程调用安全）。</summary>
         internal SaveCompressionProvider CompressionProvider
