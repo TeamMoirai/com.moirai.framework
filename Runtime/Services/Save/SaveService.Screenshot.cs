@@ -57,7 +57,14 @@ namespace Moirai.Atropos.Save
 
             try
             {
-                await ((SaveServiceHandler)s_Handler).WriteScreenshotAsync(paths, pngBytes, cancellationToken);
+                ISaveServiceBackend backend = PeekBackend(s_Handler);
+                if (backend is null)
+                {
+                    WarnCapabilityMissingOnce(nameof(CaptureScreenshotAsync));
+                    return SaveError.HandlerNotReady;
+                }
+
+                await backend.WriteScreenshotAsync(paths, pngBytes, cancellationToken);
             }
             catch (OperationCanceledException)
             {

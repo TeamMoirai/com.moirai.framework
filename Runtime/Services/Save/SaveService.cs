@@ -61,6 +61,50 @@ namespace Moirai.Atropos.Save
 #endif
 
         /// <summary>
+        /// 门面能力协商（require 语义）：需要 <see cref="ISaveServiceBackend"/> 能力的 API 入口统一经此取用。
+        /// </summary>
+        /// <remarks>
+        /// 门面需要的是能力（原始块读写/存储后端/写时查询），不是家族基座谱系——能力缺失 fail-fast 并给出迁移指引， <br />
+        /// 不再以 <see cref="InvalidCastException"/> 裸崩。内建路径：派生 <see cref="SaveServiceHandler"/>； <br />
+        /// 框架友元程序集可直接实现该 internal 契约接入自定义后端。
+        /// </remarks>
+        /// <param name="handler">已就绪的契约处理器。</param>
+        /// <param name="apiName">调用点 API 名（进入错误消息定位）。</param>
+        /// <returns>能力视图。</returns>
+        private static ISaveServiceBackend RequireBackend(ISaveService handler, string apiName)
+        {
+            return handler as ISaveServiceBackend
+                ?? throw new GameException(StringUtility.Format(
+                    "SaveService.{0}: 后端 '{1}' 未实现 ISaveServiceBackend 能力契约（门面内部能力：原始块读写/存储后端/写时查询）。" +
+                    "内建路径：派生 SaveServiceHandler；框架友元程序集可直接实现该 internal 契约。",
+                    apiName, handler?.GetType().FullName));
+        }
+
+        /// <summary>
+        /// 门面能力协商（peek 语义）：能力缺失时返回 null，由调用点走未就绪同款降级（读路径静默丢档不可接受度低于写路径）。
+        /// </summary>
+        /// <param name="handler">已就绪的契约处理器。</param>
+        /// <returns>能力视图；协商失败为 null。</returns>
+        private static ISaveServiceBackend PeekBackend(ISaveService handler) => handler as ISaveServiceBackend;
+
+        /// <summary>能力缺失降级会话级一次性告警去重标志（与镜像读告警同款去重纪律）。</summary>
+        private static bool s_WarnedCapabilityMissing;
+
+        /// <summary>
+        /// peek 站点能力缺失时发出会话级一次性告警（降级语义等价于处理器未就绪）。
+        /// </summary>
+        private static void WarnCapabilityMissingOnce(string apiName)
+        {
+            if (s_WarnedCapabilityMissing)
+            {
+                return;
+            }
+
+            s_WarnedCapabilityMissing = true;
+            LogUtility.Warning("[SaveService] {0}: handler does not implement ISaveServiceBackend capability contract — degraded like an unready handler. Derive SaveServiceHandler or implement the internal capability contract.", apiName);
+        }
+
+        /// <summary>
         /// 存储后端同步读非权威（云镜像）时对同步裸名读 API 发出会话级一次性告警。
         /// </summary>
         /// <remarks>
@@ -73,7 +117,7 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            SaveStorageBackend storage = ((SaveServiceHandler)s_Handler).StorageBackend;
+            SaveStorageBackend storage = PeekBackend(s_Handler)?.StorageBackend;
             if (storage == null || storage.Capabilities.SyncReadsAuthoritative)
             {
                 return;
@@ -125,9 +169,8 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务。</returns>
         public static async UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
-            var handler = (SaveServiceHandler)RequireHandler();
             ushort backend = ResolveBackend<T>();
-            await handler.SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
+            await RequireHandler().SaveBlockAsync(data, fileName, key, folderName, backend, ResolveDataVersion<T>(), cancellationToken);
             await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, key);
         }
 
@@ -175,7 +218,8 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         public static void SaveBlock<T>(T data, string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME)
         {
-            ((SaveServiceHandler)RequireHandler()).SaveBlock(data, fileName, key, folderName, ResolveBackend<T>(), ResolveDataVersion<T>());
+            RequireBackend(RequireHandler(), nameof(SaveBlock))
+                .SaveBlock(data, fileName, key, folderName, ResolveBackend<T>(), ResolveDataVersion<T>());
         }
 
         /// <summary>
@@ -358,7 +402,7 @@ namespace Moirai.Atropos.Save
         /// <returns>写入完成的异步任务。</returns>
         public static async UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
-            var handler = (SaveServiceHandler)RequireHandler();
+            ISaveServiceBackend backend = RequireBackend(RequireHandler(), nameof(SaveComponentsAsync));
             List<SaveBlockEntry> entries = CaptureComponentsToEntries(fileName, folderName);
             if (entries.Count == 0)
             {
@@ -366,7 +410,7 @@ namespace Moirai.Atropos.Save
             }
 
             SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
-            await handler.UpsertRawBlocksAsync(paths, entries, cancellationToken);
+            await backend.UpsertRawBlocksAsync(paths, entries, cancellationToken);
             await CaptureScreenshotOnSaveIfEnabledAsync(fileName, folderName, null);
         }
 
@@ -394,8 +438,15 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
+            ISaveServiceBackend backend = PeekBackend(s_Handler);
+            if (backend is null)
+            {
+                WarnCapabilityMissingOnce(nameof(LoadComponentsAsync));
+                return;
+            }
+
             SavePaths paths = SavePathResolver.ResolveSavePaths(fileName, folderName);
-            Dictionary<string, byte[]> blocks = await ((SaveServiceHandler)s_Handler).ReadRawBlocksAsync(paths, cancellationToken);
+            Dictionary<string, byte[]> blocks = await backend.ReadRawBlocksAsync(paths, cancellationToken);
 
             // 读档续体经 RunOnThreadPool(configureAwait:false) 完成——可能停留在线程池；组件字段写回触及 Unity 对象，须先切回主线程
             if (!MainThreadDispatcher.IsMainThread)
@@ -509,7 +560,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
         public static UniTask SaveMetadataAsync(SaveMetadata metadata, string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            ((SaveServiceHandler)RequireHandler()).SaveBlockAsync(metadata, fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1, cancellationToken);
+            RequireHandler().SaveBlockAsync(metadata, fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1, cancellationToken);
 
         /// <summary>
         /// 从存档文件异步读取槽位元数据（保留块 <c>__meta</c>）。
@@ -533,7 +584,8 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         public static void SaveMetadata(SaveMetadata metadata, string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
-            ((SaveServiceHandler)RequireHandler()).SaveBlock(metadata, fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1);
+            RequireBackend(RequireHandler(), nameof(SaveMetadata))
+                .SaveBlock(metadata, fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1);
 
         /// <summary>
         /// 从存档文件读取槽位元数据（在调用线程执行，阻塞直至完成）。

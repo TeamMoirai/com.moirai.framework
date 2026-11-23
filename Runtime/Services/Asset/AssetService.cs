@@ -93,8 +93,11 @@ namespace Moirai.Atropos.Asset
             handler.IdleAssetCapacity = AssetServiceSettings.IdleAssetCapacity;
             handler.SetForceUnloadUnusedAssetsAction(RequestForceUnloadUnusedAssets);
 
-            // 初始化后端（创建默认包与绑定服务）——Initialize 随契约瘦身移出 IAssetService，按家族基座调用
-            ((AssetServiceHandler)handler).Initialize();
+            // 初始化后端（创建默认包与绑定服务）——Initialize 随契约瘦身移出 IAssetService，经能力契约协商调用
+            (handler as IAssetServiceBackend ?? throw new GameException(StringUtility.Format(
+                "AssetService.OnHandlerInitialized: 后端 '{0}' 未实现 IAssetServiceBackend 能力契约（后端初始化）。" +
+                "内建路径：派生 AssetServiceHandler；框架友元程序集可直接实现该 internal 契约。",
+                handler?.GetType().FullName))).Initialize();
             // 配置自检：只报不改，判据住在设置类里（构建期检查复用同一份，见 Editor 侧
             // AssetSettingsBuildValidator），这里只负责在启动时打一次。
             AssetServiceSettings.Instance.ReportConfigurationIssues();

@@ -570,11 +570,11 @@ namespace Moirai.Atropos.Save
         /// </remarks>
         /// <param name="paths">已解析的路径集合。</param>
         /// <param name="entries">本次捕获的全部实体条目（末位恒为实体表块）。</param>
-        /// <param name="handler">存档处理器（档写入时间查询）。</param>
+        /// <param name="handler">存档处理器能力视图（档写入时间查询）。</param>
         /// <param name="dirtyEntries">需写回的变化条目（跳过/全量模式为 <c>null</c>；增量模式含变化差分块与变化的实体表块）。</param>
         /// <param name="certainRemovals">会话内确定的删除块键（上次在册 − 当前在册；全量模式为 <c>null</c>）。</param>
         /// <returns><c>true</c> = 零变化且档未被外部改写（跳过保存）；<c>false</c> = 需要写回。</returns>
-        internal static bool TrySkipEntitySave(SavePaths paths, List<SaveBlockEntry> entries, SaveServiceHandler handler, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals)
+        internal static bool TrySkipEntitySave(SavePaths paths, List<SaveBlockEntry> entries, ISaveServiceBackend handler, out List<SaveBlockEntry> dirtyEntries, out List<string> certainRemovals)
         {
             dirtyEntries = null;
             certainRemovals = null;
