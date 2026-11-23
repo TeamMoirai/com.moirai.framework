@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
-using UnityEditor.Build;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using UnityEngine;
@@ -16,13 +15,10 @@ namespace Moirai.Atropos.Installer.Editor
         private const string MENU_PATH = "Tools/Install Framework";
         private const string TEMPLATES_PATH = "Packages/" + CORE_PACKAGE_NAME + "/Templates~";
         private const string TEMPLATE_REQUIREMENTS_PATH = TEMPLATES_PATH + "/@Requirements";
-        private const string TEMPLATE_NORMAL_PATH = TEMPLATES_PATH + "/NormalTemplate";
-        private const string TEMPLATE_HYBRID_PATH = TEMPLATES_PATH + "/HybridTemplate";
+        private const string TEMPLATE_SAMPLE_PATH = TEMPLATES_PATH + "/Sample";
 
         private const string CORE_PACKAGE_NAME = "com.moirai.framework";
         private const string URP_PACKAGE_NAME = "com.unity.render-pipelines.universal";
-        private const string HYBRID_CLR_PACKAGE_NAME = "com.code-philosophy.hybridclr";
-        private const string ENABLE_HYBRID_CLR_SYMBOL = "ENABLE_HYBRIDCLR";
 
         private const string REQUIRED_REGISTRY_NAME = "Open UPM";
         private const string REQUIRED_REGISTRY_URL = "https://package.openupm.com";
@@ -45,13 +41,7 @@ namespace Moirai.Atropos.Installer.Editor
             "Assets/Scripts/GameProto/Gen",
         };
 
-        private static readonly string[] s_HybridAssetMarkers =
-        {
-            "Assets/HybridCLRGenerate",
-        };
-
         private InstallCheckResult _checkResult;
-        private TemplateType _selectedTemplate;
         private Vector2 _scrollPosition;
         private Request _registryResolveRequest;
         private AddRequest _installCoreRequest;
@@ -59,18 +49,11 @@ namespace Moirai.Atropos.Installer.Editor
         private string _startupError;
         private bool _registryReady;
 
-        private enum TemplateType
-        {
-            Normal,
-            Hybrid
-        }
-
         private enum ProjectInstallState
         {
             NotInstalled,
             Custom,
-            NormalTemplate,
-            HybridTemplate
+            SampleTemplate
         }
 
         [MenuItem(MENU_PATH, false, -100000)]
@@ -198,11 +181,9 @@ namespace Moirai.Atropos.Installer.Editor
                 DrawStatusRow("Unity 2022.3 or newer", _checkResult.unityVersionSupported, _checkResult.unityVersion);
                 DrawStatusRow("Core package", _checkResult.hasCorePackage, _checkResult.corePackageText);
                 DrawStatusRow("URP package", _checkResult.hasUrp, _checkResult.urpVersionText, MessageType.Warning);
-                DrawStatusRow("HybridCLR package", _checkResult.hasHybridClr, _checkResult.hybridClrVersionText, MessageType.Warning);
                 DrawStatusRow("Installer state", _checkResult.projectState != ProjectInstallState.NotInstalled, _checkResult.StateText, MessageType.Warning);
                 DrawStatusRow("State source", true, _checkResult.stateSource);
-                DrawStatusRow("Normal template folder", _checkResult.hasNormalTemplate, TEMPLATE_NORMAL_PATH);
-                DrawStatusRow("Hybrid template folder", _checkResult.hasHybridTemplate, TEMPLATE_HYBRID_PATH, MessageType.Warning);
+                DrawStatusRow("Sample template folder", _checkResult.hasSampleTemplate, TEMPLATE_SAMPLE_PATH);
             }
         }
 
@@ -241,42 +222,16 @@ namespace Moirai.Atropos.Installer.Editor
                 if (_checkResult.projectState == ProjectInstallState.Custom)
                 {
                     InstallerGui.HelpBox("Project is marked as custom/no template required. You can still import a template later.", MessageType.Info);
-                }
-
-                if (_checkResult.projectState == ProjectInstallState.HybridTemplate)
-                {
-                    InstallerGui.HelpBox("Hybrid template is already initialized. Installer is locked to avoid overwriting project files.", MessageType.Info);
                     return;
                 }
 
-                if (_checkResult.projectState == ProjectInstallState.NormalTemplate)
+                if (_checkResult.projectState == ProjectInstallState.SampleTemplate)
                 {
-                    InstallerGui.HelpBox("Normal template is initialized. You can upgrade to Hybrid template after HybridCLR is installed.", MessageType.Info);
-                    using (new EditorGUI.DisabledScope(!_checkResult.hasHybridClr || !_checkResult.hasHybridTemplate))
-                    {
-                        _selectedTemplate = TemplateType.Hybrid;
-                        DrawTemplateChoice("Hybrid Template", true, "Upgrade current project to hot update template.");
-                    }
-
+                    InstallerGui.HelpBox("Sample template is already initialized. Installer is locked to avoid overwriting project files.", MessageType.Info);
                     return;
                 }
 
-                DrawTemplateChoice("Normal Template", _selectedTemplate == TemplateType.Normal, "Standalone framework template. Adds ENABLE_LOG.");
-
-                using (new EditorGUI.DisabledScope(!_checkResult.hasHybridClr))
-                {
-                    bool selected = _selectedTemplate == TemplateType.Hybrid;
-                    bool nextSelected = DrawTemplateChoice("Hybrid Template", selected, "Hot update framework template. Adds ENABLE_LOG and ENABLE_HYBRIDCLR.");
-                    if (nextSelected && !selected)
-                    {
-                        _selectedTemplate = TemplateType.Hybrid;
-                    }
-                }
-
-                if (!_checkResult.hasHybridClr)
-                {
-                    InstallerGui.HelpBox("Hybrid template requires HybridCLR package.", MessageType.Warning);
-                }
+                InstallerGui.HelpBox("Imports @Requirements (framework glue: launcher, procedures, settings) plus the Sample assets (start scene, config tables, UI example).", MessageType.Info);
             }
         }
 
@@ -312,8 +267,7 @@ namespace Moirai.Atropos.Installer.Editor
 
                 using (new EditorGUI.DisabledScope(!canInstall))
                 {
-                    string label = _checkResult.projectState == ProjectInstallState.NormalTemplate ? "Upgrade Template" : "Install Template";
-                    if (GUILayout.Button(label, InstallerGui.InlineButton, GUILayout.Width(180f)))
+                    if (GUILayout.Button("Install Template", InstallerGui.InlineButton, GUILayout.Width(180f)))
                     {
                         InstallSelectedTemplate();
                     }
@@ -321,26 +275,6 @@ namespace Moirai.Atropos.Installer.Editor
 
                 EditorGUILayout.EndHorizontal();
             }
-        }
-
-        private bool DrawTemplateChoice(string title, bool selected, string description)
-        {
-            EditorGUILayout.BeginVertical(InstallerGui.EntryBody);
-            EditorGUILayout.BeginHorizontal();
-
-            bool nextSelected = GUILayout.Toggle(selected, GUIContent.none, GUILayout.Width(18f));
-            EditorGUILayout.LabelField(title, InstallerGui.RowLabel);
-
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.LabelField(description, InstallerGui.MutedMiniLabel);
-            EditorGUILayout.EndVertical();
-
-            if (nextSelected)
-            {
-                _selectedTemplate = title.StartsWith("Hybrid", StringComparison.Ordinal) ? TemplateType.Hybrid : TemplateType.Normal;
-            }
-
-            return nextSelected;
         }
 
         private void DrawStatusRow(string label, bool success, string message, MessageType failedType = MessageType.Error)
@@ -365,21 +299,6 @@ namespace Moirai.Atropos.Installer.Editor
         private void RunInstallCheck()
         {
             _checkResult = InstallCheckResult.Create();
-
-            if (_checkResult.projectState == ProjectInstallState.NotInstalled ||
-                _checkResult.projectState == ProjectInstallState.Custom)
-            {
-                _selectedTemplate = _checkResult.hasHybridClr ? TemplateType.Hybrid : TemplateType.Normal;
-            }
-            else if (_checkResult.projectState == ProjectInstallState.NormalTemplate)
-            {
-                _selectedTemplate = TemplateType.Hybrid;
-            }
-            else
-            {
-                _selectedTemplate = TemplateType.Normal;
-            }
-
             Repaint();
         }
 
@@ -411,28 +330,15 @@ namespace Moirai.Atropos.Installer.Editor
                 return false;
             }
 
-            if (_checkResult.projectState == ProjectInstallState.HybridTemplate)
+            if (_checkResult.projectState == ProjectInstallState.SampleTemplate)
             {
-                blockReason = "Hybrid template is already initialized.";
+                blockReason = "Sample template is already initialized.";
                 return false;
             }
 
-            if (_checkResult.projectState == ProjectInstallState.NormalTemplate && _selectedTemplate != TemplateType.Hybrid)
+            if (!Directory.Exists(TEMPLATE_SAMPLE_PATH))
             {
-                blockReason = "Normal template is already initialized and cannot be overwritten.";
-                return false;
-            }
-
-            if (_selectedTemplate == TemplateType.Hybrid && !_checkResult.hasHybridClr)
-            {
-                blockReason = "Hybrid template requires HybridCLR package.";
-                return false;
-            }
-
-            string templatePath = GetSelectedTemplatePath();
-            if (!Directory.Exists(templatePath))
-            {
-                blockReason = "Template folder is missing: " + templatePath;
+                blockReason = "Template folder is missing: " + TEMPLATE_SAMPLE_PATH;
                 return false;
             }
 
@@ -499,25 +405,18 @@ namespace Moirai.Atropos.Installer.Editor
 
             CopyTemplateDirectory(TEMPLATE_REQUIREMENTS_PATH);
 
-            string templatePath = GetSelectedTemplatePath();
-            string prompt = _checkResult.projectState == ProjectInstallState.NormalTemplate
-                ? "Upgrade the current project to the Hybrid template?"
-                : "Install the selected template into the current project?";
-
-            if (!EditorUtility.DisplayDialog("Moirai Framework Installer", prompt + "\n\n" + templatePath, "Install", "Cancel"))
+            if (!EditorUtility.DisplayDialog(
+                    "Moirai Framework Installer",
+                    "Install the Sample template into the current project?\n\n" + TEMPLATE_SAMPLE_PATH,
+                    "Install",
+                    "Cancel"))
             {
                 return;
             }
 
-            if (_selectedTemplate == TemplateType.Hybrid && !ConfirmHybridPlayerSettings())
-            {
-                return;
-            }
-
-            CopyTemplateDirectory(templatePath);
+            CopyTemplateDirectory(TEMPLATE_SAMPLE_PATH);
             ApplyPlayerSettings();
-            ApplyScriptingDefineSymbols(_selectedTemplate);
-            SaveInstallState(_selectedTemplate == TemplateType.Hybrid ? ProjectInstallState.HybridTemplate : ProjectInstallState.NormalTemplate);
+            SaveInstallState(ProjectInstallState.SampleTemplate);
             AssetDatabase.Refresh();
             RunInstallCheck();
 
@@ -695,11 +594,6 @@ namespace Moirai.Atropos.Installer.Editor
             return json + "\n" + indent + "  ]\n" + indent + "}";
         }
 
-        private string GetSelectedTemplatePath()
-        {
-            return _selectedTemplate == TemplateType.Hybrid ? TEMPLATE_HYBRID_PATH : TEMPLATE_NORMAL_PATH;
-        }
-
         private static void CopyTemplateDirectory(string templatePath)
         {
             string sourceRoot = Path.GetFullPath(templatePath);
@@ -769,60 +663,12 @@ namespace Moirai.Atropos.Installer.Editor
                 : path + Path.DirectorySeparatorChar;
         }
 
-        private static void ApplyScriptingDefineSymbols(TemplateType templateType)
-        {
-            if (templateType == TemplateType.Hybrid)
-            {
-                ScriptingDefineSymbolUtility.AddScriptingDefineSymbol(ENABLE_HYBRID_CLR_SYMBOL);
-            }
-        }
-
         private static void ApplyPlayerSettings()
         {
             if (!PlayerSettings.allowUnsafeCode)
             {
                 PlayerSettings.allowUnsafeCode = true;
             }
-        }
-
-        private static bool ConfirmHybridPlayerSettings()
-        {
-            int option = EditorUtility.DisplayDialogComplex(
-                "Moirai Framework Installer",
-                "Installing the Hybrid template requires these Player Settings:\n\n" +
-                "1. Scripting Backend: IL2CPP.\n" +
-                "2. Api Compatibility Level: .NET Framework.\n" +
-                "3. Incremental GC: disabled.\n\n" +
-                "Apply these settings for the current platform?",
-                "Apply",
-                "Manual",
-                "Cancel");
-
-            if (option == 2)
-            {
-                return false;
-            }
-
-            if (option == 0)
-            {
-                ApplyHybridPlayerSettings();
-            }
-
-            return true;
-        }
-
-        private static void ApplyHybridPlayerSettings()
-        {
-            BuildTargetGroup buildTargetGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
-#if UNITY_6000_0_OR_NEWER
-            NamedBuildTarget namedBuildTarget = NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup);
-            PlayerSettings.SetScriptingBackend(namedBuildTarget, ScriptingImplementation.IL2CPP);
-            PlayerSettings.SetApiCompatibilityLevel(namedBuildTarget, ApiCompatibilityLevel.NET_4_6);
-#else
-            PlayerSettings.SetScriptingBackend(buildTargetGroup, ScriptingImplementation.IL2CPP);
-            PlayerSettings.SetApiCompatibilityLevel(buildTargetGroup, ApiCompatibilityLevel.NET_4_6);
-#endif
-            PlayerSettings.gcIncremental = false;
         }
 
         private static void SaveInstallState(ProjectInstallState state)
@@ -839,7 +685,7 @@ namespace Moirai.Atropos.Installer.Editor
             File.WriteAllText(INSTALL_STATE_PATH, json);
         }
 
-        private static ProjectInstallState ReadInstallState(out string source)
+            private static ProjectInstallState ReadInstallState(out string source)
         {
             if (File.Exists(INSTALL_STATE_PATH))
             {
@@ -852,13 +698,6 @@ namespace Moirai.Atropos.Installer.Editor
                         source = validatedState == fileState ? INSTALL_STATE_PATH : INSTALL_STATE_PATH + " (missing template assets)";
                         return validatedState;
                     }
-
-                    if (!string.IsNullOrEmpty(data.template) && TryParseLegacyTemplate(data.template, out fileState))
-                    {
-                        ProjectInstallState validatedState = ValidatePersistedInstallState(fileState);
-                        source = validatedState == fileState ? INSTALL_STATE_PATH + " (legacy)" : INSTALL_STATE_PATH + " (legacy, missing template assets)";
-                        return validatedState;
-                    }
                 }
                 catch (Exception ex)
                 {
@@ -869,13 +708,7 @@ namespace Moirai.Atropos.Installer.Editor
             if (HasRuntimeAssetMarkers())
             {
                 source = "Compatibility fallback";
-                return ProjectInstallState.NormalTemplate;
-            }
-
-            if (HasHybridAssetMarkers())
-            {
-                source = "Compatibility fallback";
-                return ProjectInstallState.HybridTemplate;
+                return ProjectInstallState.SampleTemplate;
             }
 
             source = "Default";
@@ -884,19 +717,9 @@ namespace Moirai.Atropos.Installer.Editor
 
         private static ProjectInstallState ValidatePersistedInstallState(ProjectInstallState state)
         {
-            if (state == ProjectInstallState.NormalTemplate && !HasRuntimeAssetMarkers())
+            if (state == ProjectInstallState.SampleTemplate && !HasRuntimeAssetMarkers())
             {
                 return ProjectInstallState.NotInstalled;
-            }
-
-            if (state == ProjectInstallState.HybridTemplate)
-            {
-                if (HasHybridAssetMarkers())
-                {
-                    return ProjectInstallState.HybridTemplate;
-                }
-
-                return HasRuntimeAssetMarkers() ? ProjectInstallState.NormalTemplate : ProjectInstallState.NotInstalled;
             }
 
             return state;
@@ -919,33 +742,11 @@ namespace Moirai.Atropos.Installer.Editor
             return false;
         }
 
-        private static bool TryParseLegacyTemplate(string value, out ProjectInstallState state)
-        {
-            if (string.Equals(value, "Normal", StringComparison.OrdinalIgnoreCase))
-            {
-                state = ProjectInstallState.NormalTemplate;
-                return true;
-            }
-
-            if (string.Equals(value, "Hybrid", StringComparison.OrdinalIgnoreCase))
-            {
-                state = ProjectInstallState.HybridTemplate;
-                return true;
-            }
-
-            return TryParseState(value, out state);
-        }
-
         private static string ToTemplateText(ProjectInstallState state)
         {
-            if (state == ProjectInstallState.NormalTemplate)
+            if (state == ProjectInstallState.SampleTemplate)
             {
-                return "Normal";
-            }
-
-            if (state == ProjectInstallState.HybridTemplate)
-            {
-                return "Hybrid";
+                return "Sample";
             }
 
             if (state == ProjectInstallState.Custom)
@@ -959,19 +760,6 @@ namespace Moirai.Atropos.Installer.Editor
         private static bool HasRuntimeAssetMarkers()
         {
             foreach (string marker in s_RuntimeAssetMarkers)
-            {
-                if (AssetDatabase.IsValidFolder(marker) || File.Exists(marker))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool HasHybridAssetMarkers()
-        {
-            foreach (string marker in s_HybridAssetMarkers)
             {
                 if (AssetDatabase.IsValidFolder(marker) || File.Exists(marker))
                 {
@@ -1059,10 +847,7 @@ namespace Moirai.Atropos.Installer.Editor
             public string corePackageText;
             public bool hasUrp;
             public string urpVersionText;
-            public bool hasHybridClr;
-            public string hybridClrVersionText;
-            public bool hasNormalTemplate;
-            public bool hasHybridTemplate;
+            public bool hasSampleTemplate;
 
             public string StateText
             {
@@ -1072,10 +857,8 @@ namespace Moirai.Atropos.Installer.Editor
                     {
                         case ProjectInstallState.Custom:
                             return "Custom / no template required";
-                        case ProjectInstallState.NormalTemplate:
-                            return "Normal template";
-                        case ProjectInstallState.HybridTemplate:
-                            return "Hybrid template";
+                        case ProjectInstallState.SampleTemplate:
+                            return "Sample template";
                         default:
                             return "Not initialized";
                     }
@@ -1086,7 +869,6 @@ namespace Moirai.Atropos.Installer.Editor
             {
                 string corePackageVersion = FindCorePackageVersion();
                 string urpVersion = FindManifestDependencyVersion(URP_PACKAGE_NAME);
-                string hybridClrVersion = FindManifestDependencyVersion(HYBRID_CLR_PACKAGE_NAME);
                 bool hasRequiredScopedRegistry = HasScopedRegistry(REQUIRED_REGISTRY_URL, s_RequiredRegistryScopes);
                 ProjectInstallState projectState = ReadInstallState(out string stateSource);
 
@@ -1104,10 +886,7 @@ namespace Moirai.Atropos.Installer.Editor
                     corePackageText = string.IsNullOrEmpty(corePackageVersion) ? "Not installed" : corePackageVersion,
                     hasUrp = !string.IsNullOrEmpty(urpVersion),
                     urpVersionText = string.IsNullOrEmpty(urpVersion) ? "Not installed" : urpVersion,
-                    hasHybridClr = !string.IsNullOrEmpty(hybridClrVersion),
-                    hybridClrVersionText = string.IsNullOrEmpty(hybridClrVersion) ? "Not installed" : hybridClrVersion,
-                    hasNormalTemplate = Directory.Exists(TEMPLATE_NORMAL_PATH),
-                    hasHybridTemplate = Directory.Exists(TEMPLATE_HYBRID_PATH)
+                    hasSampleTemplate = Directory.Exists(TEMPLATE_SAMPLE_PATH)
                 };
             }
 
@@ -1177,92 +956,14 @@ namespace Moirai.Atropos.Installer.Editor
         }
     }
 
-    internal static class ScriptingDefineSymbolUtility
-    {
-        private static readonly BuildTargetGroup[] s_BuildTargetGroups =
-        {
-            BuildTargetGroup.Standalone,
-            BuildTargetGroup.iOS,
-            BuildTargetGroup.Android,
-            BuildTargetGroup.WSA,
-            BuildTargetGroup.WebGL
-        };
-
-        public static bool HasScriptingDefineSymbol(BuildTargetGroup buildTargetGroup, string scriptingDefineSymbol)
-        {
-            if (string.IsNullOrEmpty(scriptingDefineSymbol))
-            {
-                return false;
-            }
-
-            string[] scriptingDefineSymbols = GetScriptingDefineSymbols(buildTargetGroup);
-            foreach (string symbol in scriptingDefineSymbols)
-            {
-                if (symbol == scriptingDefineSymbol)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public static void AddScriptingDefineSymbol(string scriptingDefineSymbol)
-        {
-            if (string.IsNullOrEmpty(scriptingDefineSymbol))
-            {
-                return;
-            }
-
-            foreach (BuildTargetGroup buildTargetGroup in s_BuildTargetGroups)
-            {
-                AddScriptingDefineSymbol(buildTargetGroup, scriptingDefineSymbol);
-            }
-        }
-
-        private static void AddScriptingDefineSymbol(BuildTargetGroup buildTargetGroup, string scriptingDefineSymbol)
-        {
-            if (HasScriptingDefineSymbol(buildTargetGroup, scriptingDefineSymbol))
-            {
-                return;
-            }
-
-            string[] currentSymbols = GetScriptingDefineSymbols(buildTargetGroup);
-            string[] nextSymbols = new string[currentSymbols.Length + 1];
-            Array.Copy(currentSymbols, nextSymbols, currentSymbols.Length);
-            nextSymbols[nextSymbols.Length - 1] = scriptingDefineSymbol;
-            SetScriptingDefineSymbols(buildTargetGroup, nextSymbols);
-        }
-
-        private static string[] GetScriptingDefineSymbols(BuildTargetGroup buildTargetGroup)
-        {
-#if UNITY_6000_0_OR_NEWER
-            return PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup)).Split(';');
-#else
-            return PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup).Split(';');
-#endif
-        }
-
-        private static void SetScriptingDefineSymbols(BuildTargetGroup buildTargetGroup, string[] scriptingDefineSymbols)
-        {
-#if UNITY_6000_0_OR_NEWER
-            PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(buildTargetGroup), string.Join(";", scriptingDefineSymbols));
-#else
-            PlayerSettings.SetScriptingDefineSymbolsForGroup(buildTargetGroup, string.Join(";", scriptingDefineSymbols));
-#endif
-        }
-    }
-
     internal static class InstallerGui
     {
         private const float DEFAULT_CONTROL_HEIGHT = 20f;
         private static GUIStyle s_InlineButton;
-        private static GUIStyle s_EntryBody;
         private static GUIStyle s_FieldRow;
         private static GUIStyle s_RowLabel;
         private static GUIStyle s_MutedLabel;
         private static GUIStyle s_FieldLabel;
-        private static GUIStyle s_MutedMiniLabel;
         private static GUIStyle s_WarningLabel;
 
         public static GUIContent GreenLight => EditorGUIUtility.TrIconContent("greenLight");
@@ -1286,23 +987,6 @@ namespace Moirai.Atropos.Installer.Editor
             }
         }
 
-        public static GUIStyle EntryBody
-        {
-            get
-            {
-                if (s_EntryBody == null)
-                {
-                    s_EntryBody = new GUIStyle(EditorStyles.helpBox)
-                    {
-                        padding = new RectOffset(8, 8, 6, 8),
-                        margin = new RectOffset(0, 0, 0, 4)
-                    };
-                }
-
-                return s_EntryBody;
-            }
-        }
-
         public static GUIStyle FieldRow
         {
             get
@@ -1323,7 +1007,6 @@ namespace Moirai.Atropos.Installer.Editor
         public static GUIStyle RowLabel => s_RowLabel ?? (s_RowLabel = new GUIStyle(EditorStyles.label) { alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip });
         public static GUIStyle MutedLabel => s_MutedLabel ?? (s_MutedLabel = new GUIStyle(EditorStyles.label) { normal = { textColor = Color.gray }, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip });
         public static GUIStyle FieldLabel => s_FieldLabel ?? (s_FieldLabel = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = Color.gray }, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip });
-        public static GUIStyle MutedMiniLabel => s_MutedMiniLabel ?? (s_MutedMiniLabel = new GUIStyle(EditorStyles.miniLabel) { normal = { textColor = Color.gray }, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip });
         public static GUIStyle WarningLabel => s_WarningLabel ?? (s_WarningLabel = new GUIStyle(EditorStyles.label) { normal = { textColor = new Color(1f, 0.66f, 0.24f, 1f) }, alignment = TextAnchor.MiddleLeft, clipping = TextClipping.Clip });
 
         public static void HelpBox(string message, MessageType messageType)

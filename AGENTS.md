@@ -4,15 +4,15 @@
 
 ## 项目概述
 
-框架安装器：检查环境与 OpenUPM 作用域注册表、安装核心包 `com.moirai.framework`、导入 Normal/Hybrid 模板，并写入安装状态。
+框架安装器：检查环境与 OpenUPM 作用域注册表、安装核心包 `com.moirai.framework`、导入模板（@Requirements + Sample），并写入安装状态。
 
 ### 核心事实
 
-- 全包只有一个脚本 `Editor/FrameworkInstallerWindow.cs`，命名空间 `Moirai.Atropos.Installer.Editor`，主类 `FrameworkInstallerWindow : EditorWindow`（`Editor/FrameworkInstallerWindow.cs:14`）。
-- 菜单入口 `Tools/Install Framework`（`MENU_PATH`，`:16`）。
-- 模板路径指向框架包 `Packages/com.moirai.framework/Templates~` 的 `@Requirements`、`NormalTemplate`、`HybridTemplate`（`:17-20`）。
-- 安装状态写 `ProjectSettings/MoiraiFrameworkInstaller.json`（`INSTALL_STATE_PATH`，`:34`）。
-- 包级配置：OpenUPM 作用域 `com.cysharp`、`com.tuyoogame`、`com.moirai`；可选 URP 与 HybridCLR（`ENABLE_HYBRIDCLR`）。
+- 全包只有一个脚本 `Editor/FrameworkInstallerWindow.cs`，命名空间 `Moirai.Atropos.Installer.Editor`，主类 `FrameworkInstallerWindow : EditorWindow`（`Editor/FrameworkInstallerWindow.cs:12`）。
+- 菜单入口 `Tools/Install Framework`（`MENU_PATH`，`:14`）。
+- 模板路径指向框架包 `Packages/com.moirai.framework/Templates~` 的 `@Requirements` 与 `Sample`（`:17-18`）。
+- 安装状态写 `ProjectSettings/MoiraiFrameworkInstaller.json`（`INSTALL_STATE_PATH`，`:30`）。
+- 包级配置：OpenUPM 作用域 `com.cysharp`、`com.tuyoogame`、`com.moirai`；URP 为模板安装前置；HybridCLR 不在安装器职责内（热更走插件目录 `hybridclr` 插件）。
 - 没有 asmdef、测试装配、CI 或 CHANGELOG。
 
 ## 项目结构

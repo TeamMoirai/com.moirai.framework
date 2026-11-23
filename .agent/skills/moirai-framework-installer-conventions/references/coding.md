@@ -28,8 +28,8 @@
 
 - 环境检查：确保 OpenUPM 作用域注册表存在（`EnsureRequiredScopedRegistry`），缺则写 `Packages/manifest.json`。
 - 核心安装：用 `UnityEditor.PackageManager` 的 `AddRequest` 安装 `com.moirai.framework`，轮询 `IsCompleted`。
-- 模板导入：从框架包 `Templates~` 复制 `NormalTemplate` / `HybridTemplate`，跳过占位文件，按模板类型写 scripting define 与 PlayerSettings。
-- 安装状态：写 `ProjectSettings/MoiraiFrameworkInstaller.json`；读取时兼容旧格式。
+- 模板导入：从框架包 `Templates~` 复制 `@Requirements` 与 `Sample`，跳过占位文件，写 PlayerSettings（`allowUnsafeCode`）。
+- 安装状态：写 `ProjectSettings/MoiraiFrameworkInstaller.json`；读取失败降级为文件系统标记探测，不保留旧字段格式兼容。
 
 ### 硬约束
 
