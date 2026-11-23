@@ -98,7 +98,7 @@ com.moirai.framework/
 ├── Plugins/                    # 第三方库
 ├── Samples~/                   # 示例
 ├── SourceGenerators/           # 预编译源生成器与分析器（ProviderHandlerHost / SaveServiceCodegen / ServiceDependency / UIWindowCodegen / HotPathAnalyzer）
-├── Templates~/                 # 项目初始模板（@Requirements / Config / HybridTemplate / NormalTemplate）
+├── Templates~/                 # 项目初始模板（@Requirements / Config / Sample）
 ├── Documentation~/             # 服务文档（一个服务一份）
 └── Tests/                      # 单元测试（EditorMode / PlayMode / Player）
 ```
