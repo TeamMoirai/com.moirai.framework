@@ -456,6 +456,7 @@ namespace Moirai.Atropos.Save
                     return SaveError.MigrationFailed;
                 }
 
+                // IsCompleted 断言通过后此处只取已完成的结果——GetResult 不是等待；ISaveMigrator 契约强制同步完成（未完成即 fail-fast）
                 task.GetAwaiter().GetResult();
             }
             catch (Exception exception)

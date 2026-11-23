@@ -45,7 +45,21 @@
 
 ### Changed
 
+#### Save
+
+- ⚠ 存档门面能力面改 internal 能力契约协商（替代家族基座强转）：新增 `ISaveServiceBackend`（原始块读写/存储后端/写时查询/截图写入/扩展 `SaveBlock` 七成员，`SaveServiceHandler` 显式实现），门面 9 处 `((SaveServiceHandler)…)` 强转归零——写路径能力缺失由 `InvalidCastException` 改抛 `GameException`（消息含迁移指引），读路径（组件/实体恢复、截图 sidecar）能力缺失降级并记会话级一次性告警（等价未就绪语义）；实现自定义存档后端仍推荐派生 `SaveServiceHandler`，框架友元程序集可直接实现该 internal 契约接入
+- ⚠ 公共常量迁中立宿主 `SaveServiceDefaults`（`DATA_FOLDER_NAME`/`DEFAULT_FOLDER_NAME`/`MAIN_BLOCK_KEY` 外部消费者改引用；`SaveServiceHandler` 上的转发别名保留源码兼容）；`ISaveService` 契约默认参数改指新宿主，契约零基座引用自立
+- 路径基建迁出家族基座：`SavePaths`/`GateScope` 顶层化、`SavePathResolver` 承载路径解析与校验（`Internal/Storage/`，同命名空间零语义变化）；`SaveEntityPersistence`/`SaveBlockBatch` 参数改 `ISaveServiceBackend` 解耦
+- `ISaveService` 28 个方法语义文档逐方法自足（同步 API 补「仅限主线程 / 阻塞直至完成」限定，异步 API 补调度语义），不再回指门面；占位 remarks 回退由新增棘轮守卫 `check_facade_seams.py` 拦截（门面 partial + 契约零基座强转/限定引用/占位文档，单向只准降不准升）
+- `SaveMigrationManager.RunMigrator` 补「IsCompleted 断言保证 GetResult 只取结果不等待」注释
+
+#### Asset
+
+- 资源门面同款能力协商：新增 `IAssetServiceBackend`（后端 `Initialize`），`AssetService.OnHandlerInitialized` 的 `((AssetServiceHandler)handler).Initialize()` 强转改协商取用，能力缺失 fail-fast 带迁移指引
+
 #### Core
+
+
 
 - ⚠ 服务架构回摆——后端即注册实体、门面退回纯静态缓存：12 个服务门面全部转 `static partial class`（删除 `ServiceBase` 派生、`[AutoRegisterService]` 与实例生命周期，门面实例化 API 废弃），可序列化后端改为 `XxxHandler : ServiceBase, IServiceTickable?, IXxxService` 注册进容器（绑定即注册：懒链解析 → 容器注册 → 注册结果回填门面缓存槽，槽位 ≡ 容器实例；组合根 `RegisterAll` 对 static 宿主发射 `WarmHandler` 预热）；契约键改绑真实后端实现（原「门面自报契约但未实现」的隐性错绑随之消除），`[ServiceDependency]`/`Priority` 从门面移到后端，后端进容器轮询、拓扑排序与诊断表；`Tick`/`Initialize` 移出业务契约（`IAudioService`/`IDebuggerService`/`IObjectPoolService`/`IProcedureService`/`ITimerService`/`IUIService` 的 Tick 与 `IAssetService.Initialize`/`IsInitialized`/`IProcedureService.Initialize` 不再是契约成员，由 `IServiceTickable`/容器生命周期承接；业务性 `Restart` 保留）；消费政策三车道 = 业务走门面静态 API、框架互调走 `Context` 契约注入、测试/编辑器走 `Handler` setter + `Internal_Peek/UseHandler` 接缝——门面槽 ≡ App 级注册实例（作用域遮蔽只影响契约解析通道）
 - ⚠ UI 双轨多缓存收口：`UGUIHandler`/`UITKHandler : UIServiceHandler : ServiceBase, IUIService, IServiceTickable` 由组合根 `UIService.RegisterEnabledHandlers()` 按目录关停档降序注册（契约 = 各自具体类型，宿主轨最先注册），容器反序拆除 = 档位升序收口（宿主轨最后拆根）；共享栈结算加帧守卫幂等（任一轨 Tick 先到先结算、顺序无关）；`GameAppSettings` 的 IUIService 手工补登删除，Input/Procedure 等消费方改订门面静态事件/调门面静态开窗；门面级广播（`onWindowShown`/`onWindowClosed`）与跨轨归零门挂门面静态，域重载复位接缝保留

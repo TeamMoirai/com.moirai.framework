@@ -50,7 +50,7 @@ Moirai Framework
 
 ## 🚀 快速开始
 
-**环境要求**：Unity 2022.3.x（推荐）或更高、**API Compatibility Level 必须为 .NET Standard 2.1**（*Project Settings → Player → Other Settings → API Compatibility Level*；框架的服务契约接口依赖接口默认方法，.NET Framework 4.x profile 不支持），依赖 [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)；支持 Windows、OSX、Android、iOS、WebGL、微信小游戏。
+**环境要求**：Unity 2022.3+（包地板）/ Unity 6000.3（工程验证基线）、**API Compatibility Level 必须为 .NET Standard 2.1**（*Project Settings → Player → Other Settings → API Compatibility Level*；框架的服务契约接口依赖接口默认方法，.NET Framework 4.x profile 不支持），依赖 [Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)；支持 Windows、OSX、Android、iOS、WebGL、微信小游戏。
 
 **安装方式三选一**：
 
