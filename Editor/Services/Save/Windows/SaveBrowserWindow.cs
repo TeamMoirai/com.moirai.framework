@@ -1116,16 +1116,16 @@ namespace Moirai.Atropos.Save
             }
 
             // 默认文件夹与其他文件夹同口径：磁盘上不存在即不展示，避免左侧出现指向不存在路径的空节点
-            if (Directory.Exists(SafeDetermineSavePath(SaveServiceHandler.DEFAULT_FOLDER_NAME)))
+            if (Directory.Exists(SafeDetermineSavePath(SaveServiceDefaults.DEFAULT_FOLDER_NAME)))
             {
-                AddFolderData(SaveServiceHandler.DEFAULT_FOLDER_NAME, previous);
+                AddFolderData(SaveServiceDefaults.DEFAULT_FOLDER_NAME, previous);
             }
 
             string[] directories = Directory.GetDirectories(rootDirectory);
             for (int i = 0; i < directories.Length; i++)
             {
                 string folderName = Path.GetFileName(directories[i]);
-                if (!string.IsNullOrEmpty(folderName) && folderName != SaveServiceHandler.DEFAULT_FOLDER_NAME)
+                if (!string.IsNullOrEmpty(folderName) && folderName != SaveServiceDefaults.DEFAULT_FOLDER_NAME)
                 {
                     AddFolderData(folderName, previous);
                 }
@@ -1496,7 +1496,7 @@ namespace Moirai.Atropos.Save
 
         private void DeleteFolderDialog(string folderName)
         {
-            if (folderName == SaveServiceHandler.DEFAULT_FOLDER_NAME)
+            if (folderName == SaveServiceDefaults.DEFAULT_FOLDER_NAME)
             {
                 SetStatus("默认文件夹不允许删除。", MessageType.Warning, 3);
                 return;
@@ -1507,7 +1507,7 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            RunOperation($"已删除文件夹「{folderName}」。", () => _handler.DeleteSaveFolder(folderName), () => RequestTreeRebuild(SaveServiceHandler.DEFAULT_FOLDER_NAME, null));
+            RunOperation($"已删除文件夹「{folderName}」。", () => _handler.DeleteSaveFolder(folderName), () => RequestTreeRebuild(SaveServiceDefaults.DEFAULT_FOLDER_NAME, null));
         }
 
         private void RevealSaveRoot()

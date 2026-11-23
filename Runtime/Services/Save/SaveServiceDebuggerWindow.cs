@@ -111,7 +111,7 @@ namespace Moirai.Atropos.Save
 
         /// <summary>当前选择的文件夹名（缺省默认存档文件夹）。</summary>
         private string SelectedFolder => _folderField == null || string.IsNullOrEmpty(_folderField.value)
-            ? SaveServiceHandler.DEFAULT_FOLDER_NAME
+            ? SaveServiceDefaults.DEFAULT_FOLDER_NAME
             : _folderField.value;
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace Moirai.Atropos.Save
                 return;
             }
 
-            var choices = new List<string> { SaveServiceHandler.DEFAULT_FOLDER_NAME };
+            var choices = new List<string> { SaveServiceDefaults.DEFAULT_FOLDER_NAME };
             string rootDirectory = SaveService.DetermineSavePath(string.Empty);
             if (!string.IsNullOrEmpty(rootDirectory) && Directory.Exists(rootDirectory))
             {
@@ -141,7 +141,7 @@ namespace Moirai.Atropos.Save
 
             string current = _folderField.value;
             _folderField.choices = choices;
-            _folderField.value = choices.Contains(current) ? current : SaveServiceHandler.DEFAULT_FOLDER_NAME;
+            _folderField.value = choices.Contains(current) ? current : SaveServiceDefaults.DEFAULT_FOLDER_NAME;
             _folderField.SetEnabled(choices.Count > 0);
         }
 

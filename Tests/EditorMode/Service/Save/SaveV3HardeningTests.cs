@@ -193,7 +193,7 @@ namespace Service.Save
         public void TryLoad_UnknownHeaderFlags_ReturnsUnsupportedVersion()
         {
             var paths = SaveServiceHandler.ResolveSavePaths("slot", TestFolder);
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "f" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceDefaults.MAIN_BLOCK_KEY, new SaveData { Gold = 1, PlayerName = "f" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
             // 篡改 flags 为未知位（模拟未来版本运行时写出的档）
             byte[] fileBytes = File.ReadAllBytes(paths.SaveFilePath);
@@ -207,7 +207,7 @@ namespace Service.Save
             File.WriteAllBytes(paths.SaveFilePath, fileBytes);
 
             ExpectErrorLogForUtf();
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out _);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceDefaults.MAIN_BLOCK_KEY, out _);
             Assert.AreEqual(SaveError.UnsupportedVersion, error, "未知标志位必须拒载（旧运行时静默忽略会写坏档）");
             AssertErrorLogged("UnsupportedVersion");
         }
@@ -216,9 +216,9 @@ namespace Service.Save
         public void TryLoad_KnownFlagsZero_StillLoads()
         {
             var paths = SaveServiceHandler.ResolveSavePaths("slot", TestFolder);
-            _handler.SaveBlockCore(paths, SaveServiceHandler.MAIN_BLOCK_KEY, new SaveData { Gold = 7, PlayerName = "ok" }, SaveBackendIds.JSON, 1, CancellationToken.None);
+            _handler.SaveBlockCore(paths, SaveServiceDefaults.MAIN_BLOCK_KEY, new SaveData { Gold = 7, PlayerName = "ok" }, SaveBackendIds.JSON, 1, CancellationToken.None);
 
-            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceHandler.MAIN_BLOCK_KEY, out SaveData loaded);
+            SaveError error = _handler.TryLoadBlockCore<SaveData>(paths, SaveServiceDefaults.MAIN_BLOCK_KEY, out SaveData loaded);
             Assert.AreEqual(SaveError.None, error);
             Assert.AreEqual(7, loaded.Gold);
         }

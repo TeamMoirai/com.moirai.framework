@@ -27,7 +27,7 @@ namespace Moirai.Atropos.Save
     public static partial class SaveService
     {
         /// <summary>便捷单对象 API 读写的保留数据块键。</summary>
-        public const string MAIN_BLOCK_KEY = SaveServiceHandler.MAIN_BLOCK_KEY;
+        public const string MAIN_BLOCK_KEY = SaveServiceDefaults.MAIN_BLOCK_KEY;
 
         #region 生命周期 [LIFECYCLE]
 
@@ -123,7 +123,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static async UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             var handler = (SaveServiceHandler)RequireHandler();
             ushort backend = ResolveBackend<T>();
@@ -143,7 +143,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>反序列化后的块数据；失败返回默认值。</returns>
-        public static UniTask<T> LoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask<T> LoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             Internal_PeekHandler()?.LoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult<T>(default);
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>加载结果（区分无档/无块/损坏/解密失败等错误类别）。</returns>
-        public static UniTask<SaveResult<T>> TryLoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask<SaveResult<T>> TryLoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             Internal_PeekHandler()?.TryLoadBlockAsync<T>(fileName, key, folderName, cancellationToken) ?? UniTask.FromResult(SaveResult<T>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
@@ -173,7 +173,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="key">数据块键（保留前缀 <c>__</c> 不可用）。</param>
         /// <param name="folderName">文件夹名称。</param>
-        public static void SaveBlock<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        public static void SaveBlock<T>(T data, string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME)
         {
             ((SaveServiceHandler)RequireHandler()).SaveBlock(data, fileName, key, folderName, ResolveBackend<T>(), ResolveDataVersion<T>());
         }
@@ -189,7 +189,7 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>反序列化后的块数据；失败返回默认值。</returns>
-        public static T LoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        public static T LoadBlock<T>(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME)
         {
             WarnSyncMirrorReadOnce();
             return s_Handler != null ? s_Handler.LoadBlock<T>(fileName, key, folderName) : default;
@@ -207,7 +207,7 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>加载结果（区分无档/无块/损坏/解密失败等错误类别）。</returns>
-        public static SaveResult<T> TryLoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        public static SaveResult<T> TryLoadBlock<T>(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME)
         {
             WarnSyncMirrorReadOnce();
             return Internal_PeekHandler()?.TryLoadBlock<T>(fileName, key, folderName) ?? SaveResult<T>.Failure(SaveError.HandlerNotReady);
@@ -225,7 +225,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>删除完成的异步任务。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask DeleteBlockAsync(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask DeleteBlockAsync(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             Internal_PeekHandler()?.DeleteBlockAsync(fileName, key, folderName, cancellationToken) ?? UniTask.CompletedTask;
 
         /// <summary>
@@ -235,7 +235,7 @@ namespace Moirai.Atropos.Save
         /// <param name="key">数据块键。</param>
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void DeleteBlock(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static void DeleteBlock(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.DeleteBlock(fileName, key, folderName);
 
         /// <summary>
@@ -248,7 +248,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>块元信息数组（健康块在前、坏块在后）；整档缺档/损坏/处理器未就绪时为空数组（损坏已记录错误日志）。</returns>
-        public static SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        public static SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME)
         {
             WarnSyncMirrorReadOnce();
             return Internal_PeekHandler()?.GetBlockInfos(fileName, folderName) ?? Array.Empty<SaveBlockInfo>();
@@ -270,7 +270,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static UniTask SaveAsync<T>(T saveObject, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask SaveAsync<T>(T saveObject, string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             SaveBlockAsync(saveObject, fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
@@ -284,7 +284,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>反序列化后的存档对象；失败返回默认值。</returns>
-        public static UniTask<T> LoadAsync<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask<T> LoadAsync<T>(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             LoadBlockAsync<T>(fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
@@ -298,7 +298,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>加载结果（区分无档/损坏/解密失败等错误类别）。</returns>
-        public static UniTask<SaveResult<T>> TryLoadAsync<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask<SaveResult<T>> TryLoadAsync<T>(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             TryLoadBlockAsync<T>(fileName, MAIN_BLOCK_KEY, folderName, cancellationToken);
 
         /// <summary>
@@ -311,7 +311,7 @@ namespace Moirai.Atropos.Save
         /// <param name="saveObject">存档对象。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
-        public static void Save<T>(T saveObject, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static void Save<T>(T saveObject, string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             SaveBlock(saveObject, fileName, MAIN_BLOCK_KEY, folderName);
 
         /// <summary>
@@ -324,7 +324,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>反序列化后的存档对象；失败返回默认值。</returns>
-        public static T Load<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static T Load<T>(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             LoadBlock<T>(fileName, MAIN_BLOCK_KEY, folderName);
 
         /// <summary>
@@ -337,7 +337,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>加载结果（区分无档/损坏/解密失败等错误类别）。</returns>
-        public static SaveResult<T> TryLoad<T>(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static SaveResult<T> TryLoad<T>(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             TryLoadBlock<T>(fileName, MAIN_BLOCK_KEY, folderName);
 
         #endregion
@@ -356,7 +356,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static async UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask SaveComponentsAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             var handler = (SaveServiceHandler)RequireHandler();
             List<SaveBlockEntry> entries = CaptureComponentsToEntries(fileName, folderName);
@@ -381,7 +381,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>恢复完成的异步任务。</returns>
-        public static async UniTask LoadComponentsAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
+        public static async UniTask LoadComponentsAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default)
         {
             if (s_Handler is null)
             {
@@ -508,8 +508,8 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>写入完成的异步任务。</returns>
-        public static UniTask SaveMetadataAsync(SaveMetadata metadata, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            ((SaveServiceHandler)RequireHandler()).SaveBlockAsync(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1, cancellationToken);
+        public static UniTask SaveMetadataAsync(SaveMetadata metadata, string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+            ((SaveServiceHandler)RequireHandler()).SaveBlockAsync(metadata, fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1, cancellationToken);
 
         /// <summary>
         /// 从存档文件异步读取槽位元数据（保留块 <c>__meta</c>）。
@@ -522,8 +522,8 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>元数据加载结果。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<SaveResult<SaveMetadata>> TryLoadMetadataAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
-            Internal_PeekHandler()?.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, cancellationToken)
+        public static UniTask<SaveResult<SaveMetadata>> TryLoadMetadataAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+            Internal_PeekHandler()?.TryLoadBlockAsync<SaveMetadata>(fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, cancellationToken)
                 ?? UniTask.FromResult(SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady));
 
         /// <summary>
@@ -532,8 +532,8 @@ namespace Moirai.Atropos.Save
         /// <param name="metadata">槽位元数据。</param>
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
-        public static void SaveMetadata(SaveMetadata metadata, string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
-            ((SaveServiceHandler)RequireHandler()).SaveBlock(metadata, fileName, SaveServiceHandler.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1);
+        public static void SaveMetadata(SaveMetadata metadata, string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
+            ((SaveServiceHandler)RequireHandler()).SaveBlock(metadata, fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName, SaveBackendIds.JSON, 1);
 
         /// <summary>
         /// 从存档文件读取槽位元数据（在调用线程执行，阻塞直至完成）。
@@ -541,10 +541,10 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名（自动追加配置的扩展名）。</param>
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>元数据加载结果。</returns>
-        public static SaveResult<SaveMetadata> TryLoadMetadata(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME)
+        public static SaveResult<SaveMetadata> TryLoadMetadata(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME)
         {
             WarnSyncMirrorReadOnce();
-            return Internal_PeekHandler()?.TryLoadBlock<SaveMetadata>(fileName, SaveServiceHandler.META_BLOCK_KEY, folderName)
+            return Internal_PeekHandler()?.TryLoadBlock<SaveMetadata>(fileName, SaveServiceDefaults.META_BLOCK_KEY, folderName)
                 ?? SaveResult<SaveMetadata>.Failure(SaveError.HandlerNotReady);
         }
 
@@ -558,7 +558,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void DeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static void DeleteSave(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.DeleteSave(fileName, folderName);
 
         /// <summary>
@@ -566,7 +566,7 @@ namespace Moirai.Atropos.Save
         /// </summary>
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void DeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static void DeleteSaveFolder(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.DeleteSaveFolder(folderName);
 
         /// <summary>
@@ -584,7 +584,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>删除完成的异步任务。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask DeleteSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask DeleteSaveAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             Internal_PeekHandler()?.DeleteSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.CompletedTask;
 
         /// <summary>
@@ -594,7 +594,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>删除完成的异步任务。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask DeleteSaveFolderAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask DeleteSaveFolderAsync(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             Internal_PeekHandler()?.DeleteSaveFolderAsync(folderName, cancellationToken) ?? UniTask.CompletedTask;
 
         /// <summary>
@@ -613,7 +613,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool TryDeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static bool TryDeleteSave(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.TryDeleteSave(fileName, folderName) ?? false;
 
         /// <summary>
@@ -622,7 +622,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称；不允许为空。</param>
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool TryDeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static bool TryDeleteSaveFolder(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.TryDeleteSaveFolder(folderName) ?? false;
 
         /// <summary>
@@ -641,7 +641,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<bool> TryDeleteSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask<bool> TryDeleteSaveAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             Internal_PeekHandler()?.TryDeleteSaveAsync(fileName, folderName, cancellationToken) ?? UniTask.FromResult(false);
 
         /// <summary>
@@ -651,7 +651,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>存在并已删除返回 <c>true</c>；本不存在或处理器未就绪（未发生删除）返回 <c>false</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<bool> TryDeleteSaveFolderAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask<bool> TryDeleteSaveFolderAsync(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             Internal_PeekHandler()?.TryDeleteSaveFolderAsync(folderName, cancellationToken) ?? UniTask.FromResult(false);
 
         /// <summary>
@@ -674,7 +674,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>存在返回 <c>true</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool FileExists(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static bool FileExists(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.FileExists(fileName, folderName) ?? false;
 
         /// <summary>
@@ -683,7 +683,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>存档元数据数组；处理器未就绪时降级为空数组。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SaveFileInfo[] GetSaveFiles(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static SaveFileInfo[] GetSaveFiles(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.GetSaveFiles(folderName) ?? Array.Empty<SaveFileInfo>();
 
         /// <summary>
@@ -693,7 +693,7 @@ namespace Moirai.Atropos.Save
         /// <param name="cancellationToken">取消令牌（协作式）。</param>
         /// <returns>存档元数据数组（按最后写入时间倒序）；缺目录/处理器未就绪时为空数组。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static UniTask<SaveFileInfo[]> GetSaveFilesAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
+        public static UniTask<SaveFileInfo[]> GetSaveFilesAsync(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default) =>
             Internal_PeekHandler()?.GetSaveFilesAsync(folderName, cancellationToken) ?? UniTask.FromResult(Array.Empty<SaveFileInfo>());
 
         /// <summary>
@@ -702,7 +702,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void CreateBackup(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static void CreateBackup(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.CreateBackup(fileName, folderName);
 
         /// <summary>
@@ -711,7 +711,7 @@ namespace Moirai.Atropos.Save
         /// <param name="fileName">文件名。</param>
         /// <param name="folderName">文件夹名称。</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void RestoreBackup(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static void RestoreBackup(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.RestoreBackup(fileName, folderName);
 
         #endregion
@@ -724,7 +724,7 @@ namespace Moirai.Atropos.Save
         /// <param name="folderName">文件夹名称。</param>
         /// <returns>保存路径；处理器未就绪时降级返回 <c>null</c>。</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string DetermineSavePath(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME) =>
+        public static string DetermineSavePath(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME) =>
             Internal_PeekHandler()?.DetermineSavePath(folderName);
 
         #endregion

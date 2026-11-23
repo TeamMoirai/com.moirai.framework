@@ -22,23 +22,23 @@ namespace Moirai.Atropos.Save
     [ServiceDependency(typeof(IDebuggerService))]
     public abstract partial class SaveServiceHandler : ServiceBase, ISaveService
     {
-        /// <summary>存档数据根目录名（persistentDataPath 下）。</summary>
-        public const string DATA_FOLDER_NAME = "Data";
+        /// <summary>存档数据根目录名（persistentDataPath 下）。源自 <see cref="SaveServiceDefaults"/>（中立宿主）。</summary>
+        public const string DATA_FOLDER_NAME = SaveServiceDefaults.DATA_FOLDER_NAME;
 
-        /// <summary>默认存档文件夹名。</summary>
-        public const string DEFAULT_FOLDER_NAME = "Save";
+        /// <summary>默认存档文件夹名。源自 <see cref="SaveServiceDefaults"/>（中立宿主）。</summary>
+        public const string DEFAULT_FOLDER_NAME = SaveServiceDefaults.DEFAULT_FOLDER_NAME;
 
-        /// <summary>便捷单对象 API（Save/Load/TryLoad）映射的保留数据块。</summary>
-        public const string MAIN_BLOCK_KEY = "__main__";
+        /// <summary>便捷单对象 API（Save/Load/TryLoad）映射的保留数据块。源自 <see cref="SaveServiceDefaults"/>（中立宿主）。</summary>
+        public const string MAIN_BLOCK_KEY = SaveServiceDefaults.MAIN_BLOCK_KEY;
 
-        /// <summary>保留块键：槽位元数据块（JSON 后端）。</summary>
-        internal const string META_BLOCK_KEY = "__meta";
+        /// <summary>保留块键：槽位元数据块（JSON 后端）。源自 <see cref="SaveServiceDefaults"/>（中立宿主）。</summary>
+        internal const string META_BLOCK_KEY = SaveServiceDefaults.META_BLOCK_KEY;
 
-        /// <summary>保留块键前缀（用户块键禁止使用，避免与框架保留块冲突）。</summary>
-        internal const string RESERVED_BLOCK_KEY_PREFIX = "__";
+        /// <summary>保留块键前缀（用户块键禁止使用，避免与框架保留块冲突）。源自 <see cref="SaveServiceDefaults"/>（中立宿主）。</summary>
+        internal const string RESERVED_BLOCK_KEY_PREFIX = SaveServiceDefaults.RESERVED_BLOCK_KEY_PREFIX;
 
-        /// <summary>块键最大字符数。</summary>
-        internal const int MAX_BLOCK_KEY_LENGTH = 64;
+        /// <summary>块键最大字符数。源自 <see cref="SaveServiceDefaults"/>（中立宿主）。</summary>
+        internal const int MAX_BLOCK_KEY_LENGTH = SaveServiceDefaults.MAX_BLOCK_KEY_LENGTH;
 
         private static readonly char[] s_PathSeparators = { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
         private static readonly char[] s_InvalidFileNameChars = Path.GetInvalidFileNameChars();

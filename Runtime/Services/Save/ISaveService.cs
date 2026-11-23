@@ -22,7 +22,7 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public void CreateBackup(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public void CreateBackup(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
@@ -34,59 +34,59 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public void DeleteBlock(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public void DeleteBlock(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask DeleteBlockAsync(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask DeleteBlockAsync(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public void DeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public void DeleteSave(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask DeleteSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask DeleteSaveAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public void DeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public void DeleteSaveFolder(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask DeleteSaveFolderAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask DeleteSaveFolderAsync(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public string DetermineSavePath(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public string DetermineSavePath(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public bool FileExists(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public bool FileExists(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public SaveBlockInfo[] GetBlockInfos(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public SaveFileInfo[] GetSaveFiles(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public SaveFileInfo[] GetSaveFiles(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask<SaveFileInfo[]> GetSaveFilesAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask<SaveFileInfo[]> GetSaveFilesAsync(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public SaveError MigrateSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public SaveError MigrateSave(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask<SaveError> MigrateSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask<SaveError> MigrateSaveAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public void RestoreBackup(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public void RestoreBackup(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
@@ -98,38 +98,38 @@ namespace Moirai.Atropos.Save
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public bool TryDeleteSave(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public bool TryDeleteSave(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask<bool> TryDeleteSaveAsync(string fileName, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask<bool> TryDeleteSaveAsync(string fileName, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public bool TryDeleteSaveFolder(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public bool TryDeleteSaveFolder(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask<bool> TryDeleteSaveFolderAsync(string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask<bool> TryDeleteSaveFolderAsync(string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, ushort backend = SaveBackendIds.JSON, int dataVersion = 1, CancellationToken cancellationToken = default);
+        public UniTask SaveBlockAsync<T>(T data, string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, ushort backend = SaveBackendIds.JSON, int dataVersion = 1, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask<T> LoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask<T> LoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public UniTask<SaveResult<T>> TryLoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
+        public UniTask<SaveResult<T>> TryLoadBlockAsync<T>(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME, CancellationToken cancellationToken = default);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public T LoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public T LoadBlock<T>(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
         /// <summary>
         /// 见 <see cref="SaveService"/> 门面对应 API 的语义文档。
         /// </summary>
-        public SaveResult<T> TryLoadBlock<T>(string fileName, string key, string folderName = SaveServiceHandler.DEFAULT_FOLDER_NAME);
+        public SaveResult<T> TryLoadBlock<T>(string fileName, string key, string folderName = SaveServiceDefaults.DEFAULT_FOLDER_NAME);
     }
 }
