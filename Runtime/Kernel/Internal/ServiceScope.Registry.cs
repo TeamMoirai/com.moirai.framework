@@ -39,13 +39,23 @@ namespace Moirai.Atropos
         /// </summary>
         /// <remarks>
         /// OnInit 成功完成后记录进激活序（<see cref="_activationOrder"/>）；初始化抛异常的服务不进入激活序，销毁时归入未激活桶兜底关闭。
+        /// 初始化抛异常时轮询列表先行摘除再上抛——未完成 OnInit 的服务不得以未就绪状态被逐帧驱动；
+        /// 注册表不摘：解析、关闭序与未激活桶兜底语义保持原样。
         /// <c>OnServiceRegistered</c> 在此按条目已挂载的<b>契约句柄</b>逐个发出（每契约一次），使 Registering/Registered 两个事件的契约参数成对。
         /// </remarks>
         internal void ActivateService(IService service)
         {
             ActivateTickables(service);
 
-            ((IServiceLifecycle)service).Initialize();
+            try
+            {
+                ((IServiceLifecycle)service).Initialize();
+            }
+            catch
+            {
+                DemoteTickables(service);
+                throw;
+            }
 
             if (_entriesByService.TryGetValue(service, out var entry) && !entry.ActivationRecorded)
             {
@@ -57,6 +67,25 @@ namespace Moirai.Atropos
                 for (int i = 0; i < handles.Length; i++)
                     _world.InvokeRegistered(service, Type.GetTypeFromHandle(handles[i]), Kind);
             }
+        }
+
+        /// <summary>
+        /// 将服务从其已挂入的轮询列表逐类摘除（激活失败路径专用；条目保留、轮询索引复位）。
+        /// </summary>
+        private void DemoteTickables(IService service)
+        {
+            if (!_entriesByService.TryGetValue(service, out var entry)) return;
+
+            if (entry.TickIndex != MISSING_INDEX) RemoveTickableAt(entry.TickIndex);
+            entry.TickIndex = MISSING_INDEX;
+            if (entry.FixedTickIndex != MISSING_INDEX) RemoveFixedTickableAt(entry.FixedTickIndex);
+            entry.FixedTickIndex = MISSING_INDEX;
+            if (entry.LateTickIndex != MISSING_INDEX) RemoveLateTickableAt(entry.LateTickIndex);
+            entry.LateTickIndex = MISSING_INDEX;
+            if (entry.GizmoIndex != MISSING_INDEX) RemoveGizmoDrawableAt(entry.GizmoIndex);
+            entry.GizmoIndex = MISSING_INDEX;
+
+            _entriesByService[service] = entry;
         }
 
         /// <summary>
