@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -10,13 +11,15 @@ namespace Moirai.Atropos.Save
     /// 构建期存档配置自检：出包前复用运行期判据，报出占位密钥与解析不到的默认序列化后端。
     /// </summary>
     /// <remarks>
-    /// 默认只告警；设环境变量 <c>MOIRAI_SAVE_SETTINGS_STRICT=1</c>（值非 "0" 即视为开严）改为硬失败。 <br />
+    /// 发布构建（非 Development 包）默认开严——配置瑕疵直接挡包；开发构建保持只告警，不干扰日常出包调试。 <br />
+    /// 环境变量是显式覆写通道：设为 <c>1</c> 强制开严（含开发构建），设为 <c>0</c> 强制关严（发布构建也放行，责任自负）， <br />
+    /// 未设置时按构建档取默认。 <br />
     /// 运行期刻意不拦：已有存档可能正是用占位密钥写下的，把它升级成打不开的存档比配置没改更糟； <br />
     /// 默认后端名字配错同理——回退内置 JSON 仍读写自洽，但那份档从此不是操作者以为的格式，故必须在出包前说一次。
     /// </remarks>
     public class SaveSettingsBuildValidator : IPreprocessBuildWithReport
     {
-        /// <summary>开严开关：CI 上想让配置瑕疵直接挡包时设成 1。</summary>
+        /// <summary>开严开关：显式覆写通道——1 强制开严、0 强制关严，未设置按构建档取默认（发布构建开严）。</summary>
         public const string STRICT_ENVIRONMENT_VARIABLE = "MOIRAI_SAVE_SETTINGS_STRICT";
 
         /// <summary>排在资源清单生成之后：配置问题该在产物落盘后再报。</summary>
@@ -40,10 +43,10 @@ namespace Moirai.Atropos.Save
             string detail = string.Join(" ", problems);
             Debug.LogWarning($"[SaveSettings] {detail}");
 
-            if (IsStrictMode())
+            if (IsStrictMode(report))
             {
                 throw new BuildFailedException($"SaveServiceSettings has unresolved configuration and " +
-                    $"{STRICT_ENVIRONMENT_VARIABLE} is set; {detail}");
+                    $"strict mode is active ({STRICT_ENVIRONMENT_VARIABLE}); {detail}");
             }
         }
 
@@ -72,12 +75,27 @@ namespace Moirai.Atropos.Save
         }
 
         /// <summary>
-        /// 是否开严。读取 <see cref="STRICT_ENVIRONMENT_VARIABLE"/>，缺省为关。
+        /// 是否开严：非 Development 包默认开严；环境变量为显式覆写通道（1 开 / 0 关），未设置按构建档取默认。
         /// </summary>
-        internal static bool IsStrictMode()
+        /// <remarks>
+        /// 判据取自本次构建的 <see cref="BuildOptions"/>（<c>Development</c> 位），不读编辑器全局态—— <br />
+        /// 编辑器进程里 <c>Debug.isDebugBuild</c> 反映的是 Editor 的 Development Override，不是本次目标包的构建档。
+        /// </remarks>
+        internal static bool IsStrictMode(BuildReport report)
         {
             string value = Environment.GetEnvironmentVariable(STRICT_ENVIRONMENT_VARIABLE);
-            return !string.IsNullOrEmpty(value) && value != "0";
+            if (!string.IsNullOrEmpty(value))
+            {
+                return value != "0";
+            }
+
+            if (report == null)
+            {
+                throw new ArgumentNullException(nameof(report),
+                    "Build report is required when the strict-mode override variable is unset (the verdict reads the Development bit).");
+            }
+
+            return (report.summary.options & BuildOptions.Development) == 0;
         }
 
         /// <summary>

@@ -11,13 +11,15 @@ namespace Moirai.Atropos.Audio
     /// 构建期音频后端能力自检：出包前把播放选项资产里「用到了当前选定后端不消费的能力」逐条报出来。
     /// </summary>
     /// <remarks>
-    /// 默认只告警；设环境变量 <c>MOIRAI_AUDIO_SETTINGS_STRICT</c>（值非 "0" 即视为开严）改为硬失败。 <br />
+    /// 发布构建（非 Development 包）默认开严——语义分叉直接挡包；开发构建保持只告警，不干扰日常出包调试。 <br />
+    /// 环境变量是显式覆写通道：设为 <c>1</c> 强制开严（含开发构建），设为 <c>0</c> 强制关严（发布构建也放行，责任自负）， <br />
+    /// 未设置时按构建档取默认。 <br />
     /// 判据在运行期热路径上不存在——本类是这条语义分叉唯一的事前出口，能力取自后端自报，缺资产时只读不新建。 <br />
     /// 资产面只携带时长裁剪与独奏两项（播放选项资产没有起播延迟字段），延迟起播那条判据留给代码侧配置的将来。
     /// </remarks>
     public class AudioBackendCapabilityBuildValidator : IPreprocessBuildWithReport
     {
-        /// <summary>开严开关：CI 上想让语义分叉直接挡包时设成 1。</summary>
+        /// <summary>开严开关：显式覆写通道——1 强制开严、0 强制关严，未设置按构建档取默认（发布构建开严）。</summary>
         public const string StrictEnvironmentVariable = "MOIRAI_AUDIO_SETTINGS_STRICT";
 
         /// <summary>排在资源清单生成之后：配置问题该在产物落盘后再报。</summary>
@@ -45,10 +47,10 @@ namespace Moirai.Atropos.Audio
                 Debug.LogWarning($"[AudioBackendCapability] {problems[i].AssetPath} → {problems[i].Field}：{problems[i].Detail}");
             }
 
-            if (IsStrictMode())
+            if (IsStrictMode(report))
             {
                 throw new BuildFailedException($"AudioPlayOptionsSO 有 {problems.Count} 处用到当前音频后端不消费的能力，" +
-                    $"且 {StrictEnvironmentVariable} 已设置；详见上方的 Warning。");
+                    $"且开严模式已生效（{StrictEnvironmentVariable} 或发布构建默认）；详见上方的 Warning。");
             }
         }
 
@@ -91,12 +93,20 @@ namespace Moirai.Atropos.Audio
         }
 
         /// <summary>
-        /// 是否开严。读取 <see cref="StrictEnvironmentVariable"/>，缺省为关。
+        /// 是否开严：非 Development 包默认开严；环境变量为显式覆写通道（1 开 / 0 关），未设置按构建档取默认。
         /// </summary>
-        internal static bool IsStrictMode()
+        /// <remarks>
+        /// 判据取自本次构建的 <see cref="BuildOptions"/>（<c>Development</c> 位），不读编辑器全局态。
+        /// </remarks>
+        internal static bool IsStrictMode(BuildReport report)
         {
             string value = Environment.GetEnvironmentVariable(StrictEnvironmentVariable);
-            return !string.IsNullOrEmpty(value) && value != "0";
+            if (!string.IsNullOrEmpty(value))
+            {
+                return value != "0";
+            }
+
+            return (report.summary.options & BuildOptions.Development) == 0;
         }
 
         /// <summary>
