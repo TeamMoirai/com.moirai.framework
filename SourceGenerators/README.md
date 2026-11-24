@@ -39,8 +39,8 @@
   - `MA1004` 声明默认与手写工厂并存（Info）
   - ~~`MA1005`~~ **已退役**：原「服务后端仍继承 FrameworkHandler」的过渡提示。接口契约的默认后端只认 `ServiceBase`，`FrameworkHandler` 派生改由 `MA1003` 判红，生成代码的服务侧装配路径也不再按实例类型分派；按本文《诊断 ID 段号方案》该号位不再复用
 - **A=2 ServiceDependency**
-  - `MA2001` 依赖类型未实现 IService/契约接口（Warning）
-  - `MA2002` 未声明任何依赖类型（Info）
+  - `MA2001` 依赖类型未实现 IService/契约接口（Error）
+  - `MA2002` 未声明任何依赖类型（Error）
   - ~~`MA2103`/`MA2104`/`MA2105`~~ **已退役**：原 `[AutoRegisterService]` 实例自注册的约束诊断。该特性已整体删除（特性类型、生成器采集支路一并移除——框架零标记后项目侧自建服务汇入通道不再保留，改走 `onServicesComposing` 显式注册或 `[ProviderHandlerHost]` 门面）；按本文《诊断 ID 段号方案》该号段不再复用
 - **A=3 SaveServiceCodegen**
   - B=0 生成器：`MA3000` 字段类型不支持 · `MA3001` 存档键重复 · `MA3002` 迁移器无法生成自注册 · `MA3003` 包含类型须 partial class · `MA3004` 须为实例字段 · `MA3005` 场景引用指引 · `MA3006` 引用类型不明 · `MA3007` 嵌套数据类型无效 · `MA3008` 集合元素/键值类型不支持 · `MA3009`–`MA3012` 序列化器编号/撞号（Error）

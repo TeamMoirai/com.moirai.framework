@@ -87,9 +87,9 @@ com.moirai.framework/
 │       ├── Debugger/           # 运行时调试器
 │       ├── Input/              # 输入系统（键鼠/手柄/移动端）
 │       ├── Localization/       # 本地化（文本/图片/音频/Timeline）
-│       ├── Pooling/            # GameObject 池服务（C# 对象复用走 Kernel/MemoryPool）
+│       ├── ObjectPool/         # GameObject 池服务（C# 对象复用走 Kernel/MemoryPool）
 │       ├── Procedure/          # 流程管理
-│       ├── Resource/           # YooAsset 资源管理
+│       ├── Asset/              # YooAsset 资源管理
 │       ├── Save/               # 存档系统（多块容器/多后端序列化/加密/迁移/云同步）
 │       ├── Scene/              # 场景管理
 │       ├── Timer/              # 计时器（时间轮 + 帧计时双引擎）

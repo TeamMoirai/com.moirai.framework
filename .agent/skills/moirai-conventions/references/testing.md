@@ -172,7 +172,7 @@ Unity -batchmode -projectPath "E:/Workspace/Unity/Game Dev Tools/Client" \
 - 只把 Runtime 公共 API 的读数当判据。程序集过滤没有 public/internal 粒度，内部实现会混在同一份数字里——**别把整装配的百分比读成"公共 API 已全覆盖"**。
 - 覆盖率是**找空洞的工具，不是质量指标**；评审用例看断言强度，不看百分比。新代码不得让所在模块覆盖率下降。
 - 报告是当次产物，落 `TestResults/Coverage/`，不入版本控制。
-- 覆盖率**不作为发布出口门禁**（2026-11-09 起 `Tests/Coverage/` 与 CI coverage 作业已删）；它只用于回答"Runtime 公共 API 哪条路径没被测到"。
+- 覆盖率**不作为发布出口门禁**（2026-11-09 起覆盖率目录与 CI coverage 作业已删）；它只用于回答"Runtime 公共 API 哪条路径没被测到"。
 
 
 
@@ -184,7 +184,7 @@ Unity -batchmode -projectPath "E:/Workspace/Unity/Game Dev Tools/Client" \
 
 
 
-- 反射白名单与测试日志通道曾钉成可执行守卫 `ReflectionPolicyGuardTests` / `TestLogChannelPolicyGuardTests`（双向断言防名单腐烂：日志发射统一 `Debug.Log*`、禁 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(` 直用、`LogAssert.Expect`/`ignoreFailingMessages`/`NoUnexpectedReceived` 一律经 `UtfLogExpect`，后者只经 `ScopedIgnore()`）；**2026-11-18 起 `Tests/EditorMode/Policy/` 目录整体移除，守卫撤下**，上列口径回归约定与评审把关。
+- 反射白名单与测试日志通道曾钉成可执行守卫 `ReflectionPolicyGuardTests` / `TestLogChannelPolicyGuardTests`（双向断言防名单腐烂：日志发射统一 `Debug.Log*`、禁 `LogUtility.Verbose/Debug/Info/Warning/Error/Fatal/Assert(` 直用、`LogAssert.Expect`/`ignoreFailingMessages`/`NoUnexpectedReceived` 一律经 `UtfLogExpect`，后者只经 `ScopedIgnore()`）；**2026-11-18 起 EditorMode 下的 Policy 目录整体移除，守卫撤下**，上列口径回归约定与评审把关。
 
 - 所有基准住 `Tests/`（`[Explicit]`，KernelBenchmark 范式），跑完经 `BenchmarkReport` 落 XML 至统一文件夹 `<工程根>/Benchmarks/`（`MOIRAI_BENCH_XML` 可覆盖）。需 Debugger 窗口跑的基准走双通道：矩阵核心 `XxxBenchmarkRunner`（运行程序集，public static）+ 窗口基准区 + Tests `[Explicit]` 薄壳，两入口同一份矩阵；帧依赖 fire 用例住 PlayMode `[UnityTest]`。
 

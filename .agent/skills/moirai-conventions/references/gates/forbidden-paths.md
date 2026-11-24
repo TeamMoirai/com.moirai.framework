@@ -15,7 +15,7 @@
 
 | asmref 所在目录 | 外部程序集 | 靠它的是谁 |
 |---|---|---|
-| `Editor/Services/Resource/YooAsset/Internal/` | `YooAsset.Editor` | 该目录及子目录里没有 `asmdef` 的实现（`ClearBuildCache`、`CollectorInspector`、`CustomBuildPipeline`、`CustomCollectRules` 等）整个靠它取类型 |
+| `Editor/Services/Asset/YooAsset/Internal/` | `YooAsset.Editor` | 该目录及子目录里没有 `asmdef` 的实现（`ClearBuildCache`、`CollectorInspector`、`CustomBuildPipeline`、`CustomCollectRules` 等）整个靠它取类型 |
 
 ## 按名解析的 `Resources/`
 
@@ -29,7 +29,7 @@
 - `Runtime/Services/UI/Resources/` 里只有 `LogUI.prefab`：`ErrorLogger` 以 `nameof(LogUI)` 作标识，经 `UGUIWindow.LoadPanel`
   的 `Resources.Load<GameObject>` 取；相对路径由 `Runtime/Services/UI/UIServiceSettings.cs` 的内置资源父目录字段拼，留空即把标识原样当相对路径。
 - `Editor/TestFixtures/Resources/`：`EventsDebugger.uxml` 与 `EventsDebugger.uss` 是 UI 测试夹具，由 `UITKWindowTests` / `UIServiceWindowFamilyTests` / `UIWindowCoexistenceTests` 按 `"EventsDebugger"` 取（事件调试窗本体已改为纯代码 UI，不消费此模板）。
-- `Editor/Foundation/Attributes/Resources/`：`.png` 与 `.uss` 按 `Attributes/…` 形态的相对路径取，常量集中在 `Editor/Foundation/Attributes/AttributesStaticRef.cs`；父目录由 `Editor/Core/` 改名而来，但 `Resources` 下的相对路径 `Attributes/…` 不变。
+- `Editor/Foundation/Attributes/Resources/`：`.png` 与 `.uss` 按 `Attributes/…` 形态的相对路径取，常量集中在 `Editor/Foundation/Attributes/AttributesStaticRef.cs`；父目录曾名 Editor/Core，改名时已随迁，但 `Resources` 下的相对路径 `Attributes/…` 不变。
 
 多个 `Resources/` 下同名资产还会撞车——打包时取哪一份不由路径决定。
 

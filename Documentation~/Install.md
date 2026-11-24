@@ -5,7 +5,7 @@
 ## 环境要求
 
 - **Unity 版本**：2022.3.x（推荐）或更高
-- **开发环境**：.NET 4.x
+- **API Compatibility Level**：必须为 .NET Standard 2.1（*Project Settings → Player → Other Settings*；服务契约依赖接口默认方法，.NET Framework 4.x profile 不支持）
 - **依赖插件**：[Odin Inspector and Serializer](https://assetstore.unity.com/packages/tools/utilities/odin-inspector-and-serializer-89041)
 - **支持平台**：Windows、OSX、Android、iOS、WebGL、微信小游戏
 
