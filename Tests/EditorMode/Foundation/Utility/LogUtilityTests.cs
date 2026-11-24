@@ -230,6 +230,76 @@ namespace Foundation.Utility
 
         #endregion
 
+        #region 遥测接缝 [TELEMETRY SEAM]
+
+        [Test]
+        public void OnFatalLogged_FatalOnly_FiresWithPayload()
+        {
+            var fatalEntries = new List<(string Message, Exception Exception)>();
+            Action<string, Exception> fatalCallback = (msg, ex) => fatalEntries.Add((msg, ex));
+            LogUtility.onFatalLogged += fatalCallback;
+
+            try
+            {
+                UtfLogExpect.Warning();
+                LogUtility.Warning("warn");
+                Assert.AreEqual(0, fatalEntries.Count, "非 Fatal 级不触发遥测面");
+
+                UtfLogExpect.Exception();
+                var ex = new InvalidOperationException("fatal boom");
+                LogUtility.Fatal(ex);
+
+                Assert.AreEqual(1, fatalEntries.Count, "Fatal 级触发遥测面一次");
+                Assert.AreSame(ex, fatalEntries[0].Exception);
+            }
+            finally
+            {
+                LogUtility.onFatalLogged -= fatalCallback;
+            }
+        }
+
+        [Test]
+        public void OnFatalLogged_SubscriberThrows_IsolatedAndLogged()
+        {
+            Action<string, Exception> badSubscriber =
+                (_, _) => throw new InvalidOperationException("telemetry boom");
+            LogUtility.onFatalLogged += badSubscriber;
+
+            try
+            {
+                // 故障注入窗口：订阅方异常的转发路径跨 Error/Exception 两通道（全局拦截器在位与否形态不同），
+                // 错误集不可枚举——按测试规范走 ScopedIgnore，断言收口在「本体已落日志」这一条上
+                using (UtfLogExpect.ScopedIgnore())
+                {
+                    LogUtility.Fatal("fatal with bad subscriber");
+                }
+
+                // 日志本体必须已在 onMessageLogged 落一条（订阅方异常不得截断日志管线）
+                Assert.IsTrue(_entries.Exists(e => e.Message.Contains("fatal with bad subscriber")),
+                    "订阅方异常不影响日志本体记录");
+            }
+            finally
+            {
+                LogUtility.onFatalLogged -= badSubscriber;
+            }
+        }
+
+        [Test]
+        public void OnFatalLogged_ResetStatics_UnsubscribesAll()
+        {
+            int calls = 0;
+            LogUtility.onFatalLogged += (_, _) => calls++;
+            LogUtility.ResetStatics();
+
+            // 无异常对象的 Fatal 走 Error 通道（DefaultLogHandler 的 Fatal 分支按异常对象有无分流）
+            UtfLogExpect.Error();
+            LogUtility.Fatal("after reset");
+
+            Assert.AreEqual(0, calls, "ResetStatics 后遥测面不应再触发");
+        }
+
+        #endregion
+
         #region 全局拦截 [GLOBAL INTERCEPTION]
 
         [Test]

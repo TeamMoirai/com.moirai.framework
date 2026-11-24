@@ -44,9 +44,20 @@ namespace Moirai.Atropos
         /// <summary>日志事件回调，每次日志经 <see cref="LogHandler.Log"/> 记录后触发。</summary>
         /// <remarks>
         /// 仅在日志通过 <see cref="LogHandler.MinimumLevel"/> 过滤后触发，被过滤的日志不触发。 <br />
-        /// 可用于调试器内嵌控制台、崩溃上报、测试断言等场景。
+        /// 可用于调试器内嵌控制台、测试断言等场景。
         /// </remarks>
         internal static event Action<ELogLevel, string, Exception> onMessageLogged;
+
+        /// <summary>公开遥测接缝：Fatal 级日志（灾难性故障）通过过滤后触发，供宿主接崩溃/异常上报（Sentry、Bugly 一类）。</summary>
+        /// <remarks>
+        /// 触发点与 <see cref="onMessageLogged"/> 同源同判定：由 <see cref="RaiseMessageLogged"/> 在 Fatal 级触发一次—— <br />
+        /// 事件本身只承载 Fatal 一级，故载荷不带级别枚举（级别枚举嵌在 <see cref="LogHandler"/> 内、不对非派生方开放，
+        /// 公共事件签名引用它会报 CS7025）。message 为已格式化的日志正文、exception 为关联异常（可能为 null）。 <br />
+        /// 订阅方异常由框架就地记录并隔离——上报通道故障不得打断日志管线与游戏线程； <br />
+        /// 订阅方须自行保证线程安全：日志可能来自非主线程（如 <c>Application.logMessageReceivedThreaded</c> 转发链）。 <br />
+        /// 生产排查建议配套 <see cref="LogHandler.MinimumLevel"/> ≥ Info（发布构建默认已抬到 Info）。
+        /// </remarks>
+        public static event Action<string, Exception> onFatalLogged;
 
         /// <summary>
         /// 触发日志事件回调。由 T4 生成的方法在记录日志后调用。
@@ -60,6 +71,21 @@ namespace Moirai.Atropos
             if (Handler.MinimumLevel > logLevel) return;
 
             onMessageLogged?.Invoke(logLevel, message, exception);
+
+            // Fatal 额外走公开遥测面；订阅方异常就地隔离（上报通道坏了不该让游戏跟着坏）。
+            // 直写 UnityEngine.Debug（不能走 LogUtility.Fatal——遥测面坏循环重入），
+            // 全限定防本类 Debug 方法遮蔽（CS0119）。
+            if (logLevel == ELogLevel.Fatal && onFatalLogged != null)
+            {
+                try
+                {
+                    onFatalLogged(message, exception);
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.unityLogger.LogException(ex);
+                }
+            }
         }
 
         #endregion
@@ -132,6 +158,7 @@ namespace Moirai.Atropos
         {
             DisableGlobalInterception();
             onMessageLogged = null;
+            onFatalLogged = null;
         }
 
         #endregion
