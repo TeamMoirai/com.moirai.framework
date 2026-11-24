@@ -35,6 +35,7 @@ namespace Moirai.Atropos
                     HasFixedUpdate = service is IServiceFixedTickable,
                     HasLateUpdate = service is IServiceLateTickable,
                     HasGizmo = service is IServiceGizmoDrawable,
+                    TrippedFromPoll = entry.TrippedFromPoll,
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                     PollAvgMs = entry.PollSamples > 0 ? entry.PollTotalMs / entry.PollSamples : 0f,
                     PollPeakMs = entry.PollPeakMs,

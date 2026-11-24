@@ -96,6 +96,13 @@ namespace Moirai.Atropos.Debugger
                 anyFlag = true;
             }
 
+            // 熔断外显：曾被摘出轮询的服务在标志串尾部追加 T——「在位但停转」对排障者可见
+            if (info.TrippedFromPoll)
+            {
+                result = anyFlag ? StringUtility.Concat(result, " T") : "T";
+                anyFlag = true;
+            }
+
             return anyFlag ? result : "—";
         }
 

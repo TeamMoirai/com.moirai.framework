@@ -37,7 +37,7 @@ namespace Moirai.Atropos
                     }
                     catch (Exception ex)
                     {
-                        LogTickFailure(tickable, nameof(Tick), ex);
+                        LogTickFailureFirst(tickable, PollCategory.Tick, nameof(Tick), ex);
                         bool tripped = RecordPollFailure(tickable, PollCategory.Tick, nameof(Tick));
                         if (rethrow) throw;
                         if (tripped) { i--; count--; }
@@ -76,7 +76,7 @@ namespace Moirai.Atropos
                     }
                     catch (Exception ex)
                     {
-                        LogTickFailure(fixedTickable, nameof(FixedTick), ex);
+                        LogTickFailureFirst(fixedTickable, PollCategory.FixedTick, nameof(FixedTick), ex);
                         bool tripped = RecordPollFailure(fixedTickable, PollCategory.FixedTick, nameof(FixedTick));
                         if (rethrow) throw;
                         if (tripped) { i--; count--; }
@@ -110,7 +110,7 @@ namespace Moirai.Atropos
                     }
                     catch (Exception ex)
                     {
-                        LogTickFailure(lateTickable, nameof(LateTick), ex);
+                        LogTickFailureFirst(lateTickable, PollCategory.LateTick, nameof(LateTick), ex);
                         bool tripped = RecordPollFailure(lateTickable, PollCategory.LateTick, nameof(LateTick));
                         if (rethrow) throw;
                         if (tripped) { i--; count--; }
@@ -147,6 +147,46 @@ namespace Moirai.Atropos
         {
             LogUtility.Fatal("Service '{0}' threw in {1}:\n{2}",
                 service.GetType().FullName, methodName, ex);
+        }
+
+        /// <summary>
+        /// 轮询异常限流记录：该服务在对应类别的<b>首错</b>才 Fatal 带栈完整记录，后续失败静默计数——
+        /// 连续故障逐帧 Fatal 会把日志通道刷满，掩盖其它系统的故障信号；熔断摘除时的汇总告警（Warning）仍会发出一次。
+        /// </summary>
+        /// <remarks>
+        /// 判定与递增次序必须严格：本方法先查首错标志并置位，再由 <see cref="RecordPollFailure"/> 递增计数—— <br />
+        /// 标志独立于计数（值类型条目以「先查后写」单点收口，避免计数残值与判定窗口的组合漂移）； <br />
+        /// 计数被 <see cref="ResetPollFailuresIfAny"/> 清零（成功恢复）时标志一并复位，下一轮故障重新武装。
+        /// </remarks>
+        private void LogTickFailureFirst(IService service, PollCategory category, string methodName, Exception ex)
+        {
+            if (_entriesByService.TryGetValue(service, out var entry))
+            {
+                bool alreadyLogged = category switch
+                {
+                    PollCategory.Tick => entry.TickFailureLogged,
+                    PollCategory.FixedTick => entry.FixedTickFailureLogged,
+                    _ => entry.LateTickFailureLogged,
+                };
+                if (alreadyLogged) return;
+
+                switch (category)
+                {
+                    case PollCategory.Tick:
+                        entry.TickFailureLogged = true;
+                        break;
+                    case PollCategory.FixedTick:
+                        entry.FixedTickFailureLogged = true;
+                        break;
+                    default:
+                        entry.LateTickFailureLogged = true;
+                        break;
+                }
+
+                _entriesByService[service] = entry;
+            }
+
+            LogTickFailure(service, methodName, ex);
         }
 
         /// <summary>
@@ -219,6 +259,8 @@ namespace Moirai.Atropos
                     break;
             }
 
+            entry.TrippedFromPoll = true;
+
             _entriesByService[service] = entry;
 
             LogUtility.Warning(
@@ -244,14 +286,17 @@ namespace Moirai.Atropos
                 case PollCategory.Tick:
                     if (entry.TickConsecutiveFailures == 0) return;
                     entry.TickConsecutiveFailures = 0;
+                    entry.TickFailureLogged = false;
                     break;
                 case PollCategory.FixedTick:
                     if (entry.FixedTickConsecutiveFailures == 0) return;
                     entry.FixedTickConsecutiveFailures = 0;
+                    entry.FixedTickFailureLogged = false;
                     break;
                 default:
                     if (entry.LateTickConsecutiveFailures == 0) return;
                     entry.LateTickConsecutiveFailures = 0;
+                    entry.LateTickFailureLogged = false;
                     break;
             }
 

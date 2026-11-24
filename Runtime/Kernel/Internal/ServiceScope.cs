@@ -257,6 +257,18 @@ namespace Moirai.Atropos
             public int TickConsecutiveFailures;
             public int FixedTickConsecutiveFailures;
             public int LateTickConsecutiveFailures;
+
+            // ── 首错日志标志：本故障轮次（计数 > 0 的连续区间）内已记录过首错即置位，计数清零（成功恢复）时复位——
+            //    与失败计数分离，避免「熔断摘除 → 计数残值 → 重新注册」等时序组合下首错判定漂移 ──
+
+            public bool TickFailureLogged;
+            public bool FixedTickFailureLogged;
+            public bool LateTickFailureLogged;
+
+            // ── 熔断标记：任一类别被摘出轮询即置位——诊断面只聚合展示，类别粒度无消费者，不按类别拆；
+            //    重新注册或作用域销毁即随条目消失，「曾熔断」是历史事实 ──
+
+            public bool TrippedFromPoll;
         }
 
         /// <summary>

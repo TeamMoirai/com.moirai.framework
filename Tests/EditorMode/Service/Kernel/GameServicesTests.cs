@@ -1733,6 +1733,17 @@ namespace Service.Kernel
 
         private sealed class HealthyBeta : TestServiceBase, IBetaService { }
 
+        // --- OnInit 抛异常的轮询服务（激活摘除契约） ---
+
+        private sealed class ThrowingInitTickable : TestServiceBase, IAlphaService
+        {
+            protected override void OnInit()
+            {
+                base.OnInit();
+                throw new InvalidOperationException("init boom");
+            }
+        }
+
         [Test]
         public void Tick_ConsecutiveFailures_TripsAfterThreshold_StopsPolling()
         {
@@ -1746,9 +1757,11 @@ namespace Service.Kernel
             Init();
 
             // 前 3 帧异常上抛（开发环境 fail-fast）；第 3 次失败触发熔断摘除。
+            // 失败日志限流：仅首错带栈完整记录，后续失败静默计数（见 TickFailureLogging 测试）。
             for (int frame = 1; frame <= 3; frame++)
             {
-                UtfLogExpect.Error();
+                if (frame == 1)
+                    UtfLogExpect.Error();
                 if (frame == 3)
                     UtfLogExpect.Warning();
                 Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0.1f, 0.1f));
@@ -1761,6 +1774,81 @@ namespace Service.Kernel
 
             // 条目保留——解析不受熔断影响，重新注册可完全重置
             Assert.AreSame(thrower, GameServices.GetRequiredService<IDepTargetService>());
+        }
+
+        [Test]
+        public void TickFailureLogging_FirstFailureLogged_SubsequentSuppressed()
+        {
+            GameServices.Default.TickFailureTripThreshold = 3;
+            var thrower = new CountingThrowService();
+            GameServices.RegisterService(EServiceScopeKind.App, thrower as IDepTargetService);
+            Init();
+
+            for (int frame = 1; frame <= 3; frame++)
+            {
+                if (frame == 1)
+                    UtfLogExpect.Error();      // 首错：Error 通道带栈完整记录
+                if (frame == 3)
+                    UtfLogExpect.Warning();    // 熔断摘除：汇总告警一次
+                Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0.1f, 0.1f));
+            }
+
+            Assert.AreEqual(1, CountLogCaptured(ELogLevel.Fatal, "threw in"),
+                "仅首错记录 Fatal；后续失败静默计数，避免连续故障每帧刷屏");
+        }
+
+        [Test]
+        public void ActivateService_InitThrows_RemovesServiceFromPollLists()
+        {
+            var bad = new ThrowingInitTickable();
+            GameServices.RegisterService(EServiceScopeKind.App, bad as IAlphaService);
+
+            // 初始化 fail-fast：OnInit 抛出即向上传播
+            Assert.Throws<InvalidOperationException>(Init);
+
+            // 摘除契约：轮询不再驱动未完成初始化的服务
+            Assert.DoesNotThrow(() => GameServices.Tick(0.1f, 0.1f));
+            Assert.AreEqual(0, bad.TickCount, "OnInit 未完成的服务不应留在轮询列表");
+
+            // 既有兜底语义：世界销毁时未激活桶仍驱动 OnShutdown
+            GameServices.Shutdown();
+            Assert.AreEqual(1, bad.ShutdownCount, "未激活服务随世界销毁在兜底桶关闭");
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 熔断外显测试 [TRIP VISIBILITY TESTS]
+        // ═══════════════════════════════════════════════════════
+
+        [Test]
+        public void Trip_DiagnosticFlagged_EntryResolvable()
+        {
+            GameServices.Default.TickFailureTripThreshold = 3;
+            var thrower = new CountingThrowService();
+            GameServices.RegisterService(EServiceScopeKind.App, thrower as IDepTargetService);
+            Init();
+
+            for (int frame = 1; frame <= 3; frame++)
+            {
+                if (frame == 1)
+                    UtfLogExpect.Error();
+                if (frame == 3)
+                    UtfLogExpect.Warning();
+                Assert.Throws<InvalidOperationException>(() => GameServices.Tick(0.1f, 0.1f));
+            }
+
+            // 诊断外显：条目保留、可解析，熔断标记置位
+            var infos = GameServices.GetDiagnosticInfo();
+            bool flagged = false;
+            for (int i = 0; i < infos.Count; i++)
+            {
+                if (!infos[i].ImplementationType.Contains(nameof(CountingThrowService))) continue;
+                Assert.IsTrue(infos[i].TrippedFromPoll, "诊断信息应外显熔断状态");
+                flagged = true;
+                break;
+            }
+            Assert.IsTrue(flagged, "诊断信息中应包含 CountingThrowService");
+            Assert.AreSame(thrower, GameServices.GetRequiredService<IDepTargetService>(),
+                "熔断后条目保留、仍可解析");
         }
 
         // ═══════════════════════════════════════════════════════

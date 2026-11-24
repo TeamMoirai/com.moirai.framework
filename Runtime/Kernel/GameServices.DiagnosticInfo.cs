@@ -19,6 +19,9 @@ namespace Moirai.Atropos
             public bool HasLateUpdate;
             public bool HasGizmo;
 
+            /// <summary>是否曾被熔断摘出某类轮询列表（Tick/FixedTick/LateTick 任一类别；历史事实，重新注册才复位）。</summary>
+            public bool TrippedFromPoll;
+
             /// <summary>轮询耗时均值（毫秒；自上次 <see cref="ResetPollStatistics"/> 起累计），仅编辑器/开发构建非零。</summary>
             public float PollAvgMs;
 
