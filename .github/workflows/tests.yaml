@@ -37,6 +37,25 @@ env:
   HOST_REF: master
 
 jobs:
+  convention-guards:
+    name: Convention guards (layer edges / facade seams / config surface)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout framework package (PR head)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      # 三条可执行守卫在 PR 上先行：层界棘轮（check_layer_edges.py）、门面接缝（check_facade_seams.py）。
+      # config-surface 守卫的 B/C/D 段需要命令文件装配前端，CI 无前端环境取不到声明集（exit 2 量不出来），
+      # 上 CI 会恒红——它由本地跑继续承担；E/F 两段在 CI 环境可跑，单独以 section 选择性执行留待量具支持。
+      - name: Run layer-edges guard
+        run: python3 .agent/skills/moirai-conventions/scripts/check_layer_edges.py --root .
+
+      - name: Run facade-seams guard
+        run: python3 .agent/skills/moirai-conventions/scripts/check_facade_seams.py --root .
+
   editmode:
     name: EditMode
     runs-on: ubuntu-24.04
