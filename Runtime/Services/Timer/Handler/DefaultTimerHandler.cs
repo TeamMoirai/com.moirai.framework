@@ -77,7 +77,7 @@ namespace Moirai.Atropos.Timer
             // 编排收尾以「装配过」为闸（就绪判据在关停体内恒假）：世界销毁兜底会对未 OnInit 的服务也驱动 OnShutdown，此时依赖可能已先被拆走
             if (WasInitialized && Context != null)
             {
-                TimerService.OnHandlerShuttingDown(Context.GetRequiredService<IDebuggerService>());
+                TimerService.OnHandlerShuttingDown(Context.GetService<IDebuggerService>());
             }
 
             _wheel.Shutdown();
