@@ -3,7 +3,6 @@ using Kernel.GameSettings;
 using Moirai.Atropos;
 using Moirai.Atropos.Localization;
 using NUnit.Framework;
-using Settings = Moirai.Atropos.GameSettings;
 
 namespace Service.Localization
 {
@@ -26,17 +25,17 @@ namespace Service.Localization
         public void SetUp()
         {
             _savedEditorLanguage = LocalizationServiceSettings.EditorLanguage;
-            _savedSettingHandler = Settings.Internal_PeekHandler();
+            _savedSettingHandler = GameSettings.Internal_PeekHandler();
             _savedL10nHandler = LocalizationService.Internal_PeekHandler();
             _recording = new RecordingSettingHandler();
-            Settings.Internal_UseHandler(_recording);
+            GameSettings.Internal_UseHandler(_recording);
         }
 
         [TearDown]
         public void TearDown()
         {
             LocalizationService.Internal_UseHandler(_savedL10nHandler);
-            Settings.Internal_UseHandler(_savedSettingHandler);
+            GameSettings.Internal_UseHandler(_savedSettingHandler);
             LocalizationServiceSettings.EditorLanguage = _savedEditorLanguage;
         }
 

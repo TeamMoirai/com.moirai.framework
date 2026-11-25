@@ -5,7 +5,6 @@ using Cysharp.Threading.Tasks;
 using Moirai.Atropos;
 using Moirai.Atropos.Input;
 using NUnit.Framework;
-using Settings = Moirai.Atropos.GameSettings;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -51,19 +50,19 @@ namespace Service.Input
             _handler = new UnityInputSystemHandler();
             _handler.m_InputActions = _asset;
 
-            _previousHandler = Settings.Internal_PeekHandler();
+            _previousHandler = GameSettings.Internal_PeekHandler();
             _settings = new InMemorySettingHandler();
-            Settings.Internal_UseHandler(_settings);
+            GameSettings.Internal_UseHandler(_settings);
 
             _keyboard = InputSystem.AddDevice<Keyboard>();
-            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
+            ((IServiceLifecycle)_handler).Initialize();
         }
 
         public override void TearDown()
         {
-            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
+            ((IServiceLifecycle)_handler).Destroy();
             Object.DestroyImmediate(_asset);
-            Settings.Internal_UseHandler(_previousHandler);
+            GameSettings.Internal_UseHandler(_previousHandler);
             base.TearDown();
         }
 

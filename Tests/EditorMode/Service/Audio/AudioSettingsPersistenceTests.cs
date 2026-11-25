@@ -3,7 +3,6 @@ using Moirai.Atropos.Audio;
 using Kernel.GameSettings;
 using NUnit.Framework;
 using UnityEngine;
-using Settings = Moirai.Atropos.GameSettings;
 
 namespace Service.Audio
 {
@@ -21,11 +20,11 @@ namespace Service.Audio
         public void SetSettingsWritesMasterKeysWithoutFlushing()
         {
             var listenerVolumeBefore = AudioListener.volume;
-            var previousSetting = Settings.Internal_PeekHandler();
+            var previousSetting = GameSettings.Internal_PeekHandler();
             var previousAudio = AudioService.Internal_PeekHandler();
             var recording = new RecordingSettingHandler();
             var handler = new UnityAudioHandler();
-            Settings.Internal_UseHandler(recording);
+            GameSettings.Internal_UseHandler(recording);
             AudioService.Internal_UseHandler(handler);
             try
             {
@@ -40,7 +39,7 @@ namespace Service.Audio
             finally
             {
                 AudioService.Internal_UseHandler(previousAudio);
-                Settings.Internal_UseHandler(previousSetting);
+                GameSettings.Internal_UseHandler(previousSetting);
                 AudioListener.volume = listenerVolumeBefore;
             }
         }
@@ -49,11 +48,11 @@ namespace Service.Audio
         public void RemoveSettingClearsMasterKeysWithoutFlushing()
         {
             var listenerVolumeBefore = AudioListener.volume;
-            var previousSetting = Settings.Internal_PeekHandler();
+            var previousSetting = GameSettings.Internal_PeekHandler();
             var previousAudio = AudioService.Internal_PeekHandler();
             var recording = new RecordingSettingHandler();
             var handler = new UnityAudioHandler();
-            Settings.Internal_UseHandler(recording);
+            GameSettings.Internal_UseHandler(recording);
             AudioService.Internal_UseHandler(handler);
             try
             {
@@ -71,7 +70,7 @@ namespace Service.Audio
             finally
             {
                 AudioService.Internal_UseHandler(previousAudio);
-                Settings.Internal_UseHandler(previousSetting);
+                GameSettings.Internal_UseHandler(previousSetting);
                 AudioListener.volume = listenerVolumeBefore;
             }
         }

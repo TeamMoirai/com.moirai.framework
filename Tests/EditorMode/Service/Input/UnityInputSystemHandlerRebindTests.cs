@@ -3,7 +3,6 @@ using Kernel.GameSettings;
 using Moirai.Atropos;
 using Moirai.Atropos.Input;
 using NUnit.Framework;
-using Settings = Moirai.Atropos.GameSettings;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -39,17 +38,17 @@ namespace Service.Input
             _handler = new UnityInputSystemHandler();
             _handler.m_InputActions = _asset;
 
-            _previousHandler = Settings.Internal_PeekHandler();
-            Settings.Internal_UseHandler(new RecordingSettingHandler());
-            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
+            _previousHandler = GameSettings.Internal_PeekHandler();
+            GameSettings.Internal_UseHandler(new RecordingSettingHandler());
+            ((IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
         public void TearDown()
         {
-            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
+            ((IServiceLifecycle)_handler).Destroy();
             Object.DestroyImmediate(_asset);
-            Settings.Internal_UseHandler(_previousHandler);
+            GameSettings.Internal_UseHandler(_previousHandler);
         }
 
         [Test]
@@ -88,7 +87,7 @@ namespace Service.Input
             var action = _asset.FindAction("Player/Jump");
             Assert.AreEqual("<Keyboard>/space", action.bindings[0].effectivePath, "重置回到资产默认");
             Assert.IsFalse(_handler.TryGetBindingOverride("Jump", "Player", out _));
-            Assert.IsFalse(Settings.HasSetting(InputRebindSettingsPolicy.BindingKey("Player/Jump")), "持久化键同步清除");
+            Assert.IsFalse(GameSettings.HasSetting(InputRebindSettingsPolicy.BindingKey("Player/Jump")), "持久化键同步清除");
         }
 
         [Test]
@@ -175,7 +174,7 @@ namespace Service.Input
             var jump = _asset.FindAction("Player/Jump");
             Assert.IsFalse(jump.enabled, "监听期动作禁用，避免重绑触发 gameplay 查询");
 
-            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
+            ((IServiceLifecycle)_handler).Destroy();
             var shutdownResult = task.GetAwaiter().GetResult();
             Assert.AreEqual(ERebindOutcome.Cancelled, shutdownResult.Outcome, "后端关停取消未决监听");
         }

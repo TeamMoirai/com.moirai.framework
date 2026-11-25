@@ -3,7 +3,6 @@ using Kernel.GameSettings;
 using Moirai.Atropos;
 using Moirai.Atropos.Input;
 using NUnit.Framework;
-using Settings = Moirai.Atropos.GameSettings;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -44,17 +43,17 @@ namespace Service.Input
             _handler = new UnityInputSystemHandler();
             _handler.m_InputActions = _asset;
 
-            _previousHandler = Settings.Internal_PeekHandler();
-            Settings.Internal_UseHandler(new RecordingSettingHandler());
-            ((Moirai.Atropos.IServiceLifecycle)_handler).Initialize();
+            _previousHandler = GameSettings.Internal_PeekHandler();
+            GameSettings.Internal_UseHandler(new RecordingSettingHandler());
+            ((IServiceLifecycle)_handler).Initialize();
         }
 
         [TearDown]
         public void TearDown()
         {
-            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
+            ((IServiceLifecycle)_handler).Destroy();
             Object.DestroyImmediate(_asset);
-            Settings.Internal_UseHandler(_previousHandler);
+            GameSettings.Internal_UseHandler(_previousHandler);
         }
 
         [Test]
@@ -85,24 +84,24 @@ namespace Service.Input
         {
             _handler.ApplyBindingOverride("Move", "Player", new InputBindingData("<Keyboard>/i", "Up"));
 
-            Assert.IsTrue(Settings.HasSetting(MOVE_KEY), "部件覆写即落键");
-            Assert.AreEqual("<Keyboard>/i|Up", Settings.GetString(MOVE_KEY), "编码保留部件定位");
+            Assert.IsTrue(GameSettings.HasSetting(MOVE_KEY), "部件覆写即落键");
+            Assert.AreEqual("<Keyboard>/i|Up", GameSettings.GetString(MOVE_KEY), "编码保留部件定位");
         }
 
         [Test]
         public void Restart_RestoresCompositePartOverride_FromPersistedKey()
         {
             _handler.ApplyBindingOverride("Move", "Player", new InputBindingData("<Keyboard>/i", "Up"));
-            ((Moirai.Atropos.IServiceLifecycle)_handler).Destroy();
+            ((IServiceLifecycle)_handler).Destroy();
 
             var restored = new UnityInputSystemHandler();
             restored.m_InputActions = _asset;
-            ((Moirai.Atropos.IServiceLifecycle)restored).Initialize();
+            ((IServiceLifecycle)restored).Initialize();
 
             var bindings = _asset.FindAction("Player/Move").bindings;
             Assert.AreEqual("<Keyboard>/i", bindings[1].effectivePath, "重启后按部件恢复覆写");
             Assert.AreEqual("<Keyboard>/s", bindings[2].effectivePath, "其余部件保持默认");
-            ((Moirai.Atropos.IServiceLifecycle)restored).Destroy();
+            ((IServiceLifecycle)restored).Destroy();
         }
 
         [Test]
@@ -128,7 +127,7 @@ namespace Service.Input
             var bindings = _asset.FindAction("Player/Move").bindings;
             Assert.AreEqual("<Keyboard>/w", bindings[1].effectivePath, "Up 回落默认");
             Assert.AreEqual("<Keyboard>/s", bindings[2].effectivePath, "Down 回落默认");
-            Assert.IsFalse(Settings.HasSetting(MOVE_KEY), "持久化键同步清除");
+            Assert.IsFalse(GameSettings.HasSetting(MOVE_KEY), "持久化键同步清除");
         }
     }
 }

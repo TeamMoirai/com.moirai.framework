@@ -1,7 +1,5 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
-using Kernel.GameSettings;
 using UnityEditor.PackageManager;
 using Moirai.Atropos;
 using NUnit.Framework;
