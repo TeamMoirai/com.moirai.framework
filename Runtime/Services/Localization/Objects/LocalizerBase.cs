@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Moirai.Atropos.Asset;
 using UnityEngine;
 using UObject = UnityEngine.Object;
@@ -44,6 +46,24 @@ namespace Moirai.Atropos.Localization
 		/// <remarks>未就绪时注入应静默推迟：首次加载成功触发的语言切换会重注入全部已注册本地化器。
 		/// 「未就绪」与「词条真缺失」必须分开——前者不该按缺译刷错误日志。</remarks>
 		protected static bool IsLocalizationDataReady => LocalizationService.IsDataLoaded;
+
+		/// <summary>
+		/// 按语言索引软引用的异步取值：GUID → location → <see cref="AssetService.TryLoadAssetAsync{T}"/>（保活窗口口径）。
+		/// </summary>
+		/// <remarks>空引用/空 GUID 返 <c>null</c>，空元素语义由调用方定义；服务未就绪回退资产库直读。</remarks>
+		protected static async UniTask<T> LoadIndexedAsync<T>(AssetReference<T> reference, CancellationToken cancellationToken = default)
+			where T : UObject
+		{
+			if (reference == null || string.IsNullOrEmpty(reference.GUID)) return null;
+
+			if (!reference.TryGetLocation(out string location))
+			{
+				LogUtility.Warning("Localized asset load failed: GUID not resolved: {0}", reference.GUID);
+				return null;
+			}
+
+			return await AssetService.TryLoadAssetAsync<T>(location, cancellationToken, reference.PackageName);
+		}
 
 #if UNITY_EDITOR
 		/// <summary>
@@ -149,10 +169,50 @@ namespace Moirai.Atropos.Localization
 		/// <summary>
 		/// 按语言索引注入的数组在该下标上的元素概况——"新增语言后数组没补齐"这类错位只能在编辑器里先看见。
 		/// </summary>
-		internal static string DescribeIndexedElement<T>(T[] items, int index) where T : UObject
+		/// <remarks>按编辑态 GUID 解析资产名，GUID 悬空单独点名。</remarks>
+		internal static string DescribeIndexedElement<T>(AssetReference<T>[] references, int index) where T : UObject
 		{
-			if (items == null || (uint)index >= (uint)items.Length) return "缺项";
-			return items[index] == null ? "空引用" : items[index].name;
+			if (references == null || (uint)index >= (uint)references.Length) return "缺项";
+			var reference = references[index];
+			if (reference == null || string.IsNullOrEmpty(reference.GUID)) return "空引用";
+
+#if UNITY_EDITOR
+			var editorAsset = reference.EditorAsset;
+			if (editorAsset == null) return "GUID 悬空";
+			return editorAsset.name;
+#else
+			return reference.GUID;
+#endif
+		}
+
+		/// <summary>
+		/// 按语言索引注入的 <see cref="SpriteReference"/> 数组在该下标上的元素概况。
+		/// </summary>
+		/// <remarks>Common 报精灵名（含子图名），Config 报配置表 ID。</remarks>
+		internal static string DescribeIndexedElement(SpriteReference[] references, int index)
+		{
+			if (references == null || (uint)index >= (uint)references.Length) return "缺项";
+			var reference = references[index];
+			if (reference == null) return "空引用";
+
+#if UNITY_EDITOR
+			if (reference.PackageType == SpriteReference.ESpritePackageType.Config)
+			{
+				return string.IsNullOrEmpty(reference.ConfigId) ? "空引用" : $"Config {reference.ConfigId}";
+			}
+
+			string guid = reference.SpriteRef?.GUID;
+			if (string.IsNullOrEmpty(guid)) return "空引用";
+
+			string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+			if (string.IsNullOrEmpty(path)) return "GUID 悬空";
+
+			return string.IsNullOrEmpty(reference.SpriteName)
+				? (UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path)?.name ?? "GUID 悬空")
+				: $"{reference.SpriteName} (子图)";
+#else
+			return guid;
+#endif
 		}
 #endif
 	}

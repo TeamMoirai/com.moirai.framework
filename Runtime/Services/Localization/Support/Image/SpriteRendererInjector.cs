@@ -1,3 +1,4 @@
+using Moirai.Atropos.Asset;
 using UnityEngine;
 
 namespace Moirai.Atropos.Localization
@@ -5,11 +6,11 @@ namespace Moirai.Atropos.Localization
     /// <summary>
     /// <see cref="SpriteRenderer"/> 本地化注入器：把本地化图片资源应用到 2D 精灵渲染器。
     /// </summary>
-    /// <remarks>预期资源类型为 <see cref="Sprite"/>；加载到 <see cref="Texture2D"/> 时会先创建 Sprite 再应用。</remarks>
+    /// <remarks>预期 <see cref="Sprite"/>（<see cref="Texture2D"/> 先转换）；索引模式为 <see cref="SpriteReference"/> 数组，取像走门面 <c>SetSprite</c>。</remarks>
     public class SpriteRendererInjector : ImageInjectorBase
     {
         private readonly SpriteRenderer _spriteRenderer;
-        private readonly Sprite[] _sprites;
+        private readonly SpriteReference[] _sprites;
         // Texture2D 转换出的运行时 Sprite，切换/清理/销毁时释放，避免泄漏
         private Sprite _convertedSprite;
 
@@ -17,8 +18,8 @@ namespace Moirai.Atropos.Localization
         /// 创建针对指定 <see cref="SpriteRenderer"/> 的本地化图片注入器。
         /// </summary>
         /// <param name="spriteRenderer">目标 <see cref="SpriteRenderer"/> 组件。</param>
-        /// <param name="sprites">预分配的 Sprite 数组，供索引模式使用。</param>
-        public SpriteRendererInjector(SpriteRenderer spriteRenderer, Sprite[] sprites)
+        /// <param name="sprites">预分配的精灵引用数组，供索引模式使用。</param>
+        public SpriteRendererInjector(SpriteRenderer spriteRenderer, SpriteReference[] sprites)
         {
             _spriteRenderer = spriteRenderer;
             _sprites = sprites;
@@ -47,8 +48,12 @@ namespace Moirai.Atropos.Localization
 
             if (_spriteRenderer == null) return;
 
+            // 空元素保持组件原精灵，不报错
+            var reference = _sprites[index];
+            if (reference == null) return;
+
             DestroyConvertedSprite();
-            _spriteRenderer.sprite = _sprites[index];
+            reference.SetSprite(_spriteRenderer, allowNull: false);
         }
 
         /// <inheritdoc/>

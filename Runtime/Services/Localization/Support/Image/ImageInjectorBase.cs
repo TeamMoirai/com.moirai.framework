@@ -25,7 +25,7 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 按载荷类型注入本地化数据。
         /// </summary>
-        /// <remarks><see cref="int"/> = 当前语言下标（从预分配数组取用）；<see cref="string"/> = 资源 location（已单趟解析），异步加载后应用；其余载荷类型忽略。</remarks>
+        /// <remarks><see cref="int"/> = 当前语言下标（从预分配软引用数组取用）；<see cref="string"/> = 资源 location（已单趟解析），异步加载后应用；其余载荷类型忽略。</remarks>
         /// <typeparam name="T1">载荷类型：<see cref="int"/> 或 <see cref="string"/>。</typeparam>
         /// <typeparam name="T2">本地化器类型。</typeparam>
         /// <param name="localizedData">语言下标或资源 location。</param>
@@ -38,7 +38,7 @@ namespace Moirai.Atropos.Localization
                     ApplyFromArray(index);
                     break;
                 case string location:
-                    ApplyFromResource(location).Forget();
+                    ApplyFromLocation(location).Forget();
                     break;
             }
         }
@@ -99,9 +99,32 @@ namespace Moirai.Atropos.Localization
         /// <summary>
         /// 按资源 location 从资源系统异步加载并应用。
         /// </summary>
-        private async UniTaskVoid ApplyFromResource(string location)
+        /// <remarks>索引与资源模式共用：加载/类型校验/自动转换/租约换入换出/版本号防串台全在此层；服务未就绪回退资产库直读。</remarks>
+        protected async UniTaskVoid ApplyFromLocation(string location)
         {
             var version = ++_loadVersion;
+
+#if UNITY_EDITOR
+            // 服务未就绪（编辑态）直读资产库，同一趟类型校验/自动转换
+            if (!AssetService.IsInitialized)
+            {
+                if (!AssetService.TryLoadAsset(location, out UObject editorAsset))
+                {
+                    LogUtility.Error("Localized image load failed (editor fallback): {0}", location);
+                    return;
+                }
+
+                if (TryConvertAndApply(editorAsset))
+                {
+                    LogUtility.Warning("Localized image type error, automatically converted: {0}", editorAsset.name);
+                    return;
+                }
+
+                ApplyAsset(editorAsset);
+                return;
+            }
+#endif
+
             var lease = await AssetService.LoadLeaseAsync<UObject>(location);
 
             // 加载期间发生了更新的切换或已销毁，丢弃过期结果

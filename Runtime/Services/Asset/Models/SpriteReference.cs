@@ -78,6 +78,17 @@ namespace Moirai.Atropos.Asset
         /// <summary>Config 模式的配置表 ID。</summary>
         public string ConfigId { get => m_ConfigId; internal set => m_ConfigId = value; }
 
+        /// <summary>配置是否有效：Common 看 GUID（子图名可空取整图），Config 看配置表 ID</summary>
+        public bool IsValid
+        {
+            get
+            {
+                if (m_PackageType == ESpritePackageType.Common) return !string.IsNullOrEmpty(m_SpriteRef?.GUID);
+                if (m_PackageType == ESpritePackageType.Config) return !string.IsNullOrEmpty(m_ConfigId);
+                return false;
+            }
+        }
+
         #endregion
 
         #region 检视支撑 [INSPECTOR SUPPORT]

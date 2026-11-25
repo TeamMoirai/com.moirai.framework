@@ -14,6 +14,7 @@ using Unity.IL2CPP.CompilerServices;
 [assembly: InternalsVisibleTo("Moirai.Clotho")]
 [assembly: InternalsVisibleTo("Moirai.Clotho.CharacterControllerPro")]
 [assembly: InternalsVisibleTo("Moirai.Clotho.UGUIPro")]
+[assembly: InternalsVisibleTo("Moirai.Clotho.Tests.EditorMode")]
 
 [assembly: InternalsVisibleTo("Moirai.Lachesis")]
 

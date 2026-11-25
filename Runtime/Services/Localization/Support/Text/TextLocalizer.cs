@@ -1,9 +1,12 @@
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
 using TMPro;
 #endif
-using Sirenix.OdinInspector;
+using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Asset;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
+using UObject = UnityEngine.Object;
 
 namespace Moirai.Atropos.Localization
 {
@@ -11,11 +14,14 @@ namespace Moirai.Atropos.Localization
 	{
 		[SerializeField] private string m_TextId;
 #if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
-		[Tooltip("按语言索引的 TMP 字体资产：下标 = 当前语言列下标（下标越界或空元素保持原字体）")]
-		[SerializeField, LanguageIndexed] private TMP_FontAsset[] m_TmpFontAssets;
+		[Tooltip("按语言索引的 TMP 字体资产软引用：下标 = 当前语言列下标（下标越界或空元素保持原字体）")]
+		[SerializeField, LanguageIndexed] private AssetReference<TMP_FontAsset>[] m_TmpFontAssets;
 #endif
-		[Tooltip("按语言索引的 UGUI 字体：下标 = 当前语言列下标（下标越界或空元素保持原字体）")]
-		[SerializeField, LanguageIndexed] private Font[] m_UguiFonts;
+		[Tooltip("按语言索引的 UGUI 字体软引用：下标 = 当前语言列下标（下标越界或空元素保持原字体）")]
+		[SerializeField, LanguageIndexed] private AssetReference<Font>[] m_UguiFonts;
+
+		// 呈现版本号：连切/销毁时丢弃过期的异步字体加载
+		private int _presentationVersion;
 
 		protected override void Prepare()
 		{
@@ -40,6 +46,13 @@ namespace Moirai.Atropos.Localization
 				_injector = new TMPInjector(tmp);
 			}
 #endif
+		}
+
+		protected override void OnDestroy()
+		{
+			// 销毁后在途加载自行丢弃
+			_presentationVersion++;
+			base.OnDestroy();
 		}
 
 		internal override void Localize() => Apply(m_TextId);
@@ -101,9 +114,9 @@ namespace Moirai.Atropos.Localization
 		}
 
 		/// <summary>
-		/// 应用语言联动的呈现属性：TMP 的 RTL 方向（阿拉伯/希伯来等）与按语言索引的字体资产。
+		/// 应用语言联动的呈现属性：TMP 的 RTL 方向（阿拉伯/希伯来等）与按语言索引的字体软引用。
 		/// </summary>
-		/// <remarks>下标与 <c>LocalizationService.CurrentLanguageIndex</c> 同一约定；越界或空元素一律保持组件原值，不做清空。</remarks>
+		/// <remarks>越界或空元素保持组件原值；字体经 <see cref="LoadIndexedAsync{T}"/> 异步回填，版本号防连切。</remarks>
 		private void ApplyLanguagePresentation()
 		{
 			var languageIndex = LocalizationService.CurrentLanguageIndex;
@@ -114,12 +127,12 @@ namespace Moirai.Atropos.Localization
 				var tmp = tmpInjector.Component;
 				if (tmp == null) return;
 
+				// RTL 同步生效；字体软引用异步回填
 				tmp.isRightToLeftText = LocalizationService.IsCurrentLanguageRightToLeft;
 
 				if (m_TmpFontAssets != null && languageIndex >= 0 && languageIndex < m_TmpFontAssets.Length)
 				{
-					var fontAsset = m_TmpFontAssets[languageIndex];
-					if (fontAsset != null) tmp.font = fontAsset;
+					ApplyTmpFontAsync(tmpInjector, m_TmpFontAssets[languageIndex]).Forget();
 				}
 
 				return;
@@ -134,10 +147,35 @@ namespace Moirai.Atropos.Localization
 				// UGUI 无 RTL：只按语言索引换字体
 				if (m_UguiFonts != null && languageIndex >= 0 && languageIndex < m_UguiFonts.Length)
 				{
-					var font = m_UguiFonts[languageIndex];
-					if (font != null) uiText.font = font;
+					ApplyUguiFontAsync(uiTextInjector, m_UguiFonts[languageIndex]).Forget();
 				}
 			}
+		}
+
+#if (TEXT_MESH_PRO_INSTALLED || UNITY_UGUI2_INSTALLED)
+		/// <summary>异步取 TMP 字体回填；版本过期或空值不动组件。</summary>
+		private async UniTaskVoid ApplyTmpFontAsync(TMPInjector injector, AssetReference<TMP_FontAsset> reference)
+		{
+			var version = ++_presentationVersion;
+			var fontAsset = await LoadIndexedAsync(reference, this.GetCancellationTokenOnDestroy());
+			if (version != _presentationVersion || fontAsset == null) return;
+
+			var tmp = injector.Component;
+			if (tmp == null) return;
+			tmp.font = fontAsset;
+		}
+#endif
+
+		/// <summary>异步取 UGUI 字体回填；版本过期或空值不动组件。</summary>
+		private async UniTaskVoid ApplyUguiFontAsync(UITextInjector injector, AssetReference<Font> reference)
+		{
+			var version = ++_presentationVersion;
+			var font = await LoadIndexedAsync(reference, this.GetCancellationTokenOnDestroy());
+			if (version != _presentationVersion || font == null) return;
+
+			var uiText = injector.Component;
+			if (uiText == null) return;
+			uiText.font = font;
 		}
 
 		public void Clear()

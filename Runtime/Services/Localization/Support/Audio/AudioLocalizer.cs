@@ -1,17 +1,17 @@
-using Sirenix.OdinInspector;
+using Cysharp.Threading.Tasks;
+using Moirai.Atropos.Asset;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Moirai.Atropos.Localization
 {
 	public class AudioLocalizer : LocalizerBase
 	{
-		[SerializeField, FormerlySerializedAs("localizedTextID")] private string m_LocalizedTextID = "";
+		[SerializeField] private string m_LocalizedTextID = "";
 
-		[Tooltip("按语言索引的音频资源：下标 = 当前语言列下标（下标越界或空元素保持原音频）")]
-		[SerializeField, FormerlySerializedAs("clips"), LanguageIndexed] private AudioClip[] m_Clips;
+		[Tooltip("按语言索引的音频资源软引用：下标 = 当前语言列下标（下标越界报错；空元素清空音源）")]
+		[SerializeField, LanguageIndexed] internal AssetReference<AudioClip>[] m_Clips;
 
-		[SerializeField, FormerlySerializedAs("playFromSamePositionWhenInject")] private bool m_PlayFromSamePositionWhenInject;
+		[SerializeField] private bool m_PlayFromSamePositionWhenInject;
 		public bool PlayFromSamePositionWhenInject => m_PlayFromSamePositionWhenInject;
 
 		protected override void Prepare()
@@ -64,14 +64,31 @@ namespace Moirai.Atropos.Localization
 			var index = LocalizationService.CurrentLanguageIndex;
 			if (index < 0) return;
 
-			if (m_Clips != null && index < m_Clips.Length)
-			{
-				_injector.Inject(m_Clips[index], this);
-			}
-			else
+			if (m_Clips == null || index >= m_Clips.Length)
 			{
 				LogUtility.Error("AudioLocalizer {0}: clips has no entry for language index {1}.", name, index);
+				return;
 			}
+
+			// 单趟取片段直注：不走注入器 string-location 路径（裸 LoadLeaseAsync 未就绪会 fail-fast）
+			var reference = m_Clips[index];
+			if (reference == null || string.IsNullOrEmpty(reference.GUID))
+			{
+				// 该语言没配语音是正常态：清空音源；null 载荷需显式类型实参
+				_injector.Inject<AudioClip, AudioLocalizer>(null, this);
+				return;
+			}
+
+			ApplyIndexedClipAsync(reference).Forget();
+		}
+
+		/// <summary>异步取语言索引的音频片段并直注播放。</summary>
+		private async UniTaskVoid ApplyIndexedClipAsync(AssetReference<AudioClip> reference)
+		{
+			var clip = await LoadIndexedAsync(reference, this.GetCancellationTokenOnDestroy());
+			if (_injector == null) return; // 销毁后在途结果丢弃
+
+			_injector.Inject(clip, this);
 		}
 
 		public bool ChangeID(string textId)
@@ -89,7 +106,7 @@ namespace Moirai.Atropos.Localization
 				return false;
 			}
 
-			this.m_LocalizedTextID = textId;
+			m_LocalizedTextID = textId;
 
 			// 与 TextLocalizer.ChangeID 语义一致：记录后立即应用（location 已单趟解析，直接注入）
 			if (_injector == null)

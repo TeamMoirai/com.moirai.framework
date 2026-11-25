@@ -1,21 +1,20 @@
-using Sirenix.OdinInspector;
+using Moirai.Atropos.Asset;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace Moirai.Atropos.Localization
 {
 	public class ImageLocalizer : LocalizerBase
 	{
-		[SerializeField, FormerlySerializedAs("localizedTextID")] private string m_LocalizedTextID = "";
-		[SerializeField, FormerlySerializedAs("propertyName")] private string m_PropertyName = "_MainTex";
+		[SerializeField] private string m_LocalizedTextID = "";
+		[SerializeField] private string m_PropertyName = "_MainTex";
 
-		[Tooltip("按语言索引的二维纹理：下标 = 当前语言列下标（下标越界或空元素保持原二维纹理）")]
-		[SerializeField, FormerlySerializedAs("texture2Ds"), LanguageIndexed] private Texture2D[] m_Texture2Ds;
-		[Tooltip("按语言索引的精灵：下标 = 当前语言列下标（下标越界或空元素保持原精灵）")]
-		[SerializeField, FormerlySerializedAs("sprites"), LanguageIndexed] internal Sprite[] m_Sprites;
-		[Tooltip("按语言索引的纹理：下标 = 当前语言列下标（下标越界或空元素保持原纹理）")]
-		[SerializeField, FormerlySerializedAs("textures"), LanguageIndexed] private Texture[] m_Textures;
+		[Tooltip("按语言索引的二维纹理软引用：下标 = 当前语言列下标（下标越界或空元素保持原二维纹理）")]
+		[SerializeField, LanguageIndexed] internal AssetReference<Texture2D>[] m_Texture2Ds;
+		[Tooltip("按语言索引的精灵引用：下标 = 当前语言列下标（下标越界或空元素保持原精灵）")]
+		[SerializeField, LanguageIndexed] internal SpriteReference[] m_Sprites;
+		[Tooltip("按语言索引的纹理软引用：下标 = 当前语言列下标（下标越界或空元素保持原纹理）")]
+		[SerializeField, LanguageIndexed] internal AssetReference<Texture>[] m_Textures;
 
 		protected override void Prepare()
 		{
@@ -101,7 +100,7 @@ namespace Moirai.Atropos.Localization
 				return false;
 			}
 
-			this.m_LocalizedTextID = textId;
+			m_LocalizedTextID = textId;
 
 			// 与 TextLocalizer.ChangeID 语义一致：记录后立即应用（location 已单趟解析，直接注入）
 			if (_injector == null)

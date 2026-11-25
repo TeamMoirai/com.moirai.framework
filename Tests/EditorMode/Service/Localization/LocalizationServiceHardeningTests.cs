@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using Moirai.Atropos.Asset;
 using Moirai.Atropos.Localization;
 using Moirai.Atropos.Tests.EditorMode;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UObject = UnityEngine.Object;
 
 namespace Service.Localization
@@ -90,42 +92,137 @@ namespace Service.Localization
             Assert.IsFalse(LocalizationService.IsDataLoaded);
         }
 
-        [Test]
-        public void ImageLocalizer_IndexMode_DefersWhileDataNotReady_ThenInjectsWhenReady()
+        /// <summary>确保 <c>Assets/Temp/L10nHardeningTests</c> 存在（父级逐级补建），返回路径。</summary>
+        /// <remarks>建完即 Refresh：同帧接着 CreateAsset 时资产库须已登记新文件夹。</remarks>
+        private static string EnsureTempFolder()
+        {
+            if (!UnityEditor.AssetDatabase.IsValidFolder("Assets/Temp"))
+            {
+                UnityEditor.AssetDatabase.CreateFolder("Assets", "Temp");
+                UnityEditor.AssetDatabase.Refresh();
+            }
+            const string dirPath = "Assets/Temp/L10nHardeningTests";
+            if (!UnityEditor.AssetDatabase.IsValidFolder(dirPath))
+            {
+                UnityEditor.AssetDatabase.CreateFolder("Assets/Temp", "L10nHardeningTests");
+                UnityEditor.AssetDatabase.Refresh();
+            }
+            return dirPath;
+        }
+
+        [UnityTest]
+        public System.Collections.IEnumerator ImageLocalizer_IndexMode_DefersWhileDataNotReady_ThenInjectsWhenReady()
         {
             InstallFacadeHandler();
 
-            var texture = new Texture2D(2, 2);
-            var spriteEn = Sprite.Create(texture, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f));
-            var spriteZh = Sprite.Create(texture, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f));
+            // 临时纹理落盘成资产才有真 GUID；扩展名须 .asset（CreateAsset 不接受 png）
+            var textureEn = new Texture2D(2, 2);
+            textureEn.SetPixel(0, 0, Color.red);
+            textureEn.Apply();
+            var textureZh = new Texture2D(2, 2);
+            textureZh.SetPixel(0, 0, Color.green);
+            textureZh.Apply();
+            var enPath = EnsureTempFolder() + "/tex_en.asset";
+            var zhPath = EnsureTempFolder() + "/tex_zh.asset";
             try
             {
+                UnityEditor.FileUtil.DeleteFileOrDirectory(enPath);
+                UnityEditor.FileUtil.DeleteFileOrDirectory(zhPath);
+                UnityEditor.AssetDatabase.CreateAsset(textureEn, enPath);
+                UnityEditor.AssetDatabase.CreateAsset(textureZh, zhPath);
+
                 _gameObject = new GameObject("L10nImageProbe");
-                var renderer = _gameObject.AddComponent<SpriteRenderer>();
+                var rawImage = _gameObject.AddComponent<UnityEngine.UI.RawImage>();
                 var localizer = _gameObject.AddComponent<ImageLocalizer>();
-                localizer.m_Sprites = new[] { spriteEn, spriteZh };
+                localizer.m_Textures = new[]
+                {
+                    new AssetReference<Texture> { GUID = UnityEditor.AssetDatabase.AssetPathToGUID(enPath) },
+                    new AssetReference<Texture> { GUID = UnityEditor.AssetDatabase.AssetPathToGUID(zhPath) },
+                };
 
                 // EditMode 下非 ExecuteInEditMode 组件的 Awake 不执行，Prepare 需手动补齐
                 localizer.Internal_Prepare();
 
                 // 数据未就绪：静默推迟，不得注入也不得按缺译处理
                 localizer.Localize();
-                Assert.IsNull(renderer.sprite, "数据未就绪时不应注入任何内容");
+                Assert.IsNull(rawImage.texture, "数据未就绪时不应注入任何内容");
 
-                // 数据就绪：按当前语言索引正常注入
+                // 数据就绪：按当前语言索引注入（编辑态经资产库回退直读）
                 LoadStrings("ui.title", "Title", "标题");
                 var index = LocalizationService.CurrentLanguageIndex;
                 Assert.GreaterOrEqual(index, 0, "首载后当前语言必须落在批内");
                 Assert.AreEqual(index, LocalizationService.CurrentLanguageIndex);
 
                 localizer.Localize();
-                Assert.AreSame(localizer.m_Sprites[index], renderer.sprite, "就绪后应按当前语言索引注入对应 Sprite");
+
+                // fire-and-forget 续体下一拍才应用纹理：EditMode 无帧循环，靠 yield 泵一拍
+                yield return null;
+
+                var expectedTexture = index == 0
+                    ? UnityEditor.AssetDatabase.LoadAssetAtPath<Texture>(enPath)
+                    : UnityEditor.AssetDatabase.LoadAssetAtPath<Texture>(zhPath);
+                Assert.AreEqual(expectedTexture, rawImage.texture, "就绪后应按当前语言索引注入对应纹理");
             }
             finally
             {
-                UObject.DestroyImmediate(spriteEn);
-                UObject.DestroyImmediate(spriteZh);
-                UObject.DestroyImmediate(texture);
+                // CreateAsset 的对象随文件删除，DestroyImmediate 会报「不许销毁资产」
+                UnityEditor.FileUtil.DeleteFileOrDirectory(enPath);
+                UnityEditor.FileUtil.DeleteFileOrDirectory(zhPath);
+                UnityEditor.FileUtil.DeleteFileOrDirectory(enPath + ".meta");
+                UnityEditor.FileUtil.DeleteFileOrDirectory(zhPath + ".meta");
+            }
+        }
+
+        [Test]
+        public void AudioLocalizer_IndexMode_DefersWhileDataNotReady_ThenInjectsWhenReady()
+        {
+            InstallFacadeHandler();
+
+            // 音频同口径：临时 AudioClip 落盘成资产才有真 GUID
+            var clipEn = AudioClip.Create("clip_en", 44, 1, 44100, false);
+            var clipZh = AudioClip.Create("clip_zh", 44, 1, 44100, false);
+            var enPath = EnsureTempFolder() + "/clip_en.asset";
+            var zhPath = EnsureTempFolder() + "/clip_zh.asset";
+            try
+            {
+                UnityEditor.FileUtil.DeleteFileOrDirectory(enPath);
+                UnityEditor.FileUtil.DeleteFileOrDirectory(zhPath);
+                UnityEditor.AssetDatabase.CreateAsset(clipEn, enPath);
+                UnityEditor.AssetDatabase.CreateAsset(clipZh, zhPath);
+
+                _gameObject = new GameObject("L10nAudioProbe");
+                var audioSource = _gameObject.AddComponent<AudioSource>();
+                var localizer = _gameObject.AddComponent<AudioLocalizer>();
+                localizer.m_Clips = new[]
+                {
+                    new AssetReference<AudioClip> { GUID = UnityEditor.AssetDatabase.AssetPathToGUID(enPath) },
+                    new AssetReference<AudioClip> { GUID = UnityEditor.AssetDatabase.AssetPathToGUID(zhPath) },
+                };
+
+                localizer.Internal_Prepare();
+
+                // 数据未就绪：静默推迟，不得触碰音源
+                localizer.Localize();
+                Assert.IsNull(audioSource.clip, "数据未就绪时不应注入任何内容");
+
+                // 数据就绪：按当前语言索引注入（编辑态走资产库回退，再经 AudioClip 直注分支播放）
+                LoadStrings("ui.title", "Title", "标题");
+                var index = LocalizationService.CurrentLanguageIndex;
+                Assert.GreaterOrEqual(index, 0, "首载后当前语言必须落在批内");
+
+                localizer.Localize();
+                var expectedClip = index == 0
+                    ? UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(enPath)
+                    : UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(zhPath);
+                Assert.AreEqual(expectedClip, audioSource.clip, "就绪后应按当前语言索引注入对应音频");
+            }
+            finally
+            {
+                // CreateAsset 的对象随文件删除，DestroyImmediate 会报「不许销毁资产」
+                UnityEditor.FileUtil.DeleteFileOrDirectory(enPath);
+                UnityEditor.FileUtil.DeleteFileOrDirectory(zhPath);
+                UnityEditor.FileUtil.DeleteFileOrDirectory(enPath + ".meta");
+                UnityEditor.FileUtil.DeleteFileOrDirectory(zhPath + ".meta");
             }
         }
 
