@@ -12,7 +12,7 @@ namespace Moirai.Atropos
     /// 类型名模式：字段为 <c>string</c>，存类型全名，运行时经 <c>ReflectionUtility.ResolveImplType&lt;T&gt;</c> 创建实例，适用于接口类型。 <br />
     /// 数组 / <c>List&lt;T&gt;</c> 字段同样适用（元素为 managed reference 时）：字段行与全部子元素包在一层分组 box 里标示从属关系，<br />
     /// 行首箭头 + 整行点击收展，右侧 <c>+</c> 弹同一类型菜单新增元素；子元素以浅黑底色盒包裹、行尾 ✕ 竖条删除；<br />
-    /// 非 managed reference 元素（string / 普通 PPtr）与只读集合交回 Odin 原生列表 UI；<c>Label</c> 随特性逐元素下传。 <br />
+    /// 非 managed reference 元素（string / 普通 PPtr）与只读集合交回 Odin 原生列表 UI；<c>Label</c> 只覆写集合根行与单字段行的标签，集合元素行不显示「字段 [n]」式自动标签。 <br />
     /// 候选实现类可标注 <see cref="ProviderDisplayAttribute"/> 提供显示元数据：<c>Title</c> 替换下拉行与选中态的类型名，<c>Description</c> 在下拉详情面板置顶优先显示。
     /// </remarks>
     /// <example>

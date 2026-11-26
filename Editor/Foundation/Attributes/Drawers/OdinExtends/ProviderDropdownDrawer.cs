@@ -22,7 +22,7 @@ namespace Moirai.Atropos
     /// 集合字段（元素为 managed reference）整体接管为类型列表 UI：分组 box 包裹字段行与全部子元素；行首箭头 +
     /// 整行点击收展，右侧 <c>+</c> 弹类型弹窗新增；子元素以浅黑底色盒包裹、行尾 ✕ 竖条删除；结构变更经
     /// <see cref="ICollectionResolver"/> Queue API + <see cref="PropertyTree.DelayActionUntilRepaint"/> 延迟应用。
-    /// 非 managed reference 元素与只读集合不接管，交回 Odin 原生列表 UI。
+    /// 非 managed reference 元素与只读集合不接管，交回 Odin 原生列表 UI；集合元素行不显示标签，行内只呈现类型下拉。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]
     internal sealed class ProviderDropdownDrawer : OdinAttributeDrawer<ProviderDropdownAttribute>
@@ -45,6 +45,9 @@ namespace Moirai.Atropos
         private int _countCache = -1;
         private GUIContent _countLabel;
         private float _countWidth = -1f;
+
+        /// <summary>跨帧实测的元素盒高（删除竖条定高用；-1 为尚未测得）。</summary>
+        private float _elementBoxHeight = -1f;
 
         #region 类型菜单缓存 [TYPE MENU CACHE]
 
@@ -514,7 +517,8 @@ namespace Moirai.Atropos
             // 集合宿主下的元素行：box 包裹 + 行尾 ✕ 竖条
             if (s_ManagedCollectionScope == Property.Parent)
             {
-                DrawManagedElement(prop, rowLabel, opts, hasChildren, hasOdinChildren);
+                // 元素行不显示标签（Odin 下发的「字段 [n]」无信息量），类型下拉占满整行
+                DrawManagedElement(prop, opts, hasChildren, hasOdinChildren);
                 return;
             }
 
@@ -545,9 +549,9 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 集合宿主下的元素行（Unity 属性路径）：头行与子属性绘制委托给 <see cref="DrawElementBox"/>。
+        /// 集合宿主下的元素行（Unity 属性路径）：头行与子属性绘制委托给 <see cref="DrawElementBox"/>；元素行不显示标签，类型下拉占满整行。
         /// </summary>
-        private void DrawManagedElement(SerializedProperty prop, GUIContent rowLabel, ProviderOptions opts,
+        private void DrawManagedElement(SerializedProperty prop, ProviderOptions opts,
             bool hasChildren, bool hasOdinChildren)
         {
             DrawElementBox(
@@ -555,7 +559,7 @@ namespace Moirai.Atropos
                 {
                     Rect row = EditorGUILayout.GetControlRect(
                         true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
-                    return DrawRow(row, prop, rowLabel ?? GUIContent.none, opts, hasChildren,
+                    return DrawRow(row, prop, GUIContent.none, opts, hasChildren,
                         (p, i) =>
                         {
                             ApplySelectionWithUndo(p, i, opts.Cache);
@@ -580,20 +584,32 @@ namespace Moirai.Atropos
         /// 子元素盒骨架：左列元素盒（头行 + 展开的子属性），右列 ✕ 竖条撑满同行高度；
         /// <paramref name="drawHeader"/> 返回展开状态，为真且 <paramref name="drawChildren"/> 非空时绘制子属性。
         /// </summary>
+        /// <remarks>
+        /// 删除竖条高度用「固定值 + 跨帧实测元素盒 rect」校准，不用 <c>GUILayout.ExpandHeight</c>——
+        /// OdinMenuEditorWindow 系窗口（FrameworkSettings 等）的属性根容器被拉伸到整窗高，
+        /// ExpandHeight 占位会吸满剩余高度，把分组框连同整页配置撑到占满窗口。
+        /// </remarks>
         private void DrawElementBox(Func<bool> drawHeader, Action drawChildren)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
-                using (var boxScope = new EditorGUILayout.VerticalScope(ElementBoxStyle))
+                var boxScope = new EditorGUILayout.VerticalScope(ElementBoxStyle);
+                using (boxScope)
                 {
                     DrawElementBoxBackground(boxScope.rect);
                     if (drawHeader() && drawChildren != null) drawChildren();
                 }
 
+                // 实测元素盒高，供删除竖条定高：rect 随 Layout 事件解析，首帧未测得时竖条走单行兜底
+                if (boxScope.rect.height > 0f) _elementBoxHeight = boxScope.rect.height;
+
                 if (!CanRemoveElement()) return;
                 GUILayout.Space(BUTTON_GAP);
-                Rect strip = EditorGUILayout.GetControlRect(
-                    GUILayout.Width(EditorGUIUtility.singleLineHeight), GUILayout.ExpandHeight(true));
+                Rect strip = _elementBoxHeight > 0f
+                    ? EditorGUILayout.GetControlRect(
+                        GUILayout.Width(EditorGUIUtility.singleLineHeight),
+                        GUILayout.Height(_elementBoxHeight))
+                    : EditorGUILayout.GetControlRect(GUILayout.Width(EditorGUIUtility.singleLineHeight));
                 if (DrawRemoveStripButton(strip))
                 {
                     QueueRemoveSelf();
@@ -649,7 +665,7 @@ namespace Moirai.Atropos
                             true, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
                         int currentCacheIndex = valueEntry.WeakSmartValue == null
                             ? 0 : cache.IndexOfType(valueEntry.WeakSmartValue.GetType());
-                        return DrawRowCore(row, rowLabel, opts, hasChildren, foldKey,
+                        return DrawRowCore(row, GUIContent.none, opts, hasChildren, foldKey,
                             opts.CacheToLocal(currentCacheIndex), i => ApplyValue(opts, opts.LocalToCache(i)));
                     },
                     hasChildren ? (Action)(() => DrawChildrenWithOdin(false)) : null);

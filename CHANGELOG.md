@@ -24,6 +24,9 @@
   - 服务关停路径的调试器解析从 `GetRequiredService` 改为 `GetService`（可选）：世界销毁兜底对未激活服务驱动关停时，调试服务可能已先被拆走，不再抛解析异常。
 - `#### 文档`
   - 修正 Install.md 的 .NET 版本要求（.NET 4.x → .NET Standard 2.1）、README 目录名漂移（Resource/Pooling → Asset/ObjectPool）、源生成器 README 的 MA2001/MA2002 严重级别标注，以及规范层四处悬空路径指针。
+- `#### Editor`
+  - `ProviderDropdown` 集合元素行的删除竖条改按元素盒实测高度定高——Odin 菜单窗（FrameworkSettings 等）展开 SerializeReference 集合不再撑满整窗。
+  - `ProviderDropdown` 集合元素行不再显示「字段 [n]」式自动标签，行内只呈现类型下拉。
 
 ### Added
 
