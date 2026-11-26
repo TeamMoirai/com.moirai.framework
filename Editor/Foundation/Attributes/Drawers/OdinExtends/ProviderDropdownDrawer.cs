@@ -19,8 +19,9 @@ namespace Moirai.Atropos
     /// 不回退 Odin 默认 managed-reference 绘制；Odin 未解析出子属性时子属性区回退 Unity 序列化绘制。
     /// </summary>
     /// <remarks>
-    /// 集合字段（元素为 managed reference）整体接管为类型列表 UI：分组 box 包裹字段行与全部子元素；行首箭头 +
-    /// 整行点击收展，右侧 <c>+</c> 弹类型弹窗新增；子元素以浅黑底色盒包裹、行尾 ✕ 竖条删除；结构变更经
+    /// 集合字段（元素为 managed reference）整体接管为类型列表 UI：分组以仅描边的细线盒包裹字段行与全部子元素
+    /// （对齐 Odin 原生列表盒）；行首箭头 + 整行点击收展，右侧 <c>+</c> 幽灵图标弹类型弹窗新增；子元素平铺绘制
+    /// （对齐 Odin 原生列表元素的平铺观感）、右侧 ✕ 幽灵图标删除；结构变更经
     /// <see cref="ICollectionResolver"/> Queue API + <see cref="PropertyTree.DelayActionUntilRepaint"/> 延迟应用。
     /// 非 managed reference 元素与只读集合不接管，交回 Odin 原生列表 UI；集合元素行不显示标签，行内只呈现类型下拉。
     /// </remarks>
@@ -308,12 +309,12 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 子属性区高度：内边距 ×2 + 子属性高度与间距（Unity 序列化回退路径用）。
+        /// 子属性区高度：子属性高度与间距（Unity 序列化回退路径用，平铺无内边距）。
         /// </summary>
         private static float GetChildrenHeight(SerializedProperty property)
         {
             float spacing = EditorGUIUtility.standardVerticalSpacing;
-            float h = PAD * 2;
+            float h = 0f;
 
             bool first = true;
             ForEachVisibleChild(property, child =>
@@ -393,16 +394,14 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 绘制子属性盒（Unity 序列化回退路径）；<paramref name="drawBox"/> 为 false 时不叠盒背景（元素盒内嵌套场景）。
+        /// 平铺绘制子属性（Unity 序列化回退路径）：缩进表达从属，不叠盒。
         /// </summary>
-        private static void DrawChildren(Rect rect, SerializedProperty property, bool drawBox = true)
+        private static void DrawChildren(Rect rect, SerializedProperty property)
         {
-            if (drawBox) GUI.Box(rect, GUIContent.none);
-
             float spacing = EditorGUIUtility.standardVerticalSpacing;
-            float top = drawBox ? rect.y + PAD : rect.y;
-            float x = drawBox ? rect.x + PAD : rect.x;
-            float width = drawBox ? rect.width - PAD * 2 : rect.width;
+            float top = rect.y;
+            float x = rect.x;
+            float width = rect.width;
             float y = top;
             int indent = EditorGUI.indentLevel;
             EditorGUI.indentLevel++;
@@ -433,44 +432,28 @@ namespace Moirai.Atropos
 
         #region Odin 绘制 [ODIN DRAWING]
 
-        /// <summary>子属性容器样式：unity-box 背景 + PAD 内边距。</summary>
-        private static GUIStyle s_ChildrenBoxStyle;
-
-        private static GUIStyle ChildrenBoxStyle => s_ChildrenBoxStyle ??= new GUIStyle(GUI.skin.box)
-        {
-            padding = new RectOffset((int)PAD, (int)PAD, (int)PAD, (int)PAD)
-        };
-
-        /// <summary>元素盒样式：unity-box + PAD 内边距，上下 3px 间距分隔字段行与相邻元素。</summary>
+        /// <summary>
+        /// 元素盒样式：无背景无描边——平铺绘制对齐 Odin 原生列表元素，仅承担 PAD 内边距与上下 3px 元素间距。
+        /// </summary>
         private static GUIStyle s_ElementBoxStyle;
 
-        private static GUIStyle ElementBoxStyle => s_ElementBoxStyle ??= new GUIStyle(GUI.skin.box)
+        private static GUIStyle ElementBoxStyle => s_ElementBoxStyle ??= new GUIStyle
         {
             padding = new RectOffset((int)PAD, (int)PAD, (int)PAD, (int)PAD),
             margin = new RectOffset(0, 0, 3, 3)
         };
 
-        /// <summary>集合分组外框样式：包裹字段行与全部子元素，标示从属关系。</summary>
+        /// <summary>
+        /// 集合分组盒样式：无背景——1px 细描边由 <see cref="DrawCollectionBoxFrame"/> 对齐 Odin 原生列表盒绘制，
+        /// 仅承担 4px 内边距与上下 3px 分组间距。
+        /// </summary>
         private static GUIStyle s_CollectionBoxStyle;
 
-        private static GUIStyle CollectionBoxStyle => s_CollectionBoxStyle ??= new GUIStyle(GUI.skin.box)
+        private static GUIStyle CollectionBoxStyle => s_CollectionBoxStyle ??= new GUIStyle
         {
             padding = new RectOffset(4, 4, 4, 4),
             margin = new RectOffset(0, 0, 3, 3)
         };
-
-        /// <summary>
-        /// 元素盒底色：统一浅黑叠加，比字段背景暗一档（元素个数奇偶均可区分）；
-        /// 须在盒 rect 定稿后的 Repaint 帧绘制，天然垫在盒背景与内容之间。
-        /// </summary>
-        private static void DrawElementBoxBackground(Rect boxRect)
-        {
-            if (Event.current.type != EventType.Repaint) return;
-            Color tint = EditorGUIUtility.isProSkin
-                ? new Color(0f, 0f, 0f, 0.12f)
-                : new Color(0f, 0f, 0f, 0.03f);
-            EditorGUI.DrawRect(boxRect, tint);
-        }
 
         protected override void DrawPropertyLayout(GUIContent label)
         {
@@ -569,13 +552,13 @@ namespace Moirai.Atropos
                 },
                 hasChildren ? (Action)(() =>
                 {
-                    if (hasOdinChildren) DrawChildrenWithOdin(false);
+                    if (hasOdinChildren) DrawChildrenWithOdin();
                     else
                     {
-                        // Odin 未解析出子属性：回退 Unity 序列化绘制（盒内不叠盒）
+                        // Odin 未解析出子属性：回退 Unity 序列化平铺绘制
                         Rect boxRect = EditorGUILayout.GetControlRect(
                             true, GetChildrenHeight(prop), GUILayout.ExpandWidth(true));
-                        DrawChildren(boxRect, prop, false);
+                        DrawChildren(boxRect, prop);
                     }
                 }) : null);
         }
@@ -596,7 +579,6 @@ namespace Moirai.Atropos
                 var boxScope = new EditorGUILayout.VerticalScope(ElementBoxStyle);
                 using (boxScope)
                 {
-                    DrawElementBoxBackground(boxScope.rect);
                     if (drawHeader() && drawChildren != null) drawChildren();
                 }
 
@@ -668,7 +650,7 @@ namespace Moirai.Atropos
                         return DrawRowCore(row, GUIContent.none, opts, hasChildren, foldKey,
                             opts.CacheToLocal(currentCacheIndex), i => ApplyValue(opts, opts.LocalToCache(i)));
                     },
-                    hasChildren ? (Action)(() => DrawChildrenWithOdin(false)) : null);
+                    hasChildren ? (Action)(() => DrawChildrenWithOdin()) : null);
                 return;
             }
 
@@ -719,15 +701,11 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 子属性交由 Odin PropertyTree 绘制，子字段上的 Odin 特性正常生效；
-        /// <paramref name="drawInBox"/> 为 false 时不叠盒背景（元素盒内嵌套场景）。
+        /// 子属性交由 Odin PropertyTree 平铺绘制（缩进表达从属），子字段上的 Odin 特性正常生效。
         /// </summary>
-        private void DrawChildrenWithOdin(bool drawInBox = true)
+        private void DrawChildrenWithOdin()
         {
-            EditorGUILayout.VerticalScope scope = drawInBox
-                ? new EditorGUILayout.VerticalScope(ChildrenBoxStyle)
-                : new EditorGUILayout.VerticalScope();
-            using (scope)
+            using (new EditorGUILayout.VerticalScope())
             {
                 GUIHelper.PushIndentLevel(1);
                 try
@@ -792,8 +770,10 @@ namespace Moirai.Atropos
             GUIStyle countStyle = EditorStyles.miniLabel; // 域重载早期可能为 null，为空本帧跳过
             float countW = countStyle != null ? _countWidth : 0f;
 
-            // 分组外框包裹字段行与全部子元素，标示从属关系
-            using (var groupBox = new EditorGUILayout.VerticalScope(CollectionBoxStyle))
+            // 分组盒包裹字段行与全部子元素（对齐 Odin 原生列表盒：仅 1px 描边、无填充）；
+            // scope 变量须声明在 using 外，作用域结束后才读得到 rect（块外引用 using 变量会 CS0103）
+            var groupBox = new EditorGUILayout.VerticalScope(CollectionBoxStyle);
+            using (groupBox)
             {
                 Rect row = EditorGUILayout.GetControlRect(false, lineH, GUILayout.ExpandWidth(true));
                 Rect plusRect = new Rect(row.xMax - lineH, row.y, lineH, lineH); // 行高正方形
@@ -812,7 +792,6 @@ namespace Moirai.Atropos
 
                 bool prevEnabled = GUI.enabled;
                 GUI.enabled &= canAdd;
-                DrawIconButtonFrame(plusRect);
                 if (SirenixEditorGUI.SDFIconButton(plusRect, SdfIconType.Plus, SirenixGUIStyles.IconButton))
                 {
                     // 同一类型弹窗，选中即新增（(None) = 取消）
@@ -834,28 +813,47 @@ namespace Moirai.Atropos
                     GUIHelper.RequestRepaint();
                 }
 
-                if (!GetFoldout(_rootFoldKey, false)) return;
-
-                EditorGUILayout.Space(5); // 字段行与首个子元素的间距
-
-                // 元素经 resolver 特性透传仍由本类单元素模式绘制，按 scope 附元素盒与 ✕
-                var children = Property.Children;
-                var prevScope = s_ManagedCollectionScope;
-                s_ManagedCollectionScope = Property;
-                GUIHelper.PushIndentLevel(1);
-                try
+                if (GetFoldout(_rootFoldKey, false))
                 {
-                    for (int i = 0; i < children.Count; i++)
+                    EditorGUILayout.Space(5); // 字段行与首个子元素的间距
+
+                    // 元素经 resolver 特性透传仍由本类单元素模式绘制，按 scope 附元素盒与 ✕
+                    var children = Property.Children;
+                    var prevScope = s_ManagedCollectionScope;
+                    s_ManagedCollectionScope = Property;
+                    GUIHelper.PushIndentLevel(1);
+                    try
                     {
-                        children[i].Draw();
+                        for (int i = 0; i < children.Count; i++)
+                        {
+                            children[i].Draw();
+                        }
+                    }
+                    finally
+                    {
+                        s_ManagedCollectionScope = prevScope;
+                        GUIHelper.PopIndentLevel();
                     }
                 }
-                finally
-                {
-                    s_ManagedCollectionScope = prevScope;
-                    GUIHelper.PopIndentLevel();
-                }
             }
+
+            // 描边须在作用域结束后绘制（rect 已定稿）；边线只落在内边距带内，不遮内容
+            DrawCollectionBoxFrame(groupBox.rect);
+        }
+
+        /// <summary>
+        /// 分组盒描边：对齐 Odin 原生列表的细描边盒——仅 1px 边线、无填充；须在分组作用域结束后的 Repaint 帧绘制。
+        /// </summary>
+        private static void DrawCollectionBoxFrame(Rect boxRect)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            Color line = EditorGUIUtility.isProSkin
+                ? new Color(0f, 0f, 0f, 0.47f)
+                : new Color(0f, 0f, 0f, 0.2f);
+            EditorGUI.DrawRect(new Rect(boxRect.x, boxRect.y, boxRect.width, 1f), line);
+            EditorGUI.DrawRect(new Rect(boxRect.x, boxRect.yMax - 1f, boxRect.width, 1f), line);
+            EditorGUI.DrawRect(new Rect(boxRect.x, boxRect.y, 1f, boxRect.height), line);
+            EditorGUI.DrawRect(new Rect(boxRect.xMax - 1f, boxRect.y, 1f, boxRect.height), line);
         }
 
         private static string FormatCount(int count) => count == 1 ? "1 item" : count + " items";
@@ -910,29 +908,13 @@ namespace Moirai.Atropos
         }
 
         /// <summary>
-        /// 图标按钮外框：1px 边框 + 微弱底色，标示命中区（按钮样式背景贴图托管侧不可见，故自绘）。
-        /// </summary>
-        private static void DrawIconButtonFrame(Rect rect)
-        {
-            if (Event.current.type != EventType.Repaint) return;
-            bool pro = EditorGUIUtility.isProSkin;
-            Color fill = pro ? new Color(1f, 1f, 1f, 0.04f) : new Color(1f, 1f, 1f, 0.4f);
-            Color line = pro ? new Color(1f, 1f, 1f, 0.16f) : new Color(0f, 0f, 0f, 0.4f);
-            EditorGUI.DrawRect(rect, fill);
-            EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, 1), line);
-            EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - 1, rect.width, 1), line);
-            EditorGUI.DrawRect(new Rect(rect.x, rect.y, 1, rect.height), line);
-            EditorGUI.DrawRect(new Rect(rect.xMax - 1, rect.y, 1, rect.height), line);
-        }
-
-        /// <summary>
-        /// ✕ 竖条按钮：行高正方形、纵向居中（SDFIconButton 会把图标缩放到 rect 尺寸，不能传整条竖条）。
+        /// ✕ 竖条按钮：行高正方形、纵向居中（SDFIconButton 会把图标缩放到 rect 尺寸，不能传整条竖条）；
+        /// 幽灵图标不叠自绘边框，对齐 Odin 原生元素 ✕ 的观感。
         /// </summary>
         private static bool DrawRemoveStripButton(Rect strip)
         {
             float size = EditorGUIUtility.singleLineHeight;
             Rect iconRect = new Rect(strip.x, strip.center.y - size * 0.5f, size, size);
-            DrawIconButtonFrame(iconRect);
             return SirenixEditorGUI.SDFIconButton(iconRect, SdfIconType.X, SirenixGUIStyles.IconButton);
         }
 

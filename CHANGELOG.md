@@ -27,6 +27,7 @@
 - `#### Editor`
   - `ProviderDropdown` 集合元素行的删除竖条改按元素盒实测高度定高——Odin 菜单窗（FrameworkSettings 等）展开 SerializeReference 集合不再撑满整窗。
   - `ProviderDropdown` 集合元素行不再显示「字段 [n]」式自动标签，行内只呈现类型下拉。
+  - `ProviderDropdown` 集合样式对齐 Odin 原生列表：分组盒（含折叠态）与元素行去实心底/叠加改细描边与平铺，＋/✕ 改幽灵图标去除自绘边框。
 
 ### Added
 
