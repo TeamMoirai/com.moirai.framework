@@ -41,6 +41,21 @@ namespace Moirai.Atropos.Asset
             }
 
             SerializedProperty property = Property.Tree.UnitySerializedObject?.FindProperty(Property.UnityPropertyPath);
+            // Odin 4 分组特性（BoxGroup 等）下 UnityPropertyPath 带前导点（如 ".m_X"），FindProperty 必然落空——
+            // 此时改走 GetUnityPropertyForPath（按 Odin 路径解析，分组段内部已处理），否则整块回退默认绘制
+            if (property == null)
+            {
+                SerializedProperty fallback = Property.Tree.GetUnityPropertyForPath(Property.Path);
+
+                // 分组下 Odin 对「更深一层」路径的解析会落到错误的包装对象上（targetObject 非树目标）——
+                // 仅当解析结果仍挂在树的同一目标对象上才采用，否则保持 null 回退默认绘制
+                if (fallback != null && Property.Tree.UnitySerializedObject != null
+                    && fallback.serializedObject.targetObject == Property.Tree.UnitySerializedObject.targetObject)
+                {
+                    property = fallback;
+                }
+            }
+
             if (property == null)
             {
                 CallNextDrawer(label);

@@ -31,6 +31,9 @@
   - 服务诊断信息与拦截器接入熔断状态（见 Fixed）。
 - `#### Foundation`
   - `LogUtility.onFatalLogged` 公共遥测接缝：Fatal 级日志通过过滤后触发，供宿主接崩溃/异常上报；订阅方异常就地隔离不影响日志管线。
+- `#### Asset`
+  - 新增 `SpriteAssetIndex` 图文混排引用（TMP 图集弱引用 + 精灵下标）与检视绘制器：弱引用一行复刻 `AssetReferenceDrawer` 口径（对象字段、Package 下拉、GUID 悬空报错），下标滑动条按图集精灵数钳制（图集未配置退回整数字段），64px 精灵预览紧贴字段左侧。
+  - `AssetReferenceDrawer` 兜底加固：Unity 属性路径解析落到非树目标（Odin 分组/深层路径包装对象）时回退默认绘制，不再把选值写入包装对象。
 
 ### CI
 
