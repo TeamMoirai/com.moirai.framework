@@ -8,7 +8,7 @@ using UObject = UnityEngine.Object;
 namespace Moirai.Atropos.Asset
 {
     /// <summary>
-    /// <see cref="SpriteAssetIndex"/> 的 Odin 绘制器：图集弱引用一行（复刻 <see cref="AssetReferenceDrawer"/> 默认实现），
+    /// <see cref="TMPSpriteReference"/> 的 Odin 绘制器：图集弱引用一行（复刻 <see cref="AssetReferenceDrawer"/> 默认实现），
     /// 下标用按图集精灵数钳制的滑动条，命中精灵预览紧贴字段左侧（对齐旧版 CurrencyPane 口径）。
     /// </summary>
     /// <remarks>
@@ -23,7 +23,7 @@ namespace Moirai.Atropos.Asset
     /// 本项目部分图集只填了字形表）；两者皆空时下标退回普通整数字段、不画预览。
     /// </remarks>
     [DrawerPriority(1, 0, 0)]
-    public class SpriteAssetIndexDrawer : OdinValueDrawer<SpriteAssetIndex>
+    public class TMPSpriteReferenceDrawer : OdinValueDrawer<TMPSpriteReference>
     {
         private const string ASSET_PROPERTY = "m_SpriteAsset";
         private const string INDEX_PROPERTY = "m_SpriteIndex";

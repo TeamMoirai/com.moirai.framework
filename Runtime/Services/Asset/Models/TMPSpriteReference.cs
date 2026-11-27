@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
 
@@ -11,13 +12,14 @@ namespace Moirai.Atropos.Asset
     /// 供配置资产（货币、伤害类型等）与 UI 组件以 <c>&lt;sprite=N tint&gt;</c> 富文本嵌图。
     /// </summary>
     /// <remarks>
-    /// 检视绘制在 Editor 侧 <c>SpriteAssetIndexDrawer</c>（Moirai.Atropos.Asset）：
+    /// 检视绘制在 Editor 侧 <c>TMPSpriteReferenceDrawer</c>（Moirai.Atropos.Asset）：
     /// 图集弱引用一行（AssetReference 默认 Drawer 实现）、下标用按图集精灵数钳制的滑动条、
     /// 命中精灵预览紧贴字段左侧（对齐旧版 CurrencyPane 口径）；
     /// 取像走 <see cref="AssetService"/>（保活窗口口径），富文本由 <see cref="BuildSpriteTag"/> 生成。
     /// </remarks>
     [Serializable]
-    public class SpriteAssetIndex
+    [BoxGroup("图文混排 [TMP SpriteAsset]"), InlineProperty, HideLabel]
+    public class TMPSpriteReference
     {
 
         #region 字段 [FIELDS]
